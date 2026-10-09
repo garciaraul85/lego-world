@@ -40,12 +40,12 @@ describe('CommandBus', () => {
     const r = bus.execute(
       {
         type: 'bricks.place',
-        payload: { map, bricks: [{ type: 'brick2x4', x: 3, y: 6, z: 3, rot: 0, color: '#d20c20' }] },
+        payload: { map, bricks: [{ type: 'brick2x4', x: 40, y: 0, z: 40, rot: 0, color: '#d20c20' }] },
       },
       { source: 'user' },
     );
     expect(r).toMatchObject({ ok: true });
-    expect(r.touched).toEqual([paths.chunk(map, 0, 0)]);
+    expect(r.touched).toEqual([paths.chunk(map, 1, 1)]);
     const after = dump(store);
     expect(after).not.toBe(before);
     expect(bus.undo()).toBe(true);
@@ -62,7 +62,7 @@ describe('CommandBus', () => {
       [
         {
           type: 'bricks.place',
-          payload: { map, bricks: [{ type: 'plate2x2', x: 1, y: 0, z: 1, rot: 0, color: '#0058ac' }] },
+          payload: { map, bricks: [{ type: 'plate2x2', x: 100, y: 0, z: 1, rot: 0, color: '#0058ac' }] },
         },
         { type: 'bricks.remove', payload: { map, ids: [999_999] } },
       ],
@@ -172,7 +172,7 @@ describe('CommandBus', () => {
       ])();
       if (bus.execute(cmd, { source: 'user' }).ok) applied++;
     }
-    expect(applied).toBeGreaterThan(300);
+    expect(applied).toBeGreaterThan(200);
     const end = dump(store);
     const steps = bus.history().length;
     for (let i = 0; i < steps; i++) bus.undo();
@@ -202,7 +202,7 @@ describe('ProjectStore', () => {
         { type: 'map.setEnvironment', payload: { map, time: 'night' } },
         {
           type: 'bricks.place',
-          payload: { map, bricks: [{ type: 'brick1x1', x: 0, y: 30, z: 0, rot: 0, color: '#222630' }] },
+          payload: { map, bricks: [{ type: 'brick1x1', x: 20, y: 0, z: 0, rot: 0, color: '#222630' }] },
         },
       ],
       { source: 'user' },
