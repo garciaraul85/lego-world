@@ -33,6 +33,21 @@ const zodEnglishOnly = {
   },
 };
 
+/** `import text from './x.js?raw'` -> the file's text, as Vite does for tests. */
+const rawText = {
+  name: 'raw-text',
+  setup(b) {
+    b.onResolve({ filter: /\?raw$/ }, (args) => ({
+      path: resolve(args.resolveDir, args.path.slice(0, -4)),
+      namespace: 'raw',
+    }));
+    b.onLoad({ filter: /.*/, namespace: 'raw' }, async (args) => ({
+      contents: await (await import('node:fs/promises')).readFile(args.path, 'utf8'),
+      loader: 'text',
+    }));
+  },
+};
+
 for (const [name, entry] of Object.entries(ENTRIES)) {
   const r = await build({
     entryPoints: [resolve(ROOT, entry)],
@@ -46,7 +61,7 @@ for (const [name, entry] of Object.entries(ENTRIES)) {
     define: { __DEV__: String(dev) },
     metafile: true,
     logLevel: 'warning',
-    plugins: [zodEnglishOnly],
+    plugins: [zodEnglishOnly, rawText],
   });
   const bytes = Object.values(r.metafile.outputs)[0].bytes;
   console.log(`built ${name}: ${(bytes / 1024).toFixed(1)} KB`);

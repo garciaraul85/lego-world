@@ -13,8 +13,17 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
   },
-  "include": ["src/**/*.ts", "tests/unit/**/*.ts", "tests/e2e/**/*.ts", "scripts/**/*.ts", "*.config.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/unit/**/*.ts",
+    "tests/e2e/**/*.ts",
+    "scripts/**/*.ts",
+    "*.config.ts"
+  ],
   "exclude": ["src/legacy/**", "node_modules", "dist"]
 }
