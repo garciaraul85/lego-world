@@ -1,0 +1,39 @@
+{
+  "name": "brick-worlds",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Brick Worlds Engine, grown from LEGO World v68",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build:legacy && node scripts/build.mjs",
+    "build:legacy": "node scripts/inline-html.mjs --legacy",
+    "serve": "node scripts/serve.mjs --port 8000",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc -p tsconfig.json",
+    "depcruise": "depcruise src --config .dependency-cruiser.cjs",
+    "test:unit": "vitest run",
+    "test:legacy": "node tests/legacy/run.mjs",
+    "test:e2e": "npm run build && playwright test",
+    "check": "npm run build && npm run lint && npm run typecheck && npm run depcruise && npm run test:unit && npm run test:legacy",
+    "check:fast": "npm run lint && npm run typecheck && npm run depcruise && npm run test:unit",
+    "build:dev": "npm run build:legacy && node scripts/build.mjs --dev"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.64.0",
+    "@types/node": "26.6.5",
+    "dependency-cruiser": "18.5.0",
+    "esbuild": "0.28.2",
+    "fake-indexeddb": "6.2.5",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  },
+  "dependencies": {
+    "idb": "8.0.4",
+    "zod": "4.6.5"
+  }
+}

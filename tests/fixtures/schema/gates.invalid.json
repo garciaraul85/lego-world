@@ -1,0 +1,23 @@
+{
+ "path": "world/gates.json",
+ "value": {
+  "gates": [
+   {
+    "id": "gt_0000000001",
+    "from": {
+     "map": "map_town01aaaa",
+     "spawn": "sp_plaza00001"
+    },
+    "to": {
+     "map": "map_0000000002",
+     "spawn": "sp_0000000001"
+    },
+    "twoWay": "yes"
+   }
+  ],
+  "mapOrder": [
+   "map_town01aaaa",
+   "map_0000000002"
+  ]
+ }
+}

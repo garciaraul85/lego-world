@@ -1,0 +1,11 @@
+{
+  "_note": "Approximate seconds on one core (2-core container, 2026-10-09). Used only to balance shards.",
+  "characters.cjs": 145, "superheroes.cjs": 73, "nipple-details.cjs": 54, "foliage-volcano-clothing.cjs": 50,
+  "arm-clearance.cjs": 50, "motion-bounds.cjs": 49, "club-arms.cjs": 42, "random-worlds.cjs": 36,
+  "touch-teleports.cjs": 31, "studio-preview.cjs": 27, "printed-chest-art.cjs": 25, "scale-and-buildings.cjs": 20,
+  "club-clearance.cjs": 15, "maps.cjs": 17, "art-inputs.cjs": 17, "weapon-visibility.cjs": 16, "world.cjs": 16,
+  "weapons.cjs": 16, "warhammer-clearance.cjs": 14, "magic.cjs": 11, "mountains-volcanoes.cjs": 11,
+  "trees-sky-roads.cjs": 9, "debris.cjs": 8, "actions.cjs": 8, "travel.cjs": 7, "rig-collision.cjs": 7,
+  "game-ui.cjs": 6, "spawn-editor.cjs": 5, "rebuilding.cjs": 5, "npc-collision.cjs": 5, "screen.cjs": 5,
+  "joints.cjs": 2, "collision.cjs": 1, "art-and-neighbors.cjs": 1
+}

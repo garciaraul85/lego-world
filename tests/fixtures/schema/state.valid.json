@@ -1,0 +1,25 @@
+{
+ "path": "maps/map_town01aaaa/state.json",
+ "value": {
+  "broken": [
+   {
+    "id": 1,
+    "originals": [
+     {
+      "id": 181,
+      "rows": 2,
+      "cols": 2,
+      "turn": 0,
+      "x": -45,
+      "y": 1,
+      "z": -21,
+      "kind": "brick",
+      "color": 8,
+      "group": "tree-willow-1"
+     }
+    ]
+   }
+  ],
+  "player": null
+ }
+}

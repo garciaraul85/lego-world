@@ -1,0 +1,21 @@
+{
+ "path": "audio/music.json",
+ "value": {
+  "states": {
+   "mus_town000001": {
+    "layers": [
+     {
+      "media": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "volume": -8
+     }
+    ],
+    "loop": true,
+    "bpm": 100
+   }
+  },
+  "crossfade": 1.5,
+  "stingers": {
+   "quest.done": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  }
+ }
+}

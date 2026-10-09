@@ -1,0 +1,23 @@
+{
+ "path": "project.json",
+ "value": {
+  "format": "brickworlds-project",
+  "schema": 4,
+  "id": "prj_8f2kq0x1ab",
+  "name": "Volcano Rescue",
+  "created": "2026-10-09T19:00:00Z",
+  "modified": "2026-10-09T19:42:10Z",
+  "entry": {
+   "map": "map_town01aaaa",
+   "spawn": "sp_plaza00001",
+   "screen": "scr_splash0001"
+  },
+  "hero": "chr_hero000001",
+  "files": {
+   "maps/map_town01aaaa/map.json": {
+    "hash": "b3a1b3a1b3a1b3a1",
+    "bytes": 2114
+   }
+  }
+ }
+}

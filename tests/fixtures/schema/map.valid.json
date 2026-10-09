@@ -1,0 +1,71 @@
+{
+ "path": "maps/map_town01aaaa/map.json",
+ "value": {
+  "id": "map_town01aaaa",
+  "name": "Harbor Town",
+  "size": {
+   "w": 256,
+   "d": 256
+  },
+  "sky": {
+   "time": "day"
+  },
+  "weather": {
+   "rain": false,
+   "snow": false,
+   "snowing": false
+  },
+  "generator": {
+   "environments": [
+    "city",
+    "forest"
+   ],
+   "seed": 418811,
+   "size": 32,
+   "mountainShape": "mixed",
+   "mountainScale": "mixed",
+   "version": 2,
+   "locked": false
+  },
+  "music": "mus_town000001",
+  "ambience": "snd_harbor0amb",
+  "spawns": [
+   {
+    "id": "sp_plaza00001",
+    "name": "Plaza",
+    "pos": [
+     128,
+     3,
+     120
+    ],
+    "yaw": 3.14
+   }
+  ],
+  "zones": [
+   {
+    "id": "zn_shop000001",
+    "shape": "box",
+    "min": [
+     100,
+     0,
+     90
+    ],
+    "max": [
+     130,
+     30,
+     110
+    ],
+    "tags": [
+     "music"
+    ],
+    "music": "mus_market0001",
+    "onEnter": [
+     {
+      "do": "emit",
+      "event": "zone.shop.enter"
+     }
+    ]
+   }
+  ]
+ }
+}

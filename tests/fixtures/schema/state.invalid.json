@@ -1,0 +1,12 @@
+{
+ "path": "maps/map_town01aaaa/state.json",
+ "value": {
+  "broken": [
+   {
+    "id": 1,
+    "originals": []
+   }
+  ],
+  "player": null
+ }
+}

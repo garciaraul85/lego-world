@@ -1,0 +1,12 @@
+{
+ "path": "logic/variables.json",
+ "value": {
+  "vars": {
+   "repaired": {
+    "type": "number",
+    "default": 0,
+    "scope": "global"
+   }
+  }
+ }
+}

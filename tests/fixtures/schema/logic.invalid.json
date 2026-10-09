@@ -1,0 +1,110 @@
+{
+ "path": "logic/lg_repairq001.json",
+ "value": {
+  "id": "lg_repairq001",
+  "name": "Repair 3 buildings",
+  "scope": "global",
+  "nodes": [
+   {
+    "id": "n1",
+    "type": "event.onRebuildFinished",
+    "pos": [
+     40,
+     80
+    ]
+   },
+   {
+    "id": "n2",
+    "type": "var.add",
+    "pos": [
+     300,
+     80
+    ],
+    "args": {
+     "var": "repaired",
+     "value": 1
+    }
+   },
+   {
+    "id": "n3",
+    "type": "flow.branch",
+    "pos": [
+     540,
+     80
+    ]
+   },
+   {
+    "id": "n4",
+    "type": "cmp.gte",
+    "pos": [
+     540,
+     200
+    ],
+    "args": {
+     "b": 3
+    }
+   },
+   {
+    "id": "n5",
+    "type": "var.get",
+    "pos": [
+     300,
+     200
+    ],
+    "args": {
+     "var": "repaired"
+    }
+   },
+   {
+    "id": "n6",
+    "type": "cinematic.play",
+    "pos": [
+     780,
+     60
+    ],
+    "args": {
+     "cinematic": "cin_reward0001",
+     "once": true
+    }
+   }
+  ],
+  "edges": [
+   [
+    "n1",
+    "then",
+    "n2",
+    "exec"
+   ],
+   [
+    "n2",
+    "then",
+    "n3",
+    "exec"
+   ],
+   [
+    "n5",
+    "value",
+    "n4",
+    "a"
+   ],
+   [
+    "n4",
+    "result",
+    "n3",
+    "cond"
+   ],
+   [
+    "n3",
+    "then",
+    "n6",
+    "exec"
+   ],
+   [
+    "n1",
+    "then",
+    "n99",
+    "exec"
+   ]
+  ]
+ }
+}

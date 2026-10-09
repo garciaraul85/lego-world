@@ -1,0 +1,33 @@
+{
+ "path": "maps/map_town01aaaa/instances.json",
+ "value": {
+  "npcsSaved": true,
+  "items": [
+   {
+    "id": "ins_0000000001",
+    "kind": "npc",
+    "character": "chr_0000000001",
+    "legacyId": 1,
+    "biome": "prairie",
+    "role": "Runner",
+    "state": {
+     "x": -4.2,
+     "y": 1.2,
+     "z": 0.3,
+     "heading": 1
+    }
+   },
+   {
+    "id": "ins_chest00001",
+    "kind": "asset",
+    "asset": "ast_chest00001",
+    "pos": [
+     10,
+     3,
+     4
+    ],
+    "rot": 1
+   }
+  ]
+ }
+}

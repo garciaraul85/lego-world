@@ -1,0 +1,22 @@
+{
+ "path": "audio/events.json",
+ "value": {
+  "events": {
+   "snd_woodcrash1": {
+    "clips": [
+     "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ],
+    "pick": "random",
+    "volume": -6,
+    "pitch": [
+     0.9,
+     1.1
+    ],
+    "bus": "sfx",
+    "spatial": true,
+    "maxVoices": 4,
+    "cooldown": 0.05
+   }
+  }
+ }
+}

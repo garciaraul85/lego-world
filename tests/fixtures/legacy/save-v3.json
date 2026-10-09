@@ -1,0 +1,53 @@
+{
+ "format": "brick-builder",
+ "version": 3,
+ "pieces": [
+  {
+   "id": 1,
+   "rows": 8,
+   "cols": 8,
+   "turn": 0,
+   "x": -4,
+   "z": -4,
+   "y": 0,
+   "kind": "plate",
+   "color": 3
+  },
+  {
+   "id": 2,
+   "rows": 2,
+   "cols": 2,
+   "turn": 0,
+   "x": -1,
+   "z": -3,
+   "y": 1,
+   "kind": "brick",
+   "color": 8,
+   "group": "tower"
+  },
+  {
+   "id": 3,
+   "rows": 2,
+   "cols": 2,
+   "turn": 0,
+   "x": -1,
+   "z": -3,
+   "y": 4,
+   "kind": "brick",
+   "color": 8,
+   "group": "tower"
+  },
+  {
+   "id": 4,
+   "rows": 2,
+   "cols": 2,
+   "turn": 0,
+   "x": -1,
+   "z": -3,
+   "y": 7,
+   "kind": "brick",
+   "color": 8,
+   "group": "tower"
+  }
+ ]
+}

@@ -1,0 +1,69 @@
+{
+ "path": "screens/scr_hud0000001.json",
+ "value": {
+  "id": "scr_hud0000001",
+  "kind": "hud",
+  "name": "Main HUD",
+  "root": {
+   "type": "panel",
+   "children": [
+    {
+     "type": "marquee",
+     "id": "quest",
+     "anchor": [
+      0,
+      0
+     ],
+     "offset": [
+      24,
+      24
+     ],
+     "text": "Repaired {repaired}/3",
+     "bind": [
+      "repaired"
+     ],
+     "style": {
+      "size": 22,
+      "color": "#ffffff"
+     }
+    },
+    {
+     "type": "hearts",
+     "anchor": [
+      1,
+      0
+     ],
+     "offset": [
+      -24,
+      24
+     ],
+     "bind": [
+      "hero.hp"
+     ]
+    },
+    {
+     "type": "button",
+     "anchor": [
+      1,
+      1
+     ],
+     "offset": [
+      -24,
+      -24
+     ],
+     "label": "Pause",
+     "touchOnly": true,
+     "sound": "snd_uiclick001",
+     "onPress": [
+      {
+       "do": "showScreen",
+       "screen": "scr_pause00001"
+      }
+     ]
+    }
+   ]
+  },
+  "music": null,
+  "pausesGame": false
+ }
+}
