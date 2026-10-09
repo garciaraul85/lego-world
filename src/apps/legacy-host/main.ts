@@ -76,7 +76,7 @@ async function boot() {
   let pending: string | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
-  const sync = () => {
+  const sync = (source: 'legacy' | 'agent' = 'legacy', label = 'Edit in LEGO World') => {
     timer = null;
     const text = pending;
     pending = null;
@@ -95,7 +95,7 @@ async function boot() {
         const cmds = legacySyncCommands(store, text);
         stats.commands += cmds.length;
         if (cmds.length) {
-          const r = bus.execute(cmds, { source: 'legacy', label: 'Edit in LEGO World' });
+          const r = bus.execute(cmds, { source, label });
           if (!r.ok) {
             stats.rejected++;
             console.warn('[brickworlds] sync rejected:', r.error);
@@ -116,6 +116,30 @@ async function boot() {
     if (timer) clearTimeout(timer);
     timer = setTimeout(sync, 1000);
   };
+
+  // P0.10: v68's agent tools (document.modelContext) become one bus step each, source "agent".
+  // v68 saves synchronously inside a tool call, so the save is synced right after the tool returns.
+  type Tool = { name: string; annotations?: { readOnlyHint?: boolean }; execute: (input?: unknown) => unknown };
+  const mc = (document as unknown as { modelContext?: { registerTool: (t: Tool) => unknown } }).modelContext;
+  if (mc?.registerTool) {
+    const register = mc.registerTool.bind(mc);
+    mc.registerTool = (tool: Tool) =>
+      register(
+        tool.annotations?.readOnlyHint
+          ? tool
+          : {
+              ...tool,
+              execute(input?: unknown) {
+                const result = tool.execute.call(tool, input);
+                if (timer) {
+                  clearTimeout(timer);
+                  sync('agent', `Agent: ${tool.name}`);
+                }
+                return result;
+              },
+            },
+      );
+  }
 
   /** Sync any pending v68 save now and write it to IndexedDB. Resolves when stored. */
   const flushAll = (): Promise<void> => {

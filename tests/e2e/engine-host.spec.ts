@@ -67,9 +67,10 @@ test('mirrors v68 edits into a v5 project in IndexedDB and restores them after r
   await flushSync(page);
   expect(await mirroredProjects(page)).toHaveLength(1);
   const history = await page.evaluate(() =>
-    ((window as unknown as W).__bw.bus as { history: () => { source: string }[] }).history(),
+    ((window as unknown as W).__bw.bus as { history: () => { source: string; label: string }[] }).history(),
   );
-  expect(history.at(-1)?.source).toBe('legacy');
+  // P0.10: each v68 agent-tool call is its own bus step
+  expect(history.at(-1)).toMatchObject({ source: 'agent', label: 'Agent: generate_lego_world' });
 
   // v68 itself would restore from localStorage; wipe it so the restore can only come from IndexedDB.
   await page.evaluate(() => localStorage.removeItem('lego-free-build-v1'));
