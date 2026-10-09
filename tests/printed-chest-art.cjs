@@ -1,0 +1,23 @@
+const fs=require('fs'),vm=require('vm'),path=require('path'),assert=require('assert');
+const bootstrap=fs.readFileSync(path.join(__dirname,'art-inputs.cjs'),'utf8').split('(async()=>{')[0];
+const context={require,__dirname,console,Buffer,AbortController,Blob,URL,setTimeout,queueMicrotask};
+vm.runInNewContext(bootstrap+';globalThis.artBoot=ctx.boot;',context);
+(async()=>{
+ const b=context.artBoot(),el=id=>b.elements['#'+id],call=(n,v)=>b.tools.get(n).execute(v);
+ call('configure_lego_character',{profile:{gender:'Female',breastMode:'Printed',breastSize:70,breastShape:'Rounded',shirt:'Bare torso',shirtColor:'#2458aa'}});
+ b.fire('bb-paint-character');assert.equal(el('bb-art-chest-controls').hidden,false);
+ const guide=()=>Buffer.from(el('bb-art-canvas')._context.data).toString('base64'),rounded=guide();
+ el('bb-art-breast-shape').value='Pointy';b.fire('bb-art-breast-shape','change');assert.notEqual(guide(),rounded,'shape changes the current drawing guide');
+ const pointy=guide();el('bb-art-breast-size').value=150;b.fire('bb-art-breast-size','input');b.fire('bb-art-breast-size','change');assert.notEqual(guide(),pointy,'size updates drawing guide');assert.equal(el('bb-art-breast-value').textContent,150);
+ el('bb-art-color').value='#ee1122';for(const type of ['pointerdown','pointerup'])b.fire('bb-art-canvas',type,{pointerId:1,clientX:180,clientY:180,preventDefault(){}});
+ const ink=b.read().characters.items[0].profile.paint.torso;assert(ink,'drawing saved on printed chest');
+ assert.equal(el('bb-art-nipple-controls').hidden,false);const plainGuide=guide();el('bb-art-nipple-style').value='Round';b.fire('bb-art-nipple-style','change');await Promise.resolve();assert.notEqual(guide(),plainGuide,'nipple details appear in the actual drawing guide');el('bb-art-nipple-size').value=73;b.fire('bb-art-nipple-size','input');b.fire('bb-art-nipple-size','change');await Promise.resolve();assert.equal(el('bb-art-nipple-value').textContent,73);assert.equal(b.read().characters.items[0].profile.paint.torso,ink,'nipple editing preserves freehand ink');
+ const brownGuide=guide();el('bb-art-nipple-color').value='#b84672';b.fire('bb-art-nipple-color','input');b.fire('bb-art-nipple-color','change');await Promise.resolve();assert.equal(b.read().characters.items[0].profile.nippleColor,'#b84672');assert.notEqual(guide(),brownGuide,'color changes update the actual drawing guide');assert.equal(b.read().characters.items[0].profile.paint.torso,ink);
+ el('bb-art-breast-mode').value='Sculpted';b.fire('bb-art-breast-mode','change');await Promise.resolve();assert.equal(b.read().characters.items[0].profile.paint.torso,ink,'mode switch preserves drawing');
+ el('bb-art-breast-mode').value='Printed';b.fire('bb-art-breast-mode','change');await Promise.resolve();assert.equal(b.read().characters.items[0].profile.paint.torso,ink);
+ const printedGuide=guide();el('bb-art-breast-mode').value='Comic';b.fire('bb-art-breast-mode','change');await Promise.resolve();assert.notEqual(guide(),printedGuide,'comic editor guide is visibly different from the shaded print');assert.equal(b.read().characters.items[0].profile.paint.torso,ink,'comic mode preserves custom ink');assert(el('bb-art-message').textContent.includes('cel shading'));
+ el('bb-art-part').value='head';b.fire('bb-art-part','change');assert.equal(el('bb-art-chest-controls').hidden,true,'controls are local to torso');assert.equal(el('bb-art-nipple-controls').hidden,true);
+ b.fire('bb-art-done');const reopened=context.artBoot(new Map(b.stored)),p=reopened.read().characters.items[0].profile;assert.equal(p.breastMode,'Comic');assert.equal(p.breastSize,150);assert.equal(p.breastShape,'Pointy');assert.equal(p.nippleStyle,'Round');assert.equal(p.nippleSize,73);assert.equal(p.paint.torso,ink,'chest settings and custom ink survive reload');
+ call('configure_lego_character',{profile:{gender:'Male'}});b.fire('bb-paint-character');el('bb-art-part').value='torso';b.fire('bb-art-part','change');await Promise.resolve();assert.equal(el('bb-art-nipple-controls').hidden,false,'male drawing editor includes nipple controls');assert.equal(el('bb-art-chest-controls').hidden,true,'male editor hides female chest controls');
+ console.log('PASS: live printed chest shape/size guide, localized editor controls, custom ink preserved across modes, and settings/artwork persist after reload.');
+})().catch(e=>{console.error(e);process.exitCode=1;});
