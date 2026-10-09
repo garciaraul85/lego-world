@@ -1,0 +1,36 @@
+{
+ "format": "brick-builder",
+ "version": 1,
+ "pieces": [
+  {
+   "rows": 8,
+   "cols": 8,
+   "kind": "plate",
+   "color": 3,
+   "turn": 0,
+   "x": -4,
+   "z": -4,
+   "y": 0
+  },
+  {
+   "rows": 2,
+   "cols": 4,
+   "kind": "brick",
+   "color": 0,
+   "turn": 0,
+   "x": -2,
+   "z": -1,
+   "y": 1
+  },
+  {
+   "rows": 2,
+   "cols": 4,
+   "kind": "brick",
+   "color": 1,
+   "turn": 1,
+   "x": -1,
+   "z": -2,
+   "y": 4
+  }
+ ]
+}

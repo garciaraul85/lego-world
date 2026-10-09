@@ -1,0 +1,6 @@
+node_modules/
+dist/app-check.js
+test-results/
+playwright-report/
+bench/results.json
+*.log
