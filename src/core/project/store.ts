@@ -9,6 +9,8 @@ export type StoreOptions = {
   validate?: boolean;
   /** Deep-freeze stored values so accidental mutation throws (default true in tests, cheap enough for dev). */
   freeze?: boolean;
+  /** Validate the initial files (default true). The loader turns this off and reports problems itself. */
+  validateInitial?: boolean;
 };
 
 /** Called before a path is first written in a transaction; the bus uses it to capture undo before-images. */
@@ -48,7 +50,7 @@ export class ProjectStore {
     this.validate = opts.validate ?? true;
     this.freeze = opts.freeze ?? true;
     for (const [p, v] of initial) {
-      this.check(p, v);
+      if (opts.validateInitial ?? true) this.check(p, v);
       this.files.set(p, this.freeze ? deepFreeze(v) : v);
     }
   }
@@ -93,6 +95,11 @@ export class ProjectStore {
   /** Paths changed (written or removed) since the last markSaved. */
   dirty(): ReadonlySet<string> {
     return this.dirtySet;
+  }
+
+  /** Marks files as needing a save without changing them (e.g. a new project's first write goes through autosave). */
+  markDirty(changed: Iterable<string>): void {
+    for (const p of changed) this.dirtySet.add(p);
   }
 
   markSaved(saved: Iterable<string>): void {
