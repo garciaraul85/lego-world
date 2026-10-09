@@ -1,0 +1,100 @@
+{
+ "path": "assets/ast_chest00001.json",
+ "value": {
+  "id": "ast_chest00001",
+  "name": "Treasure chest",
+  "category": "prop",
+  "bricks": [
+   [
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    3
+   ],
+   [
+    1,
+    0,
+    3,
+    0,
+    0,
+    1,
+    3
+   ]
+  ],
+  "palette": {
+   "types": [
+    "brick2x4",
+    "plate2x4"
+   ],
+   "colors": [
+    "#6b3f1f",
+    "#f2cd37",
+    "#000",
+    "#8a5a2b"
+   ]
+  },
+  "pivot": [
+   1,
+   0,
+   2
+  ],
+  "footprint": [
+   4,
+   2
+  ],
+  "sockets": [
+   {
+    "id": "use",
+    "kind": "interact",
+    "pos": [
+     1,
+     4,
+     -1
+    ],
+    "prompt": "Open"
+   }
+  ],
+  "states": [
+   "closed",
+   "open"
+  ],
+  "initialState": "closed",
+  "interactions": [
+   {
+    "socket": "use",
+    "when": {
+     "state": "closed"
+    },
+    "do": [
+     {
+      "do": "explode"
+     },
+     {
+      "do": "sound",
+      "event": "snd_chestopen1"
+     },
+     {
+      "do": "showScreen",
+      "screen": "scr_reward0001"
+     }
+    ]
+   }
+  ],
+  "smash": {
+   "enabled": true,
+   "rebuild": true,
+   "sound": "snd_woodcrash1",
+   "studs": 20
+  },
+  "generator": {
+   "environments": [
+    "city"
+   ],
+   "weight": 0.2,
+   "placeOn": "street"
+  }
+ }
+}

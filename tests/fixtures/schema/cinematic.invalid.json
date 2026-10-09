@@ -1,0 +1,113 @@
+{
+ "path": "cinematics/cin_reward0001.json",
+ "value": {
+  "id": "cin_reward0001",
+  "name": "Mayor thanks you",
+  "map": "map_town01aaaa",
+  "length": 10,
+  "skippable": true,
+  "letterbox": true,
+  "hideHud": true,
+  "cast": [
+   {
+    "role": "hero",
+    "actor": "$hero"
+   },
+   {
+    "role": "mayor",
+    "actor": "chr_mayor00001"
+   }
+  ],
+  "marks": [
+   {
+    "id": "m1",
+    "pos": [
+     128,
+     3,
+     112
+    ],
+    "yaw": 0
+   }
+  ],
+  "tracks": [
+   {
+    "kind": "actor",
+    "role": "mayor",
+    "items": [
+     {
+      "t": 0,
+      "do": "moveTo",
+      "mark": "m1",
+      "speed": "fly"
+     },
+     {
+      "t": 3,
+      "do": "say",
+      "text": "You fixed the town!",
+      "dur": 2.5
+     },
+     {
+      "t": 3,
+      "do": "play",
+      "clip": "clp_wave000001"
+     }
+    ]
+   },
+   {
+    "kind": "camera",
+    "items": [
+     {
+      "t": 0,
+      "shot": "wide",
+      "pos": [
+       140,
+       20,
+       140
+      ],
+      "look": "mayor",
+      "fov": 50
+     },
+     {
+      "t": 3,
+      "shot": "close",
+      "follow": "mayor",
+      "offset": [
+       0,
+       4,
+       8
+      ],
+      "blend": 0.8
+     }
+    ]
+   },
+   {
+    "kind": "music",
+    "items": [
+     {
+      "t": 0,
+      "music": "mus_triumph001",
+      "fade": 1
+     }
+    ]
+   },
+   {
+    "kind": "sfx",
+    "items": [
+     {
+      "t": 8.5,
+      "event": "snd_fireworks1"
+     }
+    ]
+   },
+   {
+    "kind": "event",
+    "items": [
+     {
+      "t": 10,
+      "emit": "cine.reward.done"
+     }
+    ]
+   }
+  ]
+ }
+}

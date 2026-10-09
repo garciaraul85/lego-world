@@ -1,0 +1,22 @@
+{
+ "path": "audio/mixer.json",
+ "value": {
+  "buses": {
+   "master": 0,
+   "music": -4,
+   "sfx": 0,
+   "voice": 0,
+   "ui": -3,
+   "ambience": -8
+  },
+  "duck": [
+   {
+    "when": "voice",
+    "target": "music",
+    "amount": -10,
+    "attack": 0.1,
+    "release": 0.6
+   }
+  ]
+ }
+}

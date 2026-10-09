@@ -1,0 +1,14 @@
+{
+ "path": "characters/chr_hero000001.json",
+ "value": {
+  "id": "chr_hero000001",
+  "name": "Ava",
+  "role": "hero",
+  "profile": {
+   "name": "Ava",
+   "hair": "Ponytail",
+   "height": "Tall"
+  },
+  "legacyId": 1
+ }
+}

@@ -1,0 +1,41 @@
+{
+ "path": "clips/clp_clubstrike.json",
+ "value": {
+  "id": "clp_clubstrike",
+  "length": 0.6,
+  "loop": false,
+  "tracks": [
+   {
+    "bone": "armR",
+    "prop": "rot.x",
+    "keys": [
+     [
+      0,
+      0,
+      "bouncy"
+     ],
+     [
+      0.25,
+      -110,
+      "easeIn"
+     ],
+     [
+      0.6,
+      0,
+      "linear"
+     ]
+    ]
+   }
+  ],
+  "events": [
+   {
+    "t": 0.25,
+    "emit": "hit"
+   },
+   {
+    "t": 0.25,
+    "sound": "snd_swing00001"
+   }
+  ]
+ }
+}
