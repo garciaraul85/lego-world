@@ -6,6 +6,24 @@ Open `dist/index.html` in a browser with WebGL. No installation or build service
 
 This repository contains **saved project version 68**, imported from source commit `62e199d551ba31fab4306fdddca67b15214ae824`. The release number and JSON save-format number are separate: this release writes save format **4**. Later engine-style scene-editor changes are not included in this snapshot.
 
+## Brick Worlds engine (work in progress)
+
+This repository is being grown into **Brick Worlds Engine** following the build plan (phases P0–P8). Phase 0 is in place: nothing you see while playing has changed.
+
+- The v68 sources now live in `src/legacy/` (unchanged). The HTML/CSS shell is `src/legacy/shell.html`. `npm run build:legacy` (or `python3 assemble.py`) rebuilds `dist/index.html` byte-for-byte as before.
+- `src/core/` is the new typed engine core (TypeScript, no DOM): project file schemas (Zod), lossless migration of every v1–v4 save into the v5 project layout (many small JSON files: one folder per map, 32×32-stud chunk files, characters, gates), the `ProjectStore`, the undoable `CommandBus`, IndexedDB autosave.
+- `npm run build` also writes `dist/engine.html`: v68 plus a host that keeps a v5 copy of your world in IndexedDB, imports an existing v68 autosave once, and records every edit and agent-tool call as a command.
+
+```sh
+npm ci
+npm run build          # dist/index.html (v68) and dist/engine.html (v68 + v5 mirror)
+npm run serve          # http://localhost:8000/index.html or /engine.html
+npm run check:fast     # lint, typecheck, module rules, unit tests (~40 s)
+npm run test:legacy    # the 34 v68 suites, in parallel (--shard 1/4 for CI shards)
+npm run test:e2e       # Playwright (set PW_CHROMIUM_PATH to use a preinstalled Chromium)
+npm run check          # everything CI runs
+```
+
 ## Quick start
 
 ```sh
@@ -108,11 +126,11 @@ See [screenshot capture instructions](docs/screenshots/README.md) to regenerate 
 
 Open World → Maps & connections. Select environments and use Add map to create another map, or Copy map to duplicate the selected map. A project supports 16 maps, each with its own terrain, sky/weather, player position, NPCs and smashed objects; character appearances are shared. Generate replaces only the selected map. Save/Open and device autosave include the entire collection, while older single-world saves open as Map 1.
 
-Random connected worlds creates 2–15 additional maps in one batch, subject to the 16-map project limit. Leave Network seed blank for a surprise, or enter a seed to reproduce the same terrain, weather, NPCs and routes. Use selected environments restricts the pool to the environment checkboxes; otherwise all environments are eligible. Map size follows the World size selector. Maps receive shuffled primary environments, unique terrain seeds, varied skies/weather and safe Crossroads spawn points. A spanning tree and occasional extra routes connect every generated map to the selected existing spawn with travel in both directions. Generation opens a preview; existing maps stay intact, and Undo removes the entire batch. `node tests/random-worlds.cjs` covers reachability, seed reproduction, native controls, safe travel, capacity, project persistence and atomic undo.
+Random connected worlds creates 2–15 additional maps in one batch, subject to the 16-map project limit. Leave Network seed blank for a surprise, or enter a seed to reproduce the same terrain, weather, NPCs and routes. Use selected environments restricts the pool to the environment checkboxes; otherwise all environments are eligible. Map size follows the World size selector. Maps receive shuffled primary environments, unique terrain seeds, varied skies/weather and safe Crossroads spawn points. A spanning tree and occasional extra routes connect every generated map to the selected existing spawn with travel in both directions. Generation opens a preview; existing maps stay intact, and Undo removes the entire batch. `node tests/legacy/random-worlds.cjs` covers reachability, seed reproduction, native controls, safe travel, capacity, project persistence and atomic undo.
 
 Every map starts with an Arrival point. Add named spawn points and use Place on map to tap open terrain, or Use player position to reuse the explorer's location. Choose another map and arrival point, enable Travel both ways for a return route, and connect. The network cards and connection rows preview either endpoint in 3D; Return goes back, and Explore from spawn tests the arrival.
 
-Connected points glow cyan. Touch a connected gate while exploring to teleport automatically; G or Travel also activates a nearby route. Gates with multiple nearby connections offer a destination selector. Arrivals check the complete character rig against scenery and neighbors, move old edge points inside the boundary, and recover blocked or destroyed arrival ground using nearby or alternate supported ground. Travel renders the destination immediately and suppresses immediate return travel. On touchscreens the Travel button activates when pressed, so running cannot move out of range before release. `node tests/travel.cjs` checks a formerly failing saved edge gate, destination render batches/sky/HUD, safe arrival and touch press/release. Removing a point or map also removes its connections; Undo restores the change. `node tests/maps.cjs` checks persistence, compatibility, validation, preview, routes, travel and collection undo.
+Connected points glow cyan. Touch a connected gate while exploring to teleport automatically; G or Travel also activates a nearby route. Gates with multiple nearby connections offer a destination selector. Arrivals check the complete character rig against scenery and neighbors, move old edge points inside the boundary, and recover blocked or destroyed arrival ground using nearby or alternate supported ground. Travel renders the destination immediately and suppresses immediate return travel. On touchscreens the Travel button activates when pressed, so running cannot move out of range before release. `node tests/legacy/travel.cjs` checks a formerly failing saved edge gate, destination render batches/sky/HUD, safe arrival and touch press/release. Removing a point or map also removes its connections; Undo restores the change. `node tests/legacy/maps.cjs` checks persistence, compatibility, validation, preview, routes, travel and collection undo.
 
 ## Character studio
 
@@ -156,7 +174,7 @@ On touchscreens, use the directional pad and Run, Jump, Smash, and Hold to rebui
 
 `world-generator.js` generates connected brick worlds. `character-catalog.js` defines validated editable assets and presets. `character-model.js` builds and animates minifigure geometry. `game-physics.js` handles collision and movement. `character-game.js` connects the studio and gameplay to the existing editor. `character-art.js` and `character-art-ui.js` provide paint atlases and local photo processing. `npc-world.js` and `npc-ui.js` provide wandering neighbors and dialogue. `builder.js` hosts the renderer, editor and project storage.
 
-After editing source files, run `python assemble.py` to update the self-contained app, then remove `dist/app-check.js` after a syntax check. Tree, celestial-camera and road checks: `node tests/trees-sky-roads.cjs`. Scale and entrance checks: `node tests/scale-and-buildings.cjs`. Functional checks: `node tests/world.cjs` `node tests/characters.cjs`, `node tests/art-and-neighbors.cjs` `node tests/art-inputs.cjs` `node tests/joints.cjs` `node tests/debris.cjs` and `node tests/actions.cjs`. The checks exercise the application's public action tools, geometry generation, project compatibility, physics, destruction and exact restoration.
+After editing files in `src/legacy/`, run `npm run build:legacy` (or `python3 assemble.py`) to update the self-contained app; it also syntax-checks the assembled script. Tree, celestial-camera and road checks: `node tests/legacy/trees-sky-roads.cjs`. Scale and entrance checks: `node tests/legacy/scale-and-buildings.cjs`. Functional checks: `node tests/legacy/world.cjs` `node tests/legacy/characters.cjs`, `node tests/legacy/art-and-neighbors.cjs` `node tests/legacy/art-inputs.cjs` `node tests/legacy/joints.cjs` `node tests/legacy/debris.cjs` and `node tests/legacy/actions.cjs`. The checks exercise the application's public action tools, geometry generation, project compatibility, physics, destruction and exact restoration.
 
 Independent LEGO-style builder; not an official LEGO product.
 
@@ -164,7 +182,7 @@ Independent LEGO-style builder; not an official LEGO product.
 - Equip from the Explore weapon selector or Accessories → Held item. Medieval: club, mace, war hammer, sword, battle axe, flintlock pistol and musket. Modern: baton, bat, crowbar, sledgehammer, handgun, revolver, SMG, rifle and shotgun. Existing hammer, wrench and shovel also have swing animations.
 - F / Attack strikes or fires; hold F / Fire for the SMG and rifle. R / Reload refills a firearm from unlimited sandbox reserves. Run and Jump remain independent touch controls. While standing with a firearm, drag the camera to face the shot direction.
 - Joint-connected windup, impact and recovery; supported long-gun stance, recoil, slide/pump cycling, and hand/magazine reload movement. Projectiles use swept first-hit collision, including barrel obstruction and terrain, and expire at world borders. Destruction restores exact original pieces through the existing rebuild system. Ammunition is per character and weapon during the session; equipment remains in saved character profiles.
-- `node tests/weapons.cjs` checks weapon rigs, hit timing, occlusion, range, ammo/reload and independent touch actions.
+- `node tests/legacy/weapons.cjs` checks weapon rigs, hit timing, occlusion, range, ammo/reload and independent touch actions.
 
 ## Architecture and every source module
 
@@ -184,10 +202,12 @@ flowchart TD
 
 Some scripts declare IIFE-based module objects (`WorldGenerator`, `GamePhysics`, `CharacterModel`, etc.). Others are inserted **inside the builder closure** and intentionally refer to its local state. They are not ES modules: loading them individually or changing assembly order requires adapting their dependencies.
 
+All files below are in `src/legacy/` unless a path says otherwise.
+
 | File | Responsibility |
 | --- | --- |
 | `assemble.py` | Ordered script/style assembly and expansion of builder insertion markers. |
-| `dist/index.html` | Runnable self-contained app; also the canonical HTML markup and base stylesheet. |
+| `dist/index.html` | Runnable self-contained app (build output). Markup and base stylesheet live in `src/legacy/shell.html`. |
 | `builder.js` | Pieces, placement/selection, validation, camera/WebGL, history, project storage, generation, action registration, and frame scheduling. |
 | `game-ui.css` | Game chrome, panels, controls, overlays, and responsive styles. |
 | `game-ui.js` | Game pickers, navigation, help/system overlays, and UI synchronization. |
@@ -217,20 +237,18 @@ Some scripts declare IIFE-based module objects (`WorldGenerator`, `GamePhysics`,
 | `studio-animations.js` | Unified preview catalog and clip/time sampling into temporary profile/pose state. |
 | `studio-preview.js` | Playback/pause/replay/scrubbing/loop/speed controls and preview effects. |
 | `studio-props.js` | Temporary exercise/sports props for studio routines. |
-| `tests/*.cjs` | Node VM fixtures/assertions against the assembled app, geometry, state, and action APIs. |
+| `tests/legacy/*.cjs` | Node VM fixtures/assertions against the assembled app, geometry, state, and action APIs. |
 | `.openai/hosting.json` | Original static-host configuration; not required for local play. |
 
 ## Assembly and development workflow
 
-`assemble.py` is a concatenator, not a transpiler. It reads the existing `dist/index.html`, replaces the `GAME_UI_START`/`GAME_UI_END` section with `game-ui.css`, replaces the script contents with ordered source, and writes `dist/app-check.js` for a separate syntax check.
+`scripts/inline-html.mjs --legacy` (what `assemble.py` now calls) is a concatenator, not a transpiler. It reads `src/legacy/shell.html`, inserts `game-ui.css` between the `GAME_UI_START`/`GAME_UI_END` markers, fills the script with the ordered sources listed in `scripts/legacy-manifest.mjs`, syntax-checks it, and writes `dist/index.html`.
 
 ```sh
-python3 assemble.py
-node --check dist/app-check.js
-rm dist/app-check.js
+npm run build:legacy   # same as: python3 assemble.py
 ```
 
-**Keep `dist/index.html`:** it is also the markup/base-CSS source, so deleting it makes assembly fail. Change controls/markup there; change game CSS in `game-ui.css`; change behavior in the source modules. Reassemble before tests/publishing because the tests execute the assembled HTML.
+Change controls/markup in `src/legacy/shell.html`; change game CSS in `src/legacy/game-ui.css`; change behavior in the source modules. Reassemble before tests/publishing because the tests execute the assembled HTML. `tests/unit/legacy-build.test.ts` fails if `dist/index.html` is out of date.
 
 Assembly first adds world/volcano/sky, magic/power/weapon/studio, character catalog, rig/physics, model/art/NPC, and connected-world module declarations, then the builder closure. Inside builder it expands:
 
@@ -388,14 +406,14 @@ Tests use Node's built-in assert/vm with DOM/WebGL stubs and execute the assembl
 Focused checks (no npm dependencies needed):
 
 ```sh
-node tests/world.cjs
-node tests/maps.cjs
-node tests/random-worlds.cjs
-node tests/spawn-editor.cjs
-node tests/touch-teleports.cjs
-node tests/rig-collision.cjs
-node tests/studio-preview.cjs
-node tests/screen.cjs
+node tests/legacy/world.cjs
+node tests/legacy/maps.cjs
+node tests/legacy/random-worlds.cjs
+node tests/legacy/spawn-editor.cjs
+node tests/legacy/touch-teleports.cjs
+node tests/legacy/rig-collision.cjs
+node tests/legacy/studio-preview.cjs
+node tests/legacy/screen.cjs
 ```
 
 | Coverage | Tests under `tests/` (`.cjs`) |
