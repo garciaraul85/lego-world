@@ -1,9 +1,8 @@
+import { type Brick, encodeChunks } from '../bricks/codec';
 import { type Id, legacyId } from '../ids';
 import { LEGACY_COLORS } from '../legacy/constants';
 import type { LegacyBuild, LegacyMapEntry, LegacyPiece, LegacySave } from '../legacy/types';
 import {
-  type BrickTuple,
-  CHUNK,
   type Character,
   type Chunk,
   type Gates,
@@ -35,41 +34,14 @@ export const pieceType = (p: Pick<LegacyPiece, 'kind' | 'rows' | 'cols'>) => `${
 
 /** Splits pieces into 32x32-stud chunk files. Bricks inside a chunk keep id order. */
 export function piecesToChunks(pieces: LegacyPiece[]): Chunk[] {
-  const byKey = new Map<string, LegacyPiece[]>();
-  for (const p of [...pieces].sort((a, b) => (a.id ?? 0) - (b.id ?? 0))) {
-    const key = `${Math.floor(p.x / CHUNK)}_${Math.floor(p.z / CHUNK)}`;
-    const list = byKey.get(key) ?? [];
-    if (!byKey.has(key)) byKey.set(key, list);
-    list.push(p);
-  }
-  const chunks: Chunk[] = [];
-  for (const [key, list] of [...byKey].sort(([a], [b]) => a.localeCompare(b))) {
-    const [cx, cz] = key.split('_').map(Number) as [number, number];
-    const types: string[] = [];
-    const colors: string[] = [];
-    const groups: string[] = [];
-    const index = (arr: string[], v: string) => {
-      const i = arr.indexOf(v);
-      return i >= 0 ? i : arr.push(v) - 1;
-    };
-    const bricks = list.map((p): BrickTuple => {
-      const hex = LEGACY_COLORS[p.color]?.[1];
-      if (!hex) throw new Error(`brick ${p.id} has unknown legacy color ${p.color}`);
-      return [
-        index(types, pieceType(p)),
-        p.x,
-        p.y,
-        p.z,
-        p.turn,
-        index(colors, hex),
-        0,
-        p.id ?? 0,
-        p.group === undefined ? -1 : index(groups, p.group),
-      ];
-    });
-    chunks.push({ cx, cz, palette: { types, colors, groups }, bricks });
-  }
-  return chunks;
+  const bricks = pieces.map((p): Brick => {
+    const hex = LEGACY_COLORS[p.color]?.[1];
+    if (!hex) throw new Error(`brick ${p.id} has unknown legacy color ${p.color}`);
+    const b: Brick = { id: p.id ?? 0, type: pieceType(p), x: p.x, y: p.y, z: p.z, rot: p.turn, color: hex, flags: 0 };
+    if (p.group !== undefined) b.group = p.group;
+    return b;
+  });
+  return [...encodeChunks(bricks).values()];
 }
 
 function spawnsOf(mapLegacy: number, entry: LegacyMapEntry | undefined): Spawn[] {
@@ -209,6 +181,11 @@ function cleanPiece(p: LegacyPiece) {
   return p.group === undefined ? out : { ...out, group: p.group };
 }
 
+/** The active map's build is the top level of a v4 save; keep only build keys (other top-level keys go to settings). */
+function activeBuildOf(save: LegacySave): LegacyBuild {
+  return Object.fromEntries(Object.entries(save).filter(([k]) => BUILD_KEYS.has(k))) as LegacyBuild;
+}
+
 export type V5Options = { projectId: Id<'project'>; name: string; now: string };
 
 /** v4 legacy save -> map of v5 project files (without project.json's `files` index; the store fills it). */
@@ -222,7 +199,7 @@ export function v4to5(save: LegacySave, opts: V5Options, problems: Problem[]): M
     activeLegacy = net.activeId;
     settingsLegacy.mapNextId = net.nextId;
     for (const entry of net.maps) {
-      const build = entry.id === net.activeId ? (save as LegacyBuild) : entry.build;
+      const build = entry.id === net.activeId ? activeBuildOf(save) : entry.build;
       if (!build) {
         problems.push({
           level: 'warn',
@@ -234,7 +211,7 @@ export function v4to5(save: LegacySave, opts: V5Options, problems: Problem[]): M
     }
   } else {
     settingsLegacy.mapNetwork = false;
-    mapOrder.push(mapFiles(files, 1, 'Map 1', undefined, save, problems));
+    mapOrder.push(mapFiles(files, 1, 'Map 1', undefined, activeBuildOf(save), problems));
   }
   const gates: Gates = {
     gates: (net?.links ?? []).map((l) => ({

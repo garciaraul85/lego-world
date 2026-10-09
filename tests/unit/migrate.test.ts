@@ -57,6 +57,12 @@ describe('v4 layout', () => {
     expect(Object.keys(project.files).sort()).toEqual(paths.filter((p) => p !== 'project.json').sort());
   });
 
+  it('has no legacy leftovers for a plain v68 save', () => {
+    for (const p of paths.filter((p) => p.endsWith('/map.json')))
+      expect((files.get(p) as { legacy?: unknown }).legacy).toBeUndefined();
+    expect((files.get('settings.json') as { legacy: Record<string, unknown> }).legacy.top).toBeUndefined();
+  });
+
   it('rejects what v68 rejects', () => {
     expect(() => migrate({ format: 'other', version: 4, pieces: [] })).toThrow(/brick-builder/);
     expect(() => migrate({ format: 'brick-builder', version: 9, pieces: [] })).toThrow(/version/);
