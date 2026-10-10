@@ -435,15 +435,18 @@ const ASSET_FILTERS: [string, string][] = [
   ['structure', 'Structures'],
   ['vehicle', 'Vehicles'],
   ['decoration', 'Decoration'],
+  ['generated', 'From maps'],
 ];
 
 function AssetCards({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
   const [filter, setFilter] = useState('all');
-  const lib = assetLibrary(ed).filter(
-    ({ asset: a }) =>
-      filter === 'all' || (filter === 'mine' ? a.origin === 'user' || !a.origin : a.category === filter),
+  const lib = assetLibrary(ed).filter(({ asset: a }) =>
+    filter === 'generated'
+      ? a.origin === 'generated'
+      : a.origin !== 'generated' &&
+        (filter === 'all' || (filter === 'mine' ? a.origin === 'user' || !a.origin : a.category === filter)),
   );
   const brush = ed.assetBrush.value;
   return (

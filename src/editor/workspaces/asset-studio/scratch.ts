@@ -46,22 +46,30 @@ export function scratchFor(def: Asset, state: string): Scratch {
   return { files, mapId, hidden };
 }
 
+/** Studio brick id -> asset brick index, for the bricks the plate started with (id = index + 1). */
+export const initialIndex = (def: Asset, hidden: Scratch['hidden']) => {
+  const hiddenSet = new Set(hidden.map((h) => h.index));
+  return new Map(def.bricks.flatMap((_, i) => (hiddenSet.has(i) ? [] : [[i + 1, i] as [number, number]])));
+};
+
 /**
  * The asset after studio edits: original bricks keep their order (so placed copies keep their brick
  * ids and state lists stay right), removed ones drop out, new ones are appended. New bricks belong to
- * every state unless `newOnlyIn` names the state they were built in.
+ * every state unless `newOnlyIn` names the state they were built in. Also returns the updated
+ * plate-id -> index table and hidden list, so the plate can keep editing without reloading.
  */
 export function assetFromScratch(
   def: Asset,
   studio: Brick[],
   hidden: Scratch['hidden'],
+  indexOf: Map<number, number>,
   newOnlyIn: string | null,
-): Asset {
+): { asset: Asset; hidden: Scratch['hidden']; indexOf: Map<number, number> } {
   const byIndex = new Map<number, Brick>();
   const added: Brick[] = [];
   for (const b of [...studio].sort((x, y) => x.id - y.id)) {
-    const index = b.id - 1;
-    if (index >= 0 && index < def.bricks.length && !hidden.some((h) => h.index === index)) byIndex.set(index, b);
+    const index = indexOf.get(b.id);
+    if (index !== undefined) byIndex.set(index, b);
     else added.push(b);
   }
   const hiddenAt = new Map(hidden.map((h) => [h.index, h]));
@@ -73,20 +81,25 @@ export function assetFromScratch(
   };
   const out: AssetBrick[] = [];
   const remap = new Map<number, number>();
+  const nextIndex = new Map<number, number>();
+  const nextHidden: Scratch['hidden'] = [];
   for (let i = 0; i < def.bricks.length; i++) {
     const h = hiddenAt.get(i);
     const b = byIndex.get(i);
     if (h) {
       remap.set(i, out.length);
+      nextHidden.push({ ...h, index: out.length });
       out.push([ix(types, h.type), h.brick[1], h.brick[2], h.brick[3], h.brick[4], ix(colors, h.color), h.brick[6]]);
     } else if (b) {
       remap.set(i, out.length);
+      nextIndex.set(b.id, out.length);
       out.push([ix(types, b.type), b.x, b.y, b.z, b.rot, ix(colors, b.color.toLowerCase()), b.flags & 15]);
     }
   }
   const fresh: number[] = [];
   for (const b of added) {
     fresh.push(out.length);
+    nextIndex.set(b.id, out.length);
     out.push([ix(types, b.type), b.x, b.y, b.z, b.rot, ix(colors, b.color.toLowerCase()), b.flags & 15]);
   }
   const onlyIn: Record<string, number[]> = {};
@@ -104,10 +117,14 @@ export function assetFromScratch(
   }
   const { onlyIn: _old, ...rest } = def;
   return {
-    ...rest,
-    bricks: out,
-    palette: { types, colors },
-    footprint: [fw, fd],
-    ...(Object.keys(onlyIn).length ? { onlyIn } : {}),
+    asset: {
+      ...rest,
+      bricks: out,
+      palette: { types, colors },
+      footprint: [fw, fd],
+      ...(Object.keys(onlyIn).length ? { onlyIn } : {}),
+    },
+    hidden: nextHidden,
+    indexOf: nextIndex,
   };
 }

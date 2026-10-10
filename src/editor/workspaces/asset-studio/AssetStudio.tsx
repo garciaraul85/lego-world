@@ -15,7 +15,7 @@ import { AssetThumb } from '../../components/AssetThumb';
 import { Swatches } from '../../panels/Inspector';
 import { EditorState, type ToolId } from '../../state';
 import { Viewport } from '../../viewport/Viewport';
-import { assetFromScratch, type Scratch, scratchFor } from './scratch';
+import { assetFromScratch, initialIndex, type Scratch, scratchFor } from './scratch';
 
 /** The studio's own editor state: same tools and commands, on the scratch build plate. */
 class StudioState extends EditorState {
@@ -63,7 +63,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
       : 'place';
     sed.brush.value = ed.brush.value;
     synced.current = JSON.stringify(def);
-    return { scratch, sed, def };
+    return { scratch, sed, def, indexOf: initialIndex(def, scratch.hidden), hidden: scratch.hidden };
   }, [id, state, nonce, !!def]);
 
   // asset changed outside the studio (undo in the Scene, another tab) -> reload the plate
@@ -77,21 +77,20 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     const { sed, scratch } = studio;
     return sed.bus.onChange(() => {
       const base = resolveAsset(ed, studio.def.id)!;
-      const next = assetFromScratch(
+      const r = assetFromScratch(
         base,
         new MapBricks(sed.store, scratch.mapId).all(),
-        scratch.hidden,
+        studio.hidden,
+        studio.indexOf,
         newOnlyIn ? state : null,
       );
-      if (!next.bricks.length) {
+      if (!r.asset.bricks.length) {
         setError('An asset needs at least one brick. Undo to bring one back.');
         return;
       }
-      const ok = commit(next, 'Edit asset bricks');
-      if (ok) {
-        // new bricks got fresh asset indexes: reload so ids match indexes again
-        if (new MapBricks(sed.store, scratch.mapId).all().some((b) => b.id > base.bricks.length))
-          setNonce((n) => n + 1);
+      if (commit(r.asset, 'Edit asset bricks')) {
+        studio.indexOf = r.indexOf;
+        studio.hidden = r.hidden;
       }
     });
   }, [studio, newOnlyIn, state]);
@@ -191,7 +190,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
           {STUDIO_TOOLS.map(([t, glyph, label]) => (
             <button
               type="button"
-              class={`tool ${sed.tool.value === t ? 'on' : ''}`}
+              class={`btn icon ${sed.tool.value === t ? 'on' : ''}`}
               title={label}
               aria-label={label}
               aria-pressed={sed.tool.value === t}
@@ -217,7 +216,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
             </label>
           )}
         </div>
-        <div class="viewport-wrap">
+        <div class="studio-plate">
           <Viewport key={`${def.id}|${state}|${nonce}`} ed={sed} mode="scene" studio={hooks} />
           {error && (
             <div class="vp-overlay" role="alert" style={{ borderColor: 'var(--err)' }}>

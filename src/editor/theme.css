@@ -1057,15 +1057,30 @@ select.inp {
 
 /* ---------- Asset studio (P3.4) ---------- */
 .body.studio-body {
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
 .studio {
   display: grid;
   grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(290px, 340px);
+  grid-template-rows: minmax(0, 1fr);
   gap: 8px;
-  height: 100%;
   min-height: 0;
+}
+.studio-plate {
+  position: relative;
+  flex: 1;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+.studio-brush .inp {
+  width: auto;
+}
+.interaction .row {
+  flex-wrap: nowrap;
 }
 .studio-main {
   display: flex;

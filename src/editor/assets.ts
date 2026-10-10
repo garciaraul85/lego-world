@@ -13,7 +13,7 @@ export function resolveAsset(ed: EditorState, id: string | null): Asset | null {
 export function assetLibrary(ed: EditorState): { asset: Asset; inProject: boolean }[] {
   const own = ed.store.list('assets/').map((p) => ed.store.get<Asset>(p)!);
   const have = new Set(own.map((a) => a.id));
-  const rank = (a: Asset) => (a.origin === 'user' ? 0 : a.origin === 'builtin' ? 1 : 2);
+  const rank = (a: Asset) => (a.origin === 'generated' ? 2 : a.origin === 'builtin' ? 1 : 0);
   return [
     ...own
       .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
