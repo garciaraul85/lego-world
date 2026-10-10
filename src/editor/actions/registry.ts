@@ -29,6 +29,8 @@ export interface EditorUi {
   startHub(): void;
   tutorial(): void;
   help(page?: string): void;
+  /** opens the AI builder panel (P8.3) */
+  aiBuilder(): void;
 }
 
 export type EditorAction = {
@@ -297,7 +299,12 @@ export const ACTIONS: EditorAction[] = [
   { id: 'help.tutorial', label: 'Guided tutorial (every feature, step by step)', run: ({ ui }) => ui.tutorial() },
   { id: 'help.guide', label: 'Help guide', key: 'F1', run: ({ ui }) => ui.help() },
   { id: 'help.build', label: 'Watch a game being built…', run: ({ ui }) => ui.startHub() },
-  { id: 'help.ai', label: 'Ask the AI builder', run: () => {}, later: 'Phase 8' },
+  {
+    id: 'help.ai',
+    label: 'AI builder (plan a change, watch it, approve it)',
+    key: 'Ctrl I',
+    run: ({ ui }) => ui.aiBuilder(),
+  },
 ];
 
 export const action = (id: string) => ACTIONS.find((a) => a.id === id)!;
