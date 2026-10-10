@@ -467,9 +467,8 @@ export function buildGame(options: GameOptions, seed: number, now?: string): Gen
     workspace: 'Audio',
     focus: { audio: cfg.music },
   });
-  maps.forEach((m, i) =>
-    run({ type: 'map.setAudio', payload: { map: m, music: musics[i % musics.length], ambience: cfg.ambience } }),
-  );
+  for (const [i, m] of maps.entries())
+    run({ type: 'map.setAudio', payload: { map: m, music: musics[i % musics.length], ambience: cfg.ambience } });
   {
     const { cells } = reachableCells(entry);
     const near = cells.filter(([, , , d]) => d >= 3 && d <= 8);
