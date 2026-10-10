@@ -20,7 +20,9 @@
     "rules": {
       "recommended": true,
       "style": { "noNonNullAssertion": "off" },
-      "suspicious": { "noExplicitAny": "error" }
+      "suspicious": { "noExplicitAny": "error" },
+      "a11y": { "useSemanticElements": "off" },
+      "complexity": { "noImportantStyles": "off" }
     }
   }
 }

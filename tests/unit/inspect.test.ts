@@ -42,3 +42,17 @@ describe('inspectBricks (port of v68 inspect)', () => {
     expect(inspectBricks([b({ type: 'brick2x4', rot: 1 }), b({ id: 2, x: 3 })])).toEqual({ ok: true }); // rotated: 2 wide
   });
 });
+
+describe('rotateQuarter', async () => {
+  const { rotateQuarter } = await import('../../src/core/bricks/transform');
+  it('four quarter turns return every brick to where it started', () => {
+    const group = [b({ type: 'brick2x4', x: 3, z: 1 }), b({ id: 2, type: 'brick1x2', x: 5, y: 3, z: 2, rot: 1 })];
+    let r = group;
+    for (let i = 0; i < 4; i++) r = rotateQuarter(r, [4, 2]);
+    expect(r).toEqual(group);
+  });
+  it('keeps the layout valid (rotating a connected stack keeps it connected)', () => {
+    const stack = [b({ type: 'brick2x4', x: 0, z: 0 }), b({ id: 2, type: 'brick2x2', x: 1, y: 3, z: 0 })];
+    expect(inspectBricks(rotateQuarter(stack))).toEqual({ ok: true });
+  });
+});

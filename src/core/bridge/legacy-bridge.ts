@@ -87,7 +87,7 @@ function intIds<T extends { legacyId?: number | undefined }>(items: T[]): Map<T,
  * Whole v5 project -> a v4 `brick-builder` save that LEGO World v68 loads (the legacy bridge, P0.8).
  * The entry map is the active map, as in v68.
  */
-export function toLegacy(files: FileSource): LegacySave {
+export function toLegacy(files: FileSource, opts: { activeMap?: string } = {}): LegacySave {
   const project = files.get(paths.project) as Project;
   const settings = (files.get(paths.settings) as Settings | undefined) ?? { quality: 'auto' };
   const sl = (settings.legacy ?? {}) as Record<string, unknown>;
@@ -95,7 +95,7 @@ export function toLegacy(files: FileSource): LegacySave {
   const maps = gates.mapOrder.map((id) => files.get(paths.map(id)) as MapDoc);
   const mapInt = intIds(maps);
   const byId = new Map(maps.map((m) => [m.id, m]));
-  const active = byId.get(project.entry.map) ?? maps[0];
+  const active = byId.get((opts.activeMap ?? project.entry.map) as never) ?? maps[0];
   if (!active) throw new Error('project has no maps');
   const activeBuild = mapToLegacyBuild(files, active.id);
 

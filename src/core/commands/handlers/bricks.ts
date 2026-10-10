@@ -133,3 +133,35 @@ export const paintBricks: CommandHandler<PaintBricks> = {
     missingIds(new MapBricks(store, p.map), p.ids),
   apply: (store, p) => editBricks(store, p.map, p.ids, (b) => ({ ...b, color: p.color.toLowerCase() })),
 };
+
+export type UpdateBricks = { map: string; bricks: Array<Partial<Omit<Brick, 'id'>> & { id: number }> };
+
+/** Sets fields of existing bricks (position, rotation, type, color, group). Used for group rotate and drag-move. */
+export const updateBricks: CommandHandler<UpdateBricks> = {
+  label: (p) => (p.bricks.length === 1 ? 'Edit brick' : `Edit ${p.bricks.length} bricks`),
+  validate(store, p) {
+    const e =
+      mapMissing(store, p.map) ??
+      missingIds(
+        new MapBricks(store, p.map),
+        p.bricks.map((b) => b.id),
+      );
+    if (e) return e;
+    const byId = new Map(new MapBricks(store, p.map).all().map((b) => [b.id, b]));
+    for (const u of p.bricks) {
+      const err = brickError({ ...byId.get(u.id)!, ...u });
+      if (err) return err;
+    }
+    return null;
+  },
+  apply(store, p) {
+    const patch = new Map(p.bricks.map((b) => [b.id, b]));
+    editBricks(store, p.map, [...patch.keys()], (b) => {
+      const u = patch.get(b.id)!;
+      const next = { ...b, ...u, id: b.id };
+      if (u.color) next.color = u.color.toLowerCase();
+      return next;
+    });
+    assertLayout(store, p.map);
+  },
+};

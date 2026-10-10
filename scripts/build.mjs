@@ -13,7 +13,7 @@ const dev = process.argv.includes('--dev');
 mkdirSync(resolve(ROOT, 'dist/build'), { recursive: true });
 
 /** App entries (src/apps/<name>/main.ts). Append new apps here (editor and player arrive in P1 / P8). */
-const ENTRIES = { 'legacy-host': 'src/apps/legacy-host/main.ts' };
+const ENTRIES = { 'legacy-host': 'src/apps/legacy-host/main.ts', editor: 'src/apps/editor/main.tsx' };
 
 /**
  * `import { z } from 'zod'` keeps every locale reachable through z.locales (~250 KB).
@@ -62,8 +62,12 @@ for (const [name, entry] of Object.entries(ENTRIES)) {
     metafile: true,
     logLevel: 'warning',
     plugins: [zodEnglishOnly, rawText],
+    jsx: 'automatic',
+    jsxImportSource: 'preact',
+    loader: { '.css': 'css' },
   });
-  const bytes = Object.values(r.metafile.outputs)[0].bytes;
-  console.log(`built ${name}: ${(bytes / 1024).toFixed(1)} KB`);
+  for (const [file, out] of Object.entries(r.metafile.outputs))
+    console.log(`built ${file.replace(/^.*dist\//, 'dist/')}: ${(out.bytes / 1024).toFixed(1)} KB`);
 }
 execFileSync(process.execPath, [resolve(ROOT, 'scripts/inline-html.mjs'), '--engine'], { stdio: 'inherit' });
+execFileSync(process.execPath, [resolve(ROOT, 'scripts/inline-html.mjs'), '--editor'], { stdio: 'inherit' });
