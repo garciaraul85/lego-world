@@ -47,7 +47,7 @@ try {
   await page.waitForURL(/editor\.html/, { timeout: 90_000 });
   await wait(1500);
   await ready();
-  await page.evaluate(() => window.__editor && (window.__editor.workspace.value = 'Scene'));
+  await page.locator('[data-tour="ws-scene"]').click();
   await page.keyboard.press('Home');
   await shot('02-editor-scene', 1500);
 
