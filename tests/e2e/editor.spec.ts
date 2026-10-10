@@ -92,7 +92,7 @@ test('Play runs the map in the v68 runtime and Stop returns to the editor unchan
   const errors: string[] = [];
   await open(page, errors);
   const before = await count(page);
-  await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Play' }).click();
+  await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Play in v68' }).click();
   const frame = page.frameLocator('iframe[title="LEGO World v68"]');
   await expect(frame.locator('#bb-canvas')).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: '■ Stop' }).click();

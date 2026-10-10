@@ -1,5 +1,7 @@
 // v68 gameplay modules (self-contained IIFEs), evaluated together in one scope so they see each other
 // exactly as in the assembled page. Their ports replace them one system at a time.
+
+import type { LegacyPiece } from '../../core/legacy/types';
 import characterArt from '../../legacy/character-art.js?raw';
 import characterCatalog from '../../legacy/character-catalog.js?raw';
 import characterModel from '../../legacy/character-model.js?raw';
@@ -14,7 +16,6 @@ import superPowers from '../../legacy/super-powers.js?raw';
 import volcanoSimulation from '../../legacy/volcano-simulation.js?raw';
 import worldGenerator from '../../legacy/world-generator.js?raw';
 import worldSky from '../../legacy/world-sky.js?raw';
-import type { LegacyPiece } from '../../core/legacy/types';
 
 export type Bounds = { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number };
 export type HeroState = Record<string, unknown> & {
@@ -31,8 +32,23 @@ export type HeroState = Record<string, unknown> & {
   attackWeapon?: string;
   building: boolean;
 };
-export type MoveInput = { x: number; z: number; run: boolean; jump: boolean; vertical: number; speedScale?: number; jumpSpeed?: number; flight?: boolean; climbing?: boolean };
-export type LegacyWorldMeta = { config: Record<string, unknown>; layoutVersion?: number; width?: number; depth?: number } | null;
+export type MoveInput = {
+  x: number;
+  z: number;
+  run: boolean;
+  jump: boolean;
+  vertical: number;
+  speedScale?: number;
+  jumpSpeed?: number;
+  flight?: boolean;
+  climbing?: boolean;
+};
+export type LegacyWorldMeta = {
+  config: Record<string, unknown>;
+  layoutVersion?: number;
+  width?: number;
+  depth?: number;
+} | null;
 
 export interface Controller {
   state: HeroState;
@@ -50,8 +66,33 @@ export interface Controller {
   sceneryContacts(x: number, y: number, z: number): unknown[];
 }
 
-export type Npc = { id: number; biome: string; role: string; profile: Record<string, unknown> & { name: string }; controller: Controller; state: HeroState };
-export type Debris = { entryId: number; x: number; y: number; z: number; ox: number; oy: number; oz: number; vx: number; vy: number; vz: number; rx: number; ry: number; rz: number; color: number[]; scale: number; age: number; sleeping?: boolean };
+export type Npc = {
+  id: number;
+  biome: string;
+  role: string;
+  profile: Record<string, unknown> & { name: string };
+  controller: Controller;
+  state: HeroState;
+};
+export type Debris = {
+  entryId: number;
+  x: number;
+  y: number;
+  z: number;
+  ox: number;
+  oy: number;
+  oz: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  rx: number;
+  ry: number;
+  rz: number;
+  color: number[];
+  scale: number;
+  age: number;
+  sleeping?: boolean;
+};
 
 export interface LegacyRuntime {
   GamePhysics: {
@@ -64,9 +105,25 @@ export interface LegacyRuntime {
     confineDebris(d: Debris, c: Controller): void;
     stepDebrisPiece(d: Debris, dt: number, c: Controller): void;
   };
-  CharacterCatalog: { defaults: Record<string, unknown>; validate(p: Record<string, unknown>): Record<string, unknown>; heightScale(p: Record<string, unknown>): number };
+  CharacterCatalog: {
+    defaults: Record<string, unknown>;
+    validate(p: Record<string, unknown>): Record<string, unknown>;
+    heightScale(p: Record<string, unknown>): number;
+  };
   CharacterModel: { create(gl: WebGLRenderingContext, fragment: string, onDirty?: () => void): CharacterRenderer };
-  GameWeapons: { get(name: unknown): { style?: string; action: string; duration: number; contact: number; reach: number; impulse?: number; mass?: number; frames?: unknown }; catalog: Record<string, unknown> };
+  GameWeapons: {
+    get(name: unknown): {
+      style?: string;
+      action: string;
+      duration: number;
+      contact: number;
+      reach: number;
+      impulse?: number;
+      mass?: number;
+      frames?: unknown;
+    };
+    catalog: Record<string, unknown>;
+  };
   NPCWorld: {
     populate(pieces: LegacyPiece[], world: LegacyWorldMeta, hero: HeroState): Npc[];
     restore(saved: unknown, pieces: LegacyPiece[], world: LegacyWorldMeta): Npc[];
@@ -78,7 +135,15 @@ export interface LegacyRuntime {
     reply(npc: Npc, text: string, world: LegacyWorldMeta, env: unknown, broken: number): { text?: string } | string;
   };
   WorldGenerator: { isRoadMark(p: LegacyPiece, config: unknown, layout?: number): boolean };
-  SkyCycle: { sample(time: string, elapsed: number, rain: boolean, snowing: boolean): import('../../core/legacy/modules').SkySample; duration: number };
+  SkyCycle: {
+    sample(
+      time: string,
+      elapsed: number,
+      rain: boolean,
+      snowing: boolean,
+    ): import('../../core/legacy/modules').SkySample;
+    duration: number;
+  };
 }
 
 export interface CharacterRenderer {
@@ -88,7 +153,22 @@ export interface CharacterRenderer {
   bindCollision(profile: Record<string, unknown>, c: Controller): void;
 }
 
-const ORDER = [worldGenerator, volcanoSimulation, worldSky, gameMagic, superPowers, gameWeapons, studioMotion, studioAnimations, characterCatalog, rigCollision, gamePhysics, characterModel, characterArt, npcWorld];
+const ORDER = [
+  worldGenerator,
+  volcanoSimulation,
+  worldSky,
+  gameMagic,
+  superPowers,
+  gameWeapons,
+  studioMotion,
+  studioAnimations,
+  characterCatalog,
+  rigCollision,
+  gamePhysics,
+  characterModel,
+  characterArt,
+  npcWorld,
+];
 
 let runtime: LegacyRuntime | null = null;
 export function legacyRuntime(): LegacyRuntime {

@@ -42,8 +42,14 @@ export function inspectPieces(list: readonly LegacyPiece[]): { ok: boolean; reas
       seen.add(i);
       queue.push(i);
     }
-  for (let j = 0; j < queue.length; j++) for (const n of adj[queue[j]!]!) if (!seen.has(n)) (seen.add(n), queue.push(n));
-  if (seen.size !== list.length) return { ok: false, reason: 'Needs a stud connection to the build. Tiles have no top studs.', connected: seen };
+  for (let j = 0; j < queue.length; j++)
+    for (const n of adj[queue[j]!]!)
+      if (!seen.has(n)) {
+        seen.add(n);
+        queue.push(n);
+      }
+  if (seen.size !== list.length)
+    return { ok: false, reason: 'Needs a stud connection to the build. Tiles have no top studs.', connected: seen };
   return { ok: true };
 }
 

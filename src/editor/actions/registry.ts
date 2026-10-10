@@ -11,7 +11,9 @@ export interface EditorUi {
   importFile(): void;
   exportProject(): void;
   exportLegacySave(): void;
-  play(mode: 'play' | 'edit'): void;
+  /** engine: new runtime (P2); v68: LEGO World v68 runtime; edit: v68 studio */
+  play(mode: 'engine' | 'v68' | 'edit', opts?: { fromSelectedSpawn?: boolean }): void;
+  stopPlay(): void;
   frameSelection(): void;
   fit(): void;
   topView(): void;
@@ -215,14 +217,42 @@ export const ACTIONS: EditorAction[] = [
     },
   },
   { id: 'world.generate', label: 'Generate terrain…', run: ({ ed }) => (ed.right.value = 'map') },
-  { id: 'world.graph', label: 'World graph', run: ({ ed }) => (ed.view.value = 'graph') },
-  { id: 'world.connected', label: 'Generate connected worlds…', run: ({ ui }) => ui.play('edit'), later: undefined },
+  { id: 'world.graph', label: 'World graph', run: ({ ui }) => ui.workspace('World graph') },
+  {
+    id: 'world.validate',
+    label: 'Validate routes',
+    run: ({ ed }) => {
+      ed.dock.value = 'problems';
+      ed.log('INFO', 'Checked routes between maps (see Problems).');
+    },
+  },
+  { id: 'world.connected', label: 'Generate connected worlds…', run: ({ ui }) => ui.play('edit') },
   // Play
-  { id: 'play.start', label: 'Play (LEGO World v68 runtime)', key: 'F5', run: ({ ui }) => ui.play('play') },
+  { id: 'play.start', label: 'Play from the start spawn', key: 'F5', run: ({ ui }) => ui.play('engine') },
+  {
+    id: 'play.here',
+    label: 'Play from the selected spawn',
+    key: 'Shift F5',
+    when: ({ ed }) => !!ed.selectedSpawn.value,
+    run: ({ ui }) => ui.play('engine', { fromSelectedSpawn: true }),
+  },
+  {
+    id: 'play.pause',
+    label: 'Pause / resume',
+    when: ({ ed }) => !!ed.session.value,
+    run: ({ ed }) => (ed.paused.value = !ed.paused.value),
+  },
+  { id: 'play.stop', label: 'Stop', when: ({ ed }) => !!ed.session.value, run: ({ ui }) => ui.stopPlay() },
+  {
+    id: 'play.v68',
+    label: 'Play in LEGO World v68 (guns, magic, powers, volcano)',
+    key: 'F6',
+    run: ({ ui }) => ui.play('v68'),
+  },
   {
     id: 'play.legacy',
-    label: 'Open in LEGO World v68 (characters, neighbors, routes)',
-    key: 'Shift F5',
+    label: 'Open in LEGO World v68 (characters, neighbors)',
+    key: 'Shift F6',
     run: ({ ui }) => ui.play('edit'),
   },
   // Window
@@ -265,8 +295,8 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'view.palette',
   ],
   Assets: [],
-  World: ['world.addMap', 'world.generate', 'world.graph', '-', 'play.legacy'],
-  Play: ['play.start', 'play.legacy'],
+  World: ['world.addMap', 'world.generate', 'world.graph', 'world.validate', '-', 'play.legacy'],
+  Play: ['play.start', 'play.here', 'play.pause', 'play.stop', '-', 'play.v68', 'play.legacy'],
   Window: [
     'window.1',
     'window.2',

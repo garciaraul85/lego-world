@@ -4,7 +4,13 @@ import { MapBricks } from '../bricks/map-bricks';
 import type { ProjectStore } from '../project/store';
 import { type Gates, type MapDoc, paths } from '../schema';
 
-export type WorldIssue = { level: 'warn' | 'info'; code: 'unreachable' | 'noReturn' | 'blockedSpawn' | 'noSpawn' | 'outside'; message: string; map: string; spawn?: string };
+export type WorldIssue = {
+  level: 'warn' | 'info';
+  code: 'unreachable' | 'noReturn' | 'blockedSpawn' | 'noSpawn' | 'outside';
+  message: string;
+  map: string;
+  spawn?: string;
+};
 
 /** Maps reachable from `start` following gates (two-way gates both ways). */
 export function reachable(gates: Gates, start: string): Set<string> {
@@ -30,7 +36,15 @@ export function spawnBlocked(bricks: readonly Brick[], pos: readonly number[]): 
   for (const b of bricks) {
     const [w, d] = footprint(b);
     const h = b.type.startsWith('brick') ? 3 : 1;
-    if (x + 0.4 > b.x && x - 0.4 < b.x + w && z + 0.4 > b.z && z - 0.4 < b.z + d && b.y < yPlate + 9 && b.y + h > yPlate) return true;
+    if (
+      x + 0.4 > b.x &&
+      x - 0.4 < b.x + w &&
+      z + 0.4 > b.z &&
+      z - 0.4 < b.z + d &&
+      b.y < yPlate + 9 &&
+      b.y + h > yPlate
+    )
+      return true;
   }
   return false;
 }
@@ -43,14 +57,35 @@ export function validateWorld(store: ProjectStore): WorldIssue[] {
   const entry = store.manifest.entry.map;
   const fromStart = reachable(gates, entry);
   for (const m of maps) {
-    if (!m.spawns.length) out.push({ level: 'warn', code: 'noSpawn', message: `${m.name} has no spawn point`, map: m.id });
-    if (maps.length > 1 && !fromStart.has(m.id)) out.push({ level: 'warn', code: 'unreachable', message: `${m.name} can’t be reached from the start map`, map: m.id });
-    else if (m.id !== entry && !reachable(gates, m.id).has(entry)) out.push({ level: 'info', code: 'noReturn', message: `${m.name} has no route back to the start map`, map: m.id });
+    if (!m.spawns.length)
+      out.push({ level: 'warn', code: 'noSpawn', message: `${m.name} has no spawn point`, map: m.id });
+    if (maps.length > 1 && !fromStart.has(m.id))
+      out.push({
+        level: 'warn',
+        code: 'unreachable',
+        message: `${m.name} can’t be reached from the start map`,
+        map: m.id,
+      });
+    else if (m.id !== entry && !reachable(gates, m.id).has(entry))
+      out.push({ level: 'info', code: 'noReturn', message: `${m.name} has no route back to the start map`, map: m.id });
     const bricks = new MapBricks(store, m.id).all();
     for (const s of m.spawns) {
-      if (spawnBlocked(bricks, s.pos)) out.push({ level: 'warn', code: 'blockedSpawn', message: `Spawn “${s.name}” on ${m.name} is inside bricks`, map: m.id, spawn: s.id });
+      if (spawnBlocked(bricks, s.pos))
+        out.push({
+          level: 'warn',
+          code: 'blockedSpawn',
+          message: `Spawn “${s.name}” on ${m.name} is inside bricks`,
+          map: m.id,
+          spawn: s.id,
+        });
       if (m.size && (Math.abs(s.pos[0]) > m.size.w / 2 || Math.abs(s.pos[2]) > m.size.d / 2))
-        out.push({ level: 'warn', code: 'outside', message: `Spawn “${s.name}” is outside ${m.name}’s generated world`, map: m.id, spawn: s.id });
+        out.push({
+          level: 'warn',
+          code: 'outside',
+          message: `Spawn “${s.name}” is outside ${m.name}’s generated world`,
+          map: m.id,
+          spawn: s.id,
+        });
     }
   }
   return out;

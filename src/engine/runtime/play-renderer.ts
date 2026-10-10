@@ -1,13 +1,13 @@
+import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
+import type { CharacterRenderer, Controller } from '../legacy/runtime-modules';
 import { brickGeometry } from '../render/brick-geometry';
 import type { CameraFrame } from '../render/camera';
 import { cross, normalize, type Vec3 } from '../render/math';
 import { type LineSet, type Marker, type Mesh, type RenderBrick, Renderer } from '../render/renderer';
 import { FRAGMENT } from '../render/shaders';
-import type { CharacterRenderer, Controller } from '../legacy/runtime-modules';
 import { chunkKeyOf } from './pieces';
 import type { MapWorld, PlaySession } from './session';
-import { LEGACY_COLORS } from '../../core/legacy/constants';
 
 export type DebugDraw = { colliders: boolean; spawns: boolean };
 
@@ -43,7 +43,11 @@ export class PlayRenderer {
     const target: Vec3 = [st.x, st.y + 2.0 * scale, st.z];
     const distance = (11.5 * 55) / s.zoom;
     const pitch = Math.max(0.08, s.camPitch);
-    let eye: Vec3 = [target[0] + distance * Math.sin(s.camYaw) * Math.cos(pitch), target[1] + distance * Math.sin(pitch), target[2] + distance * Math.cos(s.camYaw) * Math.cos(pitch)];
+    let eye: Vec3 = [
+      target[0] + distance * Math.sin(s.camYaw) * Math.cos(pitch),
+      target[1] + distance * Math.sin(pitch),
+      target[2] + distance * Math.cos(s.camYaw) * Math.cos(pitch),
+    ];
     const f = Math.max(0.76, s.L.GamePhysics.cameraDistance(target, eye, s.world.pieces));
     eye = eye.map((v, i) => target[i]! + (v - target[i]!) * f) as Vec3;
     const z = normalize(eye.map((v, i) => v - target[i]!));
@@ -88,19 +92,36 @@ export class PlayRenderer {
     const markers: Marker[] = [];
     if (this.debug.spawns) {
       const gateSpawns = new Set(s.outbound().map((o) => o.from));
-      for (const sp of w.doc.spawns) markers.push({ pos: [sp.pos[0], sp.pos[1] + 0.05, sp.pos[2]], size: [1.4, 0.1, 1.4], color: gateSpawns.has(sp.id) ? [0.31, 0.82, 0.77] : [0.95, 0.7, 0.2], alpha: 0.7 });
+      for (const sp of w.doc.spawns)
+        markers.push({
+          pos: [sp.pos[0], sp.pos[1] + 0.05, sp.pos[2]],
+          size: [1.4, 0.1, 1.4],
+          color: gateSpawns.has(sp.id) ? [0.31, 0.82, 0.77] : [0.95, 0.7, 0.2],
+          alpha: 0.7,
+        });
     }
     if (this.debug.colliders) {
       const st = s.heroState;
       const near: number[] = [];
       for (const p of w.pieces) {
         const b = s.L.GamePhysics.bounds(p);
-        if (b.x1 < st.x - 6 || b.x0 > st.x + 6 || b.z1 < st.z - 6 || b.z0 > st.z + 6 || b.y0 > st.y + 6 || b.y1 < st.y - 2) continue;
+        if (
+          b.x1 < st.x - 6 ||
+          b.x0 > st.x + 6 ||
+          b.z1 < st.z - 6 ||
+          b.z0 > st.z + 6 ||
+          b.y0 > st.y + 6 ||
+          b.y1 < st.y - 2
+        )
+          continue;
         near.push(...boxLines(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1));
       }
       lines.push({ lines: near, color: [1, 0.35, 0.35] });
       const r = 0.45 * s.L.GamePhysics.scaleOf(st);
-      lines.push({ lines: boxLines(st.x - r, st.y, st.z - r, st.x + r, st.y + 2.9 * s.L.GamePhysics.scaleOf(st), st.z + r), color: [0.4, 1, 0.5] });
+      lines.push({
+        lines: boxLines(st.x - r, st.y, st.z - r, st.x + r, st.y + 2.9 * s.L.GamePhysics.scaleOf(st), st.z + r),
+        color: [0.4, 1, 0.5],
+      });
     }
     return this.renderer.render(cam, [s.heroState.x, s.heroState.y, s.heroState.z], [], lines, markers, (mvp, eye) => {
       const c = this.chars;

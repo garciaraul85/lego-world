@@ -8,8 +8,13 @@ import { legacyRuntime } from '../../src/engine/legacy/runtime-modules';
 import { Runtime, STEP } from '../../src/engine/runtime/runtime';
 import { PlaySession } from '../../src/engine/runtime/session';
 
-const store = () => new ProjectStore(migrate(JSON.parse(readFileSync('tests/fixtures/legacy/save-v4.json', 'utf8'))).files);
-const dump = (s: ProjectStore) => [...s.keys()].sort().map((p) => p + serializeFile(p, s.get(p))).join('\n');
+const store = () =>
+  new ProjectStore(migrate(JSON.parse(readFileSync('tests/fixtures/legacy/save-v4.json', 'utf8'))).files);
+const dump = (s: ProjectStore) =>
+  [...s.keys()]
+    .sort()
+    .map((p) => p + serializeFile(p, s.get(p)))
+    .join('\n');
 
 describe('Runtime', () => {
   it('runs fixed 60 Hz steps, caps a long frame at 4 steps, pauses and single-steps', () => {
@@ -36,14 +41,21 @@ describe('PlaySession', () => {
     const session = new PlaySession(snap);
     const L = legacyRuntime();
     const build = mapToLegacyBuild(snap, s.manifest.entry.map);
-    const ref = new L.GamePhysics.Controller(build.pieces.map((p) => ({ ...p })), build.world as never);
+    const ref = new L.GamePhysics.Controller(
+      build.pieces.map((p) => ({ ...p })),
+      build.world as never,
+    );
     Object.assign(ref.state, structuredClone(session.heroState));
     session.input.keys.add('w');
     session.input.keys.add('shift');
     for (let i = 0; i < 120; i++) {
       if (i === 30) session.input.jump = true;
       session.runtime.stepOnce();
-      ref.step({ x: 0, z: 1, run: true, jump: i === 30, vertical: 0, speedScale: 1, jumpSpeed: 9.5 }, STEP, session.camYaw);
+      ref.step(
+        { x: 0, z: 1, run: true, jump: i === 30, vertical: 0, speedScale: 1, jumpSpeed: 9.5 },
+        STEP,
+        session.camYaw,
+      );
     }
     expect(session.heroState.x).toBeCloseTo(ref.state.x, 9);
     expect(session.heroState.z).toBeCloseTo(ref.state.z, 9);
@@ -58,8 +70,21 @@ describe('PlaySession', () => {
     // Stand next to a grouped object and face it until v68's target() picks it.
     let aimed = false;
     for (const p of w.pieces.filter((p) => p.group && p.y === 1)) {
-      for (const [dx, dz, heading] of [[-1.6, 0.5, Math.PI / 2], [3.6, 0.5, -Math.PI / 2], [0.5, -1.6, 0], [0.5, 3.6, Math.PI]] as const) {
-        Object.assign(w.controller.state, { x: p.x + dx, y: 0.4, z: p.z + dz, heading, vy: 0, grounded: true, speed: 0 });
+      for (const [dx, dz, heading] of [
+        [-1.6, 0.5, Math.PI / 2],
+        [3.6, 0.5, -Math.PI / 2],
+        [0.5, -1.6, 0],
+        [0.5, 3.6, Math.PI],
+      ] as const) {
+        Object.assign(w.controller.state, {
+          x: p.x + dx,
+          y: 0.4,
+          z: p.z + dz,
+          heading,
+          vy: 0,
+          grounded: true,
+          speed: 0,
+        });
         const t = w.controller.target(2.8);
         if (t && w.controller.clear(w.controller.state.x, 0.4, w.controller.state.z)) {
           aimed = true;

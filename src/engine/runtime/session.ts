@@ -1,8 +1,24 @@
 import { type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
-import { type Character, type Gates, type Instances, type MapDoc, type MapState, paths, type Project } from '../../core/schema';
-import { type Controller, type Debris, type HeroState, type LegacyRuntime, type LegacyWorldMeta, legacyRuntime, type Npc } from '../legacy/runtime-modules';
+import {
+  type Character,
+  type Gates,
+  type Instances,
+  type MapDoc,
+  type MapState,
+  type Project,
+  paths,
+} from '../../core/schema';
+import {
+  type Controller,
+  type Debris,
+  type HeroState,
+  type LegacyRuntime,
+  type LegacyWorldMeta,
+  legacyRuntime,
+  type Npc,
+} from '../legacy/runtime-modules';
 import { chunkKeyOf, inspectPieces } from './pieces';
 import { Runtime, type System } from './runtime';
 
@@ -24,7 +40,11 @@ export type MapWorld = {
 };
 
 export type InputState = { keys: Set<string>; jump: boolean; touch: Set<string> };
-export type GameEvent = { t: number; kind: 'start' | 'smash' | 'rebuild' | 'travel' | 'talk' | 'info' | 'cheat'; msg: string };
+export type GameEvent = {
+  t: number;
+  kind: 'start' | 'smash' | 'rebuild' | 'travel' | 'talk' | 'info' | 'cheat';
+  msg: string;
+};
 
 const COLOR_OF = (i: number) => LEGACY_COLORS[i]?.[1] ?? '#ff00ff';
 const rgb = (i: number) => [1, 3, 5].map((k) => (parseInt(COLOR_OF(i).slice(k, k + 2), 16) / 255) ** 1.5);
@@ -51,7 +71,8 @@ export class PlaySession {
   talking: Npc | null = null;
   rebuildHeld = false;
   rebuildEntry: BrokenEntry | null = null;
-  private pendingSmash: { remaining: number; reach: number; id: number | null; group?: string | undefined } | null = null;
+  private pendingSmash: { remaining: number; reach: number; id: number | null; group?: string | undefined } | null =
+    null;
   private smashCooldown = 0;
   private travelLock: { spawn: string } | null = null;
   readonly listeners = new Set<(e: GameEvent) => void>();
@@ -66,13 +87,17 @@ export class PlaySession {
     this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...(heroChr?.profile ?? {}) });
     const mapId = opts.mapId ?? project.entry.map;
     this.world = this.loadWorld(mapId);
-    const spawn = this.world.doc.spawns.find((s) => s.id === (opts.spawnId ?? project.entry.spawn)) ?? this.world.doc.spawns[0];
+    const spawn =
+      this.world.doc.spawns.find((s) => s.id === (opts.spawnId ?? project.entry.spawn)) ?? this.world.doc.spawns[0];
     if (spawn) this.placeAt(spawn.pos as [number, number, number], spawn.yaw);
     // Starting on a gate's spawn must not travel at once (v68 locks arrival the same way).
     this.travelLock = spawn ? { spawn: spawn.id } : null;
     this.camYaw = this.world.controller.state.heading + Math.PI;
     this.runtime = new Runtime<PlaySession>(this, this.systems());
-    this.emit('start', `Playing ${this.world.doc.name}${spawn ? ` from ${spawn.name}` : ''}. WASD moves, Space jumps, F smashes, hold E rebuilds, T talks.`);
+    this.emit(
+      'start',
+      `Playing ${this.world.doc.name}${spawn ? ` from ${spawn.name}` : ''}. WASD moves, Space jumps, F smashes, hold E rebuilds, T talks.`,
+    );
   }
 
   // ---------- worlds ----------
@@ -87,7 +112,11 @@ export class PlaySession {
     const state = (this.snapshot.get(paths.state(mapId)) as MapState | undefined) ?? { broken: [], player: null };
     const controller = new this.L.GamePhysics.Controller(pieces, meta);
     const inst = this.snapshot.get(paths.instances(mapId)) as Instances | undefined;
-    const npcs = build.npcs ? this.L.NPCWorld.restore(build.npcs, pieces, meta) : pieces.length ? this.L.NPCWorld.populate(pieces, meta, controller.state) : [];
+    const npcs = build.npcs
+      ? this.L.NPCWorld.restore(build.npcs, pieces, meta)
+      : pieces.length
+        ? this.L.NPCWorld.populate(pieces, meta, controller.state)
+        : [];
     void inst;
     this.L.NPCWorld.connect(npcs, controller);
     const w: MapWorld = {
@@ -109,7 +138,17 @@ export class PlaySession {
   /** Put the hero at a spawn (v68 arrival: keep clear of scenery, fall back to the map's safe spawn). */
   placeAt(pos: [number, number, number], heading: number) {
     const c = this.world.controller;
-    Object.assign(c.state, { x: pos[0], y: pos[1], z: pos[2], heading, vy: 0, grounded: true, speed: 0, attack: 0, building: false });
+    Object.assign(c.state, {
+      x: pos[0],
+      y: pos[1],
+      z: pos[2],
+      heading,
+      vy: 0,
+      grounded: true,
+      speed: 0,
+      attack: 0,
+      building: false,
+    });
     c.repairPosition();
     if (!c.clear(c.state.x, c.state.y, c.state.z)) {
       c.spawn();
@@ -145,7 +184,9 @@ export class PlaySession {
     delete (s as Record<string, unknown>).attackImpact;
     this.smashCooldown = w.duration + 0.02;
     const hit = this.world.controller.target(w.reach);
-    this.pendingSmash = hit ? { id: hit.id, group: hit.group, remaining: w.contact, reach: w.reach } : { id: null, remaining: w.contact, reach: w.reach };
+    this.pendingSmash = hit
+      ? { id: hit.id, group: hit.group, remaining: w.contact, reach: w.reach }
+      : { id: null, remaining: w.contact, reach: w.reach };
   }
 
   talk() {
@@ -159,7 +200,13 @@ export class PlaySession {
       return;
     }
     this.talking = npc;
-    const r = this.L.NPCWorld.reply(npc, 'hello', this.world.meta, { time: this.world.doc.sky.time }, this.world.broken.length);
+    const r = this.L.NPCWorld.reply(
+      npc,
+      'hello',
+      this.world.meta,
+      { time: this.world.doc.sky.time },
+      this.world.broken.length,
+    );
     const text = typeof r === 'string' ? r : (r?.text ?? '…');
     this.emit('talk', `${npc.profile.name}: ${text}`);
     this.say(`${npc.profile.name}: ${text}`, 5);
@@ -202,7 +249,11 @@ export class PlaySession {
     const input = this.talking ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
     this.input.jump = false;
     // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
-    this.world.controller.step({ ...input, speedScale: 1, jumpSpeed: this.hero.power === 'Super jumping' ? 19 : 9.5 }, dt, this.camYaw);
+    this.world.controller.step(
+      { ...input, speedScale: 1, jumpSpeed: this.hero.power === 'Super jumping' ? 19 : 9.5 },
+      dt,
+      this.camYaw,
+    );
     if (this.heroState.y < -15) {
       this.world.controller.spawn();
       this.say('Back on solid ground.', 2);
@@ -223,7 +274,9 @@ export class PlaySession {
   /** Port of v68 breakHit: the hit brick (or its whole group) plus anything it was holding up. */
   breakHit(hit: LegacyPiece, impact?: { heading: number; impulse: number; mass: number }) {
     const w = this.world;
-    const ids = new Set(w.pieces.filter((p) => p.y > 0 && (p.id === hit.id || (hit.group && p.group === hit.group))).map((p) => p.id!));
+    const ids = new Set(
+      w.pieces.filter((p) => p.y > 0 && (p.id === hit.id || (hit.group && p.group === hit.group))).map((p) => p.id!),
+    );
     let remaining = w.pieces.filter((p) => !ids.has(p.id!));
     let check = inspectPieces(remaining);
     if (!check.ok && check.connected) {
@@ -246,8 +299,14 @@ export class PlaySession {
     this.makeDebris(entry, impact);
     w.controller.replace(w.pieces, w.meta);
     this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
-    this.emit('smash', `${originals.length} brick${originals.length === 1 ? '' : 's'} smashed${hit.group ? ` (${hit.group})` : ''}`);
-    this.say(`${originals.length} ${originals.length === 1 ? 'brick' : 'bricks'} smashed into loose pieces. Hold E nearby to put them back.`, 2.5);
+    this.emit(
+      'smash',
+      `${originals.length} brick${originals.length === 1 ? '' : 's'} smashed${hit.group ? ` (${hit.group})` : ''}`,
+    );
+    this.say(
+      `${originals.length} ${originals.length === 1 ? 'brick' : 'bricks'} smashed into loose pieces. Hold E nearby to put them back.`,
+      2.5,
+    );
     return originals.length;
   }
 
@@ -262,7 +321,24 @@ export class PlaySession {
       const y = b.y0 + (b.y1 - b.y0) * Math.random();
       const z = b.z0 + (b.z1 - b.z0) * (0.2 + 0.6 * Math.random());
       const angle = i * 2.39996;
-      const d: Debris = { entryId: entry.id, x, y, z, ox: x, oy: y, oz: z, vx: Math.cos(angle) * (2 + Math.random() * 3), vy: 4 + Math.random() * 5, vz: Math.sin(angle) * (2 + Math.random() * 3), rx: Math.random() * 6, ry: Math.random() * 6, rz: 0, color: rgb(p.color), scale: 0.48 + Math.random() * 0.24, age: 0 };
+      const d: Debris = {
+        entryId: entry.id,
+        x,
+        y,
+        z,
+        ox: x,
+        oy: y,
+        oz: z,
+        vx: Math.cos(angle) * (2 + Math.random() * 3),
+        vy: 4 + Math.random() * 5,
+        vz: Math.sin(angle) * (2 + Math.random() * 3),
+        rx: Math.random() * 6,
+        ry: Math.random() * 6,
+        rz: 0,
+        color: rgb(p.color),
+        scale: 0.48 + Math.random() * 0.24,
+        age: 0,
+      };
       if (impact) {
         d.vx += Math.sin(impact.heading) * impact.impulse;
         d.vz += Math.cos(impact.heading) * impact.impulse;
@@ -333,7 +409,9 @@ export class PlaySession {
     const s = this.heroState;
     if (!entry || !s.grounded || s.speed > 0.01) return this.cancelRebuild();
     const w = this.world;
-    const safe = !entry.originals.some((p) => this.L.GamePhysics.overlapsPlayer(p, s)) && !this.L.GamePhysics.rebuildTraps(w.controller, entry.originals, s.x, s.z, s.y);
+    const safe =
+      !entry.originals.some((p) => this.L.GamePhysics.overlapsPlayer(p, s)) &&
+      !this.L.GamePhysics.rebuildTraps(w.controller, entry.originals, s.x, s.z, s.y);
     if (!safe) return this.cancelRebuild();
     if (this.rebuildEntry !== entry) {
       this.cancelRebuild();
@@ -373,7 +451,11 @@ export class PlaySession {
     const w = this.world;
     if (!w.npcs.length) return;
     this.L.NPCWorld.step(w.npcs, dt, this.heroState, this.talking?.id ?? null);
-    if (this.talking && Math.hypot(this.talking.state.x - this.heroState.x, this.talking.state.z - this.heroState.z) > 4.5) this.talking = null;
+    if (
+      this.talking &&
+      Math.hypot(this.talking.state.x - this.heroState.x, this.talking.state.z - this.heroState.z) > 4.5
+    )
+      this.talking = null;
   }
 
   /** Gates that leave the current map: [spawn here, destination map, destination spawn]. */
@@ -383,7 +465,8 @@ export class PlaySession {
     const out: { gate: string; from: string; toMap: string; toSpawn: string }[] = [];
     for (const g of gates) {
       if (g.from.map === here) out.push({ gate: g.id, from: g.from.spawn, toMap: g.to.map, toSpawn: g.to.spawn });
-      if (g.twoWay && g.to.map === here) out.push({ gate: g.id, from: g.to.spawn, toMap: g.from.map, toSpawn: g.from.spawn });
+      if (g.twoWay && g.to.map === here)
+        out.push({ gate: g.id, from: g.to.spawn, toMap: g.from.map, toSpawn: g.from.spawn });
     }
     return out;
   }

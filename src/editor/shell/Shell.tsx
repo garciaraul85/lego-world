@@ -100,7 +100,7 @@ function MenuItem({ a, c }: { a: EditorAction; c: ActionCtx }) {
 
 export const WORKSPACES = [
   ['Scene', null],
-  ['World graph', 'Phase 2'],
+  ['World graph', null],
   ['Logic', 'Phase 4'],
   ['Characters', 'Phase 3'],
   ['Assets', 'Phase 3'],
@@ -214,19 +214,31 @@ export function Toolbar({ c }: { c: ActionCtx }) {
         <button
           type="button"
           class="btn go"
-          onClick={() => ui.play('play')}
-          title="Play this map in the LEGO World v68 runtime (F5)"
+          onClick={() => (ed.session.value ? ui.stopPlay() : ui.play('engine'))}
+          title={
+            ed.session.value
+              ? 'Stop playing (Esc)'
+              : 'Play from the start spawn (F5) · Shift F5 plays from the selected spawn'
+          }
         >
           <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
             <path d="M2 1l9 5-9 5z" fill="currentColor" />
           </svg>
-          Play
+          {ed.session.value ? 'Stop' : 'Play'}
+        </button>
+        <button
+          type="button"
+          class="btn opt"
+          onClick={() => ui.play('v68')}
+          title="Play in the LEGO World v68 runtime: guns, magic, super powers and the volcano still run there (F6)"
+        >
+          Play in v68
         </button>
         <button
           type="button"
           class="btn opt"
           onClick={() => ui.play('edit')}
-          title="Open in LEGO World v68: characters, neighbors and routes are still edited there (Shift F5)"
+          title="Open in LEGO World v68: characters and neighbors are still edited there (Shift F6)"
         >
           v68 studio
         </button>
