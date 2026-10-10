@@ -113,7 +113,8 @@ export const generateTerrain: CommandHandler<{ map: string; config: GenerateConf
   apply: (store, p) => writeGenerated(store, p.map, p.config),
 };
 
-export type CreateMap = { id?: string; name: string; generate?: GenerateConfig };
+/** `spawnId` names the map's first spawn (the game generator passes it so a seed always gives the same files). */
+export type CreateMap = { id?: string; name: string; generate?: GenerateConfig; spawnId?: string };
 
 export const createMap: CommandHandler<CreateMap> = {
   label: (p) => `Add map ${p.name}`,
@@ -135,7 +136,7 @@ export const createMap: CommandHandler<CreateMap> = {
       generator: null,
       music: null,
       ambience: null,
-      spawns: [{ id: newId('spawn'), name: 'Arrival', pos: [0, 0.4, 0], yaw: Math.PI }],
+      spawns: [{ id: (p.spawnId ?? newId('spawn')) as Id<'spawn'>, name: 'Arrival', pos: [0, 0.4, 0], yaw: Math.PI }],
       zones: [],
     };
     store.put(paths.map(id), doc);
