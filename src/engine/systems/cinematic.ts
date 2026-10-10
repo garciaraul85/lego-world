@@ -59,6 +59,9 @@ export class CinematicSystem {
     return !!this.player;
   }
 
+  /** the Director keeps the last frame at the end instead of finishing */
+  private hold = false;
+
   /** Starts a scene; false when it is missing, already playing, or `once` and already seen. */
   play(id: string, opts: { once?: boolean } = {}): boolean {
     const h = this.host;
@@ -68,7 +71,15 @@ export class CinematicSystem {
       h.emit('info', `Cinematic ${id} does not exist`);
       return false;
     }
-    if (this.player) this.finish(false);
+    return this.playScene(cin);
+  }
+
+  /** Starts a scene from data (the Director previews unsaved edits this way). */
+  playScene(cin: Cinematic, opts: { hold?: boolean; quiet?: boolean } = {}): boolean {
+    const h = this.host;
+    const id = cin.id;
+    if (this.player) this.finish(false, opts.quiet);
+    this.hold = !!opts.hold;
     if (cin.map !== h.mapId()) h.travel(cin.map);
     this.seen.add(id);
     this.actors.clear();
@@ -118,9 +129,18 @@ export class CinematicSystem {
       clip: (cid) => (h.snapshot.get(paths.clip(cid)) as Clip | undefined) ?? BUILTIN_CLIPS.find((c) => c.id === cid),
       emote: emoteClip,
     });
-    h.emit('event', `Cinematic “${cin.name}”`);
-    this.step(0);
+    if (!opts.quiet) h.emit('event', `Cinematic “${cin.name}”`);
+    if (opts.hold) this.seekTo(0);
+    else this.step(0);
     return true;
+  }
+
+  /** Director scrub: show the scene at t without firing cues. */
+  seekTo(t: number) {
+    const p = this.player;
+    if (!p) return;
+    p.seek(t);
+    this.apply(p.frame());
   }
 
   /** One fixed step of scene time (dt already scaled by the game speed). */
@@ -129,7 +149,7 @@ export class CinematicSystem {
     if (!p) return;
     this.applyCues(p.advance(dt));
     this.apply(p.frame());
-    if (p.done) this.finish(false);
+    if (p.done && !this.hold) this.finish(false);
   }
 
   /** Esc / B / the Skip button: jump to the end, keeping the end state. */
@@ -144,8 +164,8 @@ export class CinematicSystem {
   }
 
   /** logic's Stop cinematic: ends now without the remaining cues */
-  stop() {
-    if (this.player) this.finish(true);
+  stop(quiet = false) {
+    if (this.player) this.finish(true, quiet);
   }
 
   private applyCues(cues: Cue[]) {
@@ -208,9 +228,10 @@ export class CinematicSystem {
     };
   }
 
-  private finish(skipped: boolean) {
+  private finish(skipped: boolean, quiet = false) {
     const p = this.player;
     if (!p) return;
+    this.hold = false;
     this.player = null;
     this.host.audio.music('cinematic', undefined);
     if (this.lastSay) this.host.dialogue(null);
@@ -220,6 +241,7 @@ export class CinematicSystem {
       if (a.kind === 'npc') Object.assign(a.npc.state, { speed: 0, moveBlend: 0, runBlend: 0 });
     this.actors.clear();
     this.frame = null;
+    if (quiet) return;
     this.host.emit('info', `Cinematic “${p.cin.name}” ${skipped ? 'skipped' : 'finished'}`);
     this.host.done(p.cin.id);
   }

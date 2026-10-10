@@ -2,7 +2,7 @@ import type { Action } from '../../core/schema';
 
 export type Choice = { id: string; name: string };
 /** Pickers for sound / music / screen actions (from AudioFields.actionChoices). */
-export type ActionChoices = { sounds: Choice[]; music: Choice[]; screens: Choice[] };
+export type ActionChoices = { sounds: Choice[]; music: Choice[]; screens: Choice[]; cinematics: Choice[] };
 
 /** The action kinds a designer can pick, with what each needs. Shared by assets, zones, screens and logic. */
 const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Action; needs?: keyof ActionChoices }[] = [
@@ -39,11 +39,18 @@ const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Act
     make: (c) => ({ do: 'hideScreen', screen: (c?.screens[0]?.id ?? 'scr_pause00000') as never }),
   },
   { do: 'game', label: 'Game flow', make: () => ({ do: 'game', op: 'resume' }) },
+  // P6.4
+  {
+    do: 'cinematic',
+    label: 'Play cinematic',
+    needs: 'cinematics',
+    make: (c) => ({ do: 'cinematic', cinematic: (c?.cinematics[0]?.id ?? 'cin_none000000') as never, once: true }),
+  },
 ];
 
 /**
  * Edits an ActionList. `states` fills the Set state picker; `choices` fills the sound / music / screen
- * pickers (without it those actions are kept but not offered). Cinematics and travel are kept as is.
+ * pickers (without it those actions are kept but not offered). Travel is kept as is.
  */
 export function ActionListField({
   value,
@@ -56,7 +63,7 @@ export function ActionListField({
   states: string[];
   choices?: ActionChoices;
 }) {
-  const kinds = KINDS.filter((k) => !k.needs || choices);
+  const kinds = KINDS.filter((k) => !k.needs || (choices && (k.needs !== 'cinematics' || choices.cinematics.length)));
   const set = (i: number, a: Action) => onChange(value.map((x, j) => (j === i ? a : x)));
   return (
     <div class="actions-field">
@@ -202,6 +209,20 @@ function ActionArgs({
       return choices
         ? pick(a.screen, 'Screen', choices.screens, (screen) => ({ ...a, screen: screen as never }))
         : null;
+    case 'cinematic':
+      return choices ? (
+        <span class="row" style={{ flexWrap: 'nowrap' }}>
+          {pick(a.cinematic, 'Cinematic', choices.cinematics, (cinematic) => ({ ...a, cinematic: cinematic as never }))}
+          <label class="row small" title="Only the first time in a playthrough">
+            <input
+              type="checkbox"
+              checked={!!a.once}
+              onChange={(e) => onChange({ ...a, once: (e.target as HTMLInputElement).checked })}
+            />
+            once
+          </label>
+        </span>
+      ) : null;
     case 'game':
       return (
         <select

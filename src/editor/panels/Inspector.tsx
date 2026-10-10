@@ -6,9 +6,10 @@ import { BIOMES, BRICK_SIZES, TIMES } from '../../core/schema';
 import type { GenerateConfig } from '../../core/worldgen/generate';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { groupLabel } from '../categories';
+import { ActionListField } from '../components/ActionListField';
 import { Header, Num, TextField } from '../components/fields';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
-import { ItemInspector, MapAudioSection, ScreenSelect, ZoneAudio } from './AudioFields';
+import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
 
 const BIOME_NAMES = Object.fromEntries(worldGenerator().biomes);
 const pretty = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -238,16 +239,11 @@ function InspectorTab({ c }: { c: ActionCtx }) {
       </div>
       <div class="sec">
         <div class="sech">
-          <span>Sound, cinematics &amp; UI</span>
+          <span>Sound, cinematics &amp; logic</span>
         </div>
-        <div class="field">
-          On smash<span class="chip">Phase 5</span>
-        </div>
-        <div class="field">
-          Cinematic<span class="chip">Phase 6</span>
-        </div>
-        <div class="field">
-          Logic<span class="chip">Phase 4</span>
+        <div class="hint">
+          Loose bricks have no behaviour of their own. Make them an asset (Make asset) to give them a smash sound,
+          interactions that play sounds or cinematics, and logic hooks.
         </div>
       </div>
       <div class="sec" style={{ borderBottom: 0 }}>
@@ -596,9 +592,7 @@ function MapTab({ c }: { c: ActionCtx }) {
           <span>Audio &amp; first visit</span>
         </div>
         <MapAudioSection c={c} />
-        <div class="field">
-          Cinematic<span class="chip">Phase 6</span>
-        </div>
+        <MapCinematics c={c} />
       </div>
     </>
   );
@@ -754,6 +748,26 @@ function ZoneInspector({ c, id }: { c: ActionCtx; id: string }) {
         </div>
       </div>
       <ZoneAudio c={c} map={map} zone={z} />
+      <div class="sec">
+        <div class="sech">
+          <span>When the hero walks in</span>
+        </div>
+        <ActionListField
+          value={z.onEnter ?? []}
+          states={[]}
+          choices={actionChoices(ed)}
+          onChange={(onEnter) => patch({ onEnter: onEnter.length ? onEnter : undefined })}
+        />
+        <div class="sech">
+          <span>When the hero leaves</span>
+        </div>
+        <ActionListField
+          value={z.onExit ?? []}
+          states={[]}
+          choices={actionChoices(ed)}
+          onChange={(onExit) => patch({ onExit: onExit.length ? onExit : undefined })}
+        />
+      </div>
       <div class="sec">
         <div class="sech">
           <span>Logic</span>

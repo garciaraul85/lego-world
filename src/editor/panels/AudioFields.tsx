@@ -1,5 +1,5 @@
 import { SND } from '../../builtin/audio';
-import { type EmitterInstance, type Instances, paths, type UiInstance } from '../../core/schema';
+import { type Cinematic, type EmitterInstance, type Instances, paths, type UiInstance } from '../../core/schema';
 import { audioData } from '../../engine/audio/data';
 import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
@@ -12,7 +12,18 @@ export function actionChoices(ed: EditorState) {
     sounds: soundOptions(ed).map((o) => ({ id: o.id, name: o.name })),
     music: musicOptions(ed),
     screens: allScreens(ed.store).map((s) => ({ id: s.id, name: `${s.name} · ${s.kind}` })),
+    cinematics: cinematicOptions(ed),
   };
+}
+
+/** The project's cinematics, by name. */
+export function cinematicOptions(ed: EditorState) {
+  ed.revision.value;
+  return ed.store
+    .list('cinematics/')
+    .map((p) => ed.store.get<Cinematic>(p)!)
+    .filter(Boolean)
+    .map((c) => ({ id: c.id, name: c.name }));
 }
 
 /** Sound events of the project (built-ins + its own), by name. */
@@ -366,3 +377,36 @@ export function ItemInspector({ c, id }: { c: ActionCtx; id: string }) {
 }
 
 export const DEFAULT_EMITTER_SOUND = SND.birds;
+
+/** Map tab: the scenes set on this map, opened in the Director (P6.3). */
+export function MapCinematics({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  ed.revision.value;
+  const map = ed.mapId.value;
+  const list = ed.store
+    .list('cinematics/')
+    .map((p) => ed.store.get<Cinematic>(p)!)
+    .filter((x) => x?.map === map);
+  return (
+    <div class="field">
+      Cinematics
+      <div class="row">
+        {list.map((x) => (
+          <button
+            type="button"
+            class="btn"
+            onClick={() => {
+              ed.cinematicId.value = x.id;
+              c.ui.workspace('Cinematics');
+            }}
+          >
+            🎬 {x.name}
+          </button>
+        ))}
+        <button type="button" class="btn" onClick={() => c.ui.workspace('Cinematics')}>
+          {list.length ? 'Director…' : 'Make one in the Director…'}
+        </button>
+      </div>
+    </div>
+  );
+}

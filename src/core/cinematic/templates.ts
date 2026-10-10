@@ -57,7 +57,7 @@ export function rewardScene(o: {
         kind: 'camera',
         items: [
           { t: 0, shot: 'Wide', pos: [x - 7, y + 6, z - 7], lookAt: [x + 2, y + 1, z + 2], fov: 55, blend: 0 },
-          { t: 3, shot: 'Close on mayor', follow: 'mayor', offset: [0.8, 1.9, 3.4], look: 'mayor', fov: 40, blend: 0 },
+          { t: 3, shot: 'Close on mayor', follow: 'mayor', offset: [2.4, 2.1, 2.2], look: 'mayor', fov: 40, blend: 0 },
           {
             t: 6.1,
             shot: 'Two shot',

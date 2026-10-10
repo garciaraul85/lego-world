@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'preact/hooks';
-import { BRICK_SIZES } from '../../core/schema';
+import { usesOf } from '../../core/audio/usage';
+import { BRICK_SIZES, type Cinematic } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
 import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
@@ -8,7 +9,7 @@ import { AssetThumb } from '../components/AssetThumb';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
 import { MixerView } from '../workspaces/audio/MixerView';
-import { musicOptions, soundOptions } from './AudioFields';
+import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
 import { Swatches } from './Inspector';
 
 const CATS: [string, string | null, string][] = [
@@ -19,7 +20,7 @@ const CATS: [string, string | null, string][] = [
     'Click an asset, then click in the map (Place asset, A). T turns it. Edit assets in the Asset studio.',
   ],
   ['Characters', null, 'Characters, their looks and their clips (emotes) are made in the Character studio.'],
-  ['Cinematics', 'Phase 6', 'Directed scenes arrive with the Cinematics director.'],
+  ['Cinematics', null, 'Directed scenes: click one to open it in the Director; ▶ plays it in the game.'],
   ['UI screens', null, 'Splash, title, HUD, pause, dialogue, game over and your own screens.'],
   ['Sounds', null, 'Sound events: ▶ to listen; place one in the map as an emitter (Sound emitter tool, S).'],
   ['Music', null, 'Music states: ▶ to audition; pick one as the map music or a zone’s music.'],
@@ -56,15 +57,7 @@ export function Dock({ c }: { c: ActionCtx }) {
       </div>
       {tab === 'assets' && <Assets c={c} />}
       {tab === 'console' && <Console ed={ed} />}
-      {tab === 'timeline' && (
-        <div class="placeholder">
-          <strong>Map timeline · Phase 6</strong>
-          <span class="muted">
-            Scheduled music, ambience, volcano and logic timers over a sandbox day will appear here with the Cinematics
-            director.
-          </span>
-        </div>
-      )}
+      {tab === 'timeline' && <MapTimeline c={c} />}
       {tab === 'profiler' && <Profiler ed={ed} />}
       {tab === 'problems' && <Problems c={c} problems={problems} />}
       {tab === 'debug' && <Debug c={c} />}
@@ -117,6 +110,17 @@ function Assets({ c }: { c: ActionCtx }) {
               Open the Character studio
             </button>
           </div>
+        ) : cur[0] === 'Cinematics' ? (
+          <MediaCards
+            c={c}
+            items={cinematicOptions(ed).map((o) => ({ id: o.id, name: o.name, sub: 'scene' }))}
+            play={(id) => c.ui.play('engine', { cinematic: id })}
+            open={(id) => {
+              ed.cinematicId.value = id;
+              c.ui.workspace('Cinematics');
+            }}
+            hint={cur[2]}
+          />
         ) : cur[0] === 'UI screens' ? (
           <MediaCards
             c={c}
@@ -604,5 +608,56 @@ function MediaCards({
         ))}
       </div>
     </>
+  );
+}
+
+/**
+ * Map timeline: what is set to happen on this map, in order: its music and ambience, zones with
+ * music or actions, emitters, and the cinematics that play here and what triggers them.
+ */
+function MapTimeline({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  ed.revision.value;
+  const m = ed.mapDoc.value;
+  if (!m) return null;
+  const scenes = ed.store
+    .list('cinematics/')
+    .map((p) => ed.store.get<Cinematic>(p)!)
+    .filter((x) => x?.map === m.id);
+  const zones = m.zones.filter((z) => z.music !== undefined || z.ambience || z.onEnter?.length || z.onExit?.length);
+  return (
+    <div class="scroll" style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div class="small">
+        <strong>{m.name}</strong> · music {m.music ?? 'none'} · ambience {m.ambience ?? 'none'}
+      </div>
+      {zones.map((z) => (
+        <div class="small">
+          ⬚ {z.tags[0] ?? z.id}: {z.music !== undefined ? `music ${z.music ?? 'silence'} · ` : ''}
+          {z.onEnter?.length ? `${z.onEnter.length} action(s) on enter · ` : ''}
+          {z.onExit?.length ? `${z.onExit.length} on exit` : ''}
+        </div>
+      ))}
+      {scenes.map((x) => {
+        const uses = usesOf(ed.store, x.id).filter((u) => !u.path.startsWith('cinematics/'));
+        return (
+          <div class="row small">
+            <button
+              type="button"
+              class="link"
+              onClick={() => {
+                ed.cinematicId.value = x.id;
+                c.ui.workspace('Cinematics');
+              }}
+            >
+              🎬 {x.name}
+            </button>
+            <span class="muted">
+              {x.length}s · {uses.length ? `played by ${uses.map((u) => u.what).join(', ')}` : 'not triggered yet'}
+            </span>
+          </div>
+        );
+      })}
+      {!scenes.length && !zones.length && <span class="muted small">Nothing scheduled on this map yet.</span>}
+    </div>
   );
 }

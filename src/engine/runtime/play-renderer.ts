@@ -27,6 +27,9 @@ export class PlayRenderer {
   debug: DebugDraw = { colliders: false, spawns: true };
   /** the camera of the last frame (world UI projects with it) */
   lastCamera: CameraFrame | null = null;
+  /** the Director's stage view: its own orbit camera and markers instead of the game's (P6.3) */
+  cameraOverride: CameraFrame | null = null;
+  extra: { lines: LineSet[]; markers: Marker[] } | null = null;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -91,7 +94,7 @@ export class PlayRenderer {
     this.renderer.snow = w.doc.weather.snow;
     this.renderer.clock = s.clock;
     // a cinematic owns the camera while it plays (P6.2)
-    const cam = s.cine.frame?.camera ?? this.camera();
+    const cam = this.cameraOverride ?? s.cine.frame?.camera ?? this.camera();
     this.lastCamera = cam;
     const lines: LineSet[] = [];
     const markers: Marker[] = [];
@@ -104,6 +107,10 @@ export class PlayRenderer {
           color: gateSpawns.has(sp.id) ? [0.31, 0.82, 0.77] : [0.95, 0.7, 0.2],
           alpha: 0.7,
         });
+    }
+    if (this.extra) {
+      lines.push(...this.extra.lines);
+      markers.push(...this.extra.markers);
     }
     if (s.prompt) {
       const [x, y, z] = s.prompt.pos;

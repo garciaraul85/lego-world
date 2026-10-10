@@ -112,6 +112,12 @@ export class ActorTrack {
     return Math.max(0, ...this.segs.map((s) => s.t1), ...this.items.map((i) => i.t + ('dur' in i ? i.dur : 0)));
   }
 
+  /** when the move that starts at t0 stops (arrives or is cut), or null */
+  moveEndAt(t0: number): number | null {
+    const s = this.segs.find((x) => x.t0 === t0);
+    return s ? s.t1 : null;
+  }
+
   private segAt(t: number): Seg | undefined {
     let s: Seg | undefined;
     for (const x of this.segs) if (x.t0 <= t) s = x;
