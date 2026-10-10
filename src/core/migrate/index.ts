@@ -8,7 +8,7 @@ import type { Problem } from './problems';
 import { type V5Options, v4to5 } from './v4to5';
 
 export type { Problem } from './problems';
-export { ids, piecesToChunks } from './v4to5';
+export { type IdResolver, ids, piecesToChunks } from './v4to5';
 
 export type MigrationResult = {
   files: Map<string, unknown>;
@@ -45,6 +45,7 @@ export function migrate(input: unknown, opts: Partial<V5Options> = {}): Migratio
       projectId: opts.projectId ?? legacyId('project', 1),
       name: opts.name ?? 'Imported LEGO World',
       now: opts.now ?? new Date().toISOString(),
+      ...(opts.ids ? { ids: opts.ids } : {}),
     },
     problems,
   );

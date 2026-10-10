@@ -1,6 +1,6 @@
 import { LEGACY_COLORS } from '../legacy/constants';
 import type { LegacyBuild, LegacyLink, LegacyMapEntry, LegacyPiece, LegacySave } from '../legacy/types';
-import { rebuildConfig } from '../migrate/v4to5';
+import { type IdResolver, ids, rebuildConfig } from '../migrate/v4to5';
 import type { Character, Chunk, Gates, Instances, MapDoc, MapState, Project, Settings } from '../schema';
 import { paths } from '../schema';
 
@@ -83,11 +83,63 @@ function intIds<T extends { legacyId?: number | undefined }>(items: T[]): Map<T,
   return out;
 }
 
+/** The v68 integer ids the bridge gives every map, spawn, gate and hero (stable for a given project). */
+export type LegacyIdTable = {
+  maps: Map<string, number>;
+  spawns: Map<string, [number, number]>;
+  gates: Map<string, number>;
+  heroes: Map<string, number>;
+};
+
+export function legacyIdTable(files: FileSource): LegacyIdTable {
+  const gates = (files.get(paths.gates) as Gates | undefined) ?? { gates: [], mapOrder: [] };
+  const maps = gates.mapOrder.map((id) => files.get(paths.map(id)) as MapDoc).filter(Boolean);
+  const mapInt = intIds(maps);
+  const t: LegacyIdTable = { maps: new Map(), spawns: new Map(), gates: new Map(), heroes: new Map() };
+  for (const m of maps) {
+    const mi = mapInt.get(m)!;
+    t.maps.set(m.id, mi);
+    for (const [s, si] of intIds(m.spawns)) t.spawns.set(s.id, [mi, si]);
+  }
+  for (const [g, gi] of intIds(gates.gates)) t.gates.set(g.id, gi);
+  const heroes = [...files.keys()]
+    .filter((p) => p.startsWith('characters/'))
+    .map((p) => files.get(p) as Character)
+    .filter((c) => c.role === 'hero');
+  for (const [c, ci] of intIds(heroes)) t.heroes.set(c.id, ci);
+  return t;
+}
+
+/** Inverse of legacyIdTable for migrate(): v68 integers back to this project's own v5 ids. */
+export function legacyIdResolver(files: FileSource): Partial<IdResolver> {
+  const t = legacyIdTable(files);
+  const inv = <K>(m: Map<string, K>, key: (k: K) => string) => new Map([...m].map(([id, k]) => [key(k), id]));
+  const maps = inv(t.maps, String);
+  const spawns = inv(t.spawns, ([a, b]) => `${a}:${b}`);
+  const gates = inv(t.gates, String);
+  const heroes = inv(t.heroes, String);
+  // NPC instances keep their ids when v68 still has the same neighbor (same map, same legacy id).
+  const npcInst = new Map<string, { instance: string; character: string }>();
+  for (const [mapId, mi] of t.maps) {
+    const inst = files.get(paths.instances(mapId)) as Instances | undefined;
+    for (const i of inst?.items ?? [])
+      if (i.kind === 'npc') npcInst.set(`${mi}:${i.legacyId}`, { instance: i.id, character: i.character });
+  }
+  return {
+    map: (m) => (maps.get(String(m)) as never) ?? ids.map(m),
+    spawn: (m, s) => (spawns.get(`${m}:${s}`) as never) ?? ids.spawn(m, s),
+    gate: (l) => (gates.get(String(l)) as never) ?? ids.gate(l),
+    hero: (c) => (heroes.get(String(c)) as never) ?? ids.hero(c),
+    npcInstance: (m, n) => (npcInst.get(`${m}:${n}`)?.instance as never) ?? ids.npcInstance(m, n),
+    npcCharacter: (m, n) => (npcInst.get(`${m}:${n}`)?.character as never) ?? ids.npcCharacter(m, n),
+  };
+}
+
 /**
  * Whole v5 project -> a v4 `brick-builder` save that LEGO World v68 loads (the legacy bridge, P0.8).
  * The entry map is the active map, as in v68.
  */
-export function toLegacy(files: FileSource): LegacySave {
+export function toLegacy(files: FileSource, opts: { activeMap?: string } = {}): LegacySave {
   const project = files.get(paths.project) as Project;
   const settings = (files.get(paths.settings) as Settings | undefined) ?? { quality: 'auto' };
   const sl = (settings.legacy ?? {}) as Record<string, unknown>;
@@ -95,7 +147,7 @@ export function toLegacy(files: FileSource): LegacySave {
   const maps = gates.mapOrder.map((id) => files.get(paths.map(id)) as MapDoc);
   const mapInt = intIds(maps);
   const byId = new Map(maps.map((m) => [m.id, m]));
-  const active = byId.get(project.entry.map) ?? maps[0];
+  const active = byId.get((opts.activeMap ?? project.entry.map) as never) ?? maps[0];
   if (!active) throw new Error('project has no maps');
   const activeBuild = mapToLegacyBuild(files, active.id);
 

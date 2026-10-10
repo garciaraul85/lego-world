@@ -1,4 +1,5 @@
 import { type Brick, chunkKey } from '../../bricks/codec';
+import { inspectBricks } from '../../bricks/inspect';
 import { brickError, MAX_BRICKS_PER_MAP, MapBricks } from '../../bricks/map-bricks';
 import type { ProjectStore } from '../../project/store';
 import { paths } from '../../schema';
@@ -9,6 +10,12 @@ export type PlaceBricks = { map: string; bricks: NewBrick[] };
 export type BrickIds = { map: string; ids: number[] };
 export type MoveBricks = BrickIds & { dx: number; dy: number; dz: number; drot?: number };
 export type PaintBricks = BrickIds & { color: string };
+
+/** Throws (rolling the transaction back) if the map's bricks no longer form a valid v68 build. */
+function assertLayout(store: ProjectStore, map: string) {
+  const check = inspectBricks(new MapBricks(store, map).all());
+  if (!check.ok) throw new Error(check.reason);
+}
 
 const mapMissing = (store: ProjectStore, map: string) =>
   store.has(paths.map(map)) ? null : `Map ${map} does not exist.`;
@@ -73,13 +80,17 @@ export const placeBricks: CommandHandler<PlaceBricks> = {
     const keys = new Set(added.map((b) => chunkKey(b.x, b.z)));
     const existing = [...keys].flatMap((k) => mb.inChunk(k));
     mb.write(keys, [...existing, ...added]);
+    assertLayout(store, p.map);
   },
 };
 
 export const removeBricks: CommandHandler<BrickIds> = {
   label: (p) => (p.ids.length === 1 ? 'Remove brick' : `Remove ${p.ids.length} bricks`),
   validate: (store, p) => mapMissing(store, p.map) ?? missingIds(new MapBricks(store, p.map), p.ids),
-  apply: (store, p) => editBricks(store, p.map, p.ids, () => null),
+  apply: (store, p) => {
+    editBricks(store, p.map, p.ids, () => null);
+    assertLayout(store, p.map);
+  },
 };
 
 export const moveBricks: CommandHandler<MoveBricks> = {
@@ -102,14 +113,16 @@ export const moveBricks: CommandHandler<MoveBricks> = {
     }
     return null;
   },
-  apply: (store, p) =>
+  apply: (store, p) => {
     editBricks(store, p.map, p.ids, (b) => ({
       ...b,
       x: b.x + p.dx,
       y: b.y + p.dy,
       z: b.z + p.dz,
       rot: (((b.rot + (p.drot ?? 0)) % 4) + 4) % 4,
-    })),
+    }));
+    assertLayout(store, p.map);
+  },
 };
 
 export const paintBricks: CommandHandler<PaintBricks> = {
@@ -119,4 +132,36 @@ export const paintBricks: CommandHandler<PaintBricks> = {
     (/^#[0-9a-f]{6}$/i.test(p.color) ? null : 'Color must be #rrggbb.') ??
     missingIds(new MapBricks(store, p.map), p.ids),
   apply: (store, p) => editBricks(store, p.map, p.ids, (b) => ({ ...b, color: p.color.toLowerCase() })),
+};
+
+export type UpdateBricks = { map: string; bricks: Array<Partial<Omit<Brick, 'id'>> & { id: number }> };
+
+/** Sets fields of existing bricks (position, rotation, type, color, group). Used for group rotate and drag-move. */
+export const updateBricks: CommandHandler<UpdateBricks> = {
+  label: (p) => (p.bricks.length === 1 ? 'Edit brick' : `Edit ${p.bricks.length} bricks`),
+  validate(store, p) {
+    const e =
+      mapMissing(store, p.map) ??
+      missingIds(
+        new MapBricks(store, p.map),
+        p.bricks.map((b) => b.id),
+      );
+    if (e) return e;
+    const byId = new Map(new MapBricks(store, p.map).all().map((b) => [b.id, b]));
+    for (const u of p.bricks) {
+      const err = brickError({ ...byId.get(u.id)!, ...u });
+      if (err) return err;
+    }
+    return null;
+  },
+  apply(store, p) {
+    const patch = new Map(p.bricks.map((b) => [b.id, b]));
+    editBricks(store, p.map, [...patch.keys()], (b) => {
+      const u = patch.get(b.id)!;
+      const next = { ...b, ...u, id: b.id };
+      if (u.color) next.color = u.color.toLowerCase();
+      return next;
+    });
+    assertLayout(store, p.map);
+  },
 };

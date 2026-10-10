@@ -8,16 +8,17 @@ This repository contains **saved project version 68**, imported from source comm
 
 ## Brick Worlds engine (work in progress)
 
-This repository is being grown into **Brick Worlds Engine** following the build plan (phases P0–P8). Phase 0 is in place: nothing you see while playing has changed.
+This repository is being grown into **Brick Worlds Engine** following the build plan (phases P0–P8). Phases 0 and 1 are in place.
 
-- The v68 sources now live in `src/legacy/` (unchanged). The HTML/CSS shell is `src/legacy/shell.html`. `npm run build:legacy` (or `python3 assemble.py`) rebuilds `dist/index.html` byte-for-byte as before.
-- `src/core/` is the new typed engine core (TypeScript, no DOM): project file schemas (Zod), lossless migration of every v1–v4 save into the v5 project layout (many small JSON files: one folder per map, 32×32-stud chunk files, characters, gates), the `ProjectStore`, the undoable `CommandBus`, IndexedDB autosave.
-- `npm run build` also writes `dist/engine.html`: v68 plus a host that keeps a v5 copy of your world in IndexedDB, imports an existing v68 autosave once, and records every edit and agent-tool call as a command.
+- **`dist/editor.html` — the Brick Worlds editor (Phase 1).** A Scene editor on the new project format: menus, workspace tabs, tools (select, move, rotate, brick paint, color paint, erase, spawn points), hierarchy/layers/find, inspector, the v68 terrain generator, a bottom dock, Game / World graph / Walkable views, undo for everything, IndexedDB autosave, `.bwproj` files. **Play** runs the current map in the v68 runtime; **v68 studio** opens v68 for what is not ported yet (characters, neighbors, routes) and brings the edits back as one undo step. See `docs/parity-checklist.md`.
+- `dist/index.html` is still LEGO World v68, byte for byte. Its sources live in `src/legacy/` (unchanged); `npm run build:legacy` (or `python3 assemble.py`) rebuilds it.
+- `src/core/` is the typed engine core (no DOM): Zod schemas, lossless v1–v4 migration into the v5 layout (one folder per map, 32×32-stud chunk files, characters, gates), `ProjectStore`, `CommandBus`, autosave, v68's layout rules. `src/engine/render/` is the WebGL renderer (v68 geometry and shaders, chunked and instanced). `src/editor/` is the Preact UI.
+- `dist/engine.html` is v68 plus a host that keeps a v5 copy of the world in IndexedDB (Phase 0).
 
 ```sh
 npm ci
-npm run build          # dist/index.html (v68) and dist/engine.html (v68 + v5 mirror)
-npm run serve          # http://localhost:8000/index.html or /engine.html
+npm run build          # dist/index.html (v68), dist/editor.html (editor), dist/engine.html
+npm run serve          # http://localhost:8000/editor.html (or /index.html, /engine.html)
 npm run check:fast     # lint, typecheck, module rules, unit tests (~40 s)
 npm run test:legacy    # the 34 v68 suites, in parallel (--shard 1/4 for CI shards)
 npm run test:e2e       # Playwright (set PW_CHROMIUM_PATH to use a preinstalled Chromium)
