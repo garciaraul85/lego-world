@@ -4,8 +4,11 @@ import type { Command, CommandBus, ExecuteResult, Source } from '../core/command
 import type { Problem } from '../core/migrate/problems';
 import type { Autosave, SaveStatus } from '../core/project/autosave';
 import type { FileBackend } from '../core/project/backend';
+import type { MediaStore } from '../core/project/media';
 import type { ProjectStore } from '../core/project/store';
 import { type Gates, type MapDoc, paths } from '../core/schema';
+import { AudioEngine } from '../engine/audio/AudioEngine';
+import { audioData } from '../engine/audio/data';
 import type { FrameStats } from '../engine/render/renderer';
 import type { DebugDraw } from '../engine/runtime/play-renderer';
 import type { PlaySession } from '../engine/runtime/session';
@@ -30,7 +33,7 @@ export type LogLine = { t: string; level: LogLevel; msg: string };
 export type ViewTab = 'scene' | 'game' | 'graph' | 'nav';
 export type LeftTab = 'hier' | 'layers' | 'search';
 export type RightTab = 'inspect' | 'map' | 'project';
-export type DockTab = 'assets' | 'console' | 'timeline' | 'profiler' | 'problems' | 'debug';
+export type DockTab = 'assets' | 'console' | 'timeline' | 'profiler' | 'problems' | 'debug' | 'audio';
 export type PlayStats = { fps: number; ticks: number; steps: number; ms: number };
 export type Layer = { visible: boolean; locked: boolean };
 
@@ -48,6 +51,8 @@ export type EditorDeps = {
   bus: CommandBus;
   autosave: Autosave;
   backend: FileBackend;
+  /** imported media of the project (P5.2); defaults to an in-memory store */
+  media?: MediaStore;
   problems?: Problem[];
 };
 
@@ -57,6 +62,9 @@ export class EditorState {
   readonly bus: CommandBus;
   readonly autosave: Autosave;
   readonly backend: FileBackend;
+  readonly media: MediaStore | null;
+  /** one audio engine for Play and the Audio workspace previews (P5.1) */
+  readonly audio: AudioEngine;
 
   readonly revision = signal(0);
   readonly mapId = signal<string>('');
@@ -77,6 +85,16 @@ export class EditorState {
   readonly logicBreak = signal<{ graph: string; node: string; values: Record<string, unknown> } | null>(null);
   /** the selected trigger zone in the Scene (P4.6) */
   readonly selectedZone = signal<string | null>(null);
+  /** the selected sound emitter or world UI item in the Scene (P5.5, P5.9) */
+  readonly selectedItem = signal<string | null>(null);
+  /** the screen open in the Screens workspace and its selected widget path (P5.9) */
+  readonly screenId = signal<string | null>(null);
+  readonly widgetPath = signal<string | null>(null);
+  /** what the Audio workspace shows: an event, a music state, the mixer or media (P5.6) */
+  readonly audioSel = signal<{ kind: 'event' | 'music' | 'mixer' | 'media'; id: string | null }>({
+    kind: 'event',
+    id: null,
+  });
   /** the character open in the Character studio */
   readonly studioCharacter = signal<string | null>(null);
   readonly view = signal<ViewTab>('scene');
@@ -152,6 +170,13 @@ export class EditorState {
     this.bus = deps.bus;
     this.autosave = deps.autosave;
     this.backend = deps.backend;
+    this.media = deps.media ?? null;
+    this.audio = new AudioEngine({
+      data: () => audioData(this.store),
+      loadMedia: (ref) => this.media?.get(ref) ?? Promise.resolve(null),
+      log: (m) => this.log('AUDIO', m),
+    });
+    this.store.subscribe('audio/', () => this.audio.applyMixer());
     if (deps.problems) this.problems.value = deps.problems;
     const ui = loadUi();
     for (const k of ['view', 'left', 'right', 'dock', 'assetCat', 'tool', 'snap'] as const)
@@ -199,6 +224,7 @@ export class EditorState {
       this.selection.value = new Set();
       this.selectedSpawn.value = null;
       this.selectedZone.value = null;
+      this.selectedItem.value = null;
     });
   }
 
@@ -252,6 +278,7 @@ export class EditorState {
       this.selection.value = next;
       this.selectedSpawn.value = null;
       this.selectedZone.value = null;
+      this.selectedItem.value = null;
       if (next.size) this.right.value = 'inspect';
     });
   }

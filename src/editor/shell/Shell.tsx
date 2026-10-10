@@ -104,9 +104,9 @@ export const WORKSPACES = [
   ['Logic', null],
   ['Characters', null],
   ['Assets', null],
-  ['Screens', 'Phase 5'],
+  ['Screens', null],
   ['Cinematics', 'Phase 6'],
-  ['Audio', 'Phase 5'],
+  ['Audio', null],
 ] as const;
 
 export function WorkspaceTabs({ current, onPick }: { current: string; onPick: (w: string) => void }) {
@@ -190,8 +190,20 @@ export const TOOLS: { id: ToolId; glyph: string; label: string; key: string; hel
     key: 'Z',
     help: 'Trigger zone: drag on the ground to draw a zone; logic reacts when the hero walks in or out.',
   },
-  { id: 'sound', glyph: '♫', label: 'Sound emitter / music zone', key: 'S', help: '', later: 'Phase 5' },
-  { id: 'ui', glyph: '▭', label: 'World UI', key: 'U', help: '', later: 'Phase 5' },
+  {
+    id: 'sound',
+    glyph: '♫',
+    label: 'Sound emitter',
+    key: 'S',
+    help: 'Sound emitter: click the ground to place a looping or repeating sound. Music and ambience zones: pick a zone’s Music in the Inspector.',
+  },
+  {
+    id: 'ui',
+    glyph: '▭',
+    label: 'World UI',
+    key: 'U',
+    help: 'World UI: click to place a sign above the ground; its text can show {variables} while playing.',
+  },
 ];
 
 export function Toolbar({ c }: { c: ActionCtx }) {

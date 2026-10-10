@@ -17,7 +17,7 @@ export function ScreenView({
 }) {
   return (
     <div
-      class={`bw-screen bw-kind-${screen.kind}`}
+      class={`bw-screen bw-kind-${screen.kind}${screen.pausesGame ? ' bw-pausing' : ''}`}
       data-screen={screen.id}
       role="region"
       aria-label={screen.name}

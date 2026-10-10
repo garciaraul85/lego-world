@@ -1,12 +1,16 @@
+import { useSignal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { nodeDef } from '../../core/logic/catalog';
 import { printGraph } from '../../core/logic/code/print';
 import type { LogicGraph } from '../../core/schema';
 import { PlayRenderer } from '../../engine/runtime/play-renderer';
 import { PlaySession } from '../../engine/runtime/session';
+import { moveFocus } from '../../engine/ui/ScreenRenderer';
 import type { EditorState } from '../state';
+import { GameScreens } from './GameScreens';
 
-export type PlayStart = { mapId: string; spawnId: string | null };
+/** `boot: 'entry'` starts at the project's first screen (splash → title), as the exported game does. */
+export type PlayStart = { mapId: string; spawnId: string | null; boot?: 'game' | 'entry' };
 
 const SPEEDS = [0.25, 0.5, 1, 2] as const;
 const MOVE_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift', 'e']);
@@ -17,8 +21,8 @@ const MOVE_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowlef
  */
 export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlayStart; onStop: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const msgRef = useRef<HTMLDivElement>(null);
-  const promptRef = useRef<HTMLDivElement>(null);
+  const prRef = useRef<PlayRenderer | null>(null);
+  const uiTick = useSignal(0);
   const [failed, setFailed] = useState<string | null>(null);
   const paused = ed.paused.value;
   const scale = ed.timeScale.value;
@@ -30,8 +34,11 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     let s: PlaySession;
     let pr: PlayRenderer;
     try {
-      s = new PlaySession(ed.store.snapshot(), start);
+      ed.audio.init();
+      void ed.audio.ctx?.resume().catch(() => {});
+      s = new PlaySession(ed.store.snapshot(), { ...start, audio: ed.audio });
       pr = new PlayRenderer(canvas, s);
+      prRef.current = pr;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setFailed(msg);
@@ -65,7 +72,9 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       raf = requestAnimationFrame(frame);
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      s.runtime.paused = ed.paused.value;
+      // a title, pause or game-over screen holds the game; the UI clock keeps running (P5.8)
+      s.runtime.paused = ed.paused.value || s.screenPaused;
+      pollGamepad(s);
       s.runtime.timeScale = ed.timeScale.value;
       const steps = s.runtime.advance(dt);
       pr.debug = ed.debugDraw.value;
@@ -73,16 +82,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       const st = pr.render();
       frameMs.push(dt * 1000);
       if (frameMs.length > 30) frameMs.shift();
-      if (msgRef.current) {
-        const text = s.clock < s.messageUntil ? s.message : '';
-        if (msgRef.current.textContent !== text) msgRef.current.textContent = text;
-        msgRef.current.hidden = !text;
-      }
-      if (promptRef.current) {
-        const text = s.prompt && !s.talking ? `E · ${s.prompt.label}` : '';
-        if (promptRef.current.textContent !== text) promptRef.current.textContent = text;
-        promptRef.current.hidden = !text;
-      }
+      uiTick.value++;
       if (now - lastTick > 100) {
         lastTick = now;
         const avg = frameMs.reduce((a, b) => a + b, 0) / frameMs.length;
@@ -104,15 +104,19 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     const onDown = (e: KeyboardEvent) => {
       if (typing(e) || e.ctrlKey || e.metaKey) return;
       const k = e.key.toLowerCase();
-      if (k === 'escape') {
+      if (k === 'escape' || k === 'backspace') {
+        // Esc / Android back: the top screen's back action (HUD → Pause → resume)
         e.preventDefault();
-        onStop();
+        e.stopPropagation();
+        s.back();
         return;
       }
       if (k === 'f5' || k === 'f6') {
         e.preventDefault();
         return;
       }
+      // while a menu screen is up the keyboard drives its buttons (Tab, arrows, Enter)
+      if (s.screenPaused) return;
       if (k === 'e' && !e.repeat && s.interact()) {
         /* used the prompted interaction */
       } else if (MOVE_KEYS.has(k)) s.input.keys.add(k);
@@ -168,7 +172,9 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       window.removeEventListener('keyup', onUp);
       window.removeEventListener('blur', onBlur);
       s.listeners.delete(onEvent);
+      s.dispose();
       pr.dispose();
+      prRef.current = null;
       unBp();
       ed.logicBreak.value = null;
       ed.session.value = null;
@@ -262,9 +268,9 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
           ))}
         </span>
         <span class="muted small opt play-hint">
-          WASD move · Space jump · F smash · E use · hold E rebuild · T talk · 1-4 emotes · drag to look
+          WASD move · Space jump · F smash · E use · hold E rebuild · T talk · 1-4 emotes · Esc pause · F5 stop
         </span>
-        <button type="button" class="btn go" style={{ marginLeft: 'auto' }} onClick={onStop} title="Stop (Esc)">
+        <button type="button" class="btn go" style={{ marginLeft: 'auto' }} onClick={onStop} title="Stop (F5)">
           ■ Stop
         </button>
       </div>
@@ -277,8 +283,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
             <span class="muted">{failed}</span>
           </div>
         )}
-        <div ref={msgRef} class="play-msg" role="status" hidden />
-        <div ref={promptRef} class="play-prompt" aria-live="polite" hidden />
+        {session && <GameScreens ed={ed} session={session} renderer={() => prRef.current} tick={uiTick} />}
         <div class="touchpad" role="group" aria-label="Touch controls">
           <div class="dpad">
             <button type="button" class="tbtn up" {...dir('Move forward', 'forward')}>
@@ -330,6 +335,27 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       </div>
     </section>
   );
+}
+
+const pads = new Map<number, boolean[]>();
+/** Gamepad: Start / B = back, d-pad moves between menu buttons, A presses the focused one (P5.7). */
+function pollGamepad(s: PlaySession) {
+  const list = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const gp of list) {
+    if (!gp) continue;
+    const prev = pads.get(gp.index) ?? [];
+    const now = gp.buttons.map((b) => b.pressed);
+    const hit = (i: number) => now[i] && !prev[i];
+    if (hit(9) || hit(1)) s.back();
+    const layer = document.querySelector<HTMLElement>('.bw-layer');
+    const top = s.screens.top()?.id;
+    if (layer && s.screenPaused) {
+      if (hit(12) || hit(14)) moveFocus(layer, top, -1);
+      if (hit(13) || hit(15)) moveFocus(layer, top, 1);
+      if (hit(0)) (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('.bw-button')?.click();
+    } else if (hit(0)) s.input.jump = true;
+    pads.set(gp.index, now);
+  }
 }
 
 /** Where logic stopped: the graph, the line of code, and the node's input values. */

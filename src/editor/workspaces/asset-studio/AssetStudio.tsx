@@ -12,6 +12,7 @@ import { ACTIONS, type ActionCtx, keyOf, runAction } from '../../actions/registr
 import { assetLibrary, resolveAsset } from '../../assets';
 import { ActionListField } from '../../components/ActionListField';
 import { AssetThumb } from '../../components/AssetThumb';
+import { actionChoices } from '../../panels/AudioFields';
 import { Swatches } from '../../panels/Inspector';
 import { EditorState, type ToolId } from '../../state';
 import { Viewport } from '../../viewport/Viewport';
@@ -629,6 +630,7 @@ function Properties({
               <ActionListField
                 value={it.do}
                 states={def.states}
+                choices={actionChoices(ed)}
                 onChange={(next: Action[]) =>
                   setInteractions(def.interactions.map((x, j) => (j === i ? { ...x, do: next } : x)))
                 }

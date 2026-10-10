@@ -886,6 +886,11 @@ export class PlaySession {
     }
   }
 
+  /** a screen button was pressed: logic's On screen button (screen + button id) */
+  screenButton(screen: string, button: string) {
+    this.logic.fire({ type: 'event.onScreenButton', match: { screen, button }, payload: { screen, button } });
+  }
+
   /** Esc / Android back / gamepad B: the top screen's onBack, else pause ⇄ resume. */
   back() {
     const top = this.screens.top();

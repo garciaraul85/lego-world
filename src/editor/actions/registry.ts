@@ -12,7 +12,7 @@ export interface EditorUi {
   exportProject(): void;
   exportLegacySave(): void;
   /** engine: new runtime (P2); v68: LEGO World v68 runtime; edit: v68 studio */
-  play(mode: 'engine' | 'v68' | 'edit', opts?: { fromSelectedSpawn?: boolean }): void;
+  play(mode: 'engine' | 'v68' | 'edit', opts?: { fromSelectedSpawn?: boolean; fromEntry?: boolean }): void;
   stopPlay(): void;
   /** open the Asset studio on an asset (P3.4) */
   editAsset(id: string | null): void;
@@ -109,8 +109,13 @@ export const ACTIONS: EditorAction[] = [
     id: 'edit.delete',
     label: 'Delete',
     key: 'Delete',
-    when: (c) => hasSel(c) || !!c.ed.selectedSpawn.value,
+    when: (c) => hasSel(c) || !!c.ed.selectedSpawn.value || !!c.ed.selectedItem.value,
     run: ({ ed }) => {
+      if (ed.selectedItem.value) {
+        if (ed.exec({ type: 'item.remove', payload: { map: ed.mapId.value, id: ed.selectedItem.value } }).ok)
+          ed.selectedItem.value = null;
+        return;
+      }
       if (ed.selectedSpawn.value) {
         if (ed.exec({ type: 'map.removeSpawn', payload: { map: ed.mapId.value, spawn: ed.selectedSpawn.value } }).ok)
           ed.selectedSpawn.value = null;
@@ -190,6 +195,8 @@ export const ACTIONS: EditorAction[] = [
   { id: 'tool.erase', label: 'Erase', key: 'X', run: tool('erase') },
   { id: 'tool.spawn', label: 'Spawn point tool', key: 'P', run: tool('spawn') },
   { id: 'tool.zone', label: 'Trigger zone tool', key: 'Z', run: tool('zone') },
+  { id: 'tool.sound', label: 'Sound emitter tool', key: 'S', run: tool('sound') },
+  { id: 'tool.ui', label: 'World UI tool', key: 'U', run: tool('ui') },
   {
     id: 'brush.rotate',
     label: 'Turn the brush 90°',
@@ -243,6 +250,12 @@ export const ACTIONS: EditorAction[] = [
     key: 'Shift F5',
     when: ({ ed }) => !!ed.selectedSpawn.value,
     run: ({ ui }) => ui.play('engine', { fromSelectedSpawn: true }),
+  },
+  {
+    id: 'play.entry',
+    label: 'Play from the first screen (splash, title)',
+    key: 'Ctrl F5',
+    run: ({ ui }) => ui.play('engine', { fromEntry: true }),
   },
   {
     id: 'play.pause',
@@ -304,7 +317,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
   ],
   Assets: [],
   World: ['world.addMap', 'world.generate', 'world.graph', 'world.validate', '-', 'play.legacy'],
-  Play: ['play.start', 'play.here', 'play.pause', 'play.stop', '-', 'play.v68', 'play.legacy'],
+  Play: ['play.start', 'play.here', 'play.entry', 'play.pause', 'play.stop', '-', 'play.v68', 'play.legacy'],
   Window: [
     'window.1',
     'window.2',

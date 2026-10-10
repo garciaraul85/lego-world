@@ -83,7 +83,7 @@ test('engine Play runs a fixed-step session, smashes, and Stop leaves the projec
     t0 + 1,
   );
 
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('F5'); // stop (Esc is the game's back / pause now)
   await expect(page.getByLabel('Game view')).toHaveCount(0);
   await expect(page.getByLabel('3D map view')).toBeVisible();
   expect(await dump(page)).toBe(before);

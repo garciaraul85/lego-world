@@ -57,6 +57,8 @@ export function widgetCss(w: Widget): Record<string, string | number> {
   set('border', typeof s.border === 'string' ? `2px solid ${s.border}` : undefined);
   set('opacity', num(s.opacity));
   set('textAlign', typeof s.align === 'string' ? s.align : undefined);
+  // text stays on one line unless the widget has a width to wrap in
+  if (num(s.w) !== undefined || num(s.maxW) !== undefined) css.whiteSpace = 'pre-wrap';
   if (s.weight === 'bold') css.fontWeight = 700;
   if (s.shadow) css.textShadow = '0 3px 12px #000a';
   if (w.type === 'panel') {

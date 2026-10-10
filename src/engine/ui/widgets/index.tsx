@@ -10,6 +10,8 @@ export type ScreenHost = {
   /** run a button's actions */
   run(actions: readonly Action[], screen: string): void;
   sound(event: string): void;
+  /** a button was pressed (logic: On screen button) */
+  pressed?(screen: string, widget: string): void;
   /** text set by logic (Set screen text) for screen + widget id */
   text?(screen: string, widget: string): string | undefined;
   /** object URL of an imported image */
@@ -103,6 +105,7 @@ export function WidgetView(p: WidgetProps) {
             if (pv) return;
             host.sound(w.sound ?? CLICK);
             if (w.onPress?.length) host.run(w.onPress, p.screen);
+            host.pressed?.(p.screen, w.id ?? '');
           }}
         >
           {label}
