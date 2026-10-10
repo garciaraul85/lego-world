@@ -378,6 +378,15 @@ function Debug({ c }: { c: ActionCtx }) {
           {w.npcs.length}
           {s.talking ? ` · talking to ${s.talking.profile.name}` : ''}
         </dd>
+        <dt>variables</dt>
+        <dd>{[...s.logic.vars].map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(' · ') || 'none'}</dd>
+        <dt>items</dt>
+        <dd>{[...s.inventory].map(([k, v]) => `${v} ${k}`).join(' · ') || 'none'}</dd>
+        <dt>logic</dt>
+        <dd>
+          {s.logic.programs.length} event handler{s.logic.programs.length === 1 ? '' : 's'} · {s.logic.active} waiting
+          {s.logic.problems.length ? ` · ${s.logic.problems.length} problem(s)` : ''}
+        </dd>
         <dt>time</dt>
         <dd>
           {s.runtime.time.toFixed(1)} s · tick {st.ticks} · {ed.timeScale.value}×{ed.paused.value ? ' · paused' : ''}

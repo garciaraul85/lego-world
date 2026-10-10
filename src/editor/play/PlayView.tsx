@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { nodeDef } from '../../core/logic/catalog';
+import { printGraph } from '../../core/logic/code/print';
+import type { LogicGraph } from '../../core/schema';
 import { PlayRenderer } from '../../engine/runtime/play-renderer';
 import { PlaySession } from '../../engine/runtime/session';
 import type { EditorState } from '../state';
@@ -42,6 +45,17 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     ed.session.value = s;
     ed.playing.value = true;
     if (ed.dock.value === 'assets') ed.dock.value = 'debug';
+    // logic breakpoints (P4.5): pause the game where a graph stops
+    for (const k of ed.breakpoints.value) s.logic.breakpoints.add(k);
+    const unBp = ed.breakpoints.subscribe((set) => {
+      s.logic.breakpoints.clear();
+      for (const k of set) s.logic.breakpoints.add(k);
+    });
+    s.onBreak = (b) => {
+      ed.paused.value = true;
+      ed.logicBreak.value = b;
+    };
+    for (const p of s.logic.problems) ed.log('WARN', `Logic: ${p.message}${p.node ? ` (${p.node})` : ''}`);
 
     let raf = 0;
     let last = performance.now();
@@ -155,6 +169,8 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       window.removeEventListener('blur', onBlur);
       s.listeners.delete(onEvent);
       pr.dispose();
+      unBp();
+      ed.logicBreak.value = null;
       ed.session.value = null;
       ed.playing.value = false;
       ed.paused.value = false;
@@ -191,19 +207,35 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     });
 
   const map = session?.world.doc.name ?? '';
+  const brk = ed.logicBreak.value;
   return (
     <section class="panel playview" aria-label="Play view">
       <div class="play-bar" role="toolbar" aria-label="Play bar">
         <strong class="playing-dot">{paused ? '❚❚ Paused' : '▶ Playing'}</strong>
         <span class="chip">{map}</span>
-        <button
-          type="button"
-          class={`btn ${paused ? 'on' : ''}`}
-          title="Pause / resume (P)"
-          onClick={() => (ed.paused.value = !paused)}
-        >
-          {paused ? 'Resume' : 'Pause'}
-        </button>
+        {brk ? (
+          <button
+            type="button"
+            class="btn on"
+            title="Run on from the breakpoint"
+            onClick={() => {
+              ed.logicBreak.value = null;
+              ed.paused.value = false;
+              ed.session.value?.continueLogic();
+            }}
+          >
+            Continue
+          </button>
+        ) : (
+          <button
+            type="button"
+            class={`btn ${paused ? 'on' : ''}`}
+            title="Pause / resume (P)"
+            onClick={() => (ed.paused.value = !paused)}
+          >
+            {paused ? 'Resume' : 'Pause'}
+          </button>
+        )}
         <button
           type="button"
           class="btn"
@@ -236,6 +268,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
           ■ Stop
         </button>
       </div>
+      {brk && <BreakBanner ed={ed} brk={brk} />}
       <div class="viewport-wrap">
         <canvas ref={canvasRef} class="viewport-canvas" tabIndex={0} aria-label="Game view" />
         {failed && (
@@ -296,5 +329,34 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
         </div>
       </div>
     </section>
+  );
+}
+
+/** Where logic stopped: the graph, the line of code, and the node's input values. */
+function BreakBanner({ ed, brk }: { ed: EditorState; brk: NonNullable<EditorState['logicBreak']['value']> }) {
+  const g = ed.store.get<LogicGraph>(`logic/${brk.graph}.json`);
+  const n = g?.nodes.find((x) => x.id === brk.node);
+  let code = '';
+  try {
+    if (g) {
+      const p = printGraph(g);
+      const line = p.line.get(brk.node);
+      if (line) code = `${line}: ${p.code.split('\n')[line - 1]?.trim()}`;
+    }
+  } catch {
+    /* graphs with hand-wired loops have no code view */
+  }
+  return (
+    <div class="lg-break" role="alert">
+      ● Breakpoint · <strong>{g?.name ?? brk.graph}</strong> · {nodeDef(n?.type ?? '')?.title ?? brk.node}
+      {code && <code class="mono"> line {code}</code>}
+      <span class="muted">
+        {' '}
+        ·{' '}
+        {Object.entries(brk.values)
+          .map(([k, v]) => `${k} = ${JSON.stringify(v)}`)
+          .join(', ') || 'no inputs'}
+      </span>
+    </div>
   );
 }

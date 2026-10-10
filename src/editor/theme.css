@@ -1327,3 +1327,302 @@ select.inp {
   border-radius: 4px;
   margin-left: auto;
 }
+
+/* ---------- Logic workspace (P4) ---------- */
+.logic-ws .studio-main {
+  min-width: 0;
+}
+.lg-name {
+  width: 220px;
+  font-weight: 600;
+}
+.chip.warn {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.lg-views {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.lg-views.split {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1px;
+  background: var(--line2);
+}
+.lg-canvas {
+  position: relative;
+  overflow: hidden;
+  min-height: 260px;
+  background-color: #12161b;
+  background-image: radial-gradient(#2a313c 1px, transparent 1px);
+  background-size: 20px 20px;
+  touch-action: none;
+  outline: none;
+  user-select: none;
+}
+.lg-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.lg-wires {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.lg-wires .lg-edge {
+  pointer-events: auto;
+}
+.lg-node {
+  position: absolute;
+  box-sizing: border-box;
+  background: #1b2028;
+  border: 1px solid #303844;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px #00000055;
+  font-size: 11px;
+  cursor: grab;
+}
+.lg-node.sel {
+  border-color: var(--acc);
+  box-shadow:
+    0 0 0 1px var(--acc),
+    0 6px 16px #00000055;
+}
+.lg-node.hit {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 0 2px #ff6b6b88;
+}
+.lg-head {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-radius: 7px 7px 0 0;
+  color: #0f1216;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.lg-id {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-weight: 400;
+  opacity: 0.55;
+}
+.lg-bp {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #d62f2f;
+  box-shadow: 0 0 0 2px #0f121655;
+}
+.lg-row {
+  position: absolute;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg2);
+  white-space: nowrap;
+}
+.lg-row.in {
+  left: -6px;
+}
+.lg-row.out {
+  right: -6px;
+  flex-direction: row-reverse;
+}
+.lg-pin {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--c);
+  background: #12161b;
+  box-sizing: border-box;
+  cursor: crosshair;
+  flex: none;
+}
+.lg-pin.exec {
+  border-radius: 2px;
+  transform: rotate(45deg);
+  width: 10px;
+  height: 10px;
+}
+.lg-pin.on {
+  background: var(--c);
+}
+.lg-pin.ok {
+  box-shadow: 0 0 0 3px #4fd1c588;
+}
+.lg-pin.no {
+  opacity: 0.25;
+}
+.lg-pin-label {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lg-lit {
+  font-family: var(--mono);
+  color: var(--mut2);
+}
+.lg-sum {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  font-size: 10.5px;
+  color: var(--mut);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lg-note {
+  width: 180px;
+  min-height: 60px;
+  padding: 8px;
+  background: #3a3414;
+  border-color: #6b5d1e;
+  color: #ffe9a8;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.lg-group {
+  background: #ffffff08;
+  border: 1px dashed #4a5260;
+  box-shadow: none;
+}
+.lg-group-title {
+  padding: 4px 8px;
+  color: var(--mut);
+  font-weight: 600;
+}
+.lg-node.bad {
+  padding: 8px;
+  color: var(--err);
+}
+.lg-tip {
+  position: absolute;
+  max-width: 260px;
+  background: #3a1d1d;
+  border: 1px solid var(--err);
+  color: #ffd1c9;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 3;
+}
+.lg-mini {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  background: #0f1216e6;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.lg-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.lg-pal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 20px);
+  margin: 2px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: #d6dce5;
+  text-align: left;
+  background: #1b2028;
+  border: 1px solid #2a313c;
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: grab;
+}
+.lg-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: none;
+}
+.lg-var {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 82px 70px auto;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 10px;
+}
+.lg-graph-name {
+  flex: 1;
+  text-align: left;
+  color: inherit;
+}
+.lg-code {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: #0f1216;
+}
+.lg-cm {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.lg-cm .cm-editor {
+  height: 100%;
+}
+.lg-code-note {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--warn);
+  border-bottom: 1px solid var(--line2);
+}
+.lg-code-status {
+  padding: 5px 10px;
+  border-top: 1px solid var(--line2);
+  color: var(--mut);
+}
+.lg-code-status.err {
+  color: var(--err);
+}
+.lg-problems {
+  max-height: 90px;
+  border-top: 1px solid var(--line2);
+}
+.lg-problems .problem {
+  width: 100%;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.lg-break {
+  padding: 6px 12px;
+  background: #3a2412;
+  border-bottom: 1px solid #8a5a2a;
+  color: #ffd9b0;
+  font-size: 12px;
+}
+.lg-break code {
+  color: #fff;
+}
+@media (max-width: 900px) {
+  .lg-views.split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(300px, 1fr) minmax(300px, 1fr);
+  }
+}

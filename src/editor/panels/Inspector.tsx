@@ -6,6 +6,7 @@ import { BIOMES, BRICK_SIZES, TIMES } from '../../core/schema';
 import type { GenerateConfig } from '../../core/worldgen/generate';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { groupLabel } from '../categories';
+import { openLogicFor } from '../workspaces/logic/createFromContext';
 
 const BIOME_NAMES = Object.fromEntries(worldGenerator().biomes);
 const pretty = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -120,6 +121,8 @@ function InspectorTab({ c }: { c: ActionCtx }) {
   const { ed } = c;
   const sel = ed.selectedBricks.value;
   const spawnId = ed.selectedSpawn.value;
+  const zoneId = ed.selectedZone.value;
+  if (zoneId) return <ZoneInspector c={c} id={zoneId} />;
   const map = ed.mapId.value;
   ed.revision.value;
   if (spawnId) {
@@ -354,6 +357,28 @@ function AssetSection({ c }: { c: ActionCtx }) {
           ? `${e.def.sockets.length} socket${e.def.sockets.length === 1 ? '' : 's'}${e.def.interactions.length ? ` · ${e.def.interactions.length} interaction${e.def.interactions.length === 1 ? '' : 's'}` : ''}. `
           : ''}
         Colors and shape are edited in the Asset studio and change every copy. Unpack turns this copy into loose bricks.
+      </div>
+      <div class="field">
+        Logic
+        <span class="row" style={{ gap: '4px' }}>
+          {(
+            [
+              ['On interact', 'event.onInteract'],
+              ['On smash', 'event.onSmash'],
+              ['On rebuild', 'event.onRebuildFinished'],
+            ] as const
+          ).map(([label, type]) => (
+            <button
+              type="button"
+              class="btn"
+              style={{ minHeight: '26px', fontSize: '11px' }}
+              title={`Open in Logic: ${label.toLowerCase()} for every ${e.def.name}`}
+              onClick={() => openLogicFor(c, `${e.def.name} · ${label.toLowerCase()}`, type, { asset: e.def.id })}
+            >
+              {label}
+            </button>
+          ))}
+        </span>
       </div>
       <div class="row">
         <button type="button" class="btn" style={{ flex: 1 }} onClick={() => c.ui.editAsset(e.def.id)}>
@@ -749,6 +774,101 @@ function ProjectTab({ c }: { c: ActionCtx }) {
         </button>
         <button type="button" class="btn wide" disabled title="Phase 8">
           Export playable game · Phase 8
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** A trigger zone (P4.6): name, size, and logic for entering or leaving it. */
+function ZoneInspector({ c, id }: { c: ActionCtx; id: string }) {
+  const { ed } = c;
+  const map = ed.mapId.value;
+  const z = ed.mapDoc.value?.zones.find((x) => x.id === id);
+  if (!z) return <div class="sec muted">That zone was removed.</div>;
+  const name = z.tags[0] ?? 'Zone';
+  const patch = (p: Record<string, unknown>) =>
+    ed.exec({ type: 'map.updateZone', payload: { map, zone: id, patch: p } });
+  const r1 = (v: number) => Math.round(v * 10) / 10;
+  return (
+    <>
+      <Header title={name} sub="Trigger zone" color="#c792ea" />
+      <div class="sec">
+        <div class="field">
+          Name
+          <TextField
+            label="Zone name"
+            value={name}
+            onCommit={(v) => patch({ tags: [v.trim().slice(0, 40), ...z.tags.slice(1)] })}
+          />
+        </div>
+        <div class="sech">
+          <span>From</span>
+          <span style={{ textTransform: 'none', letterSpacing: 0 }}>studs</span>
+        </div>
+        <div class="grid3">
+          {(['X', 'Y', 'Z'] as const).map((axis, i) => (
+            <Num
+              label={`${axis} from`}
+              value={r1(z.min[i]!)}
+              onCommit={(v) => {
+                const min = [...z.min] as [number, number, number];
+                min[i] = v;
+                patch({ min });
+              }}
+            />
+          ))}
+        </div>
+        <div class="sech">
+          <span>To</span>
+        </div>
+        <div class="grid3">
+          {(['X', 'Y', 'Z'] as const).map((axis, i) => (
+            <Num
+              label={`${axis} to`}
+              value={r1(z.max[i]!)}
+              onCommit={(v) => {
+                const max = [...z.max] as [number, number, number];
+                max[i] = v;
+                patch({ max });
+              }}
+            />
+          ))}
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sech">
+          <span>Logic</span>
+        </div>
+        <div class="row">
+          <button
+            type="button"
+            class="btn on"
+            style={{ flex: 1 }}
+            onClick={() => openLogicFor(c, `${name} · enter`, 'event.onEnterZone', { zone: id })}
+          >
+            Add logic: on enter
+          </button>
+          <button
+            type="button"
+            class="btn"
+            style={{ flex: 1 }}
+            onClick={() => openLogicFor(c, `${name} · exit`, 'event.onExitZone', { zone: id })}
+          >
+            On exit
+          </button>
+        </div>
+        <div class="hint">Opens the Logic workspace with the event node ready; wire what should happen.</div>
+      </div>
+      <div class="sec" style={{ borderBottom: 0 }}>
+        <button
+          type="button"
+          class="btn wide danger"
+          onClick={() => {
+            if (ed.exec({ type: 'map.removeZone', payload: { map, zone: id } }).ok) ed.selectedZone.value = null;
+          }}
+        >
+          Delete zone
         </button>
       </div>
     </>

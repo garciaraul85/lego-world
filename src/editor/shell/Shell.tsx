@@ -101,7 +101,7 @@ function MenuItem({ a, c }: { a: EditorAction; c: ActionCtx }) {
 export const WORKSPACES = [
   ['Scene', null],
   ['World graph', null],
-  ['Logic', 'Phase 4'],
+  ['Logic', null],
   ['Characters', null],
   ['Assets', null],
   ['Screens', 'Phase 5'],
@@ -183,7 +183,13 @@ export const TOOLS: { id: ToolId; glyph: string; label: string; key: string; hel
     key: 'P',
     help: 'Spawn point: click open ground to add one, facing the way the camera looks.',
   },
-  { id: 'zone', glyph: '⬚', label: 'Trigger zone', key: 'Z', help: '', later: 'Phase 5' },
+  {
+    id: 'zone',
+    glyph: '⬚',
+    label: 'Trigger zone',
+    key: 'Z',
+    help: 'Trigger zone: drag on the ground to draw a zone; logic reacts when the hero walks in or out.',
+  },
   { id: 'sound', glyph: '♫', label: 'Sound emitter / music zone', key: 'S', help: '', later: 'Phase 5' },
   { id: 'ui', glyph: '▭', label: 'World UI', key: 'U', help: '', later: 'Phase 5' },
 ];
