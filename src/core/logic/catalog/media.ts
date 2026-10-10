@@ -22,7 +22,7 @@ const act = (
   exec: run,
 });
 
-/** Audio, screens and cinematics: wired now, heard and seen when Phases 5 and 6 land. */
+/** Audio and screens (P5); cinematics are wired now and play when Phase 6 lands. */
 export const MEDIA: NodeDef[] = [
   act(
     'audio.playSound',

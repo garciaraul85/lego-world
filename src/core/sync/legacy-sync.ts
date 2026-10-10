@@ -85,6 +85,8 @@ function keepInstances(store: ProjectStore, files: Map<string, unknown>) {
     const items: Instances['items'] = [];
     for (const i of before) {
       if (i.kind === 'asset' && keptIds.has(i.id)) items.push(i);
+      else if (i.kind === 'emitter' || i.kind === 'ui')
+        items.push(i); // v68 has no emitters or world UI
       else if (npcs.has(i.id)) {
         items.push(npcs.get(i.id)!);
         npcs.delete(i.id);

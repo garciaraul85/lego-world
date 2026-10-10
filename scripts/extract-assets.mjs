@@ -12,8 +12,14 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const rawText = {
   name: 'raw-text',
   setup(b) {
-    b.onResolve({ filter: /\?raw$/ }, (args) => ({ path: resolve(args.resolveDir, args.path.slice(0, -4)), namespace: 'raw' }));
-    b.onLoad({ filter: /.*/, namespace: 'raw' }, (args) => ({ contents: readFileSync(args.path, 'utf8'), loader: 'text' }));
+    b.onResolve({ filter: /\?raw$/ }, (args) => ({
+      path: resolve(args.resolveDir, args.path.slice(0, -4)),
+      namespace: 'raw',
+    }));
+    b.onLoad({ filter: /.*/, namespace: 'raw' }, (args) => ({
+      contents: readFileSync(args.path, 'utf8'),
+      loader: 'text',
+    }));
   },
 };
 const out = resolve(ROOT, 'dist/build/extract-assets.mjs');

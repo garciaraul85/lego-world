@@ -8,6 +8,8 @@ export const SoundEvents = z.strictObject({
   events: z.record(
     z.string(),
     z.strictObject({
+      /** display name in the Audio workspace (optional; the id is the key) */
+      name: z.string().min(1).max(60).optional(),
       clips: z.array(MediaRef).min(1),
       pick: z.enum(['random', 'sequence', 'shuffle']),
       volume: Db,
@@ -25,6 +27,7 @@ export const Music = z.strictObject({
   states: z.record(
     z.string(),
     z.strictObject({
+      name: z.string().min(1).max(60).optional(),
       layers: z.array(z.strictObject({ media: MediaRef, volume: Db })).min(1),
       loop: z.boolean(),
       bpm: z.number().positive().optional(),
@@ -47,3 +50,26 @@ export const Mixer = z.strictObject({
     }),
   ),
 });
+
+/** media/index.json: what each imported blob is (blobs themselves are stored by hash, outside the JSON files). */
+export const MediaIndex = z.strictObject({
+  items: z.record(
+    MediaRef,
+    z.strictObject({
+      name: z.string().min(1).max(120),
+      kind: z.enum(['audio', 'image']),
+      mime: z.string().min(1).max(60),
+      bytes: z.number().int().min(0),
+      duration: z.number().min(0).optional(),
+      channels: z.number().int().min(1).max(8).optional(),
+      sampleRate: z.number().int().positive().optional(),
+    }),
+  ),
+});
+export type MediaIndex = z.infer<typeof MediaIndex>;
+export type SoundEvents = z.infer<typeof SoundEvents>;
+export type SoundEvent = SoundEvents['events'][string];
+export type Music = z.infer<typeof Music>;
+export type MusicState = Music['states'][string];
+export type Mixer = z.infer<typeof Mixer>;
+export type BusName = keyof Mixer['buses'];

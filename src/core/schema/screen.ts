@@ -42,5 +42,9 @@ export const Screen = z.strictObject({
   root: Widget,
   music: id('music').nullable(),
   pausesGame: z.boolean(),
+  /** runs when the screen is shown (a splash waits, then shows the title) */
+  onShow: ActionList.optional(),
+  /** Esc / Android back while this is the top screen; default: pause screens close, the HUD opens Pause */
+  onBack: ActionList.optional(),
 });
 export type Screen = z.infer<typeof Screen>;

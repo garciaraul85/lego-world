@@ -28,7 +28,8 @@ export function newProjectFiles(o: NewProjectOptions): Map<string, unknown> {
     sky: { time: 'day' },
     weather: { rain: false, snow: false, snowing: false },
     generator: null,
-    music: null,
+    // built-in "Explore" music (src/builtin/audio); players can change it in the Audio workspace
+    music: 'mus_explore000',
     ambience: null,
     spawns: [{ id: spawnId, name: 'Arrival', pos: [0, 0.4, 0], yaw: Math.PI }],
     zones: [],
@@ -60,7 +61,7 @@ export function newProjectFiles(o: NewProjectOptions): Map<string, unknown> {
     name: o.name,
     created: now,
     modified: now,
-    entry: { map: mapId, spawn: spawnId, screen: null },
+    entry: { map: mapId, spawn: spawnId, screen: 'scr_splash0000' },
     hero: null,
     files: {},
   };

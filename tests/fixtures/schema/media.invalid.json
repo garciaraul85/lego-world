@@ -1,0 +1,8 @@
+{
+  "path": "media/index.json",
+  "value": {
+    "items": {
+      "door-creak.wav": { "name": "door-creak.wav", "kind": "video", "mime": "audio/wav", "bytes": -1 }
+    }
+  }
+}

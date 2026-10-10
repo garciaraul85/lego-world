@@ -222,7 +222,14 @@ export const removeSpawn: CommandHandler<{ map: string; spawn: string }> = {
   },
 };
 
-export type UpdateProject = { name?: string; entryMap?: string; entrySpawn?: string | null; hero?: string | null };
+export type UpdateProject = {
+  name?: string;
+  entryMap?: string;
+  entrySpawn?: string | null;
+  hero?: string | null;
+  /** the first screen the player sees (P5.8), null = straight into the game */
+  entryScreen?: string | null;
+};
 
 export const updateProject: CommandHandler<UpdateProject> = {
   label: () => 'Edit project settings',
@@ -230,6 +237,7 @@ export const updateProject: CommandHandler<UpdateProject> = {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.hero && !store.has(paths.character(p.hero))) return 'That character does not exist.';
     if (p.entryMap !== undefined && !store.has(paths.map(p.entryMap))) return 'Start map not found.';
+    if (p.entryScreen && !/^scr_[0-9a-z]{10}$/.test(p.entryScreen)) return 'Pick a screen.';
     if (p.entrySpawn) {
       const map = p.entryMap ?? store.manifest.entry.map;
       if (!getMap(store, map).spawns.some((s) => s.id === p.entrySpawn)) return 'Start spawn is not on the start map.';
@@ -248,7 +256,12 @@ export const updateProject: CommandHandler<UpdateProject> = {
     store.put(paths.project, {
       ...cur,
       name: p.name?.trim().slice(0, 120) ?? cur.name,
-      entry: { ...cur.entry, map: entryMap, spawn: spawn as Project['entry']['spawn'] },
+      entry: {
+        ...cur.entry,
+        map: entryMap,
+        spawn: spawn as Project['entry']['spawn'],
+        ...(p.entryScreen !== undefined ? { screen: p.entryScreen as Project['entry']['screen'] } : {}),
+      },
       ...(p.hero !== undefined ? { hero: p.hero as Project['hero'] } : {}),
     });
   },

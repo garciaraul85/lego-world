@@ -1,0 +1,42 @@
+{
+  "id": "scr_title00000",
+  "kind": "title",
+  "name": "Title",
+  "music": "mus_menu000000",
+  "pausesGame": true,
+  "root": {
+    "type": "panel",
+    "style": { "bg": "#0b1020b8" },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "anchor": [0.5, 0.3],
+        "text": "{game.name}",
+        "style": { "fontSize": 72, "weight": "bold", "color": "#ffffff", "shadow": 1 }
+      },
+      {
+        "type": "panel",
+        "id": "menu",
+        "anchor": [0.5, 0.62],
+        "style": { "layout": "column", "gap": 12, "w": 320 },
+        "children": [
+          {
+            "type": "button",
+            "id": "play",
+            "label": "Play",
+            "sound": "snd_uiconfirm0",
+            "onPress": [{ "do": "game", "op": "start" }]
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "id": "hint",
+        "anchor": [0.5, 0.94],
+        "text": "Enter or tap Play to start",
+        "style": { "fontSize": 18, "color": "#9aa4b8" }
+      }
+    ]
+  }
+}

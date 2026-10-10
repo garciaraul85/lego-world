@@ -1,4 +1,5 @@
 import { BUILTIN_ASSETS } from '../../builtin/assets';
+import { SND } from '../../builtin/audio';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { expandAsset } from '../../core/assets/expand';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
@@ -10,6 +11,7 @@ import {
   type Asset,
   type Character,
   type Clip,
+  type EmitterInstance,
   type Gates,
   type Instances,
   type LogicGraph,
@@ -17,8 +19,12 @@ import {
   type MapState,
   type Project,
   paths,
+  type Screen,
+  type UiInstance,
   type Variables,
 } from '../../core/schema';
+import type { AudioPort, Vec3 } from '../audio/port';
+import { RecordingAudio } from '../audio/port';
 import { Animator } from '../character/animator';
 import {
   type Controller,
@@ -30,6 +36,10 @@ import {
   type Npc,
 } from '../legacy/runtime-modules';
 import { LogicRuntime } from '../logic/interpreter';
+import { EmitterSystem } from '../systems/emitters';
+import { formatValue } from '../ui/bindings';
+import { ScreenStack } from '../ui/ScreenStack';
+import { resolveScreen, screenOfKind } from '../ui/screens';
 import { ActionRunner } from './actions';
 import { chunkKeyOf, inspectPieces } from './pieces';
 import { Runtime, type System } from './runtime';
@@ -56,6 +66,9 @@ export type MapWorld = {
   brokenSerial: number;
   /** asset instances of this map (their state changes while playing) */
   instances: PlayInstance[];
+  /** sound emitters and world UI of this map (P5.5, P5.9) */
+  emitters: EmitterInstance[];
+  worldUi: UiInstance[];
 };
 
 export type PlayInstance = ExpandedInstance & { state: string };
@@ -64,7 +77,7 @@ export type Prompt = { instance: PlayInstance; socket: string; label: string; po
 export type InputState = { keys: Set<string>; jump: boolean; touch: Set<string> };
 export type GameEvent = {
   t: number;
-  kind: 'start' | 'smash' | 'rebuild' | 'travel' | 'talk' | 'info' | 'cheat' | 'event';
+  kind: 'start' | 'smash' | 'rebuild' | 'travel' | 'talk' | 'info' | 'cheat' | 'event' | 'screen';
   msg: string;
 };
 
@@ -100,7 +113,6 @@ export class PlaySession {
   readonly listeners = new Set<(e: GameEvent) => void>();
   /** the interaction the hero can use right now (E), shown as a prompt */
   prompt: Prompt | null = null;
-  readonly vars = new Map<string, unknown>();
   readonly inventory = new Map<string, number>();
   readonly actions: ActionRunner;
   /** keyframe clips on the hero (emotes, keys 1-4) */
@@ -112,25 +124,62 @@ export class PlaySession {
   private spawnSerial = 0;
   onBreak: ((b: NonNullable<LogicRuntime['paused']>) => void) | null = null;
   emotes: Clip[] = [];
+  /** P5: audio, screens and world UI */
+  readonly audio: AudioPort;
+  readonly screens: ScreenStack;
+  /** screen actions run on the UI clock, which keeps going while a screen pauses the game */
+  readonly uiActions: ActionRunner;
+  uiClock = 0;
+  /** texts set by logic (Set screen text), by "screenId:widgetId" */
+  readonly screenText = new Map<string, string>();
+  dialogue: { speaker: string; text: string } | null = null;
+  /** where Retry puts the hero back: the last spawn arrived at */
+  checkpoint: { map: string; spawn: string | null };
+  readonly emitterSystem = new EmitterSystem();
+  readonly project: Project;
+  private shownScreens = new Set<string>();
+  private stepTimer = 0;
+  private rebuildTick = 0;
+  private zoneAmbience = new Set<string>();
+  /** game over shown; the hero waits for Retry */
+  over = false;
 
   constructor(
     readonly snapshot: FileSource,
-    opts: { mapId?: string; spawnId?: string | null } = {},
+    opts: { mapId?: string; spawnId?: string | null; audio?: AudioPort; boot?: 'game' | 'entry' } = {},
   ) {
     this.L = legacyRuntime();
-    this.actions = new ActionRunner({
-      setState: (state, target, self) => this.setInstanceState(target ?? self, state),
-      teleport: (spawn) => {
+    this.audio = opts.audio ?? new RecordingAudio();
+    const self = this;
+    const host = {
+      setState: (state: string, target: string | undefined, me: string | undefined) =>
+        this.setInstanceState(target ?? me, state),
+      teleport: (spawn: string) => {
         const sp = this.world.doc.spawns.find((x) => x.id === spawn);
         if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
       },
-      travel: (map, spawn) => this.travel(map, spawn),
-      log: (kind, msg) => this.emit(kind === 'event' ? 'event' : 'info', msg),
-      custom: (event) => this.logic.fire({ type: 'event.onCustom', match: { event } }),
-      vars: this.vars,
+      travel: (map: string, spawn: string) => this.travel(map, spawn),
+      log: (kind: 'event' | 'info', msg: string) => this.emit(kind === 'event' ? 'event' : 'info', msg),
+      custom: (event: string) => this.logic.fire({ type: 'event.onCustom', match: { event } }),
+      get vars() {
+        return self.logic.vars;
+      },
+      setVar: (name: string, value: unknown) => this.logic.setVar(name, value),
       inventory: this.inventory,
-    });
+      sound: (event: string, me: string | undefined) => this.playSound(event, me),
+      music: (music: string | null, fade: number | undefined) => this.audio.music('logic', music, fade),
+      stinger: (name: string) => this.audio.stinger(name),
+      screen: (op: 'show' | 'hide', screen: string, replace: boolean) => this.screenOp(op, screen, replace),
+      game: (op: 'start' | 'resume' | 'pause' | 'retry' | 'quit') => this.gameOp(op),
+      gave: () => this.audio.play(SND.pickup),
+      spawn: (asset: string, at: string) => void this.spawnAsset(asset, at),
+      despawn: (target: string) => this.despawn(target),
+    };
+    this.actions = new ActionRunner(host);
+    this.uiActions = new ActionRunner(host);
     const project = snapshot.get(paths.project) as Project;
+    this.project = project;
+    this.screens = new ScreenStack((id) => resolveScreen(snapshot, id));
     const heroChr = project.hero ? (snapshot.get(paths.character(project.hero)) as Character | undefined) : undefined;
     this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...(heroChr?.profile ?? {}) });
     this.emotes = this.resolveEmotes(heroChr);
@@ -139,11 +188,22 @@ export class PlaySession {
     const spawn =
       this.world.doc.spawns.find((s) => s.id === (opts.spawnId ?? project.entry.spawn)) ?? this.world.doc.spawns[0];
     if (spawn) this.placeAt(spawn.pos as [number, number, number], spawn.yaw);
+    this.checkpoint = { map: this.world.mapId, spawn: spawn?.id ?? null };
     // Starting on a gate's spawn must not travel at once (v68 locks arrival the same way).
     this.travelLock = spawn ? { spawn: spawn.id } : null;
     this.camYaw = this.world.controller.state.heading + Math.PI;
     this.logic = this.makeLogic();
+    // hearts: games without their own hp / maxHp variables get 3
+    if (!this.logic.vars.has('maxHp')) this.logic.vars.set('maxHp', 3);
+    if (!this.logic.vars.has('hp')) this.logic.vars.set('hp', this.logic.vars.get('maxHp'));
     this.runtime = new Runtime<PlaySession>(this, this.systems());
+    this.screens.onChange(() => this.screensChanged());
+    this.applyMapAudio();
+    // P5.8: the player boots through the entry screen (splash → title); Play in the editor starts in the game.
+    const entry = project.entry.screen;
+    if (opts.boot === 'entry' && entry && this.screens.push(entry)) {
+      /* splash / title shown over the paused world */
+    } else this.startGame();
     this.logic.fire({ type: 'event.onStart' });
     this.emit(
       'start',
@@ -168,7 +228,6 @@ export class PlaySession {
       : pieces.length
         ? this.L.NPCWorld.populate(pieces, meta, controller.state)
         : [];
-    void inst;
     this.L.NPCWorld.connect(npcs, controller);
     const w: MapWorld = {
       mapId,
@@ -185,6 +244,8 @@ export class PlaySession {
         ...e,
         state: e.inst.state ?? e.def.initialState,
       })),
+      emitters: (inst?.items ?? []).filter((i): i is EmitterInstance => i.kind === 'emitter'),
+      worldUi: (inst?.items ?? []).filter((i): i is UiInstance => i.kind === 'ui'),
     };
     this.worlds.set(mapId, w);
     return w;
@@ -246,7 +307,7 @@ export class PlaySession {
 
   talk() {
     if (this.talking) {
-      this.talking = null;
+      this.endTalk();
       return;
     }
     const npc = this.L.NPCWorld.nearest(this.world.npcs, this.heroState);
@@ -255,6 +316,7 @@ export class PlaySession {
       return;
     }
     this.talking = npc;
+    this.audio.play(SND.talk);
     const r = this.L.NPCWorld.reply(
       npc,
       'hello',
@@ -264,7 +326,15 @@ export class PlaySession {
     );
     const text = typeof r === 'string' ? r : (r?.text ?? '…');
     this.emit('talk', `${npc.profile.name}: ${text}`);
-    this.say(`${npc.profile.name}: ${text}`, 5);
+    this.dialogue = { speaker: String(npc.profile.name ?? ''), text };
+    const box = screenOfKind(this.snapshot, 'dialogue');
+    if (!box || !this.screens.push(box.id)) this.say(`${npc.profile.name}: ${text}`, 5);
+  }
+
+  endTalk() {
+    this.talking = null;
+    this.dialogue = null;
+    for (const s of this.screens.screens()) if (s.kind === 'dialogue') this.screens.hide(s.id);
   }
 
   // ---------- systems ----------
@@ -281,6 +351,10 @@ export class PlaySession {
       { id: 'anim', fixed: (g, dt) => g.stepAnim(dt) },
       { id: 'zones', fixed: (g) => g.stepZones() },
       { id: 'logic', fixed: (g) => g.logic.step(g.clock) },
+      { id: 'emitters', fixed: (g) => g.stepEmitters() },
+      { id: 'health', fixed: (g) => g.checkHealth() },
+      // screens and audio keep running while a screen pauses the game (frame systems always run)
+      { id: 'ui', frame: (g, dt) => g.stepUi(dt) },
       {
         id: 'clock',
         fixed: (g, dt) => {
@@ -305,18 +379,59 @@ export class PlaySession {
 
   moveHero(dt: number) {
     this.smashCooldown = Math.max(0, this.smashCooldown - dt);
-    const input = this.talking ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
+    const input = this.talking || this.over ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
     this.input.jump = false;
+    const before = this.heroState;
+    const wasGrounded = before.grounded;
+    const fallSpeed = before.vy;
     // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
     this.world.controller.step(
       { ...input, speedScale: 1, jumpSpeed: this.hero.power === 'Super jumping' ? 19 : 9.5 },
       dt,
       this.camYaw,
     );
+    this.movementSounds(dt, wasGrounded, fallSpeed);
     if (this.heroState.y < -15) {
       this.world.controller.spawn();
       this.say('Back on solid ground.', 2);
+      this.hurt(1);
     }
+  }
+
+  /** jump, land and footsteps (P5.3: the hero's own sounds) */
+  private movementSounds(dt: number, wasGrounded: boolean, fallSpeed: number) {
+    const s = this.heroState;
+    const pos: Vec3 = [s.x, s.y, s.z];
+    if (s.vy > 3 && fallSpeed <= 0.5) this.audio.play(SND.jump, { pos });
+    if (!wasGrounded && s.grounded && fallSpeed < -7) this.audio.play(SND.land, { pos });
+    if (s.grounded && s.speed > 0.8 && !s.building) {
+      this.stepTimer -= dt;
+      if (this.stepTimer <= 0) {
+        this.audio.play(SND.step, { pos });
+        this.stepTimer = s.speed > 7 ? 0.27 : 0.38;
+      }
+    } else this.stepTimer = 0.12;
+  }
+
+  /** lose hearts (falling off the world, logic); at 0 the game is over */
+  hurt(n: number) {
+    const hp = Math.max(0, Number(this.logic.vars.get('hp') ?? 0) - n);
+    this.logic.setVar('hp', hp);
+    this.audio.play(SND.hurt);
+    if (hp <= 0) this.gameOver();
+  }
+
+  /** hp can also drop through logic or actions (addVar hp -1): 0 hearts is game over */
+  checkHealth() {
+    if (!this.over && Number(this.logic.vars.get('hp') ?? 1) <= 0) this.gameOver();
+  }
+
+  gameOver() {
+    if (this.over) return;
+    this.over = true;
+    this.emit('screen', 'Game over');
+    const go = screenOfKind(this.snapshot, 'gameover');
+    if (go) this.screens.push(go.id);
   }
 
   stepSmash(dt: number) {
@@ -363,6 +478,10 @@ export class PlaySession {
     this.makeDebris(entry, impact);
     w.controller.replace(w.pieces, w.meta);
     this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+    const hb = this.L.GamePhysics.bounds(hit);
+    this.audio.play(owner?.def.smash.sound ?? SND.smash, {
+      pos: [(hb.x0 + hb.x1) / 2, (hb.y0 + hb.y1) / 2, (hb.z0 + hb.z1) / 2],
+    });
     this.emit(
       'smash',
       `${originals.length} brick${originals.length === 1 ? '' : 's'} smashed${hit.group ? ` (${hit.group})` : ''}`,
@@ -468,6 +587,7 @@ export class PlaySession {
   }
 
   private cancelRebuild() {
+    this.rebuildTick = 0;
     if (this.rebuildEntry) this.rebuildEntry.progress = 0;
     this.rebuildEntry = null;
     this.heroState.building = false;
@@ -496,6 +616,11 @@ export class PlaySession {
     const turn = Math.atan2(Math.sin(heading - s.heading), Math.cos(heading - s.heading));
     s.heading += turn * (1 - Math.exp(-dt * 12));
     entry.progress = Math.min(1, entry.progress + dt / 1.35);
+    const tick = Math.floor(entry.progress * 6);
+    if (tick > this.rebuildTick && entry.progress < 1) {
+      this.rebuildTick = tick;
+      this.audio.play(SND.rebuild, { pos: [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, (b.z0 + b.z1) / 2] });
+    }
     this.say(`Rebuilding ${entry.originals.length} bricks… ${Math.round(entry.progress * 100)}%`, 0.2);
     if (entry.progress < 1) return;
     const restored = [...w.pieces, ...entry.originals.map((p) => ({ ...p }))];
@@ -514,6 +639,7 @@ export class PlaySession {
     w.controller.replace(w.pieces, w.meta);
     this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
     this.cancelRebuild();
+    this.audio.play(SND.rebuilt, { pos: [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, (b.z0 + b.z1) / 2] });
     const owner = this.instanceOfPiece(entry.originals[0]?.id);
     this.emit('rebuild', `Rebuilt ${entry.originals.length} bricks${owner ? ` (${owner.def.name})` : ''}`);
     if (owner) this.emit('event', `Event “onRebuildFinished” · ${owner.def.name}`);
@@ -553,23 +679,34 @@ export class PlaySession {
         this.inventory.set(item, n);
         this.emit('info', `Got ${count} × ${item} (${n} in total)`);
         this.say(`+${count} ${item}`, 1.5);
+        this.audio.play(SND.pickup);
       },
       spawn: (asset, at) => this.spawnAsset(asset, at),
       despawn: (target) => this.despawn(target),
       media: (kind, id, extra) => {
-        const what: Record<string, string> = {
-          sound: `♪ sound ${id}`,
-          music: `♪ music ${id}`,
-          stopMusic: '♪ music stops',
-          show: `Show screen ${id}`,
-          hide: `Hide screen ${id}`,
-          setText: `Screen ${id}: ${JSON.stringify(extra)}`,
-          cinematic: `Cinematic ${id}`,
-          stopCinematic: 'Cinematic stops',
-        };
-        this.emit('info', `${what[kind]} (arrives in Phase ${kind.includes('inematic') ? 6 : 5})`);
-        if (kind === 'setText') this.say(String((extra as { text?: unknown })?.text ?? ''), 3);
-        if (kind === 'cinematic') this.logic.fire({ type: 'event.onCinematicDone', match: { cinematic: id } });
+        switch (kind) {
+          case 'sound':
+            this.playSound(id, undefined);
+            break;
+          case 'music':
+            this.audio.music('logic', id || null);
+            break;
+          case 'stopMusic':
+            this.audio.music('logic', null);
+            break;
+          case 'show':
+          case 'hide':
+            this.screenOp(kind, id, false);
+            break;
+          case 'setText': {
+            const e = extra as { element?: unknown; text?: unknown };
+            this.screenText.set(`${id}:${String(e?.element ?? '')}`, formatValue(e?.text));
+            break;
+          }
+          default:
+            this.emit('info', `${kind === 'cinematic' ? `Cinematic ${id}` : 'Cinematic stops'} (arrives in Phase 6)`);
+            if (kind === 'cinematic') this.logic.fire({ type: 'event.onCinematicDone', match: { cinematic: id } });
+        }
       },
       inZone: (zone) => {
         const z = this.world.doc.zones.find((x) => x.id === zone);
@@ -624,7 +761,174 @@ export class PlaySession {
         if (z.onExit?.length) this.actions.run(z.onExit, this.clock);
         this.logic.fire({ type: 'event.onExitZone', match: { zone: z.id }, payload: { who: 'hero' } });
       }
+      this.zoneAudio();
     }
+  }
+
+  /** music zones (innermost wins) and ambience zones (P5.4, P5.5) */
+  private zoneAudio() {
+    let best: { music: string | null; vol: number } | null = null;
+    const amb = new Set<string>();
+    for (const z of this.world.doc.zones) {
+      if (!this.inZones.has(z.id)) continue;
+      if (z.ambience) {
+        amb.add(z.id);
+        this.audio.loop(`zone:${z.id}`, z.ambience);
+      }
+      if (z.music === undefined) continue;
+      const vol = (z.max[0] - z.min[0]) * (z.max[1] - z.min[1]) * (z.max[2] - z.min[2]);
+      if (!best || vol < best.vol) best = { music: z.music, vol };
+    }
+    for (const id of this.zoneAmbience) if (!amb.has(id)) this.audio.stopLoop(`zone:${id}`);
+    this.zoneAmbience = amb;
+    this.audio.music('zone', best ? best.music : undefined);
+  }
+
+  /** the map's music and ambience (P5.4) */
+  private applyMapAudio() {
+    const d = this.world.doc;
+    this.audio.music('map', d.music ?? undefined);
+    if (d.ambience) this.audio.loop('map:ambience', d.ambience);
+    else this.audio.stopLoop('map:ambience');
+  }
+
+  /** a sound event at the hero, or at the instance an asset action belongs to */
+  playSound(event: string, self: string | undefined) {
+    const inst = self ? this.world.instances.find((i) => i.inst.id === self) : undefined;
+    const so = inst?.sockets[0];
+    const s = this.heroState;
+    this.audio.play(event, { pos: so ? (so.world as Vec3) : [s.x, s.y + 1, s.z] });
+  }
+
+  stepEmitters() {
+    if (this.runtime.ticks % 6) return;
+    const s = this.heroState;
+    this.emitterSystem.step(this.world.emitters, [s.x, s.y + 1, s.z], this.clock, this.audio);
+  }
+
+  // ---------- screens and game flow (P5.7, P5.8) ----------
+
+  stepUi(dt: number) {
+    this.uiClock += dt;
+    this.uiActions.step(this.uiClock);
+    const s = this.heroState;
+    this.audio.listener([s.x, s.y + 1.5, s.z], this.camYaw);
+  }
+
+  /** true while a screen (title, pause, game over) holds the game */
+  get screenPaused(): boolean {
+    return this.screens.pausesGame;
+  }
+
+  private screensChanged() {
+    const now = new Set(this.screens.ids);
+    for (const id of now) {
+      if (this.shownScreens.has(id)) continue;
+      const sc = resolveScreen(this.snapshot, id);
+      this.emit('screen', `Screen ${sc?.name ?? id}`);
+      if (sc?.onShow?.length) this.uiActions.run(sc.onShow, this.uiClock);
+    }
+    this.shownScreens = now;
+    // screen music: the topmost screen that names music
+    let music: string | undefined;
+    for (const sc of this.screens.screens()) if (sc.music) music = sc.music;
+    this.audio.music('screen', music);
+  }
+
+  screenOp(op: 'show' | 'hide', screen: string, replace: boolean) {
+    if (op === 'hide') return this.screens.hide(screen);
+    const ok = replace ? this.screens.replace(screen) : this.screens.push(screen);
+    if (!ok) this.emit('info', `Screen ${screen} does not exist`);
+  }
+
+  /** the HUD (the project's own HUD screen, else the built-in) */
+  private hud(): Screen | undefined {
+    return screenOfKind(this.snapshot, 'hud');
+  }
+
+  startGame() {
+    const hud = this.hud();
+    this.screens.set(hud ? [hud.id] : []);
+  }
+
+  gameOp(op: 'start' | 'resume' | 'pause' | 'retry' | 'quit') {
+    switch (op) {
+      case 'start':
+        this.startGame();
+        break;
+      case 'pause': {
+        const p = screenOfKind(this.snapshot, 'pause');
+        if (p && !this.screens.has(p.id)) this.screens.push(p.id);
+        break;
+      }
+      case 'resume':
+        for (const s of this.screens.screens()) if (s.kind === 'pause') this.screens.hide(s.id);
+        break;
+      case 'retry': {
+        this.over = false;
+        this.logic.setVar('hp', this.logic.vars.get('maxHp') ?? 3);
+        const cp = this.checkpoint;
+        if (cp.map !== this.world.mapId && cp.spawn) this.travel(cp.map, cp.spawn);
+        else {
+          const sp = this.world.doc.spawns.find((x) => x.id === cp.spawn);
+          if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
+          else this.world.controller.spawn();
+        }
+        this.emit('screen', 'Retry from the last checkpoint');
+        this.startGame();
+        break;
+      }
+      case 'quit': {
+        const t = screenOfKind(this.snapshot, 'title');
+        this.screens.set(t ? [t.id] : []);
+        break;
+      }
+    }
+  }
+
+  /** Esc / Android back / gamepad B: the top screen's onBack, else pause ⇄ resume. */
+  back() {
+    const top = this.screens.top();
+    if (!top) return this.gameOp('pause');
+    if (top.onBack?.length) return this.uiActions.run(top.onBack, this.uiClock);
+    if (top.kind === 'pause') this.gameOp('resume');
+    else if (top.kind === 'hud') this.gameOp('pause');
+    else if (top.kind === 'dialogue') this.endTalk();
+    else if (top.kind === 'custom') this.screens.hide(top.id);
+  }
+
+  /** values for {bindings} in screens and world UI */
+  lookup = (name: string): unknown => {
+    switch (name) {
+      case 'hero.gear':
+        return String(this.hero.held ?? 'hands');
+      case 'hero.name':
+        return String(this.hero.name ?? 'Hero');
+      case 'map.name':
+        return this.world.doc.name;
+      case 'game.name':
+        return this.project.name;
+      case 'prompt':
+        return this.prompt && !this.talking ? `E · ${this.prompt.label}` : '';
+      case 'message':
+        return this.clock < this.messageUntil ? this.message : '';
+      case 'dialogue.speaker':
+        return this.dialogue?.speaker ?? '';
+      case 'dialogue.text':
+        return this.dialogue?.text ?? '';
+      case 'inventory':
+        return this.inventory;
+      case 'time':
+        return Math.floor(this.clock);
+    }
+    if (name.startsWith('inventory.')) return this.inventory.get(name.slice(10)) ?? 0;
+    return this.logic.vars.get(name);
+  };
+
+  /** Stop: silence everything this session started. */
+  dispose() {
+    this.emitterSystem.reset(this.audio);
+    this.audio.stopAll();
   }
 
   /** world.spawn: a copy of an asset at a spawn point, for this play only. */
@@ -725,7 +1029,7 @@ export class PlaySession {
     }
     for (const e of a.step(dt)) {
       if ('emit' in e) this.emit('event', `Event “${e.emit}” · ${a.clip?.name ?? 'clip'}`);
-      else this.emit('info', `♪ ${e.sound} (audio arrives in Phase 5)`);
+      else this.audio.play(e.sound, { pos: [s.x, s.y + 1, s.z] });
     }
   }
 
@@ -811,7 +1115,7 @@ export class PlaySession {
       this.talking &&
       Math.hypot(this.talking.state.x - this.heroState.x, this.talking.state.z - this.heroState.z) > 4.5
     )
-      this.talking = null;
+      this.endTalk();
   }
 
   /** Gates that leave the current map: [spawn here, destination map, destination spawn]. */
@@ -848,13 +1152,19 @@ export class PlaySession {
     const keep = { ...this.heroState };
     this.cancelRebuild();
     this.pendingSmash = null;
-    this.talking = null;
+    this.endTalk();
+    this.emitterSystem.reset(this.audio);
+    this.inZones.clear();
+    this.zoneAudio();
     this.world = this.loadWorld(mapId);
     const sp = this.world.doc.spawns.find((x) => x.id === spawnId) ?? this.world.doc.spawns[0];
     Object.assign(this.world.controller.state, { ...keep, vy: 0 });
     if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
     this.travelLock = sp ? { spawn: sp.id } : null;
+    this.checkpoint = { map: mapId, spawn: sp?.id ?? null };
     this.camYaw = this.heroState.heading + Math.PI;
+    this.audio.play(SND.gate);
+    this.applyMapAudio();
     this.emit('travel', `${from.doc.name} → ${this.world.doc.name}${sp ? ` (${sp.name})` : ''}`);
     this.say(`Welcome to ${this.world.doc.name}`, 2);
   }
