@@ -1,0 +1,107 @@
+{
+  "id": "clp_yor9ccdhlx",
+  "name": "Basketball · jump shot",
+  "group": "Basketball",
+  "prop": "basket-shot",
+  "length": 2.7,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.78, "easeInOut"],
+        [0.621, 1.35, "easeInOut"],
+        [1.188, 2.2, "easeInOut"],
+        [1.728, 2.2, "easeInOut"],
+        [2.214, 1.78, "easeInOut"],
+        [2.7, 1.78, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "free",
+      "keys": [
+        [0, 0, "step"],
+        [0.621, 0, "step"],
+        [1.188, 1, "step"],
+        [1.728, 1, "step"],
+        [2.214, 0, "step"],
+        [2.7, 0, "step"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, -1, "easeInOut"],
+        [0.621, -1.8, "easeInOut"],
+        [1.188, -2.6, "easeInOut"],
+        [1.728, -2.6, "easeInOut"],
+        [2.214, -2.5, "easeInOut"],
+        [2.7, -1, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.1, "easeInOut"],
+        [0.621, -0.15, "easeInOut"],
+        [1.188, -0.15, "easeInOut"],
+        [1.728, -0.15, "easeInOut"],
+        [2.214, -0.15, "easeInOut"],
+        [2.7, 0.1, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, -1, "easeInOut"],
+        [0.621, -1.8, "easeInOut"],
+        [1.188, -2.7, "easeInOut"],
+        [1.728, -2.7, "easeInOut"],
+        [2.214, -2.65, "easeInOut"],
+        [2.7, -1, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.1, "easeInOut"],
+        [0.621, 0.15, "easeInOut"],
+        [1.188, 0.15, "easeInOut"],
+        [1.728, 0.15, "easeInOut"],
+        [2.214, 0.15, "easeInOut"],
+        [2.7, -0.1, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1, "easeInOut"],
+        [0.621, -0.9, "easeInOut"],
+        [1.188, -0.05, "easeInOut"],
+        [1.728, -0.05, "easeInOut"],
+        [2.214, -0.15, "easeInOut"],
+        [2.7, -1, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1, "easeInOut"],
+        [0.621, -0.9, "easeInOut"],
+        [1.188, -0.05, "easeInOut"],
+        [1.728, -0.05, "easeInOut"],
+        [2.214, -0.1, "easeInOut"],
+        [2.7, -1, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

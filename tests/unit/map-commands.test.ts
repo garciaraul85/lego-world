@@ -4,6 +4,7 @@ import { inspectBricks } from '../../src/core/bricks/inspect';
 import { MapBricks } from '../../src/core/bricks/map-bricks';
 import { toLegacy } from '../../src/core/bridge/legacy-bridge';
 import { CommandBus, registerAll } from '../../src/core/commands';
+import { allBricks } from '../../src/core/commands/handlers/assets';
 import { worldGenerator } from '../../src/core/legacy/modules';
 import { migrate } from '../../src/core/migrate';
 import { ProjectStore } from '../../src/core/project/store';
@@ -28,7 +29,7 @@ describe('map commands', () => {
     expect(bus.execute({ type: 'map.generate', payload: { map, config } }, { source: 'user' })).toMatchObject({
       ok: true,
     });
-    const bricks = new MapBricks(store, map).all();
+    const bricks = allBricks(store, map);
     const v68 = worldGenerator().generate({
       biomes: ['forest', 'city'],
       size: 16,
@@ -49,10 +50,13 @@ describe('map commands', () => {
       size: { w: v68.width, d: v68.depth },
     });
     const loaded = canonical(toLegacy(store)) as { pieces: unknown[]; world: { config: { seed: number } } };
-    expect(loaded.pieces.length).toBe(v68.pieces.length);
+    expect(loaded.pieces).toEqual(v68.pieces);
+    // houses, trees and cars became asset instances; terrain stays in chunks
+    expect(new MapBricks(store, map).count()).toBeLessThan(v68.pieces.length);
+    expect(store.list('assets/').length).toBeGreaterThan(3);
     expect(loaded.world.config.seed).toBe(418811);
     bus.undo();
-    expect(new MapBricks(store, map).count()).not.toBe(v68.pieces.length);
+    expect(allBricks(store, map).length).not.toBe(v68.pieces.length);
   });
 
   it('rejects bad generator settings', () => {

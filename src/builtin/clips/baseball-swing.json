@@ -1,0 +1,107 @@
+{
+  "id": "clp_nw58yrwo2c",
+  "name": "Baseball · batting",
+  "group": "Baseball",
+  "prop": "bat",
+  "length": 2.5,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "hips",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.575, 0.2, "easeInOut"],
+        [1.1, -0.25, "easeInOut"],
+        [1.6, -0.25, "easeInOut"],
+        [2.05, 0, "easeInOut"],
+        [2.5, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.575, 0.4, "easeInOut"],
+        [1.1, -0.55, "easeInOut"],
+        [1.6, -0.55, "easeInOut"],
+        [2.05, -0.35, "easeInOut"],
+        [2.5, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip0",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.575, 0, "easeInOut"],
+        [1.1, 0, "easeInOut"],
+        [1.6, 0, "easeInOut"],
+        [2.05, 0, "easeInOut"],
+        [2.5, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip1",
+      "keys": [
+        [0, 2.75, "easeInOut"],
+        [0.575, 2.95, "easeInOut"],
+        [1.1, 2.7, "easeInOut"],
+        [1.6, 2.7, "easeInOut"],
+        [2.05, 2.9, "easeInOut"],
+        [2.5, 2.75, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip2",
+      "keys": [
+        [0, 0.5, "easeInOut"],
+        [0.575, 0.5, "easeInOut"],
+        [1.1, 0.55, "easeInOut"],
+        [1.6, 0.55, "easeInOut"],
+        [2.05, 0.8, "easeInOut"],
+        [2.5, 0.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip3",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.575, 0.15, "easeInOut"],
+        [1.1, 1.2, "easeInOut"],
+        [1.6, 1.2, "easeInOut"],
+        [2.05, 0.7, "easeInOut"],
+        [2.5, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip4",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.575, 0, "easeInOut"],
+        [1.1, 0, "easeInOut"],
+        [1.6, 0, "easeInOut"],
+        [2.05, 0, "easeInOut"],
+        [2.5, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip5",
+      "keys": [
+        [0, -0.85, "easeInOut"],
+        [0.575, -0.95, "easeInOut"],
+        [1.1, -1.45, "easeInOut"],
+        [1.6, -1.45, "easeInOut"],
+        [2.05, -2.2, "easeInOut"],
+        [2.5, -0.85, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

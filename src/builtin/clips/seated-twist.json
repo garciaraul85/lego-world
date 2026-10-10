@@ -1,0 +1,115 @@
+{
+  "id": "clp_8r0zft1z7d",
+  "name": "Seated torso twist",
+  "group": "Yoga",
+  "prop": "mat",
+  "length": 6,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 0.6, "easeInOut"],
+        [1.5, 0.6, "easeInOut"],
+        [3, 0.6, "easeInOut"],
+        [4.5, 0.6, "easeInOut"],
+        [6, 0.6, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [1.5, 0.65, "easeInOut"],
+        [3, 0, "easeInOut"],
+        [4.5, -0.65, "easeInOut"],
+        [6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "head",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [1.5, -0.3, "easeInOut"],
+        [3, 0, "easeInOut"],
+        [4.5, 0.3, "easeInOut"],
+        [6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "free",
+      "keys": [[0, 1, "step"], [1.5, 1, "step"], [3, 1, "step"], [4.5, 1, "step"], [6, 1, "step"]]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, -0.45, "easeInOut"],
+        [1.5, -0.6, "easeInOut"],
+        [3, 0, "easeInOut"],
+        [4.5, -0.2, "easeInOut"],
+        [6, -0.45, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.2, "easeInOut"],
+        [1.5, -0.3, "easeInOut"],
+        [3, -0.06, "easeInOut"],
+        [4.5, -0.3, "easeInOut"],
+        [6, -0.2, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, -0.45, "easeInOut"],
+        [1.5, -0.2, "easeInOut"],
+        [3, 0, "easeInOut"],
+        [4.5, -0.6, "easeInOut"],
+        [6, -0.45, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.2, "easeInOut"],
+        [1.5, 0.3, "easeInOut"],
+        [3, 0.06, "easeInOut"],
+        [4.5, 0.3, "easeInOut"],
+        [6, 0.2, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftLeg",
+      "prop": "x",
+      "keys": [
+        [0, -1.5, "easeInOut"],
+        [1.5, -1.5, "easeInOut"],
+        [3, -1.5, "easeInOut"],
+        [4.5, -1.5, "easeInOut"],
+        [6, -1.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightLeg",
+      "prop": "x",
+      "keys": [
+        [0, -1.5, "easeInOut"],
+        [1.5, -1.5, "easeInOut"],
+        [3, -1.5, "easeInOut"],
+        [4.5, -1.5, "easeInOut"],
+        [6, -1.5, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

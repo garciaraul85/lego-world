@@ -1,0 +1,58 @@
+{
+  "id": null,
+  "name": "Market stall",
+  "category": "building",
+  "bricks": [
+    [0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 1, 0, 0, 1, 0],
+    [1, 0, 4, 0, 0, 1, 0],
+    [1, 0, 7, 0, 0, 1, 0],
+    [1, 3, 1, 0, 0, 1, 0],
+    [1, 3, 4, 0, 0, 1, 0],
+    [1, 3, 7, 0, 0, 1, 0],
+    [1, 0, 1, 3, 0, 1, 0],
+    [1, 0, 4, 3, 0, 1, 0],
+    [1, 0, 7, 3, 0, 1, 0],
+    [1, 3, 1, 3, 0, 1, 0],
+    [1, 3, 4, 3, 0, 1, 0],
+    [1, 3, 7, 3, 0, 1, 0],
+    [2, 1, 1, 3, 0, 2, 0],
+    [0, 0, 10, 0, 0, 3, 0],
+    [3, 1, 11, 1, 0, 4, 0]
+  ],
+  "palette": {
+    "types": ["plate4x4", "brick1x1", "brick1x2", "tile2x2"],
+    "colors": ["#d8b875", "#754429", "#f0d7a2", "#d20c20", "#eef0f2"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [4, 4],
+  "sockets": [
+    {
+      "id": "shop",
+      "kind": "interact",
+      "pos": [2, 0.8, 4.6],
+      "prompt": "Shop"
+    }
+  ],
+  "states": ["default"],
+  "initialState": "default",
+  "interactions": [
+    {
+      "socket": "shop",
+      "do": [
+        {
+          "do": "emit",
+          "event": "shop-opened"
+        }
+      ]
+    }
+  ],
+  "smash": {
+    "enabled": true,
+    "rebuild": true,
+    "sound": null,
+    "studs": 0
+  },
+  "generator": null,
+  "origin": "builtin"
+}

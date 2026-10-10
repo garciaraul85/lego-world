@@ -1,0 +1,70 @@
+{
+  "id": null,
+  "name": "Treasure chest",
+  "category": "prop",
+  "bricks": [
+    [0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 3, 0, 0, 1, 0],
+    [0, 0, 4, 0, 0, 0, 0],
+    [2, 0, 4, 0, 0, 0, 0],
+    [3, 1, 4, 1, 0, 1, 0]
+  ],
+  "palette": {
+    "types": ["brick2x4", "plate2x4", "brick1x4", "tile1x2"],
+    "colors": ["#754429", "#f7c900"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [4, 2],
+  "sockets": [
+    {
+      "id": "lid",
+      "kind": "interact",
+      "pos": [2, 2.8, 2],
+      "prompt": "Open"
+    }
+  ],
+  "states": ["closed", "open"],
+  "initialState": "closed",
+  "interactions": [
+    {
+      "socket": "lid",
+      "when": {
+        "state": "closed"
+      },
+      "do": [
+        {
+          "do": "setState",
+          "state": "open"
+        },
+        {
+          "do": "emit",
+          "event": "chest-opened"
+        }
+      ]
+    },
+    {
+      "socket": "lid",
+      "when": {
+        "state": "open"
+      },
+      "do": [
+        {
+          "do": "setState",
+          "state": "closed"
+        }
+      ]
+    }
+  ],
+  "smash": {
+    "enabled": true,
+    "rebuild": true,
+    "sound": null,
+    "studs": 0
+  },
+  "generator": null,
+  "origin": "builtin",
+  "onlyIn": {
+    "closed": [2],
+    "open": [3, 4]
+  }
+}

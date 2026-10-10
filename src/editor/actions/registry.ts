@@ -14,6 +14,8 @@ export interface EditorUi {
   /** engine: new runtime (P2); v68: LEGO World v68 runtime; edit: v68 studio */
   play(mode: 'engine' | 'v68' | 'edit', opts?: { fromSelectedSpawn?: boolean }): void;
   stopPlay(): void;
+  /** open the Asset studio on an asset (P3.4) */
+  editAsset(id: string | null): void;
   frameSelection(): void;
   fit(): void;
   topView(): void;
@@ -183,6 +185,7 @@ export const ACTIONS: EditorAction[] = [
   { id: 'tool.move', label: 'Move tool', key: 'W', run: tool('move') },
   { id: 'tool.rotate', label: 'Rotate tool', key: 'E', run: tool('rotate') },
   { id: 'tool.place', label: 'Brick paint (place bricks)', key: 'B', run: tool('place') },
+  { id: 'tool.asset', label: 'Place asset', key: 'A', run: tool('asset') },
   { id: 'tool.paint', label: 'Color paint', key: 'C', run: tool('paint') },
   { id: 'tool.erase', label: 'Erase', key: 'X', run: tool('erase') },
   { id: 'tool.spawn', label: 'Spawn point tool', key: 'P', run: tool('spawn') },
@@ -191,6 +194,10 @@ export const ACTIONS: EditorAction[] = [
     label: 'Turn the brush 90°',
     key: 'T',
     run: ({ ed }) => {
+      if (ed.tool.value === 'asset') {
+        ed.assetBrush.value = { ...ed.assetBrush.value, rot: (ed.assetBrush.value.rot + 1) % 4 };
+        return;
+      }
       ed.brush.value = { ...ed.brush.value, rot: (ed.brush.value.rot + 1) % 4 };
       ed.persistUi();
     },

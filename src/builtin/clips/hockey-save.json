@@ -1,0 +1,107 @@
+{
+  "id": "clp_4dqqpplynj",
+  "name": "Hockey · goalie save",
+  "group": "Hockey",
+  "prop": "hockey-save",
+  "length": 2.4,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.5, "easeInOut"],
+        [0.552, 1.1, "easeInOut"],
+        [1.056, 0.85, "easeInOut"],
+        [1.536, 0.85, "easeInOut"],
+        [1.968, 1.1, "easeInOut"],
+        [2.4, 1.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.552, 0, "easeInOut"],
+        [1.056, 0.15, "easeInOut"],
+        [1.536, 0.15, "easeInOut"],
+        [1.968, 0, "easeInOut"],
+        [2.4, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "torso",
+      "prop": "lean",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.552, 0.15, "easeInOut"],
+        [1.056, 0, "easeInOut"],
+        [1.536, 0, "easeInOut"],
+        [1.968, 0.15, "easeInOut"],
+        [2.4, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "stance",
+      "keys": [
+        [0, 0.65, "easeInOut"],
+        [0.552, 0.8, "easeInOut"],
+        [1.056, 0.9, "easeInOut"],
+        [1.536, 0.9, "easeInOut"],
+        [1.968, 0.8, "easeInOut"],
+        [2.4, 0.65, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, -0.5, "easeInOut"],
+        [0.552, 0, "easeInOut"],
+        [1.056, -1.1, "easeInOut"],
+        [1.536, -1.1, "easeInOut"],
+        [1.968, 0, "easeInOut"],
+        [2.4, -0.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.5, "easeInOut"],
+        [0.552, -0.06, "easeInOut"],
+        [1.056, -0.8, "easeInOut"],
+        [1.536, -0.8, "easeInOut"],
+        [1.968, -0.06, "easeInOut"],
+        [2.4, -0.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, -0.5, "easeInOut"],
+        [0.552, 0, "easeInOut"],
+        [1.056, -0.9, "easeInOut"],
+        [1.536, -0.9, "easeInOut"],
+        [1.968, 0, "easeInOut"],
+        [2.4, -0.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.5, "easeInOut"],
+        [0.552, 0.06, "easeInOut"],
+        [1.056, 0.6, "easeInOut"],
+        [1.536, 0.6, "easeInOut"],
+        [1.968, 0.06, "easeInOut"],
+        [2.4, 0.5, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

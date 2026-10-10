@@ -1,8 +1,12 @@
-import { type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
+import { BUILTIN_CLIPS } from '../../builtin/clips';
+import { expandAsset } from '../../core/assets/expand';
+import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
+import { brickToPiece, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import {
   type Character,
+  type Clip,
   type Gates,
   type Instances,
   type MapDoc,
@@ -10,6 +14,7 @@ import {
   type Project,
   paths,
 } from '../../core/schema';
+import { Animator } from '../character/animator';
 import {
   type Controller,
   type Debris,
@@ -19,6 +24,7 @@ import {
   legacyRuntime,
   type Npc,
 } from '../legacy/runtime-modules';
+import { ActionRunner } from './actions';
 import { chunkKeyOf, inspectPieces } from './pieces';
 import { Runtime, type System } from './runtime';
 
@@ -37,12 +43,17 @@ export type MapWorld = {
   /** chunk keys whose bricks changed since the renderer last looked */
   dirtyChunks: Set<string>;
   brokenSerial: number;
+  /** asset instances of this map (their state changes while playing) */
+  instances: PlayInstance[];
 };
+
+export type PlayInstance = ExpandedInstance & { state: string };
+export type Prompt = { instance: PlayInstance; socket: string; label: string; pos: [number, number, number] };
 
 export type InputState = { keys: Set<string>; jump: boolean; touch: Set<string> };
 export type GameEvent = {
   t: number;
-  kind: 'start' | 'smash' | 'rebuild' | 'travel' | 'talk' | 'info' | 'cheat';
+  kind: 'start' | 'smash' | 'rebuild' | 'travel' | 'talk' | 'info' | 'cheat' | 'event';
   msg: string;
 };
 
@@ -76,15 +87,35 @@ export class PlaySession {
   private smashCooldown = 0;
   private travelLock: { spawn: string } | null = null;
   readonly listeners = new Set<(e: GameEvent) => void>();
+  /** the interaction the hero can use right now (E), shown as a prompt */
+  prompt: Prompt | null = null;
+  readonly vars = new Map<string, unknown>();
+  readonly inventory = new Map<string, number>();
+  readonly actions: ActionRunner;
+  /** keyframe clips on the hero (emotes, keys 1-4) */
+  readonly heroAnim = new Animator();
+  emotes: Clip[] = [];
 
   constructor(
     readonly snapshot: FileSource,
     opts: { mapId?: string; spawnId?: string | null } = {},
   ) {
     this.L = legacyRuntime();
+    this.actions = new ActionRunner({
+      setState: (state, target, self) => this.setInstanceState(target ?? self, state),
+      teleport: (spawn) => {
+        const sp = this.world.doc.spawns.find((x) => x.id === spawn);
+        if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
+      },
+      travel: (map, spawn) => this.travel(map, spawn),
+      log: (kind, msg) => this.emit(kind === 'event' ? 'event' : 'info', msg),
+      vars: this.vars,
+      inventory: this.inventory,
+    });
     const project = snapshot.get(paths.project) as Project;
     const heroChr = project.hero ? (snapshot.get(paths.character(project.hero)) as Character | undefined) : undefined;
     this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...(heroChr?.profile ?? {}) });
+    this.emotes = this.resolveEmotes(heroChr);
     const mapId = opts.mapId ?? project.entry.map;
     this.world = this.loadWorld(mapId);
     const spawn =
@@ -130,6 +161,10 @@ export class PlaySession {
       controller,
       dirtyChunks: new Set(),
       brokenSerial: Math.max(0, ...state.broken.map((b) => b.id)) + 1,
+      instances: expandInstances(this.snapshot, mapId).map((e) => ({
+        ...e,
+        state: e.inst.state ?? e.def.initialState,
+      })),
     };
     this.worlds.set(mapId, w);
     return w;
@@ -222,6 +257,8 @@ export class PlaySession {
       { id: 'debris', fixed: (g, dt) => g.stepDebris(dt) },
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
       { id: 'gates', fixed: (g) => g.stepGates() },
+      { id: 'interact', fixed: (g) => g.stepInteract() },
+      { id: 'anim', fixed: (g, dt) => g.stepAnim(dt) },
       {
         id: 'clock',
         fixed: (g, dt) => {
@@ -274,6 +311,11 @@ export class PlaySession {
   /** Port of v68 breakHit: the hit brick (or its whole group) plus anything it was holding up. */
   breakHit(hit: LegacyPiece, impact?: { heading: number; impulse: number; mass: number }) {
     const w = this.world;
+    const owner = this.instanceOfPiece(hit.id);
+    if (owner && !owner.def.smash.enabled) {
+      this.say(`The ${owner.def.name.toLowerCase()} can’t be smashed.`, 1.5);
+      return 0;
+    }
     const ids = new Set(
       w.pieces.filter((p) => p.y > 0 && (p.id === hit.id || (hit.group && p.group === hit.group))).map((p) => p.id!),
     );
@@ -386,6 +428,8 @@ export class PlaySession {
     let best: BrokenEntry | null = null;
     let dist = Infinity;
     for (const e of this.world.broken) {
+      const owner = this.instanceOfPiece(e.originals[0]?.id);
+      if (owner && !owner.def.smash.rebuild) continue;
       const b = this.damagedBounds(e);
       const d = Math.hypot(Math.max(b.x0 - s.x, 0, s.x - b.x1), Math.max(b.z0 - s.z, 0, s.z - b.z1));
       if (d <= 3.4 && b.y0 < s.y + 4.5 && d < dist) {
@@ -443,8 +487,122 @@ export class PlaySession {
     w.controller.replace(w.pieces, w.meta);
     this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
     this.cancelRebuild();
-    this.emit('rebuild', `Rebuilt ${entry.originals.length} bricks`);
+    const owner = this.instanceOfPiece(entry.originals[0]?.id);
+    this.emit('rebuild', `Rebuilt ${entry.originals.length} bricks${owner ? ` (${owner.def.name})` : ''}`);
+    if (owner) this.emit('event', `Event “onRebuildFinished” · ${owner.def.name}`);
     this.say('Rebuilt! Every original brick is back in place.', 2);
+  }
+
+  // ---------- clips (P3.5): emotes on keys 1-4 ----------
+
+  private resolveEmotes(hero: Character | undefined): Clip[] {
+    const find = (id: string) =>
+      (this.snapshot.get(`clips/${id}.json`) as Clip | undefined) ?? BUILTIN_CLIPS.find((c) => c.id === id);
+    const own = (hero?.emotes ?? []).map(find).filter((c): c is Clip => !!c);
+    if (own.length) return own;
+    const named = ['Jumping jacks', 'Squats', 'Tree · balance', 'Push-ups'];
+    return named.map((n) => BUILTIN_CLIPS.find((c) => c.name === n)).filter((c): c is Clip => !!c);
+  }
+
+  /** Plays the hero's n-th emote (standing still); pressing it again stops it. */
+  emote(n: number) {
+    const clip = this.emotes[n];
+    if (!clip) return;
+    if (this.heroAnim.clip?.id === clip.id) {
+      this.heroAnim.stop();
+      return;
+    }
+    const s = this.heroState;
+    if (!s.grounded || s.building || this.talking) return;
+    this.heroAnim.play(clip);
+    this.emit('info', `Emote: ${clip.name ?? clip.id}`);
+  }
+
+  stepAnim(dt: number) {
+    const a = this.heroAnim;
+    if (!a.clip) {
+      a.step(dt);
+      return;
+    }
+    const v = this.inputVector();
+    const s = this.heroState;
+    if (v.x || v.z || v.jump || !s.grounded || (s.attack as number) > 0 || s.building) {
+      a.stop();
+      return;
+    }
+    for (const e of a.step(dt)) {
+      if ('emit' in e) this.emit('event', `Event “${e.emit}” · ${a.clip?.name ?? 'clip'}`);
+      else this.emit('info', `♪ ${e.sound} (audio arrives in Phase 5)`);
+    }
+  }
+
+  // ---------- asset instances: interactions and states (P3.1) ----------
+
+  instanceOfPiece(id: number | undefined): PlayInstance | null {
+    if (id === undefined) return null;
+    return this.world.instances.find((i) => id >= i.inst.idBase && id < i.inst.idBase + i.def.bricks.length) ?? null;
+  }
+
+  /** Nearest interact/sign socket within 2 studs of the hero (plus a little for big heroes). */
+  stepInteract() {
+    const s = this.heroState;
+    let best: Prompt | null = null;
+    let bestD = 2 + 0.4 * this.L.GamePhysics.scaleOf(s);
+    for (const inst of this.world.instances) {
+      if (!inst.def.interactions.length) continue;
+      const smashed = this.world.broken.some((b) => b.originals.some((p) => this.instanceOfPiece(p.id) === inst));
+      if (smashed) continue;
+      for (const so of inst.sockets) {
+        if (so.kind !== 'interact' && so.kind !== 'sign') continue;
+        if (!inst.def.interactions.some((i) => i.socket === so.id && (!i.when || i.when.state === inst.state)))
+          continue;
+        const d = Math.hypot(so.world[0] - s.x, so.world[2] - s.z);
+        if (d < bestD && Math.abs(so.world[1] - (s.y + 1)) < 3) {
+          bestD = d;
+          best = { instance: inst, socket: so.id, label: so.prompt ?? inst.def.name, pos: so.world };
+        }
+      }
+    }
+    this.prompt = best;
+    this.actions.step(this.clock);
+  }
+
+  /** E pressed: use the prompted interaction. Returns false when there is nothing to use. */
+  interact(): boolean {
+    const p = this.prompt;
+    if (!p || this.talking) return false;
+    const list = p.instance.def.interactions.filter(
+      (i) => i.socket === p.socket && (!i.when || i.when.state === p.instance.state),
+    );
+    if (!list.length) return false;
+    this.emit('info', `${p.label} · ${p.instance.def.name}`);
+    for (const i of list.slice(0, 1)) this.actions.run(i.do, this.clock, p.instance.inst.id);
+    this.stepInteract();
+    return true;
+  }
+
+  /** Changes an instance's state in play: its state-only bricks swap (refused if they would not fit). */
+  setInstanceState(instanceId: string | undefined, state: string) {
+    const w = this.world;
+    const inst = w.instances.find((i) => i.inst.id === instanceId);
+    if (!inst || !inst.def.states.includes(state) || inst.state === state) return;
+    const lo = inst.inst.idBase;
+    const hi = lo + inst.def.bricks.length;
+    const next = expandAsset(inst.def, { ...inst.inst, state });
+    const pieces = [...w.pieces.filter((p) => p.id! < lo || p.id! >= hi), ...next.bricks.map(brickToPiece)];
+    const check = inspectPieces(pieces);
+    if (!check.ok) {
+      this.say(`Something is in the way: ${check.reason}`, 2);
+      return;
+    }
+    for (const p of w.pieces) if (p.id! >= lo && p.id! < hi) w.dirtyChunks.add(chunkKeyOf(p));
+    for (const b of next.bricks) w.dirtyChunks.add(chunkKeyOf(brickToPiece(b)));
+    w.pieces = pieces.sort((a, b) => a.id! - b.id!);
+    inst.state = state;
+    inst.bricks = next.bricks;
+    w.controller.replace(w.pieces, w.meta);
+    this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+    this.emit('info', `${inst.def.name} is now ${state}`);
   }
 
   stepNpcs(dt: number) {

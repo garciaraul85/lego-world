@@ -1,0 +1,24 @@
+{
+  "id": "ast_wkli4f2c8x",
+  "name": "Fern",
+  "category": "nature",
+  "bricks": [[0, 1, 0, 1, 0, 0, 0], [1, 0, 3, 1, 0, 1, 0], [1, 1, 4, 0, 1, 2, 0]],
+  "palette": {
+    "types": ["brick1x1", "plate1x3"],
+    "colors": ["#0f603a", "#79b44c", "#168344"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [3, 3],
+  "sockets": [],
+  "states": ["default"],
+  "initialState": "default",
+  "interactions": [],
+  "smash": {
+    "enabled": true,
+    "rebuild": true,
+    "sound": null,
+    "studs": 0
+  },
+  "generator": null,
+  "origin": "builtin"
+}

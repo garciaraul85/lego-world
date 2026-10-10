@@ -222,11 +222,17 @@ function InspectorTab({ c }: { c: ActionCtx }) {
   const move = (dx: number, dy: number, dz: number) =>
     ed.exec({ type: 'bricks.move', payload: { map, ids: sel.map((b) => b.id), dx, dy, dz } });
   const colors = new Set(sel.map((b) => b.color));
+  const inst = ed.selectedInstance.value;
+  const hasAsset = ed.selectionHasAsset.value;
   return (
     <>
       <Header
-        title={title}
-        sub={`${sel.length} piece${sel.length === 1 ? '' : 's'}${groups.size === 1 && sel[0]!.group ? ` · object ${sel[0]!.group}` : ''}`}
+        title={inst ? inst.def.name : title}
+        sub={
+          inst
+            ? `Asset · ${sel.length} piece${sel.length === 1 ? '' : 's'}`
+            : `${sel.length} piece${sel.length === 1 ? '' : 's'}${groups.size === 1 && sel[0]!.group ? ` · object ${sel[0]!.group}` : ''}`
+        }
         color={sel[0]!.color}
       />
       <div class="sec">
@@ -249,19 +255,22 @@ function InspectorTab({ c }: { c: ActionCtx }) {
           </div>
         </div>
       </div>
-      {one && <BrickShape c={c} b={one} />}
-      <div class="sec">
-        <div class="sech">
-          <span>Color</span>
-          <span class="mono" style={{ textTransform: 'none' }}>
-            {colors.size === 1 ? sel[0]!.color : `${colors.size} colors`}
-          </span>
+      {inst && <AssetSection c={c} />}
+      {one && !hasAsset && <BrickShape c={c} b={one} />}
+      {hasAsset ? null : (
+        <div class="sec">
+          <div class="sech">
+            <span>Color</span>
+            <span class="mono" style={{ textTransform: 'none' }}>
+              {colors.size === 1 ? sel[0]!.color : `${colors.size} colors`}
+            </span>
+          </div>
+          <Swatches
+            value={colors.size === 1 ? sel[0]!.color : undefined}
+            onPick={(color) => ed.exec({ type: 'bricks.paint', payload: { map, ids: sel.map((b) => b.id), color } })}
+          />
         </div>
-        <Swatches
-          value={colors.size === 1 ? sel[0]!.color : undefined}
-          onPick={(color) => ed.exec({ type: 'bricks.paint', payload: { map, ids: sel.map((b) => b.id), color } })}
-        />
-      </div>
+      )}
       <div class="sec">
         <div class="sech">
           <span>Destruction</span>
@@ -304,6 +313,62 @@ function InspectorTab({ c }: { c: ActionCtx }) {
         </div>
       </div>
     </>
+  );
+}
+
+/** Asset instance controls: state, unpack, edit in the Asset studio. */
+function AssetSection({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const e = ed.selectedInstance.value!;
+  const map = ed.mapId.value;
+  const state = e.inst.state ?? e.def.initialState;
+  return (
+    <div class="sec">
+      <div class="sech">
+        <span>Asset</span>
+        <span class="mono" style={{ textTransform: 'none' }}>
+          {e.def.category}
+        </span>
+      </div>
+      {e.def.states.length > 1 && (
+        <label class="field">
+          State
+          <select
+            class="inp"
+            value={state}
+            onChange={(ev) =>
+              ed.exec({
+                type: 'instance.setState',
+                payload: { map, instance: e.inst.id, state: (ev.target as HTMLSelectElement).value },
+              })
+            }
+          >
+            {e.def.states.map((s) => (
+              <option value={s}>{s}</option>
+            ))}
+          </select>
+        </label>
+      )}
+      <div class="hint">
+        {e.def.sockets.length
+          ? `${e.def.sockets.length} socket${e.def.sockets.length === 1 ? '' : 's'}${e.def.interactions.length ? ` · ${e.def.interactions.length} interaction${e.def.interactions.length === 1 ? '' : 's'}` : ''}. `
+          : ''}
+        Colors and shape are edited in the Asset studio and change every copy. Unpack turns this copy into loose bricks.
+      </div>
+      <div class="row">
+        <button type="button" class="btn" style={{ flex: 1 }} onClick={() => c.ui.editAsset(e.def.id)}>
+          Edit in Asset studio
+        </button>
+        <button
+          type="button"
+          class="btn"
+          style={{ flex: 1 }}
+          onClick={() => ed.exec({ type: 'instance.unpack', payload: { map, instances: [e.inst.id] } })}
+        >
+          Unpack
+        </button>
+      </div>
+    </div>
   );
 }
 

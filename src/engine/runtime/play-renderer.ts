@@ -1,5 +1,6 @@
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
+import { rigPose } from '../character/animator';
 import type { CharacterRenderer, Controller } from '../legacy/runtime-modules';
 import { brickGeometry } from '../render/brick-geometry';
 import type { CameraFrame } from '../render/camera';
@@ -100,6 +101,15 @@ export class PlayRenderer {
           alpha: 0.7,
         });
     }
+    if (s.prompt) {
+      const [x, y, z] = s.prompt.pos;
+      markers.push({
+        pos: [x, y + 0.6 + 0.08 * Math.sin(s.clock * 5), z],
+        size: [0.35, 0.35, 0.35],
+        color: [1, 0.78, 0.2],
+        alpha: 0.9,
+      });
+    }
     if (this.debug.colliders) {
       const st = s.heroState;
       const near: number[] = [];
@@ -137,7 +147,13 @@ export class PlayRenderer {
         c.bindCollision(s.hero, w.controller);
         this.bound.add(w.controller);
       }
-      c.draw(s.hero, s.heroState);
+      const pose = s.heroAnim.params();
+      c.draw(
+        s.hero,
+        pose
+          ? { ...s.heroState, studioPose: rigPose(pose, s.heroAnim.clip), studioProgress: 0, studioFist: false }
+          : s.heroState,
+      );
       for (const d of w.debris) c.debris(this.debrisMesh, d);
     });
   }

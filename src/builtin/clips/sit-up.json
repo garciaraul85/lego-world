@@ -1,0 +1,167 @@
+{
+  "id": "clp_rivis2hesd",
+  "name": "Sit-ups",
+  "group": "Exercise",
+  "prop": "mat",
+  "length": 3,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 0.7, "easeInOut"],
+        [0.69, 0.7, "easeInOut"],
+        [1.32, 0.7, "easeInOut"],
+        [1.92, 0.7, "easeInOut"],
+        [2.46, 0.7, "easeInOut"],
+        [3, 0.7, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "pitch",
+      "keys": [
+        [0, -1.5, "easeInOut"],
+        [0.69, -0.8, "easeInOut"],
+        [1.32, -0.35, "easeInOut"],
+        [1.92, -0.35, "easeInOut"],
+        [2.46, -0.8, "easeInOut"],
+        [3, -1.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "free",
+      "keys": [
+        [0, 1, "step"],
+        [0.69, 1, "step"],
+        [1.32, 1, "step"],
+        [1.92, 1, "step"],
+        [2.46, 1, "step"],
+        [3, 1, "step"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, -1.5, "easeInOut"],
+        [0.69, -1.5, "easeInOut"],
+        [1.32, -1.5, "easeInOut"],
+        [1.92, -1.5, "easeInOut"],
+        [2.46, -1.5, "easeInOut"],
+        [3, -1.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.3, "easeInOut"],
+        [0.69, -0.3, "easeInOut"],
+        [1.32, -0.3, "easeInOut"],
+        [1.92, -0.3, "easeInOut"],
+        [2.46, -0.3, "easeInOut"],
+        [3, -0.3, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, -1.5, "easeInOut"],
+        [0.69, -1.5, "easeInOut"],
+        [1.32, -1.5, "easeInOut"],
+        [1.92, -1.5, "easeInOut"],
+        [2.46, -1.5, "easeInOut"],
+        [3, -1.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.3, "easeInOut"],
+        [0.69, 0.3, "easeInOut"],
+        [1.32, 0.3, "easeInOut"],
+        [1.92, 0.3, "easeInOut"],
+        [2.46, 0.3, "easeInOut"],
+        [3, 0.3, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftLeg",
+      "prop": "x",
+      "keys": [
+        [0, -0.8, "easeInOut"],
+        [0.69, -0.7, "easeInOut"],
+        [1.32, -0.6, "easeInOut"],
+        [1.92, -0.6, "easeInOut"],
+        [2.46, -0.7, "easeInOut"],
+        [3, -0.8, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightLeg",
+      "prop": "x",
+      "keys": [
+        [0, -0.8, "easeInOut"],
+        [0.69, -0.7, "easeInOut"],
+        [1.32, -0.6, "easeInOut"],
+        [1.92, -0.6, "easeInOut"],
+        [2.46, -0.7, "easeInOut"],
+        [3, -0.8, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1.5, "easeInOut"],
+        [0.69, -1.5, "easeInOut"],
+        [1.32, -1.5, "easeInOut"],
+        [1.92, -1.5, "easeInOut"],
+        [2.46, -1.5, "easeInOut"],
+        [3, -1.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1.5, "easeInOut"],
+        [0.69, -1.5, "easeInOut"],
+        [1.32, -1.5, "easeInOut"],
+        [1.92, -1.5, "easeInOut"],
+        [2.46, -1.5, "easeInOut"],
+        [3, -1.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftShin",
+      "prop": "bend",
+      "keys": [
+        [0, 1.35, "easeInOut"],
+        [0.69, 1.1, "easeInOut"],
+        [1.32, 1, "easeInOut"],
+        [1.92, 1, "easeInOut"],
+        [2.46, 1.1, "easeInOut"],
+        [3, 1.35, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightShin",
+      "prop": "bend",
+      "keys": [
+        [0, 1.35, "easeInOut"],
+        [0.69, 1.1, "easeInOut"],
+        [1.32, 1, "easeInOut"],
+        [1.92, 1, "easeInOut"],
+        [2.46, 1.1, "easeInOut"],
+        [3, 1.35, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

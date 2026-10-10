@@ -1,0 +1,24 @@
+{
+  "id": null,
+  "name": "Bench",
+  "category": "decoration",
+  "bricks": [[0, 0, 0, 0, 0, 0, 0], [0, 3, 0, 0, 0, 0, 0], [1, 0, 3, 0, 0, 0, 0]],
+  "palette": {
+    "types": ["brick1x1", "plate1x4"],
+    "colors": ["#754429"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [4, 1],
+  "sockets": [],
+  "states": ["default"],
+  "initialState": "default",
+  "interactions": [],
+  "smash": {
+    "enabled": true,
+    "rebuild": true,
+    "sound": null,
+    "studs": 0
+  },
+  "generator": null,
+  "origin": "builtin"
+}

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { MapBricks } from '../../src/core/bricks/map-bricks';
 import { CommandBus, registerAll } from '../../src/core/commands';
+import { allBricks } from '../../src/core/commands/handlers/assets';
 import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
 import { SceneModel } from '../../src/editor/scene';
 
 describe('SceneModel follows the store', () => {
-  it('stays equal to the chunk files through moves across chunks, regenerate, undo and redo', () => {
+  it('stays equal to the chunk files and asset instances through moves across chunks, regenerate, undo and redo', () => {
     const store = new ProjectStore(
       newProjectFiles({ name: 'S', generate: { environments: ['city'], size: 16, seed: 2 } }),
     );
@@ -14,7 +14,8 @@ describe('SceneModel follows the store', () => {
     const map = store.manifest.entry.map;
     const scene = new SceneModel(store, map);
     const check = () => {
-      const truth = new MapBricks(store, map).all();
+      // chunk bricks plus expanded asset instances (houses, trees... since P3.2)
+      const truth = allBricks(store, map);
       expect(scene.count).toBe(truth.length);
       expect(scene.all().length).toBe(truth.length);
       for (const b of truth) expect(scene.get(b.id)).toEqual(b);

@@ -1,0 +1,24 @@
+{
+  "id": "ast_hs0kihflz7",
+  "name": "Cactus",
+  "category": "nature",
+  "bricks": [[0, 0, 0, 0, 0, 0, 0], [0, 0, 3, 0, 0, 0, 0], [0, 0, 6, 0, 0, 0, 0], [0, 0, 9, 0, 0, 0, 0]],
+  "palette": {
+    "types": ["brick1x1"],
+    "colors": ["#168344"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [1, 1],
+  "sockets": [],
+  "states": ["default"],
+  "initialState": "default",
+  "interactions": [],
+  "smash": {
+    "enabled": true,
+    "rebuild": true,
+    "sound": null,
+    "studs": 0
+  },
+  "generator": null,
+  "origin": "builtin"
+}

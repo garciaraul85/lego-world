@@ -2,14 +2,20 @@ import { useMemo, useState } from 'preact/hooks';
 import { BRICK_SIZES } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
 import type { ActionCtx } from '../actions/registry';
+import { assetLibrary } from '../assets';
+import { AssetThumb } from '../components/AssetThumb';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
 import { Swatches } from './Inspector';
 
 const CATS: [string, string | null, string][] = [
   ['Bricks', null, 'Pick a shape and a color, then click in the map with Brick paint (B). T turns the brush.'],
-  ['Assets', 'Phase 3', 'Reusable objects (houses, chests, stalls) are built in the Asset studio.'],
-  ['Characters', 'Phase 3', 'Characters are edited in LEGO World v68 until the Character studio lands.'],
+  [
+    'Assets',
+    null,
+    'Click an asset, then click in the map (Place asset, A). T turns it. Edit assets in the Asset studio.',
+  ],
+  ['Characters', null, 'Characters, their looks and their clips (emotes) are made in the Character studio.'],
   ['Cinematics', 'Phase 6', 'Directed scenes arrive with the Cinematics director.'],
   ['UI screens', 'Phase 5', 'Splash, HUD and pause screens arrive with the Screens editor.'],
   ['Sounds', 'Phase 5', 'Sound events and emitters arrive with the Audio workspace.'],
@@ -86,13 +92,23 @@ function Assets({ c }: { c: ActionCtx }) {
           >
             {name}
             <span class="mono small" style={{ color: '#6f7a89' }}>
-              {later ? '·' : BRICK_SIZES.length * 3}
+              {name === 'Assets' ? assetLibrary(ed).length : later ? '·' : BRICK_SIZES.length * 3}
             </span>
           </button>
         ))}
       </div>
       <div class="scroll" style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {cur[1] ? (
+        {cur[0] === 'Assets' ? (
+          <AssetCards c={c} />
+        ) : cur[0] === 'Characters' ? (
+          <div class="placeholder" style={{ padding: '8px' }}>
+            <strong>Characters</strong>
+            <span class="muted">{cur[2]}</span>
+            <button type="button" class="btn on" onClick={() => c.ui.workspace('Characters')}>
+              Open the Character studio
+            </button>
+          </div>
+        ) : cur[1] ? (
           <div class="placeholder" style={{ padding: '8px' }}>
             <strong>
               {cur[0]} · {cur[1]}
@@ -415,5 +431,77 @@ function Debug({ c }: { c: ActionCtx }) {
         <span class="muted small">Cheats change only this Play session; Stop discards them.</span>
       </div>
     </div>
+  );
+}
+
+const ASSET_FILTERS: [string, string][] = [
+  ['all', 'All'],
+  ['mine', 'Mine'],
+  ['building', 'Buildings'],
+  ['nature', 'Nature'],
+  ['prop', 'Props'],
+  ['structure', 'Structures'],
+  ['vehicle', 'Vehicles'],
+  ['decoration', 'Decoration'],
+  ['generated', 'From maps'],
+];
+
+function AssetCards({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  ed.revision.value;
+  const [filter, setFilter] = useState('all');
+  const lib = assetLibrary(ed).filter(({ asset: a }) =>
+    filter === 'generated'
+      ? a.origin === 'generated'
+      : a.origin !== 'generated' &&
+        (filter === 'all' || (filter === 'mine' ? a.origin === 'user' || !a.origin : a.category === filter)),
+  );
+  const brush = ed.assetBrush.value;
+  return (
+    <>
+      <div class="row" role="radiogroup" aria-label="Asset kind">
+        {ASSET_FILTERS.map(([id, label]) => (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={filter === id}
+            class={`chip ${filter === id ? 'on' : ''}`}
+            style={filter === id ? { borderColor: 'var(--acc)' } : undefined}
+            onClick={() => setFilter(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div class="cards" role="listbox" aria-label="Assets">
+        {!lib.length && <span class="muted small">No assets of this kind yet.</span>}
+        {lib.map(({ asset: a, inProject }) => {
+          const on = brush.asset === a.id && ed.tool.value === 'asset';
+          return (
+            <button
+              type="button"
+              class={`card ${on ? 'on' : ''}`}
+              role="option"
+              aria-selected={on}
+              title={`${a.name} · ${a.bricks.length} bricks${a.sockets.length ? ` · ${a.sockets.length} socket(s)` : ''}`}
+              onClick={() => {
+                ed.assetBrush.value = { asset: a.id, rot: brush.asset === a.id ? brush.rot : 0 };
+                ed.tool.value = 'asset';
+              }}
+              onDblClick={() => c.ui.editAsset(a.id)}
+            >
+              <span class="thumb asset-thumb" aria-hidden="true">
+                <AssetThumb def={a} size={56} />
+              </span>
+              <span class="small asset-name">{a.name}</span>
+              <span class="mono small" style={{ color: 'var(--mut2)' }}>
+                {a.origin === 'builtin' || !inProject ? 'built-in' : a.origin === 'generated' ? 'generated' : 'mine'} ·{' '}
+                {a.bricks.length}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }

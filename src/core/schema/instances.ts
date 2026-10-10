@@ -19,7 +19,12 @@ export const AssetInstance = z.strictObject({
   pos: z.tuple([z.number().int(), z.number().int(), z.number().int()]),
   rot: z.number().int().min(0).max(3),
   state: z.string().optional(),
+  /** brick i of the asset gets map brick id idBase + i (ids stay stable for smash state and v68) */
+  idBase: z.number().int().min(1).max(1_000_000),
+  /** smash group name of the expanded bricks (v68 generator name such as "house-3"); default from the asset name */
+  group: z.string().min(1).max(100).optional(),
 });
+export type AssetInstance = z.infer<typeof AssetInstance>;
 
 /** maps/<mapId>/instances.json: everything placed on the map that is not a plain brick. */
 export const Instances = z.strictObject({

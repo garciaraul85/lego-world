@@ -12,9 +12,21 @@ import type { PlaySession } from '../engine/runtime/session';
 import { CATEGORIES, type CategoryId } from './categories';
 import { SceneModel } from './scene';
 
-export type ToolId = 'select' | 'move' | 'rotate' | 'place' | 'paint' | 'erase' | 'spawn' | 'zone' | 'sound' | 'ui';
+export type ToolId =
+  | 'select'
+  | 'move'
+  | 'rotate'
+  | 'place'
+  | 'asset'
+  | 'paint'
+  | 'erase'
+  | 'spawn'
+  | 'zone'
+  | 'sound'
+  | 'ui';
 export type LogLevel = 'INFO' | 'EDIT' | 'WARN' | 'ERROR' | 'LOGIC' | 'AUDIO';
 export type LogLine = { t: string; level: LogLevel; msg: string };
+/** The Asset studio's open asset (P3.4). */
 export type ViewTab = 'scene' | 'game' | 'graph' | 'nav';
 export type LeftTab = 'hier' | 'layers' | 'search';
 export type RightTab = 'inspect' | 'map' | 'project';
@@ -53,6 +65,12 @@ export class EditorState {
   readonly selectedSpawn = signal<string | null>(null);
   readonly tool = signal<ToolId>('select');
   readonly brush = signal<{ type: string; color: string; rot: number }>({ type: 'brick2x4', color: '#d20c20', rot: 0 });
+  /** the asset the Place asset tool puts down (project or built-in id) and its turn */
+  readonly assetBrush = signal<{ asset: string | null; rot: number }>({ asset: null, rot: 0 });
+  /** the asset open in the Asset studio */
+  readonly studioAsset = signal<string | null>(null);
+  /** the character open in the Character studio */
+  readonly studioCharacter = signal<string | null>(null);
   readonly view = signal<ViewTab>('scene');
   readonly left = signal<LeftTab>('hier');
   readonly right = signal<RightTab>('inspect');
@@ -96,6 +114,23 @@ export class EditorState {
     this.revision.value;
     const g = this.store.get<Gates>(paths.gates);
     return (g?.mapOrder ?? []).map((id) => this.store.get<MapDoc>(paths.map(id))!).filter(Boolean);
+  });
+  /** The asset instance when the selection is exactly one whole instance, else null. */
+  readonly selectedInstance = computed(() => {
+    const s = this.scene.value;
+    this.revision.value;
+    const sel = this.selection.value;
+    if (!s || !sel.size) return null;
+    const first = s.ownerOf(sel.values().next().value!);
+    if (!first || first.bricks.length !== sel.size) return null;
+    for (const id of sel) if (s.ownerOf(id) !== first) return null;
+    return first;
+  });
+  /** true when any selected brick belongs to an asset instance */
+  readonly selectionHasAsset = computed(() => {
+    const s = this.scene.value;
+    this.revision.value;
+    return !!s && [...this.selection.value].some((id) => s.ownerOf(id));
   });
   readonly selectedBricks = computed((): Brick[] => {
     const s = this.scene.value;

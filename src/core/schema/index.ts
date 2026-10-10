@@ -89,4 +89,5 @@ export const paths = {
   state: (mapId: string) => `maps/${mapId}/state.json`,
   character: (id: string) => `characters/${id}.json`,
   asset: (id: string) => `assets/${id}.json`,
+  clip: (id: string) => `clips/${id}.json`,
 } as const;

@@ -1,0 +1,24 @@
+{
+  "id": "ast_k1byny9ffk",
+  "name": "Car",
+  "category": "vehicle",
+  "bricks": [[0, 0, 0, 0, 1, 0, 0], [1, 0, 1, 0, 1, 1, 0], [2, 0, 4, 1, 0, 2, 0], [3, 0, 4, 0, 0, 3, 0]],
+  "palette": {
+    "types": ["plate2x4", "brick2x4", "brick2x2", "tile1x2"],
+    "colors": ["#222630", "#f27714", "#28a8cb", "#f0d7a2"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [2, 4],
+  "sockets": [],
+  "states": ["default"],
+  "initialState": "default",
+  "interactions": [],
+  "smash": {
+    "enabled": true,
+    "rebuild": true,
+    "sound": null,
+    "studs": 0
+  },
+  "generator": null,
+  "origin": "builtin"
+}

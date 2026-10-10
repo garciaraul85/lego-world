@@ -1,7 +1,14 @@
+import { expandAsset } from '../../assets/expand';
+import { maxBrickId } from '../../assets/instances';
+import { generatedInstanceId, instancify } from '../../assets/instancify';
 import { encodeChunks } from '../../bricks/codec';
+import { footprint, inspectBricks } from '../../bricks/inspect';
+import { hash64 } from '../../hash';
 import { type Id, newId } from '../../ids';
 import type { ProjectStore } from '../../project/store';
 import {
+  type Asset,
+  type AssetInstance,
   BIOMES,
   type Gates,
   type Instances,
@@ -14,6 +21,7 @@ import {
 } from '../../schema';
 import { type GenerateConfig, generateConfigError, generateMap } from '../../worldgen/generate';
 import type { CommandHandler } from '../types';
+import { allBricks } from './assets';
 
 export const MAX_MAPS = 16;
 export const MAX_SPAWNS = 32;
@@ -54,8 +62,12 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
 /** Replaces every brick of a map with the v68 generator's output. Undo restores the old map. */
 function writeGenerated(store: ProjectStore, mapId: string, config: GenerateConfig) {
   const g = generateMap(config);
+  // P3.2: houses, trees, cars... become asset instances; terrain and roads stay chunk bricks.
+  const existing = store.list('assets/').map((p) => store.get<Asset>(p)!);
+  const split = instancify(g.bricks, { existing });
+  for (const a of split.assets) store.put(paths.asset(a.id), a);
   for (const p of store.list(paths.chunkDir(mapId))) store.remove(p);
-  for (const [key, chunk] of encodeChunks(g.bricks)) {
+  for (const [key, chunk] of encodeChunks(split.plain)) {
     const [cx, cz] = key.split('_').map(Number) as [number, number];
     store.put(paths.chunk(mapId, cx, cz), chunk);
   }
@@ -68,8 +80,22 @@ function writeGenerated(store: ProjectStore, mapId: string, config: GenerateConf
   for (const i of inst.items) if (i.kind === 'npc') store.remove(paths.character(i.character));
   store.put(paths.instances(mapId), {
     npcsSaved: false,
-    items: inst.items.filter((i) => i.kind !== 'npc'),
+    items: split.instances.map((i) => ({ ...i, id: generatedInstanceId(mapId, i.idBase) })),
   } satisfies Instances);
+  placeRuleAssets(store, mapId, config, g.size);
+  pruneGeneratedAssets(store);
+}
+
+/** Generated assets no map uses any more are removed (built-in and user assets always stay). */
+export function pruneGeneratedAssets(store: ProjectStore) {
+  const used = new Set<string>();
+  for (const p of store.list('maps/'))
+    if (p.endsWith('/instances.json'))
+      for (const i of store.get<Instances>(p)!.items) if (i.kind === 'asset') used.add(i.asset);
+  for (const p of store.list('assets/')) {
+    const a = store.get<Asset>(p)!;
+    if (a.origin === 'generated' && !used.has(a.id)) store.remove(p);
+  }
 }
 
 function configError(c: GenerateConfig): string | null {
@@ -196,12 +222,13 @@ export const removeSpawn: CommandHandler<{ map: string; spawn: string }> = {
   },
 };
 
-export type UpdateProject = { name?: string; entryMap?: string; entrySpawn?: string | null };
+export type UpdateProject = { name?: string; entryMap?: string; entrySpawn?: string | null; hero?: string | null };
 
 export const updateProject: CommandHandler<UpdateProject> = {
   label: () => 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
+    if (p.hero && !store.has(paths.character(p.hero))) return 'That character does not exist.';
     if (p.entryMap !== undefined && !store.has(paths.map(p.entryMap))) return 'Start map not found.';
     if (p.entrySpawn) {
       const map = p.entryMap ?? store.manifest.entry.map;
@@ -222,6 +249,80 @@ export const updateProject: CommandHandler<UpdateProject> = {
       ...cur,
       name: p.name?.trim().slice(0, 120) ?? cur.name,
       entry: { ...cur.entry, map: entryMap, spawn: spawn as Project['entry']['spawn'] },
+      ...(p.hero !== undefined ? { hero: p.hero as Project['hero'] } : {}),
     });
   },
 };
+
+/**
+ * P3.4 "Use in generator": project assets with generator rules for one of the map's environments get
+ * copies on flat open ground, deterministic for the seed. v68's own structures are untouched.
+ */
+function placeRuleAssets(store: ProjectStore, mapId: string, config: GenerateConfig, size: { w: number; d: number }) {
+  const rules = store
+    .list('assets/')
+    .map((p) => store.get<Asset>(p)!)
+    .filter((a) => a.generator && a.generator.environments.some((e) => config.environments.includes(e)));
+  if (!rules.length) return;
+  const all = allBricks(store, mapId);
+  const top = new Map<string, number>();
+  for (const b of all) {
+    const [w, d] = footprint(b);
+    const h = b.y + (b.type.startsWith('brick') ? 3 : 1);
+    const studs = !b.type.startsWith('tile');
+    for (let x = 0; x < w; x++)
+      for (let z = 0; z < d; z++) {
+        const k = `${b.x + x},${b.z + z}`;
+        // a tile top cannot hold anything: mark it unusable
+        if (h >= (top.get(k) ?? -1)) top.set(k, studs ? h : -1000);
+      }
+  }
+  let next = maxBrickId(store, mapId) + 1;
+  const items: AssetInstance[] = [];
+  for (const a of rules) {
+    let seed = (config.seed ^ Number.parseInt(hash64(a.id).slice(0, 8), 16)) >>> 0;
+    const random = () => {
+      seed = (seed + 0x6d2b79f5) >>> 0;
+      let t = seed;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const want = Math.max(1, Math.round(a.generator!.weight * ((size.w * size.d) / 256)));
+    let placed = 0;
+    for (let tries = 0; tries < want * 30 && placed < want; tries++) {
+      const rot = Math.floor(random() * 4);
+      const [w, d] = rot % 2 ? [a.footprint[1], a.footprint[0]] : a.footprint;
+      const x = Math.floor(-size.w / 2 + random() * Math.max(1, size.w - w));
+      const z = Math.floor(-size.d / 2 + random() * Math.max(1, size.d - d));
+      // flat ground under the whole footprint, and no road or tile in the way
+      const h = top.get(`${x},${z}`);
+      if (h === undefined || h < 1) continue;
+      let flat = true;
+      for (let i = 0; i < w && flat; i++)
+        for (let j = 0; j < d && flat; j++) if (top.get(`${x + i},${z + j}`) !== h) flat = false;
+      if (!flat) continue;
+      const inst: AssetInstance = {
+        id: generatedInstanceId(mapId, next),
+        kind: 'asset',
+        asset: a.id,
+        pos: [x, h, z],
+        rot,
+        idBase: next,
+      };
+      const bricks = expandAsset(a, inst).bricks;
+      if (!inspectBricks([...all, ...bricks]).ok) continue;
+      all.push(...bricks);
+      for (const b of bricks) {
+        const [bw, bd] = footprint(b);
+        for (let i = 0; i < bw; i++) for (let j = 0; j < bd; j++) top.set(`${b.x + i},${b.z + j}`, -1000);
+      }
+      items.push(inst);
+      next += a.bricks.length;
+      placed++;
+    }
+  }
+  if (!items.length) return;
+  const cur = store.get<Instances>(paths.instances(mapId))!;
+  store.put(paths.instances(mapId), { ...cur, items: [...cur.items, ...items] });
+}

@@ -1,3 +1,4 @@
+import { type ExpandedInstance, expandInstances } from '../core/assets/instances';
 import { type Brick, chunkKey, decodeChunk } from '../core/bricks/codec';
 import { footprint } from '../core/bricks/inspect';
 import { worldGenerator } from '../core/legacy/modules';
@@ -22,6 +23,11 @@ export class SceneModel {
   readonly chunks = new Map<string, Brick[]>();
   readonly byId = new Map<number, { brick: Brick; key: string }>();
   readonly groups = new Map<string, number[]>();
+  /** expanded asset instances; their bricks live in chunks under "a:<cx>_<cz>" keys */
+  instances: ExpandedInstance[] = [];
+  /** brick id -> the asset instance that owns it */
+  readonly instanceOf = new Map<number, ExpandedInstance>();
+  private unsubAssets: () => void;
   private listeners = new Set<(changed: string[], full: boolean) => void>();
   private unsub: () => void;
   private pavement: ((b: Brick) => boolean) | null = null;
@@ -35,12 +41,41 @@ export class SceneModel {
     this.map = store.get<MapDoc>(paths.map(mapId))!;
     this.setupPavement();
     for (const p of store.list(paths.chunkDir(mapId))) this.loadChunk(p);
+    this.loadInstances();
     this.reindexGroups();
     this.unsub = store.subscribe(`maps/${mapId}/`, (changed) => this.onStore(changed));
+    this.unsubAssets = store.subscribe('assets/', () => this.onStore([paths.instances(mapId)]));
+  }
+
+  /** Rebuilds the instance pseudo-chunks; returns every key that changed. */
+  private loadInstances(): string[] {
+    const old = [...this.chunks.keys()].filter((k) => k.startsWith('a:'));
+    for (const k of old) {
+      for (const b of this.chunks.get(k)!) if (this.byId.get(b.id)?.key === k) this.byId.delete(b.id);
+      this.chunks.delete(k);
+    }
+    this.instanceOf.clear();
+    this.instances = expandInstances(this.store, this.mapId);
+    for (const e of this.instances)
+      for (const b of e.bricks) {
+        const key = `a:${chunkKey(b.x, b.z)}`;
+        const list = this.chunks.get(key) ?? [];
+        if (!this.chunks.has(key)) this.chunks.set(key, list);
+        list.push(b);
+        this.byId.set(b.id, { brick: b, key });
+        this.instanceOf.set(b.id, e);
+      }
+    return [...new Set([...old, ...[...this.chunks.keys()].filter((k) => k.startsWith('a:'))])];
+  }
+
+  /** The instance a brick belongs to, or null for a loose brick. */
+  ownerOf(id: number): ExpandedInstance | null {
+    return this.instanceOf.get(id) ?? null;
   }
 
   dispose() {
     this.unsub();
+    this.unsubAssets();
     this.listeners.clear();
   }
 
@@ -129,6 +164,7 @@ export class SceneModel {
         }
       } else if (p.startsWith(paths.chunkDir(this.mapId))) keys.push(p);
     }
+    const instChanged = changed.includes(paths.instances(this.mapId));
     // Two passes: forget every changed chunk's bricks, then load them, so moved bricks keep their entry.
     for (const p of keys) {
       const key = this.keyOf(p);
@@ -136,6 +172,7 @@ export class SceneModel {
       this.chunks.delete(key);
     }
     for (let i = 0; i < keys.length; i++) keys[i] = this.loadChunk(keys[i]!);
+    if (instChanged) keys.push(...this.loadInstances());
     if (keys.length || full) {
       this.reindexGroups();
       this.revision++;
@@ -193,7 +230,7 @@ export class SceneModel {
   pick(r: { o: Vec3; d: Vec3 }, skip?: (b: Brick) => boolean): Hit | null {
     let best: Hit | null = null;
     for (const [key, list] of this.chunks) {
-      const [cx, cz] = key.split('_').map(Number) as [number, number];
+      const [cx, cz] = key.replace(/^a:/, '').split('_').map(Number) as [number, number];
       if (rayBox(r, [cx * 32 - 8, 0, cz * 32 - 8], [cx * 32 + 40, 130, cz * 32 + 40]) === null) continue;
       for (const b of list) {
         if (skip?.(b)) continue;

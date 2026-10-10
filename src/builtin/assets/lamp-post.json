@@ -1,0 +1,69 @@
+{
+  "id": null,
+  "name": "Lamp post",
+  "category": "decoration",
+  "bricks": [
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 3, 0, 0, 0, 0],
+    [0, 0, 6, 0, 0, 0, 0],
+    [0, 0, 9, 0, 0, 0, 0],
+    [0, 0, 12, 0, 0, 0, 0],
+    [1, 0, 15, 0, 0, 1, 0],
+    [2, 0, 16, 0, 0, 2, 0],
+    [2, 0, 16, 0, 0, 3, 0]
+  ],
+  "palette": {
+    "types": ["brick1x1", "plate2x2", "tile2x2"],
+    "colors": ["#485665", "#222630", "#f7c900", "#eef0f2"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [2, 2],
+  "sockets": [
+    {
+      "id": "switch",
+      "kind": "interact",
+      "pos": [1, 0.8, 1.6],
+      "prompt": "Switch"
+    }
+  ],
+  "states": ["on", "off"],
+  "initialState": "on",
+  "interactions": [
+    {
+      "socket": "switch",
+      "when": {
+        "state": "on"
+      },
+      "do": [
+        {
+          "do": "setState",
+          "state": "off"
+        }
+      ]
+    },
+    {
+      "socket": "switch",
+      "when": {
+        "state": "off"
+      },
+      "do": [
+        {
+          "do": "setState",
+          "state": "on"
+        }
+      ]
+    }
+  ],
+  "smash": {
+    "enabled": true,
+    "rebuild": true,
+    "sound": null,
+    "studs": 0
+  },
+  "generator": null,
+  "origin": "builtin",
+  "onlyIn": {
+    "on": [6],
+    "off": [7]
+  }
+}

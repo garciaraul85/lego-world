@@ -1,5 +1,6 @@
 import { effect } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
+import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import { rotateQuarter } from '../../core/bricks/transform';
@@ -7,6 +8,7 @@ import { skyCycle } from '../../core/legacy/modules';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
 import { type LineSet, type Marker, type Overlay, type RenderBrick, Renderer } from '../../engine/render/renderer';
+import { placeCommands, resolveAsset } from '../assets';
 import type { EditorState } from '../state';
 
 const kindOf = (type: string) =>
@@ -21,14 +23,19 @@ export type ViewportApi = {
 };
 
 /** The 3D scene view: renderer + camera + the active tool's pointer handling. */
+export type StudioHooks = { markers(): Marker[]; onPoint(pos: [number, number, number]): void };
+
 export function Viewport({
   ed,
   mode,
   api,
+  studio,
 }: {
   ed: EditorState;
   mode: 'scene' | 'game';
   api?: (a: ViewportApi) => void;
+  /** Asset studio hooks: extra markers (sockets), and where the Spawn tool's click goes instead */
+  studio?: StudioHooks;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hudRef = useRef<HTMLDivElement>(null);
@@ -58,6 +65,8 @@ export function Viewport({
       plane?: number;
     } | null = null;
     let preview: Brick[] | null = null;
+    let assetGhost: Brick[] | null = null;
+    let assetAt: [number, number, number] | null = null;
     const pointers = new Map<number, { x: number; y: number }>();
     let pinch = 0;
     const redraw = () => {
@@ -170,6 +179,7 @@ export function Viewport({
         ed.selection.value;
         ed.selectedSpawn.value;
         ed.brush.value;
+        ed.assetBrush.value;
         ed.tool.value;
         ed.revision.value;
         dirty = true;
@@ -207,15 +217,17 @@ export function Viewport({
           });
         }
         if (ghost) overlays.push({ bricks: [ghost], alpha: 0.6, flat: false });
+        if (assetGhost) overlays.push({ bricks: assetGhost.map(brickRender), alpha: 0.6, flat: false });
         if (sel.length) lines.push({ lines: boundsLines(sel), color: [1, 0.82, 0.3] });
-        for (const sp of s.map.spawns)
+        if (studio) markers.push(...studio.markers());
+        for (const sp of studio ? [] : s.map.spawns)
           markers.push({
             pos: [sp.pos[0], sp.pos[1] + 0.9, sp.pos[2]],
             size: [0.9, 1.8, 0.9],
             color: sp.id === ed.selectedSpawn.value ? [1, 0.72, 0.2] : [0.31, 0.82, 0.77],
             alpha: 0.85,
           });
-        for (const sp of s.map.spawns)
+        for (const sp of studio ? [] : s.map.spawns)
           lines.push({ lines: facingLine(sp.pos as Vec3, sp.yaw), color: [0.31, 0.82, 0.77] });
       }
       const cam = camera.frame();
@@ -245,7 +257,20 @@ export function Viewport({
       const r = rayAt(e);
       const tool = ed.tool.value;
       ghost = null;
-      if (tool === 'place') {
+      assetGhost = null;
+      assetAt = null;
+      if (tool === 'asset') {
+        const def = resolveAsset(ed, ed.assetBrush.value.asset);
+        const hit = def && s.surface(r, (b) => !ed.isVisible(b));
+        if (def && hit) {
+          const rot = ed.assetBrush.value.rot;
+          const [w, d] = rotatedFootprint(def, rot);
+          assetAt = [Math.round(hit.x - w / 2), hit.y, Math.round(hit.z - d / 2)];
+          assetGhost = expandAsset(def, { pos: assetAt, rot, idBase: 1 }).bricks;
+          ed.cursor.value = { x: assetAt[0], z: assetAt[2], y: assetAt[1] };
+        }
+        hover = null;
+      } else if (tool === 'place') {
         const hit = s.surface(r, (b) => !ed.isVisible(b));
         if (hit) {
           const br = ed.brush.value;
@@ -278,6 +303,15 @@ export function Viewport({
       const r = rayAt(e);
       const tool = ed.tool.value;
       const map = ed.mapId.value;
+      if (tool === 'asset') {
+        const id = ed.assetBrush.value.asset;
+        if (!id) ed.notify('Pick an asset in the dock (Assets › Assets) first.');
+        else if (assetAt) {
+          const def = resolveAsset(ed, id);
+          ed.exec(placeCommands(ed, id, assetAt, ed.assetBrush.value.rot), { label: `Place ${def?.name ?? 'asset'}` });
+        }
+        return;
+      }
       if (tool === 'place' && ghost) {
         const br = ed.brush.value;
         ed.exec({
@@ -287,6 +321,11 @@ export function Viewport({
             bricks: [{ type: br.type, x: ghost.x, y: ghost.y, z: ghost.z, rot: br.rot, color: br.color }],
           },
         });
+        return;
+      }
+      if (tool === 'spawn' && studio) {
+        const hit = s.surface(r);
+        if (hit) studio.onPoint([Math.round(hit.x * 2) / 2, hit.y * 0.4, Math.round(hit.z * 2) / 2]);
         return;
       }
       if (tool === 'spawn') {
@@ -303,7 +342,7 @@ export function Viewport({
         return;
       }
       // spawn markers are selectable with any other tool
-      const spawn = s.map.spawns.find((sp) => {
+      const spawn = (studio ? [] : s.map.spawns).find((sp) => {
         const t = rayBoxAt(r, sp.pos as Vec3);
         return t !== null;
       });
@@ -333,7 +372,12 @@ export function Viewport({
         return;
       }
       if (tool === 'erase') {
-        const ids = e.shiftKey && b.group ? (s.groups.get(b.group) ?? [b.id]) : [b.id];
+        const owner = s.ownerOf(b.id);
+        const ids = owner
+          ? owner.bricks.map((x) => x.id)
+          : e.shiftKey && b.group
+            ? (s.groups.get(b.group) ?? [b.id])
+            : [b.id];
         if (ed.exec({ type: 'bricks.remove', payload: { map, ids } }).ok) ed.pruneSelection();
         return;
       }
@@ -463,6 +507,7 @@ export function Viewport({
     const onLeave = () => {
       hover = null;
       ghost = null;
+      assetGhost = null;
       dirty = true;
     };
     canvas.addEventListener('pointerdown', onDown);

@@ -34,6 +34,10 @@ export const Asset = z.strictObject({
   sockets: z.array(Socket),
   states: z.array(z.string()).min(1),
   initialState: z.string(),
+  /** bricks (indexes into `bricks`) that are shown only in the listed state; all others always show */
+  onlyIn: z.record(z.string(), z.array(z.number().int().min(0))).optional(),
+  /** where the asset came from: the built-in library, the world generator, or made by the user */
+  origin: z.enum(['builtin', 'generated', 'user']).optional(),
   interactions: z.array(
     z.strictObject({
       socket: z.string(),
@@ -52,3 +56,5 @@ export const Asset = z.strictObject({
     .nullable(),
 });
 export type Asset = z.infer<typeof Asset>;
+export type AssetBrick = z.infer<typeof AssetBrick>;
+export type Socket = z.infer<typeof Socket>;

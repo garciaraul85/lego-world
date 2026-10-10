@@ -1,0 +1,95 @@
+{
+  "id": "clp_lm3zrvcbbc",
+  "name": "Baseball · catch",
+  "group": "Baseball",
+  "prop": "baseball-catch",
+  "length": 2.2,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.78, "easeInOut"],
+        [0.506, 1.78, "easeInOut"],
+        [0.968, 1.55, "easeInOut"],
+        [1.408, 1.55, "easeInOut"],
+        [1.804, 1.78, "easeInOut"],
+        [2.2, 1.78, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, -0.7, "easeInOut"],
+        [0.506, -1.5, "easeInOut"],
+        [0.968, -1.25, "easeInOut"],
+        [1.408, -1.25, "easeInOut"],
+        [1.804, -1.5, "easeInOut"],
+        [2.2, -0.7, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.2, "easeInOut"],
+        [0.506, -0.25, "easeInOut"],
+        [0.968, -0.15, "easeInOut"],
+        [1.408, -0.15, "easeInOut"],
+        [1.804, -0.25, "easeInOut"],
+        [2.2, -0.2, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.506, 0, "easeInOut"],
+        [0.968, -1, "easeInOut"],
+        [1.408, -1, "easeInOut"],
+        [1.804, 0, "easeInOut"],
+        [2.2, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.06, "easeInOut"],
+        [0.506, 0.06, "easeInOut"],
+        [0.968, -0.2, "easeInOut"],
+        [1.408, -0.2, "easeInOut"],
+        [1.804, 0.06, "easeInOut"],
+        [2.2, 0.06, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -0.6, "easeInOut"],
+        [0.506, -0.15, "easeInOut"],
+        [0.968, -0.85, "easeInOut"],
+        [1.408, -0.85, "easeInOut"],
+        [1.804, -0.15, "easeInOut"],
+        [2.2, -0.6, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.506, -0.12, "easeInOut"],
+        [0.968, -0.9, "easeInOut"],
+        [1.408, -0.9, "easeInOut"],
+        [1.804, -0.12, "easeInOut"],
+        [2.2, -0.12, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

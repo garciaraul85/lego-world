@@ -1,0 +1,31 @@
+{
+  "id": "ast_i6xzvmv3i0",
+  "name": "Flower bush",
+  "category": "nature",
+  "bricks": [
+    [0, 1, 0, 1, 0, 0, 0],
+    [1, 0, 3, 0, 0, 1, 0],
+    [2, 1, 6, 1, 0, 2, 0],
+    [3, 0, 6, 0, 0, 3, 0],
+    [3, 3, 6, 2, 0, 4, 0],
+    [3, 1, 6, 3, 0, 4, 0]
+  ],
+  "palette": {
+    "types": ["brick1x1", "brick4x4", "plate2x2", "tile1x1"],
+    "colors": ["#754429", "#79b44c", "#168344", "#e990b3", "#f7c900"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [4, 4],
+  "sockets": [],
+  "states": ["default"],
+  "initialState": "default",
+  "interactions": [],
+  "smash": {
+    "enabled": true,
+    "rebuild": true,
+    "sound": null,
+    "studs": 0
+  },
+  "generator": null,
+  "origin": "builtin"
+}

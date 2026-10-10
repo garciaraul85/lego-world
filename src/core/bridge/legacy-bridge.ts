@@ -1,3 +1,5 @@
+import { instanceBricks } from '../assets/instances';
+import type { Brick } from '../bricks/codec';
 import { LEGACY_COLORS } from '../legacy/constants';
 import type { LegacyBuild, LegacyLink, LegacyMapEntry, LegacyPiece, LegacySave } from '../legacy/types';
 import { type IdResolver, ids, rebuildConfig } from '../migrate/v4to5';
@@ -34,6 +36,23 @@ export function chunksToPieces(files: FileSource, mapId: string): LegacyPiece[] 
   return pieces.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
 }
 
+/** A decoded brick as a v68 piece. */
+export function brickToPiece(b: Brick): LegacyPiece {
+  const { kind, rows, cols } = parseType(b.type);
+  const color = COLOR_INDEX.get(b.color.toLowerCase());
+  if (color === undefined) throw new Error(`color ${b.color} has no legacy index`);
+  const p: LegacyPiece = { id: b.id, rows, cols, turn: b.rot, x: b.x, y: b.y, z: b.z, kind, color };
+  if (b.group !== undefined) p.group = b.group;
+  return p;
+}
+
+/** Every piece of a map for v68 and the play runtime: chunk bricks plus expanded asset instances, in id order. */
+export function mapPieces(files: FileSource, mapId: string): LegacyPiece[] {
+  const extra = instanceBricks(files, mapId).map(brickToPiece);
+  const pieces = chunksToPieces(files, mapId);
+  return extra.length ? [...pieces, ...extra].sort((a, b) => (a.id ?? 0) - (b.id ?? 0)) : pieces;
+}
+
 /** One map's v5 files -> the legacy build object v68 expects for a map. */
 export function mapToLegacyBuild(files: FileSource, mapId: string): LegacyBuild {
   const map = files.get(paths.map(mapId)) as MapDoc;
@@ -51,7 +70,7 @@ export function mapToLegacyBuild(files: FileSource, mapId: string): LegacyBuild 
     };
   }
   const build: LegacyBuild = {
-    pieces: chunksToPieces(files, mapId),
+    pieces: mapPieces(files, mapId),
     world,
     environment: env,
     broken: state.broken,
