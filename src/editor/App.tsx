@@ -206,8 +206,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       {modal === 'about' && (
         <Modal title="Brick Worlds Engine" onClose={() => setModal(null)}>
           <p>
-            Phase 2 build: the Scene editor and World graph on the v5 project format, with Play on the new engine
-            runtime, grown from LEGO World v68.
+            Phase 3 build: Scene editor, World graph, Asset studio and Character studio on the v5 project format, with
+            Play on the new engine runtime, grown from LEGO World v68.
           </p>
           <p class="muted">
             Projects are saved as small JSON files in this browser. Guns, magic, super powers, the volcano and the
