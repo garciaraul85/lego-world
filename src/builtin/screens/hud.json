@@ -1,0 +1,87 @@
+{
+  "id": "scr_hud0000000",
+  "kind": "hud",
+  "name": "HUD",
+  "music": null,
+  "pausesGame": false,
+  "root": {
+    "type": "panel",
+    "children": [
+      {
+        "type": "panel",
+        "id": "status",
+        "anchor": [0, 0],
+        "offset": [24, 20],
+        "style": { "layout": "row", "gap": 14, "bg": "#0b1020b0", "pad": 10, "radius": 12 },
+        "children": [
+          { "type": "hearts", "id": "hearts", "bind": ["hp", "maxHp"] },
+          { "type": "text", "id": "gear", "text": "⚒ {hero.gear}", "style": { "fontSize": 18, "color": "#e8ecf4" } }
+        ]
+      },
+      {
+        "type": "text",
+        "id": "mapname",
+        "anchor": [1, 0],
+        "offset": [-24, 20],
+        "text": "{map.name}",
+        "style": { "fontSize": 18, "color": "#e8ecf4", "bg": "#0b1020b0", "pad": 10, "radius": 12 }
+      },
+      {
+        "type": "list",
+        "id": "inventory",
+        "anchor": [1, 0],
+        "offset": [-24, 70],
+        "bind": ["inventory"],
+        "style": { "fontSize": 16, "color": "#f7c900", "bg": "#0b1020a0", "pad": 8, "radius": 10, "hideEmpty": 1 }
+      },
+      {
+        "type": "minimap",
+        "id": "minimap",
+        "anchor": [1, 1],
+        "offset": [-24, -24],
+        "style": { "w": 150, "h": 150, "radius": 12, "border": "#ffffff40" }
+      },
+      {
+        "type": "text",
+        "id": "message",
+        "anchor": [0.5, 1],
+        "offset": [0, -120],
+        "text": "{message}",
+        "style": {
+          "fontSize": 20,
+          "color": "#ffffff",
+          "bg": "#0b1020c8",
+          "pad": 12,
+          "radius": 12,
+          "hideEmpty": 1,
+          "maxW": 760
+        }
+      },
+      {
+        "type": "text",
+        "id": "prompt",
+        "anchor": [0.5, 1],
+        "offset": [0, -64],
+        "text": "{prompt}",
+        "style": {
+          "fontSize": 20,
+          "weight": "bold",
+          "color": "#111",
+          "bg": "#f7c900",
+          "pad": 10,
+          "radius": 10,
+          "hideEmpty": 1
+        }
+      },
+      {
+        "type": "button",
+        "id": "pause",
+        "anchor": [0.5, 0],
+        "offset": [0, 16],
+        "label": "❚❚",
+        "touchOnly": true,
+        "onPress": [{ "do": "game", "op": "pause" }]
+      }
+    ]
+  }
+}

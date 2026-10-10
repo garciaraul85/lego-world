@@ -129,6 +129,6 @@ test('a breakpoint pauses Play on the node and Continue runs on; the logic chang
     undefined,
     { timeout: 120_000 },
   );
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('F5'); // stop (Esc is the game's back / pause now)
   expect(errors).toEqual([]);
 });

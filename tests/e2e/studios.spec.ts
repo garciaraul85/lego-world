@@ -164,6 +164,6 @@ test('in play, E opens a chest placed near the start', async ({ page }) => {
     undefined,
     { timeout: 120_000 },
   );
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('F5'); // stop (Esc is the game's back / pause now)
   expect(errors).toEqual([]);
 });

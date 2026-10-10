@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'preact/hooks';
 import { BRICK_SIZES } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
+import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
 import { assetLibrary } from '../assets';
 import { AssetThumb } from '../components/AssetThumb';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
+import { MixerView } from '../workspaces/audio/MixerView';
+import { musicOptions, soundOptions } from './AudioFields';
 import { Swatches } from './Inspector';
 
 const CATS: [string, string | null, string][] = [
@@ -17,9 +20,9 @@ const CATS: [string, string | null, string][] = [
   ],
   ['Characters', null, 'Characters, their looks and their clips (emotes) are made in the Character studio.'],
   ['Cinematics', 'Phase 6', 'Directed scenes arrive with the Cinematics director.'],
-  ['UI screens', 'Phase 5', 'Splash, HUD and pause screens arrive with the Screens editor.'],
-  ['Sounds', 'Phase 5', 'Sound events and emitters arrive with the Audio workspace.'],
-  ['Music', 'Phase 5', 'Music zones arrive with the Audio workspace.'],
+  ['UI screens', null, 'Splash, title, HUD, pause, dialogue, game over and your own screens.'],
+  ['Sounds', null, 'Sound events: ▶ to listen; place one in the map as an emitter (Sound emitter tool, S).'],
+  ['Music', null, 'Music states: ▶ to audition; pick one as the map music or a zone’s music.'],
 ];
 
 export function Dock({ c }: { c: ActionCtx }) {
@@ -33,6 +36,7 @@ export function Dock({ c }: { c: ActionCtx }) {
     ['profiler', 'Profiler'],
     ['problems', `Problems${problems.length ? ` (${problems.length})` : ''}`],
     ['debug', ed.session.value ? 'Debug ●' : 'Debug'],
+    ['audio', 'Mixer'],
   ];
   return (
     <section class="panel dockpanel" aria-label="Bottom dock" data-tour="dock">
@@ -64,6 +68,11 @@ export function Dock({ c }: { c: ActionCtx }) {
       {tab === 'profiler' && <Profiler ed={ed} />}
       {tab === 'problems' && <Problems c={c} problems={problems} />}
       {tab === 'debug' && <Debug c={c} />}
+      {tab === 'audio' && (
+        <div class="scroll">
+          <MixerView ed={ed} compact />
+        </div>
+      )}
     </section>
   );
 }
@@ -108,6 +117,39 @@ function Assets({ c }: { c: ActionCtx }) {
               Open the Character studio
             </button>
           </div>
+        ) : cur[0] === 'UI screens' ? (
+          <MediaCards
+            c={c}
+            items={allScreens(ed.store).map((s) => ({ id: s.id, name: s.name, sub: s.kind }))}
+            open={(id) => {
+              ed.screenId.value = id;
+              ed.widgetPath.value = '';
+              c.ui.workspace('Screens');
+            }}
+            hint={cur[2]}
+          />
+        ) : cur[0] === 'Sounds' ? (
+          <MediaCards
+            c={c}
+            items={soundOptions(ed).map((o) => ({ id: o.id, name: o.name, sub: o.bus }))}
+            play={(id) => ed.audio.previewEvent(id)}
+            open={(id) => {
+              ed.audioSel.value = { kind: 'event', id };
+              c.ui.workspace('Audio');
+            }}
+            hint={cur[2]}
+          />
+        ) : cur[0] === 'Music' ? (
+          <MediaCards
+            c={c}
+            items={musicOptions(ed).map((o) => ({ id: o.id, name: o.name, sub: 'music' }))}
+            play={(id) => ed.audio.previewMusic(id)}
+            open={(id) => {
+              ed.audioSel.value = { kind: 'music', id };
+              c.ui.workspace('Audio');
+            }}
+            hint={cur[2]}
+          />
         ) : cur[1] ? (
           <div class="placeholder" style={{ padding: '8px' }}>
             <strong>
@@ -387,6 +429,19 @@ function Debug({ c }: { c: ActionCtx }) {
           {s.logic.programs.length} event handler{s.logic.programs.length === 1 ? '' : 's'} · {s.logic.active} waiting
           {s.logic.problems.length ? ` · ${s.logic.problems.length} problem(s)` : ''}
         </dd>
+        <dt>screens</dt>
+        <dd>
+          {s.screens
+            .screens()
+            .map((x) => x.name)
+            .join(' › ') || 'none'}
+          {s.screenPaused ? ' · game held' : ''}
+        </dd>
+        <dt>audio</dt>
+        <dd>
+          music {ed.audio.stats.music ?? '—'} · {ed.audio.pool.active.length} voices · {s.emitterSystem.active.length}{' '}
+          emitter loop(s)
+        </dd>
         <dt>time</dt>
         <dd>
           {s.runtime.time.toFixed(1)} s · tick {st.ticks} · {ed.timeScale.value}×{ed.paused.value ? ' · paused' : ''}
@@ -510,6 +565,43 @@ function AssetCards({ c }: { c: ActionCtx }) {
             </button>
           );
         })}
+      </div>
+    </>
+  );
+}
+
+/** Dock cards for screens, sound events and music: ▶ to preview, click to open in its workspace. */
+function MediaCards({
+  c,
+  items,
+  play,
+  open,
+  hint,
+}: {
+  c: ActionCtx;
+  items: { id: string; name: string; sub: string }[];
+  play?: (id: string) => void;
+  open: (id: string) => void;
+  hint: string;
+}) {
+  void c;
+  return (
+    <>
+      <span class="muted small">{hint}</span>
+      <div class="media-cards">
+        {items.map((it) => (
+          <div class="media-card">
+            {play && (
+              <button type="button" class="btn icon" aria-label={`Play ${it.name}`} onClick={() => play(it.id)}>
+                ▶
+              </button>
+            )}
+            <button type="button" class="link asset-name" onClick={() => open(it.id)}>
+              {it.name}
+            </button>
+            <span class="mono small muted">{it.sub}</span>
+          </div>
+        ))}
       </div>
     </>
   );

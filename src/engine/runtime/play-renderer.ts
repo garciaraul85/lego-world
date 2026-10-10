@@ -25,6 +25,8 @@ export class PlayRenderer {
   private shown: MapWorld | null = null;
   private bound = new WeakSet<Controller>();
   debug: DebugDraw = { colliders: false, spawns: true };
+  /** the camera of the last frame (world UI projects with it) */
+  lastCamera: CameraFrame | null = null;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -89,6 +91,7 @@ export class PlayRenderer {
     this.renderer.snow = w.doc.weather.snow;
     this.renderer.clock = s.clock;
     const cam = this.camera();
+    this.lastCamera = cam;
     const lines: LineSet[] = [];
     const markers: Marker[] = [];
     if (this.debug.spawns) {

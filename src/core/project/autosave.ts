@@ -2,6 +2,7 @@ import { hash64, utf8Length } from '../hash';
 import { serializeFile } from '../json/stable';
 import { type Project, paths } from '../schema';
 import type { FileBackend } from './backend';
+import type { MediaStore } from './media';
 import type { ProjectStore } from './store';
 
 export type SaveStatus = { state: 'saved' | 'saving' | 'unsaved' | 'error'; dirty: number; error?: string };
@@ -13,6 +14,8 @@ export type AutosaveOptions = {
   now?: () => string;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (t: unknown) => void;
+  /** imported media blobs saved with the files (P5.2) */
+  media?: MediaStore;
 };
 
 /**
@@ -27,13 +30,15 @@ export class Autosave {
   private unsub: () => void;
   private listeners = new Set<(s: SaveStatus) => void>();
   status: SaveStatus = { state: 'saved', dirty: 0 };
-  private readonly o: Required<AutosaveOptions>;
+  private readonly o: Required<Omit<AutosaveOptions, 'media'>>;
+  private readonly media: MediaStore | undefined;
 
   constructor(
     private readonly store: ProjectStore,
     private readonly backend: FileBackend,
     opts: AutosaveOptions = {},
   ) {
+    this.media = opts.media;
     this.o = {
       debounceMs: opts.debounceMs ?? 2000,
       backoffMs: opts.backoffMs ?? [2000, 5000, 15000, 60000],
@@ -114,8 +119,9 @@ export class Autosave {
     }
     written.set(paths.project, manifest);
     put.push({ path: paths.project, text: serializeFile(paths.project, manifest) });
+    const media = this.media?.takePending() ?? [];
     try {
-      await this.backend.writeBatch(project.id, { put, del });
+      await this.backend.writeBatch(project.id, { put, del, ...(media.length ? { media } : {}) });
       // Only paths that did not change again while writing are clean.
       this.store.markSaved([...written].filter(([p, v]) => this.store.get(p) === v).map(([p]) => p));
       this.retry = 0;
@@ -123,6 +129,7 @@ export class Autosave {
       this.setStatus({ state: left ? 'unsaved' : 'saved', dirty: left });
       if (left) this.schedule(this.o.debounceMs);
     } catch (e) {
+      this.media?.restorePending(media);
       const delay = this.o.backoffMs[Math.min(this.retry, this.o.backoffMs.length - 1)]!;
       this.retry++;
       this.setStatus({

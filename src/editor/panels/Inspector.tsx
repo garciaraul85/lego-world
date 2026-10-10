@@ -6,63 +6,14 @@ import { BIOMES, BRICK_SIZES, TIMES } from '../../core/schema';
 import type { GenerateConfig } from '../../core/worldgen/generate';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { groupLabel } from '../categories';
+import { Header, Num, TextField } from '../components/fields';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
+import { ItemInspector, MapAudioSection, ScreenSelect, ZoneAudio } from './AudioFields';
 
 const BIOME_NAMES = Object.fromEntries(worldGenerator().biomes);
 const pretty = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Number input that commits on Enter or blur (one command per edit, not per keystroke). */
-function Num({
-  value,
-  onCommit,
-  label,
-  step = 1,
-}: {
-  value: number;
-  onCommit: (v: number) => void;
-  label: string;
-  step?: number;
-}) {
-  const [v, setV] = useState(String(value));
-  useEffect(() => setV(String(value)), [value]);
-  const commit = () => {
-    const n = Number(v);
-    if (Number.isFinite(n) && n !== value) onCommit(n);
-    else setV(String(value));
-  };
-  return (
-    <label>
-      {label}
-      <input
-        class="inp mono"
-        inputMode="numeric"
-        value={v}
-        step={step}
-        aria-label={label}
-        onInput={(e) => setV((e.target as HTMLInputElement).value)}
-        onBlur={commit}
-        onKeyDown={(e) => e.key === 'Enter' && commit()}
-      />
-    </label>
-  );
-}
-
-function TextField({ value, onCommit, label }: { value: string; onCommit: (v: string) => void; label: string }) {
-  const [v, setV] = useState(value);
-  useEffect(() => setV(value), [value]);
-  const commit = () => (v.trim() && v !== value ? onCommit(v) : setV(value));
-  return (
-    <input
-      class="inp"
-      aria-label={label}
-      value={v}
-      onInput={(e) => setV((e.target as HTMLInputElement).value)}
-      onBlur={commit}
-      onKeyDown={(e) => e.key === 'Enter' && commit()}
-    />
-  );
-}
-
 export function Swatches({ value, onPick }: { value?: string; onPick: (hex: string) => void }) {
   return (
     <div class="row" role="listbox" aria-label="Brick colors">
@@ -123,6 +74,7 @@ function InspectorTab({ c }: { c: ActionCtx }) {
   const spawnId = ed.selectedSpawn.value;
   const zoneId = ed.selectedZone.value;
   if (zoneId) return <ZoneInspector c={c} id={zoneId} />;
+  if (ed.selectedItem.value) return <ItemInspector c={c} id={ed.selectedItem.value} />;
   const map = ed.mapId.value;
   ed.revision.value;
   if (spawnId) {
@@ -442,46 +394,6 @@ function BrickShape({ c, b }: { c: ActionCtx; b: Brick }) {
   );
 }
 
-function Header({ title, sub, color }: { title: string; sub: string; color: string }) {
-  return (
-    <div
-      style={{
-        padding: '10px 12px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        borderBottom: '1px solid var(--line2)',
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          width: '30px',
-          height: '30px',
-          borderRadius: '6px',
-          background: color,
-          boxShadow: 'inset 0 -5px 0 #00000040',
-          flex: 'none',
-        }}
-      />
-      <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            fontWeight: 600,
-            fontSize: '14px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {title}
-        </div>
-        <div class="mono small muted">{sub}</div>
-      </div>
-    </div>
-  );
-}
-
 function MapTab({ c }: { c: ActionCtx }) {
   const { ed } = c;
   const m = ed.mapDoc.value;
@@ -683,9 +595,7 @@ function MapTab({ c }: { c: ActionCtx }) {
         <div class="sech">
           <span>Audio &amp; first visit</span>
         </div>
-        <div class="field">
-          Music<span class="chip">Phase 5</span>
-        </div>
+        <MapAudioSection c={c} />
         <div class="field">
           Cinematic<span class="chip">Phase 6</span>
         </div>
@@ -742,7 +652,14 @@ function ProjectTab({ c }: { c: ActionCtx }) {
           </select>
         </div>
         <div class="field">
-          Start screen<span class="chip">Phase 5</span>
+          First screen
+          <ScreenSelect
+            ed={ed}
+            label="First screen"
+            value={p.entry.screen}
+            none="None · straight into the game"
+            onPick={(entryScreen) => ed.exec({ type: 'project.update', payload: { entryScreen } })}
+          />
         </div>
       </div>
       <div class="sec">
@@ -836,6 +753,7 @@ function ZoneInspector({ c, id }: { c: ActionCtx; id: string }) {
           ))}
         </div>
       </div>
+      <ZoneAudio c={c} map={map} zone={z} />
       <div class="sec">
         <div class="sech">
           <span>Logic</span>

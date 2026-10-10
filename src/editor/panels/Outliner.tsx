@@ -279,6 +279,58 @@ function Hierarchy({ c }: { c: ActionCtx }) {
           });
     }
     const inst = ed.store.get<Instances>(paths.instances(m.id));
+    // P5.5 / P5.9: sound emitters (and music/ambience zones) and world UI
+    const groups = [
+      { key: 'sounds', name: 'Sounds', color: '#8b74ff', kind: 'emitter' as const },
+      { key: 'worldui', name: 'World UI', color: '#f9d84c', kind: 'ui' as const },
+    ];
+    for (const g of groups) {
+      const items = (inst?.items ?? []).filter((i) => i.kind === g.kind);
+      const zones = g.kind === 'emitter' ? m.zones.filter((z) => z.music !== undefined || z.ambience) : [];
+      if (!items.length && !zones.length) continue;
+      const isOpen = open[g.key] ?? true;
+      out.push({
+        key: g.key,
+        depth: 1,
+        name: g.name,
+        color: g.color,
+        caret: isOpen ? '▾' : '▸',
+        meta: String(items.length + zones.length),
+        onClick: () => setOpen({ ...open, [g.key]: !isOpen }),
+      });
+      if (!isOpen) continue;
+      for (const it of items)
+        out.push({
+          key: `it:${it.id}`,
+          depth: 2,
+          name:
+            it.kind === 'emitter'
+              ? `♫ ${it.name ?? 'Emitter'}`
+              : it.kind === 'ui'
+                ? `▭ ${it.text.slice(0, 28) || it.widget}`
+                : it.id,
+          color: g.color,
+          sel: ed.selectedItem.value === it.id,
+          onClick: () => {
+            ed.select([]);
+            ed.selectedItem.value = it.id;
+            ed.right.value = 'inspect';
+          },
+        });
+      for (const z of zones)
+        out.push({
+          key: `snz:${z.id}`,
+          depth: 2,
+          name: `⬚ ${z.tags[0] ?? 'Zone'} · ${z.music !== undefined ? 'music' : 'ambience'}`,
+          color: g.color,
+          sel: ed.selectedZone.value === z.id,
+          onClick: () => {
+            ed.select([]);
+            ed.selectedZone.value = z.id;
+            ed.right.value = 'inspect';
+          },
+        });
+    }
     const npcs = inst?.items.filter((i) => i.kind === 'npc').length ?? 0;
     out.push({
       key: 'npcs',
@@ -292,7 +344,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
     if (broken)
       out.push({ key: 'broken', depth: 1, name: 'Smashed (rebuildable)', color: '#ef5a5a', meta: String(broken) });
     return out;
-  }, [s, rev, selKey, open, filter, ed.selectedSpawn.value]);
+  }, [s, rev, selKey, open, filter, ed.selectedSpawn.value, ed.selectedItem.value, ed.selectedZone.value]);
   return (
     <>
       <div style={{ padding: '8px' }}>

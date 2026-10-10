@@ -1,0 +1,33 @@
+{
+  "id": "scr_splash0000",
+  "kind": "splash",
+  "name": "Splash",
+  "music": null,
+  "pausesGame": true,
+  "onShow": [
+    { "do": "stinger", "stinger": "splash" },
+    { "do": "wait", "seconds": 2.2 },
+    { "do": "showScreen", "screen": "scr_title00000", "replace": true }
+  ],
+  "onBack": [{ "do": "showScreen", "screen": "scr_title00000", "replace": true }],
+  "root": {
+    "type": "panel",
+    "style": { "bg": "#05070d" },
+    "children": [
+      {
+        "type": "text",
+        "id": "made",
+        "anchor": [0.5, 0.45],
+        "text": "Made with Brick Worlds",
+        "style": { "fontSize": 44, "weight": "bold", "color": "#f7c900" }
+      },
+      {
+        "type": "text",
+        "id": "game",
+        "anchor": [0.5, 0.56],
+        "text": "{game.name}",
+        "style": { "fontSize": 24, "color": "#cfd6e6" }
+      }
+    ]
+  }
+}

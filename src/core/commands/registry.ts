@@ -10,6 +10,16 @@ import {
   unpackInstance,
   updateAsset,
 } from './handlers/assets';
+import {
+  deleteScreen,
+  putScreen,
+  registerMedia,
+  removeMedia,
+  setMixer,
+  setMusicSettings,
+  setMusicState,
+  setSoundEvent,
+} from './handlers/audio';
 import { moveBricks, paintBricks, placeBricks, removeBricks, updateBricks } from './handlers/bricks';
 import {
   createCharacter,
@@ -21,6 +31,7 @@ import {
 } from './handlers/characters';
 import { deleteFile, putFile } from './handlers/file';
 import { connectGate, deleteGate, deleteMap, updateGate } from './handlers/gates';
+import { addItem, removeItem, setMapAudio, updateItem } from './handlers/items';
 import {
   addNode,
   connect,
@@ -96,5 +107,17 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('map.addZone', addZone);
   bus.register('map.updateZone', updateZone);
   bus.register('map.removeZone', removeZone);
+  bus.register('audio.setEvent', setSoundEvent);
+  bus.register('audio.setMusic', setMusicState);
+  bus.register('audio.setMusicSettings', setMusicSettings);
+  bus.register('audio.setMixer', setMixer);
+  bus.register('media.register', registerMedia);
+  bus.register('media.remove', removeMedia);
+  bus.register('screen.put', putScreen);
+  bus.register('screen.delete', deleteScreen);
+  bus.register('item.add', addItem);
+  bus.register('item.update', updateItem);
+  bus.register('item.remove', removeItem);
+  bus.register('map.setAudio', setMapAudio);
   return bus;
 }

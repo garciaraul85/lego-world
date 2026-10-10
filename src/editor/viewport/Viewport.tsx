@@ -1,10 +1,13 @@
 import { effect } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
+import { SND } from '../../builtin/audio';
 import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import { rotateQuarter } from '../../core/bricks/transform';
+import { newId } from '../../core/ids';
 import { skyCycle } from '../../core/legacy/modules';
+import { type EmitterInstance, type Instances, paths, type UiInstance } from '../../core/schema';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
 import { type LineSet, type Marker, type Overlay, type RenderBrick, Renderer } from '../../engine/render/renderer';
@@ -181,6 +184,7 @@ export function Viewport({
         ed.selection.value;
         ed.selectedSpawn.value;
         ed.selectedZone.value;
+        ed.selectedItem.value;
         ed.brush.value;
         ed.assetBrush.value;
         ed.tool.value;
@@ -243,6 +247,22 @@ export function Viewport({
               color: [1, 0.85, 0.4],
             });
           }
+        }
+        // sound emitters (♫, with their range when selected) and world UI signs (P5.5, P5.9)
+        for (const it of studio ? [] : mapItems(ed)) {
+          const sel = it.id === ed.selectedItem.value;
+          const p = it.pos;
+          markers.push({
+            pos: [p[0], p[1], p[2]],
+            size: it.kind === 'emitter' ? [0.7, 0.7, 0.7] : [1.6, 0.8, 0.12],
+            color: sel ? [1, 0.72, 0.2] : it.kind === 'emitter' ? [0.55, 0.45, 1] : [0.98, 0.85, 0.3],
+            alpha: 0.9,
+          });
+          if (it.kind === 'emitter')
+            lines.push({
+              lines: ringLines(p[0], p[1], p[2], it.maxDistance),
+              color: sel ? [1, 0.72, 0.2] : [0.55, 0.45, 1],
+            });
         }
         for (const sp of studio ? [] : s.map.spawns)
           markers.push({
@@ -347,6 +367,41 @@ export function Viewport({
         });
         return;
       }
+      if ((tool === 'sound' || tool === 'ui') && !studio) {
+        const hit = s.surface(r);
+        if (!hit) return;
+        const id = newId('instance');
+        const at: [number, number, number] = [Math.round(hit.x * 2) / 2, hit.y * 0.4, Math.round(hit.z * 2) / 2];
+        const item: EmitterInstance | UiInstance =
+          tool === 'sound'
+            ? {
+                id,
+                kind: 'emitter',
+                name: `Emitter ${mapItems(ed).filter((i) => i.kind === 'emitter').length + 1}`,
+                sound: SND.birds,
+                pos: [at[0], at[1] + 1, at[2]],
+                mode: 'loop',
+                interval: [3, 6],
+                maxDistance: 16,
+                volume: 0,
+              }
+            : {
+                id,
+                kind: 'ui',
+                widget: 'sign',
+                pos: [at[0], at[1] + 2.4, at[2]],
+                text: 'Welcome to {map.name}',
+                maxDistance: 24,
+              };
+        if (ed.exec({ type: 'item.add', payload: { map, item } }).ok) {
+          ed.selection.value = new Set();
+          ed.selectedSpawn.value = null;
+          ed.selectedZone.value = null;
+          ed.selectedItem.value = id;
+          ed.right.value = 'inspect';
+        }
+        return;
+      }
       if (tool === 'spawn' && studio) {
         const hit = s.surface(r);
         if (hit) studio.onPoint([Math.round(hit.x * 2) / 2, hit.y * 0.4, Math.round(hit.z * 2) / 2]);
@@ -364,6 +419,24 @@ export function Viewport({
             },
           });
         return;
+      }
+      // emitters and world UI are selectable with any other tool
+      const item = studio
+        ? null
+        : mapItems(ed)
+            .map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) }))
+            .filter((x) => x.t !== null)
+            .sort((a, b) => a.t! - b.t!)[0];
+      if (item) {
+        const bh = s.pick(r, pickable);
+        if (!bh || item.t! < bh.t) {
+          ed.selection.value = new Set();
+          ed.selectedSpawn.value = null;
+          ed.selectedZone.value = null;
+          ed.selectedItem.value = item.it.id;
+          ed.right.value = 'inspect';
+          return;
+        }
       }
       // spawn markers are selectable with any other tool
       const spawn = (studio ? [] : s.map.spawns).find((sp) => {
@@ -619,6 +692,22 @@ export function Viewport({
 }
 
 const sp3 = (p: readonly number[]): Vec3 => [p[0]!, p[1]!, p[2]!];
+
+/** the open map's sound emitters and world UI items */
+export function mapItems(ed: EditorState): Array<EmitterInstance | UiInstance> {
+  const inst = ed.store.get<Instances>(paths.instances(ed.mapId.value));
+  return (inst?.items ?? []).filter((i): i is EmitterInstance | UiInstance => i.kind === 'emitter' || i.kind === 'ui');
+}
+
+function ringLines(x: number, y: number, z: number, r: number, n = 32): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const b = ((i + 1) / n) * Math.PI * 2;
+    out.push(x + Math.cos(a) * r, y, z + Math.sin(a) * r, x + Math.cos(b) * r, y, z + Math.sin(b) * r);
+  }
+  return out;
+}
 const distanceTo = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 function rayBoxAt(r: { o: Vec3; d: Vec3 }, p: Vec3) {
   const mins: Vec3 = [p[0] - 0.6, p[1], p[2] - 0.6];

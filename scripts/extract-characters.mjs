@@ -11,8 +11,14 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const rawText = {
   name: 'raw-text',
   setup(b) {
-    b.onResolve({ filter: /\?raw$/ }, (args) => ({ path: resolve(args.resolveDir, args.path.slice(0, -4)), namespace: 'raw' }));
-    b.onLoad({ filter: /.*/, namespace: 'raw' }, (args) => ({ contents: readFileSync(args.path, 'utf8'), loader: 'text' }));
+    b.onResolve({ filter: /\?raw$/ }, (args) => ({
+      path: resolve(args.resolveDir, args.path.slice(0, -4)),
+      namespace: 'raw',
+    }));
+    b.onLoad({ filter: /.*/, namespace: 'raw' }, (args) => ({
+      contents: readFileSync(args.path, 'utf8'),
+      loader: 'text',
+    }));
   },
 };
 const out = resolve(ROOT, 'dist/build/extract-characters.mjs');
@@ -40,7 +46,10 @@ let n = 0;
 for (const name of Object.keys(L.CharacterCatalog.presets)) {
   const slug = m.slugify(name);
   const profile = L.CharacterCatalog.preset(name);
-  writeFileSync(resolve(ROOT, `src/builtin/characters/${slug}.json`), `${JSON.stringify({ name, role: 'hero', profile }, null, 1)}\n`);
+  writeFileSync(
+    resolve(ROOT, `src/builtin/characters/${slug}.json`),
+    `${JSON.stringify({ name, role: 'hero', profile }, null, 1)}\n`,
+  );
   n++;
 }
 let c = 0;

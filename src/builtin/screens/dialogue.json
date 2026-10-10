@@ -1,0 +1,20 @@
+{
+  "id": "scr_dialogue00",
+  "kind": "dialogue",
+  "name": "Dialogue",
+  "music": null,
+  "pausesGame": false,
+  "root": {
+    "type": "panel",
+    "children": [
+      {
+        "type": "dialogue",
+        "id": "box",
+        "anchor": [0.5, 1],
+        "offset": [0, -36],
+        "bind": ["dialogue.speaker", "dialogue.text"],
+        "style": { "w": 760, "bg": "#0b1020e8", "pad": 18, "radius": 14, "fontSize": 20, "color": "#ffffff" }
+      }
+    ]
+  }
+}

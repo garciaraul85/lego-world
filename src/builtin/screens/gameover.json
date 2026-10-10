@@ -1,0 +1,43 @@
+{
+  "id": "scr_gameover00",
+  "kind": "gameover",
+  "name": "Game over",
+  "music": null,
+  "pausesGame": true,
+  "onShow": [{ "do": "stinger", "stinger": "gameover" }],
+  "root": {
+    "type": "panel",
+    "style": { "bg": "#1a0308c8" },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "anchor": [0.5, 0.35],
+        "text": "Game over",
+        "style": { "fontSize": 72, "weight": "bold", "color": "#ff5a5a", "shadow": 1 }
+      },
+      {
+        "type": "panel",
+        "id": "menu",
+        "anchor": [0.5, 0.62],
+        "style": { "layout": "column", "gap": 12, "w": 340 },
+        "children": [
+          {
+            "type": "button",
+            "id": "retry",
+            "label": "Retry",
+            "sound": "snd_uiconfirm0",
+            "onPress": [{ "do": "game", "op": "retry" }]
+          },
+          {
+            "type": "button",
+            "id": "quit",
+            "label": "Quit to title",
+            "sound": "snd_uiback0000",
+            "onPress": [{ "do": "game", "op": "quit" }]
+          }
+        ]
+      }
+    ]
+  }
+}

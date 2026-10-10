@@ -34,6 +34,8 @@ export const Zone = z.strictObject({
   max: Vec3,
   tags: z.array(z.string()),
   music: id('music').nullable().optional(),
+  /** an ambience loop (sound event) while the hero is inside */
+  ambience: id('sound').nullable().optional(),
   onEnter: ActionList.optional(),
   onExit: ActionList.optional(),
 });

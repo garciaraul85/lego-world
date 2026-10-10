@@ -11,9 +11,10 @@ import { serializeFile } from '../../core/json/stable';
 import { LEGACY_STORAGE_KEY } from '../../core/legacy/constants';
 import { migrate } from '../../core/migrate';
 import type { Problem } from '../../core/migrate/problems';
-import { unpackProject } from '../../core/project/archive';
+import { unpackMedia, unpackProject } from '../../core/project/archive';
 import { Autosave } from '../../core/project/autosave';
 import { loadProject, saveAll } from '../../core/project/load';
+import { MediaStore } from '../../core/project/media';
 import { newProjectFiles } from '../../core/project/new-project';
 import { ProjectStore } from '../../core/project/store';
 import { App, type AppHost } from '../../editor/App';
@@ -90,8 +91,9 @@ async function boot() {
     ];
   }
   const bus = registerAll(new CommandBus(store));
-  const autosave = new Autosave(store, backend);
-  const ed = new EditorState({ store, bus, autosave, backend, problems });
+  const media = new MediaStore(backend, store.manifest.id);
+  const autosave = new Autosave(store, backend, { media });
+  const ed = new EditorState({ store, bus, autosave, backend, media, problems });
   if (note) ed.log('INFO', note);
   ed.log('INFO', `Opened “${store.manifest.name}” · ${[...store.keys()].length} files`);
   const flush = () => void autosave.flush();
@@ -128,6 +130,13 @@ async function boot() {
         s.put('project.json', { ...s.manifest, id });
       }
       await saveAll(backend, s, serializeFile);
+      if (zip) {
+        const blobs = [...unpackMedia(bytes)].map(([ref, b]) => ({
+          sha: ref.slice(7),
+          blob: new Blob([b as Uint8Array<ArrayBuffer>]),
+        }));
+        if (blobs.length) await backend.writeBatch(s.manifest.id, { put: [], del: [], media: blobs });
+      }
       reopen(s.manifest.id);
     },
     download(fileName, data) {

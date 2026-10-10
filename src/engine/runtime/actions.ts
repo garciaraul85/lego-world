@@ -10,15 +10,26 @@ export interface ActionHost {
   /** a custom event (the `emit` action): logic graphs react with On custom event */
   custom?(event: string): void;
   vars: Map<string, unknown>;
+  /** set a variable so logic sees the change (On variable changed); falls back to vars.set */
+  setVar?(name: string, value: unknown): void;
   inventory: Map<string, number>;
+  /** P5: audio and screens. Hosts without them only log. */
+  sound?(event: string, self: string | undefined): void;
+  music?(music: string | null, fade: number | undefined): void;
+  stinger?(name: string): void;
+  screen?(op: 'show' | 'hide', screen: string, replace: boolean): void;
+  game?(op: 'start' | 'resume' | 'pause' | 'retry' | 'quit'): void;
+  gave?(item: string, count: number): void;
+  spawn?(asset: string, at: string): void;
+  despawn?(target: string): void;
 }
 
 type Pending = { actions: Action[]; at: number; self: string | undefined };
 
 /**
  * runActions (plan: one Action union shared by assets, zones, screens, cinematics and logic).
- * Runs a list in order; `wait` pauses the rest of the list on the game clock. Actions whose systems
- * arrive later (screens, music, cinematics) are logged so a designer can see they fired.
+ * Runs a list in order; `wait` pauses the rest of the list on the runner's clock (the game clock, or
+ * the UI clock for screen actions). Cinematics (Phase 6) are logged so a designer can see they fired.
  */
 export class ActionRunner {
   private pending: Pending[] = [];
@@ -63,12 +74,14 @@ export class ActionRunner {
           h.travel(a.map, a.spawn);
           break;
         case 'setVar':
-          h.vars.set(a.var, a.value);
+          if (h.setVar) h.setVar(a.var, a.value);
+          else h.vars.set(a.var, a.value);
           h.log('info', `${a.var} = ${JSON.stringify(a.value)}`);
           break;
         case 'addVar': {
           const v = Number(h.vars.get(a.var) ?? 0) + a.value;
-          h.vars.set(a.var, v);
+          if (h.setVar) h.setVar(a.var, v);
+          else h.vars.set(a.var, v);
           h.log('info', `${a.var} = ${v}`);
           break;
         }
@@ -76,24 +89,41 @@ export class ActionRunner {
           const n = (h.inventory.get(a.item) ?? 0) + (a.count ?? 1);
           h.inventory.set(a.item, n);
           h.log('info', `Got ${a.count ?? 1} × ${a.item} (${n} in total)`);
+          h.gave?.(a.item, a.count ?? 1);
           break;
         }
         case 'sound':
-          h.log('info', `♪ sound ${a.event} (audio arrives in Phase 5)`);
+          if (h.sound) h.sound(a.event, self);
+          else h.log('info', `♪ sound ${a.event}`);
           break;
         case 'music':
-          h.log('info', `♪ music ${a.music ?? 'off'} (audio arrives in Phase 5)`);
+          if (h.music) h.music(a.music, a.fade);
+          else h.log('info', `♪ music ${a.music ?? 'off'}`);
+          break;
+        case 'stinger':
+          if (h.stinger) h.stinger(a.stinger);
+          else h.log('info', `♪ stinger ${a.stinger}`);
           break;
         case 'showScreen':
         case 'hideScreen':
-          h.log('info', `${a.do === 'showScreen' ? 'Show' : 'Hide'} screen ${a.screen} (screens arrive in Phase 5)`);
+          if (h.screen)
+            h.screen(a.do === 'showScreen' ? 'show' : 'hide', a.screen, a.do === 'showScreen' && !!a.replace);
+          else h.log('info', `${a.do === 'showScreen' ? 'Show' : 'Hide'} screen ${a.screen}`);
+          break;
+        case 'game':
+          if (h.game) h.game(a.op);
+          else h.log('info', `Game ${a.op}`);
           break;
         case 'cinematic':
           h.log('info', `Cinematic ${a.cinematic} (cinematics arrive in Phase 6)`);
           break;
         case 'spawn':
+          if (h.spawn) h.spawn(a.asset, a.at);
+          else h.log('info', `spawn ${a.asset}`);
+          break;
         case 'despawn':
-          h.log('info', `${a.do} (arrives with Logic in Phase 4)`);
+          if (h.despawn) h.despawn(a.target);
+          else h.log('info', `despawn ${a.target}`);
           break;
       }
     }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { toLegacy } from '../core/bridge/legacy-bridge';
 import { packProject } from '../core/project/archive';
 import type { ProjectMeta } from '../core/project/backend';
+import { type MediaIndex, paths } from '../core/schema';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { WorldGraph } from './graph/WorldGraph';
 import { Dock } from './panels/Dock';
@@ -24,8 +25,12 @@ import type { EditorState } from './state';
 import type { ViewportApi } from './viewport/Viewport';
 import { ViewportPanel } from './viewport/Views';
 import { AssetStudio } from './workspaces/asset-studio/AssetStudio';
+import { AudioWorkspace } from './workspaces/audio/AudioWorkspace';
 import { CharacterStudio } from './workspaces/character-studio/CharacterStudio';
 import { LogicWorkspace } from './workspaces/logic/LogicWorkspace';
+import { ScreensWorkspace } from './workspaces/screens/ScreensWorkspace';
+
+const STUDIOS = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio']);
 
 export type AppHost = {
   newProject(): Promise<void>;
@@ -49,8 +54,14 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       newProject: () => setModal('new'),
       openProjectDialog: () => setModal('open'),
       importFile: () => fileRef.current?.click(),
-      exportProject: () => {
-        const bytes = packProject(ed.store);
+      exportProject: async () => {
+        // imported media go into the .bwproj as media/<sha256>
+        const media = new Map<string, Uint8Array>();
+        for (const ref of Object.keys(ed.store.get<MediaIndex>(paths.media)?.items ?? {})) {
+          const b = await ed.media?.get(ref);
+          if (b) media.set(ref, new Uint8Array(await b.arrayBuffer()));
+        }
+        const bytes = packProject(ed.store, media);
         host.download(
           `${slug(ed.store.manifest.name)}.bwproj`,
           new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/zip' }),
@@ -74,7 +85,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         const spawnId = opts?.fromSelectedSpawn ? ed.selectedSpawn.value : null;
         const mapId = opts?.fromSelectedSpawn ? ed.mapId.value : ed.store.manifest.entry.map;
         setWorkspace('Scene');
-        setEngine({ mapId, spawnId, key: Date.now() });
+        setEngine({ mapId, spawnId, key: Date.now(), boot: opts?.fromEntry ? 'entry' : 'game' });
       },
       stopPlay: () => setEngine(null),
       editAsset: (id) => {
@@ -102,8 +113,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
     const onKey = (e: KeyboardEvent) => {
       if (play || modal || ed.palette.value) return;
       if (ed.session.value) {
-        // While playing only the play shortcuts reach the editor; the game owns the rest of the keyboard.
-        if (e.key === 'F5' || e.key === 'Escape') {
+        // While playing only the play shortcuts reach the editor; the game owns the rest (Esc = game back/pause).
+        if (e.key === 'F5') {
           e.preventDefault();
           setEngine(null);
         }
@@ -127,12 +138,16 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       <MenuBar c={c} />
       <WorkspaceTabs current={workspace} onPick={(w) => ui.workspace(w)} />
       <Toolbar c={c} />
-      {(workspace === 'Assets' || workspace === 'Characters' || workspace === 'Logic') && !engine ? (
+      {STUDIOS.has(workspace) && !engine ? (
         <div class="body studio-body">
           {workspace === 'Assets' ? (
             <AssetStudio c={c} />
           ) : workspace === 'Logic' ? (
             <LogicWorkspace c={c} />
+          ) : workspace === 'Screens' ? (
+            <ScreensWorkspace c={c} />
+          ) : workspace === 'Audio' ? (
+            <AudioWorkspace c={c} />
           ) : (
             <CharacterStudio c={c} />
           )}
@@ -215,8 +230,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       {modal === 'about' && (
         <Modal title="Brick Worlds Engine" onClose={() => setModal(null)}>
           <p>
-            Phase 4 build: Scene editor, World graph, Asset studio, Character studio and Logic on the v5 project format,
-            with Play on the new engine runtime, grown from LEGO World v68.
+            Phase 5 build: Scene editor, World graph, Asset studio, Character studio, Logic, Screens and Audio on the v5
+            project format, with Play on the new engine runtime, grown from LEGO World v68.
           </p>
           <p class="muted">
             Projects are saved as small JSON files in this browser. Guns, magic, super powers, the volcano and the

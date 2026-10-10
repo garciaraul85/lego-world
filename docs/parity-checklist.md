@@ -1,4 +1,4 @@
-# LEGO World v68 → Brick Worlds editor: parity checklist (P1.9, updated for P2–P4)
+# LEGO World v68 → Brick Worlds editor: parity checklist (P1.9, updated for P2–P5)
 
 Every v68 control and where it lives in the Phase 1 editor (`dist/editor.html`). "v68 studio" means
 **Play › Open in LEGO World v68** (toolbar: *v68 studio*): v68 runs on the current project in a frame and
@@ -98,3 +98,55 @@ sound markers play when Audio lands (P5); paint and photo looks are still made i
 Known gaps after Phase 4: hooks from screens wait for the Screens editor (P5); sounds, music, screens and
 cinematics are logged until P5/P6; the editor bundle grew by about 650 KB with CodeMirror (bundled, not
 lazy-loaded, because the artifact is one self-contained file).
+
+## As built — Phase 5
+
+- Audio engine (`src/engine/audio/`): one WebAudio graph, bus = input → fader → duck → meter → master; dB → gain
+  `10^(dB/20)` (−60 dB = off); `Ducker` ramps the target bus with `setTargetAtTime` (voice lines duck music
+  8 dB, stingers 6 dB); `VoicePool` holds 32 voices, steals the oldest of the same event at `maxVoices`, else
+  the oldest lowest-priority voice (ambience < effects < voice/menus), refuses when everything outranks it;
+  8 ms fade-ins avoid clicks. `unlock.ts` resumes the context on the first gesture (iOS/Android rule).
+  Tested without a fake AudioContext: the pool, picker, director and ducker are pure classes
+  (`standardized-audio-context-mock` was not needed).
+- Sound events (`audio/events.json`, `SoundEventPicker`): random / sequence / shuffle (no repeat across rounds),
+  pitch range, cooldown, volume, bus, 3D (distance + pan). v68 had **no audio at all**, so “every legacy sound”
+  became the game's own moments: smash (or the asset's `smash.sound`), rebuild ticks and done, jump, land,
+  footsteps, gate travel, talk, pickups (give), hurt, chest and door (built-in asset interactions), menu clicks.
+- Built-in pack (`src/builtin/audio/`): 26 sounds, 3 ambience loops and 4 music loops **generated** from
+  recipes by a small synthesizer at the AudioContext's sample rate (CC0 by construction; CREDITS.md explains
+  why no downloaded CC0 files). Built-in media refs are `sha256("builtin:<name>")`, so they look like any
+  other MediaRef. Project files override built-in events / music by id; built-ins stay available.
+- Media import (`src/core/media/`): .wav .mp3 .ogg .m4a .png; SHA-256 via WebCrypto (sync fallback, FIPS
+  vectors tested); probe by `decodeAudioData`; 20 MB / file, 200 MB / project; .ogg warns about iOS; same
+  bytes → one blob. Blobs live in IndexedDB beside the files (`MediaStore`, written by autosave in the same
+  batch as `media/index.json`) and travel in `.bwproj` as `media/<sha256>`.
+- Music (`MusicDirector`): cinematic > **screen** > logic > zone (innermost) > map; `null` = silence;
+  crossfade from `audio/music.json`; stingers. A `screen` layer was added so the title screen's music wins
+  without logic. Zones got `music` and `ambience`; maps use their existing `music` / `ambience` fields.
+- Emitters (`src/engine/systems/emitters.ts`, instances kind `emitter`): loop or every [min, max] s, culled
+  beyond `maxDistance`; Sound emitter tool (S), “Sounds” group in the Hierarchy, inspector, range ring.
+- Screens (`src/engine/ui/`): Preact renderer, 1280×720 reference, `scale = min(w/1280, h/720)`, anchors
+  (pivot = anchor) + offsets, safe-area insets; widgets panel, text, image, button, hearts, bar, list,
+  dialogue, minimap, slot; `{var}` bindings (hp, maxHp, hero.gear, map.name, game.name, prompt, message,
+  dialogue.*, inventory, inventory.<item>, any logic variable); Set screen text by widget id; buttons play
+  their sound, run `onPress` actions and fire logic's On screen button. Built-in screens: splash, title, HUD,
+  pause, dialogue, game over (`src/builtin/screens/*.json`); editing one saves a project copy with its id.
+- Flow (`ScreenStack`, `PlaySession`): push / pop / replace; any shown `pausesGame` screen holds the Runtime
+  while the UI clock runs (splash waits, then shows the title); `entry.screen` (new projects: splash);
+  Esc / Android back / gamepad Start or B run the top screen's `onBack`, else HUD → Pause → resume; hearts
+  (`hp` / `maxHp`, default 3) drop when falling off the world or through logic/actions; 0 → Game over;
+  Retry returns to the last spawn arrived at. Keyboard arrows and the gamepad d-pad move between buttons.
+  New actions: `game` (start, resume, pause, retry, quit), `stinger`, `showScreen` with `replace`.
+- Workspaces: **Audio** (event list with built-in/edited badges, event editor with clip previews, music
+  states with audition, crossfade and stingers, mixer faders with live meters and ducking rules, imported
+  media, where-used) and **Screens** (screens list, widget tree in focus order, canvas with Desktop 16:9 /
+  Phone 19.5:9 / Tablet 4:3 frames and safe areas, sample values, “over the HUD”, widget and screen
+  properties, button actions, Open in Logic). A **Mixer** dock tab edits the mix live while playing.
+- World UI (`WorldUI.ts`, instances kind `ui`): sign / label / bar projected from 3D, pooled DOM, the nearest
+  64 shown; World UI tool (U).
+- Play in the editor: Esc is now the game's back / pause; **F5 or ■ Stop** stops Play. Ctrl F5 plays from
+  the first screen.
+
+Known gaps after Phase 5: existing projects keep their maps silent until a map music is picked (Map tab ›
+Music; new projects start with “explore”); built-in screen texts are English only; images on screens need
+an imported .png (no image editor); cinematic music and the cinematic action arrive with Phase 6.
