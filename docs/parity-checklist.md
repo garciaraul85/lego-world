@@ -223,3 +223,58 @@ seeds per theme by default (more with `GAMEGEN_SEEDS`).
 Known gaps after Phase 7: the tutorial's checks for "move the camera" and "build on the plate" are Next
 buttons (they can't be observed as commands); the demo pointer shows where to act but does not drag
 (drags such as wiring are performed directly).
+
+## As built — Phase 8 (AI builder and coding course)
+
+Phase 8 was split at the user's request: the AI builder (P8.1–8.4) and a full coding course ship now;
+export and releases (P8.5–8.6) are the next phase.
+
+- AI provider and tools (`src/core/ai/`, `src/platform/ai/`): one `AiProvider` seam with two providers —
+  the artifact viewer's built-in Claude (`sample` capability; the platform runs the tool rounds and calls
+  our tools in the page; no key) and the user's own Anthropic API key (browser-direct, tool loop in the
+  provider, key kept in localStorage only, never in a project, export or log). The AI's commands are the
+  engine's own: `commands.ts` pairs each registered handler with a Zod payload schema that is type-checked
+  against the handler (drift fails the build), a doc line, a workspace and an example; JSON Schemas come
+  from Zod 4 (`z.toJSONSchema`) on demand through `describe_command`. `file.*` and `media.*` are not
+  exposed. Two helpers expand into ordinary commands before anything runs: `logic.code` (script → graph via
+  the Code view's parser) and `cinematic.reward`. Tools: read_project_summary, list_files, read_file
+  (project and `builtin/…` files), search, describe_command, propose_plan, ask_user — each schema ≤ 4 KB,
+  results ≤ 24 KB. The project summary (maps, spawns, zones, placed assets with interactive ones first,
+  gates, assets, characters, logic as code, variables, screens, scenes, audio, problems) stays under
+  20 k tokens.
+- Plan → patch (`agent-loop.ts`, `patch.ts`): `propose_plan` validates scope, schemas, media and URLs,
+  expands helpers, dry-runs every command as one transaction and returns either the patch (steps, file
+  diff, warnings, confirm) or the problems with step, command and payload path; up to 3 repairs; a model
+  that stops after a refusal is nudged once. Nothing touches the project while planning.
+- Review UI (`src/editor/ai/`): chat with live activity (what the AI reads and checks), questions with
+  option buttons, the plan as steps with what each does and how to do it yourself, **Show me step N**
+  (demo pointer to the workspace tab, the change applied live, the workspace focused on what changed;
+  logic written as code opens in Split view), Back, Show all, a grouped per-file line diff (chunk files
+  summarized by brick counts), Accept all / some steps (re-checked together) as ONE undo step
+  “AI: <summary>”, Reject (project byte-identical), Regenerate, settings and spend.
+- Safety (P8.4): 2,000 commands / 5 MB diff caps, at most 12 steps, removing more than half of a map's
+  loose bricks needs an explicit tick, no URLs, media only from the built-in pack or the project, token
+  spend per request and a daily soft cap.
+- Coding course (`src/editor/tutorial/coding/*.json`, `coding.ts`): a second tutorial track — 8 chapters,
+  37 lessons: blocks and log, variables, every event, if/else, and/or/not, wait, once, random, gates,
+  world actions, for-each, sound, screen text, scenes, errors, Split view, breakpoints, and a whole game
+  written in code. Show me types into the real Code view (you watch the code appear, then it is put back
+  for you to type); lessons check the resulting code with regular expressions on the printed graph. The
+  sandbox is generated (forest + prairie) and a "Set the stage" lesson places a chest, a zone, a reward
+  scene and the coins variable. Start hub and Help › Coding course start it; the editor tour gained an AI
+  builder lesson; Help has new Coding guide and AI builder pages.
+- Fixed on the way: the Code view crashed CodeMirror when text shrank (breakpoint markers were not mapped
+  through edits, line highlights were not recomputed on document changes); a Code view edit was not
+  refreshed after undo while focused; a tutorial check that completed a step while Do it for me was still
+  running could mark the next step done.
+
+Deviations from the plan: the provider interface runs the tool loop itself (the artifact runtime runs
+rounds for us), so `run()` returns final text rather than tool calls; Accept is per step rather than per
+file (steps are what the user understands, and a subset is re-validated as a whole; files are often
+shared between steps); the visual preview is the live walkthrough in the real workspaces instead of a
+mini viewport; transcripts for the six example prompts are scripted (`tests/fixtures/ai/scripts.ts`)
+rather than recorded from the API; the API key lives in localStorage rather than `.editor/ai.json`.
+
+Known gaps: the API provider does not stream text (it updates per round); token spend is not available
+from the artifact provider (shown as “answered on your Claude plan”).
+
