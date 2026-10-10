@@ -3113,3 +3113,6 @@ select.inp {
   white-space: pre;
   user-select: text;
 }
+.tut-figure {
+  margin: 0;
+}

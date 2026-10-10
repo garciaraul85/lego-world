@@ -199,9 +199,9 @@ export function TutorialRunner({
               {phase === 'done' ? '' : step.task}
             </p>
             {step.code && (
-              <pre class="tut-code" aria-label="Code to type">
-                {fillCode(step.code, courseTokens(ed))}
-              </pre>
+              <figure class="tut-figure" aria-label="Code to type">
+                <pre class="tut-code">{fillCode(step.code, courseTokens(ed))}</pre>
+              </figure>
             )}
             {step.tip && <p class="muted small">Tip: {step.tip}</p>}
             {note && phase !== 'done' && <p class="tut-note">{note}</p>}
