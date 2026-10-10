@@ -159,3 +159,83 @@ describe('PlaySession asset interactions (P3.1)', () => {
     expect(dump(s)).toBe(before);
   });
 });
+
+describe('PlaySession logic (P4.2)', () => {
+  it('repair 3 buildings: logic counts rebuilds in play and rewards the hero on the third', async () => {
+    const { newProjectFiles } = await import('../../src/core/project/new-project');
+    const { CommandBus, registerAll } = await import('../../src/core/commands');
+    const { graph } = await import('./logic-helpers');
+    const s = new ProjectStore(
+      newProjectFiles({ name: 'Q', generate: { environments: ['forest'], size: 16, seed: 3 } }),
+    );
+    const bus = registerAll(new CommandBus(s));
+    const g = graph(
+      [
+        ['event.onRebuildFinished'],
+        ['var.add', { var: 'repaired' }],
+        ['flow.branch'],
+        ['compare.gte', { b: 3 }],
+        ['var.get', { var: 'repaired' }],
+        ['world.give', { item: 'medal', count: 1 }],
+        ['flow.once'],
+      ],
+      [
+        [1, 'then', 2, 'in'],
+        [2, 'then', 3, 'in'],
+        [5, 'value', 4, 'a'],
+        [4, 'out', 3, 'cond'],
+        [3, 'true', 7, 'in'],
+        [7, 'then', 6, 'in'],
+      ],
+      'lg_repair0001',
+    );
+    expect(
+      bus.execute(
+        [
+          {
+            type: 'logic.setVariable',
+            payload: { name: 'repaired', def: { type: 'number', default: 0, scope: 'global' } },
+          },
+          { type: 'logic.create', payload: { graph: g } },
+        ],
+        { source: 'user' },
+      ),
+    ).toMatchObject({ ok: true });
+    const game = new PlaySession(s.snapshot());
+    game.runtime.stepOnce();
+    let rebuilt = 0;
+    for (const inst of [...game.world.instances]) {
+      if (rebuilt === 3) break;
+      const hit = game.world.pieces.find((p) => p.id === inst.bricks[0]!.id);
+      if (!hit || !game.breakHit(hit)) continue;
+      const entry = game.world.broken.at(-1)!;
+      // stand next to the damage, still, and hold E until it is rebuilt
+      const b = game.L.GamePhysics.bounds(entry.originals[0]!);
+      for (const [dx, dz] of [
+        [-1.2, 0],
+        [1.2, 0],
+        [0, -1.2],
+        [0, 1.2],
+      ] as [number, number][]) {
+        game.placeAt(
+          [
+            dx < 0 ? b.x0 + dx : dx > 0 ? b.x1 + dx : (b.x0 + b.x1) / 2,
+            0.4,
+            dz < 0 ? b.z0 + dz : dz > 0 ? b.z1 + dz : (b.z0 + b.z1) / 2,
+          ],
+          0,
+        );
+        game.rebuildHeld = true;
+        for (let i = 0; i < 100 && game.world.broken.includes(entry); i++) game.runtime.stepOnce();
+        if (!game.world.broken.includes(entry)) break;
+      }
+      game.rebuildHeld = false;
+      if (!game.world.broken.includes(entry)) rebuilt++;
+    }
+    expect(rebuilt).toBe(3);
+    game.runtime.stepOnce();
+    expect(game.logic.vars.get('repaired')).toBe(3);
+    expect(game.inventory.get('medal')).toBe(1);
+    expect(game.logic.problems).toEqual([]);
+  });
+});

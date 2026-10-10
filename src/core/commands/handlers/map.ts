@@ -326,3 +326,49 @@ function placeRuleAssets(store: ProjectStore, mapId: string, config: GenerateCon
   const cur = store.get<Instances>(paths.instances(mapId))!;
   store.put(paths.instances(mapId), { ...cur, items: [...cur.items, ...items] });
 }
+
+type ZoneT = MapDoc['zones'][number];
+export const MAX_ZONES = 64;
+
+/** Trigger zones (boxes in world units: x/z studs, y = plates × 0.4). */
+export const addZone: CommandHandler<{ map: string; zone: Omit<ZoneT, 'id' | 'shape' | 'tags'> & Partial<ZoneT> }> = {
+  label: () => 'Add trigger zone',
+  validate(store, p) {
+    const e = mapMissing(store, p.map);
+    if (e) return e;
+    if (getMap(store, p.map).zones.length >= MAX_ZONES) return `A map can have ${MAX_ZONES} zones.`;
+    const { min, max } = p.zone;
+    return min.every((v, i) => v < max[i]!) ? null : 'A zone needs some width, depth and height.';
+  },
+  apply(store, p) {
+    const m = getMap(store, p.map);
+    const zone: ZoneT = { shape: 'box', tags: [], ...p.zone, id: (p.zone.id ?? newId('zone')) as ZoneT['id'] };
+    store.put(paths.map(p.map), { ...m, zones: [...m.zones, zone] });
+  },
+};
+
+export const updateZone: CommandHandler<{ map: string; zone: string; patch: Partial<Omit<ZoneT, 'id' | 'shape'>> }> = {
+  label: () => 'Edit trigger zone',
+  validate(store, p) {
+    const e = mapMissing(store, p.map);
+    if (e) return e;
+    const z = getMap(store, p.map).zones.find((x) => x.id === p.zone);
+    if (!z) return 'Zone not found.';
+    const next = { ...z, ...p.patch };
+    return next.min.every((v, i) => v < next.max[i]!) ? null : 'A zone needs some width, depth and height.';
+  },
+  apply(store, p) {
+    const m = getMap(store, p.map);
+    store.put(paths.map(p.map), { ...m, zones: m.zones.map((z) => (z.id === p.zone ? { ...z, ...p.patch } : z)) });
+  },
+};
+
+export const removeZone: CommandHandler<{ map: string; zone: string }> = {
+  label: () => 'Remove trigger zone',
+  validate: (store, p) =>
+    mapMissing(store, p.map) ?? (getMap(store, p.map).zones.some((z) => z.id === p.zone) ? null : 'Zone not found.'),
+  apply(store, p) {
+    const m = getMap(store, p.map);
+    store.put(paths.map(p.map), { ...m, zones: m.zones.filter((z) => z.id !== p.zone) });
+  },
+};

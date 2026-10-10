@@ -22,14 +22,29 @@ import {
 import { deleteFile, putFile } from './handlers/file';
 import { connectGate, deleteGate, deleteMap, updateGate } from './handlers/gates';
 import {
+  addNode,
+  connect,
+  createLogic,
+  deleteLogic,
+  disconnect,
+  moveNodes,
+  removeNodes,
+  replaceLogic,
+  setArgs,
+  setVariable,
+} from './handlers/logic';
+import {
   addSpawn,
+  addZone,
   createMap,
   generateTerrain,
   removeSpawn,
+  removeZone,
   renameMap,
   setEnvironment,
   updateProject,
   updateSpawn,
+  updateZone,
 } from './handlers/map';
 
 /** Every command type the engine knows. Append-only: add new handlers at the end. */
@@ -68,5 +83,18 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('clip.create', createClip);
   bus.register('clip.update', updateClip);
   bus.register('clip.delete', deleteClip);
+  bus.register('logic.create', createLogic);
+  bus.register('logic.replace', replaceLogic);
+  bus.register('logic.delete', deleteLogic);
+  bus.register('logic.addNode', addNode);
+  bus.register('logic.removeNodes', removeNodes);
+  bus.register('logic.moveNodes', moveNodes);
+  bus.register('logic.connect', connect);
+  bus.register('logic.disconnect', disconnect);
+  bus.register('logic.setArgs', setArgs);
+  bus.register('logic.setVariable', setVariable);
+  bus.register('map.addZone', addZone);
+  bus.register('map.updateZone', updateZone);
+  bus.register('map.removeZone', removeZone);
   return bus;
 }

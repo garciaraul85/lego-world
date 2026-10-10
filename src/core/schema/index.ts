@@ -90,4 +90,5 @@ export const paths = {
   character: (id: string) => `characters/${id}.json`,
   asset: (id: string) => `assets/${id}.json`,
   clip: (id: string) => `clips/${id}.json`,
+  logic: (id: string) => `logic/${id}.json`,
 } as const;

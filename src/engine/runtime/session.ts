@@ -1,18 +1,23 @@
+import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { expandAsset } from '../../core/assets/expand';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
 import { brickToPiece, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
+import type { ExecCtx } from '../../core/logic/catalog';
 import {
+  type Asset,
   type Character,
   type Clip,
   type Gates,
   type Instances,
+  type LogicGraph,
   type MapDoc,
   type MapState,
   type Project,
   paths,
+  type Variables,
 } from '../../core/schema';
 import { Animator } from '../character/animator';
 import {
@@ -24,9 +29,15 @@ import {
   legacyRuntime,
   type Npc,
 } from '../legacy/runtime-modules';
+import { LogicRuntime } from '../logic/interpreter';
 import { ActionRunner } from './actions';
 import { chunkKeyOf, inspectPieces } from './pieces';
 import { Runtime, type System } from './runtime';
+
+type AssetInstanceId = import('../../core/schema').AssetInstance['id'];
+
+const inBox = (z: { min: number[]; max: number[] }, x: number, y: number, zz: number) =>
+  x >= z.min[0]! && x <= z.max[0]! && y >= z.min[1]! && y <= z.max[1]! && zz >= z.min[2]! && zz <= z.max[2]!;
 
 export type BrokenEntry = { id: number; originals: LegacyPiece[]; progress: number };
 
@@ -94,6 +105,12 @@ export class PlaySession {
   readonly actions: ActionRunner;
   /** keyframe clips on the hero (emotes, keys 1-4) */
   readonly heroAnim = new Animator();
+  /** logic graphs of the project (P4.2) */
+  logic!: LogicRuntime;
+  /** zones the hero is inside, by zone id */
+  private inZones = new Set<string>();
+  private spawnSerial = 0;
+  onBreak: ((b: NonNullable<LogicRuntime['paused']>) => void) | null = null;
   emotes: Clip[] = [];
 
   constructor(
@@ -109,6 +126,7 @@ export class PlaySession {
       },
       travel: (map, spawn) => this.travel(map, spawn),
       log: (kind, msg) => this.emit(kind === 'event' ? 'event' : 'info', msg),
+      custom: (event) => this.logic.fire({ type: 'event.onCustom', match: { event } }),
       vars: this.vars,
       inventory: this.inventory,
     });
@@ -124,7 +142,9 @@ export class PlaySession {
     // Starting on a gate's spawn must not travel at once (v68 locks arrival the same way).
     this.travelLock = spawn ? { spawn: spawn.id } : null;
     this.camYaw = this.world.controller.state.heading + Math.PI;
+    this.logic = this.makeLogic();
     this.runtime = new Runtime<PlaySession>(this, this.systems());
+    this.logic.fire({ type: 'event.onStart' });
     this.emit(
       'start',
       `Playing ${this.world.doc.name}${spawn ? ` from ${spawn.name}` : ''}. WASD moves, Space jumps, F smashes, hold E rebuilds, T talks.`,
@@ -259,6 +279,8 @@ export class PlaySession {
       { id: 'gates', fixed: (g) => g.stepGates() },
       { id: 'interact', fixed: (g) => g.stepInteract() },
       { id: 'anim', fixed: (g, dt) => g.stepAnim(dt) },
+      { id: 'zones', fixed: (g) => g.stepZones() },
+      { id: 'logic', fixed: (g) => g.logic.step(g.clock) },
       {
         id: 'clock',
         fixed: (g, dt) => {
@@ -345,6 +367,11 @@ export class PlaySession {
       'smash',
       `${originals.length} brick${originals.length === 1 ? '' : 's'} smashed${hit.group ? ` (${hit.group})` : ''}`,
     );
+    this.logic.fire({
+      type: 'event.onSmash',
+      match: { asset: owner?.def.id ?? '' },
+      payload: { target: owner?.inst.id ?? hit.group ?? String(hit.id), bricks: originals.length },
+    });
     this.say(
       `${originals.length} ${originals.length === 1 ? 'brick' : 'bricks'} smashed into loose pieces. Hold E nearby to put them back.`,
       2.5,
@@ -490,7 +517,173 @@ export class PlaySession {
     const owner = this.instanceOfPiece(entry.originals[0]?.id);
     this.emit('rebuild', `Rebuilt ${entry.originals.length} bricks${owner ? ` (${owner.def.name})` : ''}`);
     if (owner) this.emit('event', `Event “onRebuildFinished” · ${owner.def.name}`);
+    this.logic.fire({
+      type: 'event.onRebuildFinished',
+      match: { asset: owner?.def.id ?? '' },
+      payload: { target: owner?.inst.id ?? entry.originals[0]?.group ?? '' },
+    });
     this.say('Rebuilt! Every original brick is back in place.', 2);
+  }
+
+  // ---------- logic (P4.2) ----------
+
+  private makeLogic(): LogicRuntime {
+    const graphs: LogicGraph[] = [];
+    for (const path of this.snapshot.keys())
+      if (/^logic\/lg_[0-9a-z]{10}\.json$/.test(path)) graphs.push(this.snapshot.get(path) as LogicGraph);
+    const host: ExecCtx = {
+      getVar: () => undefined,
+      setVar: () => {},
+      log: (m) => this.emit('info', `Logic: ${m}`),
+      emit: (e) => this.emit('event', `Event “${e}”`),
+      random: Math.random,
+      setState: (target, state) => {
+        if (target) this.setInstanceState(target, state);
+        else this.emit('info', `Set state ${state}: no target wired`);
+      },
+      teleport: (spawn) => {
+        const sp = this.world.doc.spawns.find((x) => x.id === spawn);
+        if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
+      },
+      travel: (map, spawn) => {
+        if (this.snapshot.get(paths.map(map))) this.travel(map, spawn);
+      },
+      give: (item, count) => {
+        const n = (this.inventory.get(item) ?? 0) + count;
+        this.inventory.set(item, n);
+        this.emit('info', `Got ${count} × ${item} (${n} in total)`);
+        this.say(`+${count} ${item}`, 1.5);
+      },
+      spawn: (asset, at) => this.spawnAsset(asset, at),
+      despawn: (target) => this.despawn(target),
+      media: (kind, id, extra) => {
+        const what: Record<string, string> = {
+          sound: `♪ sound ${id}`,
+          music: `♪ music ${id}`,
+          stopMusic: '♪ music stops',
+          show: `Show screen ${id}`,
+          hide: `Hide screen ${id}`,
+          setText: `Screen ${id}: ${JSON.stringify(extra)}`,
+          cinematic: `Cinematic ${id}`,
+          stopCinematic: 'Cinematic stops',
+        };
+        this.emit('info', `${what[kind]} (arrives in Phase ${kind.includes('inematic') ? 6 : 5})`);
+        if (kind === 'setText') this.say(String((extra as { text?: unknown })?.text ?? ''), 3);
+        if (kind === 'cinematic') this.logic.fire({ type: 'event.onCinematicDone', match: { cinematic: id } });
+      },
+      inZone: (zone) => {
+        const z = this.world.doc.zones.find((x) => x.id === zone);
+        if (!z) return [];
+        const out: string[] = [];
+        const s = this.heroState;
+        if (inBox(z, s.x, s.y + 1, s.z)) out.push('hero');
+        for (const i of this.world.instances) {
+          let cx = 0;
+          let cy = 0;
+          let cz = 0;
+          for (const b of i.bricks) {
+            cx += b.x;
+            cy += b.y * 0.4;
+            cz += b.z;
+          }
+          const n = Math.max(1, i.bricks.length);
+          if (inBox(z, cx / n + 0.5, cy / n, cz / n + 0.5)) out.push(i.inst.id);
+        }
+        return out;
+      },
+    };
+    const rt = new LogicRuntime(graphs, this.snapshot.get(paths.variables) as Variables | undefined, host);
+    rt.onProblem = (p) => this.emit('info', `Logic problem in ${p.graph}${p.node ? ` · ${p.node}` : ''}: ${p.message}`);
+    rt.onBreak = (b) => {
+      this.runtime.paused = true;
+      this.emit('info', `Breakpoint at ${b.node} (${b.graph})`);
+      this.onBreak?.(b);
+    };
+    return rt;
+  }
+
+  /** Continue after a logic breakpoint. */
+  continueLogic() {
+    this.runtime.paused = false;
+    this.logic.continue();
+  }
+
+  /** Zones: enter/exit events and the zone's own action lists (P4, zones from Phase 5 tools). */
+  stepZones() {
+    const s = this.heroState;
+    for (const z of this.world.doc.zones) {
+      const inside = inBox(z, s.x, s.y + 1, s.z);
+      const was = this.inZones.has(z.id);
+      if (inside === was) continue;
+      if (inside) {
+        this.inZones.add(z.id);
+        if (z.onEnter?.length) this.actions.run(z.onEnter, this.clock);
+        this.logic.fire({ type: 'event.onEnterZone', match: { zone: z.id }, payload: { who: 'hero' } });
+      } else {
+        this.inZones.delete(z.id);
+        if (z.onExit?.length) this.actions.run(z.onExit, this.clock);
+        this.logic.fire({ type: 'event.onExitZone', match: { zone: z.id }, payload: { who: 'hero' } });
+      }
+    }
+  }
+
+  /** world.spawn: a copy of an asset at a spawn point, for this play only. */
+  spawnAsset(assetId: string, at: string): string | null {
+    const def =
+      (this.snapshot.get(paths.asset(assetId)) as Asset | undefined) ?? BUILTIN_ASSETS.find((a) => a.id === assetId);
+    const sp = this.world.doc.spawns.find((x) => x.id === at);
+    if (!def || !sp) {
+      this.emit('info', 'Spawn: that asset or spawn point is missing.');
+      return null;
+    }
+    const w = this.world;
+    const idBase =
+      Math.max(0, ...w.pieces.map((p) => p.id ?? 0), ...w.broken.flatMap((b) => b.originals.map((p) => p.id ?? 0))) + 1;
+    const inst = {
+      id: `ins_play${String(++this.spawnSerial).padStart(6, '0')}` as AssetInstanceId,
+      kind: 'asset' as const,
+      asset: def.id,
+      pos: [
+        Math.round(sp.pos[0] - def.footprint[0] / 2),
+        Math.round(sp.pos[1] / 0.4),
+        Math.round(sp.pos[2] - def.footprint[1] / 2),
+      ] as [number, number, number],
+      rot: 0,
+      idBase,
+    };
+    const exp = expandAsset(def, inst);
+    const pieces = [...w.pieces, ...exp.bricks.map(brickToPiece)];
+    const check = inspectPieces(pieces);
+    if (!check.ok) {
+      this.emit('info', `Spawn ${def.name}: ${check.reason}`);
+      return null;
+    }
+    w.pieces = pieces;
+    for (const b of exp.bricks) w.dirtyChunks.add(chunkKeyOf(brickToPiece(b)));
+    w.instances.push({ inst, def, ...exp, state: def.initialState });
+    w.controller.replace(w.pieces, w.meta);
+    this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+    return inst.id;
+  }
+
+  /** world.despawn: removes a placed asset for this play (refused if others stand on it). */
+  despawn(target: string) {
+    const w = this.world;
+    const inst = w.instances.find((i) => i.inst.id === target);
+    if (!inst) return;
+    const lo = inst.inst.idBase;
+    const hi = lo + inst.def.bricks.length;
+    const pieces = w.pieces.filter((p) => p.id! < lo || p.id! >= hi);
+    const check = inspectPieces(pieces);
+    if (!check.ok) {
+      this.emit('info', `Remove ${inst.def.name}: ${check.reason}`);
+      return;
+    }
+    for (const p of w.pieces) if (p.id! >= lo && p.id! < hi) w.dirtyChunks.add(chunkKeyOf(p));
+    w.pieces = pieces;
+    w.instances = w.instances.filter((i) => i !== inst);
+    w.controller.replace(w.pieces, w.meta);
+    this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
   }
 
   // ---------- clips (P3.5): emotes on keys 1-4 ----------
@@ -577,6 +770,11 @@ export class PlaySession {
     if (!list.length) return false;
     this.emit('info', `${p.label} · ${p.instance.def.name}`);
     for (const i of list.slice(0, 1)) this.actions.run(i.do, this.clock, p.instance.inst.id);
+    this.logic.fire({
+      type: 'event.onInteract',
+      match: { asset: p.instance.def.id },
+      payload: { target: p.instance.inst.id, socket: p.socket },
+    });
     this.stepInteract();
     return true;
   }
