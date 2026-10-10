@@ -31,3 +31,15 @@ The message names the problem; fix it (often a missing reference shown in the Pr
 ## I lost my work
 
 Projects save to this browser only. Use File › Save project file to keep a copy; clearing site data removes the browser copy.
+
+## The AI builder says Claude is not available
+
+Inside a Claude artifact, allow the artifact to use Claude when it asks (a "no" lasts until the page is reloaded). Outside Claude, open ⚙ in the AI builder and add your Anthropic API key, or pick "My Anthropic API key" under Who answers.
+
+## The AI builder's plan was refused
+
+The editor checks every plan before you see it. If the AI could not fix a refusal after three tries, the reason is shown in the panel: try asking for less at once, or pick a narrower scope.
+
+## My code doesn't change the graph
+
+The Code view only updates the graph when the code makes sense. Read the line under the editor: it names the line and the problem. Nothing can come after gate.open() or gate.close() in a block.

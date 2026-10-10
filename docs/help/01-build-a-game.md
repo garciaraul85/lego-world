@@ -1,6 +1,6 @@
 # Build a game from scratch
 
-Twelve steps from an empty project to a small game you can play and share: two maps, a hero, a quest, a HUD, a reward cinematic and music. The Start hub's generator follows these same steps, so you can [watch it build a game stage by stage](action:help.build) first and then do it yourself.
+Twelve steps from an empty project to a small game you can play and share: two maps, a hero, a quest, a HUD, a reward cinematic and music. The Start hub's generator follows these same steps, so you can [watch it build a game stage by stage](action:help.build) first and then do it yourself. Any step can also be asked of the [AI builder](help:ai-builder), which shows you each change before you keep it.
 
 ## 1. Start a project
 

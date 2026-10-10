@@ -201,7 +201,7 @@ export function TutorialRunner({
             <h3>{step.title}</h3>
             <p>{step.body}</p>
             <p class={`tut-task ${phase}`}>
-              {phase === 'done' ? '✓ Done!' : phase === 'demo' ? '👀 Watch' : '👉 Your turn:'}{' '}
+              {phase === 'done' ? '✓ Done!' : phase === 'demo' ? '👀 Watch:' : '👉 Your turn:'}{' '}
               {phase === 'done' ? '' : step.task}
             </p>
             {step.code && (
