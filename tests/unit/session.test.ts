@@ -239,3 +239,56 @@ describe('PlaySession logic (P4.2)', () => {
     expect(game.logic.problems).toEqual([]);
   });
 });
+
+describe('PlaySession zones (P4.6)', () => {
+  it('walking into a zone fires On enter zone and the zone’s own actions; leaving fires On exit zone', async () => {
+    const { newProjectFiles } = await import('../../src/core/project/new-project');
+    const { CommandBus, registerAll } = await import('../../src/core/commands');
+    const { graph } = await import('./logic-helpers');
+    const s = new ProjectStore(newProjectFiles({ name: 'Z', random: () => 0.2 }));
+    const bus = registerAll(new CommandBus(s));
+    const map = s.manifest.entry.map;
+    bus.execute(
+      {
+        type: 'map.addZone',
+        payload: {
+          map,
+          zone: {
+            id: 'zn_square0001',
+            min: [4, 0, -2],
+            max: [8, 4, 2],
+            tags: ['Square'],
+            onEnter: [{ do: 'give', item: 'flag' }],
+          },
+        },
+      },
+      { source: 'user' },
+    );
+    const g = graph(
+      [
+        ['event.onEnterZone', { zone: 'zn_square0001' }],
+        ['misc.log', { value: 'in' }],
+        ['event.onExitZone', { zone: 'zn_square0001' }],
+        ['misc.log', { value: 'out' }],
+      ],
+      [
+        [1, 'then', 2, 'in'],
+        [3, 'then', 4, 'in'],
+      ],
+      'lg_zones00001',
+    );
+    expect(bus.execute({ type: 'logic.create', payload: { graph: g } }, { source: 'user' }).ok).toBe(true);
+    const game = new PlaySession(s.snapshot());
+    game.runtime.stepOnce();
+    expect(game.events.some((e) => e.msg === 'Logic: in')).toBe(false);
+    game.placeAt([6, 0.4, 0], 0);
+    game.runtime.stepOnce();
+    game.runtime.stepOnce();
+    expect(game.events.some((e) => e.msg === 'Logic: in')).toBe(true);
+    expect(game.inventory.get('flag')).toBe(1);
+    game.placeAt([-6, 0.4, 0], 0);
+    game.runtime.stepOnce();
+    game.runtime.stepOnce();
+    expect(game.events.some((e) => e.msg === 'Logic: out')).toBe(true);
+  });
+});

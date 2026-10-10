@@ -1,4 +1,4 @@
-# LEGO World v68 → Brick Worlds editor: parity checklist (P1.9, updated for P2 and P3)
+# LEGO World v68 → Brick Worlds editor: parity checklist (P1.9, updated for P2–P4)
 
 Every v68 control and where it lives in the Phase 1 editor (`dist/editor.html`). "v68 studio" means
 **Play › Open in LEGO World v68** (toolbar: *v68 studio*): v68 runs on the current project in a frame and
@@ -78,3 +78,23 @@ powers and the volcano still need Play in v68; touch camera is drag-only (no pin
 Known gaps after Phase 3: v68's procedural weapon/movement clips are not keyframe data (the hero's walk, run and
 attacks still use v68's rig directly); NPC behavior and dialogue editing wait for Logic (P4); voices, footsteps and
 sound markers play when Audio lands (P5); paint and photo looks are still made in v68 studio.
+
+## As built — Phase 4
+
+- `src/core/logic/catalog/*`: 48 node types (events, flow, variables, math/compare, world, audio, screens,
+  cinematics, misc, notes), each with pins, settings, doc text, code name and executor; `graph.ts` checks wires
+  (types, one wire per data input, one place per flow output) with sentences the editor shows.
+- `src/engine/logic/{compile,interpreter}.ts`: flat instructions per event node (call, jumpIf, gosub, wait,
+  once, gate, for-each), lazy pure values, `wait` on game time, 1000-step guard naming the node,
+  `onVarChanged` after the run, breakpoints. Wired into Play: start, zones (enter/exit), interact, smash,
+  rebuild, timers, custom events (also from asset `emit` actions), spawn/despawn assets for the play.
+- Code view: `src/core/logic/code/{print,parse}.ts` (acorn); `print(parse(print(g))) == print(g)` for fixtures
+  and 200 random graphs; ids and positions kept by structure; if/else joins and once/gate followed by more
+  lines round-trip through Sequence. CodeMirror 6 with lint marks and a breakpoint gutter.
+- Logic workspace: graph canvas (pan, zoom, typed wires with refusal tooltips, comments, groups, minimap),
+  code, split view with synced selection; variables panel; node inspector.
+- Trigger zone tool (Z), zone inspector and “Add logic” hooks from zones and assets (P4.6).
+
+Known gaps after Phase 4: hooks from screens wait for the Screens editor (P5); sounds, music, screens and
+cinematics are logged until P5/P6; the editor bundle grew by about 650 KB with CodeMirror (bundled, not
+lazy-loaded, because the artifact is one self-contained file).
