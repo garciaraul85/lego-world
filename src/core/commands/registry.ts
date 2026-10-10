@@ -1,6 +1,7 @@
 import type { CommandBus } from './bus';
 import { moveBricks, paintBricks, placeBricks, removeBricks, updateBricks } from './handlers/bricks';
 import { deleteFile, putFile } from './handlers/file';
+import { connectGate, deleteGate, deleteMap, updateGate } from './handlers/gates';
 import {
   addSpawn,
   createMap,
@@ -29,5 +30,9 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('map.removeSpawn', removeSpawn);
   bus.register('project.update', updateProject);
   bus.register('bricks.update', updateBricks);
+  bus.register('gate.connect', connectGate);
+  bus.register('gate.update', updateGate);
+  bus.register('gate.delete', deleteGate);
+  bus.register('map.delete', deleteMap);
   return bus;
 }
