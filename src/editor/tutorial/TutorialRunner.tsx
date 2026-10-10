@@ -1,26 +1,28 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ActionCtx } from '../actions/registry';
 import { commandMatches, STATE_TESTS } from './checks';
+import { courseTokens, fillCode } from './coding';
 import { perform } from './doers';
-import { STEPS } from './index';
+import { TRACKS, type Track } from './index';
 import { GhostCursor, type Rect, Spotlight, useTargetRect } from './Spotlight';
 import type { Check, Step } from './schema';
 
 type Phase = 'demo' | 'try' | 'done';
 const KEY = 'brickworlds.tutorial';
+const keyOf = (track: Track) => (track === 'editor' ? KEY : `${KEY}.${track}`);
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function loadProgress(project: string): number {
+function loadProgress(project: string, track: Track): number {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? 'null') as { project: string; index: number } | null;
-    return v?.project === project ? Math.min(STEPS.length - 1, v.index) : 0;
+    const v = JSON.parse(localStorage.getItem(keyOf(track)) ?? 'null') as { project: string; index: number } | null;
+    return v?.project === project ? Math.min(TRACKS[track].steps.length - 1, v.index) : 0;
   } catch {
     return 0;
   }
 }
-function saveProgress(project: string, index: number) {
+function saveProgress(project: string, index: number, track: Track) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ project, index }));
+    localStorage.setItem(keyOf(track), JSON.stringify({ project, index }));
   } catch {
     /* storage blocked */
   }
@@ -34,15 +36,18 @@ function saveProgress(project: string, index: number) {
 export function TutorialRunner({
   c,
   mode: mode0,
+  track = 'editor',
   onClose,
 }: {
   c: ActionCtx;
   mode: 'show' | 'try';
+  track?: Track;
   onClose: () => void;
 }) {
   const { ed, ui } = c;
   const project = ed.store.manifest.id;
-  const [index, setIndex] = useState(() => loadProgress(project));
+  const STEPS = TRACKS[track].steps;
+  const [index, setIndex] = useState(() => loadProgress(project, track));
   const [mode, setMode] = useState(mode0);
   const [phase, setPhase] = useState<Phase>('try');
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
@@ -56,15 +61,18 @@ export function TutorialRunner({
 
   const go = (i: number) => {
     const n = Math.max(0, Math.min(STEPS.length - 1, i));
-    saveProgress(project, n);
+    saveProgress(project, n, track);
     setIndex(n);
   };
-  const complete = () => {
-    if (doneRef.current) return;
+  const indexRef = useRef(index);
+  indexRef.current = index;
+  /** completes step `at` (the step a check or Do it for me started on); a late call for an earlier step is ignored */
+  const complete = (at = indexRef.current) => {
+    if (at !== indexRef.current || doneRef.current) return;
     doneRef.current = true;
     setPhase('done');
     setNote(null);
-    if (index < STEPS.length - 1) setTimeout(() => go(index + 1), 900);
+    if (at < STEPS.length - 1) setTimeout(() => indexRef.current === at && go(at + 1), 900);
   };
 
   // entering a step: open its workspace, then demo it (Show me first) or arm the check
@@ -81,7 +89,8 @@ export function TutorialRunner({
   // the check, armed while it is the user's turn
   useEffect(() => {
     if (phase !== 'try') return;
-    return arm(step.check, c, complete);
+    const at = index;
+    return arm(step.check, c, () => complete(at));
   }, [phase, index]);
 
   const target = (): { x: number; y: number } => {
@@ -140,12 +149,13 @@ export function TutorialRunner({
   async function doIt() {
     if (busy.current) return;
     busy.current = true;
+    const at = indexRef.current;
     try {
       for (const d of step.doItForMe) {
         await perform(c, d);
         await wait(120);
       }
-      complete();
+      complete(at);
     } catch (e) {
       setNote(`Could not do it automatically: ${e instanceof Error ? e.message : e}`);
     } finally {
@@ -188,6 +198,11 @@ export function TutorialRunner({
               {phase === 'done' ? '✓ Done!' : phase === 'demo' ? '👀 Watch' : '👉 Your turn:'}{' '}
               {phase === 'done' ? '' : step.task}
             </p>
+            {step.code && (
+              <pre class="tut-code" aria-label="Code to type">
+                {fillCode(step.code, courseTokens(ed))}
+              </pre>
+            )}
             {step.tip && <p class="muted small">Tip: {step.tip}</p>}
             {note && phase !== 'done' && <p class="tut-note">{note}</p>}
             <div class="tut-actions">

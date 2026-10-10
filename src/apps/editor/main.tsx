@@ -138,10 +138,18 @@ async function boot() {
       );
       reopen(project);
     },
-    async startTutorial(mode) {
-      const s = new ProjectStore(newProjectFiles({ name: 'Tutorial sandbox', mapName: 'Practice map' }));
+    async startTutorial(mode, track = 'editor') {
+      const s = new ProjectStore(
+        track === 'coding'
+          ? newProjectFiles({
+              name: 'Coding course sandbox',
+              mapName: 'Code island',
+              generate: { environments: ['forest', 'prairie'], size: 16, seed: 2024 },
+            })
+          : newProjectFiles({ name: 'Tutorial sandbox', mapName: 'Practice map' }),
+      );
       await saveAll(backend, s, serializeFile);
-      writeIntent({ kind: 'tutorial', project: s.manifest.id, mode });
+      writeIntent({ kind: 'tutorial', project: s.manifest.id, mode, track });
       reopen(s.manifest.id);
     },
     async newProject() {

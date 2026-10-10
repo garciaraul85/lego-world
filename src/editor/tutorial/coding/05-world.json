@@ -1,0 +1,75 @@
+{
+  "id": "code-world",
+  "title": "Changing the world",
+  "steps": [
+    {
+      "id": "world.give",
+      "title": "Items and states",
+      "body": "world.give(\"coin\", 1) puts items in the hero's inventory (the HUD lists them). world.setState(instance, \"open\") changes a placed asset's state — the chest opens its lid.",
+      "task": "Give a coin and open the chest in the chest block.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": ["world\\.give\\(\"coin\", 1\\)", "world\\.setState\\(\"{{chestInstance}}\", \"open\"\\)"]
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", async (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n  await wait(2);\n  log(\"Two seconds later\");\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  once(() => {\n    log(\"You found the pond!\");\n  });\n  gate(\"door\", false, () => {\n    log(\"The door is open\");\n  });\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += random(1, 3);\n  world.give(\"coin\", 1);\n  world.setState(\"{{chestInstance}}\", \"open\");\n  audio.playSound(\"{{sound}}\");\n  if (((vars.coins >= 20) && (vars.coins <= 30))) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n  gate.open(\"door\");\n});\n"
+          }
+        }
+      ],
+      "code": "world.give(\"coin\", 1);\nworld.setState(\"{{chestInstance}}\", \"open\");",
+      "placement": "left"
+    },
+    {
+      "id": "world.move",
+      "title": "Teleport and spawn",
+      "body": "world.teleport(spawn) moves the hero to a spawn point; world.travel(map, spawn) goes to another map; world.spawn(asset, spawn) puts a new copy of an asset there (world.despawn removes one).",
+      "task": "When rich: teleport home and spawn a chest.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": ["world\\.teleport\\(\"{{spawn}}\"\\)", "world\\.spawn\\(\"{{chest}}\", \"{{spawn}}\"\\)"]
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", async (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n  await wait(2);\n  log(\"Two seconds later\");\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  once(() => {\n    log(\"You found the pond!\");\n  });\n  gate(\"door\", false, () => {\n    log(\"The door is open\");\n  });\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += random(1, 3);\n  world.give(\"coin\", 1);\n  world.setState(\"{{chestInstance}}\", \"open\");\n  audio.playSound(\"{{sound}}\");\n  if (((vars.coins >= 20) && (vars.coins <= 30))) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n  world.teleport(\"{{spawn}}\");\n  world.spawn(\"{{chest}}\", \"{{spawn}}\");\n  gate.open(\"door\");\n});\n"
+          }
+        }
+      ],
+      "code": "world.teleport(\"{{spawn}}\");\nworld.spawn(\"{{chest}}\", \"{{spawn}}\");",
+      "placement": "left"
+    },
+    {
+      "id": "world.each",
+      "title": "Everyone in a zone",
+      "body": "forEachInZone(zone, (who) => { … }) runs its inside once for each thing standing in the zone; who is that thing.",
+      "task": "Log who is in the pond zone.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": "forEachInZone\\(\"{{zone}}\", \\(\\w+\\) => \\{"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", async (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n  await wait(2);\n  log(\"Two seconds later\");\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  once(() => {\n    log(\"You found the pond!\");\n  });\n  forEachInZone(\"{{zone}}\", (who) => {\n    log(who);\n  });\n  gate(\"door\", false, () => {\n    log(\"The door is open\");\n  });\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += random(1, 3);\n  world.give(\"coin\", 1);\n  world.setState(\"{{chestInstance}}\", \"open\");\n  audio.playSound(\"{{sound}}\");\n  if (((vars.coins >= 20) && (vars.coins <= 30))) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n  world.teleport(\"{{spawn}}\");\n  world.spawn(\"{{chest}}\", \"{{spawn}}\");\n  gate.open(\"door\");\n});\n"
+          }
+        }
+      ],
+      "code": "forEachInZone(\"{{zone}}\", (who) => {\n  log(who);\n});",
+      "placement": "left"
+    }
+  ]
+}

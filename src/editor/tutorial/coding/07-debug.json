@@ -1,0 +1,131 @@
+{
+  "id": "code-debug",
+  "title": "Debugging",
+  "steps": [
+    {
+      "id": "debug.error",
+      "title": "Read an error",
+      "body": "When the code can't be understood, nothing changes and the line under the editor says why, with the line number (the graph keeps the last good version). Let's make a mistake on purpose: a value is missing after =.",
+      "task": "Type vars.coins = ; (with nothing after =).",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeError"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", async (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = ;\n  vars.coins += 5;\n  await wait(2);\n  log(\"Two seconds later\");\n  audio.setMusic(\"{{music}}\");\n  screen.setText(\"{{hud}}\", \"message\", \"Find 20 coins!\");\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  once(() => {\n    log(\"You found the pond!\");\n  });\n  forEachInZone(\"{{zone}}\", (who) => {\n    log(who);\n  });\n  gate(\"door\", false, () => {\n    log(\"The door is open\");\n  });\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += random(1, 3);\n  world.give(\"coin\", 1);\n  world.setState(\"{{chestInstance}}\", \"open\");\n  audio.playSound(\"{{sound}}\");\n  if (((vars.coins >= 20) && (vars.coins <= 30))) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n  world.teleport(\"{{spawn}}\");\n  world.spawn(\"{{chest}}\", \"{{spawn}}\");\n  cinematic.play(\"{{cinematic}}\", true);\n  gate.open(\"door\");\n});\n\non(\"cinematicDone\", { cinematic: \"{{cinematic}}\" }, (e) => {\n  screen.setText(\"{{hud}}\", \"message\", \"You did it!\");\n});\n"
+          }
+        }
+      ],
+      "code": "vars.coins = ;",
+      "placement": "left"
+    },
+    {
+      "id": "debug.fix",
+      "title": "Fix it",
+      "body": "Put the 10 back. As soon as the code makes sense again, the error goes away and the graph updates.",
+      "task": "Fix the line: vars.coins = 10;",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": "vars\\.coins = 10;"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", async (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n  await wait(2);\n  log(\"Two seconds later\");\n  audio.setMusic(\"{{music}}\");\n  screen.setText(\"{{hud}}\", \"message\", \"Find 20 coins!\");\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  once(() => {\n    log(\"You found the pond!\");\n  });\n  forEachInZone(\"{{zone}}\", (who) => {\n    log(who);\n  });\n  gate(\"door\", false, () => {\n    log(\"The door is open\");\n  });\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += random(1, 3);\n  world.give(\"coin\", 1);\n  world.setState(\"{{chestInstance}}\", \"open\");\n  audio.playSound(\"{{sound}}\");\n  if (((vars.coins >= 20) && (vars.coins <= 30))) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n  world.teleport(\"{{spawn}}\");\n  world.spawn(\"{{chest}}\", \"{{spawn}}\");\n  cinematic.play(\"{{cinematic}}\", true);\n  gate.open(\"door\");\n});\n\non(\"cinematicDone\", { cinematic: \"{{cinematic}}\" }, (e) => {\n  screen.setText(\"{{hud}}\", \"message\", \"You did it!\");\n});\n"
+          }
+        }
+      ],
+      "code": "vars.coins = 10;",
+      "placement": "left"
+    },
+    {
+      "id": "debug.split",
+      "title": "Code and graph together",
+      "body": "Split shows the code and the graph side by side: click a line to select its nodes, select a node to find its line. Use whichever is clearer for the job.",
+      "task": "Switch the View to Split.",
+      "target": "section[aria-label=\"Logic editor\"] [aria-label=\"View\"]",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "logicView",
+        "args": "split"
+      },
+      "doItForMe": [
+        {
+          "ui": "logicView",
+          "value": "split"
+        }
+      ],
+      "placement": "bottom"
+    },
+    {
+      "id": "debug.break",
+      "title": "Breakpoints",
+      "body": "A breakpoint pauses Play when the game reaches that line, so you can look at the variables in the Debug tab. Click the gutter left of a line number (or select a node and press F9).",
+      "task": "Set a breakpoint on a line.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "breakpointSet"
+      },
+      "doItForMe": [
+        {
+          "fn": "breakpoint"
+        }
+      ],
+      "placement": "left"
+    },
+    {
+      "id": "debug.pause",
+      "title": "Stop at it",
+      "body": "Press Play: the game pauses on your breakpoint and highlights the line. Continue runs on.",
+      "task": "Press Play and let it pause.",
+      "target": "[data-tour=\"play\"]",
+      "workspace": "Logic",
+      "check": {
+        "kind": "play",
+        "event": "paused"
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        },
+        {
+          "fn": "letItRun"
+        }
+      ],
+      "placement": "bottom",
+      "tip": "The step limit (1000 per chain) keeps a runaway loop from freezing the game."
+    },
+    {
+      "id": "debug.stop",
+      "title": "Stop and clear",
+      "body": "Stop playing; clicking the gutter mark again removes a breakpoint.",
+      "task": "Stop playing.",
+      "target": "[aria-label=\"Play bar\"]",
+      "check": {
+        "kind": "play",
+        "event": "stopped"
+      },
+      "doItForMe": [
+        {
+          "ui": "stop"
+        },
+        {
+          "fn": "clearBreakpoints"
+        }
+      ],
+      "placement": "bottom"
+    }
+  ]
+}

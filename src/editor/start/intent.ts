@@ -8,7 +8,7 @@ import type { GameOptions } from '../../core/gamegen/recipes';
 export type Intent =
   | { kind: 'play'; project: string }
   | { kind: 'build'; project: string; seed: number; options: GameOptions; step: number }
-  | { kind: 'tutorial'; project: string; mode: 'show' | 'try' };
+  | { kind: 'tutorial'; project: string; mode: 'show' | 'try'; track?: 'editor' | 'coding' };
 
 const KEY = 'brickworlds.intent';
 const HUB = 'brickworlds.hub';

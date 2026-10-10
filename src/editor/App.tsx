@@ -134,8 +134,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       workspace: (w) => setWorkspace(w),
       showShortcuts: () => setModal('shortcuts'),
       startHub: () => setHub(true),
-      tutorial: () => {
-        void ed.autosave.flush().then(() => host.startTutorial('show'));
+      tutorial: (track = 'editor') => {
+        void ed.autosave.flush().then(() => host.startTutorial('show', track));
       },
       help: (page) => setHelp(page ?? 'start'),
       aiBuilder: () => setAi(true),
@@ -284,6 +284,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         <TutorialRunner
           c={c}
           mode={intent.mode}
+          track={intent.track ?? 'editor'}
           onClose={() => {
             writeIntent(null);
             setIntent(null);
@@ -300,6 +301,10 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           onHelp={() => {
             setHub(false);
             setHelp('build-a-game');
+          }}
+          onAi={() => {
+            setHub(false);
+            setAi(true);
           }}
         />
       )}

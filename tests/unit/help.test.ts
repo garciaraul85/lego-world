@@ -51,6 +51,8 @@ describe('help guide content', () => {
       'keys',
       'limits',
       'troubleshooting',
+      'coding',
+      'ai-builder',
     ])
       expect(ids, id).toContain(id);
     const recipe = parseMarkdown(pages.find((p) => p.id === 'build-a-game')!.md).filter(
@@ -101,6 +103,8 @@ describe('help search', () => {
     expect(idx.search('import sounds')[0]?.page).toBe('audio');
     expect(idx.search('undo').length).toBeGreaterThan(0);
     expect(idx.search('cinem')[0]?.page).toBe('cinematics'); // prefix while typing
+    expect(idx.search('await wait')[0]?.page).toBe('coding');
+    expect(idx.search('api key')[0]?.page).toBe('ai-builder');
     expect(idx.search('zzzqqq')).toEqual([]);
   });
 });

@@ -2,6 +2,7 @@ import type { Command } from '../../core/commands';
 import { type Cinematic, paths, type Screen } from '../../core/schema';
 import { assetLibrary } from '../assets';
 import type { EditorState } from '../state';
+import { CODING_TESTS } from './coding';
 
 /** Named tests for `state` checks (P7.3). They read the editor; none of them changes anything. */
 export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boolean> = {
@@ -32,6 +33,7 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
         (p) => (ed.store.get<Cinematic>(p)!.tracks.find((t) => t.kind === 'camera')?.items.length ?? 0) >= Number(a),
       ),
   projectHas: (ed, a) => ed.store.has(paths.cinematic(String(a))),
+  ...CODING_TESTS,
 };
 
 /** true when `payload` has every field of `where` (deep, arrays compared as sets of items) */

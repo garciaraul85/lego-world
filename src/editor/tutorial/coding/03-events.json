@@ -1,0 +1,123 @@
+{
+  "id": "code-events",
+  "title": "Events",
+  "steps": [
+    {
+      "id": "ev.zone",
+      "title": "When the hero walks in",
+      "body": "on(\"enterZone\", { zone: … }, …) runs when the hero enters a trigger zone. The { zone: \"zn_…\" } part says which zone — your pond's id is filled in for you here.",
+      "task": "Add an enterZone block for the pond.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": "on\\(\"enterZone\", \\{ zone: \"{{zone}}\" \\}"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  log(\"You found the pond!\");\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  log(\"You found the pond!\");\n});\n",
+      "placement": "left",
+      "tip": "Every zone, asset and screen has an id; the inspector shows it."
+    },
+    {
+      "id": "ev.interact",
+      "title": "When the hero uses the chest",
+      "body": "on(\"interact\", { asset: … }, …) runs when the hero presses E at an asset (any copy of it). Here it adds a coin and plays a sound with audio.playSound.",
+      "task": "Add an interact block for the chest.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": ["on\\(\"interact\", \\{ asset: \"{{chest}}\" \\}", "audio\\.playSound"]
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  log(\"You found the pond!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n});\n",
+      "placement": "left"
+    },
+    {
+      "id": "ev.var",
+      "title": "When a variable changes",
+      "body": "on(\"varChanged\", { var: \"coins\" }, …) runs every time coins changes — from code, a zone action, a screen button or a cinematic. log(vars.coins) prints the new value.",
+      "task": "Add a varChanged block for coins.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": "on\\(\"varChanged\", \\{ var: \"coins\" \\}"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  log(\"You found the pond!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n",
+      "placement": "left"
+    },
+    {
+      "id": "ev.timer",
+      "title": "Every few seconds",
+      "body": "on(\"timer\", { seconds: 5, repeat: true }, …) runs 5 seconds after play starts, and again every 5 seconds when repeat is true.",
+      "task": "Add a timer block.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": "on\\(\"timer\", \\{ seconds: 5, repeat: true \\}"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  log(\"You found the pond!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n",
+      "placement": "left"
+    },
+    {
+      "id": "ev.custom",
+      "title": "Your own events",
+      "body": "emit(\"name\") sends an event anywhere in the game; on(\"custom\", { event: \"name\" }, …) hears it. Assets, zones, screens and cinematics can send events too, so this is how parts of a game talk to each other.",
+      "task": "Add a custom block for the event rich.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": "on\\(\"custom\", \\{ event: \"rich\" \\}"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  log(\"You found the pond!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n});\n",
+      "placement": "left",
+      "tip": "Other events: smash, rebuildFinished, cinematicDone, screenButton, exitZone."
+    }
+  ]
+}

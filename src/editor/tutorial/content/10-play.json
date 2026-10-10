@@ -10,8 +10,15 @@
       "target": "[data-tour=\"play\"]",
       "placement": "bottom",
       "workspace": "Scene",
-      "check": { "kind": "play", "event": "running" },
-      "doItForMe": [{ "ui": "play" }]
+      "check": {
+        "kind": "play",
+        "event": "running"
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        }
+      ]
     },
     {
       "id": "play.move",
@@ -20,8 +27,15 @@
       "task": "Walk the hero a few steps (WASD).",
       "target": "[aria-label=\"Game view\"]",
       "placement": "center",
-      "check": { "kind": "play", "event": "moved" },
-      "doItForMe": [{ "fn": "walkHero" }]
+      "check": {
+        "kind": "play",
+        "event": "moved"
+      },
+      "doItForMe": [
+        {
+          "fn": "walkHero"
+        }
+      ]
     },
     {
       "id": "play.debug",
@@ -30,8 +44,15 @@
       "task": "Pause the game with the play bar.",
       "target": "[aria-label=\"Play bar\"]",
       "placement": "bottom",
-      "check": { "kind": "play", "event": "paused" },
-      "doItForMe": [{ "ui": "pause" }]
+      "check": {
+        "kind": "play",
+        "event": "paused"
+      },
+      "doItForMe": [
+        {
+          "ui": "pause"
+        }
+      ]
     },
     {
       "id": "play.stop",
@@ -40,8 +61,15 @@
       "task": "Stop playing.",
       "target": "[aria-label=\"Play bar\"]",
       "placement": "bottom",
-      "check": { "kind": "play", "event": "stopped" },
-      "doItForMe": [{ "ui": "stop" }]
+      "check": {
+        "kind": "play",
+        "event": "stopped"
+      },
+      "doItForMe": [
+        {
+          "ui": "stop"
+        }
+      ]
     },
     {
       "id": "share.save",
@@ -50,17 +78,44 @@
       "task": "Save a project file (File › Save project file).",
       "target": "[data-tour=\"menu-file\"]",
       "placement": "bottom",
-      "check": { "kind": "state", "test": "exported" },
-      "doItForMe": [{ "action": "file.exportProject" }]
+      "check": {
+        "kind": "state",
+        "test": "exported"
+      },
+      "doItForMe": [
+        {
+          "action": "file.exportProject"
+        }
+      ]
+    },
+    {
+      "id": "share.ai",
+      "title": "The AI builder",
+      "body": "✦ AI builder (Ctrl I) makes changes from a request in plain words, using only the engine's own commands. It shows its plan as steps; Show me plays each step live in its workspace, Back takes it out, and nothing is kept until you Accept (one undo step). It never changes the engine itself.",
+      "task": "Open the AI builder.",
+      "target": "[data-tour=\"ai\"]",
+      "placement": "bottom",
+      "check": {
+        "kind": "dom",
+        "selector": "[aria-label=\"AI builder\"]"
+      },
+      "doItForMe": [
+        {
+          "action": "help.ai"
+        }
+      ],
+      "tip": "Inside a Claude artifact it needs no key; elsewhere add your own API key in its ⚙ settings."
     },
     {
       "id": "share.done",
       "title": "You know the whole editor",
-      "body": "That was every workspace and tool. The Start hub (File › Start hub) makes a complete game in one click — or shows one being built step by step — and the Help guide (F1) walks through building a game from scratch.",
+      "body": "That was every workspace and tool. The Start hub (File › Start hub) makes a complete game in one click — or shows one being built step by step — the Help guide (F1) walks through building a game from scratch, and the coding course (Help › Coding course) teaches the logic language line by line.",
       "task": "Press Finish.",
       "target": "[data-tour=\"workspaces\"]",
       "placement": "bottom",
-      "check": { "kind": "manual" },
+      "check": {
+        "kind": "manual"
+      },
       "doItForMe": []
     }
   ]

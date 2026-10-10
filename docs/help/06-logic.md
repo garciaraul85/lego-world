@@ -16,7 +16,7 @@ Drag from a node's output pin to another node's input pin. White diamonds carry 
 
 ## Graph or code
 
-The View switch shows Graph, Code or Split. Code is the same graph as a few lines of JavaScript-like script, for example `on("enterZone", { zone: "z1" }, (e) => { vars.coins += 1; });`. Edit either and the other follows.
+The View switch shows Graph, Code or Split. Code is the same graph as a few lines of JavaScript-like script, for example `on("enterZone", { zone: "z1" }, (e) => { vars.coins += 1; });`. Edit either and the other follows. The [coding guide](help:coding) explains the language and the [coding course](action:help.coding) teaches it hands-on.
 
 ## Variables
 

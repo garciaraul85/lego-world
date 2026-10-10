@@ -10,7 +10,7 @@ import { Templates } from './Templates';
 
 export type HubHost = {
   startGame(game: GeneratedGame, then: 'play' | 'build' | 'open'): Promise<void>;
-  startTutorial(mode: 'show' | 'try'): Promise<void>;
+  startTutorial(mode: 'show' | 'try', track?: 'editor' | 'coding'): Promise<void>;
   listProjects(): Promise<ProjectMeta[]>;
   openProject(id: string): void;
 };
@@ -24,11 +24,14 @@ export function StartHub({
   host,
   onClose,
   onHelp,
+  onAi,
 }: {
   ed: EditorState;
   host: HubHost;
   onClose: () => void;
   onHelp: () => void;
+  /** opens the AI builder (P8) */
+  onAi?: () => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [atStart, setAtStart] = useState(hubAtStartup());
@@ -69,9 +72,10 @@ export function StartHub({
           </div>
           <div class="hub-col">
             <section class="hub-card" aria-label="Learn">
-              <h3>Learn the editor</h3>
+              <h3>Learn</h3>
               <p class="muted small">
-                A guided tour of every workspace and tool, in its own sandbox project (your games are never touched).
+                Guided lessons in their own sandbox project (your games are never touched): the editor tour covers every
+                workspace and tool; the coding course teaches the logic language line by line.
               </p>
               <div class="hub-row" role="radiogroup" aria-label="Tutorial style">
                 <button
@@ -101,12 +105,22 @@ export function StartHub({
               >
                 🎓 Start the guided tutorial
               </button>
+              <button
+                type="button"
+                class="btn on hub-big"
+                disabled={!!busy}
+                onClick={() => void host.startTutorial(mode, 'coding')}
+              >
+                💻 Start the coding course
+              </button>
               <button type="button" class="btn hub-big" onClick={onHelp}>
                 📖 Help guide: build a game from scratch
               </button>
-              <button type="button" class="btn hub-big" disabled title="Arrives in Phase 8">
-                ✦ Build with AI · Phase 8
-              </button>
+              {onAi && (
+                <button type="button" class="btn ai hub-big" onClick={onAi}>
+                  ✦ Build with the AI builder
+                </button>
+              )}
             </section>
             <RecentProjects
               list={host.listProjects}

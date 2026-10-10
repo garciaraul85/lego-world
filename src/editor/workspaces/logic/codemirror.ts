@@ -20,6 +20,8 @@ const setBps = StateEffect.define<number[]>();
 const bpField = StateField.define<RangeSet<GutterMarker>>({
   create: () => RangeSet.empty,
   update(set, tr) {
+    // keep markers on their lines while the text changes (unmapped markers crash CodeMirror when text shrinks)
+    if (tr.docChanged) set = set.map(tr.changes);
     for (const e of tr.effects)
       if (e.is(setBps)) {
         const doc = tr.state.doc;
@@ -51,7 +53,7 @@ const markField = StateField.define({
     return v;
   },
 });
-const markDeco = EditorView.decorations.compute([markField], (state) => {
+const markDeco = EditorView.decorations.compute(['doc', markField], (state) => {
   const v = state.field(markField);
   const doc = state.doc;
   const ranges = [

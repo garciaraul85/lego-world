@@ -1,0 +1,132 @@
+{
+  "id": "code-basics",
+  "title": "Code basics",
+  "steps": [
+    {
+      "id": "code.welcome",
+      "title": "Welcome, coder",
+      "body": "Game rules in Brick Worlds are logic: when something happens (an event), do something (actions). You can build them as a node graph or write them as code — a small, safe dialect of JavaScript. Both are the same thing: edit one and the other follows. This course teaches the code, line by line, in a sandbox with a generated map.",
+      "task": "Read this, then press Next.",
+      "target": "[data-tour=\"ws-logic\"]",
+      "workspace": "Scene",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "placement": "bottom"
+    },
+    {
+      "id": "code.stage",
+      "title": "Set the stage",
+      "body": "The lessons need a few things on the map: a treasure chest, a trigger zone (a pond), a reward scene and a variable named coins. Do it for me places them, or press Next if you want to place them yourself first (Assets › Treasure chest, the Trigger zone tool Z, Cinematics › New reward scene, Logic › Variables).",
+      "task": "Place a chest, a zone and a reward scene (or let me).",
+      "target": "[data-tour=\"viewport\"]",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "courseReady"
+      },
+      "doItForMe": [
+        {
+          "fn": "setStage"
+        }
+      ],
+      "placement": "left"
+    },
+    {
+      "id": "code.open",
+      "title": "A graph to write in",
+      "body": "Open Logic. Each graph holds event blocks; this course writes into one graph called “Coding course”. Then switch the editor to Code with the View buttons (Graph · Code · Split).",
+      "task": "Open the Coding course graph in the Code view.",
+      "target": "section[aria-label=\"Logic editor\"] [aria-label=\"View\"]",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "logicView",
+        "args": "code"
+      },
+      "doItForMe": [
+        {
+          "fn": "courseGraph"
+        }
+      ],
+      "tip": "Split shows the graph and the code side by side."
+    },
+    {
+      "id": "code.anatomy",
+      "title": "Anatomy of a block",
+      "body": "Every block starts with on(\"event\", …) and a function (e) => { … }. Inside the braces go statements, one per line, each ending with a semicolon. The e gives you details about what happened (e.who for a zone). Lines starting with // are comments.",
+      "task": "Look at the empty on(\"start\") block, then press Next.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "placement": "left"
+    },
+    {
+      "id": "code.hello",
+      "title": "Your first line",
+      "body": "log(value) writes to the Console (the dock's Console tab) while playing. Put it inside the start block: it runs once when the game starts.",
+      "task": "Type the log line inside on(\"start\").",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": "log\\(\"Hello, bricks!\"\\)"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n});\n",
+      "placement": "left",
+      "tip": "The editor turns your text into the graph a moment after you stop typing."
+    },
+    {
+      "id": "code.run",
+      "title": "Run it",
+      "body": "Press Play (F5). The start block runs and the Console shows “Logic: Hello, bricks!”. Nothing you do while playing changes the project.",
+      "task": "Press Play and find your message in the Console.",
+      "target": "[data-tour=\"play\"]",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "consoleHas",
+        "args": "Hello, bricks!"
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        },
+        {
+          "fn": "letItRun"
+        }
+      ],
+      "placement": "bottom"
+    },
+    {
+      "id": "code.stop",
+      "title": "Stop",
+      "body": "Stop returns to the editor exactly as it was.",
+      "task": "Stop playing (F5 or ■ Stop).",
+      "target": "[aria-label=\"Play bar\"]",
+      "check": {
+        "kind": "play",
+        "event": "stopped"
+      },
+      "doItForMe": [
+        {
+          "ui": "stop"
+        }
+      ],
+      "placement": "bottom"
+    }
+  ]
+}

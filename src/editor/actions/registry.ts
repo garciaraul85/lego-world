@@ -27,7 +27,7 @@ export interface EditorUi {
   about(): void;
   /** P7: the Start hub, the guided tutorial and the help guide */
   startHub(): void;
-  tutorial(): void;
+  tutorial(track?: 'editor' | 'coding'): void;
   help(page?: string): void;
   /** opens the AI builder panel (P8.3) */
   aiBuilder(): void;
@@ -297,6 +297,11 @@ export const ACTIONS: EditorAction[] = [
   { id: 'help.shortcuts', label: 'Keyboard shortcuts', key: '?', run: ({ ui }) => ui.showShortcuts() },
   { id: 'help.about', label: 'About Brick Worlds Engine', run: ({ ui }) => ui.about() },
   { id: 'help.tutorial', label: 'Guided tutorial (every feature, step by step)', run: ({ ui }) => ui.tutorial() },
+  {
+    id: 'help.coding',
+    label: 'Coding course (the logic language, line by line)',
+    run: ({ ui }) => ui.tutorial('coding'),
+  },
   { id: 'help.guide', label: 'Help guide', key: 'F1', run: ({ ui }) => ui.help() },
   { id: 'help.build', label: 'Watch a game being built…', run: ({ ui }) => ui.startHub() },
   {
@@ -350,7 +355,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'view.frame',
     'view.top',
   ],
-  Help: ['help.guide', 'help.tutorial', 'help.build', 'help.shortcuts', 'help.ai', '-', 'help.about'],
+  Help: ['help.guide', 'help.tutorial', 'help.coding', 'help.build', 'help.shortcuts', 'help.ai', '-', 'help.about'],
 };
 
 /** Normalizes a keyboard event to the `key` notation used above. */
