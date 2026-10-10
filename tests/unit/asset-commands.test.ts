@@ -104,3 +104,20 @@ describe('asset instance commands', () => {
     expect(run('asset.delete', { asset: crate.id }).error).toMatch(/placed on 1 map/);
   });
 });
+
+describe('generator rules', () => {
+  it('a project asset marked “use in generator” is placed on flat ground of matching maps, repeatably', () => {
+    const { store, map, run } = setup();
+    run('asset.create', {
+      asset: { ...crate, generator: { environments: ['prairie'], weight: 0.5, placeOn: 'ground' } },
+    });
+    const config = { environments: ['prairie'], size: 16, seed: 11 };
+    expect(run('map.generate', { map, config }).ok).toBe(true);
+    const placed = assetInstances(store, map).filter((i) => i.asset === crate.id);
+    expect(placed.length).toBeGreaterThan(0);
+    run('map.generate', { map, config });
+    expect(assetInstances(store, map).filter((i) => i.asset === crate.id)).toEqual(placed);
+    run('map.generate', { map, config: { ...config, environments: ['city'] } });
+    expect(assetInstances(store, map).filter((i) => i.asset === crate.id)).toEqual([]);
+  });
+});

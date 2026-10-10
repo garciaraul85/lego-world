@@ -1,0 +1,70 @@
+{
+  "id": null,
+  "name": "Door",
+  "category": "structure",
+  "bricks": [
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 3, 0, 0, 0, 0],
+    [0, 0, 6, 0, 0, 0, 0],
+    [0, 3, 0, 0, 0, 0, 0],
+    [0, 3, 3, 0, 0, 0, 0],
+    [0, 3, 6, 0, 0, 0, 0],
+    [1, 0, 9, 0, 0, 1, 0],
+    [2, 1, 0, 0, 0, 2, 0],
+    [2, 1, 3, 0, 0, 2, 0],
+    [2, 1, 6, 0, 0, 2, 0]
+  ],
+  "palette": {
+    "types": ["brick1x1", "brick1x4", "brick1x2"],
+    "colors": ["#7f8a94", "#485665", "#754429"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [4, 1],
+  "sockets": [
+    {
+      "id": "door",
+      "kind": "interact",
+      "pos": [2, 1.4, 1.2],
+      "prompt": "Open door"
+    }
+  ],
+  "states": ["closed", "open"],
+  "initialState": "closed",
+  "interactions": [
+    {
+      "socket": "door",
+      "when": {
+        "state": "closed"
+      },
+      "do": [
+        {
+          "do": "setState",
+          "state": "open"
+        }
+      ]
+    },
+    {
+      "socket": "door",
+      "when": {
+        "state": "open"
+      },
+      "do": [
+        {
+          "do": "setState",
+          "state": "closed"
+        }
+      ]
+    }
+  ],
+  "smash": {
+    "enabled": true,
+    "rebuild": true,
+    "sound": null,
+    "studs": 0
+  },
+  "generator": null,
+  "origin": "builtin",
+  "onlyIn": {
+    "closed": [7, 8, 9]
+  }
+}

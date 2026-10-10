@@ -123,3 +123,39 @@ describe('PlaySession', () => {
     expect(session.world.doc.name).toBe('Map 1'); // no bounce back
   });
 });
+
+describe('PlaySession asset interactions (P3.1)', () => {
+  it('a chest near the hero shows a prompt; E opens it (its lid bricks swap) and Stop keeps the project unchanged', async () => {
+    const { newProjectFiles } = await import('../../src/core/project/new-project');
+    const { CommandBus, registerAll } = await import('../../src/core/commands');
+    const { BUILTIN_ASSETS } = await import('../../src/builtin/assets');
+    const s = new ProjectStore(newProjectFiles({ name: 'Chest', random: () => 0.3 }));
+    const bus = registerAll(new CommandBus(s));
+    const chest = BUILTIN_ASSETS.find((a) => a.name === 'Treasure chest')!;
+    const map = s.manifest.entry.map;
+    expect(
+      bus.execute(
+        [
+          { type: 'asset.create', payload: { asset: chest } },
+          { type: 'asset.place', payload: { map, asset: chest.id, pos: [-2, 0, 3] } },
+        ],
+        { source: 'user' },
+      ).ok,
+    ).toBe(true);
+    const before = dump(s);
+    const game = new PlaySession(s.snapshot());
+    const n0 = game.world.pieces.length;
+    game.placeAt([0, 0.4, 6.2], Math.PI);
+    game.runtime.stepOnce();
+    expect(game.prompt?.label).toBe('Open');
+    expect(game.interact()).toBe(true);
+    expect(game.world.instances[0]!.state).toBe('open');
+    expect(game.world.pieces.length).toBe(n0 + 1); // closed lid out; open lid + coins in
+    expect(game.events.some((e) => e.msg.includes('chest-opened'))).toBe(true);
+    game.runtime.stepOnce();
+    expect(game.interact()).toBe(true); // the open chest's interaction closes it again
+    expect(game.world.instances[0]!.state).toBe('closed');
+    expect(game.world.pieces.length).toBe(n0);
+    expect(dump(s)).toBe(before);
+  });
+});

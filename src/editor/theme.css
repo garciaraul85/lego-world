@@ -1032,3 +1032,146 @@ select.inp {
   position: relative;
   inset: auto;
 }
+.play-prompt {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%);
+  background: var(--accbg);
+  border: 1px solid var(--acc);
+  color: var(--acc2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.thumb.asset-thumb {
+  height: 64px;
+}
+.asset-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Asset studio (P3.4) ---------- */
+.body.studio-body {
+  display: block;
+  min-height: 0;
+}
+.studio {
+  display: grid;
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(290px, 340px);
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+.studio-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.studio-head {
+  gap: 10px;
+  padding: 0 10px;
+  flex-wrap: wrap;
+}
+.studio-title {
+  font-size: 13px;
+}
+.studio-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line2);
+  flex-wrap: wrap;
+}
+.studio-tools .sep {
+  width: 1px;
+  height: 22px;
+  background: var(--line);
+}
+.studio-brush .swatch {
+  width: 18px;
+  height: 18px;
+}
+.studio-foot {
+  padding: 5px 10px;
+  border-top: 1px solid var(--line2);
+}
+.studio-lib .lib-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 10px;
+  background: none;
+  border: 0;
+  color: var(--fg2);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.studio-lib .lib-item .asset-name {
+  flex: 1;
+  min-width: 0;
+}
+.studio-lib .lib-item.on,
+.studio-lib .lib-item:hover {
+  background: var(--accbg);
+  color: var(--fg);
+}
+.socket-row {
+  display: grid;
+  grid-template-columns: auto 84px minmax(0, 1fr) auto auto;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+.socket-row.on {
+  outline: 1px solid var(--acc);
+  border-radius: 5px;
+}
+.interaction {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+}
+.actions-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.action-row {
+  display: grid;
+  grid-template-columns: 14px 120px minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+.btn.icon {
+  min-width: 28px;
+  justify-content: center;
+  padding: 0 6px;
+}
+@media (max-width: 900px) {
+  .body.studio-body {
+    overflow: auto;
+  }
+  .studio {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+  .studio-main {
+    min-height: 60vh;
+  }
+  .studio-lib {
+    max-height: 30vh;
+  }
+}

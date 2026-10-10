@@ -100,6 +100,15 @@ export class PlayRenderer {
           alpha: 0.7,
         });
     }
+    if (s.prompt) {
+      const [x, y, z] = s.prompt.pos;
+      markers.push({
+        pos: [x, y + 0.6 + 0.08 * Math.sin(s.clock * 5), z],
+        size: [0.35, 0.35, 0.35],
+        color: [1, 0.78, 0.2],
+        alpha: 0.9,
+      });
+    }
     if (this.debug.colliders) {
       const st = s.heroState;
       const near: number[] = [];

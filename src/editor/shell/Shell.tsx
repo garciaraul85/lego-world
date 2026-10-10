@@ -103,7 +103,7 @@ export const WORKSPACES = [
   ['World graph', null],
   ['Logic', 'Phase 4'],
   ['Characters', 'Phase 3'],
-  ['Assets', 'Phase 3'],
+  ['Assets', null],
   ['Screens', 'Phase 5'],
   ['Cinematics', 'Phase 6'],
   ['Audio', 'Phase 5'],
@@ -154,6 +154,13 @@ export const TOOLS: { id: ToolId; glyph: string; label: string; key: string; hel
     label: 'Brick paint',
     key: 'B',
     help: 'Brick paint: click to place the brush brick. T turns it; pick shape and color in the dock.',
+  },
+  {
+    id: 'asset',
+    glyph: '⌂',
+    label: 'Place asset',
+    key: 'A',
+    help: 'Place asset: click to put down the asset picked in Assets › Assets. T turns it.',
   },
   {
     id: 'paint',

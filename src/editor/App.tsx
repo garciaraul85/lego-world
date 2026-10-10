@@ -23,6 +23,7 @@ import {
 import type { EditorState } from './state';
 import type { ViewportApi } from './viewport/Viewport';
 import { ViewportPanel } from './viewport/Views';
+import { AssetStudio } from './workspaces/asset-studio/AssetStudio';
 
 export type AppHost = {
   newProject(): Promise<void>;
@@ -74,6 +75,11 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         setEngine({ mapId, spawnId, key: Date.now() });
       },
       stopPlay: () => setEngine(null),
+      editAsset: (id) => {
+        ed.studioAsset.value = id;
+        setEngine(null);
+        setWorkspace('Assets');
+      },
       frameSelection: () => vp.current?.frameSelection(),
       fit: () => vp.current?.fit(),
       topView: () => {
@@ -119,49 +125,56 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       <MenuBar c={c} />
       <WorkspaceTabs current={workspace} onPick={(w) => ui.workspace(w)} />
       <Toolbar c={c} />
-      <div class="body">
-        <div class="compact-tabs" role="tablist" aria-label="Panels">
-          <button type="button" class={`btn ${pane === 'left' ? 'on' : ''}`} onClick={() => setPane('left')}>
-            Outliner
-          </button>
-          <button type="button" class={`btn ${pane === 'right' ? 'on' : ''}`} onClick={() => setPane('right')}>
-            Inspector
-          </button>
+      {workspace === 'Assets' && !engine ? (
+        <div class="body studio-body">
+          <AssetStudio c={c} />
         </div>
-        <Outliner c={c} className={pane === 'left' ? 'show' : ''} />
-        <div class="center">
-          {engine ? (
-            <PlayView key={engine.key} ed={ed} start={engine} onStop={() => setEngine(null)} />
-          ) : workspace === 'World graph' ? (
-            <WorldGraph c={c} />
-          ) : later ? (
-            <section class="panel">
-              <div class="placeholder">
-                <h2>{workspace}</h2>
-                <p class="muted">
-                  The {workspace} workspace arrives in {later} of the build plan. Until then the Scene editor is fully
-                  working
-                  {workspace === 'Characters' ? ', and characters and neighbors can be edited in LEGO World v68' : ''}.
-                </p>
-                <div class="row">
-                  <button type="button" class="btn on" onClick={() => setWorkspace('Scene')}>
-                    Back to Scene
-                  </button>
-                  {workspace === 'Characters' && (
-                    <button type="button" class="btn" onClick={() => ui.play('edit')}>
-                      Open in LEGO World v68
+      ) : (
+        <div class="body">
+          <div class="compact-tabs" role="tablist" aria-label="Panels">
+            <button type="button" class={`btn ${pane === 'left' ? 'on' : ''}`} onClick={() => setPane('left')}>
+              Outliner
+            </button>
+            <button type="button" class={`btn ${pane === 'right' ? 'on' : ''}`} onClick={() => setPane('right')}>
+              Inspector
+            </button>
+          </div>
+          <Outliner c={c} className={pane === 'left' ? 'show' : ''} />
+          <div class="center">
+            {engine ? (
+              <PlayView key={engine.key} ed={ed} start={engine} onStop={() => setEngine(null)} />
+            ) : workspace === 'World graph' ? (
+              <WorldGraph c={c} />
+            ) : later ? (
+              <section class="panel">
+                <div class="placeholder">
+                  <h2>{workspace}</h2>
+                  <p class="muted">
+                    The {workspace} workspace arrives in {later} of the build plan. Until then the Scene editor is fully
+                    working
+                    {workspace === 'Characters' ? ', and characters and neighbors can be edited in LEGO World v68' : ''}
+                    .
+                  </p>
+                  <div class="row">
+                    <button type="button" class="btn on" onClick={() => setWorkspace('Scene')}>
+                      Back to Scene
                     </button>
-                  )}
+                    {workspace === 'Characters' && (
+                      <button type="button" class="btn" onClick={() => ui.play('edit')}>
+                        Open in LEGO World v68
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </section>
-          ) : (
-            <ViewportPanel c={c} onApi={(a) => (vp.current = a)} />
-          )}
-          <Dock c={c} />
+              </section>
+            ) : (
+              <ViewportPanel c={c} onApi={(a) => (vp.current = a)} />
+            )}
+            <Dock c={c} />
+          </div>
+          <RightPanel c={c} className={pane === 'right' ? 'show' : ''} />
         </div>
-        <RightPanel c={c} className={pane === 'right' ? 'show' : ''} />
-      </div>
+      )}
       <StatusBar ed={ed} />
       <Toast ed={ed} />
       {ed.palette.value && <CommandPalette c={c} />}

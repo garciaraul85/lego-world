@@ -1,0 +1,24 @@
+{
+  "id": "ast_ovyam2p4gn",
+  "name": "Mushroom",
+  "category": "nature",
+  "bricks": [[0, 1, 0, 1, 0, 0, 0], [1, 0, 3, 0, 0, 1, 0], [2, 1, 4, 1, 0, 2, 0]],
+  "palette": {
+    "types": ["brick1x1", "plate2x2", "tile1x1"],
+    "colors": ["#f0d7a2", "#d20c20", "#eef0f2"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [2, 2],
+  "sockets": [],
+  "states": ["default"],
+  "initialState": "default",
+  "interactions": [],
+  "smash": {
+    "enabled": true,
+    "rebuild": true,
+    "sound": null,
+    "studs": 0
+  },
+  "generator": null,
+  "origin": "builtin"
+}

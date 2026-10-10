@@ -97,7 +97,20 @@ export function Outliner({ c, className }: { c: ActionCtx; className?: string })
           type="button"
           class="btn"
           style={{ flex: 1, justifyContent: 'center' }}
-          onClick={() => ed.notify('Make asset arrives with the Asset studio (Phase 3).')}
+          disabled={!ed.selection.value.size || ed.selectionHasAsset.value}
+          title="Turn the selected loose bricks into a reusable asset placed here"
+          onClick={() => {
+            const sel = ed.selectedBricks.value;
+            const name = sel[0]?.group ? groupLabel(sel[0].group).replace(/ \d+$/, '') : 'My asset';
+            const r = ed.exec({
+              type: 'asset.make',
+              payload: { map: ed.mapId.value, ids: sel.map((b) => b.id), name },
+            });
+            if (r.ok) {
+              ed.select([]);
+              ed.notify(`Made the asset “${name}”. It is in Assets › Assets; edit it in the Asset studio.`);
+            }
+          }}
         >
           Make asset
         </button>

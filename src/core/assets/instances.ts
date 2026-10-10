@@ -1,8 +1,9 @@
 import type { Brick } from '../bricks/codec';
-import type { FileSource } from '../bridge/legacy-bridge';
 import { type Asset, type AssetInstance, type Chunk, type Instances, paths } from '../schema';
 import { expandAsset, type WorldSocket } from './expand';
 
+/** Read access to project files (a ProjectStore, a snapshot or a migrate() file map). */
+export type FileSource = { get(path: string): unknown; keys(): Iterable<string> };
 type Source = Pick<FileSource, 'get'> & { list?(prefix: string): string[]; keys?(): Iterable<string> };
 
 export const assetInstances = (files: Pick<FileSource, 'get'>, mapId: string): AssetInstance[] =>

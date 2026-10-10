@@ -15,6 +15,7 @@ const MOVE_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowlef
 export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlayStart; onStop: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const msgRef = useRef<HTMLDivElement>(null);
+  const promptRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const paused = ed.paused.value;
   const scale = ed.timeScale.value;
@@ -63,6 +64,11 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
         if (msgRef.current.textContent !== text) msgRef.current.textContent = text;
         msgRef.current.hidden = !text;
       }
+      if (promptRef.current) {
+        const text = s.prompt && !s.talking ? `E · ${s.prompt.label}` : '';
+        if (promptRef.current.textContent !== text) promptRef.current.textContent = text;
+        promptRef.current.hidden = !text;
+      }
       if (now - lastTick > 100) {
         lastTick = now;
         const avg = frameMs.reduce((a, b) => a + b, 0) / frameMs.length;
@@ -93,7 +99,9 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
         e.preventDefault();
         return;
       }
-      if (MOVE_KEYS.has(k)) s.input.keys.add(k);
+      if (k === 'e' && !e.repeat && s.interact()) {
+        /* used the prompted interaction */
+      } else if (MOVE_KEYS.has(k)) s.input.keys.add(k);
       else if (k === ' ') s.input.jump = true;
       else if (k === 'f' && !e.repeat) s.smash();
       else if (k === 't' && !e.repeat) s.talk();
@@ -221,7 +229,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
           ))}
         </span>
         <span class="muted small opt play-hint">
-          WASD move · Space jump · F smash · hold E rebuild · T talk · drag to look
+          WASD move · Space jump · F smash · E use · hold E rebuild · T talk · drag to look
         </span>
         <button type="button" class="btn go" style={{ marginLeft: 'auto' }} onClick={onStop} title="Stop (Esc)">
           ■ Stop
@@ -236,6 +244,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
           </div>
         )}
         <div ref={msgRef} class="play-msg" role="status" hidden />
+        <div ref={promptRef} class="play-prompt" aria-live="polite" hidden />
         <div class="touchpad" role="group" aria-label="Touch controls">
           <div class="dpad">
             <button type="button" class="tbtn up" {...dir('Move forward', 'forward')}>
@@ -270,7 +279,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
               {...hold(
                 'Rebuild (hold)',
                 (s) => {
-                  s.rebuildHeld = true;
+                  if (!s.interact()) s.rebuildHeld = true;
                 },
                 (s) => {
                   s.rebuildHeld = false;
