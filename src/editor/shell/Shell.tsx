@@ -301,7 +301,7 @@ export function Toolbar({ c }: { c: ActionCtx }) {
         </button>
       </div>
       <div class="group opt">
-        <button type="button" class="btn ai" onClick={() => runAction(action('help.ai'), c)}>
+        <button type="button" class="btn ai" data-tour="ai" onClick={() => runAction(action('help.ai'), c)}>
           ✦ AI builder
         </button>
         <button type="button" class="btn icon" aria-label="Keyboard shortcuts" onClick={() => ui.showShortcuts()}>

@@ -57,6 +57,8 @@ export const Step = z.strictObject({
   doItForMe: z.array(Do),
   /** panel changes made when the step opens, so its control is on screen (e.g. the Map tab) */
   setup: z.array(Do).optional(),
+  /** code to type, shown in the card (coding course); {{tokens}} are filled from the sandbox */
+  code: z.string().max(2000).optional(),
   /** a keyboard shortcut or tip shown under the task */
   tip: z.string().max(200).optional(),
 });

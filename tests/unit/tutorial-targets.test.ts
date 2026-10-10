@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DOERS } from '../../src/editor/tutorial/doers';
-import { CHAPTERS, STEPS } from '../../src/editor/tutorial/index';
+import { CHAPTERS, CODING_STEPS, STEPS } from '../../src/editor/tutorial/index';
 
 /** All editor and engine UI sources, concatenated (targets are checked statically). */
 function sources(dir: string): string {
@@ -49,7 +49,7 @@ describe('tutorial content (P7.4)', () => {
 
   it('every target selector names something the editor renders', () => {
     const missing: string[] = [];
-    for (const s of STEPS) {
+    for (const s of [...STEPS, ...CODING_STEPS]) {
       for (const m of s.target.matchAll(/\[(data-tour|aria-label|title)="([^"]+)"\]/g)) {
         if (!present(m[1]!, m[2]!)) missing.push(`${s.id}: ${m[0]}`);
       }
@@ -62,7 +62,9 @@ describe('tutorial content (P7.4)', () => {
     for (const s of STEPS) for (const d of s.doItForMe) if ('fn' in d && !(d.fn in DOERS)) bad.push(`${s.id}: ${d.fn}`);
     expect(bad).toEqual([]);
     // everything except reading steps can be done automatically
-    const manual = STEPS.filter((s) => !s.doItForMe.length && s.check.kind !== 'manual').map((s) => s.id);
+    const manual = [...STEPS, ...CODING_STEPS]
+      .filter((s) => !s.doItForMe.length && s.check.kind !== 'manual')
+      .map((s) => s.id);
     expect(manual).toEqual([]);
   });
 });

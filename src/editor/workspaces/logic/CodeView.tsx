@@ -6,6 +6,9 @@ import type { EditorState } from '../../state';
 import type { CodeEditor } from './codemirror';
 import { toggleBreakpoint } from './GraphView';
 
+/** The code editor on screen (the coding course types into it, so you watch the code appear). */
+export const activeCode: { cm: CodeEditor | null; graph: string | null } = { cm: null, graph: null };
+
 /**
  * The same graph as script (P4.4). Edits are parsed as you type; a valid script replaces the graph
  * (one undo step), an invalid one shows the error at its line. Clicking a line selects its nodes in
@@ -72,7 +75,10 @@ export function CodeView({
         readOnly: !p.ok,
         onChange: (text) => {
           if (timer.current) clearTimeout(timer.current);
-          timer.current = setTimeout(() => apply(text), 450);
+          timer.current = setTimeout(() => {
+            timer.current = null;
+            apply(text);
+          }, 450);
         },
         onToggleBreakpoint: (line) => {
           const pr = printedRef.current;
@@ -87,11 +93,17 @@ export function CodeView({
           if (ids.length) setSelected(new Set(ids));
         },
       });
+      activeCode.cm = cm.current;
+      activeCode.graph = graph.id;
       setLoading(false);
     });
     return () => {
       alive = false;
       if (timer.current) clearTimeout(timer.current);
+      if (activeCode.cm === cm.current) {
+        activeCode.cm = null;
+        activeCode.graph = null;
+      }
       cm.current?.destroy();
       cm.current = null;
     };

@@ -1,0 +1,95 @@
+{
+  "id": "code-vars",
+  "title": "Variables",
+  "steps": [
+    {
+      "id": "var.set",
+      "title": "Set a variable",
+      "body": "Variables remember values while playing. vars.coins is the variable named coins (it's in the Variables list on the left). = sets it.",
+      "task": "Set vars.coins to 10 in the start block.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": "vars\\.coins = 10"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n});\n",
+      "placement": "left"
+    },
+    {
+      "id": "var.add",
+      "title": "Change it",
+      "body": "+= adds to a variable (use a negative number to take away). Lines run top to bottom, so coins becomes 10, then 15.",
+      "task": "Add 5 to vars.coins on the next line.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": ["vars\\.coins = 10", "vars\\.coins \\+= 5"]
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n});\n",
+      "placement": "left"
+    },
+    {
+      "id": "var.play",
+      "title": "Watch it change",
+      "body": "Play the game: the Debug tab in the dock lists every variable live. coins should read 15.",
+      "task": "Press Play; coins becomes 15.",
+      "target": "[data-tour=\"play\"]",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "playVar",
+        "args": {
+          "name": "coins",
+          "value": 15
+        }
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        },
+        {
+          "fn": "letItRun"
+        }
+      ],
+      "placement": "bottom",
+      "tip": "Screens show variables with {coins}; the HUD lesson in the editor tour shows how."
+    },
+    {
+      "id": "var.stop",
+      "title": "Stop",
+      "body": "Back to the editor.",
+      "task": "Stop playing.",
+      "target": "[aria-label=\"Play bar\"]",
+      "check": {
+        "kind": "play",
+        "event": "stopped"
+      },
+      "doItForMe": [
+        {
+          "ui": "stop"
+        }
+      ],
+      "placement": "bottom"
+    }
+  ]
+}

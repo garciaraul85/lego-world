@@ -4,6 +4,7 @@ import { packProject } from '../core/project/archive';
 import type { ProjectMeta } from '../core/project/backend';
 import { type Cinematic, type MediaIndex, paths } from '../core/schema';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
+import { AiPanel } from './ai/AiPanel';
 import { WorldGraph } from './graph/WorldGraph';
 import { HelpView } from './help/HelpView';
 import { Dock } from './panels/Dock';
@@ -54,6 +55,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const [hub, setHub] = useState(host.showHub);
   const [intent, setIntent] = useState(() => readIntent(ed.store.manifest.id));
   const [help, setHelp] = useState<string | null>(null);
+  const [ai, setAi] = useState(false);
   // Generate & play: straight into Play from the first screen (P7.2)
   useEffect(() => {
     if (intent?.kind !== 'play') return;
@@ -132,10 +134,11 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       workspace: (w) => setWorkspace(w),
       showShortcuts: () => setModal('shortcuts'),
       startHub: () => setHub(true),
-      tutorial: () => {
-        void ed.autosave.flush().then(() => host.startTutorial('show'));
+      tutorial: (track = 'editor') => {
+        void ed.autosave.flush().then(() => host.startTutorial('show', track));
       },
       help: (page) => setHelp(page ?? 'start'),
+      aiBuilder: () => setAi(true),
       about: () => setModal('about'),
     }),
     [ed],
@@ -265,9 +268,9 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       {modal === 'about' && (
         <Modal title="Brick Worlds Engine" onClose={() => setModal(null)}>
           <p>
-            Phase 7 build: Start hub, game generator, guided tutorial, Scene editor, World graph, Asset studio,
-            Character studio, Logic, Screens, Cinematics and Audio on the v5 project format, with Play on the new engine
-            runtime, grown from LEGO World v68.
+            Phase 8 build: AI builder, Start hub, game generator, guided tutorials, Scene editor, World graph, Asset
+            studio, Character studio, Logic, Screens, Cinematics and Audio on the v5 project format, with Play on the
+            new engine runtime, grown from LEGO World v68.
           </p>
           <p class="muted">
             Projects are saved as small JSON files in this browser. Guns, magic, super powers, the volcano and the
@@ -281,12 +284,14 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         <TutorialRunner
           c={c}
           mode={intent.mode}
+          track={intent.track ?? 'editor'}
           onClose={() => {
             writeIntent(null);
             setIntent(null);
           }}
         />
       )}
+      {ai && <AiPanel c={c} onClose={() => setAi(false)} />}
       {help && <HelpView c={c} page={help} onClose={() => setHelp(null)} />}
       {hub && (
         <StartHub
@@ -296,6 +301,10 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           onHelp={() => {
             setHub(false);
             setHelp('build-a-game');
+          }}
+          onAi={() => {
+            setHub(false);
+            setAi(true);
           }}
         />
       )}

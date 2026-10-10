@@ -1,0 +1,76 @@
+{
+  "id": "code-game",
+  "title": "A whole game in code",
+  "steps": [
+    {
+      "id": "game.write",
+      "title": "Write a game",
+      "body": "Everything together: start with 0 coins and a hint, each chest use adds a coin with a sound, three coins sends won, won plays the reward scene once, and the end of the scene shows “You win!”. Replace the whole program with this.",
+      "task": "Write the whole little game.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": ["vars\\.coins = 0", "on\\(\"custom\", \\{ event: \"won\" \\}", "cinematic\\.play"]
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", (e) => {\n  vars.coins = 0;\n  screen.setText(\"{{hud}}\", \"message\", \"Open the chest three times!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n  screen.setText(\"{{hud}}\", \"message\", \"Keep going!\");\n  if ((vars.coins >= 3)) {\n    emit(\"won\");\n  }\n});\n\non(\"custom\", { event: \"won\" }, (e) => {\n  once(() => {\n    cinematic.play(\"{{cinematic}}\", true);\n  });\n});\n\non(\"cinematicDone\", { cinematic: \"{{cinematic}}\" }, (e) => {\n  screen.setText(\"{{hud}}\", \"message\", \"You win!\");\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"start\", (e) => {\n  vars.coins = 0;\n  screen.setText(\"{{hud}}\", \"message\", \"Open the chest three times!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n  screen.setText(\"{{hud}}\", \"message\", \"Keep going!\");\n  if ((vars.coins >= 3)) {\n    emit(\"won\");\n  }\n});\n\non(\"custom\", { event: \"won\" }, (e) => {\n  once(() => {\n    cinematic.play(\"{{cinematic}}\", true);\n  });\n});\n\non(\"cinematicDone\", { cinematic: \"{{cinematic}}\" }, (e) => {\n  screen.setText(\"{{hud}}\", \"message\", \"You win!\");\n});\n",
+      "placement": "left"
+    },
+    {
+      "id": "game.play",
+      "title": "Play your game",
+      "body": "Press Play, walk to the chest and press E three times. Your code runs exactly as you wrote it.",
+      "task": "Press Play.",
+      "target": "[data-tour=\"play\"]",
+      "workspace": "Logic",
+      "check": {
+        "kind": "play",
+        "event": "running"
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        }
+      ],
+      "placement": "bottom"
+    },
+    {
+      "id": "game.stop",
+      "title": "Stop",
+      "body": "Back to the editor.",
+      "task": "Stop playing.",
+      "target": "[aria-label=\"Play bar\"]",
+      "check": {
+        "kind": "play",
+        "event": "stopped"
+      },
+      "doItForMe": [
+        {
+          "ui": "stop"
+        }
+      ],
+      "placement": "bottom"
+    },
+    {
+      "id": "game.done",
+      "title": "You can code Brick Worlds",
+      "body": "You've used every part of the language: events, variables, if/else, and/or/not, wait, once, gates, random, world actions, sound, screens, scenes and debugging. Help › Help guide › Coding guide and Logic reference list every event and action with its code. The AI builder (✦) can also write logic for you — it shows you the code it writes before you accept it.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "placement": "center"
+    }
+  ]
+}

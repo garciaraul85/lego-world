@@ -20,6 +20,7 @@ import {
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { assetLibrary } from '../assets';
 import { newGraph } from '../workspaces/logic/model';
+import { CODING_DOERS } from './coding';
 import type { Do } from './schema';
 
 type Ctx = ActionCtx;
@@ -357,6 +358,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       'Add sound emitter',
     );
   },
+  ...CODING_DOERS,
   async walkHero(c) {
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');

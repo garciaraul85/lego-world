@@ -1,0 +1,144 @@
+{
+  "id": "code-flow",
+  "title": "Decisions and flow",
+  "steps": [
+    {
+      "id": "flow.if",
+      "title": "If … else",
+      "body": "if (condition) { … } else { … } runs one branch or the other. Conditions compare values: >= at least, <= at most, === equals. Here: 20 coins or more sends rich, otherwise it logs a hint.",
+      "task": "Add the if/else to the chest block.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": ["if \\(+vars\\.coins >= 20\\)+ \\{", "emit\\(\"rich\"\\)", "\\} else \\{"]
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  log(\"You found the pond!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n  if ((vars.coins >= 20)) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n  if ((vars.coins >= 20)) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n",
+      "placement": "left"
+    },
+    {
+      "id": "flow.wait",
+      "title": "Wait",
+      "body": "await wait(2) pauses this block for 2 seconds (the rest of the game keeps running). A block that waits must say async before (e).",
+      "task": "Make the start block async and wait 2 seconds.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": ["on\\(\"start\", async \\(e\\)", "await wait\\(2\\)"]
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", async (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n  await wait(2);\n  log(\"Two seconds later\");\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  log(\"You found the pond!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n  if ((vars.coins >= 20)) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"start\", async (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n  await wait(2);\n  log(\"Two seconds later\");\n});\n",
+      "placement": "left"
+    },
+    {
+      "id": "flow.once",
+      "title": "Only once",
+      "body": "once(() => { … }) runs its inside the first time only, however often the block runs. Here the pond message shows the first visit only.",
+      "task": "Wrap the pond log in once.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": "once\\(\\(\\) => \\{"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", async (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n  await wait(2);\n  log(\"Two seconds later\");\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  once(() => {\n    log(\"You found the pond!\");\n  });\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n  if ((vars.coins >= 20)) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  once(() => {\n    log(\"You found the pond!\");\n  });\n});\n",
+      "placement": "left"
+    },
+    {
+      "id": "flow.random",
+      "title": "Random numbers",
+      "body": "random(min, max) gives a whole number from min to max. The chest now gives 1 to 3 coins.",
+      "task": "Use random(1, 3) in the chest block.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": "random\\(1, 3\\)"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", async (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n  await wait(2);\n  log(\"Two seconds later\");\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  once(() => {\n    log(\"You found the pond!\");\n  });\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += random(1, 3);\n  audio.playSound(\"{{sound}}\");\n  if ((vars.coins >= 20)) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n});\n"
+          }
+        }
+      ],
+      "code": "vars.coins += random(1, 3);",
+      "placement": "left"
+    },
+    {
+      "id": "flow.and",
+      "title": "And, or, not",
+      "body": "&& is and, || is or, ! is not. Each comparison sits in its own parentheses.",
+      "task": "Make the condition: at least 20 and at most 30.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": "vars\\.coins >= 20\\) && \\(vars\\.coins <= 30"
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", async (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n  await wait(2);\n  log(\"Two seconds later\");\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  once(() => {\n    log(\"You found the pond!\");\n  });\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += random(1, 3);\n  audio.playSound(\"{{sound}}\");\n  if (((vars.coins >= 20) && (vars.coins <= 30))) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n});\n"
+          }
+        }
+      ],
+      "code": "if (((vars.coins >= 20) && (vars.coins <= 30))) {",
+      "placement": "left"
+    },
+    {
+      "id": "flow.gate",
+      "title": "Gates",
+      "body": "gate(\"name\", open, () => { … }) only lets its inside run while the gate is open; gate.open(\"name\") and gate.close(\"name\") switch it from anywhere. The pond's door opens once you are rich.",
+      "task": "Add the door gate in the pond block and open it from the rich block.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": ["gate\\(\"door\", false", "gate\\.open\\(\"door\"\\)"]
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "code": "on(\"start\", async (e) => {\n  log(\"Hello, bricks!\");\n  vars.coins = 10;\n  vars.coins += 5;\n  await wait(2);\n  log(\"Two seconds later\");\n});\n\non(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  once(() => {\n    log(\"You found the pond!\");\n  });\n  gate(\"door\", false, () => {\n    log(\"The door is open\");\n  });\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += random(1, 3);\n  audio.playSound(\"{{sound}}\");\n  if (((vars.coins >= 20) && (vars.coins <= 30))) {\n    emit(\"rich\");\n  } else {\n    log(\"Keep looking\");\n  }\n});\n\non(\"varChanged\", { var: \"coins\" }, (e) => {\n  log(vars.coins);\n});\n\non(\"timer\", { seconds: 5, repeat: true }, (e) => {\n  log(\"Tick\");\n});\n\non(\"custom\", { event: \"rich\" }, (e) => {\n  log(\"Rich!\");\n  gate.open(\"door\");\n});\n"
+          }
+        }
+      ],
+      "code": "gate(\"door\", false, () => {\n  log(\"The door is open\");\n});\n// in on(\"custom\", { event: \"rich\" }):\ngate.open(\"door\");",
+      "placement": "left"
+    }
+  ]
+}

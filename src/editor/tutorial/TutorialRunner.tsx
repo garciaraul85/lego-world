@@ -1,26 +1,28 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ActionCtx } from '../actions/registry';
 import { commandMatches, STATE_TESTS } from './checks';
+import { courseTokens, fillCode } from './coding';
 import { perform } from './doers';
-import { STEPS } from './index';
+import { TRACKS, type Track } from './index';
 import { GhostCursor, type Rect, Spotlight, useTargetRect } from './Spotlight';
 import type { Check, Step } from './schema';
 
 type Phase = 'demo' | 'try' | 'done';
 const KEY = 'brickworlds.tutorial';
+const keyOf = (track: Track) => (track === 'editor' ? KEY : `${KEY}.${track}`);
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function loadProgress(project: string): number {
+function loadProgress(project: string, track: Track): number {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? 'null') as { project: string; index: number } | null;
-    return v?.project === project ? Math.min(STEPS.length - 1, v.index) : 0;
+    const v = JSON.parse(localStorage.getItem(keyOf(track)) ?? 'null') as { project: string; index: number } | null;
+    return v?.project === project ? Math.min(TRACKS[track].steps.length - 1, v.index) : 0;
   } catch {
     return 0;
   }
 }
-function saveProgress(project: string, index: number) {
+function saveProgress(project: string, index: number, track: Track) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ project, index }));
+    localStorage.setItem(keyOf(track), JSON.stringify({ project, index }));
   } catch {
     /* storage blocked */
   }
@@ -34,15 +36,18 @@ function saveProgress(project: string, index: number) {
 export function TutorialRunner({
   c,
   mode: mode0,
+  track = 'editor',
   onClose,
 }: {
   c: ActionCtx;
   mode: 'show' | 'try';
+  track?: Track;
   onClose: () => void;
 }) {
   const { ed, ui } = c;
   const project = ed.store.manifest.id;
-  const [index, setIndex] = useState(() => loadProgress(project));
+  const STEPS = TRACKS[track].steps;
+  const [index, setIndex] = useState(() => loadProgress(project, track));
   const [mode, setMode] = useState(mode0);
   const [phase, setPhase] = useState<Phase>('try');
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
@@ -50,21 +55,26 @@ export function TutorialRunner({
   const [note, setNote] = useState<string | null>(null);
   const [min, setMin] = useState(false);
   const busy = useRef(false);
+  /** true while Show me or Do it for me is still working (buttons wait for it) */
+  const [working, setWorking] = useState(false);
   const step = STEPS[index]!;
   const rect = useTargetRect(step.target);
   const doneRef = useRef(false);
 
   const go = (i: number) => {
     const n = Math.max(0, Math.min(STEPS.length - 1, i));
-    saveProgress(project, n);
+    saveProgress(project, n, track);
     setIndex(n);
   };
-  const complete = () => {
-    if (doneRef.current) return;
+  const indexRef = useRef(index);
+  indexRef.current = index;
+  /** completes step `at` (the step a check or Do it for me started on); a late call for an earlier step is ignored */
+  const complete = (at = indexRef.current) => {
+    if (at !== indexRef.current || doneRef.current) return;
     doneRef.current = true;
     setPhase('done');
     setNote(null);
-    if (index < STEPS.length - 1) setTimeout(() => go(index + 1), 900);
+    if (at < STEPS.length - 1) setTimeout(() => indexRef.current === at && go(at + 1), 900);
   };
 
   // entering a step: open its workspace, then demo it (Show me first) or arm the check
@@ -81,7 +91,8 @@ export function TutorialRunner({
   // the check, armed while it is the user's turn
   useEffect(() => {
     if (phase !== 'try') return;
-    return arm(step.check, c, complete);
+    const at = index;
+    return arm(step.check, c, () => complete(at));
   }, [phase, index]);
 
   const target = (): { x: number; y: number } => {
@@ -96,6 +107,7 @@ export function TutorialRunner({
   async function demo() {
     if (busy.current) return;
     busy.current = true;
+    setWorking(true);
     setPhase('demo');
     setNote('Watch: this is how it is done…');
     const snap = snapshot(c);
@@ -132,6 +144,7 @@ export function TutorialRunner({
       restore(c, snap);
       setGhost(null);
       busy.current = false;
+      setWorking(false);
       setNote(`Your turn: ${step.task}`);
       setPhase('try');
     }
@@ -140,16 +153,19 @@ export function TutorialRunner({
   async function doIt() {
     if (busy.current) return;
     busy.current = true;
+    setWorking(true);
+    const at = indexRef.current;
     try {
       for (const d of step.doItForMe) {
         await perform(c, d);
         await wait(120);
       }
-      complete();
+      complete(at);
     } catch (e) {
       setNote(`Could not do it automatically: ${e instanceof Error ? e.message : e}`);
     } finally {
       busy.current = false;
+      setWorking(false);
     }
   }
 
@@ -188,6 +204,11 @@ export function TutorialRunner({
               {phase === 'done' ? '✓ Done!' : phase === 'demo' ? '👀 Watch' : '👉 Your turn:'}{' '}
               {phase === 'done' ? '' : step.task}
             </p>
+            {step.code && (
+              <figure class="tut-figure" aria-label="Code to type">
+                <pre class="tut-code">{fillCode(step.code, courseTokens(ed))}</pre>
+              </figure>
+            )}
             {step.tip && <p class="muted small">Tip: {step.tip}</p>}
             {note && phase !== 'done' && <p class="tut-note">{note}</p>}
             <div class="tut-actions">
@@ -200,12 +221,12 @@ export function TutorialRunner({
                 ◀ Back
               </button>
               {step.doItForMe.length > 0 && (
-                <button type="button" class="btn" disabled={phase !== 'try'} onClick={() => void demo()}>
+                <button type="button" class="btn" disabled={phase !== 'try' || working} onClick={() => void demo()}>
                   👀 Show me
                 </button>
               )}
               {step.doItForMe.length > 0 && (
-                <button type="button" class="btn" disabled={phase !== 'try'} onClick={() => void doIt()}>
+                <button type="button" class="btn" disabled={phase !== 'try' || working} onClick={() => void doIt()}>
                   Do it for me
                 </button>
               )}

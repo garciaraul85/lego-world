@@ -2821,3 +2821,298 @@ select.inp {
     padding: 14px 16px 30px;
   }
 }
+
+/* ---- AI builder (P8.3) ---- */
+.aip {
+  position: fixed;
+  right: 12px;
+  top: 116px;
+  bottom: 34px;
+  z-index: 45;
+  width: min(440px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid #6b5aa8;
+  border-radius: 12px;
+  box-shadow: 0 16px 50px #000b;
+  overflow: hidden;
+  font-size: 13px;
+}
+.aip.min {
+  bottom: auto;
+}
+.aip > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: #1a1630;
+}
+.aip > header .muted {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aip-setup {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel2);
+  display: grid;
+  gap: 6px;
+}
+.aip-setup input,
+.aip-setup select,
+.aip-input select {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font: inherit;
+  max-width: 180px;
+}
+.aip-setup p {
+  margin: 0;
+}
+.aip-log {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.aip-intro p {
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+.aip-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip-btn {
+  border: 1px solid var(--bd);
+  background: var(--btn);
+  color: var(--fg2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.chip-btn:hover {
+  border-color: #8f7be0;
+}
+.aip-msg {
+  margin: 0;
+  padding: 7px 10px;
+  border-radius: 10px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  max-width: 92%;
+}
+.aip-msg.user {
+  align-self: flex-end;
+  background: #2b2550;
+}
+.aip-msg.ai {
+  align-self: flex-start;
+  background: var(--panel2);
+}
+.aip-msg.ai.live {
+  color: var(--mut);
+}
+.aip-act {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--mut);
+  white-space: pre-wrap;
+}
+.aip-act.problem {
+  color: var(--warn);
+}
+.aip-act.accepted {
+  color: var(--teal);
+}
+.aip-error {
+  margin: 0;
+  color: var(--err);
+  white-space: pre-wrap;
+}
+.aip-warn {
+  margin: 0;
+  color: var(--warn);
+  padding: 6px 12px;
+}
+.aip-question {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid #6b5aa8;
+  border-radius: 10px;
+}
+.aip-input {
+  border-top: 1px solid var(--line);
+  padding: 8px 10px;
+  display: grid;
+  gap: 6px;
+}
+.aip-input textarea {
+  resize: vertical;
+  min-height: 52px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+}
+.aip-input .row {
+  gap: 8px;
+  align-items: center;
+}
+.aip-patch {
+  border: 1px solid #6b5aa8;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  background: #15132a;
+}
+.aip-patch header h3 {
+  margin: 0 0 2px;
+  font-size: 14px;
+}
+.aip-confirm {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--warn);
+}
+.aip-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.aip-steps li {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--panel);
+}
+.aip-steps li.next {
+  border-color: var(--acc);
+}
+.aip-steps li.shown {
+  border-color: var(--gob);
+}
+.aip-steps li.skip {
+  opacity: 0.55;
+}
+.aip-steps p {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+.aip-step-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.aip-badge {
+  font-size: 11px;
+  color: var(--teal);
+}
+.aip-cmd,
+.aip-lines {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 4px 0 0;
+}
+.aip-lines .la {
+  color: #9be8a8;
+  background: #12301b;
+}
+.aip-lines .lr {
+  color: #ffb0a6;
+  background: #3a1714;
+}
+.aip-lines .lf {
+  color: var(--mut2);
+}
+.aip-walk,
+.aip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.aip-diff-group {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--mut2);
+  margin: 6px 0 2px;
+}
+.aip-file summary {
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 12px;
+}
+.aip-kind {
+  font-family: var(--mono);
+  width: 14px;
+  text-align: center;
+}
+.aip-kind.added {
+  color: #9be8a8;
+}
+.aip-kind.removed {
+  color: #ffb0a6;
+}
+.aip-kind.changed {
+  color: var(--acc2);
+}
+@media (max-width: 700px) {
+  .aip {
+    top: 60px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+}
+.tut-code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.45;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 0 0 8px;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre;
+  user-select: text;
+}
+.tut-figure {
+  margin: 0;
+}
