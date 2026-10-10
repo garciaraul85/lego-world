@@ -252,6 +252,32 @@ function Hierarchy({ c }: { c: ActionCtx }) {
             ed.right.value = 'inspect';
           },
         });
+    if (m.zones.length) {
+      const zonesOpen = open.zones ?? true;
+      out.push({
+        key: 'zones',
+        depth: 1,
+        name: 'Trigger zones',
+        color: '#c792ea',
+        caret: zonesOpen ? '▾' : '▸',
+        meta: String(m.zones.length),
+        onClick: () => setOpen({ ...open, zones: !zonesOpen }),
+      });
+      if (zonesOpen)
+        for (const z of m.zones)
+          out.push({
+            key: `zn:${z.id}`,
+            depth: 2,
+            name: z.tags[0] ?? 'Zone',
+            color: '#c792ea',
+            sel: ed.selectedZone.value === z.id,
+            onClick: () => {
+              ed.select([]);
+              ed.selectedZone.value = z.id;
+              ed.right.value = 'inspect';
+            },
+          });
+    }
     const inst = ed.store.get<Instances>(paths.instances(m.id));
     const npcs = inst?.items.filter((i) => i.kind === 'npc').length ?? 0;
     out.push({

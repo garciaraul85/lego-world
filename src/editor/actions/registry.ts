@@ -189,6 +189,7 @@ export const ACTIONS: EditorAction[] = [
   { id: 'tool.paint', label: 'Color paint', key: 'C', run: tool('paint') },
   { id: 'tool.erase', label: 'Erase', key: 'X', run: tool('erase') },
   { id: 'tool.spawn', label: 'Spawn point tool', key: 'P', run: tool('spawn') },
+  { id: 'tool.zone', label: 'Trigger zone tool', key: 'Z', run: tool('zone') },
   {
     id: 'brush.rotate',
     label: 'Turn the brush 90°',

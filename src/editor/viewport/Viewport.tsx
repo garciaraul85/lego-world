@@ -9,6 +9,7 @@ import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
 import { type LineSet, type Marker, type Overlay, type RenderBrick, Renderer } from '../../engine/render/renderer';
 import { placeCommands, resolveAsset } from '../assets';
+import { rayBox } from '../scene';
 import type { EditorState } from '../state';
 
 const kindOf = (type: string) =>
@@ -55,7 +56,7 @@ export function Viewport({
     let hover: Brick | null = null;
     let ghost: RenderBrick | null = null;
     let drag: {
-      kind: 'orbit' | 'pan' | 'move';
+      kind: 'orbit' | 'pan' | 'move' | 'zone';
       x: number;
       y: number;
       moved: boolean;
@@ -65,6 +66,7 @@ export function Viewport({
       plane?: number;
     } | null = null;
     let preview: Brick[] | null = null;
+    let zoneDraft: { x0: number; z0: number; x1: number; z1: number; y: number } | null = null;
     let assetGhost: Brick[] | null = null;
     let assetAt: [number, number, number] | null = null;
     const pointers = new Map<number, { x: number; y: number }>();
@@ -178,6 +180,7 @@ export function Viewport({
       effect(() => {
         ed.selection.value;
         ed.selectedSpawn.value;
+        ed.selectedZone.value;
         ed.brush.value;
         ed.assetBrush.value;
         ed.tool.value;
@@ -220,6 +223,27 @@ export function Viewport({
         if (assetGhost) overlays.push({ bricks: assetGhost.map(brickRender), alpha: 0.6, flat: false });
         if (sel.length) lines.push({ lines: boundsLines(sel), color: [1, 0.82, 0.3] });
         if (studio) markers.push(...studio.markers());
+        if (!studio) {
+          for (const z of s.map.zones)
+            lines.push({
+              lines: boxLines(z.min[0]!, z.min[1]!, z.min[2]!, z.max[0]!, z.max[1]!, z.max[2]!),
+              color: z.id === ed.selectedZone.value ? [1, 0.72, 0.2] : [0.78, 0.57, 0.92],
+            });
+          if (zoneDraft) {
+            const q = zoneDraft;
+            lines.push({
+              lines: boxLines(
+                Math.min(q.x0, q.x1),
+                q.y,
+                Math.min(q.z0, q.z1),
+                Math.max(q.x0, q.x1),
+                q.y + 4,
+                Math.max(q.z0, q.z1),
+              ),
+              color: [1, 0.85, 0.4],
+            });
+          }
+        }
         for (const sp of studio ? [] : s.map.spawns)
           markers.push({
             pos: [sp.pos[0], sp.pos[1] + 0.9, sp.pos[2]],
@@ -355,6 +379,19 @@ export function Viewport({
           return;
         }
       }
+      const zone = studio
+        ? null
+        : s.map.zones
+            .map((z) => ({ z, t: rayBox(r, z.min as Vec3, z.max as Vec3) }))
+            .filter((x) => x.t !== null && (!hit || x.t! < hit.t))
+            .sort((a, b) => a.t! - b.t!)[0]?.z;
+      if (zone && tool === 'select') {
+        ed.selection.value = new Set();
+        ed.selectedSpawn.value = null;
+        ed.selectedZone.value = zone.id;
+        ed.right.value = 'inspect';
+        return;
+      }
       if (!hit) {
         if (!e.shiftKey) ed.select([]);
         return;
@@ -416,9 +453,18 @@ export function Viewport({
         return;
       }
       const s = ed.scene.value;
-      let kind: 'orbit' | 'pan' | 'move' = e.button === 2 || e.button === 1 || e.shiftKey ? 'pan' : 'orbit';
+      let kind: 'orbit' | 'pan' | 'move' | 'zone' = e.button === 2 || e.button === 1 || e.shiftKey ? 'pan' : 'orbit';
       let offset: [number, number] | undefined;
       let plane: number | undefined;
+      if (e.button === 0 && !e.shiftKey && ed.tool.value === 'zone' && s && mode === 'scene' && !studio) {
+        const hit = s.surface(rayAt(e));
+        if (hit) {
+          kind = 'zone';
+          plane = hit.y * 0.4;
+          offset = [Math.floor(hit.x), Math.floor(hit.z)];
+          zoneDraft = { x0: offset[0], z0: offset[1], x1: offset[0] + 1, z1: offset[1] + 1, y: plane };
+        }
+      }
       if (e.button === 0 && !e.shiftKey && ed.tool.value === 'move' && s && mode === 'scene') {
         const hit = s.pick(rayAt(e), pickable);
         if (hit) {
@@ -461,6 +507,18 @@ export function Viewport({
       const dy = e.clientY - drag.y;
       if (!drag.moved && Math.hypot(dx, dy) < 4) return;
       drag.moved = true;
+      if (drag.kind === 'zone' && drag.start && drag.plane !== undefined) {
+        const g = groundAt(e, drag.plane);
+        if (g && zoneDraft) {
+          zoneDraft = {
+            ...zoneDraft,
+            x1: Math.floor(g[0]) + (g[0] >= drag.start.x ? 1 : 0),
+            z1: Math.floor(g[1]) + (g[1] >= drag.start.z ? 1 : 0),
+          };
+          dirty = true;
+        }
+        return;
+      }
       if (drag.kind === 'move' && drag.start && drag.plane !== undefined) {
         const g = groundAt(e, drag.plane);
         if (!g) return;
@@ -485,6 +543,31 @@ export function Viewport({
       drag = null;
       pinch = 0;
       if (!d) return;
+      if (d.kind === 'zone' && zoneDraft) {
+        const z = zoneDraft;
+        zoneDraft = null;
+        dirty = true;
+        const x0 = Math.min(z.x0, z.x1);
+        const x1 = Math.max(z.x0, z.x1, x0 + 1);
+        const z0 = Math.min(z.z0, z.z1);
+        const z1 = Math.max(z.z0, z.z1, z0 + 1);
+        const n = (ed.mapDoc.value?.zones.length ?? 0) + 1;
+        const r = ed.exec(
+          {
+            type: 'map.addZone',
+            payload: { map: ed.mapId.value, zone: { min: [x0, z.y, z0], max: [x1, z.y + 4, z1], tags: [`Zone ${n}`] } },
+          },
+          { label: 'Add trigger zone' },
+        );
+        if (r.ok) {
+          const zones = ed.mapDoc.value?.zones ?? [];
+          ed.selection.value = new Set();
+          ed.selectedSpawn.value = null;
+          ed.selectedZone.value = zones.at(-1)?.id ?? null;
+          ed.right.value = 'inspect';
+        }
+        return;
+      }
       if (d.kind === 'move' && d.moved && preview) {
         const sel = ed.selectedBricks.value;
         const dx = (preview[0]?.x ?? 0) - (sel[0]?.x ?? 0);
@@ -595,4 +678,18 @@ function facingLine(p: Vec3, yaw: number): number[] {
   const fz = Math.cos(yaw);
   const y = p[1] + 0.1;
   return [p[0], y, p[2], p[0] + fx * 2, y, p[2] + fz * 2];
+}
+
+function boxLines(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number): number[] {
+  const c = [
+    [x0, y0, z0],
+    [x1, y0, z0],
+    [x1, y0, z1],
+    [x0, y0, z1],
+    [x0, y1, z0],
+    [x1, y1, z0],
+    [x1, y1, z1],
+    [x0, y1, z1],
+  ];
+  return [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7].flatMap((i) => c[i]!);
 }

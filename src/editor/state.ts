@@ -69,6 +69,14 @@ export class EditorState {
   readonly assetBrush = signal<{ asset: string | null; rot: number }>({ asset: null, rot: 0 });
   /** the asset open in the Asset studio */
   readonly studioAsset = signal<string | null>(null);
+  /** the logic graph open in the Logic workspace (P4.3) */
+  readonly logicGraph = signal<string | null>(null);
+  /** logic breakpoints, "graphId:nodeId" (P4.5) */
+  readonly breakpoints = signal<ReadonlySet<string>>(new Set());
+  /** where Play stopped on a breakpoint */
+  readonly logicBreak = signal<{ graph: string; node: string; values: Record<string, unknown> } | null>(null);
+  /** the selected trigger zone in the Scene (P4.6) */
+  readonly selectedZone = signal<string | null>(null);
   /** the character open in the Character studio */
   readonly studioCharacter = signal<string | null>(null);
   readonly view = signal<ViewTab>('scene');
@@ -190,6 +198,7 @@ export class EditorState {
       this.scene.value = new SceneModel(this.store, id);
       this.selection.value = new Set();
       this.selectedSpawn.value = null;
+      this.selectedZone.value = null;
     });
   }
 
@@ -242,6 +251,7 @@ export class EditorState {
     batch(() => {
       this.selection.value = next;
       this.selectedSpawn.value = null;
+      this.selectedZone.value = null;
       if (next.size) this.right.value = 'inspect';
     });
   }

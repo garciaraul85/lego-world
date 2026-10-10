@@ -1,0 +1,86 @@
+import type { NodeDef } from './types';
+import { EXEC_IN, EXEC_OUT } from './types';
+
+export const WORLD: NodeDef[] = [
+  {
+    type: 'world.spawn',
+    kind: 'action',
+    title: 'Spawn asset',
+    category: 'World',
+    doc: 'Puts a copy of an asset at a spawn point of the current map.',
+    inputs: [EXEC_IN],
+    outputs: [EXEC_OUT, { name: 'entity', type: 'entity' }],
+    args: [
+      { name: 'asset', kind: 'asset', label: 'Asset' },
+      { name: 'at', kind: 'spawn', label: 'At spawn' },
+    ],
+    code: { name: 'world.spawn', style: 'call' },
+    exec: (c, a) => {
+      c.spawn(String(a.asset), String(a.at));
+    },
+  },
+  {
+    type: 'world.despawn',
+    kind: 'action',
+    title: 'Remove',
+    category: 'World',
+    doc: 'Removes a placed asset from the world for this play.',
+    inputs: [EXEC_IN, { name: 'target', type: 'entity', default: '' }],
+    outputs: [EXEC_OUT],
+    code: { name: 'world.despawn', style: 'call' },
+    exec: (c, _a, i) => c.despawn(String(i.target)),
+  },
+  {
+    type: 'world.setState',
+    kind: 'action',
+    title: 'Set state',
+    category: 'World',
+    doc: 'Switches a placed asset to one of its states (a chest open, a lamp off).',
+    inputs: [
+      EXEC_IN,
+      { name: 'target', type: 'entity', default: '' },
+      { name: 'state', type: 'string', default: 'open' },
+    ],
+    outputs: [EXEC_OUT],
+    code: { name: 'world.setState', style: 'call' },
+    exec: (c, _a, i) => c.setState(i.target ? String(i.target) : null, String(i.state)),
+  },
+  {
+    type: 'world.teleport',
+    kind: 'action',
+    title: 'Teleport hero',
+    category: 'World',
+    doc: 'Moves the hero to a spawn point on this map.',
+    inputs: [EXEC_IN],
+    outputs: [EXEC_OUT],
+    args: [{ name: 'spawn', kind: 'spawn', label: 'Spawn' }],
+    code: { name: 'world.teleport', style: 'call' },
+    exec: (c, a) => c.teleport(String(a.spawn)),
+  },
+  {
+    type: 'world.travel',
+    kind: 'action',
+    title: 'Travel',
+    category: 'World',
+    doc: 'Takes the hero to another map, at one of its spawn points.',
+    inputs: [EXEC_IN],
+    outputs: [EXEC_OUT],
+    args: [
+      { name: 'map', kind: 'map', label: 'Map' },
+      { name: 'spawn', kind: 'spawn', label: 'Spawn' },
+    ],
+    code: { name: 'world.travel', style: 'call' },
+    exec: (c, a) => c.travel(String(a.map), String(a.spawn)),
+  },
+  {
+    type: 'world.give',
+    kind: 'action',
+    title: 'Give item',
+    category: 'World',
+    doc: 'Adds items to the hero’s inventory.',
+    inputs: [EXEC_IN, { name: 'item', type: 'string', default: 'coin' }, { name: 'count', type: 'number', default: 1 }],
+    outputs: [EXEC_OUT],
+    code: { name: 'world.give', style: 'call' },
+    exec: (c, _a, i) => c.give(String(i.item), Number(i.count ?? 1)),
+  },
+];

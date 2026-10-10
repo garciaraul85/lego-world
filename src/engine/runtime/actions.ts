@@ -7,6 +7,8 @@ export interface ActionHost {
   teleport(spawn: string): void;
   travel(map: string, spawn: string): void;
   log(kind: 'event' | 'info', msg: string): void;
+  /** a custom event (the `emit` action): logic graphs react with On custom event */
+  custom?(event: string): void;
   vars: Map<string, unknown>;
   inventory: Map<string, number>;
 }
@@ -49,6 +51,7 @@ export class ActionRunner {
           return;
         case 'emit':
           h.log('event', `Event “${a.event}”`);
+          h.custom?.(a.event);
           break;
         case 'setState':
           h.setState(a.state, a.target, self);
