@@ -110,6 +110,8 @@ export class LogicRuntime {
       t.at = t.every ? t.at + t.every : Infinity;
     }
     for (const r of [...this.runs]) if (r.waitUntil !== null && r.waitUntil <= now && !this.paused) this.resume(r);
+    // variables changed by the game (zone actions, cinematics, screens) also fire On variable changed
+    this.afterRun();
     this.drain();
   }
 

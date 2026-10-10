@@ -24,6 +24,8 @@ export const Clip = z.strictObject({
     z.union([
       z.strictObject({ t: z.number().min(0), emit: z.string() }),
       z.strictObject({ t: z.number().min(0), sound: id('sound') }),
+      /** P6.4: a clip can start a cinematic at its marker */
+      z.strictObject({ t: z.number().min(0), cinematic: id('cinematic') }),
     ]),
   ),
 });

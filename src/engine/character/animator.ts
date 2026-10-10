@@ -1,7 +1,7 @@
 import type { Clip } from '../../core/schema';
 import { type PoseParams, sampleParams } from './routine';
 
-export type ClipEvent = { t: number; emit: string } | { t: number; sound: string };
+export type ClipEvent = { t: number; emit: string } | { t: number; sound: string } | { t: number; cinematic: string };
 
 const FADE = 0.15;
 

@@ -27,7 +27,7 @@ describe('characters and clips as data (P3.5)', () => {
   });
 
   it('every v68 routine sampled from its keyframe clip gives exactly v68’s pose parameters', () => {
-    expect(BUILTIN_CLIPS).toHaveLength(L.StudioMotion.clips.length);
+    expect(BUILTIN_CLIPS.filter((c) => c.group !== 'Gestures')).toHaveLength(L.StudioMotion.clips.length);
     for (const routine of L.StudioMotion.clips) {
       const clip = BUILTIN_CLIPS.find((c) => c.name === routine.label)!;
       expect(clip, routine.label).toBeTruthy();

@@ -93,6 +93,7 @@ export const paths = {
   clip: (id: string) => `clips/${id}.json`,
   logic: (id: string) => `logic/${id}.json`,
   screen: (id: string) => `screens/${id}.json`,
+  cinematic: (id: string) => `cinematics/${id}.json`,
   soundEvents: 'audio/events.json',
   music: 'audio/music.json',
   mixer: 'audio/mixer.json',

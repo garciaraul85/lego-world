@@ -1,4 +1,4 @@
-import type { Action, Asset, Clip, Instances, LogicGraph, MapDoc, Screen, Widget } from '../schema';
+import type { Action, Asset, Cinematic, Clip, Gates, Instances, LogicGraph, MapDoc, Screen, Widget } from '../schema';
 
 type Files = { get(path: string): unknown; keys(): Iterable<string> };
 export type Use = { path: string; what: string };
@@ -8,6 +8,7 @@ const actionUses = (list: readonly Action[] | undefined, id: string) =>
     (a) =>
       (a.do === 'sound' && a.event === id) ||
       (a.do === 'music' && a.music === id) ||
+      (a.do === 'cinematic' && a.cinematic === id) ||
       ((a.do === 'showScreen' || a.do === 'hideScreen') && a.screen === id),
   );
 
@@ -16,7 +17,7 @@ function widgetUses(w: Widget, id: string): boolean {
 }
 
 /**
- * Where a sound event, music state or screen id is used across the project ("where used" in the
+ * Where a sound event, music state, screen or cinematic id is used across the project ("where used" in the
  * Audio and Screens workspaces, and the delete guard).
  */
 export function usesOf(files: Files, id: string): Use[] {
@@ -43,7 +44,15 @@ export function usesOf(files: Files, id: string): Use[] {
         out.push({ path, what: `screen ${s.name}` });
     } else if (path.startsWith('clips/')) {
       const c = v as Clip;
-      if (c.events.some((e) => 'sound' in e && e.sound === id)) out.push({ path, what: `clip ${c.name ?? c.id}` });
+      if (c.events.some((e) => ('sound' in e && e.sound === id) || ('cinematic' in e && e.cinematic === id)))
+        out.push({ path, what: `clip ${c.name ?? c.id}` });
+    } else if (path === 'world/gates.json') {
+      for (const g of (v as Gates).gates)
+        if (actionUses(g.onArrive, id)) out.push({ path, what: `gate ${g.id} · on arrive` });
+    } else if (path.startsWith('cinematics/')) {
+      const c = v as Cinematic;
+      if (c.tracks.some((t) => JSON.stringify(t.items).includes(`"${id}"`)))
+        out.push({ path, what: `cinematic ${c.name}` });
     } else if (/^logic\/lg_/.test(path)) {
       const g = v as LogicGraph;
       if (g.nodes.some((n) => Object.values(n.args ?? {}).includes(id))) out.push({ path, what: `logic ${g.name}` });

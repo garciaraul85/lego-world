@@ -36,12 +36,15 @@ export function Timeline({
   readOnly,
   onSeek,
   onChange,
+  choices,
 }: {
   clip: Clip;
   time: number;
   readOnly: boolean;
   onSeek: (t: number) => void;
   onChange: (next: Clip, label: string) => void;
+  /** sound events and cinematics for marker pickers (P5 / P6.4) */
+  choices?: { sounds: { id: string; name: string }[]; cinematics: { id: string; name: string }[] };
 }) {
   const [sel, setSel] = useState<Sel>(null);
   const [trackSel, setTrackSel] = useState(0);
@@ -190,16 +193,34 @@ export function Timeline({
             <button
               type="button"
               class="btn"
-              title="Sound markers play when audio arrives (Phase 5)"
+              title="A sound event plays when the playhead passes the marker"
               onClick={() =>
                 onChange(
-                  { ...clip, events: [...clip.events, { t: q(time), sound: 'snd_footstep01' }] },
+                  {
+                    ...clip,
+                    events: [...clip.events, { t: q(time), sound: choices?.sounds[0]?.id ?? 'snd_step000000' }],
+                  },
                   'Add sound marker',
                 )
               }
             >
               + Sound
             </button>
+            {!!choices?.cinematics.length && (
+              <button
+                type="button"
+                class="btn"
+                title="Starts a cinematic when the playhead passes the marker (in Play)"
+                onClick={() =>
+                  onChange(
+                    { ...clip, events: [...clip.events, { t: q(time), cinematic: choices.cinematics[0]!.id }] },
+                    'Add cinematic marker',
+                  )
+                }
+              >
+                + Cinematic
+              </button>
+            )}
           </>
         )}
       </div>
@@ -224,8 +245,8 @@ export function Timeline({
                 type="button"
                 class={`tl-event ${sel?.kind === 'event' && sel.index === i ? 'on' : ''}`}
                 style={{ left: pct(e.t) }}
-                title={'emit' in e ? `Event ${e.emit}` : `Sound ${e.sound}`}
-                aria-label={`${'emit' in e ? 'Event' : 'Sound'} marker at ${e.t.toFixed(2)} s`}
+                title={markerLabel(e)}
+                aria-label={`${'emit' in e ? 'Event' : 'sound' in e ? 'Sound' : 'Cinematic'} marker at ${e.t.toFixed(2)} s`}
                 onPointerDown={(p) => {
                   setSel({ kind: 'event', index: i });
                   dragFrom(p, (t) =>
@@ -340,21 +361,48 @@ export function Timeline({
         )}
         {ev && sel?.kind === 'event' && (
           <span class="row">
-            <span class="small">{'emit' in ev ? 'Sends event' : 'Plays sound'}</span>
-            <input
-              class="inp"
-              style={{ width: '160px' }}
-              disabled={readOnly}
-              aria-label="Marker name"
-              value={'emit' in ev ? ev.emit : ev.sound}
-              onChange={(e) => {
-                const v = (e.target as HTMLInputElement).value.trim();
-                if (!v) return;
-                if (!('emit' in ev) && !/^snd_[0-9a-z]{10}$/.test(v)) return;
-                const next = 'emit' in ev ? { t: ev.t, emit: v } : { t: ev.t, sound: v };
-                onChange({ ...clip, events: clip.events.map((x, j) => (j === sel.index ? next : x)) }, 'Edit event');
-              }}
-            />
+            <span class="small">
+              {'emit' in ev ? 'Sends event' : 'sound' in ev ? 'Plays sound' : 'Starts cinematic'}
+            </span>
+            {'emit' in ev || !choices ? (
+              <input
+                class="inp"
+                style={{ width: '160px' }}
+                disabled={readOnly}
+                aria-label="Marker name"
+                value={'emit' in ev ? ev.emit : 'sound' in ev ? ev.sound : ev.cinematic}
+                onChange={(e) => {
+                  const v = (e.target as HTMLInputElement).value.trim();
+                  if (!v) return;
+                  if ('sound' in ev && !/^snd_[0-9a-z]{10}$/.test(v)) return;
+                  if ('cinematic' in ev && !/^cin_[0-9a-z]{10}$/.test(v)) return;
+                  const next =
+                    'emit' in ev
+                      ? { t: ev.t, emit: v }
+                      : 'sound' in ev
+                        ? { t: ev.t, sound: v }
+                        : { t: ev.t, cinematic: v };
+                  onChange({ ...clip, events: clip.events.map((x, j) => (j === sel.index ? next : x)) }, 'Edit event');
+                }}
+              />
+            ) : (
+              <select
+                class="inp"
+                style={{ width: '180px' }}
+                disabled={readOnly}
+                aria-label="Marker target"
+                value={'sound' in ev ? ev.sound : ev.cinematic}
+                onChange={(e) => {
+                  const v = (e.target as HTMLSelectElement).value;
+                  const next = 'sound' in ev ? { t: ev.t, sound: v } : { t: ev.t, cinematic: v };
+                  onChange({ ...clip, events: clip.events.map((x, j) => (j === sel.index ? next : x)) }, 'Edit event');
+                }}
+              >
+                {('sound' in ev ? choices.sounds : choices.cinematics).map((o) => (
+                  <option value={o.id}>{o.name}</option>
+                ))}
+              </select>
+            )}
             {!readOnly && (
               <button
                 type="button"
@@ -397,4 +445,10 @@ function Curve({ keys, length, time }: { keys: Key[]; length: number; time: numb
       />
     </svg>
   );
+}
+
+function markerLabel(e: Clip['events'][number]) {
+  if ('emit' in e) return `Event ${e.emit}`;
+  if ('sound' in e) return `Sound ${e.sound}`;
+  return `Cinematic ${e.cinematic}`;
 }
