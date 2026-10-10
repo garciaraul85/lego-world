@@ -9,6 +9,27 @@ import { paths } from '../schema';
 export type FileSource = { get(path: string): unknown; keys(): Iterable<string> };
 
 const COLOR_INDEX = new Map(LEGACY_COLORS.map(([, hex], i) => [hex, i]));
+const rgb = (hex: string) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+const LEGACY_RGB = LEGACY_COLORS.map(([, hex]) => rgb(hex));
+
+/** v68 index of a color; colors outside the v68 palette (any #rrggbb is valid in v5) snap to the nearest one. */
+export function legacyColorIndex(hex: string | undefined): number {
+  const h = (hex ?? '').toLowerCase();
+  const exact = COLOR_INDEX.get(h);
+  if (exact !== undefined) return exact;
+  if (!/^#[0-9a-f]{6}$/.test(h)) throw new Error(`color ${hex} has no legacy index`);
+  const [r, g, b] = rgb(h);
+  let best = 0;
+  let bestD = Number.POSITIVE_INFINITY;
+  LEGACY_RGB.forEach(([r2, g2, b2], i) => {
+    const d = 2 * (r - r2) ** 2 + 4 * (g - g2) ** 2 + 3 * (b - b2) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  });
+  return best;
+}
 
 /** "brick2x4" -> kind/rows/cols */
 export function parseType(type: string): Pick<LegacyPiece, 'kind' | 'rows' | 'cols'> {
@@ -26,8 +47,7 @@ export function chunksToPieces(files: FileSource, mapId: string): LegacyPiece[] 
     const c = files.get(path) as Chunk;
     for (const b of c.bricks) {
       const { kind, rows, cols } = parseType(c.palette.types[b[0]]!);
-      const color = COLOR_INDEX.get(c.palette.colors[b[5]]!);
-      if (color === undefined) throw new Error(`color ${c.palette.colors[b[5]]} has no legacy index`);
+      const color = legacyColorIndex(c.palette.colors[b[5]]);
       const p: LegacyPiece = { id: b[7], rows, cols, turn: b[4], x: b[1], y: b[2], z: b[3], kind, color };
       if (b[8] >= 0) p.group = c.palette.groups[b[8]]!;
       pieces.push(p);
@@ -39,8 +59,7 @@ export function chunksToPieces(files: FileSource, mapId: string): LegacyPiece[] 
 /** A decoded brick as a v68 piece. */
 export function brickToPiece(b: Brick): LegacyPiece {
   const { kind, rows, cols } = parseType(b.type);
-  const color = COLOR_INDEX.get(b.color.toLowerCase());
-  if (color === undefined) throw new Error(`color ${b.color} has no legacy index`);
+  const color = legacyColorIndex(b.color);
   const p: LegacyPiece = { id: b.id, rows, cols, turn: b.rot, x: b.x, y: b.y, z: b.z, kind, color };
   if (b.group !== undefined) p.group = b.group;
   return p;

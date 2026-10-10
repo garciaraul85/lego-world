@@ -183,3 +183,43 @@ an imported .png (no image editor); cinematic music and the cinematic action arr
 Known gaps after Phase 6: the stage's ground clicks use the spawn height (marks on hills snap to the nav
 height when played); there is no per-actor path preview line on the stage; extras use v68 character looks
 only.
+
+## As built — Phase 7
+
+- Game generator (`src/core/gamegen/`, pure and seeded): `generateGame(options, seed)` builds a complete
+  game — themed maps from the v68 terrain generator, gates between them, a hero, props placed on reachable
+  open ground, a quest in logic (collect N, smash and rebuild N buildings, or reach the summit), HUD and screens, a reward
+  cinematic, music and sounds, world UI — as **stages** of ordinary commands (title, explanation, *how to do
+  it yourself*, the workspace to look at). Replaying the stages one by one equals applying them all (tested
+  for 12 seeds × 4 themes by default, `GAMEGEN_SEEDS` for more); a failed attempt retries with the next
+  seed. `map.create` takes an optional spawn id.
+- Start hub (`src/editor/start/`): first run (and File › Start hub, Ctrl Alt H) shows Generate & play,
+  **Watch it being built**, templates, recent projects, the tutorial (*Show me first* or *I try first*) and
+  the Help guide. The choice survives the reload that opening a project needs (an intent in localStorage).
+- Build viewer: Next applies one stage as one labelled undo step and opens its workspace; Back undoes it;
+  Auto plays the rest; Play at the end.
+- Guided tutorial (`src/editor/tutorial/`): 10 chapters, 51 data-driven steps (`content/*.json`, validated
+  with Zod) covering every workspace and tool. Each step has a spotlighted target, a task and a check
+  (a command type, an editor state, a play event, a DOM element or Next). **Show me** moves a demo pointer to
+  the control, performs the step with the same commands a user would issue, then undoes it and restores
+  the panels so the user repeats it; *Show me each step first* does that on every step. **Do it for me**,
+  Back and Skip always work; progress is kept per project. `CommandBus.onExecute` lets checks see what the
+  user did (the tutorial's own commands don't count).
+- Help guide (`src/editor/help/`, F1): pages in `docs/help/*.md` bundled at build time, a tiny Markdown
+  renderer (no innerHTML), deep links that open workspaces (`open:`), run editor actions (`action:`) or
+  go to pages (`help:`), generated pages (logic reference from the node catalog, keyboard and touch from
+  the action registry, limits from the code's constants), and an inverted-index search by section
+  ("music zone" → Audio › Music zones). `scripts/gen-logic-reference.mjs` writes and checks
+  `docs/logic-reference.md`.
+- Fixed on the way: colors outside v68's 18 (any `#rrggbb` is valid in v5) made Play fail with "has no
+  legacy index"; they now snap to the nearest v68 color. Workspace tabs expose the current one
+  (`aria-current`).
+
+Deviations from the plan: the generator runs on the main thread (a whole game takes well under a second,
+so no worker); templates are generated from fixed seeds at runtime instead of shipped `.bwproj` files;
+tutorial progress lives in localStorage rather than `.editor/tutorial.json`; the generator test runs 12
+seeds per theme by default (more with `GAMEGEN_SEEDS`).
+
+Known gaps after Phase 7: the tutorial's checks for "move the camera" and "build on the plate" are Next
+buttons (they can't be observed as commands); the demo pointer shows where to act but does not drag
+(drags such as wiring are performed directly).

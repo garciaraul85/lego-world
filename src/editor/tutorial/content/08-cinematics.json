@@ -1,0 +1,51 @@
+{
+  "id": "cinematics",
+  "title": "Cinematics",
+  "steps": [
+    {
+      "id": "cine.open",
+      "title": "The Director",
+      "body": "Cinematics are directed like a film shoot: cast actors, set marks, give instructions, place and cut cameras, then add dialogue, music, sound and effects on the timeline.",
+      "task": "Open the Cinematics workspace.",
+      "target": "[data-tour=\"ws-cinematics\"]",
+      "placement": "bottom",
+      "check": { "kind": "state", "test": "workspace", "args": "Cinematics" },
+      "doItForMe": [{ "ui": "workspace", "value": "Cinematics" }]
+    },
+    {
+      "id": "cine.new",
+      "title": "A reward scene",
+      "body": "“New reward scene” makes a complete example: a fade in, a title, a character walks up and speaks, three camera shots, music and a cheer. Scrub the timeline to see any moment in the camera preview.",
+      "task": "Create the example reward scene.",
+      "target": "[aria-label=\"Director\"]",
+      "placement": "center",
+      "workspace": "Cinematics",
+      "check": { "kind": "command", "type": "cinematic.put" },
+      "doItForMe": [{ "fn": "newRewardScene" }]
+    },
+    {
+      "id": "cine.camera",
+      "title": "Camera from view",
+      "body": "Orbit the stage (left view) to frame a shot, move the playhead, then Camera from view adds a camera there. Shots cut, or blend when Blend is above zero. Record (●) makes the selected role walk where you click.",
+      "task": "Add a camera with “Camera from view”.",
+      "target": "[aria-label=\"Director tools\"]",
+      "placement": "bottom",
+      "workspace": "Cinematics",
+      "check": { "kind": "state", "test": "cinematicShots", "args": 4 },
+      "doItForMe": [
+        { "click": "[aria-label=\"Director tools\"] button[title=\"A camera at the playhead from the stage view\"]" }
+      ]
+    },
+    {
+      "id": "cine.trigger",
+      "title": "Trigger the scene",
+      "body": "Anything can start a scene: a zone, an asset interaction, a screen button, a gate (On arrive), a clip marker, or logic. Here, the trigger zone you drew plays it when the hero walks in.",
+      "task": "Make your trigger zone play the cinematic (Scene › select the zone › When the hero walks in › Play cinematic).",
+      "target": "[data-tour=\"inspector\"]",
+      "placement": "left",
+      "workspace": "Scene",
+      "check": { "kind": "command", "type": "map.updateZone" },
+      "doItForMe": [{ "fn": "zonePlaysScene" }]
+    }
+  ]
+}

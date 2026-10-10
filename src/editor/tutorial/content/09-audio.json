@@ -1,0 +1,60 @@
+{
+  "id": "audio",
+  "title": "Audio",
+  "steps": [
+    {
+      "id": "audio.open",
+      "title": "Sound events",
+      "body": "Games ask for named sound events (smash, jump, chest…), never files. Each event picks one of its clips at random or in order, varies the pitch, and limits how many play at once. ▶ previews it.",
+      "task": "Open the Audio workspace.",
+      "target": "[data-tour=\"ws-audio\"]",
+      "placement": "bottom",
+      "check": { "kind": "state", "test": "workspace", "args": "Audio" },
+      "doItForMe": [{ "ui": "workspace", "value": "Audio" }]
+    },
+    {
+      "id": "audio.event",
+      "title": "Tune a sound",
+      "body": "Change the volume, pitch range, bus or voice limit of an event. Editing a built-in keeps a project copy; Import sounds adds your own .wav/.mp3/.ogg/.m4a files.",
+      "task": "Change something about the “smash” sound (for example its volume).",
+      "target": "section[aria-label=\"Audio editor\"]",
+      "placement": "left",
+      "workspace": "Audio",
+      "check": { "kind": "command", "type": "audio.setEvent" },
+      "doItForMe": [{ "fn": "tweakSmash" }]
+    },
+    {
+      "id": "audio.mixer",
+      "title": "The mixer",
+      "body": "Buses group sounds (music, effects, voice, menus, ambience); faders set their volume and meters show what plays. Ducking lowers the music while someone speaks. The dock's Mixer tab works while playing.",
+      "task": "Lower the Music bus on the mixer.",
+      "target": "section[aria-label=\"Sounds and music\"]",
+      "placement": "right",
+      "workspace": "Audio",
+      "check": { "kind": "command", "type": "audio.setMixer" },
+      "doItForMe": [{ "fn": "lowerMusic" }]
+    },
+    {
+      "id": "audio.music",
+      "title": "Map music",
+      "body": "Each map has music and an ambience loop (Map tab). Music zones change it while the hero is inside; cinematics and title screens override it, then it returns.",
+      "task": "Pick a map music in the Map tab.",
+      "target": "[data-tour=\"tab-map\"]",
+      "placement": "left",
+      "workspace": "Scene",
+      "check": { "kind": "command", "type": "map.setAudio" },
+      "doItForMe": [{ "ui": "right", "value": "map" }, { "fn": "mapMusic" }]
+    },
+    {
+      "id": "audio.emitter",
+      "title": "Sound emitters",
+      "body": "The Sound emitter tool (S) places a sound in the world: a loop (a fountain) or now and then (birdsong), heard within its range. The World UI tool (U) places signs that show {values} over the 3D view.",
+      "task": "Place a sound emitter with the Sound emitter tool (S).",
+      "target": "button[aria-label=\"Sound emitter (S)\"]",
+      "placement": "bottom",
+      "workspace": "Scene",
+      "check": { "kind": "command", "type": "item.add" },
+      "doItForMe": [{ "ui": "tool", "value": "sound" }, { "fn": "addEmitter" }]
+    }
+  ]
+}

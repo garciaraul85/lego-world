@@ -1,0 +1,170 @@
+{
+  "id": "first-map",
+  "title": "Your first map",
+  "steps": [
+    {
+      "id": "map.tab",
+      "title": "The Map tab",
+      "body": "The Inspector on the right has three tabs: Inspector (what is selected), Map (terrain, sky, weather, music) and Project (title, start map, hero, first screen).",
+      "task": "Open the Map tab.",
+      "target": "[data-tour=\"tab-map\"]",
+      "placement": "left",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "rightTab",
+        "args": "map"
+      },
+      "doItForMe": [
+        {
+          "ui": "palette",
+          "value": false
+        },
+        {
+          "ui": "right",
+          "value": "map"
+        }
+      ]
+    },
+    {
+      "id": "map.generate",
+      "title": "Generate terrain",
+      "body": "The terrain generator builds a whole world from environments (forest, city, mountains, volcanoes…). Pick one or more, then Generate. New seed gives a different world with the same mix. Houses, trees and cars become assets you can move, smash and edit.",
+      "task": "Generate a Forest + City map.",
+      "target": "[data-tour=\"generate\"]",
+      "placement": "left",
+      "check": {
+        "kind": "command",
+        "type": "map.generate"
+      },
+      "doItForMe": [
+        {
+          "fn": "generateMap",
+          "args": {
+            "environments": ["forest", "city"]
+          }
+        }
+      ],
+      "setup": [
+        {
+          "ui": "right",
+          "value": "map"
+        }
+      ]
+    },
+    {
+      "id": "map.camera",
+      "title": "Move the camera",
+      "body": "Drag in the map to orbit, right-drag (or Shift-drag) to pan, and use the wheel to zoom. On a touch screen: one finger orbits, two fingers pan and pinch. Home fits the whole map, F frames the selection.",
+      "task": "Orbit and zoom the camera, then press Next.",
+      "target": "[data-tour=\"viewport\"]",
+      "placement": "center",
+      "tip": "Home fits the map in view.",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [
+        {
+          "ui": "fit"
+        }
+      ]
+    },
+    {
+      "id": "map.select",
+      "title": "Select an object",
+      "body": "With the Select tool (V), click an object to select all of it — a house, a tree. Alt-click selects a single brick, Shift-click adds to the selection. The Hierarchy on the left lists every object by type.",
+      "task": "Select a building (click it, or pick one in the Hierarchy).",
+      "target": "[data-tour=\"outliner\"]",
+      "placement": "right",
+      "check": {
+        "kind": "state",
+        "test": "hasSelection"
+      },
+      "doItForMe": [
+        {
+          "ui": "tool",
+          "value": "select"
+        },
+        {
+          "fn": "selectBuilding"
+        }
+      ]
+    },
+    {
+      "id": "map.paint",
+      "title": "Recolor",
+      "body": "The Inspector shows what you selected: its bricks, position and colors. Click a swatch to recolor the whole selection. Asset instances are recolored after Unpack; loose bricks recolor directly. The Color paint tool (C) paints by clicking.",
+      "task": "Recolor some bricks (Inspector swatches or the Color paint tool).",
+      "target": "[data-tour=\"inspector\"]",
+      "placement": "left",
+      "check": {
+        "kind": "command",
+        "type": "bricks.paint"
+      },
+      "doItForMe": [
+        {
+          "fn": "paintSomething"
+        }
+      ]
+    },
+    {
+      "id": "map.place",
+      "title": "Place bricks",
+      "body": "Brick paint (B) places the brush brick where you click. Pick its shape and color in the dock below (Assets › Bricks); T turns it. Bricks must sit on studs and never overlap — the same rules as LEGO World v68.",
+      "task": "Place a brick with Brick paint (B).",
+      "target": "button[aria-label=\"Brick paint (B)\"]",
+      "placement": "bottom",
+      "check": {
+        "kind": "command",
+        "type": "bricks.place"
+      },
+      "doItForMe": [
+        {
+          "ui": "tool",
+          "value": "place"
+        },
+        {
+          "fn": "placeBrick"
+        }
+      ]
+    },
+    {
+      "id": "map.erase",
+      "title": "Erase",
+      "body": "The Erase tool (X) removes the brick you click (Shift removes the whole object). Bricks that hold others up are protected so the map never breaks.",
+      "task": "Erase a brick with the Erase tool (X).",
+      "target": "button[aria-label=\"Erase (X)\"]",
+      "placement": "bottom",
+      "check": {
+        "kind": "command",
+        "type": "bricks.remove"
+      },
+      "doItForMe": [
+        {
+          "ui": "tool",
+          "value": "erase"
+        },
+        {
+          "fn": "eraseBrick"
+        }
+      ]
+    },
+    {
+      "id": "map.undo",
+      "title": "Undo and redo",
+      "body": "Everything you do is one undo step: placing, painting, generating a whole map. Ctrl Z undoes, Ctrl Shift Z redoes. The project saves itself to this device a moment after each change.",
+      "task": "Undo your last change (Ctrl Z or the Undo button).",
+      "target": "button[title=\"Undo (Ctrl Z)\"]",
+      "placement": "bottom",
+      "check": {
+        "kind": "state",
+        "test": "canRedo"
+      },
+      "doItForMe": [
+        {
+          "action": "edit.undo"
+        }
+      ]
+    }
+  ]
+}

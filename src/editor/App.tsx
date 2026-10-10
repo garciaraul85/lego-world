@@ -5,6 +5,7 @@ import type { ProjectMeta } from '../core/project/backend';
 import { type Cinematic, type MediaIndex, paths } from '../core/schema';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { WorldGraph } from './graph/WorldGraph';
+import { HelpView } from './help/HelpView';
 import { Dock } from './panels/Dock';
 import { RightPanel } from './panels/Inspector';
 import { Outliner } from './panels/Outliner';
@@ -21,7 +22,11 @@ import {
   WORKSPACES,
   WorkspaceTabs,
 } from './shell/Shell';
+import { BuildViewer } from './start/BuildViewer';
+import { readIntent, writeIntent } from './start/intent';
+import { type HubHost, StartHub } from './start/StartHub';
 import type { EditorState } from './state';
+import { TutorialRunner } from './tutorial/TutorialRunner';
 import type { ViewportApi } from './viewport/Viewport';
 import { ViewportPanel } from './viewport/Views';
 import { AssetStudio } from './workspaces/asset-studio/AssetStudio';
@@ -33,7 +38,9 @@ import { ScreensWorkspace } from './workspaces/screens/ScreensWorkspace';
 
 const STUDIOS = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics']);
 
-export type AppHost = {
+export type AppHost = HubHost & {
+  /** show the Start hub when the editor opens */
+  showHub: boolean;
   newProject(): Promise<void>;
   openProject(id: string): void;
   listProjects(): Promise<ProjectMeta[]>;
@@ -44,9 +51,23 @@ export type AppHost = {
 export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const vp = useRef<ViewportApi | null>(null);
   const [modal, setModal] = useState<null | 'shortcuts' | 'open' | 'about' | 'new'>(null);
+  const [hub, setHub] = useState(host.showHub);
+  const [intent, setIntent] = useState(() => readIntent(ed.store.manifest.id));
+  const [help, setHelp] = useState<string | null>(null);
+  // Generate & play: straight into Play from the first screen (P7.2)
+  useEffect(() => {
+    if (intent?.kind !== 'play') return;
+    writeIntent(null);
+    setIntent(null);
+    setTimeout(() => ui.play('engine', { fromEntry: true }), 50);
+  }, []);
   const [play, setPlay] = useState<null | 'play' | 'edit'>(null);
   const [engine, setEngine] = useState<(PlayStart & { key: number }) | null>(null);
-  const [workspace, setWorkspace] = useState('Scene');
+  const [workspace, setWorkspaceState] = useState('Scene');
+  const setWorkspace = (w: string) => {
+    setWorkspaceState(w);
+    ed.workspace.value = w;
+  };
   const [pane, setPane] = useState<'left' | 'right'>('right');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -63,6 +84,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           if (b) media.set(ref, new Uint8Array(await b.arrayBuffer()));
         }
         const bytes = packProject(ed.store, media);
+        ed.exports.value++;
         host.download(
           `${slug(ed.store.manifest.name)}.bwproj`,
           new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/zip' }),
@@ -107,10 +129,13 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         vp.current?.camera.topView();
         vp.current?.redraw();
       },
-      workspace: (w) => {
-        setWorkspace(w);
-      },
+      workspace: (w) => setWorkspace(w),
       showShortcuts: () => setModal('shortcuts'),
+      startHub: () => setHub(true),
+      tutorial: () => {
+        void ed.autosave.flush().then(() => host.startTutorial('show'));
+      },
+      help: (page) => setHelp(page ?? 'start'),
       about: () => setModal('about'),
     }),
     [ed],
@@ -119,7 +144,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (play || modal || ed.palette.value) return;
+      if (play || modal || help || ed.palette.value) return;
       if (ed.session.value) {
         // While playing only the play shortcuts reach the editor; the game owns the rest (Esc = game back/pause).
         if (e.key === 'F5') {
@@ -138,7 +163,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [play, modal]);
+  }, [play, modal, help]);
 
   const later = WORKSPACES.find(([w]) => w === workspace)?.[1];
   return (
@@ -240,8 +265,9 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       {modal === 'about' && (
         <Modal title="Brick Worlds Engine" onClose={() => setModal(null)}>
           <p>
-            Phase 6 build: Scene editor, World graph, Asset studio, Character studio, Logic, Screens, Cinematics and
-            Audio on the v5 project format, with Play on the new engine runtime, grown from LEGO World v68.
+            Phase 7 build: Start hub, game generator, guided tutorial, Scene editor, World graph, Asset studio,
+            Character studio, Logic, Screens, Cinematics and Audio on the v5 project format, with Play on the new engine
+            runtime, grown from LEGO World v68.
           </p>
           <p class="muted">
             Projects are saved as small JSON files in this browser. Guns, magic, super powers, the volcano and the
@@ -250,6 +276,29 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         </Modal>
       )}
       {play && <PlayLayer ed={ed} mode={play} onClose={() => setPlay(null)} />}
+      {intent?.kind === 'build' && !engine && <BuildViewer c={c} intent={intent} onClose={() => setIntent(null)} />}
+      {intent?.kind === 'tutorial' && (
+        <TutorialRunner
+          c={c}
+          mode={intent.mode}
+          onClose={() => {
+            writeIntent(null);
+            setIntent(null);
+          }}
+        />
+      )}
+      {help && <HelpView c={c} page={help} onClose={() => setHelp(null)} />}
+      {hub && (
+        <StartHub
+          ed={ed}
+          host={host}
+          onClose={() => setHub(false)}
+          onHelp={() => {
+            setHub(false);
+            setHelp('build-a-game');
+          }}
+        />
+      )}
       <input
         ref={fileRef}
         type="file"

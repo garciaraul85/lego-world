@@ -20,7 +20,7 @@ test('Director: author a scene without typing numbers, then play it in the game 
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && errors.push(m.text()));
-  await page.goto('/editor.html');
+  await page.goto('/editor.html?nohub');
   await page.waitForFunction(
     () => ((window as unknown as { __editor?: Ed }).__editor?.scene.value?.count ?? 0) > 0,
     undefined,

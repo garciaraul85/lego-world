@@ -1,0 +1,60 @@
+{
+  "id": "characters",
+  "title": "Characters",
+  "steps": [
+    {
+      "id": "chars.open",
+      "title": "The Character studio",
+      "body": "The Characters workspace dresses minifigures (hair, face, outfit, colors, gear) and animates them with keyframe clips. The hero and every neighbour are characters.",
+      "task": "Open the Characters workspace.",
+      "target": "[data-tour=\"ws-characters\"]",
+      "placement": "bottom",
+      "check": { "kind": "state", "test": "workspace", "args": "Characters" },
+      "doItForMe": [{ "ui": "workspace", "value": "Characters" }]
+    },
+    {
+      "id": "chars.new",
+      "title": "A new character",
+      "body": "Start from one of v68's presets. The copy is yours to change; presets themselves stay as they are.",
+      "task": "Create a character from a preset (the + New character menu).",
+      "target": "select[aria-label=\"New character from a preset\"]",
+      "placement": "right",
+      "workspace": "Characters",
+      "check": { "kind": "command", "type": "character.create" },
+      "doItForMe": [{ "fn": "newCharacter", "args": { "preset": "Explorer" } }]
+    },
+    {
+      "id": "chars.look",
+      "title": "Change the look",
+      "body": "The properties on the right change every part of the look; the preview updates at once. Each change is one undo step.",
+      "task": "Rename the character or change a color.",
+      "target": "section[aria-label=\"Character properties\"]",
+      "placement": "left",
+      "workspace": "Characters",
+      "check": { "kind": "command", "type": "character.update" },
+      "doItForMe": [{ "fn": "renameCharacter", "args": { "name": "Robin" } }]
+    },
+    {
+      "id": "chars.hero",
+      "title": "The player character",
+      "body": "One character is the hero the player controls. “Make player character” (or Project tab › Hero) picks it.",
+      "task": "Make your character the player character.",
+      "target": "section[aria-label=\"Character properties\"]",
+      "placement": "left",
+      "workspace": "Characters",
+      "check": { "kind": "command", "type": "project.update" },
+      "doItForMe": [{ "fn": "makeHero" }]
+    },
+    {
+      "id": "chars.clip",
+      "title": "Animation clips",
+      "body": "Clips are keyframe animations on a timeline: a lane per joint, keys you drag in time, and markers that send events, play sounds or start cinematics. Keys 1–4 play the hero's emotes in Play. + New under Clips makes your own.",
+      "task": "Make a new clip (Clips › + New).",
+      "target": "section[aria-label=\"Characters and clips\"]",
+      "placement": "right",
+      "workspace": "Characters",
+      "check": { "kind": "command", "type": "clip.create" },
+      "doItForMe": [{ "fn": "newClip" }]
+    }
+  ]
+}

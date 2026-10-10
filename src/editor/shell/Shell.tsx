@@ -116,6 +116,8 @@ export function WorkspaceTabs({ current, onPick }: { current: string; onPick: (w
         <button
           type="button"
           class={`tab ${current === w ? 'on' : ''}`}
+          aria-current={current === w ? 'page' : undefined}
+          data-tour={`ws-${w.toLowerCase().replace(/ /g, '-')}`}
           title={later ? `Full workspace in ${later}` : undefined}
           onClick={() => onPick(w)}
         >

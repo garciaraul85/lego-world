@@ -1,0 +1,67 @@
+{
+  "id": "play",
+  "title": "Play and share",
+  "steps": [
+    {
+      "id": "play.start",
+      "title": "Play",
+      "body": "Play (F5) runs your game right here. Nothing that happens while playing changes the project. Ctrl F5 plays from the first screen (splash, title).",
+      "task": "Press Play.",
+      "target": "[data-tour=\"play\"]",
+      "placement": "bottom",
+      "workspace": "Scene",
+      "check": { "kind": "play", "event": "running" },
+      "doItForMe": [{ "ui": "play" }]
+    },
+    {
+      "id": "play.move",
+      "title": "Move around",
+      "body": "WASD or the arrows move, Space jumps, F smashes, hold E to rebuild, E uses chests and doors, T talks to neighbours, 1–4 play emotes. Drag to look around. Esc opens the pause menu.",
+      "task": "Walk the hero a few steps (WASD).",
+      "target": "[aria-label=\"Game view\"]",
+      "placement": "center",
+      "check": { "kind": "play", "event": "moved" },
+      "doItForMe": [{ "fn": "walkHero" }]
+    },
+    {
+      "id": "play.debug",
+      "title": "Pause and debug",
+      "body": "The play bar pauses, steps one frame and changes the speed. The dock's Debug tab shows live values (position, variables, items, screens, audio) and cheats like Respawn and Rebuild all.",
+      "task": "Pause the game with the play bar.",
+      "target": "[aria-label=\"Play bar\"]",
+      "placement": "bottom",
+      "check": { "kind": "play", "event": "paused" },
+      "doItForMe": [{ "ui": "pause" }]
+    },
+    {
+      "id": "play.stop",
+      "title": "Stop",
+      "body": "Stop (F5 or ■ Stop) returns to the editor exactly as it was before you pressed Play.",
+      "task": "Stop playing.",
+      "target": "[aria-label=\"Play bar\"]",
+      "placement": "bottom",
+      "check": { "kind": "play", "event": "stopped" },
+      "doItForMe": [{ "ui": "stop" }]
+    },
+    {
+      "id": "share.save",
+      "title": "Save and share",
+      "body": "Your project saves itself on this device. File › Save project file makes a .bwproj you can keep or send; File › Import opens one (or an old LEGO World save).",
+      "task": "Save a project file (File › Save project file).",
+      "target": "[data-tour=\"menu-file\"]",
+      "placement": "bottom",
+      "check": { "kind": "state", "test": "exported" },
+      "doItForMe": [{ "action": "file.exportProject" }]
+    },
+    {
+      "id": "share.done",
+      "title": "You know the whole editor",
+      "body": "That was every workspace and tool. The Start hub (File › Start hub) makes a complete game in one click — or shows one being built step by step — and the Help guide (F1) walks through building a game from scratch.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "placement": "bottom",
+      "check": { "kind": "manual" },
+      "doItForMe": []
+    }
+  ]
+}

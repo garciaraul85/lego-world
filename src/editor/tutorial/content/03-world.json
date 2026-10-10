@@ -1,0 +1,58 @@
+{
+  "id": "world",
+  "title": "Spawns, zones and worlds",
+  "steps": [
+    {
+      "id": "world.spawn",
+      "title": "Spawn points",
+      "body": "Spawn points are where the hero can start or arrive. The Spawn point tool (P) adds one where you click, facing the way the camera looks. The Project tab picks the game's start spawn; Shift F5 plays from the selected one.",
+      "task": "Add a spawn point with the Spawn point tool (P).",
+      "target": "button[aria-label=\"Spawn point (P)\"]",
+      "placement": "bottom",
+      "workspace": "Scene",
+      "check": { "kind": "command", "type": "map.addSpawn" },
+      "doItForMe": [{ "ui": "tool", "value": "spawn" }, { "fn": "addSpawn" }]
+    },
+    {
+      "id": "world.zone",
+      "title": "Trigger zones",
+      "body": "A trigger zone is a box on the map. When the hero walks in or out, its actions run (give an item, play a sound or a cinematic, show a screen) and logic hears On enter / On exit zone. Zones can also change the music or play an ambience loop.",
+      "task": "Draw a trigger zone with the Trigger zone tool (Z) — drag on the ground.",
+      "target": "button[aria-label=\"Trigger zone (Z)\"]",
+      "placement": "bottom",
+      "check": { "kind": "command", "type": "map.addZone" },
+      "doItForMe": [{ "ui": "tool", "value": "zone" }, { "fn": "addZone" }]
+    },
+    {
+      "id": "world.graph",
+      "title": "The World graph",
+      "body": "A game can have up to 16 maps. The World graph shows them as boxes with their spawn points as ports. + Add map makes a new one; Generate its terrain in the Map tab.",
+      "task": "Open the World graph and add a second map.",
+      "target": "[data-tour=\"ws-world-graph\"]",
+      "placement": "bottom",
+      "check": { "kind": "command", "type": "map.create" },
+      "doItForMe": [{ "ui": "workspace", "value": "World graph" }, { "fn": "addMap" }]
+    },
+    {
+      "id": "world.gate",
+      "title": "Gates",
+      "body": "Gates connect maps: drag from a spawn's port on one map to a spawn's port on another. In Play, walking onto a gate's spawn travels to the other end. Click a gate to make it one-way, reverse it, or give it On arrive actions (like playing a cinematic).",
+      "task": "Connect the two maps with a gate (drag between spawn ports).",
+      "target": "section[aria-label=\"World graph\"]",
+      "placement": "top",
+      "workspace": "World graph",
+      "check": { "kind": "command", "type": "gate.connect" },
+      "doItForMe": [{ "fn": "connectGate" }]
+    },
+    {
+      "id": "world.validate",
+      "title": "Check the routes",
+      "body": "World › Validate routes checks that every map can be reached from the start map and that every spawn stands on open ground. Issues appear in the dock's Problems tab with a button to jump to them.",
+      "task": "Run World › Validate routes.",
+      "target": "[data-tour=\"menu-world\"]",
+      "placement": "bottom",
+      "check": { "kind": "state", "test": "dockTab", "args": "problems" },
+      "doItForMe": [{ "action": "world.validate" }]
+    }
+  ]
+}
