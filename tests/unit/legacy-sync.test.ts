@@ -86,3 +86,38 @@ describe('legacySyncCommands on an editor-made project', async () => {
     });
   });
 });
+
+describe('legacySyncCommands keeps asset instances', async () => {
+  const { newProjectFiles } = await import('../../src/core/project/new-project');
+  const { toLegacy } = await import('../../src/core/bridge/legacy-bridge');
+  const { assetInstances } = await import('../../src/core/assets/instances');
+  it('an untouched round trip through v68 changes nothing, and an edited instance becomes loose bricks', () => {
+    const store = new ProjectStore(
+      newProjectFiles({ name: 'A', generate: { environments: ['city'], size: 16, seed: 5 } }),
+    );
+    const bus = registerAll(new CommandBus(store));
+    const mapId = store.manifest.entry.map;
+    const before = assetInstances(store, mapId);
+    expect(before.length).toBeGreaterThan(3);
+    const app = bootLegacy();
+    loadSave(app, toLegacy(store));
+    // v68 adds its hero and neighbors on first load; the bricks and asset instances come back unchanged
+    const c0 = legacySyncCommands(store, JSON.stringify(app.read()));
+    for (const c of c0) expect((c.payload as { path: string }).path).not.toMatch(/chunks|assets/);
+    expect(bus.execute(c0, { source: 'legacy' }).ok).toBe(true);
+    expect(assetInstances(store, mapId)).toEqual(before);
+    expect(legacySyncCommands(store, JSON.stringify(app.read()))).toEqual([]);
+    // turn the top brick of the first instance half way round in v68 (same footprint, so always allowed)
+    type P = { id: number; group?: string; x: number; y: number; z: number; turn: number };
+    const save = app.read() as { pieces: P[] };
+    const g = before[0]!.group!;
+    const top = save.pieces.filter((p) => p.group === g).sort((a, b) => b.y - a.y)[0]!;
+    app.tools.get('move_brick')!.execute({ id: top.id, x: top.x, y: top.y, z: top.z, turn: (top.turn + 2) % 4 });
+    const cmds = legacySyncCommands(store, JSON.stringify(app.read()));
+    expect(bus.execute(cmds, { source: 'legacy' }).ok).toBe(true);
+    const after = assetInstances(store, mapId);
+    expect(after.length).toBe(before.length - 1);
+    expect(after.some((i) => i.group === g)).toBe(false);
+    expect(store.list('assets/').length).toBeGreaterThan(0);
+  });
+});

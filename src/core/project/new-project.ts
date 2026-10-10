@@ -1,3 +1,4 @@
+import { generatedInstanceId, instancify } from '../assets/instancify';
 import { encodeChunks } from '../bricks/codec';
 import { type Id, newId } from '../ids';
 import { indexFiles } from '../migrate';
@@ -32,17 +33,24 @@ export function newProjectFiles(o: NewProjectOptions): Map<string, unknown> {
     spawns: [{ id: spawnId, name: 'Arrival', pos: [0, 0.4, 0], yaw: Math.PI }],
     zones: [],
   };
+  let items: Instances['items'] = [];
   if (o.generate) {
     const g = generateMap(o.generate);
     map = { ...map, generator: g.generator, size: g.size, sky: g.sky, weather: g.weather };
-    for (const [key, chunk] of encodeChunks(g.bricks)) {
+    const split = instancify(g.bricks);
+    for (const a of split.assets) files.set(paths.asset(a.id), a);
+    items = split.instances.map((i) => ({
+      ...i,
+      id: generatedInstanceId(mapId, i.idBase),
+    }));
+    for (const [key, chunk] of encodeChunks(split.plain)) {
       const [cx, cz] = key.split('_').map(Number) as [number, number];
       files.set(paths.chunk(mapId, cx, cz), chunk);
     }
   }
   files.set(paths.map(mapId), map);
   files.set(paths.state(mapId), { broken: [], player: null } satisfies MapState);
-  files.set(paths.instances(mapId), { npcsSaved: false, items: [] } satisfies Instances);
+  files.set(paths.instances(mapId), { npcsSaved: false, items } satisfies Instances);
   files.set(paths.gates, { gates: [], mapOrder: [mapId] } satisfies Gates);
   files.set(paths.settings, { quality: 'auto', legacy: { characters: false } } satisfies Settings);
   const project: Project = {

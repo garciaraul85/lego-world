@@ -1,7 +1,9 @@
+import { generatedInstanceId, instancify } from '../../assets/instancify';
 import { encodeChunks } from '../../bricks/codec';
 import { type Id, newId } from '../../ids';
 import type { ProjectStore } from '../../project/store';
 import {
+  type Asset,
   BIOMES,
   type Gates,
   type Instances,
@@ -54,8 +56,12 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
 /** Replaces every brick of a map with the v68 generator's output. Undo restores the old map. */
 function writeGenerated(store: ProjectStore, mapId: string, config: GenerateConfig) {
   const g = generateMap(config);
+  // P3.2: houses, trees, cars... become asset instances; terrain and roads stay chunk bricks.
+  const existing = store.list('assets/').map((p) => store.get<Asset>(p)!);
+  const split = instancify(g.bricks, { existing });
+  for (const a of split.assets) store.put(paths.asset(a.id), a);
   for (const p of store.list(paths.chunkDir(mapId))) store.remove(p);
-  for (const [key, chunk] of encodeChunks(g.bricks)) {
+  for (const [key, chunk] of encodeChunks(split.plain)) {
     const [cx, cz] = key.split('_').map(Number) as [number, number];
     store.put(paths.chunk(mapId, cx, cz), chunk);
   }
@@ -68,8 +74,21 @@ function writeGenerated(store: ProjectStore, mapId: string, config: GenerateConf
   for (const i of inst.items) if (i.kind === 'npc') store.remove(paths.character(i.character));
   store.put(paths.instances(mapId), {
     npcsSaved: false,
-    items: inst.items.filter((i) => i.kind !== 'npc'),
+    items: split.instances.map((i) => ({ ...i, id: generatedInstanceId(mapId, i.idBase) })),
   } satisfies Instances);
+  pruneGeneratedAssets(store);
+}
+
+/** Generated assets no map uses any more are removed (built-in and user assets always stay). */
+export function pruneGeneratedAssets(store: ProjectStore) {
+  const used = new Set<string>();
+  for (const p of store.list('maps/'))
+    if (p.endsWith('/instances.json'))
+      for (const i of store.get<Instances>(p)!.items) if (i.kind === 'asset') used.add(i.asset);
+  for (const p of store.list('assets/')) {
+    const a = store.get<Asset>(p)!;
+    if (a.origin === 'generated' && !used.has(a.id)) store.remove(p);
+  }
 }
 
 function configError(c: GenerateConfig): string | null {

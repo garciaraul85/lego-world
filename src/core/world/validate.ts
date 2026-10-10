@@ -1,3 +1,4 @@
+import { instanceBricks } from '../assets/instances';
 import type { Brick } from '../bricks/codec';
 import { footprint } from '../bricks/inspect';
 import { MapBricks } from '../bricks/map-bricks';
@@ -68,7 +69,7 @@ export function validateWorld(store: ProjectStore): WorldIssue[] {
       });
     else if (m.id !== entry && !reachable(gates, m.id).has(entry))
       out.push({ level: 'info', code: 'noReturn', message: `${m.name} has no route back to the start map`, map: m.id });
-    const bricks = new MapBricks(store, m.id).all();
+    const bricks = [...new MapBricks(store, m.id).all(), ...instanceBricks(store, m.id)];
     for (const s of m.spawns) {
       if (spawnBlocked(bricks, s.pos))
         out.push({
