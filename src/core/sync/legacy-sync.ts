@@ -1,8 +1,9 @@
+import { legacyIdResolver } from '../bridge/legacy-bridge';
 import type { Command } from '../commands/types';
 import type { Id } from '../ids';
 import { migrate } from '../migrate';
 import type { ProjectStore } from '../project/store';
-import { type Project, paths } from '../schema';
+import { fileKindOf, type MapDoc, type Project, paths } from '../schema';
 
 /**
  * Turns a fresh v68 save into the file commands that make the store equal to it.
@@ -15,12 +16,18 @@ export function legacySyncCommands(store: ProjectStore, legacyText: string): Com
     projectId: store.manifest.id as Id<'project'>,
     name: store.manifest.name,
     now: store.manifest.modified,
+    ids: legacyIdResolver(store),
   });
   const cmds: Command[] = [];
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-  for (const [path, value] of files) {
+  for (const [path, raw] of files) {
     if (path === paths.project) continue;
-    if (!same(store.get(path), value)) cmds.push({ type: 'file.put', payload: { path, data: value } });
+    let value = raw;
+    // map.json fields v68 does not know about (music, ambience, zones) stay as they are in the project.
+    const cur = store.get<MapDoc>(path);
+    if (cur && fileKindOf(path) === 'map')
+      value = { ...(raw as MapDoc), music: cur.music, ambience: cur.ambience, zones: cur.zones };
+    if (!same(cur, value)) cmds.push({ type: 'file.put', payload: { path, data: value } });
   }
   for (const path of store.keys()) {
     if (path !== paths.project && !path.startsWith('.editor/') && !files.has(path))

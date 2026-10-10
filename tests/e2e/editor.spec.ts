@@ -113,3 +113,38 @@ test('compact layout fits a phone screen without horizontal scrolling', async ({
   await page.getByRole('button', { name: 'Outliner' }).click();
   await expect(page.getByRole('tree')).toBeVisible();
 });
+
+test('v68 studio edits come back into the project as one undo step', async ({ page }) => {
+  test.setTimeout(300_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  const before = await count(page);
+  await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'v68 studio' }).click();
+  const frame = page.frameLocator('iframe[title="LEGO World v68"]');
+  await expect(frame.locator('#bb-canvas')).toBeVisible({ timeout: 60_000 });
+  await page.waitForFunction(
+    () =>
+      !!(document.querySelector('iframe') as HTMLIFrameElement | null)?.contentWindow &&
+      !!(
+        document.querySelector('iframe')!.contentWindow as unknown as { __bwTools?: Map<string, unknown> }
+      ).__bwTools?.has('generate_lego_world'),
+  );
+  await page.evaluate(() => {
+    const tools = (
+      document.querySelector('iframe')!.contentWindow as unknown as {
+        __bwTools: Map<string, { execute: (i: unknown) => unknown }>;
+      }
+    ).__bwTools;
+    tools
+      .get('generate_lego_world')!
+      .execute({ biomes: ['desert'], time: 'evening', rain: false, snow: false, snowing: false, size: 16, seed: 5 });
+  });
+  await page.getByRole('button', { name: 'Done — bring changes back' }).click();
+  await expect(page.locator('iframe')).toHaveCount(0);
+  await expect.poll(() => count(page)).not.toBe(before);
+  const last = await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.bus.history().at(-1));
+  expect(last).toMatchObject({ label: 'Edit in LEGO World v68', source: 'legacy' });
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect.poll(() => count(page)).toBe(before);
+  expect(errors).toEqual([]);
+});

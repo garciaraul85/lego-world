@@ -93,7 +93,8 @@ export class SceneModel {
 
   private loadChunk(path: string) {
     const key = this.keyOf(path);
-    for (const b of this.chunks.get(key) ?? []) this.byId.delete(b.id);
+    // A brick can move between chunks in one change: only drop ids this chunk still owns.
+    for (const b of this.chunks.get(key) ?? []) if (this.byId.get(b.id)?.key === key) this.byId.delete(b.id);
     const c = this.store.get<Chunk>(path);
     if (!c) {
       this.chunks.delete(key);
@@ -126,8 +127,15 @@ export class SceneModel {
           this.setupPavement();
           full = true;
         }
-      } else if (p.startsWith(paths.chunkDir(this.mapId))) keys.push(this.loadChunk(p));
+      } else if (p.startsWith(paths.chunkDir(this.mapId))) keys.push(p);
     }
+    // Two passes: forget every changed chunk's bricks, then load them, so moved bricks keep their entry.
+    for (const p of keys) {
+      const key = this.keyOf(p);
+      for (const b of this.chunks.get(key) ?? []) if (this.byId.get(b.id)?.key === key) this.byId.delete(b.id);
+      this.chunks.delete(key);
+    }
+    for (let i = 0; i < keys.length; i++) keys[i] = this.loadChunk(keys[i]!);
     if (keys.length || full) {
       this.reindexGroups();
       this.revision++;

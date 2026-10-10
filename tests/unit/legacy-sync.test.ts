@@ -60,3 +60,29 @@ describe('legacySyncCommands', () => {
     expect(store.manifest.entry.map).toBe(`map_${other.id.toString(36).padStart(10, '0')}`);
   });
 });
+
+describe('legacySyncCommands on an editor-made project', async () => {
+  const { newProjectFiles } = await import('../../src/core/project/new-project');
+  const { toLegacy } = await import('../../src/core/bridge/legacy-bridge');
+  it('keeps the project’s own map, spawn and entry ids when v68 regenerates the world', () => {
+    const store = new ProjectStore(
+      newProjectFiles({ name: 'Ed', generate: { environments: ['forest'], size: 16, seed: 3 } }),
+    );
+    const bus = registerAll(new CommandBus(store));
+    const mapId = store.manifest.entry.map;
+    const spawnId = store.manifest.entry.spawn;
+    const app = bootLegacy();
+    loadSave(app, toLegacy(store));
+    app.tools
+      .get('generate_lego_world')!
+      .execute({ biomes: ['desert'], time: 'night', rain: false, snow: false, snowing: false, size: 16, seed: 9 });
+    const cmds = legacySyncCommands(store, JSON.stringify(app.read()));
+    expect(bus.execute(cmds, { source: 'legacy' }).ok).toBe(true);
+    expect(store.manifest.entry.map).toBe(mapId);
+    expect(store.list('maps/').every((p) => p.startsWith(`maps/${mapId}/`))).toBe(true);
+    expect(store.get<{ sky: { time: string }; spawns: { id: string }[] }>(`maps/${mapId}/map.json`)).toMatchObject({
+      sky: { time: 'night' },
+      spawns: [{ id: spawnId }],
+    });
+  });
+});

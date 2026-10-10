@@ -30,6 +30,10 @@ export const ids = {
   npcInstance: (m: number, n: number) => legacyId('instance', m * 100_000 + n),
 };
 
+export type IdResolver = typeof ids;
+/** Resolver in effect during a v4to5 call (lets a sync keep the project's existing ids). */
+let R: IdResolver = ids;
+
 export const pieceType = (p: Pick<LegacyPiece, 'kind' | 'rows' | 'cols'>) => `${p.kind}${p.rows}x${p.cols}`;
 
 /** Splits pieces into 32x32-stud chunk files. Bricks inside a chunk keep id order. */
@@ -46,7 +50,7 @@ export function piecesToChunks(pieces: LegacyPiece[]): Chunk[] {
 
 function spawnsOf(mapLegacy: number, entry: LegacyMapEntry | undefined): Spawn[] {
   return (entry?.spawns ?? []).map((s) => ({
-    id: ids.spawn(mapLegacy, s.id),
+    id: R.spawn(mapLegacy, s.id),
     name: s.name,
     pos: [s.x, s.y, s.z],
     yaw: s.heading,
@@ -82,7 +86,7 @@ function mapDoc(mapLegacy: number, name: string, entry: LegacyMapEntry | undefin
   const extraBuild = Object.fromEntries(Object.entries(build).filter(([k]) => !BUILD_KEYS.has(k)));
   if (Object.keys(extraBuild).length) legacy.build = extraBuild;
   return {
-    id: ids.map(mapLegacy),
+    id: R.map(mapLegacy),
     name,
     size: w?.width && w.depth ? { w: w.width, d: w.depth } : null,
     sky: { time: env.time as MapDoc['sky']['time'] },
@@ -119,7 +123,7 @@ function mapFiles(
   build: LegacyBuild,
   problems: Problem[],
 ) {
-  const id = ids.map(mapLegacy);
+  const id = R.map(mapLegacy);
   const doc = mapDoc(mapLegacy, name, entry, build);
   files.set(paths.map(id), doc);
   const ordered = build.pieces.every((p, i, a) => i === 0 || (p.id ?? 0) > (a[i - 1]?.id ?? 0));
@@ -145,7 +149,7 @@ function mapFiles(
   const instances: Instances = { npcsSaved: build.npcs !== undefined, items: [] };
   for (const n of build.npcs ?? []) {
     const chr: Character = {
-      id: ids.npcCharacter(mapLegacy, n.id),
+      id: R.npcCharacter(mapLegacy, n.id),
       name: String(n.profile?.name ?? `Neighbor ${n.id}`),
       role: 'npc',
       profile: n.profile,
@@ -153,7 +157,7 @@ function mapFiles(
     };
     files.set(paths.character(chr.id), chr);
     instances.items.push({
-      id: ids.npcInstance(mapLegacy, n.id),
+      id: R.npcInstance(mapLegacy, n.id),
       kind: 'npc',
       character: chr.id,
       legacyId: n.id,
@@ -186,10 +190,19 @@ function activeBuildOf(save: LegacySave): LegacyBuild {
   return Object.fromEntries(Object.entries(save).filter(([k]) => BUILD_KEYS.has(k))) as LegacyBuild;
 }
 
-export type V5Options = { projectId: Id<'project'>; name: string; now: string };
+export type V5Options = { projectId: Id<'project'>; name: string; now: string; ids?: Partial<IdResolver> };
 
 /** v4 legacy save -> map of v5 project files (without project.json's `files` index; the store fills it). */
 export function v4to5(save: LegacySave, opts: V5Options, problems: Problem[]): Map<string, unknown> {
+  R = { ...ids, ...opts.ids };
+  try {
+    return convert(save, opts, problems);
+  } finally {
+    R = ids;
+  }
+}
+
+function convert(save: LegacySave, opts: V5Options, problems: Problem[]): Map<string, unknown> {
   const files = new Map<string, unknown>();
   const settingsLegacy: Record<string, unknown> = {};
   const net = save.maps;
@@ -215,9 +228,9 @@ export function v4to5(save: LegacySave, opts: V5Options, problems: Problem[]): M
   }
   const gates: Gates = {
     gates: (net?.links ?? []).map((l) => ({
-      id: ids.gate(l.id),
-      from: { map: ids.map(l.from.mapId), spawn: ids.spawn(l.from.mapId, l.from.spawnId) },
-      to: { map: ids.map(l.to.mapId), spawn: ids.spawn(l.to.mapId, l.to.spawnId) },
+      id: R.gate(l.id),
+      from: { map: R.map(l.from.mapId), spawn: R.spawn(l.from.mapId, l.from.spawnId) },
+      to: { map: R.map(l.to.mapId), spawn: R.spawn(l.to.mapId, l.to.spawnId) },
       twoWay: l.twoWay,
       legacyId: l.id,
     })),
@@ -229,7 +242,7 @@ export function v4to5(save: LegacySave, opts: V5Options, problems: Problem[]): M
   if (save.characters) {
     for (const c of save.characters.items ?? []) {
       const chr: Character = {
-        id: ids.hero(c.id),
+        id: R.hero(c.id),
         name: String(c.profile?.name ?? `Hero ${c.id}`),
         role: 'hero',
         profile: c.profile,
@@ -238,7 +251,7 @@ export function v4to5(save: LegacySave, opts: V5Options, problems: Problem[]): M
       files.set(paths.character(chr.id), chr);
     }
     const active = save.characters.activeId ?? save.characters.items?.[0]?.id;
-    if (active !== undefined) hero = ids.hero(active);
+    if (active !== undefined) hero = R.hero(active);
     settingsLegacy.activeCharacterId = save.characters.activeId;
   } else settingsLegacy.characters = false;
 
@@ -255,7 +268,7 @@ export function v4to5(save: LegacySave, opts: V5Options, problems: Problem[]): M
   const settings: Settings = { quality: 'auto', legacy: settingsLegacy };
   files.set(paths.settings, settings);
 
-  const activeMap = ids.map(activeLegacy);
+  const activeMap = R.map(activeLegacy);
   const firstSpawn = (files.get(paths.map(activeMap)) as MapDoc | undefined)?.spawns[0]?.id ?? null;
   files.set(paths.project, {
     format: 'brickworlds-project',

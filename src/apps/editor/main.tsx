@@ -17,6 +17,7 @@ import { ProjectStore } from '../../core/project/store';
 import { App, type AppHost } from '../../editor/App';
 import { EditorState } from '../../editor/state';
 import '../../editor/theme.css';
+import { saveFile } from '../../platform/downloads';
 import { IdbBackend } from '../../platform/idb-backend';
 
 const CURRENT = 'brickworlds.editor.current';
@@ -127,15 +128,13 @@ async function boot() {
       reopen(s.manifest.id);
     },
     download(fileName, data) {
-      const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-      ed.notify(`Downloading ${fileName}. If nothing happens, this page can’t download files here.`);
+      saveFile(fileName, data)
+        .then((r) =>
+          ed.notify(
+            r === 'declined' ? 'Save cancelled.' : r === 'saved' ? `Saved ${fileName}.` : `Downloading ${fileName}.`,
+          ),
+        )
+        .catch((e) => ed.notify(e instanceof Error ? e.message : String(e), true));
     },
   };
   (window as unknown as { __editor: EditorState }).__editor = ed;

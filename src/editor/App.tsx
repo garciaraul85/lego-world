@@ -184,7 +184,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       <input
         ref={fileRef}
         type="file"
-        accept=".bwproj,.json,application/json,application/zip"
+        accept=".bwproj,.zip,.json,application/json,application/zip"
         hidden
         onChange={async (e) => {
           const input = e.target as HTMLInputElement;
