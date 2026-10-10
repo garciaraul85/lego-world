@@ -61,3 +61,15 @@ export function logicReferenceMarkdown(catalog: readonly NodeDef[] = CATALOG): s
   }
   return out.join('\n');
 }
+
+/** A compact cheat sheet of the code dialect for the AI builder's instructions (one line per node). */
+export function logicCheatSheet(catalog: readonly NodeDef[] = CATALOG): string {
+  return catalog
+    .filter((d) => d.kind !== 'note')
+    .map((d) => {
+      const args = d.args?.length ? ` [settings: ${d.args.map((a) => `${a.name}:${a.kind}`).join(', ')}]` : '';
+      const outs = d.outputs.filter((p) => p.type !== 'exec').map((p) => p.name);
+      return `${codeForm(d)} — ${d.title}: ${d.doc}${args}${outs.length ? ` → ${outs.join(', ')}` : ''}`;
+    })
+    .join('\n');
+}
