@@ -55,6 +55,8 @@ export function TutorialRunner({
   const [note, setNote] = useState<string | null>(null);
   const [min, setMin] = useState(false);
   const busy = useRef(false);
+  /** true while Show me or Do it for me is still working (buttons wait for it) */
+  const [working, setWorking] = useState(false);
   const step = STEPS[index]!;
   const rect = useTargetRect(step.target);
   const doneRef = useRef(false);
@@ -105,6 +107,7 @@ export function TutorialRunner({
   async function demo() {
     if (busy.current) return;
     busy.current = true;
+    setWorking(true);
     setPhase('demo');
     setNote('Watch: this is how it is done…');
     const snap = snapshot(c);
@@ -141,6 +144,7 @@ export function TutorialRunner({
       restore(c, snap);
       setGhost(null);
       busy.current = false;
+      setWorking(false);
       setNote(`Your turn: ${step.task}`);
       setPhase('try');
     }
@@ -149,6 +153,7 @@ export function TutorialRunner({
   async function doIt() {
     if (busy.current) return;
     busy.current = true;
+    setWorking(true);
     const at = indexRef.current;
     try {
       for (const d of step.doItForMe) {
@@ -160,6 +165,7 @@ export function TutorialRunner({
       setNote(`Could not do it automatically: ${e instanceof Error ? e.message : e}`);
     } finally {
       busy.current = false;
+      setWorking(false);
     }
   }
 
@@ -215,12 +221,12 @@ export function TutorialRunner({
                 ◀ Back
               </button>
               {step.doItForMe.length > 0 && (
-                <button type="button" class="btn" disabled={phase !== 'try'} onClick={() => void demo()}>
+                <button type="button" class="btn" disabled={phase !== 'try' || working} onClick={() => void demo()}>
                   👀 Show me
                 </button>
               )}
               {step.doItForMe.length > 0 && (
-                <button type="button" class="btn" disabled={phase !== 'try'} onClick={() => void doIt()}>
+                <button type="button" class="btn" disabled={phase !== 'try' || working} onClick={() => void doIt()}>
                   Do it for me
                 </button>
               )}

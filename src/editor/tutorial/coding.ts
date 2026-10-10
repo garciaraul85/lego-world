@@ -207,6 +207,8 @@ export const CODING_TESTS: Record<string, (ed: EditorState, args: unknown) => bo
   },
   /** the Code view shows a script error */
   codeError: () => !!document.querySelector('.lg-code-status.err'),
+  /** the error is gone and the code says what it should */
+  codeFixed: (ed, a) => !document.querySelector('.lg-code-status.err') && CODING_TESTS.codeHas!(ed, a),
   courseReady: (ed) => {
     const t = courseTokens(ed);
     return (

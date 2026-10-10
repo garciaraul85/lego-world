@@ -33,7 +33,7 @@
       "workspace": "Logic",
       "check": {
         "kind": "state",
-        "test": "codeHas",
+        "test": "codeFixed",
         "args": "vars\\.coins = 10;"
       },
       "doItForMe": [

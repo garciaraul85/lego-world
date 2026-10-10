@@ -46,7 +46,7 @@ describe('coding course (P8)', () => {
       expect('error' in r ? r.error : null, `${s.id}\n${code}`).toBeNull();
       if ('error' in r) continue;
       const printed = printGraph(r).code;
-      if (s.check.kind === 'state' && s.check.test === 'codeHas') {
+      if (s.check.kind === 'state' && (s.check.test === 'codeHas' || s.check.test === 'codeFixed')) {
         const res = Array.isArray(s.check.args) ? s.check.args : [s.check.args];
         for (const re of res) expect(printed, `${s.id}: ${re}`).toMatch(new RegExp(fillCode(String(re), TOKENS), 'm'));
       }
