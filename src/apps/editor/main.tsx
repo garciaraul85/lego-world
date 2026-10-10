@@ -7,6 +7,7 @@
 import { render } from 'preact';
 import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { CommandBus, registerAll } from '../../core/commands';
+import { allCommands } from '../../core/gamegen/generateGame';
 import { serializeFile } from '../../core/json/stable';
 import { LEGACY_STORAGE_KEY } from '../../core/legacy/constants';
 import { migrate } from '../../core/migrate';
@@ -19,6 +20,7 @@ import { newProjectFiles } from '../../core/project/new-project';
 import { ProjectStore } from '../../core/project/store';
 import { App, type AppHost } from '../../editor/App';
 import { placeCommands } from '../../editor/assets';
+import { hubAtStartup, readIntent, writeIntent } from '../../editor/start/intent';
 import { EditorState } from '../../editor/state';
 import '../../editor/theme.css';
 import { saveFile } from '../../platform/downloads';
@@ -51,6 +53,7 @@ async function boot() {
   let problems: Problem[] = [];
   let note = '';
   const current = ls.get(CURRENT);
+  const firstRun = !current;
   try {
     if (current && (await backend.readFile(current, 'project.json'))) {
       const r = await loadProject(backend, current);
@@ -103,9 +106,44 @@ async function boot() {
 
   const reopen = (id: string) => {
     ls.set(CURRENT, id);
-    location.reload();
+    // ?hub only opens the Start hub once
+    const u = new URL(location.href);
+    u.searchParams.delete('hub');
+    location.replace(u.toString());
   };
   const host: AppHost = {
+    showHub:
+      !readIntent(store.manifest.id) &&
+      (new URLSearchParams(location.search).has('hub') ||
+        (!new URLSearchParams(location.search).has('nohub') && firstRun && hubAtStartup())),
+    async startGame(game, then) {
+      const s = new ProjectStore(game.files);
+      if (await backend.readFile(s.manifest.id, 'project.json')) {
+        const { newId } = await import('../../core/ids');
+        s.put('project.json', { ...s.manifest, id: newId('project') });
+      }
+      if (then !== 'build') {
+        const b = registerAll(new CommandBus(s));
+        const r = b.execute(allCommands(game), { source: 'generator', label: `Generate ${game.name}` });
+        if (!r.ok) throw new Error(r.error);
+      }
+      await saveAll(backend, s, serializeFile);
+      const project = s.manifest.id;
+      writeIntent(
+        then === 'play'
+          ? { kind: 'play', project }
+          : then === 'build'
+            ? { kind: 'build', project, seed: game.seed, options: game.options, step: 0 }
+            : null,
+      );
+      reopen(project);
+    },
+    async startTutorial(mode) {
+      const s = new ProjectStore(newProjectFiles({ name: 'Tutorial sandbox', mapName: 'Practice map' }));
+      await saveAll(backend, s, serializeFile);
+      writeIntent({ kind: 'tutorial', project: s.manifest.id, mode });
+      reopen(s.manifest.id);
+    },
     async newProject() {
       const files = newProjectFiles({
         name: 'New brick game',

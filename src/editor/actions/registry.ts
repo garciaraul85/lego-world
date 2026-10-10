@@ -25,6 +25,10 @@ export interface EditorUi {
   workspace(id: string): void;
   showShortcuts(): void;
   about(): void;
+  /** P7: the Start hub, the guided tutorial and the help guide */
+  startHub(): void;
+  tutorial(): void;
+  help(page?: string): void;
 }
 
 export type EditorAction = {
@@ -87,6 +91,7 @@ const tool =
 
 export const ACTIONS: EditorAction[] = [
   // File
+  { id: 'file.hub', label: 'Start hub (make a game in one click)…', key: 'Ctrl Alt H', run: ({ ui }) => ui.startHub() },
   { id: 'file.new', label: 'New project', key: 'Ctrl Alt N', run: ({ ui }) => ui.newProject() },
   { id: 'file.open', label: 'Open project…', key: 'Ctrl O', run: ({ ui }) => ui.openProjectDialog() },
   { id: 'file.save', label: 'Save now', key: 'Ctrl S', run: ({ ed }) => void ed.autosave.flush() },
@@ -289,7 +294,9 @@ export const ACTIONS: EditorAction[] = [
   // Help
   { id: 'help.shortcuts', label: 'Keyboard shortcuts', key: '?', run: ({ ui }) => ui.showShortcuts() },
   { id: 'help.about', label: 'About Brick Worlds Engine', run: ({ ui }) => ui.about() },
-  { id: 'help.tutorial', label: 'Guided tutorial', run: () => {}, later: 'Phase 7' },
+  { id: 'help.tutorial', label: 'Guided tutorial (every feature, step by step)', run: ({ ui }) => ui.tutorial() },
+  { id: 'help.guide', label: 'Help guide', key: 'F1', run: ({ ui }) => ui.help() },
+  { id: 'help.build', label: 'Watch a game being built…', run: ({ ui }) => ui.startHub() },
   { id: 'help.ai', label: 'Ask the AI builder', run: () => {}, later: 'Phase 8' },
 ];
 
@@ -297,6 +304,7 @@ export const action = (id: string) => ACTIONS.find((a) => a.id === id)!;
 
 export const MENUS: Record<string, (string | '-')[]> = {
   File: [
+    'file.hub',
     'file.new',
     'file.open',
     'file.save',
@@ -335,7 +343,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'view.frame',
     'view.top',
   ],
-  Help: ['help.shortcuts', 'help.tutorial', 'help.ai', '-', 'help.about'],
+  Help: ['help.guide', 'help.tutorial', 'help.build', 'help.shortcuts', 'help.ai', '-', 'help.about'],
 };
 
 /** Normalizes a keyboard event to the `key` notation used above. */

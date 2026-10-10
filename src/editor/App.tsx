@@ -21,6 +21,9 @@ import {
   WORKSPACES,
   WorkspaceTabs,
 } from './shell/Shell';
+import { BuildViewer } from './start/BuildViewer';
+import { readIntent, writeIntent } from './start/intent';
+import { type HubHost, StartHub } from './start/StartHub';
 import type { EditorState } from './state';
 import type { ViewportApi } from './viewport/Viewport';
 import { ViewportPanel } from './viewport/Views';
@@ -33,7 +36,9 @@ import { ScreensWorkspace } from './workspaces/screens/ScreensWorkspace';
 
 const STUDIOS = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics']);
 
-export type AppHost = {
+export type AppHost = HubHost & {
+  /** show the Start hub when the editor opens */
+  showHub: boolean;
   newProject(): Promise<void>;
   openProject(id: string): void;
   listProjects(): Promise<ProjectMeta[]>;
@@ -44,6 +49,16 @@ export type AppHost = {
 export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const vp = useRef<ViewportApi | null>(null);
   const [modal, setModal] = useState<null | 'shortcuts' | 'open' | 'about' | 'new'>(null);
+  const [hub, setHub] = useState(host.showHub);
+  const [intent, setIntent] = useState(() => readIntent(ed.store.manifest.id));
+  const [help, setHelp] = useState<string | null>(null);
+  // Generate & play: straight into Play from the first screen (P7.2)
+  useEffect(() => {
+    if (intent?.kind !== 'play') return;
+    writeIntent(null);
+    setIntent(null);
+    setTimeout(() => ui.play('engine', { fromEntry: true }), 50);
+  }, []);
   const [play, setPlay] = useState<null | 'play' | 'edit'>(null);
   const [engine, setEngine] = useState<(PlayStart & { key: number }) | null>(null);
   const [workspace, setWorkspace] = useState('Scene');
@@ -111,6 +126,11 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         setWorkspace(w);
       },
       showShortcuts: () => setModal('shortcuts'),
+      startHub: () => setHub(true),
+      tutorial: () => {
+        void ed.autosave.flush().then(() => host.startTutorial('show'));
+      },
+      help: (page) => setHelp(page ?? 'start'),
       about: () => setModal('about'),
     }),
     [ed],
@@ -250,6 +270,18 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         </Modal>
       )}
       {play && <PlayLayer ed={ed} mode={play} onClose={() => setPlay(null)} />}
+      {intent?.kind === 'build' && !engine && <BuildViewer c={c} intent={intent} onClose={() => setIntent(null)} />}
+      {hub && (
+        <StartHub
+          ed={ed}
+          host={host}
+          onClose={() => setHub(false)}
+          onHelp={() => {
+            setHub(false);
+            setHelp('build-a-game');
+          }}
+        />
+      )}
       <input
         ref={fileRef}
         type="file"
