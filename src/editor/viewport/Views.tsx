@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { footprint } from '../../core/bricks/inspect';
-import { type Gates, paths } from '../../core/schema';
 import type { ActionCtx } from '../actions/registry';
 import type { ViewTab } from '../state';
 import { Viewport, type ViewportApi } from './Viewport';
@@ -23,6 +22,7 @@ export function ViewportPanel({ c, onApi }: { c: ActionCtx; onApi: (a: ViewportA
             type="button"
             class={`tab ${view === id ? 'on' : ''}`}
             onClick={() => {
+              if (id === 'graph') return c.ui.workspace('World graph');
               ed.view.value = id;
               ed.persistUi();
             }}
@@ -41,7 +41,7 @@ export function ViewportPanel({ c, onApi }: { c: ActionCtx; onApi: (a: ViewportA
           )}
         </div>
       </div>
-      {view === 'scene' && <Viewport ed={ed} mode="scene" api={onApi} />}
+      {(view === 'scene' || view === 'graph') && <Viewport ed={ed} mode="scene" api={onApi} />}
       {view === 'game' && (
         <div class="viewport-wrap">
           <Viewport ed={ed} mode="game" />
@@ -51,100 +51,14 @@ export function ViewportPanel({ c, onApi }: { c: ActionCtx; onApi: (a: ViewportA
               {m?.spawns.find((s) => s.id === ed.store.manifest.entry.spawn)?.name ?? m?.spawns[0]?.name ?? 'spawn'}
             </strong>{' '}
             · not running
-            <button type="button" class="btn go" style={{ minHeight: '26px' }} onClick={() => c.ui.play('play')}>
+            <button type="button" class="btn go" style={{ minHeight: '26px' }} onClick={() => c.ui.play('engine')}>
               Play
             </button>
           </div>
         </div>
       )}
-      {view === 'graph' && <WorldGraphView c={c} />}
       {view === 'nav' && <WalkableView c={c} />}
     </section>
-  );
-}
-
-function WorldGraphView({ c }: { c: ActionCtx }) {
-  const { ed } = c;
-  ed.revision.value;
-  const maps = ed.maps.value;
-  const gates = ed.store.get<Gates>(paths.gates)?.gates ?? [];
-  const cols = Math.ceil(Math.sqrt(maps.length));
-  const pos = new Map(maps.map((m, i) => [m.id, { x: 40 + (i % cols) * 230, y: 40 + Math.floor(i / cols) * 150 }]));
-  const W = 40 + cols * 230;
-  const H = 40 + Math.ceil(maps.length / cols) * 150;
-  return (
-    <div class="viewport-wrap">
-      <div class="svgview">
-        <svg
-          width="100%"
-          height="100%"
-          viewBox={`0 0 ${W} ${H}`}
-          preserveAspectRatio="xMidYMid meet"
-          role="img"
-          aria-label="Maps and gates"
-        >
-          {gates.map((g) => {
-            const a = pos.get(g.from.map);
-            const b = pos.get(g.to.map);
-            if (!a || !b) return null;
-            return (
-              <path
-                d={`M${a.x + 160} ${a.y + 50} C${a.x + 200} ${a.y + 50} ${b.x - 40} ${b.y + 50} ${b.x} ${b.y + 50}`}
-                fill="none"
-                stroke={g.twoWay ? '#4fd1c5' : '#6aa7ff'}
-                stroke-width="2.5"
-              />
-            );
-          })}
-          {maps.map((m) => {
-            const p = pos.get(m.id)!;
-            const here = m.id === ed.mapId.value;
-            return (
-              <g
-                style={{ cursor: 'pointer' }}
-                role="button"
-                tabIndex={0}
-                aria-label={`Open ${m.name}`}
-                onClick={() => ed.openMap(m.id)}
-                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && ed.openMap(m.id)}
-              >
-                <rect
-                  x={p.x}
-                  y={p.y}
-                  width="160"
-                  height="100"
-                  rx="8"
-                  fill="#1b2028"
-                  stroke={here ? '#f2b632' : '#303844'}
-                  stroke-width="2"
-                />
-                <text
-                  x={p.x + 14}
-                  y={p.y + 26}
-                  fill="#e6eaf0"
-                  font-weight="600"
-                  font-size="13"
-                  font-family="IBM Plex Sans, sans-serif"
-                >
-                  {m.name}
-                  {here ? ' · here' : ''}
-                </text>
-                <text x={p.x + 14} y={p.y + 50} fill="#9aa4b2" font-size="12" font-family="IBM Plex Sans, sans-serif">
-                  {m.generator ? m.generator.environments.slice(0, 2).join(' + ') : 'free build'}
-                </text>
-                <text x={p.x + 14} y={p.y + 74} fill="#9aa4b2" font-size="12" font-family="IBM Plex Sans, sans-serif">
-                  {m.spawns.length} spawn{m.spawns.length === 1 ? '' : 's'}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-      <div class="vp-overlay">
-        {maps.length} map{maps.length === 1 ? '' : 's'} · {gates.length} gate{gates.length === 1 ? '' : 's'} · click a
-        map to open it. Editing gates: World graph workspace (Phase 2) or v68 Routes.
-      </div>
-    </div>
   );
 }
 

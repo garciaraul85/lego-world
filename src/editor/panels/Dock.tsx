@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'preact/hooks';
-import { BRICK_SIZES, type Gates, paths } from '../../core/schema';
+import { BRICK_SIZES } from '../../core/schema';
+import { validateWorld } from '../../core/world/validate';
 import type { ActionCtx } from '../actions/registry';
+import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
 import { Swatches } from './Inspector';
 
@@ -24,6 +26,7 @@ export function Dock({ c }: { c: ActionCtx }) {
     ['timeline', 'Timeline'],
     ['profiler', 'Profiler'],
     ['problems', `Problems${problems.length ? ` (${problems.length})` : ''}`],
+    ['debug', ed.session.value ? 'Debug ●' : 'Debug'],
   ];
   return (
     <section class="panel dockpanel" aria-label="Bottom dock" data-tour="dock">
@@ -54,6 +57,7 @@ export function Dock({ c }: { c: ActionCtx }) {
       )}
       {tab === 'profiler' && <Profiler ed={ed} />}
       {tab === 'problems' && <Problems c={c} problems={problems} />}
+      {tab === 'debug' && <Debug c={c} />}
     </section>
   );
 }
@@ -251,57 +255,22 @@ function useProblems(ed: EditorState): LiveProblem[] {
     const out: LiveProblem[] = ed.problems.value
       .filter((p) => p.level !== 'info')
       .map((p) => ({ level: p.level === 'error' ? 'error' : 'warn', msg: p.message, where: p.file ?? 'project' }));
-    const maps = ed.maps.value;
-    const gates = ed.store.get<Gates>(paths.gates);
-    for (const m of maps) {
-      if (!m.spawns.length)
-        out.push({
-          level: 'warn',
-          msg: `${m.name} has no spawn point`,
-          where: m.name,
-          fix: { label: 'Open', run: () => ed.openMap(m.id) },
-        });
-      if (m.size)
-        for (const s of m.spawns) {
-          const hw = m.size.w / 2;
-          const hd = m.size.d / 2;
-          if (Math.abs(s.pos[0]) > hw || Math.abs(s.pos[2]) > hd)
-            out.push({
-              level: 'warn',
-              msg: `Spawn “${s.name}” is outside the generated world`,
-              where: m.name,
-              fix: {
-                label: 'Select',
-                run: () => {
-                  ed.openMap(m.id);
-                  ed.selectedSpawn.value = s.id;
-                },
+    const name = (id: string) => ed.maps.value.find((m) => m.id === id)?.name ?? 'World graph';
+    for (const i of validateWorld(ed.store))
+      out.push({
+        level: i.level,
+        msg: i.message,
+        where: i.code === 'unreachable' || i.code === 'noReturn' ? 'World graph' : name(i.map),
+        fix: i.spawn
+          ? {
+              label: 'Select',
+              run: () => {
+                ed.openMap(i.map);
+                ed.selectedSpawn.value = i.spawn!;
               },
-            });
-        }
-    }
-    if (maps.length > 1 && gates) {
-      const entry = ed.store.manifest.entry.map;
-      const seen = new Set([entry]);
-      const queue = [entry];
-      while (queue.length) {
-        const cur = queue.shift()!;
-        for (const g of gates.gates) {
-          const next = g.from.map === cur ? g.to.map : g.twoWay && g.to.map === cur ? g.from.map : null;
-          if (next && !seen.has(next)) {
-            seen.add(next);
-            queue.push(next);
-          }
-        }
-      }
-      for (const m of maps)
-        if (!seen.has(m.id))
-          out.push({
-            level: 'info',
-            msg: `${m.name} can’t be reached from the start map (add a gate in v68 Routes)`,
-            where: 'World graph',
-          });
-    }
+            }
+          : { label: 'Open', run: () => ed.openMap(i.map) },
+      });
     return out;
   }, [rev, ed.problems.value]);
 }
@@ -334,6 +303,117 @@ function Problems({ problems }: { c: ActionCtx; problems: LiveProblem[] }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Watch values, debug drawing and cheats for the running Play session (P2.4). */
+function Debug({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const s = ed.session.value;
+  ed.playTick.value;
+  const dd = ed.debugDraw.value;
+  const toggle = (k: keyof typeof dd) => (ed.debugDraw.value = { ...dd, [k]: !dd[k] });
+  const draw = (
+    <div class="row">
+      <label class="lbl">
+        <input type="checkbox" checked={dd.colliders} onChange={() => toggle('colliders')} /> Colliders near the hero
+      </label>
+      <label class="lbl">
+        <input type="checkbox" checked={dd.spawns} onChange={() => toggle('spawns')} /> Spawn points and gates
+      </label>
+    </div>
+  );
+  if (!s)
+    return (
+      <div class="scroll" style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <span class="muted">Press Play (F5) to watch the running game here. Debug drawing applies to Play.</span>
+        {draw}
+      </div>
+    );
+  const h = s.heroState;
+  const w = s.world;
+  const st = ed.playStats.value;
+  const f = (n: unknown) => (typeof n === 'number' ? n.toFixed(2) : String(n));
+  return (
+    <div class="scroll" style={{ display: 'flex', flexWrap: 'wrap', gap: '18px', padding: '10px 12px' }}>
+      <dl class="watch mono" aria-label="Watch">
+        <dt>map</dt>
+        <dd>{w.doc.name}</dd>
+        <dt>hero</dt>
+        <dd>
+          {f(h.x)}, {f(h.y)}, {f(h.z)}
+        </dd>
+        <dt>speed</dt>
+        <dd>
+          {f(h.speed)} {h.grounded ? '· grounded' : '· in air'}
+          {h.building ? ' · building' : ''}
+        </dd>
+        <dt>held</dt>
+        <dd>{String(s.hero.held)}</dd>
+        <dt>pieces</dt>
+        <dd>{w.pieces.length.toLocaleString('en-US')}</dd>
+        <dt>broken</dt>
+        <dd>
+          {w.broken.length} objects · {w.debris.length} debris
+        </dd>
+        <dt>NPCs</dt>
+        <dd>
+          {w.npcs.length}
+          {s.talking ? ` · talking to ${s.talking.profile.name}` : ''}
+        </dd>
+        <dt>time</dt>
+        <dd>
+          {s.runtime.time.toFixed(1)} s · tick {st.ticks} · {ed.timeScale.value}×{ed.paused.value ? ' · paused' : ''}
+        </dd>
+        <dt>frame</dt>
+        <dd>
+          {st.fps} fps · {st.steps} steps · draw {st.ms.toFixed(1)} ms
+        </dd>
+      </dl>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 260px' }}>
+        {draw}
+        <div class="row" role="group" aria-label="Cheats">
+          <button type="button" class="btn" onClick={() => s.cheat('respawn')}>
+            Respawn
+          </button>
+          <button type="button" class="btn" disabled={!w.broken.length} onClick={() => s.cheat('rebuildAll')}>
+            Rebuild all
+          </button>
+          <label class="lbl">
+            Teleport
+            <select
+              class="inp"
+              value=""
+              onChange={(e) => {
+                const v = (e.target as HTMLSelectElement).value;
+                if (v) s.cheat('teleport', v);
+              }}
+            >
+              <option value="">spawn…</option>
+              {w.doc.spawns.map((sp) => (
+                <option value={sp.id}>{sp.name}</option>
+              ))}
+            </select>
+          </label>
+          <label class="lbl">
+            Held
+            <select
+              class="inp"
+              value={String(s.hero.held)}
+              onChange={(e) => s.cheat('held', (e.target as HTMLSelectElement).value)}
+            >
+              {(MELEE.includes(String(s.hero.held) as (typeof MELEE)[number])
+                ? MELEE
+                : [String(s.hero.held), ...MELEE]
+              ).map((n) => (
+                <option value={n}>{n}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <span class="muted small">Cheats change only this Play session; Stop discards them.</span>
+      </div>
     </div>
   );
 }

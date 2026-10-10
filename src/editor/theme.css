@@ -885,3 +885,150 @@ select.inp {
   outline: 2px solid var(--acc);
   outline-offset: 1px;
 }
+
+/* ---------- engine Play view (P2) ---------- */
+.playview {
+  min-height: 0;
+  outline: 2px solid var(--acc);
+  outline-offset: -2px;
+}
+.playview .play-bar {
+  background: #191d23;
+}
+.playing-dot {
+  color: var(--acc);
+}
+.playview .viewport-canvas {
+  touch-action: none;
+  cursor: grab;
+}
+.playview .viewport-canvas:focus {
+  outline: none;
+}
+.play-msg {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  max-width: min(560px, 90%);
+  background: rgba(15, 18, 22, 0.86);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+.touchpad {
+  display: none;
+  position: absolute;
+  inset: auto 10px 10px 10px;
+  justify-content: space-between;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.touchpad > * {
+  pointer-events: auto;
+}
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 46px);
+  grid-template-rows: repeat(2, 46px);
+  gap: 4px;
+}
+.dpad .up {
+  grid-column: 2;
+  grid-row: 1;
+}
+.dpad .left {
+  grid-column: 1;
+  grid-row: 2;
+}
+.dpad .down {
+  grid-column: 2;
+  grid-row: 2;
+}
+.dpad .right {
+  grid-column: 3;
+  grid-row: 2;
+}
+.acts {
+  display: grid;
+  grid-template-columns: repeat(2, 64px);
+  gap: 6px;
+}
+.tbtn {
+  min-height: 46px;
+  border-radius: 10px;
+  border: 1px solid var(--line2);
+  background: rgba(27, 32, 40, 0.82);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  touch-action: none;
+  user-select: none;
+}
+.tbtn:active {
+  background: var(--accbg);
+  border-color: var(--acc);
+}
+@media (pointer: coarse), (max-width: 760px) {
+  .touchpad {
+    display: flex;
+  }
+  .play-msg {
+    bottom: 120px;
+  }
+}
+
+/* ---------- Debug dock ---------- */
+.watch {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 3px 14px;
+  font-size: 12px;
+}
+.watch dt {
+  color: var(--mut2);
+}
+.watch dd {
+  margin: 0;
+  color: var(--fg2);
+}
+
+/* ---------- World graph ---------- */
+.graphws {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.graphws svg {
+  touch-action: none;
+  user-select: none;
+}
+.graphws .port {
+  cursor: crosshair;
+}
+.graphws .gate {
+  cursor: pointer;
+}
+.graph-side {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line2);
+  align-items: center;
+  font-size: 12px;
+}
+.play-hint {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.graphws .svgview {
+  position: relative;
+  inset: auto;
+}

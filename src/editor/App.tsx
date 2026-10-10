@@ -3,10 +3,12 @@ import { toLegacy } from '../core/bridge/legacy-bridge';
 import { packProject } from '../core/project/archive';
 import type { ProjectMeta } from '../core/project/backend';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
+import { WorldGraph } from './graph/WorldGraph';
 import { Dock } from './panels/Dock';
 import { RightPanel } from './panels/Inspector';
 import { Outliner } from './panels/Outliner';
 import { PlayLayer } from './play/PlayLayer';
+import { type PlayStart, PlayView } from './play/PlayView';
 import {
   CommandPalette,
   MenuBar,
@@ -34,6 +36,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const vp = useRef<ViewportApi | null>(null);
   const [modal, setModal] = useState<null | 'shortcuts' | 'open' | 'about' | 'new'>(null);
   const [play, setPlay] = useState<null | 'play' | 'edit'>(null);
+  const [engine, setEngine] = useState<(PlayStart & { key: number }) | null>(null);
   const [workspace, setWorkspace] = useState('Scene');
   const [pane, setPane] = useState<'left' | 'right'>('right');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -58,10 +61,19 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           new Blob([text], { type: 'application/json' }),
         );
       },
-      play: (mode) => {
+      play: (mode, opts) => {
         void ed.autosave.flush();
-        setPlay(mode);
+        if (mode !== 'engine') {
+          setEngine(null);
+          setPlay(mode === 'v68' ? 'play' : 'edit');
+          return;
+        }
+        const spawnId = opts?.fromSelectedSpawn ? ed.selectedSpawn.value : null;
+        const mapId = opts?.fromSelectedSpawn ? ed.mapId.value : ed.store.manifest.entry.map;
+        setWorkspace('Scene');
+        setEngine({ mapId, spawnId, key: Date.now() });
       },
+      stopPlay: () => setEngine(null),
       frameSelection: () => vp.current?.frameSelection(),
       fit: () => vp.current?.fit(),
       topView: () => {
@@ -70,7 +82,6 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       },
       workspace: (w) => {
         setWorkspace(w);
-        if (w === 'World graph') ed.view.value = 'graph';
       },
       showShortcuts: () => setModal('shortcuts'),
       about: () => setModal('about'),
@@ -82,6 +93,14 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (play || modal || ed.palette.value) return;
+      if (ed.session.value) {
+        // While playing only the play shortcuts reach the editor; the game owns the rest of the keyboard.
+        if (e.key === 'F5' || e.key === 'Escape') {
+          e.preventDefault();
+          setEngine(null);
+        }
+        return;
+      }
       const t = e.target as HTMLElement;
       if (t.closest('input,textarea,select,[contenteditable]')) return;
       const k = keyOf(e);
@@ -111,23 +130,24 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         </div>
         <Outliner c={c} className={pane === 'left' ? 'show' : ''} />
         <div class="center">
-          {later ? (
+          {engine ? (
+            <PlayView key={engine.key} ed={ed} start={engine} onStop={() => setEngine(null)} />
+          ) : workspace === 'World graph' ? (
+            <WorldGraph c={c} />
+          ) : later ? (
             <section class="panel">
               <div class="placeholder">
                 <h2>{workspace}</h2>
                 <p class="muted">
                   The {workspace} workspace arrives in {later} of the build plan. Until then the Scene editor is fully
                   working
-                  {workspace === 'Characters' || workspace === 'World graph'
-                    ? ', and characters, neighbors and map routes can be edited in LEGO World v68'
-                    : ''}
-                  .
+                  {workspace === 'Characters' ? ', and characters and neighbors can be edited in LEGO World v68' : ''}.
                 </p>
                 <div class="row">
                   <button type="button" class="btn on" onClick={() => setWorkspace('Scene')}>
                     Back to Scene
                   </button>
-                  {(workspace === 'Characters' || workspace === 'World graph') && (
+                  {workspace === 'Characters' && (
                     <button type="button" class="btn" onClick={() => ui.play('edit')}>
                       Open in LEGO World v68
                     </button>
@@ -173,10 +193,13 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       )}
       {modal === 'about' && (
         <Modal title="Brick Worlds Engine" onClose={() => setModal(null)}>
-          <p>Phase 1 build: the Scene editor on the v5 project format, grown from LEGO World v68.</p>
+          <p>
+            Phase 2 build: the Scene editor and World graph on the v5 project format, with Play on the new engine
+            runtime, grown from LEGO World v68.
+          </p>
           <p class="muted">
-            Projects are saved as small JSON files in this browser. Play and the not-yet-ported studios run on the v68
-            runtime.
+            Projects are saved as small JSON files in this browser. Guns, magic, super powers, the volcano and the
+            not-yet-ported studios still run on the v68 runtime (Play in v68).
           </p>
         </Modal>
       )}

@@ -17,7 +17,7 @@ export type RenderBrick = {
   paved?: boolean;
 };
 
-type Mesh = { p: WebGLBuffer; n: WebGLBuffer; count: number };
+export type Mesh = { p: WebGLBuffer; n: WebGLBuffer; count: number };
 type Batch = { w: number; d: number; kind: RenderBrick['kind']; paved: boolean; buffer: WebGLBuffer; count: number };
 type ChunkGpu = { batches: Batch[]; min: Vec3; max: Vec3; bricks: number };
 
@@ -347,6 +347,8 @@ export class Renderer {
     overlays: Overlay[] = [],
     lines: LineSet[] = [],
     markers: Marker[] = [],
+    /** draws more into the same frame (characters, debris) with the scene's view-projection */
+    extra?: (mvp: Float32Array, eye: Vec3) => void,
   ): FrameStats {
     const t0 = performance.now();
     const gl = this.gl;
@@ -463,8 +465,17 @@ export class Renderer {
         this.stats.drawCalls++;
       }
     }
+    if (extra) {
+      extra(mvp, cam.eye);
+      gl.useProgram(this.prog);
+    }
     this.stats.ms = performance.now() - t0;
     return this.stats;
+  }
+
+  /** Uploads a geometry as a mesh other renderers can draw (v68 debris uses a 1x1 brick). */
+  meshOf(g: Geometry): Mesh {
+    return this.upload(g);
   }
 
   private drawSky(s: SkySample, cam: CameraFrame, aspect: number) {

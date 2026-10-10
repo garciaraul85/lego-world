@@ -7,6 +7,8 @@ import type { FileBackend } from '../core/project/backend';
 import type { ProjectStore } from '../core/project/store';
 import { type Gates, type MapDoc, paths } from '../core/schema';
 import type { FrameStats } from '../engine/render/renderer';
+import type { DebugDraw } from '../engine/runtime/play-renderer';
+import type { PlaySession } from '../engine/runtime/session';
 import { CATEGORIES, type CategoryId } from './categories';
 import { SceneModel } from './scene';
 
@@ -16,7 +18,8 @@ export type LogLine = { t: string; level: LogLevel; msg: string };
 export type ViewTab = 'scene' | 'game' | 'graph' | 'nav';
 export type LeftTab = 'hier' | 'layers' | 'search';
 export type RightTab = 'inspect' | 'map' | 'project';
-export type DockTab = 'assets' | 'console' | 'timeline' | 'profiler' | 'problems';
+export type DockTab = 'assets' | 'console' | 'timeline' | 'profiler' | 'problems' | 'debug';
+export type PlayStats = { fps: number; ticks: number; steps: number; ms: number };
 export type Layer = { visible: boolean; locked: boolean };
 
 const UI_KEY = 'brickworlds.editor.ui';
@@ -74,6 +77,14 @@ export class EditorState {
   readonly menu = signal<string | null>(null);
   readonly palette = signal(false);
   readonly playing = signal(false);
+  /** the running engine Play session (P2); null while editing */
+  readonly session = signal<PlaySession | null>(null);
+  /** bumps ~10×/s while playing so watch panels refresh */
+  readonly playTick = signal(0);
+  readonly playStats = signal<PlayStats>({ fps: 0, ticks: 0, steps: 0, ms: 0 });
+  readonly paused = signal(false);
+  readonly timeScale = signal(1);
+  readonly debugDraw = signal<DebugDraw>({ colliders: false, spawns: true });
   readonly toast = signal<{ msg: string; error: boolean } | null>(null);
   readonly snap = signal<'stud' | 'plate'>('stud');
 
