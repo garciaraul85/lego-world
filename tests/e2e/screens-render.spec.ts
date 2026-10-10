@@ -144,3 +144,41 @@ test('Audio workspace: events, mixer faders save audio/mixer.json; the sound too
   await expect(page.getByRole('heading', { name: /Emitter 1/ }).or(page.getByText('Emitter 1').first())).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('a world UI sign placed in the map shows its bound text over the game in Play', async ({ page }) => {
+  test.setTimeout(300_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.evaluate(() => {
+    const e = (
+      window as unknown as {
+        __editor: Ed & {
+          exec(c: unknown): { ok: boolean };
+          mapId: { value: string };
+          store: { manifest: { entry: { spawn: string } } };
+        };
+      }
+    ).__editor;
+    const map = e.mapId.value;
+    const doc = e.store.get(`maps/${map}/map.json`) as { spawns: { id: string; pos: number[] }[] };
+    const sp = doc.spawns.find((s) => s.id === e.store.manifest.entry.spawn) ?? doc.spawns[0]!;
+    e.exec({
+      type: 'item.add',
+      payload: {
+        map,
+        item: {
+          id: 'ins_signe2e001',
+          kind: 'ui',
+          widget: 'sign',
+          pos: [sp.pos[0]!, sp.pos[1]! + 2.5, sp.pos[2]! + 4],
+          text: 'Hearts: {hp}/{maxHp}',
+          maxDistance: 40,
+        },
+      },
+    });
+  });
+  await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Play', exact: true }).click();
+  await expect(page.locator('.bw-world[data-ui="ins_signe2e001"]')).toHaveText('Hearts: 3/3', { timeout: 120_000 });
+  await page.keyboard.press('F5');
+  expect(errors).toEqual([]);
+});

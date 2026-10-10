@@ -33,6 +33,10 @@
       },
       "do": [
         {
+          "do": "sound",
+          "event": "snd_chest00000"
+        },
+        {
           "do": "setState",
           "state": "open"
         },
@@ -48,6 +52,10 @@
         "state": "open"
       },
       "do": [
+        {
+          "do": "sound",
+          "event": "snd_chest00000"
+        },
         {
           "do": "setState",
           "state": "closed"

@@ -38,6 +38,10 @@
       },
       "do": [
         {
+          "do": "sound",
+          "event": "snd_door000000"
+        },
+        {
           "do": "setState",
           "state": "open"
         }
@@ -49,6 +53,10 @@
         "state": "open"
       },
       "do": [
+        {
+          "do": "sound",
+          "event": "snd_door000000"
+        },
         {
           "do": "setState",
           "state": "closed"
