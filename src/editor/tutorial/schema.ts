@@ -55,6 +55,8 @@ export const Step = z.strictObject({
   placement: z.enum(['left', 'right', 'top', 'bottom', 'center']).optional(),
   check: Check,
   doItForMe: z.array(Do),
+  /** panel changes made when the step opens, so its control is on screen (e.g. the Map tab) */
+  setup: z.array(Do).optional(),
   /** a keyboard shortcut or tip shown under the task */
   tip: z.string().max(200).optional(),
 });

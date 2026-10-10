@@ -64,12 +64,21 @@ export function assetSpot(
 }
 
 /** a bricks.place command for one brick on open studded ground near the spawn, or null */
-export function brickSpot(store: ProjectStore, bus: CommandBus, map: string, type = 'brick2x2', color = '#d20c20'): Command | null {
+export function brickSpot(
+  store: ProjectStore,
+  bus: CommandBus,
+  map: string,
+  type = 'brick2x2',
+  color = '#d20c20',
+): Command | null {
   const { s, cells } = reachable(store, map);
   for (const c of cells.filter(([, , , d]) => d >= 2).slice(0, 200)) {
     const rect = s.rect(c[0], c[2], 2, 2);
     if (!rect?.flat) continue;
-    const cmd: Command = { type: 'bricks.place', payload: { map, bricks: [{ type, x: c[0], y: rect.top, z: c[2], rot: 0, color }] } };
+    const cmd: Command = {
+      type: 'bricks.place',
+      payload: { map, bricks: [{ type, x: c[0], y: rect.top, z: c[2], rot: 0, color }] },
+    };
     if (bus.dryRun([cmd]).ok) return cmd;
   }
   return null;

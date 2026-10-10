@@ -10,8 +10,21 @@
       "target": "[data-tour=\"tab-map\"]",
       "placement": "left",
       "workspace": "Scene",
-      "check": { "kind": "state", "test": "rightTab", "args": "map" },
-      "doItForMe": [{ "ui": "palette", "value": false }, { "ui": "right", "value": "map" }]
+      "check": {
+        "kind": "state",
+        "test": "rightTab",
+        "args": "map"
+      },
+      "doItForMe": [
+        {
+          "ui": "palette",
+          "value": false
+        },
+        {
+          "ui": "right",
+          "value": "map"
+        }
+      ]
     },
     {
       "id": "map.generate",
@@ -20,8 +33,24 @@
       "task": "Generate a Forest + City map.",
       "target": "[data-tour=\"generate\"]",
       "placement": "left",
-      "check": { "kind": "command", "type": "map.generate" },
-      "doItForMe": [{ "fn": "generateMap", "args": { "environments": ["forest", "city"] } }]
+      "check": {
+        "kind": "command",
+        "type": "map.generate"
+      },
+      "doItForMe": [
+        {
+          "fn": "generateMap",
+          "args": {
+            "environments": ["forest", "city"]
+          }
+        }
+      ],
+      "setup": [
+        {
+          "ui": "right",
+          "value": "map"
+        }
+      ]
     },
     {
       "id": "map.camera",
@@ -31,8 +60,14 @@
       "target": "[data-tour=\"viewport\"]",
       "placement": "center",
       "tip": "Home fits the map in view.",
-      "check": { "kind": "manual" },
-      "doItForMe": [{ "ui": "fit" }]
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [
+        {
+          "ui": "fit"
+        }
+      ]
     },
     {
       "id": "map.select",
@@ -41,8 +76,19 @@
       "task": "Select a building (click it, or pick one in the Hierarchy).",
       "target": "[data-tour=\"outliner\"]",
       "placement": "right",
-      "check": { "kind": "state", "test": "hasSelection" },
-      "doItForMe": [{ "ui": "tool", "value": "select" }, { "fn": "selectBuilding" }]
+      "check": {
+        "kind": "state",
+        "test": "hasSelection"
+      },
+      "doItForMe": [
+        {
+          "ui": "tool",
+          "value": "select"
+        },
+        {
+          "fn": "selectBuilding"
+        }
+      ]
     },
     {
       "id": "map.paint",
@@ -51,8 +97,15 @@
       "task": "Recolor some bricks (Inspector swatches or the Color paint tool).",
       "target": "[data-tour=\"inspector\"]",
       "placement": "left",
-      "check": { "kind": "command", "type": "bricks.paint" },
-      "doItForMe": [{ "fn": "paintSomething" }]
+      "check": {
+        "kind": "command",
+        "type": "bricks.paint"
+      },
+      "doItForMe": [
+        {
+          "fn": "paintSomething"
+        }
+      ]
     },
     {
       "id": "map.place",
@@ -61,8 +114,19 @@
       "task": "Place a brick with Brick paint (B).",
       "target": "button[aria-label=\"Brick paint (B)\"]",
       "placement": "bottom",
-      "check": { "kind": "command", "type": "bricks.place" },
-      "doItForMe": [{ "ui": "tool", "value": "place" }, { "fn": "placeBrick" }]
+      "check": {
+        "kind": "command",
+        "type": "bricks.place"
+      },
+      "doItForMe": [
+        {
+          "ui": "tool",
+          "value": "place"
+        },
+        {
+          "fn": "placeBrick"
+        }
+      ]
     },
     {
       "id": "map.erase",
@@ -71,8 +135,19 @@
       "task": "Erase a brick with the Erase tool (X).",
       "target": "button[aria-label=\"Erase (X)\"]",
       "placement": "bottom",
-      "check": { "kind": "command", "type": "bricks.remove" },
-      "doItForMe": [{ "ui": "tool", "value": "erase" }, { "fn": "eraseBrick" }]
+      "check": {
+        "kind": "command",
+        "type": "bricks.remove"
+      },
+      "doItForMe": [
+        {
+          "ui": "tool",
+          "value": "erase"
+        },
+        {
+          "fn": "eraseBrick"
+        }
+      ]
     },
     {
       "id": "map.undo",
@@ -81,8 +156,15 @@
       "task": "Undo your last change (Ctrl Z or the Undo button).",
       "target": "button[title=\"Undo (Ctrl Z)\"]",
       "placement": "bottom",
-      "check": { "kind": "state", "test": "canRedo" },
-      "doItForMe": [{ "action": "edit.undo" }]
+      "check": {
+        "kind": "state",
+        "test": "canRedo"
+      },
+      "doItForMe": [
+        {
+          "action": "edit.undo"
+        }
+      ]
     }
   ]
 }

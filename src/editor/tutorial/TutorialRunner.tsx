@@ -73,6 +73,7 @@ export function TutorialRunner({
     setNote(null);
     setGhost(null);
     if (step.workspace && ed.workspace.value !== step.workspace && !ed.session.value) ui.workspace(step.workspace);
+    for (const d of step.setup ?? []) void perform(c, d);
     if (mode === 'show' && step.doItForMe.length) void demo();
     else setPhase('try');
   }, [index]);
@@ -102,14 +103,15 @@ export function TutorialRunner({
     try {
       setGhost({ x: innerWidth - 120, y: innerHeight - 80 });
       await wait(60);
-      setGhost(target());
-      await wait(750);
-      setClicking(true);
-      await wait(220);
-      setClicking(false);
+      // the pointer goes to the control before each action (earlier actions may open the panel it is in)
       for (const d of step.doItForMe) {
+        setGhost(target());
+        await wait(750);
+        setClicking(true);
+        await wait(220);
+        setClicking(false);
         await perform(c, d);
-        await wait(250);
+        await wait(350);
       }
       setNote('That’s it. Now everything is put back so you can do it yourself.');
       await wait(1700);

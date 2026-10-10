@@ -5,6 +5,7 @@ import type { ProjectMeta } from '../core/project/backend';
 import { type Cinematic, type MediaIndex, paths } from '../core/schema';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { WorldGraph } from './graph/WorldGraph';
+import { HelpView } from './help/HelpView';
 import { Dock } from './panels/Dock';
 import { RightPanel } from './panels/Inspector';
 import { Outliner } from './panels/Outliner';
@@ -143,7 +144,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (play || modal || ed.palette.value) return;
+      if (play || modal || help || ed.palette.value) return;
       if (ed.session.value) {
         // While playing only the play shortcuts reach the editor; the game owns the rest (Esc = game back/pause).
         if (e.key === 'F5') {
@@ -162,7 +163,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [play, modal]);
+  }, [play, modal, help]);
 
   const later = WORKSPACES.find(([w]) => w === workspace)?.[1];
   return (
@@ -286,6 +287,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           }}
         />
       )}
+      {help && <HelpView c={c} page={help} onClose={() => setHelp(null)} />}
       {hub && (
         <StartHub
           ed={ed}
