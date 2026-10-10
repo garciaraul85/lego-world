@@ -19,6 +19,8 @@ const getIndex = () => {
 export function HelpView({ c, page: page0, onClose }: { c: ActionCtx; page: string; onClose: () => void }) {
   const [[page, anchor], setLoc] = useState<[string, string]>(() => split(page0));
   const [query, setQuery] = useState('');
+  const queryRef = useRef('');
+  queryRef.current = query;
   const body = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const pages = helpPages();
@@ -36,13 +38,15 @@ export function HelpView({ c, page: page0, onClose }: { c: ActionCtx; page: stri
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        if (query) setQuery('');
-        else onClose();
+        if (queryRef.current) {
+          queryRef.current = '';
+          setQuery('');
+        } else onClose();
       }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [query]);
+  }, []);
 
   const go = (href: string) => {
     const [kind, rest] = [href.slice(0, href.indexOf(':')), href.slice(href.indexOf(':') + 1)];

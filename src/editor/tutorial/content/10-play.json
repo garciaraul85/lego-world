@@ -107,6 +107,24 @@
       "tip": "Inside a Claude artifact it needs no key; elsewhere add your own API key in its ⚙ settings."
     },
     {
+      "id": "share.help",
+      "title": "Help is one key away",
+      "body": "F1 (or Help › Help guide) opens the guide: a page per workspace, Build a game from scratch in 12 steps, the Coding guide, the AI builder, the logic reference, every shortcut and limit, and troubleshooting. Type in its search box to find anything — try “music zone”.",
+      "task": "Open the Help guide (F1).",
+      "target": "[data-tour=\"menu-help\"]",
+      "placement": "bottom",
+      "check": {
+        "kind": "dom",
+        "selector": "[role=\"dialog\"][aria-label=\"Help\"]"
+      },
+      "doItForMe": [
+        {
+          "action": "help.guide"
+        }
+      ],
+      "tip": "Esc closes it again."
+    },
+    {
       "id": "share.done",
       "title": "You know the whole editor",
       "body": "That was every workspace and tool. The Start hub (File › Start hub) makes a complete game in one click — or shows one being built step by step — the Help guide (F1) walks through building a game from scratch, and the coding course (Help › Coding course) teaches the logic language line by line.",
