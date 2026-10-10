@@ -3,7 +3,9 @@
  * Opens the last project from IndexedDB, or imports an existing LEGO World v68 autosave,
  * or creates a new generated project. window.__editor exposes the state for e2e tests.
  */
+
 import { render } from 'preact';
+import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { CommandBus, registerAll } from '../../core/commands';
 import { serializeFile } from '../../core/json/stable';
 import { LEGACY_STORAGE_KEY } from '../../core/legacy/constants';
@@ -15,6 +17,7 @@ import { loadProject, saveAll } from '../../core/project/load';
 import { newProjectFiles } from '../../core/project/new-project';
 import { ProjectStore } from '../../core/project/store';
 import { App, type AppHost } from '../../editor/App';
+import { placeCommands } from '../../editor/assets';
 import { EditorState } from '../../editor/state';
 import '../../editor/theme.css';
 import { saveFile } from '../../platform/downloads';
@@ -138,6 +141,11 @@ async function boot() {
     },
   };
   (window as unknown as { __editor: EditorState }).__editor = ed;
+  // e2e helpers: place a built-in asset the way the dock does
+  (window as unknown as { __assets: unknown }).__assets = {
+    placeCommands,
+    chestId: BUILTIN_ASSETS.find((a) => a.name === 'Treasure chest')?.id,
+  };
   render(<App ed={ed} host={host} />, root);
 }
 

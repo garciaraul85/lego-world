@@ -35,12 +35,18 @@ test('editor boots, selects, paints, places, undoes and persists', async ({ page
   expect(selected).toBeGreaterThan(0);
   await expect(page.getByRole('heading', { level: 2 }).or(page.getByText('Transform'))).toBeVisible();
 
+  // An asset (house, tree...) is recolored in the Asset studio; Unpack makes it loose bricks first
+  const inspector = page.getByRole('region', { name: 'Inspector' });
+  const unpack = inspector.getByRole('button', { name: 'Unpack' });
+  const wasAsset = await unpack.isVisible();
+  if (wasAsset) await unpack.click();
   // Recolor from the Inspector, then undo
-  await page.getByRole('region', { name: 'Inspector' }).getByRole('option', { name: 'Lavender' }).click();
+  await inspector.getByRole('option', { name: 'Lavender' }).click();
   expect(
     (await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.bus.history().at(-1)?.label)) ?? '',
   ).toMatch(/Paint/);
   await page.keyboard.press('Control+z');
+  if (wasAsset) await page.keyboard.press('Control+z');
 
   // Place a brick with Brick paint on top of whatever is in the middle
   await page.keyboard.press('Escape');

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { MapBricks } from '../../src/core/bricks/map-bricks';
 import { CommandBus, registerAll } from '../../src/core/commands';
 import { allBricks } from '../../src/core/commands/handlers/assets';
 import { newProjectFiles } from '../../src/core/project/new-project';
