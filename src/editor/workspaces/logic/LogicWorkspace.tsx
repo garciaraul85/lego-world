@@ -15,7 +15,8 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
   ed.revision.value;
   const list = graphs(ed);
   const graph = list.find((g) => g.id === ed.logicGraph.value) ?? list[0] ?? null;
-  const [mode, setMode] = useState<Mode>('graph');
+  const mode: Mode = ed.logicView.value;
+  const setMode = (m: Mode) => (ed.logicView.value = m);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const brk = ed.logicBreak.value;
   const highlight = brk && graph && brk.graph === graph.id ? brk.node : null;

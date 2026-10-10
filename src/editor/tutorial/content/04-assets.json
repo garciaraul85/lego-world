@@ -1,0 +1,63 @@
+{
+  "id": "assets",
+  "title": "Assets",
+  "steps": [
+    {
+      "id": "assets.dock",
+      "title": "The asset library",
+      "body": "Assets are reusable objects made of bricks: houses, trees, chests, doors, lamp posts. The dock's Assets category lists the built-in library and your own. Pick one and the Place asset tool (A) is ready.",
+      "task": "In the dock, open Assets and pick the Treasure chest.",
+      "target": "[data-tour=\"dock\"]",
+      "placement": "top",
+      "workspace": "Scene",
+      "check": { "kind": "state", "test": "assetBrush", "args": "Treasure chest" },
+      "doItForMe": [
+        { "ui": "dock", "value": "assets" },
+        { "ui": "assetCat", "value": "Assets" },
+        { "fn": "pickAsset", "args": { "name": "Treasure chest" } }
+      ]
+    },
+    {
+      "id": "assets.place",
+      "title": "Place an asset",
+      "body": "With Place asset (A), click the map to put a copy down; T turns it. Every copy is an instance of the same asset, so editing the asset updates them all.",
+      "task": "Place the chest on the map.",
+      "target": "button[aria-label=\"Place asset (A)\"]",
+      "placement": "bottom",
+      "check": { "kind": "command", "type": "asset.place" },
+      "doItForMe": [{ "ui": "tool", "value": "asset" }, { "fn": "placeAsset", "args": { "name": "Treasure chest" } }]
+    },
+    {
+      "id": "assets.studio",
+      "title": "The Asset studio",
+      "body": "The Assets workspace is a build plate for one asset: bricks, states (closed / open), sockets (where the hero interacts), interactions (what E does), smash and rebuild rules, and generator rules (where the terrain generator scatters it).",
+      "task": "Open the Assets workspace.",
+      "target": "[data-tour=\"ws-assets\"]",
+      "placement": "bottom",
+      "check": { "kind": "state", "test": "workspace", "args": "Assets" },
+      "doItForMe": [{ "fn": "editAsset", "args": { "name": "Treasure chest" } }]
+    },
+    {
+      "id": "assets.interact",
+      "title": "Interactions",
+      "body": "An interaction says what happens when the hero presses E at a socket: change state, give an item, play a sound or a cinematic, send an event to logic. The chest opens its lid and sends “chest-opened”.",
+      "task": "Add an action to the chest's interaction (for example Give item).",
+      "target": "section[aria-label=\"Asset properties\"]",
+      "placement": "left",
+      "workspace": "Assets",
+      "check": { "kind": "command", "type": "asset.update" },
+      "doItForMe": [{ "fn": "chestGivesCoin" }]
+    },
+    {
+      "id": "assets.build",
+      "title": "Build on the plate",
+      "body": "Use the build tools above the plate to add, paint or remove bricks of the asset; Showing state previews each state. Make asset (Scene, with bricks selected) turns anything you built into a new asset.",
+      "task": "Have a look at the build tools, then press Next.",
+      "target": "[aria-label=\"Build tools\"]",
+      "placement": "bottom",
+      "workspace": "Assets",
+      "check": { "kind": "manual" },
+      "doItForMe": []
+    }
+  ]
+}

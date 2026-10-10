@@ -1,0 +1,38 @@
+{
+  "id": "welcome",
+  "title": "Welcome",
+  "steps": [
+    {
+      "id": "welcome.layout",
+      "title": "Your editor",
+      "body": "Brick Worlds is a game engine made of bricks. Across the top are the menus, the workspace tabs (Scene, World graph, Logic, Characters, Assets, Screens, Cinematics, Audio) and the toolbar. The Scene workspace has the Hierarchy on the left, the 3D map in the middle, the dock below it and the Inspector on the right. This tutorial uses its own sandbox project, so nothing you do here touches your games.",
+      "task": "Look around, then press Next.",
+      "target": "[data-tour=\"workspaces\"]",
+      "placement": "bottom",
+      "workspace": "Scene",
+      "check": { "kind": "manual" },
+      "doItForMe": []
+    },
+    {
+      "id": "welcome.menus",
+      "title": "Menus",
+      "body": "Every command lives in a menu: File (new, open, save, import, export, Start hub), Edit (undo, redo, duplicate, delete), World (maps and routes), Play and Help. Menu items show their keyboard shortcut on the right.",
+      "task": "Open the File menu.",
+      "target": "[data-tour=\"menu-file\"]",
+      "placement": "bottom",
+      "check": { "kind": "state", "test": "menuOpen", "args": "File" },
+      "doItForMe": [{ "ui": "menu", "value": "File" }]
+    },
+    {
+      "id": "welcome.palette",
+      "title": "Command palette",
+      "body": "The command palette finds any command by typing a few letters — handy when you don't remember where something lives. It opens with Ctrl K (⌘K on a Mac).",
+      "task": "Open the command palette (Ctrl K).",
+      "target": "[data-tour=\"menu-file\"]",
+      "placement": "bottom",
+      "tip": "Esc closes it again.",
+      "check": { "kind": "state", "test": "paletteOpen" },
+      "doItForMe": [{ "ui": "menu", "value": null }, { "ui": "palette", "value": true }]
+    }
+  ]
+}

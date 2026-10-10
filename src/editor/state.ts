@@ -90,6 +90,12 @@ export class EditorState {
   /** the screen open in the Screens workspace and its selected widget path (P5.9) */
   readonly screenId = signal<string | null>(null);
   readonly widgetPath = signal<string | null>(null);
+  /** Logic workspace view (graph / code / split), a signal so the tutorial can follow it */
+  readonly logicView = signal<'graph' | 'code' | 'split'>('graph');
+  /** bumps when a project file (.bwproj) is exported */
+  readonly exports = signal(0);
+  /** the open workspace tab (App keeps it in sync) */
+  readonly workspace = signal('Scene');
   /** the cinematic open in the Director (P6.3) */
   readonly cinematicId = signal<string | null>(null);
   /** what the Audio workspace shows: an event, a music state, the mixer or media (P5.6) */

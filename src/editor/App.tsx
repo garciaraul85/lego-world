@@ -25,6 +25,7 @@ import { BuildViewer } from './start/BuildViewer';
 import { readIntent, writeIntent } from './start/intent';
 import { type HubHost, StartHub } from './start/StartHub';
 import type { EditorState } from './state';
+import { TutorialRunner } from './tutorial/TutorialRunner';
 import type { ViewportApi } from './viewport/Viewport';
 import { ViewportPanel } from './viewport/Views';
 import { AssetStudio } from './workspaces/asset-studio/AssetStudio';
@@ -61,7 +62,11 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   }, []);
   const [play, setPlay] = useState<null | 'play' | 'edit'>(null);
   const [engine, setEngine] = useState<(PlayStart & { key: number }) | null>(null);
-  const [workspace, setWorkspace] = useState('Scene');
+  const [workspace, setWorkspaceState] = useState('Scene');
+  const setWorkspace = (w: string) => {
+    setWorkspaceState(w);
+    ed.workspace.value = w;
+  };
   const [pane, setPane] = useState<'left' | 'right'>('right');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -78,6 +83,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           if (b) media.set(ref, new Uint8Array(await b.arrayBuffer()));
         }
         const bytes = packProject(ed.store, media);
+        ed.exports.value++;
         host.download(
           `${slug(ed.store.manifest.name)}.bwproj`,
           new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/zip' }),
@@ -122,9 +128,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         vp.current?.camera.topView();
         vp.current?.redraw();
       },
-      workspace: (w) => {
-        setWorkspace(w);
-      },
+      workspace: (w) => setWorkspace(w),
       showShortcuts: () => setModal('shortcuts'),
       startHub: () => setHub(true),
       tutorial: () => {
@@ -260,8 +264,9 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       {modal === 'about' && (
         <Modal title="Brick Worlds Engine" onClose={() => setModal(null)}>
           <p>
-            Phase 6 build: Scene editor, World graph, Asset studio, Character studio, Logic, Screens, Cinematics and
-            Audio on the v5 project format, with Play on the new engine runtime, grown from LEGO World v68.
+            Phase 7 build: Start hub, game generator, guided tutorial, Scene editor, World graph, Asset studio,
+            Character studio, Logic, Screens, Cinematics and Audio on the v5 project format, with Play on the new engine
+            runtime, grown from LEGO World v68.
           </p>
           <p class="muted">
             Projects are saved as small JSON files in this browser. Guns, magic, super powers, the volcano and the
@@ -271,6 +276,16 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       )}
       {play && <PlayLayer ed={ed} mode={play} onClose={() => setPlay(null)} />}
       {intent?.kind === 'build' && !engine && <BuildViewer c={c} intent={intent} onClose={() => setIntent(null)} />}
+      {intent?.kind === 'tutorial' && (
+        <TutorialRunner
+          c={c}
+          mode={intent.mode}
+          onClose={() => {
+            writeIntent(null);
+            setIntent(null);
+          }}
+        />
+      )}
       {hub && (
         <StartHub
           ed={ed}

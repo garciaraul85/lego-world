@@ -2467,3 +2467,153 @@ select.inp {
   padding: 8px 12px 12px;
   gap: 6px;
 }
+
+/* ---- Guided tutorial (P7.3) ---- */
+.tut-spot {
+  position: fixed;
+  z-index: 900;
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  outline: 2px solid var(--acc);
+  pointer-events: none;
+  transition:
+    left 0.25s,
+    top 0.25s,
+    width 0.25s,
+    height 0.25s;
+  animation: tut-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tut-pulse {
+  50% {
+    outline-color: var(--acc2);
+    outline-offset: 3px;
+  }
+}
+.tut-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+.tut-card {
+  position: fixed;
+  z-index: 950;
+  background: var(--panel);
+  border: 1px solid var(--acc);
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+  padding: 10px 14px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+}
+.tut-card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tut-card header .tut-chapter {
+  flex: 1;
+  color: var(--acc2);
+  font-weight: 600;
+  font-size: 12px;
+}
+.tut-card h3 {
+  margin: 8px 0 4px;
+  font-size: 15px;
+}
+.tut-card p {
+  margin: 0 0 8px;
+}
+.tut-card footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line2);
+  gap: 8px;
+}
+.tut-card.demo {
+  border-color: var(--info);
+}
+.tut-card.done {
+  border-color: var(--teal);
+}
+.tut-progress {
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.tut-progress i {
+  display: block;
+  height: 100%;
+  background: var(--acc);
+  transition: width 0.4s;
+}
+.tut-task {
+  background: var(--panel2);
+  border-left: 3px solid var(--acc);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.tut-task.demo {
+  border-left-color: var(--info);
+}
+.tut-task.done {
+  border-left-color: var(--teal);
+  color: var(--teal);
+}
+.tut-note {
+  color: var(--info);
+  font-size: 12px;
+}
+.tut-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tut-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 960;
+  pointer-events: none;
+  transition: transform 0.7s cubic-bezier(0.3, 0.7, 0.3, 1);
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+}
+.tut-ripple {
+  position: absolute;
+  left: -10px;
+  top: -10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--acc);
+  opacity: 0;
+}
+.tut-ghost.click .tut-ripple {
+  animation: tut-ripple 0.4s ease-out;
+}
+@keyframes tut-ripple {
+  from {
+    opacity: 1;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tut-spot,
+  .tut-ghost {
+    animation: none;
+    transition: none;
+  }
+}

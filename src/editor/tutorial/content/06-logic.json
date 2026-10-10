@@ -1,0 +1,71 @@
+{
+  "id": "logic",
+  "title": "Logic",
+  "steps": [
+    {
+      "id": "logic.open",
+      "title": "Game rules",
+      "body": "Logic is what makes a map a game: when something happens (an event), do something (actions), maybe only if a condition holds. You can write it as a node graph or as code — they stay in sync.",
+      "task": "Open the Logic workspace.",
+      "target": "[data-tour=\"ws-logic\"]",
+      "placement": "bottom",
+      "check": { "kind": "state", "test": "workspace", "args": "Logic" },
+      "doItForMe": [{ "ui": "workspace", "value": "Logic" }]
+    },
+    {
+      "id": "logic.new",
+      "title": "A new graph",
+      "body": "A project can have many graphs; each holds one or more event chains. + New makes a graph that starts with On start.",
+      "task": "Make a new logic graph (Graphs › + New).",
+      "target": "section[aria-label=\"Logic graphs, variables and nodes\"]",
+      "placement": "right",
+      "workspace": "Logic",
+      "check": { "kind": "command", "type": "logic.create" },
+      "doItForMe": [{ "fn": "newGraph" }]
+    },
+    {
+      "id": "logic.node",
+      "title": "Add a node",
+      "body": "The palette lists every node by category: events (teal), flow (purple), variables, maths, world actions, audio, screens and cinematics. Click one to add it; search finds it by name.",
+      "task": "Add a Give item node from the palette.",
+      "target": "section[aria-label=\"Logic graphs, variables and nodes\"]",
+      "placement": "right",
+      "workspace": "Logic",
+      "check": { "kind": "command", "type": "logic.addNode" },
+      "doItForMe": [{ "fn": "addNode", "args": { "type": "world.give" } }]
+    },
+    {
+      "id": "logic.wire",
+      "title": "Wire it up",
+      "body": "Drag from a node's output pin to another node's input pin. White diamonds carry the flow (then → in); coloured circles carry values. Wrong types are refused with a tooltip.",
+      "task": "Connect On start's “then” to Give item's “in”.",
+      "target": "section[aria-label=\"Logic editor\"]",
+      "placement": "left",
+      "workspace": "Logic",
+      "check": { "kind": "command", "type": "logic.connect" },
+      "doItForMe": [{ "fn": "wireStartToLast" }]
+    },
+    {
+      "id": "logic.code",
+      "title": "Graph or code",
+      "body": "Code shows the same graph as a few lines of JavaScript-like script; edit either and the other follows. Split shows both side by side. F9 on a node sets a breakpoint that pauses Play there.",
+      "task": "Switch the view to Code.",
+      "target": "section[aria-label=\"Logic editor\"] [aria-label=\"View\"]",
+      "placement": "bottom",
+      "workspace": "Logic",
+      "check": { "kind": "state", "test": "logicView", "args": "code" },
+      "doItForMe": [{ "ui": "logicView", "value": "code" }]
+    },
+    {
+      "id": "logic.var",
+      "title": "Variables",
+      "body": "Variables remember things while playing: a score, coins found, hearts. Logic reads and changes them; screens and signs show them with {name}.",
+      "task": "Add a variable named score.",
+      "target": "input[aria-label=\"New variable name\"]",
+      "placement": "right",
+      "workspace": "Logic",
+      "check": { "kind": "command", "type": "logic.setVariable" },
+      "doItForMe": [{ "fn": "addVariable", "args": { "name": "score" } }]
+    }
+  ]
+}

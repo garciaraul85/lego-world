@@ -1,0 +1,49 @@
+{
+  "id": "screens",
+  "title": "Screens",
+  "steps": [
+    {
+      "id": "screens.open",
+      "title": "Game screens",
+      "body": "Screens are the 2D layer over the game: splash, title, HUD, pause, dialogue, game over, and your own. Edit a built-in and the project keeps its own copy; Reset brings the original back.",
+      "task": "Open the Screens workspace.",
+      "target": "[data-tour=\"ws-screens\"]",
+      "placement": "bottom",
+      "check": { "kind": "state", "test": "workspace", "args": "Screens" },
+      "doItForMe": [{ "ui": "workspace", "value": "Screens" }]
+    },
+    {
+      "id": "screens.add",
+      "title": "Add a widget",
+      "body": "Widgets are text, buttons, images, hearts, bars, lists, dialogue, minimap and panels. The tree is also the order keyboard and gamepad focus follow.",
+      "task": "With the HUD open, add a text widget.",
+      "target": "[aria-label=\"Add widget\"]",
+      "placement": "right",
+      "workspace": "Screens",
+      "check": { "kind": "command", "type": "screen.put" },
+      "doItForMe": [{ "fn": "addHudText" }]
+    },
+    {
+      "id": "screens.bind",
+      "title": "Show live values",
+      "body": "Write {name} in a text to show a value while playing: {hp}, {map.name}, {inventory.coin}, or any logic variable such as {score}. Anchors keep a widget on its edge on every screen size.",
+      "task": "Change the new text to show {score}.",
+      "target": "section[aria-label=\"Widget properties\"]",
+      "placement": "left",
+      "workspace": "Screens",
+      "check": { "kind": "state", "test": "hudShows", "args": "{score}" },
+      "doItForMe": [{ "fn": "setHudText", "args": { "text": "Score {score}" } }]
+    },
+    {
+      "id": "screens.device",
+      "title": "Every screen size",
+      "body": "Screens are laid out at 1280×720 and scaled to fit. Check them on a phone and a tablet frame; the hatched strips are safe areas (notches, rounded corners).",
+      "task": "Switch the canvas to the Phone frame.",
+      "target": "[aria-label=\"Screen canvas\"]",
+      "placement": "bottom",
+      "workspace": "Screens",
+      "check": { "kind": "dom", "selector": "[data-device=\"phone\"]" },
+      "doItForMe": [{ "click": "[aria-label=\"Device\"] button:nth-child(2)" }]
+    }
+  ]
+}

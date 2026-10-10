@@ -62,7 +62,16 @@ export class CommandBus {
       this.redoStack = [];
       this.emit();
     }
+    for (const l of this.executed) l(list, opts.source);
     return run.result;
+  }
+
+  private executed = new Set<(cmds: readonly Command[], source: Source) => void>();
+
+  /** Called with the commands of every successful execute (the tutorial checks what the user did). */
+  onExecute(fn: (cmds: readonly Command[], source: Source) => void): () => void {
+    this.executed.add(fn);
+    return () => this.executed.delete(fn);
   }
 
   /** Applies, captures a preview snapshot, then always rolls back. Used by AI review and tutorial checks. */
