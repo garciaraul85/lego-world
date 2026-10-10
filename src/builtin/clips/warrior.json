@@ -1,0 +1,107 @@
+{
+  "id": "clp_aejdwl9thu",
+  "name": "Warrior · lunge and reach",
+  "group": "Yoga",
+  "prop": "mat",
+  "length": 6,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.78, "easeInOut"],
+        [1.38, 1.4, "easeInOut"],
+        [2.64, 1.3, "easeInOut"],
+        [3.84, 1.3, "easeInOut"],
+        [4.92, 1.4, "easeInOut"],
+        [6, 1.78, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [1.38, 0, "easeInOut"],
+        [2.64, 0.18, "easeInOut"],
+        [3.84, 0.18, "easeInOut"],
+        [4.92, 0, "easeInOut"],
+        [6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "stance",
+      "keys": [
+        [0, 0.65, "easeInOut"],
+        [1.38, 0.39, "easeInOut"],
+        [2.64, 0.39, "easeInOut"],
+        [3.84, 0.39, "easeInOut"],
+        [4.92, 0.39, "easeInOut"],
+        [6, 0.65, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.06, "easeInOut"],
+        [1.38, -1.55, "easeInOut"],
+        [2.64, -1.55, "easeInOut"],
+        [3.84, -1.55, "easeInOut"],
+        [4.92, -1.55, "easeInOut"],
+        [6, -0.06, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.06, "easeInOut"],
+        [1.38, 1.55, "easeInOut"],
+        [2.64, 1.55, "easeInOut"],
+        [3.84, 1.55, "easeInOut"],
+        [4.92, 1.55, "easeInOut"],
+        [6, 0.06, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftLeg",
+      "prop": "x",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [1.38, -0.65, "easeInOut"],
+        [2.64, -0.85, "easeInOut"],
+        [3.84, -0.85, "easeInOut"],
+        [4.92, -0.65, "easeInOut"],
+        [6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightLeg",
+      "prop": "x",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [1.38, 0.3, "easeInOut"],
+        [2.64, 0.4, "easeInOut"],
+        [3.84, 0.4, "easeInOut"],
+        [4.92, 0.3, "easeInOut"],
+        [6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftShin",
+      "prop": "bend",
+      "keys": [
+        [0, 0.035, "easeInOut"],
+        [1.38, 1.1, "easeInOut"],
+        [2.64, 1.25, "easeInOut"],
+        [3.84, 1.25, "easeInOut"],
+        [4.92, 1.1, "easeInOut"],
+        [6, 0.035, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

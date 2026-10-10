@@ -1,0 +1,154 @@
+{
+  "id": "clp_yio8ysn4cp",
+  "name": "Martial arts · high block",
+  "group": "Fighting",
+  "length": 1.7,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.73, "easeInOut"],
+        [0.391, 1.73, "easeInOut"],
+        [0.748, 1.73, "easeInOut"],
+        [1.088, 1.73, "easeInOut"],
+        [1.394, 1.73, "easeInOut"],
+        [1.7, 1.73, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.391, 0.15, "easeInOut"],
+        [0.748, 0, "easeInOut"],
+        [1.088, 0, "easeInOut"],
+        [1.394, 0.15, "easeInOut"],
+        [1.7, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, -1.05, "easeInOut"],
+        [0.391, -1.05, "easeInOut"],
+        [0.748, -1.05, "easeInOut"],
+        [1.088, -1.05, "easeInOut"],
+        [1.394, -1.05, "easeInOut"],
+        [1.7, -1.05, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.18, "easeInOut"],
+        [0.391, -0.18, "easeInOut"],
+        [0.748, -0.18, "easeInOut"],
+        [1.088, -0.18, "easeInOut"],
+        [1.394, -0.18, "easeInOut"],
+        [1.7, -0.18, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, -1.05, "easeInOut"],
+        [0.391, -1.8, "easeInOut"],
+        [0.748, -2.45, "easeInOut"],
+        [1.088, -2.45, "easeInOut"],
+        [1.394, -1.8, "easeInOut"],
+        [1.7, -1.05, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.18, "easeInOut"],
+        [0.391, 0.3, "easeInOut"],
+        [0.748, 0.4, "easeInOut"],
+        [1.088, 0.4, "easeInOut"],
+        [1.394, 0.3, "easeInOut"],
+        [1.7, 0.18, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftLeg",
+      "prop": "x",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.391, -0.12, "easeInOut"],
+        [0.748, -0.12, "easeInOut"],
+        [1.088, -0.12, "easeInOut"],
+        [1.394, -0.12, "easeInOut"],
+        [1.7, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightLeg",
+      "prop": "x",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.391, -0.12, "easeInOut"],
+        [0.748, -0.12, "easeInOut"],
+        [1.088, -0.12, "easeInOut"],
+        [1.394, -0.12, "easeInOut"],
+        [1.7, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1.1, "easeInOut"],
+        [0.391, -1.1, "easeInOut"],
+        [0.748, -1.1, "easeInOut"],
+        [1.088, -1.1, "easeInOut"],
+        [1.394, -1.1, "easeInOut"],
+        [1.7, -1.1, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1.1, "easeInOut"],
+        [0.391, -1.2, "easeInOut"],
+        [0.748, -0.65, "easeInOut"],
+        [1.088, -0.65, "easeInOut"],
+        [1.394, -1.2, "easeInOut"],
+        [1.7, -1.1, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftShin",
+      "prop": "bend",
+      "keys": [
+        [0, 0.22, "easeInOut"],
+        [0.391, 0.22, "easeInOut"],
+        [0.748, 0.22, "easeInOut"],
+        [1.088, 0.22, "easeInOut"],
+        [1.394, 0.22, "easeInOut"],
+        [1.7, 0.22, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightShin",
+      "prop": "bend",
+      "keys": [
+        [0, 0.22, "easeInOut"],
+        [0.391, 0.22, "easeInOut"],
+        [0.748, 0.22, "easeInOut"],
+        [1.088, 0.22, "easeInOut"],
+        [1.394, 0.22, "easeInOut"],
+        [1.7, 0.22, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

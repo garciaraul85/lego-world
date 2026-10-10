@@ -15,7 +15,7 @@ const CATS: [string, string | null, string][] = [
     null,
     'Click an asset, then click in the map (Place asset, A). T turns it. Edit assets in the Asset studio.',
   ],
-  ['Characters', 'Phase 3', 'Characters are edited in LEGO World v68 until the Character studio lands.'],
+  ['Characters', null, 'Characters, their looks and their clips (emotes) are made in the Character studio.'],
   ['Cinematics', 'Phase 6', 'Directed scenes arrive with the Cinematics director.'],
   ['UI screens', 'Phase 5', 'Splash, HUD and pause screens arrive with the Screens editor.'],
   ['Sounds', 'Phase 5', 'Sound events and emitters arrive with the Audio workspace.'],
@@ -100,6 +100,14 @@ function Assets({ c }: { c: ActionCtx }) {
       <div class="scroll" style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {cur[0] === 'Assets' ? (
           <AssetCards c={c} />
+        ) : cur[0] === 'Characters' ? (
+          <div class="placeholder" style={{ padding: '8px' }}>
+            <strong>Characters</strong>
+            <span class="muted">{cur[2]}</span>
+            <button type="button" class="btn on" onClick={() => c.ui.workspace('Characters')}>
+              Open the Character studio
+            </button>
+          </div>
         ) : cur[1] ? (
           <div class="placeholder" style={{ padding: '8px' }}>
             <strong>

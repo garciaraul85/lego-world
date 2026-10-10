@@ -30,6 +30,9 @@ export function legacySyncCommands(store: ProjectStore, legacyText: string): Com
     const cur = store.get<MapDoc>(path);
     if (cur && fileKindOf(path) === 'map')
       value = { ...(raw as MapDoc), music: cur.music, ambience: cur.ambience, zones: cur.zones };
+    // characters keep their engine-only emotes
+    const curChr = store.get<{ emotes?: string[] }>(path);
+    if (curChr?.emotes && fileKindOf(path) === 'character') value = { ...(value as object), emotes: curChr.emotes };
     if (!same(cur, value)) cmds.push({ type: 'file.put', payload: { path, data: value } });
   }
   for (const path of store.keys()) {

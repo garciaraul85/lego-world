@@ -1,0 +1,131 @@
+{
+  "id": "clp_eivvdz7ybe",
+  "name": "Hockey · slap shot",
+  "group": "Hockey",
+  "prop": "hockey",
+  "length": 2.6,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.6, "easeInOut"],
+        [0.598, 1.78, "easeInOut"],
+        [1.144, 1.78, "easeInOut"],
+        [1.664, 1.78, "easeInOut"],
+        [2.132, 1.78, "easeInOut"],
+        [2.6, 1.6, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "hips",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.598, 0.25, "easeInOut"],
+        [1.144, -0.25, "easeInOut"],
+        [1.664, -0.25, "easeInOut"],
+        [2.132, 0, "easeInOut"],
+        [2.6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.598, 0.5, "easeInOut"],
+        [1.144, -0.55, "easeInOut"],
+        [1.664, -0.55, "easeInOut"],
+        [2.132, -0.4, "easeInOut"],
+        [2.6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "torso",
+      "prop": "lean",
+      "keys": [
+        [0, 0.2, "easeInOut"],
+        [0.598, 0, "easeInOut"],
+        [1.144, 0.25, "easeInOut"],
+        [1.664, 0.25, "easeInOut"],
+        [2.132, 0, "easeInOut"],
+        [2.6, 0.2, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip0",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.598, 0, "easeInOut"],
+        [1.144, 0, "easeInOut"],
+        [1.664, 0, "easeInOut"],
+        [2.132, 0, "easeInOut"],
+        [2.6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip1",
+      "keys": [
+        [0, 2.5, "easeInOut"],
+        [0.598, 2.9, "easeInOut"],
+        [1.144, 2.5, "easeInOut"],
+        [1.664, 2.5, "easeInOut"],
+        [2.132, 2.8, "easeInOut"],
+        [2.6, 2.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip2",
+      "keys": [
+        [0, 0.6, "easeInOut"],
+        [0.598, 0.4, "easeInOut"],
+        [1.144, 0.6, "easeInOut"],
+        [1.664, 0.6, "easeInOut"],
+        [2.132, 0.5, "easeInOut"],
+        [2.6, 0.6, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip3",
+      "keys": [
+        [0, 0.7, "easeInOut"],
+        [0.598, 0.3, "easeInOut"],
+        [1.144, 0.6, "easeInOut"],
+        [1.664, 0.6, "easeInOut"],
+        [2.132, 0.3, "easeInOut"],
+        [2.6, 0.7, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip4",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.598, 0, "easeInOut"],
+        [1.144, 0, "easeInOut"],
+        [1.664, 0, "easeInOut"],
+        [2.132, 0, "easeInOut"],
+        [2.6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "prop",
+      "prop": "grip5",
+      "keys": [
+        [0, -0.25, "easeInOut"],
+        [0.598, -1.5, "easeInOut"],
+        [1.144, 0.2, "easeInOut"],
+        [1.664, 0.2, "easeInOut"],
+        [2.132, 1.2, "easeInOut"],
+        [2.6, -0.25, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

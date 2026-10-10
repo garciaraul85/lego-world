@@ -102,7 +102,7 @@ export const WORKSPACES = [
   ['Scene', null],
   ['World graph', null],
   ['Logic', 'Phase 4'],
-  ['Characters', 'Phase 3'],
+  ['Characters', null],
   ['Assets', null],
   ['Screens', 'Phase 5'],
   ['Cinematics', 'Phase 6'],

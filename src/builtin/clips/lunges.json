@@ -1,0 +1,131 @@
+{
+  "id": "clp_655mll7bb7",
+  "name": "Alternating lunges",
+  "group": "Exercise",
+  "length": 4,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.78, "easeInOut"],
+        [1, 1.12, "easeInOut"],
+        [2, 1.78, "easeInOut"],
+        [3, 1.12, "easeInOut"],
+        [4, 1.78, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [1, -0.6, "easeInOut"],
+        [2, 0, "easeInOut"],
+        [3, 0, "easeInOut"],
+        [4, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.06, "easeInOut"],
+        [1, 0, "easeInOut"],
+        [2, -0.06, "easeInOut"],
+        [3, -0.06, "easeInOut"],
+        [4, -0.06, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [1, 0, "easeInOut"],
+        [2, 0, "easeInOut"],
+        [3, -0.6, "easeInOut"],
+        [4, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.06, "easeInOut"],
+        [1, 0.06, "easeInOut"],
+        [2, 0.06, "easeInOut"],
+        [3, 0, "easeInOut"],
+        [4, 0.06, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftLeg",
+      "prop": "x",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [1, -0.85, "easeInOut"],
+        [2, 0, "easeInOut"],
+        [3, 0.3, "easeInOut"],
+        [4, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightLeg",
+      "prop": "x",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [1, 0.3, "easeInOut"],
+        [2, 0, "easeInOut"],
+        [3, -0.85, "easeInOut"],
+        [4, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [1, -0.12, "easeInOut"],
+        [2, -0.12, "easeInOut"],
+        [3, -0.8, "easeInOut"],
+        [4, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [1, -0.8, "easeInOut"],
+        [2, -0.12, "easeInOut"],
+        [3, -0.12, "easeInOut"],
+        [4, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftShin",
+      "prop": "bend",
+      "keys": [
+        [0, 0.035, "easeInOut"],
+        [1, 1.4, "easeInOut"],
+        [2, 0.035, "easeInOut"],
+        [3, 0.45, "easeInOut"],
+        [4, 0.035, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightShin",
+      "prop": "bend",
+      "keys": [
+        [0, 0.035, "easeInOut"],
+        [1, 0.45, "easeInOut"],
+        [2, 0.035, "easeInOut"],
+        [3, 1.4, "easeInOut"],
+        [4, 0.035, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

@@ -11,6 +11,14 @@ import {
   updateAsset,
 } from './handlers/assets';
 import { moveBricks, paintBricks, placeBricks, removeBricks, updateBricks } from './handlers/bricks';
+import {
+  createCharacter,
+  createClip,
+  deleteCharacter,
+  deleteClip,
+  updateCharacter,
+  updateClip,
+} from './handlers/characters';
 import { deleteFile, putFile } from './handlers/file';
 import { connectGate, deleteGate, deleteMap, updateGate } from './handlers/gates';
 import {
@@ -54,5 +62,11 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('asset.create', createAsset);
   bus.register('asset.update', updateAsset);
   bus.register('asset.delete', deleteAsset);
+  bus.register('character.create', createCharacter);
+  bus.register('character.update', updateCharacter);
+  bus.register('character.delete', deleteCharacter);
+  bus.register('clip.create', createClip);
+  bus.register('clip.update', updateClip);
+  bus.register('clip.delete', deleteClip);
   return bus;
 }

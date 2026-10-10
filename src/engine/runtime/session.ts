@@ -1,3 +1,4 @@
+import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { expandAsset } from '../../core/assets/expand';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
 import { brickToPiece, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
@@ -5,6 +6,7 @@ import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import {
   type Character,
+  type Clip,
   type Gates,
   type Instances,
   type MapDoc,
@@ -12,6 +14,7 @@ import {
   type Project,
   paths,
 } from '../../core/schema';
+import { Animator } from '../character/animator';
 import {
   type Controller,
   type Debris,
@@ -89,6 +92,9 @@ export class PlaySession {
   readonly vars = new Map<string, unknown>();
   readonly inventory = new Map<string, number>();
   readonly actions: ActionRunner;
+  /** keyframe clips on the hero (emotes, keys 1-4) */
+  readonly heroAnim = new Animator();
+  emotes: Clip[] = [];
 
   constructor(
     readonly snapshot: FileSource,
@@ -109,6 +115,7 @@ export class PlaySession {
     const project = snapshot.get(paths.project) as Project;
     const heroChr = project.hero ? (snapshot.get(paths.character(project.hero)) as Character | undefined) : undefined;
     this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...(heroChr?.profile ?? {}) });
+    this.emotes = this.resolveEmotes(heroChr);
     const mapId = opts.mapId ?? project.entry.map;
     this.world = this.loadWorld(mapId);
     const spawn =
@@ -251,6 +258,7 @@ export class PlaySession {
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
       { id: 'gates', fixed: (g) => g.stepGates() },
       { id: 'interact', fixed: (g) => g.stepInteract() },
+      { id: 'anim', fixed: (g, dt) => g.stepAnim(dt) },
       {
         id: 'clock',
         fixed: (g, dt) => {
@@ -483,6 +491,49 @@ export class PlaySession {
     this.emit('rebuild', `Rebuilt ${entry.originals.length} bricks${owner ? ` (${owner.def.name})` : ''}`);
     if (owner) this.emit('event', `Event “onRebuildFinished” · ${owner.def.name}`);
     this.say('Rebuilt! Every original brick is back in place.', 2);
+  }
+
+  // ---------- clips (P3.5): emotes on keys 1-4 ----------
+
+  private resolveEmotes(hero: Character | undefined): Clip[] {
+    const find = (id: string) =>
+      (this.snapshot.get(`clips/${id}.json`) as Clip | undefined) ?? BUILTIN_CLIPS.find((c) => c.id === id);
+    const own = (hero?.emotes ?? []).map(find).filter((c): c is Clip => !!c);
+    if (own.length) return own;
+    const named = ['Jumping jacks', 'Squats', 'Tree · balance', 'Push-ups'];
+    return named.map((n) => BUILTIN_CLIPS.find((c) => c.name === n)).filter((c): c is Clip => !!c);
+  }
+
+  /** Plays the hero's n-th emote (standing still); pressing it again stops it. */
+  emote(n: number) {
+    const clip = this.emotes[n];
+    if (!clip) return;
+    if (this.heroAnim.clip?.id === clip.id) {
+      this.heroAnim.stop();
+      return;
+    }
+    const s = this.heroState;
+    if (!s.grounded || s.building || this.talking) return;
+    this.heroAnim.play(clip);
+    this.emit('info', `Emote: ${clip.name ?? clip.id}`);
+  }
+
+  stepAnim(dt: number) {
+    const a = this.heroAnim;
+    if (!a.clip) {
+      a.step(dt);
+      return;
+    }
+    const v = this.inputVector();
+    const s = this.heroState;
+    if (v.x || v.z || v.jump || !s.grounded || (s.attack as number) > 0 || s.building) {
+      a.stop();
+      return;
+    }
+    for (const e of a.step(dt)) {
+      if ('emit' in e) this.emit('event', `Event “${e.emit}” · ${a.clip?.name ?? 'clip'}`);
+      else this.emit('info', `♪ ${e.sound} (audio arrives in Phase 5)`);
+    }
   }
 
   // ---------- asset instances: interactions and states (P3.1) ----------

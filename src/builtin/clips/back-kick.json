@@ -1,0 +1,166 @@
+{
+  "id": "clp_a4rolgvllu",
+  "name": "Back kick",
+  "group": "Kicking",
+  "length": 2,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.73, "easeInOut"],
+        [0.46, 1.73, "easeInOut"],
+        [0.88, 1.73, "easeInOut"],
+        [1.28, 1.73, "easeInOut"],
+        [1.64, 1.73, "easeInOut"],
+        [2, 1.73, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.46, 0.5, "easeInOut"],
+        [0.88, 0.65, "easeInOut"],
+        [1.28, 0.65, "easeInOut"],
+        [1.64, 0.5, "easeInOut"],
+        [2, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "torso",
+      "prop": "lean",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.46, 0, "easeInOut"],
+        [0.88, 0.4, "easeInOut"],
+        [1.28, 0.4, "easeInOut"],
+        [1.64, 0, "easeInOut"],
+        [2, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, -1.05, "easeInOut"],
+        [0.46, -1.05, "easeInOut"],
+        [0.88, -1.05, "easeInOut"],
+        [1.28, -1.05, "easeInOut"],
+        [1.64, -1.05, "easeInOut"],
+        [2, -1.05, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.18, "easeInOut"],
+        [0.46, -0.18, "easeInOut"],
+        [0.88, -0.18, "easeInOut"],
+        [1.28, -0.18, "easeInOut"],
+        [1.64, -0.18, "easeInOut"],
+        [2, -0.18, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, -1.05, "easeInOut"],
+        [0.46, -1.05, "easeInOut"],
+        [0.88, -1.05, "easeInOut"],
+        [1.28, -1.05, "easeInOut"],
+        [1.64, -1.05, "easeInOut"],
+        [2, -1.05, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.18, "easeInOut"],
+        [0.46, 0.18, "easeInOut"],
+        [0.88, 0.18, "easeInOut"],
+        [1.28, 0.18, "easeInOut"],
+        [1.64, 0.18, "easeInOut"],
+        [2, 0.18, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftLeg",
+      "prop": "x",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.46, -0.12, "easeInOut"],
+        [0.88, -0.12, "easeInOut"],
+        [1.28, -0.12, "easeInOut"],
+        [1.64, -0.12, "easeInOut"],
+        [2, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightLeg",
+      "prop": "x",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.46, -0.35, "easeInOut"],
+        [0.88, 1.25, "easeInOut"],
+        [1.28, 1.25, "easeInOut"],
+        [1.64, -0.35, "easeInOut"],
+        [2, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1.1, "easeInOut"],
+        [0.46, -1.1, "easeInOut"],
+        [0.88, -1.1, "easeInOut"],
+        [1.28, -1.1, "easeInOut"],
+        [1.64, -1.1, "easeInOut"],
+        [2, -1.1, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1.1, "easeInOut"],
+        [0.46, -1.1, "easeInOut"],
+        [0.88, -1.1, "easeInOut"],
+        [1.28, -1.1, "easeInOut"],
+        [1.64, -1.1, "easeInOut"],
+        [2, -1.1, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftShin",
+      "prop": "bend",
+      "keys": [
+        [0, 0.22, "easeInOut"],
+        [0.46, 0.22, "easeInOut"],
+        [0.88, 0.22, "easeInOut"],
+        [1.28, 0.22, "easeInOut"],
+        [1.64, 0.22, "easeInOut"],
+        [2, 0.22, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightShin",
+      "prop": "bend",
+      "keys": [
+        [0, 0.22, "easeInOut"],
+        [0.46, 1.6, "easeInOut"],
+        [0.88, 0.12, "easeInOut"],
+        [1.28, 0.12, "easeInOut"],
+        [1.64, 1.6, "easeInOut"],
+        [2, 0.22, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

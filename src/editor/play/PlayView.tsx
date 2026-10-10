@@ -106,6 +106,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       else if (k === 'f' && !e.repeat) s.smash();
       else if (k === 't' && !e.repeat) s.talk();
       else if (k === 'p' && !e.repeat) ed.paused.value = !ed.paused.value;
+      else if (/^[1-4]$/.test(k) && !e.repeat) s.emote(Number(k) - 1);
       else if (k === 'n' && ed.paused.value) s.runtime.stepOnce();
       else return;
       e.preventDefault();
@@ -229,7 +230,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
           ))}
         </span>
         <span class="muted small opt play-hint">
-          WASD move · Space jump · F smash · E use · hold E rebuild · T talk · drag to look
+          WASD move · Space jump · F smash · E use · hold E rebuild · T talk · 1-4 emotes · drag to look
         </span>
         <button type="button" class="btn go" style={{ marginLeft: 'auto' }} onClick={onStop} title="Stop (Esc)">
           ■ Stop

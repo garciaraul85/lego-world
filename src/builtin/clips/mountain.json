@@ -1,0 +1,59 @@
+{
+  "id": "clp_i0948k5lar",
+  "name": "Mountain · overhead stretch",
+  "group": "Yoga",
+  "prop": "mat",
+  "length": 5,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [1.15, -1.4, "easeInOut"],
+        [2.2, -2.9, "easeInOut"],
+        [3.2, -2.9, "easeInOut"],
+        [4.1, -1.4, "easeInOut"],
+        [5, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.06, "easeInOut"],
+        [1.15, -0.3, "easeInOut"],
+        [2.2, -0.12, "easeInOut"],
+        [3.2, -0.12, "easeInOut"],
+        [4.1, -0.3, "easeInOut"],
+        [5, -0.06, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [1.15, -1.4, "easeInOut"],
+        [2.2, -2.9, "easeInOut"],
+        [3.2, -2.9, "easeInOut"],
+        [4.1, -1.4, "easeInOut"],
+        [5, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.06, "easeInOut"],
+        [1.15, 0.3, "easeInOut"],
+        [2.2, 0.12, "easeInOut"],
+        [3.2, 0.12, "easeInOut"],
+        [4.1, 0.3, "easeInOut"],
+        [5, 0.06, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

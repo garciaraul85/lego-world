@@ -107,6 +107,11 @@ export interface LegacyRuntime {
   };
   CharacterCatalog: {
     defaults: Record<string, unknown>;
+    choices: Record<string, string[]>;
+    colorFields: string[];
+    rangeFields: Record<string, { max: number }>;
+    presets: Record<string, Record<string, unknown>>;
+    preset(name: string): Record<string, unknown>;
     validate(p: Record<string, unknown>): Record<string, unknown>;
     heightScale(p: Record<string, unknown>): number;
   };
@@ -135,6 +140,13 @@ export interface LegacyRuntime {
     reply(npc: Npc, text: string, world: LegacyWorldMeta, env: unknown, broken: number): { text?: string } | string;
   };
   WorldGenerator: { isRoadMark(p: LegacyPiece, config: unknown, layout?: number): boolean };
+  StudioAnimations: {
+    sample(
+      id: string,
+      time: number,
+      base: Record<string, unknown>,
+    ): { state: HeroState; profile: Record<string, unknown> };
+  };
   SkyCycle: {
     sample(
       time: string,

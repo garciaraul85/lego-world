@@ -1,0 +1,120 @@
+{
+  "id": "clp_xzo00mh8xp",
+  "name": "Standing · pelvic tilts",
+  "group": "Exercise",
+  "length": 3.6,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.72, "easeInOut"],
+        [0.9, 1.72, "easeInOut"],
+        [1.8, 1.72, "easeInOut"],
+        [2.7, 1.72, "easeInOut"],
+        [3.6, 1.72, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "forward",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.9, 0.13, "easeInOut"],
+        [1.8, 0, "easeInOut"],
+        [2.7, -0.1, "easeInOut"],
+        [3.6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "pitch",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.9, 0.18, "easeInOut"],
+        [1.8, 0, "easeInOut"],
+        [2.7, -0.14, "easeInOut"],
+        [3.6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "torso",
+      "prop": "lean",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.9, -0.18, "easeInOut"],
+        [1.8, 0, "easeInOut"],
+        [2.7, 0.14, "easeInOut"],
+        [3.6, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.9, -0.12, "easeInOut"],
+        [1.8, -0.12, "easeInOut"],
+        [2.7, -0.12, "easeInOut"],
+        [3.6, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.9, -0.12, "easeInOut"],
+        [1.8, -0.12, "easeInOut"],
+        [2.7, -0.12, "easeInOut"],
+        [3.6, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.9, -0.12, "easeInOut"],
+        [1.8, -0.12, "easeInOut"],
+        [2.7, -0.12, "easeInOut"],
+        [3.6, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.12, "easeInOut"],
+        [0.9, 0.12, "easeInOut"],
+        [1.8, 0.12, "easeInOut"],
+        [2.7, 0.12, "easeInOut"],
+        [3.6, 0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -0.25, "easeInOut"],
+        [0.9, -0.25, "easeInOut"],
+        [1.8, -0.25, "easeInOut"],
+        [2.7, -0.25, "easeInOut"],
+        [3.6, -0.25, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -0.25, "easeInOut"],
+        [0.9, -0.25, "easeInOut"],
+        [1.8, -0.25, "easeInOut"],
+        [2.7, -0.25, "easeInOut"],
+        [3.6, -0.25, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

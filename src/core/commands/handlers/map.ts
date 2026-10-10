@@ -222,12 +222,13 @@ export const removeSpawn: CommandHandler<{ map: string; spawn: string }> = {
   },
 };
 
-export type UpdateProject = { name?: string; entryMap?: string; entrySpawn?: string | null };
+export type UpdateProject = { name?: string; entryMap?: string; entrySpawn?: string | null; hero?: string | null };
 
 export const updateProject: CommandHandler<UpdateProject> = {
   label: () => 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
+    if (p.hero && !store.has(paths.character(p.hero))) return 'That character does not exist.';
     if (p.entryMap !== undefined && !store.has(paths.map(p.entryMap))) return 'Start map not found.';
     if (p.entrySpawn) {
       const map = p.entryMap ?? store.manifest.entry.map;
@@ -248,6 +249,7 @@ export const updateProject: CommandHandler<UpdateProject> = {
       ...cur,
       name: p.name?.trim().slice(0, 120) ?? cur.name,
       entry: { ...cur.entry, map: entryMap, spawn: spawn as Project['entry']['spawn'] },
+      ...(p.hero !== undefined ? { hero: p.hero as Project['hero'] } : {}),
     });
   },
 };

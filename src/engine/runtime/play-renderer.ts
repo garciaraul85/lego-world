@@ -1,5 +1,6 @@
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
+import { rigPose } from '../character/animator';
 import type { CharacterRenderer, Controller } from '../legacy/runtime-modules';
 import { brickGeometry } from '../render/brick-geometry';
 import type { CameraFrame } from '../render/camera';
@@ -146,7 +147,13 @@ export class PlayRenderer {
         c.bindCollision(s.hero, w.controller);
         this.bound.add(w.controller);
       }
-      c.draw(s.hero, s.heroState);
+      const pose = s.heroAnim.params();
+      c.draw(
+        s.hero,
+        pose
+          ? { ...s.heroState, studioPose: rigPose(pose, s.heroAnim.clip), studioProgress: 0, studioFist: false }
+          : s.heroState,
+      );
       for (const d of w.debris) c.debris(this.debrisMesh, d);
     });
   }

@@ -1,0 +1,95 @@
+{
+  "id": "clp_uvfmtjqje2",
+  "name": "Volleyball · forearm pass",
+  "group": "Volleyball",
+  "prop": "volley-bump",
+  "length": 2.4,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.6, "easeInOut"],
+        [0.552, 1.3, "easeInOut"],
+        [1.056, 1.75, "easeInOut"],
+        [1.536, 1.75, "easeInOut"],
+        [1.968, 1.3, "easeInOut"],
+        [2.4, 1.6, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, -0.8, "easeInOut"],
+        [0.552, -1.3, "easeInOut"],
+        [1.056, -1.65, "easeInOut"],
+        [1.536, -1.65, "easeInOut"],
+        [1.968, -1.3, "easeInOut"],
+        [2.4, -0.8, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.15, "easeInOut"],
+        [0.552, 0.3, "easeInOut"],
+        [1.056, 0.25, "easeInOut"],
+        [1.536, 0.25, "easeInOut"],
+        [1.968, 0.3, "easeInOut"],
+        [2.4, 0.15, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, -0.8, "easeInOut"],
+        [0.552, -1.3, "easeInOut"],
+        [1.056, -1.65, "easeInOut"],
+        [1.536, -1.65, "easeInOut"],
+        [1.968, -1.3, "easeInOut"],
+        [2.4, -0.8, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.15, "easeInOut"],
+        [0.552, -0.3, "easeInOut"],
+        [1.056, -0.25, "easeInOut"],
+        [1.536, -0.25, "easeInOut"],
+        [1.968, -0.3, "easeInOut"],
+        [2.4, -0.15, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.552, -0.05, "easeInOut"],
+        [1.056, -0.12, "easeInOut"],
+        [1.536, -0.12, "easeInOut"],
+        [1.968, -0.05, "easeInOut"],
+        [2.4, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.552, -0.05, "easeInOut"],
+        [1.056, -0.12, "easeInOut"],
+        [1.536, -0.12, "easeInOut"],
+        [1.968, -0.05, "easeInOut"],
+        [2.4, -0.12, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

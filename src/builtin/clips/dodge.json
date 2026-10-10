@@ -1,0 +1,153 @@
+{
+  "id": "clp_iy0aky2yga",
+  "name": "Boxing · duck and weave",
+  "group": "Fighting",
+  "length": 2.4,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.73, "easeInOut"],
+        [0.6, 1.3, "easeInOut"],
+        [1.2, 1.25, "easeInOut"],
+        [1.8, 1.4, "easeInOut"],
+        [2.4, 1.73, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "torso",
+      "prop": "lean",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.6, 0.18, "easeInOut"],
+        [1.2, 0.24, "easeInOut"],
+        [1.8, 0, "easeInOut"],
+        [2.4, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "torso",
+      "prop": "roll",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.6, 0.25, "easeInOut"],
+        [1.2, 0, "easeInOut"],
+        [1.8, -0.25, "easeInOut"],
+        [2.4, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, -1.05, "easeInOut"],
+        [0.6, -1.05, "easeInOut"],
+        [1.2, -1.05, "easeInOut"],
+        [1.8, -1.05, "easeInOut"],
+        [2.4, -1.05, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.18, "easeInOut"],
+        [0.6, -0.18, "easeInOut"],
+        [1.2, -0.18, "easeInOut"],
+        [1.8, -0.18, "easeInOut"],
+        [2.4, -0.18, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, -1.05, "easeInOut"],
+        [0.6, -1.05, "easeInOut"],
+        [1.2, -1.05, "easeInOut"],
+        [1.8, -1.05, "easeInOut"],
+        [2.4, -1.05, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.18, "easeInOut"],
+        [0.6, 0.18, "easeInOut"],
+        [1.2, 0.18, "easeInOut"],
+        [1.8, 0.18, "easeInOut"],
+        [2.4, 0.18, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftLeg",
+      "prop": "x",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.6, -0.12, "easeInOut"],
+        [1.2, -0.12, "easeInOut"],
+        [1.8, -0.12, "easeInOut"],
+        [2.4, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightLeg",
+      "prop": "x",
+      "keys": [
+        [0, -0.12, "easeInOut"],
+        [0.6, -0.12, "easeInOut"],
+        [1.2, -0.12, "easeInOut"],
+        [1.8, -0.12, "easeInOut"],
+        [2.4, -0.12, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1.1, "easeInOut"],
+        [0.6, -1.1, "easeInOut"],
+        [1.2, -1.1, "easeInOut"],
+        [1.8, -1.1, "easeInOut"],
+        [2.4, -1.1, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1.1, "easeInOut"],
+        [0.6, -1.1, "easeInOut"],
+        [1.2, -1.1, "easeInOut"],
+        [1.8, -1.1, "easeInOut"],
+        [2.4, -1.1, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftShin",
+      "prop": "bend",
+      "keys": [
+        [0, 0.22, "easeInOut"],
+        [0.6, 0.22, "easeInOut"],
+        [1.2, 0.22, "easeInOut"],
+        [1.8, 0.22, "easeInOut"],
+        [2.4, 0.22, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightShin",
+      "prop": "bend",
+      "keys": [
+        [0, 0.22, "easeInOut"],
+        [0.6, 0.22, "easeInOut"],
+        [1.2, 0.22, "easeInOut"],
+        [1.8, 0.22, "easeInOut"],
+        [2.4, 0.22, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

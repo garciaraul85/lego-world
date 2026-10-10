@@ -1,0 +1,95 @@
+{
+  "id": "clp_n3s73qt8lx",
+  "name": "Football / soccer · pass",
+  "group": "Football / soccer",
+  "prop": "soccer-pass",
+  "length": 2,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "hips",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.46, 0, "easeInOut"],
+        [0.88, -0.16, "easeInOut"],
+        [1.28, -0.16, "easeInOut"],
+        [1.64, 0, "easeInOut"],
+        [2, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "root",
+      "prop": "turn",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.46, 0.2, "easeInOut"],
+        [0.88, -0.22, "easeInOut"],
+        [1.28, -0.22, "easeInOut"],
+        [1.64, 0.2, "easeInOut"],
+        [2, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.46, -0.3, "easeInOut"],
+        [0.88, -0.6, "easeInOut"],
+        [1.28, -0.6, "easeInOut"],
+        [1.64, -0.3, "easeInOut"],
+        [2, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.06, "easeInOut"],
+        [0.46, -0.45, "easeInOut"],
+        [0.88, -0.55, "easeInOut"],
+        [1.28, -0.55, "easeInOut"],
+        [1.64, -0.45, "easeInOut"],
+        [2, -0.06, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightLeg",
+      "prop": "x",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.46, 0.6, "easeInOut"],
+        [0.88, -1.05, "easeInOut"],
+        [1.28, -1.05, "easeInOut"],
+        [1.64, 0.6, "easeInOut"],
+        [2, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightLeg",
+      "prop": "z",
+      "keys": [
+        [0, 0, "easeInOut"],
+        [0.46, 0.1, "easeInOut"],
+        [0.88, 0.15, "easeInOut"],
+        [1.28, 0.15, "easeInOut"],
+        [1.64, 0.1, "easeInOut"],
+        [2, 0, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightShin",
+      "prop": "bend",
+      "keys": [
+        [0, 0.035, "easeInOut"],
+        [0.46, 0.9, "easeInOut"],
+        [0.88, 0.1, "easeInOut"],
+        [1.28, 0.1, "easeInOut"],
+        [1.64, 0.9, "easeInOut"],
+        [2, 0.035, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

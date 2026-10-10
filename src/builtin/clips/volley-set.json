@@ -1,0 +1,95 @@
+{
+  "id": "clp_uzfonqiqz1",
+  "name": "Volleyball · overhead set",
+  "group": "Volleyball",
+  "prop": "volley-set",
+  "length": 2.4,
+  "loop": true,
+  "tracks": [
+    {
+      "bone": "root",
+      "prop": "height",
+      "keys": [
+        [0, 1.78, "easeInOut"],
+        [0.552, 1.4, "easeInOut"],
+        [1.056, 1.78, "easeInOut"],
+        [1.536, 1.78, "easeInOut"],
+        [1.968, 1.4, "easeInOut"],
+        [2.4, 1.78, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "x",
+      "keys": [
+        [0, -1.5, "easeInOut"],
+        [0.552, -2, "easeInOut"],
+        [1.056, -2.8, "easeInOut"],
+        [1.536, -2.8, "easeInOut"],
+        [1.968, -2, "easeInOut"],
+        [2.4, -1.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftArm",
+      "prop": "z",
+      "keys": [
+        [0, -0.25, "easeInOut"],
+        [0.552, -0.15, "easeInOut"],
+        [1.056, -0.15, "easeInOut"],
+        [1.536, -0.15, "easeInOut"],
+        [1.968, -0.15, "easeInOut"],
+        [2.4, -0.25, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "x",
+      "keys": [
+        [0, -1.5, "easeInOut"],
+        [0.552, -2, "easeInOut"],
+        [1.056, -2.8, "easeInOut"],
+        [1.536, -2.8, "easeInOut"],
+        [1.968, -2, "easeInOut"],
+        [2.4, -1.5, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightArm",
+      "prop": "z",
+      "keys": [
+        [0, 0.25, "easeInOut"],
+        [0.552, 0.15, "easeInOut"],
+        [1.056, 0.15, "easeInOut"],
+        [1.536, 0.15, "easeInOut"],
+        [1.968, 0.15, "easeInOut"],
+        [2.4, 0.25, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "leftForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1.2, "easeInOut"],
+        [0.552, -0.8, "easeInOut"],
+        [1.056, -0.05, "easeInOut"],
+        [1.536, -0.05, "easeInOut"],
+        [1.968, -0.8, "easeInOut"],
+        [2.4, -1.2, "easeInOut"]
+      ]
+    },
+    {
+      "bone": "rightForearm",
+      "prop": "bend",
+      "keys": [
+        [0, -1.2, "easeInOut"],
+        [0.552, -0.8, "easeInOut"],
+        [1.056, -0.05, "easeInOut"],
+        [1.536, -0.05, "easeInOut"],
+        [1.968, -0.8, "easeInOut"],
+        [2.4, -1.2, "easeInOut"]
+      ]
+    }
+  ],
+  "events": []
+}

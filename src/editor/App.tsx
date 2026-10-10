@@ -24,6 +24,7 @@ import type { EditorState } from './state';
 import type { ViewportApi } from './viewport/Viewport';
 import { ViewportPanel } from './viewport/Views';
 import { AssetStudio } from './workspaces/asset-studio/AssetStudio';
+import { CharacterStudio } from './workspaces/character-studio/CharacterStudio';
 
 export type AppHost = {
   newProject(): Promise<void>;
@@ -125,10 +126,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       <MenuBar c={c} />
       <WorkspaceTabs current={workspace} onPick={(w) => ui.workspace(w)} />
       <Toolbar c={c} />
-      {workspace === 'Assets' && !engine ? (
-        <div class="body studio-body">
-          <AssetStudio c={c} />
-        </div>
+      {(workspace === 'Assets' || workspace === 'Characters') && !engine ? (
+        <div class="body studio-body">{workspace === 'Assets' ? <AssetStudio c={c} /> : <CharacterStudio c={c} />}</div>
       ) : (
         <div class="body">
           <div class="compact-tabs" role="tablist" aria-label="Panels">

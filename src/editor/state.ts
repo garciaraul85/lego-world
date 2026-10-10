@@ -69,6 +69,8 @@ export class EditorState {
   readonly assetBrush = signal<{ asset: string | null; rot: number }>({ asset: null, rot: 0 });
   /** the asset open in the Asset studio */
   readonly studioAsset = signal<string | null>(null);
+  /** the character open in the Character studio */
+  readonly studioCharacter = signal<string | null>(null);
   readonly view = signal<ViewTab>('scene');
   readonly left = signal<LeftTab>('hier');
   readonly right = signal<RightTab>('inspect');
