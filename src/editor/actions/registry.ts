@@ -12,7 +12,10 @@ export interface EditorUi {
   exportProject(): void;
   exportLegacySave(): void;
   /** engine: new runtime (P2); v68: LEGO World v68 runtime; edit: v68 studio */
-  play(mode: 'engine' | 'v68' | 'edit', opts?: { fromSelectedSpawn?: boolean; fromEntry?: boolean }): void;
+  play(
+    mode: 'engine' | 'v68' | 'edit',
+    opts?: { fromSelectedSpawn?: boolean; fromEntry?: boolean; cinematic?: string },
+  ): void;
   stopPlay(): void;
   /** open the Asset studio on an asset (P3.4) */
   editAsset(id: string | null): void;

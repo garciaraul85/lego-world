@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { toLegacy } from '../core/bridge/legacy-bridge';
 import { packProject } from '../core/project/archive';
 import type { ProjectMeta } from '../core/project/backend';
-import { type MediaIndex, paths } from '../core/schema';
+import { type Cinematic, type MediaIndex, paths } from '../core/schema';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { WorldGraph } from './graph/WorldGraph';
 import { Dock } from './panels/Dock';
@@ -27,10 +27,11 @@ import { ViewportPanel } from './viewport/Views';
 import { AssetStudio } from './workspaces/asset-studio/AssetStudio';
 import { AudioWorkspace } from './workspaces/audio/AudioWorkspace';
 import { CharacterStudio } from './workspaces/character-studio/CharacterStudio';
+import { Director } from './workspaces/director/Director';
 import { LogicWorkspace } from './workspaces/logic/LogicWorkspace';
 import { ScreensWorkspace } from './workspaces/screens/ScreensWorkspace';
 
-const STUDIOS = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio']);
+const STUDIOS = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics']);
 
 export type AppHost = {
   newProject(): Promise<void>;
@@ -83,9 +84,16 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           return;
         }
         const spawnId = opts?.fromSelectedSpawn ? ed.selectedSpawn.value : null;
-        const mapId = opts?.fromSelectedSpawn ? ed.mapId.value : ed.store.manifest.entry.map;
+        const scene = opts?.cinematic ? ed.store.get<Cinematic>(paths.cinematic(opts.cinematic)) : undefined;
+        const mapId = scene?.map ?? (opts?.fromSelectedSpawn ? ed.mapId.value : ed.store.manifest.entry.map);
         setWorkspace('Scene');
-        setEngine({ mapId, spawnId, key: Date.now(), boot: opts?.fromEntry ? 'entry' : 'game' });
+        setEngine({
+          mapId,
+          spawnId,
+          key: Date.now(),
+          boot: opts?.fromEntry ? 'entry' : 'game',
+          ...(scene ? { cinematic: scene.id } : {}),
+        });
       },
       stopPlay: () => setEngine(null),
       editAsset: (id) => {
@@ -148,6 +156,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
             <ScreensWorkspace c={c} />
           ) : workspace === 'Audio' ? (
             <AudioWorkspace c={c} />
+          ) : workspace === 'Cinematics' ? (
+            <Director c={c} />
           ) : (
             <CharacterStudio c={c} />
           )}
@@ -230,8 +240,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       {modal === 'about' && (
         <Modal title="Brick Worlds Engine" onClose={() => setModal(null)}>
           <p>
-            Phase 5 build: Scene editor, World graph, Asset studio, Character studio, Logic, Screens and Audio on the v5
-            project format, with Play on the new engine runtime, grown from LEGO World v68.
+            Phase 6 build: Scene editor, World graph, Asset studio, Character studio, Logic, Screens, Cinematics and
+            Audio on the v5 project format, with Play on the new engine runtime, grown from LEGO World v68.
           </p>
           <p class="muted">
             Projects are saved as small JSON files in this browser. Guns, magic, super powers, the volcano and the

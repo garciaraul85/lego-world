@@ -1,4 +1,4 @@
-# LEGO World v68 → Brick Worlds editor: parity checklist (P1.9, updated for P2–P5)
+# LEGO World v68 → Brick Worlds editor: parity checklist (P1.9, updated for P2–P6)
 
 Every v68 control and where it lives in the Phase 1 editor (`dist/editor.html`). "v68 studio" means
 **Play › Open in LEGO World v68** (toolbar: *v68 studio*): v68 runs on the current project in a frame and
@@ -150,3 +150,36 @@ lazy-loaded, because the artifact is one self-contained file).
 Known gaps after Phase 5: existing projects keep their maps silent until a map music is picked (Map tab ›
 Music; new projects start with “explore”); built-in screen texts are English only; images on screens need
 an imported .png (no image editor); cinematic music and the cinematic action arrive with Phase 6.
+
+## As built — Phase 6
+
+- Schema (`src/core/schema/cinematic.ts`) made exact: typed actor items, camera items with `lookAt` (camera
+  from view), typed post items (fade / letterbox / title / slowmo), event items (`emit`, `setVar`), cast `at`
+  marks, and checks (every actor track has a cast member, no item after the end). Semantics in
+  `docs/cinematic-tracks.md`. Clip events gained `{t, cinematic}` markers.
+- Player (`src/engine/cinematic/`): `CinematicPlayer` precomputes each actor's motion (A* on a one-stud nav
+  grid built from the map's bricks, 1.25-stud steps, v68 walk/run speeds and gait phase), so `frame(t)` is a
+  pure function and `seek(t)` equals playing to `t` (tested); cues (music, sfx, voice blips, emit, setVar)
+  fire once as the playhead passes; `skip()` returns the state cues still due. `CameraRig` eases blends
+  (smoothstep), follows roles in their own frame, shakes deterministically.
+- Play (`src/engine/systems/cinematic.ts`): cast neighbours and the hero are driven by the scene (AI, input,
+  smash, talk, use and gates frozen), extras appear for the scene only, dialogue uses the dialogue screen,
+  music takes the cinematic layer, slow motion slows neighbours and debris, Esc / B / Skip skip, `once` is
+  player progress, **On cinematic done** fires at the end. The play renderer takes the rig's camera.
+  Built-in gestures (wave, cheer, nod, bow, shrug, point) are clips in `src/builtin/clips/emotes.ts`.
+- Director (`src/editor/workspaces/director/`): scenes list with an example reward scene, cast panel, shot
+  list, stage view (orbit camera, marks to drag, camera frusta, Record: click the ground to walk the selected
+  role there), camera preview with letterbox, fades, titles and dialogue, multitrack timeline (drag with 0.1 s
+  and edge snapping, + adds at the playhead, waveforms on music and sound rows), item inspector, *Where used*,
+  *Play in game*. Each edit is one `cinematic.put` undo step. The stage and preview redraw only when
+  something changed.
+- Triggers (P6.4): the `cinematic` action (with *once*) in every action list — zone enter/exit (now editable
+  in the zone inspector), asset interactions, screen buttons, gate *on arrive* (World graph, gate bar) — plus
+  clip markers (Character studio timeline), logic's Play / Stop cinematic, and the Dock (Assets ›
+  Cinematics, Timeline tab lists what happens on the map).
+- Fixed on the way: variables changed by the game (zone actions, screens, cinematics) now fire logic's **On
+  variable changed** (they only did inside logic runs).
+
+Known gaps after Phase 6: the stage's ground clicks use the spawn height (marks on hills snap to the nav
+height when played); there is no per-actor path preview line on the stage; extras use v68 character looks
+only.

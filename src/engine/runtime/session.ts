@@ -36,6 +36,7 @@ import {
   type Npc,
 } from '../legacy/runtime-modules';
 import { LogicRuntime } from '../logic/interpreter';
+import { CinematicSystem } from '../systems/cinematic';
 import { EmitterSystem } from '../systems/emitters';
 import { formatValue } from '../ui/bindings';
 import { ScreenStack } from '../ui/ScreenStack';
@@ -136,6 +137,8 @@ export class PlaySession {
   /** where Retry puts the hero back: the last spawn arrived at */
   checkpoint: { map: string; spawn: string | null };
   readonly emitterSystem = new EmitterSystem();
+  /** the cinematic playing now, if any (P6.2) */
+  readonly cine: CinematicSystem;
   readonly project: Project;
   private shownScreens = new Set<string>();
   private stepTimer = 0;
@@ -174,12 +177,35 @@ export class PlaySession {
       gave: () => this.audio.play(SND.pickup),
       spawn: (asset: string, at: string) => void this.spawnAsset(asset, at),
       despawn: (target: string) => this.despawn(target),
+      cinematic: (id: string, once: boolean) => void this.cine.play(id, { once }),
     };
     this.actions = new ActionRunner(host);
     this.uiActions = new ActionRunner(host);
     const project = snapshot.get(paths.project) as Project;
     this.project = project;
     this.screens = new ScreenStack((id) => resolveScreen(snapshot, id));
+    this.cine = new CinematicSystem({
+      snapshot,
+      mapId: () => this.world.mapId,
+      pieces: () => this.world.pieces,
+      npcs: () => this.world.npcs,
+      bounds: (p) => this.L.GamePhysics.bounds(p),
+      heroState: () => this.heroState,
+      heroProfile: () => this.hero,
+      validateProfile: (p) => this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...p }),
+      travel: (map) => this.travel(map, ''),
+      audio: this.audio,
+      emit: (kind, msg) => this.emit(kind, msg),
+      logicEvent: (event) => this.logic.fire({ type: 'event.onCustom', match: { event } }),
+      setVar: (name, value) => this.logic.setVar(name, value),
+      dialogue: (line) => {
+        if (!line) return this.endTalk();
+        this.dialogue = line;
+        const box = screenOfKind(this.snapshot, 'dialogue');
+        if (box && !this.screens.has(box.id)) this.screens.push(box.id);
+      },
+      done: (id) => this.logic.fire({ type: 'event.onCinematicDone', match: { cinematic: id } }),
+    });
     const heroChr = project.hero ? (snapshot.get(paths.character(project.hero)) as Character | undefined) : undefined;
     this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...(heroChr?.profile ?? {}) });
     this.emotes = this.resolveEmotes(heroChr);
@@ -293,6 +319,7 @@ export class PlaySession {
   // ---------- actions (keyboard / touch / cheats) ----------
 
   smash() {
+    if (this.cine.active) return;
     const s = this.heroState;
     if (this.smashCooldown > 0 || s.building || this.talking) return;
     const w = this.L.GameWeapons.get(this.hero.held);
@@ -306,6 +333,7 @@ export class PlaySession {
   }
 
   talk() {
+    if (this.cine.active) return;
     if (this.talking) {
       this.endTalk();
       return;
@@ -342,6 +370,7 @@ export class PlaySession {
   private systems(): System<PlaySession>[] {
     return [
       { id: 'hero', fixed: (g, dt) => g.moveHero(dt) },
+      { id: 'cinematic', fixed: (g, dt) => g.cine.step(dt) },
       { id: 'combat', fixed: (g, dt) => g.stepSmash(dt) },
       { id: 'rebuild', fixed: (g, dt) => g.stepRebuild(dt) },
       { id: 'debris', fixed: (g, dt) => g.stepDebris(dt) },
@@ -379,7 +408,15 @@ export class PlaySession {
 
   moveHero(dt: number) {
     this.smashCooldown = Math.max(0, this.smashCooldown - dt);
-    const input = this.talking || this.over ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
+    // a cinematic holds the hero: cast members are moved by the scene, otherwise no input
+    if (this.cine.heroInCast()) {
+      this.input.jump = false;
+      return;
+    }
+    const input =
+      this.talking || this.over || this.cine.active
+        ? { x: 0, z: 0, run: false, jump: false, vertical: 0 }
+        : this.inputVector();
     this.input.jump = false;
     const before = this.heroState;
     const wasGrounded = before.grounded;
@@ -538,7 +575,8 @@ export class PlaySession {
     if (w.debris.length > 220) w.debris.splice(0, w.debris.length - 220);
   }
 
-  stepDebris(dt: number) {
+  stepDebris(dt0: number) {
+    const dt = dt0 * this.slowmo;
     const w = this.world;
     for (const d of w.debris) {
       if (this.rebuildEntry?.id === d.entryId) {
@@ -703,9 +741,12 @@ export class PlaySession {
             this.screenText.set(`${id}:${String(e?.element ?? '')}`, formatValue(e?.text));
             break;
           }
-          default:
-            this.emit('info', `${kind === 'cinematic' ? `Cinematic ${id}` : 'Cinematic stops'} (arrives in Phase 6)`);
-            if (kind === 'cinematic') this.logic.fire({ type: 'event.onCinematicDone', match: { cinematic: id } });
+          case 'cinematic':
+            this.cine.play(id, { once: !!(extra as { once?: boolean } | undefined)?.once });
+            break;
+          case 'stopCinematic':
+            this.cine.stop();
+            break;
         }
       },
       inZone: (zone) => {
@@ -893,6 +934,10 @@ export class PlaySession {
 
   /** Esc / Android back / gamepad B: the top screen's onBack, else pause ⇄ resume. */
   back() {
+    if (this.cine.active) {
+      this.cine.skip();
+      return;
+    }
     const top = this.screens.top();
     if (!top) return this.gameOp('pause');
     if (top.onBack?.length) return this.uiActions.run(top.onBack, this.uiClock);
@@ -1034,7 +1079,8 @@ export class PlaySession {
     }
     for (const e of a.step(dt)) {
       if ('emit' in e) this.emit('event', `Event “${e.emit}” · ${a.clip?.name ?? 'clip'}`);
-      else this.audio.play(e.sound, { pos: [s.x, s.y + 1, s.z] });
+      else if ('sound' in e) this.audio.play(e.sound, { pos: [s.x, s.y + 1, s.z] });
+      else this.cine.play(e.cinematic);
     }
   }
 
@@ -1071,6 +1117,7 @@ export class PlaySession {
 
   /** E pressed: use the prompted interaction. Returns false when there is nothing to use. */
   interact(): boolean {
+    if (this.cine.active) return false;
     const p = this.prompt;
     if (!p || this.talking) return false;
     const list = p.instance.def.interactions.filter(
@@ -1112,10 +1159,16 @@ export class PlaySession {
     this.emit('info', `${inst.def.name} is now ${state}`);
   }
 
+  /** world time scale outside the cast (cinematic slow motion) */
+  get slowmo(): number {
+    return this.cine.frame?.post.slowmo ?? 1;
+  }
+
   stepNpcs(dt: number) {
     const w = this.world;
     if (!w.npcs.length) return;
-    this.L.NPCWorld.step(w.npcs, dt, this.heroState, this.talking?.id ?? null);
+    const free = this.cine.active ? w.npcs.filter((n) => !this.cine.isCast(n)) : w.npcs;
+    this.L.NPCWorld.step(free, dt * this.slowmo, this.heroState, this.talking?.id ?? null);
     if (
       this.talking &&
       Math.hypot(this.talking.state.x - this.heroState.x, this.talking.state.z - this.heroState.z) > 4.5
@@ -1137,6 +1190,7 @@ export class PlaySession {
   }
 
   stepGates() {
+    if (this.cine.active) return;
     const s = this.heroState;
     const near = (spawnId: string, r: number) => {
       const sp = this.world.doc.spawns.find((x) => x.id === spawnId);
@@ -1148,11 +1202,11 @@ export class PlaySession {
     }
     const scale = this.L.GamePhysics.scaleOf(s);
     const hit = this.outbound().find((o) => near(o.from, 1.2 + 0.4 * scale));
-    if (hit) this.travel(hit.toMap, hit.toSpawn);
+    if (hit) this.travel(hit.toMap, hit.toSpawn, hit.gate);
   }
 
   /** Switch to another map (each map keeps its own damage while playing, as in v68). */
-  travel(mapId: string, spawnId: string) {
+  travel(mapId: string, spawnId: string, gateId?: string) {
     const from = this.world;
     const keep = { ...this.heroState };
     this.cancelRebuild();
@@ -1172,6 +1226,11 @@ export class PlaySession {
     this.applyMapAudio();
     this.emit('travel', `${from.doc.name} → ${this.world.doc.name}${sp ? ` (${sp.name})` : ''}`);
     this.say(`Welcome to ${this.world.doc.name}`, 2);
+    // P6.4: a gate's on-arrive actions (e.g. play a cinematic when entering the castle)
+    const gate = gateId
+      ? (this.snapshot.get(paths.gates) as Gates | undefined)?.gates.find((g) => g.id === gateId)
+      : undefined;
+    if (gate?.onArrive?.length) this.actions.run(gate.onArrive, this.clock);
   }
 
   // ---------- cheats (P2.4) ----------

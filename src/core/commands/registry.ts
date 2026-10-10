@@ -29,6 +29,7 @@ import {
   updateCharacter,
   updateClip,
 } from './handlers/characters';
+import { deleteCinematic, putCinematic } from './handlers/cinematics';
 import { deleteFile, putFile } from './handlers/file';
 import { connectGate, deleteGate, deleteMap, updateGate } from './handlers/gates';
 import { addItem, removeItem, setMapAudio, updateItem } from './handlers/items';
@@ -119,5 +120,7 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('item.update', updateItem);
   bus.register('item.remove', removeItem);
   bus.register('map.setAudio', setMapAudio);
+  bus.register('cinematic.put', putCinematic);
+  bus.register('cinematic.delete', deleteCinematic);
   return bus;
 }

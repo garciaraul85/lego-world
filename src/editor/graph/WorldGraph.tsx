@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from 'preact/hooks';
 import { type Gates, type MapDoc, paths } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
 import { type ActionCtx, action, runAction } from '../actions/registry';
+import { ActionListField } from '../components/ActionListField';
+import { actionChoices } from '../panels/AudioFields';
 
 type End = { map: string; spawn: string };
 type Port = End & { x: number; y: number; side: -1 | 1 };
@@ -185,6 +187,21 @@ export function WorldGraph({ c }: { c: ActionCtx }) {
               Remove gate
             </button>
           </span>
+        )}
+        {gate && (
+          <div class="gate-arrive" role="group" aria-label="On arrive">
+            <span class="small">
+              <strong>On arrive</strong> at {mapName(gate.to.map)} (e.g. play a cinematic)
+            </span>
+            <ActionListField
+              value={gate.onArrive ?? []}
+              states={[]}
+              choices={actionChoices(ed)}
+              onChange={(onArrive) =>
+                ed.exec({ type: 'gate.update', payload: { gate: gate.id, onArrive } }, { label: 'Edit gate on arrive' })
+              }
+            />
+          </div>
         )}
         {map && (
           <span class="group" role="group" aria-label="Selected map">

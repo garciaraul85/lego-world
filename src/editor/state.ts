@@ -90,6 +90,8 @@ export class EditorState {
   /** the screen open in the Screens workspace and its selected widget path (P5.9) */
   readonly screenId = signal<string | null>(null);
   readonly widgetPath = signal<string | null>(null);
+  /** the cinematic open in the Director (P6.3) */
+  readonly cinematicId = signal<string | null>(null);
   /** what the Audio workspace shows: an event, a music state, the mixer or media (P5.6) */
   readonly audioSel = signal<{ kind: 'event' | 'music' | 'mixer' | 'media'; id: string | null }>({
     kind: 'event',

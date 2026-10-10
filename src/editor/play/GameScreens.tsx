@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { PlayRenderer } from '../../engine/runtime/play-renderer';
 import type { PlaySession } from '../../engine/runtime/session';
+import { CinematicOverlay } from '../../engine/ui/CinematicOverlay';
 import { type ScreenHost, ScreenLayer } from '../../engine/ui/ScreenRenderer';
 import { WorldUI } from '../../engine/ui/WorldUI';
 import type { EditorState } from '../state';
@@ -59,10 +60,15 @@ export function GameScreens({
       s.lookup,
     );
   });
+  const cine = s.cine.player;
+  const screens = s.screens.screens().filter((x) => !(cine?.cin.hideHud && x.kind === 'hud'));
   return (
     <>
-      <div ref={worldRef} class="bw-world-layer" aria-hidden="true" />
-      <ScreenLayer screens={s.screens.screens()} host={host} tick={t} />
+      <div ref={worldRef} class="bw-world-layer" aria-hidden="true" hidden={!!cine?.cin.hideHud} />
+      {cine && s.cine.frame && (
+        <CinematicOverlay post={s.cine.frame.post} skippable={cine.cin.skippable} onSkip={() => s.cine.skip()} />
+      )}
+      <ScreenLayer screens={screens} host={host} tick={t} />
     </>
   );
 }

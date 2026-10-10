@@ -1,6 +1,6 @@
 import { type Id, newId } from '../../ids';
 import type { ProjectStore } from '../../project/store';
-import { type Gates, type MapDoc, paths } from '../../schema';
+import { type Action, ActionList, type Gates, type MapDoc, paths } from '../../schema';
 import type { CommandHandler } from '../types';
 
 export const MAX_GATES = 256;
@@ -48,9 +48,19 @@ export const connectGate: CommandHandler<ConnectGate> = {
   },
 };
 
-export const updateGate: CommandHandler<{ gate: string; twoWay?: boolean; reverse?: boolean }> = {
+export const updateGate: CommandHandler<{
+  gate: string;
+  twoWay?: boolean;
+  reverse?: boolean;
+  /** P6.4: actions when the hero arrives through this gate ([] clears) */
+  onArrive?: Action[];
+}> = {
   label: (p) => (p.reverse ? 'Reverse gate' : 'Edit gate'),
-  validate: (store, p) => (gatesOf(store).gates.some((g) => g.id === p.gate) ? null : 'Gate not found.'),
+  validate: (store, p) => {
+    if (!gatesOf(store).gates.some((g) => g.id === p.gate)) return 'Gate not found.';
+    if (p.onArrive && !ActionList.safeParse(p.onArrive).success) return 'Those actions are not valid.';
+    return null;
+  },
   apply(store, p) {
     const g = gatesOf(store);
     store.put(paths.gates, {
@@ -62,6 +72,7 @@ export const updateGate: CommandHandler<{ gate: string; twoWay?: boolean; revers
               ...x,
               ...(p.twoWay !== undefined ? { twoWay: p.twoWay } : {}),
               ...(p.reverse ? { from: x.to, to: x.from } : {}),
+              ...(p.onArrive !== undefined ? { onArrive: p.onArrive.length ? p.onArrive : undefined } : {}),
             },
       ),
     });

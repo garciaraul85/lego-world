@@ -10,7 +10,7 @@ import type { EditorState } from '../state';
 import { GameScreens } from './GameScreens';
 
 /** `boot: 'entry'` starts at the project's first screen (splash → title), as the exported game does. */
-export type PlayStart = { mapId: string; spawnId: string | null; boot?: 'game' | 'entry' };
+export type PlayStart = { mapId: string; spawnId: string | null; boot?: 'game' | 'entry'; cinematic?: string };
 
 const SPEEDS = [0.25, 0.5, 1, 2] as const;
 const MOVE_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift', 'e']);
@@ -63,6 +63,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       ed.logicBreak.value = b;
     };
     for (const p of s.logic.problems) ed.log('WARN', `Logic: ${p.message}${p.node ? ` (${p.node})` : ''}`);
+    if (start.cinematic) s.cine.play(start.cinematic);
 
     let raf = 0;
     let last = performance.now();

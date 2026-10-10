@@ -21,6 +21,7 @@ export interface ActionHost {
   game?(op: 'start' | 'resume' | 'pause' | 'retry' | 'quit'): void;
   gave?(item: string, count: number): void;
   spawn?(asset: string, at: string): void;
+  cinematic?(id: string, once: boolean): void;
   despawn?(target: string): void;
 }
 
@@ -29,7 +30,7 @@ type Pending = { actions: Action[]; at: number; self: string | undefined };
 /**
  * runActions (plan: one Action union shared by assets, zones, screens, cinematics and logic).
  * Runs a list in order; `wait` pauses the rest of the list on the runner's clock (the game clock, or
- * the UI clock for screen actions). Cinematics (Phase 6) are logged so a designer can see they fired.
+ * the UI clock for screen actions). Hosts without a system for an action log it instead.
  */
 export class ActionRunner {
   private pending: Pending[] = [];
@@ -115,7 +116,8 @@ export class ActionRunner {
           else h.log('info', `Game ${a.op}`);
           break;
         case 'cinematic':
-          h.log('info', `Cinematic ${a.cinematic} (cinematics arrive in Phase 6)`);
+          if (h.cinematic) h.cinematic(a.cinematic, !!a.once);
+          else h.log('info', `Cinematic ${a.cinematic}`);
           break;
         case 'spawn':
           if (h.spawn) h.spawn(a.asset, a.at);

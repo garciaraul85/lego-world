@@ -105,7 +105,7 @@ export const WORKSPACES = [
   ['Characters', null],
   ['Assets', null],
   ['Screens', null],
-  ['Cinematics', 'Phase 6'],
+  ['Cinematics', null],
   ['Audio', null],
 ] as const;
 

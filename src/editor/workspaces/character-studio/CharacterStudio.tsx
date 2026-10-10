@@ -7,6 +7,7 @@ import { type Character, type Clip, paths } from '../../../core/schema';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import type { ActionCtx } from '../../actions/registry';
 import { Timeline } from '../../components/timeline/Timeline';
+import { actionChoices } from '../../panels/AudioFields';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
 
 /** Look fields grouped the way v68's character builder groups them. */
@@ -284,6 +285,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               clip={clip}
               time={Math.min(time, clip.length)}
               readOnly={builtinClip}
+              choices={{ sounds: actionChoices(ed).sounds, cinematics: actionChoices(ed).cinematics }}
               onSeek={(t) => {
                 setPlaying(false);
                 setTime(t);
