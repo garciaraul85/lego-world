@@ -4,19 +4,10 @@ import { approxTokens, builtinFile, builtinPaths, projectSummary, SUMMARY_TOKENS
 import { instructions } from '../../src/core/ai/prompts';
 import { makeTools, type ToolState } from '../../src/core/ai/tools';
 import { CommandBus, registerAll } from '../../src/core/commands';
-import { allCommands, generateGame } from '../../src/core/gamegen/generateGame';
 import { parseCode } from '../../src/core/logic/code/parse';
 import { ProjectStore } from '../../src/core/project/store';
+import { bigGame } from '../fixtures/ai/games';
 
-const NOW = '2026-01-01T00:00:00.000Z';
-export function bigGame() {
-  const g = generateGame({ theme: 'mixed', maps: 4, length: 'medium', difficulty: 3 }, 777, { now: NOW });
-  const store = new ProjectStore(g.files);
-  const bus = registerAll(new CommandBus(store));
-  const r = bus.execute(allCommands(g), { source: 'generator' });
-  if (!r.ok) throw new Error(r.error);
-  return { g, store, bus };
-}
 const fresh = (): ToolState => ({ proposals: 0, lastProblems: null, result: null, question: null });
 
 describe('AI commands come from the engine (P8.1)', () => {
