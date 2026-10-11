@@ -134,6 +134,14 @@ function Sidebar({
   const [q, setQ] = useState('');
   const [newVar, setNewVar] = useState('');
   const vars = variables(ed);
+  const canAdd = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(newVar) && !(newVar in vars);
+  const addVar = () => {
+    ed.exec({
+      type: 'logic.setVariable',
+      payload: { name: newVar, def: { type: 'number', default: 0, scope: 'global' } },
+    });
+    setNewVar('');
+  };
   const nodes = CATALOG.filter((d) => `${d.title} ${d.category} ${d.type}`.toLowerCase().includes(q.toLowerCase()));
   const cats = [...new Set(nodes.map((d) => d.category))];
   const add = (type: string) => {
@@ -235,19 +243,11 @@ function Sidebar({
             aria-label="New variable name"
             value={newVar}
             onInput={(e) => setNewVar((e.target as HTMLInputElement).value)}
-          />
-          <button
-            type="button"
-            class="btn"
-            disabled={!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(newVar) || newVar in vars}
-            onClick={() => {
-              ed.exec({
-                type: 'logic.setVariable',
-                payload: { name: newVar, def: { type: 'number', default: 0, scope: 'global' } },
-              });
-              setNewVar('');
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && canAdd) addVar();
             }}
-          >
+          />
+          <button type="button" class="btn" disabled={!canAdd} onClick={addVar}>
             Add
           </button>
         </div>
