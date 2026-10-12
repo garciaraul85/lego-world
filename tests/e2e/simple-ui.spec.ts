@@ -12,7 +12,13 @@ const ed = <T>(page: Page, f: (e: Ed) => T) => page.evaluate(`(${f.toString()})(
 
 async function open(page: Page, errors: string[]) {
   page.on('pageerror', (e) => errors.push(e.message));
-  page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && errors.push(m.text()));
+  page.on(
+    'console',
+    (m) =>
+      m.type() === 'error' &&
+      !/Failed to load resource|fullscreen|Permissions check/i.test(m.text()) &&
+      errors.push(m.text()),
+  );
   await page.goto('/editor.html?nohub');
   await page.waitForFunction(
     () => ((window as unknown as { __editor?: Ed }).__editor?.scene.value?.count ?? 0) > 0,
@@ -184,5 +190,91 @@ test('Move and Resize show handles on the selection; dragging them moves and res
   expect((await zone()).max[2]).toBe(z1.max[2]);
   await page.keyboard.press('Control+z');
   expect((await zone()).min[0]).toBe(z0.min[0]);
+  expect(errors).toEqual([]);
+});
+
+test('a whole asset turns freely on three rings, plays turned, and Straighten undoes the turn', async ({ page }) => {
+  test.setTimeout(240_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  const canvas = page.getByLabel('3D map view');
+  const box = (await canvas.boundingBox())!;
+  // select an asset copy (a house, a tree…) through the editor state, then look at it
+  await ed(page, (e) => {
+    const x = e as unknown as {
+      scene: { value: { all(): { id: number }[]; ownerOf(id: number): { bricks: { id: number }[] } | null } };
+      select(ids: number[]): void;
+    };
+    const s = x.scene.value;
+    const b = s.all().find((q) => s.ownerOf(q.id))!;
+    x.select(s.ownerOf(b.id)!.bricks.map((q) => q.id));
+  });
+  await page.keyboard.press('f');
+  await page.keyboard.press('e');
+  const spots = async () =>
+    JSON.parse((await canvas.getAttribute('data-gizmo')) || 'null') as Record<string, [number, number] | null> | null;
+  await expect.poll(async () => Object.keys((await spots()) ?? {}).sort()).toEqual(['center', 'ring', 'rx', 'rz']);
+  const s = (await spots())!;
+  const [hx, hy] = s.rz!;
+  const [cx, cy] = s.center!;
+  const r = Math.hypot(hx - cx, hy - cy);
+  const a0 = Math.atan2(hy - cy, hx - cx);
+  await page.mouse.move(box.x + hx, box.y + hy);
+  await page.mouse.down();
+  for (let i = 1; i <= 4; i++) {
+    const a = a0 - (i * Math.PI) / 16;
+    await page.mouse.move(box.x + cx + Math.cos(a) * r, box.y + cy + Math.sin(a) * r);
+  }
+  await expect(page.locator('.gizmo-tag')).toContainText('about Z');
+  await page.mouse.up();
+  const tilt = () =>
+    ed(page, (e) => {
+      const x = e as unknown as { selectedInstance: { value: { inst: { tilt?: number[] } } | null } };
+      return x.selectedInstance.value?.inst.tilt ?? null;
+    });
+  await expect.poll(tilt).not.toBeNull();
+  expect(Math.abs((await tilt())![2]!)).toBeGreaterThan(0);
+
+  // it plays turned without errors
+  await page.keyboard.press('F5');
+  await page.waitForFunction(
+    () => !!(window as unknown as { __editor: { session: { value: unknown } } }).__editor.session.value,
+    undefined,
+    {
+      timeout: 60_000,
+    },
+  );
+  await page.waitForTimeout(1500);
+  await page.keyboard.press('F5');
+
+  // Straighten from the Inspector
+  await page.getByRole('region', { name: 'Inspector' }).getByRole('button', { name: 'Straighten' }).click();
+  await expect.poll(tilt).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('view buttons, keys and full-screen scene', async ({ page }) => {
+  const errors: string[] = [];
+  await open(page, errors);
+  const view = page.getByRole('toolbar', { name: 'View' });
+  for (const name of [
+    'Zoom in',
+    'Zoom out',
+    'Turn view left',
+    'Turn view right',
+    'Focus on selection',
+    'Fit everything',
+  ])
+    await view.getByRole('button', { name }).click();
+  await page.keyboard.press('+');
+  await page.keyboard.press('Alt+ArrowLeft');
+  await page.keyboard.press('Control+Shift+F');
+  await expect(page.locator('.app.scene-full')).toBeVisible();
+  await expect(page.locator('.menubar')).toBeHidden();
+  await expect(page.getByRole('region', { name: 'Inspector' })).toBeHidden();
+  await view.getByRole('button', { name: 'Show assets' }).click();
+  await expect(page.getByRole('region', { name: 'Bottom dock' })).toBeVisible();
+  await view.getByRole('button', { name: 'Leave full screen' }).click();
+  await expect(page.locator('.menubar')).toBeVisible();
   expect(errors).toEqual([]);
 });

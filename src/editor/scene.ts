@@ -1,4 +1,5 @@
 import { type ExpandedInstance, expandInstances } from '../core/assets/instances';
+import { hasTilt, tiltModel, tiltPivot, untiltRay } from '../core/assets/tilt';
 import { type Brick, chunkKey, decodeChunk } from '../core/bricks/codec';
 import { footprint } from '../core/bricks/inspect';
 import { worldGenerator } from '../core/legacy/modules';
@@ -27,6 +28,8 @@ export class SceneModel {
   instances: ExpandedInstance[] = [];
   /** brick id -> the asset instance that owns it */
   readonly instanceOf = new Map<number, ExpandedInstance>();
+  /** freely turned assets (P31): drawn with a model matrix, picked through it, kept out of the grid */
+  readonly tilted = new Map<string, { e: ExpandedInstance; pivot: Vec3; model: Float32Array }>();
   private unsubAssets: () => void;
   private listeners = new Set<(changed: string[], full: boolean) => void>();
   private unsub: () => void;
@@ -55,7 +58,13 @@ export class SceneModel {
       this.chunks.delete(k);
     }
     this.instanceOf.clear();
+    this.tilted.clear();
     this.instances = expandInstances(this.store, this.mapId);
+    for (const e of this.instances)
+      if (hasTilt(e.inst.tilt)) {
+        const pivot = tiltPivot(e.bricks);
+        this.tilted.set(e.inst.id, { e, pivot, model: tiltModel(e.inst.tilt, pivot) });
+      }
     for (const e of this.instances)
       for (const b of e.bricks) {
         const key = `a:${chunkKey(b.x, b.z)}`;
@@ -71,6 +80,13 @@ export class SceneModel {
   /** The instance a brick belongs to, or null for a loose brick. */
   ownerOf(id: number): ExpandedInstance | null {
     return this.instanceOf.get(id) ?? null;
+  }
+
+  /** The free rotation of a brick's asset, if it is turned freely. */
+  tiltOf(id: number): { pivot: Vec3; model: Float32Array; tilt: [number, number, number] } | null {
+    const e = this.instanceOf.get(id);
+    const t = e && this.tilted.get(e.inst.id);
+    return t ? { pivot: t.pivot, model: t.model, tilt: e.inst.tilt! } : null;
   }
 
   dispose() {
@@ -231,12 +247,18 @@ export class SceneModel {
     let best: Hit | null = null;
     for (const [key, list] of this.chunks) {
       const [cx, cz] = key.replace(/^a:/, '').split('_').map(Number) as [number, number];
-      if (rayBox(r, [cx * 32 - 8, 0, cz * 32 - 8], [cx * 32 + 40, 130, cz * 32 + 40]) === null) continue;
+      if (
+        !(this.tilted.size && key.startsWith('a:')) &&
+        rayBox(r, [cx * 32 - 8, 0, cz * 32 - 8], [cx * 32 + 40, 130, cz * 32 + 40]) === null
+      )
+        continue;
       for (const b of list) {
         if (skip?.(b)) continue;
         const [w, d] = footprint(b);
         const top = b.y * 0.4 + brickHeightUnits(kindOf(b.type)) + (b.type.startsWith('tile') ? 0 : 0.225);
-        const t = rayBox(r, [b.x, b.y * 0.4, b.z], [b.x + w, top, b.z + d]);
+        const tl = this.tiltOf(b.id);
+        const rr = tl ? untiltRay(tl.tilt, tl.pivot, r) : r;
+        const t = rayBox(rr, [b.x, b.y * 0.4, b.z], [b.x + w, top, b.z + d]);
         if (t !== null && (!best || t < best.t)) {
           const point: Vec3 = [r.o[0] + r.d[0] * t, r.o[1] + r.d[1] * t, r.o[2] + r.d[2] * t];
           best = { brick: b, t, point, normal: faceNormal(point, [b.x, b.y * 0.4, b.z], [b.x + w, top, b.z + d]) };
@@ -252,7 +274,7 @@ export class SceneModel {
     if (Math.abs(r.d[1]) > 1e-8)
       for (const list of this.chunks.values())
         for (const b of list) {
-          if (skip?.(b)) continue;
+          if (skip?.(b) || (this.tilted.size && this.tiltOf(b.id))) continue;
           const h = b.type.startsWith('brick') ? 3 : 1;
           const level = (b.y + h) * 0.4;
           const t = (level - r.o[1]) / r.d[1];

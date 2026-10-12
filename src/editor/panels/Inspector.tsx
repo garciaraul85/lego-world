@@ -281,6 +281,7 @@ function AssetSection({ c }: { c: ActionCtx }) {
           {e.def.category}
         </span>
       </div>
+      <TiltField c={c} />
       {e.def.states.length > 1 && (
         <label class="field">
           State
@@ -804,5 +805,61 @@ function ZoneInspector({ c, id }: { c: ActionCtx; id: string }) {
         </button>
       </div>
     </>
+  );
+}
+
+/** P31 free rotation of a placed asset: three angles you can type, and Straighten. */
+function TiltField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const e = ed.selectedInstance.value!;
+  const tilt = e.inst.tilt ?? [0, 0, 0];
+  const set = (i: number, v: number) => {
+    const next = [...tilt] as [number, number, number];
+    next[i] = v;
+    ed.exec(
+      { type: 'instance.tilt', payload: { map: ed.mapId.value, instance: e.inst.id, tilt: next } },
+      { label: 'Turn asset freely' },
+    );
+  };
+  return (
+    <div
+      class="field"
+      data-tip="Turn it freely with the Rotate tool (E): red ring about X, green about Y, blue about Z. A turned asset is a free object: bricks are not built on it."
+      data-help="scene"
+    >
+      Turned
+      <span class="row" style={{ gap: '4px' }}>
+        {(['X', 'Y', 'Z'] as const).map((axis, i) => (
+          <label class="mono small" style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            {axis}
+            <input
+              class="inp"
+              type="number"
+              step="15"
+              min="-180"
+              max="180"
+              style={{ width: '58px' }}
+              aria-label={`Turn about ${axis}, degrees`}
+              value={tilt[i]}
+              onChange={(ev) => set(i, Number((ev.target as HTMLInputElement).value) || 0)}
+            />
+          </label>
+        ))}
+        <button
+          type="button"
+          class="btn"
+          style={{ minHeight: '26px', fontSize: '11px' }}
+          disabled={!e.inst.tilt}
+          onClick={() =>
+            ed.exec(
+              { type: 'instance.tilt', payload: { map: ed.mapId.value, instance: e.inst.id, tilt: [0, 0, 0] } },
+              { label: 'Straighten asset' },
+            )
+          }
+        >
+          Straighten
+        </button>
+      </span>
+    </div>
   );
 }

@@ -350,6 +350,20 @@ export const AI_COMMANDS: AiCommand[] = [
     { map: M1, instance: 'ins_ffffffffff', state: 'open' },
   ),
   def(
+    'instance.tilt',
+    A.tiltInstance,
+    z.strictObject({
+      map,
+      instance: ids('instance'),
+      tilt: z.tuple([z.number(), z.number(), z.number()]),
+      rot: z.number().int().min(0).max(3).optional(),
+    }),
+    ['map', 'asset'],
+    'Scene',
+    'Turns a placed asset freely: degrees about X, Y, Z around its middle. [0,0,0] puts it back on the brick grid.',
+    { map: M1, instance: 'ins_ffffffffff', tilt: [0, 30, 15] },
+  ),
+  def(
     'instance.unpack',
     A.unpackInstance,
     z.strictObject({ map, instances: z.array(ids('instance')).min(1) }),

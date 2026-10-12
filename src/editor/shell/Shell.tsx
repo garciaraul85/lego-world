@@ -149,7 +149,7 @@ export const TOOLS: { id: ToolId; glyph: string; label: string; key: string; hel
     glyph: '↻',
     label: 'Rotate',
     key: 'E',
-    help: 'Rotate: select something, then drag around the ring to turn it in quarter turns. R turns it once.',
+    help: 'Rotate: select something, then drag a ring. A whole asset turns freely about X (red), Y (green) and Z (blue) in 15° steps; bricks turn in quarter turns. R turns once.',
   },
   {
     id: 'resize',

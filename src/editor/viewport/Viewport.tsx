@@ -1,6 +1,7 @@
 import { effect } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
+import { bricksBox, tiltModel, tiltPivot, tiltPoint } from '../../core/assets/tilt';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import type { Command } from '../../core/commands';
@@ -26,6 +27,7 @@ import { fullscreenDock, sceneFullscreen, setActiveView, type ViewOp, type Viewp
 import {
   changeFor,
   dragAmount,
+  dragDegrees,
   dragQuarters,
   type GizmoChange,
   type GizmoMode,
@@ -35,6 +37,7 @@ import {
   type Handle,
   type HandleId,
   handlesFor,
+  isRing,
   type Project,
   pickHandle,
   ringPoints,
@@ -136,7 +139,7 @@ export function Viewport({
         else
           renderer.setChunk(
             k,
-            list.filter((b) => ed.isVisible(b)).map((b) => s.toRender(b)),
+            list.filter((b) => ed.isVisible(b) && !(s.tilted.size && s.tiltOf(b.id))).map((b) => s.toRender(b)),
           );
       }
       dirty = true;
@@ -307,29 +310,24 @@ export function Viewport({
       const active = gz?.handle.id ?? hot;
       const col = (h: Handle) => (h.id === active ? AXIS_HOT : h.color);
       for (const h of g.handles) {
-        const size =
-          h.id === 'ring'
-            ? h.to[0] - h.from[0]
-            : Math.hypot(h.to[0] - h.from[0], h.to[1] - h.from[1], h.to[2] - h.from[2]);
-        if (h.id === 'ring') {
-          const r = size;
+        const size = Math.hypot(h.to[0] - h.from[0], h.to[1] - h.from[1], h.to[2] - h.from[2]);
+        if (isRing(h.id)) {
           const unit = gizmoSize(h.from);
           const pts: number[] = [];
+          // three rings side by side read as one thick ring
           for (const k of [-0.025, 0, 0.025]) {
-            const ring = ringPoints({ ...h, to: [h.from[0] + r * (1 + k), h.to[1], h.to[2]] });
+            const to: Vec3 = [
+              h.from[0] + (h.to[0] - h.from[0]) * (1 + k),
+              h.from[1] + (h.to[1] - h.from[1]) * (1 + k),
+              h.from[2] + (h.to[2] - h.from[2]) * (1 + k),
+            ];
+            const ring = ringPoints({ ...h, to });
             for (let i = 1; i < ring.length; i++) pts.push(...ring[i - 1]!, ...ring[i]!);
           }
           lines.push({ lines: pts, color: col(h), onTop: true });
-          const c = unit * 0.13;
-          for (let q = 0; q < 4; q++) {
-            const a = (q * Math.PI) / 2;
-            markers.push({
-              pos: [h.from[0] + Math.cos(a) * r, h.from[1], h.from[2] + Math.sin(a) * r],
-              size: [c, c, c],
-              color: col(h),
-              onTop: true,
-            });
-          }
+          const c = unit * 0.11;
+          const ring = ringPoints(h, 4);
+          for (let q = 0; q < 4; q++) markers.push({ pos: ring[q]!, size: [c, c, c], color: col(h), onTop: true });
           continue;
         }
         if (h.from === h.to) {
@@ -360,18 +358,49 @@ export function Viewport({
       const markers: Marker[] = [];
       if (s && mode === 'scene') {
         const sel = ed.selectedBricks.value;
+        // freely turned assets are drawn here, each with its own turn (and the turn being dragged)
+        const turning = gz?.target.kind === 'bricks' ? gz.target.inst?.id : undefined;
+        const turnModel = gz?.change?.model;
+        for (const [id, t] of s.tilted)
+          if (!(turnModel && id === turning))
+            overlays.push({
+              bricks: t.e.bricks.filter((b) => ed.isVisible(b)).map(brickRender),
+              alpha: 1,
+              flat: false,
+              model: t.model,
+            });
+        if (turnModel && gz?.target.kind === 'bricks') {
+          overlays.push({
+            bricks: gz.target.bricks.map(brickRender),
+            alpha: blocked ? 0.75 : 1,
+            flat: !!blocked,
+            model: turnModel,
+            ...(blocked ? { color: [1, 0.25, 0.2] as [number, number, number] } : {}),
+          });
+        }
+        const selTilt = sel.length ? s.tiltOf(sel[0]!.id) : null;
         if (preview)
           overlays.push({
             bricks: preview.map(brickRender),
+            // a turned asset being moved keeps its turn in the preview
+            ...(selTilt ? { model: tiltModel(selTilt.tilt, tiltPivot(preview)) } : {}),
             alpha: 0.75,
             flat: !!blocked,
             ...(blocked ? { color: [1, 0.25, 0.2] as [number, number, number] } : {}),
           });
-        else if (sel.length)
-          overlays.push({ bricks: sel.map(brickRender), color: [1, 0.72, 0.2], alpha: 0.38, flat: true });
+        else if (sel.length && !turnModel)
+          overlays.push({
+            bricks: sel.map(brickRender),
+            color: [1, 0.72, 0.2],
+            alpha: 0.38,
+            flat: true,
+            ...(selTilt ? { model: selTilt.model } : {}),
+          });
         if (hover && !ed.selection.value.has(hover.id) && !preview) {
           const group = hover.group ? (s.groups.get(hover.group) ?? [hover.id]) : [hover.id];
+          const ht = s.tiltOf(hover.id);
           overlays.push({
+            ...(ht ? { model: ht.model } : {}),
             bricks: group
               .map((id) => s.get(id)!)
               .filter(Boolean)
@@ -383,7 +412,8 @@ export function Viewport({
         }
         if (ghost) overlays.push({ bricks: [ghost], alpha: 0.6, flat: false });
         if (assetGhost) overlays.push({ bricks: assetGhost.map(brickRender), alpha: 0.6, flat: false });
-        if (sel.length) lines.push({ lines: boundsLines(sel), color: [1, 0.82, 0.3] });
+        if (sel.length && !turnModel)
+          lines.push({ lines: selTilt ? tiltedLines(sel, selTilt) : boundsLines(sel), color: [1, 0.82, 0.3] });
         if (studio) markers.push(...studio.markers());
         if (!studio) {
           for (const z of s.map.zones)
@@ -822,8 +852,18 @@ export function Viewport({
       drag.moved = true;
       if (drag.kind === 'gizmo' && gz) {
         const now = local(e);
+        const free = gz.target.kind === 'bricks' && !!gz.target.inst;
+        const f = camera.frame();
+        const facing =
+          gz.handle.dir[0] * (f.eye[0] - gz.handle.from[0]) +
+          gz.handle.dir[1] * (f.eye[1] - gz.handle.from[1]) +
+          gz.handle.dir[2] * (f.eye[2] - gz.handle.from[2]);
         const amount =
-          gz.mode === 'rotate' ? dragQuarters(gz.center, gz.start, now) : dragAmount(gz.handle, project, gz.start, now);
+          gz.mode !== 'rotate'
+            ? dragAmount(gz.handle, project, gz.start, now)
+            : free
+              ? dragDegrees(gz.center, gz.start, now, facing)
+              : dragQuarters(gz.center, gz.start, now);
         gz.change = changeFor(ed.mapId.value, gz.mode, gz.target, gz.handle.id, amount);
         preview = gz.change.bricks ?? null;
         const why = checkCommand(gz.change.command);
@@ -1150,4 +1190,22 @@ function ViewControls({ view, studio }: { view: { current: ViewportApi | null };
         )}
     </div>
   );
+}
+
+/** The selection box of a freely turned asset, turned with it. */
+function tiltedLines(bricks: readonly Brick[], t: { pivot: Vec3; tilt: [number, number, number] }): number[] {
+  const [a, b] = bricksBox(bricks);
+  const corner = (x: number, y: number, z: number) => tiltPoint(t.tilt, t.pivot, [x, y, z]);
+  const c = [
+    corner(a[0], a[1], a[2]),
+    corner(b[0], a[1], a[2]),
+    corner(b[0], a[1], b[2]),
+    corner(a[0], a[1], b[2]),
+    corner(a[0], b[1], a[2]),
+    corner(b[0], b[1], a[2]),
+    corner(b[0], b[1], b[2]),
+    corner(a[0], b[1], b[2]),
+  ];
+  const e = [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7];
+  return e.flatMap((i) => c[i]!);
 }

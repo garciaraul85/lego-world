@@ -7,6 +7,7 @@ import {
   placeAsset,
   removeInstance,
   setInstanceState,
+  tiltInstance,
   unpackInstance,
   updateAsset,
 } from './handlers/assets';
@@ -85,6 +86,7 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('instance.remove', removeInstance);
   bus.register('instance.setState', setInstanceState);
   bus.register('instance.unpack', unpackInstance);
+  bus.register('instance.tilt', tiltInstance);
   bus.register('asset.make', makeAsset);
   bus.register('asset.create', createAsset);
   bus.register('asset.update', updateAsset);

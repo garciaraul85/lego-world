@@ -24,7 +24,14 @@ type ChunkGpu = { batches: Batch[]; min: Vec3; max: Vec3; bricks: number };
 /** Beyond this distance (studs) a chunk draws plain boxes without studs (plan: Performance › stud LOD). */
 export const LOD_DISTANCE = 96;
 
-export type Overlay = { bricks: RenderBrick[]; color?: [number, number, number]; alpha: number; flat: boolean };
+export type Overlay = {
+  bricks: RenderBrick[];
+  color?: [number, number, number];
+  alpha: number;
+  flat: boolean;
+  /** column-major model matrix: draws the bricks turned (a freely rotated asset, P31) */
+  model?: Float32Array;
+};
 /** onTop: drawn over everything, ignoring depth (editor gizmos) */
 export type LineSet = { lines: number[]; color: [number, number, number]; onTop?: boolean };
 export type Marker = {
@@ -458,6 +465,7 @@ export class Renderer {
     }
 
     for (const o of overlays) {
+      if (o.model) gl.uniformMatrix4fv(this.u.uMVP!, false, multiply(mvp, o.model));
       if (o.alpha < 1) {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -466,6 +474,7 @@ export class Renderer {
       this.drawBrickList(o.bricks, o.alpha, o.flat, o.color);
       gl.disable(gl.BLEND);
       gl.depthFunc(gl.LESS);
+      if (o.model) gl.uniformMatrix4fv(this.u.uMVP!, false, mvp);
     }
 
     if (lines.length) {

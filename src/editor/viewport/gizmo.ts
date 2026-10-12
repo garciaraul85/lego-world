@@ -1,3 +1,4 @@
+import { bricksBox, hasTilt, normalizeTilt, type Tilt, tiltedBox, tiltModel, tiltPivot } from '../../core/assets/tilt';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import { pivotOf, rotateQuarter } from '../../core/bricks/transform';
@@ -21,12 +22,20 @@ import type { EditorState } from '../state';
 export type GizmoMode = 'move' | 'rotate' | 'resize';
 
 export type GizmoTarget =
-  | { kind: 'bricks'; bricks: Brick[]; asset: boolean }
+  | {
+      kind: 'bricks';
+      bricks: Brick[];
+      asset: boolean;
+      /** exactly one whole asset is selected: it can turn freely about X, Y and Z */
+      inst?: { id: string; rot: number; tilt: Tilt; pivot: Vec3 };
+    }
   | { kind: 'zone'; zone: Zone }
   | { kind: 'spawn'; id: string; pos: Vec3; yaw: number }
   | { kind: 'item'; id: string; pos: Vec3 };
 
-export type HandleId = 'x' | 'y' | 'z' | 'ring' | '+x' | '-x' | '+z' | '-z' | '+y';
+/** ring = turn about Y (quarter turns for bricks, free for an asset); rx / rz = free turns about X / Z */
+export type HandleId = 'x' | 'y' | 'z' | 'ring' | 'rx' | 'rz' | '+x' | '-x' | '+z' | '-z' | '+y';
+export const isRing = (id: HandleId) => id === 'ring' || id === 'rx' || id === 'rz';
 
 export type Handle = {
   id: HandleId;
@@ -63,7 +72,21 @@ export function gizmoTarget(ed: EditorState, mode: GizmoMode): GizmoTarget | nul
   const s = ed.scene.value;
   const asset = !!s && bricks.some((b) => s.ownerOf(b.id));
   if (mode === 'resize' && (bricks.length !== 1 || asset)) return null;
-  return { kind: 'bricks', bricks, asset };
+  const owner = s?.ownerOf(bricks[0]!.id);
+  const whole =
+    owner && bricks.length === owner.bricks.length && bricks.every((b) => s!.ownerOf(b.id)?.inst.id === owner.inst.id);
+  if (!whole) return { kind: 'bricks', bricks, asset };
+  return {
+    kind: 'bricks',
+    bricks,
+    asset,
+    inst: {
+      id: owner.inst.id,
+      rot: owner.inst.rot,
+      tilt: (owner.inst.tilt ?? [0, 0, 0]) as Tilt,
+      pivot: tiltPivot(owner.bricks) as Vec3,
+    },
+  };
 }
 
 /** Why Resize shows no handles for this selection (shown in the tool hint). */
@@ -91,6 +114,7 @@ export function targetBox(t: GizmoTarget): [Vec3, Vec3] {
       [t.pos[0] - 0.4, t.pos[1] - 0.4, t.pos[2] - 0.4],
       [t.pos[0] + 0.4, t.pos[1] + 0.4, t.pos[2] + 0.4],
     ];
+  if (t.inst && hasTilt(t.inst.tilt)) return tiltedBox(t.bricks, t.inst.tilt) as [Vec3, Vec3];
   const min: Vec3 = [Infinity, Infinity, Infinity];
   const max: Vec3 = [-Infinity, -Infinity, -Infinity];
   for (const b of t.bricks) {
@@ -124,15 +148,17 @@ export function handlesFor(mode: GizmoMode, t: GizmoTarget, size: number): Handl
     ];
   }
   if (mode === 'rotate') {
-    const r = Math.max(size * 0.8, Math.hypot(max[0] - min[0], max[2] - min[2]) / 2 + size * 0.15);
+    // a turned asset keeps the ring size of its straight shape, so the rings do not balloon
+    const [bmin, bmax] = t.kind === 'bricks' && t.inst ? bricksBox(t.bricks) : [min, max];
+    const r = Math.max(size * 0.8, Math.hypot(bmax[0] - bmin[0], bmax[2] - bmin[2]) / 2 + size * 0.15);
+    const y: Handle = { id: 'ring', from: o, to: [o[0] + r, o[1], o[2]], dir: [0, 1, 0], color: AXIS_COLOR.y };
+    if (t.kind !== 'bricks' || !t.inst) return [y];
+    // a whole asset turns freely: red ring about X, green about Y, blue about Z
+    const r2 = r * 0.9;
     return [
-      {
-        id: 'ring',
-        from: [o[0], o[1] + 0.05, o[2]],
-        to: [o[0] + r, o[1] + 0.05, o[2]],
-        dir: [0, 1, 0],
-        color: AXIS_COLOR.y,
-      },
+      y,
+      { id: 'rx', from: o, to: [o[0], o[1] + r2, o[2]], dir: [1, 0, 0], color: AXIS_COLOR.x },
+      { id: 'rz', from: o, to: [o[0] + r2 * 0.95, o[1], o[2]], dir: [0, 0, 1], color: AXIS_COLOR.z },
     ];
   }
   const cy = (min[1] + max[1]) / 2;
@@ -155,11 +181,29 @@ export function handlesFor(mode: GizmoMode, t: GizmoTarget, size: number): Handl
 }
 
 /** Points of the rotate ring (a closed polyline). */
+/** Points of a rotate ring (a closed polyline) in the plane across its axis. */
 export function ringPoints(h: Handle, n = 48): Vec3[] {
-  const r = h.to[0] - h.from[0];
+  const r = Math.hypot(h.to[0] - h.from[0], h.to[1] - h.from[1], h.to[2] - h.from[2]);
+  // two directions across the axis
+  const [u, v]: [Vec3, Vec3] = h.dir[0]
+    ? [
+        [0, 1, 0],
+        [0, 0, 1],
+      ]
+    : h.dir[2]
+      ? [
+          [1, 0, 0],
+          [0, 1, 0],
+        ]
+      : [
+          [1, 0, 0],
+          [0, 0, 1],
+        ];
   return Array.from({ length: n + 1 }, (_, i) => {
     const a = (i / n) * Math.PI * 2;
-    return [h.from[0] + Math.cos(a) * r, h.from[1], h.from[2] + Math.sin(a) * r] as Vec3;
+    const c = Math.cos(a) * r;
+    const s = Math.sin(a) * r;
+    return [h.from[0] + u[0] * c + v[0] * s, h.from[1] + u[1] * c + v[1] * s, h.from[2] + u[2] * c + v[2] * s] as Vec3;
   });
 }
 
@@ -180,7 +224,7 @@ export function pickHandle(handles: Handle[], project: Project, px: number, py: 
   let best: { id: HandleId; d: number } | null = null;
   for (const h of handles) {
     let d = Infinity;
-    if (h.id === 'ring') {
+    if (isRing(h.id)) {
       const pts = ringPoints(h).map(project);
       for (let i = 1; i < pts.length; i++) {
         const a = pts[i - 1];
@@ -224,6 +268,23 @@ export function dragQuarters(center: [number, number], start: [number, number], 
   return Math.round(-d / (Math.PI / 2)) || 0;
 }
 
+/**
+ * Degrees turned by dragging around a ring: the angle swept around the gizmo's center on screen, positive
+ * counter-clockwise as seen from the side the axis points to. `facing` is +1 when the axis points toward the
+ * camera, -1 when away.
+ */
+export function dragDegrees(center: [number, number], start: [number, number], now: [number, number], facing: number) {
+  const a0 = Math.atan2(start[1] - center[1], start[0] - center[0]);
+  const a1 = Math.atan2(now[1] - center[1], now[0] - center[0]);
+  let d = a1 - a0;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d < -Math.PI) d += 2 * Math.PI;
+  return ((-d * 180) / Math.PI) * (facing < 0 ? -1 : 1);
+}
+
+/** Free turns snap to this many degrees. */
+export const TILT_STEP = 15;
+
 // ---------- the change a drag makes ----------
 
 export type GizmoChange = {
@@ -233,6 +294,8 @@ export type GizmoChange = {
   box?: [Vec3, Vec3];
   pos?: Vec3;
   yaw?: number;
+  /** a freely turned asset: draw its bricks with this model matrix (preview) */
+  model?: Float32Array;
   /** what to tell the user while dragging ("+3 studs", "90°", "2×4 brick") */
   label: string;
   /** null = no change (yet) */
@@ -391,7 +454,32 @@ export function resizeChange(map: string, t: GizmoTarget, handle: HandleId, amou
   };
 }
 
+/** Turning a whole asset freely about one axis (degrees, snapped to TILT_STEP). */
+export function tiltChange(map: string, t: GizmoTarget, h: HandleId, degrees: number): GizmoChange {
+  if (t.kind !== 'bricks' || !t.inst) return { label: '', command: null, undoLabel: '' };
+  const i = h === 'rx' ? 0 : h === 'ring' ? 1 : 2;
+  const step = Math.round(degrees / TILT_STEP) * TILT_STEP;
+  const next = [...t.inst.tilt] as Tilt;
+  next[i] = next[i]! + step;
+  const tilt = normalizeTilt(next);
+  const axis = ['X', 'Y', 'Z'][i];
+  const label = `${step > 0 ? '+' : ''}${step}° about ${axis}${hasTilt(tilt) ? '' : ' · back on the grid'}`;
+  if (!step) return { label, command: null, undoLabel: '' };
+  // whole quarter turns about Y with no tilt left go back into rot: the asset is a grid asset again
+  const flat = Math.abs(tilt[0]) < 1e-6 && Math.abs(tilt[2]) < 1e-6 && Math.abs(tilt[1] % 90) < 1e-6;
+  const payload = flat
+    ? { map, instance: t.inst.id, tilt: [0, 0, 0] as Tilt, rot: (((t.inst.rot + tilt[1] / 90) % 4) + 4) % 4 }
+    : { map, instance: t.inst.id, tilt };
+  return {
+    model: tiltModel(tilt, t.inst.pivot),
+    label,
+    command: { type: 'instance.tilt', payload },
+    undoLabel: hasTilt(tilt) ? 'Turn asset freely' : 'Straighten asset',
+  };
+}
+
 export function changeFor(map: string, mode: GizmoMode, t: GizmoTarget, h: HandleId, amount: number): GizmoChange {
+  if (mode === 'rotate' && t.kind === 'bricks' && t.inst) return tiltChange(map, t, h, amount);
   if (mode === 'rotate') return rotateChange(map, t, amount);
   if (mode === 'move') return moveChange(map, t, h as 'x' | 'y' | 'z', amount);
   return resizeChange(map, t, h, amount);

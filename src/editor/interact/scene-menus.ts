@@ -62,6 +62,16 @@ export function objectMenu(c: ActionCtx): MenuSpec {
         act('edit.rotate', 'Turn 90°'),
         act('view.frame', 'Zoom to it'),
         SEP,
+        item(
+          'asset.straighten',
+          'Straighten',
+          () =>
+            ed.exec(
+              { type: 'instance.tilt', payload: { map, instance: inst.inst.id, tilt: [0, 0, 0] } },
+              { label: 'Straighten asset' },
+            ),
+          !inst.inst.tilt,
+        ),
         item('asset.edit', 'Edit in Asset studio…', () => c.ui.editAsset(def.id)),
         item('asset.unpack', 'Unpack into loose bricks', () =>
           ed.exec({ type: 'instance.unpack', payload: { map, instances: [inst.inst.id] } }),
