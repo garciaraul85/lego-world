@@ -1,0 +1,117 @@
+Audio
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}">
+  <dc-import name="Nav" active="audio" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Sound for Chasm hall</span><span style="font-size: 13px; color: #9ea3ad">Drag a sound onto anything to make it play there</span></div>
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="position: relative; min-height: 400px; border-radius: 20px; overflow: hidden; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px">
+          <sc-for list="{{objs}}" as="o" hint-placeholder-count="5">
+            <div style="{{o.style}}" onDragOver="{{allow}}" onDrop="{{o.drop}}" onDragEnter="{{o.enter}}" onDragLeave="{{o.leave}}">
+              <span style="{{o.body}}"></span>
+              <span style="font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px #000">{{o.name}}</span>
+              <div style="display: flex; flex-direction: column; gap: 4px; align-items: center">
+                <sc-for list="{{o.sounds}}" as="sd" hint-placeholder-count="1"><button type="button" class="chip" style="background: #1f3a2a; color: #8ff0b0; cursor: context-menu" onContextMenu="{{sd.menu}}" onClick="{{sd.menu}}">♪ {{sd.name}} · {{sd.when}}</button></sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center">
+            <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4"><button type="button" class="{{t.cls}}" onClick="{{t.pick}}">{{t.name}}</button></sc-for>
+            <span style="flex: 1 1 auto"></span><span style="font-size: 13px; color: #9ea3ad">Click ▶ to listen. Drag to use.</span>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <sc-for list="{{lib}}" as="l" hint-placeholder-count="8">
+              <div class="tilelib" draggable="true" onDragStart="{{l.start}}" style="width: 120px; flex-direction: row; justify-content: space-between; padding: 10px 10px 10px 14px">
+                <span>{{l.name}}</span>
+                <button type="button" aria-label="Listen" style="{{l.btn}}" onClick="{{l.listen}}">{{l.icon}}</button>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+      <aside style="flex: 1 1 300px; max-width: 360px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <span class="lbl">Music for this room</span>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+            <sc-for list="{{moods}}" as="m" hint-placeholder-count="6"><button type="button" style="{{m.style}}" onClick="{{m.pick}}"><span style="font-weight: 700">{{m.name}}</span><span style="font-size: 12px; opacity: .8">{{m.desc}}</span></button></sc-for>
+          </div>
+          <label style="display: flex; align-items: center; gap: 10px; font-size: 14px"><input type="checkbox" checked style="accent-color: #ffcc00; width: 18px; height: 18px">Switch to Boss when the Stone knight sees you</label>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 14px">
+          <span class="lbl">Mix</span>
+          <sc-for list="{{mix}}" as="x" hint-placeholder-count="4">
+            <label style="display: flex; align-items: center; gap: 12px; font-size: 14px"><span style="width: 80px">{{x.name}}</span><input type="range" min="0" max="100" value="{{x.val}}" onInput="{{x.set}}" style="flex: 1 1 auto; accent-color: #ffcc00"><span style="width: 34px; text-align: right; color: #9ea3ad">{{x.val}}</span></label>
+          </sc-for>
+        </div>
+      </aside>
+      <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}">
+        <div class="menu" style="{{menu.style}}">
+          <span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">{{menu.title}}</span>
+          <sc-for list="{{menu.items}}" as="i" hint-placeholder-count="5"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}"><div class="toast">{{toast.text}}<button type="button" class="btn" style="min-height: 34px" onClick="{{undo}}">Undo</button></div></sc-if>
+    </div>
+  </main>
+</div>
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tab: 'Effects', playing: null, mood: 'Adventure', over: null, menu: null, hist: [], toast: null,
+      mix: { Music: 70, Effects: 85, Voices: 90, Ambience: 40 },
+      objs: [
+        { id: 'o1', name: 'North door', x: 380, y: 30, c: '#8a5a2b', sounds: [['Creak', 'when it opens']] },
+        { id: 'o2', name: 'Floor switch', x: 300, y: 170, c: '#8fa1b8', sounds: [] },
+        { id: 'o3', name: 'Torch', x: 90, y: 40, c: '#ffb347', sounds: [['Crackle', 'always, nearby']] },
+        { id: 'o4', name: 'Old Mason', x: 560, y: 220, c: '#6fb7f0', sounds: [['Gruff voice', 'when talking']] },
+        { id: 'o5', name: 'Stone knight', x: 640, y: 60, c: '#8b93a3', sounds: [] }
+      ]
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const L = { Effects: ['Click', 'Creak', 'Coin', 'Splash', 'Whoosh', 'Bricks click', 'Clang', 'Pop'], Voices: ['Gruff voice', 'Cheerful', 'Robot', 'Squeak', 'Giant'], Ambience: ['Crackle', 'Wind', 'Water drip', 'Birds', 'Cave hum'], 'My recordings': ['Record new…'] };
+    const whenFor = (n) => (n === 'Click' ? 'when stepped on' : n === 'Crackle' || L.Ambience.indexOf(n) >= 0 ? 'always, nearby' : L.Voices.indexOf(n) >= 0 ? 'when talking' : 'when used');
+    const save = () => s.hist.concat([s.objs]).slice(-20);
+    const m = s.menu; const mo = m ? s.objs.find((o) => o.id === m.oid) : null;
+    const moods = [['Calm', 'Soft piano', '#3b78c9'], ['Adventure', 'Bright and bouncy', '#45c46e'], ['Tense', 'Low strings', '#a78bfa'], ['Boss', 'Drums, fast', '#e8463c'], ['Victory', 'Fanfare', '#ffcc00'], ['Silence', 'Nothing', '#33363e']];
+    return {
+      allow: (e) => e.preventDefault(),
+      objs: s.objs.map((o) => ({ name: o.name,
+        style: 'position: absolute; left: ' + o.x + 'px; top: ' + o.y + 'px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px; border-radius: 14px; outline: ' + (s.over === o.id ? '3px dashed #8ff0b0' : 'none'),
+        body: 'width: 48px; height: 48px; border-radius: ' + (o.name === 'Old Mason' || o.name === 'Stone knight' ? '24px 24px 10px 10px' : '10px') + '; background: ' + o.c,
+        enter: () => this.setState({ over: o.id }), leave: () => this.setState({ over: null }),
+        drop: (e) => { e.preventDefault(); const n = e.dataTransfer.getData('text/plain'); if (!n) return; this.setState({ hist: save(), over: null, objs: s.objs.map((q) => (q.id === o.id ? Object.assign({}, q, { sounds: q.sounds.concat([[n, whenFor(n)]]) }) : q)), toast: n + ' plays on ' + o.name + ' ' + whenFor(n) }); },
+        sounds: o.sounds.map(([n, w], i) => ({ name: n, when: w, menu: (e) => { e.preventDefault(); e.stopPropagation(); const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); this.setState({ menu: { oid: o.id, i, x: Math.min(e.clientX - r.left, r.width - 240), y: e.clientY - r.top } }); } }))
+      })),
+      tabs: Object.keys(L).map((k) => ({ name: k, cls: k === s.tab ? 'ltab lon' : 'ltab', pick: () => this.setState({ tab: k }) })),
+      lib: L[s.tab].map((n) => ({ name: n, icon: s.playing === n ? '❚❚' : '▶', start: (e) => e.dataTransfer.setData('text/plain', n),
+        btn: 'width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer; font-size: 11px; background: ' + (s.playing === n ? '#45c46e' : '#33363e') + '; color: #fff',
+        listen: (e) => { e.stopPropagation(); clearTimeout(this.tm); this.setState({ playing: s.playing === n ? null : n }); this.tm = setTimeout(() => this.setState({ playing: null }), 1500); } })),
+      moods: moods.map(([n, d, c]) => ({ name: n, desc: d, pick: () => this.setState({ mood: n }),
+        style: 'display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px; border-radius: 12px; border: none; cursor: pointer; font-family: Figtree, sans-serif; font-size: 15px; text-align: left; color: ' + (n === s.mood ? '#141519' : '#f2f2f4') + '; background: ' + (n === s.mood ? c : '#24262d') })),
+      mix: Object.keys(s.mix).map((k) => ({ name: k, val: s.mix[k], set: (e) => this.setState({ mix: Object.assign({}, s.mix, { [k]: +e.target.value }) }) })),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: mo ? { show: true, title: mo.sounds[m.i] ? mo.sounds[m.i][0] + ' on ' + mo.name : '', style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items: [
+        { label: 'Listen', key: '', run: () => this.setState({ menu: null, playing: mo.sounds[m.i][0] }) },
+        { label: 'Play when…', key: mo.sounds[m.i] ? mo.sounds[m.i][1] : '', run: () => this.setState({ menu: null, objs: s.objs.map((q) => (q.id === mo.id ? Object.assign({}, q, { sounds: q.sounds.map((x, j) => (j === m.i ? [x[0], x[1] === 'always, nearby' ? 'when used' : x[1] === 'when used' ? 'when hit' : 'always, nearby'] : x)) }) : q)) }) },
+        { label: 'Louder', key: '+', run: () => this.setState({ menu: null }) },
+        { label: 'Quieter', key: '−', run: () => this.setState({ menu: null }) },
+        { label: 'Remove', key: 'Del', run: () => this.setState({ menu: null, hist: save(), objs: s.objs.map((q) => (q.id === mo.id ? Object.assign({}, q, { sounds: q.sounds.filter((x, j) => j !== m.i) }) : q)) }) }
+      ] } : { show: false, items: [] },
+      toast: s.toast ? { show: true, text: s.toast } : { show: false },
+      undo: () => { if (!s.hist.length) return; this.setState({ objs: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1), toast: null }); }
+    };
+  }
+}

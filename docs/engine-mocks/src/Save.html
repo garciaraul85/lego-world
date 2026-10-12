@@ -1,0 +1,72 @@
+Save & versions
+{"nav":"game","group":"game","sub":"Saving","h":"Saving","s":"Your work saves itself. Go back to any earlier version.","undo":false,"primary":"<button type=\"button\" class=\"btn pri\" onClick=\"{{snapshot}}\">Save a version now</button>"}
+      <section style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; align-items: center; gap: 14px">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #45c46e"></span>
+          <span style="flex: 1 1 auto; font-size: 15px">{{status}}</span>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 14px"><input type="checkbox" checked style="accent-color: #ffcc00; width: 18px; height: 18px">Back up to my account</label>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 14px">
+          <div class="card" style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 4px; max-height: 640px; overflow: auto">
+            <span class="lbl" style="margin-bottom: 8px">Versions</span>
+            <sc-for list="{{versions}}" as="v" hint-placeholder-count="6">
+              <button type="button" style="{{v.style}}" onClick="{{v.pick}}">
+                <span style="{{v.thumb}}"></span>
+                <span style="flex: 1 1 auto; display: flex; flex-direction: column; text-align: left"><b style="font-size: 14px">{{v.name}}</b><span style="font-size: 12px; color: #9ea3ad">{{v.when}}</span></span>
+                <sc-if value="{{v.named}}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; font-weight: 800; color: #ffcc00">★</span></sc-if>
+              </button>
+            </sc-for>
+          </div>
+          <div class="card" style="flex: 1 1 360px; display: flex; flex-direction: column; gap: 12px">
+            <span style="{{bigThumb}}"></span>
+            <div style="font-size: 20px; font-weight: 800">{{sel.name}}</div>
+            <div style="font-size: 14px; color: #9ea3ad">{{sel.when}}</div>
+            <span class="lbl">Changed since then</span>
+            <sc-for list="{{sel.changes}}" as="c" hint-placeholder-count="3"><span style="font-size: 14px">• {{c}}</span></sc-for>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap"><button type="button" class="btn pri" onClick="{{restore}}">Go back to this version</button><a class="btn" href="Play.dc.html">Play this version</a><button type="button" class="btn" onClick="{{star}}">Name it</button></div>
+          </div>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 14px">
+        <span class="lbl">How players save</span>
+        <div style="display: flex; flex-direction: column; gap: 6px"><sc-for list="{{modes}}" as="m" hint-placeholder-count="3"><button type="button" style="{{m.style}}" onClick="{{m.pick}}"><b>{{m.name}}</b><span style="font-size: 12px; opacity: .85">{{m.desc}}</span></button></sc-for></div>
+        <label class="fld">Save slots · {{slots}}<input type="range" min="1" max="5" value="{{slots}}" onInput="{{setSlots}}" style="accent-color: #ffcc00"></label>
+        <span class="lbl">Remember</span>
+        <sc-for list="{{keep}}" as="k" hint-placeholder-count="5"><button type="button" onClick="{{k.flip}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer"><span>{{k.name}}</span><span style="{{k.track}}"><span style="{{k.knob}}"></span></span></button></sc-for>
+      </aside>
+      <!--TOAST-->
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 0, mode: 'Checkpoints and save points', slots: 3, toast: null, keep: { items: true, quests: true, vars: true, map: true, broken: false },
+      versions: [
+        ['Now', 'Saved a few seconds ago', '#2d4a33', false, ['Nothing — this is your current game']],
+        ['Added the boss key chest', 'Today, 10:42', '#5b4a2d', false, ['Removed the boss key chest', 'Torch 2 was not placed']],
+        ['Bridge puzzle works', 'Today, 10:15', '#2d4a33', true, ['Bridge pile, rule 3 and cutscene added after this']],
+        ['Before Brix changes', 'Today, 09:58', '#3a3420', true, ['Brix added 4 steps after this']],
+        ['First room', 'Yesterday', '#2d3f4a', false, ['3 rooms, 2 characters and 6 rules added after this']]
+      ] };
+  }
+  renderVals() {
+    const s = this.state;
+    const v = s.versions[s.sel];
+    return {
+      status: 'All changes saved · ' + s.versions.length + ' versions kept',
+      versions: s.versions.map((x, i) => ({ name: x[0], when: x[1], named: x[3], thumb: 'flex: 0 0 auto; width: 64px; height: 42px; border-radius: 8px; background: ' + x[2] + '; background-image: radial-gradient(#ffffff18 2px, transparent 2px); background-size: 10px 10px',
+        style: 'display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 12px; border: none; cursor: pointer; color: #f2f2f4; font-family: Figtree, sans-serif; background: ' + (i === s.sel ? '#3a3420' : 'transparent'),
+        pick: () => this.setState({ sel: i }) })),
+      bigThumb: 'display: block; height: 200px; border-radius: 14px; background: ' + v[2] + '; background-image: radial-gradient(#ffffff18 2px, transparent 2px); background-size: 14px 14px',
+      sel: { name: v[0], when: v[1], changes: v[4] },
+      restore: () => { if (s.sel === 0) return; this.setState({ versions: [['Now', 'Just now · went back to "' + v[0] + '"', v[2], false, ['Nothing — this is your current game']]].concat(s.versions.map((x, i) => (i === 0 ? ['Before going back', 'Just now', x[2], true, ['Your newest work is safe here']] : x))), sel: 0, toast: 'Went back to "' + v[0] + '". Your newer work is kept as a version.' }); },
+      star: () => this.setState({ versions: s.versions.map((x, i) => (i === s.sel ? [x[0] === 'Now' ? 'My checkpoint' : x[0], x[1], x[2], true, x[4]] : x)) }),
+      snapshot: () => this.setState({ versions: [s.versions[0], ['Saved by you', 'Just now', s.versions[0][2], true, ['Nothing yet']]].concat(s.versions.slice(1)), toast: 'Version saved.' }),
+      modes: [['Saves by itself', 'Whenever you enter a new room'], ['Checkpoints and save points', 'Statues or beds where players save'], ['Never', 'For short arcade games']].map(([n, d]) => ({ name: n, desc: d, style: H.card(n === s.mode), pick: () => this.setState({ mode: n }) })),
+      slots: s.slots, setSlots: (e) => this.setState({ slots: +e.target.value }),
+      keep: [['items', 'Items and money'], ['quests', 'Quest progress'], ['vars', 'All variables'], ['map', 'Which rooms they visited'], ['broken', 'Things they broke stay broken']].map(([k, n]) => ({ name: n, flip: () => this.setState({ keep: Object.assign({}, s.keep, { [k]: !s.keep[k] }) }), track: H.track(s.keep[k]), knob: H.knob(s.keep[k]) })),
+      toast: H.toast(s.toast),
+      undo: () => this.setState({ toast: null })
+    };
+  }
+}

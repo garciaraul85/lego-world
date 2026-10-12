@@ -1,0 +1,89 @@
+Stretch genres
+{"nav":"game","group":"game","sub":"Stretch","h":"City, farm and rhythm games","s":"Tools for the three stretch genres, planned after the dungeon","undo":false,"right":"<div class=\"seg\"><sc-for list=\"{{tabs}}\" as=\"t\" hint-placeholder-count=\"3\"><button type=\"button\" class=\"{{t.cls}}\" onClick=\"{{t.pick}}\">{{t.name}}</button></sc-for></div>"}
+      <sc-if value="{{isCity}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; flex: 1 1 100%">
+          <section style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; padding: 10px; border-radius: 20px; background: #3f8f4a; max-width: 640px"><sc-for list="{{lots}}" as="l" hint-placeholder-count="60"><div style="{{l.style}}" onClick="{{l.put}}" title="{{l.tip}}">{{l.icon}}</div></sc-for></div>
+            <div class="card" style="display: flex; flex-direction: column; gap: 8px"><div style="display: flex; justify-content: space-between"><span class="lbl">Money over 12 months</span><span style="{{netStyle}}">{{netText}}</span></div><div style="display: flex; align-items: flex-end; gap: 4px; height: 120px"><sc-for list="{{chart}}" as="c" hint-placeholder-count="12"><span style="{{c}}"></span></sc-for></div></div>
+          </section>
+          <aside class="card" style="flex: 1 1 260px; max-width: 300px; display: flex; flex-direction: column; gap: 8px; max-height: 820px; overflow: auto; box-sizing: border-box">
+            <span class="lbl">Build · pick, then click a lot</span>
+            <sc-for list="{{kinds}}" as="k" hint-placeholder-count="5"><button type="button" style="{{k.style}}" onClick="{{k.pick}}"><span>{{k.icon}} {{k.name}}</span><span style="font-size: 12px; opacity: .8">{{k.money}}</span></button></sc-for>
+          </aside>
+        </div>
+      </sc-if>
+      <sc-if value="{{isFarm}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; flex: 1 1 100%">
+          <section style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+            <div style="{{sky}}"><div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; padding: 16px; margin-top: 120px"><sc-for list="{{plots}}" as="p" hint-placeholder-count="16"><button type="button" style="{{p.style}}" onClick="{{p.plant}}" title="{{p.tip}}">{{p.icon}}</button></sc-for></div></div>
+            <div class="card" style="display: flex; align-items: center; gap: 14px"><span class="lbl">Day {{day}}</span><input type="range" min="1" max="12" value="{{day}}" onInput="{{setDay}}" style="flex: 1 1 auto; accent-color: #ffcc00"><span style="font-size: 14px">{{season}}</span></div>
+          </section>
+          <aside class="card" style="flex: 1 1 260px; max-width: 300px; display: flex; flex-direction: column; gap: 8px; max-height: 820px; overflow: auto; box-sizing: border-box">
+            <span class="lbl">Seeds · pick, then click soil</span>
+            <sc-for list="{{seeds}}" as="k" hint-placeholder-count="4"><button type="button" style="{{k.style}}" onClick="{{k.pick}}"><span>{{k.icon}} {{k.name}}</span><span style="font-size: 12px; opacity: .8">{{k.days}} days</span></button></sc-for>
+            <span style="font-size: 12px; color: #9ea3ad; line-height: 1.5">Slide the day to watch crops grow. Villagers keep their own daily routines.</span>
+          </aside>
+        </div>
+      </sc-if>
+      <sc-if value="{{isRhythm}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; flex: 1 1 100%">
+          <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+            <div style="position: relative; display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 20px; background: #1a1440">
+              <sc-for list="{{lanes}}" as="l" hint-placeholder-count="4"><div style="display: grid; grid-template-columns: 60px repeat(16, 1fr); gap: 3px; align-items: center"><span style="{{l.label}}">{{l.name}}</span><sc-for list="{{l.cells}}" as="c" hint-placeholder-count="16"><button type="button" style="{{c.style}}" onClick="{{c.flip}}" aria-label="Beat"></button></sc-for></div></sc-for>
+              <span style="{{head}}"></span>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center"><button type="button" class="btn pri" onClick="{{play}}">{{playLabel}}</button><span style="font-size: 14px; color: #b4b9c2">Click squares to place notes. Players press the lane's button on the beat.</span></div>
+          </section>
+          <aside class="card" style="flex: 1 1 260px; max-width: 300px; display: flex; flex-direction: column; gap: 12px; max-height: 820px; overflow: auto; box-sizing: border-box">
+            <label class="fld">Speed · {{bpm}} beats a minute<input type="range" min="60" max="180" step="5" value="{{bpm}}" onInput="{{setBpm}}" style="accent-color: #ffcc00"></label>
+            <label class="fld">Song<select class="inp"><option>Brick Beat (built in)</option><option>Your recording…</option></select></label>
+            <label class="fld">Timing window<select class="inp"><option>Kind</option><option>Normal</option><option>Strict</option></select></label>
+          </aside>
+        </div>
+      </sc-if>
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const lots = {}; [[2, 'House'], [3, 'House'], [12, 'Shop'], [22, 'Road'], [23, 'Road'], [24, 'Road'], [35, 'Park']].forEach(([i, k]) => { lots[i] = k; });
+    const notes = {}; ['0,0', '0,4', '1,2', '2,6', '0,8', '3,10', '1,12', '2,14'].forEach((k) => { notes[k] = true; });
+    this.state = { tab: 'City', lots, build: 'House', plots: { 0: ['Carrot', 1], 1: ['Carrot', 1], 5: ['Pumpkin', 2] }, seed: 'Carrot', day: 3, notes, bpm: 100, beat: -1 };
+  }
+  renderVals() {
+    const s = this.state;
+    const B = { House: ['🏠', 5, 1], Shop: ['🏪', 20, 5], Factory: ['🏭', 40, 15], Park: ['🌳', 0, 3], Road: ['▦', 0, 1] };
+    const vals = Object.values(s.lots);
+    const people = vals.filter((v) => v === 'House').length * 4;
+    const net = vals.reduce((a, v) => a + (v === 'Shop' ? Math.min(B.Shop[1], people * 2) : v === 'House' ? B.House[1] : v === 'Factory' ? B.Factory[1] : 0) - B[v][2], 0);
+    let money = 100; const chart = []; for (let i = 0; i < 12; i++) { money += net * 3; chart.push(money); }
+    const mx = Math.max(...chart.map(Math.abs), 1);
+    const C = { Carrot: ['🥕', 3], Pumpkin: ['🎃', 6], Wheat: ['🌾', 4], Berries: ['🫐', 5] };
+    const grow = (p) => Math.min(1, (s.day - p[1]) / C[p[0]][1]);
+    const lanes = ['Left', 'Up', 'Down', 'Right'];
+    const LC = ['#ff7eb6', '#7cc7ff', '#45c46e', '#ffcc00'];
+    return {
+      tabs: ['City', 'Farm', 'Rhythm'].map((t) => ({ name: t, cls: H.tab(t === s.tab), pick: () => this.setState({ tab: t }) })),
+      isCity: s.tab === 'City', isFarm: s.tab === 'Farm', isRhythm: s.tab === 'Rhythm',
+      lots: Array.from({ length: 60 }, (_, i) => { const k = s.lots[i]; return { icon: k ? B[k][0] : '', tip: k || 'Empty lot',
+        style: 'aspect-ratio: 1; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; background: ' + (k === 'Road' ? '#4b5058' : k ? '#ffffff22' : '#4aa356'),
+        put: () => { const n = Object.assign({}, s.lots); if (n[i] === s.build) delete n[i]; else n[i] = s.build; this.setState({ lots: n }); } }; }),
+      chart: chart.map((v) => 'flex: 1 1 0; border-radius: 4px 4px 0 0; background: ' + (v >= 0 ? '#45c46e' : '#e8463c') + '; height: ' + (Math.abs(v) / mx * 100) + '%'),
+      netText: (net >= 0 ? '+' : '') + net + ' coins a month · ' + people + ' people', netStyle: 'font-size: 13px; font-weight: 700; color: ' + (net >= 0 ? '#45c46e' : '#ff6b6b'),
+      kinds: Object.keys(B).map((k) => ({ name: k, icon: B[k][0], money: (B[k][1] ? '+' + B[k][1] : '') + ' −' + B[k][2], style: H.pick(k === s.build) + '; display: flex; justify-content: space-between; align-items: center', pick: () => this.setState({ build: k }) })),
+      sky: 'position: relative; border-radius: 20px; overflow: hidden; background: linear-gradient(' + (s.day % 4 === 0 ? '#1a2a6c' : '#7cb7e6') + ' 0 40%, #8a5a2b 40%)',
+      plots: Array.from({ length: 16 }, (_, i) => { const p = s.plots[i]; const g = p ? grow(p) : 0; return { icon: p ? (g >= 1 ? C[p[0]][0] : g > 0.4 ? '🌿' : '🌱') : '', tip: p ? p[0] + (g >= 1 ? ' · ready!' : ' · growing') : 'Soil',
+        style: 'aspect-ratio: 1; border-radius: 8px; border: none; cursor: pointer; font-size: ' + (12 + g * 16) + 'px; background: ' + (p ? '#5a3a1c' : '#6b4a2b'),
+        plant: () => { const n = Object.assign({}, s.plots); if (p && g >= 1) delete n[i]; else if (!p) n[i] = [s.seed, s.day]; this.setState({ plots: n }); } }; }),
+      day: s.day, setDay: (e) => this.setState({ day: +e.target.value }), season: ['Spring', 'Summer', 'Autumn'][Math.floor((s.day - 1) / 4)] + (s.day % 4 === 0 ? ' · rainy night' : ''),
+      seeds: Object.keys(C).map((k) => ({ name: k, icon: C[k][0], days: C[k][1], style: H.pick(k === s.seed) + '; display: flex; justify-content: space-between; align-items: center', pick: () => this.setState({ seed: k }) })),
+      lanes: lanes.map((n, li) => ({ name: n, label: 'font-size: 12px; font-weight: 700; color: ' + LC[li],
+        cells: Array.from({ length: 16 }, (_, b) => { const on = s.notes[li + ',' + b]; return { style: 'height: 34px; border-radius: 6px; border: none; cursor: pointer; background: ' + (on ? LC[li] : b % 4 === 0 ? '#2b2460' : '#221c50') + (b === s.beat && on ? '; box-shadow: 0 0 14px ' + LC[li] : ''), flip: () => this.setState({ notes: Object.assign({}, s.notes, { [li + ',' + b]: !on }) }) }; }) })),
+      head: s.beat < 0 ? 'display: none' : 'position: absolute; top: 6px; bottom: 6px; width: 3px; background: #fff; pointer-events: none; left: calc(75px + ' + s.beat + ' * (100% - 87px) / 16)',
+      play: () => { if (s.beat >= 0) { clearInterval(this.tm); this.setState({ beat: -1 }); return; } let b = 0; this.setState({ beat: 0 }); this.tm = setInterval(() => { b++; if (b >= 16) { clearInterval(this.tm); this.setState({ beat: -1 }); } else this.setState({ beat: b }); }, 60000 / s.bpm / 2); },
+      playLabel: s.beat >= 0 ? 'Stop' : 'Play',
+      bpm: s.bpm, setBpm: (e) => this.setState({ bpm: +e.target.value }),
+      undo: () => {}
+    };
+  }
+}

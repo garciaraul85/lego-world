@@ -1,0 +1,164 @@
+Characters
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif">
+  <dc-import name="Nav" active="character" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">{{name}}</span><span style="font-size: 13px; color: #9ea3ad">{{family}} · used in 2 rooms</span></div>
+      <div class="seg"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="7"><button type="button" class="{{t.cls}}" onClick="{{t.pick}}">{{t.name}}</button></sc-for></div>
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="cast" active="Character" hint-size="900px,46px"></dc-import>
+    <div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 1 1 460px; min-width: 0; position: relative; border-radius: 20px; background: radial-gradient(circle at 50% 40%, #2a2d36, #17191e 70%); min-height: 760px; display: flex; align-items: center; justify-content: center" onDragOver="{{allow}}" onDrop="{{wear}}">
+        <div style="{{fig.wrap}}">
+          <sc-if value="{{fig.ears}}" hint-placeholder-val="{{ false }}"><div style="display: flex; gap: 70px; margin-bottom: -16px"><span style="{{fig.ear}}"></span><span style="{{fig.ear}}"></span></div></sc-if>
+          <sc-if value="{{fig.hat}}" hint-placeholder-val="{{ false }}"><span style="{{fig.hatStyle}}"></span></sc-if>
+          <div style="{{fig.head}}"><span style="{{fig.eye}}"></span><span style="{{fig.eye}}"></span><span style="{{fig.mouth}}"></span></div>
+          <div style="{{fig.torso}}"><span style="{{fig.arm}}"></span><span style="{{fig.armR}}"></span><sc-if value="{{fig.cape}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; inset: 6px -14px -30px; z-index: -1; border-radius: 6px 6px 20px 20px; background: #a83232"></span></sc-if></div>
+          <div style="display: flex; gap: 6px"><span style="{{fig.leg}}"></span><span style="{{fig.leg}}"></span></div>
+          <sc-if value="{{fig.tail}}" hint-placeholder-val="{{ false }}"><span style="{{fig.tailStyle}}"></span></sc-if>
+        </div>
+        <span style="position: absolute; left: 18px; top: 16px; font-size: 13px; color: #9ea3ad">Drag clothes onto the character to put them on</span><span style="{{dummy}}"></span><sc-if value="{{hitShow}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; right: 70px; top: 330px; font-size: 24px; font-weight: 800; color: #ffcc00">−1</span></sc-if>
+        <div style="position: absolute; left: 18px; bottom: 16px; display: flex; gap: 8px">
+          <button type="button" class="btn" onClick="{{random}}">Surprise me</button><button type="button" class="btn" onClick="{{tryWalk}}">Try: walk</button><button type="button" class="btn" onClick="{{tryHit}}">Try: hit the dummy</button>
+          <a class="btn" href="Photo.dc.html">From a photo…</a>
+        </div>
+        <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}"><div class="toast">{{toast.text}}<button type="button" class="btn" style="min-height: 34px" onClick="{{undo}}">Undo</button></div></sc-if>
+      </section>
+      <aside style="flex: 1 1 380px; max-width: 520px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
+        <sc-if value="{{isLook}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 14px">
+            <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+              <span class="lbl">Body plan</span>
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px">
+                <sc-for list="{{families}}" as="f" hint-placeholder-count="12"><button type="button" style="{{f.style}}" onClick="{{f.pick}}"><span style="{{f.sw}}"></span>{{f.name}}</button></sc-for>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center"><span class="lbl" style="margin-right: 6px">Presets</span><sc-for list="{{galTabs}}" as="g" hint-placeholder-count="6"><button type="button" class="{{g.cls}}" style="padding: 5px 10px; font-size: 12px" onClick="{{g.pick}}">{{g.name}}</button></sc-for></div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{species}}" as="sp" hint-placeholder-count="8"><button type="button" class="chip" style="cursor: pointer" onClick="{{sp.pick}}">{{sp.name}}</button></sc-for></div>
+            </div>
+            <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+              <span class="lbl">Colours</span>
+              <sc-for list="{{colourRows}}" as="r" hint-placeholder-count="3">
+                <div style="display: flex; align-items: center; gap: 10px"><span style="width: 60px; font-size: 14px; color: #b4b9c2">{{r.name}}</span><sc-for list="{{r.sw}}" as="c" hint-placeholder-count="6"><button type="button" aria-label="{{c.name}}" style="{{c.style}}" onClick="{{c.pick}}"></button></sc-for></div>
+              </sc-for>
+            </div>
+            <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+              <span class="lbl">Clothes · drag onto them</span>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <sc-for list="{{clothes}}" as="c" hint-placeholder-count="5"><div class="tilelib" draggable="true" onDragStart="{{c.start}}" style="width: 80px"><span style="{{c.sw}}"></span>{{c.name}}</div></sc-for>
+              </div>
+            </div>
+            <button type="button" class="btn" style="align-self: flex-start" onClick="{{toggleMore}}">{{moreLabel}}</button>
+            <sc-if value="{{more}}" hint-placeholder-val="{{ false }}">
+              <div class="card" style="display: flex; flex-direction: column; gap: 14px">
+                <sc-for list="{{sliders}}" as="sl" hint-placeholder-count="3"><label class="fld">{{sl.name}}<input type="range" min="60" max="140" value="{{sl.val}}" onInput="{{sl.set}}" style="accent-color: #ffcc00"></label></sc-for>
+                <div class="fld">Skin<div style="display: flex; gap: 6px"><sc-for list="{{skins}}" as="k" hint-placeholder-count="4"><button type="button" style="{{k.style}}" onClick="{{k.pick}}">{{k.name}}</button></sc-for></div></div>
+                <div class="fld">Pattern<div style="display: flex; gap: 6px"><sc-for list="{{patterns}}" as="k" hint-placeholder-count="4"><button type="button" style="{{k.style}}" onClick="{{k.pick}}">{{k.name}}</button></sc-for></div></div>
+                <button type="button" onClick="{{flipSym}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer"><span>Mirror both sides</span><span style="{{symTrack}}"><span style="{{symKnob}}"></span></span></button>
+                <a href="Skeleton.dc.html" style="font-size: 14px">Edit the skeleton…</a> <a href="Face.dc.html" style="font-size: 14px">Edit the face…</a>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{isOutfits}}" hint-placeholder-val="{{ false }}">
+          <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+            <span class="lbl">Outfits · swap them in the game</span>
+            <sc-for list="{{outfits}}" as="o" hint-placeholder-count="3"><button type="button" style="{{o.style}}" onClick="{{o.pick}}"><span style="{{o.sw}}"></span><span style="flex: 1 1 auto; display: flex; flex-direction: column; text-align: left"><b>{{o.name}}</b><span style="font-size: 12px; opacity: .8">{{o.bonus}}</span></span></button></sc-for>
+            <button type="button" class="btn" style="align-self: flex-start" onClick="{{addOutfit}}">Save current look as an outfit</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{isStats}}" hint-placeholder-val="{{ false }}">
+          <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+            <span class="lbl">Stats · only the ones Adventure uses</span>
+            <sc-for list="{{stats}}" as="st" hint-placeholder-count="5"><label class="fld">{{st.name}} · {{st.val}}<input type="range" min="1" max="20" value="{{st.val}}" onInput="{{st.set}}" style="accent-color: #ffcc00"></label></sc-for>
+            <a href="Battles.dc.html" style="font-size: 14px">Levels and growth curves</a>
+            <span class="lbl" style="margin-top: 6px">Playable heroes</span>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap"><sc-for list="{{heroes}}" as="h" hint-placeholder-count="3"><button type="button" style="{{h.style}}" onClick="{{h.pick}}">{{h.name}}</button></sc-for></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{isOther}}" hint-placeholder-val="{{ false }}">
+          <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+            <span class="lbl">{{tab}}</span>
+            <sc-for list="{{otherRows}}" as="o" hint-placeholder-count="4">
+              <a href="{{o.href}}" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 12px; background: #24262d; color: #f2f2f4; text-decoration: none; font-size: 15px"><span>{{o.name}}</span><span style="color: #9ea3ad; font-size: 13px">{{o.val}}</span></a>
+            </sc-for>
+          </div>
+        </sc-if>
+      </aside>
+    </div>
+  </main>
+</div>
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { act: null, hitShow: false, gal: 'Animals', skinType: 'Plastic', pattern: 'None', sym: true, outfit: 0, outfits: [['Work clothes', '#3b78c9', 'No bonus'], ['Armour', '#8b93a3', 'Defence +2, Speed −1'], ['Festival robe', '#a78bfa', 'Shops 10% cheaper']], stats: { Health: 6, Stamina: 5, Speed: 4, Strength: 7, Defence: 5 }, hero: 'Knight', tab: 'Look', fam: 'Minifig', skin: '#ffcc00', shirt: '#3b78c9', pants: '#2f3440', wearing: [], more: false, size: { Height: 100, 'Head size': 100, 'Arm length': 100 }, hist: [], toast: null, name: 'Old Mason' };
+  }
+  renderVals() {
+    const s = this.state;
+    const keep = () => s.hist.concat([{ fam: s.fam, skin: s.skin, shirt: s.shirt, pants: s.pants, wearing: s.wearing }]).slice(-20);
+    const set = (o) => this.setState(Object.assign({ hist: keep() }, o));
+    const GAL = { Animals: ['Four-legged', ['Dog', 'Cat', 'Horse', 'Lion', 'Wolf', 'Bear', 'Unicorn'], '#c98a4b'], 'Sea creatures': ['Swimmer', ['Fish', 'Shark', 'Dolphin', 'Whale', 'Turtle', 'Octopus', 'Crab'], '#3b78c9'], Monsters: ['Giant', ['Slime', 'Skeleton', 'Zombie', 'Goblin', 'Troll', 'Ghost', 'Giant spider'], '#45c46e'], Myth: ['Winged four-legged', ['Dragon', 'Griffin', 'Phoenix', 'Pegasus', 'Centaur', 'Mermaid', 'Hydra'], '#b34a3c'], Gods: ['Minifig', ['Sky god', 'Sea goddess', 'Sun god', 'Moon goddess', 'Thunder god'], '#ffe27a'], 'Upright animals': ['Upright animal', ['Fox', 'Rabbit', 'Lion', 'Sloth', 'Otter'], '#ff8a3d'], 'Living objects': ['Blob and construct', ['Sponge', 'Toaster', 'Capsule helper', 'Fruit'], '#a78bfa'] };
+    const fams = [['Minifig', '#ffcc00'], ['Upright animal', '#ff8a3d'], ['Four-legged', '#c98a4b'], ['Bird', '#7cc7ff'], ['Swimmer', '#3b78c9'], ['Many-armed', '#ff7eb6'], ['Crawler', '#8a5a2b'], ['Serpent', '#45c46e'], ['Winged four-legged', '#b34a3c'], ['Hybrid', '#e0b98a'], ['Giant', '#8b93a3'], ['Blob and construct', '#a78bfa']];
+    const h = s.size.Height / 100, hd = s.size['Head size'] / 100, ar = s.size['Arm length'] / 100;
+    const cartoon = s.fam === 'Blob and construct', animal = s.fam === 'Upright animal' || s.fam === 'Four-legged' || s.fam === 'Winged four-legged', monster = s.fam === 'Giant';
+    const headW = (cartoon ? 0 : 110) * hd;
+    const sw = (list, key) => list.map(([n, c]) => ({ name: n, pick: () => set({ [key]: c }), style: 'width: 30px; height: 30px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (s[key] === c ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none') }));
+    const pal = [['Yellow', '#ffcc00'], ['Tan', '#e0b98a'], ['Brown', '#8a5a2b'], ['Green', '#45c46e'], ['Blue', '#3b78c9'], ['Red', '#e8463c'], ['Pink', '#ff7eb6'], ['Dark', '#2f3440']];
+    const other = {
+      Moves: [['Walk', 'Stomp', 'Animate.dc.html'], ['Idle', 'Look around', 'Animate.dc.html'], ['Attack', 'Hammer swing', 'Animate.dc.html'], ['Make a new move', 'Pose it', 'Animate.dc.html']],
+      Voice: [['Voice', 'Gruff, slow', 'Audio.dc.html'], ['Footsteps', 'Heavy boots', 'Audio.dc.html'], ['Hurt sound', 'Oof', 'Audio.dc.html']],
+      Talk: [['Greeting', '3 lines', 'Dialogue.dc.html'], ['Shop', '5 lines · 2 choices', 'Dialogue.dc.html'], ['After the bridge', '2 lines · needs Bridge built', 'Dialogue.dc.html']],
+      Behaviour: [['Brain', 'Shopkeeper', 'Brain.dc.html'], ['Stays near', 'His stall', 'Logic.dc.html'], ['When hit', 'Runs away, then comes back', 'Logic.dc.html']]
+    };
+    return {
+      name: s.name, family: s.fam, tab: s.tab,
+      tabs: ['Look', 'Outfits', 'Stats', 'Moves', 'Voice', 'Talk', 'Behaviour'].map((t) => ({ name: t, cls: t === s.tab ? 'ltab lon' : 'ltab', pick: () => this.setState({ tab: t }) })),
+      isLook: s.tab === 'Look', isOutfits: s.tab === 'Outfits', isStats: s.tab === 'Stats', isOther: ['Look', 'Outfits', 'Stats'].indexOf(s.tab) < 0,
+      galTabs: Object.keys(GAL).map((g) => ({ name: g, cls: H.tab(g === s.gal), pick: () => this.setState({ gal: g }) })),
+      species: GAL[s.gal][1].map((n) => ({ name: n, pick: () => set({ fam: GAL[s.gal][0], skin: GAL[s.gal][2], toast: { text: n + ': a starting point. Change anything.' } }) })),
+      skins: ['Plastic', 'Fur', 'Scales', 'Feathers'].map((k) => ({ name: k, style: H.pick(k === s.skinType) + '; flex: 1 1 0; font-size: 12px; padding: 0 6px; text-align: center', pick: () => this.setState({ skinType: k }) })),
+      patterns: ['None', 'Spots', 'Stripes', 'Patches'].map((k) => ({ name: k, style: H.pick(k === s.pattern) + '; flex: 1 1 0; font-size: 12px; padding: 0 6px; text-align: center', pick: () => this.setState({ pattern: k }) })),
+      flipSym: () => this.setState({ sym: !s.sym }), symTrack: H.track(s.sym), symKnob: H.knob(s.sym),
+      outfits: s.outfits.map((o, i) => ({ name: o[0], bonus: o[2], sw: 'width: 36px; height: 36px; border-radius: 8px; background: ' + o[1], style: H.card(i === s.outfit) + '; flex-direction: row; align-items: center; gap: 12px', pick: () => this.setState({ outfit: i, shirt: o[1] }) })),
+      addOutfit: () => this.setState({ outfits: s.outfits.concat([['Outfit ' + (s.outfits.length + 1), s.shirt, 'No bonus']]), outfit: s.outfits.length }),
+      stats: Object.keys(s.stats).map((k) => ({ name: k, val: s.stats[k], set: (e) => this.setState({ stats: Object.assign({}, s.stats, { [k]: +e.target.value }) }) })),
+      heroes: ['Knight', 'Ranger', 'Wizard'].map((h) => ({ name: h, style: H.pick(h === s.hero) + '; min-height: 32px; font-size: 13px', pick: () => this.setState({ hero: h }) })),
+      dummy: 'position: absolute; right: 60px; top: 380px; width: 60px; height: 110px; border-radius: 12px; background: #c9a36a; opacity: ' + (s.act === 'hit' ? 1 : 0) + '; transition: opacity .2s',
+      hitShow: s.hitShow,
+      tryWalk: () => { this.setState({ act: 'walk' }); clearTimeout(this.ta); this.ta = setTimeout(() => this.setState({ act: null }), 1600); },
+      tryHit: () => { this.setState({ act: 'hit', hitShow: false }); clearTimeout(this.ta); setTimeout(() => this.setState({ hitShow: true }), 500); this.ta = setTimeout(() => this.setState({ act: null, hitShow: false }), 1600); },
+      otherRows: (other[s.tab] || []).map(([n, v, href]) => ({ name: n, val: v, href })),
+      fig: {
+        wrap: 'position: relative; display: flex; flex-direction: column; align-items: center; transition: transform .8s; transform: translateX(' + (s.act === 'walk' ? 120 : s.act === 'hit' ? 60 : 0) + 'px) scale(' + (1.6 * h) + ')' + (s.act === 'hit' ? ' rotate(8deg)' : ''),
+        ears: animal, ear: 'width: 30px; height: 36px; border-radius: 50% 50% 10px 10px; background: ' + s.skin,
+        hat: s.wearing.indexOf('Hat') >= 0, hatStyle: 'width: 120px; height: 18px; border-radius: 8px; background: #6b4a2b; margin-bottom: -4px; box-shadow: 0 -20px 0 -26px #6b4a2b, inset 0 -6px 0 #0003',
+        head: 'position: relative; width: ' + (cartoon ? 0 : headW) + 'px; height: ' + (cartoon ? 0 : 90 * hd) + 'px; border-radius: ' + (monster ? '40% 40% 30% 30%' : '22px') + '; background: ' + s.skin + '; display: ' + (cartoon ? 'none' : 'flex') + '; gap: 22px; align-items: center; justify-content: center',
+        eye: 'width: ' + (monster ? 18 : 12) + 'px; height: ' + (monster ? 18 : 16) + 'px; border-radius: 50%; background: #141519; margin-top: -10px',
+        mouth: 'position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); width: 36px; height: 14px; border-radius: 0 0 18px 18px; background: #141519',
+        torso: 'position: relative; width: ' + (cartoon ? 150 : 130) + 'px; height: ' + (cartoon ? 150 : 110) + 'px; margin-top: 4px; border-radius: ' + (cartoon ? '18px' : '14px 14px 6px 6px') + '; background: ' + (cartoon ? s.skin : s.shirt) + (cartoon ? '; box-shadow: inset 0 0 0 6px #0002' : ''),
+        arm: 'position: absolute; left: -26px; top: 8px; width: 26px; height: ' + (90 * ar) + 'px; border-radius: 13px; background: ' + (cartoon ? s.skin : s.shirt),
+        armR: 'position: absolute; right: -26px; top: 8px; width: 26px; height: ' + (90 * ar) + 'px; border-radius: 13px; background: ' + (cartoon ? s.skin : s.shirt),
+        cape: s.wearing.indexOf('Cape') >= 0,
+        leg: 'width: 60px; height: 70px; border-radius: 6px 6px 10px 10px; background: ' + (s.wearing.indexOf('Boots') >= 0 ? 'linear-gradient(' + s.pants + ' 55%, #4a2f1c 55%)' : s.pants),
+        tail: animal || s.fam === 'Serpent' || s.fam === 'Swimmer' || s.fam === 'Hybrid', tailStyle: 'position: absolute; right: -60px; bottom: 70px; width: 70px; height: 22px; border-radius: 12px; transform: rotate(-30deg); background: ' + s.skin
+      },
+      families: fams.map(([n, c]) => ({ name: n, pick: () => set({ fam: n, skin: c }), sw: 'width: 34px; height: 30px; border-radius: 10px; background: ' + c,
+        style: 'display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: 12px; border: none; cursor: pointer; font: 600 12px Figtree, sans-serif; color: #f2f2f4; background: ' + (n === s.fam ? '#3a3420' : '#24262d') + '; box-shadow: ' + (n === s.fam ? 'inset 0 0 0 2px #ffcc00' : 'none') })),
+      colourRows: [{ name: 'Skin', sw: sw(pal, 'skin') }, { name: 'Shirt', sw: sw(pal, 'shirt') }, { name: 'Pants', sw: sw(pal, 'pants') }],
+      clothes: [['Hat', '#6b4a2b'], ['Cape', '#a83232'], ['Boots', '#4a2f1c'], ['Apron', '#d8cfc0'], ['Crown', '#ffcc00']].map(([n, c]) => ({ name: n, sw: 'width: 40px; height: 28px; border-radius: 8px; background: ' + c, start: (e) => e.dataTransfer.setData('text/plain', n) })),
+      allow: (e) => e.preventDefault(),
+      wear: (e) => { e.preventDefault(); const n = e.dataTransfer.getData('text/plain'); if (n && s.wearing.indexOf(n) < 0) set({ wearing: s.wearing.concat([n]), toast: { text: n + ' on. It follows their body when they move.' } }); },
+      random: () => set({ skin: pal[Math.floor(Math.random() * 8)][1], shirt: pal[Math.floor(Math.random() * 8)][1], pants: pal[Math.floor(Math.random() * 8)][1] }),
+      photo: () => set({ fam: 'Minifig', skin: '#e0b98a', shirt: '#e8463c', pants: '#3b78c9', wearing: ['Hat'], toast: { text: 'Made from your photo: closest bricks picked. Adjust anything.' } }),
+      toast: s.toast ? { show: true, text: s.toast.text } : { show: false },
+      undo: () => { if (!s.hist.length) return; this.setState(Object.assign({}, s.hist[s.hist.length - 1], { hist: s.hist.slice(0, -1), toast: null })); },
+      more: s.more, moreLabel: s.more ? 'Fewer options' : 'Body shape…', toggleMore: () => this.setState({ more: !s.more }),
+      sliders: Object.keys(s.size).map((k) => ({ name: k, val: s.size[k], set: (e) => this.setState({ size: Object.assign({}, s.size, { [k]: +e.target.value }) }) }))
+    };
+  }
+}

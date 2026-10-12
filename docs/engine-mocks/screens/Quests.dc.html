@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quests</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}">
+  <dc-import name="Nav" active="logic" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Quests</span><span style="font-size: 13px; color: #9ea3ad">Steps the player follows. Drag a step type in, drag steps to reorder.</span></div>
+      
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="logic" active="Quests" hint-size="900px,46px"></dc-import>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <aside class="card" style="flex: 0 0 240px; display: flex; flex-direction: column; gap: 8px">
+        <span class="lbl">Quests</span>
+        <sc-for list="{{quests}}" as="q" hint-placeholder-count="3"><button type="button" style="{{q.style}}" onClick="{{q.pick}}"><span>{{q.name}}</span><span style="font-size: 12px; opacity: .8">{{q.desc}}</span></button></sc-for>
+        <button type="button" class="btn" onClick="{{newQuest}}">New quest</button>
+        <span class="lbl" style="margin-top: 14px">Step types · drag in</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{types}}" as="t" hint-placeholder-count="8"><span class="chip" draggable="true" onDragStart="{{t.start}}"><span style="{{t.dot}}"></span>{{t.name}}</span></sc-for></div>
+      </aside>
+      <section class="card" style="flex: 999 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 20px 24px" onDragOver="{{allow}}" onDrop="{{dropEnd}}">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <span style="flex: 1 1 auto; font-size: 22px; font-weight: 800">{{qname}}</span>
+          <button type="button" class="btn" onClick="{{simulate}}">{{simLabel}}</button>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; font-size: 14px; color: #b4b9c2">Given by <button type="button" class="chip" onClick="{{nextGiver}}" style="cursor: pointer; background: #1f3046; color: #9cc7ff">{{giver}}</button> when <button type="button" class="chip" onClick="{{nextStart}}" style="cursor: pointer; background: #3a3420; color: #ffd633">{{start}}</button></div>
+        <sc-for list="{{steps}}" as="st" hint-placeholder-count="4">
+          <div style="display: flex; gap: 14px; align-items: stretch">
+            <div style="display: flex; flex-direction: column; align-items: center; width: 30px"><span style="{{st.dot}}">{{st.mark}}</span><span style="{{st.line}}"></span></div>
+            <div style="{{st.box}}" draggable="true" onDragStart="{{st.dstart}}" onDragOver="{{allow}}" onDrop="{{st.drop}}" onContextMenu="{{st.menu}}">
+              <div style="display: flex; justify-content: space-between; gap: 8px"><span style="font-size: 12px; font-weight: 700; color: #9ea3ad">{{st.type}}</span><span style="font-size: 12px; color: #9ea3ad">{{st.flag}}</span></div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 16px"><span>{{st.verb}}</span><button type="button" class="chip" style="cursor: pointer; background: #1f3046; color: #9cc7ff" onClick="{{st.nextTarget}}">{{st.target}}</button><sc-if value="{{st.hasCount}}" hint-placeholder-val="{{ false }}"><button type="button" class="chip" style="cursor: pointer" onClick="{{st.bump}}">× {{st.count}}</button></sc-if></div>
+              <sc-if value="{{st.hasHint}}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; color: #b4b9c2">Hint: {{st.hint}}</span></sc-if>
+            </div>
+          </div>
+        </sc-for>
+        <span style="font-size: 13px; color: #6f7480; padding-left: 44px">Drop a step type here to add it at the end</span>
+      </section>
+      <aside style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Reward</span>
+          <sc-for list="{{rewards}}" as="r" hint-placeholder-count="3"><button type="button" onClick="{{r.flip}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 15px Figtree, sans-serif; cursor: pointer"><span>{{r.name}}</span><span style="{{r.track}}"><span style="{{r.knob}}"></span></span></button></sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">How players see it</span>
+          <div style="border-radius: 12px; background: #2d4a33; padding: 14px; position: relative; height: 130px">
+            <div style="position: absolute; right: 12px; top: 12px; max-width: 220px; padding: 10px 12px; border-radius: 10px; background: #141519dd; font-size: 13px; line-height: 1.4"><b style="color: #ffcc00">{{qname}}</b><br>{{current}}</div>
+          </div>
+          <label class="fld">Show on screen<select class="inp"><option>Top right, small</option><option>Only in the pause menu</option><option>Big banner when it changes</option></select></label>
+        </div>
+      </aside>
+      <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}"><div class="menu" style="{{menu.style}}"><span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">{{menu.title}}</span><sc-for list="{{menu.items}}" as="i" hint-placeholder-count="4"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for></div></sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 20;
+    this.state = { cur: 'Cross the chasm', prog: -1, menu: null, hist: [], drag: null,
+      quests: {
+        'Cross the chasm': { giver: 'Old Mason', start: 'you talk to him', steps: [
+          { id: 's1', type: 'Talk to', target: 'Old Mason', count: 0, hint: '', opt: false },
+          { id: 's2', type: 'Collect', target: 'Brick bundles', count: 3, hint: 'Mason sells them, or find them in pots', opt: false },
+          { id: 's3', type: 'Build', target: 'Bridge pile', count: 0, hint: '', opt: false },
+          { id: 's4', type: 'Defeat', target: 'Stone knight', count: 1, hint: '', opt: true },
+          { id: 's5', type: 'Go to', target: 'Boss gate', count: 0, hint: '', opt: false }
+        ], rewards: { coins: true, item: true, door: false } },
+        'Lost cat': { giver: 'Villager', start: 'you enter the village', steps: [{ id: 's9', type: 'Find', target: 'Cat', count: 0, hint: 'Listen for meows', opt: false }, { id: 's10', type: 'Deliver', target: 'Cat → Villager', count: 0, hint: '', opt: false }], rewards: { coins: true, item: false, door: false } }
+      } };
+  }
+  renderVals() {
+    const s = this.state;
+    const q = s.quests[s.cur] || s.quests[Object.keys(s.quests)[0]];
+    const setQ = (o, extra) => this.setState(Object.assign({ hist: s.hist.concat([s.quests]).slice(-20), quests: Object.assign({}, s.quests, { [s.cur]: Object.assign({}, q, o) }) }, extra || {}));
+    const T = { 'Talk to': '#9cc7ff', Collect: '#ffcc00', Build: '#ff8a3d', Defeat: '#e8463c', 'Go to': '#45c46e', Find: '#a78bfa', Deliver: '#ff7eb6', 'Win race': '#7cc7ff' };
+    const TARGETS = ['Old Mason', 'Brick bundles', 'Bridge pile', 'Stone knight', 'Boss gate', 'Coins', 'Cat', 'Villager'];
+    const GIVERS = ['Old Mason', 'Villager', 'Quest board', 'Nobody — starts by itself'];
+    const STARTS = ['you talk to him', 'you enter the village', 'a rule says so', 'the game starts'];
+    const nxt = (a, v) => a[(a.indexOf(v) + 1) % a.length];
+    const updStep = (id, o) => setQ({ steps: q.steps.map((x) => (x.id === id ? Object.assign({}, x, o) : x)) });
+    const m = s.menu; const ms = m ? q.steps.find((x) => x.id === m.id) : null;
+    const cur = s.prog >= 0 && s.prog < q.steps.length ? q.steps[s.prog] : q.steps[0];
+    return {
+      quests: Object.keys(s.quests).map((n) => ({ name: n, desc: s.quests[n].steps.length + ' steps · ' + s.quests[n].giver, style: H.card(n === s.cur), pick: () => this.setState({ cur: n, prog: -1 }) })),
+      newQuest: () => { const n = 'New quest ' + (this.n++); this.setState({ cur: n, quests: Object.assign({}, s.quests, { [n]: { giver: 'Quest board', start: 'a rule says so', steps: [], rewards: { coins: true, item: false, door: false } } }) }); },
+      types: Object.keys(T).map((t) => ({ name: t, dot: 'width: 10px; height: 10px; border-radius: 50%; background: ' + T[t], start: (e) => e.dataTransfer.setData('text/plain', 'type|' + t) })),
+      allow: (e) => e.preventDefault(),
+      dropEnd: (e) => { e.preventDefault(); const d = e.dataTransfer.getData('text/plain'); if (d.indexOf('type|') === 0) setQ({ steps: q.steps.concat([{ id: 's' + (this.n++), type: d.slice(5), target: 'Coins', count: d.slice(5) === 'Collect' ? 5 : 0, hint: '', opt: false }]) }); },
+      qname: s.cur,
+      giver: q.giver, start: q.start, nextGiver: () => setQ({ giver: nxt(GIVERS, q.giver) }), nextStart: () => setQ({ start: nxt(STARTS, q.start) }),
+      simulate: () => this.setState({ prog: s.prog + 1 > q.steps.length ? -1 : s.prog + 1 }),
+      simLabel: s.prog < 0 ? 'Try it: start' : s.prog >= q.steps.length ? 'Done! Reset' : 'Finish this step',
+      steps: q.steps.map((st, i) => { const done = i < s.prog, now = i === s.prog; return {
+        type: st.type, flag: st.opt ? 'Optional' : '', verb: st.type === 'Collect' ? 'Collect' : st.type, target: st.target, count: st.count, hasCount: st.count > 0, hint: st.hint, hasHint: !!st.hint,
+        mark: done ? '✓' : i + 1,
+        dot: 'flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; color: #141519; background: ' + (done ? '#45c46e' : now ? '#ffcc00' : T[st.type] || '#9ea3ad'),
+        line: 'flex: 1 1 auto; width: 3px; min-height: 16px; background: ' + (i === q.steps.length - 1 ? 'transparent' : '#33363e'),
+        box: 'flex: 1 1 auto; margin-bottom: 10px; padding: 12px 14px; border-radius: 14px; display: flex; flex-direction: column; gap: 6px; cursor: grab; background: ' + (now ? '#3a3420' : '#24262d') + (st.opt ? '; border: 2px dashed #4a4e58' : '') + (s.drag === st.id ? '; opacity: .4' : ''),
+        nextTarget: () => updStep(st.id, { target: nxt(TARGETS, st.target) }),
+        bump: () => updStep(st.id, { count: st.count % 9 + 1 }),
+        dstart: (e) => { e.dataTransfer.setData('text/plain', 'step|' + st.id); this.setState({ drag: st.id }); },
+        drop: (e) => { e.preventDefault(); e.stopPropagation(); const d = e.dataTransfer.getData('text/plain');
+          if (d.indexOf('type|') === 0) { const arr = q.steps.slice(); arr.splice(i, 0, { id: 's' + (this.n++), type: d.slice(5), target: 'Coins', count: 0, hint: '', opt: false }); setQ({ steps: arr }); return; }
+          if (d.indexOf('step|') !== 0) return; const id = d.slice(5); if (id === st.id) { this.setState({ drag: null }); return; } const mv = q.steps.find((x) => x.id === id); const rest = q.steps.filter((x) => x.id !== id); rest.splice(rest.findIndex((x) => x.id === st.id), 0, mv); setQ({ steps: rest }, { drag: null }); },
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const [x, y] = H.at(e); this.setState({ menu: { id: st.id, x, y } }); } }; }),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: H.menu(m, ms ? ms.type + ' ' + ms.target : '', ms ? [
+        { label: ms.opt ? 'Make it required' : 'Make it optional', key: '', run: () => { this.setState({ menu: null }); updStep(ms.id, { opt: !ms.opt }); } },
+        { label: ms.hint ? 'Remove hint' : 'Add a hint', key: '', run: () => { this.setState({ menu: null }); updStep(ms.id, { hint: ms.hint ? '' : 'Look near the torches' }); } },
+        { label: 'Show a marker on the map', key: '', run: () => this.setState({ menu: null }) },
+        { label: 'Delete', key: 'Del', run: () => setQ({ steps: q.steps.filter((x) => x.id !== ms.id) }, { menu: null }) }
+      ] : []),
+      rewards: [['coins', '50 coins'], ['item', 'Hookshot'], ['door', 'Opens the Boss gate']].map(([k, n]) => ({ name: n, flip: () => setQ({ rewards: Object.assign({}, q.rewards, { [k]: !q.rewards[k] }) }), track: H.track(q.rewards[k]), knob: H.knob(q.rewards[k]) })),
+      current: s.prog >= q.steps.length ? 'Quest complete!' : cur ? cur.type + ' ' + cur.target + (cur.count ? ' (0/' + cur.count + ')' : '') : 'No steps yet',
+      undo: () => { if (!s.hist.length) return; this.setState({ quests: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1) }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

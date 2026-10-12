@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scene</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}">
+  <dc-import name="Nav" active="scene" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Little dungeon</span><span style="font-size: 13px; color: #9ea3ad">Room 2 · Chasm hall</span></div>
+      <span style="padding: 6px 12px; border-radius: 999px; background: #2a2614; color: #ffd633; font-size: 13px; font-weight: 600">Adventure</span>
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="scene" active="Scene" hint-size="900px,46px"></dc-import>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div data-stage="1" style="position: relative; flex: 1 1 auto; min-height: 500px; border-radius: 20px; overflow: hidden; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px" onMouseMove="{{onMove}}" onMouseUp="{{onUp}}" onMouseLeave="{{onUp}}" onDragOver="{{allow}}" onDrop="{{dropGround}}" onContextMenu="{{groundMenu}}">
+          <div style="position: absolute; left: 0; right: 0; top: 0; height: 70px; background: #4b5058"></div>
+          <div style="position: absolute; left: 0; right: 0; top: 300px; height: 70px; background: #0d0e10"></div>
+          <span style="position: absolute; left: 16px; top: 322px; font-size: 13px; color: #9ea3ad">Chasm</span>
+          <div style="position: absolute; left: 50%; top: 14px; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: #141519cc" role="toolbar" aria-label="Scene tools">
+            <sc-for list="{{tools}}" as="t" hint-placeholder-count="3"><button type="button" style="{{t.style}}" onClick="{{t.pick}}">{{t.name}}</button></sc-for>
+          </div>
+          <sc-for list="{{objs}}" as="o" hint-placeholder-count="6">
+            <div style="{{o.style}}" onMouseDown="{{o.down}}" onContextMenu="{{o.menu}}" onDragOver="{{allow}}" onDrop="{{o.drop}}" onMouseEnter="{{o.enter}}" onMouseLeave="{{o.leave}}" onDoubleClick="{{o.rename}}">
+              <span style="{{o.body}}"></span>
+              <span style="font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px #000; white-space: nowrap">{{o.name}}</span>
+              <sc-if value="{{o.hasScripts}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; border-radius: 9px; background: #a78bfa; color: #141519; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center">{{o.nScripts}}</span></sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{tip.show}}" hint-placeholder-val="{{ false }}">
+            <div style="{{tip.style}}"><b>{{tip.name}}</b><span style="color: #b4b9c2">{{tip.kind}}</span><a href="Help.dc.html" aria-label="Help about this" style="margin-left: 6px; width: 20px; height: 20px; border-radius: 50%; background: #ffcc00; color: #141519; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; text-decoration: none; font-size: 12px">?</a></div>
+          </sc-if>
+          <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}">
+            <div class="menu" style="{{menu.style}}">
+              <span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">{{menu.title}}</span>
+              <sc-for list="{{menu.items}}" as="m" hint-placeholder-count="6">
+                <sc-if value="{{m.sep}}" hint-placeholder-val="{{ false }}"><div class="sep"></div></sc-if>
+                <sc-if value="{{m.item}}" hint-placeholder-val="{{ true }}"><button type="button" class="mi" onClick="{{m.run}}"><span>{{m.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{m.key}}</span></button></sc-if>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 10px 10px 10px 16px; border-radius: 14px; background: #24262d; box-shadow: 0 10px 30px #0008; font-size: 14px">{{toast.text}}<button type="button" class="btn" style="min-height: 34px" onClick="{{undo}}">Undo</button></div>
+          </sc-if>
+        </div>
+
+        <div style="background: #1d1f25; border-radius: 20px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px">
+            <sc-for list="{{libTabs}}" as="l" hint-placeholder-count="5"><button type="button" class="{{l.cls}}" onClick="{{l.pick}}">{{l.name}}</button></sc-for>
+            <span style="flex: 1 1 auto"></span>
+            <span style="font-size: 13px; color: #9ea3ad">Drag onto the scene, or onto an object to attach</span>
+          </div>
+          <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px">
+            <sc-for list="{{lib}}" as="t" hint-placeholder-count="8">
+              <div class="tilelib" draggable="true" onDragStart="{{t.start}}" title="{{t.name}}">
+                <span style="{{t.sw}}"></span>{{t.name}}
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+
+      <aside style="flex: 1 1 280px; max-width: 320px; background: #1d1f25; border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 16px">
+        <sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 16px">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+              <div><div style="font-size: 20px; font-weight: 700">{{sel.name}}</div><div style="font-size: 13px; color: #9ea3ad">{{sel.kind}}</div></div>
+              <a href="Help.dc.html" aria-label="Help about this" style="width: 28px; height: 28px; border-radius: 50%; background: #24262d; color: #f2f2f4; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; text-decoration: none">?</a>
+            </div>
+            <label class="fld">Name<input class="inp" value="{{sel.name}}"></label>
+            <label class="fld">Colour
+              <div style="display: flex; gap: 8px"><span style="width: 32px; height: 32px; border-radius: 8px; background: #e8463c"></span><span style="width: 32px; height: 32px; border-radius: 8px; background: #ffcc00; box-shadow: 0 0 0 2px #fff"></span><span style="width: 32px; height: 32px; border-radius: 8px; background: #3b78c9"></span><span style="width: 32px; height: 32px; border-radius: 8px; background: #45c46e"></span></div>
+            </label>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <span style="font-size: 13px; color: #9ea3ad">Scripts</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{sel.scripts}}" as="s" hint-placeholder-count="1"><span class="chip">{{s}}</span></sc-for></div>
+              <span style="font-size: 13px; color: #9ea3ad">Drop a script from the library onto it.</span>
+            </div>
+            <button type="button" class="btn" style="align-self: flex-start" onClick="{{toggleMore}}">{{moreLabel}}</button>
+            <sc-if value="{{more}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 12px">
+                <label class="fld">Health<input class="inp" value="3"></label>
+                <label class="fld">Breaks into bricks<select class="inp"><option>Yes, rebuilds after 10 s</option><option>No</option></select></label>
+                <label class="fld">Position<input class="inp" value="{{sel.pos}}"></label>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+        <div style="display: flex; flex-direction: column; gap: 2px; border-top: 1px solid #2a2d35; padding-top: 12px">
+          <span style="font-size: 12px; font-weight: 700; color: #9ea3ad; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px">In this room</span>
+          <sc-for list="{{outline}}" as="o" hint-placeholder-count="6"><button type="button" style="{{o.style}}" onClick="{{o.pick}}"><span style="{{o.dot}}"></span>{{o.name}}</button></sc-for>
+        </div>
+        <sc-if value="{{noSel}}" hint-placeholder-val="{{ false }}">
+          <div style="color: #9ea3ad; font-size: 15px; line-height: 1.5">Click something to see it here. Right-click for what you can do with it.</div>
+        </sc-if>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 20;
+    this.state = {
+      tool: 'Select', tab: 'Assets', sel: 'o2', more: false, drag: null, menu: null, tip: null, hist: [], toast: null,
+      objs: [
+        { id: 'o1', name: 'North door', kind: 'Door · asset', x: 520, y: 20, c: '#8a5a2b', scripts: ['Collect then open'] },
+        { id: 'o2', name: 'Floor switch', kind: 'Switch · asset', x: 440, y: 180, c: '#8fa1b8', scripts: [] },
+        { id: 'o3', name: 'Torch', kind: 'Light', x: 140, y: 20, c: '#ffb347', scripts: [] },
+        { id: 'o4', name: 'Bridge pile', kind: 'Buildable pile', x: 220, y: 400, c: '#ff8a3d', scripts: [] },
+        { id: 'o5', name: 'Old Mason', kind: 'Character · NPC', x: 700, y: 420, c: '#6fb7f0', scripts: ['Shop'] },
+        { id: 'o6', name: 'Stone knight', kind: 'Character · enemy', x: 760, y: 200, c: '#8b93a3', scripts: ['Patrol route'] }
+      ]
+    };
+  }
+  save() { return this.state.hist.concat([this.state.objs]).slice(-20); }
+  renderVals() {
+    const s = this.state;
+    const L = {
+      Assets: [['Chest', '#c9893f'], ['Door', '#8a5a2b'], ['Push block', '#a3a9b4'], ['Switch', '#8fa1b8'], ['Tree', '#3f8f4a'], ['House', '#e8463c'], ['Fence', '#c9a36a'], ['Bridge pile', '#ff8a3d']],
+      Characters: [['Knight', '#e8463c'], ['Villager', '#6fb7f0'], ['Fox merchant', '#ff8a3d'], ['Skeleton', '#d8d8d8'], ['Slime', '#45c46e'], ['Dragon', '#b34a3c']],
+      Lights: [['Torch', '#ffb347'], ['Lantern', '#ffd633'], ['Spotlight', '#fff1b8'], ['Glow brick', '#a78bfa']],
+      Effects: [['Fire', '#ff7a3d'], ['Sparkles', '#ffe27a'], ['Smoke', '#8b93a3'], ['Splash', '#7cc7ff']],
+      Scripts: [['Collect then open', '#a78bfa'], ['Patrol route', '#a78bfa'], ['Shop', '#a78bfa'], ['Respawn', '#a78bfa'], ['Timer challenge', '#a78bfa']]
+    };
+    const attachKinds = ['Scripts', 'Effects'];
+    const snap = (v) => Math.round(v / 20) * 20;
+    const sel = s.objs.find((o) => o.id === s.sel);
+    const setObjs = (objs, extra) => this.setState(Object.assign({ hist: this.save(), objs }, extra || {}));
+    const menuAt = (e, kind, target) => {
+      e.preventDefault(); e.stopPropagation();
+      const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect();
+      this.setState({ menu: { x: Math.min(e.clientX - r.left, r.width - 240), y: Math.min(e.clientY - r.top, r.height - 300), kind, target, gx: e.clientX - r.left, gy: e.clientY - r.top }, sel: target || s.sel, tip: null });
+    };
+    const objMenu = (o) => [
+      { label: 'Rename', key: 'Double-click', run: () => this.setState({ menu: null }) },
+      { label: 'Duplicate', key: 'Alt-drag', run: () => setObjs(s.objs.concat([Object.assign({}, o, { id: 'o' + (this.n++), name: o.name + ' copy', x: o.x + 40, y: o.y + 40 })]), { menu: null }) },
+      { label: 'Attach script…', key: 'or drop one', run: () => this.setState({ menu: null, tab: 'Scripts' }) },
+      { label: 'Make it buildable', key: '', run: () => setObjs(s.objs.map((q) => (q.id === o.id ? Object.assign({}, q, { kind: 'Buildable pile', c: '#ff8a3d' }) : q)), { menu: null }) },
+      { label: 'Add trigger here', key: '', run: () => setObjs(s.objs.concat([{ id: 'o' + (this.n++), name: 'Trigger', kind: 'Trigger zone', x: o.x - 20, y: o.y + 60, c: '#ffcc0055', scripts: [] }]), { menu: null }) },
+      { sep: true },
+      { label: 'Help about ' + o.kind.split(' · ')[0], key: '?', run: () => this.setState({ menu: null }) },
+      { label: 'Delete', key: 'Del', run: () => setObjs(s.objs.filter((q) => q.id !== o.id), { menu: null, sel: null, toast: { text: o.name + ' deleted' } }) }
+    ];
+    const add = (name, kind, c, x, y) => setObjs(s.objs.concat([{ id: 'o' + (this.n++), name, kind, x: snap(x - 30), y: snap(y - 30), c, scripts: [] }]), { menu: null });
+    const groundMenu = (m) => [
+      { label: 'Add asset here', key: '', run: () => this.setState({ menu: null, tab: 'Assets' }) },
+      { label: 'Add character here', key: '', run: () => add('Villager', 'Character · NPC', '#6fb7f0', m.gx, m.gy) },
+      { label: 'Add light here', key: '', run: () => add('Torch', 'Light', '#ffb347', m.gx, m.gy) },
+      { label: 'Add trigger here', key: '', run: () => add('Trigger', 'Trigger zone', '#ffcc0055', m.gx, m.gy) },
+      { sep: true },
+      { label: 'Paint bricks', key: 'B', run: () => this.setState({ menu: null, tool: 'Paint' }) }
+    ];
+    const menu = s.menu ? (s.menu.kind === 'obj' ? objMenu(s.objs.find((o) => o.id === s.menu.target) || s.objs[0]) : groundMenu(s.menu)) : [];
+    return {
+      tools: ['Select', 'Paint', 'Place'].map((t) => ({ name: t, pick: () => this.setState({ tool: t }), style: 'min-height: 36px; padding: 0 14px; border-radius: 9px; border: none; font: 600 13px Figtree, sans-serif; cursor: pointer; background: ' + (t === s.tool ? '#ffcc00' : 'transparent') + '; color: ' + (t === s.tool ? '#141519' : '#f2f2f4') })),
+      objs: s.objs.map((o) => {
+        const on = o.id === s.sel;
+        const trig = o.kind === 'Trigger zone';
+        const pile = o.kind === 'Buildable pile';
+        return {
+          name: o.name, hasScripts: o.scripts.length > 0, nScripts: o.scripts.length,
+          style: 'position: absolute; left: ' + o.x + 'px; top: ' + o.y + 'px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: grab; user-select: none; padding: 6px; border-radius: 14px; outline: ' + (on ? '3px solid #ffcc00' : 'none'),
+          body: 'width: ' + (trig ? 90 : 48) + 'px; height: ' + (trig ? 60 : 48) + 'px; border-radius: ' + (o.kind.indexOf('Character') === 0 ? '24px 24px 10px 10px' : '10px') + '; background: ' + o.c + (trig ? '; border: 2px dashed #ffcc00' : '') + (pile ? '; box-shadow: 0 0 0 4px #ffb34799, 0 0 24px 8px #ffb34766' : '') + (o.kind === 'Light' ? '; box-shadow: 0 0 30px 12px #ffb34788' : ''),
+          down: (e) => { if (e.button !== 0) return; e.stopPropagation(); const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); this.setState({ sel: o.id, menu: null, drag: { id: o.id, ox: e.clientX - r.left - o.x, oy: e.clientY - r.top - o.y, start: s.objs } }); },
+          menu: (e) => menuAt(e, 'obj', o.id),
+          drop: (e) => {
+            e.preventDefault(); e.stopPropagation();
+            const t = e.dataTransfer.getData('text/plain').split('|');
+            if (attachKinds.indexOf(t[1]) >= 0) setObjs(s.objs.map((q) => (q.id === o.id ? Object.assign({}, q, { scripts: q.scripts.concat([t[0]]) }) : q)), { sel: o.id, toast: { text: t[0] + ' attached to ' + o.name } });
+          },
+          enter: (e) => { if (s.drag) return; const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); const b = e.currentTarget.getBoundingClientRect(); this.setState({ tip: { name: o.name, kind: o.kind, x: b.left - r.left + b.width + 6, y: b.top - r.top } }); },
+          leave: () => this.setState({ tip: null }),
+          rename: () => this.setState({ sel: o.id })
+        };
+      }),
+      allow: (e) => e.preventDefault(),
+      dropGround: (e) => {
+        e.preventDefault();
+        const t = e.dataTransfer.getData('text/plain').split('|');
+        if (!t[0] || attachKinds.indexOf(t[1]) >= 0) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        const kind = t[1] === 'Characters' ? 'Character' : t[1] === 'Lights' ? 'Light' : 'Asset';
+        add(t[0], kind, t[2], e.clientX - r.left, e.clientY - r.top);
+      },
+      onMove: (e) => {
+        const d = s.drag; if (!d) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        const x = snap(e.clientX - r.left - d.ox), y = snap(e.clientY - r.top - d.oy);
+        this.setState({ objs: s.objs.map((o) => (o.id === d.id ? Object.assign({}, o, { x: Math.max(0, x), y: Math.max(0, y) }) : o)) });
+      },
+      onUp: () => { if (s.drag) this.setState({ drag: null, hist: s.hist.concat([s.drag.start]).slice(-20) }); },
+      groundMenu: (e) => menuAt(e, 'ground', null),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: s.menu ? { show: true, title: s.menu.kind === 'obj' ? 'This object' : 'This spot', style: 'left: ' + s.menu.x + 'px; top: ' + s.menu.y + 'px', items: menu.map((m) => (m.sep ? { sep: true, item: false } : Object.assign({ sep: false, item: true }, m))) } : { show: false, items: [] },
+      tip: s.tip ? { show: true, name: s.tip.name, kind: s.tip.kind, style: 'position: absolute; z-index: 20; left: ' + s.tip.x + 'px; top: ' + s.tip.y + 'px; display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: #24262d; font-size: 13px; white-space: nowrap; box-shadow: 0 6px 20px #0008' } : { show: false },
+      toast: s.toast ? { show: true, text: s.toast.text } : { show: false },
+      undo: (e) => { if (e) e.stopPropagation(); const h = s.hist; if (!h.length) return; this.setState({ objs: h[h.length - 1], hist: h.slice(0, -1), toast: null }); },
+      libTabs: Object.keys(L).map((k) => ({ name: k, cls: k === s.tab ? 'ltab lon' : 'ltab', pick: () => this.setState({ tab: k }) })),
+      lib: L[s.tab].map(([n, c]) => ({ name: n, sw: 'width: 44px; height: 36px; border-radius: ' + (s.tab === 'Characters' ? '18px 18px 8px 8px' : '9px') + '; background: ' + c, start: (e) => { e.dataTransfer.setData('text/plain', n + '|' + s.tab + '|' + c); } })),
+      outline: s.objs.map((o) => ({ name: o.name, pick: () => this.setState({ sel: o.id }), dot: 'width: 10px; height: 10px; border-radius: 3px; background: ' + o.c, style: 'display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 0 8px; border-radius: 8px; border: none; cursor: pointer; font: 500 13px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (o.id === s.sel ? '#3a3420' : 'transparent') })),
+      hasSel: !!sel, noSel: !sel,
+      sel: sel ? { name: sel.name, kind: sel.kind, scripts: sel.scripts.length ? sel.scripts : ['None yet'], pos: (sel.x / 20) + ', ' + (sel.y / 20) + ' studs' } : { name: '', kind: '', scripts: [], pos: '' },
+      more: s.more, moreLabel: s.more ? 'Less' : 'More options',
+      toggleMore: () => this.setState({ more: !s.more })
+    };
+  }
+}
+</script>
+</body>
+</html>

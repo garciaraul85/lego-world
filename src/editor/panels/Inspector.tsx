@@ -489,7 +489,7 @@ function MapTab({ c }: { c: ActionCtx }) {
             </label>
           ))}
         </fieldset>
-        <div class="field">
+        <label class="field">
           District size
           <select
             class="inp"
@@ -500,8 +500,8 @@ function MapTab({ c }: { c: ActionCtx }) {
             <option value="24">Medium (24)</option>
             <option value="32">Large (32)</option>
           </select>
-        </div>
-        <div class="field">
+        </label>
+        <label class="field">
           Mountains
           <select
             class="inp"
@@ -512,8 +512,8 @@ function MapTab({ c }: { c: ActionCtx }) {
               <option value={id}>{label}</option>
             ))}
           </select>
-        </div>
-        <div class="field">
+        </label>
+        <label class="field">
           Heights
           <select
             class="inp"
@@ -524,8 +524,8 @@ function MapTab({ c }: { c: ActionCtx }) {
               <option value={id}>{label}</option>
             ))}
           </select>
-        </div>
-        <div class="field">
+        </label>
+        <label class="field">
           Seed
           <input
             class="inp mono"
@@ -538,7 +538,7 @@ function MapTab({ c }: { c: ActionCtx }) {
               })
             }
           />
-        </div>
+        </label>
         <div class="row">
           <button
             type="button"

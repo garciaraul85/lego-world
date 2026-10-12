@@ -1,0 +1,81 @@
+Face
+{"nav":"character","group":"cast","sub":"Face","h":"Old Mason · Face","s":"Pick parts, then set how the face changes in the game"}
+      <section style="flex: 1 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="position: relative; height: 470px; border-radius: 20px; background: radial-gradient(circle at 50% 45%, #2a2d36, #17191e 70%); display: flex; align-items: center; justify-content: center">
+          <div style="{{head}}">
+            <div style="{{brows}}"><span style="{{browL}}"></span><span style="{{browR}}"></span></div>
+            <div style="{{eyes}}"><span style="{{eyeL}}"><span style="{{pupil}}"></span></span><span style="{{eyeR}}"><span style="{{pupil}}"></span></span></div>
+            <sc-if value="{{glasses}}" hint-placeholder-val="{{ false }}"><span style="{{glassStyle}}"></span></sc-if>
+            <span style="{{nose}}"></span>
+            <span style="{{mouth}}"></span>
+            <sc-if value="{{blush}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; left: 30px; top: 150px; width: 34px; height: 16px; border-radius: 50%; background: #ff7eb677"></span><span style="position: absolute; right: 30px; top: 150px; width: 34px; height: 16px; border-radius: 50%; background: #ff7eb677"></span></sc-if>
+            <sc-if value="{{beard}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; left: 40px; right: 40px; bottom: -6px; height: 60px; border-radius: 10px 10px 40px 40px; background: #d8d8d8"></span></sc-if>
+          </div>
+          <span style="position: absolute; left: 16px; bottom: 14px; font-size: 13px; color: #9ea3ad">{{caption}}</span>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Expressions · click to preview</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{exprs}}" as="x" hint-placeholder-count="7"><button type="button" style="{{x.style}}" onClick="{{x.pick}}">{{x.name}}</button></sc-for></div>
+        </div>
+      </section>
+      <aside style="flex: 1 1 420px; max-width: 520px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <div class="seg" style="align-self: flex-start"><sc-for list="{{partTabs}}" as="t" hint-placeholder-count="5"><button type="button" class="{{t.cls}}" onClick="{{t.pick}}">{{t.name}}</button></sc-for></div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px"><sc-for list="{{options}}" as="o" hint-placeholder-count="8"><button type="button" style="{{o.style}}" onClick="{{o.pick}}"><span style="{{o.sw}}"></span>{{o.name}}</button></sc-for></div>
+          <sc-for list="{{sliders}}" as="sl" hint-placeholder-count="2"><label class="fld">{{sl.name}}<input type="range" min="60" max="140" value="{{sl.val}}" onInput="{{sl.set}}" style="accent-color: #ffcc00"></label></sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">In the game, show…</span>
+          <sc-for list="{{events}}" as="ev" hint-placeholder-count="4"><div style="display: flex; align-items: center; justify-content: space-between; font-size: 15px"><span>{{ev.when}}</span><button type="button" class="chip" style="cursor: pointer; background: #3a3420; color: #ffd633" onClick="{{ev.next}}">{{ev.face}}</button></div></sc-for>
+          <button type="button" onClick="{{flipBlink}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 15px Figtree, sans-serif; cursor: pointer"><span>Blinks by itself</span><span style="{{bTrack}}"><span style="{{bKnob}}"></span></span></button>
+          <button type="button" onClick="{{flipLip}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 15px Figtree, sans-serif; cursor: pointer"><span>Mouth moves when talking</span><span style="{{lTrack}}"><span style="{{lKnob}}"></span></span></button>
+        </div>
+      </aside>
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { part: 'Eyes', eyes: 'Round', brows: 'Bushy', mouth: 'Smile', nose: 'Dot', extras: { Beard: true, Glasses: false, Blush: false }, expr: 'Normal', size: { 'Eye size': 100, 'Eye spacing': 100, 'Mouth width': 100 }, blink: true, lip: true, blinkNow: false, hist: [],
+      events: [['When talking', 'Talking'], ['When hurt', 'Scared'], ['When winning', 'Happy'], ['When standing still', 'Sleepy']] };
+    this.tm = setInterval(() => { if (this.state.blink) { this.setState({ blinkNow: true }); setTimeout(() => this.setState({ blinkNow: false }), 140); } }, 3000);
+  }
+  renderVals() {
+    const s = this.state;
+    const keep = (o) => this.setState(Object.assign({ hist: s.hist.concat([{ eyes: s.eyes, brows: s.brows, mouth: s.mouth, nose: s.nose, extras: s.extras }]).slice(-20) }, o));
+    const X = { Normal: [0, 1, 0], Happy: [0, 1.2, -1], Sad: [12, 0.9, 1], Angry: [-14, 0.8, 1], Surprised: [0, 1.4, 2], Sleepy: [0, 0.25, 0], Scared: [10, 1.3, 2], Talking: [0, 1, 3] };
+    const ex = X[s.expr];
+    const es = s.size['Eye size'] / 100, sp = s.size['Eye spacing'] / 100, mw = s.size['Mouth width'] / 100;
+    const eyeH = (s.eyes === 'Sleepy' ? 12 : s.eyes === 'Big' ? 44 : 30) * es * (s.blinkNow ? 0.1 : ex[1]);
+    const eyeW = (s.eyes === 'Big' ? 40 : s.eyes === 'Dot' ? 14 : 28) * es;
+    const eye = 'position: relative; display: inline-block; width: ' + eyeW + 'px; height: ' + Math.max(3, eyeH) + 'px; border-radius: ' + (s.eyes === 'Square' ? '6px' : '50%') + '; background: ' + (s.eyes === 'Big' ? '#fff' : '#141519') + '; overflow: hidden; transition: height .08s';
+    const mouthShape = ex[2] === -1 || (s.mouth === 'Smile' && ex[2] === 0) ? 'border-radius: 0 0 40px 40px; height: 22px' : ex[2] === 1 ? 'border-radius: 40px 40px 0 0; height: 16px' : ex[2] === 2 ? 'border-radius: 50%; height: 30px; width: 30px' : ex[2] === 3 ? 'border-radius: 0 0 20px 20px; height: 18px' : s.mouth === 'Flat' ? 'height: 6px; border-radius: 3px' : s.mouth === 'Grin' ? 'border-radius: 6px 6px 40px 40px; height: 26px; box-shadow: inset 0 8px 0 #fff' : 'border-radius: 0 0 40px 40px; height: 22px';
+    const browRot = ex[0];
+    const P = { Eyes: ['Round', 'Big', 'Dot', 'Square', 'Sleepy', 'Cyclops'], Brows: ['Bushy', 'Thin', 'None', 'Angry'], Mouth: ['Smile', 'Flat', 'Grin', 'Beak', 'Fangs'], Nose: ['Dot', 'Big', 'None', 'Snout'], Extras: ['Beard', 'Glasses', 'Blush'] };
+    const key = s.part.toLowerCase();
+    return {
+      head: 'position: relative; width: 240px; height: 210px; border-radius: 46px; background: #ffcc00; box-shadow: inset 0 -12px 0 #0002; display: flex; flex-direction: column; align-items: center',
+      brows: 'display: flex; gap: ' + (60 * sp) + 'px; margin-top: 40px; height: 12px; opacity: ' + (s.brows === 'None' ? 0 : 1),
+      browL: 'width: 40px; height: ' + (s.brows === 'Bushy' ? 12 : 6) + 'px; border-radius: 6px; background: #5a3a1c; transform: rotate(' + (s.brows === 'Angry' ? 14 : browRot) + 'deg)',
+      browR: 'width: 40px; height: ' + (s.brows === 'Bushy' ? 12 : 6) + 'px; border-radius: 6px; background: #5a3a1c; transform: rotate(' + (s.brows === 'Angry' ? -14 : -browRot) + 'deg)',
+      eyes: 'display: flex; align-items: center; justify-content: center; gap: ' + (s.eyes === 'Cyclops' ? 0 : 66 * sp) + 'px; height: 50px; margin-top: 10px',
+      eyeL: eye + (s.eyes === 'Cyclops' ? '; display: none' : ''), eyeR: eye + (s.eyes === 'Cyclops' ? '; width: ' + (eyeW * 1.6) + 'px; height: ' + Math.max(3, eyeH * 1.4) + 'px' : ''),
+      pupil: s.eyes === 'Big' || s.eyes === 'Cyclops' ? 'position: absolute; left: 30%; top: 25%; width: 50%; height: 55%; border-radius: 50%; background: #141519' : 'display: none',
+      glasses: s.extras.Glasses, glassStyle: 'position: absolute; top: 74px; left: 40px; right: 40px; height: 44px; border: 5px solid #2f3440; border-radius: 22px',
+      nose: s.nose === 'None' ? 'display: none' : 'margin-top: 6px; width: ' + (s.nose === 'Big' ? 30 : s.nose === 'Snout' ? 50 : 10) + 'px; height: ' + (s.nose === 'Big' ? 24 : s.nose === 'Snout' ? 30 : 10) + 'px; border-radius: 50%; background: ' + (s.nose === 'Snout' ? '#ff9ec7' : '#d9a400'),
+      mouth: 'margin-top: 10px; width: ' + (60 * mw) + 'px; background: #141519; ' + mouthShape + (s.mouth === 'Beak' ? '; background: #ff8a3d; clip-path: polygon(0 0, 100% 0, 50% 100%)' : '') + (s.mouth === 'Fangs' ? '; box-shadow: inset 12px 0 0 -6px #fff, inset -12px 0 0 -6px #fff' : ''),
+      blush: s.extras.Blush, beard: s.extras.Beard,
+      caption: s.expr + (s.blink ? ' · blinks every few seconds' : ''),
+      exprs: Object.keys(X).map((n) => ({ name: n, style: H.pick(n === s.expr) + '; min-height: 34px', pick: () => this.setState({ expr: n }) })),
+      partTabs: Object.keys(P).map((n) => ({ name: n, cls: H.tab(n === s.part), pick: () => this.setState({ part: n }) })),
+      options: P[s.part].map((n) => { const on = s.part === 'Extras' ? s.extras[n] : s[key] === n; return { name: n, style: H.card(on) + '; align-items: center; font-size: 12px; padding: 10px 4px',
+        sw: 'width: 30px; height: 20px; border-radius: ' + (n === 'Square' ? '4px' : '50%') + '; background: ' + (on ? '#ffcc00' : '#4a4e58'),
+        pick: () => (s.part === 'Extras' ? keep({ extras: Object.assign({}, s.extras, { [n]: !s.extras[n] }) }) : keep({ [key]: n })) }; }),
+      sliders: (s.part === 'Eyes' ? ['Eye size', 'Eye spacing'] : s.part === 'Mouth' ? ['Mouth width'] : []).map((k) => ({ name: k, val: s.size[k], set: (e) => this.setState({ size: Object.assign({}, s.size, { [k]: +e.target.value }) }) })),
+      events: s.events.map(([w, f], i) => ({ when: w, face: f, next: () => { const ks = Object.keys(X); this.setState({ expr: ks[(ks.indexOf(f) + 1) % ks.length], events: s.events.map((x, j) => (j === i ? [x[0], ks[(ks.indexOf(f) + 1) % ks.length]] : x)) }); } })),
+      flipBlink: () => this.setState({ blink: !s.blink }), bTrack: H.track(s.blink), bKnob: H.knob(s.blink),
+      flipLip: () => this.setState({ lip: !s.lip }), lTrack: H.track(s.lip), lKnob: H.knob(s.lip),
+      undo: () => { if (!s.hist.length) return; this.setState(Object.assign({}, s.hist[s.hist.length - 1], { hist: s.hist.slice(0, -1) })); }
+    };
+  }
+}

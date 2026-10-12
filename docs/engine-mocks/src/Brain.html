@@ -1,0 +1,95 @@
+Brain
+{"nav":"character","group":"cast","sub":"Brain","h":"Stone knight · Brain","s":"How it decides what to do. Drag the player dot to test it.","close":true}
+      <aside class="card" style="flex: 0 0 220px; display: flex; flex-direction: column; gap: 8px">
+        <span class="lbl">Start from</span>
+        <sc-for list="{{templates}}" as="t" hint-placeholder-count="8"><button type="button" style="{{t.style}}" onClick="{{t.pick}}"><span>{{t.name}}</span><span style="font-size: 12px; opacity: .8">{{t.desc}}</span></button></sc-for>
+      </aside>
+      <section style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch">
+          <sc-for list="{{states}}" as="st" hint-placeholder-count="5">
+            <div style="{{st.box}}" onContextMenu="{{st.menu}}">
+              <div style="display: flex; justify-content: space-between; align-items: center"><b style="font-size: 16px">{{st.name}}</b><sc-if value="{{st.live}}" hint-placeholder-val="{{ false }}"><span style="padding: 2px 8px; border-radius: 999px; background: #45c46e; color: #141519; font-size: 11px; font-weight: 800">NOW</span></sc-if></div>
+              <span style="font-size: 13px; color: #b4b9c2">{{st.does}}</span>
+              <sc-for list="{{st.goes}}" as="g" hint-placeholder-count="1"><button type="button" class="chip" style="cursor: pointer; justify-content: flex-start; background: #1f3046; color: #9cc7ff; text-align: left" onClick="{{g.next}}">→ {{g.to}} when {{g.when}}</button></sc-for>
+            </div>
+          </sc-for>
+          <button type="button" class="btn" style="min-height: 120px; border: 2px dashed #33363e; background: transparent" onClick="{{addState}}">Add a mood</button>
+        </div>
+        <div style="position: relative; height: 380px; border-radius: 20px; overflow: hidden; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px; user-select: none" onMouseMove="{{move}}" onMouseUp="{{up}}" onMouseLeave="{{up}}">
+          <div style="{{cone}}"></div>
+          <div style="{{hear}}"></div>
+          <span style="{{npc}}"></span>
+          <span style="{{player}}" onMouseDown="{{grab}}" title="Drag me"></span>
+          <span style="position: absolute; left: 14px; top: 12px; font-size: 13px; color: #e4e6ea; text-shadow: 0 1px 2px #000">{{liveText}}</span>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 260px; max-width: 300px; display: flex; flex-direction: column; gap: 14px">
+        <span class="lbl">Senses and personality</span>
+        <sc-for list="{{sliders}}" as="sl" hint-placeholder-count="5"><label class="fld">{{sl.name}} · {{sl.word}}<input type="range" min="0" max="100" value="{{sl.val}}" onInput="{{sl.set}}" style="accent-color: #ffcc00"></label></sc-for>
+        <label class="fld">Patrol route<select class="inp"><option>Between the two pillars</option><option>Around the room</option><option>Stays put</option></select></label>
+        <a href="Wiring.dc.html" style="font-size: 14px">See it as wires</a>
+      </aside>
+      <!--MENU-->
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 10;
+    this.TPL = {
+      Guard: ['Patrols, chases, fights', [['Patrol', 'Walks its route', [['Chase', 'sees player']]], ['Chase', 'Runs at the player', [['Fight', 'close'], ['Patrol', 'loses player']]], ['Fight', 'Swings sword, blocks', [['Flee', 'health low'], ['Chase', 'player backs off']]], ['Flee', 'Runs away, heals', [['Patrol', 'safe']]]]],
+      Shopkeeper: ['Stays, greets, sells', [['Idle', 'Tidies the stall', [['Greet', 'player near']]], ['Greet', 'Waves and says hi', [['Idle', 'player leaves']]]]],
+      Follower: ['Companion who helps', [['Follow', 'Stays close behind', [['Help', 'enemy near']]], ['Help', 'Attacks your target', [['Follow', 'no enemies']]]]],
+      Coward: ['Runs from danger', [['Wander', 'Walks around', [['Flee', 'sees player']]], ['Flee', 'Runs and hides', [['Wander', 'safe']]]]],
+      'Boss phases': ['Changes as it gets hurt', [['Phase 1', 'Slow sword swings', [['Phase 2', 'health half']]], ['Phase 2', 'Throws rocks, faster', [['Phase 3', 'health low']]], ['Phase 3', 'Angry, calls helpers', []]]],
+      Racer: ['Drives a race line', [['Race', 'Follows the best line', [['Overtake', 'car ahead close']]], ['Overtake', 'Swings out to pass', [['Race', 'passed']]]]],
+      Teammate: ['Plays sports with you', [['Get open', 'Runs to space', [['Shoot', 'has ball near goal']]], ['Shoot', 'Kicks at goal', [['Get open', 'ball gone']]]]]
+    };
+    this.state = { tpl: 'Guard', states: this.mk('Guard'), px: 520, py: 300, grab: false, menu: null, hist: [], p: { 'How far it sees': 60, 'How well it hears': 40, Bravery: 50, Speed: 50, 'How often it attacks': 60 } };
+  }
+  mk(t) { return this.TPL[t][1].map(([n, d, g]) => ({ name: n, does: d, goes: g.map((x) => x.slice()) })); }
+  renderVals() {
+    const s = this.state;
+    const nx = 240, ny = 180;
+    const dist = Math.hypot(s.px - nx, s.py - ny);
+    const sight = 80 + s.p['How far it sees'] * 3, hearR = 40 + s.p['How well it hears'] * 1.4;
+    const ang = Math.atan2(s.py - ny, s.px - nx) * 180 / Math.PI;
+    const inCone = dist < sight && Math.abs(ang) < 35;
+    const heard = dist < hearR;
+    let live = s.states[0] ? s.states[0].name : '';
+    if (s.tpl === 'Guard') live = dist < 60 ? 'Fight' : inCone || heard ? 'Chase' : 'Patrol';
+    else if (s.tpl === 'Shopkeeper') live = dist < 160 ? 'Greet' : 'Idle';
+    else if (s.tpl === 'Coward') live = inCone || heard ? 'Flee' : 'Wander';
+    else if (s.tpl === 'Follower') live = 'Follow';
+    const WHEN = ['sees player', 'hears player', 'close', 'health low', 'health half', 'loses player', 'safe', 'player near', 'player leaves', 'after 5 s'];
+    const nxt = (a, v) => a[(a.indexOf(v) + 1) % a.length];
+    const save = () => s.hist.concat([s.states]).slice(-20);
+    const m = s.menu; const ms = m ? s.states[m.i] : null;
+    const word = (v) => (v < 25 ? 'low' : v < 60 ? 'medium' : v < 85 ? 'high' : 'very high');
+    return {
+      templates: Object.keys(this.TPL).map((t) => ({ name: t, desc: this.TPL[t][0], style: H.card(t === s.tpl), pick: () => this.setState({ tpl: t, states: this.mk(t), hist: save() }) })),
+      states: s.states.map((st, i) => ({ name: st.name, does: st.does, live: st.name === live,
+        box: 'flex: 1 1 170px; min-width: 170px; padding: 14px; border-radius: 16px; display: flex; flex-direction: column; gap: 8px; background: #1d1f25; box-shadow: ' + (st.name === live ? 'inset 0 0 0 3px #45c46e' : 'none'),
+        goes: st.goes.map((g, j) => ({ to: g[0], when: g[1], next: () => this.setState({ hist: save(), states: s.states.map((x, k) => (k === i ? Object.assign({}, x, { goes: x.goes.map((y, l) => (l === j ? [y[0], nxt(WHEN, y[1])] : y)) }) : x)) }) })),
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const [x, y] = H.at(e); this.setState({ menu: { i, x, y } }); } })),
+      addState: () => this.setState({ hist: save(), states: s.states.concat([{ name: 'Mood ' + (this.n++), does: 'Does something', goes: [[s.states[0] ? s.states[0].name : 'Idle', 'after 5 s']] }]) }),
+      cone: 'position: absolute; left: ' + nx + 'px; top: ' + (ny - sight * 0.6) + 'px; width: ' + sight + 'px; height: ' + (sight * 1.2) + 'px; background: ' + (inCone ? '#e8463c55' : '#ffcc0033') + '; clip-path: polygon(0 50%, 100% 0, 100% 100%); pointer-events: none',
+      hear: 'position: absolute; left: ' + (nx - hearR) + 'px; top: ' + (ny - hearR) + 'px; width: ' + (hearR * 2) + 'px; height: ' + (hearR * 2) + 'px; border-radius: 50%; border: 2px dashed ' + (heard ? '#e8463c' : '#ffffff55') + '; pointer-events: none; box-sizing: border-box',
+      npc: 'position: absolute; left: ' + (nx - 22) + 'px; top: ' + (ny - 22) + 'px; width: 44px; height: 44px; border-radius: 22px 22px 10px 10px; background: #8b93a3; box-shadow: 0 0 0 3px ' + (live === 'Fight' || live === 'Chase' ? '#e8463c' : '#141519'),
+      player: 'position: absolute; left: ' + (s.px - 16) + 'px; top: ' + (s.py - 16) + 'px; width: 32px; height: 32px; border-radius: 16px 16px 8px 8px; background: #e8463c; cursor: grab; border: 3px solid #fff',
+      grab: (e) => { e.preventDefault(); this.setState({ grab: true }); },
+      move: (e) => { if (!s.grab) return; const r = e.currentTarget.getBoundingClientRect(); this.setState({ px: e.clientX - r.left, py: e.clientY - r.top }); },
+      up: () => { if (s.grab) this.setState({ grab: false }); },
+      liveText: 'Right now it would: ' + live + (inCone ? ' · it sees you' : heard ? ' · it hears you' : ''),
+      sliders: Object.keys(s.p).map((k) => ({ name: k, val: s.p[k], word: word(s.p[k]), set: (e) => this.setState({ p: Object.assign({}, s.p, { [k]: +e.target.value }) }) })),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: H.menu(m, ms ? ms.name : '', ms ? [
+        { label: 'Add a way out', key: '', run: () => this.setState({ menu: null, hist: save(), states: s.states.map((x, k) => (k === m.i ? Object.assign({}, x, { goes: x.goes.concat([[s.states[(k + 1) % s.states.length].name, 'after 5 s']]) }) : x)) }) },
+        { label: 'Make it the starting mood', key: '', run: () => { const arr = s.states.slice(); const [x] = arr.splice(m.i, 1); arr.unshift(x); this.setState({ menu: null, hist: save(), states: arr }); } },
+        { label: 'Pick an animation…', key: '', run: () => { window.location.href = 'Animate.dc.html'; } },
+        { label: 'Delete', key: 'Del', run: () => this.setState({ menu: null, hist: save(), states: s.states.filter((x, k) => k !== m.i) }) }
+      ] : []),
+      undo: () => { if (!s.hist.length) return; this.setState({ states: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1) }); }
+    };
+  }
+}

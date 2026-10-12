@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Screens</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}">
+  <dc-import name="Nav" active="screens" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div class="seg"><sc-for list="{{screens}}" as="t" hint-placeholder-count="6"><button type="button" class="{{t.cls}}" onClick="{{t.pick}}">{{t.name}}</button></sc-for></div>
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="screens" active="HUD and screens" hint-size="900px,46px"></dc-import>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div data-frame="1" style="{{frame}}" onMouseMove="{{move}}" onMouseUp="{{up}}" onMouseLeave="{{up}}" onDragOver="{{allow}}" onDrop="{{dropNew}}">
+          <sc-if value="{{guides}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; inset: 16px; border: 1px dashed #ffffff40; border-radius: 10px; pointer-events: none"></div><div style="position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px dashed #ffffff30; pointer-events: none"></div><div style="position: absolute; top: 50%; left: 0; right: 0; border-top: 1px dashed #ffffff30; pointer-events: none"></div></sc-if>
+          <sc-for list="{{widgets}}" as="w" hint-placeholder-count="5">
+            <div style="{{w.style}}" onMouseDown="{{w.down}}" onContextMenu="{{w.menu}}" onDragOver="{{allow}}" onDrop="{{w.drop}}">
+              <span style="{{w.inner}}">{{w.content}}</span>
+              <sc-if value="{{w.hasScript}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; border-radius: 9px; background: #a78bfa; color: #141519; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center">S</span></sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px; padding: 14px 18px">
+          <div style="display: flex; justify-content: space-between"><span class="lbl">Parts · drag onto the screen</span><span style="font-size: 13px; color: #9ea3ad">Parts snap to edges and corners</span></div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <sc-for list="{{parts}}" as="p" hint-placeholder-count="10"><div class="tilelib" draggable="true" onDragStart="{{p.start}}" style="width: 104px"><span style="{{p.sw}}">{{p.icon}}</span>{{p.name}}</div></sc-for>
+          </div>
+        </div>
+      </section>
+      <aside style="flex: 1 1 260px; max-width: 320px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
+        <div class="card" style="display: flex; flex-direction: column; gap: 14px">
+          <sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; flex-direction: column; gap: 14px">
+              <div style="font-size: 20px; font-weight: 700">{{sel.name}}</div>
+              <label class="fld">Shows<select class="inp"><option>{{sel.shows}}</option><option>Coins</option><option>Keys</option><option>Health</option></select></label>
+              <label class="fld">Look<div style="display: flex; gap: 8px"><sc-for list="{{looks}}" as="l" hint-placeholder-count="3"><button type="button" style="{{l.style}}" onClick="{{l.pick}}">{{l.name}}</button></sc-for></div></label>
+              <label class="fld">Show it<select class="inp"><option>Always</option><option>Only when it changes</option><option>Only in fights</option></select></label>
+              <div class="fld">Scripts<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{sel.scripts}}" as="s" hint-placeholder-count="1"><span class="chip" style="background: #2b2440; color: #d9ccff; cursor: default">{{s}}</span></sc-for></div></div>
+            </div>
+          </sc-if>
+          <sc-if value="{{noSel}}" hint-placeholder-val="{{ false }}"><span style="color: #9ea3ad; font-size: 15px; line-height: 1.5">Click a part on the screen to change it. Right-click for more.</span></sc-if>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Scripts · drop on a part</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{scripts}}" as="s" hint-placeholder-count="4"><span class="chip" draggable="true" onDragStart="{{s.start}}" style="background: #2b2440; color: #d9ccff">{{s.name}}</span></sc-for></div>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+          <span class="lbl">Buttons adapt</span>
+          <span style="color: #b4b9c2; line-height: 1.5">The action button shows what it will do right now: Talk near people, Open near chests, Lift near pots.</span>
+        </div>
+      </aside>
+      <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}">
+        <div class="menu" style="{{menu.style}}">
+          <span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">{{menu.title}}</span>
+          <sc-for list="{{menu.items}}" as="i" hint-placeholder-count="5"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 30;
+    const W = (id, kind, x, y, extra) => Object.assign({ id, kind, x, y, look: 'Brick', scripts: [] }, extra || {});
+    this.state = {
+      screen: 'HUD', sel: 'w1', drag: null, menu: null, hist: [],
+      byScreen: {
+        HUD: [W('w1', 'Hearts', 24, 20), W('w2', 'Money', 24, 70), W('w3', 'Action button', 760, 380, { scripts: ['Adapts to context'] }), W('w4', 'Item buttons', 640, 20), W('w5', 'Minimap', 760, 20)],
+        Pause: [W('w6', 'Title text', 330, 120), W('w7', 'Menu list', 360, 200)],
+        Loading: [W('w8', 'Tip text', 260, 380), W('w9', 'Progress bar', 260, 430)],
+        'Game over': [W('w10', 'Title text', 330, 160), W('w11', 'Menu list', 360, 240)],
+        Credits: [W('w12', 'Scrolling credits', 300, 80)],
+        Title: [W('w13', 'Title text', 300, 140), W('w14', 'Menu list', 360, 240)]
+      }
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const ws = s.byScreen[s.screen];
+    const setWs = (list, extra) => this.setState(Object.assign({ hist: s.hist.concat([s.byScreen]).slice(-20), byScreen: Object.assign({}, s.byScreen, { [s.screen]: list }) }, extra || {}));
+    const look = { Brick: ['#141519cc', '#ffcc00', '10px'], Clean: ['#ffffffe6', '#141519', '999px'], Pixel: ['#000', '#7cff9a', '0'] };
+    const C = { Hearts: '❤ ❤ ❤ ♡', Money: '◆ 128', 'Action button': 'Talk', 'Item buttons': 'Bow · Hook · Bomb', Minimap: 'Map', 'Title text': 'Paused', 'Menu list': 'Resume / Options / Quit', 'Tip text': 'Tip: piles that glow can be built', 'Progress bar': '██████░░░', 'Scrolling credits': 'Made by you, with bricks', Timer: '1:30', Score: '00450', 'Boss bar': 'Stone King ▓▓▓▓▓░', 'Quest text': 'Find the boss key', Ammo: '➶ 12' };
+    const sel = ws.find((w) => w.id === s.sel);
+    const m = s.menu; const mw = m ? ws.find((w) => w.id === m.id) : null;
+    const pt = (e) => { const r = e.currentTarget.closest('[data-frame]').getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top, r.width, r.height]; };
+    const snapTo = (v, max, size) => { const pts = [16, (max - size) / 2, max - size - 16]; for (const p of pts) if (Math.abs(v - p) < 14) return p; return Math.round(v / 8) * 8; };
+    return {
+      screens: Object.keys(s.byScreen).map((k) => ({ name: k, cls: k === s.screen ? 'ltab lon' : 'ltab', pick: () => this.setState({ screen: k, sel: null }) })),
+      frame: 'position: relative; aspect-ratio: 16 / 9; border-radius: 20px; overflow: hidden; user-select: none; background: ' + (s.screen === 'HUD' ? '#2d4a33 radial-gradient(#3b5c42 2px, transparent 2px) 0 0 / 20px 20px' : s.screen === 'Loading' ? '#1a2440' : '#17191e'),
+      guides: !!s.drag,
+      widgets: ws.map((w) => { const L = look[w.look]; const big = w.kind === 'Minimap' ? 'width: 120px; height: 120px; display: flex; align-items: center; justify-content: center' : w.kind === 'Action button' ? 'width: 84px; height: 84px; border-radius: 50%; display: flex; align-items: center; justify-content: center' : 'padding: 10px 16px'; return {
+        content: C[w.kind] || w.kind, hasScript: w.scripts.length > 0,
+        style: 'position: absolute; left: ' + w.x + 'px; top: ' + w.y + 'px; cursor: grab; border-radius: 12px; outline: ' + (w.id === s.sel ? '3px solid #ffcc00' : 'none') + '; outline-offset: 3px',
+        inner: 'display: inline-block; font-weight: 800; font-size: ' + (w.kind === 'Title text' ? 36 : 17) + 'px; white-space: nowrap; background: ' + L[0] + '; color: ' + L[1] + '; border-radius: ' + (w.kind === 'Action button' ? '50%' : L[2]) + '; ' + big + (w.look === 'Pixel' ? '; font-family: ui-monospace, monospace' : ''),
+        down: (e) => { if (e.button !== 0) return; e.stopPropagation(); const [x, y] = pt(e); this.setState({ sel: w.id, menu: null, drag: { id: w.id, ox: x - w.x, oy: y - w.y, before: s.byScreen } }); },
+        drop: (e) => { e.preventDefault(); e.stopPropagation(); const d = e.dataTransfer.getData('text/plain').split('|'); if (d[0] === 'script') setWs(ws.map((q) => (q.id === w.id ? Object.assign({}, q, { scripts: q.scripts.concat([d[1]]) }) : q)), { sel: w.id }); },
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); this.setState({ sel: w.id, menu: { id: w.id, x: Math.min(e.clientX - r.left, r.width - 240), y: e.clientY - r.top } }); } }; }),
+      move: (e) => { const d = s.drag; if (!d) return; const [x, y, W, H] = pt(e); const el = e.currentTarget.querySelector('[style*="outline: 3px"]'); const bw = el ? el.offsetWidth : 100, bh = el ? el.offsetHeight : 40; this.setState({ byScreen: Object.assign({}, s.byScreen, { [s.screen]: ws.map((q) => (q.id === d.id ? Object.assign({}, q, { x: snapTo(x - d.ox, W, bw), y: snapTo(y - d.oy, H, bh) }) : q)) }) }); },
+      up: () => { if (s.drag) this.setState({ drag: null, hist: s.hist.concat([s.drag.before]).slice(-20) }); },
+      allow: (e) => e.preventDefault(),
+      dropNew: (e) => { e.preventDefault(); const d = e.dataTransfer.getData('text/plain').split('|'); if (d[0] !== 'part') return; const [x, y] = pt(e); const id = 'w' + (this.n++); setWs(ws.concat([{ id, kind: d[1], x: Math.round((x - 40) / 8) * 8, y: Math.round((y - 20) / 8) * 8, look: 'Brick', scripts: [] }]), { sel: id }); },
+      parts: [['Hearts', '❤'], ['Money', '◆'], ['Action button', 'A'], ['Item buttons', '➶'], ['Minimap', '▦'], ['Timer', '◷'], ['Score', '#'], ['Boss bar', '▬'], ['Quest text', '!'], ['Ammo', '➶']].map(([n, ic]) => ({ name: n, icon: ic, sw: 'width: 40px; height: 32px; border-radius: 8px; background: #141519; color: #ffcc00; display: flex; align-items: center; justify-content: center; font-weight: 800', start: (e) => e.dataTransfer.setData('text/plain', 'part|' + n) })),
+      hasSel: !!sel, noSel: !sel,
+      sel: sel ? { name: sel.kind, shows: sel.kind === 'Hearts' ? 'Health' : sel.kind === 'Money' ? 'Coins' : sel.kind, scripts: sel.scripts.length ? sel.scripts : ['None yet'] } : { name: '', shows: '', scripts: [] },
+      looks: Object.keys(look).map((k) => ({ name: k, pick: () => sel && setWs(ws.map((q) => (q.id === sel.id ? Object.assign({}, q, { look: k }) : q))), style: 'flex: 1 1 0; min-height: 36px; border-radius: 10px; border: none; cursor: pointer; font: 600 13px Figtree, sans-serif; background: ' + (sel && sel.look === k ? '#ffcc00' : '#24262d') + '; color: ' + (sel && sel.look === k ? '#141519' : '#f2f2f4') })),
+      scripts: ['Adapts to context', 'Flash when low', 'Count up smoothly', 'Hide in cutscenes'].map((n) => ({ name: n, start: (e) => e.dataTransfer.setData('text/plain', 'script|' + n) })),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: mw ? { show: true, title: mw.kind, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items: [
+        { label: 'Change look', key: '', run: () => setWs(ws.map((q) => (q.id === mw.id ? Object.assign({}, q, { look: q.look === 'Brick' ? 'Clean' : q.look === 'Clean' ? 'Pixel' : 'Brick' }) : q)), { menu: null }) },
+        { label: 'Attach script…', key: 'or drop one', run: () => this.setState({ menu: null }) },
+        { label: 'Snap to corner', key: '', run: () => setWs(ws.map((q) => (q.id === mw.id ? Object.assign({}, q, { x: 16, y: 16 }) : q)), { menu: null }) },
+        { label: 'Duplicate', key: '', run: () => setWs(ws.concat([Object.assign({}, mw, { id: 'w' + (this.n++), x: mw.x + 24, y: mw.y + 24 })]), { menu: null }) },
+        { label: 'Delete', key: 'Del', run: () => setWs(ws.filter((q) => q.id !== mw.id), { menu: null, sel: null }) }
+      ] } : { show: false, items: [] },
+      undo: () => { if (!s.hist.length) return; this.setState({ byScreen: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1) }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

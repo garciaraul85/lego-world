@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Accessibility</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif">
+  <dc-import name="Nav" active="game" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Make it playable for everyone</span><span style="font-size: 13px; color: #9ea3ad">Options players get in your game's menu, with a live preview</span></div>
+      
+      <span style="flex: 1 1 auto"></span>
+      
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="game" active="Accessibility" hint-size="900px,46px"></dc-import>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="{{view}}">
+          <div style="position: absolute; left: 0; right: 0; top: 260px; height: 70px; background: #0d0e10"></div>
+          <span style="{{sw1}}"></span><span style="{{sw2}}"></span>
+          <span style="position: absolute; left: 140px; top: 120px; width: 44px; height: 44px; border-radius: 22px 22px 10px 10px; background: #e8463c"></span>
+          <sc-if value="{{aim}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; left: 520px; top: 90px; width: 70px; height: 70px; border-radius: 50%; border: 3px solid #ffcc00"></span></sc-if>
+          <span style="position: absolute; left: 534px; top: 104px; width: 44px; height: 44px; border-radius: 22px 22px 10px 10px; background: #8b93a3"></span>
+          <div style="{{hud}}">♥ ♥ ♥ · ◆ 128</div>
+          <div style="{{subs}}"><b style="color: #ffcc00">Old Mason:</b> {{subText}}</div>
+          <sc-if value="{{flash}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; inset: 0; background: #fff; opacity: .7; pointer-events: none"></div></sc-if>
+          <button type="button" class="btn" style="position: absolute; right: 12px; top: 12px; min-height: 32px; font-size: 13px" onClick="{{boom}}">Test an explosion</button>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; align-items: center"><span class="lbl">Check my game</span><button type="button" class="btn" style="min-height: 30px; font-size: 13px" onClick="{{runCheck}}">Check again</button></div>
+          <sc-for list="{{issues}}" as="i" hint-placeholder-count="3"><div style="display: flex; gap: 10px; font-size: 14px; line-height: 1.4"><span style="{{i.dot}}">{{i.mark}}</span><span style="flex: 1 1 auto">{{i.text}}</span><a href="{{i.href}}" style="font-size: 13px; white-space: nowrap">Fix</a></div></sc-for>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto">
+        <span class="lbl">Seeing</span>
+        <label class="fld">Text size · {{textSize}}%<input type="range" min="80" max="200" step="10" value="{{textSize}}" onInput="{{setText}}" style="accent-color: #ffcc00"></label>
+        <div class="fld">Colour help<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px"><sc-for list="{{cb}}" as="c" hint-placeholder-count="4"><button type="button" style="{{c.style}}" onClick="{{c.pick}}">{{c.name}}</button></sc-for></div></div>
+        <sc-for list="{{see}}" as="f" hint-placeholder-count="3"><button type="button" onClick="{{f.flip}}" style="{{rowBtn}}"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
+        <span class="lbl">Hearing</span>
+        <sc-for list="{{hear}}" as="f" hint-placeholder-count="2"><button type="button" onClick="{{f.flip}}" style="{{rowBtn}}"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
+        <span class="lbl">Difficulty</span>
+        <div style="display: flex; gap: 6px"><sc-for list="{{diffs}}" as="d" hint-placeholder-count="3"><button type="button" style="{{d.style}}" onClick="{{d.pick}}">{{d.name}}</button></sc-for></div>
+        <span style="font-size: 12px; color: #9ea3ad">{{diffText}}</span>
+        <span class="lbl">Playing</span>
+        <label class="fld">Game speed · {{speed}}%<input type="range" min="50" max="100" step="10" value="{{speed}}" onInput="{{setSpeed}}" style="accent-color: #ffcc00"></label>
+        <sc-for list="{{play}}" as="f" hint-placeholder-count="4"><button type="button" onClick="{{f.flip}}" style="{{rowBtn}}"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
+        <a class="btn" href="Moves.dc.html">Change which button does what</a>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { diff: 'Normal', text: 100, cb: 'Off', speed: 100, flashing: false, f: { contrast: false, motion: true, flash: true, subs: true, sounds: true, aim: true, hold: true, onebtn: false, skip: true }, checked: 1 };
+  }
+  renderVals() {
+    const s = this.state; const f = s.f;
+    const flip = (k) => () => this.setState({ f: Object.assign({}, f, { [k]: !f[k] }) });
+    const row = (k, n) => ({ name: n, flip: flip(k), track: H.track(f[k]), knob: H.knob(f[k]) });
+    const CB = { Off: ['#e8463c', '#45c46e'], 'Red-green': ['#e8a33c', '#3b78c9'], 'Blue-yellow': ['#e8463c', '#2fb4b4'], 'Shapes too': ['#e8463c', '#45c46e'] };
+    const cols = CB[s.cb];
+    const sc = s.text / 100;
+    return {
+      view: 'position: relative; height: 430px; border-radius: 20px; overflow: hidden; background-color: ' + (f.contrast ? '#000' : '#2d4a33') + '; background-image: ' + (f.contrast ? 'none' : 'radial-gradient(#3b5c42 2px, transparent 2px)') + '; background-size: 20px 20px; filter: ' + (f.contrast ? 'contrast(1.4)' : 'none'),
+      sw1: 'position: absolute; left: 300px; top: 160px; width: 60px; height: 40px; border-radius: 8px; background: ' + cols[0] + (s.cb === 'Shapes too' ? '; clip-path: polygon(50% 0, 100% 100%, 0 100%)' : '') + (f.contrast ? '; outline: 3px solid #fff' : ''),
+      sw2: 'position: absolute; left: 400px; top: 160px; width: 60px; height: 40px; border-radius: ' + (s.cb === 'Shapes too' ? '50%' : '8px') + '; background: ' + cols[1] + (f.contrast ? '; outline: 3px solid #fff' : ''),
+      aim: f.aim,
+      hud: 'position: absolute; left: 16px; top: 14px; padding: 8px 14px; border-radius: 10px; background: ' + (f.contrast ? '#000' : '#141519cc') + '; border: ' + (f.contrast ? '2px solid #fff' : 'none') + '; color: #ffcc00; font-weight: 800; font-size: ' + (16 * sc) + 'px',
+      subs: f.subs ? 'position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: 80%; padding: 10px 16px; border-radius: 10px; background: #000d; font-size: ' + (15 * sc) + 'px; line-height: 1.4; text-align: center' : 'display: none',
+      subText: 'Fine work on that bridge!' + (f.sounds ? ' [bricks clicking]' : ''),
+      flash: s.flashing && !f.flash,
+      boom: () => { this.setState({ flashing: true }); clearTimeout(this.tm); this.tm = setTimeout(() => this.setState({ flashing: false }), f.flash ? 50 : 180); },
+      issues: [
+        ['warn', 'The red and green switches in Chasm hall only differ by colour. Add shapes or turn on "Shapes too".', 'Scene.dc.html'],
+        [f.subs ? 'ok' : 'warn', f.subs ? 'All 14 dialogue lines have subtitles.' : 'Subtitles are off by default.', 'Dialogue.dc.html'],
+        ['ok', 'Every button can be remapped.', 'Moves.dc.html'],
+        [s.speed < 100 || f.skip ? 'ok' : 'warn', 'The timer challenge can be slowed or skipped.', 'Logic.dc.html']
+      ].map(([k, t, h]) => ({ text: t, href: h, mark: k === 'ok' ? '✓' : '!', dot: 'flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: #141519; background: ' + (k === 'ok' ? '#45c46e' : '#ffcc00') })),
+      runCheck: () => this.setState({ checked: s.checked + 1 }),
+      textSize: s.text, setText: (e) => this.setState({ text: +e.target.value }),
+      cb: Object.keys(CB).map((k) => ({ name: k, style: H.pick(k === s.cb) + '; font-size: 13px; padding: 0 8px; text-align: center', pick: () => this.setState({ cb: k }) })),
+      rowBtn: 'display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer; text-align: left',
+      see: [row('contrast', 'High contrast'), row('motion', 'Less camera shake'), row('flash', 'No flashing lights')],
+      hear: [row('subs', 'Subtitles'), row('sounds', 'Show important sounds as text')],
+      speed: s.speed, setSpeed: (e) => this.setState({ speed: +e.target.value }),
+      play: [row('aim', 'Aim help'), row('hold', 'Toggle instead of hold'), row('onebtn', 'One-button mode'), row('skip', 'Let players skip hard parts')],
+      diffs: ['Story', 'Normal', 'Hard'].map((d) => ({ name: d, style: H.pick(d === s.diff) + '; flex: 1 1 0; text-align: center', pick: () => this.setState({ diff: d, f: Object.assign({}, f, d === 'Story' ? { aim: true, skip: true } : d === 'Hard' ? { aim: false, skip: false } : {}) }) })),
+      diffText: { Story: 'Extra hearts, enemies hit softer, puzzles can be skipped.', Normal: 'As you designed it.', Hard: 'Fewer hearts, smarter enemies, no skipping.' }[s.diff],
+      undo: () => {}
+    };
+  }
+}
+</script>
+</body>
+</html>

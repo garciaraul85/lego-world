@@ -1,0 +1,62 @@
+Achievements
+{"nav":"game","group":"game","sub":"Achievements","h":"Achievements and collectibles","s":"Goals players can tick off, and what counts toward 100%","undo":false}
+      <section style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 12px; position: relative">
+        <div class="card" style="display: flex; flex-direction: column; gap: 4px">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px"><span class="lbl">Achievements</span><button type="button" class="btn" style="min-height: 32px; font-size: 13px" onClick="{{addA}}">New achievement</button></div>
+          <sc-for list="{{ach}}" as="a" hint-placeholder-count="5">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #2a2d35">
+              <span style="{{a.icon}}">{{a.glyph}}</span>
+              <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 4px"><b style="font-size: 15px">{{a.name}}</b><div style="display: flex; gap: 6px; align-items: center; font-size: 13px; color: #9ea3ad">when <button type="button" class="chip" style="cursor: pointer; background: #3a3420; color: #ffd633" onClick="{{a.next}}">{{a.when}}</button></div></div>
+              <button type="button" onClick="{{a.flip}}" title="Hidden until earned" style="{{a.hidBtn}}">{{a.hid}}</button>
+              <button type="button" class="btn" style="min-height: 32px; font-size: 13px" onClick="{{a.test}}">Test</button>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{pop.show}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; right: 16px; top: 16px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px; background: #141519; box-shadow: 0 0 0 2px #ffcc00, 0 16px 40px #000a"><span style="font-size: 26px">🏆</span><div><b style="color: #ffcc00">Achievement!</b><br><span style="font-size: 14px">{{pop.name}}</span></div></div></sc-if>
+      </section>
+      <aside style="flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Collectibles</span>
+          <sc-for list="{{cols}}" as="c" hint-placeholder-count="3"><div style="display: flex; flex-direction: column; gap: 6px"><div style="display: flex; justify-content: space-between; font-size: 14px"><b>{{c.name}}</b><span style="color: #9ea3ad">{{c.count}}</span></div><div style="display: flex; gap: 3px"><sc-for list="{{c.rooms}}" as="r" hint-placeholder-count="4"><span style="{{r.style}}" title="{{r.tip}}"></span></sc-for></div></div></sc-for>
+          <span style="font-size: 12px; color: #9ea3ad">Each bar is a room. Grey rooms have none yet.</span>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">100% means</span>
+          <sc-for list="{{weights}}" as="w" hint-placeholder-count="4"><label class="fld">{{w.name}} · {{w.val}}%<input type="range" min="0" max="100" step="5" value="{{w.val}}" onInput="{{w.set}}" style="accent-color: #ffcc00"></label></sc-for>
+          <span style="{{sumStyle}}">{{sumText}}</span>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <sc-for list="{{extras}}" as="f" hint-placeholder-count="3"><button type="button" onClick="{{f.flip}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
+        </div>
+      </aside>
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { pop: null, ach: [['Bridge builder', 'Bridge pile is built', false, '🧱'], ['Torch bearer', 'All torches lit', false, '🔥'], ['Untouchable', 'Boss beaten without losing a heart', true, '🛡'], ['Collector', 'All 50 coins found', false, '◆'], ['Speedrunner', 'Game finished under 20 minutes', true, '⏱']], w: { Quests: 40, Collectibles: 30, Achievements: 20, 'Rooms visited': 10 }, ex: { time: true, best: true, ngp: false } };
+  }
+  renderVals() {
+    const s = this.state;
+    const W = ['Bridge pile is built', 'All torches lit', 'Boss beaten without losing a heart', 'All 50 coins found', 'Game finished under 20 minutes', 'A quest is finished', 'A variable reaches a number'];
+    const nxt = (v) => W[(W.indexOf(v) + 1) % W.length];
+    const sum = Object.values(s.w).reduce((a, b) => a + b, 0);
+    const cols = [['Coins', 50, [12, 18, 8, 12]], ['Hidden bricks', 10, [2, 3, 0, 5]], ['Lost cats', 3, [0, 1, 1, 1]]];
+    return {
+      ach: s.ach.map((a, i) => ({ name: a[0], when: a[1], glyph: a[3], hid: a[2] ? 'Hidden' : 'Shown',
+        icon: 'flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; background: #3a3420',
+        hidBtn: 'min-height: 30px; padding: 0 10px; border-radius: 8px; border: none; cursor: pointer; font: 600 12px Figtree, sans-serif; background: ' + (a[2] ? '#2b2440' : '#24262d') + '; color: ' + (a[2] ? '#d9ccff' : '#9ea3ad'),
+        next: () => this.setState({ ach: s.ach.map((x, j) => (j === i ? [x[0], nxt(x[1]), x[2], x[3]] : x)) }),
+        flip: () => this.setState({ ach: s.ach.map((x, j) => (j === i ? [x[0], x[1], !x[2], x[3]] : x)) }),
+        test: () => { this.setState({ pop: a[0] }); clearTimeout(this.tm); this.tm = setTimeout(() => this.setState({ pop: null }), 1600); } })),
+      addA: () => this.setState({ ach: s.ach.concat([['New achievement', 'A quest is finished', false, '⭐']]) }),
+      pop: s.pop ? { show: true, name: s.pop } : { show: false, name: '' },
+      cols: cols.map(([n, total, per]) => ({ name: n, count: per.reduce((a, b) => a + b, 0) + ' of ' + total + ' placed', rooms: per.map((c, i) => ({ tip: ['Entrance', 'Chasm hall', 'Key vault', 'Boss gate'][i] + ': ' + c, style: 'flex: ' + Math.max(1, c) + ' 1 0; height: 10px; border-radius: 3px; background: ' + (c ? '#ffcc00' : '#33363e') })) })),
+      weights: Object.keys(s.w).map((k) => ({ name: k, val: s.w[k], set: (e) => this.setState({ w: Object.assign({}, s.w, { [k]: +e.target.value }) }) })),
+      sumText: sum === 100 ? 'Adds up to 100%.' : 'Adds up to ' + sum + '%. It needs to be 100%.',
+      sumStyle: 'font-size: 13px; font-weight: 600; color: ' + (sum === 100 ? '#45c46e' : '#ffcc00'),
+      extras: [['time', 'Show time played'], ['best', 'Keep best scores and times'], ['ngp', 'New game plus after the ending']].map(([k, n]) => ({ name: n, flip: () => this.setState({ ex: Object.assign({}, s.ex, { [k]: !s.ex[k] }) }), track: H.track(s.ex[k]), knob: H.knob(s.ex[k]) })),
+      undo: () => {}
+    };
+  }
+}

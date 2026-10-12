@@ -1,0 +1,126 @@
+Play
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif">
+  <dc-import name="Nav" active="play" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Playing Little dungeon</span><span style="font-size: 13px; color: #9ea3ad">{{status}}</span></div>
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn" onClick="{{pause}}">{{pauseLabel}}</button>
+      <button type="button" class="btn" onClick="{{restart}}">Restart</button>
+      <a class="btn pri" href="Scene.dc.html">Back to editing</a>
+    </header>
+    <div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+        <div style="{{view}}" onClick="{{clickView}}">
+          <div style="position: absolute; left: 0; right: 0; top: 0; height: 70px; background: #4b5058"></div>
+          <div style="position: absolute; left: 0; right: 0; top: 300px; height: 70px; background: #0d0e10"></div>
+          <div style="{{bridge}}"></div>
+          <span style="position: absolute; left: 520px; top: 20px; width: 48px; height: 48px; border-radius: 8px; background: #8a5a2b"></span>
+          <span style="position: absolute; left: 440px; top: 190px; width: 48px; height: 28px; border-radius: 6px; background: #8fa1b8"></span>
+          <span style="position: absolute; left: 760px; top: 210px; width: 44px; height: 44px; border-radius: 22px 22px 10px 10px; background: #8b93a3"></span>
+          <span style="{{player}}"></span>
+          <sc-for list="{{trail}}" as="tr" hint-placeholder-count="6"><span style="{{tr}}"></span></sc-for>
+          <sc-if value="{{robotMsg.show}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); padding: 10px 14px; border-radius: 12px; background: #141519ee; font-size: 14px">🤖 {{robotMsg.text}}</div></sc-if>
+          <sc-if value="{{spot.show}}" hint-placeholder-val="{{ false }}"><span style="{{spot.style}}"></span></sc-if>
+          <div style="position: absolute; left: 20px; top: 16px; display: flex; flex-direction: column; gap: 8px; pointer-events: none">
+            <span style="padding: 8px 14px; border-radius: 10px; background: #141519cc; color: #ff6b6b; font-weight: 800; font-size: 18px">{{hearts}}</span>
+            <span style="padding: 8px 14px; border-radius: 10px; background: #141519cc; color: #ffcc00; font-weight: 800; font-size: 16px; align-self: flex-start">◆ {{coins}}</span>
+          </div>
+          <span style="position: absolute; right: 24px; bottom: 24px; width: 84px; height: 84px; border-radius: 50%; background: #141519cc; color: #ffcc00; font-weight: 800; display: flex; align-items: center; justify-content: center; pointer-events: none">{{action}}</span>
+          <sc-if value="{{paused}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; inset: 0; background: #0009; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800">Paused</div></sc-if>
+          <sc-if value="{{picking}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; left: 50%; top: 12px; transform: translateX(-50%); padding: 8px 14px; border-radius: 10px; background: #ffcc00; color: #141519; font-weight: 700; font-size: 14px">Click where the player should start</div></sc-if>
+        </div>
+        <span style="font-size: 13px; color: #9ea3ad">Arrow keys move. Space acts. Everything here is the real game — the panel on the right is only for testing.</span>
+      </section>
+      <aside style="flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <span class="lbl">Test tools</span>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+            <button type="button" class="btn" onClick="{{pickStart}}">Start here…</button>
+            <button type="button" style="{{godStyle}}" onClick="{{toggleGod}}">Can't lose</button>
+            <button type="button" style="{{slowStyle}}" onClick="{{toggleSlow}}">Slow motion</button>
+            <button type="button" class="btn" onClick="{{snap}}">{{snapLabel}}</button>
+            <button type="button" class="btn" onClick="{{skipStep}}">{{skipLabel}}</button>
+            <button type="button" style="{{robotStyle}}" onClick="{{robot}}">{{robotLabel}}</button>
+          </div>
+          <span class="lbl" style="margin-top: 6px">Variables · click to change</span>
+          <sc-for list="{{vars}}" as="v" hint-placeholder-count="4">
+            <button type="button" onClick="{{v.bump}}" style="display: flex; justify-content: space-between; min-height: 38px; align-items: center; padding: 0 12px; border-radius: 10px; border: none; background: #24262d; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer"><span>{{v.name}}</span><b style="color: #ffcc00">{{v.val}}</b></button>
+          </sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; align-items: center"><span class="lbl">Can it be finished?</span><button type="button" class="btn" style="min-height: 32px; font-size: 13px" onClick="{{runChecks}}">{{checkLabel}}</button></div>
+          <sc-for list="{{checks}}" as="c" hint-placeholder-count="5">
+            <div style="display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid #2a2d35">
+              <span style="{{c.dot}}">{{c.mark}}</span>
+              <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; font-weight: 600">{{c.name}}</span><span style="font-size: 13px; color: #9ea3ad">{{c.note}}</span>
+                <sc-if value="{{c.bad}}" hint-placeholder-val="{{ false }}"><div style="display: flex; gap: 10px; font-size: 13px"><button type="button" onClick="{{c.show}}" style="padding: 0; border: none; background: none; color: #ffcc00; font: 600 13px Figtree, sans-serif; cursor: pointer">Show me</button><a href="Brix.dc.html">Fix with Brix</a></div></sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { qstep: 0, bot: null, trail: [], px: 120, py: 220, paused: false, picking: false, god: false, slow: false, snap: null, vars: { Health: 3, Coins: 12, Keys: 0, 'Bridge built': 0 }, checks: 'done', spot: null };
+    this.onKey = (e) => {
+      const st = this.state; if (st.paused) return; const d = st.slow ? 8 : 20;
+      const mv = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[e.key];
+      if (mv) { e.preventDefault(); this.setState({ px: Math.max(0, Math.min(900, st.px + mv[0])), py: Math.max(70, Math.min(560, st.py + mv[1])) }); }
+      if (e.key === ' ') { e.preventDefault(); if (Math.abs(st.px - 440) < 60 && Math.abs(st.py - 190) < 60) this.setState({ vars: Object.assign({}, st.vars, { 'Bridge built': 1 }) }); }
+    };
+    if (typeof window !== 'undefined') window.addEventListener('keydown', this.onKey);
+  }
+  renderVals() {
+    const s = this.state;
+    const v = s.vars;
+    const fell = !s.god && v['Bridge built'] === 0 && s.py > 280 && s.py < 370;
+    const near = (x, y) => Math.abs(s.px - x) < 70 && Math.abs(s.py - y) < 70;
+    const action = near(440, 190) ? 'Press' : near(520, 20) ? 'Open' : near(760, 210) ? 'Attack' : '·';
+    const checksData = [
+      ['ok', 'Every room can be reached', 'Entrance → Chasm hall → Key vault → Boss gate'],
+      ['ok', 'Start point is safe', 'Nothing hurts the player in the first 3 seconds'],
+      ['warn', 'Boss key can be missed', 'If the player leaves the Key vault early, the chest stays closed', [700, 420]],
+      ['bad', 'Stone knight can block the door', 'He patrols across the only way to the North door', [520, 40]],
+      ['ok', 'Every quest has an ending', 'Bridge quest and Shop quest both finish']
+    ];
+    const col = { ok: '#45c46e', warn: '#ffcc00', bad: '#e8463c' };
+    const btn = (on, c) => 'min-height: 40px; padding: 0 12px; border-radius: 12px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; background: ' + (on ? c : '#24262d') + '; color: ' + (on ? '#141519' : '#f2f2f4');
+    return {
+      status: s.paused ? 'Paused' : fell ? 'You fell! Build the bridge first.' : s.god ? 'Testing · can\'t lose' : 'Testing · real game rules',
+      view: 'position: relative; height: 620px; border-radius: 20px; overflow: hidden; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px; cursor: ' + (s.picking ? 'crosshair' : 'default'),
+      bridge: 'position: absolute; left: 220px; top: 300px; width: 160px; height: 70px; ' + (v['Bridge built'] ? 'background: #c9893f' : 'background: #ff8a3d44; box-shadow: 0 0 24px 6px #ffb34766; animation: none'),
+      player: 'position: absolute; left: ' + s.px + 'px; top: ' + s.py + 'px; width: 40px; height: 40px; border-radius: 20px 20px 8px 8px; background: #e8463c; transition: left .08s, top .08s; box-shadow: ' + (s.god ? '0 0 0 4px #ffcc00' : 'none') + (fell ? '; opacity: .3' : ''),
+      spot: s.spot ? { show: true, style: 'position: absolute; left: ' + (s.spot[0] - 50) + 'px; top: ' + (s.spot[1] - 50) + 'px; width: 100px; height: 100px; border-radius: 50%; border: 4px solid #e8463c; box-shadow: 0 0 0 9999px #0007; pointer-events: none' } : { show: false },
+      hearts: '❤'.repeat(v.Health) + '♡'.repeat(Math.max(0, 4 - v.Health)), coins: v.Coins, action,
+      paused: s.paused, picking: s.picking,
+      pause: () => this.setState({ paused: !s.paused }), pauseLabel: s.paused ? 'Resume' : 'Pause',
+      skipStep: () => this.setState({ qstep: (s.qstep + 1) % 5, vars: Object.assign({}, v, s.qstep === 1 ? { 'Bridge built': 1 } : {}) }),
+      skipLabel: 'Quest: ' + ['Talk to Mason', 'Collect bundles', 'Build bridge', 'Beat the knight', 'Go to the gate'][s.qstep] + ' ›',
+      robotStyle: 'grid-column: span 2; ' + btn(s.bot !== null, '#a78bfa'),
+      robotLabel: s.bot === null ? 'Robot: play it to the end' : s.bot < 6 ? 'Robot playing…' : 'Robot report',
+      robot: () => { if (s.bot !== null && s.bot < 6) return; clearInterval(this.bt); let k = 0; const path = [[120, 220], [300, 200], [440, 190], [300, 330], [520, 60], [700, 120]]; this.setState({ bot: 0, trail: [] }); this.bt = setInterval(() => { k++; if (k > 6) { clearInterval(this.bt); this.setState({ bot: 6 }); return; } this.setState({ bot: k, px: path[k - 1][0], py: path[k - 1][1], trail: path.slice(0, k) }); }, 450); },
+      trail: s.trail.map(([x, y]) => 'position: absolute; left: ' + (x + 14) + 'px; top: ' + (y + 14) + 'px; width: 12px; height: 12px; border-radius: 50%; background: #a78bfa; opacity: .7'),
+      robotMsg: s.bot === null ? { show: false, text: '' } : s.bot < 6 ? { show: true, text: 'Trying step ' + (s.bot + 1) + ' of 6…' } : { show: true, text: 'Got stuck at the North door: the Stone knight blocks it. Finished in 2:40 otherwise.' },
+      restart: () => this.setState({ px: 120, py: 220, vars: { Health: 3, Coins: 12, Keys: 0, 'Bridge built': 0 }, spot: null }),
+      clickView: (e) => { if (s.spot) this.setState({ spot: null }); if (!s.picking) return; const r = e.currentTarget.getBoundingClientRect(); this.setState({ px: e.clientX - r.left - 20, py: e.clientY - r.top - 20, picking: false }); },
+      pickStart: () => this.setState({ picking: true }),
+      toggleGod: () => this.setState({ god: !s.god }), godStyle: btn(s.god, '#ffcc00'),
+      toggleSlow: () => this.setState({ slow: !s.slow }), slowStyle: btn(s.slow, '#7cc7ff'),
+      snap: () => { if (s.snap) this.setState(Object.assign({}, s.snap, { snap: null })); else this.setState({ snap: { px: s.px, py: s.py, vars: s.vars } }); },
+      snapLabel: s.snap ? 'Go back to save' : 'Save this moment',
+      vars: Object.keys(v).map((k) => ({ name: k, val: k === 'Bridge built' ? (v[k] ? 'yes' : 'no') : v[k], bump: () => this.setState({ vars: Object.assign({}, v, { [k]: k === 'Bridge built' ? 1 - v[k] : k === 'Health' ? (v[k] % 4) + 1 : v[k] + 1 }) }) })),
+      runChecks: () => { this.setState({ checks: 0, spot: null }); clearInterval(this.ct); this.ct = setInterval(() => { const c = this.state.checks; if (c === 'done' || c >= 4) { clearInterval(this.ct); this.setState({ checks: 'done' }); } else this.setState({ checks: c + 1 }); }, 350); },
+      checkLabel: s.checks === 'done' ? 'Check again' : 'Checking…',
+      checks: checksData.map(([st, n, note, at], i) => { const doneHere = s.checks === 'done' || i < s.checks; const k = doneHere ? st : 'wait'; return { name: n, note: doneHere ? note : 'Checking…', bad: doneHere && st !== 'ok', mark: k === 'ok' ? '✓' : k === 'wait' ? '…' : '!',
+        dot: 'flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #141519; background: ' + (col[k] || '#33363e'),
+        show: () => this.setState({ spot: at }) }; })
+    };
+  }
+}

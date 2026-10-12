@@ -1,0 +1,28 @@
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>

@@ -1,0 +1,71 @@
+Starter packs
+{"nav":"build","group":"build","sub":"Starter packs","h":"Starter packs","s":"Ready-made characters, buildings, sounds, music and scripts for every genre","undo":true}
+      <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{genres}}" as="g" hint-placeholder-count="10"><button type="button" style="{{g.style}}" onClick="{{g.pick}}">{{g.name}}</button></sc-for></div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px">
+          <sc-for list="{{packs}}" as="p" hint-placeholder-count="6">
+            <button type="button" style="{{p.style}}" onClick="{{p.pick}}">
+              <span style="{{p.art}}"><sc-if value="{{p.added}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; right: 8px; top: 8px; padding: 3px 8px; border-radius: 999px; background: #45c46e; color: #141519; font-size: 11px; font-weight: 800">ADDED</span></sc-if></span>
+              <span style="font-size: 16px; font-weight: 700">{{p.name}}</span>
+              <span style="font-size: 13px; color: #9ea3ad">{{p.genre}} · {{p.count}} things</span>
+            </button>
+          </sc-for>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 340px; max-width: 400px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
+        <span style="{{cur.art}}"></span>
+        <div><div style="font-size: 22px; font-weight: 800">{{cur.name}}</div><div style="font-size: 14px; color: #b4b9c2; margin-top: 4px; line-height: 1.5">{{cur.blurb}}</div></div>
+        <span class="lbl">What's inside · untick what you don't want</span>
+        <sc-for list="{{cur.parts}}" as="x" hint-placeholder-count="7">
+          <button type="button" onClick="{{x.flip}}" style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; border: none; background: #24262d; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer; text-align: left">
+            <span style="{{x.box}}">{{x.mark}}</span><span style="flex: 1 1 auto"><b>{{x.n}}</b> {{x.kind}}</span><span style="font-size: 12px; color: #9ea3ad">{{x.eg}}</span>
+          </button>
+        </sc-for>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <button type="button" class="btn pri" onClick="{{add}}">{{addLabel}}</button>
+          <a class="btn" href="Play.dc.html">Try the sample level</a>
+        </div>
+        <span style="font-size: 12px; color: #9ea3ad; line-height: 1.5">Everything in a pack is built with the same tools you have, so you can open and change any of it.</span>
+      </aside>
+      <!--TOAST-->
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { genre: 'All', cur: 'Dungeon kit', added: [], off: {}, toast: null };
+  }
+  renderVals() {
+    const s = this.state;
+    const P = [
+      ['Dungeon kit', 'Adventure', '#3b78c9', '#ffcc00', 'Rooms, keys, push blocks, a boss and a tool for each dungeon.'],
+      ['Village kit', 'Adventure', '#45c46e', '#e8463c', 'Houses, shops, villagers with dialogue and a fishing spot.'],
+      ['Jump world', 'Platformer', '#e8463c', '#45c46e', 'Moving platforms, coins, stars, checkpoints and a flag.'],
+      ['Race day', 'Racing', '#ffcc00', '#2f3440', 'Track pieces, 6 cars, lap counter, boost pads and a podium.'],
+      ['Stadium', 'Sports', '#45c46e', '#f2f2f4', 'Pitch, goals, ball, teams, referee and a score board.'],
+      ['Space blasters', 'Shooter', '#a78bfa', '#ff8a3d', 'Ships, lasers, enemy waves and power-ups.'],
+      ['Haunted manor', 'Story', '#3a1a5c', '#a78bfa', 'Spooky rooms, ghosts, a mystery and three endings.'],
+      ['Undersea', 'Explore', '#0b4a6e', '#7cc7ff', 'Reefs, fish, a submarine, air bubbles and treasure.'],
+      ['Hero party', 'RPG', '#ff8a3d', '#ffcc00', 'Party of four, turn-based battles, inn and quest board.']
+    ];
+    const parts = (g) => [[12, 'characters', g === 'Racing' ? 'Drivers, fans' : 'Villagers, guards, boss'], [24, 'buildings and props', 'Walls, doors, chests'], [18, 'sounds', 'Click, creak, coin'], [4, 'music tracks', 'Calm, tense, boss, win'], [9, 'scripts', 'Collect then open, Patrol'], [3, 'screens', 'HUD, pause, credits'], [1, 'sample level', 'Playable start to end']];
+    const genres = ['All'].concat(P.map((p) => p[1]).filter((g, i, a) => a.indexOf(g) === i));
+    const art = (a, b, h) => 'position: relative; display: block; width: 100%; height: ' + h + 'px; border-radius: 14px; background: linear-gradient(135deg, ' + a + ' 0 55%, ' + b + ' 55% 100%)';
+    const cur = P.find((p) => p[0] === s.cur);
+    const off = s.off[s.cur] || {};
+    const isAdded = s.added.indexOf(s.cur) >= 0;
+    return {
+      genres: genres.map((g) => ({ name: g, style: H.pick(g === s.genre) + '; min-height: 34px; border-radius: 999px', pick: () => this.setState({ genre: g }) })),
+      packs: P.filter((p) => s.genre === 'All' || p[1] === s.genre).map((p) => ({ name: p[0], genre: p[1], count: 71, added: s.added.indexOf(p[0]) >= 0, art: art(p[2], p[3], 110),
+        style: H.card(p[0] === s.cur) + '; gap: 8px', pick: () => this.setState({ cur: p[0] }) })),
+      cur: { name: cur[0], blurb: cur[4], art: art(cur[2], cur[3], 150),
+        parts: parts(cur[1]).map(([n, k, eg], i) => ({ n, kind: k, eg, mark: off[i] ? '' : '✓',
+          box: 'flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #141519; background: ' + (off[i] ? '#33363e' : '#ffcc00'),
+          flip: () => this.setState({ off: Object.assign({}, s.off, { [s.cur]: Object.assign({}, off, { [i]: !off[i] }) }) }) })) },
+      add: () => { if (isAdded) return; this.setState({ added: s.added.concat([s.cur]), toast: cur[0] + ' added. Find it in Scene › Library.' }); },
+      addLabel: isAdded ? 'Added to your game' : 'Add to my game',
+      toast: H.toast(s.toast),
+      undo: () => { if (!s.added.length) return; this.setState({ added: s.added.slice(0, -1), toast: null }); }
+    };
+  }
+}

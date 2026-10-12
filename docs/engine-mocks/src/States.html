@@ -1,0 +1,67 @@
+States and library
+{"nav":"animate","group":"animate","sub":"States and library","h":"Old Mason · How moves blend","s":"Which clip plays when. Drag clips from the library onto a state.","undo":false}
+      <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="position: relative; height: 330px; padding: 0; overflow: hidden">
+          <sc-for list="{{edges}}" as="e" hint-placeholder-count="8"><span style="{{e}}"></span></sc-for>
+          <sc-for list="{{nodes}}" as="n" hint-placeholder-count="8"><div style="{{n.style}}" onClick="{{n.pick}}" onDragOver="{{allow}}" onDrop="{{n.drop}}"><b style="font-size: 14px">{{n.name}}</b><span style="font-size: 11px; opacity: .8">{{n.clip}}</span></div></sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: center; gap: 14px"><span class="lbl">Try it · speed</span><input type="range" min="0" max="10" step="0.5" value="{{speed}}" onInput="{{setSpeed}}" style="flex: 1 1 auto; accent-color: #ffcc00"><span style="width: 160px; font-size: 14px">{{blendText}}</span></div>
+          <div style="display: flex; height: 14px; border-radius: 7px; overflow: hidden"><sc-for list="{{blend}}" as="b" hint-placeholder-count="3"><span style="{{b}}"></span></sc-for></div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap"><sc-for list="{{triggers}}" as="t" hint-placeholder-count="4"><button type="button" class="btn" style="min-height: 34px" onClick="{{t.run}}">{{t.name}}</button></sc-for></div>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center"><span class="lbl" style="margin-right: 8px">Clip library</span><sc-for list="{{groups}}" as="g" hint-placeholder-count="8"><button type="button" class="{{g.cls}}" onClick="{{g.pick}}">{{g.name}}</button></sc-for></div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{clips}}" as="c" hint-placeholder-count="8"><span class="chip" draggable="true" onDragStart="{{c.start}}">▶ {{c.name}}</span></sc-for></div>
+          <span style="font-size: 12px; color: #9ea3ad">Every clip fits every body: a wave made for a minifig also works on animals and gods.</span>
+        </div>
+      </section>
+      <aside style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Layers</span>
+          <sc-for list="{{layers}}" as="l" hint-placeholder-count="4"><button type="button" onClick="{{l.flip}}" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer; text-align: left"><span style="display: flex; flex-direction: column"><span>{{l.name}}</span><span style="font-size: 12px; color: #9ea3ad">{{l.desc}}</span></span><span style="{{l.track}}"><span style="{{l.knob}}"></span></span></button></sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Moves by itself</span>
+          <sc-for list="{{auto}}" as="l" hint-placeholder-count="4"><button type="button" onClick="{{l.flip}}" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer; text-align: left"><span>{{l.name}}</span><span style="{{l.track}}"><span style="{{l.knob}}"></span></span></button></sc-for>
+        </div>
+        <a class="btn" href="Animate.dc.html">Make a new clip by posing</a>
+      </aside>
+      <!--TOAST-->
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 'Walk', speed: 3, now: null, toast: null, group: 'Platformer',
+      clips: { Idle: 'Look around', Walk: 'Stomp', Run: 'Run', Jump: 'Jump', Attack: 'Hammer swing', Hurt: 'Ouch', Swim: 'Doggy paddle', Ride: 'Ride a horse' },
+      layers: { upper: true, face: true, breath: true, carry: false }, auto: { feet: true, look: true, swing: true, tumble: true } };
+  }
+  renderVals() {
+    const s = this.state;
+    const P = { Idle: [60, 40], Walk: [250, 40], Run: [440, 40], Jump: [630, 40], Attack: [250, 190], Hurt: [440, 190], Swim: [60, 190], Ride: [630, 190] };
+    const E = [['Idle', 'Walk'], ['Walk', 'Run'], ['Run', 'Jump'], ['Walk', 'Attack'], ['Attack', 'Hurt'], ['Idle', 'Swim'], ['Run', 'Ride'], ['Hurt', 'Idle']];
+    const live = s.now || (s.speed < 1 ? 'Idle' : s.speed < 5 ? 'Walk' : 'Run');
+    const wIdle = Math.max(0, 1 - s.speed), wRun = Math.max(0, Math.min(1, (s.speed - 4) / 2)), wWalk = Math.max(0, 1 - wIdle - wRun);
+    const L = { Platformer: ['Run', 'Long jump', 'Wall jump', 'Ledge grab', 'Climb', 'Crouch', 'Slide', 'Back flip'], Combat: ['Sword combo', 'Spear thrust', 'Axe chop', 'Punches', 'Bow draw', 'Shield block', 'Dodge', 'Defeat'], RPG: ['Battle idle', 'Cast spell', 'Use item', 'Victory', 'Level up'], Racing: ['Get in', 'Steer', 'Look back', 'Ride a horse', 'Fly a plane'], Sports: ['Kick', 'Dribble', 'Shoot', 'Pass', 'Swing a club', 'Bowl', 'Celebrate'], Story: ['Talk', 'Sit', 'Sleep', 'Work', 'Shop', 'Wave', 'Dance'], Creatures: ['Gallop', 'Fly', 'Slither', 'Crawl', 'Hop', 'Swim'], Things: ['Flag wave', 'Windmill', 'Water wheel', 'Door swing', 'Rotor'] };
+    const seg = (a, b) => { const x1 = P[a][0] + 70, y1 = P[a][1] + 30, x2 = P[b][0] + 70, y2 = P[b][1] + 30; const dx = x2 - x1, dy = y2 - y1; return 'position: absolute; left: ' + x1 + 'px; top: ' + y1 + 'px; width: ' + Math.hypot(dx, dy) + 'px; height: 3px; transform-origin: 0 50%; transform: rotate(' + (Math.atan2(dy, dx) * 180 / Math.PI) + 'deg); background: ' + ((a === live || b === live) ? '#ffcc00' : '#33363e'); };
+    const flash = (n) => { this.setState({ now: n }); clearTimeout(this.tm); this.tm = setTimeout(() => this.setState({ now: null }), 900); };
+    return {
+      edges: E.map(([a, b]) => seg(a, b)),
+      nodes: Object.keys(P).map((n) => ({ name: n, clip: s.clips[n], pick: () => this.setState({ sel: n }),
+        style: 'position: absolute; left: ' + P[n][0] + 'px; top: ' + P[n][1] + 'px; width: 140px; height: 60px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; background: ' + (n === live ? '#45c46e' : '#24262d') + '; color: ' + (n === live ? '#141519' : '#f2f2f4') + '; box-shadow: ' + (n === s.sel ? '0 0 0 3px #ffcc00' : 'none'),
+        drop: (e) => { e.preventDefault(); const c = e.dataTransfer.getData('text/plain'); if (c) this.setState({ clips: Object.assign({}, s.clips, { [n]: c }), sel: n, toast: n + ' now plays "' + c + '"' }); } })),
+      allow: (e) => e.preventDefault(),
+      speed: s.speed, setSpeed: (e) => this.setState({ speed: +e.target.value, now: null }),
+      blendText: s.now ? 'Playing ' + s.now : Math.round(wIdle * 100) + '% idle · ' + Math.round(wWalk * 100) + '% walk · ' + Math.round(wRun * 100) + '% run',
+      blend: [[wIdle, '#9ea3ad'], [wWalk, '#ffcc00'], [wRun, '#ff8a3d']].map(([w, c]) => 'flex: ' + w + ' 1 0; background: ' + c),
+      triggers: ['Jump', 'Attack', 'Hurt', 'Swim'].map((n) => ({ name: n, run: () => flash(n) })),
+      groups: Object.keys(L).map((g) => ({ name: g, cls: H.tab(g === s.group), pick: () => this.setState({ group: g }) })),
+      clips: L[s.group].map((c) => ({ name: c, start: (e) => e.dataTransfer.setData('text/plain', c) })),
+      layers: [['upper', 'Upper body on its own', 'Swing a sword while running'], ['face', 'Face', 'Expressions and talking'], ['breath', 'Breathing', 'Small movement on top'], ['carry', 'Carrying', 'Arms hold what is lifted']].map(([k, n, d]) => ({ name: n, desc: d, flip: () => this.setState({ layers: Object.assign({}, s.layers, { [k]: !s.layers[k] }) }), track: H.track(s.layers[k]), knob: H.knob(s.layers[k]) })),
+      auto: [['feet', 'Feet land on bumpy bricks'], ['look', 'Head turns to look'], ['swing', 'Capes, tails and hair swing'], ['tumble', 'Falls apart into bricks when beaten']].map(([k, n]) => ({ name: n, flip: () => this.setState({ auto: Object.assign({}, s.auto, { [k]: !s.auto[k] }) }), track: H.track(s.auto[k]), knob: H.knob(s.auto[k]) })),
+      toast: H.toast(s.toast),
+      undo: () => this.setState({ toast: null })
+    };
+  }
+}

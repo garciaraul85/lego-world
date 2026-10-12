@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Your media</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif">
+  <dc-import name="Nav" active="build" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Your pictures, sounds, music and videos</span><span style="font-size: 13px; color: #9ea3ad">Bring in your own files. Big ones are shrunk so the game stays fast.</span></div>
+      <label class="btn pri" style="cursor: pointer">Choose files<input type="file" multiple accept="image/*,audio/*,video/*" style="display: none" onChange="{{pick}}"></label>
+      <span style="flex: 1 1 auto"></span>
+      
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="build" active="Your media" hint-size="900px,46px"></dc-import>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+        <div style="{{drop}}" onDragOver="{{allow}}" onDragEnter="{{enter}}" onDragLeave="{{leave}}" onDrop="{{dropFiles}}">
+          <b style="font-size: 16px">Drop pictures, sounds, music or videos here</b>
+          <span style="font-size: 13px; color: #9ea3ad">PNG, JPG, WebP, SVG · MP3, WAV, OGG · MP4, WebM</span>
+        </div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap"><sc-for list="{{kinds}}" as="k" hint-placeholder-count="5"><button type="button" style="{{k.style}}" onClick="{{k.pick}}">{{k.name}}</button></sc-for></div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px">
+          <sc-for list="{{files}}" as="f" hint-placeholder-count="8">
+            <button type="button" style="{{f.card}}" onClick="{{f.pick}}">
+              <span style="{{f.thumb}}"><sc-if value="{{f.hasImg}}" hint-placeholder-val="{{ false }}"><img src="{{f.url}}" alt="" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px"></sc-if><sc-if value="{{f.noImg}}" hint-placeholder-val="{{ true }}"><span style="font-size: 30px">{{f.icon}}</span></sc-if></span>
+              <b style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%">{{f.name}}</b>
+              <span style="font-size: 12px; color: #9ea3ad">{{f.meta}}</span>
+              <span style="{{f.flagStyle}}">{{f.flag}}</span>
+            </button>
+          </sc-for>
+        </div>
+      </section>
+      <aside style="flex: 1 1 300px; max-width: 340px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="lbl">Game size</span>
+          <div style="height: 12px; border-radius: 6px; background: #33363e; overflow: hidden; display: flex"><sc-for list="{{budget}}" as="b" hint-placeholder-count="4"><span style="{{b}}"></span></sc-for></div>
+          <span style="font-size: 13px; color: #b4b9c2">{{budgetText}}</span>
+        </div>
+        <sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}">
+          <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+            <b style="font-size: 17px; word-break: break-all">{{sel.name}}</b>
+            <span style="font-size: 13px; color: #9ea3ad">{{sel.meta}}</span>
+            <sc-if value="{{sel.isAudio}}" hint-placeholder-val="{{ false }}"><audio controls src="{{sel.url}}" style="width: 100%"></audio></sc-if>
+            <sc-if value="{{sel.isVideo}}" hint-placeholder-val="{{ false }}"><video controls src="{{sel.url}}" style="width: 100%; border-radius: 10px"></video></sc-if>
+            <sc-for list="{{checks}}" as="c" hint-placeholder-count="3"><div style="display: flex; gap: 8px; font-size: 13px; line-height: 1.4"><span style="{{c.dot}}">{{c.mark}}</span><span>{{c.text}}</span></div></sc-for>
+            <div class="fld">Use it as<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{uses}}" as="u" hint-placeholder-count="4"><button type="button" style="{{u.style}}" onClick="{{u.pick}}">{{u.name}}</button></sc-for></div></div>
+            <div class="fld">Who made it?<div style="display: flex; flex-direction: column; gap: 6px"><sc-for list="{{licences}}" as="u" hint-placeholder-count="3"><button type="button" style="{{u.style}}" onClick="{{u.pick}}">{{u.name}}</button></sc-for></div></div>
+            <sc-if value="{{sel.isMusic}}" hint-placeholder-val="{{ false }}"><label style="display: flex; align-items: center; gap: 8px; font-size: 14px"><input type="checkbox" checked style="accent-color: #ffcc00; width: 18px; height: 18px">Loop it smoothly</label></sc-if>
+            <button type="button" class="btn" onClick="{{remove}}">Remove from game</button>
+          </div>
+        </sc-if>
+        <div class="card" style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #b4b9c2; line-height: 1.5">
+          <span class="lbl">Limits</span>
+          <span>Pictures: up to 10 MB, shrunk to 2048 px.</span><span>Sounds: up to 10 MB. Music: up to 25 MB.</span><span>Videos: up to 100 MB and 3 minutes, shrunk to 720p.</span><span>Whole game: 300 MB to share on the web.</span>
+        </div>
+      </aside>
+      <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}"><div class="toast">{{toast.text}}<button type="button" class="btn" style="min-height: 34px" onClick="{{undo}}">Undo</button></div></sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 10;
+    const F = (name, kind, mb, extra) => Object.assign({ id: 'f' + (this.n++), name, kind, mb, url: '', use: { image: 'Brick print', sound: 'Sound effect', music: 'Music', video: 'Cutscene' }[kind], lic: 'I made it' }, extra || {});
+    this.state = { kind: 'All', over: false, toast: null, sel: 'f11',
+      files: [F('castle-sign.png', 'image', 0.4, { w: 512, h: 256 }), F('dragon-art.jpg', 'image', 14.2, { w: 6000, h: 4000 }), F('door-creak.wav', 'sound', 1.1, { sec: 2 }), F('my-band-song.mp3', 'music', 6.3, { sec: 184, lic: 'Not sure' }), F('intro-video.mp4', 'video', 64, { sec: 95, w: 1920, h: 1080 }), F('voice-mason-01.ogg', 'sound', 0.3, { sec: 4 })] };
+  }
+  renderVals() {
+    const s = this.state;
+    const LIM = { image: 10, sound: 10, music: 25, video: 100 };
+    const kindOf = (t, name) => (t.indexOf('image') === 0 ? 'image' : t.indexOf('video') === 0 ? 'video' : t.indexOf('audio') === 0 ? (/song|music|theme|track/i.test(name) ? 'music' : 'sound') : null);
+    const add = (list) => {
+      const added = [];
+      Array.from(list || []).forEach((file) => {
+        const kind = kindOf(file.type || '', file.name); if (!kind) return;
+        const url = (typeof URL !== 'undefined' && URL.createObjectURL) ? URL.createObjectURL(file) : '';
+        const f = { id: 'f' + (this.n++), name: file.name, kind, mb: Math.round(file.size / 1048576 * 10) / 10, url, use: { image: 'Brick print', sound: 'Sound effect', music: 'Music', video: 'Cutscene' }[kind], lic: 'I made it' };
+        added.push(f);
+        if (kind === 'image' && typeof Image !== 'undefined') { const im = new Image(); im.onload = () => this.setState({ files: this.state.files.map((x) => (x.id === f.id ? Object.assign({}, x, { w: im.naturalWidth, h: im.naturalHeight }) : x)) }); im.src = url; }
+        if ((kind === 'sound' || kind === 'music' || kind === 'video') && typeof document !== 'undefined') { const el = document.createElement(kind === 'video' ? 'video' : 'audio'); el.preload = 'metadata'; el.onloadedmetadata = () => this.setState({ files: this.state.files.map((x) => (x.id === f.id ? Object.assign({}, x, { sec: Math.round(el.duration), w: el.videoWidth || undefined, h: el.videoHeight || undefined }) : x)) }); el.src = url; }
+      });
+      if (added.length) this.setState({ files: added.concat(s.files), sel: added[0].id, toast: added.length + ' file' + (added.length > 1 ? 's' : '') + ' added. Checking sizes…' });
+      else this.setState({ toast: 'Those files are not pictures, sounds, music or videos.' });
+    };
+    const issues = (f) => {
+      const out = [];
+      if (f.mb > LIM[f.kind]) out.push(['bad', 'Too big: ' + f.mb + ' MB (limit ' + LIM[f.kind] + ' MB). ' + (f.kind === 'video' ? 'It will be shrunk to 720p first; if still too big, trim it.' : 'It will be compressed.')]);
+      if (f.kind === 'image' && f.w > 2048) out.push(['warn', f.w + '×' + f.h + ' px will be shrunk to fit 2048 px.']);
+      if (f.kind === 'video' && f.sec > 180) out.push(['bad', 'Longer than 3 minutes. Trim it before using it.']);
+      if (f.kind === 'video' && f.h > 720) out.push(['warn', f.h + 'p will be shrunk to 720p.']);
+      if (f.lic === 'Not sure') out.push(['bad', 'You can share the game only when you know who made this.']);
+      if (!out.length) out.push(['ok', 'Ready to use.']);
+      return out;
+    };
+    const fmt = (sec) => (sec >= 60 ? Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0') : sec + ' s');
+    const meta = (f) => f.mb + ' MB' + (f.w ? ' · ' + f.w + '×' + f.h : '') + (f.sec ? ' · ' + fmt(f.sec) : '');
+    const ICON = { image: '🖼', sound: '🔊', music: '🎵', video: '🎬' };
+    const sel = s.files.find((f) => f.id === s.sel);
+    const total = s.files.reduce((a, f) => a + Math.min(f.mb, LIM[f.kind] * 0.6), 0) + 42;
+    const by = (k) => s.files.filter((f) => f.kind === k).reduce((a, f) => a + Math.min(f.mb, LIM[k] * 0.6), 0);
+    const KC = { image: '#7cc7ff', sound: '#45c46e', music: '#a78bfa', video: '#ff8a3d' };
+    const USES = { image: ['Brick print', 'Picture in a screen', 'Loading screen art', 'Credits picture'], sound: ['Sound effect', 'Voice line', 'Ambience'], music: ['Music', 'Title music', 'Boss music'], video: ['Cutscene', 'Intro', 'Ending', 'Video on a screen'] };
+    const set = (o) => this.setState({ files: s.files.map((f) => (f.id === s.sel ? Object.assign({}, f, o) : f)) });
+    return {
+      drop: 'display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; height: 120px; border-radius: 20px; background: #1d1f25; border: 3px dashed ' + (s.over ? '#ffcc00' : '#33363e'),
+      allow: (e) => e.preventDefault(), enter: () => this.setState({ over: true }), leave: () => this.setState({ over: false }),
+      dropFiles: (e) => { e.preventDefault(); this.setState({ over: false }); add(e.dataTransfer.files); },
+      pick: (e) => add(e.target.files),
+      kinds: [['All', 'All'], ['image', 'Pictures'], ['sound', 'Sounds'], ['music', 'Music'], ['video', 'Videos']].map(([k, n]) => ({ name: n, style: H.pick(k === s.kind) + '; min-height: 32px; border-radius: 999px; font-size: 13px', pick: () => this.setState({ kind: k }) })),
+      files: s.files.filter((f) => s.kind === 'All' || f.kind === s.kind).map((f) => { const worst = issues(f)[0][0]; return {
+        name: f.name, meta: meta(f), url: f.url, hasImg: f.kind === 'image' && !!f.url, noImg: !(f.kind === 'image' && f.url), icon: ICON[f.kind],
+        flag: worst === 'ok' ? 'Ready' : worst === 'warn' ? 'Will be shrunk' : 'Needs attention',
+        flagStyle: 'font-size: 11px; font-weight: 800; color: ' + (worst === 'ok' ? '#45c46e' : worst === 'warn' ? '#ffcc00' : '#ff6b6b'),
+        thumb: 'display: flex; align-items: center; justify-content: center; width: 100%; height: 100px; border-radius: 10px; background: ' + KC[f.kind] + '33',
+        card: H.card(f.id === s.sel) + '; gap: 6px', pick: () => this.setState({ sel: f.id }) }; }),
+      budget: ['image', 'sound', 'music', 'video'].map((k) => 'height: 100%; background: ' + KC[k] + '; width: ' + (by(k) / 300 * 100) + '%'),
+      budgetText: Math.round(total) + ' MB of 300 MB after shrinking (bricks and code use 42 MB)',
+      hasSel: !!sel,
+      sel: sel ? { name: sel.name, meta: meta(sel), url: sel.url, isAudio: (sel.kind === 'sound' || sel.kind === 'music') && !!sel.url, isVideo: sel.kind === 'video' && !!sel.url, isMusic: sel.kind === 'music' } : { name: '', meta: '', url: '', isAudio: false, isVideo: false, isMusic: false },
+      checks: sel ? issues(sel).map(([k, t]) => ({ text: t, mark: k === 'ok' ? '✓' : '!', dot: 'flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #141519; background: ' + (k === 'ok' ? '#45c46e' : k === 'warn' ? '#ffcc00' : '#ff6b6b') })) : [],
+      uses: sel ? USES[sel.kind].map((u) => ({ name: u, style: H.pick(u === sel.use) + '; min-height: 30px; font-size: 12px', pick: () => set({ use: u }) })) : [],
+      licences: sel ? ['I made it', 'Free to use (I have the link)', 'Not sure'].map((u) => ({ name: u, style: H.pick(u === sel.lic) + '; min-height: 32px; font-size: 13px', pick: () => set({ lic: u }) })) : [],
+      remove: () => this.setState({ files: s.files.filter((f) => f.id !== s.sel), sel: null }),
+      toast: H.toast(s.toast),
+      undo: () => this.setState({ toast: null })
+    };
+  }
+}
+</script>
+</body>
+</html>

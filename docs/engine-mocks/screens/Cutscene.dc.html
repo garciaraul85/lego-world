@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cutscenes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}">
+  <dc-import name="Nav" active="cutscene" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Bridge reveal</span><span style="font-size: 13px; color: #9ea3ad">Plays when the Bridge pile is built</span></div>
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <button type="button" class="btn pri" onClick="{{preview}}">{{previewLabel}}</button>
+    </header>
+    <div data-stage="1" style="position: relative; display: flex; flex-direction: column; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <div style="display: flex; flex-wrap: wrap; gap: 14px">
+        <div style="position: relative; flex: 999 1 560px; min-height: 420px; border-radius: 20px; overflow: hidden; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px; user-select: none" onMouseMove="{{move}}" onMouseUp="{{up}}" onMouseLeave="{{up}}">
+          <div style="position: absolute; left: 0; right: 0; top: 240px; height: 60px; background: #0d0e10"></div>
+          <div style="{{bridge}}"></div>
+          <sc-for list="{{paths}}" as="d" hint-placeholder-count="12"><span style="{{d}}"></span></sc-for>
+          <sc-for list="{{actors}}" as="a" hint-placeholder-count="2">
+            <div style="{{a.style}}" onMouseDown="{{a.down}}"><span style="{{a.body}}"></span><span style="font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px #000">{{a.name}}</span></div>
+          </sc-for>
+          <div style="{{cam}}"><span style="position: absolute; left: 8px; top: 6px; font-size: 12px; font-weight: 700; color: #ffcc00">CAMERA · {{shot}}</span></div>
+          <div style="position: absolute; left: 14px; top: 14px; display: flex; gap: 8px; align-items: center">
+            <button type="button" style="{{recStyle}}" onClick="{{toggleRec}}"><span style="width: 10px; height: 10px; border-radius: 50%; background: #fff"></span>{{recLabel}}</button>
+            <span style="font-size: 13px; color: #e4e6ea; text-shadow: 0 1px 2px #000">{{recHint}}</span>
+          </div>
+        </div>
+        <aside class="card" style="flex: 1 1 240px; max-width: 300px; display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Shots</span>
+          <sc-for list="{{shots}}" as="sh" hint-placeholder-count="3"><button type="button" style="{{sh.style}}" onClick="{{sh.pick}}"><span>{{sh.name}}</span><span style="color: #9ea3ad; font-size: 12px">{{sh.len}}</span></button></sc-for>
+          <button type="button" class="btn" onClick="{{addShot}}">Add shot</button>
+          <span class="lbl" style="margin-top: 8px">Drag onto the timeline</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{palette}}" as="p" hint-placeholder-count="5"><span class="chip" draggable="true" onDragStart="{{p.start}}">{{p.name}}</span></sc-for></div>
+        </aside>
+      </div>
+      <div class="card" style="display: flex; flex-direction: column; gap: 8px; padding: 14px 18px">
+        <div style="display: flex; align-items: center; gap: 12px; font-size: 13px; color: #9ea3ad"><span>Drag clips to move them, drag the right edge to stretch. Right-click to split.</span><span style="flex: 1 1 auto"></span><span>{{timeText}}</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <sc-for list="{{tracks}}" as="t" hint-placeholder-count="5">
+            <div style="display: flex; gap: 10px; align-items: center">
+              <span style="width: 90px; font-size: 13px; font-weight: 600; color: #b4b9c2">{{t.name}}</span>
+              <div style="position: relative; flex: 1 1 auto; height: 36px; border-radius: 9px; background: #141519" data-lane="{{t.name}}" onMouseMove="{{dragMove}}" onMouseUp="{{up}}" onMouseDown="{{scrub}}" onDragOver="{{allow}}" onDrop="{{t.drop}}">
+                <sc-for list="{{t.clips}}" as="c" hint-placeholder-count="2">
+                  <div style="{{c.style}}" onMouseDown="{{c.down}}" onContextMenu="{{c.menu}}">{{c.label}}<span style="position: absolute; right: 0; top: 0; bottom: 0; width: 10px; cursor: ew-resize; border-radius: 0 8px 8px 0; background: #0003" onMouseDown="{{c.grow}}"></span></div>
+                </sc-for>
+                <span style="{{playhead}}"></span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}">
+        <div class="menu" style="{{menu.style}}">
+          <span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">{{menu.title}}</span>
+          <sc-for list="{{menu.items}}" as="i" hint-placeholder-count="4"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 20;
+    this.state = {
+      rec: false, recording: null, playing: false, t: 2, shot: 'Wide', menu: null, hist: [], cdrag: null,
+      actors: { Hero: { x: 120, y: 330, c: '#e8463c', path: [] }, 'Old Mason': { x: 560, y: 120, c: '#6fb7f0', path: [[560, 120], [520, 160], [470, 200]] } },
+      shots: [['Wide', 4], ['Close on bridge', 3], ['Over the shoulder', 5]],
+      clips: [
+        { id: 'c1', track: 'Camera', s: 0, l: 4, label: 'Wide', col: '#ffcc00' }, { id: 'c2', track: 'Camera', s: 4, l: 3, label: 'Close on bridge', col: '#ffcc00' }, { id: 'c3', track: 'Camera', s: 7, l: 5, label: 'Over the shoulder', col: '#ffcc00' },
+        { id: 'c4', track: 'Hero', s: 1, l: 3, label: 'Look at bridge', col: '#e8463c' },
+        { id: 'c5', track: 'Old Mason', s: 3, l: 4, label: 'Walk path', col: '#6fb7f0' },
+        { id: 'c6', track: 'Talk', s: 7, l: 4, label: '"Fine work!"', col: '#a78bfa' },
+        { id: 'c7', track: 'Sound', s: 3.5, l: 2, label: 'Bricks click', col: '#45c46e' }
+      ]
+    };
+  }
+  renderVals() {
+    const s = this.state; const T = 14;
+    const snapshot = () => s.hist.concat([{ clips: s.clips, actors: s.actors }]).slice(-20);
+    const lanePt = (e) => { const lane = e.currentTarget.closest('[data-lane]'); const r = lane.getBoundingClientRect(); return Math.max(0, Math.min(T, (e.clientX - r.left) / r.width * T)); };
+    const posAt = (a) => { if (!a.path.length || s.recording) return [a.x, a.y]; const clip = s.clips.find((c) => c.track === a.name && c.label === 'Walk path'); if (!clip) return [a.x, a.y]; const f = Math.max(0, Math.min(1, (s.t - clip.s) / clip.l)); const i = Math.round(f * (a.path.length - 1)); return a.path[i]; };
+    const m = s.menu; const mc = m ? s.clips.find((c) => c.id === m.id) : null;
+    const tracks = ['Camera', 'Hero', 'Old Mason', 'Talk', 'Sound'];
+    const camClip = s.clips.filter((c) => c.track === 'Camera').find((c) => s.t >= c.s && s.t < c.s + c.l);
+    const shotName = camClip ? camClip.label : s.shot;
+    const zoom = shotName === 'Wide' ? [40, 30, 640, 360] : shotName === 'Close on bridge' ? [220, 180, 240, 150] : [80, 230, 340, 190];
+    return {
+      bridge: 'position: absolute; left: 260px; top: 240px; width: 140px; height: 60px; background: #c9893f; opacity: ' + (s.t > 3.5 ? 1 : 0.2),
+      paths: Object.keys(s.actors).reduce((acc, k) => acc.concat(s.actors[k].path.filter((_, i) => i % 3 === 0).map((p) => 'position: absolute; left: ' + (p[0] + 20) + 'px; top: ' + (p[1] + 20) + 'px; width: 6px; height: 6px; border-radius: 50%; background: ' + s.actors[k].c + 'aa')), []),
+      actors: Object.keys(s.actors).map((k) => { const a = Object.assign({ name: k }, s.actors[k]); const [x, y] = posAt(a); return { name: k,
+        style: 'position: absolute; left: ' + x + 'px; top: ' + y + 'px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: ' + (s.rec ? 'grab' : 'default'),
+        body: 'width: 44px; height: 44px; border-radius: 22px 22px 10px 10px; background: ' + a.c + (s.rec ? '; box-shadow: 0 0 0 3px #e8463c' : ''),
+        down: (e) => { if (!s.rec) return; e.preventDefault(); this.setState({ hist: snapshot(), recording: k, actors: Object.assign({}, s.actors, { [k]: Object.assign({}, s.actors[k], { path: [[x, y]] }) }) }); } }; }),
+      move: (e) => { if (!s.recording) return; const r = e.currentTarget.getBoundingClientRect(); const p = [e.clientX - r.left - 22, e.clientY - r.top - 22]; const a = s.actors[s.recording]; this.setState({ actors: Object.assign({}, s.actors, { [s.recording]: Object.assign({}, a, { x: p[0], y: p[1], path: a.path.concat([p]) }) }) }); },
+      up: () => {
+        if (s.recording) { const k = s.recording; const len = Math.max(1, Math.min(6, s.actors[k].path.length / 20)); this.setState({ recording: null, rec: false, clips: s.clips.filter((c) => !(c.track === k && c.label === 'Walk path')).concat([{ id: 'c' + (this.n++), track: k, s: Math.round(s.t * 2) / 2, l: Math.round(len * 2) / 2, label: 'Walk path', col: s.actors[k].c }]), actors: Object.assign({}, s.actors, { [k]: Object.assign({}, s.actors[k], { x: s.actors[k].path[0][0], y: s.actors[k].path[0][1] }) }) }); }
+        if (s.cdrag) this.setState({ cdrag: null });
+      },
+      cam: 'position: absolute; left: ' + zoom[0] + 'px; top: ' + zoom[1] + 'px; width: ' + zoom[2] + 'px; height: ' + zoom[3] + 'px; border: 3px solid #ffcc00; border-radius: 10px; pointer-events: none; transition: all .4s',
+      shot: shotName,
+      recStyle: 'display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 700 13px Figtree, sans-serif; color: #fff; background: ' + (s.rec ? '#e8463c' : '#141519cc'),
+      recLabel: s.rec ? 'Recording' : 'Record a move',
+      recHint: s.rec ? 'Drag a character along the path you want' : '',
+      toggleRec: () => this.setState({ rec: !s.rec }),
+      shots: s.shots.map(([n, l]) => ({ name: n, len: l + ' s', pick: () => this.setState({ shot: n }), style: 'display: flex; justify-content: space-between; min-height: 40px; align-items: center; padding: 0 12px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; color: #f2f2f4; background: ' + (n === shotName ? '#3a3420' : '#24262d') })),
+      addShot: () => { const n = 'Shot ' + (s.shots.length + 1); const end = s.clips.filter((c) => c.track === 'Camera').reduce((a, c) => Math.max(a, c.s + c.l), 0); this.setState({ hist: snapshot(), shots: s.shots.concat([[n, 2]]), clips: s.clips.concat([{ id: 'c' + (this.n++), track: 'Camera', s: Math.min(end, T - 2), l: 2, label: n, col: '#ffcc00' }]) }); },
+      palette: [['Line of talk', 'Talk', '#a78bfa'], ['Sound', 'Sound', '#45c46e'], ['Shake', 'Camera', '#ffcc00'], ['Fade out', 'Camera', '#ffcc00'], ['Wave', 'Hero', '#e8463c']].map(([n, tr, c]) => ({ name: n, start: (e) => e.dataTransfer.setData('text/plain', n + '|' + tr + '|' + c) })),
+      allow: (e) => e.preventDefault(),
+      tracks: tracks.map((tr) => ({ name: tr,
+        drop: (e) => { e.preventDefault(); const [n, , c] = e.dataTransfer.getData('text/plain').split('|'); if (!n) return; const r = e.currentTarget.getBoundingClientRect(); const st = Math.round((e.clientX - r.left) / r.width * T * 2) / 2; this.setState({ hist: snapshot(), clips: s.clips.concat([{ id: 'c' + (this.n++), track: tr, s: st, l: 2, label: n, col: c }]) }); },
+        clips: s.clips.filter((c) => c.track === tr).map((c) => ({ label: c.label,
+          style: 'position: absolute; top: 3px; bottom: 3px; left: ' + (c.s / T * 100) + '%; width: calc(' + (c.l / T * 100) + '% - 3px); border-radius: 8px; padding: 0 14px 0 10px; display: flex; align-items: center; overflow: hidden; white-space: nowrap; font-size: 12px; font-weight: 700; color: #141519; cursor: grab; user-select: none; background: ' + c.col + (m && m.id === c.id ? '; box-shadow: 0 0 0 2px #fff' : ''),
+          down: (e) => { if (e.button !== 0) return; e.stopPropagation(); this.setState({ hist: snapshot(), cdrag: { id: c.id, mode: 'move', off: lanePt(e) - c.s } }); },
+          grow: (e) => { e.stopPropagation(); this.setState({ hist: snapshot(), cdrag: { id: c.id, mode: 'grow' } }); },
+          menu: (e) => { e.preventDefault(); e.stopPropagation(); const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); this.setState({ menu: { id: c.id, at: lanePt(e), x: Math.min(e.clientX - r.left, r.width - 240), y: e.clientY - r.top - 210 } }); } }))
+      })),
+      dragMove: (e) => { const d = s.cdrag; if (!d) return; const v = Math.round(lanePt(e) * 2) / 2; this.setState({ clips: s.clips.map((c) => (c.id !== d.id ? c : d.mode === 'move' ? Object.assign({}, c, { s: Math.max(0, Math.min(T - c.l, Math.round((lanePt(e) - d.off) * 2) / 2)) }) : Object.assign({}, c, { l: Math.max(0.5, v - c.s) }))) }); },
+      scrub: (e) => { if (e.button !== 0) return; this.setState({ t: Math.round(lanePt(e) * 4) / 4 }); },
+      playhead: 'position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; pointer-events: none; left: ' + (s.t / T * 100) + '%',
+      timeText: s.t.toFixed(1) + ' s of ' + T + ' s',
+      preview: () => { if (s.playing) { clearInterval(this.timer); this.setState({ playing: false }); return; } this.setState({ playing: true, t: 0 }); clearInterval(this.timer); this.timer = setInterval(() => { const t = this.state.t + 0.1; if (t >= T) { clearInterval(this.timer); this.setState({ playing: false, t: 0 }); } else this.setState({ t }); }, 50); },
+      previewLabel: s.playing ? 'Stop' : 'Preview',
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: mc ? { show: true, title: mc.label, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items: [
+        { label: 'Split here', key: 'S', run: () => { const at = Math.round(m.at * 2) / 2; if (at <= mc.s || at >= mc.s + mc.l) { this.setState({ menu: null }); return; } this.setState({ menu: null, hist: snapshot(), clips: s.clips.filter((c) => c.id !== mc.id).concat([Object.assign({}, mc, { l: at - mc.s }), Object.assign({}, mc, { id: 'c' + (this.n++), s: at, l: mc.s + mc.l - at })]) }); } },
+        { label: 'Ease in and out', key: '', run: () => this.setState({ menu: null, clips: s.clips.map((c) => (c.id === mc.id ? Object.assign({}, c, { label: c.label.replace(/ · eased$/, '') + ' · eased' }) : c)) }) },
+        { label: 'Duplicate', key: '', run: () => this.setState({ menu: null, hist: snapshot(), clips: s.clips.concat([Object.assign({}, mc, { id: 'c' + (this.n++), s: Math.min(T - mc.l, mc.s + mc.l) })]) }) },
+        { label: 'Delete', key: 'Del', run: () => this.setState({ menu: null, hist: snapshot(), clips: s.clips.filter((c) => c.id !== mc.id) }) }
+      ] } : { show: false, items: [] },
+      undo: () => { if (!s.hist.length) return; const h = s.hist[s.hist.length - 1]; this.setState({ clips: h.clips, actors: h.actors, hist: s.hist.slice(0, -1) }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

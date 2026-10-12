@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Starter packs</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif">
+  <dc-import name="Nav" active="build" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Starter packs</span><span style="font-size: 13px; color: #9ea3ad">Ready-made characters, buildings, sounds, music and scripts for every genre</span></div>
+      
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="build" active="Starter packs" hint-size="900px,46px"></dc-import>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{genres}}" as="g" hint-placeholder-count="10"><button type="button" style="{{g.style}}" onClick="{{g.pick}}">{{g.name}}</button></sc-for></div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px">
+          <sc-for list="{{packs}}" as="p" hint-placeholder-count="6">
+            <button type="button" style="{{p.style}}" onClick="{{p.pick}}">
+              <span style="{{p.art}}"><sc-if value="{{p.added}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; right: 8px; top: 8px; padding: 3px 8px; border-radius: 999px; background: #45c46e; color: #141519; font-size: 11px; font-weight: 800">ADDED</span></sc-if></span>
+              <span style="font-size: 16px; font-weight: 700">{{p.name}}</span>
+              <span style="font-size: 13px; color: #9ea3ad">{{p.genre}} · {{p.count}} things</span>
+            </button>
+          </sc-for>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 340px; max-width: 400px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
+        <span style="{{cur.art}}"></span>
+        <div><div style="font-size: 22px; font-weight: 800">{{cur.name}}</div><div style="font-size: 14px; color: #b4b9c2; margin-top: 4px; line-height: 1.5">{{cur.blurb}}</div></div>
+        <span class="lbl">What's inside · untick what you don't want</span>
+        <sc-for list="{{cur.parts}}" as="x" hint-placeholder-count="7">
+          <button type="button" onClick="{{x.flip}}" style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; border: none; background: #24262d; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer; text-align: left">
+            <span style="{{x.box}}">{{x.mark}}</span><span style="flex: 1 1 auto"><b>{{x.n}}</b> {{x.kind}}</span><span style="font-size: 12px; color: #9ea3ad">{{x.eg}}</span>
+          </button>
+        </sc-for>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <button type="button" class="btn pri" onClick="{{add}}">{{addLabel}}</button>
+          <a class="btn" href="Play.dc.html">Try the sample level</a>
+        </div>
+        <span style="font-size: 12px; color: #9ea3ad; line-height: 1.5">Everything in a pack is built with the same tools you have, so you can open and change any of it.</span>
+      </aside>
+      <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}"><div class="toast">{{toast.text}}<button type="button" class="btn" style="min-height: 34px" onClick="{{undo}}">Undo</button></div></sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { genre: 'All', cur: 'Dungeon kit', added: [], off: {}, toast: null };
+  }
+  renderVals() {
+    const s = this.state;
+    const P = [
+      ['Dungeon kit', 'Adventure', '#3b78c9', '#ffcc00', 'Rooms, keys, push blocks, a boss and a tool for each dungeon.'],
+      ['Village kit', 'Adventure', '#45c46e', '#e8463c', 'Houses, shops, villagers with dialogue and a fishing spot.'],
+      ['Jump world', 'Platformer', '#e8463c', '#45c46e', 'Moving platforms, coins, stars, checkpoints and a flag.'],
+      ['Race day', 'Racing', '#ffcc00', '#2f3440', 'Track pieces, 6 cars, lap counter, boost pads and a podium.'],
+      ['Stadium', 'Sports', '#45c46e', '#f2f2f4', 'Pitch, goals, ball, teams, referee and a score board.'],
+      ['Space blasters', 'Shooter', '#a78bfa', '#ff8a3d', 'Ships, lasers, enemy waves and power-ups.'],
+      ['Haunted manor', 'Story', '#3a1a5c', '#a78bfa', 'Spooky rooms, ghosts, a mystery and three endings.'],
+      ['Undersea', 'Explore', '#0b4a6e', '#7cc7ff', 'Reefs, fish, a submarine, air bubbles and treasure.'],
+      ['Hero party', 'RPG', '#ff8a3d', '#ffcc00', 'Party of four, turn-based battles, inn and quest board.']
+    ];
+    const parts = (g) => [[12, 'characters', g === 'Racing' ? 'Drivers, fans' : 'Villagers, guards, boss'], [24, 'buildings and props', 'Walls, doors, chests'], [18, 'sounds', 'Click, creak, coin'], [4, 'music tracks', 'Calm, tense, boss, win'], [9, 'scripts', 'Collect then open, Patrol'], [3, 'screens', 'HUD, pause, credits'], [1, 'sample level', 'Playable start to end']];
+    const genres = ['All'].concat(P.map((p) => p[1]).filter((g, i, a) => a.indexOf(g) === i));
+    const art = (a, b, h) => 'position: relative; display: block; width: 100%; height: ' + h + 'px; border-radius: 14px; background: linear-gradient(135deg, ' + a + ' 0 55%, ' + b + ' 55% 100%)';
+    const cur = P.find((p) => p[0] === s.cur);
+    const off = s.off[s.cur] || {};
+    const isAdded = s.added.indexOf(s.cur) >= 0;
+    return {
+      genres: genres.map((g) => ({ name: g, style: H.pick(g === s.genre) + '; min-height: 34px; border-radius: 999px', pick: () => this.setState({ genre: g }) })),
+      packs: P.filter((p) => s.genre === 'All' || p[1] === s.genre).map((p) => ({ name: p[0], genre: p[1], count: 71, added: s.added.indexOf(p[0]) >= 0, art: art(p[2], p[3], 110),
+        style: H.card(p[0] === s.cur) + '; gap: 8px', pick: () => this.setState({ cur: p[0] }) })),
+      cur: { name: cur[0], blurb: cur[4], art: art(cur[2], cur[3], 150),
+        parts: parts(cur[1]).map(([n, k, eg], i) => ({ n, kind: k, eg, mark: off[i] ? '' : '✓',
+          box: 'flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #141519; background: ' + (off[i] ? '#33363e' : '#ffcc00'),
+          flip: () => this.setState({ off: Object.assign({}, s.off, { [s.cur]: Object.assign({}, off, { [i]: !off[i] }) }) }) })) },
+      add: () => { if (isAdded) return; this.setState({ added: s.added.concat([s.cur]), toast: cur[0] + ' added. Find it in Scene › Library.' }); },
+      addLabel: isAdded ? 'Added to your game' : 'Add to my game',
+      toast: H.toast(s.toast),
+      undo: () => { if (!s.added.length) return; this.setState({ added: s.added.slice(0, -1), toast: null }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

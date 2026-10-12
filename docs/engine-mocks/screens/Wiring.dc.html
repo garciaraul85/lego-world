@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wiring</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}">
+  <dc-import name="Nav" active="logic" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Wiring</span><span style="font-size: 13px; color: #9ea3ad">Connect things so they work together. Drag from a yellow dot to a white dot.</span></div>
+      <div class="seg"><sc-for list="{{boards}}" as="b" hint-placeholder-count="3"><button type="button" class="{{b.cls}}" onClick="{{b.pick}}">{{b.name}}</button></sc-for></div>
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="logic" active="Wiring" hint-size="900px,46px"></dc-import>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 999 1 560px; min-width: 0; position: relative">
+        <div style="position: relative; height: 760px; border-radius: 20px; overflow: hidden; background-color: #17191e; background-image: radial-gradient(#262931 1.5px, transparent 1.5px); background-size: 24px 24px; user-select: none" onMouseMove="{{move}}" onMouseUp="{{up}}" onMouseLeave="{{up}}" onDragOver="{{allow}}" onDrop="{{dropNode}}" onContextMenu="{{noMenu}}">
+          <sc-for list="{{wires}}" as="w" hint-placeholder-count="5"><div style="{{w}}"></div></sc-for>
+          <sc-if value="{{ghost.show}}" hint-placeholder-val="{{ false }}"><div style="{{ghost.style}}"></div></sc-if>
+          <sc-for list="{{nodes}}" as="n" hint-placeholder-count="6">
+            <div style="{{n.style}}" onMouseDown="{{n.down}}" onContextMenu="{{n.menu}}">
+              <div style="display: flex; align-items: center; gap: 8px"><span style="{{n.icon}}"></span><span style="font-weight: 700; font-size: 14px">{{n.name}}</span></div>
+              <span style="font-size: 12px; color: #9ea3ad">{{n.state}}</span>
+              <sc-if value="{{n.toggle}}" hint-placeholder-val="{{ false }}"><button type="button" style="{{n.btn}}" onMouseDown="{{n.stop}}" onClick="{{n.flip}}">{{n.btnLabel}}</button></sc-if>
+              <sc-for list="{{n.ins}}" as="p" hint-placeholder-count="1"><span title="{{p.name}}" style="{{p.style}}" onMouseUp="{{p.connect}}"></span></sc-for>
+              <sc-for list="{{n.outs}}" as="p" hint-placeholder-count="1"><span title="Drag to connect" style="{{p.style}}" onMouseDown="{{p.start}}"></span></sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+      <aside style="flex: 1 1 260px; max-width: 300px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px; max-height: 560px; overflow: auto">
+          <span class="lbl">Pieces · drag in</span>
+          <sc-for list="{{palette}}" as="p" hint-placeholder-count="12"><div draggable="true" onDragStart="{{p.start}}" style="display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: #24262d; cursor: grab"><span style="{{p.icon}}"></span><span style="display: flex; flex-direction: column"><b style="font-size: 14px">{{p.name}}</b><span style="font-size: 12px; color: #9ea3ad">{{p.desc}}</span></span></div></sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #b4b9c2; line-height: 1.5">
+          <span class="lbl">Try it</span>
+          Press the buttons on the switches. Wires light up yellow when a signal flows.
+          <a href="Help.dc.html">More about wiring</a>
+        </div>
+      </aside>
+      <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}"><div class="menu" style="{{menu.style}}"><span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">{{menu.title}}</span><sc-for list="{{menu.items}}" as="i" hint-placeholder-count="4"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for></div></sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 20;
+    this.state = { board: 'Room puzzle', wire: null, drag: null, menu: null, hist: [],
+      graphs: {
+        'Room puzzle': {
+          nodes: [
+            { id: 'a', kind: 'Floor switch', x: 40, y: 60, on: true }, { id: 'b', kind: 'Torch', x: 40, y: 240, on: false }, { id: 'c', kind: 'Arrow target', x: 40, y: 420, on: false },
+            { id: 'd', kind: 'All of', x: 330, y: 150 }, { id: 'e', kind: 'Timer', x: 330, y: 420 },
+            { id: 'f', kind: 'Door', x: 600, y: 150 }, { id: 'g', kind: 'Chest', x: 600, y: 420 }
+          ],
+          wires: [['a', 'd', 0], ['b', 'd', 1], ['d', 'f', 0], ['c', 'e', 0], ['e', 'g', 0]]
+        },
+        'Car': {
+          nodes: [
+            { id: 'a', kind: 'Gas pedal', x: 40, y: 80, on: false }, { id: 'b', kind: 'Steering', x: 40, y: 300, on: false }, { id: 'c', kind: 'Horn button', x: 40, y: 500, on: false },
+            { id: 'd', kind: 'Engine', x: 320, y: 80 }, { id: 'e', kind: 'Wheels', x: 600, y: 160 }, { id: 'f', kind: 'Horn', x: 320, y: 500 }, { id: 'g', kind: 'Exhaust smoke', x: 600, y: 20 }
+          ],
+          wires: [['a', 'd', 0], ['d', 'e', 0], ['b', 'e', 1], ['c', 'f', 0], ['d', 'g', 0]]
+        },
+        'Knight': {
+          nodes: [
+            { id: 'a', kind: 'Sees player', x: 40, y: 100, on: true }, { id: 'b', kind: 'Health low', x: 40, y: 320, on: false },
+            { id: 'c', kind: 'Not', x: 300, y: 320 }, { id: 'd', kind: 'All of', x: 300, y: 120 }, { id: 'e', kind: 'Sword swing', x: 580, y: 120 }, { id: 'f', kind: 'Run away', x: 580, y: 340 }
+          ],
+          wires: [['a', 'd', 0], ['b', 'c', 0], ['c', 'd', 1], ['d', 'e', 0], ['b', 'f', 0]]
+        }
+      } };
+  }
+  renderVals() {
+    const s = this.state;
+    const g = s.graphs[s.board];
+    const K = {
+      'Floor switch': ['src', 0, '#8fa1b8'], Torch: ['src', 0, '#ffb347'], 'Arrow target': ['src', 0, '#e8463c'], 'Gas pedal': ['src', 0, '#45c46e'], Steering: ['src', 0, '#3b78c9'], 'Horn button': ['src', 0, '#ffcc00'], 'Sees player': ['src', 0, '#e8463c'], 'Health low': ['src', 0, '#ff6b6b'], Lever: ['src', 0, '#8a5a2b'],
+      'All of': ['and', 2, '#a78bfa'], 'In order': ['and', 2, '#a78bfa'], 'Light sensor': ['src', 0, '#ffd633'], Motor: ['pass', 1, '#ff8a3d'], Hinge: ['sink', 1, '#8a5a2b'], 'Hit box': ['pass', 1, '#e8463c'], 'Any of': ['or', 2, '#a78bfa'], Not: ['not', 1, '#a78bfa'], Timer: ['pass', 1, '#a78bfa'], Counter: ['count', 2, '#a78bfa'], Random: ['pass', 1, '#a78bfa'], Engine: ['pass', 1, '#ff8a3d'],
+      Door: ['sink', 1, '#8a5a2b'], Chest: ['sink', 1, '#c9893f'], Wheels: ['sink', 2, '#2f3440'], Horn: ['sink', 1, '#ffcc00'], 'Exhaust smoke': ['sink', 1, '#8b93a3'], 'Sword swing': ['sink', 1, '#d8d8d8'], 'Run away': ['sink', 1, '#6fb7f0'], Lamp: ['sink', 1, '#ffd633']
+    };
+    const W = 170, Hh = 110;
+    const val = {};
+    const get = (id, depth) => {
+      if (depth > 10) return false; if (id in val) return val[id];
+      const nd = g.nodes.find((x) => x.id === id); if (!nd) return false; const k = K[nd.kind] || ['pass', 1];
+      const ins = []; g.wires.filter((w) => w[1] === id).forEach((w) => { ins[w[2]] = (ins[w[2]] || false) || get(w[0], depth + 1); });
+      const v = k[0] === 'src' ? !!nd.on : k[0] === 'and' ? ins.length >= k[1] && ins.slice(0, k[1]).every(Boolean) : k[0] === 'or' ? ins.some(Boolean) : k[0] === 'not' ? !ins[0] : k[0] === 'count' ? ins.filter(Boolean).length >= 2 : ins.some(Boolean);
+      val[id] = v; return v;
+    };
+    g.nodes.forEach((nd) => get(nd.id, 0));
+    const outPt = (nd) => [nd.x + W, nd.y + 40];
+    const inPt = (nd, i) => [nd.x, nd.y + 40 + i * 26];
+    const line = (a, b, col, dash) => { const dx = b[0] - a[0], dy = b[1] - a[1]; return 'position: absolute; pointer-events: none; left: ' + a[0] + 'px; top: ' + (a[1] - 2) + 'px; width: ' + Math.sqrt(dx * dx + dy * dy) + 'px; height: 0; border-top: 4px ' + (dash ? 'dashed' : 'solid') + ' ' + col + '; transform-origin: 0 50%; transform: rotate(' + (Math.atan2(dy, dx) * 180 / Math.PI) + 'deg)'; };
+    const setG = (o, extra) => this.setState(Object.assign({ hist: s.hist.concat([s.graphs]).slice(-20), graphs: Object.assign({}, s.graphs, { [s.board]: Object.assign({}, g, o) }) }, extra || {}));
+    const byId = (id) => g.nodes.find((x) => x.id === id);
+    const stateText = (nd, v) => { const k = K[nd.kind] || ['pass']; if (k[0] === 'src') return v ? 'On' : 'Off'; if (k[0] === 'sink') return v ? ({ Door: 'Open', Hinge: 'Swinging', Chest: 'Unlocked', Wheels: 'Spinning', Horn: 'Honk!', 'Exhaust smoke': 'Puffing', 'Sword swing': 'Swinging', 'Run away': 'Running', Lamp: 'Lit' }[nd.kind] || 'On') : 'Waiting'; return v ? 'Passing signal' : 'No signal'; };
+    const m = s.menu; const mn = m ? byId(m.id) : null;
+    return {
+      boards: Object.keys(s.graphs).map((b) => ({ name: b, cls: H.tab(b === s.board), pick: () => this.setState({ board: b, menu: null }) })),
+      wires: g.wires.map((w) => { const A = byId(w[0]), B = byId(w[1]); if (!A || !B) return 'display: none'; return line(outPt(A), inPt(B, w[2]), val[w[0]] ? '#ffcc00' : '#4a4e58'); }),
+      ghost: s.wire ? { show: true, style: line(outPt(byId(s.wire.from)), [s.wire.x, s.wire.y], '#ffcc00aa', true) } : { show: false },
+      nodes: g.nodes.map((nd) => { const k = K[nd.kind] || ['pass', 1, '#a78bfa']; const v = val[nd.id]; return {
+        name: nd.kind, state: stateText(nd, v), toggle: k[0] === 'src',
+        style: 'position: absolute; left: ' + nd.x + 'px; top: ' + nd.y + 'px; width: ' + W + 'px; min-height: ' + Hh + 'px; box-sizing: border-box; padding: 12px 14px; border-radius: 14px; background: #24262d; display: flex; flex-direction: column; gap: 6px; cursor: grab; box-shadow: 0 10px 24px #0006' + (v && k[0] === 'sink' ? ', 0 0 0 3px #45c46e' : ''),
+        icon: 'width: 22px; height: 22px; border-radius: 6px; background: ' + k[2],
+        btn: 'align-self: flex-start; min-height: 28px; padding: 0 10px; border-radius: 8px; border: none; cursor: pointer; font: 700 12px Figtree, sans-serif; background: ' + (nd.on ? '#ffcc00' : '#33363e') + '; color: ' + (nd.on ? '#141519' : '#f2f2f4'),
+        btnLabel: nd.on ? 'Turn off' : 'Turn on',
+        stop: (e) => e.stopPropagation(),
+        flip: (e) => { e.stopPropagation(); setG({ nodes: g.nodes.map((x) => (x.id === nd.id ? Object.assign({}, x, { on: !x.on }) : x)) }); },
+        ins: Array.from({ length: k[0] === 'src' ? 0 : k[1] }, (_, i) => ({ name: 'Input ' + (i + 1),
+          style: 'position: absolute; left: -9px; top: ' + (32 + i * 26) + 'px; width: 18px; height: 18px; border-radius: 50%; background: #f2f2f4; border: 3px solid #141519; box-sizing: border-box' + (s.wire ? '; box-shadow: 0 0 0 4px #ffcc0066' : ''),
+          connect: (e) => { if (!s.wire) return; e.stopPropagation(); if (s.wire.from !== nd.id) setG({ wires: g.wires.filter((w) => !(w[1] === nd.id && w[2] === i)).concat([[s.wire.from, nd.id, i]]) }, { wire: null }); else this.setState({ wire: null }); } })),
+        outs: k[0] === 'sink' ? [] : [{ style: 'position: absolute; right: -9px; top: 32px; width: 18px; height: 18px; border-radius: 50%; background: #ffcc00; border: 3px solid #141519; box-sizing: border-box; cursor: crosshair',
+          start: (e) => { e.stopPropagation(); e.preventDefault(); const r = e.currentTarget.closest('[data-stage]').querySelector('section > div').getBoundingClientRect(); this.setState({ wire: { from: nd.id, x: e.clientX - r.left, y: e.clientY - r.top } }); } }],
+        down: (e) => { if (e.button !== 0) return; e.stopPropagation(); const r = e.currentTarget.parentElement.getBoundingClientRect(); this.setState({ menu: null, drag: { id: nd.id, ox: e.clientX - r.left - nd.x, oy: e.clientY - r.top - nd.y, before: s.graphs } }); },
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const [x, y] = H.at(e); this.setState({ menu: { id: nd.id, x, y } }); } }; }),
+      move: (e) => {
+        const r = e.currentTarget.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top;
+        if (s.wire) this.setState({ wire: Object.assign({}, s.wire, { x, y }) });
+        else if (s.drag) this.setState({ graphs: Object.assign({}, s.graphs, { [s.board]: Object.assign({}, g, { nodes: g.nodes.map((nd) => (nd.id === s.drag.id ? Object.assign({}, nd, { x: Math.round((x - s.drag.ox) / 12) * 12, y: Math.round((y - s.drag.oy) / 12) * 12 }) : nd)) }) }) });
+      },
+      up: () => { if (s.drag) this.setState({ drag: null, hist: s.hist.concat([s.drag.before]).slice(-20) }); if (s.wire) this.setState({ wire: null }); },
+      allow: (e) => e.preventDefault(),
+      dropNode: (e) => { e.preventDefault(); const kd = e.dataTransfer.getData('text/plain'); if (!K[kd]) return; const r = e.currentTarget.getBoundingClientRect(); setG({ nodes: g.nodes.concat([{ id: 'n' + (this.n++), kind: kd, x: Math.round((e.clientX - r.left - 80) / 12) * 12, y: Math.round((e.clientY - r.top - 40) / 12) * 12, on: false }]) }); },
+      noMenu: (e) => e.preventDefault(),
+      palette: [['All of', 'On when every input is on'], ['Any of', 'On when one input is on'], ['Not', 'Flips on and off'], ['Timer', 'Waits, then passes it on'], ['Counter', 'On after 2 inputs'], ['In order', 'On when inputs come in order'], ['Light sensor', 'On when light shines on it'], ['Motor', 'Turns wheels and rotors'], ['Hinge', 'Doors and drawbridges'], ['Hit box', 'Where a weapon hurts'], ['Lever', 'Something the player pulls'], ['Lamp', 'Lights up when on']].map(([n, d]) => ({ name: n, desc: d, icon: 'flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px; background: ' + K[n][2], start: (e) => e.dataTransfer.setData('text/plain', n) })),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: H.menu(m, mn ? mn.kind : '', mn ? [
+        { label: 'Remove its wires', key: '', run: () => setG({ wires: g.wires.filter((w) => w[0] !== mn.id && w[1] !== mn.id) }, { menu: null }) },
+        { label: 'Add a delay after it', key: '', run: () => { const id = 'n' + (this.n++); setG({ nodes: g.nodes.concat([{ id, kind: 'Timer', x: mn.x + 200, y: mn.y + 140 }]), wires: g.wires.map((w) => (w[0] === mn.id ? [id, w[1], w[2]] : w)).concat([[mn.id, id, 0]]) }, { menu: null }); } },
+        { label: 'Duplicate', key: '', run: () => setG({ nodes: g.nodes.concat([Object.assign({}, mn, { id: 'n' + (this.n++), x: mn.x + 24, y: mn.y + 24 })]) }, { menu: null }) },
+        { label: 'Delete', key: 'Del', run: () => setG({ nodes: g.nodes.filter((x) => x.id !== mn.id), wires: g.wires.filter((w) => w[0] !== mn.id && w[1] !== mn.id) }, { menu: null }) }
+      ] : []),
+      undo: () => { if (!s.hist.length) return; this.setState({ graphs: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1) }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

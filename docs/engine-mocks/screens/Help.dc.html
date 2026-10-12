@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Help</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif">
+  <dc-import name="Nav" active="help" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; gap: 14px; padding: 20px">
+    <aside class="card" style="flex: 0 0 280px; display: flex; flex-direction: column; gap: 10px; padding: 16px; max-height: 860px; overflow: auto; box-sizing: border-box">
+      <label><span style="position: absolute; left: -9999px">Search help</span><input class="inp" style="width: 100%; box-sizing: border-box" placeholder="Search every element…" value="{{q}}" onInput="{{search}}"></label>
+      <sc-for list="{{groups}}" as="g" hint-placeholder-count="5">
+        <div style="display: flex; flex-direction: column; gap: 2px">
+          <span class="lbl" style="padding: 10px 8px 4px">{{g.name}}</span>
+          <sc-for list="{{g.items}}" as="i" hint-placeholder-count="4"><button type="button" style="{{i.style}}" onClick="{{i.pick}}">{{i.name}}</button></sc-for>
+        </div>
+      </sc-for>
+      <span style="font-size: 12px; color: #6f7480; padding: 8px">{{total}} elements documented</span>
+    </aside>
+    <article style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 16px; max-width: 980px">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px">
+        <div style="flex: 1 1 auto"><span style="font-size: 13px; color: #9ea3ad">{{e.path}}</span><h1 style="margin: 4px 0 6px; font-size: 34px; font-weight: 800">{{e.name}}</h1><p style="margin: 0; font-size: 17px; color: #b4b9c2; line-height: 1.5">{{e.what}}</p></div>
+        <div class="seg"><button type="button" class="{{humanCls}}" onClick="{{toHuman}}">For you</button><button type="button" class="{{aiCls}}" onClick="{{toAi}}">For the AI</button></div>
+      </div>
+      <sc-if value="{{human}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; flex-wrap: wrap; gap: 16px">
+            <figure style="flex: 3 1 420px; margin: 0; position: relative; height: 300px; border-radius: 16px; overflow: hidden; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px">
+              <sc-for list="{{e.shot}}" as="b" hint-placeholder-count="5"><span style="{{b}}"></span></sc-for>
+              <sc-for list="{{e.callouts}}" as="c" hint-placeholder-count="4"><button type="button" style="{{c.style}}" onMouseEnter="{{c.on}}" onMouseLeave="{{c.off}}" onClick="{{c.on}}">{{c.n}}</button></sc-for>
+              <figcaption style="position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 12px; background: #141519cc; font-size: 13px; color: #b4b9c2">Hover a number to see what it is</figcaption>
+            </figure>
+            <ol style="flex: 2 1 280px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px">
+              <sc-for list="{{e.callouts}}" as="c" hint-placeholder-count="4"><li style="{{c.row}}"><b style="{{c.badge}}">{{c.n}}</b><span><b>{{c.title}}</b><br><span style="color: #b4b9c2; font-size: 14px">{{c.text}}</span></span></li></sc-for>
+            </ol>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 16px">
+            <div class="card" style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 10px">
+              <span class="lbl">How to</span>
+              <sc-for list="{{e.steps}}" as="st" hint-placeholder-count="4"><div style="display: flex; gap: 10px; font-size: 15px; line-height: 1.45"><b style="color: #ffcc00">{{st.n}}</b><span>{{st.t}}</span></div></sc-for>
+              <div style="display: flex; gap: 8px; margin-top: 6px"><a class="btn pri" href="Tutorial.dc.html">Show me</a><a class="btn" href="Brix.dc.html">Ask Brix to do it</a></div>
+            </div>
+            <div class="card" style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 0">
+              <span class="lbl" style="margin-bottom: 8px">Options</span>
+              <sc-for list="{{e.options}}" as="o" hint-placeholder-count="4"><div style="display: flex; gap: 12px; padding: 9px 0; border-top: 1px solid #2a2d35; font-size: 14px"><b style="flex: 0 0 120px">{{o.k}}</b><span style="color: #b4b9c2">{{o.v}}</span></div></sc-for>
+            </div>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center"><span class="lbl" style="margin-right: 6px">Related</span><sc-for list="{{e.related}}" as="r" hint-placeholder-count="3"><button type="button" class="chip" style="cursor: pointer" onClick="{{r.go}}">{{r.name}}</button></sc-for></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ai}}" hint-placeholder-val="{{ false }}">
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span style="font-size: 14px; color: #b4b9c2">The same entry, written so Brix can read it. Brix only uses the commands listed here, and shows each step before doing it.</span>
+          <pre style="margin: 0; padding: 16px; border-radius: 12px; background: #0f1013; color: #cfe3ff; font: 13px/1.6 ui-monospace, Menlo, monospace; white-space: pre-wrap">{{e.json}}</pre>
+        </div>
+      </sc-if>
+    </article>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cur: 'Right-click menu', q: '', mode: 'human', hot: null };
+  }
+  renderVals() {
+    const s = this.state;
+    const tree = {
+      'Screen guides': ['Scene screen guide', 'Logic screen guide', 'Character screen guide'],
+      'Scene screen': ['Stage', 'Library drawer', 'Inspector', 'Right-click menu', 'Hover tip', 'Scene tools'],
+      'Things you place': ['Door', 'Floor switch', 'Bridge pile', 'Trigger zone', 'Torch'],
+      'Rules': ['When', 'If', 'Then', 'Variables', 'Scripts'],
+      'Characters': ['Family', 'Clothes', 'Skeleton', 'Moves'],
+      'Screens': ['HUD part', 'Action button', 'Loading screen'],
+      'Gear': ['Sword', 'Bow', 'Hookshot', 'Lock-on', 'Boss phases', 'Vehicles'],
+      'Game': ['Genre', 'Moves', 'Water', 'Save', 'Accessibility', 'Share']
+    };
+    const blk = (x, y, w, h, c, r) => 'position: absolute; left: ' + x + 'px; top: ' + y + 'px; width: ' + w + 'px; height: ' + h + 'px; border-radius: ' + (r || 8) + 'px; background: ' + c;
+    const E = {
+      'Scene screen guide': { path: 'Screen guides › Scene', what: 'The whole Scene screen at a glance: where everything is, and the five things people do here most.',
+        shot: [blk(0, 0, 40, 300, '#101114', 0), blk(50, 8, 600, 26, '#1d1f25', 6), blk(50, 44, 440, 190, '#2d4a33', 10), blk(50, 242, 440, 50, '#1d1f25', 10), blk(500, 44, 150, 248, '#1d1f25', 10)],
+        callouts: [[10, 20, 'Sidebar', 'Every workspace. Your genre decides which ones show.'], [250, 6, 'Header', 'Undo, Ask Brix and Play are always here.'], [250, 120, 'Stage', 'Drag things in, move them, right-click for actions.'], [250, 255, 'Library drawer', 'Assets, characters, lights, effects and scripts to drag in.'], [560, 120, 'Inspector', 'A few simple fields for what you selected; More shows the rest.']],
+        steps: ['Place something: drag it from the library onto the stage.', 'Move it: drag it; it snaps to studs.', 'Change it: click it and use the inspector.', 'Give it behaviour: drop a script on it.', 'Try it: press Play.'],
+        options: [['Short course', 'Learn › Scene, 4 minutes'], ['Shortcuts', 'Del, Ctrl Z, Alt-drag to copy']],
+        related: ['Stage', 'Library drawer', 'Right-click menu'],
+        json: '{\n  "id": "guide.scene",\n  "areas": ["nav", "header", "stage", "library", "inspector"],\n  "topTasks": ["place", "move", "inspect", "attachScript", "play"],\n  "course": "tutorial.scene"\n}' },
+      'Right-click menu': { path: 'Scene screen › Right-click menu', what: 'Right-click anything on the stage to see everything you can do with it. Right-click empty ground to add something right there.',
+        shot: [blk(0, 0, 900, 40, '#4b5058', 0), blk(120, 90, 48, 48, '#8fa1b8'), blk(190, 110, 210, 170, '#24262d', 12), blk(200, 130, 190, 26, '#ffcc0033', 6)],
+        callouts: [[150, 70, 'The object', 'The thing you right-clicked. It gets a yellow outline.'], [380, 115, 'Menu title', 'Says whether you clicked an object or the ground.'], [400, 140, 'Actions', 'Rename, Duplicate, Attach script, Make it buildable, Add trigger, Delete.'], [400, 260, 'Shortcut', 'The grey hint on the right is the faster way, like Del or Alt-drag.']],
+        steps: ['Point at an object on the stage.', 'Click with the right mouse button (or two fingers on a trackpad).', 'Pick an action. Press Esc or click away to close.', 'Changed your mind? Press Undo in the toast or the header.'],
+        options: [['On an object', 'Rename, Duplicate, Attach script, Make it buildable, Add trigger here, Help, Delete'], ['On the ground', 'Add asset, character, light or trigger at that spot; Paint bricks'], ['Keyboard', 'Shift+F10 or the Menu key opens it for the selected object'], ['Undo', 'Every action can be undone']],
+        related: ['Inspector', 'Trigger zone', 'Scripts'],
+        json: '{\n  "id": "scene.contextMenu",\n  "kind": "ui.menu",\n  "openedBy": ["rightClick:object", "rightClick:ground", "key:Shift+F10"],\n  "items": {\n    "object": [\n      {"label": "Rename", "command": "entity.rename", "args": ["entityId", "name"]},\n      {"label": "Duplicate", "command": "entity.duplicate", "args": ["entityId"]},\n      {"label": "Attach script", "command": "script.attach", "args": ["entityId", "scriptId"]},\n      {"label": "Make it buildable", "command": "entity.setBuildable", "args": ["entityId", true]},\n      {"label": "Add trigger here", "command": "trigger.create", "args": ["position", "size"]},\n      {"label": "Delete", "command": "entity.delete", "args": ["entityId"], "undoable": true}\n    ],\n    "ground": [\n      {"label": "Add light here", "command": "light.create", "args": ["position", "preset"]}\n    ]\n  },\n  "showMe": "tutorial.scene.rightClick",\n  "related": ["scene.inspector", "logic.trigger", "logic.scripts"]\n}' },
+      'Bridge pile': { path: 'Things you place › Bridge pile', what: 'A glowing pile of loose bricks. When the player stands on it and holds Build, the bricks fly together into a bridge.',
+        shot: [blk(0, 130, 900, 70, '#0d0e10', 0), blk(160, 130, 160, 70, '#ff8a3d55', 8), blk(80, 90, 40, 40, '#e8463c', 20), blk(200, 210, 80, 30, '#ff8a3d', 6)],
+        callouts: [[240, 110, 'Glow', 'Piles glow and bounce so players know they can build here.'], [100, 70, 'Player', 'Must stand on the pile to start building.'], [240, 245, 'Bricks', 'The loose bricks. Drag more in to make the build longer.']],
+        steps: ['Drag Bridge pile from Library › Assets onto the stage.', 'Right-click it and choose what it becomes (a bridge, stairs, a lever…).', 'Optional: add a rule "When Pile is built Then …".', 'Press Play and hold Build on the pile.'],
+        options: [['Becomes', 'Any asset you built in Build'], ['Build time', '1–5 seconds'], ['Glow', 'On / Off / Only when near'], ['Needs', 'Nothing, or an item like the Brick bag']],
+        related: ['Trigger zone', 'When', 'Door'],
+        json: '{\n  "id": "asset.buildPile",\n  "kind": "entity.template",\n  "create": {"command": "entity.create", "args": {"template": "buildPile"}},\n  "fields": {"becomes": "assetId", "buildSeconds": [1, 5], "glow": ["on", "off", "near"], "requires": "itemId|null"},\n  "events": ["pile.built"],\n  "related": ["logic.when", "asset.door"]\n}' }
+    };
+    const generic = (n) => ({ path: Object.keys(tree).find((g) => tree[g].indexOf(n) >= 0) + ' › ' + n, what: 'What ' + n + ' is, where to find it and everything you can change about it.',
+      shot: [blk(60, 60, 300, 160, '#24262d', 14)], callouts: [[80, 50, n, 'The part this page is about.']], steps: ['Open the screen that has it.', 'Click it to see its settings.', 'Right-click it for everything else.'], options: [['Where', 'See the picture']], related: ['Right-click menu'], json: '{\n  "id": "' + n.toLowerCase().replace(/ /g, '.') + '",\n  "commands": ["…"]\n}' });
+    const cur = E[s.cur] || generic(s.cur);
+    const q = s.q.toLowerCase();
+    return {
+      q: s.q, search: (e) => this.setState({ q: e.target.value }),
+      total: 412,
+      groups: Object.keys(tree).map((g) => ({ name: g, items: tree[g].filter((n) => !q || n.toLowerCase().indexOf(q) >= 0 || g.toLowerCase().indexOf(q) >= 0).map((n) => ({ name: n, pick: () => this.setState({ cur: n, hot: null }),
+        style: 'text-align: left; min-height: 34px; padding: 0 10px; border-radius: 9px; border: none; cursor: pointer; font: 500 14px Figtree, sans-serif; color: ' + (n === s.cur ? '#141519' : '#f2f2f4') + '; background: ' + (n === s.cur ? '#ffcc00' : 'transparent') })) })).filter((g) => g.items.length),
+      human: s.mode === 'human', ai: s.mode === 'ai',
+      humanCls: s.mode === 'human' ? 'ltab lon' : 'ltab', aiCls: s.mode === 'ai' ? 'ltab lon' : 'ltab',
+      toHuman: () => this.setState({ mode: 'human' }), toAi: () => this.setState({ mode: 'ai' }),
+      e: { path: cur.path, name: s.cur, what: cur.what, json: cur.json, shot: cur.shot,
+        callouts: cur.callouts.map(([x, y, t, txt], i) => ({ n: i + 1, title: t, text: txt,
+          style: 'position: absolute; left: ' + x + 'px; top: ' + y + 'px; width: 28px; height: 28px; border-radius: 50%; border: 3px solid #141519; cursor: pointer; font: 800 13px Figtree, sans-serif; background: ' + (s.hot === i ? '#fff' : '#ffcc00') + '; color: #141519; transform: scale(' + (s.hot === i ? 1.25 : 1) + ')',
+          row: 'display: flex; gap: 12px; padding: 10px 12px; border-radius: 12px; line-height: 1.4; background: ' + (s.hot === i ? '#3a3420' : '#1d1f25'),
+          badge: 'flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; background: #ffcc00; color: #141519; display: flex; align-items: center; justify-content: center; font-size: 13px',
+          on: () => this.setState({ hot: i }), off: () => this.setState({ hot: null }) })),
+        steps: cur.steps.map((t, i) => ({ n: i + 1, t })),
+        options: cur.options.map(([k, v]) => ({ k, v })),
+        related: cur.related.map((n) => ({ name: n, go: () => this.setState({ cur: n, hot: null }) })) }
+    };
+  }
+}
+</script>
+</body>
+</html>

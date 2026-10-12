@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Triggers</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}">
+  <dc-import name="Nav" active="scene" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Triggers in Chasm hall</span><span style="font-size: 13px; color: #9ea3ad">Drag on the ground to draw one. Click one to set its rules.</span></div>
+      
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="scene" active="Triggers" hint-size="900px,46px"></dc-import>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 999 1 560px; min-width: 0; position: relative">
+        <div style="position: relative; height: 760px; border-radius: 20px; overflow: hidden; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px; user-select: none; cursor: crosshair" onMouseDown="{{drawStart}}" onMouseMove="{{drawMove}}" onMouseUp="{{drawEnd}}" onMouseLeave="{{drawEnd}}" onContextMenu="{{noMenu}}">
+          <div style="position: absolute; left: 0; right: 0; top: 0; height: 70px; background: #4b5058"></div>
+          <div style="position: absolute; left: 0; right: 0; top: 300px; height: 70px; background: #0d0e10"></div>
+          <span style="position: absolute; left: 520px; top: 14px; width: 48px; height: 48px; border-radius: 8px; background: #8a5a2b"></span>
+          <span style="position: absolute; left: 440px; top: 190px; width: 48px; height: 28px; border-radius: 6px; background: #8fa1b8"></span>
+          <span style="position: absolute; left: 120px; top: 520px; width: 40px; height: 40px; border-radius: 20px 20px 8px 8px; background: #e8463c"></span>
+          <sc-for list="{{zones}}" as="z" hint-placeholder-count="3">
+            <div style="{{z.style}}" onMouseDown="{{z.down}}" onContextMenu="{{z.menu}}"><span style="{{z.tag}}">{{z.name}}</span><span style="position: absolute; left: 8px; bottom: 6px; font-size: 12px; color: #fff; text-shadow: 0 1px 2px #000">{{z.summary}}</span></div>
+          </sc-for>
+          <sc-if value="{{draft.show}}" hint-placeholder-val="{{ false }}"><div style="{{draft.style}}"></div></sc-if>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 16px">
+        <sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 16px">
+            <label class="fld">Name<input class="inp" value="{{sel.name}}" onInput="{{rename}}"></label>
+            <div class="fld">When
+              <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{whens}}" as="w" hint-placeholder-count="4"><button type="button" style="{{w.style}}" onClick="{{w.pick}}">{{w.name}}</button></sc-for></div>
+            </div>
+            <div class="fld">Who sets it off
+              <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{whos}}" as="w" hint-placeholder-count="4"><button type="button" style="{{w.style}}" onClick="{{w.pick}}">{{w.name}}</button></sc-for></div>
+            </div>
+            <div class="fld">Only if
+              <sc-for list="{{conds}}" as="c" hint-placeholder-count="2">
+                <div style="display: flex; gap: 6px; align-items: center">
+                  <button type="button" class="chip" onClick="{{c.varNext}}" style="cursor: pointer">{{c.v}}</button>
+                  <button type="button" class="chip" onClick="{{c.opNext}}" style="cursor: pointer; background: #24262d">{{c.op}}</button>
+                  <button type="button" class="chip" onClick="{{c.valNext}}" style="cursor: pointer; background: #3a3420; color: #ffd633">{{c.val}}</button>
+                  <button type="button" aria-label="Remove" onClick="{{c.del}}" style="margin-left: auto; border: none; background: none; color: #9ea3ad; cursor: pointer; font-size: 16px">×</button>
+                </div>
+              </sc-for>
+              <button type="button" class="btn" style="align-self: flex-start; min-height: 32px; font-size: 13px" onClick="{{addCond}}">Add condition</button>
+            </div>
+            <div class="fld">Then
+              <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{thens}}" as="t" hint-placeholder-count="2"><span class="chip" style="background: #2b2440; color: #d9ccff; cursor: default">{{t}}</span></sc-for></div>
+              <a href="Logic.dc.html" style="font-size: 13px">Edit actions in Logic</a>
+            </div>
+            <sc-for list="{{flags}}" as="f" hint-placeholder-count="3">
+              <button type="button" onClick="{{f.flip}}" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 15px Figtree, sans-serif; cursor: pointer; text-align: left"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{noSel}}" hint-placeholder-val="{{ false }}"><span style="color: #9ea3ad; font-size: 15px; line-height: 1.5">Drag across the ground to draw a trigger zone. Then pick when it fires and what it needs.</span></sc-if>
+      </aside>
+      <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}"><div class="menu" style="{{menu.style}}"><span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">{{menu.title}}</span><sc-for list="{{menu.items}}" as="i" hint-placeholder-count="4"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for></div></sc-if>
+      <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}"><div class="toast">{{toast.text}}<button type="button" class="btn" style="min-height: 34px" onClick="{{undo}}">Undo</button></div></sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 5;
+    this.state = {
+      sel: 'z1', draw: null, drag: null, menu: null, toast: null, hist: [],
+      zones: [
+        { id: 'z1', name: 'Switch plate', x: 420, y: 170, w: 90, h: 70, when: 'Steps on', who: 'Player or pushed block', conds: [['Switches on', 'is', '0']], then: ['Open North door', 'Play Click'], once: false, visible: true, debug: true },
+        { id: 'z2', name: 'Chasm edge', x: 0, y: 290, w: 900, h: 90, when: 'Falls in', who: 'Player', conds: [['Bridge built', 'is', 'no']], then: ['Respawn at last safe spot', 'Take 1 heart'], once: false, visible: false, debug: true },
+        { id: 'z3', name: 'Mason greeting', x: 640, y: 380, w: 200, h: 160, when: 'Enters', who: 'Player', conds: [['Met Mason', 'is', 'no']], then: ['Start dialogue Greeting', 'Set Met Mason to yes'], once: true, visible: false, debug: true }
+      ]
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const sel = s.zones.find((z) => z.id === s.sel);
+    const save = () => s.hist.concat([s.zones]).slice(-20);
+    const upd = (o) => this.setState({ hist: save(), zones: s.zones.map((z) => (z.id === s.sel ? Object.assign({}, z, o) : z)) });
+    const pt = (e) => { const r = e.currentTarget.getBoundingClientRect(); return [Math.round((e.clientX - r.left) / 10) * 10, Math.round((e.clientY - r.top) / 10) * 10]; };
+    const VARS = ['Switches on', 'Keys', 'Coins', 'Bridge built', 'Met Mason', 'Health'];
+    const OPS = ['is', 'more than', 'less than', 'is not'];
+    const VALS = ['0', '1', '3', 'yes', 'no'];
+    const nxt = (arr, v) => arr[(arr.indexOf(v) + 1) % arr.length];
+    const m = s.menu; const mz = m ? s.zones.find((z) => z.id === m.id) : null;
+    const d = s.draw;
+    return {
+      zones: s.zones.map((z) => ({ name: z.name, summary: z.when + ' · ' + (z.conds.length ? z.conds.length + ' condition' + (z.conds.length > 1 ? 's' : '') : 'always'),
+        style: 'position: absolute; left: ' + z.x + 'px; top: ' + z.y + 'px; width: ' + z.w + 'px; height: ' + z.h + 'px; border-radius: 10px; cursor: move; background: #ffcc00' + (z.id === s.sel ? '33' : '1a') + '; border: 2px dashed ' + (z.id === s.sel ? '#ffcc00' : '#ffcc0099'),
+        tag: 'position: absolute; left: 6px; top: -12px; padding: 2px 8px; border-radius: 6px; background: #ffcc00; color: #141519; font-size: 12px; font-weight: 800; white-space: nowrap',
+        down: (e) => { if (e.button !== 0) return; e.stopPropagation(); const r = e.currentTarget.parentElement.getBoundingClientRect(); this.setState({ sel: z.id, menu: null, drag: { id: z.id, ox: e.clientX - r.left - z.x, oy: e.clientY - r.top - z.y, before: s.zones } }); },
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const [x, y] = H.at(e); this.setState({ sel: z.id, menu: { id: z.id, x, y } }); } })),
+      drawStart: (e) => { if (e.button !== 0) return; const [x, y] = pt(e); this.setState({ draw: { x0: x, y0: y, x, y }, sel: null, menu: null }); },
+      drawMove: (e) => {
+        if (s.drag) { const r = e.currentTarget.getBoundingClientRect(); const x = Math.round((e.clientX - r.left - s.drag.ox) / 10) * 10, y = Math.round((e.clientY - r.top - s.drag.oy) / 10) * 10; this.setState({ zones: s.zones.map((z) => (z.id === s.drag.id ? Object.assign({}, z, { x, y }) : z)) }); return; }
+        if (!d) return; const [x, y] = pt(e); this.setState({ draw: Object.assign({}, d, { x, y }) });
+      },
+      drawEnd: () => {
+        if (s.drag) { this.setState({ drag: null, hist: s.hist.concat([s.drag.before]).slice(-20) }); return; }
+        if (!d) return;
+        const w = Math.abs(d.x - d.x0), h = Math.abs(d.y - d.y0);
+        if (w < 30 || h < 30) { this.setState({ draw: null }); return; }
+        const id = 'z' + (this.n++);
+        this.setState({ draw: null, hist: save(), sel: id, zones: s.zones.concat([{ id, name: 'Trigger ' + (this.n - 1), x: Math.min(d.x, d.x0), y: Math.min(d.y, d.y0), w, h, when: 'Enters', who: 'Player', conds: [], then: ['Nothing yet'], once: false, visible: false, debug: true }]), toast: 'Trigger drawn. Pick when it fires on the right.' });
+      },
+      draft: d ? { show: true, style: 'position: absolute; left: ' + Math.min(d.x, d.x0) + 'px; top: ' + Math.min(d.y, d.y0) + 'px; width: ' + Math.abs(d.x - d.x0) + 'px; height: ' + Math.abs(d.y - d.y0) + 'px; border: 2px dashed #ffcc00; background: #ffcc0022; border-radius: 10px; pointer-events: none' } : { show: false },
+      noMenu: (e) => e.preventDefault(),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: H.menu(m, mz ? mz.name : '', mz ? [
+        { label: 'Duplicate', key: '', run: () => { const id = 'z' + (this.n++); this.setState({ menu: null, hist: save(), sel: id, zones: s.zones.concat([Object.assign({}, mz, { id, name: mz.name + ' copy', x: mz.x + 30, y: mz.y + 30 })]) }); } },
+        { label: 'Test: fire it now', key: '', run: () => this.setState({ menu: null, toast: mz.name + ': ' + mz.then.join(', ') }) },
+        { label: 'Open in Logic', key: '', run: () => { window.location.href = 'Logic.dc.html'; } },
+        { label: 'Help about triggers', key: '?', run: () => { window.location.href = 'Help.dc.html'; } },
+        { label: 'Delete', key: 'Del', run: () => this.setState({ menu: null, hist: save(), sel: null, zones: s.zones.filter((z) => z.id !== mz.id), toast: mz.name + ' deleted' }) }
+      ] : []),
+      toast: H.toast(s.toast),
+      undo: (e) => { if (e) e.stopPropagation(); if (!s.hist.length) return; this.setState({ zones: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1), toast: null }); },
+      hasSel: !!sel, noSel: !sel,
+      sel: sel ? { name: sel.name } : { name: '' },
+      rename: (e) => upd({ name: e.target.value }),
+      whens: ['Enters', 'Leaves', 'Steps on', 'Stays 3 s', 'Presses Act', 'Is hit', 'Falls in'].map((w) => ({ name: w, style: H.pick(sel && sel.when === w) + '; min-height: 32px; font-size: 13px', pick: () => upd({ when: w }) })),
+      whos: ['Player', 'Any character', 'Arrow or boomerang', 'Pushed block', 'Player or pushed block', 'Vehicle'].map((w) => ({ name: w, style: H.pick(sel && sel.who === w) + '; min-height: 32px; font-size: 13px', pick: () => upd({ who: w }) })),
+      conds: sel ? sel.conds.map((c, i) => ({ v: c[0], op: c[1], val: c[2],
+        varNext: () => upd({ conds: sel.conds.map((x, j) => (j === i ? [nxt(VARS, x[0]), x[1], x[2]] : x)) }),
+        opNext: () => upd({ conds: sel.conds.map((x, j) => (j === i ? [x[0], nxt(OPS, x[1]), x[2]] : x)) }),
+        valNext: () => upd({ conds: sel.conds.map((x, j) => (j === i ? [x[0], x[1], nxt(VALS, x[2])] : x)) }),
+        del: () => upd({ conds: sel.conds.filter((x, j) => j !== i) }) })) : [],
+      addCond: () => sel && upd({ conds: sel.conds.concat([['Keys', 'more than', '0']]) }),
+      thens: sel ? sel.then : [],
+      flags: sel ? [['once', 'Only fire once'], ['visible', 'Players can see it'], ['debug', 'Show while testing']].map(([k, n]) => ({ name: n, flip: () => upd({ [k]: !sel[k] }), track: H.track(sel[k]), knob: H.knob(sel[k]) })) : []
+    };
+  }
+}
+</script>
+</body>
+</html>

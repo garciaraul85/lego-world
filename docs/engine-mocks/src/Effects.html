@@ -1,0 +1,83 @@
+Effects
+{"nav":"build","group":"build","sub":"Effects","h":"Effects","s":"Pick one, then change it with simple sliders","close":false,"primary":"<button type=\"button\" class=\"btn pri\" onClick=\"{{saveFx}}\">Save as new effect</button>"}
+      <aside class="card" style="flex: 0 0 230px; display: flex; flex-direction: column; gap: 8px">
+        <span class="lbl">Start from</span>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"><sc-for list="{{presets}}" as="p" hint-placeholder-count="8"><button type="button" style="{{p.style}}" onClick="{{p.pick}}"><span style="{{p.sw}}"></span>{{p.name}}</button></sc-for></div>
+        <span class="lbl" style="margin-top: 10px">Screen effects · click to see</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{screenFx}}" as="f" hint-placeholder-count="6"><button type="button" style="{{f.style}}" onClick="{{f.run}}">{{f.name}}</button></sc-for></div>
+        <span class="lbl" style="margin-top: 10px">Yours</span>
+        <sc-for list="{{mine}}" as="p" hint-placeholder-count="1"><span class="chip" style="cursor: default">{{p}}</span></sc-for>
+      </aside>
+      <section style="flex: 999 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="{{stage}}" onMouseEnter="{{hoverPlay}}" onMouseMove="{{hoverPlay}}">
+          <span style="position: absolute; left: calc(50% - 40px); top: 440px; width: 80px; height: 30px; border-radius: 8px; background: #3a3d45"></span>
+          <sc-for list="{{parts}}" as="q" hint-placeholder-count="40"><span style="{{q}}"></span></sc-for>
+          <span style="position: absolute; left: 16px; top: 14px; font-size: 13px; color: #9ea3ad">{{fxName}} · point here to play it</span>
+        </div>
+        <div class="card" style="display: flex; flex-wrap: wrap; gap: 18px; align-items: center">
+          <span class="lbl">Colours</span>
+          <div style="display: flex; gap: 6px; align-items: center"><span style="font-size: 13px; color: #9ea3ad">Start</span><sc-for list="{{c1}}" as="c" hint-placeholder-count="6"><button type="button" aria-label="{{c.name}}" style="{{c.style}}" onClick="{{c.pick}}"></button></sc-for></div>
+          <div style="display: flex; gap: 6px; align-items: center"><span style="font-size: 13px; color: #9ea3ad">End</span><sc-for list="{{c2}}" as="c" hint-placeholder-count="6"><button type="button" aria-label="{{c.name}}" style="{{c.style}}" onClick="{{c.pick}}"></button></sc-for></div>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 14px">
+        <sc-for list="{{sliders}}" as="sl" hint-placeholder-count="5"><label class="fld">{{sl.name}}<input type="range" min="{{sl.min}}" max="{{sl.max}}" value="{{sl.val}}" onInput="{{sl.set}}" style="accent-color: #ffcc00"></label></sc-for>
+        <div class="fld">Pieces look like<div style="display: flex; gap: 6px"><sc-for list="{{shapes}}" as="g" hint-placeholder-count="3"><button type="button" style="{{g.style}}" onClick="{{g.pick}}">{{g.name}}</button></sc-for></div></div>
+        <div class="fld">Direction<div style="display: flex; gap: 6px"><sc-for list="{{dirs}}" as="g" hint-placeholder-count="3"><button type="button" style="{{g.style}}" onClick="{{g.pick}}">{{g.name}}</button></sc-for></div></div>
+        <div class="fld">Plays<select class="inp"><option>Always</option><option>When hit</option><option>When picked up</option><option>When a rule says so</option></select></div>
+        <span style="font-size: 13px; color: #9ea3ad; line-height: 1.5">Use it by dragging it from Scene › Library › Effects onto anything.</span>
+      </aside>
+      <!--TOAST-->
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.P = {
+      Fire: { amount: 30, size: 14, speed: 60, spread: 40, height: 200, a: '#ffd633', b: '#e8463c', shape: 'Dots', dir: 'Up' },
+      Sparkles: { amount: 20, size: 8, speed: 30, spread: 120, height: 120, a: '#ffffff', b: '#ffcc00', shape: 'Stars', dir: 'All around' },
+      Smoke: { amount: 18, size: 30, speed: 25, spread: 60, height: 260, a: '#8b93a3', b: '#2f3440', shape: 'Dots', dir: 'Up' },
+      Splash: { amount: 26, size: 10, speed: 70, spread: 140, height: 140, a: '#7cc7ff', b: '#3b78c9', shape: 'Dots', dir: 'Up' },
+      Magic: { amount: 30, size: 9, speed: 40, spread: 90, height: 220, a: '#a78bfa', b: '#ff7eb6', shape: 'Stars', dir: 'All around' },
+      Explosion: { amount: 40, size: 16, speed: 90, spread: 220, height: 200, a: '#ffcc00', b: '#2f3440', shape: 'Bricks', dir: 'All around' },
+      'Brick burst': { amount: 24, size: 14, speed: 80, spread: 160, height: 160, a: '#e8463c', b: '#ffcc00', shape: 'Bricks', dir: 'All around' },
+      Rain: { amount: 40, size: 6, speed: 90, spread: 400, height: 400, a: '#7cc7ff', b: '#7cc7ff', shape: 'Dots', dir: 'Down' }
+    };
+    this.state = Object.assign({ scr: null, name: 'Fire', t: 0, mine: ['Torch fire (yours)'], toast: null }, this.P.Fire);
+    this.state.t = 0.37;
+  }
+  tick() { this.setState({ t: (this.state.t + 0.02) % 1000 }); }
+  kick(ms) { this.until = Date.now() + (ms || 4000); if (this.tm) return; this.tm = setInterval(() => { if (Date.now() > this.until) { clearInterval(this.tm); this.tm = null; return; } this.tick(); }, 40); }
+
+  renderVals() {
+    const s = this.state;
+    const mix = (a, b, f) => { const p = (h, i) => parseInt(h.substr(1 + i * 2, 2), 16); return '#' + [0, 1, 2].map((i) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * f).toString(16).padStart(2, '0')).join(''); };
+    const cx = 330, cy = 440;
+    const parts = Array.from({ length: Math.min(40, Math.round(s.amount)) }, (_, i) => {
+      const seed = Math.sin(i * 12.9898) * 43758.5453; const r = seed - Math.floor(seed);
+      const age = (s.t * s.speed / 20 + i / s.amount) % 1;
+      let x, y;
+      if (s.dir === 'Up') { x = cx + (r - 0.5) * s.spread * (0.4 + age); y = cy - age * s.height; }
+      else if (s.dir === 'Down') { x = cx + (r - 0.5) * s.spread * 2; y = 20 + age * 420; }
+      else { const ang = r * Math.PI * 2; x = cx + Math.cos(ang) * s.spread * age; y = cy - 80 + Math.sin(ang) * s.spread * age * 0.8 + age * age * 60; }
+      const sz = s.size * (1 - age * 0.5);
+      const rad = s.shape === 'Dots' ? '50%' : s.shape === 'Bricks' ? '3px' : '2px';
+      return 'position: absolute; left: ' + x + 'px; top: ' + y + 'px; width: ' + sz + 'px; height: ' + (s.shape === 'Bricks' ? sz * 0.8 : sz) + 'px; border-radius: ' + rad + '; opacity: ' + (1 - age).toFixed(2) + '; background: ' + mix(s.a, s.b, age) + (s.shape === 'Stars' ? '; transform: rotate(45deg); box-shadow: 0 0 8px ' + s.a : '');
+    });
+    const pal = [['White', '#ffffff'], ['Yellow', '#ffcc00'], ['Orange', '#ff8a3d'], ['Red', '#e8463c'], ['Blue', '#7cc7ff'], ['Purple', '#a78bfa'], ['Grey', '#8b93a3'], ['Dark', '#2f3440']];
+    return {
+      presets: Object.keys(this.P).map((n) => ({ name: n, pick: () => { this.setState(Object.assign({ name: n }, this.P[n])); this.kick(3000); }, style: H.card(n === s.name) + '; align-items: center; font-size: 12px; padding: 10px 4px', sw: 'width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(' + this.P[n].a + ', ' + this.P[n].b + ')' })),
+      stage: 'position: relative; height: 560px; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 70%, #2a2d36, #101114 75%); transition: transform .05s, filter .2s; transform: ' + (s.scr === 'Shake' ? 'translate(' + ((s.t * 997 % 2) > 1 ? 6 : -6) + 'px, 3px)' : 'none') + '; filter: ' + (s.scr === 'Flash' ? 'brightness(2.2)' : s.scr === 'Colour grade' ? 'sepia(.6) saturate(1.4)' : s.scr === 'Slow motion' ? 'saturate(.6)' : 'none') + (s.scr === 'Vignette' ? '; box-shadow: inset 0 0 120px 60px #000' : ''),
+      screenFx: ['Shake', 'Hit-stop', 'Slow motion', 'Flash', 'Vignette', 'Colour grade'].map((n) => ({ name: n, style: H.pick(n === s.scr) + '; min-height: 32px; font-size: 13px', run: () => { this.setState({ scr: n }); this.kick(1200); clearTimeout(this.ts); this.ts = setTimeout(() => this.setState({ scr: null }), n === 'Vignette' || n === 'Colour grade' ? 2500 : 700); } })),
+      mine: s.mine, parts, fxName: s.name, hoverPlay: () => this.kick(1500),
+      c1: pal.map(([n, c]) => ({ name: n, style: H.sw(c, s.a === c, 26), pick: () => this.setState({ a: c }) })),
+      c2: pal.map(([n, c]) => ({ name: n, style: H.sw(c, s.b === c, 26), pick: () => this.setState({ b: c }) })),
+      sliders: [['amount', 'Amount', 4, 40], ['size', 'Size', 4, 40], ['speed', 'Speed', 10, 100], ['spread', 'Spread', 10, 400], ['height', 'How far it goes', 40, 400]].map(([k, n, mn, mx]) => ({ name: n, min: mn, max: mx, val: s[k], set: (e) => this.setState({ [k]: +e.target.value }) })),
+      shapes: ['Dots', 'Bricks', 'Stars'].map((g) => ({ name: g, style: H.pick(g === s.shape) + '; flex: 1 1 0; font-size: 13px; text-align: center', pick: () => this.setState({ shape: g }) })),
+      dirs: ['Up', 'All around', 'Down'].map((g) => ({ name: g, style: H.pick(g === s.dir) + '; flex: 1 1 0; font-size: 13px; padding: 0 6px; text-align: center', pick: () => this.setState({ dir: g }) })),
+      saveFx: () => this.setState({ mine: s.mine.concat([s.name + ' (yours)']), toast: 'Saved. It is in Scene › Library › Effects.' }),
+      toast: H.toast(s.toast),
+      undo: () => this.setState({ toast: null })
+    };
+  }
+}
