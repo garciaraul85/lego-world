@@ -215,6 +215,50 @@ a {
   color: var(--mut2);
   font-size: 11px;
 }
+.hovertip {
+  position: fixed;
+  z-index: 60;
+  max-width: 290px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: #11151b;
+  border: 1px solid #343c48;
+  color: #d6dce5;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px #0008;
+}
+.hovertip.scene {
+  pointer-events: none;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--mut2);
+}
+.tip-help {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--acc);
+  background: none;
+  color: var(--acc);
+  font-weight: 700;
+  cursor: pointer;
+}
+.ctx-title {
+  padding: 4px 10px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--mut2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.mi.danger {
+  color: #ff8a80;
+}
 .sep {
   height: 1px;
   background: var(--bd);

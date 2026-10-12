@@ -221,7 +221,8 @@ export function Toolbar({ c }: { c: ActionCtx }) {
             class={`btn icon ${ed.tool.value === t.id ? 'on' : ''}`}
             aria-label={`${t.label} (${t.key})`}
             aria-pressed={ed.tool.value === t.id}
-            title={t.later ? `${t.label} — ${t.later}` : `${t.label} (${t.key})`}
+            data-tip={t.later ? `${t.label} — ${t.later}` : `${t.help} Shortcut: ${t.key}.`}
+            data-help="scene"
             disabled={!!t.later}
             onClick={() => {
               ed.tool.value = t.id;

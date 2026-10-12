@@ -119,8 +119,13 @@ export const ACTIONS: EditorAction[] = [
     id: 'edit.delete',
     label: 'Delete',
     key: 'Delete',
-    when: (c) => hasSel(c) || !!c.ed.selectedSpawn.value || !!c.ed.selectedItem.value,
+    when: (c) => hasSel(c) || !!c.ed.selectedSpawn.value || !!c.ed.selectedItem.value || !!c.ed.selectedZone.value,
     run: ({ ed }) => {
+      if (ed.selectedZone.value) {
+        if (ed.exec({ type: 'map.removeZone', payload: { map: ed.mapId.value, zone: ed.selectedZone.value } }).ok)
+          ed.selectedZone.value = null;
+        return;
+      }
       if (ed.selectedItem.value) {
         if (ed.exec({ type: 'item.remove', payload: { map: ed.mapId.value, id: ed.selectedItem.value } }).ok)
           ed.selectedItem.value = null;

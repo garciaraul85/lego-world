@@ -1,17 +1,25 @@
 import { effect } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
-import { SND } from '../../builtin/audio';
 import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import { rotateQuarter } from '../../core/bricks/transform';
-import { newId } from '../../core/ids';
 import { skyCycle } from '../../core/legacy/modules';
-import { type EmitterInstance, type Instances, paths, type UiInstance } from '../../core/schema';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
 import { type LineSet, type Marker, type Overlay, type RenderBrick, Renderer } from '../../engine/render/renderer';
 import { placeCommands, resolveAsset } from '../assets';
+import { groupLabel } from '../categories';
+import { dragPayload, endDrag, sceneHover } from '../interact/drag';
+import {
+  assetCorner,
+  mapItems,
+  placeAssetAt,
+  placeItemAt,
+  placeSpawnAt,
+  type SceneTarget,
+  selectOnly,
+} from '../interact/place';
 import { rayBox } from '../scene';
 import type { EditorState } from '../state';
 
@@ -34,15 +42,20 @@ export function Viewport({
   mode,
   api,
   studio,
+  onMenu,
 }: {
   ed: EditorState;
   mode: 'scene' | 'game';
+  /** right-click without dragging: what was clicked and where (P31 context menus) */
+  onMenu?: (t: SceneTarget, x: number, y: number) => void;
   api?: (a: ViewportApi) => void;
   /** Asset studio hooks: extra markers (sockets), and where the Spawn tool's click goes instead */
   studio?: StudioHooks;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hudRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef(onMenu);
+  menuRef.current = onMenu;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -121,9 +134,29 @@ export function Viewport({
 
     const frameSelection = () => {
       const sel = ed.selectedBricks.value;
-      if (!sel.length) return fitAll();
       const min: Vec3 = [Infinity, Infinity, Infinity];
       const max: Vec3 = [-Infinity, -Infinity, -Infinity];
+      // a selected spawn, zone or item is framed too (right-click › Frame)
+      const m = ed.mapDoc.value;
+      const zone = m?.zones.find((z) => z.id === ed.selectedZone.value);
+      const point =
+        m?.spawns.find((sp) => sp.id === ed.selectedSpawn.value)?.pos ??
+        mapItems(ed).find((it) => it.id === ed.selectedItem.value)?.pos;
+      const box: [Vec3, Vec3] | null = zone
+        ? [sp3(zone.min), sp3(zone.max)]
+        : point
+          ? [
+              [point[0] - 3, point[1] - 1, point[2] - 3],
+              [point[0] + 3, point[1] + 2, point[2] + 3],
+            ]
+          : null;
+      if (!sel.length && !box) return fitAll();
+      if (box) {
+        for (let i = 0; i < 3; i++) {
+          min[i] = Math.min(min[i]!, box[0][i]!);
+          max[i] = Math.max(max[i]!, box[1][i]!);
+        }
+      }
       for (const b of sel) {
         const [w, d] = footprint(b);
         min[0] = Math.min(min[0], b.x);
@@ -335,6 +368,12 @@ export function Viewport({
       } else {
         const hit = s.pick(r, pickable);
         hover = hit?.brick ?? null;
+        if (!studio) {
+          const owner = hover ? s.ownerOf(hover.id) : null;
+          sceneHover.value = hover
+            ? { name: owner?.def.name ?? (hover.group ? groupLabel(hover.group) : 'Brick'), x: e.clientX, y: e.clientY }
+            : null;
+        }
         const surf = s.surface(r);
         if (surf) ed.cursor.value = { x: Math.floor(surf.x), z: Math.floor(surf.z), y: surf.y };
       }
@@ -369,37 +408,7 @@ export function Viewport({
       }
       if ((tool === 'sound' || tool === 'ui') && !studio) {
         const hit = s.surface(r);
-        if (!hit) return;
-        const id = newId('instance');
-        const at: [number, number, number] = [Math.round(hit.x * 2) / 2, hit.y * 0.4, Math.round(hit.z * 2) / 2];
-        const item: EmitterInstance | UiInstance =
-          tool === 'sound'
-            ? {
-                id,
-                kind: 'emitter',
-                name: `Emitter ${mapItems(ed).filter((i) => i.kind === 'emitter').length + 1}`,
-                sound: SND.birds,
-                pos: [at[0], at[1] + 1, at[2]],
-                mode: 'loop',
-                interval: [3, 6],
-                maxDistance: 16,
-                volume: 0,
-              }
-            : {
-                id,
-                kind: 'ui',
-                widget: 'sign',
-                pos: [at[0], at[1] + 2.4, at[2]],
-                text: 'Welcome to {map.name}',
-                maxDistance: 24,
-              };
-        if (ed.exec({ type: 'item.add', payload: { map, item } }).ok) {
-          ed.selection.value = new Set();
-          ed.selectedSpawn.value = null;
-          ed.selectedZone.value = null;
-          ed.selectedItem.value = id;
-          ed.right.value = 'inspect';
-        }
+        if (hit) placeItemAt(ed, tool === 'sound' ? 'sound' : 'sign', hit);
         return;
       }
       if (tool === 'spawn' && studio) {
@@ -410,14 +419,7 @@ export function Viewport({
       if (tool === 'spawn') {
         const hit = s.surface(r);
         if (hit)
-          ed.exec({
-            type: 'map.addSpawn',
-            payload: {
-              map,
-              pos: [Math.round(hit.x), hit.y * 0.4, Math.round(hit.z)],
-              yaw: (Math.round(camera.yaw / (Math.PI / 2)) * (Math.PI / 2) + Math.PI) % (2 * Math.PI),
-            },
-          });
+          placeSpawnAt(ed, hit, (Math.round(camera.yaw / (Math.PI / 2)) * (Math.PI / 2) + Math.PI) % (2 * Math.PI));
         return;
       }
       // emitters and world UI are selectable with any other tool
@@ -506,6 +508,43 @@ export function Viewport({
         return;
       }
       ed.selectObject(b, { single: e.altKey, add: e.shiftKey });
+    };
+
+    /** The thing under the pointer, in the same order a left click picks: items, spawns, zones, bricks, ground. */
+    const targetAt = (e: { clientX: number; clientY: number }): SceneTarget | null => {
+      const s = ed.scene.value;
+      if (!s) return null;
+      const r = rayAt(e);
+      const hit = s.pick(r, pickable);
+      const item = mapItems(ed)
+        .map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) }))
+        .filter((x) => x.t !== null)
+        .sort((a, b) => a.t! - b.t!)[0];
+      if (item && (!hit || item.t! < hit.t)) return { kind: 'item', id: item.it.id };
+      const spawn = s.map.spawns.find((sp) => rayBoxAt(r, sp.pos as Vec3) !== null);
+      if (spawn && (!hit || distanceTo(r.o, sp3(spawn.pos)) < hit.t)) return { kind: 'spawn', id: spawn.id };
+      const zone = s.map.zones
+        .map((z) => ({ z, t: rayBox(r, z.min as Vec3, z.max as Vec3) }))
+        .filter((x) => x.t !== null && (!hit || x.t! < hit.t))
+        .sort((a, b) => a.t! - b.t!)[0]?.z;
+      if (zone) return { kind: 'zone', id: zone.id };
+      // grouped bricks and asset copies are objects; loose terrain bricks are ground unless already selected
+      const b = hit?.brick;
+      if (b && (b.group || s.ownerOf(b.id) || ed.selection.value.has(b.id))) return { kind: 'object', brick: b.id };
+      const g = s.surface(r);
+      if (!g) return b ? { kind: 'object', brick: b.id } : null;
+      return { kind: 'ground', at: { x: g.x, y: g.y, z: g.z }, ...(b ? { brick: b.id } : {}) };
+    };
+
+    /** Right-click: select what is under the pointer (keeping a selection it is part of), then open its menu. */
+    const menuAt = (e: PointerEvent) => {
+      const s = ed.scene.value;
+      const t = targetAt(e);
+      if (!s || !t || !menuRef.current) return;
+      if (t.kind === 'object') {
+        if (!ed.selection.value.has(t.brick)) ed.selectObject(s.get(t.brick)!);
+      } else if (t.kind === 'spawn' || t.kind === 'zone' || t.kind === 'item') selectOnly(ed, t.kind, t.id);
+      menuRef.current(t, e.clientX, e.clientY);
     };
 
     const groundAt = (e: { clientX: number; clientY: number }, y: number): [number, number] | null => {
@@ -653,6 +692,7 @@ export function Viewport({
       }
       preview = null;
       if (!d.moved && d.button === 0) click(e);
+      else if (!d.moved && d.button === 2 && mode === 'scene' && !studio) menuAt(e);
     };
 
     const onWheel = (e: WheelEvent) => {
@@ -661,11 +701,48 @@ export function Viewport({
       dirty = true;
     };
     const onLeave = () => {
+      sceneHover.value = null;
       hover = null;
       ghost = null;
       assetGhost = null;
       dirty = true;
     };
+    // P31: drop an asset from the dock straight into the scene, with the ghost following the pointer
+    const onDragOver = (e: DragEvent) => {
+      const p = dragPayload.value;
+      const s = ed.scene.value;
+      if (!p || !s || mode !== 'scene' || studio) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      const hit = s.surface(rayAt(e), (b) => !ed.isVisible(b));
+      const def = resolveAsset(ed, p.asset);
+      const at = hit && assetCorner(ed, p.asset, p.rot, hit);
+      assetAt = at ?? null;
+      assetGhost = def && at ? expandAsset(def, { pos: at, rot: p.rot, idBase: 1 }).bricks : null;
+      hover = null;
+      sceneHover.value = null;
+      dirty = true;
+    };
+    const onDrop = (e: DragEvent) => {
+      const p = dragPayload.value;
+      const s = ed.scene.value;
+      if (!p || !s || mode !== 'scene' || studio) return;
+      e.preventDefault();
+      const hit = s.surface(rayAt(e), (b) => !ed.isVisible(b));
+      assetGhost = null;
+      assetAt = null;
+      dirty = true;
+      endDrag();
+      if (hit) placeAssetAt(ed, p.asset, p.rot, hit);
+    };
+    const onDragLeave = () => {
+      assetGhost = null;
+      assetAt = null;
+      dirty = true;
+    };
+    canvas.addEventListener('dragover', onDragOver);
+    canvas.addEventListener('drop', onDrop);
+    canvas.addEventListener('dragleave', onDragLeave);
     canvas.addEventListener('pointerdown', onDown);
     canvas.addEventListener('pointermove', onMove);
     canvas.addEventListener('pointerup', onUp);
@@ -691,13 +768,9 @@ export function Viewport({
   );
 }
 
-const sp3 = (p: readonly number[]): Vec3 => [p[0]!, p[1]!, p[2]!];
+export { mapItems };
 
-/** the open map's sound emitters and world UI items */
-export function mapItems(ed: EditorState): Array<EmitterInstance | UiInstance> {
-  const inst = ed.store.get<Instances>(paths.instances(ed.mapId.value));
-  return (inst?.items ?? []).filter((i): i is EmitterInstance | UiInstance => i.kind === 'emitter' || i.kind === 'ui');
-}
+const sp3 = (p: readonly number[]): Vec3 => [p[0]!, p[1]!, p[2]!];
 
 function ringLines(x: number, y: number, z: number, r: number, n = 32): number[] {
   const out: number[] = [];

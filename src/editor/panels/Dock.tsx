@@ -6,6 +6,7 @@ import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
 import { assetLibrary } from '../assets';
 import { AssetThumb } from '../components/AssetThumb';
+import { endDrag, startDrag } from '../interact/drag';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
 import { MixerView } from '../workspaces/audio/MixerView';
@@ -551,7 +552,17 @@ function AssetCards({ c }: { c: ActionCtx }) {
               class={`card ${on ? 'on' : ''}`}
               role="option"
               aria-selected={on}
-              title={`${a.name} · ${a.bricks.length} bricks${a.sockets.length ? ` · ${a.sockets.length} socket(s)` : ''}`}
+              data-tip={`${a.name} · ${a.bricks.length} bricks${a.sockets.length ? ` · ${a.sockets.length} socket(s)` : ''}. Drag it into the scene, or click and then click the ground.`}
+              data-help="assets"
+              draggable
+              onDragStart={(e) =>
+                startDrag(e as unknown as DragEvent, {
+                  kind: 'asset',
+                  asset: a.id,
+                  rot: brush.asset === a.id ? brush.rot : 0,
+                })
+              }
+              onDragEnd={endDrag}
               onClick={() => {
                 ed.assetBrush.value = { asset: a.id, rot: brush.asset === a.id ? brush.rot : 0 };
                 ed.tool.value = 'asset';

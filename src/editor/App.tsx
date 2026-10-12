@@ -7,6 +7,10 @@ import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './acti
 import { AiPanel } from './ai/AiPanel';
 import { WorldGraph } from './graph/WorldGraph';
 import { HelpView } from './help/HelpView';
+import { ContextMenu } from './interact/ContextMenu';
+import { HoverTip } from './interact/HoverTip';
+import { openMenuState } from './interact/menu';
+import { openSelectionMenu } from './interact/scene-menus';
 import { Dock } from './panels/Dock';
 import { RightPanel } from './panels/Inspector';
 import { Outliner } from './panels/Outliner';
@@ -147,7 +151,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (play || modal || help || ed.palette.value) return;
+      if (play || modal || help || ed.palette.value || openMenuState.value) return;
       if (ed.session.value) {
         // While playing only the play shortcuts reach the editor; the game owns the rest (Esc = game back/pause).
         if (e.key === 'F5') {
@@ -159,6 +163,12 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       const t = e.target as HTMLElement;
       if (t.closest('input,textarea,select,[contenteditable]')) return;
       const k = keyOf(e);
+      // P31: the menu key and Shift+F10 open the right-click menu for the selection
+      if (k === 'ContextMenu' || k === 'Shift F10') {
+        const el = document.querySelector('.viewport-canvas')?.getBoundingClientRect();
+        if (el && openSelectionMenu(c, el.left + el.width / 2, el.top + el.height / 2)) e.preventDefault();
+        return;
+      }
       const a = ACTIONS.find((x) => x.key === k);
       if (!a) return;
       e.preventDefault();
@@ -238,6 +248,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       )}
       <StatusBar ed={ed} />
       <Toast ed={ed} />
+      <ContextMenu />
+      <HoverTip c={c} />
       {ed.palette.value && <CommandPalette c={c} />}
       {modal === 'shortcuts' && <Shortcuts onClose={() => setModal(null)} />}
       {modal === 'open' && <OpenDialog host={host} current={ed.store.manifest.id} onClose={() => setModal(null)} />}

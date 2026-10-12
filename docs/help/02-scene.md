@@ -10,6 +10,14 @@ Drag to orbit, right-drag or Shift-drag to pan, wheel to zoom. On touch: one fin
 
 With the Select tool (V), click an object to select all of it (a house, a tree). Alt-click selects a single brick, Shift-click adds to the selection, G selects the whole group, Esc deselects. The Hierarchy lists every object by type (terrain, buildings, nature, spawn points, zones, sounds, signs) with a filter box; Layers and Find are next to it.
 
+## Right-click, hover and drag
+
+Right-click anything in the 3D view or the Hierarchy to see everything you can do to it. An object offers Duplicate, Turn, Zoom to it, and for an asset copy also Edit in Asset studio, Unpack and the Logic events (when the player uses it, when it is smashed, when it is rebuilt). Spawn points offer Play from here and Start the game here; trigger zones offer logic for walking in and out. Right-click empty ground to add an asset, a trigger zone, a spawn point, a sound or a sign right there. Help is always near the bottom of the menu and Delete is always last. Everything in a menu can be undone. On the keyboard, Shift F10 or the menu key opens the menu for the selection; the arrow keys move and Enter picks.
+
+Hold the pointer over a tool or a card for a moment to see what it does; the ? in the tip opens its Help page. Over the 3D view, the name of the thing under the pointer follows it.
+
+Drag an asset card from the dock straight into the 3D view: a ghost shows where it lands, and letting go places it. Clicking a card and then the ground still works too.
+
 ## Moving and turning
 
 Move (W) and Rotate (E) work on the selection; the arrow keys and Page Up / Page Down nudge it, R turns it, Ctrl D duplicates and Delete removes it. Bricks that would float or overlap are refused, so the map always keeps v68's rules.
