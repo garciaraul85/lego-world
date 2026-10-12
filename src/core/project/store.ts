@@ -42,6 +42,7 @@ export class ProjectStore {
   private dirtySet = new Set<string>();
   private listeners = new Set<{ prefix: string; fn: (changed: string[]) => void }>();
   private pending: Set<string> | null = null;
+  private muted = 0;
   private hook: WriteHook | null = null;
   private readonly validate: boolean;
   private readonly freeze: boolean;
@@ -142,8 +143,23 @@ export class ProjectStore {
     else this.notify([path]);
   }
 
+  /**
+   * Runs fn without telling anyone: no listeners, no dirty marks. For trying a change and rolling it back
+   * (the bus's check), so a drag can show "can't go here" without rebuilding the scene on every move.
+   */
+  silently<T>(fn: () => T): T {
+    const dirty = new Set(this.dirtySet);
+    this.muted++;
+    try {
+      return fn();
+    } finally {
+      this.muted--;
+      this.dirtySet = dirty;
+    }
+  }
+
   private notify(changed: string[]) {
-    if (!changed.length) return;
+    if (!changed.length || this.muted) return;
     for (const l of this.listeners) {
       const mine = changed.filter((p) => p.startsWith(l.prefix));
       if (mine.length) l.fn(mine);

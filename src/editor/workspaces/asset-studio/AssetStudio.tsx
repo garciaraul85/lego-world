@@ -30,13 +30,14 @@ const STUDIO_TOOLS: [ToolId, string, string][] = [
   ['select', '↖', 'Select (V)'],
   ['move', '✥', 'Move (W)'],
   ['rotate', '↻', 'Rotate (E)'],
+  ['resize', '⤡', 'Resize one brick (Q)'],
   ['place', '▦', 'Brick paint (B)'],
   ['paint', '◐', 'Color paint (C)'],
   ['erase', '⌫', 'Erase (X)'],
   ['spawn', '◎', 'Put the selected socket where you click (P)'],
 ];
 /** Studio shortcuts go to the build plate; everything else stays with the main editor. */
-const STUDIO_ACTION = /^(edit\.|tool\.|brush\.|view\.(fit|frame|top))/;
+const STUDIO_ACTION = /^(edit\.|tool\.|brush\.)/;
 
 export function AssetStudio({ c }: { c: ActionCtx }) {
   const { ed } = c;
@@ -59,7 +60,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     const bus = registerAll(new CommandBus(store));
     const autosave = new Autosave(store, new MemoryBackend(), { setTimer: () => null, clearTimer: () => {} });
     const sed = new StudioState({ store, bus, autosave, backend: new MemoryBackend() });
-    sed.tool.value = ['select', 'move', 'rotate', 'place', 'paint', 'erase'].includes(ed.tool.value)
+    sed.tool.value = ['select', 'move', 'rotate', 'resize', 'place', 'paint', 'erase'].includes(ed.tool.value)
       ? ed.tool.value
       : 'place';
     sed.brush.value = ed.brush.value;

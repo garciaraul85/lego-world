@@ -3172,3 +3172,75 @@ select.inp {
   font: 600 12px var(--mono);
   white-space: nowrap;
 }
+.gizmo-tag.bad {
+  color: #ff8a80;
+  border-color: #7a2b2b;
+  white-space: normal;
+  max-width: 320px;
+}
+
+/* P31 view buttons in the 3D view */
+.vp-controls {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #11151bcc;
+  border: 1px solid #2c333e;
+}
+.vc {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: #d6dce5;
+  font: 600 15px var(--mono);
+  cursor: pointer;
+}
+.vc:hover,
+.vc:focus-visible {
+  background: var(--btnh);
+  outline: none;
+}
+.vc.on {
+  background: #3a3420;
+  color: #ffd84a;
+}
+
+/* P31 full-screen scene: the 3D view and the tools, nothing else */
+.app.scene-full {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.app.scene-full > .menubar,
+.app.scene-full > .workspaces,
+.app.scene-full > .statusbar,
+.app.scene-full .compact-tabs,
+.app.scene-full .body > .panel.left,
+.app.scene-full .body > .panel.right,
+.app.scene-full .center > .panel > .ptabs {
+  display: none;
+}
+.app.scene-full .body {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
+  gap: 0;
+}
+.app.scene-full .center {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+}
+.app.scene-full .center > .dockpanel {
+  display: none;
+}
+.app.scene-full.dock-open .center {
+  grid-template-rows: minmax(0, 1fr) 210px;
+}
+.app.scene-full.dock-open .center > .dockpanel {
+  display: flex;
+}

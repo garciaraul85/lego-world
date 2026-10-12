@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
+import type { Command } from '../../core/commands';
 import { skyCycle } from '../../core/legacy/modules';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
@@ -21,6 +22,7 @@ import {
 } from '../interact/place';
 import { rayBox } from '../scene';
 import type { EditorState } from '../state';
+import { fullscreenDock, sceneFullscreen, setActiveView, type ViewOp, type ViewportApi, viewOp } from './active';
 import {
   changeFor,
   dragAmount,
@@ -42,13 +44,7 @@ import {
 const kindOf = (type: string) =>
   (type.startsWith('brick') ? 'brick' : type.startsWith('plate') ? 'plate' : 'tile') as RenderBrick['kind'];
 
-export type ViewportApi = {
-  camera: OrbitCamera;
-  renderer: Renderer | null;
-  redraw(): void;
-  fit(): void;
-  frameSelection(): void;
-};
+export type { ViewportApi } from './active';
 
 /** The 3D scene view: renderer + camera + the active tool's pointer handling. */
 export type StudioHooks = { markers(): Marker[]; onPoint(pos: [number, number, number]): void };
@@ -71,6 +67,7 @@ export function Viewport({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hudRef = useRef<HTMLDivElement>(null);
   const tagRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<ViewportApi | null>(null);
   const menuRef = useRef(onMenu);
   menuRef.current = onMenu;
 
@@ -104,6 +101,17 @@ export function Viewport({
     let assetAt: [number, number, number] | null = null;
     // P31 transform gizmo: the handle under the pointer, and the drag in progress
     let hot: HandleId | null = null;
+    // P31: why the change being dragged would be refused (overlap, floating…), checked once per snap step
+    let blocked: string | null = null;
+    let checkedKey = '';
+    const checkCommand = (cmd: Command | null) => {
+      const key = cmd ? JSON.stringify(cmd) : '';
+      if (key === checkedKey) return blocked;
+      checkedKey = key;
+      blocked = cmd ? ed.bus.check(cmd) : null;
+      return blocked;
+    };
+    let tagTimer = 0;
     let gz: {
       mode: GizmoMode;
       target: GizmoTarget;
@@ -201,7 +209,7 @@ export function Viewport({
       camera.pitch = pitch;
       dirty = true;
     };
-    api?.({
+    const self: ViewportApi = {
       camera,
       get renderer() {
         return renderer;
@@ -209,7 +217,13 @@ export function Viewport({
       redraw,
       fit: fitAll,
       frameSelection,
-    });
+    };
+    api?.(self);
+    viewRef.current = self;
+    // the view you work in gets the focus, zoom and orbit keys (Scene or the Asset studio's plate)
+    if (mode === 'scene') setActiveView(self);
+    const claim = () => mode === 'scene' && setActiveView(self);
+    canvas.addEventListener('pointerenter', claim);
 
     // Scene subscription (re-attached when the map changes) + layer visibility + environment.
     let unsubScene: (() => void) | null = null;
@@ -275,20 +289,21 @@ export function Viewport({
       if (canvas.dataset.gizmo !== json) canvas.dataset.gizmo = json;
       if (!g) return;
       const live = gz?.change;
+      const ghostCol: [number, number, number] = blocked ? [1, 0.3, 0.25] : [1, 0.85, 0.4];
       // previews for things that are not bricks
       if (live?.box) {
         const [a, b] = live.box;
-        lines.push({ lines: boxLines(a[0], a[1], a[2], b[0], b[1], b[2]), color: [1, 0.85, 0.4], onTop: true });
+        lines.push({ lines: boxLines(a[0], a[1], a[2], b[0], b[1], b[2]), color: ghostCol, onTop: true });
       }
       if (live?.pos && g.target.kind === 'spawn') {
         markers.push({
           pos: [live.pos[0], live.pos[1] + 0.9, live.pos[2]],
           size: [0.9, 1.8, 0.9],
-          color: [1, 0.85, 0.4],
+          color: ghostCol,
           alpha: 0.6,
         });
-        lines.push({ lines: facingLine(live.pos, live.yaw ?? g.target.yaw), color: [1, 0.85, 0.4], onTop: true });
-      } else if (live?.pos) markers.push({ pos: live.pos, size: [0.7, 0.7, 0.7], color: [1, 0.85, 0.4], alpha: 0.6 });
+        lines.push({ lines: facingLine(live.pos, live.yaw ?? g.target.yaw), color: ghostCol, onTop: true });
+      } else if (live?.pos) markers.push({ pos: live.pos, size: [0.7, 0.7, 0.7], color: ghostCol, alpha: 0.6 });
       const active = gz?.handle.id ?? hot;
       const col = (h: Handle) => (h.id === active ? AXIS_HOT : h.color);
       for (const h of g.handles) {
@@ -329,8 +344,9 @@ export function Viewport({
         const mid: Vec3 = [(h.from[0] + h.to[0]) / 2, (h.from[1] + h.to[1]) / 2, (h.from[2] + h.to[2]) / 2];
         const len = (i: number) => (h.dir[i] ? size : th);
         markers.push({ pos: mid, size: [len(0), len(1), len(2)], color: col(h), onTop: true });
-        const tip = size * 0.16;
-        markers.push({ pos: h.to, size: [tip, tip, tip], color: col(h), onTop: true });
+        // a real arrowhead (Resize uses cubes, so the two never look alike)
+        const axis = h.dir[0] ? 'x' : h.dir[1] ? 'y' : 'z';
+        markers.push({ pos: h.to, size: [size * 0.17, size * 0.3, 0], color: col(h), onTop: true, cone: axis });
       }
     };
 
@@ -344,7 +360,13 @@ export function Viewport({
       const markers: Marker[] = [];
       if (s && mode === 'scene') {
         const sel = ed.selectedBricks.value;
-        if (preview) overlays.push({ bricks: preview.map(brickRender), alpha: 0.75, flat: false });
+        if (preview)
+          overlays.push({
+            bricks: preview.map(brickRender),
+            alpha: 0.75,
+            flat: !!blocked,
+            ...(blocked ? { color: [1, 0.25, 0.2] as [number, number, number] } : {}),
+          });
         else if (sel.length)
           overlays.push({ bricks: sel.map(brickRender), color: [1, 0.72, 0.2], alpha: 0.38, flat: true });
         if (hover && !ed.selection.value.has(hover.id) && !preview) {
@@ -449,15 +471,22 @@ export function Viewport({
       const r = canvas.getBoundingClientRect();
       return [e.clientX - r.left, e.clientY - r.top];
     };
-    const showTag = (text: string | null, at?: [number, number]) => {
+    const showTag = (text: string | null, at?: [number, number], bad = false) => {
       const el = tagRef.current;
       if (!el) return;
+      clearTimeout(tagTimer);
       el.hidden = !text;
+      el.classList.toggle('bad', bad);
       if (text && at) {
         el.textContent = text;
         el.style.left = `${at[0] + 16}px`;
         el.style.top = `${at[1] + 14}px`;
       }
+    };
+    /** a message at the pointer that fades after a moment (a refused drop) */
+    const flashTag = (text: string, at: [number, number]) => {
+      showTag(text, at, true);
+      tagTimer = window.setTimeout(() => showTag(null), 2600);
     };
     const gizmoMode = (): GizmoMode | null => {
       const t = ed.tool.value;
@@ -797,7 +826,8 @@ export function Viewport({
           gz.mode === 'rotate' ? dragQuarters(gz.center, gz.start, now) : dragAmount(gz.handle, project, gz.start, now);
         gz.change = changeFor(ed.mapId.value, gz.mode, gz.target, gz.handle.id, amount);
         preview = gz.change.bricks ?? null;
-        showTag(gz.change.label, now);
+        const why = checkCommand(gz.change.command);
+        showTag(why ? `${gz.change.label} · can't go here: ${why}` : gz.change.label, now, !!why);
         dirty = true;
         return;
       }
@@ -820,6 +850,18 @@ export function Viewport({
         const mz = Math.round(g[1] - drag.start.z);
         preview = ed.selectedBricks.value.map((b) => ({ ...b, x: b.x + mx, z: b.z + mz }));
         ed.cursor.value = { x: mx, z: mz, y: 0 };
+        const sel = ed.selectedBricks.value;
+        const why = checkCommand(
+          mx || mz
+            ? {
+                type: 'bricks.move',
+                payload: { map: ed.mapId.value, ids: sel.map((b) => b.id), dx: mx, dy: 0, dz: mz },
+              }
+            : null,
+        );
+        const unit = (n: number) => `${n > 0 ? '+' : ''}${n}`;
+        const what = `${unit(mx)} X  ${unit(mz)} Z`;
+        showTag(why ? `${what} · can't go here: ${why}` : what, local(e), !!why);
         dirty = true;
         return;
       }
@@ -844,7 +886,12 @@ export function Viewport({
         showTag(null);
         canvas.style.cursor = hot ? 'grab' : '';
         dirty = true;
-        if (g?.change?.command) ed.exec(g.change.command, { label: g.change.undoLabel });
+        if (g?.change?.command) {
+          const r = ed.exec(g.change.command, { label: g.change.undoLabel });
+          if (!r.ok) flashTag(`Not moved: ${r.error ?? 'that spot is not allowed'}`, local(e));
+        }
+        blocked = null;
+        checkedKey = '';
         return;
       }
       if (d.kind === 'zone' && zoneDraft) {
@@ -877,8 +924,16 @@ export function Viewport({
         const dx = (preview[0]?.x ?? 0) - (sel[0]?.x ?? 0);
         const dz = (preview[0]?.z ?? 0) - (sel[0]?.z ?? 0);
         preview = null;
-        if (dx || dz)
-          ed.exec({ type: 'bricks.move', payload: { map: ed.mapId.value, ids: sel.map((b) => b.id), dx, dy: 0, dz } });
+        blocked = null;
+        checkedKey = '';
+        showTag(null);
+        if (dx || dz) {
+          const r = ed.exec({
+            type: 'bricks.move',
+            payload: { map: ed.mapId.value, ids: sel.map((b) => b.id), dx, dy: 0, dz },
+          });
+          if (!r.ok) flashTag(`Not moved: ${r.error ?? 'that spot is not allowed'}`, local(e));
+        }
         dirty = true;
         return;
       }
@@ -945,6 +1000,9 @@ export function Viewport({
 
     return () => {
       cancelAnimationFrame(raf);
+      canvas.removeEventListener('pointerenter', claim);
+      setActiveView(null, self);
+      viewRef.current = null;
       ro.disconnect();
       unsubScene?.();
       for (const d of disposers) d();
@@ -957,6 +1015,7 @@ export function Viewport({
       <canvas ref={canvasRef} class="viewport-canvas" data-tour="viewport" aria-label="3D map view" />
       <div class="vp-hud mono" ref={hudRef} />
       <div class="gizmo-tag" ref={tagRef} hidden />
+      {mode === 'scene' && <ViewControls view={viewRef} studio={!!studio} />}
     </div>
   );
 }
@@ -1048,4 +1107,47 @@ function boxLines(x0: number, y0: number, z0: number, x1: number, y1: number, z1
     [x0, y1, z1],
   ];
   return [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7].flatMap((i) => c[i]!);
+}
+
+/**
+ * P31 view buttons in the corner of the 3D view: focus on the selection, zoom, turn the view, fit, and
+ * full screen. Each has a key, shown in its tip.
+ */
+function ViewControls({ view, studio }: { view: { current: ViewportApi | null }; studio: boolean }) {
+  const op = (o: ViewOp) => () => viewOp(o, view.current);
+  const full = sceneFullscreen.value;
+  const btn = (label: string, tip: string, glyph: string, run: () => void, extra = '') => (
+    <button type="button" class={`vc ${extra}`} aria-label={label} data-tip={tip} onClick={run}>
+      {glyph}
+    </button>
+  );
+  return (
+    <div class="vp-controls" role="toolbar" aria-label="View" data-tour="view-controls">
+      {btn('Focus on selection', 'Focus on the selection, then zoom and turn around it (F)', '◎', () =>
+        view.current?.frameSelection(),
+      )}
+      {btn('Zoom in', 'Zoom in (+)', '+', op('zoomIn'))}
+      {btn('Zoom out', 'Zoom out (−)', '−', op('zoomOut'))}
+      {btn('Turn view left', 'Turn the view left (Alt ←)', '⟲', op('orbitLeft'))}
+      {btn('Turn view right', 'Turn the view right (Alt →)', '⟳', op('orbitRight'))}
+      {btn('Fit everything', 'Show everything (Home)', '⤢', () => view.current?.fit())}
+      {!studio &&
+        full &&
+        btn(
+          fullscreenDock.value ? 'Hide assets' : 'Show assets',
+          fullscreenDock.value ? 'Hide the asset drawer' : 'Show the assets to drag into the scene',
+          '▤',
+          () => (fullscreenDock.value = !fullscreenDock.value),
+          fullscreenDock.value ? 'on' : '',
+        )}
+      {!studio &&
+        btn(
+          full ? 'Leave full screen' : 'Full screen',
+          full ? 'Leave full screen (Esc or Ctrl Shift F)' : 'Full-screen scene: hide the panels (Ctrl Shift F)',
+          full ? '⤡' : '⛶',
+          () => window.dispatchEvent(new CustomEvent('bw:fullscreen')),
+          full ? 'on' : '',
+        )}
+    </div>
+  );
 }

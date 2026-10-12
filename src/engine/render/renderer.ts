@@ -1,5 +1,5 @@
 import type { SkySample } from '../../core/legacy/modules';
-import { brickGeometry, type Geometry, PLATE, plainBox } from './brick-geometry';
+import { brickGeometry, coneGeometry, type Geometry, PLATE, plainBox } from './brick-geometry';
 import type { CameraFrame } from './camera';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from './math';
 import { FRAGMENT, SKY_FRAGMENT, SKY_VERTEX, VERTEX } from './shaders';
@@ -27,7 +27,16 @@ export const LOD_DISTANCE = 96;
 export type Overlay = { bricks: RenderBrick[]; color?: [number, number, number]; alpha: number; flat: boolean };
 /** onTop: drawn over everything, ignoring depth (editor gizmos) */
 export type LineSet = { lines: number[]; color: [number, number, number]; onTop?: boolean };
-export type Marker = { pos: Vec3; size: Vec3; color: [number, number, number]; alpha?: number; onTop?: boolean };
+export type Marker = {
+  pos: Vec3;
+  /** box: width, height, depth (centered on pos); cone: [diameter, length, _], base on pos */
+  size: Vec3;
+  color: [number, number, number];
+  alpha?: number;
+  onTop?: boolean;
+  /** an arrowhead pointing along +axis instead of a box (editor gizmos) */
+  cone?: 'x' | 'y' | 'z';
+};
 
 export type FrameStats = { drawCalls: number; instances: number; chunksDrawn: number; chunks: number; ms: number };
 
@@ -186,6 +195,16 @@ export class Renderer {
   /** Far-LOD shape: the brick's shell as one rounded box, no studs or tubes. */
   private lodShape(w: number, d: number, kind: RenderBrick['kind']): Mesh {
     return this.boxMesh(`lod:${w},${d},${kind}`, w - 0.025, brickHeightUnits(kind), d - 0.025);
+  }
+
+  private coneMesh(r: number, h: number, axis: 'x' | 'y' | 'z'): Mesh {
+    const key = `cone:${r},${h},${axis}`;
+    let m = this.meshes.get(key);
+    if (!m) {
+      m = this.upload(coneGeometry(r, h, axis));
+      this.meshes.set(key, m);
+    }
+    return m;
   }
 
   private boxMesh(key: string, w: number, h: number, d: number): Mesh {
@@ -480,7 +499,9 @@ export class Renderer {
       gl.clear(gl.DEPTH_BUFFER_BIT);
       for (const m of top)
         this.drawSingle(
-          this.boxMesh(`marker:${m.size.join(',')}`, m.size[0], m.size[1], m.size[2]),
+          m.cone
+            ? this.coneMesh(m.size[0] / 2, m.size[1], m.cone)
+            : this.boxMesh(`marker:${m.size.join(',')}`, m.size[0], m.size[1], m.size[2]),
           m.pos,
           m.color,
           1,

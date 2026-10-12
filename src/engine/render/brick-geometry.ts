@@ -180,6 +180,38 @@ export function brickGeometry(
 }
 
 /** A plain box (for the floor, markers and far LOD). */
+/** A cone (arrowhead) with its base centered on the origin, pointing along +x, +y or +z. */
+export function coneGeometry(radius: number, height: number, axis: 'x' | 'y' | 'z', segments = 16): Geometry {
+  const g = new Builder();
+  g.lathe(
+    0,
+    0,
+    [
+      [0, 0],
+      [radius, 0],
+      [0, height],
+    ],
+    segments,
+  );
+  const out = g.done();
+  if (axis === 'y') return out;
+  // y-up cone -> point along x (x <- y, y <- -x) or along z (z <- y, y <- -z)
+  for (const arr of [out.positions, out.normals])
+    for (let i = 0; i < arr.length; i += 3) {
+      const [x, y, z] = [arr[i]!, arr[i + 1]!, arr[i + 2]!];
+      if (axis === 'x') {
+        arr[i] = y;
+        arr[i + 1] = -x;
+        arr[i + 2] = z;
+      } else {
+        arr[i] = x;
+        arr[i + 1] = -z;
+        arr[i + 2] = y;
+      }
+    }
+  return out;
+}
+
 export function plainBox(w: number, h: number, d: number, r = 0.04): Geometry {
   const g = new Builder();
   g.box(0, 0, 0, w, h, d, r);
