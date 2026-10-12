@@ -25,8 +25,9 @@ type ChunkGpu = { batches: Batch[]; min: Vec3; max: Vec3; bricks: number };
 export const LOD_DISTANCE = 96;
 
 export type Overlay = { bricks: RenderBrick[]; color?: [number, number, number]; alpha: number; flat: boolean };
-export type LineSet = { lines: number[]; color: [number, number, number] };
-export type Marker = { pos: Vec3; size: Vec3; color: [number, number, number]; alpha?: number };
+/** onTop: drawn over everything, ignoring depth (editor gizmos) */
+export type LineSet = { lines: number[]; color: [number, number, number]; onTop?: boolean };
+export type Marker = { pos: Vec3; size: Vec3; color: [number, number, number]; alpha?: number; onTop?: boolean };
 
 export type FrameStats = { drawCalls: number; instances: number; chunksDrawn: number; chunks: number; ms: number };
 
@@ -422,6 +423,7 @@ export class Renderer {
     gl.uniform1f(this.u.uInstances!, 0);
 
     for (const m of markers) {
+      if (m.onTop) continue;
       if (m.alpha !== undefined && m.alpha < 1) {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -456,6 +458,8 @@ export class Renderer {
       gl.uniform3fv(this.u.uOffset!, [0, 0, 0]);
       for (const set of lines) {
         if (!set.lines.length) continue;
+        if (set.onTop) gl.disable(gl.DEPTH_TEST);
+        else gl.enable(gl.DEPTH_TEST);
         gl.uniform3fv(this.u.uColor!, set.color);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.lineBuf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(set.lines), gl.DYNAMIC_DRAW);
@@ -464,10 +468,24 @@ export class Renderer {
         gl.drawArrays(gl.LINES, 0, set.lines.length / 3);
         this.stats.drawCalls++;
       }
+      gl.enable(gl.DEPTH_TEST);
     }
     if (extra) {
       extra(mvp, cam.eye);
       gl.useProgram(this.prog);
+    }
+    // gizmo handles: over the scene, but in depth order among themselves
+    const top = markers.filter((m) => m.onTop);
+    if (top.length) {
+      gl.clear(gl.DEPTH_BUFFER_BIT);
+      for (const m of top)
+        this.drawSingle(
+          this.boxMesh(`marker:${m.size.join(',')}`, m.size[0], m.size[1], m.size[2]),
+          m.pos,
+          m.color,
+          1,
+          true,
+        );
     }
     this.stats.ms = performance.now() - t0;
     return this.stats;

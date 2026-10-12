@@ -3,7 +3,6 @@ import { useEffect, useRef } from 'preact/hooks';
 import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
-import { rotateQuarter } from '../../core/bricks/transform';
 import { skyCycle } from '../../core/legacy/modules';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
@@ -22,6 +21,23 @@ import {
 } from '../interact/place';
 import { rayBox } from '../scene';
 import type { EditorState } from '../state';
+import {
+  changeFor,
+  dragAmount,
+  dragQuarters,
+  type GizmoChange,
+  type GizmoMode,
+  type GizmoTarget,
+  gizmoOrigin,
+  gizmoTarget,
+  type Handle,
+  type HandleId,
+  handlesFor,
+  type Project,
+  pickHandle,
+  ringPoints,
+  targetBox,
+} from './gizmo';
 
 const kindOf = (type: string) =>
   (type.startsWith('brick') ? 'brick' : type.startsWith('plate') ? 'plate' : 'tile') as RenderBrick['kind'];
@@ -54,6 +70,7 @@ export function Viewport({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hudRef = useRef<HTMLDivElement>(null);
+  const tagRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef(onMenu);
   menuRef.current = onMenu;
 
@@ -72,7 +89,7 @@ export function Viewport({
     let hover: Brick | null = null;
     let ghost: RenderBrick | null = null;
     let drag: {
-      kind: 'orbit' | 'pan' | 'move' | 'zone';
+      kind: 'orbit' | 'pan' | 'move' | 'zone' | 'gizmo';
       x: number;
       y: number;
       moved: boolean;
@@ -85,6 +102,16 @@ export function Viewport({
     let zoneDraft: { x0: number; z0: number; x1: number; z1: number; y: number } | null = null;
     let assetGhost: Brick[] | null = null;
     let assetAt: [number, number, number] | null = null;
+    // P31 transform gizmo: the handle under the pointer, and the drag in progress
+    let hot: HandleId | null = null;
+    let gz: {
+      mode: GizmoMode;
+      target: GizmoTarget;
+      handle: Handle;
+      start: [number, number];
+      center: [number, number];
+      change: GizmoChange | null;
+    } | null = null;
     const pointers = new Map<number, { x: number; y: number }>();
     let pinch = 0;
     const redraw = () => {
@@ -231,6 +258,82 @@ export function Viewport({
       return { id: b.id, w, d, kind: kindOf(b.type), x: b.x, y: b.y, z: b.z, color: b.color };
     };
 
+    const drawGizmo = (lines: LineSet[], markers: Marker[]) => {
+      const g = currentGizmo();
+      // where each handle is on screen, for tutorials (the ghost cursor) and tests
+      const spots = g
+        ? Object.fromEntries(
+            [['center', gizmoOrigin(g.target)] as const, ...g.handles.map((h) => [h.id, h.to] as const)].map(
+              ([id, at]) => {
+                const p = project(at);
+                return [id, p ? [Math.round(p[0]), Math.round(p[1])] : null];
+              },
+            ),
+          )
+        : null;
+      const json = spots ? JSON.stringify(spots) : '';
+      if (canvas.dataset.gizmo !== json) canvas.dataset.gizmo = json;
+      if (!g) return;
+      const live = gz?.change;
+      // previews for things that are not bricks
+      if (live?.box) {
+        const [a, b] = live.box;
+        lines.push({ lines: boxLines(a[0], a[1], a[2], b[0], b[1], b[2]), color: [1, 0.85, 0.4], onTop: true });
+      }
+      if (live?.pos && g.target.kind === 'spawn') {
+        markers.push({
+          pos: [live.pos[0], live.pos[1] + 0.9, live.pos[2]],
+          size: [0.9, 1.8, 0.9],
+          color: [1, 0.85, 0.4],
+          alpha: 0.6,
+        });
+        lines.push({ lines: facingLine(live.pos, live.yaw ?? g.target.yaw), color: [1, 0.85, 0.4], onTop: true });
+      } else if (live?.pos) markers.push({ pos: live.pos, size: [0.7, 0.7, 0.7], color: [1, 0.85, 0.4], alpha: 0.6 });
+      const active = gz?.handle.id ?? hot;
+      const col = (h: Handle) => (h.id === active ? AXIS_HOT : h.color);
+      for (const h of g.handles) {
+        const size =
+          h.id === 'ring'
+            ? h.to[0] - h.from[0]
+            : Math.hypot(h.to[0] - h.from[0], h.to[1] - h.from[1], h.to[2] - h.from[2]);
+        if (h.id === 'ring') {
+          const r = size;
+          const unit = gizmoSize(h.from);
+          const pts: number[] = [];
+          for (const k of [-0.025, 0, 0.025]) {
+            const ring = ringPoints({ ...h, to: [h.from[0] + r * (1 + k), h.to[1], h.to[2]] });
+            for (let i = 1; i < ring.length; i++) pts.push(...ring[i - 1]!, ...ring[i]!);
+          }
+          lines.push({ lines: pts, color: col(h), onTop: true });
+          const c = unit * 0.13;
+          for (let q = 0; q < 4; q++) {
+            const a = (q * Math.PI) / 2;
+            markers.push({
+              pos: [h.from[0] + Math.cos(a) * r, h.from[1], h.from[2] + Math.sin(a) * r],
+              size: [c, c, c],
+              color: col(h),
+              onTop: true,
+            });
+          }
+          continue;
+        }
+        if (h.from === h.to) {
+          // small enough that the handles of a small zone or brick do not swallow each other
+          const [bmin, bmax] = targetBox(g.target);
+          const ext = Math.min(bmax[0] - bmin[0], bmax[1] - bmin[1], bmax[2] - bmin[2]);
+          const c = Math.max(0.2, Math.min(gizmoSize(h.from) * 0.12, ext * 0.45));
+          markers.push({ pos: h.from, size: [c, c, c], color: col(h), onTop: true });
+          continue;
+        }
+        const th = Math.max(0.04, size * 0.035);
+        const mid: Vec3 = [(h.from[0] + h.to[0]) / 2, (h.from[1] + h.to[1]) / 2, (h.from[2] + h.to[2]) / 2];
+        const len = (i: number) => (h.dir[i] ? size : th);
+        markers.push({ pos: mid, size: [len(0), len(1), len(2)], color: col(h), onTop: true });
+        const tip = size * 0.16;
+        markers.push({ pos: h.to, size: [tip, tip, tip], color: col(h), onTop: true });
+      }
+    };
+
     const frame = () => {
       raf = requestAnimationFrame(frame);
       if (!dirty) return;
@@ -307,6 +410,7 @@ export function Viewport({
         for (const sp of studio ? [] : s.map.spawns)
           lines.push({ lines: facingLine(sp.pos as Vec3, sp.yaw), color: [0.31, 0.82, 0.77] });
       }
+      if (s) drawGizmo(lines, markers);
       const cam = camera.frame();
       const t0 = performance.now();
       const st = renderer.render(cam, camera.target, overlays, lines, markers);
@@ -328,9 +432,70 @@ export function Viewport({
     };
     const pickable = (b: Brick) => !ed.isVisible(b) || ed.isLocked(b);
 
+    /** world point → canvas pixel (CSS px), null when behind the camera */
+    const project: Project = (p) => {
+      const f = camera.frame();
+      const v = [p[0] - f.eye[0], p[1] - f.eye[1], p[2] - f.eye[2]];
+      const z = v[0]! * f.forward[0] + v[1]! * f.forward[1] + v[2]! * f.forward[2];
+      if (z < 0.05) return null;
+      const x = v[0]! * f.right[0] + v[1]! * f.right[1] + v[2]! * f.right[2];
+      const y = v[0]! * f.up[0] + v[1]! * f.up[1] + v[2]! * f.up[2];
+      const t = Math.tan(f.fov / 2);
+      const w = canvas.clientWidth;
+      const h = Math.max(1, canvas.clientHeight);
+      return [((x / (z * t * (w / h)) + 1) / 2) * w, ((1 - y / (z * t)) / 2) * h];
+    };
+    const local = (e: { clientX: number; clientY: number }): [number, number] => {
+      const r = canvas.getBoundingClientRect();
+      return [e.clientX - r.left, e.clientY - r.top];
+    };
+    const showTag = (text: string | null, at?: [number, number]) => {
+      const el = tagRef.current;
+      if (!el) return;
+      el.hidden = !text;
+      if (text && at) {
+        el.textContent = text;
+        el.style.left = `${at[0] + 16}px`;
+        el.style.top = `${at[1] + 14}px`;
+      }
+    };
+    const gizmoMode = (): GizmoMode | null => {
+      const t = ed.tool.value;
+      return mode === 'scene' && (t === 'move' || t === 'rotate' || t === 'resize') ? t : null;
+    };
+    /** arrow length in world units that stays about 70 px on screen */
+    const gizmoSize = (at: Vec3) => {
+      const f = camera.frame();
+      const z = Math.max(
+        1,
+        (at[0] - f.eye[0]) * f.forward[0] + (at[1] - f.eye[1]) * f.forward[1] + (at[2] - f.eye[2]) * f.forward[2],
+      );
+      const worldPerPx = (2 * z * Math.tan(f.fov / 2)) / Math.max(1, canvas.clientHeight);
+      return Math.max(0.5, Math.round(worldPerPx * 70 * 4) / 4);
+    };
+    const currentGizmo = (): { mode: GizmoMode; target: GizmoTarget; handles: Handle[] } | null => {
+      const m = gizmoMode();
+      if (!m) return null;
+      const target = gz?.target ?? gizmoTarget(ed, m);
+      if (!target) return null;
+      return { mode: m, target, handles: handlesFor(m, target, gizmoSize(gizmoOrigin(target))) };
+    };
+
     const updateHover = (e: PointerEvent) => {
       const s = ed.scene.value;
       if (!s || mode !== 'scene') return;
+      const g = currentGizmo();
+      const nowHot = g ? pickHandle(g.handles, project, ...local(e)) : null;
+      if (nowHot !== hot) {
+        hot = nowHot;
+        canvas.style.cursor = hot ? 'grab' : '';
+        dirty = true;
+      }
+      if (hot) {
+        hover = null;
+        sceneHover.value = null;
+        return;
+      }
       const r = rayAt(e);
       const tool = ed.tool.value;
       ghost = null;
@@ -460,7 +625,7 @@ export function Viewport({
             .map((z) => ({ z, t: rayBox(r, z.min as Vec3, z.max as Vec3) }))
             .filter((x) => x.t !== null && (!hit || x.t! < hit.t))
             .sort((a, b) => a.t! - b.t!)[0]?.z;
-      if (zone && tool === 'select') {
+      if (zone && (tool === 'select' || tool === 'move' || tool === 'rotate' || tool === 'resize')) {
         ed.selection.value = new Set();
         ed.selectedSpawn.value = null;
         ed.selectedZone.value = zone.id;
@@ -491,20 +656,6 @@ export function Viewport({
             ? (s.groups.get(b.group) ?? [b.id])
             : [b.id];
         if (ed.exec({ type: 'bricks.remove', payload: { map, ids } }).ok) ed.pruneSelection();
-        return;
-      }
-      if (tool === 'rotate') {
-        const ids = b.group && !e.altKey ? (s.groups.get(b.group) ?? [b.id]) : [b.id];
-        const bricks = ids.map((id) => s.get(id)!);
-        const turned = rotateQuarter(bricks);
-        ed.exec(
-          {
-            type: 'bricks.update',
-            payload: { map, bricks: turned.map((t) => ({ id: t.id, x: t.x, z: t.z, rot: t.rot })) },
-          },
-          { label: ids.length > 1 ? 'Rotate object 90°' : 'Rotate brick 90°' },
-        );
-        ed.select(ids);
         return;
       }
       ed.selectObject(b, { single: e.altKey, add: e.shiftKey });
@@ -565,7 +716,28 @@ export function Viewport({
         return;
       }
       const s = ed.scene.value;
-      let kind: 'orbit' | 'pan' | 'move' | 'zone' = e.button === 2 || e.button === 1 || e.shiftKey ? 'pan' : 'orbit';
+      if (e.button === 0 && !e.shiftKey) {
+        const g = currentGizmo();
+        const at = local(e);
+        const id = g && pickHandle(g.handles, project, at[0], at[1]);
+        const handle = id ? g.handles.find((h) => h.id === id) : null;
+        if (g && handle) {
+          gz = {
+            mode: g.mode,
+            target: g.target,
+            handle,
+            start: at,
+            center: project(gizmoOrigin(g.target)) ?? at,
+            change: null,
+          };
+          canvas.style.cursor = 'grabbing';
+          drag = { kind: 'gizmo', x: e.clientX, y: e.clientY, moved: false, button: 0 };
+          dirty = true;
+          return;
+        }
+      }
+      let kind: 'orbit' | 'pan' | 'move' | 'zone' | 'gizmo' =
+        e.button === 2 || e.button === 1 || e.shiftKey ? 'pan' : 'orbit';
       let offset: [number, number] | undefined;
       let plane: number | undefined;
       if (e.button === 0 && !e.shiftKey && ed.tool.value === 'zone' && s && mode === 'scene' && !studio) {
@@ -619,6 +791,16 @@ export function Viewport({
       const dy = e.clientY - drag.y;
       if (!drag.moved && Math.hypot(dx, dy) < 4) return;
       drag.moved = true;
+      if (drag.kind === 'gizmo' && gz) {
+        const now = local(e);
+        const amount =
+          gz.mode === 'rotate' ? dragQuarters(gz.center, gz.start, now) : dragAmount(gz.handle, project, gz.start, now);
+        gz.change = changeFor(ed.mapId.value, gz.mode, gz.target, gz.handle.id, amount);
+        preview = gz.change.bricks ?? null;
+        showTag(gz.change.label, now);
+        dirty = true;
+        return;
+      }
       if (drag.kind === 'zone' && drag.start && drag.plane !== undefined) {
         const g = groundAt(e, drag.plane);
         if (g && zoneDraft) {
@@ -655,6 +837,16 @@ export function Viewport({
       drag = null;
       pinch = 0;
       if (!d) return;
+      if (d.kind === 'gizmo') {
+        const g = gz;
+        gz = null;
+        preview = null;
+        showTag(null);
+        canvas.style.cursor = hot ? 'grab' : '';
+        dirty = true;
+        if (g?.change?.command) ed.exec(g.change.command, { label: g.change.undoLabel });
+        return;
+      }
       if (d.kind === 'zone' && zoneDraft) {
         const z = zoneDraft;
         zoneDraft = null;
@@ -764,6 +956,7 @@ export function Viewport({
     <div class="viewport-wrap">
       <canvas ref={canvasRef} class="viewport-canvas" data-tour="viewport" aria-label="3D map view" />
       <div class="vp-hud mono" ref={hudRef} />
+      <div class="gizmo-tag" ref={tagRef} hidden />
     </div>
   );
 }
@@ -771,6 +964,7 @@ export function Viewport({
 export { mapItems };
 
 const sp3 = (p: readonly number[]): Vec3 => [p[0]!, p[1]!, p[2]!];
+const AXIS_HOT: [number, number, number] = [1, 0.85, 0.25];
 
 function ringLines(x: number, y: number, z: number, r: number, n = 32): number[] {
   const out: number[] = [];

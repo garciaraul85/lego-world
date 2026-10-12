@@ -1,0 +1,398 @@
+import type { Brick } from '../../core/bricks/codec';
+import { footprint } from '../../core/bricks/inspect';
+import { pivotOf, rotateQuarter } from '../../core/bricks/transform';
+import type { Command } from '../../core/commands';
+import { BRICK_SIZES, type MapDoc } from '../../core/schema';
+
+type Zone = MapDoc['zones'][number];
+
+import type { Vec3 } from '../../engine/render/math';
+import { mapItems } from '../interact/place';
+import type { EditorState } from '../state';
+
+/**
+ * P31 transform gizmos, like in 3D tools: pick Move, Rotate or Resize, and the selection shows handles.
+ * Move: three arrows (red X, green up, blue Z). Rotate: a ring around the vertical axis, in quarter turns.
+ * Resize: square handles on the sides and top. Dragging a handle previews the change; letting go makes
+ * one command (one undo step). Everything snaps to studs and plates, so v68's brick rules still hold.
+ *
+ * Pure geometry and command building live here (unit-tested); the 3D view draws and drags.
+ */
+export type GizmoMode = 'move' | 'rotate' | 'resize';
+
+export type GizmoTarget =
+  | { kind: 'bricks'; bricks: Brick[]; asset: boolean }
+  | { kind: 'zone'; zone: Zone }
+  | { kind: 'spawn'; id: string; pos: Vec3; yaw: number }
+  | { kind: 'item'; id: string; pos: Vec3 };
+
+export type HandleId = 'x' | 'y' | 'z' | 'ring' | '+x' | '-x' | '+z' | '-z' | '+y';
+
+export type Handle = {
+  id: HandleId;
+  /** axis handles: shaft from → to; face handles: from = to = the handle's center */
+  from: Vec3;
+  to: Vec3;
+  /** world direction a drag moves along (ring: unused) */
+  dir: Vec3;
+  color: [number, number, number];
+};
+
+export const AXIS_COLOR = {
+  x: [0.95, 0.32, 0.3] as [number, number, number],
+  y: [0.42, 0.86, 0.36] as [number, number, number],
+  z: [0.3, 0.56, 1] as [number, number, number],
+  hot: [1, 0.85, 0.25] as [number, number, number],
+};
+
+const PLATE = 0.4;
+const brickTop = (b: Brick) => b.y * PLATE + (b.type.startsWith('brick') ? 1.2 : 0.4);
+
+/** What the gizmo works on: the selection, or null when there is nothing (or nothing this mode can change). */
+export function gizmoTarget(ed: EditorState, mode: GizmoMode): GizmoTarget | null {
+  const m = ed.mapDoc.value;
+  if (!m) return null;
+  const zone = m.zones.find((z) => z.id === ed.selectedZone.value);
+  if (zone) return mode === 'rotate' ? null : { kind: 'zone', zone };
+  const sp = m.spawns.find((s) => s.id === ed.selectedSpawn.value);
+  if (sp) return mode === 'resize' ? null : { kind: 'spawn', id: sp.id, pos: [...sp.pos] as Vec3, yaw: sp.yaw };
+  const it = mapItems(ed).find((i) => i.id === ed.selectedItem.value);
+  if (it) return mode === 'move' ? { kind: 'item', id: it.id, pos: [...it.pos] as Vec3 } : null;
+  const bricks = ed.selectedBricks.value;
+  if (!bricks.length) return null;
+  const s = ed.scene.value;
+  const asset = !!s && bricks.some((b) => s.ownerOf(b.id));
+  if (mode === 'resize' && (bricks.length !== 1 || asset)) return null;
+  return { kind: 'bricks', bricks, asset };
+}
+
+/** Why Resize shows no handles for this selection (shown in the tool hint). */
+export function resizeHint(ed: EditorState): string | null {
+  if (ed.selectedZone.value) return null;
+  const bricks = ed.selectedBricks.value;
+  if (ed.selectedSpawn.value || ed.selectedItem.value) return 'Spawn points, sounds and signs have no size to change.';
+  if (!bricks.length) return 'Select a trigger zone or a single brick to resize it.';
+  const s = ed.scene.value;
+  if (s && bricks.some((b) => s.ownerOf(b.id)))
+    return 'Assets keep their size. Change the asset in the Asset studio, or Unpack it first.';
+  if (bricks.length > 1) return 'Resize works on one brick at a time (Alt-click selects a single brick).';
+  return null;
+}
+
+export function targetBox(t: GizmoTarget): [Vec3, Vec3] {
+  if (t.kind === 'zone') return [[...t.zone.min] as Vec3, [...t.zone.max] as Vec3];
+  if (t.kind === 'spawn')
+    return [
+      [t.pos[0] - 0.45, t.pos[1], t.pos[2] - 0.45],
+      [t.pos[0] + 0.45, t.pos[1] + 1.8, t.pos[2] + 0.45],
+    ];
+  if (t.kind === 'item')
+    return [
+      [t.pos[0] - 0.4, t.pos[1] - 0.4, t.pos[2] - 0.4],
+      [t.pos[0] + 0.4, t.pos[1] + 0.4, t.pos[2] + 0.4],
+    ];
+  const min: Vec3 = [Infinity, Infinity, Infinity];
+  const max: Vec3 = [-Infinity, -Infinity, -Infinity];
+  for (const b of t.bricks) {
+    const [w, d] = footprint(b);
+    min[0] = Math.min(min[0], b.x);
+    min[1] = Math.min(min[1], b.y * PLATE);
+    min[2] = Math.min(min[2], b.z);
+    max[0] = Math.max(max[0], b.x + w);
+    max[1] = Math.max(max[1], brickTop(b));
+    max[2] = Math.max(max[2], b.z + d);
+  }
+  return [min, max];
+}
+
+/** Where the gizmo sits: the middle of the selection's box, so it stays in view when the object is framed. */
+export function gizmoOrigin(t: GizmoTarget): Vec3 {
+  const [min, max] = targetBox(t);
+  return [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+}
+
+/** The handles for a mode. `size` is the arrow length in world units (the view keeps it a constant on-screen size). */
+export function handlesFor(mode: GizmoMode, t: GizmoTarget, size: number): Handle[] {
+  const o = gizmoOrigin(t);
+  const [min, max] = targetBox(t);
+  if (mode === 'move') {
+    const c = o;
+    return [
+      { id: 'x', from: c, to: [c[0] + size, c[1], c[2]], dir: [1, 0, 0], color: AXIS_COLOR.x },
+      { id: 'y', from: c, to: [c[0], c[1] + size, c[2]], dir: [0, 1, 0], color: AXIS_COLOR.y },
+      { id: 'z', from: c, to: [c[0], c[1], c[2] + size], dir: [0, 0, 1], color: AXIS_COLOR.z },
+    ];
+  }
+  if (mode === 'rotate') {
+    const r = Math.max(size * 0.8, Math.hypot(max[0] - min[0], max[2] - min[2]) / 2 + size * 0.15);
+    return [
+      {
+        id: 'ring',
+        from: [o[0], o[1] + 0.05, o[2]],
+        to: [o[0] + r, o[1] + 0.05, o[2]],
+        dir: [0, 1, 0],
+        color: AXIS_COLOR.y,
+      },
+    ];
+  }
+  const cy = (min[1] + max[1]) / 2;
+  const cx = (min[0] + max[0]) / 2;
+  const cz = (min[2] + max[2]) / 2;
+  const face = (id: HandleId, p: Vec3, dir: Vec3, color: [number, number, number]): Handle => ({
+    id,
+    from: p,
+    to: p,
+    dir,
+    color,
+  });
+  return [
+    face('+x', [max[0], cy, cz], [1, 0, 0], AXIS_COLOR.x),
+    face('-x', [min[0], cy, cz], [-1, 0, 0], AXIS_COLOR.x),
+    face('+z', [cx, cy, max[2]], [0, 0, 1], AXIS_COLOR.z),
+    face('-z', [cx, cy, min[2]], [0, 0, -1], AXIS_COLOR.z),
+    face('+y', [cx, max[1], cz], [0, 1, 0], AXIS_COLOR.y),
+  ];
+}
+
+/** Points of the rotate ring (a closed polyline). */
+export function ringPoints(h: Handle, n = 48): Vec3[] {
+  const r = h.to[0] - h.from[0];
+  return Array.from({ length: n + 1 }, (_, i) => {
+    const a = (i / n) * Math.PI * 2;
+    return [h.from[0] + Math.cos(a) * r, h.from[1], h.from[2] + Math.sin(a) * r] as Vec3;
+  });
+}
+
+// ---------- picking (screen space) ----------
+
+export type Project = (p: Vec3) => [number, number] | null;
+
+function segDist(px: number, py: number, a: [number, number], b: [number, number]) {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const l = dx * dx + dy * dy;
+  const t = l ? Math.max(0, Math.min(1, ((px - a[0]) * dx + (py - a[1]) * dy) / l)) : 0;
+  return Math.hypot(px - (a[0] + dx * t), py - (a[1] + dy * t));
+}
+
+/** The handle under a screen point, within `tol` pixels (nearest wins). */
+export function pickHandle(handles: Handle[], project: Project, px: number, py: number, tol = 10): HandleId | null {
+  let best: { id: HandleId; d: number } | null = null;
+  for (const h of handles) {
+    let d = Infinity;
+    if (h.id === 'ring') {
+      const pts = ringPoints(h).map(project);
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1];
+        const b = pts[i];
+        if (a && b) d = Math.min(d, segDist(px, py, a, b));
+      }
+    } else {
+      const a = project(h.from);
+      const b = project(h.to);
+      if (!a || !b) continue;
+      d = h.from === h.to ? Math.hypot(px - a[0], py - a[1]) - 4 : segDist(px, py, a, b);
+    }
+    if (d <= tol && (!best || d < best.d)) best = { id: h.id, d };
+  }
+  return best?.id ?? null;
+}
+
+/**
+ * How far a drag went along a handle, in world units: the pointer movement projected on the handle's
+ * on-screen direction, divided by how many pixels one world unit covers there.
+ */
+export function dragAmount(h: Handle, project: Project, start: [number, number], now: [number, number]): number {
+  const a = project(h.from);
+  const b = project([h.from[0] + h.dir[0], h.from[1] + h.dir[1], h.from[2] + h.dir[2]]);
+  if (!a || !b) return 0;
+  const sx = b[0] - a[0];
+  const sy = b[1] - a[1];
+  const ppu = Math.hypot(sx, sy);
+  if (ppu < 1e-3) return 0;
+  return ((now[0] - start[0]) * sx + (now[1] - start[1]) * sy) / (ppu * ppu);
+}
+
+/** Quarter turns for a ring drag: the angle swept around the gizmo's center on screen, in 90° steps. */
+export function dragQuarters(center: [number, number], start: [number, number], now: [number, number]): number {
+  const a0 = Math.atan2(start[1] - center[1], start[0] - center[0]);
+  const a1 = Math.atan2(now[1] - center[1], now[0] - center[0]);
+  let d = a1 - a0;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d < -Math.PI) d += 2 * Math.PI;
+  // screen y points down, so a clockwise drag on screen is a negative turn seen from above
+  return Math.round(-d / (Math.PI / 2)) || 0;
+}
+
+// ---------- the change a drag makes ----------
+
+export type GizmoChange = {
+  /** bricks as they will be (preview) */
+  bricks?: Brick[];
+  /** a zone's new box, a spawn's or item's new position/yaw (preview) */
+  box?: [Vec3, Vec3];
+  pos?: Vec3;
+  yaw?: number;
+  /** what to tell the user while dragging ("+3 studs", "90°", "2×4 brick") */
+  label: string;
+  /** null = no change (yet) */
+  command: Command | null;
+  undoLabel: string;
+};
+
+const snap = (v: number, step: number) => Math.round(v / step) * step;
+const fmt = (n: number) => `${n > 0 ? '+' : ''}${Number(n.toFixed(2))}`;
+
+export function moveChange(map: string, t: GizmoTarget, axis: 'x' | 'y' | 'z', amount: number): GizmoChange {
+  const i = axis === 'x' ? 0 : axis === 'y' ? 1 : 2;
+  if (t.kind === 'bricks') {
+    const n = axis === 'y' ? Math.round(amount / PLATE) : Math.round(amount);
+    const d = { dx: axis === 'x' ? n : 0, dy: axis === 'y' ? n : 0, dz: axis === 'z' ? n : 0 };
+    const unit = axis === 'y' ? (Math.abs(n) === 1 ? 'plate' : 'plates') : Math.abs(n) === 1 ? 'stud' : 'studs';
+    return {
+      bricks: t.bricks.map((b) => ({ ...b, x: b.x + d.dx, y: b.y + d.dy, z: b.z + d.dz })),
+      label: `${fmt(n)} ${unit} ${axis === 'y' ? 'up' : axis.toUpperCase()}`,
+      command: n ? { type: 'bricks.move', payload: { map, ids: t.bricks.map((b) => b.id), ...d } } : null,
+      undoLabel: t.asset ? 'Move asset' : t.bricks.length === 1 ? 'Move brick' : `Move ${t.bricks.length} bricks`,
+    };
+  }
+  if (t.kind === 'zone') {
+    const n = snap(amount, axis === 'y' ? PLATE : 1);
+    const min = [...t.zone.min] as Vec3;
+    const max = [...t.zone.max] as Vec3;
+    min[i] = +(min[i]! + n).toFixed(3);
+    max[i] = +(max[i]! + n).toFixed(3);
+    return {
+      box: [min, max],
+      label: `${fmt(n)} ${axis === 'y' ? 'up' : axis.toUpperCase()}`,
+      command: n ? { type: 'map.updateZone', payload: { map, zone: t.zone.id, patch: { min, max } } } : null,
+      undoLabel: 'Move trigger zone',
+    };
+  }
+  const step = axis === 'y' ? PLATE : t.kind === 'item' ? 0.5 : 1;
+  const n = snap(amount, step);
+  const pos = [...t.pos] as Vec3;
+  pos[i] = +(pos[i]! + n).toFixed(3);
+  if (axis === 'y') pos[1] = Math.max(0, pos[1]);
+  const command: Command | null = !n
+    ? null
+    : t.kind === 'spawn'
+      ? { type: 'map.updateSpawn', payload: { map, spawn: t.id, pos } }
+      : { type: 'item.update', payload: { map, id: t.id, patch: { pos } } };
+  return {
+    pos,
+    label: `${fmt(n)} ${axis === 'y' ? 'up' : axis.toUpperCase()}`,
+    command,
+    undoLabel: t.kind === 'spawn' ? 'Move spawn point' : 'Move item',
+  };
+}
+
+export function rotateChange(map: string, t: GizmoTarget, quarters: number): GizmoChange {
+  const k = ((quarters % 4) + 4) % 4;
+  const deg = `${quarters * 90 > 0 ? '+' : ''}${quarters * 90}°`;
+  if (t.kind === 'spawn') {
+    const yaw = (((t.yaw + k * (Math.PI / 2)) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    return {
+      yaw,
+      pos: t.pos,
+      label: deg,
+      command: k ? { type: 'map.updateSpawn', payload: { map, spawn: t.id, yaw } } : null,
+      undoLabel: 'Turn spawn point',
+    };
+  }
+  if (t.kind !== 'bricks') return { label: deg, command: null, undoLabel: '' };
+  const pivot = pivotOf(t.bricks);
+  let out = t.bricks;
+  for (let i = 0; i < k; i++) out = rotateQuarter(out, pivot);
+  return {
+    bricks: out,
+    label: deg,
+    command: k
+      ? { type: 'bricks.update', payload: { map, bricks: out.map((b) => ({ id: b.id, x: b.x, z: b.z, rot: b.rot })) } }
+      : null,
+    undoLabel: t.asset ? 'Turn asset' : 'Turn bricks',
+  };
+}
+
+/** Brick type with the world footprint w×d (keeping the kind), and the rotation that gives it. */
+export function brickFor(b: Brick, w: number, d: number): { type: string; rot: number } | null {
+  const kind = /^(brick|plate|tile)/.exec(b.type)![1]!;
+  for (const [r, c] of BRICK_SIZES) {
+    // even rot: footprint = [cols, rows]; odd rot: [rows, cols]
+    if (c === w && r === d) return { type: `${kind}${r}x${c}`, rot: b.rot % 2 ? (b.rot + 1) % 4 : b.rot };
+    if (r === w && c === d) return { type: `${kind}${r}x${c}`, rot: b.rot % 2 ? b.rot : (b.rot + 1) % 4 };
+  }
+  return null;
+}
+
+/** The sizes a side can take with the other side fixed, e.g. widths that fit a depth of 2. */
+export function sizesWith(other: number): number[] {
+  const out = new Set<number>();
+  for (const [r, c] of BRICK_SIZES) {
+    if (r === other) out.add(c);
+    if (c === other) out.add(r);
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+export function resizeChange(map: string, t: GizmoTarget, handle: HandleId, amount: number): GizmoChange {
+  if (t.kind === 'zone') {
+    const min = [...t.zone.min] as Vec3;
+    const max = [...t.zone.max] as Vec3;
+    const i = handle.endsWith('x') ? 0 : handle.endsWith('y') ? 1 : 2;
+    const step = i === 1 ? PLATE : 1;
+    const n = snap(amount, step);
+    if (handle.startsWith('+')) max[i] = Math.max(+(max[i]! + n).toFixed(3), +(min[i]! + step).toFixed(3));
+    else min[i] = Math.min(+(min[i]! - n).toFixed(3), +(max[i]! - step).toFixed(3));
+    const size = `${+(max[0] - min[0]).toFixed(1)} × ${+(max[2] - min[2]).toFixed(1)} × ${+(max[1] - min[1]).toFixed(1)} high`;
+    const same = min.every((v, j) => v === t.zone.min[j]) && max.every((v, j) => v === t.zone.max[j]);
+    return {
+      box: [min, max],
+      label: size,
+      command: same ? null : { type: 'map.updateZone', payload: { map, zone: t.zone.id, patch: { min, max } } },
+      undoLabel: 'Resize trigger zone',
+    };
+  }
+  if (t.kind !== 'bricks' || t.bricks.length !== 1) return { label: '', command: null, undoLabel: '' };
+  const b = t.bricks[0]!;
+  const [w, d] = footprint(b);
+  let next: Brick = b;
+  if (handle === '+y') {
+    const n = Math.round(amount / PLATE);
+    const kind = n >= 1 ? 'brick' : n <= -1 ? 'plate' : null;
+    if (kind && !b.type.startsWith(kind)) next = { ...b, type: b.type.replace(/^(brick|plate|tile)/, kind) };
+  } else {
+    const alongX = handle.endsWith('x');
+    const cur = alongX ? w : d;
+    const choices = sizesWith(alongX ? d : w);
+    const want = cur + amount;
+    const size = choices.reduce((a, c) => (Math.abs(c - want) < Math.abs(a - want) ? c : a), cur);
+    const fit = brickFor(b, alongX ? size : w, alongX ? d : size);
+    if (fit && size !== cur) {
+      next = { ...b, ...fit };
+      // the - handles grow toward -x / -z: the far side stays put
+      if (handle === '-x') next.x = b.x + w - size;
+      if (handle === '-z') next.z = b.z + d - size;
+    }
+  }
+  const [nw, nd] = footprint(next);
+  const kind = /^(brick|plate|tile)/.exec(next.type)![1];
+  return {
+    bricks: [next],
+    label: `${Math.min(nw, nd)}×${Math.max(nw, nd)} ${kind}`,
+    command:
+      next === b
+        ? null
+        : {
+            type: 'bricks.update',
+            payload: { map, bricks: [{ id: b.id, type: next.type, rot: next.rot, x: next.x, z: next.z }] },
+          },
+    undoLabel: 'Resize brick',
+  };
+}
+
+export function changeFor(map: string, mode: GizmoMode, t: GizmoTarget, h: HandleId, amount: number): GizmoChange {
+  if (mode === 'rotate') return rotateChange(map, t, amount);
+  if (mode === 'move') return moveChange(map, t, h as 'x' | 'y' | 'z', amount);
+  return resizeChange(map, t, h, amount);
+}

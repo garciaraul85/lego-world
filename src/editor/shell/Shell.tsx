@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIONS, type ActionCtx, action, type EditorAction, MENUS, runAction } from '../actions/registry';
 import type { EditorState, ToolId } from '../state';
+import { resizeHint } from '../viewport/gizmo';
 
 export function MenuBar({ c }: { c: ActionCtx }) {
   const { ed } = c;
@@ -141,14 +142,21 @@ export const TOOLS: { id: ToolId; glyph: string; label: string; key: string; hel
     glyph: '✥',
     label: 'Move',
     key: 'W',
-    help: 'Move: drag a selected object across the ground; arrows nudge, PgUp/PgDn change height.',
+    help: 'Move: select something, then drag the red, green or blue arrow to move it along that way. Drag the object itself to slide it on the ground.',
   },
   {
     id: 'rotate',
     glyph: '↻',
-    label: 'Rotate 90°',
+    label: 'Rotate',
     key: 'E',
-    help: 'Rotate: click an object to turn it a quarter (Alt: one brick).',
+    help: 'Rotate: select something, then drag around the ring to turn it in quarter turns. R turns it once.',
+  },
+  {
+    id: 'resize',
+    glyph: '⤡',
+    label: 'Resize',
+    key: 'Q',
+    help: 'Resize: select a trigger zone or one brick, then drag a square handle. Bricks snap to real LEGO sizes; the top handle makes a plate or a brick.',
   },
   {
     id: 'place',
@@ -212,6 +220,8 @@ export function Toolbar({ c }: { c: ActionCtx }) {
   const { ed, ui } = c;
   ed.revision.value;
   const tool = TOOLS.find((t) => t.id === ed.tool.value) ?? TOOLS[0]!;
+  // Resize says why nothing shows when the selection has no size to change
+  const hint = (tool.id === 'resize' && resizeHint(ed)) || tool.help;
   return (
     <div class="toolbar">
       <div class="group" role="group" aria-label="Tools" data-tour="tools">
@@ -235,8 +245,8 @@ export function Toolbar({ c }: { c: ActionCtx }) {
           </button>
         ))}
       </div>
-      <span class="toolhint opt" title={tool.help}>
-        {tool.help}
+      <span class="toolhint opt" title={hint} data-tour="tool-hint">
+        {hint}
       </span>
       <div class="group" role="group" aria-label="Play controls" data-tour="play">
         <button

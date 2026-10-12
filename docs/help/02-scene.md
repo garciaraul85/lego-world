@@ -18,9 +18,15 @@ Hold the pointer over a tool or a card for a moment to see what it does; the ? i
 
 Drag an asset card from the dock straight into the 3D view: a ghost shows where it lands, and letting go places it. Clicking a card and then the ground still works too.
 
-## Moving and turning
+## Moving, turning and resizing
 
-Move (W) and Rotate (E) work on the selection; the arrow keys and Page Up / Page Down nudge it, R turns it, Ctrl D duplicates and Delete removes it. Bricks that would float or overlap are refused, so the map always keeps v68's rules.
+Pick what you want to do in the toolbar, like in other 3D tools, and the selection shows handles for it:
+
+- **Move (W)**: three arrows. Drag the red one to move along X, the green one to move up and down, the blue one to move along Z. Bricks move by whole studs, and up and down by plates. You can also drag the object itself to slide it across the ground.
+- **Rotate (E)**: a ring around the object. Drag around it to turn it in quarter turns; the label next to the pointer shows the angle. Spawn points turn the same way. R turns the selection once.
+- **Resize (Q)**: square handles on the sides and top. On a trigger zone they move that side. On a single brick they snap to real LEGO sizes (1×2, 2×4, 2×8…), and the top handle switches between a plate and a brick. Assets keep their size: change them in the Asset studio, or Unpack them first.
+
+While you drag, a ghost shows the result and a label shows how far it went. Letting go makes one change you can undo. Spots where bricks would float or overlap are refused, so the map always keeps v68's rules. The arrow keys and Page Up / Page Down still nudge the selection, Ctrl D duplicates and Delete removes it.
 
 ## Brick paint, Color paint and Erase
 

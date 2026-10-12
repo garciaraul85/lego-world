@@ -204,6 +204,7 @@ export const ACTIONS: EditorAction[] = [
   { id: 'tool.select', label: 'Select tool', key: 'V', run: tool('select') },
   { id: 'tool.move', label: 'Move tool', key: 'W', run: tool('move') },
   { id: 'tool.rotate', label: 'Rotate tool', key: 'E', run: tool('rotate') },
+  { id: 'tool.resize', label: 'Resize tool', key: 'Q', run: tool('resize') },
   { id: 'tool.place', label: 'Brick paint (place bricks)', key: 'B', run: tool('place') },
   { id: 'tool.asset', label: 'Place asset', key: 'A', run: tool('asset') },
   { id: 'tool.paint', label: 'Color paint', key: 'C', run: tool('paint') },

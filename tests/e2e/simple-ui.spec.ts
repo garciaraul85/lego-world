@@ -3,7 +3,7 @@ import { expect, type Page, test } from '@playwright/test';
 /** P31: right-click menus, keyboard menu, hover tips and drag-to-place in the real editor. */
 type Ed = {
   scene: { value: { count: number } };
-  mapDoc: { value: { zones: { id: string }[] } };
+  mapDoc: { value: { zones: { id: string; min: number[]; max: number[] }[] } };
   selectedZone: { value: string | null };
   dock: { value: string };
   assetCat: { value: string };
@@ -112,4 +112,77 @@ test('hover tips explain tools and open Help; assets drag straight into the scen
   }
   expect(await ed(page, (e) => e.scene.value.count)).toBeGreaterThan(start);
   expect(errors.filter((e) => !/overlap|float/i.test(e))).toEqual([]);
+});
+
+test('Move and Resize show handles on the selection; dragging them moves and resizes, one undo each', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  await open(page, errors);
+  const canvas = page.getByLabel('3D map view');
+  const box = (await canvas.boundingBox())!;
+  const menu = page.getByRole('menu');
+  // make a trigger zone to work on (zones are never blocked by bricks)
+  for (const [fx, fy] of [
+    [0.5, 0.75],
+    [0.3, 0.8],
+    [0.7, 0.8],
+    [0.5, 0.9],
+  ] as const) {
+    await canvas.click({ button: 'right', position: { x: box.width * fx, y: box.height * fy } });
+    const add = menu.getByRole('menuitem', { name: 'Add a trigger zone here' });
+    if (await add.isVisible()) {
+      await add.click();
+      break;
+    }
+    await page.keyboard.press('Escape');
+  }
+  const zone = () =>
+    ed(page, (e) => {
+      const z = e.mapDoc.value.zones.find((x) => x.id === e.selectedZone.value) as unknown as {
+        min: number[];
+        max: number[];
+      };
+      return { min: z.min, max: z.max };
+    });
+  const z0 = await zone();
+  const spots = async () =>
+    JSON.parse((await canvas.getAttribute('data-gizmo')) || 'null') as Record<string, [number, number] | null> | null;
+  /** drag from a handle, further along the line from the gizmo center through it */
+  const pull = async (id: string, px: number) => {
+    await expect.poll(async () => (await spots())?.[id] ?? null).not.toBeNull();
+    const s = (await spots())!;
+    const [hx, hy] = s[id]!;
+    const [cx, cy] = s.center!;
+    const len = Math.hypot(hx - cx, hy - cy) || 1;
+    const from = { x: box.x + hx, y: box.y + hy };
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    for (let i = 1; i <= 6; i++)
+      await page.mouse.move(from.x + ((hx - cx) / len) * px * (i / 6), from.y + ((hy - cy) / len) * px * (i / 6));
+    await expect(page.locator('.gizmo-tag')).toBeVisible();
+    await page.mouse.up();
+  };
+
+  await page.keyboard.press('w');
+  await pull('x', 80);
+  const z1 = await zone();
+  expect(z1.min[0]).toBeGreaterThan(z0.min[0]!);
+  expect(z1.max[0]! - z1.min[0]!).toBe(z0.max[0]! - z0.min[0]!);
+
+  await page.keyboard.press('q');
+  await pull('+z', 80);
+  const z2 = await zone();
+  expect(z2.max[2]).toBeGreaterThan(z1.max[2]!);
+  expect(z2.min[2]).toBe(z1.min[2]);
+
+  // zones do not turn: Rotate shows no handles
+  await page.keyboard.press('e');
+  await expect.poll(async () => await spots()).toBeNull();
+
+  await page.keyboard.press('Control+z');
+  expect((await zone()).max[2]).toBe(z1.max[2]);
+  await page.keyboard.press('Control+z');
+  expect((await zone()).min[0]).toBe(z0.min[0]);
+  expect(errors).toEqual([]);
 });

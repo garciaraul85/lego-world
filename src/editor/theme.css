@@ -3160,3 +3160,15 @@ select.inp {
 .tut-figure {
   margin: 0;
 }
+.gizmo-tag {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #11151bdd;
+  border: 1px solid #343c48;
+  color: #ffd84a;
+  font: 600 12px var(--mono);
+  white-space: nowrap;
+}
