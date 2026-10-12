@@ -39,138 +39,184 @@ a{color:#ffcc00}a:hover{color:#ffd633}
   <dc-import name="Nav" active="dialogue" hint-size="96px,900px"></dc-import>
   <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
     <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
-      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Old Mason · Shop</span><span style="font-size: 13px; color: #9ea3ad">Starts when the player talks to Old Mason</span></div>
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Old Mason · Conversations</span><span style="font-size: 13px; color: #9ea3ad">The first conversation whose condition is true plays</span></div>
+      <div class="seg"><sc-for list="{{views}}" as="v" hint-placeholder-count="3"><button type="button" class="{{v.cls}}" onClick="{{v.pick}}">{{v.name}}</button></sc-for></div>
       <span style="flex: 1 1 auto"></span>
       <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
       <a class="btn" href="Brix.dc.html">Ask Brix</a>
       <button type="button" class="btn pri" onClick="{{startPreview}}">Try it</button>
     </header>
     <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
-      <section class="card" style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 20px 24px">
-        <span style="font-size: 13px; color: #9ea3ad">Click a line to edit it. Drag lines to reorder. Right-click for choices and conditions.</span>
-        <sc-for list="{{lines}}" as="l" hint-placeholder-count="5">
-          <div style="{{l.row}}" draggable="true" onDragStart="{{l.dstart}}" onDragOver="{{allow}}" onDrop="{{l.drop}}" onContextMenu="{{l.menu}}">
-            <span style="{{l.avatar}}"></span>
-            <div style="display: flex; flex-direction: column; gap: 6px; max-width: 70%">
-              <span style="{{l.whoStyle}}">{{l.who}}</span>
-              <sc-if value="{{l.hasCond}}" hint-placeholder-val="{{ false }}"><span class="chip" style="{{l.condStyle}}">{{l.cond}}</span></sc-if>
-              <sc-if value="{{l.editing}}" hint-placeholder-val="{{ false }}"><textarea class="inp" style="min-height: 64px; padding: 10px 12px; resize: vertical; width: 380px" onInput="{{l.edit}}" onBlur="{{l.done}}" value="{{l.text}}"></textarea></sc-if>
-              <sc-if value="{{l.showing}}" hint-placeholder-val="{{ true }}"><div style="{{l.bubble}}" onClick="{{l.startEdit}}">{{l.text}}</div></sc-if>
-              <sc-if value="{{l.hasChoices}}" hint-placeholder-val="{{ false }}">
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end">
-                  <sc-for list="{{l.choices}}" as="c" hint-placeholder-count="2"><span style="padding: 8px 14px; border-radius: 12px; border: 2px solid #ffcc00; color: #ffcc00; font-size: 14px; font-weight: 600">{{c}}</span></sc-for>
+      <aside class="card" style="flex: 0 0 240px; display: flex; flex-direction: column; gap: 8px">
+        <span class="lbl">Conversations, in order</span>
+        <sc-for list="{{convs}}" as="c" hint-placeholder-count="4"><button type="button" style="{{c.style}}" onClick="{{c.pick}}"><span style="display: flex; justify-content: space-between; width: 100%"><b>{{c.name}}</b><sc-if value="{{c.plays}}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; font-weight: 800; color: #45c46e">PLAYS</span></sc-if></span><span style="font-size: 12px; opacity: .8">{{c.cond}}</span></button></sc-for>
+        <span class="lbl" style="margin-top: 10px">Test with</span>
+        <sc-for list="{{tvars}}" as="v" hint-placeholder-count="3"><button type="button" onClick="{{v.flip}}" style="display: flex; justify-content: space-between; min-height: 34px; align-items: center; padding: 0 10px; border-radius: 9px; border: none; background: #24262d; color: #f2f2f4; font: 500 13px Figtree, sans-serif; cursor: pointer"><span>{{v.name}}</span><b style="color: #ffcc00">{{v.val}}</b></button></sc-for>
+        <span class="lbl" style="margin-top: 10px">Barks · said in passing</span>
+        <sc-for list="{{barks}}" as="b" hint-placeholder-count="2"><div style="font-size: 13px; padding: 8px 10px; border-radius: 9px; background: #24262d">"{{b.text}}"<br><span style="color: #9ea3ad; font-size: 11px">{{b.when}}</span></div></sc-for>
+      </aside>
+      <section class="card" style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 20px 24px">
+        <sc-if value="{{isList}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 12px">
+            <span style="font-size: 13px; color: #9ea3ad">Click a line to edit it. Drag to reorder. Right-click for choices, conditions and actions.</span>
+            <sc-for list="{{lines}}" as="l" hint-placeholder-count="4">
+              <div style="{{l.row}}" draggable="true" onDragStart="{{l.dstart}}" onDragOver="{{allow}}" onDrop="{{l.drop}}" onContextMenu="{{l.menu}}">
+                <span style="{{l.avatar}}"></span>
+                <div style="display: flex; flex-direction: column; gap: 6px; max-width: 72%">
+                  <span style="{{l.whoStyle}}">{{l.who}}</span>
+                  <sc-if value="{{l.hasCond}}" hint-placeholder-val="{{ false }}"><span class="chip" style="{{l.condStyle}}">if {{l.cond}}</span></sc-if>
+                  <sc-if value="{{l.editing}}" hint-placeholder-val="{{ false }}"><textarea class="inp" style="min-height: 64px; padding: 10px 12px; resize: vertical; width: 360px" onInput="{{l.edit}}" onBlur="{{l.done}}" value="{{l.text}}"></textarea></sc-if>
+                  <sc-if value="{{l.showing}}" hint-placeholder-val="{{ true }}"><div style="{{l.bubble}}" onClick="{{l.startEdit}}">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.hasChoices}}" hint-placeholder-val="{{ false }}"><div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end"><sc-for list="{{l.choices}}" as="c" hint-placeholder-count="2"><span style="padding: 8px 14px; border-radius: 12px; border: 2px solid #ffcc00; color: #ffcc00; font-size: 14px; font-weight: 600">{{c}}</span></sc-for></div></sc-if>
+                  <sc-if value="{{l.hasAct}}" hint-placeholder-val="{{ false }}"><span class="chip" style="{{l.actStyle}}">then {{l.act}}</span></sc-if>
                 </div>
-              </sc-if>
-            </div>
+              </div>
+            </sc-for>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap"><button type="button" class="btn" onClick="{{addMason}}">Old Mason says…</button><button type="button" class="btn" onClick="{{addHero}}">Player says…</button><button type="button" class="btn" onClick="{{addChoice}}">Give a choice</button></div>
           </div>
-        </sc-for>
-        <div style="display: flex; gap: 8px; margin-top: 4px">
-          <button type="button" class="btn" onClick="{{addMason}}">Old Mason says…</button>
-          <button type="button" class="btn" onClick="{{addHero}}">Player says…</button>
-          <button type="button" class="btn" onClick="{{addChoice}}">Give a choice</button>
-        </div>
+        </sc-if>
+        <sc-if value="{{isGraph}}" hint-placeholder-val="{{ false }}">
+          <div style="position: relative; min-height: 600px">
+            <sc-for list="{{gEdges}}" as="e" hint-placeholder-count="4"><span style="{{e}}"></span></sc-for>
+            <sc-for list="{{gNodes}}" as="n" hint-placeholder-count="5"><div style="{{n.style}}"><span style="{{n.head}}">{{n.kind}}</span><span style="padding: 8px 12px; font-size: 13px; line-height: 1.4">{{n.text}}</span></div></sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{isScript}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <textarea class="inp" style="min-height: 420px; padding: 14px; font: 14px/1.8 ui-monospace, Menlo, monospace; resize: vertical" onInput="{{editScript}}" value="{{script}}"></textarea>
+            <span style="font-size: 13px; color: #9ea3ad">For writers: NAME: line. Lines starting with "?" are conditions, "*" are choices, "->" are actions. Kept in step with the list and graph.</span>
+          </div>
+        </sc-if>
+        <sc-for list="{{warnings}}" as="w" hint-placeholder-count="1"><span style="font-size: 13px; color: #ffcc00">⚠ {{w}}</span></sc-for>
       </section>
-      <aside style="flex: 1 1 320px; max-width: 420px; display: flex; flex-direction: column; gap: 14px">
-        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+      <aside style="flex: 1 1 300px; max-width: 360px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
           <span class="lbl">Style</span>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px">
-            <sc-for list="{{styles}}" as="st" hint-placeholder-count="6"><button type="button" style="{{st.style}}" onClick="{{st.pick}}"><span style="{{st.thumb}}"></span>{{st.name}}</button></sc-for>
-          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px"><sc-for list="{{styles}}" as="st" hint-placeholder-count="8"><button type="button" style="{{st.style}}" onClick="{{st.pick}}"><span style="{{st.thumb}}"></span>{{st.name}}</button></sc-for></div>
         </div>
-        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
-          <span class="lbl">Preview</span>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Preview · click to go on</span>
           <div style="position: relative; height: 230px; border-radius: 14px; overflow: hidden; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px" onClick="{{nextLine}}">
             <span style="position: absolute; left: 40px; top: 50px; width: 44px; height: 44px; border-radius: 22px 22px 10px 10px; background: #6fb7f0"></span>
             <span style="position: absolute; left: 130px; top: 70px; width: 44px; height: 44px; border-radius: 22px 22px 10px 10px; background: #e8463c"></span>
+            <sc-if value="{{pv.portrait}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; left: 10px; bottom: 10px; width: 70px; height: 90px; border-radius: 12px; background: #6fb7f0; border: 3px solid #fff"></span></sc-if>
             <div style="{{pv.box}}"><b style="{{pv.nameStyle}}">{{pv.who}}</b><span>{{pv.text}}</span></div>
           </div>
-          <span style="font-size: 13px; color: #9ea3ad">Click the preview to go to the next line.</span>
         </div>
         <div class="card" style="display: flex; flex-direction: column; gap: 10px">
-          <span class="lbl">Feel</span>
           <label class="fld">Text speed<input type="range" min="1" max="10" value="6" style="accent-color: #ffcc00"></label>
           <label class="fld">Blip sound<select class="inp"><option>Low brick click</option><option>None</option><option>High chirp</option></select></label>
+          <span style="font-size: 12px; color: #9ea3ad">Write {coins} or {hero.name} to show values in a line.</span>
         </div>
       </aside>
-      <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}">
-        <div class="menu" style="{{menu.style}}">
-          <span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">This line</span>
-          <sc-for list="{{menu.items}}" as="i" hint-placeholder-count="5"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for>
-        </div>
-      </sc-if>
+      <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}"><div class="menu" style="{{menu.style}}"><span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">{{menu.title}}</span><sc-for list="{{menu.items}}" as="i" hint-placeholder-count="4"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for></div></sc-if>
     </div>
   </main>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.n = 10;
+    this.n = 30;
+    const L = (who, text, cond, choices, act) => ({ id: 'l' + (this.n++), who, text, cond: cond || '', choices: choices || [], act: act || '' });
     this.state = {
-      edit: null, menu: null, hist: [], style: 'Classic box', pv: 0, drag: null,
-      lines: [
-        { id: 'l1', who: 'Old Mason', text: 'Ah, a builder! Nobody crosses the chasm without a bridge.', cond: '', choices: [] },
-        { id: 'l2', who: 'Old Mason', text: 'I sell bricks. Three coins a bundle.', cond: '', choices: ['Buy a bundle', 'Maybe later'] },
-        { id: 'l3', who: 'Player', text: 'I\'ll take one.', cond: 'Only if Coins ≥ 3', choices: [] },
-        { id: 'l4', who: 'Old Mason', text: 'Fine work on that bridge, by the way.', cond: 'Only after Bridge pile is built', choices: [] }
-      ]
+      edit: null, menu: null, hist: [], style: 'Adventure', pv: 0, drag: null, view: 'List', conv: 'First meeting',
+      tv: { 'Met Mason': 'no', 'Bridge quest': 'not started', Coins: 12 },
+      convs: {
+        'First meeting': { cond: 'Met Mason is no', lines: [L('Old Mason', 'Ah, a builder! Nobody crosses the chasm without a bridge.'), L('Old Mason', 'Bring me 3 brick bundles and I\'ll show you how.', '', ['I\'ll do it', 'Not now'], 'start quest "Cross the chasm"'), L('Player', 'Where do I get bundles?'), L('Old Mason', 'I sell them. Three coins each.', '', [], 'open shop "Mason\'s stall"')] },
+        'During the quest': { cond: 'Bridge quest is started', lines: [L('Old Mason', 'How many bundles have you got? {bundles} of 3.'), L('Old Mason', 'Need more? I\'m open.', 'Coins ≥ 3', [], 'open shop "Mason\'s stall"')] },
+        'After the quest': { cond: 'Bridge quest is done', lines: [L('Old Mason', 'Fine work on that bridge!'), L('Old Mason', 'Take this, you earned it.', '', [], 'give "Hookshot"')] },
+        Otherwise: { cond: 'always', lines: [L('Old Mason', 'Mind the chasm, young builder.')] }
+      }
     };
   }
   renderVals() {
     const s = this.state;
-    const save = () => s.hist.concat([s.lines]).slice(-20);
-    const set = (lines, extra) => this.setState(Object.assign({ hist: save(), lines }, extra || {}));
-    const mod = (id, o) => set(s.lines.map((l) => (l.id === id ? Object.assign({}, l, o) : l)), { menu: null });
+    const cv = s.convs[s.conv] || s.convs.Otherwise;
+    const lines = cv.lines;
+    const setLines = (ls, extra) => this.setState(Object.assign({ hist: s.hist.concat([s.convs]).slice(-20), convs: Object.assign({}, s.convs, { [s.conv]: Object.assign({}, cv, { lines: ls }) }) }, extra || {}));
+    const mod = (id, o) => setLines(lines.map((l) => (l.id === id ? Object.assign({}, l, o) : l)), { menu: null });
+    const truth = { 'Met Mason is no': s.tv['Met Mason'] === 'no', 'Bridge quest is started': s.tv['Bridge quest'] === 'started', 'Bridge quest is done': s.tv['Bridge quest'] === 'done', always: true };
+    const plays = Object.keys(s.convs).find((k) => truth[s.convs[k].cond]);
     const ST = {
-      'Classic box': ['#141519ee', '#f2f2f4', '12px', '3px solid #f2f2f4', 'left: 12px; right: 12px; bottom: 12px'],
-      'Speech bubble': ['#ffffff', '#141519', '22px', 'none', 'left: 70px; right: 40px; top: 120px'],
-      Comic: ['#fff7c2', '#141519', '6px', '3px solid #141519', 'left: 20px; right: 60px; top: 120px'],
-      Typewriter: ['#000000dd', '#7cff9a', '0', 'none', 'left: 0; right: 0; bottom: 0'],
-      Cinematic: ['#000000', '#f2f2f4', '0', 'none', 'left: 0; right: 0; bottom: 0; text-align: center'],
-      'Brick panel': ['#ffcc00', '#141519', '10px', '4px solid #e6b800', 'left: 12px; right: 12px; bottom: 12px']
+      Adventure: ['#141519ee', '#f2f2f4', '12px', '3px solid #f2f2f4', 'left: 12px; right: 12px; bottom: 12px', false],
+      'Classic RPG': ['#1a1440ee', '#e8e3ff', '6px', '3px double #d9ccff', 'left: 90px; right: 12px; bottom: 12px', true],
+      'Visual novel': ['#000000aa', '#ffffff', '14px', 'none', 'left: 90px; right: 12px; bottom: 12px', true],
+      'Speech bubbles': ['#ffffff', '#141519', '22px', 'none', 'left: 70px; right: 40px; top: 110px', false],
+      Cinematic: ['#000000', '#f2f2f4', '0', 'none', 'left: 0; right: 0; bottom: 0; text-align: center', false],
+      Chat: ['#3b78c9', '#ffffff', '18px 18px 18px 4px', 'none', 'left: 20px; right: 90px; top: 120px', false],
+      Sign: ['#c9a36a', '#2a1d10', '4px', '4px solid #8a5a2b', 'left: 40px; right: 40px; top: 70px; text-align: center', false],
+      Narrator: ['transparent', '#ffffff', '0', 'none', 'left: 20px; right: 20px; top: 20px; font-style: italic; text-shadow: 0 1px 3px #000', false]
     };
-    const pvLine = s.lines[s.pv % Math.max(1, s.lines.length)] || { who: '', text: '' };
     const st = ST[s.style];
-    const m = s.menu; const ml = m ? s.lines.find((l) => l.id === m.id) : null;
+    const pvLine = lines[s.pv % Math.max(1, lines.length)] || { who: '', text: '' };
+    const m = s.menu; const ml = m ? lines.find((l) => l.id === m.id) : null;
+    const ACTS = ['give "Hookshot"', 'take 3 coins', 'start quest "Cross the chasm"', 'open shop "Mason\'s stall"', 'play cutscene "Bridge reveal"', 'Mason likes you more'];
+    const fill = (tx) => tx.replace('{bundles}', '1').replace('{coins}', s.tv.Coins);
+    const gNodes = []; const gEdges = [];
+    lines.forEach((l, i) => { gNodes.push([l.cond ? 'If ' + l.cond + ' · ' + l.who : l.who, fill(l.text), 20 + (l.who === 'Player' ? 260 : 0), 20 + i * 140, l.who === 'Player' ? '#ff8a3d' : '#9cc7ff']); l.choices.forEach((c, j) => { gNodes.push(['Choice', c, 360 + j * 0, 20 + i * 140 + 60 + j * 0, '#ffcc00']); }); if (l.act) gNodes.push(['Action', l.act, 520, 20 + i * 140, '#a78bfa']); });
+    const warnings = lines.some((l) => l.choices.length === 1) ? ['A choice with only one option is not really a choice.'] : [];
+    if (!Object.keys(s.convs).some((k) => s.convs[k].cond === 'always')) warnings.push('No "Otherwise" conversation: Mason may say nothing.');
+    const script = lines.map((l) => (l.cond ? '? ' + l.cond + '\n' : '') + l.who.toUpperCase() + ': ' + l.text + l.choices.map((c) => '\n  * ' + c).join('') + (l.act ? '\n  -> ' + l.act : '')).join('\n');
     return {
+      views: ['List', 'Graph', 'Script'].map((v) => ({ name: v, cls: H.tab(v === s.view), pick: () => this.setState({ view: v }) })),
+      isList: s.view === 'List', isGraph: s.view === 'Graph', isScript: s.view === 'Script',
+      convs: Object.keys(s.convs).map((k, i) => ({ name: (i + 1) + '. ' + k, cond: s.convs[k].cond === 'always' ? 'Otherwise' : 'If ' + s.convs[k].cond, plays: k === plays, style: H.card(k === s.conv) + '; width: 100%', pick: () => this.setState({ conv: k, pv: 0, edit: null }) })),
+      tvars: Object.keys(s.tv).map((k) => ({ name: k, val: s.tv[k], flip: () => { const cyc = { 'Met Mason': ['no', 'yes'], 'Bridge quest': ['not started', 'started', 'done'], Coins: [12, 2, 50] }[k]; this.setState({ tv: Object.assign({}, s.tv, { [k]: cyc[(cyc.indexOf(s.tv[k]) + 1) % cyc.length] }) }); } })),
+      barks: [['Watch your step!', 'Near the chasm · every 30 s'], ['Bricks! Fresh bricks!', 'When you walk past his stall']].map(([t, w]) => ({ text: t, when: w })),
       allow: (e) => e.preventDefault(),
-      lines: s.lines.map((l) => {
-        const hero = l.who === 'Player';
-        return {
-          who: l.who, text: l.text, cond: l.cond, hasCond: !!l.cond, choices: l.choices, hasChoices: l.choices.length > 0, condStyle: 'align-self: ' + (hero ? 'flex-end' : 'flex-start') + '; background: #3a3420; color: #ffd633; cursor: default',
-          editing: s.edit === l.id, showing: s.edit !== l.id,
-          row: 'display: flex; gap: 12px; align-items: flex-start; flex-direction: ' + (hero ? 'row-reverse' : 'row') + '; padding: 6px; border-radius: 14px; cursor: grab' + (s.drag === l.id ? '; opacity: .4' : ''),
-          avatar: 'flex: 0 0 auto; width: 40px; height: 40px; border-radius: 20px 20px 8px 8px; background: ' + (hero ? '#e8463c' : '#6fb7f0'),
-          whoStyle: 'font-size: 12px; font-weight: 700; color: #9ea3ad; text-align: ' + (hero ? 'right' : 'left'),
-          bubble: 'padding: 12px 16px; border-radius: ' + (hero ? '18px 4px 18px 18px' : '4px 18px 18px 18px') + '; background: ' + (hero ? '#3a3420' : '#24262d') + '; font-size: 16px; line-height: 1.45; cursor: text',
-          startEdit: (e) => { e.stopPropagation(); this.setState({ edit: l.id }); },
-          edit: (e) => this.setState({ lines: s.lines.map((q) => (q.id === l.id ? Object.assign({}, q, { text: e.target.value }) : q)) }),
-          done: () => this.setState({ edit: null }),
-          dstart: (e) => { e.dataTransfer.setData('text/plain', 'line|' + l.id); this.setState({ drag: l.id }); },
-          drop: (e) => { e.preventDefault(); const d = e.dataTransfer.getData('text/plain'); if (d.indexOf('line|') !== 0) return; const id = d.slice(5); if (id === l.id) { this.setState({ drag: null }); return; } const mv = s.lines.find((q) => q.id === id); const rest = s.lines.filter((q) => q.id !== id); const at = rest.findIndex((q) => q.id === l.id); rest.splice(at, 0, mv); set(rest, { drag: null }); },
-          menu: (e) => { e.preventDefault(); e.stopPropagation(); const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); this.setState({ menu: { id: l.id, x: Math.min(e.clientX - r.left, r.width - 260), y: e.clientY - r.top } }); }
-        };
-      }),
-      addMason: () => set(s.lines.concat([{ id: 'l' + (this.n++), who: 'Old Mason', text: 'New line', cond: '', choices: [] }]), { edit: 'l' + (this.n - 1) }),
-      addHero: () => set(s.lines.concat([{ id: 'l' + (this.n++), who: 'Player', text: 'New line', cond: '', choices: [] }]), { edit: 'l' + (this.n - 1) }),
-      addChoice: () => { const last = s.lines[s.lines.length - 1]; mod(last.id, { choices: last.choices.concat(['Choice ' + (last.choices.length + 1)]) }); },
+      lines: lines.map((l) => { const hero = l.who === 'Player'; return {
+        who: l.who, text: l.text, cond: l.cond, hasCond: !!l.cond, choices: l.choices, hasChoices: l.choices.length > 0, act: l.act, hasAct: !!l.act,
+        condStyle: 'align-self: ' + (hero ? 'flex-end' : 'flex-start') + '; background: #3a3420; color: #ffd633; cursor: default',
+        actStyle: 'align-self: ' + (hero ? 'flex-end' : 'flex-start') + '; background: #2b2440; color: #d9ccff; cursor: default',
+        editing: s.edit === l.id, showing: s.edit !== l.id,
+        row: 'display: flex; gap: 12px; align-items: flex-start; flex-direction: ' + (hero ? 'row-reverse' : 'row') + '; padding: 6px; border-radius: 14px; cursor: grab' + (s.drag === l.id ? '; opacity: .4' : ''),
+        avatar: 'flex: 0 0 auto; width: 40px; height: 40px; border-radius: 20px 20px 8px 8px; background: ' + (hero ? '#e8463c' : '#6fb7f0'),
+        whoStyle: 'font-size: 12px; font-weight: 700; color: #9ea3ad; text-align: ' + (hero ? 'right' : 'left'),
+        bubble: 'padding: 12px 16px; border-radius: ' + (hero ? '18px 4px 18px 18px' : '4px 18px 18px 18px') + '; background: ' + (hero ? '#3a3420' : '#24262d') + '; font-size: 16px; line-height: 1.45; cursor: text',
+        startEdit: (e) => { e.stopPropagation(); this.setState({ edit: l.id }); },
+        edit: (e) => this.setState({ convs: Object.assign({}, s.convs, { [s.conv]: Object.assign({}, cv, { lines: lines.map((q) => (q.id === l.id ? Object.assign({}, q, { text: e.target.value }) : q)) }) }) }),
+        done: () => this.setState({ edit: null }),
+        dstart: (e) => { e.dataTransfer.setData('text/plain', 'line|' + l.id); this.setState({ drag: l.id }); },
+        drop: (e) => { e.preventDefault(); const d = e.dataTransfer.getData('text/plain'); if (d.indexOf('line|') !== 0) return; const id = d.slice(5); if (id === l.id) { this.setState({ drag: null }); return; } const mv = lines.find((q) => q.id === id); const rest = lines.filter((q) => q.id !== id); rest.splice(rest.findIndex((q) => q.id === l.id), 0, mv); setLines(rest, { drag: null }); },
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const [x, y] = H.at(e); this.setState({ menu: { id: l.id, x, y } }); } }; }),
+      addMason: () => { const id = 'l' + (this.n++); setLines(lines.concat([{ id, who: 'Old Mason', text: 'New line', cond: '', choices: [], act: '' }]), { edit: id }); },
+      addHero: () => { const id = 'l' + (this.n++); setLines(lines.concat([{ id, who: 'Player', text: 'New line', cond: '', choices: [], act: '' }]), { edit: id }); },
+      addChoice: () => { const last = lines[lines.length - 1]; if (last) mod(last.id, { choices: last.choices.concat(['Choice ' + (last.choices.length + 1)]) }); },
       closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
-      menu: ml ? { show: true, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items: [
+      menu: H.menu(m, 'This line', ml ? [
         { label: 'Edit text', key: 'Click', run: () => this.setState({ edit: ml.id, menu: null }) },
-        { label: ml.cond ? 'Remove condition' : 'Only show if…', key: '', run: () => mod(ml.id, { cond: ml.cond ? '' : 'Only if Met Mason is yes' }) },
+        { label: ml.cond ? 'Remove condition' : 'Only say this if…', key: '', run: () => mod(ml.id, { cond: ml.cond ? '' : 'Coins ≥ 3' }) },
         { label: 'Add a choice', key: '', run: () => mod(ml.id, { choices: ml.choices.concat(['Choice ' + (ml.choices.length + 1)]) }) },
+        { label: ml.act ? 'Change action: ' + ACTS[(ACTS.indexOf(ml.act) + 1) % ACTS.length] : 'Then do something…', key: '', run: () => mod(ml.id, { act: ACTS[(ACTS.indexOf(ml.act) + 1) % ACTS.length] }) },
         { label: 'Switch speaker', key: '', run: () => mod(ml.id, { who: ml.who === 'Player' ? 'Old Mason' : 'Player' }) },
-        { label: 'Delete', key: 'Del', run: () => set(s.lines.filter((q) => q.id !== ml.id), { menu: null }) }
-      ] } : { show: false, items: [] },
+        { label: 'Delete', key: 'Del', run: () => setLines(lines.filter((q) => q.id !== ml.id), { menu: null }) }
+      ] : []),
+      gNodes: gNodes.map((n) => ({ kind: n[0], text: n[1], style: 'position: absolute; left: ' + n[2] + 'px; top: ' + n[3] + 'px; width: 220px; border-radius: 12px; background: #24262d; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 20px #0006', head: 'padding: 5px 12px; font-size: 11px; font-weight: 800; color: #141519; background: ' + n[4] })),
+      gEdges: lines.slice(1).map((l, i) => 'position: absolute; left: 130px; top: ' + (20 + i * 140 + 90) + 'px; width: 3px; height: 50px; background: #ffcc00'),
+      script, editScript: () => {},
+      warnings,
       styles: Object.keys(ST).map((k) => ({ name: k, pick: () => this.setState({ style: k }),
-        thumb: 'width: 64px; height: 26px; border-radius: ' + ST[k][2] + '; background: ' + ST[k][0] + '; border: ' + (ST[k][3] === 'none' ? '1px solid #33363e' : ST[k][3]),
-        style: 'display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 4px; border-radius: 12px; border: none; cursor: pointer; font: 600 12px Figtree, sans-serif; color: #f2f2f4; background: ' + (k === s.style ? '#3a3420' : '#24262d') + '; box-shadow: ' + (k === s.style ? 'inset 0 0 0 2px #ffcc00' : 'none') })),
-      pv: { who: pvLine.who, text: pvLine.text, nameStyle: 'display: block; margin-bottom: 4px; font-size: 13px; color: ' + (s.style === 'Brick panel' || s.style === 'Speech bubble' || s.style === 'Comic' ? '#8a5a2b' : '#ffcc00'),
-        box: 'position: absolute; ' + st[4] + '; padding: 12px 14px; font-size: 14px; line-height: 1.4; background: ' + st[0] + '; color: ' + st[1] + '; border-radius: ' + st[2] + '; border: ' + st[3] + (s.style === 'Typewriter' ? "; font-family: ui-monospace, monospace" : '') },
+        thumb: 'width: 48px; height: 22px; border-radius: ' + ST[k][2] + '; background: ' + (ST[k][0] === 'transparent' ? '#2d4a33' : ST[k][0]) + '; border: ' + (ST[k][3] === 'none' ? '1px solid #33363e' : ST[k][3]),
+        style: 'display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 2px; border-radius: 12px; border: none; cursor: pointer; font: 600 11px Figtree, sans-serif; color: #f2f2f4; background: ' + (k === s.style ? '#3a3420' : '#24262d') + '; box-shadow: ' + (k === s.style ? 'inset 0 0 0 2px #ffcc00' : 'none') })),
+      pv: { who: s.style === 'Narrator' || s.style === 'Sign' ? '' : pvLine.who, text: fill(pvLine.text), portrait: st[5], nameStyle: 'display: block; margin-bottom: 4px; font-size: 13px; color: ' + (['Speech bubbles', 'Sign'].indexOf(s.style) >= 0 ? '#8a5a2b' : '#ffcc00'),
+        box: 'position: absolute; ' + st[4] + '; padding: 12px 14px; font-size: 14px; line-height: 1.4; background: ' + st[0] + '; color: ' + st[1] + '; border-radius: ' + st[2] + '; border: ' + st[3] },
       nextLine: () => this.setState({ pv: s.pv + 1 }),
-      startPreview: () => this.setState({ pv: 0 }),
-      undo: () => { if (!s.hist.length) return; this.setState({ lines: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1) }); }
+      startPreview: () => this.setState({ conv: plays, pv: 0 }),
+      undo: () => { if (!s.hist.length) return; this.setState({ convs: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1) }); }
     };
   }
 }

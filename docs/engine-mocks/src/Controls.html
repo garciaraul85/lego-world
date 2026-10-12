@@ -1,0 +1,113 @@
+Controls & cameras
+{"nav":"game","group":"game","sub":"Controls","h":"Controls and cameras","s":"Which button does what, how the camera looks, and playing together","undo":false,"right":"<div class=\"seg\"><sc-for list=\"{{tabs}}\" as=\"t\" hint-placeholder-count=\"4\"><button type=\"button\" class=\"{{t.cls}}\" onClick=\"{{t.pick}}\">{{t.name}}</button></sc-for></div>"}
+      <sc-if value="{{isControls}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; flex: 1 1 100%">
+          <section class="card" style="flex: 999 1 560px; display: flex; flex-direction: column; gap: 4px" tabindex="0" onKeyDown="{{capture}}">
+            <div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 8px; padding: 0 0 8px; font-size: 12px; font-weight: 700; color: #9ea3ad; text-transform: uppercase; letter-spacing: .06em"><span>Action</span><span>Keyboard</span><span>Gamepad</span><span>Touch</span></div>
+            <sc-for list="{{actions}}" as="a" hint-placeholder-count="10">
+              <div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid #2a2d35">
+                <span style="font-size: 15px">{{a.name}}</span>
+                <button type="button" style="{{a.kStyle}}" onClick="{{a.listen}}">{{a.key}}</button>
+                <span class="chip" style="cursor: default; justify-self: start">{{a.pad}}</span>
+                <span style="font-size: 13px; color: #9ea3ad">{{a.touch}}</span>
+              </div>
+            </sc-for>
+          </section>
+          <aside class="card" style="flex: 1 1 260px; max-width: 300px; display: flex; flex-direction: column; gap: 12px; font-size: 14px; color: #b4b9c2; line-height: 1.5">
+            <span class="lbl">How to change one</span>
+            Click a keyboard button, then press the new key. Clashes are shown in red.
+            <span style="{{status}}">{{statusText}}</span>
+            <label style="display: flex; align-items: center; gap: 8px; color: #f2f2f4"><input type="checkbox" checked style="accent-color: #ffcc00; width: 18px; height: 18px">Players can change these too</label>
+            <label style="display: flex; align-items: center; gap: 8px; color: #f2f2f4"><input type="checkbox" checked style="accent-color: #ffcc00; width: 18px; height: 18px">Button pictures match the last device used</label>
+            <button type="button" class="btn" onClick="{{reset}}">Back to the genre's defaults</button>
+          </aside>
+        </div>
+      </sc-if>
+      <sc-if value="{{isCam}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; flex: 1 1 100%">
+          <aside class="card" style="flex: 0 0 260px; display: flex; flex-direction: column; gap: 8px">
+            <span class="lbl">Where</span>
+            <sc-for list="{{places}}" as="p" hint-placeholder-count="5"><button type="button" style="{{p.style}}" onClick="{{p.pick}}"><b>{{p.name}}</b><span style="font-size: 12px; opacity: .8">{{p.cam}}</span></button></sc-for>
+          </aside>
+          <section style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+            <div style="{{camView}}"><sc-for list="{{camShapes}}" as="c" hint-placeholder-count="4"><span style="{{c}}"></span></sc-for><span style="position: absolute; left: 14px; top: 12px; padding: 6px 12px; border-radius: 999px; background: #141519cc; font-size: 13px; font-weight: 600">{{camName}}</span></div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px"><sc-for list="{{cams}}" as="c" hint-placeholder-count="6"><button type="button" style="{{c.style}}" onClick="{{c.pick}}"><b>{{c.name}}</b><span style="font-size: 12px; opacity: .8">{{c.desc}}</span></button></sc-for></div>
+          </section>
+        </div>
+      </sc-if>
+      <sc-if value="{{isShoot}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; flex: 1 1 100%">
+          <section style="flex: 999 1 480px; min-width: 0; position: relative; height: 560px; border-radius: 20px; overflow: hidden; background: linear-gradient(#5b6170, #2d3036 60%, #3a3d45 60%)" onClick="{{fire}}">
+            <span style="position: absolute; left: 60%; top: 40%; width: 60px; height: 90px; border-radius: 30px 30px 10px 10px; background: #8b93a3"></span>
+            <span style="{{gun}}"></span>
+            <sc-for list="{{cross}}" as="c" hint-placeholder-count="4"><span style="{{c}}"></span></sc-for>
+            <span style="position: absolute; right: 18px; bottom: 16px; padding: 6px 12px; border-radius: 10px; background: #141519cc; font-weight: 800">{{ammoText}}</span>
+            <span style="position: absolute; left: 16px; top: 14px; font-size: 13px; color: #e4e6ea">Click to shoot</span>
+          </section>
+          <aside class="card" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 14px">
+            <div class="fld">Crosshair<div style="display: flex; gap: 6px"><sc-for list="{{crossStyles}}" as="c" hint-placeholder-count="3"><button type="button" style="{{c.style}}" onClick="{{c.pick}}">{{c.name}}</button></sc-for></div></div>
+            <label class="fld">Kick when shooting · {{recoil}}<input type="range" min="0" max="10" value="{{recoil}}" onInput="{{setRecoil}}" style="accent-color: #ffcc00"></label>
+            <label class="fld">Shots before reload · {{mag}}<input type="range" min="1" max="30" value="{{mag}}" onInput="{{setMag}}" style="accent-color: #ffcc00"></label>
+            <sc-for list="{{shootFlags}}" as="f" hint-placeholder-count="3"><button type="button" onClick="{{f.flip}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
+          </aside>
+        </div>
+      </sc-if>
+      <sc-if value="{{isPlayers}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; flex: 1 1 100%">
+          <section style="{{split}}"><sc-for list="{{views}}" as="v" hint-placeholder-count="4"><div style="{{v.style}}"><span style="{{v.dot}}"></span><span style="position: absolute; left: 10px; top: 8px; font-size: 13px; font-weight: 800">{{v.name}}</span></div></sc-for></section>
+          <aside class="card" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 14px">
+            <div class="fld">Players on one device<div style="display: flex; gap: 6px"><sc-for list="{{counts}}" as="c" hint-placeholder-count="4"><button type="button" style="{{c.style}}" onClick="{{c.pick}}">{{c.name}}</button></sc-for></div></div>
+            <div class="fld">Screen<div style="display: flex; gap: 6px"><sc-for list="{{splits}}" as="c" hint-placeholder-count="2"><button type="button" style="{{c.style}}" onClick="{{c.pick}}">{{c.name}}</button></sc-for></div></div>
+            <label class="fld">Player 2 plays as<select class="inp"><option>A friend who helps build</option><option>A second racer</option><option>An opponent</option></select></label>
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px"><input type="checkbox" checked style="accent-color: #ffcc00; width: 18px; height: 18px">Join any time from the pause menu</label>
+          </aside>
+        </div>
+      </sc-if>
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.DEF = [['Move', 'WASD', 'Left stick', 'Drag left side'], ['Jump', 'Space', 'A', 'Tap right'], ['Attack', 'J', 'X', 'Sword button'], ['Defend', 'K', 'RB', 'Shield button'], ['Use item', 'L', 'Y', 'Item button'], ['Lock on', 'Q', 'LT', 'Tap enemy'], ['Talk / open', 'E', 'A', 'Tap'], ['Item wheel', 'Tab', 'RT', 'Hold item'], ['Map', 'M', 'View', 'Map icon'], ['Pause', 'Esc', 'Menu', 'Pause icon']];
+    this.state = { tab: 'Controls', keys: this.DEF.map((d) => d[1]), listen: null, place: 'Overworld', cams: { Overworld: 'Behind', 'Little dungeon': 'Top-down', 'Boss room': 'Fixed', 'Sky islands': 'Side view', 'Shooting gallery': 'First person' }, cross: 'Dot', recoil: 4, mag: 12, shots: 0, kick: 0, sf: { ads: true, auto: false, assist: true }, players: 2, split: 'Split screen' };
+  }
+  renderVals() {
+    const s = this.state;
+    const clash = (k, i) => s.keys.some((x, j) => j !== i && x === k);
+    const CAM = { Behind: 'Follows behind the hero', 'Over the shoulder': 'For aiming', 'First person': 'Through their eyes', 'Top-down': 'Looks straight down', 'Side view': 'Like a 2D platformer', Fixed: 'Set angle for the room' };
+    const camNow = s.cams[s.place];
+    const shapes = { Behind: ['position: absolute; left: 45%; top: 55%; width: 50px; height: 60px; border-radius: 25px 25px 8px 8px; background: #e8463c', 'position: absolute; left: 0; right: 0; top: 70%; bottom: 0; background: #3f8f4a'], 'Over the shoulder': ['position: absolute; left: 20%; top: 40%; width: 120px; height: 180px; border-radius: 60px 60px 20px 20px; background: #e8463c', 'position: absolute; left: 0; right: 0; top: 70%; bottom: 0; background: #3f8f4a', 'position: absolute; left: 60%; top: 45%; width: 6px; height: 6px; border-radius: 50%; background: #fff'], 'First person': ['position: absolute; right: 20%; bottom: 0; width: 120px; height: 140px; border-radius: 20px 20px 0 0; background: #ffcc00', 'position: absolute; left: 0; right: 0; top: 60%; bottom: 0; background: #3f8f4a'], 'Top-down': ['position: absolute; left: 47%; top: 45%; width: 40px; height: 40px; border-radius: 50%; background: #e8463c', 'position: absolute; left: 20%; top: 20%; width: 100px; height: 60px; background: #8a5a2b'], 'Side view': ['position: absolute; left: 30%; top: 50%; width: 40px; height: 60px; border-radius: 20px 20px 6px 6px; background: #e8463c', 'position: absolute; left: 0; right: 0; top: 70%; height: 30%; background: #3f8f4a', 'position: absolute; left: 55%; top: 55%; width: 120px; height: 20px; background: #c9893f'], Fixed: ['position: absolute; left: 40%; top: 30%; width: 160px; height: 160px; border-radius: 50%; background: #5b6170', 'position: absolute; left: 30%; top: 70%; width: 30px; height: 40px; border-radius: 15px 15px 5px 5px; background: #e8463c'] };
+    const kick = s.kick * s.recoil;
+    const crossShapes = { Dot: ['position: absolute; left: calc(50% - 4px); top: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%; background: #fff'], Cross: ['position: absolute; left: calc(50% - 14px); top: calc(50% - 1px); width: 28px; height: 3px; background: #fff', 'position: absolute; left: calc(50% - 1px); top: calc(50% - 14px); width: 3px; height: 28px; background: #fff'], Circle: ['position: absolute; left: calc(50% - 16px); top: calc(50% - 16px); width: 26px; height: 26px; border-radius: 50%; border: 3px solid #fff'] };
+    const n = s.players;
+    return {
+      tabs: ['Controls', 'Cameras', 'Shooting', 'Players'].map((t) => ({ name: t, cls: H.tab(t === s.tab), pick: () => this.setState({ tab: t }) })),
+      isControls: s.tab === 'Controls', isCam: s.tab === 'Cameras', isShoot: s.tab === 'Shooting', isPlayers: s.tab === 'Players',
+      actions: this.DEF.map((d, i) => ({ name: d[0], key: s.listen === i ? 'Press a key…' : s.keys[i], pad: d[2], touch: d[3],
+        kStyle: 'justify-self: start; min-height: 32px; padding: 0 12px; border-radius: 8px; cursor: pointer; font: 700 13px ui-monospace, monospace; color: ' + (clash(s.keys[i], i) ? '#fff' : '#f2f2f4') + '; background: ' + (s.listen === i ? '#ffcc00' : clash(s.keys[i], i) ? '#e8463c' : '#24262d') + '; border: none' + (s.listen === i ? '; color: #141519' : ''),
+        listen: (e) => { e.currentTarget.closest('section').focus(); this.setState({ listen: i }); } })),
+      capture: (e) => { if (s.listen === null) return; e.preventDefault(); const k = e.key === ' ' ? 'Space' : e.key.length === 1 ? e.key.toUpperCase() : e.key; this.setState({ keys: s.keys.map((x, j) => (j === s.listen ? k : x)), listen: null }); },
+      status: 'font-size: 14px; font-weight: 600; color: ' + (s.keys.some((k, i) => clash(k, i)) ? '#ff6b6b' : '#45c46e'),
+      statusText: s.keys.some((k, i) => clash(k, i)) ? 'Two actions share a key.' : 'No clashes.',
+      reset: () => this.setState({ keys: this.DEF.map((d) => d[1]), listen: null }),
+      places: Object.keys(s.cams).map((p) => ({ name: p, cam: s.cams[p], style: H.card(p === s.place), pick: () => this.setState({ place: p }) })),
+      camView: 'position: relative; height: 420px; border-radius: 20px; overflow: hidden; background: ' + (camNow === 'Top-down' ? '#3f8f4a' : '#7cb7e6'),
+      camShapes: shapes[camNow] || [], camName: s.place + ' · ' + camNow,
+      cams: Object.keys(CAM).map((c) => ({ name: c, desc: CAM[c], style: H.card(c === camNow), pick: () => this.setState({ cams: Object.assign({}, s.cams, { [s.place]: c }) }) })),
+      gun: 'position: absolute; right: 22%; bottom: ' + (-20 + kick) + 'px; width: 90px; height: 170px; border-radius: 14px 14px 0 0; background: #3b78c9; transform: rotate(' + (-kick / 2) + 'deg); transition: all .12s',
+      cross: (crossShapes[s.cross] || []).map((c) => c + '; transform: translateY(' + (-kick) + 'px)'),
+      ammoText: Math.max(0, s.mag - s.shots) + ' / ' + s.mag + (s.shots >= s.mag ? ' · Reload!' : ''),
+      fire: () => { if (s.shots >= s.mag) { this.setState({ shots: 0 }); return; } this.setState({ shots: s.shots + 1, kick: 1 }); clearTimeout(this.tk); this.tk = setTimeout(() => this.setState({ kick: 0 }), 120); },
+      crossStyles: Object.keys(crossShapes).map((c) => ({ name: c, style: H.pick(c === s.cross) + '; flex: 1 1 0; text-align: center', pick: () => this.setState({ cross: c }) })),
+      recoil: s.recoil, setRecoil: (e) => this.setState({ recoil: +e.target.value }),
+      mag: s.mag, setMag: (e) => this.setState({ mag: +e.target.value, shots: 0 }),
+      shootFlags: [['ads', 'Zoom in to aim'], ['auto', 'Hold to keep shooting'], ['assist', 'Aim help on gamepads']].map(([k, nm]) => ({ name: nm, flip: () => this.setState({ sf: Object.assign({}, s.sf, { [k]: !s.sf[k] }) }), track: H.track(s.sf[k]), knob: H.knob(s.sf[k]) })),
+      split: 'flex: 999 1 480px; min-width: 0; height: 560px; border-radius: 20px; overflow: hidden; display: grid; gap: 4px; background: #141519; grid-template-columns: ' + (s.split === 'Shared view' || n === 1 ? '1fr' : 'repeat(2, 1fr)') + '; grid-template-rows: ' + (s.split === 'Shared view' || n <= 2 ? '1fr' : 'repeat(2, 1fr)'),
+      views: (s.split === 'Shared view' ? [0] : Array.from({ length: n }, (_, i) => i)).map((i) => ({ name: s.split === 'Shared view' ? 'Everyone' : 'Player ' + (i + 1), style: 'position: relative; background: #2d4a33 radial-gradient(#3b5c42 2px, transparent 2px) 0 0 / 20px 20px',
+        dot: 'position: absolute; left: calc(50% - 18px); top: calc(50% - 18px); width: 36px; height: 36px; border-radius: 18px 18px 6px 6px; background: ' + ['#e8463c', '#3b78c9', '#45c46e', '#ffcc00'][i] })),
+      counts: [1, 2, 3, 4].map((c) => ({ name: c + '', style: H.pick(c === n) + '; flex: 1 1 0; text-align: center', pick: () => this.setState({ players: c }) })),
+      splits: ['Split screen', 'Shared view'].map((c) => ({ name: c, style: H.pick(c === s.split) + '; flex: 1 1 0; font-size: 13px; text-align: center; padding: 0 6px', pick: () => this.setState({ split: c }) })),
+      undo: () => {}
+    };
+  }
+}

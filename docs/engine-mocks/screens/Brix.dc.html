@@ -48,7 +48,7 @@ a{color:#ffcc00}a:hover{color:#ffd633}
       <section style="flex: 999 1 560px; min-width: 0; position: relative; border-radius: 20px; overflow: hidden; min-height: 780px; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px">
         <div style="position: absolute; left: 0; right: 0; top: 0; height: 70px; background: #4b5058"></div>
         <sc-for list="{{objs}}" as="o" hint-placeholder-count="5">
-          <div style="{{o.style}}"><span style="{{o.body}}"></span><span style="font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px #000; white-space: nowrap">{{o.name}}</span><sc-if value="{{o.hasBadge}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; border-radius: 9px; background: #a78bfa; color: #141519; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center">1</span></sc-if></div>
+          <div style="{{o.style}}" onClick="{{o.explain}}"><span style="{{o.body}}"></span><span style="font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px #000; white-space: nowrap">{{o.name}}</span><sc-if value="{{o.hasBadge}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; border-radius: 9px; background: #a78bfa; color: #141519; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center">1</span></sc-if></div>
         </sc-for>
         <div style="{{dim}}"></div>
         <sc-if value="{{focus.show}}" hint-placeholder-val="{{ false }}"><div style="{{focus.style}}"></div></sc-if>
@@ -66,7 +66,8 @@ a{color:#ffcc00}a:hover{color:#ffd633}
             </div>
           </div>
         </sc-if>
-        <sc-if value="{{finished}}" hint-placeholder-val="{{ false }}"><div class="toast" style="bottom: 24px">Done. The North door now opens when both torches are lit.<button type="button" class="btn" style="min-height: 34px" onClick="{{restart}}">Start over</button></div></sc-if>
+        <sc-if value="{{finished}}" hint-placeholder-val="{{ false }}"><div class="toast" style="bottom: 24px">Done. The North door now opens when both torches are lit.<button type="button" class="btn" style="min-height: 34px" onClick="{{nowTry}}">Now you try</button><button type="button" class="btn" style="min-height: 34px" onClick="{{restart}}">Start over</button></div></sc-if>
+        <sc-if value="{{explainCard.show}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; left: 20px; top: 90px; max-width: 320px; padding: 14px; border-radius: 14px; background: #24262d; box-shadow: 0 16px 40px #000a; font-size: 14px; line-height: 1.5">{{explainCard.text}} <a href="Help.dc.html">Help page</a></div></sc-if>
       </section>
       <aside class="card" style="flex: 1 1 340px; max-width: 400px; display: flex; flex-direction: column; gap: 12px; padding: 16px">
         <span class="lbl">Brix</span>
@@ -81,6 +82,7 @@ a{color:#ffcc00}a:hover{color:#ffd633}
             </div>
           </sc-for>
         </div>
+        <button type="button" class="btn" onClick="{{explain}}">{{explainLabel}}</button>
         <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{suggest}}" as="s" hint-placeholder-count="3"><button type="button" class="chip" style="cursor: pointer" onClick="{{s.ask}}">{{s.t}}</button></sc-for></div>
         <label style="display: flex; gap: 8px"><span style="position: absolute; left: -9999px">Ask Brix</span><input class="inp" style="flex: 1 1 auto" placeholder="Ask or tell Brix what to make…" value="{{draft}}" onInput="{{type}}"><button type="button" class="btn pri" onClick="{{send}}">Send</button></label>
         <span style="font-size: 12px; color: #6f7480; line-height: 1.4">Brix only uses the engine's own tools, shows each step first, and waits for you. Everything can be undone.</span>
@@ -90,10 +92,22 @@ a{color:#ffcc00}a:hover{color:#ffd633}
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { mode: 'Do it for me', step: 0, done: [], draft: '', extra: [] };
+    this.state = { explainMode: false, explainOf: null, mode: 'Do it for me', step: 0, done: [], draft: '', extra: [] };
   }
   renderVals() {
     const s = this.state;
@@ -123,7 +137,7 @@ class Component extends DCLogic {
     return {
       showCls: isShow ? 'ltab lon' : 'ltab', doCls: !isShow ? 'ltab lon' : 'ltab',
       modeShow: () => this.setState({ mode: 'Show me how' }), modeDo: () => this.setState({ mode: 'Do it for me' }),
-      objs: objs.map((o) => ({ name: o.name, hasBadge: !!o.badge,
+      objs: objs.map((o) => ({ name: o.name, hasBadge: !!o.badge, explain: () => { if (s.explainMode) this.setState({ explainMode: false, explainOf: o.name + ': ' + ({ 'North door': 'A door asset. It opens when a rule or script tells it to. Right-click it to lock it behind a key.', Torch: 'A light. Players can light it with fire or a lantern; rules can check if it is lit.', 'Floor switch': 'Pressed when the player or a block stands on it. Wire it to doors and gates.', 'Old Mason': 'A character with the Shopkeeper brain and three conversations.', 'Torch 2': 'The second torch I added for the puzzle.' }[o.name] || 'Part of your scene.') }); },
         style: 'position: absolute; left: ' + o.x + 'px; top: ' + o.y + 'px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px' + (o.fresh ? '; animation: none; outline: 3px solid #45c46e; border-radius: 14px' : ''),
         body: 'width: 48px; height: 48px; border-radius: ' + (o.name === 'Old Mason' ? '24px 24px 10px 10px' : '10px') + '; background: ' + o.c + (o.glow ? '; box-shadow: 0 0 30px 12px #ffb34788' : '') + (o.name.indexOf('Torch') === 0 && !o.glow ? '; filter: grayscale(.7) brightness(.7)' : '') })),
       dim: 'position: absolute; inset: 0; background: #0008; pointer-events: none; opacity: ' + (fin ? 0 : 1),
@@ -139,6 +153,10 @@ class Component extends DCLogic {
       plan,
       chat: chat.map((m) => ({ text: m.text, hasPlan: !!m.plan, hasCite: !!m.cite, cite: m.cite || '',
         style: 'max-width: 92%; padding: 12px 14px; border-radius: 14px; font-size: 15px; line-height: 1.45; align-self: ' + (m.who === 'me' ? 'flex-end' : 'flex-start') + '; background: ' + (m.who === 'me' ? '#3a3420' : '#24262d') })),
+      explain: () => this.setState({ explainMode: !s.explainMode, explainOf: null }),
+      explainLabel: s.explainMode ? 'Click something on the scene…' : 'Explain this…',
+      explainMode: s.explainMode, explainCard: s.explainOf ? { show: true, text: s.explainOf } : { show: false, text: '' },
+      nowTry: () => this.setState({ step: 0, done: [], mode: 'Show me how', extra: s.extra.concat([{ who: 'brix', text: 'Your turn! I undid my steps. Do them yourself and I\'ll check each one.' }]) }),
       suggest: ['Why two torches?', 'Make it harder', 'Add a sound when the door opens'].map((t) => ({ t, ask: () => this.setState({ extra: s.extra.concat([{ who: 'me', text: t }, { who: 'brix', text: t === 'Make it harder' ? 'I can add a timer: the torches go out after 10 seconds. Want me to add that as step 5?' : t === 'Why two torches?' ? 'One torch is too easy to find. Two in different places makes the player explore the room.' : 'I\'ll drop "Creak" from Audio onto the North door, set to play when it opens. Approve?', cite: t === 'Make it harder' ? 'Timer challenge' : t === 'Why two torches?' ? '' : 'Audio' }]) }) })),
       draft: s.draft, type: (e) => this.setState({ draft: e.target.value }),
       send: () => { if (!s.draft.trim()) return; this.setState({ draft: '', extra: s.extra.concat([{ who: 'me', text: s.draft }, { who: 'brix', text: 'Let me look that up in Help and make a plan. I\'ll show it here before changing anything.', cite: 'Right-click menu' }]) }); }

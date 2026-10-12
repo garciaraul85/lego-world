@@ -19,7 +19,7 @@ Lighting
           <label style="display: flex; align-items: center; gap: 8px; font-size: 14px"><input type="checkbox" checked="{{cycle}}" onChange="{{toggleCycle}}" style="accent-color: #ffcc00; width: 18px; height: 18px">Day passes during play</label>
         </div>
       </section>
-      <aside style="flex: 1 1 300px; max-width: 340px; display: flex; flex-direction: column; gap: 14px">
+      <aside style="flex: 1 1 300px; max-width: 340px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
         <div class="card" style="display: flex; flex-direction: column; gap: 10px">
           <span class="lbl">Mood</span>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"><sc-for list="{{moods}}" as="m" hint-placeholder-count="6"><button type="button" style="{{m.style}}" onClick="{{m.pick}}"><span style="{{m.sw}}"></span>{{m.name}}</button></sc-for></div>

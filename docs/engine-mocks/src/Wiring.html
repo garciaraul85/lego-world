@@ -16,9 +16,9 @@ Wiring
         </div>
       </section>
       <aside style="flex: 1 1 260px; max-width: 300px; display: flex; flex-direction: column; gap: 14px">
-        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
-          <span class="lbl">Logic pieces · drag in</span>
-          <sc-for list="{{palette}}" as="p" hint-placeholder-count="6"><div draggable="true" onDragStart="{{p.start}}" style="display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: #24262d; cursor: grab"><span style="{{p.icon}}"></span><span style="display: flex; flex-direction: column"><b style="font-size: 14px">{{p.name}}</b><span style="font-size: 12px; color: #9ea3ad">{{p.desc}}</span></span></div></sc-for>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px; max-height: 560px; overflow: auto">
+          <span class="lbl">Pieces · drag in</span>
+          <sc-for list="{{palette}}" as="p" hint-placeholder-count="12"><div draggable="true" onDragStart="{{p.start}}" style="display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: #24262d; cursor: grab"><span style="{{p.icon}}"></span><span style="display: flex; flex-direction: column"><b style="font-size: 14px">{{p.name}}</b><span style="font-size: 12px; color: #9ea3ad">{{p.desc}}</span></span></div></sc-for>
         </div>
         <div class="card" style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #b4b9c2; line-height: 1.5">
           <span class="lbl">Try it</span>
@@ -64,7 +64,7 @@ class Component extends DCLogic {
     const g = s.graphs[s.board];
     const K = {
       'Floor switch': ['src', 0, '#8fa1b8'], Torch: ['src', 0, '#ffb347'], 'Arrow target': ['src', 0, '#e8463c'], 'Gas pedal': ['src', 0, '#45c46e'], Steering: ['src', 0, '#3b78c9'], 'Horn button': ['src', 0, '#ffcc00'], 'Sees player': ['src', 0, '#e8463c'], 'Health low': ['src', 0, '#ff6b6b'], Lever: ['src', 0, '#8a5a2b'],
-      'All of': ['and', 2, '#a78bfa'], 'Any of': ['or', 2, '#a78bfa'], Not: ['not', 1, '#a78bfa'], Timer: ['pass', 1, '#a78bfa'], Counter: ['count', 2, '#a78bfa'], Random: ['pass', 1, '#a78bfa'], Engine: ['pass', 1, '#ff8a3d'],
+      'All of': ['and', 2, '#a78bfa'], 'In order': ['and', 2, '#a78bfa'], 'Light sensor': ['src', 0, '#ffd633'], Motor: ['pass', 1, '#ff8a3d'], Hinge: ['sink', 1, '#8a5a2b'], 'Hit box': ['pass', 1, '#e8463c'], 'Any of': ['or', 2, '#a78bfa'], Not: ['not', 1, '#a78bfa'], Timer: ['pass', 1, '#a78bfa'], Counter: ['count', 2, '#a78bfa'], Random: ['pass', 1, '#a78bfa'], Engine: ['pass', 1, '#ff8a3d'],
       Door: ['sink', 1, '#8a5a2b'], Chest: ['sink', 1, '#c9893f'], Wheels: ['sink', 2, '#2f3440'], Horn: ['sink', 1, '#ffcc00'], 'Exhaust smoke': ['sink', 1, '#8b93a3'], 'Sword swing': ['sink', 1, '#d8d8d8'], 'Run away': ['sink', 1, '#6fb7f0'], Lamp: ['sink', 1, '#ffd633']
     };
     const W = 170, Hh = 110;
@@ -82,7 +82,7 @@ class Component extends DCLogic {
     const line = (a, b, col, dash) => { const dx = b[0] - a[0], dy = b[1] - a[1]; return 'position: absolute; pointer-events: none; left: ' + a[0] + 'px; top: ' + (a[1] - 2) + 'px; width: ' + Math.sqrt(dx * dx + dy * dy) + 'px; height: 0; border-top: 4px ' + (dash ? 'dashed' : 'solid') + ' ' + col + '; transform-origin: 0 50%; transform: rotate(' + (Math.atan2(dy, dx) * 180 / Math.PI) + 'deg)'; };
     const setG = (o, extra) => this.setState(Object.assign({ hist: s.hist.concat([s.graphs]).slice(-20), graphs: Object.assign({}, s.graphs, { [s.board]: Object.assign({}, g, o) }) }, extra || {}));
     const byId = (id) => g.nodes.find((x) => x.id === id);
-    const stateText = (nd, v) => { const k = K[nd.kind] || ['pass']; if (k[0] === 'src') return v ? 'On' : 'Off'; if (k[0] === 'sink') return v ? ({ Door: 'Open', Chest: 'Unlocked', Wheels: 'Spinning', Horn: 'Honk!', 'Exhaust smoke': 'Puffing', 'Sword swing': 'Swinging', 'Run away': 'Running', Lamp: 'Lit' }[nd.kind] || 'On') : 'Waiting'; return v ? 'Passing signal' : 'No signal'; };
+    const stateText = (nd, v) => { const k = K[nd.kind] || ['pass']; if (k[0] === 'src') return v ? 'On' : 'Off'; if (k[0] === 'sink') return v ? ({ Door: 'Open', Hinge: 'Swinging', Chest: 'Unlocked', Wheels: 'Spinning', Horn: 'Honk!', 'Exhaust smoke': 'Puffing', 'Sword swing': 'Swinging', 'Run away': 'Running', Lamp: 'Lit' }[nd.kind] || 'On') : 'Waiting'; return v ? 'Passing signal' : 'No signal'; };
     const m = s.menu; const mn = m ? byId(m.id) : null;
     return {
       boards: Object.keys(s.graphs).map((b) => ({ name: b, cls: H.tab(b === s.board), pick: () => this.setState({ board: b, menu: null }) })),
@@ -112,7 +112,7 @@ class Component extends DCLogic {
       allow: (e) => e.preventDefault(),
       dropNode: (e) => { e.preventDefault(); const kd = e.dataTransfer.getData('text/plain'); if (!K[kd]) return; const r = e.currentTarget.getBoundingClientRect(); setG({ nodes: g.nodes.concat([{ id: 'n' + (this.n++), kind: kd, x: Math.round((e.clientX - r.left - 80) / 12) * 12, y: Math.round((e.clientY - r.top - 40) / 12) * 12, on: false }]) }); },
       noMenu: (e) => e.preventDefault(),
-      palette: [['All of', 'On when every input is on'], ['Any of', 'On when one input is on'], ['Not', 'Flips on and off'], ['Timer', 'Waits, then passes it on'], ['Counter', 'On after 2 inputs'], ['Lever', 'Something the player pulls'], ['Lamp', 'Lights up when on']].map(([n, d]) => ({ name: n, desc: d, icon: 'flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px; background: ' + K[n][2], start: (e) => e.dataTransfer.setData('text/plain', n) })),
+      palette: [['All of', 'On when every input is on'], ['Any of', 'On when one input is on'], ['Not', 'Flips on and off'], ['Timer', 'Waits, then passes it on'], ['Counter', 'On after 2 inputs'], ['In order', 'On when inputs come in order'], ['Light sensor', 'On when light shines on it'], ['Motor', 'Turns wheels and rotors'], ['Hinge', 'Doors and drawbridges'], ['Hit box', 'Where a weapon hurts'], ['Lever', 'Something the player pulls'], ['Lamp', 'Lights up when on']].map(([n, d]) => ({ name: n, desc: d, icon: 'flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px; background: ' + K[n][2], start: (e) => e.dataTransfer.setData('text/plain', n) })),
       closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
       menu: H.menu(m, mn ? mn.kind : '', mn ? [
         { label: 'Remove its wires', key: '', run: () => setG({ wires: g.wires.filter((w) => w[0] !== mn.id && w[1] !== mn.id) }, { menu: null }) },

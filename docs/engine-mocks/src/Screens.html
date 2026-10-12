@@ -9,6 +9,7 @@ Screens
       <a class="btn" href="Brix.dc.html">Ask Brix</a>
       <a class="btn pri" href="Play.dc.html">Play</a>
     </header>
+    <dc-import name="Sub" group="screens" active="HUD and screens" hint-size="900px,46px"></dc-import>
     <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
       <section style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
         <div data-frame="1" style="{{frame}}" onMouseMove="{{move}}" onMouseUp="{{up}}" onMouseLeave="{{up}}" onDragOver="{{allow}}" onDrop="{{dropNew}}">
@@ -27,7 +28,7 @@ Screens
           </div>
         </div>
       </section>
-      <aside style="flex: 1 1 260px; max-width: 320px; display: flex; flex-direction: column; gap: 14px">
+      <aside style="flex: 1 1 260px; max-width: 320px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
         <div class="card" style="display: flex; flex-direction: column; gap: 14px">
           <sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}">
             <div style="display: flex; flex-direction: column; gap: 14px">
@@ -59,6 +60,7 @@ Screens
   </main>
 </div>
 <!--SCRIPT-->
+/*HELPERS*/
 class Component extends DCLogic {
   constructor(props) {
     super(props);

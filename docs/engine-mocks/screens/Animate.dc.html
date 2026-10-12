@@ -45,6 +45,7 @@ a{color:#ffcc00}a:hover{color:#ffd633}
       <a class="btn" href="Brix.dc.html">Ask Brix</a>
       <a class="btn pri" href="Character.dc.html">Done</a>
     </header>
+    <dc-import name="Sub" group="animate" active="Pose and keys" hint-size="900px,46px"></dc-import>
     <div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
       <section data-stage="1" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px; position: relative">
         <div style="position: relative; flex: 1 1 auto; min-height: 520px; border-radius: 20px; background: linear-gradient(#20232b, #17191e); overflow: hidden" onMouseMove="{{move}}" onMouseUp="{{up}}" onMouseLeave="{{up}}" onDragOver="{{allow}}" onDrop="{{dropPreset}}">
@@ -97,6 +98,18 @@ a{color:#ffcc00}a:hover{color:#ffd633}
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
 class Component extends DCLogic {
   constructor(props) {
     super(props);

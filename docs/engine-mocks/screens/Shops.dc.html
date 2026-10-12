@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Money & shops</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}">
+  <dc-import name="Nav" active="gear" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Money and shops</span><span style="font-size: 13px; color: #9ea3ad">Your game's money, and shops where players spend it</span></div>
+      
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="gear" active="Money & shops" hint-size="900px,46px"></dc-import>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <aside class="card" style="flex: 0 0 260px; display: flex; flex-direction: column; gap: 10px">
+        <span class="lbl">Money in this game</span>
+        <sc-for list="{{currencies}}" as="c" hint-placeholder-count="2"><button type="button" style="{{c.style}}" onClick="{{c.pick}}"><span style="{{c.icon}}"></span><span style="flex: 1 1 auto; text-align: left">{{c.name}}</span><span style="font-size: 12px; opacity: .8">max {{c.cap}}</span></button></sc-for>
+        <button type="button" class="btn" onClick="{{addCur}}">Add another kind</button>
+        <div class="fld">Pickups worth<sc-for list="{{pickups}}" as="p" hint-placeholder-count="3"><div style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: #f2f2f4"><span style="{{p.sw}}"></span><span style="flex: 1 1 auto">{{p.name}}</span><button type="button" class="chip" style="cursor: pointer" onClick="{{p.bump}}">{{p.val}}</button></div></sc-for></div>
+        <label class="fld">Wallet holds · {{cap}}<input type="range" min="50" max="9999" step="50" value="{{cap}}" onInput="{{setCap}}" style="accent-color: #ffcc00"></label>
+        <span style="font-size: 12px; color: #9ea3ad; line-height: 1.5">Bigger wallets can be a shop item or a quest reward.</span>
+      </aside>
+      <section style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; align-items: center; gap: 12px">
+          <span class="lbl" style="flex: 1 1 auto">Shops</span>
+          <div class="seg"><sc-for list="{{shops}}" as="s" hint-placeholder-count="2"><button type="button" class="{{s.cls}}" onClick="{{s.pick}}">{{s.name}}</button></sc-for></div>
+          <span style="font-size: 13px; color: #9ea3ad">Run by {{keeper}}</span>
+        </div>
+        <div style="position: relative; border-radius: 20px; padding: 24px; min-height: 420px; background: linear-gradient(#3a2a1c, #22180f)" onDragOver="{{allow}}" onDrop="{{dropItem}}">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px"><b style="font-size: 22px; color: #ffd633">{{shopName}}</b><span style="padding: 6px 12px; border-radius: 999px; background: #141519cc; font-weight: 800; color: #ffcc00">{{wallet}}</span></div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px">
+            <sc-for list="{{stock}}" as="i" hint-placeholder-count="5">
+              <div style="{{i.box}}" onContextMenu="{{i.menu}}" onClick="{{i.buy}}">
+                <span style="{{i.icon}}"></span><b style="font-size: 14px">{{i.name}}</b>
+                <span style="font-size: 13px; color: #ffcc00; font-weight: 700">{{i.price}}</span>
+                <span style="font-size: 11px; color: #b4b9c2">{{i.note}}</span>
+              </div>
+            </sc-for>
+          </div>
+          <span style="position: absolute; left: 24px; bottom: 14px; font-size: 13px; color: #d8cfc0">Drag items in from the right. Click one to try buying it. Right-click to change it.</span>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 240px; max-width: 280px; display: flex; flex-direction: column; gap: 10px">
+        <span class="lbl">Items · drag into the shop</span>
+        <sc-for list="{{items}}" as="i" hint-placeholder-count="8"><div draggable="true" onDragStart="{{i.start}}" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #24262d; cursor: grab; font-size: 14px"><span style="{{i.sw}}"></span>{{i.name}}</div></sc-for>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 14px"><input type="checkbox" checked style="accent-color: #ffcc00; width: 18px; height: 18px">Sold-out items come back later</label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 14px"><input type="checkbox" style="accent-color: #ffcc00; width: 18px; height: 18px">Cheaper if the shopkeeper likes you</label>
+      </aside>
+      <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}"><div class="menu" style="{{menu.style}}"><span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">{{menu.title}}</span><sc-for list="{{menu.items}}" as="i" hint-placeholder-count="4"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for></div></sc-if>
+      <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}"><div class="toast">{{toast.text}}<button type="button" class="btn" style="min-height: 34px" onClick="{{undo}}">Undo</button></div></sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cur: 'Gems', curs: [['Gems', '#45c46e', 999], ['Brick tokens', '#ffcc00', 99]], cap: 999, have: 120, shop: 'Mason\'s stall', menu: null, toast: null, hist: [],
+      pick: [['Green gem', '#45c46e', 1], ['Blue gem', '#3b78c9', 5], ['Red gem', '#e8463c', 20]],
+      shops: { 'Mason\'s stall': { keeper: 'Old Mason', stock: [['Brick bundle', '#c9893f', 30, 'Builds bridges', 5], ['Heart', '#ff6b6b', 10, '', 9], ['Arrows ×10', '#8a5a2b', 20, '', 9], ['Bigger wallet', '#ffcc00', 200, 'Holds 2,000', 1]] }, 'Potion shop': { keeper: 'Villager', stock: [['Red potion', '#e8463c', 40, 'Fills hearts', 3], ['Fairy', '#ff7eb6', 80, 'Saves you once', 1]] } } };
+  }
+  renderVals() {
+    const s = this.state;
+    const sh = s.shops[s.shop];
+    const cur = s.curs.find((c) => c[0] === s.cur) || s.curs[0];
+    const setStock = (stock, extra) => this.setState(Object.assign({ hist: s.hist.concat([s.shops]).slice(-20), shops: Object.assign({}, s.shops, { [s.shop]: Object.assign({}, sh, { stock }) }) }, extra || {}));
+    const m = s.menu; const mi = m ? sh.stock[m.i] : null;
+    const ITEMS = [['Bomb bag', '#2f3440'], ['Lantern oil', '#ffd633'], ['Shield', '#c9893f'], ['Map', '#d8cfc0'], ['Fishing rod', '#8a5a2b'], ['Hat', '#6b4a2b'], ['Seeds', '#45c46e'], ['Key', '#ffcc00']];
+    return {
+      currencies: s.curs.map((c) => ({ name: c[0], cap: c[2], icon: 'width: 22px; height: 22px; transform: rotate(45deg); border-radius: 4px; background: ' + c[1], style: H.pick(c[0] === cur[0]) + '; display: flex; align-items: center; gap: 10px', pick: () => this.setState({ cur: c[0], cap: c[2] }) })),
+      addCur: () => this.setState({ curs: s.curs.concat([['Coins', '#ffd633', 500]]) }),
+      pickups: s.pick.map((p, i) => ({ name: p[0], val: '+' + p[2], sw: 'width: 16px; height: 16px; transform: rotate(45deg); border-radius: 3px; background: ' + p[1], bump: () => this.setState({ pick: s.pick.map((x, j) => (j === i ? [x[0], x[1], [1, 5, 10, 20, 50, 100][([1, 5, 10, 20, 50, 100].indexOf(x[2]) + 1) % 6]] : x)) }) })),
+      cap: s.cap, setCap: (e) => this.setState({ cap: +e.target.value, curs: s.curs.map((c) => (c[0] === cur[0] ? [c[0], c[1], +e.target.value] : c)) }),
+      shops: Object.keys(s.shops).map((n) => ({ name: n, cls: H.tab(n === s.shop), pick: () => this.setState({ shop: n }) })),
+      keeper: sh.keeper, shopName: s.shop, wallet: '◆ ' + s.have + ' ' + cur[0].toLowerCase(),
+      stock: sh.stock.map((it, i) => ({ name: it[0], price: it[2] + ' ' + cur[0].toLowerCase(), note: (it[3] ? it[3] + ' · ' : '') + (it[4] > 5 ? 'plenty' : it[4] + ' left'),
+        icon: 'width: 44px; height: 44px; border-radius: 10px; background: ' + it[1],
+        box: 'display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 10px; border-radius: 14px; cursor: pointer; text-align: center; background: ' + (s.have >= it[2] && it[4] > 0 ? '#141519cc' : '#14151966') + '; opacity: ' + (it[4] > 0 ? 1 : 0.4),
+        buy: () => { if (it[4] <= 0) return; if (s.have < it[2]) { this.setState({ toast: 'Not enough ' + cur[0].toLowerCase() + '. The shopkeeper says: "Come back later!"' }); return; } setStock(sh.stock.map((x, j) => (j === i ? [x[0], x[1], x[2], x[3], x[4] - 1] : x)), { have: s.have - it[2], toast: 'Bought ' + it[0] + '. "You got the ' + it[0] + '!" banner shows in game.' }); },
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const [x, y] = H.at(e); this.setState({ menu: { i, x, y } }); } })),
+      allow: (e) => e.preventDefault(),
+      dropItem: (e) => { e.preventDefault(); const [n, c] = e.dataTransfer.getData('text/plain').split('|'); if (!c) return; setStock(sh.stock.concat([[n, c, 25, '', 5]]), { toast: n + ' is now for sale' }); },
+      items: ITEMS.map(([n, c]) => ({ name: n, sw: 'width: 22px; height: 22px; border-radius: 6px; background: ' + c, start: (e) => e.dataTransfer.setData('text/plain', n + '|' + c) })),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: H.menu(m, mi ? mi[0] : '', mi ? [
+        { label: 'Price up', key: '+5', run: () => setStock(sh.stock.map((x, j) => (j === m.i ? [x[0], x[1], x[2] + 5, x[3], x[4]] : x)), { menu: null }) },
+        { label: 'Price down', key: '−5', run: () => setStock(sh.stock.map((x, j) => (j === m.i ? [x[0], x[1], Math.max(0, x[2] - 5), x[3], x[4]] : x)), { menu: null }) },
+        { label: 'Only after a quest step…', key: '', run: () => { window.location.href = 'Quests.dc.html'; } },
+        { label: 'Remove from shop', key: 'Del', run: () => setStock(sh.stock.filter((x, j) => j !== m.i), { menu: null }) }
+      ] : []),
+      toast: H.toast(s.toast),
+      undo: () => { if (!s.hist.length) { this.setState({ toast: null }); return; } this.setState({ shops: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1), toast: null }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

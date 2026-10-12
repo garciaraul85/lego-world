@@ -3,14 +3,14 @@ Logic
   <dc-import name="Nav" active="logic" hint-size="96px,900px"></dc-import>
   <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
     <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
-      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Rules</span><span style="font-size: 13px; color: #9ea3ad">Chasm hall · read them like sentences</span></div>
-      <div class="seg"><sc-for list="{{views}}" as="v" hint-placeholder-count="2"><button type="button" class="{{v.cls}}" onClick="{{v.pick}}">{{v.name}}</button></sc-for></div>
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Rules and scripts</span><span style="font-size: 13px; color: #9ea3ad">Chasm hall · the same rules as sentences, a graph or code</span></div>
+      <div class="seg"><sc-for list="{{views}}" as="v" hint-placeholder-count="4"><button type="button" class="{{v.cls}}" onClick="{{v.pick}}">{{v.name}}</button></sc-for></div>
       <span style="flex: 1 1 auto"></span>
       <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
       <a class="btn" href="Brix.dc.html">Ask Brix</a>
       <a class="btn pri" href="Play.dc.html">Play</a>
     </header>
-    <dc-import name="Sub" group="logic" active="Rules" hint-size="900px,46px"></dc-import>
+    <dc-import name="Sub" group="logic" active="Rules and scripts" hint-size="900px,46px"></dc-import>
     <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
       <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
         <sc-if value="{{isRules}}" hint-placeholder-val="{{ true }}">
@@ -33,14 +33,38 @@ Logic
         <sc-if value="{{isScripts}}" hint-placeholder-val="{{ false }}">
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px">
             <sc-for list="{{scripts}}" as="sc" hint-placeholder-count="6">
-              <div class="card" draggable="true" onDragStart="{{sc.start}}" style="display: flex; flex-direction: column; gap: 8px; cursor: grab; border-left: 4px solid #a78bfa">
+              <div class="card" draggable="true" onDragStart="{{sc.start}}" onClick="{{sc.pick}}" style="{{sc.style}}">
                 <span style="font-weight: 700; font-size: 16px">{{sc.name}}</span>
                 <span style="font-size: 14px; color: #b4b9c2; line-height: 1.4">{{sc.desc}}</span>
                 <span style="font-size: 12px; color: #9ea3ad">{{sc.used}}</span>
               </div>
             </sc-for>
           </div>
-          <p style="font-size: 14px; color: #9ea3ad; margin: 12px 0 0">Scripts are rules you can reuse. Drag one onto anything in the Scene, or onto a screen in Screens.</p>
+          <div class="card" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px">
+            <span class="lbl">Settings people fill in · {{scSel}}</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 16px"><sc-for list="{{scSettings}}" as="f" hint-placeholder-count="4"><span style="{{f.style}}">{{f.text}}</span></sc-for></div>
+            <span style="font-size: 13px; color: #9ea3ad">These show up as fields wherever the script is attached, so one script works on many objects. Inside it, "self" is the object it's on.</span>
+          </div>
+          <p style="font-size: 14px; color: #9ea3ad; margin: 12px 0 0">Drag a script onto anything in the Scene, or onto a widget in Screens.</p>
+        </sc-if>
+        <sc-if value="{{isGraph}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap"><sc-for list="{{pickRule}}" as="p" hint-placeholder-count="3"><button type="button" style="{{p.style}}" onClick="{{p.pick}}">{{p.name}}</button></sc-for></div>
+            <div style="position: relative; height: 460px; border-radius: 20px; background-color: #17191e; background-image: radial-gradient(#262931 1.5px, transparent 1.5px); background-size: 24px 24px">
+              <sc-for list="{{gEdges}}" as="e" hint-placeholder-count="4"><span style="{{e}}"></span></sc-for>
+              <sc-for list="{{gNodes}}" as="n" hint-placeholder-count="5"><div style="{{n.style}}"><span style="{{n.head}}">{{n.kind}}</span><span style="padding: 8px 12px; font-size: 14px">{{n.text}}</span></div></sc-for>
+            </div>
+            <span style="font-size: 13px; color: #9ea3ad">Same rule as the sentence. Change it here or there; both stay in step.</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{isCode}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; gap: 8px; align-items: center"><sc-for list="{{pickRule}}" as="p" hint-placeholder-count="3"><button type="button" style="{{p.style}}" onClick="{{p.pick}}">{{p.name}}</button></sc-for><span style="flex: 1 1 auto"></span><button type="button" class="btn" onClick="{{step}}">{{stepLabel}}</button></div>
+            <div style="border-radius: 16px; background: #0f1013; padding: 12px 0; font: 14px/1.9 ui-monospace, Menlo, monospace">
+              <sc-for list="{{code}}" as="c" hint-placeholder-count="6"><div style="{{c.row}}"><button type="button" aria-label="Breakpoint" onClick="{{c.bp}}" style="{{c.dot}}"></button><span style="width: 26px; color: #6f7480; text-align: right">{{c.n}}</span><span style="{{c.textStyle}}">{{c.text}}</span></div></sc-for>
+            </div>
+            <span style="font-size: 13px; color: #9ea3ad">Click the left edge of a line to stop there while playing. "Step" runs one line at a time.</span>
+          </div>
         </sc-if>
         <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}">
           <div class="menu" style="{{menu.style}}">
@@ -58,7 +82,7 @@ Logic
           </div>
         </div>
         <div class="card" style="display: flex; flex-direction: column; gap: 10px">
-          <div style="display: flex; justify-content: space-between; align-items: center"><span class="lbl">Variables</span><button type="button" class="btn" style="min-height: 30px; padding: 0 10px; font-size: 13px" onClick="{{addVar}}">Add</button></div>
+          <div style="display: flex; justify-content: space-between; align-items: center"><span class="lbl">{{varTitle}}</span><button type="button" class="btn" style="min-height: 30px; padding: 0 10px; font-size: 13px" onClick="{{addVar}}">Add</button></div>
           <sc-for list="{{vars}}" as="v" hint-placeholder-count="3">
             <div style="display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0"><span>{{v.name}}</span><span style="color: #9ea3ad">{{v.val}}</span></div>
           </sc-for>
@@ -68,12 +92,13 @@ Logic
   </main>
 </div>
 <!--SCRIPT-->
+/*HELPERS*/
 class Component extends DCLogic {
   constructor(props) {
     super(props);
     this.n = 4;
     this.state = {
-      view: 'Rules', menu: null, toast: null, hist: [],
+      view: 'Rules', menu: null, gsel: 'r1', line: -1, bps: { 2: true }, scSel: 'Collect then open', toast: null, hist: [],
       vars: [['Keys', '1'], ['Switches on', '0'], ['Met Mason', 'no']],
       rules: [
         { id: 'r1', title: 'Rule 1', on: true, when: ['Player steps on', 'Floor switch'], ifs: [['Switches on', 'is', '0']], then: [['Open', 'North door'], ['Play sound', 'Click']] },
@@ -92,9 +117,28 @@ class Component extends DCLogic {
     const Y = ['#3a3420', '#ffd633'], B = ['#1f3046', '#9cc7ff'], P = ['#2b2440', '#d9ccff'], G = ['#24262d', '#f2f2f4'];
     const nextThing = (t) => things[(things.indexOf(t) + 1) % things.length];
     const m = s.menu; const mr = m ? s.rules.find((r) => r.id === m.id) : null;
+    const gr = s.rules.find((r) => r.id === s.gsel) || s.rules[0];
+    const gNodes = [['When', gr.when.join(' '), 30, 60, '#ffcc00']].concat(gr.ifs.map((c, i) => ['If', c.join(' '), 290, 60 + i * 120, '#9ea3ad'])).concat(gr.then.map((a, i) => ['Then', a.join(' '), 550, 40 + i * 110, '#a78bfa']));
+    const ifEnd = gr.ifs.length ? 290 : 30;
+    const ln = (x1, y1, x2, y2) => { const dx = x2 - x1, dy = y2 - y1; return 'position: absolute; left: ' + x1 + 'px; top: ' + y1 + 'px; width: ' + Math.hypot(dx, dy) + 'px; height: 3px; background: #ffcc00; transform-origin: 0 50%; transform: rotate(' + (Math.atan2(dy, dx) * 180 / Math.PI) + 'deg)'; };
+    const gEdges = (gr.ifs.length ? [ln(230, 90, 290, 90)] : []).concat(gr.then.map((_, i) => ln(ifEnd + 200, 90, 550, 70 + i * 110)));
+    const codeLines = ['when ' + gr.when[0].toLowerCase().replace(/ /g, '_') + '(' + JSON.stringify(gr.when[1]) + '):'].concat(gr.ifs.length ? ['  if ' + gr.ifs.map((c) => c[0].toLowerCase().replace(/ /g, '_') + ' ' + ({ is: '==', 'more than': '>', 'less than': '<', 'is not': '!=' }[c[1]] || c[1]) + ' ' + c[2]).join(' and ') + ':'] : []).concat(gr.then.map((a) => (gr.ifs.length ? '    ' : '  ') + a[0].toLowerCase().replace(/ /g, '_') + '(' + JSON.stringify(a[1]) + ')')).concat(['end']);
+    const SCS = { 'Collect then open': [['text', 'Needs'], ['num', '3'], ['text', 'of'], ['obj', 'Gem'], ['text', 'then play'], ['snd', 'Door open']], 'Patrol route': [['text', 'Walk between'], ['obj', 'Pillar A'], ['text', 'and'], ['obj', 'Pillar B'], ['text', 'chase if closer than'], ['num', '6 studs']], Shop: [['text', 'Sell from'], ['obj', 'Mason\'s stall'], ['text', 'prices ×'], ['num', '1.0']], Respawn: [['text', 'Come back after'], ['num', '10 s']], 'Timer challenge': [['text', 'Finish within'], ['num', '60 s'], ['text', 'or'], ['snd', 'Restart room']], 'Show on screen': [['text', 'Show'], ['obj', 'Coins counter'], ['text', 'when'], ['snd', 'coins change']] };
     return {
-      views: ['Rules', 'Scripts'].map((v) => ({ name: v, cls: v === s.view ? 'ltab lon' : 'ltab', pick: () => this.setState({ view: v }) })),
-      isRules: s.view === 'Rules', isScripts: s.view === 'Scripts',
+      views: ['Rules', 'Graph', 'Code', 'Scripts'].map((v) => ({ name: v, cls: v === s.view ? 'ltab lon' : 'ltab', pick: () => this.setState({ view: v }) })),
+      isRules: s.view === 'Rules', isScripts: s.view === 'Scripts', isGraph: s.view === 'Graph', isCode: s.view === 'Code',
+      pickRule: s.rules.map((r) => ({ name: r.title, pick: () => this.setState({ gsel: r.id, line: -1 }), style: 'min-height: 32px; padding: 0 12px; border-radius: 999px; border: none; cursor: pointer; font: 600 13px Figtree, sans-serif; background: ' + (r.id === gr.id ? '#ffcc00' : '#24262d') + '; color: ' + (r.id === gr.id ? '#141519' : '#f2f2f4') })),
+      gNodes: gNodes.map((n) => ({ kind: n[0], text: n[1], style: 'position: absolute; left: ' + n[2] + 'px; top: ' + n[3] + 'px; width: 200px; border-radius: 12px; background: #24262d; overflow: hidden; box-shadow: 0 8px 20px #0006; display: flex; flex-direction: column', head: 'padding: 6px 12px; font-size: 12px; font-weight: 800; color: #141519; background: ' + n[4] })),
+      gEdges: gEdges,
+      code: codeLines.map((tx, i) => ({ n: i + 1, text: tx, row: 'display: flex; align-items: center; gap: 10px; padding: 0 14px; background: ' + (i === s.line ? '#3a342066' : 'transparent'),
+        dot: 'width: 12px; height: 12px; border-radius: 50%; border: none; cursor: pointer; padding: 0; background: ' + (s.bps[i] ? '#e8463c' : '#24262d'),
+        textStyle: 'white-space: pre; color: ' + (/^\s*(when|if|then|end)/.test(tx) ? '#ffcc00' : '#cfe3ff'),
+        bp: () => this.setState({ bps: Object.assign({}, s.bps, { [i]: !s.bps[i] }) }) })),
+      step: () => this.setState({ line: s.line + 1 >= codeLines.length ? -1 : s.line + 1 }),
+      stepLabel: s.line < 0 ? 'Run step by step' : 'Next line',
+      varTitle: s.line >= 0 ? 'Watching values' : 'Variables',
+      scSel: s.scSel,
+      scSettings: (SCS[s.scSel] || [['text', 'No settings']]).map(([k, tx]) => ({ text: tx, style: k === 'text' ? 'color: #b4b9c2' : 'padding: 6px 12px; border-radius: 10px; font-weight: 700; background: ' + (k === 'num' ? '#3a3420; color: #ffd633' : k === 'obj' ? '#1f3046; color: #9cc7ff' : '#2b2440; color: #d9ccff') })),
       allow: (e) => e.preventDefault(),
       rules: s.rules.map((r) => ({
         title: r.title, state: r.on ? 'On' : 'Off — right-click to turn on',
@@ -119,7 +163,7 @@ class Component extends DCLogic {
       actions: ['Open', 'Close', 'Spawn', 'Give', 'Take', 'Play sound', 'Show text', 'Start cutscene', 'Set variable', 'Shake camera'].map((a) => ({ name: a, start: (e) => e.dataTransfer.setData('text/plain', 'act|' + a) })),
       vars: s.vars.map(([n, v]) => ({ name: n, val: v })),
       addVar: () => this.setState({ vars: s.vars.concat([['New variable', '0']]) }),
-      scripts: [['Collect then open', 'Opens a door once the player has collected enough of something.', 'Used on North door'], ['Patrol route', 'Walks between points; chases the player when seen.', 'Used on Stone knight'], ['Shop', 'Opens a shop screen with items and prices.', 'Used on Old Mason'], ['Respawn', 'Brings the thing back after a few seconds.', 'Not used yet'], ['Timer challenge', 'Starts a countdown; fails if time runs out.', 'Not used yet'], ['Show on screen', 'Shows or hides a part of the HUD.', 'Used on Coins counter']].map(([n, d, u]) => ({ name: n, desc: d, used: u, start: (e) => e.dataTransfer.setData('text/plain', n + '|Scripts|#a78bfa') })),
+      scripts: [['Collect then open', 'Opens a door once the player has collected enough of something.', 'Used on North door'], ['Patrol route', 'Walks between points; chases the player when seen.', 'Used on Stone knight'], ['Shop', 'Opens a shop screen with items and prices.', 'Used on Old Mason'], ['Respawn', 'Brings the thing back after a few seconds.', 'Not used yet'], ['Timer challenge', 'Starts a countdown; fails if time runs out.', 'Not used yet'], ['Show on screen', 'Shows or hides a part of the HUD.', 'Used on Coins counter']].map(([n, d, u]) => ({ name: n, desc: d, used: u, pick: () => this.setState({ scSel: n }), style: 'display: flex; flex-direction: column; gap: 8px; cursor: grab; border-left: 4px solid #a78bfa' + (n === s.scSel ? '; box-shadow: inset 0 0 0 2px #a78bfa' : ''), start: (e) => e.dataTransfer.setData('text/plain', n + '|Scripts|#a78bfa') })),
       toast: s.toast ? { show: true, text: s.toast } : { show: false },
       undo: (e) => { if (e) e.stopPropagation(); if (!s.hist.length) return; this.setState({ rules: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1), toast: null }); }
     };

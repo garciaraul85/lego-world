@@ -24,6 +24,9 @@ Accessibility
         <sc-for list="{{see}}" as="f" hint-placeholder-count="3"><button type="button" onClick="{{f.flip}}" style="{{rowBtn}}"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
         <span class="lbl">Hearing</span>
         <sc-for list="{{hear}}" as="f" hint-placeholder-count="2"><button type="button" onClick="{{f.flip}}" style="{{rowBtn}}"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
+        <span class="lbl">Difficulty</span>
+        <div style="display: flex; gap: 6px"><sc-for list="{{diffs}}" as="d" hint-placeholder-count="3"><button type="button" style="{{d.style}}" onClick="{{d.pick}}">{{d.name}}</button></sc-for></div>
+        <span style="font-size: 12px; color: #9ea3ad">{{diffText}}</span>
         <span class="lbl">Playing</span>
         <label class="fld">Game speed · {{speed}}%<input type="range" min="50" max="100" step="10" value="{{speed}}" onInput="{{setSpeed}}" style="accent-color: #ffcc00"></label>
         <sc-for list="{{play}}" as="f" hint-placeholder-count="4"><button type="button" onClick="{{f.flip}}" style="{{rowBtn}}"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
@@ -34,7 +37,7 @@ Accessibility
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { text: 100, cb: 'Off', speed: 100, flashing: false, f: { contrast: false, motion: true, flash: true, subs: true, sounds: true, aim: true, hold: true, onebtn: false, skip: true }, checked: 1 };
+    this.state = { diff: 'Normal', text: 100, cb: 'Off', speed: 100, flashing: false, f: { contrast: false, motion: true, flash: true, subs: true, sounds: true, aim: true, hold: true, onebtn: false, skip: true }, checked: 1 };
   }
   renderVals() {
     const s = this.state; const f = s.f;
@@ -67,6 +70,8 @@ class Component extends DCLogic {
       hear: [row('subs', 'Subtitles'), row('sounds', 'Show important sounds as text')],
       speed: s.speed, setSpeed: (e) => this.setState({ speed: +e.target.value }),
       play: [row('aim', 'Aim help'), row('hold', 'Toggle instead of hold'), row('onebtn', 'One-button mode'), row('skip', 'Let players skip hard parts')],
+      diffs: ['Story', 'Normal', 'Hard'].map((d) => ({ name: d, style: H.pick(d === s.diff) + '; flex: 1 1 0; text-align: center', pick: () => this.setState({ diff: d, f: Object.assign({}, f, d === 'Story' ? { aim: true, skip: true } : d === 'Hard' ? { aim: false, skip: false } : {}) }) })),
+      diffText: { Story: 'Extra hearts, enemies hit softer, puzzles can be skipped.', Normal: 'As you designed it.', Hard: 'Fewer hearts, smarter enemies, no skipping.' }[s.diff],
       undo: () => {}
     };
   }

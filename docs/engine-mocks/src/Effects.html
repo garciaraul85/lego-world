@@ -3,11 +3,13 @@ Effects
       <aside class="card" style="flex: 0 0 230px; display: flex; flex-direction: column; gap: 8px">
         <span class="lbl">Start from</span>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"><sc-for list="{{presets}}" as="p" hint-placeholder-count="8"><button type="button" style="{{p.style}}" onClick="{{p.pick}}"><span style="{{p.sw}}"></span>{{p.name}}</button></sc-for></div>
+        <span class="lbl" style="margin-top: 10px">Screen effects · click to see</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{screenFx}}" as="f" hint-placeholder-count="6"><button type="button" style="{{f.style}}" onClick="{{f.run}}">{{f.name}}</button></sc-for></div>
         <span class="lbl" style="margin-top: 10px">Yours</span>
         <sc-for list="{{mine}}" as="p" hint-placeholder-count="1"><span class="chip" style="cursor: default">{{p}}</span></sc-for>
       </aside>
       <section style="flex: 999 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
-        <div style="position: relative; height: 560px; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 70%, #2a2d36, #101114 75%)" onMouseEnter="{{hoverPlay}}" onMouseMove="{{hoverPlay}}">
+        <div style="{{stage}}" onMouseEnter="{{hoverPlay}}" onMouseMove="{{hoverPlay}}">
           <span style="position: absolute; left: calc(50% - 40px); top: 440px; width: 80px; height: 30px; border-radius: 8px; background: #3a3d45"></span>
           <sc-for list="{{parts}}" as="q" hint-placeholder-count="40"><span style="{{q}}"></span></sc-for>
           <span style="position: absolute; left: 16px; top: 14px; font-size: 13px; color: #9ea3ad">{{fxName}} · point here to play it</span>
@@ -41,7 +43,7 @@ class Component extends DCLogic {
       'Brick burst': { amount: 24, size: 14, speed: 80, spread: 160, height: 160, a: '#e8463c', b: '#ffcc00', shape: 'Bricks', dir: 'All around' },
       Rain: { amount: 40, size: 6, speed: 90, spread: 400, height: 400, a: '#7cc7ff', b: '#7cc7ff', shape: 'Dots', dir: 'Down' }
     };
-    this.state = Object.assign({ name: 'Fire', t: 0, mine: ['Torch fire (yours)'], toast: null }, this.P.Fire);
+    this.state = Object.assign({ scr: null, name: 'Fire', t: 0, mine: ['Torch fire (yours)'], toast: null }, this.P.Fire);
     this.state.t = 0.37;
   }
   tick() { this.setState({ t: (this.state.t + 0.02) % 1000 }); }
@@ -65,6 +67,8 @@ class Component extends DCLogic {
     const pal = [['White', '#ffffff'], ['Yellow', '#ffcc00'], ['Orange', '#ff8a3d'], ['Red', '#e8463c'], ['Blue', '#7cc7ff'], ['Purple', '#a78bfa'], ['Grey', '#8b93a3'], ['Dark', '#2f3440']];
     return {
       presets: Object.keys(this.P).map((n) => ({ name: n, pick: () => { this.setState(Object.assign({ name: n }, this.P[n])); this.kick(3000); }, style: H.card(n === s.name) + '; align-items: center; font-size: 12px; padding: 10px 4px', sw: 'width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(' + this.P[n].a + ', ' + this.P[n].b + ')' })),
+      stage: 'position: relative; height: 560px; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 70%, #2a2d36, #101114 75%); transition: transform .05s, filter .2s; transform: ' + (s.scr === 'Shake' ? 'translate(' + ((s.t * 997 % 2) > 1 ? 6 : -6) + 'px, 3px)' : 'none') + '; filter: ' + (s.scr === 'Flash' ? 'brightness(2.2)' : s.scr === 'Colour grade' ? 'sepia(.6) saturate(1.4)' : s.scr === 'Slow motion' ? 'saturate(.6)' : 'none') + (s.scr === 'Vignette' ? '; box-shadow: inset 0 0 120px 60px #000' : ''),
+      screenFx: ['Shake', 'Hit-stop', 'Slow motion', 'Flash', 'Vignette', 'Colour grade'].map((n) => ({ name: n, style: H.pick(n === s.scr) + '; min-height: 32px; font-size: 13px', run: () => { this.setState({ scr: n }); this.kick(1200); clearTimeout(this.ts); this.ts = setTimeout(() => this.setState({ scr: null }), n === 'Vignette' || n === 'Colour grade' ? 2500 : 700); } })),
       mine: s.mine, parts, fxName: s.name, hoverPlay: () => this.kick(1500),
       c1: pal.map(([n, c]) => ({ name: n, style: H.sw(c, s.a === c, 26), pick: () => this.setState({ a: c }) })),
       c2: pal.map(([n, c]) => ({ name: n, style: H.sw(c, s.b === c, 26), pick: () => this.setState({ b: c }) })),

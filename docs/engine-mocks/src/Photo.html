@@ -1,6 +1,7 @@
 From a photo
 {"nav":"character","group":"cast","sub":"From a photo","h":"Make a character from a photo","s":"Drop a picture. Brix picks the closest bricks, then you adjust.","undo":false}
       <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; gap: 8px; align-items: center"><input class="inp" style="flex: 1 1 auto" placeholder="Or describe it: a blue fox wizard with a long scarf" value="{{desc}}" onInput="{{setDesc}}"><button type="button" class="btn" onClick="{{fromWords}}">Make it</button></div>
         <div style="display: flex; gap: 8px; align-items: center"><span class="lbl">It's a</span><sc-for list="{{kinds}}" as="k" hint-placeholder-count="4"><button type="button" style="{{k.style}}" onClick="{{k.pick}}">{{k.name}}</button></sc-for></div>
         <div style="display: flex; flex-wrap: wrap; gap: 14px">
           <div style="{{drop}}" onDragOver="{{allow}}" onDrop="{{dropFile}}" onDragEnter="{{enter}}" onDragLeave="{{leave}}">
@@ -40,18 +41,20 @@ From a photo
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { kind: 'Person', img: null, sample: false, over: false, step: 0, pickM: 0 };
+    this.state = { desc: '', words: false, kind: 'Person', img: null, sample: false, over: false, step: 0, pickM: 0 };
   }
   renderVals() {
     const s = this.state;
     const run = () => { clearInterval(this.tm); this.setState({ step: 0 }); let k = 0; this.tm = setInterval(() => { k++; if (k > 6) { clearInterval(this.tm); this.setState({ step: 7 }); } else this.setState({ step: k }); }, 300); };
     const load = (file) => { if (!file) return; const fr = new FileReader(); fr.onload = () => { this.setState({ img: fr.result, sample: false }); run(); }; fr.readAsDataURL(file); };
-    const F = s.kind === 'Pet' ? [['Animal', 'Dog', '#c98a4b'], ['Fur', 'Brown and white', '#c98a4b'], ['Ears', 'Floppy', '#8a5a2b'], ['Collar', 'Red', '#e8463c'], ['Tail', 'Short', '#c98a4b'], ['Mood', 'Happy', '#ffcc00']]
+    const F = s.words ? [['Body plan', 'Upright animal', '#ff8a3d'], ['Species', 'Fox', '#ff8a3d'], ['Fur', 'Blue', '#3b78c9'], ['Hat', 'Wizard hat', '#a78bfa'], ['Scarf', 'Long, yellow', '#ffcc00'], ['Mood', 'Wise', '#ffcc00']] : s.kind === 'Pet' ? [['Animal', 'Dog', '#c98a4b'], ['Fur', 'Brown and white', '#c98a4b'], ['Ears', 'Floppy', '#8a5a2b'], ['Collar', 'Red', '#e8463c'], ['Tail', 'Short', '#c98a4b'], ['Mood', 'Happy', '#ffcc00']]
       : [['Hair', 'Brown, short', '#6b4a2b'], ['Skin', 'Light tan', '#e0b98a'], ['Glasses', 'Round, dark', '#2f3440'], ['Shirt', 'Red', '#e8463c'], ['Pants', 'Blue jeans', '#3b78c9'], ['Mood', 'Smiling', '#ffcc00']];
-    const has = !!s.img || s.sample;
+    const has = !!s.img || s.sample || s.words;
     const fig = (hair, skin, shirt, pants) => ({ hair: 'width: 64px; height: 18px; border-radius: 12px 12px 4px 4px; background: ' + hair, head: 'width: 54px; height: 44px; border-radius: 10px; background: ' + skin, body: 'width: 66px; height: 50px; border-radius: 8px 8px 4px 4px; margin-top: 3px; background: ' + shirt, legs: 'width: 58px; height: 36px; border-radius: 4px; background: ' + pants });
     const M = [['Closest', 'Same colours and glasses', fig('#6b4a2b', '#e0b98a', '#e8463c', '#3b78c9')], ['Classic yellow', 'Minifig skin colour', fig('#6b4a2b', '#ffcc00', '#e8463c', '#3b78c9')], ['Adventurer', 'Adds a jacket and hat', fig('#8a5a2b', '#e0b98a', '#45c46e', '#8a5a2b')]];
     return {
+      desc: s.desc, setDesc: (e) => this.setState({ desc: e.target.value }),
+      fromWords: () => { this.setState({ words: true, img: null, sample: false }); run(); },
       kinds: ['Person', 'Pet', 'Toy or object', 'Drawing'].map((k) => ({ name: k, style: H.pick(k === s.kind) + '; min-height: 34px', pick: () => { this.setState({ kind: k }); if (has) run(); } })),
       drop: 'flex: 1 1 320px; height: 380px; border-radius: 20px; display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; background: #1d1f25; border: 3px dashed ' + (s.over ? '#ffcc00' : '#33363e'),
       allow: (e) => e.preventDefault(),

@@ -90,6 +90,18 @@ a{color:#ffcc00}a:hover{color:#ffd633}
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
 class Component extends DCLogic {
   constructor(props) {
     super(props);
@@ -98,6 +110,7 @@ class Component extends DCLogic {
   renderVals() {
     const s = this.state;
     const tree = {
+      'Screen guides': ['Scene screen guide', 'Logic screen guide', 'Character screen guide'],
       'Scene screen': ['Stage', 'Library drawer', 'Inspector', 'Right-click menu', 'Hover tip', 'Scene tools'],
       'Things you place': ['Door', 'Floor switch', 'Bridge pile', 'Trigger zone', 'Torch'],
       'Rules': ['When', 'If', 'Then', 'Variables', 'Scripts'],
@@ -108,6 +121,13 @@ class Component extends DCLogic {
     };
     const blk = (x, y, w, h, c, r) => 'position: absolute; left: ' + x + 'px; top: ' + y + 'px; width: ' + w + 'px; height: ' + h + 'px; border-radius: ' + (r || 8) + 'px; background: ' + c;
     const E = {
+      'Scene screen guide': { path: 'Screen guides › Scene', what: 'The whole Scene screen at a glance: where everything is, and the five things people do here most.',
+        shot: [blk(0, 0, 40, 300, '#101114', 0), blk(50, 8, 600, 26, '#1d1f25', 6), blk(50, 44, 440, 190, '#2d4a33', 10), blk(50, 242, 440, 50, '#1d1f25', 10), blk(500, 44, 150, 248, '#1d1f25', 10)],
+        callouts: [[10, 20, 'Sidebar', 'Every workspace. Your genre decides which ones show.'], [250, 6, 'Header', 'Undo, Ask Brix and Play are always here.'], [250, 120, 'Stage', 'Drag things in, move them, right-click for actions.'], [250, 255, 'Library drawer', 'Assets, characters, lights, effects and scripts to drag in.'], [560, 120, 'Inspector', 'A few simple fields for what you selected; More shows the rest.']],
+        steps: ['Place something: drag it from the library onto the stage.', 'Move it: drag it; it snaps to studs.', 'Change it: click it and use the inspector.', 'Give it behaviour: drop a script on it.', 'Try it: press Play.'],
+        options: [['Short course', 'Learn › Scene, 4 minutes'], ['Shortcuts', 'Del, Ctrl Z, Alt-drag to copy']],
+        related: ['Stage', 'Library drawer', 'Right-click menu'],
+        json: '{\n  "id": "guide.scene",\n  "areas": ["nav", "header", "stage", "library", "inspector"],\n  "topTasks": ["place", "move", "inspect", "attachScript", "play"],\n  "course": "tutorial.scene"\n}' },
       'Right-click menu': { path: 'Scene screen › Right-click menu', what: 'Right-click anything on the stage to see everything you can do with it. Right-click empty ground to add something right there.',
         shot: [blk(0, 0, 900, 40, '#4b5058', 0), blk(120, 90, 48, 48, '#8fa1b8'), blk(190, 110, 210, 170, '#24262d', 12), blk(200, 130, 190, 26, '#ffcc0033', 6)],
         callouts: [[150, 70, 'The object', 'The thing you right-clicked. It gets a yellow outline.'], [380, 115, 'Menu title', 'Says whether you clicked an object or the ground.'], [400, 140, 'Actions', 'Rename, Duplicate, Attach script, Make it buildable, Add trigger, Delete.'], [400, 260, 'Shortcut', 'The grey hint on the right is the faster way, like Del or Alt-drag.']],

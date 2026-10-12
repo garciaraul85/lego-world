@@ -1,0 +1,57 @@
+My library
+{"nav":"build","group":"build","sub":"My library","h":"My library","s":"Things you saved, ready to use in any of your games","undo":false,"right":"<input class=\"inp\" style=\"width: 240px\" placeholder=\"Search your library\" value=\"{{q}}\" onInput=\"{{search}}\">"}
+      <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{kinds}}" as="k" hint-placeholder-count="8"><button type="button" style="{{k.style}}" onClick="{{k.pick}}">{{k.name}}</button></sc-for></div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px">
+          <sc-for list="{{items}}" as="i" hint-placeholder-count="12">
+            <button type="button" draggable="true" onDragStart="{{i.start}}" style="{{i.style}}" onClick="{{i.pick}}"><span style="{{i.thumb}}"></span><b style="font-size: 14px">{{i.name}}</b><span style="font-size: 12px; color: #9ea3ad">{{i.kind}}</span></button>
+          </sc-for>
+        </div>
+      </section>
+      <aside style="flex: 1 1 300px; max-width: 340px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span style="{{sel.thumb}}"></span>
+          <b style="font-size: 20px">{{sel.name}}</b>
+          <span style="font-size: 14px; color: #9ea3ad">{{sel.kind}} · used in {{sel.used}} games · saved {{sel.when}}</span>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap"><button type="button" class="btn pri" onClick="{{addIt}}">{{addLabel}}</button><a class="btn" href="{{sel.href}}">Open in its editor</a></div>
+        </div>
+        <div style="{{dropZone}}" onDragOver="{{allow}}" onDrop="{{dropIn}}" onDragEnter="{{enter}}" onDragLeave="{{leave}}"><b>Little dungeon</b><span style="font-size: 13px; color: #9ea3ad">Drop things here to add them to this game</span><span style="font-size: 13px">{{inGame}}</span></div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="lbl">Share</span>
+          <button type="button" class="btn" onClick="{{exportPack}}">Save selected as a pack file</button>
+          <button type="button" class="btn">Open a pack file…</button>
+        </div>
+      </aside>
+      <!--TOAST-->
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { kind: 'All', q: '', sel: 'Red-roof house', added: [], over: false, toast: null };
+  }
+  renderVals() {
+    const s = this.state;
+    const I = [['Red-roof house', 'Asset', '#e8463c', 4, 'Build'], ['Lighthouse', 'Asset', '#f2f2f4', 1, 'Build'], ['Old Mason', 'Character', '#6fb7f0', 2, 'Character'], ['Fox wizard', 'Character', '#ff8a3d', 1, 'Character'], ['Round window', 'Brick', '#7cc7ff', 3, 'Build'], ['Curved roof tile', 'Brick', '#b34a3c', 2, 'Build'], ['Victory dance', 'Clip', '#ffcc00', 5, 'Animate'], ['Torch fire', 'Effect', '#ff8a3d', 3, 'Effects'], ['Collect then open', 'Script', '#a78bfa', 6, 'Logic'], ['Six-legged robot', 'Body plan', '#8b93a3', 1, 'Skeleton'], ['Knight brain', 'Brain', '#e8463c', 2, 'Brain'], ['Adventure HUD', 'Screen', '#ffcc00', 3, 'Screens']];
+    const kinds = ['All', 'Asset', 'Character', 'Brick', 'Clip', 'Effect', 'Script', 'Body plan', 'Brain', 'Screen'];
+    const q = s.q.toLowerCase();
+    const sel = I.find((x) => x[0] === s.sel) || I[0];
+    const thumb = (c, h) => 'display: block; width: 100%; height: ' + h + 'px; border-radius: 12px; background: ' + c + '; background-image: radial-gradient(#ffffff30 2px, transparent 2px); background-size: 12px 12px';
+    const add = (n) => { if (s.added.indexOf(n) >= 0) return; this.setState({ added: s.added.concat([n]), toast: n + ' added to Little dungeon' }); };
+    return {
+      q: s.q, search: (e) => this.setState({ q: e.target.value }),
+      kinds: kinds.map((k) => ({ name: k === 'All' ? 'All' : k + 's', style: H.pick(k === s.kind) + '; min-height: 32px; border-radius: 999px; font-size: 13px', pick: () => this.setState({ kind: k }) })),
+      items: I.filter((x) => (s.kind === 'All' || x[1] === s.kind) && (!q || x[0].toLowerCase().indexOf(q) >= 0)).map((x) => ({ name: x[0], kind: x[1], thumb: thumb(x[2], 80),
+        style: H.card(x[0] === sel[0]) + '; gap: 6px; cursor: grab', pick: () => this.setState({ sel: x[0] }), start: (e) => e.dataTransfer.setData('text/plain', x[0]) })),
+      sel: { name: sel[0], kind: sel[1], used: sel[3], when: 'last week', thumb: thumb(sel[2], 150), href: sel[4] + '.dc.html' },
+      addIt: () => add(sel[0]), addLabel: s.added.indexOf(sel[0]) >= 0 ? 'In this game' : 'Add to this game',
+      dropZone: 'display: flex; flex-direction: column; gap: 6px; padding: 18px; border-radius: 16px; background: #1d1f25; border: 3px dashed ' + (s.over ? '#ffcc00' : '#33363e'),
+      allow: (e) => e.preventDefault(), enter: () => this.setState({ over: true }), leave: () => this.setState({ over: false }),
+      dropIn: (e) => { e.preventDefault(); this.setState({ over: false }); const n = e.dataTransfer.getData('text/plain'); if (n) add(n); },
+      inGame: s.added.length ? 'Added: ' + s.added.join(', ') : '',
+      exportPack: () => this.setState({ toast: sel[0] + ' saved as a pack file you can send to friends' }),
+      toast: H.toast(s.toast),
+      undo: () => this.setState({ added: s.added.slice(0, -1), toast: null })
+    };
+  }
+}

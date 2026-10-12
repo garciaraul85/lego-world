@@ -48,9 +48,14 @@ a{color:#ffcc00}a:hover{color:#ffd633}
     </header>
     <dc-import name="Sub" group="gear" active="Enemies & bosses" hint-size="900px,46px"></dc-import>
     <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
-      <aside class="card" style="flex: 0 0 230px; display: flex; flex-direction: column; gap: 8px">
+      <aside class="card" style="flex: 0 0 230px; display: flex; flex-direction: column; gap: 8px; max-height: 820px; overflow: auto; box-sizing: border-box">
         <sc-for list="{{list}}" as="i" hint-placeholder-count="5"><button type="button" style="{{i.style}}" onClick="{{i.pick}}"><span style="{{i.sw}}"></span>{{i.name}}</button></sc-for>
-        <a class="btn" href="Character.dc.html">Make a new one</a>
+        <span class="lbl" style="margin-top: 8px">Start from a type</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{archetypes}}" as="a" hint-placeholder-count="6"><button type="button" class="chip" style="cursor: pointer" onClick="{{a.add}}">{{a.name}}</button></sc-for></div>
+        <span class="lbl" style="margin-top: 8px">In this room</span>
+        <button type="button" onClick="{{flipArena}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 13px Figtree, sans-serif; cursor: pointer; text-align: left"><span>Doors lock until all are beaten</span><span style="{{arenaTrack}}"><span style="{{arenaKnob}}"></span></span></button>
+        <label class="fld">Waves · {{waves}}<input type="range" min="0" max="5" value="{{waves}}" onInput="{{setWaves}}" style="accent-color: #ffcc00"></label>
+        <span style="font-size: 12px; color: #9ea3ad">{{waveText}}</span>
       </aside>
       <section style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
         <div style="position: relative; height: 380px; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 50%, #2a2d36, #17191e 70%); display: flex; align-items: center; justify-content: center">
@@ -73,12 +78,14 @@ a{color:#ffcc00}a:hover{color:#ffd633}
           </sc-if>
         </div>
       </section>
-      <aside class="card" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 14px">
+      <aside class="card" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
         <label class="fld">Health · {{maxHp}} hearts<input type="range" min="1" max="40" value="{{maxHp}}" onInput="{{setMax}}" style="accent-color: #ffcc00"></label>
         <label class="fld">Hurts the player · {{dmgText}}<input type="range" min="0" max="8" value="{{dmg}}" onInput="{{setDmg}}" style="accent-color: #ffcc00"></label>
         <div class="fld">When it breaks, drop<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{drops}}" as="d" hint-placeholder-count="5"><button type="button" style="{{d.style}}" onClick="{{d.flip}}">{{d.name}}</button></sc-for></div></div>
         <div class="fld">Only hurt by<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{hurtBy}}" as="d" hint-placeholder-count="5"><button type="button" style="{{d.style}}" onClick="{{d.flip}}">{{d.name}}</button></sc-for></div></div>
         <sc-for list="{{flags}}" as="f" hint-placeholder-count="3"><button type="button" onClick="{{f.flip}}" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer; text-align: left"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
+        <div class="fld">Takes less damage from<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{resist}}" as="d" hint-placeholder-count="6"><button type="button" style="{{d.style}}" onClick="{{d.flip}}">{{d.name}}</button></sc-for></div></div>
+        <label class="fld">Side<select class="inp"><option>Monsters (fights heroes and villagers)</option><option>Bandits</option><option>Neutral animals</option></select></label>
         <a href="Brain.dc.html" style="font-size: 14px">How it thinks: open its Brain</a>
       </aside>
     </div>
@@ -102,7 +109,7 @@ class Component extends DCLogic {
   constructor(props) {
     super(props);
     const E = (tab, name, c, max, dmg, drops, hurt, weak, extra) => Object.assign({ tab, name, c, max, dmg, drops, hurt, weak, flags: { knock: true, respawn: false, villager: false } }, extra || {});
-    this.state = { tab: 'Enemies', cur: 'Stone knight', hp: null, hit: null, dragP: null, hist: [],
+    this.state = { arena: true, waves: 2, res: { 'Stone knight': ['Slash'] }, tab: 'Enemies', cur: 'Stone knight', hp: null, hit: null, dragP: null, hist: [],
       list: [
         E('Enemies', 'Stone knight', '#8b93a3', 6, 1, ['Coins', 'Heart'], ['Sword', 'Bombs', 'Arrows'], [false, true, false, false]),
         E('Enemies', 'Slime', '#45c46e', 2, 0.5, ['Coins'], ['Anything'], [false, false, false, false]),
@@ -149,6 +156,11 @@ class Component extends DCLogic {
       drops: ['Coins', 'Heart', 'Arrows', 'Key', 'Boss key', 'Heart container', 'Nothing'].map((d) => ({ name: d, style: H.pick(e.drops.indexOf(d) >= 0) + '; min-height: 30px; font-size: 13px', flip: () => upd({ drops: flipIn(e.drops, d) }) })),
       hurtBy: ['Anything', 'Sword', 'Arrows', 'Bombs', 'Boomerang', 'Hookshot', 'Fire'].map((d) => ({ name: d, style: H.pick(e.hurt.indexOf(d) >= 0) + '; min-height: 30px; font-size: 13px', flip: () => upd({ hurt: flipIn(e.hurt, d) }) })),
       flags: [['knock', 'Gets knocked back'], ['respawn', 'Comes back when you leave the room'], ['villager', 'Villagers remember if you hit them']].map(([k, n]) => ({ name: n, flip: () => upd({ flags: Object.assign({}, e.flags, { [k]: !e.flags[k] }) }), track: H.track(e.flags[k]), knob: H.knob(e.flags[k]) })),
+      resist: ['Slash', 'Blunt', 'Pierce', 'Fire', 'Explosive', 'Electric'].map((d) => { const on = (s.res[e.name] || []).indexOf(d) >= 0; return { name: d, style: H.pick(on) + '; min-height: 30px; font-size: 12px', flip: () => this.setState({ res: Object.assign({}, s.res, { [e.name]: flipIn(s.res[e.name] || [], d) }) }) }; }),
+      archetypes: [['Grunt', '#8b93a3'], ['Archer', '#3f8f4a'], ['Charger', '#b34a3c'], ['Flyer', '#3a1a5c'], ['Turret', '#5b6170'], ['Swimmer', '#0b4a6e']].map(([n, c]) => ({ name: n, add: () => this.setState({ list: s.list.concat([{ tab: s.tab === 'Breakables' ? 'Enemies' : s.tab, name: n + ' ' + (s.list.length + 1), c, max: 3, dmg: 1, drops: ['Coins'], hurt: ['Anything'], weak: [false, false, false, false], flags: { knock: true, respawn: true, villager: false } }]), cur: n + ' ' + (s.list.length + 1), hp: null }) })),
+      flipArena: () => this.setState({ arena: !s.arena }), arenaTrack: H.track(s.arena), arenaKnob: H.knob(s.arena),
+      waves: s.waves, setWaves: (ev) => this.setState({ waves: +ev.target.value }),
+      waveText: s.waves ? s.waves + ' waves of 3, each a little tougher, from the spawner by the door' : 'No waves: just the enemies you place',
       undo: () => this.setState({ hp: null, hit: null })
     };
   }

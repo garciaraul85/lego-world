@@ -9,6 +9,7 @@ Animate
       <a class="btn" href="Brix.dc.html">Ask Brix</a>
       <a class="btn pri" href="Character.dc.html">Done</a>
     </header>
+    <dc-import name="Sub" group="animate" active="Pose and keys" hint-size="900px,46px"></dc-import>
     <div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
       <section data-stage="1" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px; position: relative">
         <div style="position: relative; flex: 1 1 auto; min-height: 520px; border-radius: 20px; background: linear-gradient(#20232b, #17191e); overflow: hidden" onMouseMove="{{move}}" onMouseUp="{{up}}" onMouseLeave="{{up}}" onDragOver="{{allow}}" onDrop="{{dropPreset}}">
@@ -60,6 +61,7 @@ Animate
   </main>
 </div>
 <!--SCRIPT-->
+/*HELPERS*/
 class Component extends DCLogic {
   constructor(props) {
     super(props);

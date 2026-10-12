@@ -6,7 +6,7 @@ Use them as the spec for the rewrite. Each screen lists the engine systems it ne
 
 ## Files
 
-- `screens/*.dc.html`: the 35 screens plus two shared parts (`Nav`, `Sub`). `canvas.json` lays them out on one board.
+- `screens/*.dc.html`: the 45 screens plus two shared parts (`Nav`, `Sub`). `canvas.json` lays them out on four pages (Make, Characters and story, Gear and game, Play help and Brix) so only one page loads at a time.
 - `src/*.html`: source for most screens. `python3 build.py <Name> …` assembles `src/<Name>.html` into `screens/<Name>.dc.html` and adds the shared header, sidebar, sub-tabs, menu, toast and helpers (`H.*`).
 - `check.cjs <Name> …`: renders each screen once and reports missing bindings.
 - `fuzz.cjs <Name> …`: clicks every handler once and reports runtime errors.
@@ -25,7 +25,7 @@ Use them as the spec for the rewrite. Each screen lists the engine systems it ne
 
 ## Screens
 
-Sidebar: Scene, Build, World, Logic, Cast, Animate, Scenes, Talk, Audio, Screens, Gear, Game, then Play, Learn, Help, Brix at the bottom. Sub-tabs group related screens under one sidebar item.
+Sidebar: Scene, Build, World, Logic, Cast, Animate, Scenes, Talk, Audio, Screens, Gear, Game, then Play, Learn, Help, Brix at the bottom. Sub-tabs group related screens under one sidebar item (`Sub.dc.html` lists the groups).
 
 | Screen | File | What the user does | Engine systems it needs |
 |---|---|---|---|
@@ -38,7 +38,7 @@ Sidebar: Scene, Build, World, Logic, Cast, Animate, Scenes, Talk, Audio, Screens
 | Effects | Effects | Presets, colours, sliders, shape, direction, when it plays | Particle system, effect assets |
 | Starter packs | Packs | Browse by genre, untick parts, add to game | Asset pack import, sample levels |
 | World | World | Drag door dots between maps, set start, lock doors | Map graph, doors and portals, locks |
-| Logic (rules) | Logic | When/If/Then sentences with chips; drag actions; scripts library | Rule engine, actions, variables, script assets |
+| Logic (rules and scripts) | Logic | Rules as sentences, graph or code; breakpoints and step-through; script library with settings fields | Rule engine, logic graph, code view, debugger, script components |
 | Wiring | Wiring | Wire switches, gates, timers to doors; car and knight boards | Signal graph (AND/OR/NOT/timer/counter), component ports |
 | Quests | Quests | Step types dragged in, reorder, optional, hints, rewards, HUD preview | Quest system, objectives, quest log |
 | Character | Character | Kind, colours, drag clothes on, body shape, photo | Character model, rig, clothing slots |
@@ -60,6 +60,16 @@ Sidebar: Scene, Build, World, Logic, Cast, Animate, Scenes, Talk, Audio, Screens
 | Accessibility | Access | Text size, colour help, contrast, subtitles, speed, aim help, one button; checks | Settings layer, subtitles, remapping, accessibility checks |
 | Save & versions | Save | Autosave, versions, go back, name; how players save; what's remembered | Project history, player save system |
 | Share | Share | Cover, name, tags, checks, who can play, remix, link | Publishing, export |
+| Generator | Generator | Pick a recipe, land, size, difficulty and seed; watch it build step by step; skip steps | Generator recipes, terrain styles (P16) |
+| My library | Library | Saved assets, characters, bricks, clips, effects, scripts, body plans; drag into this game; pack files | Personal library across projects (P24) |
+| States and library | States | Clip per state, speed blending, layers, automatic motion, clip library by genre | Animation state machine, layers, retargeting (P23) |
+| Menus | Menus | Inventory, equipment, item wheel, map, save slots, settings, endings, chapter cards, level complete, high scores | Game flow screens and menu widgets (P21) |
+| Money & shops | Shops | Currencies, pickup values, wallet size; shop stock by drag; prices by right-click; try buying | Currencies, wallet, shop screen (P11, P21) |
+| Controls & cameras | Controls | Remap keys (press to set, clashes in red); camera per map; shooting feel; 1–4 players, split screen | Input actions, camera modes, FPS settings, local multiplayer (P15) |
+| RPG & progression | Battles | Turn-based demo battle and party; stat curves by level; skill tree; balance check by room | Battle system, stats/XP, skills, balancing tools (P15, P22, P28) |
+| Stretch genres | Stretch | City lots with money over time; farm plots over days; rhythm beat map | Simulation, day cycles and crops, beat maps (P20) |
+| Achievements | Progress | Achievements with conditions; collectibles per room; what 100% means; time and best scores | Progress tracking (P26) |
+| Gallery & teamwork | Gallery | Browse, play, remix (credits the original), report; edit together with comments; parental settings | Gallery, remix, teamwork, safety (P30) |
 | Play | Play | Play for real; start here, can't lose, slow motion, save moment, variables; "Can it be finished?" | Play session, test tools, solvability checks |
 | Help | Help | Search every element; picture with callouts, steps, options; "For the AI" view | Help registry (one entry per element, with its commands) |
 | Learn | Tutorial | Course per screen; watch a ghost cursor, then do it and get checked | Tutorial runner, overlays, step checks |

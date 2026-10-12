@@ -1,0 +1,57 @@
+Generator
+{"nav":"scene","group":"scene","sub":"Generator","h":"Make a world for me","s":"Pick a recipe and watch it build, step by step. Everything it makes can be changed.","undo":false,"primary":"<button type=\"button\" class=\"btn pri\" onClick=\"{{go}}\">{{goLabel}}</button>"}
+      <aside class="card" style="flex: 0 0 250px; display: flex; flex-direction: column; gap: 8px; max-height: 820px; overflow: auto; box-sizing: border-box">
+        <span class="lbl">Recipe</span>
+        <sc-for list="{{recipes}}" as="r" hint-placeholder-count="6"><button type="button" style="{{r.style}}" onClick="{{r.pick}}"><b>{{r.name}}</b><span style="font-size: 12px; opacity: .8">{{r.desc}}</span></button></sc-for>
+      </aside>
+      <section style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+        <div style="{{mapStyle}}"><sc-for list="{{tiles}}" as="t" hint-placeholder-count="96"><span style="{{t}}"></span></sc-for></div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 6px">
+          <sc-for list="{{steps}}" as="st" hint-placeholder-count="6"><div style="{{st.row}}"><span style="{{st.dot}}">{{st.mark}}</span><span style="flex: 1 1 auto">{{st.name}}</span><button type="button" onClick="{{st.flip}}" style="{{st.skip}}">{{st.skipLabel}}</button></div></sc-for>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 260px; max-width: 300px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
+        <div class="fld">Land<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px"><sc-for list="{{lands}}" as="l" hint-placeholder-count="6"><button type="button" style="{{l.style}}" onClick="{{l.pick}}">{{l.name}}</button></sc-for></div></div>
+        <label class="fld">Size · {{sizeWord}}<input type="range" min="1" max="3" value="{{size}}" onInput="{{setSize}}" style="accent-color: #ffcc00"></label>
+        <label class="fld">How hard · {{hardWord}}<input type="range" min="1" max="3" value="{{hard}}" onInput="{{setHard}}" style="accent-color: #ffcc00"></label>
+        <div class="fld">Seed<div style="display: flex; gap: 6px"><input class="inp" style="flex: 1 1 auto" value="{{seed}}" readonly><button type="button" class="btn" onClick="{{reroll}}">New</button></div></div>
+        <span style="font-size: 12px; color: #9ea3ad; line-height: 1.5">The same seed always makes the same world, so you can share it.</span>
+      </aside>
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { recipe: 'Little dungeon', land: 'Grassland', size: 2, hard: 2, seed: 4217, step: -1, skip: {} };
+  }
+  renderVals() {
+    const s = this.state;
+    const R = { 'Little dungeon': ['Rooms, keys and a boss', ['Lay out 5 rooms', 'Connect them with doors', 'Add a key and a locked door', 'Place puzzles: blocks, switches, a pile', 'Add enemies', 'Put the boss at the end']], 'Treasure hunt': ['Explore and collect', ['Shape the land', 'Scatter trees and rocks', 'Hide 20 coins', 'Add a village', 'Place the treasure']], 'Race track': ['A loop with checkpoints', ['Draw the loop', 'Add curves and a ramp', 'Place checkpoints', 'Add racers', 'Build the stands']], 'Sky islands': ['Platforms in the air', ['Float 8 islands', 'Add moving platforms', 'Place stars', 'Add a goal flag']], 'Soccer pitch': ['A match ready to play', ['Lay the pitch', 'Add goals', 'Add two teams', 'Set the clock']], 'RPG town': ['Shops, inn and quests', ['Place streets', 'Build shops and an inn', 'Add villagers', 'Pin quests to the board']] };
+    const LAND = { Grassland: '#3f8f4a', Desert: '#d8b36a', Snow: '#e6eef5', Volcano: '#4a2d33', Beach: '#7cc7ff', Space: '#1a1440' };
+    const r = R[s.recipe];
+    const n = r[1].length;
+    let seed = s.seed; const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    const done = Math.max(0, s.step + 1);
+    const cols = 12, rows = 8;
+    const tiles = Array.from({ length: cols * rows }, (_, i) => { const v = rnd(); const stage = Math.floor(v * n); const shown = stage < done && !s.skip[stage];
+      const c = !shown ? LAND[s.land] : ['#8b93a3', '#8a5a2b', '#ffcc00', '#ff8a3d', '#e8463c', '#a78bfa'][stage % 6];
+      return 'aspect-ratio: 1; border-radius: 4px; background: ' + (v < 0.55 ? LAND[s.land] : c) + '; opacity: ' + (s.step < 0 ? 0.5 : 1) + '; transition: background .3s'; });
+    return {
+      recipes: Object.keys(R).map((k) => ({ name: k, desc: R[k][0], style: H.card(k === s.recipe), pick: () => this.setState({ recipe: k, step: -1, skip: {} }) })),
+      mapStyle: 'display: grid; grid-template-columns: repeat(' + cols + ', 1fr); gap: 3px; padding: 10px; border-radius: 20px; background: #17191e',
+      tiles,
+      steps: r[1].map((t, i) => ({ name: t, mark: s.skip[i] ? '–' : i < done ? '✓' : i + 1, skipLabel: s.skip[i] ? 'Include' : 'Skip',
+        row: 'display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 10px; font-size: 14px; background: ' + (i === s.step ? '#3a3420' : 'transparent') + '; opacity: ' + (s.skip[i] ? 0.5 : 1),
+        dot: 'flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #141519; background: ' + (i < done && !s.skip[i] ? '#45c46e' : i === s.step ? '#ffcc00' : '#33363e'),
+        skip: 'min-height: 28px; padding: 0 10px; border-radius: 8px; border: none; cursor: pointer; font: 600 12px Figtree, sans-serif; background: #24262d; color: #9ea3ad',
+        flip: () => this.setState({ skip: Object.assign({}, s.skip, { [i]: !s.skip[i] }) }) })),
+      go: () => { if (s.step >= n - 1) { this.setState({ step: -1 }); return; } clearInterval(this.tm); let k = s.step; this.tm = setInterval(() => { k++; if (k >= n) { clearInterval(this.tm); return; } this.setState({ step: k }); }, 700); },
+      goLabel: s.step >= n - 1 ? 'Start over' : s.step >= 0 ? 'Building…' : 'Build it',
+      lands: Object.keys(LAND).map((l) => ({ name: l, style: H.pick(l === s.land) + '; font-size: 13px; text-align: center', pick: () => this.setState({ land: l }) })),
+      size: s.size, sizeWord: ['', 'Small', 'Medium', 'Big'][s.size], setSize: (e) => this.setState({ size: +e.target.value }),
+      hard: s.hard, hardWord: ['', 'Easy', 'Normal', 'Hard'][s.hard], setHard: (e) => this.setState({ hard: +e.target.value }),
+      seed: s.seed, reroll: () => this.setState({ seed: Math.floor(Math.random() * 9000) + 1000, step: -1 }),
+      undo: () => {}
+    };
+  }
+}

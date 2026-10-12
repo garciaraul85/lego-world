@@ -119,6 +119,10 @@ a{color:#ffcc00}a:hover{color:#ffd633}
             </sc-if>
           </div>
         </sc-if>
+        <div style="display: flex; flex-direction: column; gap: 2px; border-top: 1px solid #2a2d35; padding-top: 12px">
+          <span style="font-size: 12px; font-weight: 700; color: #9ea3ad; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px">In this room</span>
+          <sc-for list="{{outline}}" as="o" hint-placeholder-count="6"><button type="button" style="{{o.style}}" onClick="{{o.pick}}"><span style="{{o.dot}}"></span>{{o.name}}</button></sc-for>
+        </div>
         <sc-if value="{{noSel}}" hint-placeholder-val="{{ false }}">
           <div style="color: #9ea3ad; font-size: 15px; line-height: 1.5">Click something to see it here. Right-click for what you can do with it.</div>
         </sc-if>
@@ -229,6 +233,7 @@ class Component extends DCLogic {
       undo: (e) => { if (e) e.stopPropagation(); const h = s.hist; if (!h.length) return; this.setState({ objs: h[h.length - 1], hist: h.slice(0, -1), toast: null }); },
       libTabs: Object.keys(L).map((k) => ({ name: k, cls: k === s.tab ? 'ltab lon' : 'ltab', pick: () => this.setState({ tab: k }) })),
       lib: L[s.tab].map(([n, c]) => ({ name: n, sw: 'width: 44px; height: 36px; border-radius: ' + (s.tab === 'Characters' ? '18px 18px 8px 8px' : '9px') + '; background: ' + c, start: (e) => { e.dataTransfer.setData('text/plain', n + '|' + s.tab + '|' + c); } })),
+      outline: s.objs.map((o) => ({ name: o.name, pick: () => this.setState({ sel: o.id }), dot: 'width: 10px; height: 10px; border-radius: 3px; background: ' + o.c, style: 'display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 0 8px; border-radius: 8px; border: none; cursor: pointer; font: 500 13px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (o.id === s.sel ? '#3a3420' : 'transparent') })),
       hasSel: !!sel, noSel: !sel,
       sel: sel ? { name: sel.name, kind: sel.kind, scripts: sel.scripts.length ? sel.scripts : ['None yet'], pos: (sel.x / 20) + ', ' + (sel.y / 20) + ' studs' } : { name: '', kind: '', scripts: [], pos: '' },
       more: s.more, moreLabel: s.more ? 'Less' : 'More options',

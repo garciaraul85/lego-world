@@ -1,0 +1,74 @@
+Gallery & teamwork
+{"nav":"game","group":"game","sub":"Gallery","h":"Gallery and teamwork","s":"Play and remix other games, and make yours with friends","undo":false,"right":"<div class=\"seg\"><sc-for list=\"{{tabs}}\" as=\"t\" hint-placeholder-count=\"3\"><button type=\"button\" class=\"{{t.cls}}\" onClick=\"{{t.pick}}\">{{t.name}}</button></sc-for></div>"}
+      <sc-if value="{{isGallery}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 12px; flex: 1 1 100%">
+          <div style="display: flex; gap: 6px; flex-wrap: wrap"><sc-for list="{{filters}}" as="f" hint-placeholder-count="5"><button type="button" style="{{f.style}}" onClick="{{f.pick}}">{{f.name}}</button></sc-for></div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px">
+            <sc-for list="{{games}}" as="g" hint-placeholder-count="8">
+              <div class="card" style="display: flex; flex-direction: column; gap: 8px; padding: 12px">
+                <span style="{{g.art}}"></span>
+                <b style="font-size: 16px">{{g.name}}</b>
+                <span style="font-size: 12px; color: #9ea3ad">{{g.meta}}</span>
+                <div style="display: flex; gap: 6px"><a class="btn pri" style="min-height: 34px; font-size: 13px" href="Play.dc.html">Play</a><button type="button" class="btn" style="min-height: 34px; font-size: 13px" onClick="{{g.remix}}">{{g.remixLabel}}</button><button type="button" class="btn ico" style="min-height: 34px; width: 34px" aria-label="Report" title="Report" onClick="{{g.report}}">⚑</button></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{isTeam}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; flex: 1 1 100%">
+          <section style="flex: 999 1 520px; min-width: 0; position: relative; height: 600px; border-radius: 20px; overflow: hidden; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px" onClick="{{addPin}}">
+            <sc-for list="{{cursors}}" as="c" hint-placeholder-count="2"><div style="{{c.style}}"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2l16 10-7 1.5L9.5 21z" fill="currentColor"></path></svg><span style="{{c.tag}}">{{c.name}}</span></div></sc-for>
+            <sc-for list="{{pins}}" as="p" hint-placeholder-count="3"><div style="{{p.style}}"><b style="font-size: 12px">{{p.who}}</b><span style="font-size: 13px">{{p.text}}</span></div></sc-for>
+            <span style="position: absolute; left: 14px; bottom: 12px; font-size: 13px; color: #e4e6ea">Click anywhere to leave a comment on that spot</span>
+          </section>
+          <aside class="card" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 12px">
+            <span class="lbl">People</span>
+            <sc-for list="{{people}}" as="p" hint-placeholder-count="3"><div style="display: flex; align-items: center; gap: 10px; font-size: 14px"><span style="{{p.dot}}"></span><span style="flex: 1 1 auto">{{p.name}}</span><button type="button" class="chip" style="cursor: pointer" onClick="{{p.next}}">{{p.role}}</button></div></sc-for>
+            <button type="button" class="btn" onClick="{{invite}}">Invite someone</button>
+            <span style="{{inviteStyle}}">{{inviteText}}</span>
+            <span style="font-size: 12px; color: #9ea3ad; line-height: 1.5">Everyone sees changes as they happen. Every change can be undone, and older versions are in Save & versions.</span>
+          </aside>
+        </div>
+      </sc-if>
+      <sc-if value="{{isSafety}}" hint-placeholder-val="{{ false }}">
+        <div class="card" style="flex: 1 1 100%; max-width: 640px; display: flex; flex-direction: column; gap: 14px">
+          <span class="lbl">For parents and young makers</span>
+          <sc-for list="{{safety}}" as="f" hint-placeholder-count="5"><button type="button" onClick="{{f.flip}}" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 15px Figtree, sans-serif; cursor: pointer; text-align: left"><span style="display: flex; flex-direction: column"><span>{{f.name}}</span><span style="font-size: 12px; color: #9ea3ad">{{f.desc}}</span></span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
+          <label class="fld">Lock these settings with a parent PIN<input class="inp" type="password" placeholder="4 numbers" style="width: 160px"></label>
+        </div>
+      </sc-if>
+      <!--TOAST-->
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'Gallery', filter: 'Popular', remixed: [], toast: null, pins: [[180, 120, 'Mia', 'Can this door be blue?'], [520, 300, 'You', 'Bridge needs one more step']], roles: ['Owner', 'Can edit', 'Can comment'], invited: false, saf: { gallery: false, comments: false, chat: false, photos: true, time: false } };
+  }
+  renderVals() {
+    const s = this.state;
+    const G = [['Sky Islands', 'Platformer', '#7cb7e6', '#ffcc00'], ['Kart Canyon', 'Kart racing', '#ff8a3d', '#2f3440'], ['Haunted Manor', 'Story', '#3a1a5c', '#a78bfa'], ['Brick Soccer', 'Sports', '#45c46e', '#f2f2f4'], ['Robot Rescue', 'Action adventure', '#3b78c9', '#e8463c'], ['Reef Diver', 'Underwater', '#0b4a6e', '#7cc7ff'], ['Tower Guard', 'Tower defense', '#5b4a2d', '#ffcc00'], ['Quiz Castle', 'Quiz', '#e8463c', '#ffcc00']];
+    const ROLES = ['Can edit', 'Can comment', 'Can only play'];
+    return {
+      tabs: ['Gallery', 'Team', 'Safety'].map((t) => ({ name: t, cls: H.tab(t === s.tab), pick: () => this.setState({ tab: t }) })),
+      isGallery: s.tab === 'Gallery', isTeam: s.tab === 'Team', isSafety: s.tab === 'Safety',
+      filters: ['Popular', 'New', 'For you', 'Friends', 'Remixable'].map((f) => ({ name: f, style: H.pick(f === s.filter) + '; min-height: 32px; border-radius: 999px; font-size: 13px', pick: () => this.setState({ filter: f }) })),
+      games: G.map(([n, g, a, b], i) => ({ name: n, meta: g + ' · ' + (1200 - i * 130) + ' plays · by maker' + (i + 1),
+        art: 'display: block; height: 120px; border-radius: 12px; background: linear-gradient(135deg, ' + a + ' 0 60%, ' + b + ' 60% 100%)',
+        remixLabel: s.remixed.indexOf(n) >= 0 ? 'Remixed' : 'Remix',
+        remix: () => { if (s.remixed.indexOf(n) < 0) this.setState({ remixed: s.remixed.concat([n]), toast: 'Your copy of ' + n + ' is ready. It credits the original maker.' }); },
+        report: () => this.setState({ toast: 'Thanks. A grown-up will look at ' + n + '.' }) })),
+      cursors: [['Mia', '#ff7eb6', 320, 200], ['Dad', '#7cc7ff', 620, 420]].map(([n, c, x, y]) => ({ name: n, style: 'position: absolute; left: ' + x + 'px; top: ' + y + 'px; color: ' + c + '; pointer-events: none', tag: 'margin-left: 14px; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #141519; background: ' + c })),
+      pins: s.pins.map(([x, y, w, t]) => ({ who: w, text: t, style: 'position: absolute; left: ' + x + 'px; top: ' + y + 'px; max-width: 200px; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 4px 12px 12px 12px; background: #ffcc00; color: #141519; box-shadow: 0 6px 16px #0006' })),
+      addPin: (e) => { const r = e.currentTarget.getBoundingClientRect(); this.setState({ pins: s.pins.concat([[e.clientX - r.left, e.clientY - r.top, 'You', 'New comment']]) }); },
+      people: [['You', '#ffcc00'], ['Mia', '#ff7eb6'], ['Dad', '#7cc7ff']].map(([n, c], i) => ({ name: n, role: s.roles[i], dot: 'width: 14px; height: 14px; border-radius: 50%; background: ' + c,
+        next: () => { if (i === 0) return; this.setState({ roles: s.roles.map((r, j) => (j === i ? ROLES[(ROLES.indexOf(r) + 1) % ROLES.length] : r)) }); } })),
+      invite: () => this.setState({ invited: true }),
+      inviteText: s.invited ? 'Invite link copied. It works for 7 days.' : '', inviteStyle: 'font-size: 13px; color: #45c46e',
+      safety: [['gallery', 'Allow sharing to the public gallery', 'Off: only people with the link can play'], ['comments', 'Allow comments from others', 'Comments are filtered for unkind words'], ['chat', 'Allow chat while editing together', 'Only with people you invited'], ['photos', 'Block real photos in shared games', 'Photos of people need their OK'], ['time', 'Daily time limit', 'Remind to take a break after an hour']].map(([k, n, d]) => ({ name: n, desc: d, flip: () => this.setState({ saf: Object.assign({}, s.saf, { [k]: !s.saf[k] }) }), track: H.track(s.saf[k]), knob: H.knob(s.saf[k]) })),
+      toast: H.toast(s.toast),
+      undo: () => this.setState({ toast: null })
+    };
+  }
+}

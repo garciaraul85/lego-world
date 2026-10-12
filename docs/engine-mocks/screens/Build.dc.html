@@ -54,7 +54,7 @@ a{color:#ffcc00}a:hover{color:#ffd633}
         <div data-stage="1" style="position: relative; flex: 1 1 auto; min-height: 520px; border-radius: 20px; background: #1b2a20; display: flex; align-items: center; justify-content: center; overflow: hidden" onContextMenu="{{noMenu}}">
           <div style="display: grid; grid-template-columns: repeat(24, 28px); gap: 2px; user-select: none" onMouseLeave="{{up}}">
             <sc-for list="{{cells}}" as="c" hint-placeholder-count="384">
-              <div style="{{c.style}}" onMouseDown="{{c.down}}" onMouseEnter="{{c.over}}" onContextMenu="{{c.menu}}"></div>
+              <div style="{{c.style}}" onMouseDown="{{c.down}}" onMouseEnter="{{c.over}}" onContextMenu="{{c.menu}}" onDragOver="{{allow}}" onDrop="{{dropMover}}"></div>
             </sc-for>
           </div>
           <span style="position: absolute; left: 16px; bottom: 14px; font-size: 13px; color: #9ea3ad">Click and drag to paint. Right-click a brick for more.</span>
@@ -79,6 +79,8 @@ a{color:#ffcc00}a:hover{color:#ffd633}
         </div>
       </section>
       <aside style="flex: 1 1 280px; max-width: 330px; display: flex; flex-direction: column; gap: 14px">
+        <div class="seg"><sc-for list="{{panels}}" as="p" hint-placeholder-count="3"><button type="button" class="{{p.cls}}" onClick="{{p.pick}}">{{p.name}}</button></sc-for></div>
+        <sc-if value="{{pMake}}" hint-placeholder-val="{{ true }}">
         <div class="card" style="display: flex; flex-direction: column; gap: 14px">
           <label class="fld">Name<input class="inp" value="{{assetName}}" onInput="{{rename}}"></label>
           <span class="lbl">Make it…</span>
@@ -89,6 +91,8 @@ a{color:#ffcc00}a:hover{color:#ffd633}
             </button>
           </sc-for>
         </div>
+        </sc-if>
+        <sc-if value="{{pBrick}}" hint-placeholder-val="{{ false }}">
         <div class="card" style="display: flex; flex-direction: column; gap: 12px">
           <div style="display: flex; justify-content: space-between; align-items: center"><span class="lbl">New brick shape</span><a href="Help.dc.html" style="font-size: 13px">How?</a></div>
           <div style="display: flex; gap: 14px; align-items: center">
@@ -97,13 +101,38 @@ a{color:#ffcc00}a:hover{color:#ffd633}
             </div>
             <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #9ea3ad">Click squares to shape it.<button type="button" class="btn" onClick="{{addShape}}">Add to bricks</button></div>
           </div>
+          <div class="fld">Height<div style="display: flex; gap: 6px"><sc-for list="{{heights}}" as="h" hint-placeholder-count="3"><button type="button" style="{{h.style}}" onClick="{{h.pick}}">{{h.name}}</button></sc-for></div></div>
+          <div class="fld">Top<div style="display: flex; gap: 6px; flex-wrap: wrap"><sc-for list="{{tops}}" as="h" hint-placeholder-count="5"><button type="button" style="{{h.style}}" onClick="{{h.pick}}">{{h.name}}</button></sc-for></div></div>
+          <div class="fld">Material<div style="display: flex; gap: 6px; flex-wrap: wrap"><sc-for list="{{mats}}" as="h" hint-placeholder-count="5"><button type="button" style="{{h.style}}" onClick="{{h.pick}}">{{h.name}}</button></sc-for></div></div>
+          <button type="button" class="btn" onClick="{{paintPrint}}">Paint a print or decal…</button>
+          <button type="button" class="btn" onClick="{{ldraw}}">Bring in a part from LDraw…</button>
         </div>
+        </sc-if>
+        <sc-if value="{{pMove}}" hint-placeholder-val="{{ false }}">
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Moving parts · drop on a brick</span>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap"><sc-for list="{{movers}}" as="mv" hint-placeholder-count="6"><span class="chip" draggable="true" onDragStart="{{mv.start}}">{{mv.name}}</span></sc-for></div>
+          <span style="font-size: 12px; color: #9ea3ad">{{moverText}}</span>
+        </div>
+        </sc-if>
       </aside>
     </div>
   </main>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
 class Component extends DCLogic {
   constructor(props) {
     super(props);
@@ -112,7 +141,7 @@ class Component extends DCLogic {
     put(7, 6, 10, 9, '#d8cfc0'); put(6, 4, 12, 2, '#e8463c'); put(8, 2, 8, 2, '#e8463c'); put(10, 1, 4, 1, '#e8463c');
     put(11, 10, 2, 5, '#8a5a2b'); put(8, 8, 2, 2, '#7cc7ff'); put(14, 8, 2, 2, '#7cc7ff');
     this.state = { grid: g, tool: 'Paint', colour: '#ffcc00', shape: '1×1', painting: false, hist: [], menu: null, toast: null, name: 'Red-roof house',
-      flags: { Breakable: true, 'Buildable in game': false, Pushable: false, Glows: false, Solid: true },
+      panel: 'Make it', height: '1 brick', top: 'Studs', mat: 'Plastic', mover: null, flags: { 'Vehicle': false, 'Creature body': false, Breakable: true, 'Buildable in game': false, Pushable: false, Glows: false, Solid: true },
       custom: [1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0], shapes: ['1×1', '2×1', '2×2', 'Slope', 'Round'] };
   }
   renderVals() {
@@ -125,6 +154,7 @@ class Component extends DCLogic {
         const k = (x + i) + ',' + (y + j);
         if (x + i > 23 || y + j > 15) continue;
         if (s.tool === 'Erase') delete g[k]; else g[k] = s.colour;
+        if (s.tool === 'Mirror') g[(23 - x - i) + ',' + (y + j)] = s.colour;
       }
       return g;
     };
@@ -144,13 +174,13 @@ class Component extends DCLogic {
       });
     }
     const pal = [['Yellow', '#ffcc00'], ['Red', '#e8463c'], ['Blue', '#3b78c9'], ['Green', '#45c46e'], ['Orange', '#ff8a3d'], ['White', '#f2f2f4'], ['Tan', '#d8cfc0'], ['Brown', '#8a5a2b'], ['Grey', '#8b93a3'], ['Sky', '#7cc7ff']];
-    const desc = { Breakable: 'Falls apart when hit', 'Buildable in game': 'Starts as a glowing pile the player builds', Pushable: 'Player can push it', Glows: 'Gives off light', Solid: 'Things can\'t walk through' };
+    const desc = { Vehicle: 'Opens in Vehicles to set how it drives', 'Creature body': 'Attach a skeleton so it can walk', Breakable: 'Falls apart when hit', 'Buildable in game': 'Starts as a glowing pile the player builds', Pushable: 'Player can push it', Glows: 'Gives off light', Solid: 'Things can\'t walk through' };
     const m = s.menu;
     return {
       assetName: s.name,
       rename: (e) => this.setState({ name: e.target.value }),
-      tools: ['Paint', 'Erase', 'Fill'].map((t) => ({ name: t, pick: () => this.setState({ tool: t }), style: 'min-height: 34px; padding: 0 14px; border-radius: 9px; border: none; font: 600 13px Figtree, sans-serif; cursor: pointer; background: ' + (t === s.tool ? '#ffcc00' : 'transparent') + '; color: ' + (t === s.tool ? '#141519' : '#f2f2f4') })),
-      cells,
+      tools: ['Paint', 'Erase', 'Fill', 'Mirror', 'Stamp'].map((t) => ({ name: t, pick: () => this.setState({ tool: t }), style: 'min-height: 34px; padding: 0 14px; border-radius: 9px; border: none; font: 600 13px Figtree, sans-serif; cursor: pointer; background: ' + (t === s.tool ? '#ffcc00' : 'transparent') + '; color: ' + (t === s.tool ? '#141519' : '#f2f2f4') })),
+      cells, allow: (e) => e.preventDefault(), dropMover: (e) => { e.preventDefault(); const d = e.dataTransfer.getData('text/plain'); if (d.indexOf('mover|') === 0) this.setState({ mover: d.slice(6), toast: d.slice(6) + ' attached' }); },
       count: Object.keys(s.grid).length,
       up: () => { if (s.painting) this.setState({ painting: false }); },
       noMenu: (e) => e.preventDefault(),
@@ -174,6 +204,15 @@ class Component extends DCLogic {
         track: 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (s.flags[k] ? '#ffcc00' : '#33363e'),
         knob: 'position: absolute; top: 3px; left: ' + (s.flags[k] ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff' })),
       custom: s.custom.map((v, i) => ({ style: 'width: 26px; height: 26px; border-radius: 5px; border: none; cursor: pointer; background: ' + (v ? s.colour : '#24262d'), flip: () => this.setState({ custom: s.custom.map((q, j) => (j === i ? 1 - q : q)) }) })),
+      panels: ['Make it', 'New brick', 'Moving parts'].map((n) => ({ name: n, cls: H.tab(n === s.panel), pick: () => this.setState({ panel: n }) })),
+      pMake: s.panel === 'Make it', pBrick: s.panel === 'New brick', pMove: s.panel === 'Moving parts',
+      heights: ['1 plate', '1 brick', '2 bricks'].map((h) => ({ name: h, style: H.pick(h === s.height) + '; flex: 1 1 0; font-size: 12px; padding: 0 6px; text-align: center', pick: () => this.setState({ height: h }) })),
+      tops: ['Studs', 'Smooth tile', 'Slope', 'Curve', 'Round'].map((h) => ({ name: h, style: H.pick(h === s.top) + '; min-height: 30px; font-size: 12px; padding: 0 10px', pick: () => this.setState({ top: h }) })),
+      mats: ['Plastic', 'See-through', 'Glowing', 'Metal', 'Rubber'].map((h) => ({ name: h, style: H.pick(h === s.mat) + '; min-height: 30px; font-size: 12px; padding: 0 10px', pick: () => this.setState({ mat: h }) })),
+      paintPrint: () => this.setState({ toast: 'Print painter opens on the selected face' }),
+      ldraw: () => this.setState({ toast: 'Search the open LDraw parts library and drop a part into your bricks' }),
+      movers: ['Hinge', 'Wheel', 'Rotor', 'Propeller', 'Lid', 'Lever'].map((n) => ({ name: n, start: (e) => e.dataTransfer.setData('text/plain', 'mover|' + n) })),
+      moverText: s.mover ? s.mover + ' added. Its movement shows in Wiring.' : 'Doors swing on hinges, cars roll on wheels. Wire them up in Wiring.',
       addShape: () => { const n = 'My brick ' + (s.shapes.length - 4); this.setState({ shapes: s.shapes.concat([n]), shape: n, toast: n + ' added to your bricks' }); }
     };
   }

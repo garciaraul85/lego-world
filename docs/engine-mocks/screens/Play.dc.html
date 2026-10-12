@@ -55,6 +55,8 @@ a{color:#ffcc00}a:hover{color:#ffd633}
           <span style="position: absolute; left: 440px; top: 190px; width: 48px; height: 28px; border-radius: 6px; background: #8fa1b8"></span>
           <span style="position: absolute; left: 760px; top: 210px; width: 44px; height: 44px; border-radius: 22px 22px 10px 10px; background: #8b93a3"></span>
           <span style="{{player}}"></span>
+          <sc-for list="{{trail}}" as="tr" hint-placeholder-count="6"><span style="{{tr}}"></span></sc-for>
+          <sc-if value="{{robotMsg.show}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); padding: 10px 14px; border-radius: 12px; background: #141519ee; font-size: 14px">🤖 {{robotMsg.text}}</div></sc-if>
           <sc-if value="{{spot.show}}" hint-placeholder-val="{{ false }}"><span style="{{spot.style}}"></span></sc-if>
           <div style="position: absolute; left: 20px; top: 16px; display: flex; flex-direction: column; gap: 8px; pointer-events: none">
             <span style="padding: 8px 14px; border-radius: 10px; background: #141519cc; color: #ff6b6b; font-weight: 800; font-size: 18px">{{hearts}}</span>
@@ -66,7 +68,7 @@ a{color:#ffcc00}a:hover{color:#ffd633}
         </div>
         <span style="font-size: 13px; color: #9ea3ad">Arrow keys move. Space acts. Everything here is the real game — the panel on the right is only for testing.</span>
       </section>
-      <aside style="flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 14px">
+      <aside style="flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
         <div class="card" style="display: flex; flex-direction: column; gap: 12px">
           <span class="lbl">Test tools</span>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
@@ -74,6 +76,8 @@ a{color:#ffcc00}a:hover{color:#ffd633}
             <button type="button" style="{{godStyle}}" onClick="{{toggleGod}}">Can't lose</button>
             <button type="button" style="{{slowStyle}}" onClick="{{toggleSlow}}">Slow motion</button>
             <button type="button" class="btn" onClick="{{snap}}">{{snapLabel}}</button>
+            <button type="button" class="btn" onClick="{{skipStep}}">{{skipLabel}}</button>
+            <button type="button" style="{{robotStyle}}" onClick="{{robot}}">{{robotLabel}}</button>
           </div>
           <span class="lbl" style="margin-top: 6px">Variables · click to change</span>
           <sc-for list="{{vars}}" as="v" hint-placeholder-count="4">
@@ -97,10 +101,22 @@ a{color:#ffcc00}a:hover{color:#ffd633}
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { px: 120, py: 220, paused: false, picking: false, god: false, slow: false, snap: null, vars: { Health: 3, Coins: 12, Keys: 0, 'Bridge built': 0 }, checks: 'done', spot: null };
+    this.state = { qstep: 0, bot: null, trail: [], px: 120, py: 220, paused: false, picking: false, god: false, slow: false, snap: null, vars: { Health: 3, Coins: 12, Keys: 0, 'Bridge built': 0 }, checks: 'done', spot: null };
     this.onKey = (e) => {
       const st = this.state; if (st.paused) return; const d = st.slow ? 8 : 20;
       const mv = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[e.key];
@@ -133,6 +149,13 @@ class Component extends DCLogic {
       hearts: '❤'.repeat(v.Health) + '♡'.repeat(Math.max(0, 4 - v.Health)), coins: v.Coins, action,
       paused: s.paused, picking: s.picking,
       pause: () => this.setState({ paused: !s.paused }), pauseLabel: s.paused ? 'Resume' : 'Pause',
+      skipStep: () => this.setState({ qstep: (s.qstep + 1) % 5, vars: Object.assign({}, v, s.qstep === 1 ? { 'Bridge built': 1 } : {}) }),
+      skipLabel: 'Quest: ' + ['Talk to Mason', 'Collect bundles', 'Build bridge', 'Beat the knight', 'Go to the gate'][s.qstep] + ' ›',
+      robotStyle: 'grid-column: span 2; ' + btn(s.bot !== null, '#a78bfa'),
+      robotLabel: s.bot === null ? 'Robot: play it to the end' : s.bot < 6 ? 'Robot playing…' : 'Robot report',
+      robot: () => { if (s.bot !== null && s.bot < 6) return; clearInterval(this.bt); let k = 0; const path = [[120, 220], [300, 200], [440, 190], [300, 330], [520, 60], [700, 120]]; this.setState({ bot: 0, trail: [] }); this.bt = setInterval(() => { k++; if (k > 6) { clearInterval(this.bt); this.setState({ bot: 6 }); return; } this.setState({ bot: k, px: path[k - 1][0], py: path[k - 1][1], trail: path.slice(0, k) }); }, 450); },
+      trail: s.trail.map(([x, y]) => 'position: absolute; left: ' + (x + 14) + 'px; top: ' + (y + 14) + 'px; width: 12px; height: 12px; border-radius: 50%; background: #a78bfa; opacity: .7'),
+      robotMsg: s.bot === null ? { show: false, text: '' } : s.bot < 6 ? { show: true, text: 'Trying step ' + (s.bot + 1) + ' of 6…' } : { show: true, text: 'Got stuck at the North door: the Stone knight blocks it. Finished in 2:40 otherwise.' },
       restart: () => this.setState({ px: 120, py: 220, vars: { Health: 3, Coins: 12, Keys: 0, 'Bridge built': 0 }, spot: null }),
       clickView: (e) => { if (s.spot) this.setState({ spot: null }); if (!s.picking) return; const r = e.currentTarget.getBoundingClientRect(); this.setState({ px: e.clientX - r.left - 20, py: e.clientY - r.top - 20, picking: false }); },
       pickStart: () => this.setState({ picking: true }),

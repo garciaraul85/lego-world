@@ -40,7 +40,7 @@ a{color:#ffcc00}a:hover{color:#ffd633}
   <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
     <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
       <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">{{name}}</span><span style="font-size: 13px; color: #9ea3ad">{{family}} · used in 2 rooms</span></div>
-      <div class="seg"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><button type="button" class="{{t.cls}}" onClick="{{t.pick}}">{{t.name}}</button></sc-for></div>
+      <div class="seg"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="7"><button type="button" class="{{t.cls}}" onClick="{{t.pick}}">{{t.name}}</button></sc-for></div>
       <span style="flex: 1 1 auto"></span>
       <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
       <a class="btn" href="Brix.dc.html">Ask Brix</a>
@@ -57,21 +57,23 @@ a{color:#ffcc00}a:hover{color:#ffd633}
           <div style="display: flex; gap: 6px"><span style="{{fig.leg}}"></span><span style="{{fig.leg}}"></span></div>
           <sc-if value="{{fig.tail}}" hint-placeholder-val="{{ false }}"><span style="{{fig.tailStyle}}"></span></sc-if>
         </div>
-        <span style="position: absolute; left: 18px; top: 16px; font-size: 13px; color: #9ea3ad">Drag clothes onto the character to put them on</span>
+        <span style="position: absolute; left: 18px; top: 16px; font-size: 13px; color: #9ea3ad">Drag clothes onto the character to put them on</span><span style="{{dummy}}"></span><sc-if value="{{hitShow}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; right: 70px; top: 330px; font-size: 24px; font-weight: 800; color: #ffcc00">−1</span></sc-if>
         <div style="position: absolute; left: 18px; bottom: 16px; display: flex; gap: 8px">
-          <button type="button" class="btn" onClick="{{random}}">Surprise me</button>
+          <button type="button" class="btn" onClick="{{random}}">Surprise me</button><button type="button" class="btn" onClick="{{tryWalk}}">Try: walk</button><button type="button" class="btn" onClick="{{tryHit}}">Try: hit the dummy</button>
           <a class="btn" href="Photo.dc.html">From a photo…</a>
         </div>
         <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}"><div class="toast">{{toast.text}}<button type="button" class="btn" style="min-height: 34px" onClick="{{undo}}">Undo</button></div></sc-if>
       </section>
-      <aside style="flex: 1 1 380px; max-width: 520px; display: flex; flex-direction: column; gap: 14px">
+      <aside style="flex: 1 1 380px; max-width: 520px; display: flex; flex-direction: column; gap: 14px; max-height: 820px; overflow: auto; box-sizing: border-box">
         <sc-if value="{{isLook}}" hint-placeholder-val="{{ true }}">
           <div style="display: flex; flex-direction: column; gap: 14px">
             <div class="card" style="display: flex; flex-direction: column; gap: 12px">
-              <span class="lbl">What is it?</span>
+              <span class="lbl">Body plan</span>
               <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px">
-                <sc-for list="{{families}}" as="f" hint-placeholder-count="8"><button type="button" style="{{f.style}}" onClick="{{f.pick}}"><span style="{{f.sw}}"></span>{{f.name}}</button></sc-for>
+                <sc-for list="{{families}}" as="f" hint-placeholder-count="12"><button type="button" style="{{f.style}}" onClick="{{f.pick}}"><span style="{{f.sw}}"></span>{{f.name}}</button></sc-for>
               </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center"><span class="lbl" style="margin-right: 6px">Presets</span><sc-for list="{{galTabs}}" as="g" hint-placeholder-count="6"><button type="button" class="{{g.cls}}" style="padding: 5px 10px; font-size: 12px" onClick="{{g.pick}}">{{g.name}}</button></sc-for></div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{species}}" as="sp" hint-placeholder-count="8"><button type="button" class="chip" style="cursor: pointer" onClick="{{sp.pick}}">{{sp.name}}</button></sc-for></div>
             </div>
             <div class="card" style="display: flex; flex-direction: column; gap: 12px">
               <span class="lbl">Colours</span>
@@ -89,9 +91,28 @@ a{color:#ffcc00}a:hover{color:#ffd633}
             <sc-if value="{{more}}" hint-placeholder-val="{{ false }}">
               <div class="card" style="display: flex; flex-direction: column; gap: 14px">
                 <sc-for list="{{sliders}}" as="sl" hint-placeholder-count="3"><label class="fld">{{sl.name}}<input type="range" min="60" max="140" value="{{sl.val}}" onInput="{{sl.set}}" style="accent-color: #ffcc00"></label></sc-for>
+                <div class="fld">Skin<div style="display: flex; gap: 6px"><sc-for list="{{skins}}" as="k" hint-placeholder-count="4"><button type="button" style="{{k.style}}" onClick="{{k.pick}}">{{k.name}}</button></sc-for></div></div>
+                <div class="fld">Pattern<div style="display: flex; gap: 6px"><sc-for list="{{patterns}}" as="k" hint-placeholder-count="4"><button type="button" style="{{k.style}}" onClick="{{k.pick}}">{{k.name}}</button></sc-for></div></div>
+                <button type="button" onClick="{{flipSym}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer"><span>Mirror both sides</span><span style="{{symTrack}}"><span style="{{symKnob}}"></span></span></button>
                 <a href="Skeleton.dc.html" style="font-size: 14px">Edit the skeleton…</a> <a href="Face.dc.html" style="font-size: 14px">Edit the face…</a>
               </div>
             </sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{isOutfits}}" hint-placeholder-val="{{ false }}">
+          <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+            <span class="lbl">Outfits · swap them in the game</span>
+            <sc-for list="{{outfits}}" as="o" hint-placeholder-count="3"><button type="button" style="{{o.style}}" onClick="{{o.pick}}"><span style="{{o.sw}}"></span><span style="flex: 1 1 auto; display: flex; flex-direction: column; text-align: left"><b>{{o.name}}</b><span style="font-size: 12px; opacity: .8">{{o.bonus}}</span></span></button></sc-for>
+            <button type="button" class="btn" style="align-self: flex-start" onClick="{{addOutfit}}">Save current look as an outfit</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{isStats}}" hint-placeholder-val="{{ false }}">
+          <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+            <span class="lbl">Stats · only the ones Adventure uses</span>
+            <sc-for list="{{stats}}" as="st" hint-placeholder-count="5"><label class="fld">{{st.name}} · {{st.val}}<input type="range" min="1" max="20" value="{{st.val}}" onInput="{{st.set}}" style="accent-color: #ffcc00"></label></sc-for>
+            <a href="Battles.dc.html" style="font-size: 14px">Levels and growth curves</a>
+            <span class="lbl" style="margin-top: 6px">Playable heroes</span>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap"><sc-for list="{{heroes}}" as="h" hint-placeholder-count="3"><button type="button" style="{{h.style}}" onClick="{{h.pick}}">{{h.name}}</button></sc-for></div>
           </div>
         </sc-if>
         <sc-if value="{{isOther}}" hint-placeholder-val="{{ false }}">
@@ -108,18 +129,31 @@ a{color:#ffcc00}a:hover{color:#ffd633}
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { tab: 'Look', fam: 'Minifig', skin: '#ffcc00', shirt: '#3b78c9', pants: '#2f3440', wearing: [], more: false, size: { Height: 100, 'Head size': 100, 'Arm length': 100 }, hist: [], toast: null, name: 'Old Mason' };
+    this.state = { act: null, hitShow: false, gal: 'Animals', skinType: 'Plastic', pattern: 'None', sym: true, outfit: 0, outfits: [['Work clothes', '#3b78c9', 'No bonus'], ['Armour', '#8b93a3', 'Defence +2, Speed −1'], ['Festival robe', '#a78bfa', 'Shops 10% cheaper']], stats: { Health: 6, Stamina: 5, Speed: 4, Strength: 7, Defence: 5 }, hero: 'Knight', tab: 'Look', fam: 'Minifig', skin: '#ffcc00', shirt: '#3b78c9', pants: '#2f3440', wearing: [], more: false, size: { Height: 100, 'Head size': 100, 'Arm length': 100 }, hist: [], toast: null, name: 'Old Mason' };
   }
   renderVals() {
     const s = this.state;
     const keep = () => s.hist.concat([{ fam: s.fam, skin: s.skin, shirt: s.shirt, pants: s.pants, wearing: s.wearing }]).slice(-20);
     const set = (o) => this.setState(Object.assign({ hist: keep() }, o));
-    const fams = [['Minifig', '#ffcc00'], ['Animal', '#c98a4b'], ['Upright animal', '#ff8a3d'], ['Monster', '#45c46e'], ['Sea creature', '#7cc7ff'], ['Myth creature', '#b34a3c'], ['God', '#ffe27a'], ['Cartoon object', '#ff7eb6']];
+    const GAL = { Animals: ['Four-legged', ['Dog', 'Cat', 'Horse', 'Lion', 'Wolf', 'Bear', 'Unicorn'], '#c98a4b'], 'Sea creatures': ['Swimmer', ['Fish', 'Shark', 'Dolphin', 'Whale', 'Turtle', 'Octopus', 'Crab'], '#3b78c9'], Monsters: ['Giant', ['Slime', 'Skeleton', 'Zombie', 'Goblin', 'Troll', 'Ghost', 'Giant spider'], '#45c46e'], Myth: ['Winged four-legged', ['Dragon', 'Griffin', 'Phoenix', 'Pegasus', 'Centaur', 'Mermaid', 'Hydra'], '#b34a3c'], Gods: ['Minifig', ['Sky god', 'Sea goddess', 'Sun god', 'Moon goddess', 'Thunder god'], '#ffe27a'], 'Upright animals': ['Upright animal', ['Fox', 'Rabbit', 'Lion', 'Sloth', 'Otter'], '#ff8a3d'], 'Living objects': ['Blob and construct', ['Sponge', 'Toaster', 'Capsule helper', 'Fruit'], '#a78bfa'] };
+    const fams = [['Minifig', '#ffcc00'], ['Upright animal', '#ff8a3d'], ['Four-legged', '#c98a4b'], ['Bird', '#7cc7ff'], ['Swimmer', '#3b78c9'], ['Many-armed', '#ff7eb6'], ['Crawler', '#8a5a2b'], ['Serpent', '#45c46e'], ['Winged four-legged', '#b34a3c'], ['Hybrid', '#e0b98a'], ['Giant', '#8b93a3'], ['Blob and construct', '#a78bfa']];
     const h = s.size.Height / 100, hd = s.size['Head size'] / 100, ar = s.size['Arm length'] / 100;
-    const cartoon = s.fam === 'Cartoon object', animal = s.fam === 'Animal' || s.fam === 'Upright animal', monster = s.fam === 'Monster';
+    const cartoon = s.fam === 'Blob and construct', animal = s.fam === 'Upright animal' || s.fam === 'Four-legged' || s.fam === 'Winged four-legged', monster = s.fam === 'Giant';
     const headW = (cartoon ? 0 : 110) * hd;
     const sw = (list, key) => list.map(([n, c]) => ({ name: n, pick: () => set({ [key]: c }), style: 'width: 30px; height: 30px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (s[key] === c ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none') }));
     const pal = [['Yellow', '#ffcc00'], ['Tan', '#e0b98a'], ['Brown', '#8a5a2b'], ['Green', '#45c46e'], ['Blue', '#3b78c9'], ['Red', '#e8463c'], ['Pink', '#ff7eb6'], ['Dark', '#2f3440']];
@@ -131,11 +165,24 @@ class Component extends DCLogic {
     };
     return {
       name: s.name, family: s.fam, tab: s.tab,
-      tabs: ['Look', 'Moves', 'Voice', 'Talk', 'Behaviour'].map((t) => ({ name: t, cls: t === s.tab ? 'ltab lon' : 'ltab', pick: () => this.setState({ tab: t }) })),
-      isLook: s.tab === 'Look', isOther: s.tab !== 'Look',
+      tabs: ['Look', 'Outfits', 'Stats', 'Moves', 'Voice', 'Talk', 'Behaviour'].map((t) => ({ name: t, cls: t === s.tab ? 'ltab lon' : 'ltab', pick: () => this.setState({ tab: t }) })),
+      isLook: s.tab === 'Look', isOutfits: s.tab === 'Outfits', isStats: s.tab === 'Stats', isOther: ['Look', 'Outfits', 'Stats'].indexOf(s.tab) < 0,
+      galTabs: Object.keys(GAL).map((g) => ({ name: g, cls: H.tab(g === s.gal), pick: () => this.setState({ gal: g }) })),
+      species: GAL[s.gal][1].map((n) => ({ name: n, pick: () => set({ fam: GAL[s.gal][0], skin: GAL[s.gal][2], toast: { text: n + ': a starting point. Change anything.' } }) })),
+      skins: ['Plastic', 'Fur', 'Scales', 'Feathers'].map((k) => ({ name: k, style: H.pick(k === s.skinType) + '; flex: 1 1 0; font-size: 12px; padding: 0 6px; text-align: center', pick: () => this.setState({ skinType: k }) })),
+      patterns: ['None', 'Spots', 'Stripes', 'Patches'].map((k) => ({ name: k, style: H.pick(k === s.pattern) + '; flex: 1 1 0; font-size: 12px; padding: 0 6px; text-align: center', pick: () => this.setState({ pattern: k }) })),
+      flipSym: () => this.setState({ sym: !s.sym }), symTrack: H.track(s.sym), symKnob: H.knob(s.sym),
+      outfits: s.outfits.map((o, i) => ({ name: o[0], bonus: o[2], sw: 'width: 36px; height: 36px; border-radius: 8px; background: ' + o[1], style: H.card(i === s.outfit) + '; flex-direction: row; align-items: center; gap: 12px', pick: () => this.setState({ outfit: i, shirt: o[1] }) })),
+      addOutfit: () => this.setState({ outfits: s.outfits.concat([['Outfit ' + (s.outfits.length + 1), s.shirt, 'No bonus']]), outfit: s.outfits.length }),
+      stats: Object.keys(s.stats).map((k) => ({ name: k, val: s.stats[k], set: (e) => this.setState({ stats: Object.assign({}, s.stats, { [k]: +e.target.value }) }) })),
+      heroes: ['Knight', 'Ranger', 'Wizard'].map((h) => ({ name: h, style: H.pick(h === s.hero) + '; min-height: 32px; font-size: 13px', pick: () => this.setState({ hero: h }) })),
+      dummy: 'position: absolute; right: 60px; top: 380px; width: 60px; height: 110px; border-radius: 12px; background: #c9a36a; opacity: ' + (s.act === 'hit' ? 1 : 0) + '; transition: opacity .2s',
+      hitShow: s.hitShow,
+      tryWalk: () => { this.setState({ act: 'walk' }); clearTimeout(this.ta); this.ta = setTimeout(() => this.setState({ act: null }), 1600); },
+      tryHit: () => { this.setState({ act: 'hit', hitShow: false }); clearTimeout(this.ta); setTimeout(() => this.setState({ hitShow: true }), 500); this.ta = setTimeout(() => this.setState({ act: null, hitShow: false }), 1600); },
       otherRows: (other[s.tab] || []).map(([n, v, href]) => ({ name: n, val: v, href })),
       fig: {
-        wrap: 'position: relative; display: flex; flex-direction: column; align-items: center; transform: scale(' + (1.6 * h) + ')',
+        wrap: 'position: relative; display: flex; flex-direction: column; align-items: center; transition: transform .8s; transform: translateX(' + (s.act === 'walk' ? 120 : s.act === 'hit' ? 60 : 0) + 'px) scale(' + (1.6 * h) + ')' + (s.act === 'hit' ? ' rotate(8deg)' : ''),
         ears: animal, ear: 'width: 30px; height: 36px; border-radius: 50% 50% 10px 10px; background: ' + s.skin,
         hat: s.wearing.indexOf('Hat') >= 0, hatStyle: 'width: 120px; height: 18px; border-radius: 8px; background: #6b4a2b; margin-bottom: -4px; box-shadow: 0 -20px 0 -26px #6b4a2b, inset 0 -6px 0 #0003',
         head: 'position: relative; width: ' + (cartoon ? 0 : headW) + 'px; height: ' + (cartoon ? 0 : 90 * hd) + 'px; border-radius: ' + (monster ? '40% 40% 30% 30%' : '22px') + '; background: ' + s.skin + '; display: ' + (cartoon ? 'none' : 'flex') + '; gap: 22px; align-items: center; justify-content: center',
@@ -146,7 +193,7 @@ class Component extends DCLogic {
         armR: 'position: absolute; right: -26px; top: 8px; width: 26px; height: ' + (90 * ar) + 'px; border-radius: 13px; background: ' + (cartoon ? s.skin : s.shirt),
         cape: s.wearing.indexOf('Cape') >= 0,
         leg: 'width: 60px; height: 70px; border-radius: 6px 6px 10px 10px; background: ' + (s.wearing.indexOf('Boots') >= 0 ? 'linear-gradient(' + s.pants + ' 55%, #4a2f1c 55%)' : s.pants),
-        tail: animal || s.fam === 'Myth creature' || s.fam === 'Sea creature', tailStyle: 'position: absolute; right: -60px; bottom: 70px; width: 70px; height: 22px; border-radius: 12px; transform: rotate(-30deg); background: ' + s.skin
+        tail: animal || s.fam === 'Serpent' || s.fam === 'Swimmer' || s.fam === 'Hybrid', tailStyle: 'position: absolute; right: -60px; bottom: 70px; width: 70px; height: 22px; border-radius: 12px; transform: rotate(-30deg); background: ' + s.skin
       },
       families: fams.map(([n, c]) => ({ name: n, pick: () => set({ fam: n, skin: c }), sw: 'width: 34px; height: 30px; border-radius: 10px; background: ' + c,
         style: 'display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: 12px; border: none; cursor: pointer; font: 600 12px Figtree, sans-serif; color: #f2f2f4; background: ' + (n === s.fam ? '#3a3420' : '#24262d') + '; box-shadow: ' + (n === s.fam ? 'inset 0 0 0 2px #ffcc00' : 'none') })),
