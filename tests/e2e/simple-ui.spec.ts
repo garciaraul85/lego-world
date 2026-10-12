@@ -278,3 +278,51 @@ test('view buttons, keys and full-screen scene', async ({ page }) => {
   await expect(page.locator('.menubar')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('Resize grows a whole asset; one Place tool for bricks and assets; the Sign tool', async ({ page }) => {
+  test.setTimeout(180_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  const tools = page.getByRole('group', { name: 'Tools' });
+  await expect(tools.getByRole('button', { name: 'Place (B)' })).toHaveCount(1);
+  await expect(tools.getByRole('button', { name: /Place asset|Brick paint/ })).toHaveCount(0);
+  await expect(tools.getByRole('button', { name: 'Sign (U)' })).toBeVisible();
+  await page.keyboard.press('a');
+  await expect(tools.getByRole('button', { name: 'Place (B)' })).toHaveAttribute('aria-pressed', 'true');
+
+  const canvas = page.getByLabel('3D map view');
+  const box = (await canvas.boundingBox())!;
+  await ed(page, (e) => {
+    const x = e as unknown as {
+      scene: { value: { all(): { id: number }[]; ownerOf(id: number): { bricks: { id: number }[] } | null } };
+      select(ids: number[]): void;
+    };
+    const s = x.scene.value;
+    const b = s.all().find((q) => s.ownerOf(q.id))!;
+    x.select(s.ownerOf(b.id)!.bricks.map((q) => q.id));
+  });
+  await page.keyboard.press('f');
+  await page.keyboard.press('q');
+  const spots = async () =>
+    JSON.parse((await canvas.getAttribute('data-gizmo')) || 'null') as Record<string, [number, number] | null> | null;
+  await expect.poll(async () => Object.keys((await spots()) ?? {}).includes('all')).toBe(true);
+  const s = (await spots())!;
+  const [hx, hy] = s.all!;
+  const [cx, cy] = s.center!;
+  await page.mouse.move(box.x + hx, box.y + hy);
+  await page.mouse.down();
+  for (let i = 1; i <= 4; i++)
+    await page.mouse.move(box.x + hx + (hx - cx) * i * 0.15, box.y + hy + (hy - cy) * i * 0.15);
+  await expect(page.locator('.gizmo-tag')).toContainText('Size');
+  await page.mouse.up();
+  const scale = () =>
+    ed(page, (e) => {
+      const x = e as unknown as { selectedInstance: { value: { inst: { scale?: number[] } } | null } };
+      return x.selectedInstance.value?.inst.scale ?? null;
+    });
+  await expect.poll(scale).not.toBeNull();
+  expect((await scale())![0]).toBeGreaterThan(1);
+  await page.getByRole('region', { name: 'Inspector' }).getByRole('button', { name: 'Reset size' }).click();
+  await expect.poll(scale).toBeNull();
+  expect(errors).toEqual([]);
+});

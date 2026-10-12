@@ -14,11 +14,11 @@ import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
 import { Swatches } from './Inspector';
 
 const CATS: [string, string | null, string][] = [
-  ['Bricks', null, 'Pick a shape and a color, then click in the map with Brick paint (B). T turns the brush.'],
+  ['Bricks', null, 'Pick a shape and a color, then click in the map (Place, B). T turns the brush.'],
   [
     'Assets',
     null,
-    'Click an asset, then click in the map (Place asset, A). T turns it. Edit assets in the Asset studio.',
+    'Click an asset, then click in the map (Place), or drag it straight in. T turns it. Edit assets in the Asset studio.',
   ],
   ['Characters', null, 'Characters, their looks and their clips (emotes) are made in the Character studio.'],
   ['Cinematics', null, 'Directed scenes: click one to open it in the Director; ▶ plays it in the game.'],

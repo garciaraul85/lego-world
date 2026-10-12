@@ -28,15 +28,15 @@ Pick what you want to do in the toolbar, like in other 3D tools, and the selecti
 
 - **Move (W)**: three arrows. Drag the red one to move along X, the green one to move up and down, the blue one to move along Z. Bricks move by whole studs, and up and down by plates. You can also drag the object itself to slide it across the ground.
 - **Rotate (E)**: rings around the object. A whole asset (a house, a tree, a car) gets three rings and turns freely: red about X, green about Y, blue about Z, in 15° steps. Loose bricks and spawn points get the green ring and turn in quarter turns. R turns the selection once.
-- **Resize (Q)**: square handles on the sides and top. On a trigger zone they move that side. On a single brick they snap to real LEGO sizes (1×2, 2×4, 2×8…), and the top handle switches between a plate and a brick. Assets keep their size: change them in the Asset studio, or Unpack them first.
+- **Resize (Q)**: square handles on the sides and top. A whole asset grows freely in 5% steps: a side makes it wider or deeper (from the middle), the top makes it taller, and the white corner grows it evenly; the Inspector shows its size in percent and Reset size puts it back. On a trigger zone the handles move that side. On a single brick they snap to real LEGO sizes (1×2, 2×4, 2×8…), and the top handle switches between a plate and a brick.
 
-A turned asset is a free object: it can lean into the ground or a neighbour, nothing is built on top of it, and in Play things bump into it as if it stood straight. The Inspector shows its X, Y and Z angles (you can type them), and Straighten (also in the right-click menu) puts it back on the brick grid. Turning it a whole quarter about Y with no lean also puts it back on the grid. Unpack works once it is straight, because loose bricks always stand studs-up. LEGO World v68 saves show it straight.
+A turned or resized asset is a free object: it can lean into the ground or a neighbour, nothing is built on top of it, and in Play things bump into it as if it stood straight at its normal size. The Inspector shows its X, Y and Z angles (you can type them), and Straighten (also in the right-click menu) puts it back on the brick grid. Turning it a whole quarter about Y with no lean also puts it back on the grid. Unpack works once it is straight and normal size, because loose bricks always stand studs-up at their real size. LEGO World v68 saves show it straight.
 
 While you drag, a ghost shows the result and a label shows how far it went. If the spot is not allowed, the ghost turns red and the label says why (for example, pieces would overlap or float); letting go there changes nothing and tells you why. Letting go makes one change you can undo. Spots where bricks would float or overlap are refused, so the map always keeps v68's rules. The arrow keys and Page Up / Page Down still nudge the selection, Ctrl D duplicates and Delete removes it.
 
-## Brick paint, Color paint and Erase
+## Place, Color paint and Erase
 
-Brick paint (B) places the brush brick where you click: pick its shape and color in the dock's Assets › Bricks; T turns it. Color paint (C) recolors the brick you click. Erase (X) removes it (Shift removes the whole object); bricks that hold others up are protected. Any #rrggbb color is allowed; v68's Play in v68 and the legacy export use the nearest of v68's 18 colors.
+Place (B) puts down whatever you picked in the dock: a brick (Bricks: pick its shape and color) or an asset (Assets: a house, a tree, a chest). Click the ground, or drag a card straight into the scene; T turns it. The tool hint says what you are placing. Color paint (C) recolors the brick you click. Erase (X) removes it (Shift removes the whole object); bricks that hold others up are protected. Any #rrggbb color is allowed; v68's Play in v68 and the legacy export use the nearest of v68's 18 colors.
 
 ## Terrain generator
 

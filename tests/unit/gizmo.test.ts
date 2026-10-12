@@ -158,8 +158,12 @@ describe('P31 gizmo in the editor', () => {
     const owned = s.all().find((b) => s.ownerOf(b.id))!;
     ed.select(s.ownerOf(owned.id)!.bricks.map((b) => b.id));
     expect(gizmoTarget(ed, 'move')).toMatchObject({ kind: 'bricks', asset: true });
+    // a whole asset can be resized freely; part of one cannot
+    expect(gizmoTarget(ed, 'resize')).toMatchObject({ kind: 'bricks', inst: { scale: [1, 1, 1] } });
+    expect(resizeHint(ed)).toBeNull();
+    ed.select([owned.id]);
     expect(gizmoTarget(ed, 'resize')).toBeNull();
-    expect(resizeHint(ed)).toMatch(/Asset studio/);
+    expect(resizeHint(ed)).toMatch(/whole asset/);
     const zone = placeZoneAt(ed, { x: 0, y: 0, z: 0 })!;
     expect(gizmoTarget(ed, 'resize')).toMatchObject({ kind: 'zone' });
     expect(gizmoTarget(ed, 'rotate')).toBeNull();

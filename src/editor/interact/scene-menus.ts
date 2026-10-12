@@ -67,10 +67,20 @@ export function objectMenu(c: ActionCtx): MenuSpec {
           'Straighten',
           () =>
             ed.exec(
-              { type: 'instance.tilt', payload: { map, instance: inst.inst.id, tilt: [0, 0, 0] } },
+              { type: 'instance.transform', payload: { map, instance: inst.inst.id, tilt: [0, 0, 0] } },
               { label: 'Straighten asset' },
             ),
           !inst.inst.tilt,
+        ),
+        item(
+          'asset.resetSize',
+          'Reset size',
+          () =>
+            ed.exec(
+              { type: 'instance.transform', payload: { map, instance: inst.inst.id, scale: [1, 1, 1] } },
+              { label: 'Reset asset size' },
+            ),
+          !inst.inst.scale,
         ),
         item('asset.edit', 'Edit in Asset studio…', () => c.ui.editAsset(def.id)),
         item('asset.unpack', 'Unpack into loose bricks', () =>

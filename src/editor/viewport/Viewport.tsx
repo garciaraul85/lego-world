@@ -1,7 +1,7 @@
 import { effect } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
-import { bricksBox, tiltModel, tiltPivot, tiltPoint } from '../../core/assets/tilt';
+import { bricksBox, type FreeTransform, freeTransform } from '../../core/assets/tilt';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import type { Command } from '../../core/commands';
@@ -139,7 +139,7 @@ export function Viewport({
         else
           renderer.setChunk(
             k,
-            list.filter((b) => ed.isVisible(b) && !(s.tilted.size && s.tiltOf(b.id))).map((b) => s.toRender(b)),
+            list.filter((b) => ed.isVisible(b) && !s.freeOf(b.id)).map((b) => s.toRender(b)),
           );
       }
       dirty = true;
@@ -358,16 +358,16 @@ export function Viewport({
       const markers: Marker[] = [];
       if (s && mode === 'scene') {
         const sel = ed.selectedBricks.value;
-        // freely turned assets are drawn here, each with its own turn (and the turn being dragged)
+        // freely turned or resized assets are drawn here, each with its own transform (and the one being dragged)
         const turning = gz?.target.kind === 'bricks' ? gz.target.inst?.id : undefined;
         const turnModel = gz?.change?.model;
-        for (const [id, t] of s.tilted)
+        for (const [id, f] of s.free)
           if (!(turnModel && id === turning))
             overlays.push({
-              bricks: t.e.bricks.filter((b) => ed.isVisible(b)).map(brickRender),
+              bricks: f.e.bricks.filter((b) => ed.isVisible(b)).map(brickRender),
               alpha: 1,
               flat: false,
-              model: t.model,
+              model: f.t.model,
             });
         if (turnModel && gz?.target.kind === 'bricks') {
           overlays.push({
@@ -378,12 +378,12 @@ export function Viewport({
             ...(blocked ? { color: [1, 0.25, 0.2] as [number, number, number] } : {}),
           });
         }
-        const selTilt = sel.length ? s.tiltOf(sel[0]!.id) : null;
+        const selTilt = sel.length ? s.freeOf(sel[0]!.id) : null;
         if (preview)
           overlays.push({
             bricks: preview.map(brickRender),
             // a turned asset being moved keeps its turn in the preview
-            ...(selTilt ? { model: tiltModel(selTilt.tilt, tiltPivot(preview)) } : {}),
+            ...(selTilt ? { model: freeTransform(preview, selTilt.tilt, selTilt.scale).model } : {}),
             alpha: 0.75,
             flat: !!blocked,
             ...(blocked ? { color: [1, 0.25, 0.2] as [number, number, number] } : {}),
@@ -398,7 +398,7 @@ export function Viewport({
           });
         if (hover && !ed.selection.value.has(hover.id) && !preview) {
           const group = hover.group ? (s.groups.get(hover.group) ?? [hover.id]) : [hover.id];
-          const ht = s.tiltOf(hover.id);
+          const ht = s.freeOf(hover.id);
           overlays.push({
             ...(ht ? { model: ht.model } : {}),
             bricks: group
@@ -1192,10 +1192,10 @@ function ViewControls({ view, studio }: { view: { current: ViewportApi | null };
   );
 }
 
-/** The selection box of a freely turned asset, turned with it. */
-function tiltedLines(bricks: readonly Brick[], t: { pivot: Vec3; tilt: [number, number, number] }): number[] {
+/** The selection box of a freely turned or resized asset, transformed with it. */
+function tiltedLines(bricks: readonly Brick[], t: FreeTransform): number[] {
   const [a, b] = bricksBox(bricks);
-  const corner = (x: number, y: number, z: number) => tiltPoint(t.tilt, t.pivot, [x, y, z]);
+  const corner = (x: number, y: number, z: number) => t.point([x, y, z]);
   const c = [
     corner(a[0], a[1], a[2]),
     corner(b[0], a[1], a[2]),

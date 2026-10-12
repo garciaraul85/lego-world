@@ -25,6 +25,8 @@ export const AssetInstance = z.strictObject({
   tilt: z
     .tuple([z.number().min(-180).max(180), z.number().min(-180).max(180), z.number().min(-180).max(180)])
     .optional(),
+  /** free size per axis (1 = normal), growing from the middle of the base (P31) */
+  scale: z.tuple([z.number().min(0.1).max(10), z.number().min(0.1).max(10), z.number().min(0.1).max(10)]).optional(),
   /** smash group name of the expanded bricks (v68 generator name such as "house-3"); default from the asset name */
   group: z.string().min(1).max(100).optional(),
 });

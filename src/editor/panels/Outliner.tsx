@@ -303,7 +303,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
     // P5.5 / P5.9: sound emitters (and music/ambience zones) and world UI
     const groups = [
       { key: 'sounds', name: 'Sounds', color: '#8b74ff', kind: 'emitter' as const },
-      { key: 'worldui', name: 'World UI', color: '#f9d84c', kind: 'ui' as const },
+      { key: 'worldui', name: 'Signs', color: '#f9d84c', kind: 'ui' as const },
     ];
     for (const g of groups) {
       const items = (inst?.items ?? []).filter((i) => i.kind === g.kind);

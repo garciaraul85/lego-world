@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIONS, type ActionCtx, action, type EditorAction, MENUS, runAction } from '../actions/registry';
+import { resolveAsset } from '../assets';
 import type { EditorState, ToolId } from '../state';
 import { resizeHint } from '../viewport/gizmo';
 
@@ -129,7 +130,16 @@ export function WorkspaceTabs({ current, onPick }: { current: string; onPick: (w
   );
 }
 
-export const TOOLS: { id: ToolId; glyph: string; label: string; key: string; help: string; later?: string }[] = [
+export const TOOLS: {
+  id: ToolId;
+  glyph: string;
+  label: string;
+  key: string;
+  help: string;
+  later?: string;
+  /** shares a toolbar button with another tool (Place covers bricks and assets) */
+  hidden?: boolean;
+}[] = [
   {
     id: 'select',
     glyph: '↖',
@@ -156,21 +166,22 @@ export const TOOLS: { id: ToolId; glyph: string; label: string; key: string; hel
     glyph: '⤡',
     label: 'Resize',
     key: 'Q',
-    help: 'Resize: select a trigger zone or one brick, then drag a square handle. Bricks snap to real LEGO sizes; the top handle makes a plate or a brick.',
+    help: 'Resize: select an asset, a trigger zone or one brick, then drag a square handle. Assets grow freely (the white corner grows them evenly); bricks snap to real LEGO sizes; the top handle makes a plate or a brick.',
   },
   {
     id: 'place',
     glyph: '▦',
-    label: 'Brick paint',
+    label: 'Place',
     key: 'B',
-    help: 'Brick paint: click to place the brush brick. T turns it; pick shape and color in the dock.',
+    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). T turns it.',
   },
   {
     id: 'asset',
-    glyph: '⌂',
-    label: 'Place asset',
+    glyph: '▦',
+    label: 'Place',
     key: 'A',
-    help: 'Place asset: click to put down the asset picked in Assets › Assets. T turns it.',
+    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). T turns it.',
+    hidden: true,
   },
   {
     id: 'paint',
@@ -210,40 +221,56 @@ export const TOOLS: { id: ToolId; glyph: string; label: string; key: string; hel
   {
     id: 'ui',
     glyph: '▭',
-    label: 'World UI',
+    label: 'Sign',
     key: 'U',
-    help: 'World UI: click to place a sign above the ground; its text can show {variables} while playing.',
+    help: 'Sign: click the ground to put up a sign in the world; its text can show {variables} while playing. The HUD, title and splash screens are made in the Screens workspace.',
   },
 ];
+
+/** the last kind of Place used (a brick or an asset) */
+let lastPlace: 'place' | 'asset' | null = null;
 
 export function Toolbar({ c }: { c: ActionCtx }) {
   const { ed, ui } = c;
   ed.revision.value;
   const tool = TOOLS.find((t) => t.id === ed.tool.value) ?? TOOLS[0]!;
-  // Resize says why nothing shows when the selection has no size to change
-  const hint = (tool.id === 'resize' && resizeHint(ed)) || tool.help;
+  const placing = ed.tool.value === 'place' || ed.tool.value === 'asset';
+  if (placing) lastPlace = ed.tool.value as 'place' | 'asset';
+  // Resize says why nothing shows when the selection has no size to change; Place says what it puts down
+  const hint =
+    (tool.id === 'resize' && resizeHint(ed)) ||
+    (ed.tool.value === 'asset' && resolveAsset(ed, ed.assetBrush.value.asset)
+      ? `Place ${resolveAsset(ed, ed.assetBrush.value.asset)!.name}: click the ground, or drag cards from the dock. T turns it. Pick a brick in the dock to place bricks instead.`
+      : ed.tool.value === 'place'
+        ? `Place a ${ed.brush.value.type.replace(/^(brick|plate|tile)(\d+)x(\d+)$/, '$1 $2×$3')}: click the ground, or drag it. T turns it. Pick an asset in the dock to place that instead.`
+        : tool.help);
   return (
     <div class="toolbar">
       <div class="group" role="group" aria-label="Tools" data-tour="tools">
-        {TOOLS.map((t) => (
-          <button
-            type="button"
-            class={`btn icon ${ed.tool.value === t.id ? 'on' : ''}`}
-            aria-label={`${t.label} (${t.key})`}
-            aria-pressed={ed.tool.value === t.id}
-            data-tip={t.later ? `${t.label} — ${t.later}` : `${t.help} Shortcut: ${t.key}.`}
-            data-help="scene"
-            disabled={!!t.later}
-            onClick={() => {
-              ed.tool.value = t.id;
-              ed.persistUi();
-            }}
-          >
-            <span aria-hidden="true" class="mono">
-              {t.glyph}
-            </span>
-          </button>
-        ))}
+        {TOOLS.filter((t) => !t.hidden).map((t) => {
+          const on = ed.tool.value === t.id || (t.id === 'place' && placing);
+          return (
+            <button
+              type="button"
+              class={`btn icon ${on ? 'on' : ''}`}
+              aria-label={`${t.label} (${t.key})`}
+              aria-pressed={on}
+              data-tip={t.later ? `${t.label} — ${t.later}` : `${t.help} Shortcut: ${t.key}.`}
+              data-help="scene"
+              disabled={!!t.later}
+              onClick={() => {
+                // Place picks up where you left off: the asset you chose, or the brick brush
+                ed.tool.value =
+                  t.id === 'place' ? (lastPlace ?? (ed.assetBrush.value.asset ? 'asset' : 'place')) : t.id;
+                ed.persistUi();
+              }}
+            >
+              <span aria-hidden="true" class="mono">
+                {t.glyph}
+              </span>
+            </button>
+          );
+        })}
       </div>
       <span class="toolhint opt" title={hint} data-tour="tool-hint">
         {hint}

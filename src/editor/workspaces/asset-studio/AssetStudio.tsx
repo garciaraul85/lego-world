@@ -31,7 +31,7 @@ const STUDIO_TOOLS: [ToolId, string, string][] = [
   ['move', '✥', 'Move (W)'],
   ['rotate', '↻', 'Rotate (E)'],
   ['resize', '⤡', 'Resize one brick (Q)'],
-  ['place', '▦', 'Brick paint (B)'],
+  ['place', '▦', 'Place bricks (B)'],
   ['paint', '◐', 'Color paint (C)'],
   ['erase', '⌫', 'Erase (X)'],
   ['spawn', '◎', 'Put the selected socket where you click (P)'],
@@ -229,7 +229,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         <div class="studio-foot muted small">
           {sel.length
             ? `${sel.length} selected · Delete removes · R turns`
-            : 'Build with Brick paint (B). Every change is saved to the asset and to every placed copy.'}
+            : 'Build with Place bricks (B). Every change is saved to the asset and to every placed copy.'}
           {used ? ` · placed on ${used} map${used === 1 ? '' : 's'}` : ''}
         </div>
       </section>

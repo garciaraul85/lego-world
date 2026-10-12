@@ -1,4 +1,4 @@
-import { hasTilt, tiltModel, tiltPivot } from '../../core/assets/tilt';
+import { freeTransform, isFree } from '../../core/assets/tilt';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { rigPose } from '../character/animator';
@@ -71,9 +71,9 @@ export class PlayRenderer {
     const ids = new Set<number>();
     const models = new Map<string, Float32Array>();
     for (const e of w.instances)
-      if (hasTilt(e.inst.tilt)) {
+      if (isFree(e.inst)) {
         for (const b of e.bricks) ids.add(b.id);
-        models.set(e.inst.id, tiltModel(e.inst.tilt, tiltPivot(e.bricks)));
+        models.set(e.inst.id, freeTransform(e.bricks, e.inst.tilt, e.inst.scale).model);
       }
     this.tilted = { ids, models };
   }

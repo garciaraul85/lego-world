@@ -1,6 +1,6 @@
 import { bricksToAsset, expandAsset, type InstanceLike } from '../../assets/expand';
 import { assetInstances, expandInstances, instanceBricks, maxBrickId } from '../../assets/instances';
-import { bricksBox, hasTilt, normalizeTilt } from '../../assets/tilt';
+import { bricksBox, hasScale, hasTilt, isFree, normalizeScale, normalizeTilt } from '../../assets/tilt';
 import { type Brick, chunkKey } from '../../bricks/codec';
 import { inspectBricks } from '../../bricks/inspect';
 import { brickError, MAX_BRICKS_PER_MAP, MapBricks } from '../../bricks/map-bricks';
@@ -19,13 +19,13 @@ export const allBricks = (store: ProjectStore, map: string): Brick[] => [
 ];
 
 /**
- * Throws (rolling back) unless the whole map, instances included, is a valid v68 build. Tilted assets are
- * free objects and are left out of the grid rules (P31).
+ * Throws (rolling back) unless the whole map, instances included, is a valid v68 build. Turned or resized
+ * assets are free objects and are left out of the grid rules (P31).
  */
 export function assertMapLayout(store: ProjectStore, map: string) {
   const free = new Set(
     expandInstances(store, map)
-      .filter((e) => hasTilt(e.inst.tilt))
+      .filter((e) => isFree(e.inst))
       .flatMap((e) => e.bricks.map((b) => b.id)),
   );
   const bricks = allBricks(store, map);
@@ -156,32 +156,43 @@ export const setInstanceState: CommandHandler<{ map: string; instance: string; s
 };
 
 /**
- * Turns a placed asset freely (P31): degrees about X, Y, Z on top of its quarter turn, around its middle.
- * `rot` may change too (the Y ring snaps whole quarter turns into it) and the asset stays centered.
- * All-zero tilt puts it back on the brick grid, where the usual rules apply again.
+ * Turns and sizes a placed asset freely (P31): `tilt` is degrees about X, Y, Z on top of its quarter turn,
+ * around its middle; `scale` is its size per axis (1 = normal), growing from the middle of its base. `rot`
+ * may change too (the Y ring snaps whole quarter turns into it) and the asset stays centered. No turn and
+ * normal size put it back on the brick grid, where the usual rules apply again. Omitted fields stay as they are.
  */
-export const tiltInstance: CommandHandler<{
+export const transformInstance: CommandHandler<{
   map: string;
   instance: string;
-  tilt: [number, number, number];
+  tilt?: [number, number, number];
+  scale?: [number, number, number];
   rot?: number;
 }> = {
-  label: (p) => (hasTilt(p.tilt) ? 'Turn asset freely' : 'Straighten asset'),
+  label: (p) =>
+    p.scale && !p.tilt
+      ? hasScale(p.scale)
+        ? 'Resize asset'
+        : 'Reset asset size'
+      : p.tilt && !hasTilt(p.tilt) && !p.scale
+        ? 'Straighten asset'
+        : 'Turn asset freely',
   validate(store, p) {
     const inst = findInstance(store, p.map, p.instance);
     if (!inst) return 'Asset instance not found.';
     if (!store.get<Asset>(paths.asset(inst.asset))) return 'Asset not found.';
-    if (!p.tilt.every(Number.isFinite)) return 'Angles must be numbers.';
+    if (p.tilt && !p.tilt.every(Number.isFinite)) return 'Angles must be numbers.';
+    if (p.scale && !p.scale.every((v) => Number.isFinite(v) && v > 0)) return 'Sizes must be above zero.';
     if (p.rot !== undefined && !(Number.isInteger(p.rot) && p.rot >= 0 && p.rot <= 3)) return 'rot is 0 to 3.';
     return null;
   },
   apply(store, p) {
-    const tilt = normalizeTilt(p.tilt);
     putInstances(store, p.map, (items) =>
       items.map((i) => {
         if (i.id !== p.instance || i.kind !== 'asset') return i;
         const def = store.get<Asset>(paths.asset(i.asset))!;
         const rot = p.rot ?? i.rot;
+        const tilt = normalizeTilt(p.tilt ?? i.tilt ?? [0, 0, 0]);
+        const scale = normalizeScale(p.scale ?? i.scale ?? [1, 1, 1]);
         let pos = i.pos;
         if (rot !== i.rot) {
           // keep the middle where it was
@@ -193,8 +204,14 @@ export const tiltInstance: CommandHandler<{
             Math.round((a0[2] + b0[2]) / 2 - (a1[2] + b1[2]) / 2),
           ];
         }
-        const { tilt: _old, ...rest } = i;
-        return hasTilt(tilt) ? { ...rest, rot, pos, tilt } : { ...rest, rot, pos };
+        const { tilt: _t, scale: _s, ...rest } = i;
+        return {
+          ...rest,
+          rot,
+          pos,
+          ...(hasTilt(tilt) ? { tilt } : {}),
+          ...(hasScale(scale) ? { scale } : {}),
+        };
       }),
     );
     assertMapLayout(store, p.map);
@@ -207,8 +224,8 @@ export const unpackInstance: CommandHandler<{ map: string; instances: string[] }
   validate: (store, p) =>
     !p.instances.every((id) => findInstance(store, p.map, id))
       ? 'Asset instance not found.'
-      : p.instances.some((id) => hasTilt(findInstance(store, p.map, id)?.tilt))
-        ? 'Loose bricks stand studs-up. Straighten the asset first (Rotate, then Straighten).'
+      : p.instances.some((id) => isFree(findInstance(store, p.map, id)))
+        ? 'Loose bricks stand studs-up at their real size. Straighten it and reset its size first.'
         : null,
   apply(store, p) {
     const want = new Set(p.instances);

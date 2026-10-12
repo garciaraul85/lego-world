@@ -160,7 +160,7 @@ function InspectorTab({ c }: { c: ActionCtx }) {
         <div class="muted">Nothing selected.</div>
         <p class="hint">
           Click an object in the map or the Hierarchy. Alt-click picks a single brick, Shift-click adds to the
-          selection. Use Brick paint (B) to build, and the Map tab to generate terrain.
+          selection. Use Place (B) to build, and the Map tab to generate terrain.
         </p>
       </div>
     );
@@ -282,6 +282,7 @@ function AssetSection({ c }: { c: ActionCtx }) {
         </span>
       </div>
       <TiltField c={c} />
+      <SizeField c={c} />
       {e.def.states.length > 1 && (
         <label class="field">
           State
@@ -817,7 +818,7 @@ function TiltField({ c }: { c: ActionCtx }) {
     const next = [...tilt] as [number, number, number];
     next[i] = v;
     ed.exec(
-      { type: 'instance.tilt', payload: { map: ed.mapId.value, instance: e.inst.id, tilt: next } },
+      { type: 'instance.transform', payload: { map: ed.mapId.value, instance: e.inst.id, tilt: next } },
       { label: 'Turn asset freely' },
     );
   };
@@ -852,12 +853,64 @@ function TiltField({ c }: { c: ActionCtx }) {
           disabled={!e.inst.tilt}
           onClick={() =>
             ed.exec(
-              { type: 'instance.tilt', payload: { map: ed.mapId.value, instance: e.inst.id, tilt: [0, 0, 0] } },
+              { type: 'instance.transform', payload: { map: ed.mapId.value, instance: e.inst.id, tilt: [0, 0, 0] } },
               { label: 'Straighten asset' },
             )
           }
         >
           Straighten
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/** P31 free size of a placed asset: percent per axis, and Reset size. */
+function SizeField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const e = ed.selectedInstance.value!;
+  const scale = e.inst.scale ?? [1, 1, 1];
+  const set = (next: [number, number, number]) =>
+    ed.exec(
+      { type: 'instance.transform', payload: { map: ed.mapId.value, instance: e.inst.id, scale: next } },
+      { label: 'Resize asset' },
+    );
+  return (
+    <div
+      class="field"
+      data-tip="Resize it with the Resize tool (Q): drag a side, the top, or the white corner to grow it evenly. A resized asset is a free object."
+      data-help="scene"
+    >
+      Size %
+      <span class="row" style={{ gap: '4px' }}>
+        {(['W', 'H', 'D'] as const).map((axis, i) => (
+          <label class="mono small" style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            {axis}
+            <input
+              class="inp"
+              type="number"
+              step="5"
+              min="10"
+              max="1000"
+              style={{ width: '58px' }}
+              aria-label={`Size ${axis === 'W' ? 'width' : axis === 'H' ? 'height' : 'depth'}, percent`}
+              value={Math.round(scale[i]! * 100)}
+              onChange={(ev) => {
+                const next = [...scale] as [number, number, number];
+                next[i] = (Number((ev.target as HTMLInputElement).value) || 100) / 100;
+                set(next);
+              }}
+            />
+          </label>
+        ))}
+        <button
+          type="button"
+          class="btn"
+          style={{ minHeight: '26px', fontSize: '11px' }}
+          disabled={!e.inst.scale}
+          onClick={() => set([1, 1, 1])}
+        >
+          Reset size
         </button>
       </span>
     </div>

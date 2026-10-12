@@ -80,7 +80,7 @@ test('Asset studio: building on the plate changes the asset; Character studio: a
   const plate = page.locator('.studio canvas');
   await expect(plate).toBeVisible();
   const box = (await plate.boundingBox())!;
-  await page.locator('.studio-tools').getByRole('button', { name: 'Brick paint (B)' }).click();
+  await page.locator('.studio-tools').getByRole('button', { name: 'Place bricks (B)' }).click();
   const bricks = () =>
     page.evaluate(() => {
       const e = (window as unknown as { __editor: Ed }).__editor;

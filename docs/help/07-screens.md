@@ -24,4 +24,4 @@ Screens are laid out at 1280×720 and scaled to fit. Anchors keep a widget on it
 
 ## Signs in the world
 
-The World UI tool (U) places signs above the ground in the 3D view; their text can show {values} too.
+The Sign tool (U) in the Scene puts signs above the ground in the 3D world; their text can show {values} too. Signs live in the world; the HUD, title, splash, pause and other screens are made here in Screens.

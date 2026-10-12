@@ -1,4 +1,14 @@
-import { bricksBox, hasTilt, normalizeTilt, type Tilt, tiltedBox, tiltModel, tiltPivot } from '../../core/assets/tilt';
+import {
+  bricksBox,
+  freeTransform,
+  hasScale,
+  hasTilt,
+  isFree,
+  normalizeScale,
+  normalizeTilt,
+  type Scale,
+  type Tilt,
+} from '../../core/assets/tilt';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import { pivotOf, rotateQuarter } from '../../core/bricks/transform';
@@ -27,14 +37,14 @@ export type GizmoTarget =
       bricks: Brick[];
       asset: boolean;
       /** exactly one whole asset is selected: it can turn freely about X, Y and Z */
-      inst?: { id: string; rot: number; tilt: Tilt; pivot: Vec3 };
+      inst?: { id: string; rot: number; tilt: Tilt; scale: Scale };
     }
   | { kind: 'zone'; zone: Zone }
   | { kind: 'spawn'; id: string; pos: Vec3; yaw: number }
   | { kind: 'item'; id: string; pos: Vec3 };
 
 /** ring = turn about Y (quarter turns for bricks, free for an asset); rx / rz = free turns about X / Z */
-export type HandleId = 'x' | 'y' | 'z' | 'ring' | 'rx' | 'rz' | '+x' | '-x' | '+z' | '-z' | '+y';
+export type HandleId = 'x' | 'y' | 'z' | 'ring' | 'rx' | 'rz' | '+x' | '-x' | '+z' | '-z' | '+y' | 'all';
 export const isRing = (id: HandleId) => id === 'ring' || id === 'rx' || id === 'rz';
 
 export type Handle = {
@@ -71,10 +81,11 @@ export function gizmoTarget(ed: EditorState, mode: GizmoMode): GizmoTarget | nul
   if (!bricks.length) return null;
   const s = ed.scene.value;
   const asset = !!s && bricks.some((b) => s.ownerOf(b.id));
-  if (mode === 'resize' && (bricks.length !== 1 || asset)) return null;
   const owner = s?.ownerOf(bricks[0]!.id);
   const whole =
     owner && bricks.length === owner.bricks.length && bricks.every((b) => s!.ownerOf(b.id)?.inst.id === owner.inst.id);
+  // Resize: a whole asset (free size) or one loose brick (LEGO sizes)
+  if (mode === 'resize' && !whole && (bricks.length !== 1 || asset)) return null;
   if (!whole) return { kind: 'bricks', bricks, asset };
   return {
     kind: 'bricks',
@@ -84,7 +95,7 @@ export function gizmoTarget(ed: EditorState, mode: GizmoMode): GizmoTarget | nul
       id: owner.inst.id,
       rot: owner.inst.rot,
       tilt: (owner.inst.tilt ?? [0, 0, 0]) as Tilt,
-      pivot: tiltPivot(owner.bricks) as Vec3,
+      scale: (owner.inst.scale ?? [1, 1, 1]) as Scale,
     },
   };
 }
@@ -96,9 +107,11 @@ export function resizeHint(ed: EditorState): string | null {
   if (ed.selectedSpawn.value || ed.selectedItem.value) return 'Spawn points, sounds and signs have no size to change.';
   if (!bricks.length) return 'Select a trigger zone or a single brick to resize it.';
   const s = ed.scene.value;
-  if (s && bricks.some((b) => s.ownerOf(b.id)))
-    return 'Assets keep their size. Change the asset in the Asset studio, or Unpack it first.';
-  if (bricks.length > 1) return 'Resize works on one brick at a time (Alt-click selects a single brick).';
+  const owner = s && bricks.length ? s.ownerOf(bricks[0]!.id) : null;
+  if (owner && bricks.length === owner.bricks.length) return null;
+  if (owner) return 'Select the whole asset (click it without Alt) to resize it.';
+  if (bricks.length > 1)
+    return 'Resize works on a whole asset or one brick (Alt-click selects a single brick); several loose bricks keep their size.';
   return null;
 }
 
@@ -114,7 +127,7 @@ export function targetBox(t: GizmoTarget): [Vec3, Vec3] {
       [t.pos[0] - 0.4, t.pos[1] - 0.4, t.pos[2] - 0.4],
       [t.pos[0] + 0.4, t.pos[1] + 0.4, t.pos[2] + 0.4],
     ];
-  if (t.inst && hasTilt(t.inst.tilt)) return tiltedBox(t.bricks, t.inst.tilt) as [Vec3, Vec3];
+  if (t.inst && isFree(t.inst)) return freeTransform(t.bricks, t.inst.tilt, t.inst.scale).box as [Vec3, Vec3];
   const min: Vec3 = [Infinity, Infinity, Infinity];
   const max: Vec3 = [-Infinity, -Infinity, -Infinity];
   for (const b of t.bricks) {
@@ -177,6 +190,17 @@ export function handlesFor(mode: GizmoMode, t: GizmoTarget, size: number): Handl
     face('+z', [cx, cy, max[2]], [0, 0, 1], AXIS_COLOR.z),
     face('-z', [cx, cy, min[2]], [0, 0, -1], AXIS_COLOR.z),
     face('+y', [cx, max[1], cz], [0, 1, 0], AXIS_COLOR.y),
+    // a whole asset also grows evenly from the top corner (white)
+    ...(t.kind === 'bricks' && t.inst
+      ? [
+          face(
+            'all',
+            [max[0], max[1], max[2]],
+            [1 / Math.sqrt(3), 1 / Math.sqrt(3), 1 / Math.sqrt(3)],
+            [0.95, 0.95, 0.95],
+          ),
+        ]
+      : []),
   ];
 }
 
@@ -398,7 +422,46 @@ export function sizesWith(other: number): number[] {
   return [...out].sort((a, b) => a - b);
 }
 
+/** Free size steps for assets (5%). */
+export const SCALE_STEP = 0.05;
+
+/** Resizing a whole asset: a side grows from the middle (both sides), the top grows up, the corner grows evenly. */
+export function scaleChange(map: string, t: GizmoTarget, handle: HandleId, amount: number): GizmoChange {
+  if (t.kind !== 'bricks' || !t.inst) return { label: '', command: null, undoLabel: '' };
+  const [a, b] = bricksBox(t.bricks);
+  const ext = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const cur = t.inst.scale;
+  const snapS = (v: number) => Math.max(0.1, Math.round(v / SCALE_STEP) * SCALE_STEP);
+  let next: Scale;
+  if (handle === 'all') {
+    // distance from the middle of the base to the top corner, at the current size
+    const L = Math.hypot((ext[0]! * cur[0]) / 2, ext[1]! * cur[1], (ext[2]! * cur[2]) / 2) || 1;
+    const f = Math.max(0.1, (L + amount) / L);
+    next = normalizeScale(cur.map((v) => snapS(v * f)));
+  } else {
+    const i = handle.endsWith('x') ? 0 : handle.endsWith('y') ? 1 : 2;
+    const size = ext[i]! * cur[i]!;
+    const k = i === 1 ? 1 : 2;
+    next = [...cur] as Scale;
+    next[i] = snapS(cur[i]! * Math.max(0.05, (size + k * amount) / Math.max(0.01, size)));
+    next = normalizeScale(next);
+  }
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  const same = next.every((v, j) => Math.abs(v - cur[j]!) < 1e-6);
+  const label =
+    next[0] === next[1] && next[1] === next[2]
+      ? `Size ${pct(next[0])}`
+      : `Width ${pct(next[0])} · Height ${pct(next[1])} · Depth ${pct(next[2])}`;
+  return {
+    model: freeTransform(t.bricks, t.inst.tilt, next).model,
+    label: hasScale(next) || hasTilt(t.inst.tilt) ? label : `${label} · back on the grid`,
+    command: same ? null : { type: 'instance.transform', payload: { map, instance: t.inst.id, scale: next } },
+    undoLabel: hasScale(next) ? 'Resize asset' : 'Reset asset size',
+  };
+}
+
 export function resizeChange(map: string, t: GizmoTarget, handle: HandleId, amount: number): GizmoChange {
+  if (t.kind === 'bricks' && t.inst) return scaleChange(map, t, handle, amount);
   if (t.kind === 'zone') {
     const min = [...t.zone.min] as Vec3;
     const max = [...t.zone.max] as Vec3;
@@ -463,17 +526,17 @@ export function tiltChange(map: string, t: GizmoTarget, h: HandleId, degrees: nu
   next[i] = next[i]! + step;
   const tilt = normalizeTilt(next);
   const axis = ['X', 'Y', 'Z'][i];
-  const label = `${step > 0 ? '+' : ''}${step}° about ${axis}${hasTilt(tilt) ? '' : ' · back on the grid'}`;
+  const label = `${step > 0 ? '+' : ''}${step}° about ${axis}${hasTilt(tilt) || hasScale(t.inst.scale) ? '' : ' · back on the grid'}`;
   if (!step) return { label, command: null, undoLabel: '' };
   // whole quarter turns about Y with no tilt left go back into rot: the asset is a grid asset again
-  const flat = Math.abs(tilt[0]) < 1e-6 && Math.abs(tilt[2]) < 1e-6 && Math.abs(tilt[1] % 90) < 1e-6;
+  const flat = Math.abs(tilt[0]) < 1e-6 && Math.abs(tilt[2]) < 1e-6 && Math.abs(tilt[1] % 90) < 1e-6 && !!tilt[1];
   const payload = flat
     ? { map, instance: t.inst.id, tilt: [0, 0, 0] as Tilt, rot: (((t.inst.rot + tilt[1] / 90) % 4) + 4) % 4 }
     : { map, instance: t.inst.id, tilt };
   return {
-    model: tiltModel(tilt, t.inst.pivot),
+    model: freeTransform(t.bricks, tilt, t.inst.scale).model,
     label,
-    command: { type: 'instance.tilt', payload },
+    command: { type: 'instance.transform', payload },
     undoLabel: hasTilt(tilt) ? 'Turn asset freely' : 'Straighten asset',
   };
 }
