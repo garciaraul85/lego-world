@@ -6,7 +6,7 @@ Use them as the spec for the rewrite. Each screen lists the engine systems it ne
 
 ## Files
 
-- `screens/*.dc.html`: the 45 screens plus two shared parts (`Nav`, `Sub`). `canvas.json` lays them out on four pages (Make, Characters and story, Gear and game, Play help and Brix) so only one page loads at a time.
+- `screens/*.dc.html`: the 47 screens plus two shared parts (`Nav`, `Sub`). `canvas.json` lays them out on four pages (Make, Characters and story, Gear and game, Play help and Brix) so only one page loads at a time.
 - `src/*.html`: source for most screens. `python3 build.py <Name> …` assembles `src/<Name>.html` into `screens/<Name>.dc.html` and adds the shared header, sidebar, sub-tabs, menu, toast and helpers (`H.*`).
 - `check.cjs <Name> …`: renders each screen once and reports missing bindings.
 - `fuzz.cjs <Name> …`: clicks every handler once and reports runtime errors.
@@ -70,6 +70,8 @@ Sidebar: Scene, Build, World, Logic, Cast, Animate, Scenes, Talk, Audio, Screens
 | Stretch genres | Stretch | City lots with money over time; farm plots over days; rhythm beat map | Simulation, day cycles and crops, beat maps (P20) |
 | Achievements | Progress | Achievements with conditions; collectibles per room; what 100% means; time and best scores | Progress tracking (P26) |
 | Gallery & teamwork | Gallery | Browse, play, remix (credits the original), report; edit together with comments; parental settings | Gallery, remix, teamwork, safety (P30) |
+| Your media | Media | Drop or choose pictures, sounds, music and videos; size, resolution and length checks; game size budget; who made it (unknown blocks sharing); what it's used as | Media import, transcoding and shrinking, licence tracking, package budget |
+| Translations | Translate | Languages with progress; every line by screen; missing / check me / done; AI fill marked for review; preview with fit warnings; plural, right-to-left and font rules; translator file | String table generated from dialogue, screens, quests and items; locale runtime |
 | Play | Play | Play for real; start here, can't lose, slow motion, save moment, variables; "Can it be finished?" | Play session, test tools, solvability checks |
 | Help | Help | Search every element; picture with callouts, steps, options; "For the AI" view | Help registry (one entry per element, with its commands) |
 | Learn | Tutorial | Course per screen; watch a ghost cursor, then do it and get checked | Tutorial runner, overlays, step checks |

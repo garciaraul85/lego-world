@@ -26,13 +26,13 @@ class Component extends DCLogic {
   renderVals() {
     const G = {
       scene: ['Scene', [['Scene', 'Scene'], ['Triggers', 'Trigger'], ['Build puzzles', 'Puzzle'], ['Lighting', 'Lighting'], ['Generator', 'Generator']]],
-      build: ['Build', [['Bricks', 'Build'], ['Effects', 'Effects'], ['Starter packs', 'Packs'], ['My library', 'Library']]],
+      build: ['Build', [['Bricks', 'Build'], ['Effects', 'Effects'], ['Starter packs', 'Packs'], ['My library', 'Library'], ['Your media', 'Media']]],
       logic: ['Logic', [['Rules and scripts', 'Logic'], ['Wiring', 'Wiring'], ['Quests', 'Quests']]],
       cast: ['Cast', [['Character', 'Character'], ['Face', 'Face'], ['From a photo', 'Photo'], ['Skeleton', 'Skeleton'], ['Brain', 'Brain']]],
       animate: ['Animate', [['Pose and keys', 'Animate'], ['States and library', 'States']]],
       screens: ['Screens', [['HUD and screens', 'Screens'], ['Menus', 'Menus']]],
       gear: ['Gear', [['Items & combat', 'Items'], ['Enemies & bosses', 'Enemies'], ['Vehicles', 'Vehicles'], ['Money & shops', 'Shops']]],
-      game: ['Game', [['Genre', 'Genre'], ['Controls', 'Controls'], ['Moves & water', 'Moves'], ['RPG', 'Battles'], ['Racing & sports', 'Racing'], ['Stretch', 'Stretch'], ['Accessibility', 'Access'], ['Saving', 'Save'], ['Achievements', 'Progress'], ['Share', 'Share'], ['Gallery', 'Gallery']]]
+      game: ['Game', [['Genre', 'Genre'], ['Controls', 'Controls'], ['Moves', 'Moves'], ['RPG', 'Battles'], ['Racing', 'Racing'], ['Stretch', 'Stretch'], ['Accessibility', 'Access'], ['Saving', 'Save'], ['Achievements', 'Progress'], ['Share', 'Share'], ['Gallery', 'Gallery'], ['Translations', 'Translate']]]
     };
     const g = G[this.props.group] || G.cast;
     const a = this.props.active;
