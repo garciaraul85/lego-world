@@ -56,7 +56,6 @@ class Component extends DCLogic {
   constructor(props) {
     super(props);
     this.state = { course: 'Scene', phase: 'watch', t: 0, placed: false, over: false, success: false, lessonN: 1 };
-    setTimeout(() => { if (this.beginWatch) this.beginWatch(); }, 500);
   }
   renderVals() {
     const s = this.state;

@@ -64,7 +64,7 @@ a{color:#ffcc00}a:hover{color:#ffd633}
           <sc-if value="{{blockShow}}" hint-placeholder-val="{{ false }}"><div style="{{block}}"></div></sc-if>
           <div style="{{fig}}"><span style="width: 34px; height: 28px; border-radius: 8px; background: #ffcc00"></span><span style="width: 40px; height: 34px; border-radius: 6px; background: #e8463c"></span><span style="width: 34px; height: 26px; border-radius: 4px; background: #2f3440"></span></div>
           <sc-if value="{{airShow}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; right: 16px; top: 14px; display: flex; gap: 4px"><sc-for list="{{air}}" as="a" hint-placeholder-count="6"><span style="{{a}}"></span></sc-for></div></sc-if>
-          <span style="position: absolute; left: 14px; top: 12px; padding: 6px 12px; border-radius: 999px; background: #141519cc; font-size: 13px; font-weight: 600">{{label}}</span>
+          <span style="position: absolute; left: 14px; top: 12px; padding: 6px 12px; border-radius: 999px; background: #141519cc; font-size: 13px; font-weight: 600">{{label}}</span><button type="button" class="btn" style="position: absolute; right: 14px; bottom: 14px; min-height: 34px" onClick="{{replay}}">Play it again</button>
         </div>
         <div class="card" style="display: flex; flex-wrap: wrap; gap: 18px">
           <sc-for list="{{tunes}}" as="t" hint-placeholder-count="3"><label class="fld" style="flex: 1 1 180px">{{t.name}} · {{t.val}}<input type="range" min="1" max="10" value="{{t.val}}" onInput="{{t.set}}" style="accent-color: #ffcc00"></label></sc-for>
@@ -99,8 +99,11 @@ class Component extends DCLogic {
     super(props);
     this.M = [['Jump', 'A', true], ['Double jump', 'A in the air', false], ['Back flip', 'Hold Defend + A', true], ['Roll / dodge', 'B while moving', true], ['Defend', 'Hold R', true], ['Climb', 'Walk into a wall', true], ['Push and pull', 'Hold near a block', true], ['Lift and throw', 'B near a pot', true], ['Sprint', 'Hold L', false], ['Glide', 'Hold A when falling', false], ['Swim', 'Automatic in water', true], ['Dive under', 'B while swimming', true]];
     this.state = { cur: 'Back flip', on: Object.fromEntries(this.M.map((m) => [m[0], m[2]])), t: 0, water: 'River', current: 4, air: 20, tune: { 'Jump height': 6, 'Run speed': 5, 'Swim speed': 4 } };
-    this.tm = setInterval(() => this.setState({ t: (this.state.t + 0.025) % 1 }), 40);
+    this.state.t = 0.5;
   }
+  tick() { this.setState({ t: (this.state.t + 0.025) % 1 }); }
+  kick(ms) { this.until = Date.now() + (ms || 4000); if (this.tm) return; this.tm = setInterval(() => { if (Date.now() > this.until) { clearInterval(this.tm); this.tm = null; return; } this.tick(); }, 40); }
+
   renderVals() {
     const s = this.state;
     const t = s.t; const cur = s.cur;
@@ -124,7 +127,7 @@ class Component extends DCLogic {
     return {
       moves: this.M.map((m) => ({ name: m[0], btn: s.on[m[0]] ? btn(m) : 'Off',
         row: 'display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; cursor: pointer; background: ' + (m[0] === cur ? '#3a3420' : '#24262d') + '; box-shadow: ' + (m[0] === cur ? 'inset 0 0 0 2px #ffcc00' : 'none'),
-        pick: () => this.setState({ cur: m[0], t: 0 }),
+        pick: () => { this.setState({ cur: m[0], t: 0 }); this.kick(4000); },
         flip: (e) => { e.stopPropagation(); this.setState({ on: Object.assign({}, s.on, { [m[0]]: !s.on[m[0]] }) }); },
         track: H.track(s.on[m[0]]) + '; border: none; cursor: pointer', knob: H.knob(s.on[m[0]]) })),
       sky: 'position: relative; height: 420px; border-radius: 20px; overflow: hidden; background: ' + (water && s.water === 'Sea' ? 'linear-gradient(#7cb7e6 0 50%, #0b3550 50%)' : 'linear-gradient(#7cb7e6, #bfe0f7)'),
@@ -134,9 +137,9 @@ class Component extends DCLogic {
       block: 'position: absolute; left: ' + (cur === 'Push and pull' ? 260 + t * 160 : 300 + (t > 0.5 ? (t - 0.5) * 500 : 0)) + 'px; top: ' + (cur === 'Lift and throw' ? (t < 0.5 ? 200 : 200 - Math.sin((t - 0.5) * 2 * Math.PI) * 80) : 280) + 'px; width: 60px; height: 60px; border-radius: 8px; background: ' + (cur === 'Lift and throw' ? '#c9893f' : '#a3a9b4'),
       fig: 'position: absolute; left: ' + x + 'px; top: ' + y + 'px; display: flex; flex-direction: column; align-items: center; transform: rotate(' + rot + 'deg)' + (cur === 'Swim' || cur === 'Dive under' || cur === 'Glide' ? ' rotate(80deg)' : '') + (cur === 'Defend' ? '; box-shadow: 24px 0 0 -6px #c9893f' : ''),
       airShow: cur === 'Dive under', air: Array.from({ length: 6 }, (_, i) => 'width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; background: ' + (i < airLeft ? '#7cc7ff' : 'transparent')),
-      label: cur + (s.on[cur] ? '' : ' · turned off'),
+      label: cur + (s.on[cur] ? '' : ' · turned off'), replay: () => { this.setState({ t: 0 }); this.kick(4000); },
       tunes: Object.keys(s.tune).map((k) => ({ name: k, val: s.tune[k], set: (e) => this.setState({ tune: Object.assign({}, s.tune, { [k]: +e.target.value }) }) })),
-      waters: [['Pool', 'Calm, see the bottom'], ['River', 'Pushes you along'], ['Sea', 'Deep, waves, air meter'], ['Lava', 'Hurts! Needs a fire suit']].map(([n, d]) => ({ name: n, desc: d, style: H.card(n === s.water), pick: () => this.setState({ water: n, cur: n === 'Sea' ? 'Dive under' : 'Swim', t: 0 }) })),
+      waters: [['Pool', 'Calm, see the bottom'], ['River', 'Pushes you along'], ['Sea', 'Deep, waves, air meter'], ['Lava', 'Hurts! Needs a fire suit']].map(([n, d]) => ({ name: n, desc: d, style: H.card(n === s.water), pick: () => { this.setState({ water: n, cur: n === 'Sea' ? 'Dive under' : 'Swim', t: 0 }); this.kick(4000); } })),
       current: s.current, setCurrent: (e) => this.setState({ current: +e.target.value }),
       airSec: s.air, setAir: (e) => this.setState({ air: +e.target.value }),
       undo: () => {}

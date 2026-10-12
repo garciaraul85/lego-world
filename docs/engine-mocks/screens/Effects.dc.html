@@ -55,10 +55,10 @@ a{color:#ffcc00}a:hover{color:#ffd633}
         <sc-for list="{{mine}}" as="p" hint-placeholder-count="1"><span class="chip" style="cursor: default">{{p}}</span></sc-for>
       </aside>
       <section style="flex: 999 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
-        <div style="position: relative; height: 560px; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 70%, #2a2d36, #101114 75%)">
+        <div style="position: relative; height: 560px; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 70%, #2a2d36, #101114 75%)" onMouseEnter="{{hoverPlay}}" onMouseMove="{{hoverPlay}}">
           <span style="position: absolute; left: calc(50% - 40px); top: 440px; width: 80px; height: 30px; border-radius: 8px; background: #3a3d45"></span>
           <sc-for list="{{parts}}" as="q" hint-placeholder-count="40"><span style="{{q}}"></span></sc-for>
-          <span style="position: absolute; left: 16px; top: 14px; font-size: 13px; color: #9ea3ad">{{fxName}} · live preview</span>
+          <span style="position: absolute; left: 16px; top: 14px; font-size: 13px; color: #9ea3ad">{{fxName}} · point here to play it</span>
         </div>
         <div class="card" style="display: flex; flex-wrap: wrap; gap: 18px; align-items: center">
           <span class="lbl">Colours</span>
@@ -105,8 +105,11 @@ class Component extends DCLogic {
       Rain: { amount: 40, size: 6, speed: 90, spread: 400, height: 400, a: '#7cc7ff', b: '#7cc7ff', shape: 'Dots', dir: 'Down' }
     };
     this.state = Object.assign({ name: 'Fire', t: 0, mine: ['Torch fire (yours)'], toast: null }, this.P.Fire);
-    this.tm = setInterval(() => this.setState({ t: (this.state.t + 0.02) % 1000 }), 40);
+    this.state.t = 0.37;
   }
+  tick() { this.setState({ t: (this.state.t + 0.02) % 1000 }); }
+  kick(ms) { this.until = Date.now() + (ms || 4000); if (this.tm) return; this.tm = setInterval(() => { if (Date.now() > this.until) { clearInterval(this.tm); this.tm = null; return; } this.tick(); }, 40); }
+
   renderVals() {
     const s = this.state;
     const mix = (a, b, f) => { const p = (h, i) => parseInt(h.substr(1 + i * 2, 2), 16); return '#' + [0, 1, 2].map((i) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * f).toString(16).padStart(2, '0')).join(''); };
@@ -124,8 +127,8 @@ class Component extends DCLogic {
     });
     const pal = [['White', '#ffffff'], ['Yellow', '#ffcc00'], ['Orange', '#ff8a3d'], ['Red', '#e8463c'], ['Blue', '#7cc7ff'], ['Purple', '#a78bfa'], ['Grey', '#8b93a3'], ['Dark', '#2f3440']];
     return {
-      presets: Object.keys(this.P).map((n) => ({ name: n, pick: () => this.setState(Object.assign({ name: n }, this.P[n])), style: H.card(n === s.name) + '; align-items: center; font-size: 12px; padding: 10px 4px', sw: 'width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(' + this.P[n].a + ', ' + this.P[n].b + ')' })),
-      mine: s.mine, parts, fxName: s.name,
+      presets: Object.keys(this.P).map((n) => ({ name: n, pick: () => { this.setState(Object.assign({ name: n }, this.P[n])); this.kick(3000); }, style: H.card(n === s.name) + '; align-items: center; font-size: 12px; padding: 10px 4px', sw: 'width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(' + this.P[n].a + ', ' + this.P[n].b + ')' })),
+      mine: s.mine, parts, fxName: s.name, hoverPlay: () => this.kick(1500),
       c1: pal.map(([n, c]) => ({ name: n, style: H.sw(c, s.a === c, 26), pick: () => this.setState({ a: c }) })),
       c2: pal.map(([n, c]) => ({ name: n, style: H.sw(c, s.b === c, 26), pick: () => this.setState({ b: c }) })),
       sliders: [['amount', 'Amount', 4, 40], ['size', 'Size', 4, 40], ['speed', 'Speed', 10, 100], ['spread', 'Spread', 10, 400], ['height', 'How far it goes', 40, 400]].map(([k, n, mn, mx]) => ({ name: n, min: mn, max: mx, val: s[k], set: (e) => this.setState({ [k]: +e.target.value }) })),
