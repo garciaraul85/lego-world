@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Effects</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif">
+  <dc-import name="Nav" active="build" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Effects</span><span style="font-size: 13px; color: #9ea3ad">Pick one, then change it with simple sliders</span></div>
+      
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <button type="button" class="btn pri" onClick="{{saveFx}}">Save as new effect</button>
+    </header>
+    <dc-import name="Sub" group="build" active="Effects" hint-size="900px,46px"></dc-import>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <aside class="card" style="flex: 0 0 230px; display: flex; flex-direction: column; gap: 8px">
+        <span class="lbl">Start from</span>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"><sc-for list="{{presets}}" as="p" hint-placeholder-count="8"><button type="button" style="{{p.style}}" onClick="{{p.pick}}"><span style="{{p.sw}}"></span>{{p.name}}</button></sc-for></div>
+        <span class="lbl" style="margin-top: 10px">Yours</span>
+        <sc-for list="{{mine}}" as="p" hint-placeholder-count="1"><span class="chip" style="cursor: default">{{p}}</span></sc-for>
+      </aside>
+      <section style="flex: 999 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="position: relative; height: 560px; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 70%, #2a2d36, #101114 75%)">
+          <span style="position: absolute; left: calc(50% - 40px); top: 440px; width: 80px; height: 30px; border-radius: 8px; background: #3a3d45"></span>
+          <sc-for list="{{parts}}" as="q" hint-placeholder-count="40"><span style="{{q}}"></span></sc-for>
+          <span style="position: absolute; left: 16px; top: 14px; font-size: 13px; color: #9ea3ad">{{fxName}} · live preview</span>
+        </div>
+        <div class="card" style="display: flex; flex-wrap: wrap; gap: 18px; align-items: center">
+          <span class="lbl">Colours</span>
+          <div style="display: flex; gap: 6px; align-items: center"><span style="font-size: 13px; color: #9ea3ad">Start</span><sc-for list="{{c1}}" as="c" hint-placeholder-count="6"><button type="button" aria-label="{{c.name}}" style="{{c.style}}" onClick="{{c.pick}}"></button></sc-for></div>
+          <div style="display: flex; gap: 6px; align-items: center"><span style="font-size: 13px; color: #9ea3ad">End</span><sc-for list="{{c2}}" as="c" hint-placeholder-count="6"><button type="button" aria-label="{{c.name}}" style="{{c.style}}" onClick="{{c.pick}}"></button></sc-for></div>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 14px">
+        <sc-for list="{{sliders}}" as="sl" hint-placeholder-count="5"><label class="fld">{{sl.name}}<input type="range" min="{{sl.min}}" max="{{sl.max}}" value="{{sl.val}}" onInput="{{sl.set}}" style="accent-color: #ffcc00"></label></sc-for>
+        <div class="fld">Pieces look like<div style="display: flex; gap: 6px"><sc-for list="{{shapes}}" as="g" hint-placeholder-count="3"><button type="button" style="{{g.style}}" onClick="{{g.pick}}">{{g.name}}</button></sc-for></div></div>
+        <div class="fld">Direction<div style="display: flex; gap: 6px"><sc-for list="{{dirs}}" as="g" hint-placeholder-count="3"><button type="button" style="{{g.style}}" onClick="{{g.pick}}">{{g.name}}</button></sc-for></div></div>
+        <div class="fld">Plays<select class="inp"><option>Always</option><option>When hit</option><option>When picked up</option><option>When a rule says so</option></select></div>
+        <span style="font-size: 13px; color: #9ea3ad; line-height: 1.5">Use it by dragging it from Scene › Library › Effects onto anything.</span>
+      </aside>
+      <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}"><div class="toast">{{toast.text}}<button type="button" class="btn" style="min-height: 34px" onClick="{{undo}}">Undo</button></div></sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.P = {
+      Fire: { amount: 30, size: 14, speed: 60, spread: 40, height: 200, a: '#ffd633', b: '#e8463c', shape: 'Dots', dir: 'Up' },
+      Sparkles: { amount: 20, size: 8, speed: 30, spread: 120, height: 120, a: '#ffffff', b: '#ffcc00', shape: 'Stars', dir: 'All around' },
+      Smoke: { amount: 18, size: 30, speed: 25, spread: 60, height: 260, a: '#8b93a3', b: '#2f3440', shape: 'Dots', dir: 'Up' },
+      Splash: { amount: 26, size: 10, speed: 70, spread: 140, height: 140, a: '#7cc7ff', b: '#3b78c9', shape: 'Dots', dir: 'Up' },
+      Magic: { amount: 30, size: 9, speed: 40, spread: 90, height: 220, a: '#a78bfa', b: '#ff7eb6', shape: 'Stars', dir: 'All around' },
+      Explosion: { amount: 40, size: 16, speed: 90, spread: 220, height: 200, a: '#ffcc00', b: '#2f3440', shape: 'Bricks', dir: 'All around' },
+      'Brick burst': { amount: 24, size: 14, speed: 80, spread: 160, height: 160, a: '#e8463c', b: '#ffcc00', shape: 'Bricks', dir: 'All around' },
+      Rain: { amount: 40, size: 6, speed: 90, spread: 400, height: 400, a: '#7cc7ff', b: '#7cc7ff', shape: 'Dots', dir: 'Down' }
+    };
+    this.state = Object.assign({ name: 'Fire', t: 0, mine: ['Torch fire (yours)'], toast: null }, this.P.Fire);
+    this.tm = setInterval(() => this.setState({ t: (this.state.t + 0.02) % 1000 }), 40);
+  }
+  renderVals() {
+    const s = this.state;
+    const mix = (a, b, f) => { const p = (h, i) => parseInt(h.substr(1 + i * 2, 2), 16); return '#' + [0, 1, 2].map((i) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * f).toString(16).padStart(2, '0')).join(''); };
+    const cx = 330, cy = 440;
+    const parts = Array.from({ length: Math.min(40, Math.round(s.amount)) }, (_, i) => {
+      const seed = Math.sin(i * 12.9898) * 43758.5453; const r = seed - Math.floor(seed);
+      const age = (s.t * s.speed / 20 + i / s.amount) % 1;
+      let x, y;
+      if (s.dir === 'Up') { x = cx + (r - 0.5) * s.spread * (0.4 + age); y = cy - age * s.height; }
+      else if (s.dir === 'Down') { x = cx + (r - 0.5) * s.spread * 2; y = 20 + age * 420; }
+      else { const ang = r * Math.PI * 2; x = cx + Math.cos(ang) * s.spread * age; y = cy - 80 + Math.sin(ang) * s.spread * age * 0.8 + age * age * 60; }
+      const sz = s.size * (1 - age * 0.5);
+      const rad = s.shape === 'Dots' ? '50%' : s.shape === 'Bricks' ? '3px' : '2px';
+      return 'position: absolute; left: ' + x + 'px; top: ' + y + 'px; width: ' + sz + 'px; height: ' + (s.shape === 'Bricks' ? sz * 0.8 : sz) + 'px; border-radius: ' + rad + '; opacity: ' + (1 - age).toFixed(2) + '; background: ' + mix(s.a, s.b, age) + (s.shape === 'Stars' ? '; transform: rotate(45deg); box-shadow: 0 0 8px ' + s.a : '');
+    });
+    const pal = [['White', '#ffffff'], ['Yellow', '#ffcc00'], ['Orange', '#ff8a3d'], ['Red', '#e8463c'], ['Blue', '#7cc7ff'], ['Purple', '#a78bfa'], ['Grey', '#8b93a3'], ['Dark', '#2f3440']];
+    return {
+      presets: Object.keys(this.P).map((n) => ({ name: n, pick: () => this.setState(Object.assign({ name: n }, this.P[n])), style: H.card(n === s.name) + '; align-items: center; font-size: 12px; padding: 10px 4px', sw: 'width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(' + this.P[n].a + ', ' + this.P[n].b + ')' })),
+      mine: s.mine, parts, fxName: s.name,
+      c1: pal.map(([n, c]) => ({ name: n, style: H.sw(c, s.a === c, 26), pick: () => this.setState({ a: c }) })),
+      c2: pal.map(([n, c]) => ({ name: n, style: H.sw(c, s.b === c, 26), pick: () => this.setState({ b: c }) })),
+      sliders: [['amount', 'Amount', 4, 40], ['size', 'Size', 4, 40], ['speed', 'Speed', 10, 100], ['spread', 'Spread', 10, 400], ['height', 'How far it goes', 40, 400]].map(([k, n, mn, mx]) => ({ name: n, min: mn, max: mx, val: s[k], set: (e) => this.setState({ [k]: +e.target.value }) })),
+      shapes: ['Dots', 'Bricks', 'Stars'].map((g) => ({ name: g, style: H.pick(g === s.shape) + '; flex: 1 1 0; font-size: 13px; text-align: center', pick: () => this.setState({ shape: g }) })),
+      dirs: ['Up', 'All around', 'Down'].map((g) => ({ name: g, style: H.pick(g === s.dir) + '; flex: 1 1 0; font-size: 13px; padding: 0 6px; text-align: center', pick: () => this.setState({ dir: g }) })),
+      saveFx: () => this.setState({ mine: s.mine.concat([s.name + ' (yours)']), toast: 'Saved. It is in Scene › Library › Effects.' }),
+      toast: H.toast(s.toast),
+      undo: () => this.setState({ toast: null })
+    };
+  }
+}
+</script>
+</body>
+</html>

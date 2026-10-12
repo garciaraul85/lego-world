@@ -1,0 +1,99 @@
+Learn
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif">
+  <dc-import name="Nav" active="tutorial" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; gap: 14px; padding: 20px">
+    <aside class="card" style="flex: 0 0 280px; display: flex; flex-direction: column; gap: 6px; padding: 16px; box-sizing: border-box">
+      <span class="lbl" style="padding: 4px 8px 8px">Courses</span>
+      <sc-for list="{{courses}}" as="c" hint-placeholder-count="8">
+        <button type="button" style="{{c.style}}" onClick="{{c.pick}}">
+          <span style="display: flex; justify-content: space-between; width: 100%"><span>{{c.name}}</span><span style="color: #9ea3ad; font-size: 12px">{{c.count}}</span></span>
+          <span style="width: 100%; height: 5px; border-radius: 3px; background: #33363e; position: relative; overflow: hidden"><span style="{{c.bar}}"></span></span>
+        </button>
+      </sc-for>
+    </aside>
+    <section style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+        <div style="flex: 1 1 auto"><span style="font-size: 13px; color: #9ea3ad">{{course}} · lesson {{lessonN}} of 6</span><h1 style="margin: 4px 0 0; font-size: 28px; font-weight: 800">{{lesson}}</h1></div>
+        <div class="seg"><button type="button" class="{{watchCls}}" onClick="{{watch}}">1 · Watch</button><button type="button" class="{{doCls}}" onClick="{{yourTurn}}">2 · Your turn</button></div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 14px">
+        <div style="flex: 999 1 560px; min-width: 0; position: relative; border-radius: 20px; overflow: hidden; background: #1d1f25; height: 620px">
+          <div style="{{stage}}" onDragOver="{{allow}}" onDrop="{{drop}}" onDragEnter="{{enter}}" onDragLeave="{{leave}}">
+            <span style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 14px; color: #ffffff99; pointer-events: none">{{stageHint}}</span>
+            <sc-if value="{{placed}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; left: 330px; top: 170px; display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 48px; height: 48px; border-radius: 10px; background: #c9893f; box-shadow: 0 0 0 3px #ffcc00"></span><span style="font-size: 12px; font-weight: 600">Chest</span></div></sc-if>
+          </div>
+          <div style="position: absolute; left: 16px; right: 16px; bottom: 16px; height: 120px; border-radius: 16px; background: #24262d; display: flex; gap: 10px; align-items: center; padding: 0 16px">
+            <div style="{{tileStyle}}" draggable="{{canDrag}}" onDragStart="{{dstart}}"><span style="width: 44px; height: 36px; border-radius: 9px; background: #c9893f"></span>Chest</div>
+            <div class="tilelib" style="opacity: .5; cursor: default"><span style="width: 44px; height: 36px; border-radius: 9px; background: #8a5a2b"></span>Door</div>
+            <div class="tilelib" style="opacity: .5; cursor: default"><span style="width: 44px; height: 36px; border-radius: 9px; background: #3f8f4a"></span>Tree</div>
+          </div>
+          <sc-if value="{{ghost.show}}" hint-placeholder-val="{{ false }}">
+            <div style="{{ghost.style}}"><svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2l16 10-7 1.5L9.5 21z" fill="#fff" stroke="#141519" stroke-width="1.5"></path></svg><sc-if value="{{ghost.carry}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; left: 18px; top: 18px; width: 44px; height: 36px; border-radius: 9px; background: #c9893f; opacity: .85"></span></sc-if></div>
+          </sc-if>
+          <div style="{{bubble}}">{{bubbleText}}</div>
+          <sc-if value="{{success}}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; inset: 0; background: #141519cc; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px">
+              <span style="width: 64px; height: 64px; border-radius: 50%; background: #45c46e; color: #141519; font-size: 32px; font-weight: 800; display: flex; align-items: center; justify-content: center">✓</span>
+              <span style="font-size: 26px; font-weight: 800">You did it!</span>
+              <span style="color: #b4b9c2">That's how everything gets into your world: drag it in.</span>
+              <button type="button" class="btn pri" onClick="{{next}}">Next lesson: Right-click for more</button>
+            </div>
+          </sc-if>
+        </div>
+        <div class="card" style="flex: 1 1 260px; max-width: 320px; display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">In this lesson</span>
+          <sc-for list="{{steps}}" as="s" hint-placeholder-count="3"><div style="{{s.style}}"><b style="{{s.dot}}">{{s.mark}}</b><span>{{s.t}}</span></div></sc-for>
+          <span style="font-size: 13px; color: #9ea3ad; margin-top: 8px; line-height: 1.5">Want something specific? Ask Brix — it can show you, or do it for you while you watch.</span>
+          <a class="btn" href="Brix.dc.html">Ask Brix</a>
+          <a href="Help.dc.html" style="font-size: 14px">Read the Library drawer page</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<!--SCRIPT-->
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { course: 'Scene', phase: 'watch', t: 0, placed: false, over: false, success: false, lessonN: 1 };
+    setTimeout(() => { if (this.beginWatch) this.beginWatch(); }, 500);
+  }
+  renderVals() {
+    const s = this.state;
+    const lessons = ['Drag things in', 'Right-click for more', 'Move and snap', 'Attach a script', 'Undo anything', 'Play your room'];
+    const courses = [['Your first 5 minutes', 5, 5], ['Scene', 1, 6], ['Build', 0, 5], ['World', 0, 4], ['Logic', 0, 6], ['Characters', 0, 6], ['Animate', 0, 4], ['Cutscenes', 0, 4], ['Dialogue', 0, 4], ['Audio', 0, 3], ['Screens', 0, 4], ['Gear', 0, 5], ['Game settings', 0, 4], ['Play & checks', 0, 3]];
+    const from = [52, 500], to = [350, 190];
+    const t = s.t;
+    const gx = t < 0.2 ? from[0] : t < 0.85 ? from[0] + (to[0] - from[0]) * (t - 0.2) / 0.65 : to[0];
+    const gy = t < 0.2 ? from[1] : t < 0.85 ? from[1] + (to[1] - from[1]) * (t - 0.2) / 0.65 : to[1];
+    const step = s.phase === 'watch' ? (t < 0.2 ? 0 : t < 0.85 ? 1 : 2) : s.success ? 3 : s.over ? 2 : 1;
+    const startWatch = () => { clearInterval(this.tm); this.setState({ phase: 'watch', t: 0, placed: false, success: false }); this.tm = setInterval(() => { const nt = this.state.t + 0.02; if (nt >= 1) { clearInterval(this.tm); this.setState({ t: 1, placed: true }); } else this.setState({ t: nt, placed: nt > 0.85 }); }, 50); };
+    this.beginWatch = startWatch;
+    return {
+      courses: courses.map(([n, d, tot]) => ({ name: n, count: d + '/' + tot, pick: () => this.setState({ course: n === 'Your first 5 minutes' ? 'Scene' : n, lessonN: 1, success: false }),
+        bar: 'position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: ' + (d === tot ? '#45c46e' : '#ffcc00') + '; width: ' + (d / tot * 100) + '%',
+        style: 'display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; color: #f2f2f4; text-align: left; background: ' + (n === s.course ? '#24262d' : 'transparent') + '; box-shadow: ' + (n === s.course ? 'inset 0 0 0 2px #ffcc00' : 'none') })),
+      course: s.course, lessonN: s.lessonN, lesson: lessons[s.lessonN - 1],
+      watchCls: s.phase === 'watch' ? 'ltab lon' : 'ltab', doCls: s.phase === 'do' ? 'ltab lon' : 'ltab',
+      watch: startWatch,
+      yourTurn: () => { clearInterval(this.tm); this.setState({ phase: 'do', placed: false, success: false, t: 0 }); },
+      stage: 'position: absolute; left: 16px; right: 16px; top: 16px; bottom: 152px; border-radius: 14px; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px; outline: ' + (s.over ? '4px dashed #ffcc00' : 'none') + '; outline-offset: -4px',
+      stageHint: s.phase === 'do' && !s.placed ? 'Drop it anywhere here' : '',
+      placed: s.placed,
+      tileStyle: 'display: flex; flex-direction: column; align-items: center; gap: 8px; width: 96px; padding: 10px 6px; border-radius: 14px; background: #2c2f37; font: 600 12px Figtree, sans-serif; user-select: none; cursor: ' + (s.phase === 'do' ? 'grab' : 'default') + '; box-shadow: ' + (s.phase === 'do' && !s.placed || (s.phase === 'watch' && t < 0.3) ? '0 0 0 3px #ffcc00, 0 0 24px #ffcc0088' : 'none'),
+      canDrag: s.phase === 'do' ? 'true' : 'false',
+      dstart: (e) => e.dataTransfer.setData('text/plain', 'Chest'),
+      allow: (e) => e.preventDefault(),
+      enter: () => { if (s.phase === 'do') this.setState({ over: true }); }, leave: () => this.setState({ over: false }),
+      drop: (e) => { e.preventDefault(); if (s.phase !== 'do') return; this.setState({ placed: true, over: false }); setTimeout(() => this.setState({ success: true }), 500); },
+      ghost: s.phase === 'watch' && t > 0 && t < 1 ? { show: true, carry: t > 0.2 && t < 0.85, style: 'position: absolute; left: ' + gx + 'px; top: ' + gy + 'px; pointer-events: none; z-index: 5' } : { show: false },
+      bubble: 'position: absolute; z-index: 6; max-width: 280px; padding: 12px 14px; border-radius: 14px; background: #ffcc00; color: #141519; font-size: 15px; font-weight: 600; line-height: 1.4; box-shadow: 0 10px 30px #0008; ' + (step <= 1 && s.phase === 'watch' ? 'left: 140px; top: 400px' : 'right: 30px; top: 30px'),
+      bubbleText: s.phase === 'watch' ? ['This drawer holds everything you can add.', 'Press on Chest and drag it up…', '…let go on the ground. Done! Now you try.'][Math.min(step, 2)] : s.placed ? 'Perfect.' : 'Drag the glowing Chest onto the ground.',
+      steps: ['Find Chest in the drawer', 'Drag it onto the stage', 'Let go to place it'].map((tx, i) => ({ t: tx, mark: i < step ? '✓' : i + 1,
+        style: 'display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: 12px; font-size: 15px; background: ' + (i === step ? '#3a3420' : 'transparent'),
+        dot: 'flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #141519; background: ' + (i < step ? '#45c46e' : i === step ? '#ffcc00' : '#33363e') })),
+      success: s.success,
+      next: () => { this.setState({ lessonN: Math.min(6, s.lessonN + 1), success: false, placed: false, phase: 'watch' }); startWatch(); }
+    };
+  }
+}

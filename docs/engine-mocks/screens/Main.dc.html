@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.tile{display:flex;flex-direction:column;justify-content:flex-end;gap:4px;min-height:150px;padding:18px;border-radius:18px;background:#1d1f25;color:#f2f2f4;text-decoration:none;position:relative;overflow:hidden}
+.tile:hover{background:#24262d}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 15px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif">
+  <dc-import name="Nav" active="home" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 56px; display: flex; flex-direction: column; gap: 36px; box-sizing: border-box; max-width: 1344px">
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 20px">
+      <div>
+        <h1 style="margin: 0; font-size: 44px; font-weight: 800; letter-spacing: -0.02em">What are you making?</h1>
+        <p style="margin: 8px 0 0; font-size: 18px; color: #b4b9c2">Pick one. You'll only see the tools it needs.</p>
+      </div>
+      <a class="btn" href="Scene.dc.html">Open everything</a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+      <sc-for list="{{genres}}" as="g" hint-placeholder-count="8">
+        <a class="tile" href="Scene.dc.html">
+          <span style="{{g.art}}"></span>
+          <span style="font-size: 19px; font-weight: 700; position: relative">{{g.name}}</span>
+          <span style="font-size: 14px; color: #b4b9c2; position: relative">{{g.blurb}}</span>
+        </a>
+      </sc-for>
+    </div>
+    <a href="Genre.dc.html" style="font-size: 15px; font-weight: 600; align-self: flex-start">Show all 35 genres</a>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 16px">
+      <div style="flex: 2 1 420px; background: #1d1f25; border-radius: 18px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 10px; background: #ffcc00; position: relative; flex: 0 0 auto"><span style="position: absolute; top: 14px; left: 10px; width: 5px; height: 7px; border-radius: 3px; background: #141519"></span><span style="position: absolute; top: 14px; right: 10px; width: 5px; height: 7px; border-radius: 3px; background: #141519"></span></span>
+          <span style="font-size: 17px; font-weight: 700">Or just tell Brix</span>
+        </div>
+        <label style="display: flex; gap: 10px; flex-wrap: wrap">
+          <span style="position: absolute; left: -9999px">Describe your game</span>
+          <input placeholder="A dungeon where you build bridges out of bricks" style="flex: 1 1 280px; min-height: 48px; padding: 0 16px; border-radius: 12px; border: none; background: #141519; color: #f2f2f4; font: 16px 'Figtree', sans-serif">
+          <a class="btn pri" href="Brix.dc.html">Start</a>
+        </label>
+      </div>
+      <div style="flex: 1 1 280px; background: #1d1f25; border-radius: 18px; padding: 22px; display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 13px; font-weight: 700; color: #9ea3ad; letter-spacing: .06em; text-transform: uppercase">Recent</span>
+        <a href="Scene.dc.html" style="display: flex; justify-content: space-between; padding: 10px 0; color: #f2f2f4; text-decoration: none; font-size: 16px"><span>Little dungeon</span><span style="color: #9ea3ad">Adventure</span></a>
+        <a href="Scene.dc.html" style="display: flex; justify-content: space-between; padding: 10px 0; color: #f2f2f4; text-decoration: none; font-size: 16px"><span>Meadow Coins</span><span style="color: #9ea3ad">Explore</span></a>
+        <a href="Tutorial.dc.html" style="display: flex; justify-content: space-between; padding: 10px 0; color: #f2f2f4; text-decoration: none; font-size: 16px"><span>New here? Take the 5-minute tour</span><span style="color: #ffcc00">Learn</span></a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const art = (c1, c2) => 'position: absolute; right: -20px; top: -20px; width: 140px; height: 110px; border-radius: 22px; background: ' + c1 + '; box-shadow: -30px 40px 0 -10px ' + c2 + '; opacity: .9';
+    return {
+      genres: [
+        { name: 'Adventure', blurb: 'Dungeons, tools, bosses', art: art('#3b78c9', '#ffcc00') },
+        { name: 'Platformer', blurb: 'Run, jump, collect stars', art: art('#e8463c', '#45c46e') },
+        { name: 'Racing', blurb: 'Build tracks and cars', art: art('#ffcc00', '#e8463c') },
+        { name: 'Puzzle', blurb: 'Blocks, switches, keys', art: art('#45c46e', '#3b78c9') },
+        { name: 'RPG', blurb: 'Party, quests, battles', art: art('#a78bfa', '#ffcc00') },
+        { name: 'Shooter', blurb: 'Blasters and waves', art: art('#ff8a3d', '#3b78c9') },
+        { name: 'Story', blurb: 'Choices and endings', art: art('#ff7eb6', '#a78bfa') },
+        { name: 'Sports', blurb: 'Soccer, mini golf, more', art: art('#45c46e', '#ffcc00') }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

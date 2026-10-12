@@ -1,0 +1,67 @@
+Share
+{"nav":"game","group":"game","sub":"Share","h":"Share your game","s":"Pick a cover, check it, then choose who can play","undo":false,"primary":"<button type=\"button\" class=\"btn pri\" onClick=\"{{publish}}\">{{pubLabel}}</button>"}
+      <section style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-wrap: wrap; gap: 18px">
+          <div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 10px">
+            <span style="{{cover}}"><span style="position: absolute; left: 16px; bottom: 14px; font-size: 26px; font-weight: 800; text-shadow: 0 2px 6px #000">{{title}}</span></span>
+            <div style="display: flex; gap: 8px"><sc-for list="{{covers}}" as="c" hint-placeholder-count="4"><button type="button" aria-label="Cover option" style="{{c.style}}" onClick="{{c.pick}}"></button></sc-for><button type="button" class="btn" style="min-height: 48px" onClick="{{shot}}">Use a screenshot</button></div>
+          </div>
+          <div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 12px">
+            <label class="fld">Name<input class="inp" value="{{title}}" onInput="{{setTitle}}"></label>
+            <label class="fld">What's it about?<textarea class="inp" style="min-height: 90px; padding: 10px 12px; resize: vertical" onInput="{{setDesc}}" value="{{desc}}"></textarea></label>
+            <div class="fld">Tags<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{tags}}" as="t" hint-placeholder-count="5"><button type="button" style="{{t.style}}" onClick="{{t.flip}}">{{t.name}}</button></sc-for></div></div>
+          </div>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="lbl">Before you share</span>
+          <sc-for list="{{checks}}" as="c" hint-placeholder-count="4"><div style="display: flex; gap: 10px; align-items: center; font-size: 14px"><span style="{{c.dot}}">{{c.mark}}</span><span style="flex: 1 1 auto">{{c.text}}</span><a href="{{c.href}}" style="font-size: 13px">{{c.link}}</a></div></sc-for>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 300px; max-width: 360px; display: flex; flex-direction: column; gap: 14px">
+        <span class="lbl">Who can play</span>
+        <div style="display: flex; flex-direction: column; gap: 6px"><sc-for list="{{who}}" as="w" hint-placeholder-count="3"><button type="button" style="{{w.style}}" onClick="{{w.pick}}"><b>{{w.name}}</b><span style="font-size: 12px; opacity: .85">{{w.desc}}</span></button></sc-for></div>
+        <sc-for list="{{opts}}" as="o" hint-placeholder-count="2"><button type="button" onClick="{{o.flip}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer; text-align: left"><span style="display: flex; flex-direction: column"><span>{{o.name}}</span><span style="font-size: 12px; color: #9ea3ad">{{o.desc}}</span></span><span style="{{o.track}}"><span style="{{o.knob}}"></span></span></button></sc-for>
+        <sc-if value="{{live}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; background: #1f3a2a">
+            <b style="color: #8ff0b0">It's live!</b>
+            <div style="display: flex; gap: 8px"><input class="inp" style="flex: 1 1 auto; font-size: 13px" readonly value="bricks.play/little-dungeon"><button type="button" class="btn" onClick="{{copy}}">{{copyLabel}}</button></div>
+            <div style="display: grid; grid-template-columns: repeat(9, 10px); gap: 2px; align-self: flex-start; padding: 8px; background: #fff; border-radius: 8px"><sc-for list="{{qr}}" as="q" hint-placeholder-count="81"><span style="{{q}}"></span></sc-for></div>
+            <span style="font-size: 13px; color: #b4b9c2">{{plays}}</span>
+          </div>
+        </sc-if>
+        <span class="lbl">Or download</span>
+        <div style="display: flex; gap: 8px"><button type="button" class="btn">Web page</button><button type="button" class="btn">Game file</button></div>
+      </aside>
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { title: 'Little dungeon', desc: 'Build bridges out of bricks, light the torches and beat the Stone King.', cover: 0, tags: { Adventure: true, Puzzle: true, 'For kids': true, Short: false, Hard: false }, who: 'Anyone with the link', remix: true, comments: false, live: false, copied: false };
+  }
+  renderVals() {
+    const s = this.state;
+    const C = [['#3b78c9', '#ffcc00'], ['#2d4a33', '#ff8a3d'], ['#3a1a5c', '#a78bfa'], ['#4a2d33', '#e8463c']];
+    const c = C[s.cover];
+    let seed = 7; const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    return {
+      cover: 'position: relative; display: block; height: 200px; border-radius: 16px; background: linear-gradient(135deg, ' + c[0] + ' 0 60%, ' + c[1] + ' 60% 100%)',
+      covers: C.map((x, i) => ({ style: 'width: 64px; height: 48px; border-radius: 10px; border: none; cursor: pointer; background: linear-gradient(135deg, ' + x[0] + ' 0 60%, ' + x[1] + ' 60% 100%); box-shadow: ' + (i === s.cover ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none'), pick: () => this.setState({ cover: i }) })),
+      shot: () => this.setState({ cover: 1 }),
+      title: s.title, setTitle: (e) => this.setState({ title: e.target.value }),
+      desc: s.desc, setDesc: (e) => this.setState({ desc: e.target.value }),
+      tags: Object.keys(s.tags).map((t) => ({ name: t, style: H.pick(s.tags[t]) + '; min-height: 30px; font-size: 13px; border-radius: 999px', flip: () => this.setState({ tags: Object.assign({}, s.tags, { [t]: !s.tags[t] }) }) })),
+      checks: [['ok', 'It can be finished from start to end', 'Play.dc.html', 'See checks'], ['warn', 'One boss key can be missed', 'Play.dc.html', 'Fix'], ['ok', 'Subtitles and colour help are on', 'Access.dc.html', 'Options'], ['ok', 'Credits screen has your name', 'Screens.dc.html', 'Edit']].map(([k, t, h, l]) => ({ text: t, href: h, link: l, mark: k === 'ok' ? '✓' : '!', dot: 'flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: #141519; background: ' + (k === 'ok' ? '#45c46e' : '#ffcc00') })),
+      who: [['Only me', 'Keep it private while you work'], ['Anyone with the link', 'Send the link to friends and family'], ['Everyone', 'Shows up in the game gallery']].map(([n, d]) => ({ name: n, desc: d, style: H.card(n === s.who), pick: () => this.setState({ who: n }) })),
+      opts: [['remix', 'Let others remix it', 'They get a copy to change; yours stays the same'], ['comments', 'Allow comments', 'Players can leave notes']].map(([k, n, d]) => ({ name: n, desc: d, flip: () => this.setState({ [k]: !s[k] }), track: H.track(s[k]), knob: H.knob(s[k]) })),
+      publish: () => this.setState({ live: true }),
+      pubLabel: s.live ? 'Update the shared game' : 'Share',
+      live: s.live,
+      copy: () => { try { navigator.clipboard.writeText('bricks.play/little-dungeon'); } catch (e) {} this.setState({ copied: true }); },
+      copyLabel: s.copied ? 'Copied' : 'Copy',
+      qr: Array.from({ length: 81 }, (_, i) => { const x = i % 9, y = Math.floor(i / 9); const corner = (x < 3 && y < 3) || (x > 5 && y < 3) || (x < 3 && y > 5); return 'width: 10px; height: 10px; background: ' + (corner ? ((x % 6 === 1 && y % 6 === 1) ? '#fff' : '#141519') : rnd() > 0.5 ? '#141519' : '#fff'); }),
+      plays: 'Played 0 times so far',
+      undo: () => {}
+    };
+  }
+}

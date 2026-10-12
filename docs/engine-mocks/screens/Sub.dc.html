@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sub-tabs</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+.sb{display:inline-flex;align-items:center;min-height:34px;padding:0 14px;border-radius:999px;color:#9ea3ad;text-decoration:none;font:600 14px 'Figtree',sans-serif;white-space:nowrap}
+.sb:hover{color:#f2f2f4;background:#1f2127}
+.sbon{color:#141519;background:#f2f2f4}
+.sbon:hover{color:#141519;background:#fff}
+</style>
+</helmet>
+<nav aria-label="{{label}}" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 0 20px 12px; font-family: 'Figtree', system-ui, sans-serif; background: #141519">
+  <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><a class="{{t.cls}}" href="{{t.href}}">{{t.name}}</a></sc-for>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"group":{"editor":null,"default":"cast"},"active":{"editor":null,"default":"Character"},"$preview":{"width":900,"height":46}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const G = {
+      scene: ['Scene', [['Scene', 'Scene'], ['Triggers', 'Trigger'], ['Build puzzles', 'Puzzle'], ['Lighting', 'Lighting']]],
+      build: ['Build', [['Bricks', 'Build'], ['Effects', 'Effects'], ['Starter packs', 'Packs']]],
+      logic: ['Logic', [['Rules', 'Logic'], ['Wiring', 'Wiring'], ['Quests', 'Quests']]],
+      cast: ['Cast', [['Character', 'Character'], ['Face', 'Face'], ['From a photo', 'Photo'], ['Skeleton', 'Skeleton'], ['Brain', 'Brain']]],
+      gear: ['Gear', [['Items & combat', 'Items'], ['Enemies & bosses', 'Enemies'], ['Vehicles', 'Vehicles']]],
+      game: ['Game', [['Genre & playbook', 'Genre'], ['Moves & water', 'Moves'], ['Racing & sports', 'Racing'], ['Accessibility', 'Access'], ['Save & versions', 'Save'], ['Share', 'Share']]]
+    };
+    const g = G[this.props.group] || G.cast;
+    const a = this.props.active;
+    return { label: g[0] + ' sections', tabs: g[1].map(([n, f]) => ({ name: n, href: f + '.dc.html', cls: n === a ? 'sb sbon' : 'sb' })) };
+  }
+}
+</script>
+</body>
+</html>

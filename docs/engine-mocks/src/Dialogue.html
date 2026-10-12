@@ -1,0 +1,139 @@
+Dialogue
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}">
+  <dc-import name="Nav" active="dialogue" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Old Mason · Shop</span><span style="font-size: 13px; color: #9ea3ad">Starts when the player talks to Old Mason</span></div>
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <button type="button" class="btn pri" onClick="{{startPreview}}">Try it</button>
+    </header>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section class="card" style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 20px 24px">
+        <span style="font-size: 13px; color: #9ea3ad">Click a line to edit it. Drag lines to reorder. Right-click for choices and conditions.</span>
+        <sc-for list="{{lines}}" as="l" hint-placeholder-count="5">
+          <div style="{{l.row}}" draggable="true" onDragStart="{{l.dstart}}" onDragOver="{{allow}}" onDrop="{{l.drop}}" onContextMenu="{{l.menu}}">
+            <span style="{{l.avatar}}"></span>
+            <div style="display: flex; flex-direction: column; gap: 6px; max-width: 70%">
+              <span style="{{l.whoStyle}}">{{l.who}}</span>
+              <sc-if value="{{l.hasCond}}" hint-placeholder-val="{{ false }}"><span class="chip" style="{{l.condStyle}}">{{l.cond}}</span></sc-if>
+              <sc-if value="{{l.editing}}" hint-placeholder-val="{{ false }}"><textarea class="inp" style="min-height: 64px; padding: 10px 12px; resize: vertical; width: 380px" onInput="{{l.edit}}" onBlur="{{l.done}}" value="{{l.text}}"></textarea></sc-if>
+              <sc-if value="{{l.showing}}" hint-placeholder-val="{{ true }}"><div style="{{l.bubble}}" onClick="{{l.startEdit}}">{{l.text}}</div></sc-if>
+              <sc-if value="{{l.hasChoices}}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end">
+                  <sc-for list="{{l.choices}}" as="c" hint-placeholder-count="2"><span style="padding: 8px 14px; border-radius: 12px; border: 2px solid #ffcc00; color: #ffcc00; font-size: 14px; font-weight: 600">{{c}}</span></sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+        <div style="display: flex; gap: 8px; margin-top: 4px">
+          <button type="button" class="btn" onClick="{{addMason}}">Old Mason says…</button>
+          <button type="button" class="btn" onClick="{{addHero}}">Player says…</button>
+          <button type="button" class="btn" onClick="{{addChoice}}">Give a choice</button>
+        </div>
+      </section>
+      <aside style="flex: 1 1 320px; max-width: 420px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <span class="lbl">Style</span>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px">
+            <sc-for list="{{styles}}" as="st" hint-placeholder-count="6"><button type="button" style="{{st.style}}" onClick="{{st.pick}}"><span style="{{st.thumb}}"></span>{{st.name}}</button></sc-for>
+          </div>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <span class="lbl">Preview</span>
+          <div style="position: relative; height: 230px; border-radius: 14px; overflow: hidden; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px" onClick="{{nextLine}}">
+            <span style="position: absolute; left: 40px; top: 50px; width: 44px; height: 44px; border-radius: 22px 22px 10px 10px; background: #6fb7f0"></span>
+            <span style="position: absolute; left: 130px; top: 70px; width: 44px; height: 44px; border-radius: 22px 22px 10px 10px; background: #e8463c"></span>
+            <div style="{{pv.box}}"><b style="{{pv.nameStyle}}">{{pv.who}}</b><span>{{pv.text}}</span></div>
+          </div>
+          <span style="font-size: 13px; color: #9ea3ad">Click the preview to go to the next line.</span>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Feel</span>
+          <label class="fld">Text speed<input type="range" min="1" max="10" value="6" style="accent-color: #ffcc00"></label>
+          <label class="fld">Blip sound<select class="inp"><option>Low brick click</option><option>None</option><option>High chirp</option></select></label>
+        </div>
+      </aside>
+      <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}">
+        <div class="menu" style="{{menu.style}}">
+          <span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">This line</span>
+          <sc-for list="{{menu.items}}" as="i" hint-placeholder-count="5"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </main>
+</div>
+<!--SCRIPT-->
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 10;
+    this.state = {
+      edit: null, menu: null, hist: [], style: 'Classic box', pv: 0, drag: null,
+      lines: [
+        { id: 'l1', who: 'Old Mason', text: 'Ah, a builder! Nobody crosses the chasm without a bridge.', cond: '', choices: [] },
+        { id: 'l2', who: 'Old Mason', text: 'I sell bricks. Three coins a bundle.', cond: '', choices: ['Buy a bundle', 'Maybe later'] },
+        { id: 'l3', who: 'Player', text: 'I\'ll take one.', cond: 'Only if Coins ≥ 3', choices: [] },
+        { id: 'l4', who: 'Old Mason', text: 'Fine work on that bridge, by the way.', cond: 'Only after Bridge pile is built', choices: [] }
+      ]
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const save = () => s.hist.concat([s.lines]).slice(-20);
+    const set = (lines, extra) => this.setState(Object.assign({ hist: save(), lines }, extra || {}));
+    const mod = (id, o) => set(s.lines.map((l) => (l.id === id ? Object.assign({}, l, o) : l)), { menu: null });
+    const ST = {
+      'Classic box': ['#141519ee', '#f2f2f4', '12px', '3px solid #f2f2f4', 'left: 12px; right: 12px; bottom: 12px'],
+      'Speech bubble': ['#ffffff', '#141519', '22px', 'none', 'left: 70px; right: 40px; top: 120px'],
+      Comic: ['#fff7c2', '#141519', '6px', '3px solid #141519', 'left: 20px; right: 60px; top: 120px'],
+      Typewriter: ['#000000dd', '#7cff9a', '0', 'none', 'left: 0; right: 0; bottom: 0'],
+      Cinematic: ['#000000', '#f2f2f4', '0', 'none', 'left: 0; right: 0; bottom: 0; text-align: center'],
+      'Brick panel': ['#ffcc00', '#141519', '10px', '4px solid #e6b800', 'left: 12px; right: 12px; bottom: 12px']
+    };
+    const pvLine = s.lines[s.pv % Math.max(1, s.lines.length)] || { who: '', text: '' };
+    const st = ST[s.style];
+    const m = s.menu; const ml = m ? s.lines.find((l) => l.id === m.id) : null;
+    return {
+      allow: (e) => e.preventDefault(),
+      lines: s.lines.map((l) => {
+        const hero = l.who === 'Player';
+        return {
+          who: l.who, text: l.text, cond: l.cond, hasCond: !!l.cond, choices: l.choices, hasChoices: l.choices.length > 0, condStyle: 'align-self: ' + (hero ? 'flex-end' : 'flex-start') + '; background: #3a3420; color: #ffd633; cursor: default',
+          editing: s.edit === l.id, showing: s.edit !== l.id,
+          row: 'display: flex; gap: 12px; align-items: flex-start; flex-direction: ' + (hero ? 'row-reverse' : 'row') + '; padding: 6px; border-radius: 14px; cursor: grab' + (s.drag === l.id ? '; opacity: .4' : ''),
+          avatar: 'flex: 0 0 auto; width: 40px; height: 40px; border-radius: 20px 20px 8px 8px; background: ' + (hero ? '#e8463c' : '#6fb7f0'),
+          whoStyle: 'font-size: 12px; font-weight: 700; color: #9ea3ad; text-align: ' + (hero ? 'right' : 'left'),
+          bubble: 'padding: 12px 16px; border-radius: ' + (hero ? '18px 4px 18px 18px' : '4px 18px 18px 18px') + '; background: ' + (hero ? '#3a3420' : '#24262d') + '; font-size: 16px; line-height: 1.45; cursor: text',
+          startEdit: (e) => { e.stopPropagation(); this.setState({ edit: l.id }); },
+          edit: (e) => this.setState({ lines: s.lines.map((q) => (q.id === l.id ? Object.assign({}, q, { text: e.target.value }) : q)) }),
+          done: () => this.setState({ edit: null }),
+          dstart: (e) => { e.dataTransfer.setData('text/plain', 'line|' + l.id); this.setState({ drag: l.id }); },
+          drop: (e) => { e.preventDefault(); const d = e.dataTransfer.getData('text/plain'); if (d.indexOf('line|') !== 0) return; const id = d.slice(5); if (id === l.id) { this.setState({ drag: null }); return; } const mv = s.lines.find((q) => q.id === id); const rest = s.lines.filter((q) => q.id !== id); const at = rest.findIndex((q) => q.id === l.id); rest.splice(at, 0, mv); set(rest, { drag: null }); },
+          menu: (e) => { e.preventDefault(); e.stopPropagation(); const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); this.setState({ menu: { id: l.id, x: Math.min(e.clientX - r.left, r.width - 260), y: e.clientY - r.top } }); }
+        };
+      }),
+      addMason: () => set(s.lines.concat([{ id: 'l' + (this.n++), who: 'Old Mason', text: 'New line', cond: '', choices: [] }]), { edit: 'l' + (this.n - 1) }),
+      addHero: () => set(s.lines.concat([{ id: 'l' + (this.n++), who: 'Player', text: 'New line', cond: '', choices: [] }]), { edit: 'l' + (this.n - 1) }),
+      addChoice: () => { const last = s.lines[s.lines.length - 1]; mod(last.id, { choices: last.choices.concat(['Choice ' + (last.choices.length + 1)]) }); },
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: ml ? { show: true, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items: [
+        { label: 'Edit text', key: 'Click', run: () => this.setState({ edit: ml.id, menu: null }) },
+        { label: ml.cond ? 'Remove condition' : 'Only show if…', key: '', run: () => mod(ml.id, { cond: ml.cond ? '' : 'Only if Met Mason is yes' }) },
+        { label: 'Add a choice', key: '', run: () => mod(ml.id, { choices: ml.choices.concat(['Choice ' + (ml.choices.length + 1)]) }) },
+        { label: 'Switch speaker', key: '', run: () => mod(ml.id, { who: ml.who === 'Player' ? 'Old Mason' : 'Player' }) },
+        { label: 'Delete', key: 'Del', run: () => set(s.lines.filter((q) => q.id !== ml.id), { menu: null }) }
+      ] } : { show: false, items: [] },
+      styles: Object.keys(ST).map((k) => ({ name: k, pick: () => this.setState({ style: k }),
+        thumb: 'width: 64px; height: 26px; border-radius: ' + ST[k][2] + '; background: ' + ST[k][0] + '; border: ' + (ST[k][3] === 'none' ? '1px solid #33363e' : ST[k][3]),
+        style: 'display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 4px; border-radius: 12px; border: none; cursor: pointer; font: 600 12px Figtree, sans-serif; color: #f2f2f4; background: ' + (k === s.style ? '#3a3420' : '#24262d') + '; box-shadow: ' + (k === s.style ? 'inset 0 0 0 2px #ffcc00' : 'none') })),
+      pv: { who: pvLine.who, text: pvLine.text, nameStyle: 'display: block; margin-bottom: 4px; font-size: 13px; color: ' + (s.style === 'Brick panel' || s.style === 'Speech bubble' || s.style === 'Comic' ? '#8a5a2b' : '#ffcc00'),
+        box: 'position: absolute; ' + st[4] + '; padding: 12px 14px; font-size: 14px; line-height: 1.4; background: ' + st[0] + '; color: ' + st[1] + '; border-radius: ' + st[2] + '; border: ' + st[3] + (s.style === 'Typewriter' ? "; font-family: ui-monospace, monospace" : '') },
+      nextLine: () => this.setState({ pv: s.pv + 1 }),
+      startPreview: () => this.setState({ pv: 0 }),
+      undo: () => { if (!s.hist.length) return; this.setState({ lines: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1) }); }
+    };
+  }
+}

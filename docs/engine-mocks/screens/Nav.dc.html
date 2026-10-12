@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sidebar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+.nv{display:flex;flex-direction:column;align-items:center;gap:2px;width:72px;padding:5px 0;border-radius:12px;color:#9ea3ad;text-decoration:none;font:600 11px 'Figtree',sans-serif}
+.nv:hover{color:#f2f2f4;background:#1f2127}
+.nvon{color:#141519;background:#ffcc00}
+.nvon:hover{color:#141519;background:#ffd633}
+</style>
+</helmet>
+<nav aria-label="Workspaces" style="width: 96px; min-height: 900px; height: 100%; box-sizing: border-box; padding: 14px 12px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: #101114; font-family: 'Figtree', system-ui, sans-serif; color: #f2f2f4">
+  <a href="Main.dc.html" aria-label="Home" style="width: 40px; height: 30px; background: #ffcc00; border-radius: 6px; margin-bottom: 10px; display: flex; gap: 6px; justify-content: center; align-items: flex-start; padding-top: 0">
+    <span style="width: 10px; height: 6px; background: #ffcc00; border-radius: 3px 3px 0 0; margin-top: -5px; box-shadow: 0 0 0 1px #e6b800"></span><span style="width: 10px; height: 6px; background: #ffcc00; border-radius: 3px 3px 0 0; margin-top: -5px; box-shadow: 0 0 0 1px #e6b800"></span>
+  </a>
+  <sc-for list="{{items}}" as="it" hint-placeholder-count="12">
+    <a class="{{it.cls}}" href="{{it.href}}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{it.icon}}"></path></svg>
+      {{it.label}}
+    </a>
+  </sc-for>
+  <span style="flex: 1 1 auto"></span>
+  <sc-for list="{{bottom}}" as="it" hint-placeholder-count="3">
+    <a class="{{it.cls}}" href="{{it.href}}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{it.icon}}"></path></svg>
+      {{it.label}}
+    </a>
+  </sc-for>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":null,"default":"scene"},"$preview":{"width":96,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const a = this.props.active ?? 'scene';
+    const mk = (id, label, href, icon) => ({ label, href, icon, cls: id === a ? 'nv nvon' : 'nv' });
+    return {
+      items: [
+        mk('scene', 'Scene', 'Scene.dc.html', 'M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10'),
+        mk('build', 'Build', 'Build.dc.html', 'M4 10h16v8H4zM7 10V7h3v3M14 10V7h3v3'),
+        mk('world', 'World', 'World.dc.html', 'M5 6h5v5H5zM14 13h5v5h-5zM10 8.5h2a2 2 0 0 1 2 2v5'),
+        mk('logic', 'Logic', 'Logic.dc.html', 'M6 4v6a2 2 0 0 0 2 2h8a2 2 0 0 1 2 2v6M6 20v-4M18 4v4'),
+        mk('character', 'Cast', 'Character.dc.html', 'M12 4a3 3 0 1 1 0 6 3 3 0 0 1 0-6zM6 20a6 6 0 0 1 12 0'),
+        mk('animate', 'Animate', 'Animate.dc.html', 'M12 4a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM12 8v6l-4 6M12 14l4 6M8 11l4-1 5-3'),
+        mk('cutscene', 'Scenes', 'Cutscene.dc.html', 'M4 7h16v12H4zM4 7l3-3M10 7l3-3M16 7l3-3'),
+        mk('dialogue', 'Talk', 'Dialogue.dc.html', 'M4 5h16v10H9l-5 4V5z'),
+        mk('audio', 'Audio', 'Audio.dc.html', 'M9 18V6l10-2v12M9 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM19 16a2 2 0 1 1-4 0 2 2 0 0 1 4 0z'),
+        mk('screens', 'Screens', 'Screens.dc.html', 'M4 5h16v12H4zM8 21h8M12 17v4'),
+        mk('gear', 'Gear', 'Items.dc.html', 'M14 4h6v6L9 21l-6-6L14 4zM5 13l6 6'),
+        mk('game', 'Game', 'Genre.dc.html', 'M6 9h12a4 4 0 0 1 0 8l-2-1H8l-2 1a4 4 0 0 1 0-8zM8 11v4M6 13h4M15 12h.01M17 14h.01')
+      ],
+      bottom: [
+        mk('play', 'Play', 'Play.dc.html', 'M7 5l12 7-12 7V5z'),
+        mk('tutorial', 'Learn', 'Tutorial.dc.html', 'M3 8l9-4 9 4-9 4-9-4zM7 10v5c3 2 7 2 10 0v-5'),
+        mk('help', 'Help', 'Help.dc.html', 'M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01'),
+        mk('brix', 'Brix', 'Brix.dc.html', 'M6 7h12v10H6zM9.5 11h.01M14.5 11h.01M10 14h4')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

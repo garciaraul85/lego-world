@@ -1,0 +1,77 @@
+Vehicles
+{"nav":"gear","group":"gear","sub":"Vehicles","h":"Vehicles and rides","s":"Pick one, change how it feels, then test drive it with the arrow keys"}
+      <aside class="card" style="flex: 0 0 220px; display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{kinds}}" as="k" hint-placeholder-count="9"><button type="button" style="{{k.style}}" onClick="{{k.pick}}"><span style="{{k.sw}}"></span>{{k.name}}</button></sc-for>
+        <a class="btn" href="Build.dc.html" style="margin-top: 6px">Build your own from bricks</a>
+      </aside>
+      <section style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div tabindex="0" style="{{arena}}" onKeyDown="{{key}}" onKeyUp="{{keyUp}}" onClick="{{focus}}">
+          <sc-if value="{{water}}" hint-placeholder-val="{{ false }}"><div style="{{depthShade}}"></div></sc-if>
+          <sc-for list="{{props}}" as="p" hint-placeholder-count="4"><span style="{{p}}"></span></sc-for>
+          <div style="{{car}}"><span style="{{carNose}}"></span></div>
+          <div style="position: absolute; left: 14px; top: 12px; display: flex; gap: 8px; align-items: center"><span style="padding: 6px 12px; border-radius: 999px; background: #141519cc; font-size: 13px; font-weight: 600">{{hud}}</span></div>
+          <span style="position: absolute; left: 14px; bottom: 12px; font-size: 13px; color: #e4e6ea; text-shadow: 0 1px 2px #000">{{hint}}</span>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: center"><sc-for list="{{pad}}" as="b" hint-placeholder-count="5"><button type="button" class="btn" style="min-width: 70px" onMouseDown="{{b.down}}" onMouseUp="{{b.up}}" onMouseLeave="{{b.up}}">{{b.name}}</button></sc-for></div>
+      </section>
+      <aside class="card" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 14px">
+        <span class="lbl">How it feels</span>
+        <sc-for list="{{sliders}}" as="sl" hint-placeholder-count="4"><label class="fld">{{sl.name}} · {{sl.word}}<input type="range" min="1" max="10" value="{{sl.val}}" onInput="{{sl.set}}" style="accent-color: #ffcc00"></label></sc-for>
+        <span class="lbl">Special</span>
+        <sc-for list="{{specials}}" as="f" hint-placeholder-count="3"><button type="button" onClick="{{f.flip}}" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer; text-align: left"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
+        <label class="fld">Seats<select class="inp"><option>1 · driver only</option><option>2 · driver and friend</option><option>4</option></select></label>
+        <label class="fld">Get in with<select class="inp"><option>Action button when close</option><option>Whistle (calls it to you)</option></select></label>
+      </aside>
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.V = {
+      Horse: ['#8a5a2b', 'land', { Speed: 6, 'Speeding up': 5, Turning: 8, Grip: 7 }, [['Gallop with stamina', true], ['Jumps fences', true], ['Comes when whistled', true]]],
+      Car: ['#e8463c', 'land', { Speed: 8, 'Speeding up': 6, Turning: 6, Grip: 6 }, [['Drift on corners', true], ['Boost pads work', true], ['Breaks into bricks on crash', false]]],
+      Kart: ['#ffcc00', 'land', { Speed: 7, 'Speeding up': 8, Turning: 8, Grip: 5 }, [['Drift boost', true], ['Item boxes', true], ['Jump button', true]]],
+      Tank: ['#3f8f4a', 'land', { Speed: 3, 'Speeding up': 2, Turning: 3, Grip: 10 }, [['Cannon turns separately', true], ['Crushes small things', true], ['Shield', false]]],
+      Plane: ['#f2f2f4', 'air', { Speed: 9, 'Speeding up': 4, Turning: 4, Grip: 3 }, [['Needs a runway', true], ['Loop-the-loop', true], ['Drops bombs', false]]],
+      Drone: ['#8b93a3', 'air', { Speed: 5, 'Speeding up': 9, Turning: 10, Grip: 8 }, [['Hovers in place', true], ['Camera view', true], ['Picks things up', true]]],
+      Boat: ['#c9893f', 'water', { Speed: 5, 'Speeding up': 4, Turning: 4, Grip: 3 }, [['Waves rock it', true], ['Cannons', false], ['Fishing', true]]],
+      Submarine: ['#ffcc00', 'under', { Speed: 4, 'Speeding up': 3, Turning: 5, Grip: 6 }, [['Dives deep', true], ['Air runs out', false], ['Torpedoes', true]]]
+    };
+    this.state = { cur: 'Car', stats: JSON.parse(JSON.stringify(Object.fromEntries(Object.keys(this.V).map((k) => [k, this.V[k][2]])))), spec: Object.fromEntries(Object.keys(this.V).map((k) => [k, this.V[k][3].map((x) => x[1])])), x: 120, y: 260, a: 0, v: 0, alt: 0, keys: {} };
+    this.tm = setInterval(() => this.step(), 40);
+  }
+  step() {
+    const s = this.state; const st = s.stats[s.cur]; const k = s.keys;
+    if (!k.up && !k.down && !k.left && !k.right && Math.abs(s.v) < 0.05) return;
+    const max = st.Speed * 0.9, acc = st['Speeding up'] * 0.05, turn = st.Turning * 0.6, grip = st.Grip / 10;
+    let v = s.v + (k.up ? acc : 0) - (k.down ? acc : 0); v = Math.max(-max / 3, Math.min(max, v)) * (k.up || k.down ? 1 : 0.94 - (1 - grip) * 0.04);
+    const a = s.a + ((k.left ? -turn : 0) + (k.right ? turn : 0)) * (Math.abs(v) > 0.1 || this.V[s.cur][1] === 'air' ? 1 : 0);
+    const x = Math.max(20, Math.min(760, s.x + Math.cos(a * Math.PI / 180) * v)), y = Math.max(20, Math.min(520, s.y + Math.sin(a * Math.PI / 180) * v));
+    this.setState({ v, a, x, y, alt: k.space ? Math.min(100, s.alt + 2) : Math.max(0, s.alt - 1) });
+  }
+  renderVals() {
+    const s = this.state;
+    const V = this.V[s.cur]; const st = s.stats[s.cur];
+    const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', ' ': 'space' };
+    const word = (v) => (v <= 3 ? 'low' : v <= 6 ? 'medium' : v <= 8 ? 'high' : 'very high');
+    const terrain = V[1];
+    const bg = terrain === 'water' ? '#2a6f9e' : terrain === 'under' ? '#0b3550' : terrain === 'air' ? '#7cb7e6' : '#3a3d45';
+    return {
+      kinds: Object.keys(this.V).map((k) => ({ name: k, style: H.pick(k === s.cur) + '; display: flex; align-items: center; gap: 10px', sw: 'width: 22px; height: 16px; border-radius: 5px; background: ' + this.V[k][0], pick: () => this.setState({ cur: k, x: 120, y: 260, a: 0, v: 0, alt: 0 }) })),
+      arena: 'position: relative; height: 560px; border-radius: 20px; overflow: hidden; outline: none; cursor: pointer; background: ' + bg + (terrain === 'land' ? '; background-image: linear-gradient(#ffffff22 2px, transparent 2px); background-size: 100% 80px' : ''),
+      water: terrain === 'under', depthShade: 'position: absolute; inset: 0; background: linear-gradient(#0b355000, #000a); pointer-events: none',
+      props: terrain === 'land' ? ['position: absolute; left: 300px; top: 120px; width: 60px; height: 60px; border-radius: 10px; background: #e8463c', 'position: absolute; left: 520px; top: 340px; width: 80px; height: 30px; border-radius: 8px; background: #ffcc00', 'position: absolute; left: 640px; top: 80px; width: 40px; height: 120px; border-radius: 8px; background: #8b93a3'] : terrain === 'air' ? ['position: absolute; left: 200px; top: 100px; width: 140px; height: 50px; border-radius: 30px; background: #fff9', 'position: absolute; left: 520px; top: 300px; width: 180px; height: 60px; border-radius: 30px; background: #fff9'] : ['position: absolute; left: 400px; top: 200px; width: 70px; height: 70px; border-radius: 50%; background: #ffffff22', 'position: absolute; left: 600px; top: 420px; width: 120px; height: 40px; border-radius: 20px; background: #45c46e88'],
+      car: 'position: absolute; left: ' + s.x + 'px; top: ' + s.y + 'px; width: ' + (s.cur === 'Plane' ? 70 : s.cur === 'Tank' ? 64 : 54) + 'px; height: ' + (s.cur === 'Plane' ? 60 : 32) + 'px; margin: -16px 0 0 -27px; border-radius: ' + (s.cur === 'Horse' ? '18px' : s.cur === 'Drone' ? '50%' : '8px') + '; background: ' + V[0] + '; transform: rotate(' + s.a + 'deg) scale(' + (1 + s.alt / 150) + '); box-shadow: ' + (s.alt ? '0 ' + (10 + s.alt / 3) + 'px 12px #0006' : '0 3px 0 #0005') + (s.cur === 'Plane' ? '; clip-path: polygon(0 40%, 60% 40%, 60% 0, 75% 0, 75% 40%, 100% 45%, 100% 55%, 75% 60%, 75% 100%, 60% 100%, 60% 60%, 0 60%)' : ''),
+      carNose: 'position: absolute; right: 4px; top: 50%; margin-top: -4px; width: 8px; height: 8px; border-radius: 50%; background: #fff',
+      hud: s.cur + ' · speed ' + Math.abs(Math.round(s.v * 10)) + (terrain === 'air' ? ' · height ' + Math.round(s.alt) : terrain === 'under' ? ' · depth 12 m' : ''),
+      hint: 'Click here, then use the arrow keys' + (terrain === 'air' || terrain === 'under' ? '. Hold Space to go ' + (terrain === 'air' ? 'up' : 'down') + '.' : '.'),
+      focus: (e) => e.currentTarget.focus(),
+      key: (e) => { const k = map[e.key]; if (!k) return; e.preventDefault(); if (!s.keys[k]) this.setState({ keys: Object.assign({}, s.keys, { [k]: true }) }); },
+      keyUp: (e) => { const k = map[e.key]; if (!k) return; this.setState({ keys: Object.assign({}, s.keys, { [k]: false }) }); },
+      pad: [['◀', 'left'], ['▲', 'up'], ['▼', 'down'], ['▶', 'right'], ['Space', 'space']].map(([n, k]) => ({ name: n, down: () => this.setState({ keys: Object.assign({}, this.state.keys, { [k]: true }) }), up: () => this.setState({ keys: Object.assign({}, this.state.keys, { [k]: false }) }) })),
+      sliders: Object.keys(st).map((k) => ({ name: k, val: st[k], word: word(st[k]), set: (e) => this.setState({ stats: Object.assign({}, s.stats, { [s.cur]: Object.assign({}, st, { [k]: +e.target.value }) }) }) })),
+      specials: V[3].map(([n], i) => { const on = s.spec[s.cur][i]; return { name: n, flip: () => this.setState({ spec: Object.assign({}, s.spec, { [s.cur]: s.spec[s.cur].map((x, j) => (j === i ? !x : x)) }) }), track: H.track(on), knob: H.knob(on) }; }),
+      undo: () => this.setState({ stats: Object.assign({}, s.stats, { [s.cur]: Object.assign({}, this.V[s.cur][2]) }) })
+    };
+  }
+}

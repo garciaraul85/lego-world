@@ -1,0 +1,92 @@
+Enemies & bosses
+{"nav":"gear","group":"gear","sub":"Enemies & bosses","h":"Enemies, bosses and breakable things","s":"Health, weak spots, what they drop. Drag the yellow markers to set boss phases.","right":"<div class=\"seg\"><sc-for list=\"{{tabs}}\" as=\"t\" hint-placeholder-count=\"3\"><button type=\"button\" class=\"{{t.cls}}\" onClick=\"{{t.pick}}\">{{t.name}}</button></sc-for></div>"}
+      <aside class="card" style="flex: 0 0 230px; display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{list}}" as="i" hint-placeholder-count="5"><button type="button" style="{{i.style}}" onClick="{{i.pick}}"><span style="{{i.sw}}"></span>{{i.name}}</button></sc-for>
+        <a class="btn" href="Character.dc.html">Make a new one</a>
+      </aside>
+      <section style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="position: relative; height: 380px; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 50%, #2a2d36, #17191e 70%); display: flex; align-items: center; justify-content: center">
+          <div style="{{fig}}">
+            <sc-for list="{{spots}}" as="w" hint-placeholder-count="4"><button type="button" title="{{w.name}}" style="{{w.style}}" onClick="{{w.flip}}"></button></sc-for>
+          </div>
+          <span style="position: absolute; left: 16px; top: 14px; font-size: 13px; color: #9ea3ad">Click a circle to make it a weak spot (red)</span>
+          <sc-if value="{{hit.show}}" hint-placeholder-val="{{ false }}"><span style="{{hit.style}}">{{hit.text}}</span></sc-if>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; align-items: center"><span class="lbl">Health · {{hpText}}</span><div style="display: flex; gap: 6px"><sc-for list="{{testHits}}" as="h" hint-placeholder-count="3"><button type="button" class="btn" style="min-height: 30px; font-size: 13px" onClick="{{h.run}}">{{h.name}}</button></sc-for><button type="button" class="btn" style="min-height: 30px; font-size: 13px" onClick="{{reset}}">Reset</button></div></div>
+          <div data-bar="1" style="position: relative; height: 26px; border-radius: 13px; background: #141519" onMouseMove="{{dragPhase}}" onMouseUp="{{up}}" onMouseLeave="{{up}}">
+            <span style="{{bar}}"></span>
+            <sc-for list="{{phases}}" as="p" hint-placeholder-count="2"><span title="{{p.name}}" style="{{p.style}}" onMouseDown="{{p.down}}"></span></sc-for>
+          </div>
+          <sc-if value="{{isBoss}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap">
+              <sc-for list="{{phaseCards}}" as="c" hint-placeholder-count="3"><div style="{{c.style}}"><b>{{c.name}}</b><span style="font-size: 12px; color: #9ea3ad">{{c.when}}</span><div style="display: flex; flex-wrap: wrap; gap: 4px"><sc-for list="{{c.attacks}}" as="a" hint-placeholder-count="2"><span class="chip" style="cursor: default; font-size: 12px; padding: 4px 8px">{{a}}</span></sc-for></div></div></sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </section>
+      <aside class="card" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 14px">
+        <label class="fld">Health · {{maxHp}} hearts<input type="range" min="1" max="40" value="{{maxHp}}" onInput="{{setMax}}" style="accent-color: #ffcc00"></label>
+        <label class="fld">Hurts the player · {{dmgText}}<input type="range" min="0" max="8" value="{{dmg}}" onInput="{{setDmg}}" style="accent-color: #ffcc00"></label>
+        <div class="fld">When it breaks, drop<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{drops}}" as="d" hint-placeholder-count="5"><button type="button" style="{{d.style}}" onClick="{{d.flip}}">{{d.name}}</button></sc-for></div></div>
+        <div class="fld">Only hurt by<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{hurtBy}}" as="d" hint-placeholder-count="5"><button type="button" style="{{d.style}}" onClick="{{d.flip}}">{{d.name}}</button></sc-for></div></div>
+        <sc-for list="{{flags}}" as="f" hint-placeholder-count="3"><button type="button" onClick="{{f.flip}}" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer; text-align: left"><span>{{f.name}}</span><span style="{{f.track}}"><span style="{{f.knob}}"></span></span></button></sc-for>
+        <a href="Brain.dc.html" style="font-size: 14px">How it thinks: open its Brain</a>
+      </aside>
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const E = (tab, name, c, max, dmg, drops, hurt, weak, extra) => Object.assign({ tab, name, c, max, dmg, drops, hurt, weak, flags: { knock: true, respawn: false, villager: false } }, extra || {});
+    this.state = { tab: 'Enemies', cur: 'Stone knight', hp: null, hit: null, dragP: null, hist: [],
+      list: [
+        E('Enemies', 'Stone knight', '#8b93a3', 6, 1, ['Coins', 'Heart'], ['Sword', 'Bombs', 'Arrows'], [false, true, false, false]),
+        E('Enemies', 'Slime', '#45c46e', 2, 0.5, ['Coins'], ['Anything'], [false, false, false, false]),
+        E('Enemies', 'Bat', '#3a1a5c', 1, 0.5, ['Nothing'], ['Arrows', 'Boomerang'], [false, false, false, false]),
+        E('Enemies', 'Villager (if attacked)', '#6fb7f0', 3, 0, ['Nothing'], ['Anything'], [false, false, false, false], { flags: { knock: true, respawn: true, villager: true } }),
+        E('Bosses', 'Stone King', '#5b6170', 24, 2, ['Heart container', 'Boss key'], ['Bombs', 'Sword'], [false, false, true, false], { phases: [66, 33], attacks: [['Stomp', 'Sword sweep'], ['Rock throw', 'Charge'], ['Calls knights', 'Fast stomp']] }),
+        E('Bosses', 'Sea serpent', '#0b4a6e', 30, 2, ['Heart container'], ['Arrows', 'Hookshot'], [true, false, false, false], { phases: [50], attacks: [['Bite', 'Splash'], ['Whirlpool', 'Dive']] }),
+        E('Breakables', 'Clay pot', '#c9893f', 1, 0, ['Coins', 'Heart', 'Nothing'], ['Anything'], [false, false, false, false], { flags: { knock: false, respawn: true, villager: false } }),
+        E('Breakables', 'Cracked wall', '#8b93a3', 1, 0, ['Nothing'], ['Bombs'], [false, false, false, false], { flags: { knock: false, respawn: false, villager: false } }),
+        E('Breakables', 'Wooden crate', '#8a5a2b', 2, 0, ['Coins', 'Arrows'], ['Anything'], [false, false, false, false], { flags: { knock: false, respawn: true, villager: false } })
+      ] };
+  }
+  renderVals() {
+    const s = this.state;
+    const e = s.list.find((x) => x.name === s.cur) || s.list[0];
+    const hp = s.hp === null ? e.max : s.hp;
+    const upd = (o) => this.setState({ list: s.list.map((x) => (x.name === e.name ? Object.assign({}, x, o) : x)) });
+    const boss = e.tab === 'Bosses';
+    const phases = e.phases || [];
+    const pct = hp / e.max * 100;
+    const phaseIdx = phases.filter((p) => pct <= p).length;
+    const spotsPos = [[50, 12, 'Head'], [50, 45, 'Back'], [20, 60, 'Hand'], [50, 88, 'Feet']];
+    const flipIn = (arr, v) => (arr.indexOf(v) >= 0 ? arr.filter((x) => x !== v) : arr.concat([v]));
+    const doHit = (n, label, weak) => { const d = weak ? n * 2 : n; const left = Math.max(0, hp - d); this.setState({ hp: left, hit: { text: (weak ? 'Weak spot! ' : '') + '−' + d + (left === 0 ? ' · Broken!' : '') } }); clearTimeout(this.tm); this.tm = setTimeout(() => this.setState({ hit: null }), 900); };
+    return {
+      tabs: ['Enemies', 'Bosses', 'Breakables'].map((t) => ({ name: t, cls: H.tab(t === s.tab), pick: () => this.setState({ tab: t, cur: s.list.find((x) => x.tab === t).name, hp: null }) })),
+      list: s.list.filter((x) => x.tab === s.tab).map((x) => ({ name: x.name, style: H.pick(x.name === e.name) + '; display: flex; align-items: center; gap: 10px', sw: 'width: 22px; height: 22px; border-radius: 6px; background: ' + x.c, pick: () => this.setState({ cur: x.name, hp: null }) })),
+      fig: 'position: relative; width: ' + (boss ? 200 : e.tab === 'Breakables' ? 110 : 140) + 'px; height: ' + (boss ? 260 : e.tab === 'Breakables' ? 110 : 180) + 'px; border-radius: ' + (e.tab === 'Breakables' ? '18px' : '60px 60px 20px 20px') + '; background: ' + e.c + '; box-shadow: inset 0 -14px 0 #0003; transition: transform .1s; transform: ' + (s.hit ? 'translateX(8px) rotate(3deg)' : 'none') + '; opacity: ' + (hp === 0 ? 0.25 : 1),
+      spots: e.tab === 'Breakables' ? [] : spotsPos.map(([x, y, n], i) => ({ name: n + (e.weak[i] ? ' · weak spot' : ''), flip: () => upd({ weak: e.weak.map((w, j) => (j === i ? !w : w)) }),
+        style: 'position: absolute; left: calc(' + x + '% - 14px); top: calc(' + y + '% - 14px); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 3px solid #fff; background: ' + (e.weak[i] ? '#e8463c' : '#ffffff22') })),
+      hit: s.hit ? { show: true, text: s.hit.text, style: 'position: absolute; left: 50%; top: 40px; transform: translateX(-50%); font-size: 24px; font-weight: 800; color: #ffcc00; text-shadow: 0 2px 4px #000' } : { show: false, text: '', style: '' },
+      hpText: Math.round(hp * 2) / 2 + ' of ' + e.max + ' hearts' + (boss ? ' · phase ' + (phaseIdx + 1) : ''),
+      testHits: [['Sword hit', 1, false], ['Bomb', 4, false], ['Arrow in weak spot', 2, true]].map(([n, v, w]) => ({ name: n, run: () => doHit(v, n, w && e.weak.some(Boolean)) })),
+      reset: () => this.setState({ hp: null, hit: null }),
+      bar: 'position: absolute; left: 0; top: 0; bottom: 0; border-radius: 13px; background: ' + (boss ? 'linear-gradient(90deg, #e8463c, #ff8a3d)' : '#ff6b6b') + '; width: ' + pct + '%',
+      phases: phases.map((p, i) => ({ name: 'Phase ' + (i + 2) + ' starts at ' + Math.round(p) + '%', style: 'position: absolute; top: -6px; left: calc(' + p + '% - 7px); width: 14px; height: 38px; border-radius: 7px; background: #ffcc00; border: 3px solid #141519; cursor: ew-resize; box-sizing: border-box',
+        down: (ev) => { ev.preventDefault(); this.setState({ dragP: i }); } })),
+      dragPhase: (ev) => { if (s.dragP === null) return; const r = ev.currentTarget.getBoundingClientRect(); const v = Math.max(5, Math.min(95, (ev.clientX - r.left) / r.width * 100)); upd({ phases: phases.map((p, j) => (j === s.dragP ? Math.round(v) : p)) }); },
+      up: () => { if (s.dragP !== null) this.setState({ dragP: null }); },
+      isBoss: boss,
+      phaseCards: boss ? [100].concat(phases).map((p, i) => ({ name: 'Phase ' + (i + 1), when: i === 0 ? 'From the start' : 'Below ' + Math.round(p) + '% health', attacks: (e.attacks || [])[i] || ['Pick attacks'], style: 'flex: 1 1 150px; display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: ' + (i === phaseIdx ? '#3a3420' : '#24262d') })) : [],
+      maxHp: e.max, setMax: (ev) => { upd({ max: +ev.target.value }); this.setState({ hp: null }); },
+      dmg: e.dmg * 2, dmgText: e.dmg === 0 ? 'never' : e.dmg + ' heart' + (e.dmg === 1 ? '' : 's'), setDmg: (ev) => upd({ dmg: +ev.target.value / 2 }),
+      drops: ['Coins', 'Heart', 'Arrows', 'Key', 'Boss key', 'Heart container', 'Nothing'].map((d) => ({ name: d, style: H.pick(e.drops.indexOf(d) >= 0) + '; min-height: 30px; font-size: 13px', flip: () => upd({ drops: flipIn(e.drops, d) }) })),
+      hurtBy: ['Anything', 'Sword', 'Arrows', 'Bombs', 'Boomerang', 'Hookshot', 'Fire'].map((d) => ({ name: d, style: H.pick(e.hurt.indexOf(d) >= 0) + '; min-height: 30px; font-size: 13px', flip: () => upd({ hurt: flipIn(e.hurt, d) }) })),
+      flags: [['knock', 'Gets knocked back'], ['respawn', 'Comes back when you leave the room'], ['villager', 'Villagers remember if you hit them']].map(([k, n]) => ({ name: n, flip: () => upd({ flags: Object.assign({}, e.flags, { [k]: !e.flags[k] }) }), track: H.track(e.flags[k]), knob: H.knob(e.flags[k]) })),
+      undo: () => this.setState({ hp: null, hit: null })
+    };
+  }
+}

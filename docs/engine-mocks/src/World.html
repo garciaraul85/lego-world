@@ -1,0 +1,116 @@
+World
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}">
+  <dc-import name="Nav" active="world" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Little dungeon</span><span style="font-size: 13px; color: #9ea3ad">{{summary}}</span></div>
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <button type="button" class="btn" onClick="{{addMap}}">Add map</button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <div data-stage="1" style="position: relative; flex: 999 1 560px; min-width: 0; min-height: 780px; border-radius: 20px; overflow: hidden; background-color: #17191e; background-image: radial-gradient(#262931 1.5px, transparent 1.5px); background-size: 24px 24px" onMouseMove="{{move}}" onMouseUp="{{up}}" onMouseLeave="{{up}}" onContextMenu="{{noMenu}}">
+        <sc-for list="{{links}}" as="l" hint-placeholder-count="3"><div style="{{l.style}}"></div></sc-for>
+        <sc-if value="{{ghost.show}}" hint-placeholder-val="{{ false }}"><div style="{{ghost.style}}"></div></sc-if>
+        <sc-for list="{{maps}}" as="m" hint-placeholder-count="4">
+          <div style="{{m.style}}" onMouseDown="{{m.down}}" onContextMenu="{{m.menu}}" onDoubleClick="{{m.open}}" onMouseUp="{{m.drop}}">
+            <div style="{{m.thumb}}"><sc-if value="{{m.start}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; left: 8px; top: 8px; padding: 3px 8px; border-radius: 999px; background: #ffcc00; color: #141519; font-size: 11px; font-weight: 800">START</span></sc-if></div>
+            <div style="padding: 10px 12px; display: flex; justify-content: space-between; gap: 8px"><span style="font-weight: 700; font-size: 15px">{{m.name}}</span><span style="font-size: 12px; color: #9ea3ad">{{m.kind}}</span></div>
+            <sc-for list="{{m.dots}}" as="d" hint-placeholder-count="4"><span title="Drag to another map to connect" style="{{d.style}}" onMouseDown="{{d.down}}"></span></sc-for>
+          </div>
+        </sc-for>
+        <span style="position: absolute; left: 16px; bottom: 14px; font-size: 13px; color: #9ea3ad">Drag a yellow door dot onto another map to connect them. Double-click to open.</span>
+        <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}">
+          <div class="menu" style="{{menu.style}}">
+            <span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">{{menu.title}}</span>
+            <sc-for list="{{menu.items}}" as="i" hint-placeholder-count="6"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}"><div class="toast">{{toast.text}}<button type="button" class="btn" style="min-height: 34px" onClick="{{undo}}">Undo</button></div></sc-if>
+      </div>
+      <aside style="flex: 1 1 260px; max-width: 300px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <span class="lbl">Connections</span>
+          <sc-for list="{{linkList}}" as="l" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px"><span>{{l.text}}</span><span class="chip" style="cursor: default">{{l.how}}</span></div>
+          </sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: #b4b9c2; line-height: 1.5">
+          <span class="lbl">Tip</span>
+          Right-click a map to set it as the start, lock its door behind a key, or duplicate it.
+          <a href="Help.dc.html">More about the world map</a>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+<!--SCRIPT-->
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 10;
+    this.state = {
+      maps: [
+        { id: 'm1', name: 'Entrance', kind: 'Room', x: 60, y: 300, c: '#3f8f4a', start: true },
+        { id: 'm2', name: 'Chasm hall', kind: 'Room', x: 360, y: 120, c: '#2d4a33', start: false },
+        { id: 'm3', name: 'Key vault', kind: 'Room', x: 360, y: 470, c: '#5b4a2d', start: false },
+        { id: 'm4', name: 'Boss gate', kind: 'Room', x: 680, y: 260, c: '#4a2d33', start: false }
+      ],
+      links: [{ a: 'm1', b: 'm2', how: 'Door' }, { a: 'm1', b: 'm3', how: 'Door' }, { a: 'm2', b: 'm4', how: 'Locked · Boss key' }],
+      drag: null, wire: null, menu: null, toast: null, hist: []
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const W = 220, H = 170;
+    const byId = (id) => s.maps.find((m) => m.id === id);
+    const ctr = (m) => [m.x + W / 2, m.y + H / 2];
+    const line = (x1, y1, x2, y2, col, dash) => {
+      const dx = x2 - x1, dy = y2 - y1, len = Math.sqrt(dx * dx + dy * dy), ang = Math.atan2(dy, dx) * 180 / Math.PI;
+      return 'position: absolute; left: ' + x1 + 'px; top: ' + y1 + 'px; width: ' + len + 'px; height: 0; border-top: 4px ' + (dash ? 'dashed' : 'solid') + ' ' + col + '; transform-origin: 0 0; transform: rotate(' + ang + 'deg); pointer-events: none';
+    };
+    const snapshot = () => s.hist.concat([{ maps: s.maps, links: s.links }]).slice(-20);
+    const stagePt = (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    const m = s.menu;
+    const target = m ? byId(m.id) : null;
+    return {
+      summary: s.maps.length + ' maps · ' + s.links.length + ' connections',
+      maps: s.maps.map((mp) => ({
+        name: mp.name, kind: mp.kind, start: mp.start,
+        style: 'position: absolute; left: ' + mp.x + 'px; top: ' + mp.y + 'px; width: ' + W + 'px; border-radius: 16px; background: #24262d; cursor: grab; user-select: none; box-shadow: 0 10px 30px #0006' + (s.wire && s.wire.from !== mp.id ? ', 0 0 0 3px #ffcc0088' : ''),
+        thumb: 'position: relative; height: 120px; border-radius: 16px 16px 0 0; background: ' + mp.c + '; background-image: radial-gradient(#ffffff14 2px, transparent 2px); background-size: 14px 14px',
+        down: (e) => { if (e.button !== 0) return; e.stopPropagation(); const [x, y] = stagePt(e); this.setState({ drag: { id: mp.id, ox: x - mp.x, oy: y - mp.y, before: { maps: s.maps, links: s.links } }, menu: null }); },
+        drop: (e) => { if (!s.wire) return; e.stopPropagation(); if (s.wire.from !== mp.id && !s.links.some((l) => (l.a === s.wire.from && l.b === mp.id) || (l.b === s.wire.from && l.a === mp.id))) this.setState({ hist: snapshot(), links: s.links.concat([{ a: s.wire.from, b: mp.id, how: 'Door' }]), wire: null, toast: byId(s.wire.from).name + ' now connects to ' + mp.name }); else this.setState({ wire: null }); },
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const [x, y] = stagePt(e); this.setState({ menu: { id: mp.id, x: Math.min(x, 800), y: Math.min(y, 520) } }); },
+        open: () => { window.location.href = 'Scene.dc.html'; },
+        dots: [[W / 2 - 9, -9], [W - 9, H / 2 - 9], [W / 2 - 9, H - 9], [-9, H / 2 - 9]].map(([dx, dy]) => ({
+          style: 'position: absolute; left: ' + dx + 'px; top: ' + dy + 'px; width: 18px; height: 18px; border-radius: 50%; background: #ffcc00; border: 3px solid #141519; cursor: crosshair',
+          down: (e) => { e.stopPropagation(); e.preventDefault(); const [x, y] = stagePt(e); this.setState({ wire: { from: mp.id, x, y } }); }
+        }))
+      })),
+      links: s.links.map((l) => { const A = byId(l.a), B = byId(l.b); if (!A || !B) return { style: 'display: none' }; const [x1, y1] = ctr(A), [x2, y2] = ctr(B); return { style: line(x1, y1, x2, y2, l.how.indexOf('Locked') === 0 ? '#e8463c' : '#ffcc00', l.how.indexOf('Locked') === 0) }; }),
+      ghost: s.wire ? { show: true, style: line(ctr(byId(s.wire.from))[0], ctr(byId(s.wire.from))[1], s.wire.x, s.wire.y, '#ffcc00aa', true) } : { show: false },
+      move: (e) => {
+        const r = e.currentTarget.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top;
+        if (s.wire) this.setState({ wire: Object.assign({}, s.wire, { x, y }) });
+        else if (s.drag) this.setState({ maps: s.maps.map((mp) => (mp.id === s.drag.id ? Object.assign({}, mp, { x: Math.max(0, Math.round((x - s.drag.ox) / 24) * 24), y: Math.max(0, Math.round((y - s.drag.oy) / 24) * 24) }) : mp)) });
+      },
+      up: () => { if (s.drag) this.setState({ drag: null, hist: s.hist.concat([s.drag.before]).slice(-20) }); if (s.wire) this.setState({ wire: null }); },
+      noMenu: (e) => e.preventDefault(),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: target ? { show: true, title: target.name, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items: [
+        { label: 'Open', key: 'Double-click', run: () => { window.location.href = 'Scene.dc.html'; } },
+        { label: 'Set as start', key: '', run: () => this.setState({ hist: snapshot(), maps: s.maps.map((q) => Object.assign({}, q, { start: q.id === target.id })), menu: null }) },
+        { label: 'Lock its doors behind a key', key: '', run: () => this.setState({ hist: snapshot(), links: s.links.map((l) => (l.b === target.id || l.a === target.id ? Object.assign({}, l, { how: 'Locked · Small key' }) : l)), menu: null }) },
+        { label: 'Duplicate', key: '', run: () => this.setState({ hist: snapshot(), maps: s.maps.concat([Object.assign({}, target, { id: 'm' + (this.n++), name: target.name + ' copy', x: target.x + 48, y: target.y + 48, start: false })]), menu: null }) },
+        { label: 'Delete', key: 'Del', run: () => this.setState({ hist: snapshot(), maps: s.maps.filter((q) => q.id !== target.id), links: s.links.filter((l) => l.a !== target.id && l.b !== target.id), menu: null, toast: target.name + ' deleted' }) }
+      ] } : { show: false, items: [] },
+      addMap: () => this.setState({ hist: snapshot(), maps: s.maps.concat([{ id: 'm' + (this.n++), name: 'New room', kind: 'Room', x: 960, y: 120 + (s.maps.length % 4) * 120, c: '#2d3f4a', start: false }]) }),
+      linkList: s.links.map((l) => ({ text: (byId(l.a) || {}).name + ' ↔ ' + (byId(l.b) || {}).name, how: l.how })),
+      toast: s.toast ? { show: true, text: s.toast } : { show: false },
+      undo: (e) => { if (e) e.stopPropagation(); if (!s.hist.length) return; const h = s.hist[s.hist.length - 1]; this.setState({ maps: h.maps, links: h.links, hist: s.hist.slice(0, -1), toast: null }); }
+    };
+  }
+}

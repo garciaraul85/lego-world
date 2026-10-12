@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skeleton</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}">
+  <dc-import name="Nav" active="character" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Old Mason · Skeleton</span><span style="font-size: 13px; color: #9ea3ad">Drag joints to reshape. Right-click a bone to add more. Drop body parts onto bones.</span></div>
+      
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="cast" active="Skeleton" hint-size="900px,46px"></dc-import>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <aside class="card" style="flex: 0 0 220px; display: flex; flex-direction: column; gap: 8px">
+        <span class="lbl">Start from</span>
+        <sc-for list="{{templates}}" as="t" hint-placeholder-count="7"><button type="button" style="{{t.style}}" onClick="{{t.pick}}">{{t.name}}</button></sc-for>
+      </aside>
+      <section style="flex: 999 1 480px; min-width: 0; position: relative">
+        <div style="position: relative; height: 760px; border-radius: 20px; overflow: hidden; background: linear-gradient(#20232b, #17191e); user-select: none" onMouseMove="{{move}}" onMouseUp="{{up}}" onMouseLeave="{{up}}" onClick="{{place}}" onContextMenu="{{noMenu}}">
+          <div style="position: absolute; left: 0; right: 0; top: 620px; bottom: 0; background: #1f2a22"></div>
+          <sc-for list="{{parts}}" as="p" hint-placeholder-count="6"><div style="{{p}}"></div></sc-for>
+          <sc-for list="{{segs}}" as="b" hint-placeholder-count="10"><div style="{{b.style}}" onClick="{{b.pick}}" onContextMenu="{{b.menu}}" onDragOver="{{allow}}" onDrop="{{b.drop}}"></div></sc-for>
+          <sc-for list="{{joints}}" as="j" hint-placeholder-count="10"><span title="{{j.name}}" style="{{j.style}}" onMouseDown="{{j.down}}" onContextMenu="{{j.menu}}"></span></sc-for>
+          <sc-if value="{{placing}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; left: 50%; top: 14px; transform: translateX(-50%); padding: 8px 14px; border-radius: 10px; background: #ffcc00; color: #141519; font-weight: 700; font-size: 14px">Click where the new bone should end</div></sc-if>
+          <div style="position: absolute; left: 14px; top: 14px; display: flex; gap: 8px"><button type="button" class="btn" style="{{xrayStyle}}" onClick="{{toggleXray}}">See through</button><button type="button" class="btn" onClick="{{testMove}}">Test a walk</button></div>
+        </div>
+      </section>
+      <aside style="flex: 1 1 260px; max-width: 300px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 4px; max-height: 360px; overflow: auto">
+          <span class="lbl" style="margin-bottom: 6px">Bones</span>
+          <sc-for list="{{tree}}" as="t" hint-placeholder-count="10"><button type="button" style="{{t.style}}" onClick="{{t.pick}}">{{t.name}}<span style="color: #9ea3ad; font-size: 12px">{{t.part}}</span></button></sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Body parts · drop on a bone</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{lib}}" as="l" hint-placeholder-count="6"><div class="tilelib" draggable="true" onDragStart="{{l.start}}" style="width: 70px"><span style="{{l.sw}}"></span>{{l.name}}</div></sc-for></div>
+        </div>
+      </aside>
+      <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}"><div class="menu" style="{{menu.style}}"><span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">{{menu.title}}</span><sc-for list="{{menu.items}}" as="i" hint-placeholder-count="4"><button type="button" class="mi" onClick="{{i.run}}"><span>{{i.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{i.key}}</span></button></sc-for></div></sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 50;
+    this.T = {
+      'Two legs': [['root', null, 'Hips', 400, 400, 'Legs block'], ['spine', 'root', 'Spine', 400, 290, 'Torso'], ['head', 'spine', 'Head', 400, 210, 'Head'], ['la', 'spine', 'Left arm', 320, 380, 'Arm'], ['ra', 'spine', 'Right arm', 480, 380, 'Arm'], ['ll', 'root', 'Left leg', 370, 600, 'Leg'], ['rl', 'root', 'Right leg', 430, 600, 'Leg']],
+      'Four legs': [['root', null, 'Hips', 520, 420, ''], ['spine', 'root', 'Back', 300, 420, 'Body'], ['head', 'spine', 'Head', 220, 340, 'Head'], ['tail', 'root', 'Tail', 620, 360, 'Tail'], ['fl', 'spine', 'Front leg', 300, 600, 'Leg'], ['fr', 'spine', 'Front leg 2', 330, 600, 'Leg'], ['bl', 'root', 'Back leg', 500, 600, 'Leg'], ['br', 'root', 'Back leg 2', 530, 600, 'Leg']],
+      Bird: [['root', null, 'Body', 400, 380, 'Body'], ['head', 'root', 'Head', 400, 270, 'Head'], ['lw', 'root', 'Left wing', 230, 330, 'Wing'], ['rw', 'root', 'Right wing', 570, 330, 'Wing'], ['ll', 'root', 'Left leg', 380, 600, 'Leg'], ['rl', 'root', 'Right leg', 420, 600, 'Leg'], ['tail', 'root', 'Tail', 400, 470, 'Tail']],
+      Fish: [['root', null, 'Body', 380, 380, 'Body'], ['head', 'root', 'Head', 240, 380, 'Head'], ['tail', 'root', 'Tail', 560, 380, 'Fin'], ['fin', 'root', 'Top fin', 400, 290, 'Fin']],
+      Snake: [['root', null, 'Head', 200, 360, 'Head'], ['s1', 'root', 'Body 1', 300, 420, 'Body'], ['s2', 's1', 'Body 2', 400, 360, 'Body'], ['s3', 's2', 'Body 3', 500, 420, 'Body'], ['s4', 's3', 'Tail', 600, 380, 'Tail']],
+      Spider: [['root', null, 'Body', 400, 400, 'Body'], ['head', 'root', 'Head', 400, 320, 'Head']].concat([0, 1, 2, 3, 4, 5, 6, 7].map((i) => ['g' + i, 'root', 'Leg ' + (i + 1), 400 + (i < 4 ? -1 : 1) * (160 + (i % 4) * 20), 360 + (i % 4) * 60, 'Leg'])),
+      'Blob (no bones)': [['root', null, 'Center', 400, 420, 'Blob']]
+    };
+    this.state = { tpl: 'Two legs', bones: this.mk('Two legs'), sel: 'ra', drag: null, menu: null, placing: null, xray: true, hist: [], walk: 0 };
+  }
+  mk(name) { return this.T[name].map(([id, parent, nm, x, y, part]) => ({ id, parent, name: nm, x, y, part })); }
+  renderVals() {
+    const s = this.state;
+    const byId = (id) => s.bones.find((b) => b.id === id);
+    const save = () => s.hist.concat([s.bones]).slice(-20);
+    const sway = Math.sin(s.walk * 6) * 18;
+    const pos = (b) => { const legish = /leg/i.test(b.name); const sign = /left|leg 2|2$/i.test(b.name) ? 1 : -1; return [b.x + (s.walk && legish ? sway * sign : 0), b.y]; };
+    const start = (b) => { const p = b.parent ? byId(b.parent) : null; return p ? pos(p) : [pos(b)[0], pos(b)[1] + 1]; };
+    const seg = (a, c, w, col) => { const dx = c[0] - a[0], dy = c[1] - a[1]; return 'position: absolute; left: ' + a[0] + 'px; top: ' + (a[1] - w / 2) + 'px; width: ' + Math.max(2, Math.sqrt(dx * dx + dy * dy)) + 'px; height: ' + w + 'px; border-radius: ' + w + 'px; transform-origin: 0 50%; transform: rotate(' + (Math.atan2(dy, dx) * 180 / Math.PI) + 'deg); background: ' + col; };
+    const PC = { Head: ['#ffcc00', 70], Torso: ['#3b78c9', 80], Body: ['#c98a4b', 70], Arm: ['#3b78c9', 26], Leg: ['#2f3440', 30], Tail: ['#c98a4b', 22], Wing: ['#f2f2f4', 40], Fin: ['#7cc7ff', 34], Blob: ['#45c46e', 160], 'Legs block': ['#2f3440', 50], Horn: ['#d8d8d8', 18], Hat: ['#6b4a2b', 50], Sword: ['#d8d8d8', 10] };
+    const m = s.menu; const mb = m ? byId(m.id) : null;
+    const depth = (b) => (b.parent ? 1 + depth(byId(b.parent) || { parent: null }) : 0);
+    const order = []; const walk = (pid) => s.bones.filter((b) => b.parent === pid).forEach((b) => { order.push(b); walk(b.id); }); walk(null);
+    return {
+      templates: Object.keys(this.T).map((t) => ({ name: t, style: H.pick(t === s.tpl), pick: () => this.setState({ tpl: t, bones: this.mk(t), hist: save(), sel: null }) })),
+      parts: s.bones.filter((b) => b.part && PC[b.part]).map((b) => { const [c, w] = PC[b.part]; const a = start(b), e = pos(b); if (b.part === 'Head' || b.part === 'Blob') return 'position: absolute; left: ' + (e[0] - w / 2) + 'px; top: ' + (e[1] - w / 2) + 'px; width: ' + w + 'px; height: ' + (w * 0.85) + 'px; border-radius: ' + (b.part === 'Blob' ? '50%' : '16px') + '; background: ' + c + '; opacity: ' + (s.xray ? 0.55 : 1); return seg(a, e, w, c) + '; opacity: ' + (s.xray ? 0.55 : 1); }),
+      segs: s.bones.filter((b) => b.parent).map((b) => ({ style: seg(start(b), pos(b), 10, b.id === s.sel ? '#ffcc00' : '#f2f2f4') + '; cursor: pointer; opacity: ' + (s.xray ? 1 : 0.15) + '; box-shadow: 0 0 0 2px #141519',
+        pick: (e) => { e.stopPropagation(); this.setState({ sel: b.id }); },
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const [x, y] = H.at(e); this.setState({ sel: b.id, menu: { id: b.id, x, y } }); },
+        drop: (e) => { e.preventDefault(); const p = e.dataTransfer.getData('text/plain'); if (PC[p]) this.setState({ hist: save(), bones: s.bones.map((q) => (q.id === b.id ? Object.assign({}, q, { part: p }) : q)), sel: b.id }); } })),
+      allow: (e) => e.preventDefault(),
+      joints: s.bones.map((b) => { const p = pos(b); return { name: b.name, style: 'position: absolute; left: ' + (p[0] - 11) + 'px; top: ' + (p[1] - 11) + 'px; width: 22px; height: 22px; border-radius: 50%; cursor: grab; background: ' + (b.id === s.sel ? '#ffcc00' : '#fff') + '; border: 3px solid #141519; box-sizing: border-box; box-shadow: 0 2px 6px #0008; opacity: ' + (s.xray ? 1 : 0.3),
+        down: (e) => { if (e.button !== 0) return; e.stopPropagation(); this.setState({ sel: b.id, drag: b.id, hist: save(), menu: null }); },
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const [x, y] = H.at(e); this.setState({ sel: b.id, menu: { id: b.id, x, y } }); } }; }),
+      move: (e) => { if (!s.drag) return; const r = e.currentTarget.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top; this.setState({ bones: s.bones.map((b) => (b.id === s.drag ? Object.assign({}, b, { x, y }) : b)) }); },
+      up: () => { if (s.drag) this.setState({ drag: null }); },
+      place: (e) => { if (!s.placing) return; const r = e.currentTarget.getBoundingClientRect(); const id = 'b' + (this.n++); this.setState({ hist: save(), placing: null, sel: id, bones: s.bones.concat([{ id, parent: s.placing, name: 'New bone', x: e.clientX - r.left, y: e.clientY - r.top, part: '' }]) }); },
+      placing: !!s.placing,
+      noMenu: (e) => e.preventDefault(),
+      xrayStyle: s.xray ? 'background: #ffcc00; color: #141519' : '', toggleXray: () => this.setState({ xray: !s.xray }),
+      testMove: () => { clearInterval(this.tm); if (s.walk) { this.setState({ walk: 0 }); return; } let t = 0.01; this.tm = setInterval(() => { t += 0.04; if (t > 3) { clearInterval(this.tm); this.setState({ walk: 0 }); } else this.setState({ walk: t }); }, 40); },
+      tree: order.map((b) => ({ name: ' '.repeat(depth(b) * 4) + b.name, part: b.part, pick: () => this.setState({ sel: b.id }), style: 'display: flex; justify-content: space-between; min-height: 32px; align-items: center; padding: 0 10px; border-radius: 8px; border: none; cursor: pointer; font: 500 14px Figtree, sans-serif; text-align: left; color: ' + (b.id === s.sel ? '#141519' : '#f2f2f4') + '; background: ' + (b.id === s.sel ? '#ffcc00' : 'transparent') })),
+      lib: ['Head', 'Arm', 'Leg', 'Tail', 'Wing', 'Fin', 'Horn', 'Hat', 'Sword'].map((n) => ({ name: n, sw: 'width: 34px; height: 24px; border-radius: 6px; background: ' + PC[n][0], start: (e) => e.dataTransfer.setData('text/plain', n) })),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: H.menu(m, mb ? mb.name : '', mb ? [
+        { label: 'Add a bone from here', key: '', run: () => this.setState({ menu: null, placing: mb.id }) },
+        { label: 'Mirror to the other side', key: '', run: () => { const p = mb.parent ? byId(mb.parent) : mb; const id = 'b' + (this.n++); this.setState({ menu: null, hist: save(), bones: s.bones.concat([Object.assign({}, mb, { id, name: mb.name.replace('Left', 'Right') + (mb.name.indexOf('Left') >= 0 ? '' : ' (mirror)'), x: p.x * 2 - mb.x })]) }); } },
+        { label: 'Remove body part', key: '', run: () => this.setState({ menu: null, bones: s.bones.map((b) => (b.id === mb.id ? Object.assign({}, b, { part: '' }) : b)) }) },
+        { label: 'Delete bone and children', key: 'Del', run: () => { const kill = [mb.id]; let grew = true; while (grew) { grew = false; s.bones.forEach((b) => { if (b.parent && kill.indexOf(b.parent) >= 0 && kill.indexOf(b.id) < 0) { kill.push(b.id); grew = true; } }); } this.setState({ menu: null, hist: save(), bones: s.bones.filter((b) => kill.indexOf(b.id) < 0), sel: null }); } }
+      ] : []),
+      undo: () => { if (!s.hist.length) return; this.setState({ bones: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1) }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

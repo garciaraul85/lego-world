@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Genre & playbook</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif">
+  <dc-import name="Nav" active="game" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">Your game's genre</span><span style="font-size: 13px; color: #9ea3ad">The genre decides which tools you see and what Brix checks for</span></div>
+      
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <a class="btn pri" href="Play.dc.html">Play</a>
+    </header>
+    <dc-import name="Sub" group="game" active="Genre & playbook" hint-size="900px,46px"></dc-import>
+    <div data-stage="1" style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; gap: 10px; align-items: center"><span class="lbl" style="flex: 1 1 auto">Genre · {{cur}}</span><input class="inp" style="width: 220px" placeholder="Search 35 genres" value="{{q}}" onInput="{{search}}"></div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; max-height: 250px; overflow: auto">
+            <sc-for list="{{genres}}" as="g" hint-placeholder-count="35"><button type="button" style="{{g.style}}" onClick="{{g.pick}}">{{g.name}}</button></sc-for>
+          </div>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; justify-content: space-between; align-items: center"><span class="lbl">Brix's checklist for {{cur}}</span><span style="font-size: 13px; color: #9ea3ad">{{doneText}}</span></div>
+          <div style="height: 8px; border-radius: 4px; background: #33363e; overflow: hidden"><span style="{{progress}}"></span></div>
+          <sc-for list="{{checks}}" as="c" hint-placeholder-count="7">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid #2a2d35">
+              <button type="button" aria-label="Mark done" style="{{c.box}}" onClick="{{c.flip}}">{{c.mark}}</button>
+              <span style="flex: 1 1 auto; font-size: 15px">{{c.name}}</span>
+              <a href="{{c.href}}" style="font-size: 13px">Open</a>
+              <a href="Brix.dc.html" style="font-size: 13px">Brix, do it</a>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+      <aside style="flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <span class="lbl">How much to show</span>
+          <div style="display: flex; flex-direction: column; gap: 6px"><sc-for list="{{levels}}" as="l" hint-placeholder-count="3"><button type="button" style="{{l.style}}" onClick="{{l.pick}}"><b>{{l.name}}</b><span style="font-size: 12px; opacity: .85">{{l.desc}}</span></button></sc-for></div>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px">
+          <span class="lbl">Tools in the sidebar</span>
+          <sc-for list="{{tools}}" as="t" hint-placeholder-count="12"><button type="button" onClick="{{t.flip}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 14px Figtree, sans-serif; cursor: pointer"><span>{{t.name}}</span><span style="{{t.track}}"><span style="{{t.knob}}"></span></span></button></sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Camera and controls</span>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px"><sc-for list="{{cams}}" as="c" hint-placeholder-count="4"><button type="button" style="{{c.style}}" onClick="{{c.pick}}">{{c.name}}</button></sc-for></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const H = {
+  at: (e) => { const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); return [Math.min(e.clientX - r.left, r.width - 250), Math.min(e.clientY - r.top, r.height - 260)]; },
+  menu: (m, title, items) => (m ? { show: true, title, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items } : { show: false, title: '', items: [] }),
+  toast: (t) => (t ? { show: true, text: t } : { show: false, text: '' }),
+  pick: (on) => 'min-height: 38px; padding: 0 14px; border-radius: 10px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: ' + (on ? '#141519' : '#f2f2f4') + '; background: ' + (on ? '#ffcc00' : '#24262d'),
+  card: (on) => 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 14px; border: none; cursor: pointer; font: 600 14px Figtree, sans-serif; text-align: left; color: #f2f2f4; background: ' + (on ? '#3a3420' : '#24262d') + '; box-shadow: ' + (on ? 'inset 0 0 0 2px #ffcc00' : 'none'),
+  track: (on) => 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (on ? '#ffcc00' : '#33363e'),
+  knob: (on) => 'position: absolute; top: 3px; left: ' + (on ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff',
+  tab: (on) => (on ? 'ltab lon' : 'ltab'),
+  sw: (c, on, size) => 'width: ' + (size || 30) + 'px; height: ' + (size || 30) + 'px; border-radius: 8px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (on ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none')
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.G = ['Adventure (Zelda-like)', 'Action RPG', 'Classic RPG', 'Modern RPG', 'Platformer 2D', 'Platformer 3D', 'Metroidvania', 'Puzzle', 'Physics puzzle', 'Racing', 'Kart racing', 'Flight', 'Soccer and team sports', 'Mini golf', 'Fighting', 'Beat \'em up', 'Top-down shooter', 'First-person shooter', 'Space shooter', 'Tower defense', 'Strategy', 'City builder', 'Farm and life', 'Survival and crafting', 'Stealth', 'Spooky', 'Story and choices', 'Rhythm', 'Party mini-games', 'Endless runner', 'Underwater explorer', 'Open world', 'Sandbox', 'Quiz and learning', 'Dungeon crawler'];
+    this.state = { cur: 'Adventure (Zelda-like)', q: '', level: 'Just my genre', cam: 'Behind (3rd person)', done: { 0: true, 1: true, 2: true }, off: {} };
+  }
+  renderVals() {
+    const s = this.state;
+    const L = {
+      'Adventure (Zelda-like)': [['Start area and a friendly NPC', 'Scene'], ['First tool (sword) given by a character', 'Items'], ['Hearts and money on screen', 'Screens'], ['A dungeon with a switch, key and door', 'Trigger'], ['A build puzzle', 'Puzzle'], ['A new tool found in the dungeon', 'Items'], ['A boss with a weak spot for that tool', 'Enemies'], ['A quest that ties it together', 'Quests'], ['Ending and credits', 'Screens']],
+      'Racing': [['A track with a start line', 'Racing'], ['Your car', 'Vehicles'], ['Opponent drivers', 'Brain'], ['Laps and a timer on screen', 'Screens'], ['Boost pads and shortcuts', 'Racing'], ['Podium at the end', 'Cutscene']],
+      'Soccer and team sports': [['Pitch and goals', 'Racing'], ['Two teams', 'Character'], ['Teammate brains', 'Brain'], ['Score and timer', 'Screens'], ['Goal celebration', 'Cutscene']],
+      'First-person shooter': [['First-person camera', 'Moves'], ['A blaster', 'Items'], ['Enemies that take cover', 'Brain'], ['Ammo and health on screen', 'Screens'], ['A final arena', 'Scene']]
+    };
+    const list = L[s.cur] || [['Start area', 'Scene'], ['Main character', 'Character'], ['The core goal for ' + s.cur, 'Logic'], ['What is on screen', 'Screens'], ['A challenge that grows', 'Enemies'], ['An ending', 'Screens']];
+    const ndone = list.filter((_, i) => s.done[i]).length;
+    const TOOLS = ['Scene', 'Build', 'World', 'Logic', 'Cast', 'Animate', 'Scenes', 'Talk', 'Audio', 'Screens', 'Gear', 'Game'];
+    const genreHides = { Racing: ['Talk', 'Animate'], 'Soccer and team sports': ['Talk', 'World'], 'Puzzle': ['Gear', 'Animate'] };
+    const shown = (t) => (s.level === 'Open everything' ? true : s.level === 'Simplest' ? ['Scene', 'Build', 'Logic', 'Cast'].indexOf(t) >= 0 : !(s.off[t] !== undefined ? s.off[t] : (genreHides[s.cur] || []).indexOf(t) >= 0));
+    const q = s.q.toLowerCase();
+    return {
+      cur: s.cur, q: s.q, search: (e) => this.setState({ q: e.target.value }),
+      genres: this.G.filter((g) => !q || g.toLowerCase().indexOf(q) >= 0).map((g) => ({ name: g, style: H.pick(g === s.cur) + '; min-height: 36px; font-size: 13px', pick: () => this.setState({ cur: g, done: {}, off: {} }) })),
+      doneText: ndone + ' of ' + list.length + ' done',
+      progress: 'display: block; height: 100%; background: #45c46e; width: ' + (ndone / list.length * 100) + '%',
+      checks: list.map(([n, scr], i) => ({ name: n, href: scr + '.dc.html', mark: s.done[i] ? '✓' : '', flip: () => this.setState({ done: Object.assign({}, s.done, { [i]: !s.done[i] }) }),
+        box: 'flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; border: none; cursor: pointer; font-weight: 800; color: #141519; background: ' + (s.done[i] ? '#45c46e' : '#33363e') })),
+      levels: [['Simplest', 'Four tools. Great for a first game.'], ['Just my genre', 'Only what ' + s.cur + ' needs, plus your picks.'], ['Open everything', 'Every tool and every option.']].map(([n, d]) => ({ name: n, desc: d, style: H.card(n === s.level), pick: () => this.setState({ level: n }) })),
+      tools: TOOLS.map((t) => ({ name: t, flip: () => this.setState({ level: s.level === 'Simplest' ? 'Just my genre' : s.level, off: Object.assign({}, s.off, { [t]: shown(t) }) }), track: H.track(shown(t)), knob: H.knob(shown(t)) })),
+      cams: ['Behind (3rd person)', 'Top-down', 'Side view', 'First person'].map((c) => ({ name: c, style: H.pick(c === s.cam) + '; font-size: 13px; padding: 0 8px; text-align: center', pick: () => this.setState({ cam: c }) })),
+      undo: () => {}
+    };
+  }
+}
+</script>
+</body>
+</html>

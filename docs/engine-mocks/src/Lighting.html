@@ -1,0 +1,94 @@
+Lighting
+{"nav":"scene","group":"scene","sub":"Lighting","h":"Light and mood","s":"Chasm hall · drag lights to move them","close":true}
+      <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="position: relative; height: 600px; border-radius: 20px; overflow: hidden; background-color: #2d4a33; background-image: radial-gradient(#3b5c42 2px, transparent 2px); background-size: 20px 20px; user-select: none" onMouseMove="{{move}}" onMouseUp="{{up}}" onMouseLeave="{{up}}" onDragOver="{{allow}}" onDrop="{{dropLight}}">
+          <div style="position: absolute; left: 0; right: 0; top: 0; height: 70px; background: #4b5058"></div>
+          <div style="position: absolute; left: 0; right: 0; top: 300px; height: 70px; background: #0d0e10"></div>
+          <span style="position: absolute; left: 520px; top: 14px; width: 48px; height: 48px; border-radius: 8px; background: #8a5a2b"></span>
+          <span style="position: absolute; left: 700px; top: 420px; width: 44px; height: 44px; border-radius: 22px 22px 10px 10px; background: #6fb7f0"></span>
+          <span style="{{shadow}}"></span>
+          <div style="{{tint}}"></div>
+          <sc-for list="{{glows}}" as="g" hint-placeholder-count="3"><div style="{{g}}"></div></sc-for>
+          <div style="{{fog}}"></div>
+          <sc-for list="{{lights}}" as="l" hint-placeholder-count="3"><div style="{{l.style}}" onMouseDown="{{l.down}}" onContextMenu="{{l.menu}}" title="{{l.name}}"><span style="{{l.dot}}"></span><span style="font-size: 11px; font-weight: 700; text-shadow: 0 1px 2px #000">{{l.name}}</span></div></sc-for>
+          <span style="position: absolute; right: 16px; top: 14px; padding: 6px 12px; border-radius: 999px; background: #141519cc; font-size: 13px; font-weight: 600">{{clock}}</span>
+        </div>
+        <div class="card" style="display: flex; align-items: center; gap: 16px; padding: 14px 18px">
+          <span class="lbl">Time of day</span>
+          <input type="range" min="0" max="24" step="0.5" value="{{hour}}" onInput="{{setHour}}" style="flex: 1 1 auto; accent-color: #ffcc00">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 14px"><input type="checkbox" checked="{{cycle}}" onChange="{{toggleCycle}}" style="accent-color: #ffcc00; width: 18px; height: 18px">Day passes during play</label>
+        </div>
+      </section>
+      <aside style="flex: 1 1 300px; max-width: 340px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Mood</span>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"><sc-for list="{{moods}}" as="m" hint-placeholder-count="6"><button type="button" style="{{m.style}}" onClick="{{m.pick}}"><span style="{{m.sw}}"></span>{{m.name}}</button></sc-for></div>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <span class="lbl">Lights · drag onto the room</span>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap"><sc-for list="{{lib}}" as="l" hint-placeholder-count="4"><div class="tilelib" draggable="true" onDragStart="{{l.start}}" style="width: 66px"><span style="{{l.sw}}"></span>{{l.name}}</div></sc-for></div>
+          <label class="fld">Fog<input type="range" min="0" max="80" value="{{fogV}}" onInput="{{setFog}}" style="accent-color: #ffcc00"></label>
+          <button type="button" onClick="{{flipShadows}}" style="display: flex; align-items: center; justify-content: space-between; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 15px Figtree, sans-serif; cursor: pointer"><span>Shadows</span><span style="{{shTrack}}"><span style="{{shKnob}}"></span></span></button>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 10px">
+          <span class="lbl">Big worlds</span>
+          <div style="display: flex; gap: 6px"><sc-for list="{{sizes}}" as="z" hint-placeholder-count="3"><button type="button" style="{{z.style}}" onClick="{{z.pick}}">{{z.name}}</button></sc-for></div>
+          <label class="fld">See this far · {{dist}} studs<input type="range" min="40" max="400" step="20" value="{{dist}}" onInput="{{setDist}}" style="accent-color: #ffcc00"></label>
+          <span style="font-size: 12px; color: #9ea3ad; line-height: 1.5">Far parts load as you get close, so big worlds stay smooth.</span>
+        </div>
+      </aside>
+      <!--MENU-->
+<!--SCRIPT-->
+/*HELPERS*/
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.n = 5;
+    this.state = { hour: 20, cycle: true, mood: 'Dungeon', fog: 20, shadows: true, size: 'Area', dist: 160, drag: null, menu: null,
+      lights: [{ id: 'l1', name: 'Torch', x: 150, y: 30, c: '#ffb347', r: 140 }, { id: 'l2', name: 'Lantern', x: 690, y: 380, c: '#ffd633', r: 110 }, { id: 'l3', name: 'Glow brick', x: 400, y: 470, c: '#a78bfa', r: 90 }] };
+  }
+  renderVals() {
+    const s = this.state;
+    const h = s.hour;
+    const dark = h >= 7 && h <= 17 ? 0 : h > 17 && h < 20 ? (h - 17) / 3 * 0.6 : 0.6;
+    const moodC = { Sunny: ['#fff3c4', 0], Dusk: ['#ff8a3d', 0.25], Night: ['#1a2a6c', 0.55], Dungeon: ['#0a0a12', 0.5], Spooky: ['#3a1a5c', 0.5], Underwater: ['#0b4a6e', 0.45] };
+    const mc = moodC[s.mood];
+    const alpha = Math.min(0.85, Math.max(dark, mc[1]));
+    const hex = (a) => Math.round(a * 255).toString(16).padStart(2, '0');
+    const m = s.menu; const ml = m ? s.lights.find((l) => l.id === m.id) : null;
+    const sun = h >= 6 && h <= 19 ? (h - 12) * 6 : 0;
+    return {
+      tint: 'position: absolute; inset: 0; pointer-events: none; background: ' + mc[0] + hex(alpha),
+      glows: s.lights.map((l) => 'position: absolute; pointer-events: none; mix-blend-mode: screen; left: ' + (l.x + 12 - l.r) + 'px; top: ' + (l.y + 12 - l.r) + 'px; width: ' + (l.r * 2) + 'px; height: ' + (l.r * 2) + 'px; border-radius: 50%; background: radial-gradient(circle, ' + l.c + hex(Math.min(0.9, alpha + 0.2)) + ' 0, ' + l.c + '00 70%)'),
+      fog: 'position: absolute; inset: 0; pointer-events: none; background: linear-gradient(transparent 30%, #c8d0dc' + hex(s.fog / 100) + ')',
+      shadow: 'position: absolute; left: ' + (520 + sun) + 'px; top: 58px; width: 48px; height: 14px; border-radius: 50%; background: #0006; filter: blur(3px); display: ' + (s.shadows ? 'block' : 'none'),
+      lights: s.lights.map((l) => ({ name: l.name,
+        style: 'position: absolute; left: ' + l.x + 'px; top: ' + l.y + 'px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: grab; z-index: 3',
+        dot: 'width: 24px; height: 24px; border-radius: 50%; background: ' + l.c + '; border: 3px solid #fff',
+        down: (e) => { if (e.button !== 0) return; e.stopPropagation(); const r = e.currentTarget.parentElement.getBoundingClientRect(); this.setState({ drag: { id: l.id, ox: e.clientX - r.left - l.x, oy: e.clientY - r.top - l.y }, menu: null }); },
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const [x, y] = H.at(e); this.setState({ menu: { id: l.id, x, y } }); } })),
+      move: (e) => { const d = s.drag; if (!d) return; const r = e.currentTarget.getBoundingClientRect(); this.setState({ lights: s.lights.map((l) => (l.id === d.id ? Object.assign({}, l, { x: e.clientX - r.left - d.ox, y: e.clientY - r.top - d.oy }) : l)) }); },
+      up: () => { if (s.drag) this.setState({ drag: null }); },
+      allow: (e) => e.preventDefault(),
+      dropLight: (e) => { e.preventDefault(); const [n, c] = e.dataTransfer.getData('text/plain').split('|'); if (!c) return; const r = e.currentTarget.getBoundingClientRect(); this.setState({ lights: s.lights.concat([{ id: 'l' + (this.n++), name: n, x: e.clientX - r.left - 12, y: e.clientY - r.top - 12, c, r: 120 }]) }); },
+      clock: (Math.floor(h) % 24) + ':' + (h % 1 ? '30' : '00') + (dark > 0.3 ? ' · night' : dark > 0 ? ' · evening' : ' · day'),
+      hour: h, setHour: (e) => this.setState({ hour: +e.target.value }),
+      cycle: s.cycle, toggleCycle: () => this.setState({ cycle: !s.cycle }),
+      moods: Object.keys(moodC).map((k) => ({ name: k, pick: () => this.setState({ mood: k }), style: H.card(k === s.mood) + '; flex-direction: row; align-items: center; gap: 8px', sw: 'width: 18px; height: 18px; border-radius: 50%; background: ' + moodC[k][0] })),
+      lib: [['Torch', '#ffb347'], ['Lantern', '#ffd633'], ['Spot', '#fff1b8'], ['Glow', '#a78bfa']].map(([n, c]) => ({ name: n, sw: 'width: 26px; height: 26px; border-radius: 50%; background: ' + c, start: (e) => e.dataTransfer.setData('text/plain', n + '|' + c) })),
+      fogV: s.fog, setFog: (e) => this.setState({ fog: +e.target.value }),
+      flipShadows: () => this.setState({ shadows: !s.shadows }), shTrack: H.track(s.shadows), shKnob: H.knob(s.shadows),
+      sizes: ['Room', 'Area', 'Open world'].map((z) => ({ name: z, style: H.pick(z === s.size) + '; flex: 1 1 0; font-size: 13px; padding: 0 8px; text-align: center', pick: () => this.setState({ size: z }) })),
+      dist: s.dist, setDist: (e) => this.setState({ dist: +e.target.value }),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: H.menu(m, ml ? ml.name : '', ml ? [
+        { label: 'Brighter', key: '+', run: () => this.setState({ menu: null, lights: s.lights.map((l) => (l.id === ml.id ? Object.assign({}, l, { r: l.r + 30 }) : l)) }) },
+        { label: 'Dimmer', key: '−', run: () => this.setState({ menu: null, lights: s.lights.map((l) => (l.id === ml.id ? Object.assign({}, l, { r: Math.max(40, l.r - 30) }) : l)) }) },
+        { label: 'Flicker like fire', key: '', run: () => this.setState({ menu: null }) },
+        { label: 'Turn on with a rule…', key: '', run: () => { window.location.href = 'Logic.dc.html'; } },
+        { label: 'Delete', key: 'Del', run: () => this.setState({ menu: null, lights: s.lights.filter((l) => l.id !== ml.id) }) }
+      ] : []),
+      undo: () => {}
+    };
+  }
+}

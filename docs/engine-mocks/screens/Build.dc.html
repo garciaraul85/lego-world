@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Build</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141519}
+a{color:#ffcc00}a:hover{color:#ffd633}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:12px;border:none;background:#24262d;color:#f2f2f4;font:600 14px 'Figtree',sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#2c2f37;color:#fff}
+.pri{background:#ffcc00;color:#141519}
+.pri:hover{background:#ffd633;color:#141519}
+.ico{width:40px;padding:0}
+.card{background:#1d1f25;border-radius:20px;padding:18px}
+.ltab{padding:8px 14px;border-radius:10px;border:none;background:none;color:#9ea3ad;font:600 14px 'Figtree',sans-serif;cursor:pointer}
+.ltab:hover{color:#f2f2f4}
+.lon{background:#24262d;color:#f2f2f4}
+.tilelib{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;padding:10px 6px;border-radius:14px;background:#24262d;color:#f2f2f4;font:600 12px 'Figtree',sans-serif;cursor:grab;user-select:none;text-align:center}
+.tilelib:hover{background:#2c2f37}
+.menu{position:absolute;z-index:30;min-width:220px;padding:6px;border-radius:14px;background:#24262d;box-shadow:0 16px 40px #000a;display:flex;flex-direction:column}
+.mi{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:none;border-radius:9px;background:none;color:#f2f2f4;font:500 14px 'Figtree',sans-serif;text-align:left;cursor:pointer}
+.mi:hover{background:#ffcc0026}
+.sep{height:1px;background:#33363e;margin:4px 8px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9ea3ad}
+.inp{min-height:40px;padding:0 12px;border-radius:10px;border:none;background:#141519;color:#f2f2f4;font:15px 'Figtree',sans-serif}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#2c2f37;font-size:13px;color:#f2f2f4;border:none;font-family:'Figtree',sans-serif;cursor:grab}
+.lbl{font-size:13px;font-weight:700;color:#9ea3ad;letter-spacing:.06em;text-transform:uppercase}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:#1d1f25}
+.toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#24262d;box-shadow:0 10px 30px #0008;font-size:14px;z-index:40}
+</style>
+</helmet>
+<div style="display: flex; min-height: 900px; background: #141519; color: #f2f2f4; font-family: 'Figtree', system-ui, sans-serif" onClick="{{closeMenu}}" onMouseUp="{{up}}">
+  <dc-import name="Nav" active="build" hint-size="96px,900px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 20px">
+      <div style="display: flex; flex-direction: column"><span style="font-size: 18px; font-weight: 700">{{assetName}}</span><span style="font-size: 13px; color: #9ea3ad">Building an asset from bricks</span></div>
+      <div class="seg" role="toolbar" aria-label="Brush">
+        <sc-for list="{{tools}}" as="t" hint-placeholder-count="3"><button type="button" style="{{t.style}}" onClick="{{t.pick}}">{{t.name}}</button></sc-for>
+      </div>
+      <span style="flex: 1 1 auto"></span>
+      <button type="button" class="btn ico" aria-label="Undo" onClick="{{undo}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg></button>
+      <a class="btn" href="Brix.dc.html">Ask Brix</a>
+      <button type="button" class="btn pri" onClick="{{saveAsset}}">Save to library</button>
+    </header>
+    <dc-import name="Sub" group="build" active="Bricks" hint-size="900px,46px"></dc-import>
+    <div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 0 20px 20px; flex: 1 1 auto">
+      <section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <div data-stage="1" style="position: relative; flex: 1 1 auto; min-height: 520px; border-radius: 20px; background: #1b2a20; display: flex; align-items: center; justify-content: center; overflow: hidden" onContextMenu="{{noMenu}}">
+          <div style="display: grid; grid-template-columns: repeat(24, 28px); gap: 2px; user-select: none" onMouseLeave="{{up}}">
+            <sc-for list="{{cells}}" as="c" hint-placeholder-count="384">
+              <div style="{{c.style}}" onMouseDown="{{c.down}}" onMouseEnter="{{c.over}}" onContextMenu="{{c.menu}}"></div>
+            </sc-for>
+          </div>
+          <span style="position: absolute; left: 16px; bottom: 14px; font-size: 13px; color: #9ea3ad">Click and drag to paint. Right-click a brick for more.</span>
+          <span style="position: absolute; right: 16px; bottom: 14px; font-size: 13px; color: #9ea3ad">{{count}} bricks</span>
+          <sc-if value="{{menu.show}}" hint-placeholder-val="{{ false }}">
+            <div class="menu" style="{{menu.style}}">
+              <span style="padding: 6px 12px 8px; font-size: 12px; font-weight: 700; color: #9ea3ad">This brick</span>
+              <sc-for list="{{menu.items}}" as="m" hint-placeholder-count="4"><button type="button" class="mi" onClick="{{m.run}}"><span>{{m.label}}</span><span style="color: #9ea3ad; font-size: 12px">{{m.key}}</span></button></sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}"><div class="toast">{{toast.text}}<button type="button" class="btn" style="min-height: 34px" onClick="{{undo}}">Undo</button></div></sc-if>
+        </div>
+        <div class="card" style="display: flex; flex-wrap: wrap; align-items: center; gap: 18px; padding: 14px 18px">
+          <span class="lbl">Colour</span>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap">
+            <sc-for list="{{colours}}" as="c" hint-placeholder-count="10"><button type="button" aria-label="{{c.name}}" title="{{c.name}}" style="{{c.style}}" onClick="{{c.pick}}"></button></sc-for>
+          </div>
+          <span class="lbl" style="margin-left: 12px">Brick</span>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap">
+            <sc-for list="{{shapes}}" as="b" hint-placeholder-count="5"><button type="button" style="{{b.style}}" onClick="{{b.pick}}"><span style="{{b.sw}}"></span>{{b.name}}</button></sc-for>
+          </div>
+        </div>
+      </section>
+      <aside style="flex: 1 1 280px; max-width: 330px; display: flex; flex-direction: column; gap: 14px">
+        <div class="card" style="display: flex; flex-direction: column; gap: 14px">
+          <label class="fld">Name<input class="inp" value="{{assetName}}" onInput="{{rename}}"></label>
+          <span class="lbl">Make it…</span>
+          <sc-for list="{{toggles}}" as="t" hint-placeholder-count="5">
+            <button type="button" onClick="{{t.flip}}" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0; border: none; background: none; color: #f2f2f4; font: 500 15px Figtree, sans-serif; cursor: pointer; text-align: left">
+              <span style="display: flex; flex-direction: column"><span>{{t.name}}</span><span style="font-size: 12px; color: #9ea3ad">{{t.desc}}</span></span>
+              <span style="{{t.track}}"><span style="{{t.knob}}"></span></span>
+            </button>
+          </sc-for>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; justify-content: space-between; align-items: center"><span class="lbl">New brick shape</span><a href="Help.dc.html" style="font-size: 13px">How?</a></div>
+          <div style="display: flex; gap: 14px; align-items: center">
+            <div style="display: grid; grid-template-columns: repeat(4, 26px); gap: 3px">
+              <sc-for list="{{custom}}" as="k" hint-placeholder-count="16"><button type="button" aria-label="Toggle stud" style="{{k.style}}" onClick="{{k.flip}}"></button></sc-for>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #9ea3ad">Click squares to shape it.<button type="button" class="btn" onClick="{{addShape}}">Add to bricks</button></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const g = {};
+    const put = (x0, y0, w, h, c) => { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) g[x + ',' + y] = c; };
+    put(7, 6, 10, 9, '#d8cfc0'); put(6, 4, 12, 2, '#e8463c'); put(8, 2, 8, 2, '#e8463c'); put(10, 1, 4, 1, '#e8463c');
+    put(11, 10, 2, 5, '#8a5a2b'); put(8, 8, 2, 2, '#7cc7ff'); put(14, 8, 2, 2, '#7cc7ff');
+    this.state = { grid: g, tool: 'Paint', colour: '#ffcc00', shape: '1×1', painting: false, hist: [], menu: null, toast: null, name: 'Red-roof house',
+      flags: { Breakable: true, 'Buildable in game': false, Pushable: false, Glows: false, Solid: true },
+      custom: [1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0], shapes: ['1×1', '2×1', '2×2', 'Slope', 'Round'] };
+  }
+  renderVals() {
+    const s = this.state;
+    const W = { '1×1': [1, 1], '2×1': [2, 1], '2×2': [2, 2], Slope: [2, 1], Round: [1, 1] };
+    const paintAt = (x, y, grid) => {
+      const g = Object.assign({}, grid);
+      const [w, h] = W[s.shape] || [1, 1];
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+        const k = (x + i) + ',' + (y + j);
+        if (x + i > 23 || y + j > 15) continue;
+        if (s.tool === 'Erase') delete g[k]; else g[k] = s.colour;
+      }
+      return g;
+    };
+    const fill = (x, y) => {
+      const g = Object.assign({}, s.grid); const from = g[x + ',' + y]; const st = [[x, y]]; const seen = {};
+      while (st.length) { const [a, b] = st.pop(); const k = a + ',' + b; if (seen[k] || a < 0 || b < 0 || a > 23 || b > 15 || g[k] !== from) continue; seen[k] = 1; g[k] = s.colour; st.push([a + 1, b], [a - 1, b], [a, b + 1], [a, b - 1]); }
+      return g;
+    };
+    const cells = [];
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 24; x++) {
+      const c = s.grid[x + ',' + y];
+      cells.push({
+        style: 'width: 28px; height: 28px; border-radius: 5px; cursor: crosshair; ' + (c ? 'background: ' + c + '; box-shadow: inset 0 -3px 0 #0003, inset 0 0 0 1px #0002' + (s.flags.Glows ? ', 0 0 10px ' + c : '') : 'background: #22352a'),
+        down: (e) => { if (e.button !== 0) return; e.preventDefault(); if (s.tool === 'Fill') this.setState({ hist: s.hist.concat([s.grid]), grid: fill(x, y) }); else this.setState({ hist: s.hist.concat([s.grid]), grid: paintAt(x, y, s.grid), painting: true, menu: null }); },
+        over: () => { if (s.painting) this.setState({ grid: paintAt(x, y, s.grid) }); },
+        menu: (e) => { e.preventDefault(); e.stopPropagation(); const r = e.currentTarget.closest('[data-stage]').getBoundingClientRect(); this.setState({ menu: { x: Math.min(e.clientX - r.left, r.width - 240), y: Math.min(e.clientY - r.top, r.height - 200), cx: x, cy: y } }); }
+      });
+    }
+    const pal = [['Yellow', '#ffcc00'], ['Red', '#e8463c'], ['Blue', '#3b78c9'], ['Green', '#45c46e'], ['Orange', '#ff8a3d'], ['White', '#f2f2f4'], ['Tan', '#d8cfc0'], ['Brown', '#8a5a2b'], ['Grey', '#8b93a3'], ['Sky', '#7cc7ff']];
+    const desc = { Breakable: 'Falls apart when hit', 'Buildable in game': 'Starts as a glowing pile the player builds', Pushable: 'Player can push it', Glows: 'Gives off light', Solid: 'Things can\'t walk through' };
+    const m = s.menu;
+    return {
+      assetName: s.name,
+      rename: (e) => this.setState({ name: e.target.value }),
+      tools: ['Paint', 'Erase', 'Fill'].map((t) => ({ name: t, pick: () => this.setState({ tool: t }), style: 'min-height: 34px; padding: 0 14px; border-radius: 9px; border: none; font: 600 13px Figtree, sans-serif; cursor: pointer; background: ' + (t === s.tool ? '#ffcc00' : 'transparent') + '; color: ' + (t === s.tool ? '#141519' : '#f2f2f4') })),
+      cells,
+      count: Object.keys(s.grid).length,
+      up: () => { if (s.painting) this.setState({ painting: false }); },
+      noMenu: (e) => e.preventDefault(),
+      closeMenu: () => { if (s.menu) this.setState({ menu: null }); },
+      menu: m ? { show: true, style: 'left: ' + m.x + 'px; top: ' + m.y + 'px', items: [
+        { label: 'Pick this colour', key: 'Alt-click', run: () => this.setState({ colour: s.grid[m.cx + ',' + m.cy] || s.colour, menu: null }) },
+        { label: 'Fill same colour', key: 'F', run: () => this.setState({ hist: s.hist.concat([s.grid]), grid: fill(m.cx, m.cy), menu: null }) },
+        { label: 'Erase', key: 'E', run: () => { const g = Object.assign({}, s.grid); delete g[m.cx + ',' + m.cy]; this.setState({ hist: s.hist.concat([s.grid]), grid: g, menu: null }); } },
+        { label: 'Help about bricks', key: '?', run: () => this.setState({ menu: null }) }
+      ] } : { show: false, items: [] },
+      toast: s.toast ? { show: true, text: s.toast } : { show: false },
+      undo: (e) => { if (e) e.stopPropagation(); if (!s.hist.length) return; this.setState({ grid: s.hist[s.hist.length - 1], hist: s.hist.slice(0, -1), toast: null }); },
+      saveAsset: () => this.setState({ toast: s.name + ' saved. Find it in Scene › Library › Assets' }),
+      colours: pal.map(([n, c]) => ({ name: n, pick: () => this.setState({ colour: c, tool: s.tool === 'Erase' ? 'Paint' : s.tool }), style: 'width: 34px; height: 34px; border-radius: 9px; border: none; cursor: pointer; background: ' + c + '; box-shadow: ' + (c === s.colour ? '0 0 0 3px #141519, 0 0 0 5px #fff' : 'none') })),
+      shapes: s.shapes.map((n) => {
+        const [w, h] = W[n] || [2, 2];
+        return { name: n, pick: () => this.setState({ shape: n }), sw: 'width: ' + (w * 10) + 'px; height: ' + (h * 10) + 'px; background: ' + s.colour + '; border-radius: ' + (n === 'Round' ? '50%' : n === 'Slope' ? '2px 12px 2px 2px' : '2px'),
+          style: 'display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 12px; border-radius: 10px; border: none; cursor: pointer; font: 600 13px Figtree, sans-serif; color: #f2f2f4; background: ' + (n === s.shape ? '#3a3420' : '#24262d') + '; box-shadow: ' + (n === s.shape ? 'inset 0 0 0 2px #ffcc00' : 'none') };
+      }),
+      toggles: Object.keys(s.flags).map((k) => ({ name: k, desc: desc[k], flip: () => this.setState({ flags: Object.assign({}, s.flags, { [k]: !s.flags[k] }) }),
+        track: 'flex: 0 0 auto; width: 46px; height: 28px; border-radius: 14px; position: relative; background: ' + (s.flags[k] ? '#ffcc00' : '#33363e'),
+        knob: 'position: absolute; top: 3px; left: ' + (s.flags[k] ? 21 : 3) + 'px; width: 22px; height: 22px; border-radius: 50%; background: #fff' })),
+      custom: s.custom.map((v, i) => ({ style: 'width: 26px; height: 26px; border-radius: 5px; border: none; cursor: pointer; background: ' + (v ? s.colour : '#24262d'), flip: () => this.setState({ custom: s.custom.map((q, j) => (j === i ? 1 - q : q)) }) })),
+      addShape: () => { const n = 'My brick ' + (s.shapes.length - 4); this.setState({ shapes: s.shapes.concat([n]), shape: n, toast: n + ' added to your bricks' }); }
+    };
+  }
+}
+</script>
+</body>
+</html>
