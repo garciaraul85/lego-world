@@ -3842,3 +3842,139 @@ select.inp {
 .art-split > * {
   min-width: 0;
 }
+
+/* ---------- Preview pickers: pictures, fits and fonts shown, not listed (P31) ---------- */
+.pv-field {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+.pv-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 3px 6px 3px 3px;
+  text-align: left;
+}
+.pv-btn-thumb {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #0c0f13;
+}
+.pv-btn-thumb > *,
+.pv-btn-thumb .art-thumb {
+  width: 26px !important;
+  height: 26px !important;
+  padding: 2px;
+  font-size: 13px;
+}
+.pv-btn-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.pv-pop {
+  position: fixed;
+  z-index: 40;
+  width: 300px;
+  max-height: 360px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #1b2028;
+  border: 1px solid #343c48;
+  box-shadow: 0 16px 40px #000a;
+}
+.pv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  gap: 6px;
+}
+.pv-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  background: var(--btn);
+  color: var(--fg2);
+  cursor: pointer;
+  min-width: 0;
+}
+.pv-opt:hover,
+.pv-opt:focus-visible {
+  background: var(--btnh);
+  border-color: var(--acc2);
+}
+.pv-opt.on {
+  border-color: var(--acc);
+  background: var(--accbg);
+}
+.pv-thumb {
+  width: 100%;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #0c0f13;
+}
+.pv-thumb .art-thumb {
+  width: 100% !important;
+  height: 48px !important;
+}
+.pv-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-none {
+  color: var(--mut2);
+  font-size: 18px;
+}
+.pv-font {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 22px;
+  color: var(--fg);
+}
+.pv-fit {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: #2a313d;
+  background-position: center;
+  image-rendering: pixelated;
+}
+.pv-more {
+  align-self: flex-start;
+}
+.pv-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--mut);
+  min-width: 0;
+}

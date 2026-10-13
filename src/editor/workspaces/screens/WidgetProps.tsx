@@ -4,9 +4,11 @@ import { effectiveWidget } from '../../../engine/ui/layout';
 import type { ActionCtx } from '../../actions/registry';
 import { ActionListField } from '../../components/ActionListField';
 import { BRICK_HEXES, ColorField } from '../../components/ColorPicker';
+import { PreviewPicker } from '../../components/PreviewPicker';
 import { actionChoices, MusicSelect, SoundSelect } from '../../panels/AudioFields';
 import { openLogicFor } from '../logic/createFromContext';
-import { allArt } from './art/ArtLibrary';
+import { ArtThumb, allArt } from './art/ArtLibrary';
+import { artUrl } from './art/render';
 import { canvasPortrait, KIND_LABEL, setLayout } from './model';
 
 /** colours offered first for screens: UI basics, then the brick colours */
@@ -66,27 +68,52 @@ export function WidgetProps({
   };
   const str = (k: string) => (typeof w.style?.[k] === 'string' ? (w.style[k] as string) : '');
   const art = allArt(ed);
-  const artSelect = (k: string, label: string, kinds: Art['kind'][], none: string) => (
-    <label>
+  const openArtTab = () => document.querySelector<HTMLButtonElement>('.screens-ws [role="tab"]:nth-child(2)')?.click();
+  const makeMore = (what: string) => (close: () => void) => (
+    <button
+      type="button"
+      class="link small pv-more"
+      onClick={() => {
+        close();
+        openArtTab();
+      }}
+    >
+      + Import, draw or design {what} in Art…
+    </button>
+  );
+  const none = (name: string) => ({ value: '', name, thumb: <span class="pv-none">∅</span> });
+  const artPicker = (k: string, label: string, kinds: Art['kind'][], noneName: string, what: string) => (
+    <div class="pv-label">
       {label}
-      <select
-        class="inp"
-        aria-label={label}
+      <PreviewPicker
+        label={label}
         value={str(k)}
-        onChange={(e) => style(k, (e.target as HTMLSelectElement).value || undefined)}
-      >
-        <option value="">{none}</option>
-        {art
-          .filter((a) => kinds.includes(a.kind))
-          .map((a) => (
-            <option value={`art:${a.id}`}>
-              {a.name}
-              {kinds.length > 1 ? ` (${a.kind})` : ''}
-            </option>
-          ))}
-        {str(k) && !art.some((a) => `art:${a.id}` === str(k)) && <option value={str(k)}>(missing) {str(k)}</option>}
-      </select>
-    </label>
+        options={[
+          none(noneName),
+          ...art
+            .filter((a) => kinds.includes(a.kind))
+            .map((a) => ({
+              value: `art:${a.id}`,
+              name: a.name,
+              note: a.kind,
+              thumb: <ArtThumb ed={ed} art={a} size={48} />,
+            })),
+        ]}
+        onPick={(v) => style(k, v || undefined)}
+        footer={makeMore(what)}
+      />
+    </div>
+  );
+  const bgUrl = str('bgArt').startsWith('art:') ? artUrl(ed, str('bgArt').slice(4)) : undefined;
+  const fitThumb = (size: string, repeat: boolean) => (
+    <span
+      class="pv-fit"
+      style={{
+        backgroundImage: bgUrl ? `url("${bgUrl}")` : 'none',
+        backgroundSize: size,
+        backgroundRepeat: repeat ? 'repeat' : 'no-repeat',
+      }}
+    />
   );
   const ids: string[] = [];
   const walk = (x: Widget) => {
@@ -417,53 +444,70 @@ export function WidgetProps({
             type="button"
             class="link"
             data-tip="Import, generate or draw backgrounds, icons and fonts"
-            onClick={() => document.querySelector<HTMLButtonElement>('.screens-ws [role="tab"]:nth-child(2)')?.click()}
+            onClick={openArtTab}
           >
             Art…
           </button>
         </div>
         <div class="grid2">
-          {w.type !== 'image' && artSelect('bgArt', 'Background picture', ['background', 'icon'], 'None')}
+          {w.type !== 'image' &&
+            artPicker('bgArt', 'Background picture', ['background', 'icon'], 'None', 'backgrounds')}
           {w.type !== 'image' && str('bgArt') && (
-            <label>
+            <div class="pv-label">
               Fit
-              <select
-                class="inp"
-                aria-label="Background fit"
+              <PreviewPicker
+                label="Background fit"
                 value={str('bgFit') || 'cover'}
-                onChange={(e) => {
-                  const v = (e.target as HTMLSelectElement).value;
-                  style('bgFit', v === 'cover' ? undefined : v);
-                }}
-              >
-                <option value="cover">Fill</option>
-                <option value="fit">Fit inside</option>
-                <option value="tile">Repeat</option>
-              </select>
-            </label>
+                options={[
+                  {
+                    value: 'cover',
+                    name: 'Fill',
+                    note: 'covers the widget, edges may be cut',
+                    thumb: fitThumb('cover', false),
+                  },
+                  {
+                    value: 'fit',
+                    name: 'Fit inside',
+                    note: 'whole picture, may leave gaps',
+                    thumb: fitThumb('contain', false),
+                  },
+                  { value: 'tile', name: 'Repeat', note: 'tiled at its own size', thumb: fitThumb('16px', true) },
+                ]}
+                onPick={(v) => style('bgFit', v === 'cover' ? undefined : v)}
+              />
+            </div>
           )}
-          {w.type === 'image' && artSelect('src', 'Picture', ['icon', 'background'], 'None (shows the icon text)')}
-          {w.type === 'button' && artSelect('icon', 'Icon', ['icon'], 'No icon')}
+          {w.type === 'image' && artPicker('src', 'Picture', ['icon', 'background'], 'None (icon text)', 'pictures')}
+          {w.type === 'button' && artPicker('icon', 'Icon', ['icon'], 'No icon', 'icons')}
           {['text', 'button', 'bar', 'slot', 'list', 'dialogue', 'panel'].includes(w.type) && (
-            <label>
+            <div class="pv-label">
               Font
-              <select
-                class="inp"
-                aria-label="Font"
+              <PreviewPicker
+                label="Font"
                 value={str('font')}
-                onChange={(e) => style('font', (e.target as HTMLSelectElement).value || undefined)}
-              >
-                <option value="">Same as parent</option>
-                {Object.entries(BUILTIN_FONTS).map(([k, f]) => (
-                  <option value={k}>{f.name}</option>
-                ))}
-                {art
-                  .filter((a) => a.kind === 'font')
-                  .map((a) => (
-                    <option value={`art:${a.id}`}>{a.name}</option>
-                  ))}
-              </select>
-            </label>
+                options={[
+                  { value: '', name: 'Same as parent', thumb: <span class="pv-font">Aa</span> },
+                  ...Object.entries(BUILTIN_FONTS).map(([k, f]) => ({
+                    value: k,
+                    name: f.name,
+                    thumb: (
+                      <span class="pv-font" style={{ fontFamily: f.css }}>
+                        Aa
+                      </span>
+                    ),
+                  })),
+                  ...art
+                    .filter((a) => a.kind === 'font')
+                    .map((a) => ({
+                      value: `art:${a.id}`,
+                      name: a.name,
+                      thumb: <ArtThumb ed={ed} art={a} size={48} />,
+                    })),
+                ]}
+                onPick={(v) => style('font', v || undefined)}
+                footer={makeMore('fonts')}
+              />
+            </div>
           )}
         </div>
       </div>

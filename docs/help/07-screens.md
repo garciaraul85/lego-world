@@ -44,7 +44,7 @@ The Art tab (next to Screens) holds your pictures and fonts:
 - **Icons**: Import or Draw them with pencil, eraser, fill, line, box, colour picker and mirror.
 - **Fonts**: Import a font (.ttf .otf .woff .woff2) or Design a pixel font letter by letter; Try it shows it at once.
 
-Export saves them back to your computer: PNG or SVG for pictures, the original file for imports, and TTF for designed fonts. Use them in Properties → Pictures and font: a background picture (fill, fit or repeat), a picture for Image widgets, an icon for buttons, and the font for text. Art in use can't be deleted.
+Export saves them back to your computer: PNG or SVG for pictures, the original file for imports, and TTF for designed fonts. Use them in Properties → Pictures and font, where every choice is shown as a preview card (the picture itself, each fit with your picture, "Aa" in each font): a background picture (fill, fit or repeat), a picture for Image widgets, an icon for buttons, and the font for text. Art in use can't be deleted.
 
 ## Signs in the world
 

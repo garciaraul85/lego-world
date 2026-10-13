@@ -167,9 +167,31 @@ test('art: generate a background, draw an icon, design a font, and use them on w
   await page.getByRole('button', { name: '← Screen' }).click();
   await page.getByRole('tab', { name: 'Screens' }).click();
   await page.getByRole('group', { name: 'Add widget' }).getByRole('button', { name: 'Add Button' }).click();
-  await page.getByLabel('Background picture').selectOption({ index: 1 });
-  await page.getByLabel('Icon', { exact: true }).selectOption({ index: 1 });
-  await page.getByLabel('Font', { exact: true }).selectOption({ label: 'Pixel font 1' });
+  // each choice is shown as a preview card: the button shows the current one
+  const pick = async (label: string, option: RegExp | string) => {
+    await page.getByRole('button', { name: new RegExp(`^${label}: `) }).click();
+    const list = page.getByRole('listbox', { name: label });
+    await expect(list.locator('.pv-thumb').first()).toBeVisible();
+    await list.getByRole('option', { name: option }).click();
+    await expect(list).toBeHidden();
+  };
+  await pick('Background picture', 'Background 1');
+  await expect(
+    page.getByRole('button', { name: 'Background picture: Background 1' }).locator('.art-thumb'),
+  ).toBeVisible();
+  // the fit choices preview the chosen picture
+  await page.getByRole('button', { name: /^Background fit: / }).click();
+  await expect(page.getByRole('listbox', { name: 'Background fit' }).locator('.pv-fit').first()).toHaveCSS(
+    'background-image',
+    /data:image\/svg/,
+  );
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/art-fit-picker.png` });
+  await page.getByRole('listbox', { name: 'Background fit' }).getByRole('option', { name: 'Repeat' }).click();
+  await pick('Icon', 'Icon 1');
+  await page.getByRole('button', { name: /^Font: / }).click();
+  await expect(page.getByRole('listbox', { name: 'Font' }).getByRole('option')).toHaveCount(7); // parent, 5 built-in, 1 designed
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/art-font-picker.png` });
+  await page.getByRole('listbox', { name: 'Font' }).getByRole('option', { name: 'Pixel font 1' }).click();
   const el = page.locator('.sc-device [data-widget="button1"]').first();
   await expect(el.locator('.bw-btn-icon')).toBeVisible();
   const css = await el.evaluate((n) => ({
