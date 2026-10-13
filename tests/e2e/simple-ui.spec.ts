@@ -121,6 +121,31 @@ test('hover tips explain tools and open Help; assets drag straight into the scen
   expect(errors.filter((e) => !/overlap|float/i.test(e))).toEqual([]);
 });
 
+test('brick cards drag straight into the scene too, landing on what is there', async ({ page }) => {
+  const errors: string[] = [];
+  await open(page, errors);
+  await ed(page, (e) => {
+    e.dock.value = 'assets';
+    e.assetCat.value = 'Bricks';
+  });
+  const canvas = page.getByLabel('3D map view');
+  const box = (await canvas.boundingBox())!;
+  const card = page.getByRole('listbox', { name: 'Piece sizes' }).getByRole('option').first();
+  const start = await ed(page, (e) => e.scene.value.count);
+  for (const [fx, fy] of [
+    [0.5, 0.8],
+    [0.35, 0.85],
+    [0.65, 0.75],
+  ] as const) {
+    await card.dragTo(canvas, { targetPosition: { x: box.width * fx, y: box.height * fy } });
+    if ((await ed(page, (e) => e.scene.value.count)) > start) break;
+  }
+  expect(await ed(page, (e) => e.scene.value.count)).toBe(start + 1);
+  // the Place tool stays on with that brick for the next ones
+  expect(await ed(page, (e) => (e as unknown as { tool: { value: string } }).tool.value)).toBe('place');
+  expect(errors).toEqual([]);
+});
+
 test('Move and Resize show handles on the selection; dragging them moves and resizes, one undo each', async ({
   page,
 }) => {

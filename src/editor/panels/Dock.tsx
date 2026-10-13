@@ -170,7 +170,13 @@ function Assets({ c }: { c: ActionCtx }) {
           </div>
         ) : (
           <>
-            <BrickPicker type={brush.type} color={brush.color} rot={brush.rot} onPick={(type) => setBrush({ type })} />
+            <BrickPicker
+              type={brush.type}
+              color={brush.color}
+              rot={brush.rot}
+              onPick={(type) => setBrush({ type })}
+              draggable
+            />
             <span class="muted small">Turned {brush.rot * 90}° (T)</span>
             <Swatches value={brush.color} onPick={(color) => setBrush({ color })} />
           </>

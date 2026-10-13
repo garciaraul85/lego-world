@@ -171,6 +171,50 @@ export function Viewport({
     };
     const plates = (dy: number) =>
       dy ? ` · ${dy < 0 ? 'down' : 'up'} ${Math.abs(dy)} plate${Math.abs(dy) === 1 ? '' : 's'} to stand` : '';
+    /**
+     * The brick about to be placed (Place tool or a card dragged in): it sits on what is under it, going up
+     * until it fits instead of cutting into a neighbour; `bad` says why it can't go there at all (red ghost).
+     */
+    const fitBrick = (
+      hit: { x: number; y: number; z: number },
+      br: { type: string; rot: number; color: string },
+    ): { ghost: RenderBrick; bad: string | null } => {
+      const [w, d] = footprint({ type: br.type, rot: br.rot });
+      const x = Math.round(hit.x - w / 2);
+      const z = Math.round(hit.z - d / 2);
+      const key = `b:${ed.revision.value}:${br.type}:${br.rot}:${x},${hit.y},${z}`;
+      if (key !== ghostKey) {
+        ghostKey = key;
+        const at = (dy: number) => ({
+          type: 'bricks.place',
+          payload: {
+            map: ed.mapId.value,
+            bricks: [{ type: br.type, x, y: hit.y + dy, z, rot: br.rot, color: br.color }],
+          },
+        });
+        const first = ed.bus.check(at(0));
+        ghostFit = { dy: 0, bad: first };
+        if (first)
+          for (let dy = 1; dy <= 36; dy++)
+            if (!ed.bus.check(at(dy))) {
+              ghostFit = { dy, bad: null };
+              break;
+            }
+      }
+      return {
+        bad: ghostFit.bad,
+        ghost: {
+          id: -1,
+          w,
+          d,
+          kind: kindOf(br.type),
+          x,
+          y: hit.y + ghostFit.dy,
+          z,
+          color: ghostFit.bad ? '#ff3b30' : br.color,
+        },
+      };
+    };
     let tagTimer = 0;
     let gz: {
       mode: GizmoMode;
@@ -680,41 +724,9 @@ export function Viewport({
       } else if (tool === 'place') {
         const hit = s.surface(r, (b) => !ed.isVisible(b));
         if (hit) {
-          const br = ed.brush.value;
-          const [w, d] = footprint({ type: br.type, rot: br.rot });
-          const x = Math.round(hit.x - w / 2);
-          const z = Math.round(hit.z - d / 2);
-          // the brick sits on whatever is under it: when it would cut into a neighbour, it goes up until it fits
-          const key = `b:${ed.revision.value}:${br.type}:${br.rot}:${x},${hit.y},${z}`;
-          if (key !== ghostKey) {
-            ghostKey = key;
-            const at = (dy: number) => ({
-              type: 'bricks.place',
-              payload: {
-                map: ed.mapId.value,
-                bricks: [{ type: br.type, x, y: hit.y + dy, z, rot: br.rot, color: br.color }],
-              },
-            });
-            const first = ed.bus.check(at(0));
-            ghostFit = { dy: 0, bad: first };
-            if (first)
-              for (let dy = 1; dy <= 36; dy++)
-                if (!ed.bus.check(at(dy))) {
-                  ghostFit = { dy, bad: null };
-                  break;
-                }
-          }
-          ghostBad = ghostFit.bad;
-          ghost = {
-            id: -1,
-            w,
-            d,
-            kind: kindOf(br.type),
-            x,
-            y: hit.y + ghostFit.dy,
-            z,
-            color: ghostBad ? '#ff3b30' : br.color,
-          };
+          const fit = fitBrick(hit, ed.brush.value);
+          ghost = fit.ghost;
+          ghostBad = fit.bad;
           ed.cursor.value = { x: ghost.x, z: ghost.z, y: ghost.y };
         }
         hover = null;
@@ -1149,6 +1161,16 @@ export function Viewport({
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
       const hit = s.surface(rayAt(e), (b) => !ed.isVisible(b));
+      if (p.kind === 'brick') {
+        // a brick card dragged in: the same preview as the Place tool
+        const fit = hit ? fitBrick(hit, p) : null;
+        ghost = fit?.ghost ?? null;
+        ghostBad = fit?.bad ?? null;
+        hover = null;
+        sceneHover.value = null;
+        dirty = true;
+        return;
+      }
       const def = resolveAsset(ed, p.asset);
       const at = hit && assetCorner(ed, p.asset, p.rot, hit);
       assetAt = at ?? null;
@@ -1167,9 +1189,32 @@ export function Viewport({
       assetAt = null;
       dirty = true;
       endDrag();
+      if (p.kind === 'brick') {
+        const fit = hit ? fitBrick(hit, p) : null;
+        ghost = null;
+        // the Place tool stays on with this brick, so the next ones are a click away
+        ed.tool.value = 'place';
+        if (!fit) return;
+        if (fit.bad) flashTag(`Can't place it here: ${fit.bad}`, local(e));
+        else {
+          const g = fit.ghost;
+          ed.exec(
+            {
+              type: 'bricks.place',
+              payload: {
+                map: ed.mapId.value,
+                bricks: [{ type: p.type, x: g.x, y: g.y, z: g.z, rot: p.rot, color: p.color }],
+              },
+            },
+            { label: 'Place brick' },
+          );
+        }
+        return;
+      }
       if (hit) placeAssetAt(ed, p.asset, p.rot, hit);
     };
     const onDragLeave = () => {
+      ghost = null;
       assetGhost = null;
       assetAt = null;
       dirty = true;
