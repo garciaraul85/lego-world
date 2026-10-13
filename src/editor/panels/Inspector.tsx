@@ -9,6 +9,7 @@ import { groupLabel } from '../categories';
 import { ActionListField } from '../components/ActionListField';
 import { ColorPicker } from '../components/ColorPicker';
 import { Header, Num, TextField } from '../components/fields';
+import { keysFor } from '../platform';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
 
@@ -192,8 +193,8 @@ function InspectorTab({ c }: { c: ActionCtx }) {
       <div class="sec">
         <div class="muted">Nothing selected.</div>
         <p class="hint">
-          Click an object in the map or the Hierarchy. Alt-click picks a single brick, Shift-click adds to the
-          selection. Use Place (B) to build, and the Map tab to generate terrain.
+          Click an object in the map or the Hierarchy. {keysFor('Alt')}-click picks a single brick, Shift-click adds to
+          the selection. Use Place (B) to build, and the Map tab to generate terrain.
         </p>
       </div>
     );

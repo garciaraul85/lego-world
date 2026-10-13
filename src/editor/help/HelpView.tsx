@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { ACTIONS, type ActionCtx, runAction } from '../actions/registry';
+import { keysFor } from '../platform';
 import { type Block, type Inline, parseMarkdown } from './markdown';
 import { helpGroups, helpPages } from './pages';
 import { Shot } from './Shot';
@@ -27,7 +28,7 @@ export function HelpView({ c, page: page0, onClose }: { c: ActionCtx; page: stri
   const search = useRef<HTMLInputElement>(null);
   const pages = helpPages();
   const current = pages.find((p) => p.id === page) ?? pages[0]!;
-  const blocks = useMemo(() => parseMarkdown(current.md), [current.id]);
+  const blocks = useMemo(() => parseMarkdown(keysFor(current.md)), [current.id]);
   const hits = useMemo(() => (query.trim() ? getIndex().search(query) : []), [query]);
 
   // focus and Esc are ready as soon as Help shows (a fast Esc right after opening still closes it)

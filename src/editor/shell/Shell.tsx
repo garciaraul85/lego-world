@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIONS, type ActionCtx, action, type EditorAction, MENUS, runAction } from '../actions/registry';
 import { resolveAsset } from '../assets';
+import { keysFor } from '../platform';
 import type { EditorState } from '../state';
 import { TOOLS } from './tools';
 
@@ -99,7 +100,7 @@ function MenuItem({ a, c }: { a: EditorAction; c: ActionCtx }) {
       }}
     >
       <span>{a.label}</span>
-      {a.later ? <span class="later">{a.later}</span> : <span class="k">{a.key ?? ''}</span>}
+      {a.later ? <span class="later">{a.later}</span> : <span class="k">{keysFor(a.key ?? '')}</span>}
     </button>
   );
 }
@@ -197,7 +198,7 @@ export function Toolbar({ c }: { c: ActionCtx }) {
         <span class="toolhint opt">{STUDIO_HINT[ed.workspace.value] ?? ''}</span>
       ) : (
         <span class="toolhint opt" data-tip={hint} data-tour="tool-hint">
-          {hint}
+          {keysFor(hint)}
         </span>
       )}
       <div class="group" role="group" aria-label="Play controls" data-tour="play">
@@ -387,7 +388,7 @@ export function CommandPalette({ c }: { c: ActionCtx }) {
             onClick={() => run(a)}
           >
             <span>{a.label}</span>
-            <span class="k">{a.later ?? a.key ?? ''}</span>
+            <span class="k">{a.later ?? keysFor(a.key ?? '')}</span>
           </button>
         ))}
       </div>
@@ -407,7 +408,7 @@ export function Shortcuts({ onClose }: { onClose: () => void }) {
         {keyed.map((a) => [
           <span>{a.label}</span>,
           <span class="mono" style={{ color: 'var(--acc2)' }}>
-            {a.key}
+            {keysFor(a.key ?? '')}
           </span>,
         ])}
       </div>

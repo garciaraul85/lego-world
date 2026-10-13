@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ActionCtx } from '../actions/registry';
+import { keysFor } from '../platform';
 import { commandMatches, STATE_TESTS } from './checks';
 import { courseTokens, fillCode } from './coding';
 import { perform } from './doers';
@@ -209,8 +210,8 @@ export function TutorialRunner({
         </div>
         {!min && (
           <>
-            <h3>{step.title}</h3>
-            <p>{step.body}</p>
+            <h3>{keysFor(step.title)}</h3>
+            <p>{keysFor(step.body)}</p>
             <p class={`tut-task ${phase}`}>
               {phase === 'done'
                 ? last
@@ -219,15 +220,15 @@ export function TutorialRunner({
                 : phase === 'demo' || phase === 'shown'
                   ? '👀 Watch:'
                   : '👉 Your turn:'}{' '}
-              {phase === 'done' ? '' : step.task}
+              {phase === 'done' ? '' : keysFor(step.task)}
             </p>
             {step.code && (
               <figure class="tut-figure" aria-label="Code to type">
                 <pre class="tut-code">{fillCode(step.code, courseTokens(ed))}</pre>
               </figure>
             )}
-            {step.tip && <p class="muted small">Tip: {step.tip}</p>}
-            {note && phase !== 'done' && <p class="tut-note">{note}</p>}
+            {step.tip && <p class="muted small">Tip: {keysFor(step.tip)}</p>}
+            {note && phase !== 'done' && <p class="tut-note">{keysFor(note)}</p>}
             <div class="tut-actions">
               <button
                 type="button"
