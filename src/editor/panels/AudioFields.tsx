@@ -320,7 +320,11 @@ export function ItemInspector({ c, id }: { c: ActionCtx; id: string }) {
     );
   return (
     <>
-      <Header title={`World ${it.widget}`} sub="World UI · drawn over the game at this spot" color="#f9d84c" />
+      <Header
+        title={`World ${it.widget}`}
+        sub="Sign · drawn over the game at this spot (HUD and title screens are in Screens)"
+        color="#f9d84c"
+      />
       <div class="sec">
         <div class="field">
           Kind
@@ -339,7 +343,7 @@ export function ItemInspector({ c, id }: { c: ActionCtx; id: string }) {
         </div>
         <div class="field">
           Text
-          <TextField label="World UI text" value={it.text} onCommit={(text) => patch({ text: text.slice(0, 200) })} />
+          <TextField label="Sign text" value={it.text} onCommit={(text) => patch({ text: text.slice(0, 200) })} />
         </div>
         {it.widget === 'bar' && (
           <div class="field">

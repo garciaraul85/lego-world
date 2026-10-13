@@ -5,13 +5,29 @@ import { type Decoder, probeAudio } from './probe';
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 export const MAX_PROJECT_BYTES = 200 * 1024 * 1024;
 
-const TYPES: Record<string, { kind: 'audio' | 'image'; mime: string }> = {
+const TYPES: Record<string, { kind: 'audio' | 'image' | 'font'; mime: string }> = {
   wav: { kind: 'audio', mime: 'audio/wav' },
   mp3: { kind: 'audio', mime: 'audio/mpeg' },
   ogg: { kind: 'audio', mime: 'audio/ogg' },
   m4a: { kind: 'audio', mime: 'audio/mp4' },
   png: { kind: 'image', mime: 'image/png' },
+  // P31: pictures and fonts for screens
+  jpg: { kind: 'image', mime: 'image/jpeg' },
+  jpeg: { kind: 'image', mime: 'image/jpeg' },
+  webp: { kind: 'image', mime: 'image/webp' },
+  svg: { kind: 'image', mime: 'image/svg+xml' },
+  ttf: { kind: 'font', mime: 'font/ttf' },
+  otf: { kind: 'font', mime: 'font/otf' },
+  woff: { kind: 'font', mime: 'font/woff' },
+  woff2: { kind: 'font', mime: 'font/woff2' },
 };
+
+/** File extensions by kind, for file pickers. */
+export const ACCEPT_OF = (kind: 'audio' | 'image' | 'font') =>
+  Object.entries(TYPES)
+    .filter(([, t]) => t.kind === kind)
+    .map(([e]) => `.${e}`)
+    .join(',');
 
 export type MediaEntry = MediaIndex['items'][string];
 export type ImportResult =

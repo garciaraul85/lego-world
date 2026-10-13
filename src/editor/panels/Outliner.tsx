@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'preact/hooks';
 import { type Instances, type MapState, paths } from '../../core/schema';
 import type { ActionCtx } from '../actions/registry';
 import { CATEGORIES, type CategoryId, groupLabel } from '../categories';
+import { openSelectionMenu } from '../interact/scene-menus';
 
 type Row = {
   key: string;
@@ -13,12 +14,22 @@ type Row = {
   onClick?: (e: MouseEvent) => void;
   onDbl?: () => void;
   sel?: boolean;
+  /** right-click selects the row (like a click) and opens the menu for the selection (P31) */
+  menu?: boolean;
 };
 
 const ROW = 26;
 
 /** Fixed-height virtual list: only the visible rows are in the DOM. */
-export function VirtualList({ rows, height }: { rows: Row[]; height?: string }) {
+export function VirtualList({
+  rows,
+  height,
+  onMenu,
+}: {
+  rows: Row[];
+  height?: string;
+  onMenu?: (x: number, y: number) => void;
+}) {
   const [top, setTop] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const view = ref.current?.clientHeight ?? 600;
@@ -49,6 +60,12 @@ export function VirtualList({ rows, height }: { rows: Row[]; height?: string }) 
             }}
             onClick={(e) => r.onClick?.(e as unknown as MouseEvent)}
             onDblClick={() => r.onDbl?.()}
+            onContextMenu={(e) => {
+              if (!r.menu || !onMenu) return;
+              e.preventDefault();
+              if (!r.sel) r.onClick?.(e as unknown as MouseEvent);
+              onMenu(e.clientX, e.clientY);
+            }}
           >
             <span class="caret" aria-hidden="true">
               {r.caret ?? ''}
@@ -196,6 +213,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
           name: cat.name,
           color: cat.color,
           meta: loose.count.toLocaleString('en-US'),
+          menu: true,
           onClick: (e) => ed.select(loose.ids, e.shiftKey),
           onDbl: () => ui.frameSelection(),
         });
@@ -224,6 +242,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
             color: s.get(g.ids[0]!)?.color,
             meta: String(g.ids.length),
             sel: g.ids.every((id) => sel.has(id)),
+            menu: true,
             onClick: (e) => ed.select(g.ids, e.shiftKey),
             onDbl: () => ui.frameSelection(),
           });
@@ -242,6 +261,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
       for (const sp of m.spawns)
         out.push({
           key: `sp:${sp.id}`,
+          menu: true,
           depth: 2,
           name: `${sp.name}${ed.store.manifest.entry.spawn === sp.id ? ' · start' : ''}`,
           color: '#4fd1c5',
@@ -267,6 +287,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
         for (const z of m.zones)
           out.push({
             key: `zn:${z.id}`,
+            menu: true,
             depth: 2,
             name: z.tags[0] ?? 'Zone',
             color: '#c792ea',
@@ -282,7 +303,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
     // P5.5 / P5.9: sound emitters (and music/ambience zones) and world UI
     const groups = [
       { key: 'sounds', name: 'Sounds', color: '#8b74ff', kind: 'emitter' as const },
-      { key: 'worldui', name: 'World UI', color: '#f9d84c', kind: 'ui' as const },
+      { key: 'worldui', name: 'Signs', color: '#f9d84c', kind: 'ui' as const },
     ];
     for (const g of groups) {
       const items = (inst?.items ?? []).filter((i) => i.kind === g.kind);
@@ -302,6 +323,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
       for (const it of items)
         out.push({
           key: `it:${it.id}`,
+          menu: true,
           depth: 2,
           name:
             it.kind === 'emitter'
@@ -320,6 +342,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
       for (const z of zones)
         out.push({
           key: `snz:${z.id}`,
+          menu: true,
           depth: 2,
           name: `⬚ ${z.tags[0] ?? 'Zone'} · ${z.music !== undefined ? 'music' : 'ambience'}`,
           color: g.color,
@@ -356,7 +379,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
           onInput={(e) => setFilter((e.target as HTMLInputElement).value)}
         />
       </div>
-      <VirtualList rows={rows} />
+      <VirtualList rows={rows} onMenu={(x, y) => openSelectionMenu(c, x, y)} />
     </>
   );
 }

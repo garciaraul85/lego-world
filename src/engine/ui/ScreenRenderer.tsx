@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
-import type { Screen } from '../../core/schema';
-import { type Insets, NO_INSETS, screenScale } from './layout';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import type { Screen, Widget } from '../../core/schema';
+import { type Insets, NO_INSETS, pinOrder, pinPlace, screenScale } from './layout';
 import { type ScreenHost, WidgetView } from './widgets';
 
 export type { ScreenHost } from './widgets';
@@ -15,9 +15,14 @@ export function ScreenView({
   host: ScreenHost;
   scale: ReturnType<typeof screenScale>;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // P31: pinned widgets go next to their targets once everything else is laid out
+  useLayoutEffect(() => placePins(ref.current, scale.scale));
+  const h = scale.portrait ? { ...host, portrait: true } : host;
   return (
     <div
-      class={`bw-screen bw-kind-${screen.kind}${screen.pausesGame ? ' bw-pausing' : ''}`}
+      ref={ref}
+      class={`bw-screen bw-kind-${screen.kind}${screen.pausesGame ? ' bw-pausing' : ''}${scale.portrait ? ' bw-portrait' : ''}`}
       data-screen={screen.id}
       role="region"
       aria-label={screen.name}
@@ -31,9 +36,43 @@ export function ScreenView({
         transformOrigin: '0 0',
       }}
     >
-      <WidgetView w={screen.root} path="" screen={screen.id} host={host} />
+      <WidgetView w={screen.root} path="" screen={screen.id} host={h} />
     </div>
   );
+}
+
+/** Places every pinned widget of a screen next to its target (targets first; a missing target leaves it hidden). */
+export function placePins(root: HTMLElement | null, scale: number) {
+  if (!root) return;
+  const pinned = [...root.querySelectorAll<HTMLElement>('[data-pin]')];
+  if (!pinned.length) return;
+  const byId = new Map<string, HTMLElement>();
+  for (const el of root.querySelectorAll<HTMLElement>('[data-widget]')) byId.set(el.dataset.widget!, el);
+  const pins = new Map<string, string>();
+  const info = new Map<string, { el: HTMLElement; pin: NonNullable<Widget['pin']> }>();
+  pinned.forEach((el, i) => {
+    const pin = JSON.parse(el.dataset.pin!) as NonNullable<Widget['pin']>;
+    const key = el.dataset.widget || `#${i}`;
+    pins.set(key, pin.to);
+    info.set(key, { el, pin });
+  });
+  const k = scale || 1;
+  for (const key of pinOrder(pins)) {
+    const { el, pin } = info.get(key)!;
+    const target = byId.get(pin.to);
+    const parent = el.offsetParent as HTMLElement | null;
+    if (!target || !parent || target === el) {
+      el.style.visibility = 'hidden';
+      continue;
+    }
+    const pr = parent.getBoundingClientRect();
+    const tr = target.getBoundingClientRect();
+    const t = { x: (tr.left - pr.left) / k, y: (tr.top - pr.top) / k, w: tr.width / k, h: tr.height / k };
+    const at = pinPlace(pin, t, el.offsetWidth, el.offsetHeight);
+    el.style.left = `${at.x}px`;
+    el.style.top = `${at.y}px`;
+    el.style.visibility = '';
+  }
 }
 
 /**

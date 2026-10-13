@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIONS, type ActionCtx, action, type EditorAction, MENUS, runAction } from '../actions/registry';
+import { resolveAsset } from '../assets';
 import type { EditorState, ToolId } from '../state';
+import { resizeHint } from '../viewport/gizmo';
 
 export function MenuBar({ c }: { c: ActionCtx }) {
   const { ed } = c;
@@ -128,7 +130,16 @@ export function WorkspaceTabs({ current, onPick }: { current: string; onPick: (w
   );
 }
 
-export const TOOLS: { id: ToolId; glyph: string; label: string; key: string; help: string; later?: string }[] = [
+export const TOOLS: {
+  id: ToolId;
+  glyph: string;
+  label: string;
+  key: string;
+  help: string;
+  later?: string;
+  /** shares a toolbar button with another tool (Place covers bricks and assets) */
+  hidden?: boolean;
+}[] = [
   {
     id: 'select',
     glyph: '↖',
@@ -141,28 +152,36 @@ export const TOOLS: { id: ToolId; glyph: string; label: string; key: string; hel
     glyph: '✥',
     label: 'Move',
     key: 'W',
-    help: 'Move: drag a selected object across the ground; arrows nudge, PgUp/PgDn change height.',
+    help: 'Move: select something, then drag the red, green or blue arrow to move it along that way. Drag the object itself to slide it on the ground.',
   },
   {
     id: 'rotate',
     glyph: '↻',
-    label: 'Rotate 90°',
+    label: 'Rotate',
     key: 'E',
-    help: 'Rotate: click an object to turn it a quarter (Alt: one brick).',
+    help: 'Rotate: select something, then drag a ring. A whole asset turns freely about X (red), Y (green) and Z (blue) in 15° steps; bricks turn in quarter turns. R turns once.',
+  },
+  {
+    id: 'resize',
+    glyph: '⤡',
+    label: 'Resize',
+    key: 'Q',
+    help: 'Resize: select an asset, a trigger zone or one brick, then drag a square handle. Assets grow freely (the white corner grows them evenly); bricks snap to real LEGO sizes; the top handle makes a plate or a brick.',
   },
   {
     id: 'place',
     glyph: '▦',
-    label: 'Brick paint',
+    label: 'Place',
     key: 'B',
-    help: 'Brick paint: click to place the brush brick. T turns it; pick shape and color in the dock.',
+    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). T turns it.',
   },
   {
     id: 'asset',
-    glyph: '⌂',
-    label: 'Place asset',
+    glyph: '▦',
+    label: 'Place',
     key: 'A',
-    help: 'Place asset: click to put down the asset picked in Assets › Assets. T turns it.',
+    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). T turns it.',
+    hidden: true,
   },
   {
     id: 'paint',
@@ -202,41 +221,78 @@ export const TOOLS: { id: ToolId; glyph: string; label: string; key: string; hel
   {
     id: 'ui',
     glyph: '▭',
-    label: 'World UI',
+    label: 'Sign',
     key: 'U',
-    help: 'World UI: click to place a sign above the ground; its text can show {variables} while playing.',
+    help: 'Sign: click the ground to put up a sign in the world; its text can show {variables} while playing. The HUD, title and splash screens are made in the Screens workspace.',
   },
 ];
+
+const STUDIO_WORKSPACES = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics']);
+const STUDIO_HINT: Record<string, string> = {
+  Assets: 'Asset studio: build the asset with the tools above the build plate. Every placed copy updates.',
+  Characters: 'Character studio: pick parts, colors and moves on the right.',
+  Logic: 'Logic: rules and scripts for this game.',
+  Screens: 'Screens: the HUD, title, splash, pause and other game screens.',
+  Audio: 'Audio: sounds, music and the mix.',
+  Cinematics: 'Cinematics: cutscenes on a timeline.',
+};
+
+/** the last kind of Place used (a brick or an asset) */
+let lastPlace: 'place' | 'asset' | null = null;
 
 export function Toolbar({ c }: { c: ActionCtx }) {
   const { ed, ui } = c;
   ed.revision.value;
   const tool = TOOLS.find((t) => t.id === ed.tool.value) ?? TOOLS[0]!;
+  // the studios have their own tools; the Scene tools would only be a second toolbar there
+  const studioWs = STUDIO_WORKSPACES.has(ed.workspace.value);
+  const placing = ed.tool.value === 'place' || ed.tool.value === 'asset';
+  if (placing) lastPlace = ed.tool.value as 'place' | 'asset';
+  // Resize says why nothing shows when the selection has no size to change; Place says what it puts down
+  const hint =
+    (tool.id === 'resize' && resizeHint(ed)) ||
+    (ed.tool.value === 'asset' && resolveAsset(ed, ed.assetBrush.value.asset)
+      ? `Place ${resolveAsset(ed, ed.assetBrush.value.asset)!.name}: click the ground, or drag cards from the dock. T turns it. Pick a brick in the dock to place bricks instead.`
+      : ed.tool.value === 'place'
+        ? `Place a ${ed.brush.value.type.replace(/^(brick|plate|tile)(\d+)x(\d+)$/, '$1 $2×$3')}: click the ground, or drag it. T turns it. Pick an asset in the dock to place that instead.`
+        : tool.help);
   return (
     <div class="toolbar">
-      <div class="group" role="group" aria-label="Tools" data-tour="tools">
-        {TOOLS.map((t) => (
-          <button
-            type="button"
-            class={`btn icon ${ed.tool.value === t.id ? 'on' : ''}`}
-            aria-label={`${t.label} (${t.key})`}
-            aria-pressed={ed.tool.value === t.id}
-            title={t.later ? `${t.label} — ${t.later}` : `${t.label} (${t.key})`}
-            disabled={!!t.later}
-            onClick={() => {
-              ed.tool.value = t.id;
-              ed.persistUi();
-            }}
-          >
-            <span aria-hidden="true" class="mono">
-              {t.glyph}
-            </span>
-          </button>
-        ))}
-      </div>
-      <span class="toolhint opt" title={tool.help}>
-        {tool.help}
-      </span>
+      {!studioWs && (
+        <div class="group" role="group" aria-label="Tools" data-tour="tools">
+          {TOOLS.filter((t) => !t.hidden).map((t) => {
+            const on = ed.tool.value === t.id || (t.id === 'place' && placing);
+            return (
+              <button
+                type="button"
+                class={`btn icon ${on ? 'on' : ''}`}
+                aria-label={`${t.label} (${t.key})`}
+                aria-pressed={on}
+                data-tip={t.later ? `${t.label} — ${t.later}` : `${t.help} Shortcut: ${t.key}.`}
+                data-help="scene"
+                disabled={!!t.later}
+                onClick={() => {
+                  // Place picks up where you left off: the asset you chose, or the brick brush
+                  ed.tool.value =
+                    t.id === 'place' ? (lastPlace ?? (ed.assetBrush.value.asset ? 'asset' : 'place')) : t.id;
+                  ed.persistUi();
+                }}
+              >
+                <span aria-hidden="true" class="mono">
+                  {t.glyph}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {studioWs ? (
+        <span class="toolhint opt">{STUDIO_HINT[ed.workspace.value] ?? ''}</span>
+      ) : (
+        <span class="toolhint opt" data-tip={hint} data-tour="tool-hint">
+          {hint}
+        </span>
+      )}
       <div class="group" role="group" aria-label="Play controls" data-tour="play">
         <button
           type="button"

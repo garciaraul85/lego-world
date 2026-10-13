@@ -36,6 +36,25 @@ export const Asset = z.strictObject({
   initialState: z.string(),
   /** bricks (indexes into `bricks`) that are shown only in the listed state; all others always show */
   onlyIn: z.record(z.string(), z.array(z.number().int().min(0))).optional(),
+  /**
+   * P31 parts: groups of bricks (indexes into `bricks`) turned and sized freely inside the asset, such as a
+   * leaning roof or a tilted wheel. Each brick is in at most one part. Parts are drawn turned; for the
+   * brick rules (overlap, support) they keep their straight cells, and nothing new is built on them.
+   */
+  parts: z
+    .array(
+      z.strictObject({
+        name: z.string().min(1).max(40),
+        bricks: z.array(z.number().int().min(0)).min(1),
+        tilt: z
+          .tuple([z.number().min(-180).max(180), z.number().min(-180).max(180), z.number().min(-180).max(180)])
+          .optional(),
+        scale: z
+          .tuple([z.number().min(0.1).max(10), z.number().min(0.1).max(10), z.number().min(0.1).max(10)])
+          .optional(),
+      }),
+    )
+    .optional(),
   /** where the asset came from: the built-in library, the world generator, or made by the user */
   origin: z.enum(['builtin', 'generated', 'user']).optional(),
   interactions: z.array(

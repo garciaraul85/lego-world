@@ -19,6 +19,7 @@ export type ToolId =
   | 'select'
   | 'move'
   | 'rotate'
+  | 'resize'
   | 'place'
   | 'asset'
   | 'paint'

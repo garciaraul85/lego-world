@@ -80,6 +80,16 @@ export class CommandBus {
     return { ...run.result, preview: run.preview! };
   }
 
+  /**
+   * Would these commands work right now? Applies them, rolls back, and tells no listeners. Returns the
+   * reason they would be refused, or null. Used while dragging, so the preview can turn red.
+   */
+  check(cmds: Command | Command[]): string | null {
+    const list = Array.isArray(cmds) ? cmds : [cmds];
+    const r = this.store.silently(() => this.run(list, true, false));
+    return r.ok ? null : (r.result.error ?? 'That change is not possible.');
+  }
+
   undo(): boolean {
     const step = this.undoStack.pop();
     if (!step) return false;
@@ -133,7 +143,7 @@ export class CommandBus {
     return list.length === 1 ? one : `${one} (+${list.length - 1})`;
   }
 
-  private run(list: Command[], dry = false) {
+  private run(list: Command[], dry = false, snapshot = true) {
     const before = new Map<string, unknown | undefined>();
     const store = this.store;
     let failure: ExecuteResult | null = null;
@@ -163,14 +173,15 @@ export class CommandBus {
             break;
           }
         }
-        if (dry && !failure) preview = store.snapshot();
+        if (dry && snapshot && !failure) preview = store.snapshot();
         if (failure || dry) rollback();
       },
       (path, value) => {
         if (!before.has(path)) before.set(path, value);
       },
     );
-    if (failure) return { ok: false as const, result: failure as ExecuteResult, preview: store.snapshot() };
+    if (failure)
+      return { ok: false as const, result: failure as ExecuteResult, preview: snapshot ? store.snapshot() : undefined };
     const touched = [...before.keys()].sort();
     if (dry) return { ok: true as const, result: { ok: true, touched }, preview, step: null };
     const after = new Map(touched.map((p) => [p, store.get(p)]));

@@ -1,5 +1,5 @@
 import type { SkySample } from '../../core/legacy/modules';
-import { brickGeometry, type Geometry, PLATE, plainBox } from './brick-geometry';
+import { brickGeometry, coneGeometry, type Geometry, PLATE, plainBox } from './brick-geometry';
 import type { CameraFrame } from './camera';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from './math';
 import { FRAGMENT, SKY_FRAGMENT, SKY_VERTEX, VERTEX } from './shaders';
@@ -24,9 +24,26 @@ type ChunkGpu = { batches: Batch[]; min: Vec3; max: Vec3; bricks: number };
 /** Beyond this distance (studs) a chunk draws plain boxes without studs (plan: Performance › stud LOD). */
 export const LOD_DISTANCE = 96;
 
-export type Overlay = { bricks: RenderBrick[]; color?: [number, number, number]; alpha: number; flat: boolean };
-export type LineSet = { lines: number[]; color: [number, number, number] };
-export type Marker = { pos: Vec3; size: Vec3; color: [number, number, number]; alpha?: number };
+export type Overlay = {
+  bricks: RenderBrick[];
+  color?: [number, number, number];
+  alpha: number;
+  flat: boolean;
+  /** column-major model matrix: draws the bricks turned (a freely rotated asset, P31) */
+  model?: Float32Array;
+};
+/** onTop: drawn over everything, ignoring depth (editor gizmos) */
+export type LineSet = { lines: number[]; color: [number, number, number]; onTop?: boolean };
+export type Marker = {
+  pos: Vec3;
+  /** box: width, height, depth (centered on pos); cone: [diameter, length, _], base on pos */
+  size: Vec3;
+  color: [number, number, number];
+  alpha?: number;
+  onTop?: boolean;
+  /** an arrowhead pointing along +axis instead of a box (editor gizmos) */
+  cone?: 'x' | 'y' | 'z';
+};
 
 export type FrameStats = { drawCalls: number; instances: number; chunksDrawn: number; chunks: number; ms: number };
 
@@ -185,6 +202,16 @@ export class Renderer {
   /** Far-LOD shape: the brick's shell as one rounded box, no studs or tubes. */
   private lodShape(w: number, d: number, kind: RenderBrick['kind']): Mesh {
     return this.boxMesh(`lod:${w},${d},${kind}`, w - 0.025, brickHeightUnits(kind), d - 0.025);
+  }
+
+  private coneMesh(r: number, h: number, axis: 'x' | 'y' | 'z'): Mesh {
+    const key = `cone:${r},${h},${axis}`;
+    let m = this.meshes.get(key);
+    if (!m) {
+      m = this.upload(coneGeometry(r, h, axis));
+      this.meshes.set(key, m);
+    }
+    return m;
   }
 
   private boxMesh(key: string, w: number, h: number, d: number): Mesh {
@@ -422,6 +449,7 @@ export class Renderer {
     gl.uniform1f(this.u.uInstances!, 0);
 
     for (const m of markers) {
+      if (m.onTop) continue;
       if (m.alpha !== undefined && m.alpha < 1) {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -437,6 +465,7 @@ export class Renderer {
     }
 
     for (const o of overlays) {
+      if (o.model) gl.uniformMatrix4fv(this.u.uMVP!, false, multiply(mvp, o.model));
       if (o.alpha < 1) {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -445,6 +474,7 @@ export class Renderer {
       this.drawBrickList(o.bricks, o.alpha, o.flat, o.color);
       gl.disable(gl.BLEND);
       gl.depthFunc(gl.LESS);
+      if (o.model) gl.uniformMatrix4fv(this.u.uMVP!, false, mvp);
     }
 
     if (lines.length) {
@@ -456,6 +486,8 @@ export class Renderer {
       gl.uniform3fv(this.u.uOffset!, [0, 0, 0]);
       for (const set of lines) {
         if (!set.lines.length) continue;
+        if (set.onTop) gl.disable(gl.DEPTH_TEST);
+        else gl.enable(gl.DEPTH_TEST);
         gl.uniform3fv(this.u.uColor!, set.color);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.lineBuf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(set.lines), gl.DYNAMIC_DRAW);
@@ -464,10 +496,26 @@ export class Renderer {
         gl.drawArrays(gl.LINES, 0, set.lines.length / 3);
         this.stats.drawCalls++;
       }
+      gl.enable(gl.DEPTH_TEST);
     }
     if (extra) {
       extra(mvp, cam.eye);
       gl.useProgram(this.prog);
+    }
+    // gizmo handles: over the scene, but in depth order among themselves
+    const top = markers.filter((m) => m.onTop);
+    if (top.length) {
+      gl.clear(gl.DEPTH_BUFFER_BIT);
+      for (const m of top)
+        this.drawSingle(
+          m.cone
+            ? this.coneMesh(m.size[0] / 2, m.size[1], m.cone)
+            : this.boxMesh(`marker:${m.size.join(',')}`, m.size[0], m.size[1], m.size[2]),
+          m.pos,
+          m.color,
+          1,
+          true,
+        );
     }
     this.stats.ms = performance.now() - t0;
     return this.stats;

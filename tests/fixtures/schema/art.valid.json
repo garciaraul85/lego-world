@@ -1,0 +1,15 @@
+{
+  "path": "art/art_0000000001.json",
+  "value": {
+    "id": "art_0000000001",
+    "name": "Pixel heart",
+    "kind": "icon",
+    "source": {
+      "type": "pixels",
+      "w": 4,
+      "h": 4,
+      "palette": ["#d20c20"],
+      "data": ".00.0000.00...00"
+    }
+  }
+}

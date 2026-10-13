@@ -3,7 +3,7 @@ import { SND } from '../../builtin/audio';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { expandAsset } from '../../core/assets/expand';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
-import { brickToPiece, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
+import { brickToPiece, exactColors, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import type { ExecCtx } from '../../core/logic/catalog';
@@ -245,7 +245,11 @@ export class PlaySession {
     const doc = this.snapshot.get(paths.map(mapId)) as MapDoc;
     const build = mapToLegacyBuild(this.snapshot, mapId);
     const meta = (build.world ?? null) as LegacyWorldMeta;
-    const pieces = build.pieces.map((p) => ({ ...p }));
+    // any-colour bricks keep their exact colour in Play (v68 saves keep the nearest v68 colour)
+    const exact = exactColors(this.snapshot, mapId);
+    const pieces = build.pieces.map((p) =>
+      p.id !== undefined && exact.has(p.id) ? { ...p, hex: exact.get(p.id)! } : { ...p },
+    );
     const state = (this.snapshot.get(paths.state(mapId)) as MapState | undefined) ?? { broken: [], player: null };
     const controller = new this.L.GamePhysics.Controller(pieces, meta);
     const inst = this.snapshot.get(paths.instances(mapId)) as Instances | undefined;
@@ -1006,7 +1010,7 @@ export class PlaySession {
       idBase,
     };
     const exp = expandAsset(def, inst);
-    const pieces = [...w.pieces, ...exp.bricks.map(brickToPiece)];
+    const pieces = [...w.pieces, ...exp.bricks.map((b) => brickToPiece(b, true))];
     const check = inspectPieces(pieces);
     if (!check.ok) {
       this.emit('info', `Spawn ${def.name}: ${check.reason}`);
@@ -1143,7 +1147,10 @@ export class PlaySession {
     const lo = inst.inst.idBase;
     const hi = lo + inst.def.bricks.length;
     const next = expandAsset(inst.def, { ...inst.inst, state });
-    const pieces = [...w.pieces.filter((p) => p.id! < lo || p.id! >= hi), ...next.bricks.map(brickToPiece)];
+    const pieces = [
+      ...w.pieces.filter((p) => p.id! < lo || p.id! >= hi),
+      ...next.bricks.map((b) => brickToPiece(b, true)),
+    ];
     const check = inspectPieces(pieces);
     if (!check.ok) {
       this.say(`Something is in the way: ${check.reason}`, 2);

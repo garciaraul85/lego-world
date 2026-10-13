@@ -1,3 +1,4 @@
+import { freeGroups } from '../../core/assets/free';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { rigPose } from '../character/animator';
@@ -5,7 +6,7 @@ import type { CharacterRenderer, Controller } from '../legacy/runtime-modules';
 import { brickGeometry } from '../render/brick-geometry';
 import type { CameraFrame } from '../render/camera';
 import { cross, normalize, type Vec3 } from '../render/math';
-import { type LineSet, type Marker, type Mesh, type RenderBrick, Renderer } from '../render/renderer';
+import { type LineSet, type Marker, type Mesh, type Overlay, type RenderBrick, Renderer } from '../render/renderer';
 import { FRAGMENT } from '../render/shaders';
 import { chunkKeyOf } from './pieces';
 import type { MapWorld, PlaySession } from './session';
@@ -14,7 +15,16 @@ export type DebugDraw = { colliders: boolean; spawns: boolean };
 
 const toRender = (p: LegacyPiece): RenderBrick => {
   const [w, d] = p.turn % 2 ? [p.rows, p.cols] : [p.cols, p.rows];
-  return { id: p.id ?? 0, w, d, kind: p.kind, x: p.x, y: p.y, z: p.z, color: LEGACY_COLORS[p.color]?.[1] ?? '#ff00ff' };
+  return {
+    id: p.id ?? 0,
+    w,
+    d,
+    kind: p.kind,
+    x: p.x,
+    y: p.y,
+    z: p.z,
+    color: p.hex ?? LEGACY_COLORS[p.color]?.[1] ?? '#ff00ff',
+  };
 };
 
 /** Draws a PlaySession: bricks (chunked), v68 characters and debris, play camera, debug overlays. */
@@ -62,16 +72,47 @@ export class PlayRenderer {
     return { eye, right, up, forward: [-z[0], -z[1], -z[2]], fov: 0.9, distance: distance * f };
   }
 
+  /** freely turned assets (P31): their pieces are drawn turned, not in the chunks */
+  private tilted: { ids: Set<number>; groups: { ids: Set<number>; model: Float32Array }[] } = {
+    ids: new Set(),
+    groups: [],
+  };
+
+  private syncTilted() {
+    const w = this.session.world;
+    const ids = new Set<number>();
+    const groups: { ids: Set<number>; model: Float32Array }[] = [];
+    for (const g of freeGroups(w.instances)) {
+      const set = new Set(g.bricks.map((b) => b.id));
+      for (const id of set) ids.add(id);
+      groups.push({ ids: set, model: g.t.model });
+    }
+    this.tilted = { ids, groups };
+  }
+
+  private tiltedOverlays(): Overlay[] {
+    const w = this.session.world;
+    if (!this.tilted.ids.size) return [];
+    const out: Overlay[] = [];
+    for (const g of this.tilted.groups) {
+      const pieces = w.pieces.filter((p) => p.id !== undefined && g.ids.has(p.id));
+      if (pieces.length) out.push({ bricks: pieces.map(toRender), alpha: 1, flat: false, model: g.model });
+    }
+    return out;
+  }
+
   private syncBricks() {
     const w = this.session.world;
     const r = this.renderer;
     if (this.shown !== w) {
+      this.syncTilted();
       this.shown = w;
       r.clearChunks();
       r.setSegments(w.doc.generator ? 12 : 24);
       w.dirtyChunks.clear();
       const byKey = new Map<string, RenderBrick[]>();
       for (const p of w.pieces) {
+        if (p.id !== undefined && this.tilted.ids.has(p.id)) continue;
         const k = chunkKeyOf(p);
         const list = byKey.get(k) ?? [];
         if (!byKey.has(k)) byKey.set(k, list);
@@ -81,7 +122,11 @@ export class PlayRenderer {
       return;
     }
     if (!w.dirtyChunks.size) return;
-    for (const k of w.dirtyChunks) r.setChunk(k, w.pieces.filter((p) => chunkKeyOf(p) === k).map(toRender));
+    for (const k of w.dirtyChunks)
+      r.setChunk(
+        k,
+        w.pieces.filter((p) => chunkKeyOf(p) === k && !(p.id !== undefined && this.tilted.ids.has(p.id))).map(toRender),
+      );
     w.dirtyChunks.clear();
   }
 
@@ -144,36 +189,43 @@ export class PlayRenderer {
         color: [0.4, 1, 0.5],
       });
     }
-    return this.renderer.render(cam, [s.heroState.x, s.heroState.y, s.heroState.z], [], lines, markers, (mvp, eye) => {
-      const c = this.chars;
-      c.begin(mvp, eye, sky);
-      for (const n of w.npcs) {
-        if (!this.bound.has(n.controller)) {
-          c.bindCollision(n.profile, n.controller);
-          this.bound.add(n.controller);
+    return this.renderer.render(
+      cam,
+      [s.heroState.x, s.heroState.y, s.heroState.z],
+      this.tiltedOverlays(),
+      lines,
+      markers,
+      (mvp, eye) => {
+        const c = this.chars;
+        c.begin(mvp, eye, sky);
+        for (const n of w.npcs) {
+          if (!this.bound.has(n.controller)) {
+            c.bindCollision(n.profile, n.controller);
+            this.bound.add(n.controller);
+          }
+          const cast = s.cine.drawFor(n, n.profile, n.state);
+          if (cast?.state.hidden) continue;
+          c.draw(cast?.profile ?? n.profile, cast?.state ?? n.state);
         }
-        const cast = s.cine.drawFor(n, n.profile, n.state);
-        if (cast?.state.hidden) continue;
-        c.draw(cast?.profile ?? n.profile, cast?.state ?? n.state);
-      }
-      for (const x of s.cine.extras()) c.draw(x.profile, x.state);
-      if (!this.bound.has(w.controller)) {
-        c.bindCollision(s.hero, w.controller);
-        this.bound.add(w.controller);
-      }
-      const pose = s.heroAnim.params();
-      const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
-      if (heroCast) {
-        if (!heroCast.state.hidden) c.draw(heroCast.profile, heroCast.state);
-      } else
-        c.draw(
-          s.hero,
-          pose
-            ? { ...s.heroState, studioPose: rigPose(pose, s.heroAnim.clip), studioProgress: 0, studioFist: false }
-            : s.heroState,
-        );
-      for (const d of w.debris) c.debris(this.debrisMesh, d);
-    });
+        for (const x of s.cine.extras()) c.draw(x.profile, x.state);
+        if (!this.bound.has(w.controller)) {
+          c.bindCollision(s.hero, w.controller);
+          this.bound.add(w.controller);
+        }
+        const pose = s.heroAnim.params();
+        const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
+        if (heroCast) {
+          if (!heroCast.state.hidden) c.draw(heroCast.profile, heroCast.state);
+        } else
+          c.draw(
+            s.hero,
+            pose
+              ? { ...s.heroState, studioPose: rigPose(pose, s.heroAnim.clip), studioProgress: 0, studioFist: false }
+              : s.heroState,
+          );
+        for (const d of w.debris) c.debris(this.debrisMesh, d);
+      },
+    );
   }
 
   dispose() {

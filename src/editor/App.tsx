@@ -7,6 +7,10 @@ import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './acti
 import { AiPanel } from './ai/AiPanel';
 import { WorldGraph } from './graph/WorldGraph';
 import { HelpView } from './help/HelpView';
+import { ContextMenu } from './interact/ContextMenu';
+import { HoverTip } from './interact/HoverTip';
+import { openMenuState } from './interact/menu';
+import { openSelectionMenu } from './interact/scene-menus';
 import { Dock } from './panels/Dock';
 import { RightPanel } from './panels/Inspector';
 import { Outliner } from './panels/Outliner';
@@ -28,6 +32,7 @@ import { readIntent, writeIntent } from './start/intent';
 import { type HubHost, StartHub } from './start/StartHub';
 import type { EditorState } from './state';
 import { TutorialRunner } from './tutorial/TutorialRunner';
+import { activeView, fullscreenDock, sceneFullscreen, viewOp } from './viewport/active';
 import type { ViewportApi } from './viewport/Viewport';
 import { ViewportPanel } from './viewport/Views';
 import { AssetStudio } from './workspaces/asset-studio/AssetStudio';
@@ -125,11 +130,24 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         setEngine(null);
         setWorkspace('Assets');
       },
-      frameSelection: () => vp.current?.frameSelection(),
-      fit: () => vp.current?.fit(),
+      frameSelection: () => (activeView() ?? vp.current)?.frameSelection(),
+      fit: () => (activeView() ?? vp.current)?.fit(),
       topView: () => {
-        vp.current?.camera.topView();
-        vp.current?.redraw();
+        const v = activeView() ?? vp.current;
+        v?.camera.topView();
+        v?.redraw();
+      },
+      view: (op) => viewOp(op, activeView() ?? vp.current),
+      fullscreen: (on) => {
+        const next = on ?? !sceneFullscreen.value;
+        sceneFullscreen.value = next;
+        // the browser's own full screen too, when it allows it; Esc there also leaves ours
+        try {
+          if (next && !document.fullscreenElement) void document.documentElement.requestFullscreen?.().catch(() => {});
+          if (!next && document.fullscreenElement) void document.exitFullscreen?.().catch(() => {});
+        } catch {
+          /* not allowed here (an embedded page): the panels still hide */
+        }
       },
       workspace: (w) => setWorkspace(w),
       showShortcuts: () => setModal('shortcuts'),
@@ -146,8 +164,22 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const c: ActionCtx = { ed, ui };
 
   useEffect(() => {
+    const onToggle = () => ui.fullscreen();
+    window.addEventListener('bw:fullscreen', onToggle);
+    return () => window.removeEventListener('bw:fullscreen', onToggle);
+  }, []);
+
+  useEffect(() => {
+    const onFs = () => {
+      if (!document.fullscreenElement && sceneFullscreen.value) sceneFullscreen.value = false;
+    };
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (play || modal || help || ed.palette.value) return;
+      if (play || modal || help || ed.palette.value || openMenuState.value) return;
       if (ed.session.value) {
         // While playing only the play shortcuts reach the editor; the game owns the rest (Esc = game back/pause).
         if (e.key === 'F5') {
@@ -159,6 +191,17 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       const t = e.target as HTMLElement;
       if (t.closest('input,textarea,select,[contenteditable]')) return;
       const k = keyOf(e);
+      if (k === 'Escape' && sceneFullscreen.value && !document.fullscreenElement) {
+        e.preventDefault();
+        ui.fullscreen(false);
+        return;
+      }
+      // P31: the menu key and Shift+F10 open the right-click menu for the selection
+      if (k === 'ContextMenu' || k === 'Shift F10') {
+        const el = document.querySelector('.viewport-canvas')?.getBoundingClientRect();
+        if (el && openSelectionMenu(c, el.left + el.width / 2, el.top + el.height / 2)) e.preventDefault();
+        return;
+      }
       const a = ACTIONS.find((x) => x.key === k);
       if (!a) return;
       e.preventDefault();
@@ -170,7 +213,9 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
 
   const later = WORKSPACES.find(([w]) => w === workspace)?.[1];
   return (
-    <div class="app">
+    <div
+      class={`app${sceneFullscreen.value ? ' scene-full' : ''}${sceneFullscreen.value && fullscreenDock.value ? ' dock-open' : ''}`}
+    >
       <MenuBar c={c} />
       <WorkspaceTabs current={workspace} onPick={(w) => ui.workspace(w)} />
       <Toolbar c={c} />
@@ -238,6 +283,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       )}
       <StatusBar ed={ed} />
       <Toast ed={ed} />
+      <ContextMenu />
+      <HoverTip c={c} />
       {ed.palette.value && <CommandPalette c={c} />}
       {modal === 'shortcuts' && <Shortcuts onClose={() => setModal(null)} />}
       {modal === 'open' && <OpenDialog host={host} current={ed.store.manifest.id} onClose={() => setModal(null)} />}

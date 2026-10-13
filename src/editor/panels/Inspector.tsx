@@ -7,6 +7,7 @@ import type { GenerateConfig } from '../../core/worldgen/generate';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { groupLabel } from '../categories';
 import { ActionListField } from '../components/ActionListField';
+import { ColorPicker } from '../components/ColorPicker';
 import { Header, Num, TextField } from '../components/fields';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
@@ -16,8 +17,10 @@ const pretty = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Number input that commits on Enter or blur (one command per edit, not per keystroke). */
 export function Swatches({ value, onPick }: { value?: string; onPick: (hex: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const custom = !!value && !LEGACY_COLORS.some(([, hex]) => hex === value);
   return (
-    <div class="row" role="listbox" aria-label="Brick colors">
+    <div class="row swatches" role="listbox" aria-label="Brick colors" style={{ position: 'relative' }}>
       {LEGACY_COLORS.map(([name, hex]) => (
         <button
           type="button"
@@ -30,6 +33,24 @@ export function Swatches({ value, onPick }: { value?: string; onPick: (hex: stri
           onClick={() => onPick(hex)}
         />
       ))}
+      <button
+        type="button"
+        class={`swatch ${custom ? 'on' : 'custom'}`}
+        role="option"
+        aria-selected={custom}
+        aria-label={custom ? `Your colour ${value}` : 'Any colour…'}
+        data-tip="Any colour: pick it from the colour picker"
+        style={custom ? { background: value } : undefined}
+        onClick={() => setOpen(!open)}
+      />
+      {open && (
+        <ColorPicker
+          value={value ?? '#d20c20'}
+          label="Brick colour"
+          onPick={(hex) => onPick(hex.slice(0, 7).toLowerCase())}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -160,7 +181,7 @@ function InspectorTab({ c }: { c: ActionCtx }) {
         <div class="muted">Nothing selected.</div>
         <p class="hint">
           Click an object in the map or the Hierarchy. Alt-click picks a single brick, Shift-click adds to the
-          selection. Use Brick paint (B) to build, and the Map tab to generate terrain.
+          selection. Use Place (B) to build, and the Map tab to generate terrain.
         </p>
       </div>
     );
@@ -281,6 +302,8 @@ function AssetSection({ c }: { c: ActionCtx }) {
           {e.def.category}
         </span>
       </div>
+      <TiltField c={c} />
+      <SizeField c={c} />
       {e.def.states.length > 1 && (
         <label class="field">
           State
@@ -804,5 +827,113 @@ function ZoneInspector({ c, id }: { c: ActionCtx; id: string }) {
         </button>
       </div>
     </>
+  );
+}
+
+/** P31 free rotation of a placed asset: three angles you can type, and Straighten. */
+function TiltField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const e = ed.selectedInstance.value!;
+  const tilt = e.inst.tilt ?? [0, 0, 0];
+  const set = (i: number, v: number) => {
+    const next = [...tilt] as [number, number, number];
+    next[i] = v;
+    ed.exec(
+      { type: 'instance.transform', payload: { map: ed.mapId.value, instance: e.inst.id, tilt: next } },
+      { label: 'Turn asset freely' },
+    );
+  };
+  return (
+    <div
+      class="field"
+      data-tip="Turn it freely with the Rotate tool (E): red ring about X, green about Y, blue about Z. A turned asset is a free object: bricks are not built on it."
+      data-help="scene"
+    >
+      Turned
+      <span class="row" style={{ gap: '4px' }}>
+        {(['X', 'Y', 'Z'] as const).map((axis, i) => (
+          <label class="mono small" style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            {axis}
+            <input
+              class="inp"
+              type="number"
+              step="15"
+              min="-180"
+              max="180"
+              style={{ width: '58px' }}
+              aria-label={`Turn about ${axis}, degrees`}
+              value={tilt[i]}
+              onChange={(ev) => set(i, Number((ev.target as HTMLInputElement).value) || 0)}
+            />
+          </label>
+        ))}
+        <button
+          type="button"
+          class="btn"
+          style={{ minHeight: '26px', fontSize: '11px' }}
+          disabled={!e.inst.tilt}
+          onClick={() =>
+            ed.exec(
+              { type: 'instance.transform', payload: { map: ed.mapId.value, instance: e.inst.id, tilt: [0, 0, 0] } },
+              { label: 'Straighten asset' },
+            )
+          }
+        >
+          Straighten
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/** P31 free size of a placed asset: percent per axis, and Reset size. */
+function SizeField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const e = ed.selectedInstance.value!;
+  const scale = e.inst.scale ?? [1, 1, 1];
+  const set = (next: [number, number, number]) =>
+    ed.exec(
+      { type: 'instance.transform', payload: { map: ed.mapId.value, instance: e.inst.id, scale: next } },
+      { label: 'Resize asset' },
+    );
+  return (
+    <div
+      class="field"
+      data-tip="Resize it with the Resize tool (Q): drag a side, the top, or the white corner to grow it evenly. A resized asset is a free object."
+      data-help="scene"
+    >
+      Size %
+      <span class="row" style={{ gap: '4px' }}>
+        {(['W', 'H', 'D'] as const).map((axis, i) => (
+          <label class="mono small" style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            {axis}
+            <input
+              class="inp"
+              type="number"
+              step="5"
+              min="10"
+              max="1000"
+              style={{ width: '58px' }}
+              aria-label={`Size ${axis === 'W' ? 'width' : axis === 'H' ? 'height' : 'depth'}, percent`}
+              value={Math.round(scale[i]! * 100)}
+              onChange={(ev) => {
+                const next = [...scale] as [number, number, number];
+                next[i] = (Number((ev.target as HTMLInputElement).value) || 100) / 100;
+                set(next);
+              }}
+            />
+          </label>
+        ))}
+        <button
+          type="button"
+          class="btn"
+          style={{ minHeight: '26px', fontSize: '11px' }}
+          disabled={!e.inst.scale}
+          onClick={() => set([1, 1, 1])}
+        >
+          Reset size
+        </button>
+      </span>
+    </div>
   );
 }

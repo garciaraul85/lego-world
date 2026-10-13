@@ -1,6 +1,7 @@
 import type { Brick } from '../../core/bricks/codec';
 import { rotateQuarter } from '../../core/bricks/transform';
 import type { EditorState, ToolId } from '../state';
+import type { ViewOp } from '../viewport/active';
 
 export type ActionCtx = { ed: EditorState; ui: EditorUi };
 
@@ -22,6 +23,10 @@ export interface EditorUi {
   frameSelection(): void;
   fit(): void;
   topView(): void;
+  /** zoom and orbit the 3D view in steps (P31 view controls) */
+  view(op: ViewOp): void;
+  /** full-screen scene on/off (P31) */
+  fullscreen(on?: boolean): void;
   workspace(id: string): void;
   showShortcuts(): void;
   about(): void;
@@ -119,8 +124,13 @@ export const ACTIONS: EditorAction[] = [
     id: 'edit.delete',
     label: 'Delete',
     key: 'Delete',
-    when: (c) => hasSel(c) || !!c.ed.selectedSpawn.value || !!c.ed.selectedItem.value,
+    when: (c) => hasSel(c) || !!c.ed.selectedSpawn.value || !!c.ed.selectedItem.value || !!c.ed.selectedZone.value,
     run: ({ ed }) => {
+      if (ed.selectedZone.value) {
+        if (ed.exec({ type: 'map.removeZone', payload: { map: ed.mapId.value, zone: ed.selectedZone.value } }).ok)
+          ed.selectedZone.value = null;
+        return;
+      }
       if (ed.selectedItem.value) {
         if (ed.exec({ type: 'item.remove', payload: { map: ed.mapId.value, id: ed.selectedItem.value } }).ok)
           ed.selectedItem.value = null;
@@ -199,14 +209,15 @@ export const ACTIONS: EditorAction[] = [
   { id: 'tool.select', label: 'Select tool', key: 'V', run: tool('select') },
   { id: 'tool.move', label: 'Move tool', key: 'W', run: tool('move') },
   { id: 'tool.rotate', label: 'Rotate tool', key: 'E', run: tool('rotate') },
-  { id: 'tool.place', label: 'Brick paint (place bricks)', key: 'B', run: tool('place') },
+  { id: 'tool.resize', label: 'Resize tool', key: 'Q', run: tool('resize') },
+  { id: 'tool.place', label: 'Place bricks', key: 'B', run: tool('place') },
   { id: 'tool.asset', label: 'Place asset', key: 'A', run: tool('asset') },
   { id: 'tool.paint', label: 'Color paint', key: 'C', run: tool('paint') },
   { id: 'tool.erase', label: 'Erase', key: 'X', run: tool('erase') },
   { id: 'tool.spawn', label: 'Spawn point tool', key: 'P', run: tool('spawn') },
   { id: 'tool.zone', label: 'Trigger zone tool', key: 'Z', run: tool('zone') },
   { id: 'tool.sound', label: 'Sound emitter tool', key: 'S', run: tool('sound') },
-  { id: 'tool.ui', label: 'World UI tool', key: 'U', run: tool('ui') },
+  { id: 'tool.ui', label: 'Sign tool', key: 'U', run: tool('ui') },
   {
     id: 'brush.rotate',
     label: 'Turn the brush 90°',
@@ -221,7 +232,29 @@ export const ACTIONS: EditorAction[] = [
     },
   },
   // View
-  { id: 'view.frame', label: 'Frame selection', key: 'F', run: ({ ui }) => ui.frameSelection() },
+  { id: 'view.frame', label: 'Focus on selection', key: 'F', run: ({ ui }) => ui.frameSelection() },
+  { id: 'view.zoomIn', label: 'Zoom in', key: '+', run: ({ ui }) => ui.view('zoomIn') },
+  { id: 'view.zoomOut', label: 'Zoom out', key: '-', run: ({ ui }) => ui.view('zoomOut') },
+  { id: 'view.orbitLeft', label: 'Turn the view left', key: 'Alt ArrowLeft', run: ({ ui }) => ui.view('orbitLeft') },
+  {
+    id: 'view.orbitRight',
+    label: 'Turn the view right',
+    key: 'Alt ArrowRight',
+    run: ({ ui }) => ui.view('orbitRight'),
+  },
+  { id: 'view.orbitUp', label: 'Look more from above', key: 'Alt ArrowUp', run: ({ ui }) => ui.view('orbitUp') },
+  {
+    id: 'view.orbitDown',
+    label: 'Look more from the side',
+    key: 'Alt ArrowDown',
+    run: ({ ui }) => ui.view('orbitDown'),
+  },
+  {
+    id: 'view.fullscreen',
+    label: 'Full-screen scene',
+    key: 'Ctrl Shift F',
+    run: ({ ui }) => ui.fullscreen(),
+  },
   { id: 'view.fit', label: 'Fit whole map', key: 'Home', run: ({ ui }) => ui.fit() },
   { id: 'view.top', label: 'Top view', key: 'Numpad7', run: ({ ui }) => ui.topView() },
   { id: 'view.palette', label: 'Command palette', key: 'Ctrl K', run: ({ ed }) => (ed.palette.value = true) },
@@ -351,9 +384,12 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'window.7',
     'window.8',
     '-',
-    'view.fit',
     'view.frame',
+    'view.zoomIn',
+    'view.zoomOut',
+    'view.fit',
     'view.top',
+    'view.fullscreen',
   ],
   Help: ['help.guide', 'help.tutorial', 'help.coding', 'help.build', 'help.shortcuts', 'help.ai', '-', 'help.about'],
 };
@@ -366,6 +402,9 @@ export function keyOf(e: KeyboardEvent): string {
   if (e.shiftKey && e.key.length > 1) parts.push('Shift');
   if (e.shiftKey && /^[a-z]$/i.test(e.key)) parts.push('Shift');
   let k = e.key;
+  // zoom keys work with or without Shift, and on the number pad
+  if (k === '=' || k === 'Add') k = '+';
+  if (k === '_' || k === 'Subtract') k = '-';
   if (e.code?.startsWith('Numpad') && /\d/.test(e.key)) k = e.code;
   if (k.length === 1 && k !== '?') k = k.toUpperCase();
   if (k === 'Backspace') k = 'Delete';

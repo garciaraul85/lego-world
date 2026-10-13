@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { hasScale, hasTilt, type Scale, type Tilt } from '../../../core/assets/tilt';
 import { MapBricks } from '../../../core/bricks/map-bricks';
 import { CommandBus, registerAll } from '../../../core/commands';
 import { mapsUsing } from '../../../core/commands/handlers/assets';
@@ -6,14 +7,16 @@ import { newId } from '../../../core/ids';
 import { Autosave } from '../../../core/project/autosave';
 import { MemoryBackend } from '../../../core/project/backend';
 import { ProjectStore } from '../../../core/project/store';
-import { type Action, type Asset, BIOMES, BRICK_SIZES, paths, type Socket } from '../../../core/schema';
+import { type Action, type Asset, BIOMES, paths, type Socket } from '../../../core/schema';
 import type { Marker } from '../../../engine/render/renderer';
 import { ACTIONS, type ActionCtx, keyOf, runAction } from '../../actions/registry';
 import { assetLibrary, resolveAsset } from '../../assets';
 import { ActionListField } from '../../components/ActionListField';
 import { AssetThumb } from '../../components/AssetThumb';
+import { BrickIcon, BrickPicker } from '../../components/BrickIcon';
 import { actionChoices } from '../../panels/AudioFields';
 import { Swatches } from '../../panels/Inspector';
+import type { StudioPart } from '../../scene';
 import { EditorState, type ToolId } from '../../state';
 import { Viewport } from '../../viewport/Viewport';
 import { assetFromScratch, initialIndex, type Scratch, scratchFor } from './scratch';
@@ -30,13 +33,14 @@ const STUDIO_TOOLS: [ToolId, string, string][] = [
   ['select', '↖', 'Select (V)'],
   ['move', '✥', 'Move (W)'],
   ['rotate', '↻', 'Rotate (E)'],
-  ['place', '▦', 'Brick paint (B)'],
+  ['resize', '⤡', 'Resize one brick (Q)'],
+  ['place', '▦', 'Place bricks (B)'],
   ['paint', '◐', 'Color paint (C)'],
   ['erase', '⌫', 'Erase (X)'],
   ['spawn', '◎', 'Put the selected socket where you click (P)'],
 ];
 /** Studio shortcuts go to the build plate; everything else stays with the main editor. */
-const STUDIO_ACTION = /^(edit\.|tool\.|brush\.|view\.(fit|frame|top))/;
+const STUDIO_ACTION = /^(edit\.|tool\.|brush\.)/;
 
 export function AssetStudio({ c }: { c: ActionCtx }) {
   const { ed } = c;
@@ -59,13 +63,21 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     const bus = registerAll(new CommandBus(store));
     const autosave = new Autosave(store, new MemoryBackend(), { setTimer: () => null, clearTimer: () => {} });
     const sed = new StudioState({ store, bus, autosave, backend: new MemoryBackend() });
-    sed.tool.value = ['select', 'move', 'rotate', 'place', 'paint', 'erase'].includes(ed.tool.value)
+    sed.tool.value = ['select', 'move', 'rotate', 'resize', 'place', 'paint', 'erase'].includes(ed.tool.value)
       ? ed.tool.value
       : 'place';
     sed.brush.value = ed.brush.value;
     synced.current = JSON.stringify(def);
-    return { scratch, sed, def, indexOf: initialIndex(def, scratch.hidden), hidden: scratch.hidden };
+    const indexOf = initialIndex(def, scratch.hidden);
+    sed.scene.value?.setParts(studioParts(def, indexOf));
+    return { scratch, sed, def, indexOf, hidden: scratch.hidden };
   }, [id, state, nonce, !!def]);
+
+  // the plate shows the asset's turned parts (after a turn, a Straighten, an undo)
+  const partsKey = JSON.stringify(def?.parts ?? []);
+  useEffect(() => {
+    if (studio) studio.sed.scene.value?.setParts(studioParts(def!, studio.indexOf));
+  }, [studio, partsKey]);
 
   // asset changed outside the studio (undo in the Scene, another tab) -> reload the plate
   useEffect(() => {
@@ -92,6 +104,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
       if (commit(r.asset, 'Edit asset bricks')) {
         studio.indexOf = r.indexOf;
         studio.hidden = r.hidden;
+        sed.scene.value?.setParts(studioParts(r.asset, r.indexOf));
       }
     });
   }, [studio, newOnlyIn, state]);
@@ -151,6 +164,30 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         ],
         alpha: 0.9,
       })),
+    // P31: bricks turned or sized on the plate become a part of the asset (or update the part they are)
+    onPart: (p: { index: number | null; ids: number[]; tilt: Tilt; scale: Scale }) => {
+      const cur = resolveAsset(ed, def.id)!;
+      const idx = p.ids.flatMap((id) => {
+        const i = studio.indexOf.get(id);
+        return i === undefined ? [] : [i];
+      });
+      if (!idx.length) return;
+      const taken = new Set(idx);
+      const parts = (cur.parts ?? []).map((q) => ({ ...q, bricks: q.bricks.filter((i) => !taken.has(i)) }));
+      const free = { ...(hasTilt(p.tilt) ? { tilt: p.tilt } : {}), ...(hasScale(p.scale) ? { scale: p.scale } : {}) };
+      if (p.index !== null && parts[p.index]) {
+        const { tilt: _t, scale: _s, ...q } = parts[p.index]!;
+        parts[p.index] = { ...q, bricks: idx, ...free };
+      } else parts.push({ name: `Part ${parts.length + 1}`, bricks: idx, ...free });
+      // a part that is straight and normal size again is just bricks
+      const next = parts.filter((q) => q.bricks.length && (hasTilt(q.tilt) || hasScale(q.scale)));
+      const { parts: _old, ...rest } = cur;
+      const asset = { ...rest, ...(next.length ? { parts: next } : {}) };
+      if (commit(asset, p.index === null ? 'Make a turned part' : 'Turn part')) {
+        sed.scene.value?.setParts(studioParts(asset, studio.indexOf));
+        sed.revision.value++;
+      }
+    },
     onPoint: (pos: [number, number, number]) => {
       if (!sock) {
         ed.notify('Select a socket in the list on the right, then click where it goes.');
@@ -228,7 +265,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         <div class="studio-foot muted small">
           {sel.length
             ? `${sel.length} selected · Delete removes · R turns`
-            : 'Build with Brick paint (B). Every change is saved to the asset and to every placed copy.'}
+            : 'Build with Place bricks (B). Every change is saved to the asset and to every placed copy.'}
           {used ? ` · placed on ${used} map${used === 1 ? '' : 's'}` : ''}
         </div>
       </section>
@@ -237,34 +274,44 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
   );
 }
 
+/** The brick brush: a button with a picture of the piece; it opens the kind and size cards and the colors. */
 function BrushPicker({ ed }: { ed: EditorState }) {
   const b = ed.brush.value;
+  const [open, setOpen] = useState(false);
   const m = /^(brick|plate|tile)(\d+)x(\d+)$/.exec(b.type)!;
+  const name = `${m[1]!.charAt(0).toUpperCase() + m[1]!.slice(1)} ${m[2]}×${m[3]}`;
   return (
-    <span class="row studio-brush">
-      <select
-        class="inp"
-        aria-label="Piece kind"
-        value={m[1]}
-        onChange={(e) => (ed.brush.value = { ...b, type: `${(e.target as HTMLSelectElement).value}${m[2]}x${m[3]}` })}
+    <span class="studio-brush">
+      <button
+        type="button"
+        class={`btn brush-btn ${open ? 'on' : ''}`}
+        aria-expanded={open}
+        aria-label={`Piece: ${name}`}
+        data-tip="Pick the piece and color that Place bricks (B) puts down"
+        onClick={() => setOpen(!open)}
       >
-        <option value="brick">Brick</option>
-        <option value="plate">Plate</option>
-        <option value="tile">Tile</option>
-      </select>
-      <select
-        class="inp"
-        aria-label="Piece size"
-        value={`${m[2]}x${m[3]}`}
-        onChange={(e) => (ed.brush.value = { ...b, type: `${m[1]}${(e.target as HTMLSelectElement).value}` })}
-      >
-        {BRICK_SIZES.map(([r, cc]) => (
-          <option value={`${r}x${cc}`}>
-            {r}×{cc}
-          </option>
-        ))}
-      </select>
+        <BrickIcon type={b.type} color={b.color} rot={b.rot} size={30} />
+        {name} ▾
+      </button>
       <Swatches value={b.color} onPick={(color) => (ed.brush.value = { ...b, color })} />
+      {open && (
+        <div class="brush-pop" role="dialog" aria-label="Pick a piece">
+          <BrickPicker
+            type={b.type}
+            color={b.color}
+            rot={b.rot}
+            onPick={(type) => {
+              ed.brush.value = { ...b, type };
+              if (ed.tool.value !== 'place') ed.tool.value = 'place';
+            }}
+          />
+          <div class="row" style={{ justifyContent: 'flex-end' }}>
+            <button type="button" class="btn on" onClick={() => setOpen(false)}>
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </span>
   );
 }
@@ -486,6 +533,38 @@ function Properties({
           <div class="hint">
             Bricks can show in only one state (a chest lid closed or open). Pick the state above the build plate and
             tick “New bricks only in …”.
+          </div>
+        </div>
+
+        <div class="sec" data-tour="asset-parts">
+          <div class="sech">
+            <span>Turned parts</span>
+            <span>{def.parts?.length ?? 0}</span>
+          </div>
+          {(def.parts ?? []).map((p, i) => (
+            <div class="socket-row">
+              <span class="small">
+                <strong>{p.name}</strong> · {p.bricks.length} brick{p.bricks.length === 1 ? '' : 's'}
+                {p.tilt ? ` · ${p.tilt.map((a) => `${a}°`).join(' ')}` : ''}
+                {p.scale ? ` · ${p.scale.map((v) => `${Math.round(v * 100)}%`).join(' ')}` : ''}
+              </span>
+              <button
+                type="button"
+                class="btn"
+                style={{ minHeight: '24px', fontSize: '11px' }}
+                data-tip="Put these bricks back straight and at their real size"
+                onClick={() => {
+                  const next = (def.parts ?? []).filter((_, j) => j !== i);
+                  patch({ parts: next.length ? next : undefined }, 'Straighten part');
+                }}
+              >
+                Straighten
+              </button>
+            </div>
+          ))}
+          <div class="hint">
+            Select some bricks (a roof, a branch, a wheel), then turn them with Rotate (E) on the red, green and blue
+            rings, or size them with Resize (Q). They become a part that every copy shows turned.
           </div>
         </div>
 
@@ -746,4 +825,16 @@ function Properties({
       </div>
     </section>
   );
+}
+
+/** The asset's parts as plate brick ids (the plate's ids map to asset indexes through indexOf). */
+function studioParts(def: Asset, indexOf: Map<number, number>): StudioPart[] {
+  const idOf = new Map([...indexOf].map(([id, i]) => [i, id]));
+  return (def.parts ?? []).map((p, index) => ({
+    index,
+    name: p.name,
+    ids: p.bricks.flatMap((i) => (idOf.has(i) ? [idOf.get(i)!] : [])),
+    ...(p.tilt ? { tilt: p.tilt as Tilt } : {}),
+    ...(p.scale ? { scale: p.scale as Scale } : {}),
+  }));
 }

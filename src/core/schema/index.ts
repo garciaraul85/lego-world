@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { Art } from './art';
 import { Asset } from './asset';
 import { MediaIndex, Mixer, Music, SoundEvents } from './audio';
 import { Character } from './character';
@@ -14,6 +15,7 @@ import { Screen } from './screen';
 import { MapState } from './state';
 
 export * from './action';
+export * from './art';
 export * from './asset';
 export * from './audio';
 export * from './character';
@@ -49,6 +51,7 @@ const KINDS = [
   ['music', /^audio\/music\.json$/, Music],
   ['mixer', /^audio\/mixer\.json$/, Mixer],
   ['media', /^media\/index\.json$/, MediaIndex],
+  ['art', /^art\/art_[0-9a-z]{10}\.json$/, Art],
 ] as const satisfies ReadonlyArray<readonly [string, RegExp, z.ZodType]>;
 
 export type FileKind = (typeof KINDS)[number][0] | 'editor';
@@ -98,4 +101,6 @@ export const paths = {
   music: 'audio/music.json',
   mixer: 'audio/mixer.json',
   media: 'media/index.json',
+  art: (id: string) => `art/${id}.json`,
+  artDir: 'art/',
 } as const;

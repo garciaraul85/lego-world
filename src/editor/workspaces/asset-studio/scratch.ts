@@ -108,6 +108,11 @@ export function assetFromScratch(
     if (next.length) onlyIn[state] = next;
   }
   if (newOnlyIn && fresh.length) onlyIn[newOnlyIn] = [...(onlyIn[newOnlyIn] ?? []), ...fresh];
+  // turned parts follow their bricks; a part whose bricks are all gone goes too
+  const parts = (def.parts ?? []).flatMap((p) => {
+    const next = p.bricks.flatMap((i) => (remap.has(i) ? [remap.get(i)!] : []));
+    return next.length ? [{ ...p, bricks: next }] : [];
+  });
   let fw = 1;
   let fd = 1;
   for (const t of out) {
@@ -115,7 +120,7 @@ export function assetFromScratch(
     fw = Math.max(fw, t[1] + w);
     fd = Math.max(fd, t[3] + d);
   }
-  const { onlyIn: _old, ...rest } = def;
+  const { onlyIn: _old, parts: _parts, ...rest } = def;
   return {
     asset: {
       ...rest,
@@ -123,6 +128,7 @@ export function assetFromScratch(
       palette: { types, colors },
       footprint: [fw, fd],
       ...(Object.keys(onlyIn).length ? { onlyIn } : {}),
+      ...(parts.length ? { parts } : {}),
     },
     hidden: nextHidden,
     indexOf: nextIndex,

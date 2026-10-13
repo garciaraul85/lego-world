@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { footprint } from '../../core/bricks/inspect';
 import type { ActionCtx } from '../actions/registry';
+import { openSceneMenu } from '../interact/scene-menus';
 import type { ViewTab } from '../state';
 import { Viewport, type ViewportApi } from './Viewport';
 
@@ -41,7 +42,9 @@ export function ViewportPanel({ c, onApi }: { c: ActionCtx; onApi: (a: ViewportA
           )}
         </div>
       </div>
-      {(view === 'scene' || view === 'graph') && <Viewport ed={ed} mode="scene" api={onApi} />}
+      {(view === 'scene' || view === 'graph') && (
+        <Viewport ed={ed} mode="scene" api={onApi} onMenu={(t, x, y) => openSceneMenu(c, t, x, y)} />
+      )}
       {view === 'game' && (
         <div class="viewport-wrap">
           <Viewport ed={ed} mode="game" />

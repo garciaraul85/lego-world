@@ -1,4 +1,5 @@
 import type { CommandBus } from './bus';
+import { deleteArt, putArt } from './handlers/art';
 import {
   createAsset,
   deleteAsset,
@@ -7,6 +8,7 @@ import {
   placeAsset,
   removeInstance,
   setInstanceState,
+  transformInstance,
   unpackInstance,
   updateAsset,
 } from './handlers/assets';
@@ -85,6 +87,7 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('instance.remove', removeInstance);
   bus.register('instance.setState', setInstanceState);
   bus.register('instance.unpack', unpackInstance);
+  bus.register('instance.transform', transformInstance);
   bus.register('asset.make', makeAsset);
   bus.register('asset.create', createAsset);
   bus.register('asset.update', updateAsset);
@@ -113,6 +116,8 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('audio.setMusicSettings', setMusicSettings);
   bus.register('audio.setMixer', setMixer);
   bus.register('media.register', registerMedia);
+  bus.register('art.put', putArt);
+  bus.register('art.delete', deleteArt);
   bus.register('media.remove', removeMedia);
   bus.register('screen.put', putScreen);
   bus.register('screen.delete', deleteScreen);

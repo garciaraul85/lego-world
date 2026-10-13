@@ -2,7 +2,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import type { Action, Widget } from '../../../core/schema';
 import { asLines, asNumber, interpolate, type Lookup } from '../bindings';
-import { widgetCss } from '../layout';
+import { effectiveWidget, widgetCss } from '../layout';
 
 /** What widgets need from the game (or from the editor preview). */
 export type ScreenHost = {
@@ -21,6 +21,12 @@ export type ScreenHost = {
   touch: boolean;
   /** editor preview: buttons do not run, widgets are selectable */
   preview?: { selected: string | null; select(path: string): void };
+  /** P31: the screen is taller than wide (portrait layouts apply) */
+  portrait?: boolean;
+  /** P31: URL of an art file (a background, an icon) by id */
+  art?(id: string): string | undefined;
+  /** P31: CSS font-family for style.font (a built-in key or art:<id>) */
+  font?(ref: string): string | undefined;
 };
 
 export type WidgetProps = { w: Widget; path: string; screen: string; host: ScreenHost };
@@ -38,9 +44,10 @@ function frame(p: WidgetProps, cls: string, children: ComponentChildren, extra: 
   return (
     <div
       class={`bw-w bw-${p.w.type} ${cls}${sel ? ' bw-sel' : ''}`}
-      style={{ ...widgetCss(p.w), ...extra }}
+      style={{ ...widgetCss(p.w), ...artCss(p), ...extra }}
       data-path={p.path}
       data-widget={p.w.id}
+      data-pin={p.w.pin ? JSON.stringify(p.w.pin) : undefined}
       onPointerDown={
         pv
           ? (e) => {
@@ -55,7 +62,35 @@ function frame(p: WidgetProps, cls: string, children: ComponentChildren, extra: 
   );
 }
 
-export function WidgetView(p: WidgetProps) {
+/** a background picture from an art file or an imported image (style.bgArt) */
+function artCss(p: WidgetProps): Record<string, string> {
+  const font = typeof p.w.style?.font === 'string' ? p.host.font?.(p.w.style.font) : undefined;
+  const ref = p.w.style?.bgArt;
+  if (typeof ref !== 'string') return font ? { fontFamily: font } : {};
+  const url = ref.startsWith('art:') ? p.host.art?.(ref.slice(4)) : p.host.media?.(ref);
+  if (!url) return font ? { fontFamily: font } : {};
+  const fit = p.w.style?.bgFit === 'tile' ? 'auto' : p.w.style?.bgFit === 'fit' ? 'contain' : 'cover';
+  return {
+    backgroundImage: `url("${url}")`,
+    backgroundSize: fit,
+    backgroundRepeat: p.w.style?.bgFit === 'tile' ? 'repeat' : 'no-repeat',
+    backgroundPosition: 'center',
+    imageRendering: p.w.style?.pixel ? 'pixelated' : 'auto',
+    ...(font ? { fontFamily: font } : {}),
+  };
+}
+
+/** a button's icon (style.icon: an art file or an imported picture) */
+function iconOf(p: WidgetProps) {
+  const ref = p.w.style?.icon;
+  if (typeof ref !== 'string') return null;
+  const url = ref.startsWith('art:') ? p.host.art?.(ref.slice(4)) : p.host.media?.(ref);
+  return url ? <img class="bw-btn-icon" src={url} alt="" /> : null;
+}
+
+export function WidgetView(props: WidgetProps) {
+  // P31: portrait screens use the widget's portrait layout
+  const p = props.host.portrait ? { ...props, w: effectiveWidget(props.w, true) } : props;
   const { w, host } = p;
   if (w.touchOnly && !host.touch && !host.preview) return null;
   switch (w.type) {
@@ -80,7 +115,8 @@ export function WidgetView(p: WidgetProps) {
       return frame(p, '', t || (host.preview ? (w.text ?? '') : ''));
     }
     case 'image': {
-      const src = typeof w.style?.src === 'string' ? host.media?.(w.style.src) : undefined;
+      const ref = typeof w.style?.src === 'string' ? w.style.src : undefined;
+      const src = ref ? (ref.startsWith('art:') ? host.art?.(ref.slice(4)) : host.media?.(ref)) : undefined;
       return frame(p, '', src ? <img src={src} alt={w.label ?? ''} /> : <span class="bw-icon">{w.text ?? '🖼'}</span>);
     }
     case 'button': {
@@ -90,9 +126,10 @@ export function WidgetView(p: WidgetProps) {
         <button
           type="button"
           class={`bw-w bw-button${pv?.selected === p.path ? ' bw-sel' : ''}`}
-          style={widgetCss(w)}
+          style={{ ...widgetCss(w), ...artCss(p) }}
           data-path={p.path}
           data-widget={w.id}
+          data-pin={w.pin ? JSON.stringify(w.pin) : undefined}
           onPointerDown={
             pv
               ? (e) => {
@@ -108,6 +145,7 @@ export function WidgetView(p: WidgetProps) {
             host.pressed?.(p.screen, w.id ?? '');
           }}
         >
+          {iconOf(p)}
           {label}
         </button>
       );

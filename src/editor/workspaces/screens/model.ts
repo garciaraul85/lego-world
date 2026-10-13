@@ -1,3 +1,4 @@
+import { signal } from '@preact/signals';
 import type { Screen, Widget } from '../../../core/schema';
 
 /** Widget paths: '' is the root, '0.2' is child 2 of child 0. */
@@ -124,11 +125,81 @@ export const SAMPLE: Record<string, unknown> = {
   time: 95,
 };
 
-export const DEVICES = [
+/** P31: the canvas shows an upright (portrait) device, so layout edits go to the portrait layout */
+export const canvasPortrait = signal(false);
+
+export type Device = {
+  id: string;
+  name: string;
+  w: number;
+  h: number;
+  safe: { top: number; right: number; bottom: number; left: number };
+};
+
+/** Screen sizes the canvas shows (landscape; Rotate turns any of them upright). */
+export const DEVICES: Device[] = [
   { id: 'desktop', name: 'Desktop 16:9', w: 1280, h: 720, safe: { top: 0, right: 0, bottom: 0, left: 0 } },
+  { id: 'laptop', name: 'Laptop 16:10', w: 1280, h: 800, safe: { top: 0, right: 0, bottom: 0, left: 0 } },
   { id: 'phone', name: 'Phone 19.5:9', w: 1560, h: 720, safe: { top: 0, right: 44, bottom: 20, left: 44 } },
   { id: 'tablet', name: 'Tablet 4:3', w: 1280, h: 960, safe: { top: 20, right: 0, bottom: 20, left: 0 } },
-] as const;
+  { id: 'ultrawide', name: 'Ultrawide 21:9', w: 1680, h: 720, safe: { top: 0, right: 0, bottom: 0, left: 0 } },
+];
+
+/** The same device held upright: width and height swap, and so do the safe areas. */
+export function rotated(d: Device): Device {
+  return {
+    id: `${d.id}-portrait`,
+    name: `${d.name.replace(/ [\d.]+:[\d.]+$/, '')} upright`,
+    w: d.h,
+    h: d.w,
+    safe: { top: d.safe.left, right: d.safe.bottom, bottom: d.safe.right, left: d.safe.top },
+  };
+}
+
+/** Every size Check all sizes looks at: each device both ways. */
+export const ALL_SIZES: Device[] = DEVICES.flatMap((d) => [d, rotated(d)]);
+
+/**
+ * P31 layout edits from the canvas and the properties: on a portrait screen they go into the widget's
+ * portrait layout (only portrait screens change); otherwise into the widget itself.
+ */
+export function setLayout(
+  w: Widget,
+  portrait: boolean,
+  patch: { anchor?: [number, number]; offset?: [number, number]; style?: Record<string, string | number | undefined> },
+): Widget {
+  const clean = (st: Record<string, string | number | undefined>) =>
+    Object.fromEntries(Object.entries(st).filter(([, v]) => v !== undefined && v !== '')) as Record<
+      string,
+      string | number
+    >;
+  if (!portrait) {
+    const style = patch.style ? clean({ ...(w.style ?? {}), ...patch.style }) : w.style;
+    const { style: _old, ...rest } = w;
+    return {
+      ...rest,
+      ...(patch.anchor ? { anchor: patch.anchor } : {}),
+      ...(patch.offset ? { offset: patch.offset } : {}),
+      ...(style && Object.keys(style).length ? { style } : {}),
+    };
+  }
+  const p = w.portrait ?? {};
+  const style = patch.style ? clean({ ...(p.style ?? {}), ...patch.style }) : p.style;
+  const { style: _old, ...rest } = p;
+  const next = {
+    ...rest,
+    ...(patch.anchor ? { anchor: patch.anchor } : {}),
+    ...(patch.offset ? { offset: patch.offset } : {}),
+    ...(style && Object.keys(style).length ? { style } : {}),
+  };
+  return { ...w, portrait: next };
+}
+
+/** The nearest of the nine anchor points to a spot (0..1 of the parent each way). */
+export function nearestAnchor(fx: number, fy: number): [number, number] {
+  const snap = (v: number) => (v < 1 / 3 ? 0 : v < 2 / 3 ? 0.5 : 1);
+  return [snap(fx), snap(fy)];
+}
 
 export const KIND_LABEL: Record<Screen['kind'], string> = {
   splash: 'Splash',

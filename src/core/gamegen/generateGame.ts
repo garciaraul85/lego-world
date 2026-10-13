@@ -297,7 +297,7 @@ export function buildGame(options: GameOptions, seed: number, now?: string): Gen
       title: `Hide ${count} treasure chests`,
       explain: `${count} chests are placed on open ground the hero can walk to, spread over ${nMaps > 1 ? 'the maps' : mapsPlanned}. Opening one plays its sound, swaps the lid (state “open”) and sends the “chest-opened” event.`,
       howTo:
-        'Dock › Assets › pick the Treasure chest, then the Place asset tool (A) and click the map. Edit what it does in the Asset studio › Interactions.',
+        'Dock › Assets › pick the Treasure chest, then Place (B) and click the map, or drag it in. Edit what it does in the Asset studio › Interactions.',
       workspace: 'Scene',
       focus: { map: maps.at(-1)! },
     });
@@ -313,7 +313,8 @@ export function buildGame(options: GameOptions, seed: number, now?: string): Gen
       id: 'props',
       title: 'Light a beacon on the summit',
       explain: `The highest point the hero can walk to on ${doc(map).name} gets a beacon (a lamp post) and, in the logic stage, a trigger zone around it.`,
-      howTo: 'Place asset tool (A) with the Lamp post; then the Trigger zone tool (Z) to draw a zone around it.',
+      howTo:
+        'Place (B) with the Lamp post from Dock › Assets; then the Trigger zone tool (Z) to draw a zone around it.',
       workspace: 'Scene',
       focus: { map },
     });
@@ -497,7 +498,7 @@ export function buildGame(options: GameOptions, seed: number, now?: string): Gen
     id: 'worldui',
     title: 'Put up a welcome sign',
     explain: 'A sign above the arrival shows the quest with live values while playing.',
-    howTo: 'World UI tool (U): click the map, then type the text in the Inspector; {variables} show live values.',
+    howTo: 'Sign tool (U): click the map, then type the text in the Inspector; {variables} show live values.',
     workspace: 'Scene',
     focus: { map: entry },
   });
