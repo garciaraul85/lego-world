@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact';
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { ACTIONS, type ActionCtx, runAction } from '../actions/registry';
 import { type Block, type Inline, parseMarkdown } from './markdown';
 import { helpGroups, helpPages } from './pages';
@@ -30,13 +30,14 @@ export function HelpView({ c, page: page0, onClose }: { c: ActionCtx; page: stri
   const blocks = useMemo(() => parseMarkdown(current.md), [current.id]);
   const hits = useMemo(() => (query.trim() ? getIndex().search(query) : []), [query]);
 
-  useEffect(() => search.current?.focus(), []);
+  // focus and Esc are ready as soon as Help shows (a fast Esc right after opening still closes it)
+  useLayoutEffect(() => search.current?.focus(), []);
   useEffect(() => {
     const el = anchor ? body.current?.querySelector(`#help-${CSS.escape(anchor)}`) : null;
     if (el) el.scrollIntoView({ block: 'start' });
     else body.current?.scrollTo(0, 0);
   }, [page, anchor]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();

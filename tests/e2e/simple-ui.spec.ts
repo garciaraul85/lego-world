@@ -94,8 +94,9 @@ test('hover tips explain tools and open Help; assets drag straight into the scen
   await page.getByRole('button', { name: /^Select \(V\)/ }).hover();
   const tip = page.getByRole('tooltip');
   await expect(tip).toContainText('Select');
-  await tip.getByRole('button', { name: 'Open help about this' }).click();
-  await expect(page.getByRole('heading', { name: 'Scene', exact: true }).first()).toBeVisible();
+  await tip.getByRole('button', { name: /^Open help about this/ }).click();
+  // P32: the ? opens that tool's own Help page
+  await expect(page.getByRole('heading', { name: 'Select tool', level: 1 })).toBeVisible();
   await page.keyboard.press('Escape');
 
   await ed(page, (e) => {

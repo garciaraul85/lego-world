@@ -21,7 +21,8 @@ if (typeof window !== 'undefined') {
   window.addEventListener(
     'keydown',
     (e) => {
-      if (e.key !== 'F1') return;
+      // F1, or ⌘/ and Ctrl / (a Mac's F1 is the brightness key unless fn is held)
+      if (e.key !== 'F1' && !((e.metaKey || e.ctrlKey) && (e.key === '/' || e.code === 'Slash'))) return;
       const focused =
         document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
       const hovered = x >= 0 ? document.elementFromPoint(x, y) : null;

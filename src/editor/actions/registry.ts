@@ -337,6 +337,8 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('coding'),
   },
   { id: 'help.guide', label: 'Help guide', key: 'F1', run: ({ ui }) => ui.help() },
+  // P32: Macs send F1 to the screen brightness unless fn is held; ⌘/ (Ctrl / elsewhere) works everywhere
+  { id: 'help.here', label: 'Help on what the pointer is on', key: 'Ctrl /', run: ({ ui }) => ui.help() },
   { id: 'help.build', label: 'Watch a game being built…', run: ({ ui }) => ui.startHub() },
   {
     id: 'help.ai',

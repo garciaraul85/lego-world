@@ -179,9 +179,13 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);
 
+  // the key handler reads what is open now (a key pressed right after Help closes still works)
+  const open = useRef({ play, modal, help });
+  open.current = { play, modal, help };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (play || modal || help || ed.palette.value || openMenuState.value) return;
+      const o = open.current;
+      if (o.play || o.modal || o.help || ed.palette.value || openMenuState.value) return;
       if (ed.session.value) {
         // While playing only the play shortcuts reach the editor; the game owns the rest (Esc = game back/pause).
         if (e.key === 'F5') {
@@ -211,7 +215,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [play, modal, help]);
+  }, []);
 
   const later = WORKSPACES.find(([w]) => w === workspace)?.[1];
   return (

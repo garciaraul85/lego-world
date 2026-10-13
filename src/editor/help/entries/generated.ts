@@ -73,7 +73,9 @@ export const ACTION_HELP: Record<string, string> = {
   'help.about': 'Shows the engine version and credits.',
   'help.tutorial': 'Starts the guided tutorial: every feature, step by step, with Show me and Do it for me.',
   'help.coding': 'Starts the coding course: the logic language, one line at a time.',
-  'help.guide': 'Opens Help. Press F1 while pointing at any control to open its own page.',
+  'help.guide': 'Opens Help. Press F1 (or ⌘/ on a Mac) while pointing at any control to open its own page.',
+  'help.here':
+    'Opens the Help page of the control under the pointer: the same as F1, for keyboards (like a Mac’s) where F1 changes the screen brightness.',
   'help.build': 'Watch a whole game being built step by step, with each stage explained.',
   'help.ai': 'Opens the AI builder: describe a change, watch each step, then approve or reject it.',
 };

@@ -46,12 +46,19 @@ test('Tutorial (Show me): the demo performs the step, then puts it back for the 
   await page.waitForFunction((n) => (window as unknown as { __editor: Ed }).__editor.scene.value!.count !== n, before, {
     timeout: 60_000,
   });
-  // …then everything is put back and it is the user's turn
+  // …it waits while you look at the result; My turn puts everything back and it is your turn
+  await card.getByRole('button', { name: 'My turn ▶' }).click();
   await expect(card.getByText(/Your turn/).first()).toBeVisible({ timeout: 60_000 });
   expect(await get(page, (e) => e.scene.value!.count)).toBe(before);
   // the user repeats it (Do it for me stands in for the clicks) and the step completes
   await card.getByRole('button', { name: 'Do it for me' }).click();
-  await expect(card.getByText('✓ Done!')).toBeVisible({ timeout: 60_000 });
+  await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 60_000 });
+  // nothing moves on by itself: the step waits for Next
+  const pos = await card.locator('header .mono').innerText();
+  await page.waitForTimeout(2500);
+  await expect(card.locator('header .mono')).toHaveText(pos);
+  await card.getByRole('button', { name: 'Next ▶' }).click();
+  await expect(card.locator('header .mono')).not.toHaveText(pos);
   expect(errors).toEqual([]);
 });
 
@@ -71,10 +78,9 @@ test('Tutorial (I try first): Do it for me through every step builds a playable 
     if (await doIt.isVisible()) {
       await expect(doIt).toBeEnabled({ timeout: 30_000 });
       await doIt.click();
-      if (pos.startsWith(`${total}/`)) {
-        await expect(card.getByText('✓ Done!')).toBeVisible({ timeout: 60_000 });
-        break;
-      }
+      await expect(card.getByText(/✓ Done!/), `step ${pos} ${title}`).toBeVisible({ timeout: 60_000 });
+      if (pos.startsWith(`${total}/`)) break;
+      await card.getByRole('button', { name: 'Next ▶' }).click();
       await expect(card.locator('header .mono'), `step ${pos} ${title}`).not.toHaveText(pos, { timeout: 60_000 });
       continue;
     }

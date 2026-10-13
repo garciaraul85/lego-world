@@ -7,7 +7,8 @@ import { type Track, trackOf } from './index';
 import { GhostCursor, type Rect, Spotlight, useTargetRect } from './Spotlight';
 import type { Check, Step } from './schema';
 
-type Phase = 'demo' | 'try' | 'done';
+/** demo: Show me is running; shown: the demo waits for My turn; try: your turn; done: waits for Next */
+type Phase = 'demo' | 'shown' | 'try' | 'done';
 const KEY = 'brickworlds.tutorial';
 const keyOf = (track: Track) => (track === 'editor' ? KEY : `${KEY}.${track}`);
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -55,6 +56,8 @@ export function TutorialRunner({
   const [note, setNote] = useState<string | null>(null);
   const [min, setMin] = useState(false);
   const busy = useRef(false);
+  /** resolves the demo's pause when you press My turn */
+  const myTurn = useRef<(() => void) | null>(null);
   /** true while Show me or Do it for me is still working (buttons wait for it) */
   const [working, setWorking] = useState(false);
   const step = STEPS[index]!;
@@ -74,7 +77,7 @@ export function TutorialRunner({
     doneRef.current = true;
     setPhase('done');
     setNote(null);
-    if (at < STEPS.length - 1) setTimeout(() => indexRef.current === at && go(at + 1), 900);
+    // you decide when to go on: Next moves to the next step (nothing moves by itself)
   };
 
   // entering a step: open its workspace, then demo it (Show me first) or arm the check
@@ -84,9 +87,12 @@ export function TutorialRunner({
     setGhost(null);
     if (step.workspace && ed.workspace.value !== step.workspace && !ed.session.value) ui.workspace(step.workspace);
     for (const d of step.setup ?? []) void perform(c, d);
-    if (mode === 'show' && step.doItForMe.length) void demo();
-    else setPhase('try');
+    // the demo waits for Show me, so there is time to read the step first
+    setPhase('try');
   }, [index]);
+
+  // leaving the tutorial during a demo lets it put everything back
+  useEffect(() => () => myTurn.current?.(), []);
 
   // the check, armed while it is the user's turn
   useEffect(() => {
@@ -125,11 +131,16 @@ export function TutorialRunner({
         await perform(c, d);
         await wait(350);
       }
-      setNote('That’s it. Now everything is put back so you can do it yourself.');
-      await wait(1700);
+      // look at the result as long as you like; My turn puts everything back
+      setPhase('shown');
+      setNote('That’s how it’s done. Look around, then press My turn: everything goes back so you can do it yourself.');
+      await new Promise<void>((r) => {
+        myTurn.current = r;
+      });
+      myTurn.current = null;
     } catch (e) {
       setNote(`The demo could not run here: ${e instanceof Error ? e.message : e}`);
-      await wait(1200);
+      await wait(2500);
     } finally {
       // undo (or redo) back to where we were, then restore the panels
       let diff = ed.bus.history().length - before;
@@ -201,7 +212,13 @@ export function TutorialRunner({
             <h3>{step.title}</h3>
             <p>{step.body}</p>
             <p class={`tut-task ${phase}`}>
-              {phase === 'done' ? '✓ Done!' : phase === 'demo' ? '👀 Watch:' : '👉 Your turn:'}{' '}
+              {phase === 'done'
+                ? last
+                  ? '✓ Done! That was the last step.'
+                  : '✓ Done! Press Next when you are ready.'
+                : phase === 'demo' || phase === 'shown'
+                  ? '👀 Watch:'
+                  : '👉 Your turn:'}{' '}
               {phase === 'done' ? '' : step.task}
             </p>
             {step.code && (
@@ -215,22 +232,33 @@ export function TutorialRunner({
               <button
                 type="button"
                 class="btn"
-                disabled={index === 0 || phase === 'demo'}
+                disabled={index === 0 || phase === 'demo' || phase === 'shown'}
                 onClick={() => go(index - 1)}
               >
                 ◀ Back
               </button>
-              {step.doItForMe.length > 0 && (
-                <button type="button" class="btn" disabled={phase !== 'try' || working} onClick={() => void demo()}>
-                  👀 Show me
+              {phase === 'shown' ? (
+                <button type="button" class="btn on" onClick={() => myTurn.current?.()}>
+                  My turn ▶
                 </button>
+              ) : (
+                step.doItForMe.length > 0 && (
+                  <button
+                    type="button"
+                    class={`btn ${mode === 'show' && phase === 'try' && !working ? 'on' : ''}`}
+                    disabled={phase !== 'try' || working}
+                    onClick={() => void demo()}
+                  >
+                    👀 Show me
+                  </button>
+                )
               )}
               {step.doItForMe.length > 0 && (
                 <button type="button" class="btn" disabled={phase !== 'try' || working} onClick={() => void doIt()}>
                   Do it for me
                 </button>
               )}
-              {step.check.kind === 'manual' ? (
+              {step.check.kind === 'manual' || phase === 'done' ? (
                 <button type="button" class="btn on" onClick={() => (last ? onClose() : go(index + 1))}>
                   {last ? 'Finish ✓' : 'Next ▶'}
                 </button>
@@ -238,7 +266,7 @@ export function TutorialRunner({
                 <button
                   type="button"
                   class="btn"
-                  disabled={phase === 'demo'}
+                  disabled={phase === 'demo' || phase === 'shown'}
                   onClick={() => go(index + 1)}
                   title="Skip this step"
                 >
@@ -253,7 +281,7 @@ export function TutorialRunner({
                   checked={mode === 'show'}
                   onChange={(e) => setMode((e.target as HTMLInputElement).checked ? 'show' : 'try')}
                 />
-                Show me each step first
+                Suggest Show me on each step
               </label>
               <button type="button" class="link small" onClick={onClose}>
                 Leave the tutorial

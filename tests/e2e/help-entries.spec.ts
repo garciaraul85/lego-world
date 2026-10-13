@@ -31,6 +31,26 @@ test('F1 on a control opens its page with a picture; Show me points at it; guide
   await expect(help).toBeHidden();
   await expect(page.locator('.help-flash')).toBeVisible();
 
+  // ⌘/ and Ctrl / do the same as F1 (a Mac's F1 is the brightness key)
+  for (const keys of ['Meta+Slash', 'Control+Slash']) {
+    await page
+      .locator('[aria-label="Tools"]')
+      .getByRole('button', { name: /^Erase/ })
+      .hover();
+    await page.keyboard.press(keys);
+    await expect(help.getByRole('heading', { name: 'Erase tool', level: 1 })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(help).toBeHidden();
+  }
+  // every hover tip has a ? that opens the control's page, no keys needed
+  await page
+    .locator('[aria-label="Tools"]')
+    .getByRole('button', { name: /^Rotate/ })
+    .hover();
+  await page.locator('.hovertip .tip-help').click();
+  await expect(help.getByRole('heading', { name: 'Rotate tool', level: 1 })).toBeVisible();
+  await page.keyboard.press('Escape');
+
   // a screen guide: the whole screen, its areas numbered, the top five tasks
   await page.keyboard.press('F1');
   await page.getByRole('navigation', { name: 'Help pages' }).getByRole('button', { name: 'Logic guide' }).click();
