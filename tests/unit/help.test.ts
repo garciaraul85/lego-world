@@ -100,7 +100,7 @@ describe('help search', () => {
   it('finds pages by what you want to do', () => {
     expect(idx.search('breakpoint')[0]?.page).toBe('logic');
     expect(idx.search('one-way gate')[0]?.page).toBe('world');
-    expect(idx.search('import sounds')[0]?.page).toBe('audio');
+    expect(idx.search('import sounds')[0]?.page).toBe('e/audio.import'); // P32: the button's own page
     expect(idx.search('undo').length).toBeGreaterThan(0);
     expect(idx.search('cinem')[0]?.page).toBe('cinematics'); // prefix while typing
     expect(idx.search('await wait')[0]?.page).toBe('coding');

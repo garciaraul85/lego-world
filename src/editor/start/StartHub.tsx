@@ -3,6 +3,7 @@ import { type GeneratedGame, generateGame } from '../../core/gamegen/generateGam
 import type { GameOptions } from '../../core/gamegen/recipes';
 import type { ProjectMeta } from '../../core/project/backend';
 import type { EditorState } from '../state';
+import type { Track } from '../tutorial/index';
 import { GenerateCard } from './GenerateCard';
 import { hubAtStartup, setHubAtStartup } from './intent';
 import { RecentProjects } from './RecentProjects';
@@ -10,7 +11,7 @@ import { Templates } from './Templates';
 
 export type HubHost = {
   startGame(game: GeneratedGame, then: 'play' | 'build' | 'open'): Promise<void>;
-  startTutorial(mode: 'show' | 'try', track?: 'editor' | 'coding'): Promise<void>;
+  startTutorial(mode: 'show' | 'try', track?: Track): Promise<void>;
   listProjects(): Promise<ProjectMeta[]>;
   openProject(id: string): void;
 };

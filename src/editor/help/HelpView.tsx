@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { ACTIONS, type ActionCtx, runAction } from '../actions/registry';
 import { type Block, type Inline, parseMarkdown } from './markdown';
 import { helpGroups, helpPages } from './pages';
+import { Shot } from './Shot';
 import { HelpIndex } from './search';
+import { showControl } from './show';
 
 let index: HelpIndex | null = null;
 const getIndex = () => {
@@ -56,6 +58,12 @@ export function HelpView({ c, page: page0, onClose }: { c: ActionCtx; page: stri
     } else if (kind === 'open') {
       onClose();
       c.ui.workspace(rest);
+    } else if (kind === 'show') {
+      onClose();
+      showControl(c, rest);
+    } else if (kind === 'course') {
+      onClose();
+      c.ui.tutorial(`course.${rest}`);
     } else if (kind === 'action') {
       const a = ACTIONS.find((x) => x.id === rest);
       onClose();
@@ -155,7 +163,7 @@ function Markdown({ blocks, go }: { blocks: Block[]; go: (href: string) => void 
         case 'i':
           return <em key={i}>{inl(x.c)}</em>;
         case 'a': {
-          const inside = /^(open|action|help):/.test(x.href);
+          const inside = /^(open|action|help|show|course):/.test(x.href);
           return (
             <a
               key={i}
@@ -167,7 +175,7 @@ function Markdown({ blocks, go }: { blocks: Block[]; go: (href: string) => void 
               }}
             >
               {inl(x.c)}
-              {x.href.startsWith('open:') || x.href.startsWith('action:') ? ' ↗' : ''}
+              {/^(open|action|course):/.test(x.href) ? ' ↗' : x.href.startsWith('show:') ? ' ◎' : ''}
             </a>
           );
         }
@@ -197,6 +205,8 @@ function Markdown({ blocks, go }: { blocks: Block[]; go: (href: string) => void 
             );
           case 'pre':
             return <pre key={i}>{b.v}</pre>;
+          case 'shot':
+            return <Shot key={`${i}:${b.focus}`} focus={b.focus} />;
           case 'ul':
           case 'ol': {
             const L = b.t;

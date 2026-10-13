@@ -4025,3 +4025,60 @@ select.inp {
   color: var(--mut);
   min-width: 0;
 }
+
+/* ---------- Help pictures and Show me (P32) ---------- */
+.help-shot {
+  margin: 10px 0 14px;
+}
+.help-shot-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #0c0f13;
+}
+.help-shot-frame img {
+  position: absolute;
+  max-width: none;
+  display: block;
+}
+.help-callout {
+  position: absolute;
+  border: 2px solid var(--acc);
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px #000a;
+  pointer-events: none;
+}
+.help-callout-n {
+  position: absolute;
+  left: -10px;
+  top: -10px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--acc);
+  color: #000;
+  font: 700 12px / 20px var(--font);
+  text-align: center;
+  box-shadow: 0 1px 4px #000a;
+}
+.help-flash {
+  position: fixed;
+  z-index: 200;
+  border: 3px solid var(--acc);
+  border-radius: 6px;
+  pointer-events: none;
+  animation: help-flash 0.65s ease-in-out 4;
+}
+@keyframes help-flash {
+  50% {
+    box-shadow: 0 0 0 8px #f2b63255;
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .help-flash {
+    animation: none;
+  }
+}

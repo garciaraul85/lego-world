@@ -556,7 +556,7 @@ function MediaCards({
   return (
     <>
       <span class="muted small">{hint}</span>
-      <div class="media-cards">
+      <div class="media-cards" data-help="scene.dock.sounds">
         {items.map((it) => (
           <div class="media-card">
             {play && (

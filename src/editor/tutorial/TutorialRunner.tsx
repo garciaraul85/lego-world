@@ -3,7 +3,7 @@ import type { ActionCtx } from '../actions/registry';
 import { commandMatches, STATE_TESTS } from './checks';
 import { courseTokens, fillCode } from './coding';
 import { perform } from './doers';
-import { TRACKS, type Track } from './index';
+import { type Track, trackOf } from './index';
 import { GhostCursor, type Rect, Spotlight, useTargetRect } from './Spotlight';
 import type { Check, Step } from './schema';
 
@@ -15,7 +15,7 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function loadProgress(project: string, track: Track): number {
   try {
     const v = JSON.parse(localStorage.getItem(keyOf(track)) ?? 'null') as { project: string; index: number } | null;
-    return v?.project === project ? Math.min(TRACKS[track].steps.length - 1, v.index) : 0;
+    return v?.project === project ? Math.min(trackOf(track).steps.length - 1, v.index) : 0;
   } catch {
     return 0;
   }
@@ -46,7 +46,7 @@ export function TutorialRunner({
 }) {
   const { ed, ui } = c;
   const project = ed.store.manifest.id;
-  const STEPS = TRACKS[track].steps;
+  const STEPS = trackOf(track).steps;
   const [index, setIndex] = useState(() => loadProgress(project, track));
   const [mode, setMode] = useState(mode0);
   const [phase, setPhase] = useState<Phase>('try');

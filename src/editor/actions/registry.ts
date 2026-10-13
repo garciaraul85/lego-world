@@ -32,7 +32,8 @@ export interface EditorUi {
   about(): void;
   /** P7: the Start hub, the guided tutorial and the help guide */
   startHub(): void;
-  tutorial(track?: 'editor' | 'coding'): void;
+  /** editor, coding, or a screen course: course.<screen> (P32) */
+  tutorial(track?: string): void;
   help(page?: string): void;
   /** opens the AI builder panel (P8.3) */
   aiBuilder(): void;

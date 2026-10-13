@@ -59,6 +59,7 @@ npm run test:legacy    # the 34 v68 suites, in parallel (--shard 1/4 for CI shar
 npm run test:e2e       # Playwright (set PW_CHROMIUM_PATH to use a preinstalled Chromium)
 npm run check          # everything CI runs
 node scripts/capture-engine-screenshots.mjs   # refresh docs/screenshots/engine/*.png (after npm run build)
+npm run help:shots     # refresh the Help pictures (docs/help/shots) from the real editor
 ```
 
 ## LEGO World v68

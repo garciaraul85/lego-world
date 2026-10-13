@@ -81,13 +81,25 @@ export function RightPanel({ c, className }: { c: ActionCtx; className?: string 
           </button>
         ))}
       </div>
-      <div class="scroll">
+      <div
+        class="scroll"
+        data-help={tab === 'map' ? 'scene.map' : tab === 'project' ? 'scene.project' : inspectHelp(ed)}
+      >
         {tab === 'inspect' && <InspectorTab c={c} />}
         {tab === 'map' && <MapTab c={c} />}
         {tab === 'project' && <ProjectTab c={c} />}
       </div>
     </section>
   );
+}
+
+/** P32: which Help entry describes what the Inspector shows now */
+function inspectHelp(ed: ActionCtx['ed']): string {
+  if (ed.selectedZone.value) return 'scene.zone';
+  if (ed.selectedItem.value) return 'scene.item';
+  if (ed.selectedSpawn.value) return 'scene.spawn';
+  if (ed.selectedInstance.value) return 'scene.asset';
+  return 'scene.selection';
 }
 
 function InspectorTab({ c }: { c: ActionCtx }) {

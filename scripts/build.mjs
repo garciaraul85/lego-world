@@ -3,7 +3,7 @@
 //   node scripts/build.mjs            -> dist/build/*.js and dist/engine.html
 //   node scripts/build.mjs --dev      -> unminified with inline source maps
 import { execFileSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
@@ -71,3 +71,15 @@ for (const [name, entry] of Object.entries(ENTRIES)) {
 }
 execFileSync(process.execPath, [resolve(ROOT, 'scripts/inline-html.mjs'), '--engine'], { stdio: 'inherit' });
 execFileSync(process.execPath, [resolve(ROOT, 'scripts/inline-html.mjs'), '--editor'], { stdio: 'inherit' });
+// P32: the Help pictures sit next to the editor (help-shots/), loaded only when Help shows them
+{
+  const from = resolve(ROOT, 'docs/help/shots');
+  const to = resolve(ROOT, 'dist/help-shots');
+  if (existsSync(from)) {
+    rmSync(to, { recursive: true, force: true });
+    mkdirSync(to, { recursive: true });
+    const pics = readdirSync(from).filter((f) => f.endsWith('.webp'));
+    for (const f of pics) cpSync(resolve(from, f), resolve(to, f));
+    console.log(`copied ${pics.length} Help pictures to dist/help-shots/`);
+  }
+}

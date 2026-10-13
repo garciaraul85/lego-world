@@ -1,4 +1,5 @@
 import type { GameOptions } from '../../core/gamegen/recipes';
+import type { Track } from '../tutorial/index';
 
 /**
  * What the editor should do right after (re)opening a project: start Play (Generate & play),
@@ -8,7 +9,7 @@ import type { GameOptions } from '../../core/gamegen/recipes';
 export type Intent =
   | { kind: 'play'; project: string }
   | { kind: 'build'; project: string; seed: number; options: GameOptions; step: number }
-  | { kind: 'tutorial'; project: string; mode: 'show' | 'try'; track?: 'editor' | 'coding' };
+  | { kind: 'tutorial'; project: string; mode: 'show' | 'try'; track?: Track };
 
 const KEY = 'brickworlds.intent';
 const HUB = 'brickworlds.hub';

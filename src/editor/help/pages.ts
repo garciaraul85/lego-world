@@ -23,6 +23,7 @@ import { MAX_FILE_BYTES, MAX_PROJECT_BYTES } from '../../core/media/import';
 import { MAX_STEPS } from '../../engine/logic/interpreter';
 import { MAX_WORLD_UI } from '../../engine/ui/WorldUI';
 import { ACTIONS, MENUS } from '../actions/registry';
+import { entryPages, guidePages, indexMarkdown } from './entry-pages';
 import type { HelpPage } from './search';
 
 /** The keyboard and touch reference, built from the action registry so it always matches the editor. */
@@ -117,6 +118,7 @@ let cache: HelpGroup[] | null = null;
 export function helpGroups(): HelpGroup[] {
   cache ??= [
     { name: 'Start', pages: [page('start', start), page('build-a-game', buildAGame)] },
+    { name: 'Screen guides', pages: guidePages() },
     {
       name: 'Workspaces',
       pages: [
@@ -137,6 +139,7 @@ export function helpGroups(): HelpGroup[] {
     {
       name: 'Reference',
       pages: [
+        { ...page('controls', indexMarkdown()), rank: 0.5 },
         { ...page('logic-reference', logicReferenceMarkdown()), rank: 0.6 },
         { ...page('keys', keysMarkdown()), rank: 0.8 },
         page('limits', limitsMarkdown()),
@@ -146,4 +149,9 @@ export function helpGroups(): HelpGroup[] {
   ];
   return cache;
 }
-export const helpPages = () => helpGroups().flatMap((g) => g.pages);
+let every: HelpPage[] | null = null;
+/** Every page: the side bar's, and one per Help entry (P32), found by search and links. */
+export const helpPages = () => {
+  every ??= [...helpGroups().flatMap((g) => g.pages), ...entryPages()];
+  return every;
+};

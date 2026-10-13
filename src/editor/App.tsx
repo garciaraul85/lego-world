@@ -6,6 +6,7 @@ import { type Cinematic, type MediaIndex, paths } from '../core/schema';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { AiPanel } from './ai/AiPanel';
 import { WorldGraph } from './graph/WorldGraph';
+import { contextHelpPage } from './help/context';
 import { HelpView } from './help/HelpView';
 import { ContextMenu } from './interact/ContextMenu';
 import { HoverTip } from './interact/HoverTip';
@@ -31,6 +32,7 @@ import { BuildViewer } from './start/BuildViewer';
 import { readIntent, writeIntent } from './start/intent';
 import { type HubHost, StartHub } from './start/StartHub';
 import type { EditorState } from './state';
+import type { Track } from './tutorial/index';
 import { TutorialRunner } from './tutorial/TutorialRunner';
 import { activeView, fullscreenDock, sceneFullscreen, viewOp } from './viewport/active';
 import type { ViewportApi } from './viewport/Viewport';
@@ -153,9 +155,9 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       showShortcuts: () => setModal('shortcuts'),
       startHub: () => setHub(true),
       tutorial: (track = 'editor') => {
-        void ed.autosave.flush().then(() => host.startTutorial('show', track));
+        void ed.autosave.flush().then(() => host.startTutorial('show', track as Track));
       },
-      help: (page) => setHelp(page ?? 'start'),
+      help: (page) => setHelp(page ?? contextHelpPage(ed.workspace.value) ?? 'start'),
       aiBuilder: () => setAi(true),
       about: () => setModal('about'),
     }),

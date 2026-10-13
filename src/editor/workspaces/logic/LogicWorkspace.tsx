@@ -247,7 +247,7 @@ function Sidebar({
               if (e.key === 'Enter' && canAdd) addVar();
             }}
           />
-          <button type="button" class="btn" disabled={!canAdd} onClick={addVar}>
+          <button type="button" class="btn" aria-label="Add variable" disabled={!canAdd} onClick={addVar}>
             Add
           </button>
         </div>
