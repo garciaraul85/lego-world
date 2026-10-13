@@ -77,21 +77,13 @@ const KINDS: {
  * P31 art library (Screens workspace, Art tab): backgrounds, icons and fonts — imported from the computer,
  * generated, drawn or designed. Click one to edit it in the middle.
  */
-export function ArtLibrary({
-  ed,
-  open,
-  onOpen,
-}: {
-  ed: EditorState;
-  open: string | null;
-  onOpen: (id: string) => void;
-}) {
-  ed.revision.value;
-  const list = allArt(ed);
+/** Making and importing art: shared by the library list and the Art start page. */
+export function useArtActions(ed: EditorState, onOpen: (id: string) => void) {
   const files = useRef<HTMLInputElement>(null);
   const importKind = useRef<ArtKind>('background');
   const create = (kind: ArtKind, how: 'generate' | 'draw' | 'design') => {
-    const art = newArt(kind, how, list.filter((a) => a.kind === kind).length + 1);
+    const n = allArt(ed).filter((a) => a.kind === kind).length + 1;
+    const art = newArt(kind, how, n);
     if (ed.exec({ type: 'art.put', payload: { art } }, { label: `New ${kind}` }).ok) onOpen(art.id);
   };
   const importFiles = async (fl: FileList) => {
@@ -123,19 +115,42 @@ export function ArtLibrary({
     }
     if (last) onOpen(last);
   };
+  const startImport = (kind: ArtKind) => {
+    importKind.current = kind;
+    files.current!.accept = ACCEPT_OF(kind === 'font' ? 'font' : 'image');
+    files.current!.click();
+  };
+  const input = (
+    <input
+      ref={files}
+      type="file"
+      hidden
+      multiple
+      onChange={(e) => {
+        const el = e.target as HTMLInputElement;
+        if (el.files?.length) void importFiles(el.files);
+        el.value = '';
+      }}
+    />
+  );
+  return { create, startImport, input };
+}
+
+export function ArtLibrary({
+  ed,
+  open,
+  onOpen,
+}: {
+  ed: EditorState;
+  open: string | null;
+  onOpen: (id: string) => void;
+}) {
+  ed.revision.value;
+  const list = allArt(ed);
+  const { create, startImport, input } = useArtActions(ed, onOpen);
   return (
     <div class="art-lib" data-tour="art-library">
-      <input
-        ref={files}
-        type="file"
-        hidden
-        multiple
-        onChange={(e) => {
-          const input = e.target as HTMLInputElement;
-          if (input.files?.length) void importFiles(input.files);
-          input.value = '';
-        }}
-      />
+      {input}
       {KINDS.map((k) => (
         <section class="art-group" aria-label={k.title}>
           <div class="sech" style={{ padding: '8px 10px 4px' }}>
@@ -148,11 +163,7 @@ export function ArtLibrary({
               type="button"
               class="btn"
               data-tip={`Import ${k.kind === 'font' ? 'a font (.ttf .otf .woff .woff2)' : 'a picture (.png .jpg .webp .svg)'} from your computer`}
-              onClick={() => {
-                importKind.current = k.kind;
-                files.current!.accept = ACCEPT_OF(k.kind === 'font' ? 'font' : 'image');
-                files.current!.click();
-              }}
+              onClick={() => startImport(k.kind)}
             >
               ⤓ Import
             </button>
@@ -214,3 +225,61 @@ export function ArtThumb({ ed, art, size = 56 }: { ed: EditorState; art: Art; si
 
 /** Letters a pixel font offers, for its designer. */
 export const FONT_LETTERS = GLYPH_SET;
+
+const START: {
+  kind: ArtKind;
+  how: 'generate' | 'draw' | 'design' | 'import';
+  icon: string;
+  title: string;
+  text: string;
+}[] = [
+  {
+    kind: 'background',
+    how: 'generate',
+    icon: '🌈',
+    title: 'Generate a background',
+    text: 'Pick a pattern and colours',
+  },
+  { kind: 'background', how: 'draw', icon: '🖌', title: 'Draw a background', text: 'Paint it pixel by pixel' },
+  {
+    kind: 'background',
+    how: 'import',
+    icon: '🖼',
+    title: 'Import a picture',
+    text: '.png .jpg .webp .svg from your computer',
+  },
+  { kind: 'icon', how: 'draw', icon: '⭐', title: 'Draw an icon', text: 'For buttons and pictures' },
+  { kind: 'icon', how: 'import', icon: '⤓', title: 'Import an icon', text: 'A small picture from your computer' },
+  { kind: 'font', how: 'design', icon: 'Aa', title: 'Design a font', text: 'Draw your own letters' },
+  { kind: 'font', how: 'import', icon: '🔤', title: 'Import a font', text: '.ttf .otf .woff .woff2' },
+];
+
+/** The middle of the Art tab when nothing is open: what you can make. */
+export function ArtStart({ ed, onOpen }: { ed: EditorState; onOpen: (id: string) => void }) {
+  const { create, startImport, input } = useArtActions(ed, onOpen);
+  return (
+    <section class="art-start" aria-label="Make art">
+      {input}
+      <h2>Art for your screens</h2>
+      <p class="muted" style={{ margin: 0 }}>
+        Make or import backgrounds, icons and fonts, or pick one on the left to change it. Use them on a screen from
+        Properties → Pictures and font.
+      </p>
+      <div class="art-start-grid">
+        {START.map((c) => (
+          <button
+            type="button"
+            class="art-start-card"
+            onClick={() => (c.how === 'import' ? startImport(c.kind) : create(c.kind, c.how))}
+          >
+            <span class="big" aria-hidden="true">
+              {c.icon}
+            </span>
+            <strong>{c.title}</strong>
+            <span class="small muted">{c.text}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}

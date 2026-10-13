@@ -81,8 +81,8 @@ export function ArtEditor({ ed, art, onClose }: { ed: EditorState; art: Art; onC
   return (
     <section class="art-editor" aria-label={`Edit ${art.name}`}>
       <div class="studio-tools" role="toolbar" aria-label="Art">
-        <button type="button" class="btn" onClick={onClose} data-tip="Back to the screen">
-          ← Screen
+        <button type="button" class="btn" onClick={onClose} data-tip="Back to all your art">
+          ← All art
         </button>
         <input
           class="inp"

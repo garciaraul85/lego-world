@@ -3608,12 +3608,59 @@ select.inp {
 }
 
 /* ---------- Art: backgrounds, icons, fonts (P31) ---------- */
-.screens-ws .ptabs button.tab {
-  background: none;
-  border: 0;
-  color: inherit;
+.screens-ws .ptabs .tab {
+  flex: 1;
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
+}
+.screens-ws .ptabs .tab.on {
+  color: var(--acc2);
+  background: var(--accbg);
+  border-bottom: 2px solid var(--acc);
+}
+/* Art: just the library and the drawing area, no screen properties */
+.studio.art-mode {
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+}
+.art-start {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: repeating-conic-gradient(#14181e 0% 25%, #171c23 0% 50%) 0 0 / 24px 24px;
+}
+.art-start h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.art-start-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  max-width: 900px;
+}
+.art-start-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+.art-start-card:hover {
+  border-color: var(--acc);
+  background: var(--btnh);
+}
+.art-start-card .big {
+  font-size: 26px;
 }
 .art-cards {
   display: grid;

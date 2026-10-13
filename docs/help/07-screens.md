@@ -38,7 +38,7 @@ Colour fields open a picker: a shade square, hue and see-through sliders, hex, y
 
 ## Art: backgrounds, icons and fonts
 
-The Art tab (next to Screens) holds your pictures and fonts:
+The Art tab (next to Screens) holds your pictures and fonts. It's just for making art: the screen properties go away and the middle shows what you can make, or the one you picked.
 
 - **Backgrounds**: Import a picture from your computer (.png .jpg .webp .svg), Generate one from a pattern (gradient, glow, stripes, dots, checks, bricks, waves, grid, stars) and colours, or Draw one in pixels.
 - **Icons**: Import or Draw them with pencil, eraser, fill, line, box, colour picker and mirror.

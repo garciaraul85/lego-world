@@ -4,7 +4,7 @@ import { type Art, paths, type Screen, type Widget } from '../../../core/schema'
 import { allScreens, isBuiltinScreen } from '../../../engine/ui/screens';
 import type { ActionCtx } from '../../actions/registry';
 import { ArtEditor } from './art/ArtEditor';
-import { ArtLibrary } from './art/ArtLibrary';
+import { ArtLibrary, ArtStart } from './art/ArtLibrary';
 import { artFont, artUrl } from './art/render';
 import { addChild, KIND_LABEL, moveAt, replaceAt, template, widgetAt } from './model';
 import { Palette } from './Palette';
@@ -90,7 +90,7 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
     }
   };
   return (
-    <div class="studio screens-ws">
+    <div class={`studio screens-ws${tab === 'art' ? ' art-mode' : ''}`}>
       <section class="panel studio-lib" aria-label="Screens and widgets">
         <div class="ptabs" role="tablist">
           <button
@@ -159,9 +159,13 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
           </div>
         )}
       </section>
-      {openArt ? (
+      {tab === 'art' ? (
         <section class="panel studio-main" aria-label="Art editor">
-          <ArtEditor key={openArt.id} ed={ed} art={openArt} onClose={() => setArtId(null)} />
+          {openArt ? (
+            <ArtEditor key={openArt.id} ed={ed} art={openArt} onClose={() => setArtId(null)} />
+          ) : (
+            <ArtStart ed={ed} onOpen={setArtId} />
+          )}
         </section>
       ) : (
         <section class="panel studio-main" aria-label="Screen canvas">
@@ -189,84 +193,86 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
           />
         </section>
       )}
-      <section class="panel studio-lib" aria-label="Widget properties">
-        <div class="ptabs">
-          <span class="tab on">Properties</span>
-        </div>
-        <div class="scroll">
-          <WidgetProps
-            key={`${screen.id}:${path}`}
-            c={c}
-            screen={screen}
-            path={path}
-            widget={widget}
-            onChange={(w, label) => setRoot(replaceAt(screen.root, path, w), label ?? `Edit ${w.id ?? w.type}`)}
-          />
-          {path !== '' && (
-            <div class="sec">
-              <div class="row">
-                <button
-                  type="button"
-                  class="btn"
-                  aria-label="Move earlier"
-                  onClick={() => {
-                    const r = moveAt(screen.root, path, -1);
-                    if (setRoot(r.root, 'Move widget').ok) ed.widgetPath.value = r.path;
-                  }}
-                >
-                  ↑ Earlier
-                </button>
-                <button
-                  type="button"
-                  class="btn"
-                  aria-label="Move later"
-                  onClick={() => {
-                    const r = moveAt(screen.root, path, 1);
-                    if (setRoot(r.root, 'Move widget').ok) ed.widgetPath.value = r.path;
-                  }}
-                >
-                  ↓ Later
-                </button>
-                <button
-                  type="button"
-                  class="btn danger"
-                  onClick={() => {
-                    if (setRoot(replaceAt(screen.root, path, null), 'Delete widget').ok) ed.widgetPath.value = '';
-                  }}
-                >
-                  Delete widget
-                </button>
-              </div>
-            </div>
-          )}
-          {path === '' && <ScreenProps c={c} screen={screen} onChange={save} />}
-          <div class="sec" style={{ borderBottom: 0 }}>
-            {builtin ? (
-              <button
-                type="button"
-                class="btn wide"
-                disabled={!own}
-                onClick={() => ed.exec({ type: 'screen.delete', payload: { id: screen.id, builtin: true } })}
-              >
-                Reset to built-in
-              </button>
-            ) : (
-              <button
-                type="button"
-                class="btn wide danger"
-                onClick={() => {
-                  if (ed.exec({ type: 'screen.delete', payload: { id: screen.id } }).ok) ed.screenId.value = null;
-                }}
-              >
-                Delete screen
-              </button>
-            )}
-            <p class="hint">
-              Logic: Show screen / Hide screen / Set screen text and On screen button use these screens.
-            </p>
+      {tab === 'screens' && (
+        <section class="panel studio-lib" aria-label="Widget properties">
+          <div class="ptabs">
+            <span class="tab on">Properties</span>
           </div>
-        </div>
-      </section>
+          <div class="scroll">
+            <WidgetProps
+              key={`${screen.id}:${path}`}
+              c={c}
+              screen={screen}
+              path={path}
+              widget={widget}
+              onChange={(w, label) => setRoot(replaceAt(screen.root, path, w), label ?? `Edit ${w.id ?? w.type}`)}
+            />
+            {path !== '' && (
+              <div class="sec">
+                <div class="row">
+                  <button
+                    type="button"
+                    class="btn"
+                    aria-label="Move earlier"
+                    onClick={() => {
+                      const r = moveAt(screen.root, path, -1);
+                      if (setRoot(r.root, 'Move widget').ok) ed.widgetPath.value = r.path;
+                    }}
+                  >
+                    ↑ Earlier
+                  </button>
+                  <button
+                    type="button"
+                    class="btn"
+                    aria-label="Move later"
+                    onClick={() => {
+                      const r = moveAt(screen.root, path, 1);
+                      if (setRoot(r.root, 'Move widget').ok) ed.widgetPath.value = r.path;
+                    }}
+                  >
+                    ↓ Later
+                  </button>
+                  <button
+                    type="button"
+                    class="btn danger"
+                    onClick={() => {
+                      if (setRoot(replaceAt(screen.root, path, null), 'Delete widget').ok) ed.widgetPath.value = '';
+                    }}
+                  >
+                    Delete widget
+                  </button>
+                </div>
+              </div>
+            )}
+            {path === '' && <ScreenProps c={c} screen={screen} onChange={save} />}
+            <div class="sec" style={{ borderBottom: 0 }}>
+              {builtin ? (
+                <button
+                  type="button"
+                  class="btn wide"
+                  disabled={!own}
+                  onClick={() => ed.exec({ type: 'screen.delete', payload: { id: screen.id, builtin: true } })}
+                >
+                  Reset to built-in
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  class="btn wide danger"
+                  onClick={() => {
+                    if (ed.exec({ type: 'screen.delete', payload: { id: screen.id } }).ok) ed.screenId.value = null;
+                  }}
+                >
+                  Delete screen
+                </button>
+              )}
+              <p class="hint">
+                Logic: Show screen / Hide screen / Set screen text and On screen button use these screens.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

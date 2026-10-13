@@ -133,6 +133,11 @@ test('art: generate a background, draw an icon, design a font, and use them on w
   await page.getByRole('button', { name: '+ New' }).click();
   await page.getByRole('tab', { name: 'Art' }).click();
   const lib = page.locator('.art-lib');
+  // Art is just for making art: the selected tab stands out and the screen properties go away
+  await expect(page.getByRole('tab', { name: 'Art' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('region', { name: 'Widget properties' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Make art' })).toBeVisible();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/art-start.png` });
 
   // background generator
   await lib.getByRole('region', { name: 'Backgrounds' }).getByRole('button', { name: '+ Generate' }).click();
@@ -164,7 +169,8 @@ test('art: generate a background, draw an icon, design a font, and use them on w
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/art-font.png` });
 
   // use them: a button with the icon, the background and the font
-  await page.getByRole('button', { name: '← Screen' }).click();
+  await page.getByRole('button', { name: '← All art' }).click();
+  await expect(page.getByRole('region', { name: 'Make art' })).toBeVisible();
   await page.getByRole('tab', { name: 'Screens' }).click();
   await page.getByRole('group', { name: 'Add widget' }).getByRole('button', { name: 'Add Button' }).click();
   // each choice is shown as a preview card: the button shows the current one
