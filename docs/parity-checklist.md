@@ -9,7 +9,7 @@ closing it brings the changes back as one undo step. Those rows move into new wo
 | World › environments, size, seed, mountains, Generate / Reroll | Map tab › Terrain generator (Generate, New seed) | unit `map-commands`, e2e `editor` |
 | World › time of day, rain, snow cover, snowing | Map tab › Sky & weather | e2e `editor` |
 | Bricks › shape, kind, color | Dock › Assets › Bricks (kind, size, palette); Inspector › Piece / Color | e2e `editor` |
-| Bricks › place (ghost + click) | Brick paint tool (B), T turns the brush | e2e `editor` |
+| Bricks › place (ghost + click) | Asset studio: Place bricks (B) or drag a piece from the Bricks tab onto the plate, T turns the brush (the Scene places assets) | e2e `simple-ui`, `studios` |
 | Generated houses, trees, cars… | Asset instances (one asset per shape, reused); Place asset tool (A), Unpack, Make asset; Asset studio | unit `worldgen-golden` (equal to v68 for 3 seeds × 11 environments), `asset-commands`, e2e `studios` |
 | Bricks › select | Select tool (V): objects by group, Alt = one brick, Shift = add; Hierarchy, Find | e2e `editor` |
 | Bricks › move | Move tool (W) drag; arrows / PgUp / PgDn; Inspector X/Z/Height | unit `commands` |

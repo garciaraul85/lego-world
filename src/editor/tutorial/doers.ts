@@ -4,7 +4,7 @@ import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
 import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
-import { arrivalSpot, assetSpot, brickSpot, reachable } from '../../core/gamegen/places';
+import { arrivalSpot, assetSpot, reachable } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
 import {
   type Asset,
@@ -19,6 +19,8 @@ import {
 } from '../../core/schema';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { assetLibrary } from '../assets';
+import { settleMove } from '../viewport/settle';
+import { buildInto } from '../workspaces/asset-studio/scratch';
 import { newGraph } from '../workspaces/logic/model';
 import { CODING_DOERS } from './coding';
 import type { Do } from './schema';
@@ -73,28 +75,39 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     }
     setTimeout(() => c.ui.frameSelection(), 30);
   },
-  paintSomething(c) {
+  moveSomething(c) {
+    // the selected object (or a placed asset) moves a few studs to where it can stand
     const s = c.ed.scene.value!;
-    const loose = s.all().filter((b) => !s.ownerOf(b.id));
-    const b = loose.find((x) => x.y > 0) ?? loose[0];
-    if (!b) throw new Error('No loose bricks to paint.');
-    c.ed.select([b.id]);
-    run(c, { type: 'bricks.paint', payload: { map: map(c), ids: [b.id], color: '#f7c900' } }, 'Paint');
+    let ids = [...c.ed.selection.value];
+    if (!ids.length) {
+      const inst = [...new Set(s.instanceOf.values())].at(-1);
+      if (!inst) throw new Error('Place something first.');
+      ids = inst.bricks.map((b) => b.id);
+      c.ed.select(ids);
+    }
+    for (const [dx, dz] of [
+      [2, 0],
+      [-2, 0],
+      [0, 2],
+      [0, -2],
+      [4, 0],
+      [-4, 0],
+      [0, 4],
+      [0, -4],
+    ] as const) {
+      const cmd: Command = { type: 'bricks.move', payload: { map: map(c), ids, dx, dy: 0, dz } };
+      const fit = settleMove(cmd, (x) => c.ed.bus.check(x));
+      if (!c.ed.bus.check(fit.cmd)) return run(c, fit.cmd, 'Move');
+    }
+    throw new Error('There is no room to move it.');
   },
-  placeBrick(c) {
-    const cmd = brickSpot(c.ed.store, c.ed.bus, map(c));
-    if (!cmd) throw new Error('No free spot for a brick.');
-    run(c, cmd, 'Place brick');
-  },
-  eraseBrick(c) {
+  eraseObject(c) {
+    // the asset copy placed last goes again (a whole object, as the Scene's Erase tool does it)
     const s = c.ed.scene.value!;
-    const loose = s
-      .all()
-      .filter((b) => !s.ownerOf(b.id) && b.y > 0)
-      .sort((a, b) => b.id - a.id);
-    for (const b of loose.slice(0, 60)) {
-      const cmd: Command = { type: 'bricks.remove', payload: { map: map(c), ids: [b.id] } };
-      if (c.ed.bus.dryRun([cmd]).ok) return run(c, cmd, 'Erase');
+    const insts = [...new Set(s.instanceOf.values())].sort((a, b) => b.inst.idBase - a.inst.idBase);
+    for (const e of insts.slice(0, 60)) {
+      const cmd: Command = { type: 'bricks.remove', payload: { map: map(c), ids: e.bricks.map((b) => b.id) } };
+      if (c.ed.bus.dryRun([cmd]).ok) return run(c, cmd, `Erase ${e.def.name}`);
     }
     throw new Error('Nothing can be erased here.');
   },
@@ -180,6 +193,20 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   editAsset(c, a) {
     const def = assetByName(c, String(a.name));
     c.ui.editAsset(def?.id ?? null);
+  },
+  buildInto(c, a) {
+    // P32: a copy of one asset built into another (as dragging it onto the build plate does)
+    const base = assetByName(c, String(a.into));
+    const other = assetByName(c, String(a.name));
+    if (!base || !other) throw new Error('Open an asset first.');
+    // `as` names a new asset started from `into`, so copies already on the map stay as they are
+    const into: Asset = a.as ? { ...base, id: newId('asset'), name: String(a.as), origin: 'user' } : base;
+    const cmds: Command[] = [];
+    if (!c.ed.store.has(paths.asset(into.id))) cmds.push({ type: 'asset.create', payload: { asset: into } });
+    const next = buildInto(into, other, [into.footprint[0], 0, 0]);
+    cmds.push({ type: 'asset.update', payload: { asset: next } });
+    run(c, cmds, `Build ${other.name} into ${into.name}`);
+    c.ed.studioAsset.value = into.id;
   },
   chestGivesCoin(c) {
     const def = c.ed.store

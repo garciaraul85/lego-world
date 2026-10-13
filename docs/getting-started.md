@@ -102,17 +102,17 @@ Search finds the right section as you type:
 
 - **Top bar** — menus (File, Edit, Assets, World, Play, Window, Help), the project name and save status.
 - **Workspace tabs** — Scene, World graph, Logic, Characters, Assets, Screens, Cinematics, Audio (keys 1–8).
-- **Toolbar** — tools (Select V, Move W, Rotate E, Brick paint B, Place asset A, Color paint C, Erase X, Spawn point P, Trigger zone Z, Sound emitter S, World UI U), **Play**, Undo/Redo, the map picker, the **✦ AI builder** and **?** for shortcuts. The hint next to the tools says what the current tool does.
+- **Toolbar** — tools (Select V, Move W, Rotate E, Resize Q, Place asset B, Erase X, Spawn point P, Trigger zone Z, Sound emitter S, Sign U), **Play**, Undo/Redo, the map picker, the **✦ AI builder** and **?** for shortcuts. The hint next to the tools says what the current tool does.
 - **Hierarchy** (left) — everything on the map by type: terrain, buildings, nature, spawn points, zones; Layers and Find are next to it.
 - **Viewport** (middle) — drag to orbit, right-drag or Shift-drag to pan, wheel to zoom; Home fits the map, F frames the selection.
-- **Dock** (bottom) — Assets (bricks, assets, characters, scenes, screens, sounds, music), Console, Timeline, Profiler, Problems, Debug, Mixer.
+- **Dock** (bottom) — Assets (assets, characters, cinematics, screens, sounds, music), Console, Timeline, Profiler, Problems, Debug, Mixer.
 - **Inspector** (right) — Inspector (what is selected), Map (terrain, sky, weather, music) and Project (name, start map, hero, first screen).
 
 Everything you do is one undo step (Ctrl Z / Ctrl Shift Z) and is saved automatically.
 
 ## 5. Build a map
 
-Click an object to select all of it (a house, a tree); Alt-click picks one brick, Shift-click adds. The Inspector shows its bricks, position and colors; click a swatch to recolor.
+Click an object to select all of it (a house, a tree); Shift-click adds. The Inspector shows its position, turn and size, and Edit in the Assets screen opens the asset to change its bricks and colors.
 
 ![A building selected, with the Inspector](screenshots/engine/03-select-and-inspect.png)
 
@@ -120,9 +120,9 @@ The **Map** tab holds the **terrain generator**: tick environments (forest, city
 
 ![The Map tab and terrain generator](screenshots/engine/04-map-tab-generator.png)
 
-**Brick paint (B)** places the brush brick where you click; pick its shape and color in the dock (Bricks, Plates, Tiles), and **T** turns it. Bricks sit on studs and never overlap, exactly like LEGO World v68. **Erase (X)** removes a brick (bricks holding others up are protected).
+**Place (B)** puts down the asset you pick in the dock, and **T** turns it. Single bricks are built into assets in the **Assets** workspace: its library has an Assets tab (open an asset, or drag one onto the plate to build it in) and a Bricks tab (click or drag pieces onto the plate). Bricks sit on studs and never overlap, exactly like LEGO World v68. **Erase (X)** removes the object you click (things holding others up are protected).
 
-![Brick paint with the brick palette in the dock](screenshots/engine/05-brick-paint.png)
+![Building an asset brick by brick in the Assets workspace](screenshots/engine/05-brick-paint.png)
 
 **Spawn point (P)** adds where the hero can start or arrive; **Trigger zone (Z)** draws a box that runs actions when the hero walks in or out (give an item, play a sound or cutscene, change the music).
 

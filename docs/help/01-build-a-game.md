@@ -12,7 +12,7 @@ In the Map tab, pick environments (forest, city, prairie, mountains, volcanoesâ€
 
 ## 3. Shape it
 
-Select objects with V, recolor them with the Inspector swatches or Color paint (C), add bricks and assets with Place (B), erase with X. Bricks sit on studs and never overlap, as in v68. Undo with Ctrl Z.
+Select objects with V, place assets with Place (B), move them with W, erase with X. To build something new from bricks, or change the bricks and colours of an asset, use the Assets screen: every copy in the Scene follows. Bricks sit on studs and never overlap, as in v68. Undo with Ctrl Z.
 
 ## 4. Add a second map and a gate
 

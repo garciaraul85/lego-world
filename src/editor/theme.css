@@ -1108,7 +1108,7 @@ select.inp {
 }
 .studio {
   display: grid;
-  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(290px, 340px);
+  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr) minmax(290px, 340px);
   grid-template-rows: minmax(0, 1fr);
   gap: 8px;
   min-height: 0;
@@ -1173,6 +1173,34 @@ select.inp {
   font-size: 12px;
   text-align: left;
   cursor: pointer;
+}
+/* P32: a library row: open the asset, or + builds it into the open one */
+.studio-lib .lib-row {
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+}
+.studio-lib .lib-row .lib-add {
+  min-height: 22px;
+  min-width: 22px;
+  padding: 0 4px;
+  opacity: 0.55;
+}
+.studio-lib .lib-row:hover .lib-add,
+.studio-lib .lib-row .lib-add:focus-visible {
+  opacity: 1;
+}
+.studio-lib .lib-item[draggable="true"] {
+  cursor: grab;
+}
+.studio-lib .plate-bricks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+}
+.studio-lib .plate-bricks .cards {
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
 }
 .studio-lib .lib-item .asset-name {
   flex: 1;

@@ -1,30 +1,23 @@
 import { useMemo, useState } from 'preact/hooks';
 import { usesOf } from '../../core/audio/usage';
-import { BRICK_SIZES, type Cinematic } from '../../core/schema';
+import type { Cinematic } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
 import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
 import { assetLibrary } from '../assets';
 import { AssetThumb } from '../components/AssetThumb';
-import { BrickPicker } from '../components/BrickIcon';
 import { endDrag, startDrag } from '../interact/drag';
 import { keysFor } from '../platform';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
 import { MixerView } from '../workspaces/audio/MixerView';
 import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
-import { Swatches } from './Inspector';
 
 const CATS: [string, string | null, string][] = [
   [
-    'Bricks',
-    null,
-    'Pick a shape and a color, then click in the map (Place, B). T turns the brick a quarter turn before you place it.',
-  ],
-  [
     'Assets',
     null,
-    'Click an asset, then click in the map (Place), or drag it straight in. Press T to turn it a quarter turn before you put it down. Edit assets in the Asset studio.',
+    'Click an asset, then click in the map (Place, B), or drag it straight in. Press T to turn it a quarter turn before you put it down. Build and change assets (brick by brick) in the Assets screen.',
   ],
   ['Characters', null, 'Characters, their looks and their clips (emotes) are made in the Character studio.'],
   ['Cinematics', null, 'Directed scenes: click one to open it in the Director; ▶ plays it in the game.'],
@@ -81,12 +74,6 @@ function Assets({ c }: { c: ActionCtx }) {
   const { ed } = c;
   const cat = ed.assetCat.value;
   const cur = CATS.find((x) => x[0] === cat) ?? CATS[0]!;
-  const brush = ed.brush.value;
-  const setBrush = (patch: Partial<typeof brush>) => {
-    ed.brush.value = { ...brush, ...patch };
-    if (ed.tool.value !== 'place' && patch.type) ed.tool.value = 'place';
-    ed.persistUi();
-  };
   return (
     <div class="assets">
       <div class="cats">
@@ -101,7 +88,7 @@ function Assets({ c }: { c: ActionCtx }) {
           >
             {name}
             <span class="mono small" style={{ color: '#6f7a89' }}>
-              {name === 'Assets' ? assetLibrary(ed).length : later ? '·' : BRICK_SIZES.length * 3}
+              {later ? '·' : catCount(ed, name)}
             </span>
           </button>
         ))}
@@ -168,23 +155,29 @@ function Assets({ c }: { c: ActionCtx }) {
             </strong>
             <span class="muted">{cur[2]}</span>
           </div>
-        ) : (
-          <>
-            <BrickPicker
-              type={brush.type}
-              color={brush.color}
-              rot={brush.rot}
-              onPick={(type) => setBrush({ type })}
-              draggable
-            />
-            <span class="muted small">Turned {brush.rot * 90}° (T)</span>
-            <Swatches value={brush.color} onPick={(color) => setBrush({ color })} />
-          </>
-        )}
+        ) : null}
         <div class="hint">{cur[2]}</div>
       </div>
     </div>
   );
+}
+
+/** How many things each library category has. */
+function catCount(ed: EditorState, cat: string): number {
+  switch (cat) {
+    case 'Assets':
+      return assetLibrary(ed).length;
+    case 'Characters':
+      return ed.store.list('characters/').length;
+    case 'Cinematics':
+      return cinematicOptions(ed).length;
+    case 'UI screens':
+      return allScreens(ed.store).length;
+    case 'Sounds':
+      return soundOptions(ed).length;
+    default:
+      return musicOptions(ed).length;
+  }
 }
 
 const LEVEL_COLOR: Record<LogLevel, string> = {

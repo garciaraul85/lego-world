@@ -106,9 +106,12 @@ describe('Help answers questions', () => {
   const idx = new HelpIndex(helpPages());
   const top = (q: string) => idx.search(q, 3).map((h) => h.page);
   it.each([
-    ['how do I place a brick', /tool\.place/],
+    // P32: bricks are built into assets in the Assets screen; the Scene places assets
+    ['how do I place a brick', /assets\.bricks/],
+    ['build an asset from other assets', /assets\.reuse|^assets$/],
+    ['place an asset in the map', /tool\.place|scene\.assets\.list/],
     ['make a door open when I press E', /assets\.sockets|node\.event\.onInteract/],
-    ['change the colour of a brick', /scene\.selection|tool\.paint|bricks\.colors/],
+    ['change the colour of a brick', /assets\.bricks|tool\.paint|^assets$/],
     ['add a trigger zone', /zone/],
     ['where does the hero start', /scene\.spawn|scene\.project/],
     ['connect two maps', /world\.gate|guide\/world/],

@@ -38,10 +38,13 @@ export const ACTION_HELP: Record<string, string> = {
   'tool.move': 'Picks the Move tool: drag the arrows to move what is selected.',
   'tool.rotate': 'Picks the Rotate tool: drag a ring to turn what is selected.',
   'tool.resize': 'Picks the Resize tool: drag a handle to make an asset, a zone or a brick bigger or smaller.',
-  'tool.place': 'Picks the Place tool with a brick: click the ground to put bricks down.',
+  'tool.place':
+    'Picks the Place tool. In the Scene it puts down the asset picked in the dock; on an asset’s build plate (Assets screen) it puts down bricks.',
   'tool.asset': 'Picks the Place tool with an asset: click the ground to put the asset down.',
-  'tool.paint': 'Picks Color paint: click a brick or object to give it the brush colour.',
-  'tool.erase': 'Picks Erase: click a brick to remove it (Shift: the whole object).',
+  'tool.paint':
+    'Picks Color paint on an asset’s build plate (Assets screen): click a brick to give it the brush colour. The Scene has no brick painting.',
+  'tool.erase':
+    'Picks Erase. In the Scene a click removes a whole object (an asset copy); on an asset’s build plate it removes one brick.',
   'tool.spawn': 'Picks the Spawn point tool: click open ground to add a place the hero can start.',
   'tool.zone': 'Picks the Trigger zone tool: drag on the ground to draw a zone logic can react to.',
   'tool.sound': 'Picks the Sound emitter tool: click the ground to place a sound that plays there.',

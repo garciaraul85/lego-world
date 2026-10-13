@@ -1,4 +1,4 @@
-import { batch, computed, signal } from '@preact/signals';
+import { batch, computed, effect, signal } from '@preact/signals';
 import type { Brick } from '../core/bricks/codec';
 import type { Command, CommandBus, ExecuteResult, Source } from '../core/commands';
 import type { Problem } from '../core/migrate/problems';
@@ -110,7 +110,7 @@ export class EditorState {
   readonly left = signal<LeftTab>('hier');
   readonly right = signal<RightTab>('inspect');
   readonly dock = signal<DockTab>('assets');
-  readonly assetCat = signal('Bricks');
+  readonly assetCat = signal('Assets');
   readonly layers = signal<Record<CategoryId, Layer>>(
     Object.fromEntries(CATEGORIES.map((c) => [c.id, { visible: true, locked: false }])) as Record<CategoryId, Layer>,
   );
@@ -138,6 +138,13 @@ export class EditorState {
   readonly paused = signal(false);
   readonly timeScale = signal(1);
   readonly debugDraw = signal<DebugDraw>({ colliders: false, spawns: true });
+  /**
+   * P32: true for the Asset studio's build plate, where bricks are placed, painted and erased one by one. The
+   * Scene places whole assets, characters and events, so its Place tool puts down assets.
+   */
+  get buildsBricks(): boolean {
+    return false;
+  }
   readonly toast = signal<{ msg: string; error: boolean } | null>(null);
   readonly snap = signal<'stud' | 'plate'>('stud');
 
@@ -190,6 +197,12 @@ export class EditorState {
     const ui = loadUi();
     for (const k of ['view', 'left', 'right', 'dock', 'assetCat', 'tool', 'snap'] as const)
       if (typeof ui[k] === 'string') (this[k] as { value: unknown }).value = ui[k];
+    // P32: the Scene places assets, characters and events; bricks are built in the Assets screen
+    if (this.assetCat.value === 'Bricks') this.assetCat.value = 'Assets';
+    effect(() => {
+      const t = this.tool.value;
+      if (!this.buildsBricks && (t === 'place' || t === 'paint')) this.tool.value = t === 'place' ? 'asset' : 'select';
+    });
     if (ui.layers && typeof ui.layers === 'object')
       this.layers.value = { ...this.layers.value, ...(ui.layers as object) };
     if (ui.brush && typeof ui.brush === 'object') this.brush.value = { ...this.brush.value, ...(ui.brush as object) };

@@ -8,7 +8,7 @@ export const TOOLS: {
   key: string;
   help: string;
   later?: string;
-  /** shares a toolbar button with another tool (Place covers bricks and assets) */
+  /** shares a toolbar button with another tool (the Place button picks the Place asset tool) */
   hidden?: boolean;
 }[] = [
   {
@@ -16,7 +16,7 @@ export const TOOLS: {
     glyph: '↖',
     label: 'Select',
     key: 'V',
-    help: 'Select: click an object (Alt: one brick, Shift: add). Drag to orbit, right-drag to pan.',
+    help: 'Select: click an object (Shift: add more). Drag to orbit, right-drag to pan.',
   },
   {
     id: 'move',
@@ -30,43 +30,36 @@ export const TOOLS: {
     glyph: '↻',
     label: 'Rotate',
     key: 'E',
-    help: 'Rotate: select something, then drag a ring. A whole asset turns freely about X (red), Y (green) and Z (blue) in 15° steps; bricks turn in quarter turns. R turns once.',
+    help: 'Rotate: select something, then drag a ring. A whole asset turns freely about X (red), Y (green) and Z (blue) in 15° steps. R turns it a quarter turn.',
   },
   {
     id: 'resize',
     glyph: '⤡',
     label: 'Resize',
     key: 'Q',
-    help: 'Resize: select an asset, a trigger zone or one brick, then drag a square handle. Assets grow freely (the white corner grows them evenly); bricks snap to real LEGO sizes; the top handle makes a plate or a brick.',
+    help: 'Resize: select an asset or a trigger zone, then drag a square handle. Assets grow freely (the white corner grows them evenly).',
   },
   {
     id: 'place',
     glyph: '▦',
     label: 'Place',
     key: 'B',
-    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). Press T to turn it a quarter turn before you put it down.',
+    help: 'Place: pick an asset in the dock below, then click the ground (or drag a card straight in). Press T to turn it a quarter turn before you put it down. Bricks are built into assets in the Assets screen.',
   },
   {
     id: 'asset',
     glyph: '▦',
     label: 'Place',
     key: 'A',
-    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). Press T to turn it a quarter turn before you put it down.',
+    help: 'Place: pick an asset in the dock below, then click the ground (or drag a card straight in). Press T to turn it a quarter turn before you put it down. Bricks are built into assets in the Assets screen.',
     hidden: true,
-  },
-  {
-    id: 'paint',
-    glyph: '◐',
-    label: 'Color paint',
-    key: 'C',
-    help: 'Color paint: click an object to recolor it with the brush color (Alt: one brick).',
   },
   {
     id: 'erase',
     glyph: '⌫',
     label: 'Erase',
     key: 'X',
-    help: 'Erase: click a brick to remove it (Shift: whole object). Supporting bricks are protected.',
+    help: 'Erase: click an object to remove it (a whole asset copy). Things that hold others up are protected.',
   },
   {
     id: 'spawn',

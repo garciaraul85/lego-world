@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'preact/hooks';
 import { type Instances, type MapState, paths } from '../../core/schema';
 import type { ActionCtx } from '../actions/registry';
 import { CATEGORIES, type CategoryId, groupLabel } from '../categories';
-import { openSelectionMenu } from '../interact/scene-menus';
+import { makeAssetOfSelection, openSelectionMenu } from '../interact/scene-menus';
 
 type Row = {
   key: string;
@@ -116,18 +116,7 @@ export function Outliner({ c, className }: { c: ActionCtx; className?: string })
           style={{ flex: 1, justifyContent: 'center' }}
           disabled={!ed.selection.value.size || ed.selectionHasAsset.value}
           title="Turn the selected loose bricks into a reusable asset placed here"
-          onClick={() => {
-            const sel = ed.selectedBricks.value;
-            const name = sel[0]?.group ? groupLabel(sel[0].group).replace(/ \d+$/, '') : 'My asset';
-            const r = ed.exec({
-              type: 'asset.make',
-              payload: { map: ed.mapId.value, ids: sel.map((b) => b.id), name },
-            });
-            if (r.ok) {
-              ed.select([]);
-              ed.notify(`Made the asset “${name}”. It is in Assets › Assets; edit it in the Asset studio.`);
-            }
-          }}
+          onClick={() => makeAssetOfSelection(c)}
         >
           Make asset
         </button>

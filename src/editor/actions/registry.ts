@@ -211,9 +211,23 @@ export const ACTIONS: EditorAction[] = [
   { id: 'tool.move', label: 'Move tool', key: 'W', run: tool('move') },
   { id: 'tool.rotate', label: 'Rotate tool', key: 'E', run: tool('rotate') },
   { id: 'tool.resize', label: 'Resize tool', key: 'Q', run: tool('resize') },
-  { id: 'tool.place', label: 'Place bricks', key: 'B', run: tool('place') },
+  // P32: B places assets in the Scene and bricks on an asset's build plate (Assets screen)
+  {
+    id: 'tool.place',
+    label: 'Place tool',
+    key: 'B',
+    run: (c) => tool(c.ed.buildsBricks ? 'place' : 'asset')(c),
+  },
   { id: 'tool.asset', label: 'Place asset', key: 'A', run: tool('asset') },
-  { id: 'tool.paint', label: 'Color paint', key: 'C', run: tool('paint') },
+  {
+    id: 'tool.paint',
+    label: 'Color paint (Assets screen)',
+    key: 'C',
+    run: (c) => {
+      if (c.ed.buildsBricks) tool('paint')(c);
+      else c.ed.notify('Colors are painted in the Assets screen: open an asset there and use Color paint (C).');
+    },
+  },
   { id: 'tool.erase', label: 'Erase', key: 'X', run: tool('erase') },
   { id: 'tool.spawn', label: 'Spawn point tool', key: 'P', run: tool('spawn') },
   { id: 'tool.zone', label: 'Trigger zone tool', key: 'Z', run: tool('zone') },

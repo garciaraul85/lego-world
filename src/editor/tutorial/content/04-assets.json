@@ -30,7 +30,7 @@
     {
       "id": "assets.studio",
       "title": "The Asset studio",
-      "body": "The Assets workspace is a build plate for one asset: bricks, states (closed / open), sockets (where the hero interacts), interactions (what E does), smash and rebuild rules, and generator rules (where the terrain generator scatters it).",
+      "body": "The Assets workspace is where bricks are built into assets: the Asset library on the left (every asset, and a Bricks tab with every piece), a build plate for one asset in the middle, and on the right its states (closed / open), sockets (where the hero interacts), interactions (what E does), smash and rebuild rules, and generator rules (where the terrain generator scatters it).",
       "task": "Open the Assets workspace.",
       "target": "[data-tour=\"ws-assets\"]",
       "placement": "bottom",
@@ -51,13 +51,24 @@
     {
       "id": "assets.build",
       "title": "Build on the plate",
-      "body": "Use the build tools above the plate to add, paint or remove bricks of the asset; Showing state previews each state. Make asset (Scene, with bricks selected) turns anything you built into a new asset.",
+      "body": "Open the Bricks tab of the Asset library: click a piece and then the plate, or drag the piece straight onto the plate. The tools above the plate move, paint or remove bricks; Showing state previews each state. Make an asset of these bricks (Scene, with loose bricks selected) turns old builds into assets.",
       "task": "Have a look at the build tools, then press Next.",
       "target": "[aria-label=\"Build tools\"]",
       "placement": "bottom",
       "workspace": "Assets",
       "check": { "kind": "manual" },
       "doItForMe": []
+    },
+    {
+      "id": "assets.reuse",
+      "title": "Build assets from assets",
+      "body": "An asset can be built from other assets too: a street from houses, a garden bench from a bench and a flower bush. Drag an asset from the Asset library onto the build plate (or press + on its row) and a copy of its bricks is built into the open asset, picked up as one so Move (W) can put it in place. It is a copy: changing the other asset later does not change this one.",
+      "task": "Build another asset into the open one (drag it onto the plate, or press + on its row).",
+      "target": "[aria-label=\"Asset library\"]",
+      "placement": "right",
+      "workspace": "Assets",
+      "check": { "kind": "command", "type": "asset.update" },
+      "doItForMe": [{ "fn": "buildInto", "args": { "name": "Flower bush", "into": "Bench", "as": "Garden bench" } }]
     }
   ]
 }

@@ -122,7 +122,7 @@ export const ASSETS: HelpEntry[] = [
     kind: 'screen',
     name: 'Assets',
     purpose:
-      'The Asset studio: build reusable objects (houses, trees, chests, doors) from bricks on a build plate, give them states, sockets and interactions, and place copies anywhere. Changing an asset changes every copy.',
+      'The Asset studio: build reusable objects (houses, trees, chests, doors) from bricks and from other assets on a build plate, give them states, sockets and interactions, and place copies anywhere in the Scene. Changing an asset changes every copy. This is the only place bricks are put down one by one.',
     related: ['assets.library', 'assets.plate', 'assets.props'],
   },
   {
@@ -130,8 +130,92 @@ export const ASSETS: HelpEntry[] = [
     screen: 'assets',
     kind: 'area',
     name: 'Asset library',
-    purpose: 'Every asset: built-in ones and your own, with how many pieces each has. Click one to open it.',
+    purpose:
+      'Every asset: built-in ones and your own, with how many pieces each has. Click one to open it on the build plate. Drag one onto the plate to build a copy of it into the open asset (a tower with a chest on top, a street of houses).',
+    also: ['reuse', 'combine', 'nest', 'asset inside an asset'],
+    steps: [
+      'Click an asset to open it.',
+      'To use it inside another asset: open that one, then drag this row onto the build plate (or press + on the row).',
+    ],
     match: [{ sel: ALIB }, { in: ALIB, role: 'option' }],
+  },
+  {
+    id: 'assets.reuse',
+    also: ['reuse', 'combine', 'nest', 'extend', 'asset in asset', 'add an asset'],
+    screen: 'assets',
+    kind: 'button',
+    name: 'Build an asset into this one (+)',
+    purpose:
+      'Builds a copy of another asset into the open one, next to its bricks. Its bricks (and turned parts) become part of this asset, picked up as one so Move (W) can put them where you want.',
+    steps: [
+      'Open the asset you want to add to.',
+      'Press + on another asset’s row, or drag the row onto the build plate where it should go.',
+      'Drag it into place with Move (W); Undo takes it out again.',
+    ],
+    tips: [
+      'It is a copy: changing the other asset later does not change this one. Its sockets and interactions stay with the original.',
+    ],
+    commands: ['bricks.place', 'asset.update'],
+    match: [{ in: ALIB, name: /^Build .+ into / }],
+    related: ['assets.library', 'assets.plate'],
+  },
+  {
+    id: 'assets.libtabs',
+    screen: 'assets',
+    kind: 'view',
+    name: 'Assets and Bricks tabs',
+    purpose:
+      'Assets lists every asset (open one, or build it into the open one); Bricks has every piece and colour to build with, by clicking or dragging onto the plate.',
+    match: [{ in: ALIB, role: 'tab' }],
+    related: ['assets.library', 'assets.bricks'],
+  },
+  {
+    id: 'assets.bricks',
+    also: ['place a brick', 'add bricks', 'pieces', 'brick'],
+    screen: 'assets',
+    kind: 'list',
+    name: 'Bricks to build with',
+    purpose:
+      'Every piece (brick, plate or tile, in every size) and the colours. Click a piece, then click the build plate with Place bricks (B); or drag the piece straight onto the plate.',
+    steps: [
+      'Open the Bricks tab of the Asset library.',
+      'Click a piece and a colour.',
+      'Click the build plate where it goes, or drag the piece there. T turns it a quarter turn first.',
+    ],
+    match: [{ sel: '.plate-bricks' }],
+    related: ['assets.bricks.kind', 'assets.bricks.size', 'assets.bricks.colors'],
+  },
+  {
+    id: 'assets.bricks.kind',
+    screen: 'assets',
+    kind: 'field',
+    name: 'Piece kind',
+    purpose: 'Brick (full height), Plate (a third of a brick high) or Tile (flat, no studs on top).',
+    match: [{ in: area('Piece kind') }],
+    related: ['assets.bricks.size', 'assets.tool'],
+  },
+  {
+    id: 'assets.bricks.size',
+    screen: 'assets',
+    kind: 'list',
+    name: 'Piece sizes',
+    purpose: 'The piece Place bricks puts down, shown as a picture with its size in studs.',
+    steps: ['Click a size: Place bricks is picked for you.', 'Click the build plate, or drag the card onto the plate.'],
+    match: [{ in: area('Piece sizes'), role: 'option' }, { in: area('Piece sizes') }],
+    related: ['assets.tool', 'assets.bricks.colors'],
+  },
+  {
+    id: 'assets.bricks.colors',
+    also: ['colour of a brick', 'color of a brick', 'recolour', 'recolor', 'paint a brick'],
+    screen: 'assets',
+    kind: 'list',
+    name: 'Brick colours',
+    purpose:
+      'The brush colour for placing and painting bricks. The last swatch, Any colour…, opens a picker for any colour at all.',
+    steps: ['Click a colour.', 'Place bricks with it, or use Color paint (C) to recolour bricks.'],
+    tips: ['Play shows the exact colour; v68 exports use the nearest of its 18 colours.'],
+    match: [{ in: area('Brick colors') }],
+    related: ['assets.tool', 'shell.colorPicker'],
   },
   {
     id: 'assets.new',
@@ -156,7 +240,7 @@ export const ASSETS: HelpEntry[] = [
     kind: 'area',
     name: 'Build plate',
     purpose:
-      'Where the asset is built, brick by brick, with the same tools as the Scene. Built-in assets open as a copy you can change.',
+      'Where the asset is built, brick by brick, and where other assets are built into it. Built-in assets open as a copy you can change. Drop bricks or assets from the library on the left straight onto it.',
     match: [{ sel: area('Asset build plate') }, { in: area('Asset build plate'), role: 'canvas' }],
     related: ['assets.tools', 'scene.viewport'],
   },
@@ -199,7 +283,7 @@ export const ASSETS: HelpEntry[] = [
     purpose:
       'The piece Place bricks puts down (click to choose a shape and size, with pictures) and the brush colour (Any colour… for any colour).',
     match: [{ in: BUILD, name: /^Piece:/ }, { in: `${BUILD} ${area('Brick colors')}` }, { in: '.brush-pop' }],
-    related: ['scene.bricks.size', 'scene.bricks.colors'],
+    related: ['assets.bricks.size', 'assets.bricks.colors'],
   },
   {
     id: 'assets.undo',

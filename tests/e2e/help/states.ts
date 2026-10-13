@@ -81,6 +81,23 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // P32: loose bricks (the ground) selected: the Inspector offers to make them an asset
+    id: 'scene-loose',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const s = e.scene.value as {
+          all(): { id: number; y: number }[];
+          ownerOf(id: number): unknown;
+        };
+        const b = s.all().find((x) => !s.ownerOf(x.id) && x.y > 0) ?? s.all().find((x) => !s.ownerOf(x.id))!;
+        e.select([b.id]);
+      });
+    },
+  },
+  {
     id: 'scene-zone',
     screen: 'scene',
     setup: async (p) => {
@@ -175,7 +192,7 @@ export const HELP_STATES: HelpState[] = [
     screen: 'scene',
     setup: async (p) => {
       await ws(p, 'Scene');
-      await signals(p, { dock: 'assets', assetCat: 'Bricks', view: 'nav' });
+      await signals(p, { dock: 'assets', assetCat: 'Assets', view: 'nav' });
     },
   },
   ...['File', 'Edit', 'Assets', 'World', 'Play', 'Window', 'Help'].map((m) => ({
@@ -259,6 +276,15 @@ export const HELP_STATES: HelpState[] = [
     setup: async (p) => {
       await ws(p, 'Assets');
       await p.getByRole('listbox').getByRole('option').first().click();
+    },
+  },
+  {
+    // P32: the bricks to build with, in the Asset library's Bricks tab
+    id: 'assets-bricks',
+    screen: 'assets',
+    setup: async (p) => {
+      await ws(p, 'Assets');
+      await p.getByRole('region', { name: 'Asset library' }).getByRole('tab', { name: 'Bricks' }).click();
     },
   },
   { id: 'screens', screen: 'screens', setup: (p) => ws(p, 'Screens') },

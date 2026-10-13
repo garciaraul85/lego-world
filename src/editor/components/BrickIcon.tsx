@@ -100,7 +100,7 @@ export function BrickPicker({
   color: string;
   rot: number;
   onPick: (type: string) => void;
-  /** cards can be dragged straight into the 3D view (the Scene's dock) */
+  /** cards can be dragged straight onto the asset's build plate (Assets screen) */
   draggable?: boolean;
 }) {
   const kind = type.replace(/\d.*$/, '');
@@ -137,7 +137,7 @@ export function BrickPicker({
               class={`card ${on ? 'on' : ''}`}
               role="option"
               aria-selected={on}
-              data-tip={`${kind.charAt(0).toUpperCase() + kind.slice(1)} ${r}×${cc}: ${r} by ${cc} studs${draggable ? '. Click it, then click the ground, or drag it straight into the scene.' : ''}`}
+              data-tip={`${kind.charAt(0).toUpperCase() + kind.slice(1)} ${r}×${cc}: ${r} by ${cc} studs${draggable ? '. Click it, then click the build plate, or drag it straight onto the plate.' : ''}`}
               draggable={draggable}
               onDragStart={(e) => {
                 if (!draggable) return;

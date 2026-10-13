@@ -2,6 +2,7 @@ import { rotatedFootprint } from '../../core/assets/expand';
 import type { ExpandedInstance } from '../../core/assets/instances';
 import type { ActionCtx } from '../actions/registry';
 import { placeCommands, resolveAsset } from '../assets';
+import { groupLabel } from '../categories';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { type MenuEntry, type MenuSpec, openMenu } from './menu';
 import {
@@ -38,6 +39,22 @@ export function selectedInstance(c: ActionCtx): ExpandedInstance | null {
   const owner = s.ownerOf(sel[0]!);
   if (!owner) return null;
   return sel.every((id) => s.ownerOf(id)?.inst.id === owner.inst.id) ? owner : null;
+}
+
+/**
+ * P32: the selected loose bricks (the ground, an old build) become an asset placed where they were, to be
+ * changed brick by brick in the Assets screen.
+ */
+export function makeAssetOfSelection(c: ActionCtx): boolean {
+  const { ed } = c;
+  const sel = ed.selectedBricks.value;
+  if (!sel.length || ed.selectionHasAsset.value) return false;
+  const name = sel[0]?.group ? groupLabel(sel[0].group).replace(/ \d+$/, '') : 'My asset';
+  const r = ed.exec({ type: 'asset.make', payload: { map: ed.mapId.value, ids: sel.map((b) => b.id), name } });
+  if (!r.ok) return false;
+  ed.select([]);
+  ed.notify(`Made the asset “${name}”. Change it brick by brick in the Assets screen.`);
+  return true;
 }
 
 /** Bricks (loose or an asset copy) that are selected. */
@@ -82,10 +99,7 @@ export function objectMenu(c: ActionCtx): MenuSpec {
             ),
           !inst.inst.scale,
         ),
-        item('asset.edit', 'Edit in Asset studio…', () => c.ui.editAsset(def.id)),
-        item('asset.unpack', 'Unpack into loose bricks', () =>
-          ed.exec({ type: 'instance.unpack', payload: { map, instances: [inst.inst.id] } }),
-        ),
+        item('asset.edit', 'Edit in the Assets screen…', () => c.ui.editAsset(def.id)),
         SEP,
         item('logic.interact', 'When the player uses it…', () =>
           openLogicFor(c, `${def.name} · on interact`, 'event.onInteract', { asset: def.id }),
@@ -109,12 +123,7 @@ export function objectMenu(c: ActionCtx): MenuSpec {
       act('view.frame', 'Zoom to it'),
       act('edit.selectGroup'),
       SEP,
-      item('bricks.paint', 'Paint with the current colour', () =>
-        ed.exec({
-          type: 'bricks.paint',
-          payload: { map, ids: [...ed.selection.value], color: ed.brush.value.color },
-        }),
-      ),
+      item('bricks.makeAsset', 'Make an asset of these bricks', () => makeAssetOfSelection(c)),
       act('edit.delete'),
     ],
   };
@@ -202,7 +211,7 @@ export function groundMenu(c: ActionCtx, at: GroundPoint, brick?: number): MenuS
       item('ground.sign', 'Add a sign here', () => placeItemAt(ed, 'sign', at)),
       SEP,
       ...(brick !== undefined ? [item('ground.select', 'Select this ground brick', () => ed.select([brick]))] : []),
-      act('tool.place', 'Paint bricks'),
+      act('tool.asset', 'Place assets'),
       act('view.fit', 'Show the whole map'),
     ],
   };

@@ -15,6 +15,7 @@ import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import type { Command } from '../../core/commands';
 import { skyCycle } from '../../core/legacy/modules';
+import type { Asset } from '../../core/schema';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
 import { type LineSet, type Marker, type Overlay, type RenderBrick, Renderer } from '../../engine/render/renderer';
@@ -63,6 +64,14 @@ export type { ViewportApi } from './active';
 export type StudioHooks = {
   markers(): Marker[];
   onPoint(pos: [number, number, number]): void;
+  /**
+   * P32: another asset dragged onto the plate is built into this one. `def` finds it (the plate's own project
+   * has only this asset's bricks); `drop` adds its bricks at `at` (studs, plates) turned `rot` quarter turns.
+   */
+  reuse?: {
+    def(id: string): Asset | null;
+    drop(id: string, at: [number, number, number], rot: number): void;
+  };
   /** a part of the asset was turned or sized on the plate (P31): save it into the asset */
   onPart?(p: {
     index: number | null;
@@ -213,6 +222,45 @@ export function Viewport({
           z,
           color: ghostFit.bad ? '#ff3b30' : br.color,
         },
+      };
+    };
+    /**
+     * P32: another asset dragged onto the build plate: its bricks sit where the pointer is, going up until
+     * they fit (like a brick); `bad` says why they can't go there at all.
+     */
+    const fitReuse = (
+      def: Asset,
+      hit: { x: number; y: number; z: number },
+      rot: number,
+    ): { at: [number, number, number]; bricks: Brick[]; bad: string | null } => {
+      const [w, d] = rotatedFootprint(def, rot);
+      const at: [number, number, number] = [Math.round(hit.x - w / 2), hit.y, Math.round(hit.z - d / 2)];
+      const shape = (dy: number) => expandAsset(def, { pos: [at[0], at[1] + dy, at[2]], rot, idBase: 1 }).bricks;
+      const key = `r:${ed.revision.value}:${def.id}:${rot}:${at.join()}`;
+      if (key !== ghostKey) {
+        ghostKey = key;
+        const check = (dy: number) =>
+          ed.bus.check({
+            type: 'bricks.place',
+            payload: {
+              map: ed.mapId.value,
+              bricks: shape(dy).map(({ id: _i, group: _g, ...b }) => b),
+            },
+          });
+        const first = check(0);
+        ghostFit = { dy: 0, bad: first };
+        if (first)
+          for (let dy = 1; dy <= 36; dy++)
+            if (!check(dy)) {
+              ghostFit = { dy, bad: null };
+              break;
+            }
+      }
+      const dy = ghostFit.dy;
+      return {
+        at: [at[0], at[1] + dy, at[2]],
+        bricks: shape(dy).map((b) => (ghostFit.bad ? { ...b, color: '#ff3b30' } : b)),
+        bad: ghostFit.bad,
       };
     };
     let tagTimer = 0;
@@ -855,9 +903,14 @@ export function Viewport({
       }
       if (tool === 'erase') {
         const owner = s.ownerOf(b.id);
+        // the Scene erases whole objects; one brick at a time is for an asset's build plate
+        if (!studio && !owner && !b.group) {
+          flashTag('Erase removes whole objects here. Loose bricks: select them and Make asset, or Delete.', local(e));
+          return;
+        }
         const ids = owner
           ? owner.bricks.map((x) => x.id)
-          : e.shiftKey && b.group
+          : (e.shiftKey || !studio) && b.group
             ? (s.groups.get(b.group) ?? [b.id])
             : [b.id];
         if (ed.exec({ type: 'bricks.remove', payload: { map, ids } }).ok) ed.pruneSelection();
@@ -1157,10 +1210,21 @@ export function Viewport({
     const onDragOver = (e: DragEvent) => {
       const p = dragPayload.value;
       const s = ed.scene.value;
-      if (!p || !s || mode !== 'scene' || studio) return;
+      if (!p || !s || mode !== 'scene') return;
+      // the Scene takes assets; an asset's build plate takes bricks and other assets
+      if (p.kind === 'brick' ? !studio : studio && !studio.reuse) return;
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
       const hit = s.surface(rayAt(e), (b) => !ed.isVisible(b));
+      if (studio && p.kind === 'asset') {
+        const def = studio.reuse!.def(p.asset);
+        const fit = def && hit ? fitReuse(def, hit, p.rot) : null;
+        assetGhost = fit?.bricks ?? null;
+        ghostBad = fit?.bad ?? null;
+        hover = null;
+        dirty = true;
+        return;
+      }
       if (p.kind === 'brick') {
         // a brick card dragged in: the same preview as the Place tool
         const fit = hit ? fitBrick(hit, p) : null;
@@ -1182,13 +1246,23 @@ export function Viewport({
     const onDrop = (e: DragEvent) => {
       const p = dragPayload.value;
       const s = ed.scene.value;
-      if (!p || !s || mode !== 'scene' || studio) return;
+      if (!p || !s || mode !== 'scene') return;
+      if (p.kind === 'brick' ? !studio : studio && !studio.reuse) return;
       e.preventDefault();
       const hit = s.surface(rayAt(e), (b) => !ed.isVisible(b));
       assetGhost = null;
       assetAt = null;
       dirty = true;
       endDrag();
+      if (studio && p.kind === 'asset') {
+        const def = studio.reuse!.def(p.asset);
+        const fit = def && hit ? fitReuse(def, hit, p.rot) : null;
+        ghostKey = '';
+        if (!fit) return;
+        if (fit.bad) flashTag(`Can't put it here: ${fit.bad}`, local(e));
+        else studio.reuse!.drop(p.asset, fit.at, p.rot);
+        return;
+      }
       if (p.kind === 'brick') {
         const fit = hit ? fitBrick(hit, p) : null;
         ghost = null;

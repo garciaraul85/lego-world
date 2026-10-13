@@ -21,10 +21,10 @@ export const GUIDES: ScreenGuide[] = [
   {
     screen: 'scene',
     intro:
-      'The Scene is where you build a map in 3D: tools on the left of the view, everything on the map in the Outliner, things to place in the dock below, and the properties of what is selected on the right.',
+      'The Scene is where you put a map together in 3D: assets, characters, spawn points, trigger zones, sounds and signs. Tools are on the left of the view, everything on the map is in the Outliner, things to place are in the dock below, and the properties of what is selected are on the right. Bricks are built into assets in the Assets screen.',
     areas: ['scene.outliner', 'scene.tools', 'scene.viewport', 'scene.view', 'scene.dock', 'scene.inspector'],
     top: [
-      ['Place bricks and assets', 'scene.tool.place'],
+      ['Place assets', 'scene.tool.place'],
       ['Select, move and turn things', 'scene.tool.move'],
       ['Generate a new landscape', 'scene.map.generate'],
       ['Add a spawn point or a trigger zone', 'scene.tool.zone'],
@@ -72,14 +72,14 @@ export const GUIDES: ScreenGuide[] = [
   {
     screen: 'assets',
     intro:
-      'The Asset studio: every asset on the left, the build plate with its tools in the middle, and the asset’s states, sockets and settings on the right.',
+      'The Asset studio is where bricks are built into assets: every asset and every brick on the left, the build plate with its tools in the middle, and the asset’s states, sockets and settings on the right. Assets can be built from bricks and from other assets.',
     areas: ['assets.library', 'assets.tools', 'assets.plate', 'assets.props'],
     top: [
       ['Make a new asset', 'assets.new'],
-      ['Build it brick by brick', 'assets.tool'],
+      ['Build it brick by brick', 'assets.bricks'],
+      ['Build another asset into it', 'assets.reuse'],
       ['Give it states (open, closed)', 'assets.states'],
       ['Say what happens when the hero uses it', 'assets.sockets'],
-      ['Try it in the world', 'assets.test'],
     ],
   },
   {

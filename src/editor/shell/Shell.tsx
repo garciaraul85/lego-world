@@ -137,16 +137,14 @@ export function WorkspaceTabs({ current, onPick }: { current: string; onPick: (w
 
 const STUDIO_WORKSPACES = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics']);
 const STUDIO_HINT: Record<string, string> = {
-  Assets: 'Asset studio: build the asset with the tools above the build plate. Every placed copy updates.',
+  Assets:
+    'Asset studio: build the asset from bricks (Bricks tab) and other assets (drag them onto the plate). Every placed copy updates.',
   Characters: 'Character studio: pick parts, colors and moves on the right.',
   Logic: 'Logic: rules and scripts for this game.',
   Screens: 'Screens: the HUD, title, splash, pause and other game screens.',
   Audio: 'Audio: sounds, music and the mix.',
   Cinematics: 'Cinematics: cutscenes on a timeline.',
 };
-
-/** the last kind of Place used (a brick or an asset) */
-let lastPlace: 'place' | 'asset' | null = null;
 
 export function Toolbar({ c }: { c: ActionCtx }) {
   const { ed, ui } = c;
@@ -155,14 +153,13 @@ export function Toolbar({ c }: { c: ActionCtx }) {
   // the studios have their own tools; the Scene tools would only be a second toolbar there
   const studioWs = STUDIO_WORKSPACES.has(ed.workspace.value);
   const placing = ed.tool.value === 'place' || ed.tool.value === 'asset';
-  if (placing) lastPlace = ed.tool.value as 'place' | 'asset';
   // Resize says why nothing shows when the selection has no size to change; Place says what it puts down
   const hint =
     (tool.id === 'resize' && resizeHint(ed)) ||
     (ed.tool.value === 'asset' && resolveAsset(ed, ed.assetBrush.value.asset)
-      ? `Place ${resolveAsset(ed, ed.assetBrush.value.asset)!.name}: click the ground, or drag cards from the dock. Press T to turn it a quarter turn before you put it down. Pick a brick in the dock to place bricks instead.`
-      : ed.tool.value === 'place'
-        ? `Place a ${ed.brush.value.type.replace(/^(brick|plate|tile)(\d+)x(\d+)$/, '$1 $2×$3')}: click the ground, or drag it. Press T to turn it a quarter turn before you put it down. Pick an asset in the dock to place that instead.`
+      ? `Place ${resolveAsset(ed, ed.assetBrush.value.asset)!.name}: click the ground, or drag cards from the dock. Press T to turn it a quarter turn before you put it down.`
+      : placing
+        ? 'Place: pick an asset in the dock below, then click the ground (or drag its card in). New bricks are built into an asset in the Assets screen.'
         : tool.help);
   return (
     <div class="toolbar">
@@ -180,9 +177,8 @@ export function Toolbar({ c }: { c: ActionCtx }) {
                 data-help="scene"
                 disabled={!!t.later}
                 onClick={() => {
-                  // Place picks up where you left off: the asset you chose, or the brick brush
-                  ed.tool.value =
-                    t.id === 'place' ? (lastPlace ?? (ed.assetBrush.value.asset ? 'asset' : 'place')) : t.id;
+                  // the Scene's Place puts down assets (bricks are built in the Assets screen)
+                  ed.tool.value = t.id === 'place' ? 'asset' : t.id;
                   ed.persistUi();
                 }}
               >

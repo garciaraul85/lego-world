@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { expandAsset } from '../../../core/assets/expand';
 import { hasScale, hasTilt, type Scale, type Tilt } from '../../../core/assets/tilt';
+import type { Brick } from '../../../core/bricks/codec';
 import { MapBricks } from '../../../core/bricks/map-bricks';
 import { CommandBus, registerAll } from '../../../core/commands';
 import { mapsUsing } from '../../../core/commands/handlers/assets';
@@ -14,15 +16,19 @@ import { assetLibrary, resolveAsset } from '../../assets';
 import { ActionListField } from '../../components/ActionListField';
 import { AssetThumb } from '../../components/AssetThumb';
 import { BrickIcon, BrickPicker } from '../../components/BrickIcon';
+import { endDrag, startDrag } from '../../interact/drag';
 import { actionChoices } from '../../panels/AudioFields';
 import { Swatches } from '../../panels/Inspector';
 import type { StudioPart } from '../../scene';
 import { EditorState, type ToolId } from '../../state';
 import { Viewport } from '../../viewport/Viewport';
-import { assetFromScratch, initialIndex, type Scratch, scratchFor } from './scratch';
+import { assetFromScratch, initialIndex, type Scratch, scratchFor, turnPart } from './scratch';
 
 /** The studio's own editor state: same tools and commands, on the scratch build plate. */
-class StudioState extends EditorState {
+export class StudioState extends EditorState {
+  override get buildsBricks() {
+    return true;
+  }
   override persistUi() {
     /* the studio never overwrites the Scene editor's saved panel choices */
   }
@@ -41,6 +47,52 @@ const STUDIO_TOOLS: [ToolId, string, string][] = [
 ];
 /** Studio shortcuts go to the build plate; everything else stays with the main editor. */
 const STUDIO_ACTION = /^(edit\.|tool\.|brush\.)/;
+/** the build plate's tool, kept while you switch assets (Place bricks to start with) */
+let plateTool: ToolId = 'place';
+/** what the Scene had selected or picked the last time the Assets screen opened */
+const followed = { inst: '', brush: '' };
+
+/**
+ * P32: an asset you select in the Scene (or pick in its dock) is the one the Assets screen opens, so going
+ * from a placed chest to the Assets screen shows that chest ready to change.
+ */
+export function followScene(ed: EditorState) {
+  const s = ed.scene.value;
+  const first = ed.selection.value.values().next().value;
+  const inst = (first !== undefined && s?.ownerOf(first)?.def.id) || '';
+  const brush = ed.assetBrush.value.asset ?? '';
+  const pick = inst && inst !== followed.inst ? inst : brush && brush !== followed.brush ? brush : null;
+  followed.inst = inst;
+  followed.brush = brush;
+  if (pick && resolveAsset(ed, pick)) ed.studioAsset.value = pick;
+}
+
+type PendingPart = { name: string; ids: number[]; tilt?: Tilt; scale?: Scale };
+
+/**
+ * P32: another asset's bricks (as it looks in its starting state) placed on the plate at `at`, turned `rot`
+ * quarter turns, with fresh plate ids from `start`, grouped so they are picked up and moved as one; and its
+ * turned parts, which keep their turn in the asset they are built into.
+ */
+export function reuseBricks(
+  other: Asset,
+  at: [number, number, number],
+  rot: number,
+  start: number,
+): { bricks: Brick[]; parts: PendingPart[] } {
+  const shown = expandAsset(other, { pos: at, rot, idBase: 0 }).bricks;
+  const group = `reuse-${start}`;
+  const idOf = new Map<number, number>();
+  const bricks = shown.map((b, k) => {
+    idOf.set(b.id, start + k);
+    return { ...b, id: start + k, group };
+  });
+  const parts = (other.parts ?? []).flatMap((p): PendingPart[] => {
+    const ids = p.bricks.flatMap((i) => (idOf.has(i) ? [idOf.get(i)!] : []));
+    return ids.length ? [{ name: `${other.name} · ${p.name}`, ids, ...turnPart(p, rot) }] : [];
+  });
+  return { bricks, parts };
+}
 
 export function AssetStudio({ c }: { c: ActionCtx }) {
   const { ed } = c;
@@ -54,6 +106,10 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
   const [nonce, setNonce] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const synced = useRef<string>('');
+  /** turned parts of an asset just built in, waiting for the plate change that adds its bricks */
+  const pendingParts = useRef<PendingPart[] | null>(null);
+  // P32: the asset selected in the Scene opens here
+  useState(() => followScene(ed));
 
   // Rebuild the build plate when another asset or state is opened, or the asset changed outside the studio.
   const studio = useMemo(() => {
@@ -63,9 +119,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     const bus = registerAll(new CommandBus(store));
     const autosave = new Autosave(store, new MemoryBackend(), { setTimer: () => null, clearTimer: () => {} });
     const sed = new StudioState({ store, bus, autosave, backend: new MemoryBackend() });
-    sed.tool.value = ['select', 'move', 'rotate', 'resize', 'place', 'paint', 'erase'].includes(ed.tool.value)
-      ? ed.tool.value
-      : 'place';
+    sed.tool.value = plateTool;
     sed.brush.value = ed.brush.value;
     synced.current = JSON.stringify(def);
     const indexOf = initialIndex(def, scratch.hidden);
@@ -101,7 +155,17 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         setError('An asset needs at least one brick. Undo to bring one back.');
         return;
       }
-      if (commit(r.asset, 'Edit asset bricks')) {
+      const extra = pendingParts.current;
+      pendingParts.current = null;
+      if (extra?.length) {
+        const parts = extra.flatMap((p) => {
+          const bricks = p.ids.flatMap((id) => (r.indexOf.has(id) ? [r.indexOf.get(id)!] : []));
+          const { ids: _ids, ...rest } = p;
+          return bricks.length ? [{ ...rest, bricks }] : [];
+        });
+        if (parts.length) r.asset = { ...r.asset, parts: [...(r.asset.parts ?? []), ...parts] };
+      }
+      if (commit(r.asset, extra?.length ? 'Build in another asset' : 'Edit asset bricks')) {
         studio.indexOf = r.indexOf;
         studio.hidden = r.hidden;
         sed.scene.value?.setParts(studioParts(r.asset, r.indexOf));
@@ -129,6 +193,20 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
   };
   const patch = (p: Partial<Asset>, label = 'Edit asset') => def && commit({ ...def, ...p }, label);
 
+  // the plate's tool and brush stay the same when another asset is opened
+  useEffect(() => {
+    if (!studio) return;
+    const offTool = studio.sed.tool.subscribe((t) => (plateTool = t));
+    const offBrush = studio.sed.brush.subscribe((b) => {
+      ed.brush.value = b;
+      ed.persistUi();
+    });
+    return () => {
+      offTool();
+      offBrush();
+    };
+  }, [studio]);
+
   // keyboard: studio tools and undo act on the build plate
   useEffect(() => {
     if (!studio) return;
@@ -146,7 +224,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [studio]);
 
-  if (!def || !studio) return <Library c={c} current={null} />;
+  if (!def || !studio) return <Library c={c} current={null} sed={null} />;
   const sed = studio.sed;
   sed.revision.value;
   const sel = sed.selectedBricks.value;
@@ -188,6 +266,10 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         sed.revision.value++;
       }
     },
+    reuse: {
+      def: (other: string) => resolveAsset(ed, other),
+      drop: (other: string, at: [number, number, number], rot: number) => buildIn(other, at, rot),
+    },
     onPoint: (pos: [number, number, number]) => {
       if (!sock) {
         ed.notify('Select a socket in the list on the right, then click where it goes.');
@@ -198,9 +280,41 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     },
   };
 
+  /** P32: builds a copy of another asset into this one: its bricks go on the plate, picked up as one. */
+  function buildIn(other: string, at: [number, number, number] | null, rot = 0): boolean {
+    const o = resolveAsset(ed, other);
+    if (!o) return false;
+    const map = studio!.scratch.mapId;
+    const plate = new MapBricks(sed.store, map).all();
+    const start = plate.reduce((m, b) => Math.max(m, b.id), 0) + 1;
+    const tryAt = (p: [number, number, number]) => {
+      const r = reuseBricks(o, p, rot, start);
+      const cmd = { type: 'bricks.place', payload: { map, bricks: r.bricks } };
+      return sed.bus.check(cmd) ? null : { r, cmd };
+    };
+    // no spot given (the + button): right next to what is there, going up until it fits
+    let fit: ReturnType<typeof tryAt> = null;
+    const base: [number, number, number] = at ?? [def!.footprint[0], 0, 0];
+    for (let dy = 0; dy <= 36 && !fit; dy++) fit = tryAt([base[0], base[1] + dy, base[2]]);
+    if (!fit) {
+      ed.notify(`There is no room for ${o.name} there. Try dropping it somewhere else on the plate.`, true);
+      return false;
+    }
+    pendingParts.current = fit.r.parts;
+    const r = sed.exec(fit.cmd, { label: `Build in ${o.name}` });
+    if (!r.ok) {
+      pendingParts.current = null;
+      return false;
+    }
+    sed.select(fit.r.bricks.map((b) => b.id));
+    sed.tool.value = 'move';
+    ed.notify(`Built ${o.name} into ${def!.name}. Drag it with Move (W) to put it where you want it.`);
+    return true;
+  }
+
   return (
     <div class="studio">
-      <Library c={c} current={def.id} />
+      <Library c={c} current={def.id} sed={sed} onAdd={(other) => buildIn(other, null)} />
       <section class="panel studio-main" aria-label="Asset build plate">
         <div class="ptabs studio-head">
           <strong class="studio-title">{def.name}</strong>
@@ -265,7 +379,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         <div class="studio-foot muted small">
           {sel.length
             ? `${sel.length} selected · Delete removes · R turns`
-            : 'Build with Place bricks (B). Every change is saved to the asset and to every placed copy.'}
+            : 'Add bricks from the Bricks tab (click, or drag onto the plate), or drag another asset onto it. Every change is saved to the asset and to every placed copy.'}
           {used ? ` · placed on ${used} map${used === 1 ? '' : 's'}` : ''}
         </div>
       </section>
@@ -316,9 +430,22 @@ function BrushPicker({ ed }: { ed: EditorState }) {
   );
 }
 
-function Library({ c, current }: { c: ActionCtx; current: string | null }) {
+function Library({
+  c,
+  current,
+  sed,
+  onAdd,
+}: {
+  c: ActionCtx;
+  current: string | null;
+  /** the build plate's editor (for the Bricks tab), when an asset is open */
+  sed: EditorState | null;
+  onAdd?: (asset: string) => void;
+}) {
   const { ed } = c;
   const [q, setQ] = useState('');
+  const [tab, setTab] = useState<'assets' | 'bricks'>('assets');
+  const open = current ? resolveAsset(ed, current) : null;
   const lib = assetLibrary(ed).filter(({ asset }) => asset.name.toLowerCase().includes(q.toLowerCase()));
   const groups: [string, typeof lib][] = [
     ['Mine', lib.filter((x) => x.asset.origin === 'user' || !x.asset.origin)],
@@ -346,10 +473,29 @@ function Library({ c, current }: { c: ActionCtx; current: string | null }) {
   };
   return (
     <section class="panel studio-lib" aria-label="Asset library">
-      <div class="ptabs">
-        <span class="tab on">Asset library</span>
+      <div class="ptabs" role="tablist" aria-label="Library">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'assets'}
+          class={`tab ${tab === 'assets' ? 'on' : ''}`}
+          onClick={() => setTab('assets')}
+        >
+          Assets
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'bricks'}
+          class={`tab ${tab === 'bricks' ? 'on' : ''}`}
+          disabled={!sed}
+          onClick={() => setTab('bricks')}
+        >
+          Bricks
+        </button>
       </div>
-      <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      {tab === 'bricks' && sed ? <PlateBricks ed={sed} /> : null}
+      <div style={{ padding: '8px', display: tab === 'assets' ? 'flex' : 'none', flexDirection: 'column', gap: '6px' }}>
         <button type="button" class="btn on" onClick={newAsset}>
           + New asset
         </button>
@@ -361,7 +507,7 @@ function Library({ c, current }: { c: ActionCtx; current: string | null }) {
           onInput={(e) => setQ((e.target as HTMLInputElement).value)}
         />
       </div>
-      <div class="scroll" role="listbox" aria-label="Assets">
+      <div class="scroll" role="listbox" aria-label="Assets" hidden={tab !== 'assets'}>
         {groups.map(([name, list]) =>
           list.length ? (
             <>
@@ -370,26 +516,70 @@ function Library({ c, current }: { c: ActionCtx; current: string | null }) {
                 <span>{list.length}</span>
               </div>
               {list.map(({ asset }) => (
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={asset.id === current}
-                  class={`lib-item ${asset.id === current ? 'on' : ''}`}
-                  onClick={() => (ed.studioAsset.value = asset.id)}
-                >
-                  <AssetThumb def={asset} size={32} />
-                  <span class="asset-name">{asset.name}</span>
-                  <span class="mono small muted">{asset.bricks.length}</span>
-                </button>
+                <div class={`lib-row ${asset.id === current ? 'on' : ''}`}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={asset.id === current}
+                    class={`lib-item ${asset.id === current ? 'on' : ''}`}
+                    data-tip={
+                      open
+                        ? `Click to open ${asset.name}. Drag it onto the build plate to build a copy of it into ${open.name}.`
+                        : `Click to open ${asset.name}.`
+                    }
+                    draggable={!!open}
+                    onDragStart={(e) =>
+                      startDrag(e as unknown as DragEvent, { kind: 'asset', asset: asset.id, rot: 0 })
+                    }
+                    onDragEnd={endDrag}
+                    onClick={() => (ed.studioAsset.value = asset.id)}
+                  >
+                    <AssetThumb def={asset} size={32} />
+                    <span class="asset-name">{asset.name}</span>
+                    <span class="mono small muted">{asset.bricks.length}</span>
+                  </button>
+                  {open && onAdd && (
+                    <button
+                      type="button"
+                      class="btn icon lib-add"
+                      aria-label={`Build ${asset.name} into ${open.name}`}
+                      data-tip={`Build a copy of ${asset.name} into ${open.name}, next to its bricks (or drag the row onto the plate to choose the spot).`}
+                      onClick={() => onAdd(asset.id)}
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
               ))}
             </>
           ) : null,
         )}
       </div>
-      <div class="hint" style={{ padding: '8px 10px' }}>
-        Characters and NPCs live in the Characters studio. Everything else in the world is built here.
+      <div class="hint" style={{ padding: '8px 10px' }} hidden={tab !== 'assets'}>
+        Click an asset to open it. Drag one onto the build plate (or press +) to build it into the open asset; the
+        Bricks tab adds single bricks. Characters and NPCs live in the Characters studio.
       </div>
     </section>
+  );
+}
+
+/** P32: the bricks to build with: click a piece (then click the plate), or drag it straight onto the plate. */
+function PlateBricks({ ed }: { ed: EditorState }) {
+  const b = ed.brush.value;
+  const set = (patch: Partial<typeof b>) => {
+    ed.brush.value = { ...b, ...patch };
+    if (patch.type && ed.tool.value !== 'place') ed.tool.value = 'place';
+  };
+  return (
+    <div class="scroll plate-bricks">
+      <BrickPicker type={b.type} color={b.color} rot={b.rot} onPick={(type) => set({ type })} draggable />
+      <span class="muted small">Turned {b.rot * 90}° (T)</span>
+      <Swatches value={b.color} onPick={(color) => set({ color })} />
+      <div class="hint">
+        Click a piece, then click the build plate (Place bricks, B), or drag the piece straight onto the plate. T turns
+        it a quarter turn first.
+      </div>
+    </div>
   );
 }
 
