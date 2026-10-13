@@ -3244,3 +3244,39 @@ select.inp {
 .app.scene-full.dock-open .center > .dockpanel {
   display: flex;
 }
+
+/* P31 brick pictures on the brush controls */
+.brick-picker .kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.studio-brush {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.brush-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.brush-pop {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(520px, 90vw);
+  max-height: 420px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #1b2028;
+  border: 1px solid #343c48;
+  box-shadow: 0 16px 40px #000a;
+}

@@ -94,81 +94,154 @@ const mulT = (r: number[], v: readonly number[]): V3 => [
   r[2]! * v[0]! + r[5]! * v[1]! + r[8]! * v[2]!,
 ];
 
+/** x → m·x + t, with m a row-major 3×3 (turn and size). */
+export type Affine = { m: number[]; t: V3 };
+export const IDENTITY: Affine = { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], t: [0, 0, 0] };
+
+export const applyAffine = (a: Affine, p: readonly number[]): V3 => {
+  const q = mul(a.m, p);
+  return [q[0] + a.t[0], q[1] + a.t[1], q[2] + a.t[2]];
+};
+
+/** a ∘ b: first b, then a. */
+export function composeAffine(a: Affine, b: Affine): Affine {
+  const m = [0, 1, 2].flatMap((r) =>
+    [0, 1, 2].map((c) => a.m[r * 3]! * b.m[c]! + a.m[r * 3 + 1]! * b.m[3 + c]! + a.m[r * 3 + 2]! * b.m[6 + c]!),
+  );
+  return { m, t: applyAffine(a, b.t) };
+}
+
+/** The same transform for a thing moved by d (moving the asset moves its turn and size with it). */
+export function shiftAffine(a: Affine, d: readonly number[]): Affine {
+  const md = mul(a.m, d);
+  return { m: a.m, t: [a.t[0] + d[0]! - md[0], a.t[1] + d[1]! - md[1], a.t[2] + d[2]! - md[2]] };
+}
+
+function invert3(m: number[]): number[] {
+  const [a, b, c, d, e, f, g, h, i] = m as [number, number, number, number, number, number, number, number, number];
+  const A = e * i - f * h;
+  const B = -(d * i - f * g);
+  const C = d * h - e * g;
+  const det = a * A + b * B + c * C || 1e-12;
+  return [
+    A / det,
+    -(b * i - c * h) / det,
+    (b * f - c * e) / det,
+    B / det,
+    (a * i - c * g) / det,
+    -(a * f - c * d) / det,
+    C / det,
+    -(a * h - b * g) / det,
+    (a * e - b * d) / det,
+  ];
+}
+
+export function affineModel(a: Affine): Float32Array {
+  const m = a.m;
+  return new Float32Array([
+    m[0]!,
+    m[3]!,
+    m[6]!,
+    0,
+    m[1]!,
+    m[4]!,
+    m[7]!,
+    0,
+    m[2]!,
+    m[5]!,
+    m[8]!,
+    0,
+    a.t[0],
+    a.t[1],
+    a.t[2],
+    1,
+  ]);
+}
+
 export type FreeTransform = {
-  /** the middle the asset turns around (middle of the sized box) */
+  /** the middle the thing turns around (middle of the sized box) */
   center: V3;
-  /** the middle of the base the asset grows from */
-  base: V3;
   tilt: Tilt;
   scale: Scale;
-  /** a point of the straight, normal-size asset → where it is drawn */
+  affine: Affine;
+  /** a point of the straight, normal-size thing → where it is drawn */
   point(p: readonly number[]): V3;
-  /** a world ray → the same ray seen from the straight, normal-size asset (ray parameter t is kept) */
+  /** a world ray → the same ray seen from the straight, normal-size thing (ray parameter t is kept) */
   ray(r: { o: readonly number[]; d: readonly number[] }): { o: V3; d: V3 };
   /** column-major 4×4 for the renderer */
   model: Float32Array;
-  /** world box around the drawn asset */
+  /** world box around the drawn bricks */
   box: [V3, V3];
 };
 
-/**
- * world = center + R · (base + S · (p − base) − center), with center = base + S · (middle − base).
- */
-export function freeTransform(
-  bricks: readonly Brick[],
-  tilt: readonly number[] = [0, 0, 0],
-  scale: readonly number[] = [1, 1, 1],
-): FreeTransform {
-  const [a, b] = bricksBox(bricks);
-  const mid: V3 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
-  const base: V3 = [mid[0], a[1], mid[2]];
-  const S = scale as Scale;
-  const center: V3 = [0, 1, 2].map((i) => base[i]! + S[i]! * (mid[i]! - base[i]!)) as V3;
-  const R = tiltMatrix(tilt);
-  const point = (p: readonly number[]): V3 => {
-    const q = [0, 1, 2].map((i) => base[i]! + S[i]! * (p[i]! - base[i]!) - center[i]!);
-    const w = mul(R, q);
-    return [w[0] + center[0], w[1] + center[1], w[2] + center[2]];
-  };
-  const ray = (r: { o: readonly number[]; d: readonly number[] }) => {
-    const q = mulT(R, [r.o[0]! - center[0], r.o[1]! - center[1], r.o[2]! - center[2]]);
-    const o = [0, 1, 2].map((i) => base[i]! + (q[i]! + center[i]! - base[i]!) / S[i]!) as V3;
-    const dd = mulT(R, r.d);
-    return { o, d: [dd[0] / S[0], dd[1] / S[1], dd[2] / S[2]] as V3 };
-  };
-  // linear part A = R·S, translation t = center + R·(base − S·base − center)
-  const t = mul(
-    R,
-    [0, 1, 2].map((i) => base[i]! - S[i]! * base[i]! - center[i]!),
-  );
-  const model = new Float32Array([
-    R[0]! * S[0],
-    R[3]! * S[0],
-    R[6]! * S[0],
-    0,
-    R[1]! * S[1],
-    R[4]! * S[1],
-    R[7]! * S[1],
-    0,
-    R[2]! * S[2],
-    R[5]! * S[2],
-    R[8]! * S[2],
-    0,
-    t[0] + center[0],
-    t[1] + center[1],
-    t[2] + center[2],
-    1,
-  ]);
+/** Everything a renderer, picker or gizmo needs from an affine, for these bricks. */
+export function transformOf(a: Affine, bricks: readonly Brick[], tilt: Tilt, scale: Scale, center: V3): FreeTransform {
+  const inv = invert3(a.m);
+  const [lo, hi] = bricksBox(bricks);
   const min: V3 = [Infinity, Infinity, Infinity];
   const max: V3 = [-Infinity, -Infinity, -Infinity];
-  for (const x of [a[0], b[0]])
-    for (const y of [a[1], b[1]])
-      for (const z of [a[2], b[2]]) {
-        const p = point([x, y, z]);
+  for (const x of [lo[0], hi[0]])
+    for (const y of [lo[1], hi[1]])
+      for (const z of [lo[2], hi[2]]) {
+        const p = applyAffine(a, [x, y, z]);
         for (let i = 0; i < 3; i++) {
           min[i] = Math.min(min[i]!, p[i]!);
           max[i] = Math.max(max[i]!, p[i]!);
         }
       }
-  return { center, base, tilt: [...tilt] as Tilt, scale: [...S] as Scale, point, ray, model, box: [min, max] };
+  return {
+    center,
+    tilt,
+    scale,
+    affine: a,
+    point: (p) => applyAffine(a, p),
+    ray: (r) => ({
+      o: mul(inv, [r.o[0]! - a.t[0], r.o[1]! - a.t[1], r.o[2]! - a.t[2]]),
+      d: mul(inv, r.d),
+    }),
+    model: affineModel(a),
+    box: [min, max],
+  };
+}
+
+/**
+ * The turn-and-size of a group of bricks: it grows from the middle of its base, then turns around its
+ * middle. world = center + R · (base + S · (p − base) − center), with center = base + S · (middle − base).
+ * `quarters`: the group lives in something turned that many quarter turns about Y (a part inside a placed
+ * asset), so its own X/Z axes and sizes turn with it.
+ */
+export function freeAffine(
+  bricks: readonly Brick[],
+  tilt: readonly number[] = [0, 0, 0],
+  scale: readonly number[] = [1, 1, 1],
+  quarters = 0,
+): { affine: Affine; center: V3 } {
+  const [a, b] = bricksBox(bricks);
+  const mid: V3 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+  const base: V3 = [mid[0], a[1], mid[2]];
+  const q = ((quarters % 4) + 4) % 4;
+  // a quarter turn of the brick grid (rot + 1) maps +x to +z, which is −90° about Y here
+  const Q = tiltMatrix([0, -90 * q, 0]);
+  const QT = [Q[0]!, Q[3]!, Q[6]!, Q[1]!, Q[4]!, Q[7]!, Q[2]!, Q[5]!, Q[8]!];
+  const r0 = tiltMatrix(tilt);
+  const R = q
+    ? composeAffine({ m: Q, t: [0, 0, 0] }, composeAffine({ m: r0, t: [0, 0, 0] }, { m: QT, t: [0, 0, 0] })).m
+    : r0;
+  const S = (q % 2 ? [scale[2]!, scale[1]!, scale[0]!] : [...scale]) as Scale;
+  const center: V3 = [0, 1, 2].map((i) => base[i]! + S[i]! * (mid[i]! - base[i]!)) as V3;
+  const m = [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => R[r * 3 + c]! * S[c]!));
+  const t = mul(
+    R,
+    [0, 1, 2].map((i) => base[i]! - S[i]! * base[i]! - center[i]!),
+  );
+  return { affine: { m, t: [t[0] + center[0], t[1] + center[1], t[2] + center[2]] }, center };
+}
+
+export function freeTransform(
+  bricks: readonly Brick[],
+  tilt: readonly number[] = [0, 0, 0],
+  scale: readonly number[] = [1, 1, 1],
+): FreeTransform {
+  const { affine, center } = freeAffine(bricks, tilt, scale);
+  return transformOf(affine, bricks, [...tilt] as Tilt, [...scale] as Scale, center);
 }

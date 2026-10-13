@@ -25,6 +25,18 @@ export function HoverTip({ c }: { c: ActionCtx }) {
         clearTimeout(hideT.current);
         return;
       }
+      // any element with a title gets the same tip (the browser's own title tip is slow and plain)
+      // (controls only: an iframe's or canvas's title names the frame for screen readers and must stay)
+      const titled = t.closest?.(
+        ':is(button, a, input, select, label, summary, [role="button"], [role="option"], [role="tab"], [role="radio"])[title]:not([data-tip])',
+      );
+      if (titled && !titled.closest('.hovertip')) {
+        const text = titled.getAttribute('title');
+        if (text) {
+          titled.setAttribute('data-tip', text);
+          titled.removeAttribute('title');
+        }
+      }
       const el = t.closest?.('[data-tip]');
       if (el === cur.current) return;
       cur.current = el ?? null;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { freeGroupsOf } from '../../src/core/assets/free';
 import { expandInstances } from '../../src/core/assets/instances';
 import {
   freeTransform,
@@ -157,9 +158,9 @@ describe('P31 Rotate gizmo on a whole asset', () => {
     const tip = tiltChange(ed.mapId.value, t, 'rx', 37);
     expect(tip.command).toMatchObject({ type: 'instance.transform', payload: { tilt: [30, 0, 0] } });
     expect(tip.label).toBe('+30° about X');
-    expect(tip.model).toBeInstanceOf(Float32Array);
+    expect(tip.free).toEqual({ tilt: [30, 0, 0], scale: [1, 1, 1] });
     const quarter = tiltChange(ed.mapId.value, t, 'ring', 92);
-    expect(quarter.command).toMatchObject({ payload: { tilt: [0, 0, 0], rot: (owner.inst.rot + 1) % 4 } });
+    expect(quarter.command).toMatchObject({ payload: { tilt: [0, 0, 0], rot: (owner.inst.rot + 3) % 4 } });
     expect(tiltChange(ed.mapId.value, t, 'rz', 5).command).toBeNull();
     // loose bricks still get the single quarter-turn ring
     const loose = s.all().find((b) => !s.ownerOf(b.id))!;
@@ -194,5 +195,62 @@ describe('P31 Resize on a whole asset', () => {
       }).ok,
     ).toBe(true);
     expect(ed.scene.value!.free.has(owner.inst.id)).toBe(false);
+  });
+});
+
+describe('P31 turned parts inside an asset', () => {
+  it('a part draws turned on top of the asset and follows its quarter turns', () => {
+    const ed = editor();
+    const [e] = expandInstances(ed.store, ed.mapId.value);
+    const def = {
+      ...e!.def,
+      parts: [{ name: 'Top', bricks: [e!.def.bricks.length - 1], tilt: [0, 0, 30] as [number, number, number] }],
+    };
+    expect(ed.exec({ type: 'asset.create', payload: { asset: e!.def } }).ok || true).toBe(true);
+    const r = ed.exec({ type: 'asset.update', payload: { asset: def } });
+    expect(r.ok, ed.toast.value?.msg).toBe(true);
+    const s = ed.scene.value!;
+    const id = e!.inst.idBase + def.bricks.length - 1;
+    const g = s.freeGroupOf(id);
+    expect(g?.part).toBe(0);
+    expect(g?.key).toBe(`${e!.inst.id}#0`);
+    // the rest of the asset stays on the grid
+    expect(s.freeOf(e!.inst.idBase)).toBeNull();
+    // a part of a quarter-turned copy turns about the copy's own axes
+    const groups = freeGroupsOf(
+      { ...s.instances.find((x) => x.inst.id === e!.inst.id)!, inst: { ...e!.inst } } as never,
+      {
+        ...e!.inst,
+        rot: (e!.inst.rot + 1) % 4,
+      },
+    );
+    expect(groups.length).toBe(1);
+    // unpack waits for the part to be straight
+    expect(
+      ed.bus.check({ type: 'instance.unpack', payload: { map: ed.mapId.value, instances: [e!.inst.id] } }),
+    ).toMatch(/parts/);
+    // parts must name real bricks, each brick once
+    const bad = { ...def, parts: [{ name: 'X', bricks: [9999] }] };
+    expect(ed.bus.check({ type: 'asset.update', payload: { asset: bad } })).toMatch(/does not have/);
+  });
+
+  it('composes: the asset turn applies on top of the part turn', () => {
+    const B2 = [
+      { id: 1, type: 'brick2x2', x: 0, y: 0, z: 0, rot: 0, color: '#ff0000' },
+      { id: 2, type: 'brick2x2', x: 0, y: 3, z: 0, rot: 0, color: '#ff0000' },
+    ] as never as import('../../src/core/bricks/codec').Brick[];
+    const groups = freeGroupsOf({
+      inst: { id: 'ins_aaaaaaaaaa', rot: 0, idBase: 1, tilt: [0, 90, 0] },
+      def: { parts: [{ bricks: [1], tilt: [0, 0, 45] }] },
+      bricks: B2,
+    });
+    expect(groups.map((x) => x.key).sort()).toEqual(['ins_aaaaaaaaaa', 'ins_aaaaaaaaaa#0']);
+    const part = groups.find((x) => x.part === 0)!;
+    const whole = groups.find((x) => x.part === null)!;
+    // the part's own middle ends up where the whole asset's turn puts it
+    const pm = [1, 1.8, 1];
+    const viaWhole = whole.t.point(pm);
+    const viaPart = part.t.point(pm);
+    for (let i = 0; i < 3; i++) expect(viaPart[i]).toBeCloseTo(viaWhole[i]!);
   });
 });

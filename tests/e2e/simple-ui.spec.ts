@@ -326,3 +326,56 @@ test('Resize grows a whole asset; one Place tool for bricks and assets; the Sign
   await expect.poll(scale).toBeNull();
   expect(errors).toEqual([]);
 });
+
+test('Asset studio: one toolbar, piece pictures, title tips, and bricks turned freely as a part', async ({ page }) => {
+  test.setTimeout(180_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Assets' }).click();
+  const plate = page.getByRole('region', { name: 'Asset build plate' });
+  await expect(plate).toBeVisible();
+  // the Scene tools are not a second toolbar here
+  await expect(page.getByRole('group', { name: 'Tools' })).toHaveCount(0);
+  // the piece control shows pictures of the pieces
+  await plate.getByRole('button', { name: /^Piece:/ }).click();
+  const pick = page.getByRole('dialog', { name: 'Pick a piece' });
+  await expect(pick.locator('svg.brick-icon').first()).toBeVisible();
+  await pick.getByRole('radio', { name: /Plate/ }).click();
+  await pick.getByRole('option', { name: /Plate 2×4/ }).click();
+  await pick.getByRole('button', { name: 'Done' }).click();
+  await expect(plate.getByRole('button', { name: /^Piece: Plate 2×4/ })).toBeVisible();
+  // buttons with a title get the same hover tip
+  await plate.getByRole('button', { name: 'Rotate (E)' }).hover();
+  await expect(page.getByRole('tooltip')).toBeVisible();
+
+  // select the top brick and turn it on the blue ring: it becomes a turned part
+  const canvas = plate.getByLabel('3D map view');
+  const box = (await canvas.boundingBox())!;
+  await plate.getByRole('button', { name: 'Select (V)' }).click();
+  await canvas.click({ position: { x: box.width * 0.5, y: box.height * 0.12 }, modifiers: ['Alt'] });
+  await plate.getByRole('button', { name: 'Rotate (E)' }).click();
+  const spots = async () =>
+    JSON.parse((await canvas.getAttribute('data-gizmo')) || 'null') as Record<string, [number, number] | null> | null;
+  await expect.poll(async () => Object.keys((await spots()) ?? {}).includes('rz')).toBe(true);
+  const s = (await spots())!;
+  const [hx, hy] = s.rz!;
+  const [cx, cy] = s.center!;
+  const r = Math.hypot(hx - cx, hy - cy);
+  const a0 = Math.atan2(hy - cy, hx - cx);
+  await page.mouse.move(box.x + hx, box.y + hy);
+  await page.mouse.down();
+  for (let i = 1; i <= 4; i++) {
+    const a = a0 - (i * Math.PI) / 16;
+    await page.mouse.move(box.x + cx + Math.cos(a) * r, box.y + cy + Math.sin(a) * r);
+  }
+  await page.mouse.up();
+  const parts = page.locator('[data-tour="asset-parts"]');
+  await expect(parts).toContainText('Part 1');
+  // every placed copy in the world shows the part turned
+  expect(
+    await ed(page, (e) => (e as unknown as { scene: { value: { free: Map<string, unknown> } } }).scene.value.free.size),
+  ).toBeGreaterThan(0);
+  await parts.getByRole('button', { name: 'Straighten' }).click();
+  await expect(parts).not.toContainText('Part 1');
+  expect(errors).toEqual([]);
+});

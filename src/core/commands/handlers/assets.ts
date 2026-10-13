@@ -1,4 +1,5 @@
 import { bricksToAsset, expandAsset, type InstanceLike } from '../../assets/expand';
+import { hasFree } from '../../assets/free';
 import { assetInstances, expandInstances, instanceBricks, maxBrickId } from '../../assets/instances';
 import { bricksBox, hasScale, hasTilt, isFree, normalizeScale, normalizeTilt } from '../../assets/tilt';
 import { type Brick, chunkKey } from '../../bricks/codec';
@@ -23,6 +24,8 @@ export const allBricks = (store: ProjectStore, map: string): Brick[] => [
  * assets are free objects and are left out of the grid rules (P31).
  */
 export function assertMapLayout(store: ProjectStore, map: string) {
+  // a whole turned or sized asset is a free object; turned parts inside an asset keep their straight
+  // cells for the rules, so nothing that was built on them is left floating
   const free = new Set(
     expandInstances(store, map)
       .filter((e) => isFree(e.inst))
@@ -224,8 +227,12 @@ export const unpackInstance: CommandHandler<{ map: string; instances: string[] }
   validate: (store, p) =>
     !p.instances.every((id) => findInstance(store, p.map, id))
       ? 'Asset instance not found.'
-      : p.instances.some((id) => isFree(findInstance(store, p.map, id)))
-        ? 'Loose bricks stand studs-up at their real size. Straighten it and reset its size first.'
+      : p.instances.some((id) => {
+            const i = findInstance(store, p.map, id);
+            const def = i && store.get<Asset>(paths.asset(i.asset));
+            return !!i && !!def && hasFree(i, def);
+          })
+        ? 'Loose bricks stand studs-up at their real size. Straighten it, reset its size, and straighten its turned parts first.'
         : null,
   apply(store, p) {
     const want = new Set(p.instances);
@@ -321,6 +328,14 @@ export const updateAsset: CommandHandler<{ asset: Asset }> = {
     const r = Asset.safeParse(p.asset);
     if (!r.success) return `That asset is not valid: ${r.error.issues[0]?.message}`;
     if (!p.asset.states.includes(p.asset.initialState)) return 'The starting state must be one of the states.';
+    // turned parts name real bricks, each brick in at most one part
+    const seen = new Set<number>();
+    for (const part of p.asset.parts ?? [])
+      for (const i of part.bricks) {
+        if (i >= p.asset.bricks.length) return `Part ${part.name} names a brick the asset does not have.`;
+        if (seen.has(i)) return 'A brick can be in only one part.';
+        seen.add(i);
+      }
     return null;
   },
   apply(store, p) {

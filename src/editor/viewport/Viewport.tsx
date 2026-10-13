@@ -1,7 +1,16 @@
 import { effect } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
-import { bricksBox, type FreeTransform, freeTransform } from '../../core/assets/tilt';
+import { type FreeGroup, freeGroupsOf } from '../../core/assets/free';
+import {
+  affineModel,
+  bricksBox,
+  type FreeTransform,
+  freeAffine,
+  IDENTITY,
+  shiftAffine,
+  transformOf,
+} from '../../core/assets/tilt';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import type { Command } from '../../core/commands';
@@ -50,7 +59,17 @@ const kindOf = (type: string) =>
 export type { ViewportApi } from './active';
 
 /** The 3D scene view: renderer + camera + the active tool's pointer handling. */
-export type StudioHooks = { markers(): Marker[]; onPoint(pos: [number, number, number]): void };
+export type StudioHooks = {
+  markers(): Marker[];
+  onPoint(pos: [number, number, number]): void;
+  /** a part of the asset was turned or sized on the plate (P31): save it into the asset */
+  onPart?(p: {
+    index: number | null;
+    ids: number[];
+    tilt: [number, number, number];
+    scale: [number, number, number];
+  }): void;
+};
 
 export function Viewport({
   ed,
@@ -73,6 +92,8 @@ export function Viewport({
   const viewRef = useRef<ViewportApi | null>(null);
   const menuRef = useRef(onMenu);
   menuRef.current = onMenu;
+  const studioRef = useRef(studio);
+  studioRef.current = studio;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -104,6 +125,20 @@ export function Viewport({
     let assetAt: [number, number, number] | null = null;
     // P31 transform gizmo: the handle under the pointer, and the drag in progress
     let hot: HandleId | null = null;
+    // bricks drawn by the live preview of a turn or size (taken out of the chunks while dragging)
+    let liveHide = new Set<number>();
+    const setLiveHide = (ids: Iterable<number>) => {
+      const s = ed.scene.value;
+      if (!s) return;
+      const before = liveHide;
+      liveHide = new Set(ids);
+      const keys = new Set<string>();
+      for (const id of [...before, ...liveHide]) {
+        const k = s.byId.get(id)?.key;
+        if (k) keys.add(k);
+      }
+      if (keys.size) syncChunks([...keys], false);
+    };
     // P31: why the change being dragged would be refused (overlap, floating…), checked once per snap step
     let blocked: string | null = null;
     let checkedKey = '';
@@ -139,7 +174,7 @@ export function Viewport({
         else
           renderer.setChunk(
             k,
-            list.filter((b) => ed.isVisible(b) && !s.freeOf(b.id)).map((b) => s.toRender(b)),
+            list.filter((b) => ed.isVisible(b) && !s.freeOf(b.id) && !liveHide.has(b.id)).map((b) => s.toRender(b)),
           );
       }
       dirty = true;
@@ -358,62 +393,102 @@ export function Viewport({
       const markers: Marker[] = [];
       if (s && mode === 'scene') {
         const sel = ed.selectedBricks.value;
-        // freely turned or resized assets are drawn here, each with its own transform (and the one being dragged)
-        const turning = gz?.target.kind === 'bricks' ? gz.target.inst?.id : undefined;
-        const turnModel = gz?.change?.model;
-        for (const [id, f] of s.free)
-          if (!(turnModel && id === turning))
-            overlays.push({
-              bricks: f.e.bricks.filter((b) => ed.isVisible(b)).map(brickRender),
-              alpha: 1,
-              flat: false,
-              model: f.t.model,
-            });
-        if (turnModel && gz?.target.kind === 'bricks') {
+        // freely turned or resized assets and parts are drawn here, each group with its own transform;
+        // while a turn or size is dragged, the groups of that asset (or that studio part) use the new one
+        const live = gz?.change?.free;
+        const tg = gz?.target.kind === 'bricks' ? gz.target : null;
+        let liveGroups: FreeGroup[] = [];
+        if (live && tg?.inst) {
+          const e = s.instances.find((x) => x.inst.id === tg.inst!.id);
+          if (e) liveGroups = freeGroupsOf(e, { ...e.inst, tilt: live.tilt, scale: live.scale });
+          // a whole asset with no turn or size left shows straight: draw its bricks plainly
+          if (!liveGroups.length && e) liveGroups = [plainGroup(e.bricks)];
+        } else if (live && tg?.part) {
+          const { affine, center } = freeAffine(tg.bricks, live.tilt, live.scale);
+          liveGroups = [
+            {
+              key: 'live',
+              instance: '',
+              part: null,
+              bricks: tg.bricks,
+              t: transformOf(affine, tg.bricks, live.tilt, live.scale, center),
+            },
+          ];
+        }
+        const hiddenIds = new Set(liveGroups.flatMap((g) => g.bricks.map((b) => b.id)));
+        const red = [1, 0.25, 0.2] as [number, number, number];
+        for (const f of s.free.values()) {
+          const bricks = f.bricks.filter((b) => ed.isVisible(b) && !hiddenIds.has(b.id));
+          if (bricks.length)
+            overlays.push({ bricks: bricks.map(brickRender), alpha: 1, flat: false, model: f.t.model });
+        }
+        for (const g of liveGroups)
           overlays.push({
-            bricks: gz.target.bricks.map(brickRender),
+            bricks: g.bricks.map(brickRender),
             alpha: blocked ? 0.75 : 1,
             flat: !!blocked,
-            model: turnModel,
-            ...(blocked ? { color: [1, 0.25, 0.2] as [number, number, number] } : {}),
+            model: g.t.model,
+            ...(blocked ? { color: red } : {}),
           });
-        }
-        const selTilt = sel.length ? s.freeOf(sel[0]!.id) : null;
-        if (preview)
-          overlays.push({
-            bricks: preview.map(brickRender),
-            // a turned asset being moved keeps its turn in the preview
-            ...(selTilt ? { model: freeTransform(preview, selTilt.tilt, selTilt.scale).model } : {}),
-            alpha: 0.75,
-            flat: !!blocked,
-            ...(blocked ? { color: [1, 0.25, 0.2] as [number, number, number] } : {}),
-          });
-        else if (sel.length && !turnModel)
-          overlays.push({
-            bricks: sel.map(brickRender),
-            color: [1, 0.72, 0.2],
-            alpha: 0.38,
-            flat: true,
-            ...(selTilt ? { model: selTilt.model } : {}),
-          });
+        // grid bricks of the asset being turned/sized are drawn plainly in the chunks; hide nothing else
+        /** bricks split by the free group they are drawn with ('' = on the grid) */
+        const byGroup = (list: readonly Brick[]) => {
+          const m = new Map<string, Brick[]>();
+          for (const b of list) {
+            const k = s.freeGroupOf(b.id)?.key ?? '';
+            const arr = m.get(k) ?? [];
+            if (!m.has(k)) m.set(k, arr);
+            arr.push(b);
+          }
+          return m;
+        };
+        if (preview) {
+          // a turned asset being moved keeps its turns in the preview: shift each group's transform
+          const first = sel[0];
+          const moved = preview[0];
+          const d = first && moved ? [moved.x - first.x, (moved.y - first.y) * 0.4, moved.z - first.z] : [0, 0, 0];
+          const at = new Map(preview.map((b) => [b.id, b]));
+          for (const [k, list] of byGroup(sel)) {
+            const g = k ? s.free.get(k) : null;
+            overlays.push({
+              bricks: list.map((b) => brickRender(at.get(b.id) ?? b)),
+              ...(g ? { model: affineModel(shiftAffine(g.t.affine, d)) } : {}),
+              alpha: 0.75,
+              flat: !!blocked,
+              ...(blocked ? { color: red } : {}),
+            });
+          }
+        } else if (sel.length && !live)
+          for (const [k, list] of byGroup(sel)) {
+            const g = k ? s.free.get(k) : null;
+            overlays.push({
+              bricks: list.map(brickRender),
+              color: [1, 0.72, 0.2],
+              alpha: 0.38,
+              flat: true,
+              ...(g ? { model: g.t.model } : {}),
+            });
+          }
         if (hover && !ed.selection.value.has(hover.id) && !preview) {
           const group = hover.group ? (s.groups.get(hover.group) ?? [hover.id]) : [hover.id];
-          const ht = s.freeOf(hover.id);
-          overlays.push({
-            ...(ht ? { model: ht.model } : {}),
-            bricks: group
-              .map((id) => s.get(id)!)
-              .filter(Boolean)
-              .map(brickRender),
-            color: [1, 1, 1],
-            alpha: 0.16,
-            flat: true,
-          });
+          for (const [k, list] of byGroup(group.map((id) => s.get(id)!).filter(Boolean))) {
+            const g = k ? s.free.get(k) : null;
+            overlays.push({
+              ...(g ? { model: g.t.model } : {}),
+              bricks: list.map(brickRender),
+              color: [1, 1, 1],
+              alpha: 0.16,
+              flat: true,
+            });
+          }
         }
         if (ghost) overlays.push({ bricks: [ghost], alpha: 0.6, flat: false });
         if (assetGhost) overlays.push({ bricks: assetGhost.map(brickRender), alpha: 0.6, flat: false });
-        if (sel.length && !turnModel)
-          lines.push({ lines: selTilt ? tiltedLines(sel, selTilt) : boundsLines(sel), color: [1, 0.82, 0.3] });
+        if (sel.length && !live)
+          for (const [k, list] of byGroup(sel)) {
+            const g = k ? s.free.get(k) : null;
+            lines.push({ lines: g ? tiltedLines(list, g.t) : boundsLines(list), color: [1, 0.82, 0.3] });
+          }
         if (studio) markers.push(...studio.markers());
         if (!studio) {
           for (const z of s.map.zones)
@@ -852,7 +927,7 @@ export function Viewport({
       drag.moved = true;
       if (drag.kind === 'gizmo' && gz) {
         const now = local(e);
-        const free = gz.target.kind === 'bricks' && !!gz.target.inst;
+        const free = gz.target.kind === 'bricks' && !!(gz.target.inst || gz.target.part);
         const f = camera.frame();
         const facing =
           gz.handle.dir[0] * (f.eye[0] - gz.handle.from[0]) +
@@ -865,6 +940,11 @@ export function Viewport({
               ? dragDegrees(gz.center, gz.start, now, facing)
               : dragQuarters(gz.center, gz.start, now);
         gz.change = changeFor(ed.mapId.value, gz.mode, gz.target, gz.handle.id, amount);
+        if (gz.change.free && !liveHide.size && gz.target.kind === 'bricks') {
+          const t = gz.target;
+          const e = t.inst ? ed.scene.value?.instances.find((x) => x.inst.id === t.inst!.id) : null;
+          setLiveHide((e?.bricks ?? t.bricks).map((b) => b.id));
+        }
         preview = gz.change.bricks ?? null;
         const why = checkCommand(gz.change.command);
         showTag(why ? `${gz.change.label} · can't go here: ${why}` : gz.change.label, now, !!why);
@@ -922,10 +1002,12 @@ export function Viewport({
       if (d.kind === 'gizmo') {
         const g = gz;
         gz = null;
+        if (liveHide.size) setLiveHide([]);
         preview = null;
         showTag(null);
         canvas.style.cursor = hot ? 'grab' : '';
         dirty = true;
+        if (g?.change?.part) studioRef.current?.onPart?.(g.change.part);
         if (g?.change?.command) {
           const r = ed.exec(g.change.command, { label: g.change.undoLabel });
           if (!r.ok) flashTag(`Not moved: ${r.error ?? 'that spot is not allowed'}`, local(e));
@@ -1208,4 +1290,15 @@ function tiltedLines(bricks: readonly Brick[], t: FreeTransform): number[] {
   ];
   const e = [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7];
   return e.flatMap((i) => c[i]!);
+}
+
+/** A group drawn straight (an asset whose turn and size are being dragged back to none). */
+function plainGroup(bricks: Brick[]): FreeGroup {
+  return {
+    key: 'live',
+    instance: '',
+    part: null,
+    bricks,
+    t: transformOf(IDENTITY, bricks, [0, 0, 0], [1, 1, 1], [0, 0, 0]),
+  };
 }

@@ -38,6 +38,8 @@ export type GizmoTarget =
       asset: boolean;
       /** exactly one whole asset is selected: it can turn freely about X, Y and Z */
       inst?: { id: string; rot: number; tilt: Tilt; scale: Scale };
+      /** in the Asset studio: the selected bricks as a part of the asset (index null = becomes a new part) */
+      part?: { index: number | null; ids: number[]; tilt: Tilt; scale: Scale };
     }
   | { kind: 'zone'; zone: Zone }
   | { kind: 'spawn'; id: string; pos: Vec3; yaw: number }
@@ -84,6 +86,24 @@ export function gizmoTarget(ed: EditorState, mode: GizmoMode): GizmoTarget | nul
   const owner = s?.ownerOf(bricks[0]!.id);
   const whole =
     owner && bricks.length === owner.bricks.length && bricks.every((b) => s!.ownerOf(b.id)?.inst.id === owner.inst.id);
+  // Asset studio: selected bricks turn and size freely as a part of the asset
+  if (s?.parts && !asset && mode !== 'move') {
+    const ids = bricks.map((b) => b.id);
+    const found = s.partOf(ids);
+    // one loose brick that is not a part yet keeps real LEGO sizes in Resize
+    if (!(mode === 'resize' && !found && bricks.length === 1))
+      return {
+        kind: 'bricks',
+        bricks,
+        asset,
+        part: {
+          index: found?.index ?? null,
+          ids,
+          tilt: (found?.tilt ?? [0, 0, 0]) as Tilt,
+          scale: (found?.scale ?? [1, 1, 1]) as Scale,
+        },
+      };
+  }
   // Resize: a whole asset (free size) or one loose brick (LEGO sizes)
   if (mode === 'resize' && !whole && (bricks.length !== 1 || asset)) return null;
   if (!whole) return { kind: 'bricks', bricks, asset };
@@ -127,7 +147,8 @@ export function targetBox(t: GizmoTarget): [Vec3, Vec3] {
       [t.pos[0] - 0.4, t.pos[1] - 0.4, t.pos[2] - 0.4],
       [t.pos[0] + 0.4, t.pos[1] + 0.4, t.pos[2] + 0.4],
     ];
-  if (t.inst && isFree(t.inst)) return freeTransform(t.bricks, t.inst.tilt, t.inst.scale).box as [Vec3, Vec3];
+  const fr = t.inst ?? t.part;
+  if (fr && isFree(fr)) return freeTransform(t.bricks, fr.tilt, fr.scale).box as [Vec3, Vec3];
   const min: Vec3 = [Infinity, Infinity, Infinity];
   const max: Vec3 = [-Infinity, -Infinity, -Infinity];
   for (const b of t.bricks) {
@@ -162,10 +183,10 @@ export function handlesFor(mode: GizmoMode, t: GizmoTarget, size: number): Handl
   }
   if (mode === 'rotate') {
     // a turned asset keeps the ring size of its straight shape, so the rings do not balloon
-    const [bmin, bmax] = t.kind === 'bricks' && t.inst ? bricksBox(t.bricks) : [min, max];
+    const [bmin, bmax] = t.kind === 'bricks' && (t.inst || t.part) ? bricksBox(t.bricks) : [min, max];
     const r = Math.max(size * 0.8, Math.hypot(bmax[0] - bmin[0], bmax[2] - bmin[2]) / 2 + size * 0.15);
     const y: Handle = { id: 'ring', from: o, to: [o[0] + r, o[1], o[2]], dir: [0, 1, 0], color: AXIS_COLOR.y };
-    if (t.kind !== 'bricks' || !t.inst) return [y];
+    if (t.kind !== 'bricks' || !(t.inst || t.part)) return [y];
     // a whole asset turns freely: red ring about X, green about Y, blue about Z
     const r2 = r * 0.9;
     return [
@@ -191,7 +212,7 @@ export function handlesFor(mode: GizmoMode, t: GizmoTarget, size: number): Handl
     face('-z', [cx, cy, min[2]], [0, 0, -1], AXIS_COLOR.z),
     face('+y', [cx, max[1], cz], [0, 1, 0], AXIS_COLOR.y),
     // a whole asset also grows evenly from the top corner (white)
-    ...(t.kind === 'bricks' && t.inst
+    ...(t.kind === 'bricks' && (t.inst || t.part)
       ? [
           face(
             'all',
@@ -318,8 +339,10 @@ export type GizmoChange = {
   box?: [Vec3, Vec3];
   pos?: Vec3;
   yaw?: number;
-  /** a freely turned asset: draw its bricks with this model matrix (preview) */
-  model?: Float32Array;
+  /** a freely turned or sized asset or part: its turn and size while dragging (preview) */
+  free?: { tilt: Tilt; scale: Scale };
+  /** Asset studio: the part change to save into the asset (instead of a command) */
+  part?: { index: number | null; ids: number[]; tilt: Tilt; scale: Scale };
   /** what to tell the user while dragging ("+3 studs", "90°", "2×4 brick") */
   label: string;
   /** null = no change (yet) */
@@ -375,7 +398,11 @@ export function moveChange(map: string, t: GizmoTarget, axis: 'x' | 'y' | 'z', a
 }
 
 export function rotateChange(map: string, t: GizmoTarget, quarters: number): GizmoChange {
+  // spawns face (sin yaw, cos yaw): +yaw turns the same way as the drag
   const k = ((quarters % 4) + 4) % 4;
+  // bricks: a drag that turns counter-clockwise on screen (seen from above) is −1 grid quarter
+  // (rotateQuarter / rot + 1 map +x to +z)
+  const kb = ((-quarters % 4) + 4) % 4;
   const deg = `${quarters * 90 > 0 ? '+' : ''}${quarters * 90}°`;
   if (t.kind === 'spawn') {
     const yaw = (((t.yaw + k * (Math.PI / 2)) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
@@ -390,11 +417,11 @@ export function rotateChange(map: string, t: GizmoTarget, quarters: number): Giz
   if (t.kind !== 'bricks') return { label: deg, command: null, undoLabel: '' };
   const pivot = pivotOf(t.bricks);
   let out = t.bricks;
-  for (let i = 0; i < k; i++) out = rotateQuarter(out, pivot);
+  for (let i = 0; i < kb; i++) out = rotateQuarter(out, pivot);
   return {
     bricks: out,
     label: deg,
-    command: k
+    command: kb
       ? { type: 'bricks.update', payload: { map, bricks: out.map((b) => ({ id: b.id, x: b.x, z: b.z, rot: b.rot })) } }
       : null,
     undoLabel: t.asset ? 'Turn asset' : 'Turn bricks',
@@ -427,10 +454,11 @@ export const SCALE_STEP = 0.05;
 
 /** Resizing a whole asset: a side grows from the middle (both sides), the top grows up, the corner grows evenly. */
 export function scaleChange(map: string, t: GizmoTarget, handle: HandleId, amount: number): GizmoChange {
-  if (t.kind !== 'bricks' || !t.inst) return { label: '', command: null, undoLabel: '' };
+  const f = t.kind === 'bricks' ? (t.inst ?? t.part) : undefined;
+  if (t.kind !== 'bricks' || !f) return { label: '', command: null, undoLabel: '' };
   const [a, b] = bricksBox(t.bricks);
   const ext = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-  const cur = t.inst.scale;
+  const cur = f.scale;
   const snapS = (v: number) => Math.max(0.1, Math.round(v / SCALE_STEP) * SCALE_STEP);
   let next: Scale;
   if (handle === 'all') {
@@ -452,16 +480,26 @@ export function scaleChange(map: string, t: GizmoTarget, handle: HandleId, amoun
     next[0] === next[1] && next[1] === next[2]
       ? `Size ${pct(next[0])}`
       : `Width ${pct(next[0])} · Height ${pct(next[1])} · Depth ${pct(next[2])}`;
+  const back = hasScale(next) || hasTilt(f.tilt) ? label : `${label} · back on the grid`;
+  if (t.part)
+    return {
+      free: { tilt: t.part.tilt, scale: next },
+      label: back,
+      command: null,
+      ...(same ? {} : { part: { ...t.part, scale: next } }),
+      undoLabel: 'Resize part',
+    };
+  const inst = t.inst!;
   return {
-    model: freeTransform(t.bricks, t.inst.tilt, next).model,
-    label: hasScale(next) || hasTilt(t.inst.tilt) ? label : `${label} · back on the grid`,
-    command: same ? null : { type: 'instance.transform', payload: { map, instance: t.inst.id, scale: next } },
+    free: { tilt: inst.tilt, scale: next },
+    label: back,
+    command: same ? null : { type: 'instance.transform', payload: { map, instance: inst.id, scale: next } },
     undoLabel: hasScale(next) ? 'Resize asset' : 'Reset asset size',
   };
 }
 
 export function resizeChange(map: string, t: GizmoTarget, handle: HandleId, amount: number): GizmoChange {
-  if (t.kind === 'bricks' && t.inst) return scaleChange(map, t, handle, amount);
+  if (t.kind === 'bricks' && (t.inst || t.part)) return scaleChange(map, t, handle, amount);
   if (t.kind === 'zone') {
     const min = [...t.zone.min] as Vec3;
     const max = [...t.zone.max] as Vec3;
@@ -517,24 +555,36 @@ export function resizeChange(map: string, t: GizmoTarget, handle: HandleId, amou
   };
 }
 
-/** Turning a whole asset freely about one axis (degrees, snapped to TILT_STEP). */
+/** Turning a whole asset (or a studio part) freely about one axis (degrees, snapped to TILT_STEP). */
 export function tiltChange(map: string, t: GizmoTarget, h: HandleId, degrees: number): GizmoChange {
-  if (t.kind !== 'bricks' || !t.inst) return { label: '', command: null, undoLabel: '' };
+  const f = t.kind === 'bricks' ? (t.inst ?? t.part) : undefined;
+  if (t.kind !== 'bricks' || !f) return { label: '', command: null, undoLabel: '' };
   const i = h === 'rx' ? 0 : h === 'ring' ? 1 : 2;
   const step = Math.round(degrees / TILT_STEP) * TILT_STEP;
-  const next = [...t.inst.tilt] as Tilt;
+  const next = [...f.tilt] as Tilt;
   next[i] = next[i]! + step;
   const tilt = normalizeTilt(next);
   const axis = ['X', 'Y', 'Z'][i];
-  const label = `${step > 0 ? '+' : ''}${step}° about ${axis}${hasTilt(tilt) || hasScale(t.inst.scale) ? '' : ' · back on the grid'}`;
+  const straight = !hasTilt(tilt) && !hasScale(f.scale);
+  const label = `${step > 0 ? '+' : ''}${step}° about ${axis}${straight ? ' · back on the grid' : ''}`;
   if (!step) return { label, command: null, undoLabel: '' };
+  if (t.part)
+    return {
+      free: { tilt, scale: t.part.scale },
+      label,
+      command: null,
+      part: { ...t.part, tilt },
+      undoLabel: 'Turn part',
+    };
+  const inst = t.inst!;
   // whole quarter turns about Y with no tilt left go back into rot: the asset is a grid asset again
+  // (+90° here is a quarter turn back on the grid: rot + 1 maps +x to +z, which is −90° about Y)
   const flat = Math.abs(tilt[0]) < 1e-6 && Math.abs(tilt[2]) < 1e-6 && Math.abs(tilt[1] % 90) < 1e-6 && !!tilt[1];
   const payload = flat
-    ? { map, instance: t.inst.id, tilt: [0, 0, 0] as Tilt, rot: (((t.inst.rot + tilt[1] / 90) % 4) + 4) % 4 }
-    : { map, instance: t.inst.id, tilt };
+    ? { map, instance: inst.id, tilt: [0, 0, 0] as Tilt, rot: (((inst.rot - tilt[1] / 90) % 4) + 4) % 4 }
+    : { map, instance: inst.id, tilt };
   return {
-    model: freeTransform(t.bricks, tilt, t.inst.scale).model,
+    free: { tilt, scale: inst.scale },
     label,
     command: { type: 'instance.transform', payload },
     undoLabel: hasTilt(tilt) ? 'Turn asset freely' : 'Straighten asset',
@@ -542,7 +592,7 @@ export function tiltChange(map: string, t: GizmoTarget, h: HandleId, degrees: nu
 }
 
 export function changeFor(map: string, mode: GizmoMode, t: GizmoTarget, h: HandleId, amount: number): GizmoChange {
-  if (mode === 'rotate' && t.kind === 'bricks' && t.inst) return tiltChange(map, t, h, amount);
+  if (mode === 'rotate' && t.kind === 'bricks' && (t.inst || t.part)) return tiltChange(map, t, h, amount);
   if (mode === 'rotate') return rotateChange(map, t, amount);
   if (mode === 'move') return moveChange(map, t, h as 'x' | 'y' | 'z', amount);
   return resizeChange(map, t, h, amount);

@@ -1,5 +1,14 @@
+import { type FreeGroup, freeGroups } from '../core/assets/free';
 import { type ExpandedInstance, expandInstances } from '../core/assets/instances';
-import { type FreeTransform, freeTransform, isFree } from '../core/assets/tilt';
+import {
+  type FreeTransform,
+  freeAffine,
+  hasScale,
+  hasTilt,
+  type Scale,
+  type Tilt,
+  transformOf,
+} from '../core/assets/tilt';
 import { type Brick, chunkKey, decodeChunk } from '../core/bricks/codec';
 import { footprint } from '../core/bricks/inspect';
 import { worldGenerator } from '../core/legacy/modules';
@@ -9,6 +18,9 @@ import { toLegacyConfig } from '../core/worldgen/generate';
 import type { Vec3 } from '../engine/render/math';
 import { brickHeightUnits, type RenderBrick } from '../engine/render/renderer';
 import { type CategoryId, categoryOf } from './categories';
+
+/** A part of the asset open in the Asset studio: plate brick ids and its turn and size. */
+export type StudioPart = { index: number; name: string; ids: number[]; tilt?: Tilt; scale?: Scale };
 
 export type Hit = { brick: Brick; t: number; point: Vec3; normal: Vec3 };
 export type SurfaceHit = { x: number; z: number; y: number; t: number; on: Brick | null };
@@ -28,8 +40,14 @@ export class SceneModel {
   instances: ExpandedInstance[] = [];
   /** brick id -> the asset instance that owns it */
   readonly instanceOf = new Map<number, ExpandedInstance>();
-  /** freely turned or resized assets (P31): drawn with a model matrix, picked through it, kept out of the grid */
-  readonly free = new Map<string, { e: ExpandedInstance; t: FreeTransform }>();
+  /** freely turned or resized assets and parts (P31): drawn with a model matrix, picked through it, kept out of the grid */
+  readonly free = new Map<string, FreeGroup>();
+  private freeById = new Map<number, FreeGroup>();
+  /**
+   * The Asset studio's parts on its build plate (brick ids on the plate), or null outside the studio.
+   * Turned or sized parts become free groups here, so the plate shows them as every copy will.
+   */
+  parts: StudioPart[] | null = null;
   private unsubAssets: () => void;
   private listeners = new Set<(changed: string[], full: boolean) => void>();
   private unsub: () => void;
@@ -60,8 +78,7 @@ export class SceneModel {
     this.instanceOf.clear();
     this.free.clear();
     this.instances = expandInstances(this.store, this.mapId);
-    for (const e of this.instances)
-      if (isFree(e.inst)) this.free.set(e.inst.id, { e, t: freeTransform(e.bricks, e.inst.tilt, e.inst.scale) });
+    this.rebuildFree();
     for (const e of this.instances)
       for (const b of e.bricks) {
         const key = `a:${chunkKey(b.x, b.z)}`;
@@ -79,11 +96,63 @@ export class SceneModel {
     return this.instanceOf.get(id) ?? null;
   }
 
-  /** The free transform of a brick's asset, if it is turned or resized freely. */
+  /** Recomputes the free groups (after any change: their bricks may have moved). */
+  rebuildFree() {
+    this.free.clear();
+    this.freeById.clear();
+    for (const g of [...freeGroups(this.instances), ...this.studioGroups()]) {
+      this.free.set(g.key, g);
+      for (const b of g.bricks) this.freeById.set(b.id, g);
+    }
+  }
+
+  private studioGroups(): FreeGroup[] {
+    if (!this.parts) return [];
+    return this.parts.flatMap((p) => {
+      if (!hasTilt(p.tilt) && !hasScale(p.scale)) return [];
+      const bricks = p.ids.flatMap((id) => {
+        const b = this.byId.get(id)?.brick;
+        return b ? [b] : [];
+      });
+      if (!bricks.length) return [];
+      const tilt = (p.tilt ?? [0, 0, 0]) as Tilt;
+      const scale = (p.scale ?? [1, 1, 1]) as Scale;
+      const { affine, center } = freeAffine(bricks, tilt, scale);
+      return [
+        {
+          key: `part#${p.index}`,
+          instance: '',
+          part: p.index,
+          bricks,
+          t: transformOf(affine, bricks, tilt, scale, center),
+        },
+      ];
+    });
+  }
+
+  /** The studio sets its parts; the plate redraws with them turned. */
+  setParts(parts: StudioPart[] | null) {
+    this.parts = parts;
+    this.rebuildFree();
+    this.revision++;
+    for (const fn of this.listeners) fn([...this.chunks.keys()], true);
+  }
+
+  /** The studio part that is exactly these bricks, if any. */
+  partOf(ids: readonly number[]): StudioPart | null {
+    if (!this.parts) return null;
+    const want = new Set(ids);
+    return this.parts.find((p) => p.ids.length === want.size && p.ids.every((i) => want.has(i))) ?? null;
+  }
+
+  /** The free transform a brick is drawn with, if it is turned or resized freely. */
   freeOf(id: number): FreeTransform | null {
-    if (!this.free.size) return null;
-    const e = this.instanceOf.get(id);
-    return (e && this.free.get(e.inst.id)?.t) ?? null;
+    return this.freeById.get(id)?.t ?? null;
+  }
+
+  /** The free group a brick belongs to. */
+  freeGroupOf(id: number): FreeGroup | null {
+    return this.freeById.get(id) ?? null;
   }
 
   dispose() {
@@ -189,6 +258,8 @@ export class SceneModel {
     if (keys.length || full) {
       this.reindexGroups();
       this.revision++;
+      // the studio's turned parts follow their bricks
+      if (this.parts && !instChanged) this.rebuildFree();
     }
     for (const fn of this.listeners) fn(full ? [...this.chunks.keys()] : keys, full);
   }

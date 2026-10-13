@@ -94,12 +94,13 @@ describe('P31 gizmo: the change a drag makes', () => {
 
   it('turns bricks in quarter turns around their middle; four quarters is no change', () => {
     const t = bricks(brick('brick2x4', 0, 0, 0, 0, 1));
+    // a counter-clockwise drag (seen from above) is one grid quarter back: rot 3
     const one = rotateChange('m', t, 1);
-    expect(one.bricks![0]!.rot).toBe(1);
+    expect(one.bricks![0]!.rot).toBe(3);
     expect(footprint(one.bricks![0]!)).toEqual([2, 4]);
     expect(one.label).toBe('+90°');
     expect(rotateChange('m', t, 4).command).toBeNull();
-    expect(rotateChange('m', t, -1).bricks![0]!.rot).toBe(3);
+    expect(rotateChange('m', t, -1).bricks![0]!.rot).toBe(1);
   });
 
   it('only offers real LEGO sizes when resizing a brick, keeping the kind', () => {
@@ -202,7 +203,7 @@ describe('P31 gizmo in the editor', () => {
     const turn = rotateChange(ed.mapId.value, gizmoTarget(ed, 'rotate')!, 1);
     const r = ed.exec(turn.command!, { label: turn.undoLabel });
     // turning can be refused where it would overlap a neighbour; when it works the asset is still whole
-    if (r.ok) expect(s.ownerOf(owner.bricks[0]!.id)?.inst.rot).toBe((owner.inst.rot + 1) % 4);
+    if (r.ok) expect(s.ownerOf(owner.bricks[0]!.id)?.inst.rot).toBe((owner.inst.rot + 3) % 4);
     else expect(ed.toast.value?.msg).toBeTruthy();
   });
 });

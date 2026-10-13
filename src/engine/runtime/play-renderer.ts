@@ -1,4 +1,4 @@
-import { freeTransform, isFree } from '../../core/assets/tilt';
+import { freeGroups } from '../../core/assets/free';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { rigPose } from '../character/animator';
@@ -64,30 +64,30 @@ export class PlayRenderer {
   }
 
   /** freely turned assets (P31): their pieces are drawn turned, not in the chunks */
-  private tilted: { ids: Set<number>; models: Map<string, Float32Array> } = { ids: new Set(), models: new Map() };
+  private tilted: { ids: Set<number>; groups: { ids: Set<number>; model: Float32Array }[] } = {
+    ids: new Set(),
+    groups: [],
+  };
 
   private syncTilted() {
     const w = this.session.world;
     const ids = new Set<number>();
-    const models = new Map<string, Float32Array>();
-    for (const e of w.instances)
-      if (isFree(e.inst)) {
-        for (const b of e.bricks) ids.add(b.id);
-        models.set(e.inst.id, freeTransform(e.bricks, e.inst.tilt, e.inst.scale).model);
-      }
-    this.tilted = { ids, models };
+    const groups: { ids: Set<number>; model: Float32Array }[] = [];
+    for (const g of freeGroups(w.instances)) {
+      const set = new Set(g.bricks.map((b) => b.id));
+      for (const id of set) ids.add(id);
+      groups.push({ ids: set, model: g.t.model });
+    }
+    this.tilted = { ids, groups };
   }
 
   private tiltedOverlays(): Overlay[] {
     const w = this.session.world;
     if (!this.tilted.ids.size) return [];
     const out: Overlay[] = [];
-    for (const e of w.instances) {
-      const model = this.tilted.models.get(e.inst.id);
-      if (!model) continue;
-      const here = new Set(e.bricks.map((b) => b.id));
-      const pieces = w.pieces.filter((p) => p.id !== undefined && here.has(p.id));
-      if (pieces.length) out.push({ bricks: pieces.map(toRender), alpha: 1, flat: false, model });
+    for (const g of this.tilted.groups) {
+      const pieces = w.pieces.filter((p) => p.id !== undefined && g.ids.has(p.id));
+      if (pieces.length) out.push({ bricks: pieces.map(toRender), alpha: 1, flat: false, model: g.model });
     }
     return out;
   }

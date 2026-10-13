@@ -227,6 +227,16 @@ export const TOOLS: {
   },
 ];
 
+const STUDIO_WORKSPACES = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics']);
+const STUDIO_HINT: Record<string, string> = {
+  Assets: 'Asset studio: build the asset with the tools above the build plate. Every placed copy updates.',
+  Characters: 'Character studio: pick parts, colors and moves on the right.',
+  Logic: 'Logic: rules and scripts for this game.',
+  Screens: 'Screens: the HUD, title, splash, pause and other game screens.',
+  Audio: 'Audio: sounds, music and the mix.',
+  Cinematics: 'Cinematics: cutscenes on a timeline.',
+};
+
 /** the last kind of Place used (a brick or an asset) */
 let lastPlace: 'place' | 'asset' | null = null;
 
@@ -234,6 +244,8 @@ export function Toolbar({ c }: { c: ActionCtx }) {
   const { ed, ui } = c;
   ed.revision.value;
   const tool = TOOLS.find((t) => t.id === ed.tool.value) ?? TOOLS[0]!;
+  // the studios have their own tools; the Scene tools would only be a second toolbar there
+  const studioWs = STUDIO_WORKSPACES.has(ed.workspace.value);
   const placing = ed.tool.value === 'place' || ed.tool.value === 'asset';
   if (placing) lastPlace = ed.tool.value as 'place' | 'asset';
   // Resize says why nothing shows when the selection has no size to change; Place says what it puts down
@@ -246,35 +258,41 @@ export function Toolbar({ c }: { c: ActionCtx }) {
         : tool.help);
   return (
     <div class="toolbar">
-      <div class="group" role="group" aria-label="Tools" data-tour="tools">
-        {TOOLS.filter((t) => !t.hidden).map((t) => {
-          const on = ed.tool.value === t.id || (t.id === 'place' && placing);
-          return (
-            <button
-              type="button"
-              class={`btn icon ${on ? 'on' : ''}`}
-              aria-label={`${t.label} (${t.key})`}
-              aria-pressed={on}
-              data-tip={t.later ? `${t.label} — ${t.later}` : `${t.help} Shortcut: ${t.key}.`}
-              data-help="scene"
-              disabled={!!t.later}
-              onClick={() => {
-                // Place picks up where you left off: the asset you chose, or the brick brush
-                ed.tool.value =
-                  t.id === 'place' ? (lastPlace ?? (ed.assetBrush.value.asset ? 'asset' : 'place')) : t.id;
-                ed.persistUi();
-              }}
-            >
-              <span aria-hidden="true" class="mono">
-                {t.glyph}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <span class="toolhint opt" title={hint} data-tour="tool-hint">
-        {hint}
-      </span>
+      {!studioWs && (
+        <div class="group" role="group" aria-label="Tools" data-tour="tools">
+          {TOOLS.filter((t) => !t.hidden).map((t) => {
+            const on = ed.tool.value === t.id || (t.id === 'place' && placing);
+            return (
+              <button
+                type="button"
+                class={`btn icon ${on ? 'on' : ''}`}
+                aria-label={`${t.label} (${t.key})`}
+                aria-pressed={on}
+                data-tip={t.later ? `${t.label} — ${t.later}` : `${t.help} Shortcut: ${t.key}.`}
+                data-help="scene"
+                disabled={!!t.later}
+                onClick={() => {
+                  // Place picks up where you left off: the asset you chose, or the brick brush
+                  ed.tool.value =
+                    t.id === 'place' ? (lastPlace ?? (ed.assetBrush.value.asset ? 'asset' : 'place')) : t.id;
+                  ed.persistUi();
+                }}
+              >
+                <span aria-hidden="true" class="mono">
+                  {t.glyph}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {studioWs ? (
+        <span class="toolhint opt">{STUDIO_HINT[ed.workspace.value] ?? ''}</span>
+      ) : (
+        <span class="toolhint opt" data-tip={hint} data-tour="tool-hint">
+          {hint}
+        </span>
+      )}
       <div class="group" role="group" aria-label="Play controls" data-tour="play">
         <button
           type="button"
