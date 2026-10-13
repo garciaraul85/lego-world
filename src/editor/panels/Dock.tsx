@@ -8,6 +8,7 @@ import { assetLibrary } from '../assets';
 import { AssetThumb } from '../components/AssetThumb';
 import { BrickPicker } from '../components/BrickIcon';
 import { endDrag, startDrag } from '../interact/drag';
+import { keysFor } from '../platform';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
 import { MixerView } from '../workspaces/audio/MixerView';
@@ -15,11 +16,15 @@ import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
 import { Swatches } from './Inspector';
 
 const CATS: [string, string | null, string][] = [
-  ['Bricks', null, 'Pick a shape and a color, then click in the map (Place, B). T turns the brush.'],
+  [
+    'Bricks',
+    null,
+    'Pick a shape and a color, then click in the map (Place, B). T turns the brick a quarter turn before you place it.',
+  ],
   [
     'Assets',
     null,
-    'Click an asset, then click in the map (Place), or drag it straight in. T turns it. Edit assets in the Asset studio.',
+    'Click an asset, then click in the map (Place), or drag it straight in. Press T to turn it a quarter turn before you put it down. Edit assets in the Asset studio.',
   ],
   ['Characters', null, 'Characters, their looks and their clips (emotes) are made in the Character studio.'],
   ['Cinematics', null, 'Directed scenes: click one to open it in the Director; ▶ plays it in the game.'],
@@ -343,7 +348,9 @@ function Debug({ c }: { c: ActionCtx }) {
   if (!s)
     return (
       <div class="scroll" style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <span class="muted">Press Play (F5) to watch the running game here. Debug drawing applies to Play.</span>
+        <span class="muted">
+          {keysFor('Press Play (F5) to watch the running game here. Debug drawing applies to Play.')}
+        </span>
         {draw}
       </div>
     );
@@ -472,31 +479,49 @@ function AssetCards({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
   const [filter, setFilter] = useState('all');
-  const lib = assetLibrary(ed).filter(({ asset: a }) =>
-    filter === 'generated'
-      ? a.origin === 'generated'
-      : a.origin !== 'generated' &&
-        (filter === 'all' || (filter === 'mine' ? a.origin === 'user' || !a.origin : a.category === filter)),
+  const [q, setQ] = useState('');
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const lib = assetLibrary(ed).filter(
+    ({ asset: a }) =>
+      (filter === 'generated'
+        ? a.origin === 'generated'
+        : a.origin !== 'generated' &&
+          (filter === 'all' || (filter === 'mine' ? a.origin === 'user' || !a.origin : a.category === filter))) &&
+      // P32: find an asset by name (or kind) as you type
+      words.every((w) => `${a.name} ${a.category ?? ''}`.toLowerCase().includes(w)),
   );
   const brush = ed.assetBrush.value;
   return (
     <>
-      <div class="row" role="radiogroup" aria-label="Asset kind">
-        {ASSET_FILTERS.map(([id, label]) => (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={filter === id}
-            class={`chip ${filter === id ? 'on' : ''}`}
-            style={filter === id ? { borderColor: 'var(--acc)' } : undefined}
-            onClick={() => setFilter(id)}
-          >
-            {label}
-          </button>
-        ))}
+      <div class="row" style={{ gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          type="search"
+          class="inp asset-search"
+          aria-label="Search assets"
+          placeholder="Search assets…"
+          value={q}
+          onInput={(e) => setQ((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => e.key === 'Escape' && setQ('')}
+        />
+        <div class="row" role="radiogroup" aria-label="Asset kind">
+          {ASSET_FILTERS.map(([id, label]) => (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={filter === id}
+              class={`chip ${filter === id ? 'on' : ''}`}
+              style={filter === id ? { borderColor: 'var(--acc)' } : undefined}
+              onClick={() => setFilter(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
       <div class="cards" role="listbox" aria-label="Assets">
-        {!lib.length && <span class="muted small">No assets of this kind yet.</span>}
+        {!lib.length && (
+          <span class="muted small">{q ? `No assets match “${q}”.` : 'No assets of this kind yet.'}</span>
+        )}
         {lib.map(({ asset: a, inProject }) => {
           const on = brush.asset === a.id && ed.tool.value === 'asset';
           return (
@@ -505,7 +530,7 @@ function AssetCards({ c }: { c: ActionCtx }) {
               class={`card ${on ? 'on' : ''}`}
               role="option"
               aria-selected={on}
-              data-tip={`${a.name} · ${a.bricks.length} bricks${a.sockets.length ? ` · ${a.sockets.length} socket(s)` : ''}. Drag it into the scene, or click and then click the ground.`}
+              data-tip={`${a.name} · ${a.bricks.length} bricks${a.sockets.length ? ` · ${a.sockets.length} socket(s)` : ''}. Drag it into the scene, or click it and then click the ground. Before you place it, T turns it a quarter turn.`}
               data-help="assets"
               draggable
               onDragStart={(e) =>

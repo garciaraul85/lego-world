@@ -1,6 +1,7 @@
 import { AI_COMMANDS } from '../../../core/ai/commands';
 import { CATALOG, type NodeDef } from '../../../core/logic/catalog';
 import { ACTIONS, MENUS } from '../../actions/registry';
+import { keysFor, MAC_KEYS } from '../../platform';
 import { TOOLS } from '../../shell/tools';
 import { WIDGET_NAMES, WIDGET_TIPS, WIDGET_TYPES } from '../../workspaces/screens/model';
 import { area, type HelpEntry } from './types';
@@ -94,7 +95,11 @@ function actionEntries(): HelpEntry[] {
       purpose: ACTION_HELP[a.id] ?? '',
       steps: [
         ...(menu ? [`Open the **${menu}** menu and choose **${a.label}**.`] : []),
-        ...(a.key ? [`Or press \`${a.key}\` (when you are not typing in a field).`] : []),
+        ...(a.key
+          ? [
+              `Or press \`${a.key}\`${MAC_KEYS[a.key] ? ` (on a Mac: \`${keysFor(MAC_KEYS[a.key]!, true)}\`)` : ''} (when you are not typing in a field).`,
+            ]
+          : []),
         'Or find it by name in the command palette (`Ctrl K`).',
       ],
       key: a.key,

@@ -4,7 +4,7 @@ Assets are reusable objects made of bricks: houses, trees, chests, doors, lamp p
 
 ## The library
 
-The dock's Assets category lists the built-in library (Buildings, Nature, Props, Structures, Vehicles, Decoration) and your own (Mine, From maps). Pick one and Place (B) is ready with it: click the map to put a copy down, or drag the card straight in; T turns it.
+The dock's Assets category lists the built-in library (Buildings, Nature, Props, Structures, Vehicles, Decoration) and your own (Mine, From maps). Pick one and Place (B) is ready with it: click the map to put a copy down, or drag the card straight in; press T to turn it a quarter turn before you put it down.
 
 ## Instances
 

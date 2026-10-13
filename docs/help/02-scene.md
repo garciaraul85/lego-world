@@ -36,7 +36,7 @@ While you drag, a ghost shows the result and a label shows how far it went. If t
 
 ## Place, Color paint and Erase
 
-Place (B) puts down whatever you picked in the dock: a brick (Bricks: pick its shape and color) or an asset (Assets: a house, a tree, a chest). Click the ground, or drag a card straight into the scene; T turns it. The tool hint says what you are placing. Color paint (C) recolors the brick you click. Erase (X) removes it (Shift removes the whole object); bricks that hold others up are protected. Any #rrggbb color is allowed: the last swatch, Any colour…, opens a picker (shade square, hue, hex, recent colours and an eyedropper), and Play shows that exact colour; v68's Play in v68 and the legacy export use the nearest of v68's 18 colors.
+Place (B) puts down whatever you picked in the dock: a brick (Bricks: pick its shape and color) or an asset (Assets: a house, a tree, a chest). Click the ground, or drag a card straight into the scene; press T to turn it a quarter turn before you put it down. The tool hint says what you are placing. Color paint (C) recolors the brick you click. Erase (X) removes it (Shift removes the whole object); bricks that hold others up are protected. Any #rrggbb color is allowed: the last swatch, Any colour…, opens a picker (shade square, hue, hex, recent colours and an eyedropper), and Play shows that exact colour; v68's Play in v68 and the legacy export use the nearest of v68's 18 colors.
 
 ## Terrain generator
 

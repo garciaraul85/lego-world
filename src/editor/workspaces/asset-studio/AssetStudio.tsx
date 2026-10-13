@@ -451,7 +451,9 @@ function Properties({
                 ed.assetBrush.value = { asset: def.id, rot: 0 };
                 ed.tool.value = 'asset';
                 c.ui.workspace('Scene');
-                ed.notify(`Click in the map to place ${def.name}. T turns it.`);
+                ed.notify(
+                  `Click in the map to place ${def.name}. Press T to turn it a quarter turn before you put it down.`,
+                );
               }}
             >
               Test in world

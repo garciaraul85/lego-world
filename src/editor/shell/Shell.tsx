@@ -160,9 +160,9 @@ export function Toolbar({ c }: { c: ActionCtx }) {
   const hint =
     (tool.id === 'resize' && resizeHint(ed)) ||
     (ed.tool.value === 'asset' && resolveAsset(ed, ed.assetBrush.value.asset)
-      ? `Place ${resolveAsset(ed, ed.assetBrush.value.asset)!.name}: click the ground, or drag cards from the dock. T turns it. Pick a brick in the dock to place bricks instead.`
+      ? `Place ${resolveAsset(ed, ed.assetBrush.value.asset)!.name}: click the ground, or drag cards from the dock. Press T to turn it a quarter turn before you put it down. Pick a brick in the dock to place bricks instead.`
       : ed.tool.value === 'place'
-        ? `Place a ${ed.brush.value.type.replace(/^(brick|plate|tile)(\d+)x(\d+)$/, '$1 $2×$3')}: click the ground, or drag it. T turns it. Pick an asset in the dock to place that instead.`
+        ? `Place a ${ed.brush.value.type.replace(/^(brick|plate|tile)(\d+)x(\d+)$/, '$1 $2×$3')}: click the ground, or drag it. Press T to turn it a quarter turn before you put it down. Pick an asset in the dock to place that instead.`
         : tool.help);
   return (
     <div class="toolbar">

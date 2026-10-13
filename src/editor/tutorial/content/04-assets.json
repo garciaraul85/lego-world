@@ -20,7 +20,7 @@
     {
       "id": "assets.place",
       "title": "Place an asset",
-      "body": "With Place (B), click the map to put a copy down, or drag the card straight in; T turns it. Every copy is an instance of the same asset, so editing the asset updates them all.",
+      "body": "With Place (B), click the map to put a copy down, or drag the card straight in; press T to turn it a quarter turn before you put it down. Every copy is an instance of the same asset, so editing the asset updates them all.",
       "task": "Place the chest on the map.",
       "target": "button[aria-label=\"Place (B)\"]",
       "placement": "bottom",

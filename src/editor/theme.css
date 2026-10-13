@@ -4082,3 +4082,11 @@ select.inp {
     animation: none;
   }
 }
+.tut-card .tut-drag {
+  cursor: move;
+  touch-action: none;
+}
+.asset-search {
+  width: 180px;
+  min-width: 120px;
+}

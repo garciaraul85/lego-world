@@ -3,6 +3,7 @@ import { CATALOG, nodeDef } from '../../../core/logic/catalog';
 import { graphProblems } from '../../../core/logic/graph';
 import type { LogicGraph, Variables } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
+import { keysFor } from '../../platform';
 import { CodeView } from './CodeView';
 import { GraphView, toggleBreakpoint } from './GraphView';
 import { argChoices, CAT_COLOR, graphs, newGraph, nodeHeight, variables } from './model';
@@ -318,8 +319,9 @@ function NodeInspector({
           <div class="sec">
             <div class="muted">{selected.size > 1 ? `${selected.size} nodes selected.` : 'Nothing selected.'}</div>
             <p class="hint">
-              Events (teal) start a chain; flow (purple) decides where it goes; actions change the world. Drag from a
-              pin to another to wire them. Delete removes, F9 sets a breakpoint, the wheel zooms.
+              {keysFor(
+                'Events (teal) start a chain; flow (purple) decides where it goes; actions change the world. Drag from a pin to another to wire them. Delete removes, F9 sets a breakpoint, the wheel zooms.',
+              )}
             </p>
           </div>
         ) : (
@@ -428,7 +430,7 @@ function NodeInspector({
                     checked={bp}
                     onChange={() => graph && toggleBreakpoint(ed, graph.id, node.id)}
                   />{' '}
-                  Breakpoint (pause Play here, F9)
+                  {keysFor('Breakpoint (pause Play here, F9)')}
                 </label>
               </div>
             )}

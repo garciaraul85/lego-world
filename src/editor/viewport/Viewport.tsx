@@ -52,6 +52,7 @@ import {
   ringPoints,
   targetBox,
 } from './gizmo';
+import { settleMove } from './settle';
 
 const kindOf = (type: string) =>
   (type.startsWith('brick') ? 'brick' : type.startsWith('plate') ? 'plate' : 'tile') as RenderBrick['kind'];
@@ -109,6 +110,10 @@ export function Viewport({
     let raf = 0;
     let hover: Brick | null = null;
     let ghost: RenderBrick | null = null;
+    /** why the brick or asset under the pointer can't go there (the ghost turns red), and the last spot checked */
+    let ghostBad: string | null = null;
+    let ghostKey = '';
+    let ghostFit: { dy: number; bad: string | null } = { dy: 0, bad: null };
     let drag: {
       kind: 'orbit' | 'pan' | 'move' | 'zone' | 'gizmo';
       x: number;
@@ -149,6 +154,23 @@ export function Viewport({
       blocked = cmd ? ed.bus.check(cmd) : null;
       return blocked;
     };
+    /**
+     * A sideways move lands where it can stand: when the spot at the same height is refused (floating with no
+     * studs under it, or cutting into something), it goes down onto what is below, else up until it fits.
+     * Only the final spot is checked, so a chest on a tower can be dragged straight to the tower's door.
+     */
+    let settleKey = '';
+    let settled: { cmd: Command; dy: number } | null = null;
+    const settle = (cmd: Command | null): { cmd: Command; dy: number } | null => {
+      if (!cmd) return null;
+      const key = `${ed.revision.value}:${JSON.stringify(cmd)}`;
+      if (key === settleKey) return settled;
+      settleKey = key;
+      settled = settleMove(cmd, (c) => ed.bus.check(c));
+      return settled;
+    };
+    const plates = (dy: number) =>
+      dy ? ` · ${dy < 0 ? 'down' : 'up'} ${Math.abs(dy)} plate${Math.abs(dy) === 1 ? '' : 's'} to stand` : '';
     let tagTimer = 0;
     let gz: {
       mode: GizmoMode;
@@ -635,6 +657,7 @@ export function Viewport({
       ghost = null;
       assetGhost = null;
       assetAt = null;
+      ghostBad = null;
       if (tool === 'asset') {
         const def = resolveAsset(ed, ed.assetBrush.value.asset);
         const hit = def && s.surface(r, (b) => !ed.isVisible(b));
@@ -642,7 +665,15 @@ export function Viewport({
           const rot = ed.assetBrush.value.rot;
           const [w, d] = rotatedFootprint(def, rot);
           assetAt = [Math.round(hit.x - w / 2), hit.y, Math.round(hit.z - d / 2)];
-          assetGhost = expandAsset(def, { pos: assetAt, rot, idBase: 1 }).bricks;
+          const key = `a:${ed.revision.value}:${def.id}:${rot}:${assetAt.join()}`;
+          if (key !== ghostKey) {
+            ghostKey = key;
+            ghostFit = { dy: 0, bad: ed.bus.check(placeCommands(ed, def.id, assetAt, rot)) };
+          }
+          ghostBad = ghostFit.bad;
+          assetGhost = expandAsset(def, { pos: assetAt, rot, idBase: 1 }).bricks.map((b) =>
+            ghostBad ? { ...b, color: '#ff3b30' } : b,
+          );
           ed.cursor.value = { x: assetAt[0], z: assetAt[2], y: assetAt[1] };
         }
         hover = null;
@@ -651,15 +682,38 @@ export function Viewport({
         if (hit) {
           const br = ed.brush.value;
           const [w, d] = footprint({ type: br.type, rot: br.rot });
+          const x = Math.round(hit.x - w / 2);
+          const z = Math.round(hit.z - d / 2);
+          // the brick sits on whatever is under it: when it would cut into a neighbour, it goes up until it fits
+          const key = `b:${ed.revision.value}:${br.type}:${br.rot}:${x},${hit.y},${z}`;
+          if (key !== ghostKey) {
+            ghostKey = key;
+            const at = (dy: number) => ({
+              type: 'bricks.place',
+              payload: {
+                map: ed.mapId.value,
+                bricks: [{ type: br.type, x, y: hit.y + dy, z, rot: br.rot, color: br.color }],
+              },
+            });
+            const first = ed.bus.check(at(0));
+            ghostFit = { dy: 0, bad: first };
+            if (first)
+              for (let dy = 1; dy <= 36; dy++)
+                if (!ed.bus.check(at(dy))) {
+                  ghostFit = { dy, bad: null };
+                  break;
+                }
+          }
+          ghostBad = ghostFit.bad;
           ghost = {
             id: -1,
             w,
             d,
             kind: kindOf(br.type),
-            x: Math.round(hit.x - w / 2),
-            y: hit.y,
-            z: Math.round(hit.z - d / 2),
-            color: br.color,
+            x,
+            y: hit.y + ghostFit.dy,
+            z,
+            color: ghostBad ? '#ff3b30' : br.color,
           };
           ed.cursor.value = { x: ghost.x, z: ghost.z, y: ghost.y };
         }
@@ -688,10 +742,15 @@ export function Viewport({
       if (tool === 'asset') {
         const id = ed.assetBrush.value.asset;
         if (!id) ed.notify('Pick an asset in the dock (Assets › Assets) first.');
+        else if (assetAt && ghostBad) flashTag(`Can't place it here: ${ghostBad}`, local(e));
         else if (assetAt) {
           const def = resolveAsset(ed, id);
           ed.exec(placeCommands(ed, id, assetAt, ed.assetBrush.value.rot), { label: `Place ${def?.name ?? 'asset'}` });
         }
+        return;
+      }
+      if (tool === 'place' && ghost && ghostBad) {
+        flashTag(`Can't place it here: ${ghostBad}`, local(e));
         return;
       }
       if (tool === 'place' && ghost) {
@@ -945,9 +1004,11 @@ export function Viewport({
           const e = t.inst ? ed.scene.value?.instances.find((x) => x.inst.id === t.inst!.id) : null;
           setLiveHide((e?.bricks ?? t.bricks).map((b) => b.id));
         }
-        preview = gz.change.bricks ?? null;
-        const why = checkCommand(gz.change.command);
-        showTag(why ? `${gz.change.label} · can't go here: ${why}` : gz.change.label, now, !!why);
+        const fit = gz.mode === 'move' ? settle(gz.change.command) : null;
+        const fdy = fit?.dy ?? 0;
+        preview = gz.change.bricks?.map((b) => (fdy ? { ...b, y: b.y + fdy } : b)) ?? null;
+        const why = checkCommand(fit?.cmd ?? gz.change.command);
+        showTag(why ? `${gz.change.label} · can't go here: ${why}` : gz.change.label + plates(fdy), now, !!why);
         dirty = true;
         return;
       }
@@ -968,10 +1029,8 @@ export function Viewport({
         if (!g) return;
         const mx = Math.round(g[0] - drag.start.x);
         const mz = Math.round(g[1] - drag.start.z);
-        preview = ed.selectedBricks.value.map((b) => ({ ...b, x: b.x + mx, z: b.z + mz }));
-        ed.cursor.value = { x: mx, z: mz, y: 0 };
         const sel = ed.selectedBricks.value;
-        const why = checkCommand(
+        const fit = settle(
           mx || mz
             ? {
                 type: 'bricks.move',
@@ -979,9 +1038,13 @@ export function Viewport({
               }
             : null,
         );
+        const fdy = fit?.dy ?? 0;
+        preview = sel.map((b) => ({ ...b, x: b.x + mx, y: b.y + fdy, z: b.z + mz }));
+        ed.cursor.value = { x: mx, z: mz, y: fdy };
+        const why = checkCommand(fit?.cmd ?? null);
         const unit = (n: number) => `${n > 0 ? '+' : ''}${n}`;
         const what = `${unit(mx)} X  ${unit(mz)} Z`;
-        showTag(why ? `${what} · can't go here: ${why}` : what, local(e), !!why);
+        showTag(why ? `${what} · can't go here: ${why}` : what + plates(fdy), local(e), !!why);
         dirty = true;
         return;
       }
@@ -1009,7 +1072,8 @@ export function Viewport({
         dirty = true;
         if (g?.change?.part) studioRef.current?.onPart?.(g.change.part);
         if (g?.change?.command) {
-          const r = ed.exec(g.change.command, { label: g.change.undoLabel });
+          const cmd = g.mode === 'move' ? (settle(g.change.command)?.cmd ?? g.change.command) : g.change.command;
+          const r = ed.exec(cmd, { label: g.change.undoLabel });
           if (!r.ok) flashTag(`Not moved: ${r.error ?? 'that spot is not allowed'}`, local(e));
         }
         blocked = null;
@@ -1044,6 +1108,7 @@ export function Viewport({
       if (d.kind === 'move' && d.moved && preview) {
         const sel = ed.selectedBricks.value;
         const dx = (preview[0]?.x ?? 0) - (sel[0]?.x ?? 0);
+        const dy = (preview[0]?.y ?? 0) - (sel[0]?.y ?? 0);
         const dz = (preview[0]?.z ?? 0) - (sel[0]?.z ?? 0);
         preview = null;
         blocked = null;
@@ -1052,7 +1117,7 @@ export function Viewport({
         if (dx || dz) {
           const r = ed.exec({
             type: 'bricks.move',
-            payload: { map: ed.mapId.value, ids: sel.map((b) => b.id), dx, dy: 0, dz },
+            payload: { map: ed.mapId.value, ids: sel.map((b) => b.id), dx, dy, dz },
           });
           if (!r.ok) flashTag(`Not moved: ${r.error ?? 'that spot is not allowed'}`, local(e));
         }

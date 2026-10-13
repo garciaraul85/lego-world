@@ -44,14 +44,14 @@ export const TOOLS: {
     glyph: '▦',
     label: 'Place',
     key: 'B',
-    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). T turns it.',
+    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). Press T to turn it a quarter turn before you put it down.',
   },
   {
     id: 'asset',
     glyph: '▦',
     label: 'Place',
     key: 'A',
-    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). T turns it.',
+    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). Press T to turn it a quarter turn before you put it down.',
     hidden: true,
   },
   {

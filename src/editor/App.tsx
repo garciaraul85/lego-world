@@ -15,6 +15,7 @@ import { openSelectionMenu } from './interact/scene-menus';
 import { Dock } from './panels/Dock';
 import { RightPanel } from './panels/Inspector';
 import { Outliner } from './panels/Outliner';
+import { anyKeyboard } from './platform';
 import { PlayLayer } from './play/PlayLayer';
 import { type PlayStart, PlayView } from './play/PlayView';
 import {
@@ -188,7 +189,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       if (o.play || o.modal || o.help || ed.palette.value || openMenuState.value) return;
       if (ed.session.value) {
         // While playing only the play shortcuts reach the editor; the game owns the rest (Esc = game back/pause).
-        if (e.key === 'F5') {
+        // F5, or ⌘ Return / Ctrl Enter (a Mac's F5 is a media key unless fn is held)
+        if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) {
           e.preventDefault();
           setEngine(null);
         }
@@ -203,12 +205,13 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         return;
       }
       // P31: the menu key and Shift+F10 open the right-click menu for the selection
-      if (k === 'ContextMenu' || k === 'Shift F10') {
+      if (k === 'ContextMenu' || k === 'Shift F10' || k === anyKeyboard('Shift F10')) {
         const el = document.querySelector('.viewport-canvas')?.getBoundingClientRect();
         if (el && openSelectionMenu(c, el.left + el.width / 2, el.top + el.height / 2)) e.preventDefault();
         return;
       }
-      const a = ACTIONS.find((x) => x.key === k);
+      // every shortcut also has a key any keyboard has (a Mac's F-keys, Home, Page Up… — see MAC_KEYS)
+      const a = ACTIONS.find((x) => x.key === k) ?? ACTIONS.find((x) => x.key && anyKeyboard(x.key) === k);
       if (!a) return;
       e.preventDefault();
       runAction(a, c);

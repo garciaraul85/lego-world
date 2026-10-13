@@ -400,11 +400,14 @@ export const MENUS: Record<string, (string | '-')[]> = {
 /** Normalizes a keyboard event to the `key` notation used above. */
 export function keyOf(e: KeyboardEvent): string {
   const parts: string[] = [];
+  let k = e.key;
+  // ⌥ Option (Alt) on a Mac types a special character (⌥P is π): use the key's place instead
+  if (e.altKey && /^Key[A-Z]$/.test(e.code ?? '')) k = e.code.slice(3);
+  if (e.altKey && /^Digit\d$/.test(e.code ?? '')) k = e.code.slice(5);
   if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
   if (e.altKey) parts.push('Alt');
-  if (e.shiftKey && e.key.length > 1) parts.push('Shift');
-  if (e.shiftKey && /^[a-z]$/i.test(e.key)) parts.push('Shift');
-  let k = e.key;
+  if (e.shiftKey && k.length > 1) parts.push('Shift');
+  if (e.shiftKey && /^[a-z]$/i.test(k)) parts.push('Shift');
   // zoom keys work with or without Shift, and on the number pad
   if (k === '=' || k === 'Add') k = '+';
   if (k === '_' || k === 'Subtract') k = '-';

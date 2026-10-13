@@ -20,7 +20,7 @@ In the World graph, + Add map, generate its terrain, then drag from a spawn's po
 
 ## 5. Place the props
 
-Pick an asset in the dock (Assets) and place it with A; T turns it. A treasure chest already has an interaction: E opens it. Edit what an asset does in the Asset studio. [Open the Asset studio](open:Assets)
+Pick an asset in the dock (Assets) and place it with A; press T to turn it a quarter turn before you put it down. A treasure chest already has an interaction: E opens it. Edit what an asset does in the Asset studio. [Open the Asset studio](open:Assets)
 
 ## 6. Choose the hero
 

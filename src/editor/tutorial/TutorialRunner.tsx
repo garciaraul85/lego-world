@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { ActionCtx } from '../actions/registry';
 import { keysFor } from '../platform';
 import { commandMatches, STATE_TESTS } from './checks';
@@ -57,6 +57,14 @@ export function TutorialRunner({
   const [note, setNote] = useState<string | null>(null);
   const [min, setMin] = useState(false);
   const busy = useRef(false);
+  /** the card's height (it is placed so it never covers the target) and where you dragged it, if you did */
+  const card = useRef<HTMLElement>(null);
+  const [cardH, setCardH] = useState(300);
+  const [moved, setMoved] = useState<{ x: number; y: number } | null>(null);
+  useLayoutEffect(() => {
+    const h = card.current?.offsetHeight ?? 300;
+    if (Math.abs(h - cardH) > 4) setCardH(h);
+  });
   /** resolves the demo's pause when you press My turn */
   const myTurn = useRef<(() => void) | null>(null);
   /** true while Show me or Do it for me is still working (buttons wait for it) */
@@ -188,8 +196,37 @@ export function TutorialRunner({
     <>
       {!min && <Spotlight rect={rect} />}
       <GhostCursor at={ghost} clicking={clicking} />
-      <aside class={`tut-card ${min ? 'min' : ''} ${phase}`} style={cardPos(rect, step, min)} aria-label="Tutorial">
-        <header>
+      <aside
+        ref={card}
+        class={`tut-card ${min ? 'min' : ''} ${phase}`}
+        style={
+          moved && !min
+            ? { left: `${moved.x}px`, top: `${moved.y}px`, width: `${Math.min(W, innerWidth - 16)}px` }
+            : cardPos(rect, step, min, cardH)
+        }
+        aria-label="Tutorial"
+      >
+        <header
+          class="tut-drag"
+          title="Drag to move the card"
+          onPointerDown={(e) => {
+            if ((e.target as HTMLElement).closest('button')) return;
+            const b = card.current!.getBoundingClientRect();
+            const off = { x: e.clientX - b.left, y: e.clientY - b.top };
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            const mv = (ev: PointerEvent) =>
+              setMoved({
+                x: Math.max(0, Math.min(innerWidth - 80, ev.clientX - off.x)),
+                y: Math.max(0, Math.min(innerHeight - 40, ev.clientY - off.y)),
+              });
+            const up = () => {
+              window.removeEventListener('pointermove', mv);
+              window.removeEventListener('pointerup', up);
+            };
+            window.addEventListener('pointermove', mv);
+            window.addEventListener('pointerup', up);
+          }}
+        >
           <span class="tut-chapter">
             {step.chapterTitle} · {k}/{chapterSteps.length}
           </span>
@@ -379,33 +416,53 @@ function restore(c: ActionCtx, s: Snap) {
 
 const W = 360;
 /** Keep the card next to its target without covering it. */
-function cardPos(r: Rect | null, step: Step, min: boolean): Record<string, string> {
+/**
+ * Where the card goes: never on top of what the step points at. It tries the step's side, then the other
+ * sides and the corners, and takes the first spot that leaves the target fully visible (or the one that
+ * covers the least of it, for a target as big as the screen).
+ */
+export function cardPos(
+  r: Rect | null,
+  step: Pick<Step, 'placement'>,
+  min: boolean,
+  h = 300,
+  vw = innerWidth,
+  vh = innerHeight,
+): Record<string, string> {
   if (min) return { right: '16px', bottom: '40px', width: '260px' };
-  const vw = innerWidth;
-  const vh = innerHeight;
-  if (!r || step.placement === 'center' || vw < 700)
-    return { right: '16px', bottom: '40px', width: `${Math.min(W, vw - 32)}px` };
-  let x: number;
-  let y: number;
-  switch (step.placement ?? 'bottom') {
-    case 'left':
-      x = r.x - W - 16;
-      y = r.y;
+  const w = Math.min(W, vw - 16);
+  if (!r || vw < 700) return { right: '16px', bottom: '40px', width: `${w}px` };
+  const clamp = (x: number, y: number): [number, number] => [
+    Math.max(8, Math.min(vw - w - 8, x)),
+    Math.max(8, Math.min(vh - h - 8, y)),
+  ];
+  const sides: Record<string, [number, number]> = {
+    bottom: [r.x, r.y + r.h + 14],
+    top: [r.x, r.y - h - 14],
+    right: [r.x + r.w + 16, r.y],
+    left: [r.x - w - 16, r.y],
+  };
+  const corners: [number, number][] = [
+    [vw - w - 16, vh - h - 40],
+    [vw - w - 16, 56],
+    [16, vh - h - 40],
+    [16, 56],
+  ];
+  const order = [
+    ...(step.placement && step.placement !== 'center' ? [sides[step.placement]!] : []),
+    ...Object.values(sides),
+    ...corners,
+  ].map(([x, y]) => clamp(x, y));
+  const overlap = ([x, y]: [number, number]) =>
+    Math.max(0, Math.min(x + w, r.x + r.w) - Math.max(x, r.x)) *
+    Math.max(0, Math.min(y + h, r.y + r.h) - Math.max(y, r.y));
+  let best = order[0]!;
+  for (const p of order) {
+    if (overlap(p) === 0) {
+      best = p;
       break;
-    case 'right':
-      x = r.x + r.w + 16;
-      y = r.y;
-      break;
-    case 'top':
-      x = r.x;
-      y = r.y - 300;
-      break;
-    default:
-      x = r.x;
-      y = r.y + r.h + 14;
+    }
+    if (overlap(p) < overlap(best)) best = p;
   }
-  if (x < 8 || x + W > vw - 8) x = Math.max(8, Math.min(vw - W - 8, x < 8 ? r.x + r.w + 16 : r.x - W - 16));
-  x = Math.max(8, Math.min(vw - W - 8, x));
-  y = Math.max(8, Math.min(vh - 340, y));
-  return { left: `${x}px`, top: `${y}px`, width: `${W}px` };
+  return { left: `${best[0]}px`, top: `${best[1]}px`, width: `${w}px` };
 }

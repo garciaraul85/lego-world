@@ -1,3 +1,4 @@
+import { keysFor, MAC_KEYS } from '../platform';
 import { GUIDES, type HelpEntry, helpEntries, helpEntry, KIND_LABEL, SCREENS, type ScreenGuide } from './entries';
 import type { HelpPage } from './search';
 
@@ -31,7 +32,13 @@ export function entryMarkdown(e: HelpEntry): string {
       ...e.options.map(([a, b]) => `| ${a} | ${b} |`),
       '',
     );
-  if (e.key) out.push('## Shortcut', '', `\`${e.key}\``, '');
+  if (e.key)
+    out.push(
+      '## Shortcut',
+      '',
+      `\`${e.key}\`${MAC_KEYS[e.key] ? ` · on a Mac \`${keysFor(MAC_KEYS[e.key]!, true)}\` (works everywhere)` : ''}`,
+      '',
+    );
   if (e.tips?.length) out.push('## Tips', '', ...e.tips.map((t) => `> ${t}`), '');
   if (e.commands?.length)
     out.push(

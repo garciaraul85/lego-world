@@ -198,7 +198,8 @@ export function GraphView({
         setSelected(new Set());
       }
     }
-    if (e.key === 'F9' && selected.size === 1) {
+    // F9, or Shift B on keyboards without F-keys (a Mac)
+    if ((e.key === 'F9' || (e.shiftKey && e.code === 'KeyB')) && selected.size === 1) {
       e.preventDefault();
       toggleBreakpoint(ed, graph.id, [...selected][0]!);
     }
