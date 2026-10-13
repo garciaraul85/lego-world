@@ -15,6 +15,20 @@ export type Widget = {
   sound?: string;
   onPress?: z.infer<typeof ActionList>;
   children?: Widget[];
+  /** P31: a different place and look on portrait screens (taller than wide) */
+  portrait?: { anchor?: [number, number]; offset?: [number, number]; style?: Record<string, string | number> };
+  /** P31: placed next to another widget of the same screen (like Android constraints) */
+  pin?: WidgetPin;
+};
+
+export type WidgetPin = {
+  /** id of the widget it sits next to */
+  to: string;
+  side: 'below' | 'above' | 'left' | 'right';
+  /** along the shared edge: start (left / top), center or end */
+  align?: 'start' | 'center' | 'end';
+  /** gap between the two, reference px */
+  gap?: number;
 };
 
 export const Widget: z.ZodType<Widget> = z.lazy(() =>
@@ -31,10 +45,25 @@ export const Widget: z.ZodType<Widget> = z.lazy(() =>
     sound: id('sound').optional(),
     onPress: ActionList.optional(),
     children: z.array(Widget).optional(),
+    portrait: z
+      .strictObject({
+        anchor: Vec2.optional(),
+        offset: Vec2.optional(),
+        style: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+      })
+      .optional(),
+    pin: z
+      .strictObject({
+        to: z.string().min(1),
+        side: z.enum(['below', 'above', 'left', 'right']),
+        align: z.enum(['start', 'center', 'end']).optional(),
+        gap: z.number().min(-2000).max(2000).optional(),
+      })
+      .optional(),
   }),
 );
 
-/** screens/<screenId>.json — layout at a 1280x720 reference, anchors 0..1 of the parent */
+/** screens/<screenId>.json — layout at a 1280x720 reference (720x1280 on portrait screens), anchors 0..1 of the parent */
 export const Screen = z.strictObject({
   id: id('screen'),
   kind: z.enum(['splash', 'title', 'hud', 'pause', 'dialogue', 'gameover', 'custom']),

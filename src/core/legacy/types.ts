@@ -10,6 +10,8 @@ export type LegacyPiece = {
   y: number;
   z: number;
   group?: string;
+  /** the exact colour when it is not one of v68's colours (Play draws it; v68 saves use `color`) */
+  hex?: string;
 };
 export type LegacyWorld = {
   config: Record<string, unknown> & { biomes?: string[]; size?: number; seed?: number };

@@ -1,0 +1,9 @@
+{
+  "path": "art/art_0000000002.json",
+  "value": {
+    "id": "art_0000000002",
+    "name": "Sky",
+    "kind": "background",
+    "source": { "type": "pattern", "pattern": "plaid", "colors": ["#000000"], "angle": 0, "scale": 32 }
+  }
+}

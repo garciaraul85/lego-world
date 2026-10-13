@@ -1,9 +1,13 @@
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { newId } from '../../../core/ids';
-import { paths, type Screen, type Widget } from '../../../core/schema';
+import { type Art, paths, type Screen, type Widget } from '../../../core/schema';
 import { allScreens, isBuiltinScreen } from '../../../engine/ui/screens';
 import type { ActionCtx } from '../../actions/registry';
-import { addChild, KIND_LABEL, moveAt, replaceAt, template, WIDGET_TYPES, widgetAt } from './model';
+import { ArtEditor } from './art/ArtEditor';
+import { ArtLibrary } from './art/ArtLibrary';
+import { artFont, artUrl } from './art/render';
+import { addChild, KIND_LABEL, moveAt, replaceAt, template, widgetAt } from './model';
+import { Palette } from './Palette';
 import { ScreenCanvas } from './ScreenCanvas';
 import { ScreenProps, WidgetProps } from './WidgetProps';
 import { WidgetTree } from './WidgetTree';
@@ -23,6 +27,9 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
       ed.widgetPath.value = '';
     }
   }, [screen.id]);
+  const [tab, setTab] = useState<'screens' | 'art'>('screens');
+  const [artId, setArtId] = useState<string | null>(null);
+  const openArt = artId ? ed.store.get<Art>(paths.art(artId as Art['id'])) : undefined;
   const path = ed.widgetPath.value ?? '';
   const widget = widgetAt(screen.root, path) ?? screen.root;
   const save = (next: Screen, label?: string) =>
@@ -30,7 +37,7 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
   const setRoot = (root: Widget, label?: string) => save({ ...screen, root }, label);
   const own = ed.store.has(paths.screen(screen.id));
   const builtin = isBuiltinScreen(screen.id);
-  const add = (type: Widget['type']) => {
+  const add = (type: Widget['type'], at?: { anchor: [number, number]; offset: [number, number] }) => {
     let n = 1;
     const ids = new Set<string>();
     const walk = (w: Widget) => {
@@ -40,8 +47,11 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
     walk(screen.root);
     while (ids.has(`${type}${n}`)) n++;
     const t = template(type, n);
-    // on the root, new widgets are anchored in the middle; inside a panel they flow
-    const r = addChild(screen.root, path, path === '' && !t.anchor ? { ...t, anchor: [0.5, 0.5] } : t);
+    // dropped on the canvas: on the screen where it was let go; on the root, new widgets are anchored in the
+    // middle; inside a panel they flow
+    const r = at
+      ? addChild(screen.root, '', { ...t, anchor: at.anchor, offset: at.offset })
+      : addChild(screen.root, path, path === '' && !t.anchor ? { ...t, anchor: [0.5, 0.5] } : t);
     if (setRoot(r.root, `Add ${type}`).ok) ed.widgetPath.value = r.path;
   };
   const create = () => {
@@ -82,63 +92,103 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
   return (
     <div class="studio screens-ws">
       <section class="panel studio-lib" aria-label="Screens and widgets">
-        <div class="ptabs">
-          <span class="tab on">Screens</span>
+        <div class="ptabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'screens'}
+            class={`tab ${tab === 'screens' ? 'on' : ''}`}
+            data-tip="Screens and their widgets"
+            onClick={() => {
+              setTab('screens');
+              setArtId(null);
+            }}
+          >
+            Screens
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'art'}
+            class={`tab ${tab === 'art' ? 'on' : ''}`}
+            data-tip="Backgrounds, icons and fonts for your screens"
+            onClick={() => setTab('art')}
+          >
+            Art
+          </button>
         </div>
-        <div class="scroll">
-          <div class="sech" style={{ padding: '8px 10px 4px' }}>
-            <span>Screens · {list.length}</span>
-            <button type="button" class="link" onClick={create}>
-              + New
-            </button>
+        {tab === 'art' ? (
+          <div class="scroll">
+            <ArtLibrary ed={ed} open={openArt ? artId : null} onOpen={setArtId} />
           </div>
-          {list.map((s) => (
-            <button
-              type="button"
-              class={`lib-item ${s.id === screen.id ? 'on' : ''}`}
-              onClick={() => {
-                ed.screenId.value = s.id;
-                ed.widgetPath.value = '';
-              }}
-            >
-              <span class="asset-name">
-                {ed.store.manifest.entry.screen === s.id ? '★ ' : ''}
-                {s.name}
-              </span>
-              <span class="mono small muted">
-                {KIND_LABEL[s.kind]}
-                {isBuiltinScreen(s.id) ? (ed.store.has(paths.screen(s.id)) ? ' · edited' : ' · built-in') : ''}
-              </span>
-            </button>
-          ))}
-          <div class="sech" style={{ padding: '10px 10px 4px' }}>
-            <span>Widgets</span>
-          </div>
-          <WidgetTree root={screen.root} selected={path} onSelect={(p) => (ed.widgetPath.value = p)} />
-          <div class="sc-add" role="group" aria-label="Add widget">
-            {WIDGET_TYPES.map((t) => (
-              <button type="button" class="btn" onClick={() => add(t)}>
-                + {t}
+        ) : (
+          <div class="scroll">
+            <div class="sech" style={{ padding: '8px 10px 4px' }}>
+              <span>Screens · {list.length}</span>
+              <button type="button" class="link" onClick={create}>
+                + New
+              </button>
+            </div>
+            {list.map((s) => (
+              <button
+                type="button"
+                class={`lib-item ${s.id === screen.id ? 'on' : ''}`}
+                onClick={() => {
+                  ed.screenId.value = s.id;
+                  ed.widgetPath.value = '';
+                }}
+              >
+                <span class="asset-name">
+                  {ed.store.manifest.entry.screen === s.id ? '★ ' : ''}
+                  {s.name}
+                </span>
+                <span class="mono small muted">
+                  {KIND_LABEL[s.kind]}
+                  {isBuiltinScreen(s.id) ? (ed.store.has(paths.screen(s.id)) ? ' · edited' : ' · built-in') : ''}
+                </span>
               </button>
             ))}
+            <div class="sech" style={{ padding: '10px 10px 4px' }}>
+              <span>Widgets</span>
+            </div>
+            <WidgetTree root={screen.root} selected={path} onSelect={(p) => (ed.widgetPath.value = p)} />
+            <div class="sech" style={{ padding: '10px 10px 4px' }}>
+              <span>Add · click or drag onto the screen</span>
+            </div>
+            <Palette onAdd={(t) => add(t)} />
           </div>
-        </div>
+        )}
       </section>
-      <section class="panel studio-main" aria-label="Screen canvas">
-        <div class="ptabs studio-head">
-          <strong class="studio-title">{screen.name}</strong>
-          <span class="muted small">
-            {KIND_LABEL[screen.kind]}
-            {screen.pausesGame ? ' · pauses the game' : ''}
-            {builtin
-              ? own
-                ? ' · built-in, edited in this project'
-                : ' · built-in (editing saves a project copy)'
-              : ''}
-          </span>
-        </div>
-        <ScreenCanvas key={screen.id} ed={ed} screen={screen} onPlay={() => c.ui.play('engine', { fromEntry: true })} />
-      </section>
+      {openArt ? (
+        <section class="panel studio-main" aria-label="Art editor">
+          <ArtEditor key={openArt.id} ed={ed} art={openArt} onClose={() => setArtId(null)} />
+        </section>
+      ) : (
+        <section class="panel studio-main" aria-label="Screen canvas">
+          <div class="ptabs studio-head">
+            <strong class="studio-title">{screen.name}</strong>
+            <span class="muted small">
+              {KIND_LABEL[screen.kind]}
+              {screen.pausesGame ? ' · pauses the game' : ''}
+              {builtin
+                ? own
+                  ? ' · built-in, edited in this project'
+                  : ' · built-in (editing saves a project copy)'
+                : ''}
+            </span>
+          </div>
+          <ScreenCanvas
+            key={screen.id}
+            ed={ed}
+            screen={screen}
+            onPlay={() => c.ui.play('engine', { fromEntry: true })}
+            onChange={(p, w, label) => setRoot(replaceAt(screen.root, p, w), label)}
+            onDrop={(type, anchor, offset) => add(type, { anchor, offset })}
+            artUrl={(id) => artUrl(ed, id)}
+            artFont={(ref) => artFont(ed, ref)}
+          />
+        </section>
+      )}
       <section class="panel studio-lib" aria-label="Widget properties">
         <div class="ptabs">
           <span class="tab on">Properties</span>

@@ -57,7 +57,7 @@ export const MediaIndex = z.strictObject({
     MediaRef,
     z.strictObject({
       name: z.string().min(1).max(120),
-      kind: z.enum(['audio', 'image']),
+      kind: z.enum(['audio', 'image', 'font']),
       mime: z.string().min(1).max(60),
       bytes: z.number().int().min(0),
       duration: z.number().min(0).optional(),

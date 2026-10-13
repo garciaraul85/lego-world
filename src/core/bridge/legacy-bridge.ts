@@ -57,19 +57,37 @@ export function chunksToPieces(files: FileSource, mapId: string): LegacyPiece[] 
 }
 
 /** A decoded brick as a v68 piece. */
-export function brickToPiece(b: Brick): LegacyPiece {
+export function brickToPiece(b: Brick, exact = false): LegacyPiece {
   const { kind, rows, cols } = parseType(b.type);
   const color = legacyColorIndex(b.color);
   const p: LegacyPiece = { id: b.id, rows, cols, turn: b.rot, x: b.x, y: b.y, z: b.z, kind, color };
+  if (exact && !COLOR_INDEX.has(b.color.toLowerCase())) p.hex = b.color.toLowerCase();
   if (b.group !== undefined) p.group = b.group;
   return p;
 }
 
 /** Every piece of a map for v68 and the play runtime: chunk bricks plus expanded asset instances, in id order. */
 export function mapPieces(files: FileSource, mapId: string): LegacyPiece[] {
-  const extra = instanceBricks(files, mapId).map(brickToPiece);
+  const extra = instanceBricks(files, mapId).map((b) => brickToPiece(b));
   const pieces = chunksToPieces(files, mapId);
   return extra.length ? [...pieces, ...extra].sort((a, b) => (a.id ?? 0) - (b.id ?? 0)) : pieces;
+}
+
+/** Brick id -> exact colour, for bricks whose colour is not one of v68's (P31 any-colour bricks, for Play). */
+export function exactColors(files: FileSource, mapId: string): Map<number, string> {
+  const out = new Map<number, string>();
+  const prefix = paths.chunkDir(mapId);
+  for (const path of files.keys()) {
+    if (!path.startsWith(prefix)) continue;
+    const c = files.get(path) as Chunk;
+    for (const b of c.bricks) {
+      const hex = c.palette.colors[b[5]]!.toLowerCase();
+      if (!COLOR_INDEX.has(hex)) out.set(b[7], hex);
+    }
+  }
+  for (const b of instanceBricks(files, mapId))
+    if (!COLOR_INDEX.has(b.color.toLowerCase())) out.set(b.id, b.color.toLowerCase());
+  return out;
 }
 
 /** One map's v5 files -> the legacy build object v68 expects for a map. */

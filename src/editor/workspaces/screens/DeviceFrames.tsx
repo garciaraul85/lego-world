@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Screen } from '../../../core/schema';
 import { screenScale } from '../../../engine/ui/layout';
 import { type ScreenHost, ScreenView } from '../../../engine/ui/ScreenRenderer';
-import type { DEVICES } from './model';
+import type { Device } from './model';
 
-export type Device = (typeof DEVICES)[number];
+export type { Device } from './model';
 
 /** A device-shaped frame that fits the available space, with the screen laid out inside (safe areas shaded). */
 export function DeviceFrame({
@@ -12,25 +12,37 @@ export function DeviceFrame({
   screen,
   host,
   under,
+  overlay,
+  compact = false,
 }: {
   device: Device;
   screen: Screen;
   host: ScreenHost;
   under?: Screen[];
+  /** drawn over the screen, in the device box (the canvas handles) */
+  overlay?: (frame: {
+    el: HTMLDivElement | null;
+    scale: ReturnType<typeof screenScale>;
+    k: number;
+  }) => preact.ComponentChildren;
+  /** small frames (Check all sizes) */
+  compact?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const dev = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 640, h: 360 });
   useEffect(() => {
     const el = ref.current!;
     const resize = () => {
-      const k = Math.min((el.clientWidth - 24) / device.w, (el.clientHeight - 24) / device.h);
+      const pad = compact ? 8 : 24;
+      const k = Math.min((el.clientWidth - pad) / device.w, (el.clientHeight - pad) / device.h);
       setBox({ w: Math.max(80, device.w * k), h: Math.max(45, device.h * k) });
     };
     const ro = new ResizeObserver(resize);
     ro.observe(el);
     resize();
     return () => ro.disconnect();
-  }, [device.id]);
+  }, [device.id, device.w, device.h]);
   const k = box.w / device.w;
   const safe = {
     top: device.safe.top * k,
@@ -42,6 +54,7 @@ export function DeviceFrame({
   return (
     <div ref={ref} class="sc-stage">
       <div
+        ref={dev}
         class={`sc-device sc-${device.id}`}
         style={{ width: `${box.w}px`, height: `${box.h}px` }}
         data-device={device.id}
@@ -59,6 +72,7 @@ export function DeviceFrame({
         {safe.bottom > 0 && (
           <div class="sc-safe" style={{ left: 0, right: 0, bottom: 0, height: `${safe.bottom}px` }} />
         )}
+        {overlay?.({ el: dev.current, scale, k })}
       </div>
     </div>
   );

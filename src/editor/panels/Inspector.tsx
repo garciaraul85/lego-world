@@ -7,6 +7,7 @@ import type { GenerateConfig } from '../../core/worldgen/generate';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { groupLabel } from '../categories';
 import { ActionListField } from '../components/ActionListField';
+import { ColorPicker } from '../components/ColorPicker';
 import { Header, Num, TextField } from '../components/fields';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
@@ -16,8 +17,10 @@ const pretty = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Number input that commits on Enter or blur (one command per edit, not per keystroke). */
 export function Swatches({ value, onPick }: { value?: string; onPick: (hex: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const custom = !!value && !LEGACY_COLORS.some(([, hex]) => hex === value);
   return (
-    <div class="row" role="listbox" aria-label="Brick colors">
+    <div class="row swatches" role="listbox" aria-label="Brick colors" style={{ position: 'relative' }}>
       {LEGACY_COLORS.map(([name, hex]) => (
         <button
           type="button"
@@ -30,6 +33,24 @@ export function Swatches({ value, onPick }: { value?: string; onPick: (hex: stri
           onClick={() => onPick(hex)}
         />
       ))}
+      <button
+        type="button"
+        class={`swatch ${custom ? 'on' : 'custom'}`}
+        role="option"
+        aria-selected={custom}
+        aria-label={custom ? `Your colour ${value}` : 'Any colour…'}
+        data-tip="Any colour: pick it from the colour picker"
+        style={custom ? { background: value } : undefined}
+        onClick={() => setOpen(!open)}
+      />
+      {open && (
+        <ColorPicker
+          value={value ?? '#d20c20'}
+          label="Brick colour"
+          onPick={(hex) => onPick(hex.slice(0, 7).toLowerCase())}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </div>
   );
 }

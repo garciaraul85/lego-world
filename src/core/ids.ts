@@ -14,6 +14,7 @@ export const ID_PREFIX = {
   zone: 'zn',
   spawn: 'sp',
   gate: 'gt',
+  art: 'art',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

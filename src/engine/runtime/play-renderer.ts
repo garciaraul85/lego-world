@@ -15,7 +15,16 @@ export type DebugDraw = { colliders: boolean; spawns: boolean };
 
 const toRender = (p: LegacyPiece): RenderBrick => {
   const [w, d] = p.turn % 2 ? [p.rows, p.cols] : [p.cols, p.rows];
-  return { id: p.id ?? 0, w, d, kind: p.kind, x: p.x, y: p.y, z: p.z, color: LEGACY_COLORS[p.color]?.[1] ?? '#ff00ff' };
+  return {
+    id: p.id ?? 0,
+    w,
+    d,
+    kind: p.kind,
+    x: p.x,
+    y: p.y,
+    z: p.z,
+    color: p.hex ?? LEGACY_COLORS[p.color]?.[1] ?? '#ff00ff',
+  };
 };
 
 /** Draws a PlaySession: bricks (chunked), v68 characters and debris, play camera, debug overlays. */

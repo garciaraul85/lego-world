@@ -1,4 +1,5 @@
 import type { CommandBus } from './bus';
+import { deleteArt, putArt } from './handlers/art';
 import {
   createAsset,
   deleteAsset,
@@ -115,6 +116,8 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('audio.setMusicSettings', setMusicSettings);
   bus.register('audio.setMixer', setMixer);
   bus.register('media.register', registerMedia);
+  bus.register('art.put', putArt);
+  bus.register('art.delete', deleteArt);
   bus.register('media.remove', removeMedia);
   bus.register('screen.put', putScreen);
   bus.register('screen.delete', deleteScreen);
