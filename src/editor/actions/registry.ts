@@ -1,5 +1,7 @@
+import { builtinAsset } from '../../builtin/assets';
 import type { Brick } from '../../core/bricks/codec';
 import { rotateQuarter } from '../../core/bricks/transform';
+import { changedBuiltins, newAssetDef } from '../assets';
 import type { EditorState, ToolId } from '../state';
 import type { ViewOp } from '../viewport/active';
 
@@ -362,6 +364,41 @@ export const ACTIONS: EditorAction[] = [
   },
 ];
 
+// P32: the Assets menu
+ACTIONS.push(
+  { id: 'assets.open', label: 'Open the Assets screen', run: ({ ui }) => ui.workspace('Assets') },
+  {
+    id: 'assets.new',
+    label: 'New asset',
+    run: ({ ed, ui }) => {
+      const asset = newAssetDef(ed);
+      if (ed.exec({ type: 'asset.create', payload: { asset } }, { label: 'New asset' }).ok) {
+        ed.studioAsset.value = asset.id;
+        ui.workspace('Assets');
+      }
+    },
+  },
+  {
+    id: 'assets.resetBuiltins',
+    label: 'Reset changed built-in assets',
+    run: ({ ed }) => {
+      const changed = changedBuiltins(ed);
+      if (!changed.length) {
+        ed.notify('No built-in asset has been changed.');
+        return;
+      }
+      const r = ed.exec(
+        changed.map((a) => ({ type: 'asset.update', payload: { asset: builtinAsset(a.id)! } })),
+        { label: 'Reset changed built-in assets' },
+      );
+      if (r.ok)
+        ed.notify(
+          `Reset ${changed.map((a) => a.name).join(', ')} as they came with the engine. Undo brings your versions back.`,
+        );
+    },
+  },
+);
+
 export const action = (id: string) => ACTIONS.find((a) => a.id === id)!;
 
 export const MENUS: Record<string, (string | '-')[]> = {
@@ -388,7 +425,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     '-',
     'view.palette',
   ],
-  Assets: [],
+  Assets: ['assets.open', 'assets.new', '-', 'assets.resetBuiltins'],
   World: ['world.addMap', 'world.generate', 'world.graph', 'world.validate', '-', 'play.legacy'],
   Play: ['play.start', 'play.here', 'play.entry', 'play.pause', 'play.stop', '-', 'play.v68', 'play.legacy'],
   Window: [

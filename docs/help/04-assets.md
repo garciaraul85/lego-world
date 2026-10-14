@@ -19,7 +19,7 @@ The Assets workspace is a build plate for one asset. The Asset library on the le
 
 The build tools above the plate move, turn, paint and remove bricks.
 
-Changing an asset changes every copy placed in the world. If a copy would then run into something on its map (a bigger chest next to a wall), the change is not saved: the plate goes straight back to the saved asset and a message names the map. Move that copy to open ground in the Scene and try again, or press **Keep it as a new asset** to keep your change as a separate asset. A built-in asset you have changed (the chest, a tree) shows **Reset to built-in** in its properties, to put it back as it came with the engine.
+Changing an asset changes every copy placed in the world. If a copy would then run into something on its map (a bigger chest next to a wall), the change is not saved: the plate goes straight back to the saved asset and a message names the map. Move that copy to open ground in the Scene and try again, or press **Keep it as a new asset** to keep your change as a separate asset. A built-in asset you have changed (the chest, a tree) is marked “· changed” in the library and shows **Reset to built-in** in its properties; **Assets › Reset changed built-in assets** puts them all back at once. Your own assets show **Reset to when I opened it**. Undo brings your version back either way.
 
 Its panels set:
 

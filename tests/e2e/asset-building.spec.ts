@@ -275,3 +275,72 @@ test('a change that a placed copy cannot take is taken back, says why, and can b
   await expect.poll(() => pieces(page)).toBeGreaterThan(5);
   expect(errors.filter((e) => !/overlap|float/i.test(e))).toEqual([]);
 });
+
+test.describe('on a Retina Mac screen', () => {
+  test.use({
+    deviceScaleFactor: 2,
+    viewport: { width: 1440, height: 820 },
+    userAgent:
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+  });
+  test('bricks placed on a new asset show on the same plate; changed assets reset from the menu and the panel', async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    const errors: string[] = [];
+    await open(page, errors);
+    await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Assets' }).click();
+    await page.getByRole('button', { name: '+ New asset' }).click();
+    const plate = page.getByRole('region', { name: 'Asset build plate' });
+    await expect(plate.locator('.studio-title')).toHaveText(/^New asset/);
+    await plate.getByRole('button', { name: 'Place bricks (B)' }).click();
+    // the plate is not rebuilt after each brick: the same canvas shows every one
+    await page.evaluate(() => {
+      (window as unknown as { __plate: Element | null }).__plate = document.querySelector('.studio-plate canvas');
+    });
+    const canvas = plate.getByLabel('3D map view');
+    const box = (await canvas.boundingBox())!;
+    for (const [fx, fy] of [
+      [0.3, 0.7],
+      [0.7, 0.7],
+      [0.5, 0.35],
+    ] as const) {
+      await page.mouse.move(box.x + box.width * fx, box.y + box.height * fy, { steps: 4 });
+      await page.mouse.down();
+      await page.mouse.up();
+    }
+    await expect.poll(() => pieces(page)).toBe(4);
+    await expect(plate.locator('.vp-hud')).toContainText('4 / 12,000');
+    expect(
+      await page.evaluate(
+        () =>
+          (window as unknown as { __plate: Element | null }).__plate === document.querySelector('.studio-plate canvas'),
+      ),
+    ).toBe(true);
+    // your own asset goes back to how it was when you opened it
+    await page
+      .getByRole('region', { name: 'Asset properties' })
+      .getByRole('button', { name: 'Reset to when I opened it' })
+      .click();
+    await expect.poll(() => pieces(page)).toBe(1);
+
+    // change the built-in chest, then reset it from the Assets menu
+    await page
+      .getByRole('listbox', { name: 'Assets' })
+      .getByRole('option', { name: /^Treasure chest/ })
+      .first()
+      .click();
+    await expect(plate.locator('.studio-title')).toHaveText('Treasure chest');
+    await page.getByRole('button', { name: 'Build Mushroom into Treasure chest' }).first().click();
+    await expect.poll(() => pieces(page)).toBeGreaterThan(5);
+    await expect(page.getByRole('listbox', { name: 'Assets' }).getByText('· changed')).toBeVisible();
+    await expect(
+      page.getByRole('region', { name: 'Asset properties' }).getByRole('button', { name: 'Reset to built-in' }),
+    ).toBeVisible();
+    await page.getByRole('navigation', { name: 'Menu' }).getByRole('button', { name: 'Assets' }).click();
+    await page.getByRole('menuitem', { name: /Reset changed built-in assets/ }).click();
+    await expect.poll(() => pieces(page)).toBe(5);
+    await expect(page.getByRole('listbox', { name: 'Assets' }).getByText('· changed')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+});

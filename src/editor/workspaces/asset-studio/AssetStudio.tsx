@@ -7,13 +7,14 @@ import { MapBricks } from '../../../core/bricks/map-bricks';
 import { CommandBus, registerAll } from '../../../core/commands';
 import { mapsUsing } from '../../../core/commands/handlers/assets';
 import { newId } from '../../../core/ids';
+import { stableStringify } from '../../../core/json/stable';
 import { Autosave } from '../../../core/project/autosave';
 import { MemoryBackend } from '../../../core/project/backend';
 import { ProjectStore } from '../../../core/project/store';
 import { type Action, type Asset, BIOMES, paths, type Socket } from '../../../core/schema';
 import type { Marker } from '../../../engine/render/renderer';
 import { ACTIONS, type ActionCtx, keyOf, runAction } from '../../actions/registry';
-import { assetLibrary, resolveAsset } from '../../assets';
+import { assetLibrary, newAssetDef, resolveAsset, sameAsset } from '../../assets';
 import { ActionListField } from '../../components/ActionListField';
 import { AssetThumb } from '../../components/AssetThumb';
 import { BrickIcon, BrickPicker } from '../../components/BrickIcon';
@@ -108,12 +109,15 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
   const [error, setError] = useState<string | null>(null);
   /** the asset as the plate showed it when saving was refused, so it can be kept as a new asset instead */
   const [rejected, setRejected] = useState<Asset | null>(null);
+  /** the asset as it was when it was opened here, for Reset */
+  const openedAs = useRef<Asset | null>(null);
   /** true while a refused plate change is being taken back (that undo is not saved again) */
   const rolling = useRef(false);
   // another asset: an old “Not saved” is not about it
   useEffect(() => {
     setError(null);
     setRejected(null);
+    openedAs.current = id ? resolveAsset(ed, id) : null;
   }, [id]);
   const synced = useRef<string>('');
   /** turned parts of an asset just built in, waiting for the plate change that adds its bricks */
@@ -131,7 +135,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     const sed = new StudioState({ store, bus, autosave, backend: new MemoryBackend() });
     sed.tool.value = plateTool;
     sed.brush.value = ed.brush.value;
-    synced.current = JSON.stringify(def);
+    synced.current = stableStringify(def);
     const indexOf = initialIndex(def, scratch.hidden);
     sed.scene.value?.setParts(studioParts(def, indexOf));
     return { scratch, sed, def, indexOf, hidden: scratch.hidden };
@@ -145,7 +149,11 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
 
   // asset changed outside the studio (undo in the Scene, another tab) -> reload the plate
   useEffect(() => {
-    if (def && studio && JSON.stringify(def) !== synced.current) setNonce((n) => n + 1);
+    // (compared field by field in a fixed order: the same asset saved again is not a change)
+    // read it now: the `def` of the render that ran this effect can be older than the change just saved, and
+    // taking that for an outside change rebuilt the plate (a new 3D view) after nearly every brick
+    const now = studio && resolveAsset(ed, studio.def.id);
+    if (now && stableStringify(now) !== synced.current) setNonce((n) => n + 1);
   });
 
   // build plate edits -> the project's asset (one undoable step each)
@@ -217,7 +225,8 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     }
     setError(null);
     setRejected(null);
-    synced.current = JSON.stringify(next);
+    // what the project now holds (read back, so a tidied copy is not taken for an outside change)
+    synced.current = stableStringify(resolveAsset(ed, next.id) ?? next);
     ed.log('EDIT', `${label} · ${next.name}`);
     return true;
   };
@@ -451,8 +460,9 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         c={c}
         def={def}
         patch={patch}
-        reset={(to) => {
-          if (commit(to, 'Reset to built-in')) setNonce((n) => n + 1);
+        openedAs={openedAs.current}
+        reset={(to, label) => {
+          if (commit(to, label)) setNonce((n) => n + 1);
         }}
         socket={socket}
         setSocket={setSocket}
@@ -526,23 +536,9 @@ function Library({
     ['From generated maps', lib.filter((x) => x.asset.origin === 'generated')],
   ];
   const newAsset = () => {
-    const asset: Asset = {
-      id: newId('asset'),
-      name: `New asset ${lib.length + 1}`,
-      category: 'prop',
-      bricks: [[0, 0, 0, 0, 0, 0, 0]],
-      palette: { types: ['brick2x4'], colors: ['#d20c20'] },
-      pivot: [0, 0, 0],
-      footprint: [4, 2],
-      sockets: [],
-      states: ['default'],
-      initialState: 'default',
-      interactions: [],
-      smash: { enabled: true, rebuild: true, sound: null, studs: 0 },
-      generator: null,
-      origin: 'user',
-    };
-    if (ed.exec({ type: 'asset.create', payload: { asset } }).ok) ed.studioAsset.value = asset.id;
+    const asset = newAssetDef(ed);
+    if (ed.exec({ type: 'asset.create', payload: { asset } }, { label: 'New asset' }).ok)
+      ed.studioAsset.value = asset.id;
   };
   return (
     <section class="panel studio-lib" aria-label="Asset library">
@@ -588,7 +584,7 @@ function Library({
                 <span>{name}</span>
                 <span>{list.length}</span>
               </div>
-              {list.map(({ asset }) => (
+              {list.map(({ asset, inProject }) => (
                 <div class={`lib-row ${asset.id === current ? 'on' : ''}`}>
                   <button
                     type="button"
@@ -608,7 +604,18 @@ function Library({
                     onClick={() => (ed.studioAsset.value = asset.id)}
                   >
                     <AssetThumb def={asset} size={32} />
-                    <span class="asset-name">{asset.name}</span>
+                    <span class="asset-name">
+                      {asset.name}
+                      {asset.origin === 'builtin' && inProject && !sameAsset(asset, builtinAsset(asset.id)) && (
+                        <span
+                          class="changed-tag"
+                          title="Changed from the built-in one (Reset to built-in puts it back)"
+                        >
+                          {' '}
+                          · changed
+                        </span>
+                      )}
+                    </span>
                     <span class="mono small muted">{asset.bricks.length}</span>
                   </button>
                   {open && onAdd && (
@@ -661,6 +668,7 @@ function Properties({
   def,
   patch,
   reset,
+  openedAs,
   socket,
   setSocket,
 }: {
@@ -668,7 +676,9 @@ function Properties({
   def: Asset;
   patch: (p: Partial<Asset>, label?: string) => unknown;
   /** puts a changed built-in asset back as it came with the engine */
-  reset: (to: Asset) => void;
+  reset: (to: Asset, label: string) => void;
+  /** the asset as it was when it was opened (for your own assets' reset) */
+  openedAs: Asset | null;
   socket: string | null;
   setSocket: (s: string | null) => void;
 }) {
@@ -676,8 +686,10 @@ function Properties({
   const inProject = ed.store.has(paths.asset(def.id));
   const used = inProject ? mapsUsing(ed.store, def.id).length : 0;
   const [newState, setNewState] = useState('');
-  const original = def.origin === 'builtin' && inProject ? builtinAsset(def.id) : null;
-  const changed = !!original && JSON.stringify(original) !== JSON.stringify(def);
+  // P32: a changed asset can go back: a built-in to how it came, your own to how it was when you opened it
+  const builtin = def.origin === 'builtin' && inProject ? builtinAsset(def.id) : null;
+  const original = builtin ?? (inProject ? openedAs : null);
+  const changed = !!original && !sameAsset(original, def);
   const setInteractions = (interactions: Asset['interactions']) => patch({ interactions }, 'Edit interactions');
   return (
     <section class="panel right studio-props" aria-label="Asset properties">
@@ -744,9 +756,9 @@ function Properties({
               class="btn"
               data-help="assets.reset"
               data-tip="Put this built-in asset back as it came with the engine (every placed copy changes back too). Undo brings your version back."
-              onClick={() => reset(original!)}
+              onClick={() => reset(original!, builtin ? 'Reset to built-in' : 'Reset asset')}
             >
-              Reset to built-in
+              {builtin ? 'Reset to built-in' : 'Reset to when I opened it'}
             </button>
           )}
         </div>

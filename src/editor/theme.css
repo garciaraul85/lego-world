@@ -1183,6 +1183,10 @@ select.inp {
   cursor: pointer;
 }
 /* P32: a library row: open the asset, or + builds it into the open one */
+.studio-lib .changed-tag {
+  color: var(--warn);
+  font-size: 11px;
+}
 .studio-lib .lib-row {
   display: flex;
   align-items: center;

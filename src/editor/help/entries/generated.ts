@@ -34,6 +34,10 @@ export const ACTION_HELP: Record<string, string> = {
   'edit.back': 'Moves the selection one stud along +Z.',
   'edit.up': 'Raises the selection by one plate.',
   'edit.down': 'Lowers the selection by one plate.',
+  'assets.open': 'Opens the Assets screen, where assets are built from bricks and from other assets.',
+  'assets.new': 'Starts a new asset with one brick and opens it on the build plate in the Assets screen.',
+  'assets.resetBuiltins':
+    'Puts every built-in asset you have changed (the chest, a tree…) back as it came with the engine, in one step. Undo brings your versions back.',
   'tool.select': 'Picks the Select tool: click to select, drag to orbit the view.',
   'tool.move': 'Picks the Move tool: drag the arrows to move what is selected.',
   'tool.rotate': 'Picks the Rotate tool: drag a ring to turn what is selected.',

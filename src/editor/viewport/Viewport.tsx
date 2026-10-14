@@ -1336,7 +1336,9 @@ export function Viewport({
       ro.disconnect();
       unsubScene?.();
       for (const d of disposers) d();
-      renderer.dispose();
+      // a build plate is closed for good when another asset opens: give its drawing context back at once
+      // (browsers keep only about 16, and a plate opened many times would use them up)
+      renderer.dispose(!!studioRef.current);
     };
   }, [ed, mode, gen]);
 
