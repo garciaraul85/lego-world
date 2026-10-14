@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { BUILD } from '../build-info';
 import { toLegacy } from '../core/bridge/legacy-bridge';
 import { packProject } from '../core/project/archive';
 import type { ProjectMeta } from '../core/project/backend';
@@ -328,6 +329,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
             studio, Character studio, Logic, Screens, Cinematics and Audio on the v5 project format, with Play on the
             new engine runtime, grown from LEGO World v68.
           </p>
+          <p class="mono small">Build {BUILD}</p>
           <p class="muted">
             Projects are saved as small JSON files in this browser. Guns, magic, super powers, the volcano and the
             not-yet-ported studios still run on the v68 runtime (Play in v68).

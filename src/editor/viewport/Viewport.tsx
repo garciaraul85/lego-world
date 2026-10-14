@@ -383,6 +383,7 @@ export function Viewport({
         return renderer;
       },
       redraw,
+      resync: () => syncChunks([], true),
       fit: fitAll,
       frameSelection,
     };
@@ -513,10 +514,25 @@ export function Viewport({
       }
     };
 
+    let failed = '';
     const frame = () => {
       raf = requestAnimationFrame(frame);
       if (!dirty) return;
       dirty = false;
+      try {
+        draw();
+        failed = '';
+      } catch (e) {
+        // a drawing error must not leave the view frozen on an old picture: say so once, try again next change
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg !== failed) {
+          failed = msg;
+          ed.notify(`The 3D view could not draw: ${msg}`, true);
+          console.error(e);
+        }
+      }
+    };
+    const draw = () => {
       const s = ed.scene.value;
       const overlays: Overlay[] = [];
       const lines: LineSet[] = [];

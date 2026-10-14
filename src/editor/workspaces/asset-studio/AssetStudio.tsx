@@ -23,13 +23,23 @@ import { actionChoices } from '../../panels/AudioFields';
 import { Swatches } from '../../panels/Inspector';
 import type { StudioPart } from '../../scene';
 import { EditorState, type ToolId } from '../../state';
-import { Viewport } from '../../viewport/Viewport';
+import { Viewport, type ViewportApi } from '../../viewport/Viewport';
 import { assetFromScratch, initialIndex, type Scratch, scratchFor, turnPart } from './scratch';
 
 /** The studio's own editor state: same tools and commands, on the scratch build plate. */
 export class StudioState extends EditorState {
+  /** the main editor: the plate's notices and log lines show there (the plate has no toast or console) */
+  parent: EditorState | null = null;
   override get buildsBricks() {
     return true;
+  }
+  override notify(msg: string, error = false) {
+    if (this.parent) this.parent.notify(msg, error);
+    else super.notify(msg, error);
+  }
+  override log(level: Parameters<EditorState['log']>[0], msg: string) {
+    if (this.parent) this.parent.log(level, `Asset plate: ${msg}`);
+    else super.log(level, msg);
   }
   override persistUi() {
     /* the studio never overwrites the Scene editor's saved panel choices */
@@ -122,6 +132,8 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
   const synced = useRef<string>('');
   /** turned parts of an asset just built in, waiting for the plate change that adds its bricks */
   const pendingParts = useRef<PendingPart[] | null>(null);
+  /** the build plate's 3D view */
+  const plateView = useRef<ViewportApi | null>(null);
   // P32: the asset selected in the Scene opens here
   useState(() => followScene(ed));
 
@@ -133,6 +145,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     const bus = registerAll(new CommandBus(store));
     const autosave = new Autosave(store, new MemoryBackend(), { setTimer: () => null, clearTimer: () => {} });
     const sed = new StudioState({ store, bus, autosave, backend: new MemoryBackend() });
+    sed.parent = ed;
     sed.tool.value = plateTool;
     sed.brush.value = ed.brush.value;
     synced.current = stableStringify(def);
@@ -203,6 +216,8 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         studio.indexOf = r.indexOf;
         studio.hidden = r.hidden;
         sed.scene.value?.setParts(studioParts(r.asset, r.indexOf));
+        // the plate shows the saved asset now, every brick (not only the chunks the change touched)
+        plateView.current?.resync();
       } else {
         setRejected(r.asset);
         takeBack();
@@ -409,7 +424,13 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
           )}
         </div>
         <div class="studio-plate">
-          <Viewport key={`${def.id}|${state}|${nonce}`} ed={sed} mode="scene" studio={hooks} />
+          <Viewport
+            key={`${def.id}|${state}|${nonce}`}
+            ed={sed}
+            mode="scene"
+            studio={hooks}
+            api={(a) => (plateView.current = a)}
+          />
           {error && (
             <div class="vp-overlay save-problem" role="alert" data-help="assets.saveProblem">
               <span>Not saved: {error}</span>

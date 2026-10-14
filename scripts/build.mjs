@@ -10,6 +10,14 @@ import { build } from 'esbuild';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dev = process.argv.includes('--dev');
+/** P32: which build this is (Help › About shows it), so a report can say which version it came from */
+let stamp = 'dev';
+try {
+  stamp = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT }).toString().trim();
+} catch {
+  /* not a git checkout */
+}
+const BUILD = `${stamp} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 mkdirSync(resolve(ROOT, 'dist/build'), { recursive: true });
 
 /** App entries (src/apps/<name>/main.ts). Append new apps here (editor and player arrive in P1 / P8). */
@@ -58,7 +66,7 @@ for (const [name, entry] of Object.entries(ENTRIES)) {
     minify: !dev,
     sourcemap: dev ? 'inline' : false,
     legalComments: 'none',
-    define: { __DEV__: String(dev) },
+    define: { __DEV__: String(dev), __BUILD__: JSON.stringify(BUILD) },
     metafile: true,
     logLevel: 'warning',
     plugins: [zodEnglishOnly, rawText],
