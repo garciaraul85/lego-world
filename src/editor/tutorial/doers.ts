@@ -208,6 +208,22 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     run(c, cmds, `Build ${other.name} into ${into.name}`);
     c.ed.studioAsset.value = into.id;
   },
+  addBrickToOpenAsset(c) {
+    // P32: one more brick on top of the open asset (what clicking the build plate with Place bricks does)
+    const id = c.ed.studioAsset.value;
+    const def = id ? c.ed.store.get<Asset>(paths.asset(id)) : null;
+    if (!def) throw new Error('Open an asset with + New asset first.');
+    const b = c.ed.brush.value;
+    const types = [...def.palette.types];
+    const colors = [...def.palette.colors];
+    const ix = (arr: string[], v: string) => (arr.includes(v) ? arr.indexOf(v) : arr.push(v) - 1);
+    const top = Math.max(...def.bricks.map((t) => t[2] + (def.palette.types[t[0]]!.startsWith('brick') ? 3 : 1)));
+    const bricks = [
+      ...def.bricks,
+      [ix(types, b.type), 0, top, 0, 0, ix(colors, b.color.toLowerCase()), 0],
+    ] as Asset['bricks'];
+    run(c, { type: 'asset.update', payload: { asset: { ...def, bricks, palette: { types, colors } } } }, 'Add a brick');
+  },
   chestGivesCoin(c) {
     const def = c.ed.store
       .list('assets/')

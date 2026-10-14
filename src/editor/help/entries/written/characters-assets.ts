@@ -160,6 +160,32 @@ export const ASSETS: HelpEntry[] = [
     related: ['assets.library', 'assets.plate'],
   },
   {
+    id: 'assets.saveProblem',
+    also: ['not saved', 'pieces overlap', 'cannot place brick', 'brick disappears'],
+    screen: 'assets',
+    kind: 'area',
+    name: 'Not saved',
+    purpose:
+      'Shows when a change to the asset could not be saved, and why. Changing an asset changes every copy placed in the world, so if a copy would then run into something on its map, the change is taken back (the plate goes back to the saved asset).',
+    steps: [
+      'Read why: it names the map where a copy is in the way.',
+      'Move that copy to open ground in the Scene and try again, or press Keep it as a new asset to keep your change as a separate asset.',
+      'OK closes the message.',
+    ],
+    related: ['assets.plate', 'scene.tool.move'],
+  },
+  {
+    id: 'assets.reset',
+    also: ['messed up', 'broken asset', 'start over', 'original', 'restore'],
+    screen: 'assets',
+    kind: 'button',
+    name: 'Reset to built-in',
+    purpose:
+      'Shows on a built-in asset (the chest, a tree, a house) you have changed. It puts it back as it came with the engine; every placed copy changes back too. Undo brings your version back.',
+    commands: ['asset.update'],
+    related: ['assets.plate', 'assets.saveProblem'],
+  },
+  {
     id: 'assets.libtabs',
     screen: 'assets',
     kind: 'view',

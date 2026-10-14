@@ -571,6 +571,14 @@ select.inp {
   color: var(--fg2);
   pointer-events: none;
 }
+.vp-overlay.save-problem {
+  border-color: var(--err);
+  flex-direction: column;
+  align-items: flex-start;
+  width: min(440px, calc(100% - 24px));
+  line-height: 1.4;
+  z-index: 5;
+}
 .vp-overlay {
   position: absolute;
   left: 50%;

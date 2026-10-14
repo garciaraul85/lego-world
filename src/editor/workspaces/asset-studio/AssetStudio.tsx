@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { builtinAsset } from '../../../builtin/assets';
 import { expandAsset } from '../../../core/assets/expand';
 import { hasScale, hasTilt, type Scale, type Tilt } from '../../../core/assets/tilt';
 import type { Brick } from '../../../core/bricks/codec';
@@ -105,6 +106,15 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
   const [socket, setSocket] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  /** the asset as the plate showed it when saving was refused, so it can be kept as a new asset instead */
+  const [rejected, setRejected] = useState<Asset | null>(null);
+  /** true while a refused plate change is being taken back (that undo is not saved again) */
+  const rolling = useRef(false);
+  // another asset: an old “Not saved” is not about it
+  useEffect(() => {
+    setError(null);
+    setRejected(null);
+  }, [id]);
   const synced = useRef<string>('');
   /** turned parts of an asset just built in, waiting for the plate change that adds its bricks */
   const pendingParts = useRef<PendingPart[] | null>(null);
@@ -142,7 +152,21 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
   useEffect(() => {
     if (!studio) return;
     const { sed, scratch } = studio;
+    /**
+     * P32: a plate change the project refuses is taken back at once, so the plate always shows the asset as it
+     * is saved (otherwise the next change is worked out from bricks the asset does not have).
+     */
+    const takeBack = () => {
+      rolling.current = true;
+      try {
+        sed.undo();
+      } finally {
+        rolling.current = false;
+      }
+      sed.revision.value++;
+    };
     return sed.bus.onChange(() => {
+      if (rolling.current) return;
       const base = resolveAsset(ed, studio.def.id)!;
       const r = assetFromScratch(
         base,
@@ -152,7 +176,9 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         newOnlyIn ? state : null,
       );
       if (!r.asset.bricks.length) {
-        setError('An asset needs at least one brick. Undo to bring one back.');
+        setError('An asset needs at least one brick, so the last one stays.');
+        setRejected(null);
+        takeBack();
         return;
       }
       const extra = pendingParts.current;
@@ -169,6 +195,9 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         studio.indexOf = r.indexOf;
         studio.hidden = r.hidden;
         sed.scene.value?.setParts(studioParts(r.asset, r.indexOf));
+      } else {
+        setRejected(r.asset);
+        takeBack();
       }
     });
   }, [studio, newOnlyIn, state]);
@@ -183,10 +212,11 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         ];
     const r = ed.bus.execute(cmds, { source: 'user', label });
     if (!r.ok) {
-      setError(r.error ?? 'That change is not possible.');
+      setError(whyNotSaved(ed, next, r.error ?? 'That change is not possible.'));
       return false;
     }
     setError(null);
+    setRejected(null);
     synced.current = JSON.stringify(next);
     ed.log('EDIT', `${label} · ${next.name}`);
     return true;
@@ -302,7 +332,8 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     }
     pendingParts.current = fit.r.parts;
     const r = sed.exec(fit.cmd, { label: `Build in ${o.name}` });
-    if (!r.ok) {
+    // refused by the project (a placed copy would not fit): the plate took it back and says why
+    if (!r.ok || !new MapBricks(sed.store, map).all().some((b) => b.id === start)) {
       pendingParts.current = null;
       return false;
     }
@@ -371,8 +402,41 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         <div class="studio-plate">
           <Viewport key={`${def.id}|${state}|${nonce}`} ed={sed} mode="scene" studio={hooks} />
           {error && (
-            <div class="vp-overlay" role="alert" style={{ borderColor: 'var(--err)' }}>
-              Not saved: {error}
+            <div class="vp-overlay save-problem" role="alert" data-help="assets.saveProblem">
+              <span>Not saved: {error}</span>
+              <span class="row">
+                {rejected && (
+                  <button
+                    type="button"
+                    class="btn on"
+                    onClick={() => {
+                      const copy: Asset = {
+                        ...rejected,
+                        id: newId('asset'),
+                        name: `${rejected.name} (new)`.slice(0, 60),
+                        origin: 'user',
+                        generator: null,
+                      };
+                      if (
+                        ed.exec({ type: 'asset.create', payload: { asset: copy } }, { label: 'Keep as a new asset' }).ok
+                      )
+                        ed.studioAsset.value = copy.id;
+                    }}
+                  >
+                    Keep it as a new asset
+                  </button>
+                )}
+                <button
+                  type="button"
+                  class="btn"
+                  onClick={() => {
+                    setError(null);
+                    setRejected(null);
+                  }}
+                >
+                  OK
+                </button>
+              </span>
             </div>
           )}
         </div>
@@ -383,7 +447,16 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
           {used ? ` · placed on ${used} map${used === 1 ? '' : 's'}` : ''}
         </div>
       </section>
-      <Properties c={c} def={def} patch={patch} socket={socket} setSocket={setSocket} />
+      <Properties
+        c={c}
+        def={def}
+        patch={patch}
+        reset={(to) => {
+          if (commit(to, 'Reset to built-in')) setNonce((n) => n + 1);
+        }}
+        socket={socket}
+        setSocket={setSocket}
+      />
     </div>
   );
 }
@@ -587,12 +660,15 @@ function Properties({
   c,
   def,
   patch,
+  reset,
   socket,
   setSocket,
 }: {
   c: ActionCtx;
   def: Asset;
   patch: (p: Partial<Asset>, label?: string) => unknown;
+  /** puts a changed built-in asset back as it came with the engine */
+  reset: (to: Asset) => void;
   socket: string | null;
   setSocket: (s: string | null) => void;
 }) {
@@ -600,6 +676,8 @@ function Properties({
   const inProject = ed.store.has(paths.asset(def.id));
   const used = inProject ? mapsUsing(ed.store, def.id).length : 0;
   const [newState, setNewState] = useState('');
+  const original = def.origin === 'builtin' && inProject ? builtinAsset(def.id) : null;
+  const changed = !!original && JSON.stringify(original) !== JSON.stringify(def);
   const setInteractions = (interactions: Asset['interactions']) => patch({ interactions }, 'Edit interactions');
   return (
     <section class="panel right studio-props" aria-label="Asset properties">
@@ -660,6 +738,17 @@ function Properties({
               Delete
             </button>
           </div>
+          {changed && (
+            <button
+              type="button"
+              class="btn"
+              data-help="assets.reset"
+              data-tip="Put this built-in asset back as it came with the engine (every placed copy changes back too). Undo brings your version back."
+              onClick={() => reset(original!)}
+            >
+              Reset to built-in
+            </button>
+          )}
         </div>
 
         <div class="sec">
@@ -1017,6 +1106,20 @@ function Properties({
       </div>
     </section>
   );
+}
+
+/**
+ * P32: why a change to an asset was refused, in words that say what to do. Changing an asset changes every
+ * placed copy, so a copy that would run into something on its map stops the change.
+ */
+function whyNotSaved(ed: EditorState, next: Asset, error: string): string {
+  const maps = ed.store.has(paths.asset(next.id)) ? mapsUsing(ed.store, next.id) : [];
+  if (!maps.length || !/overlap|float|support|studs/i.test(error)) return error;
+  const names = maps.map((m) => ed.maps.value.find((x) => x.id === m)?.name ?? 'a map');
+  const what = /overlap/i.test(error)
+    ? 'it would run into something next to it'
+    : 'a piece of it would have nothing under it to stand on';
+  return `${next.name} is placed on ${names.join(', ')}, and that copy changes too: ${what}. Your change was taken back. Move that copy to open ground in the Scene, or keep your change as a new asset.`;
 }
 
 /** The asset's parts as plate brick ids (the plate's ids map to asset indexes through indexOf). */

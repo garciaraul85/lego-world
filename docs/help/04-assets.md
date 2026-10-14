@@ -17,7 +17,11 @@ The Assets workspace is a build plate for one asset. The Asset library on the le
 - **Assets**: click one to open it. Drag one onto the build plate (or press **+** on its row) to build a copy of it into the open asset: a tower with a chest on top, a garden bench from a bench and a flower bush. The copy is picked up as one, so Move (W) puts it where you want it. It is a copy: changing the other asset later does not change this one, and its sockets and interactions stay with the original.
 - **Bricks**: every piece and colour. Click a piece and then the plate (Place bricks, B), or drag the piece straight onto the plate; T turns it first.
 
-The build tools above the plate move, turn, paint and remove bricks. Its panels set:
+The build tools above the plate move, turn, paint and remove bricks.
+
+Changing an asset changes every copy placed in the world. If a copy would then run into something on its map (a bigger chest next to a wall), the change is not saved: the plate goes straight back to the saved asset and a message names the map. Move that copy to open ground in the Scene and try again, or press **Keep it as a new asset** to keep your change as a separate asset. A built-in asset you have changed (the chest, a tree) shows **Reset to built-in** in its properties, to put it back as it came with the engine.
+
+Its panels set:
 
 - **States**: closed / open, on / off… Each state can hide, show or move bricks. "Showing state" previews them.
 - **Sockets**: where the hero stands to interact.

@@ -108,11 +108,12 @@ export function TutorialRunner({
   useEffect(() => () => myTurn.current?.(), []);
 
   // the check, armed while it is the user's turn
+  // (not while Do it for me is still working: its own clicks would end this step early, or the next one)
   useEffect(() => {
-    if (phase !== 'try') return;
+    if (phase !== 'try' || working) return;
     const at = index;
     return arm(step.check, c, () => complete(at));
-  }, [phase, index]);
+  }, [phase, index, working]);
 
   const target = (sel = step.target): { x: number; y: number } => {
     const el = document.querySelector(sel) as HTMLElement | null;
@@ -317,14 +318,19 @@ export function TutorialRunner({
                 </button>
               )}
               {step.check.kind === 'manual' || phase === 'done' ? (
-                <button type="button" class="btn on" onClick={() => (last ? onClose() : go(index + 1))}>
+                <button
+                  type="button"
+                  class="btn on"
+                  disabled={working}
+                  onClick={() => (last ? onClose() : go(index + 1))}
+                >
                   {last ? 'Finish ✓' : 'Next ▶'}
                 </button>
               ) : (
                 <button
                   type="button"
                   class="btn"
-                  disabled={phase === 'demo' || phase === 'shown'}
+                  disabled={phase === 'demo' || phase === 'shown' || working}
                   onClick={() => go(index + 1)}
                   title="Skip this step"
                 >

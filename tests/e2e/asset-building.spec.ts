@@ -201,3 +201,77 @@ test('on the chest’s plate a trackpad-style click selects a brick and places o
     .click();
   expect(errors).toEqual([]);
 });
+
+test('a change that a placed copy cannot take is taken back, says why, and can be kept as a new asset', async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  // the chest stands on the map with a brick right against its +X side
+  const at = await page.evaluate(() => {
+    const w = window as unknown as {
+      __editor: { exec(c: unknown, o?: unknown): { ok: boolean }; mapId: { value: string } };
+      __assets: { placeCommands: (ed: unknown, id: string, pos: number[], rot: number) => unknown; chestId: string };
+    };
+    for (const [x, z] of [
+      [3, 3],
+      [-6, 3],
+      [3, -6],
+      [-6, -6],
+      [8, 0],
+      [0, 8],
+    ] as [number, number][])
+      for (let y = 0; y < 60; y++)
+        if (
+          w.__editor.exec(w.__assets.placeCommands(w.__editor, w.__assets.chestId, [x, y, z], 0), { quiet: true }).ok
+        ) {
+          for (let dy = 0; dy < 12; dy++)
+            if (
+              w.__editor.exec(
+                {
+                  type: 'bricks.place',
+                  payload: {
+                    map: w.__editor.mapId.value,
+                    bricks: [{ type: 'brick2x2', x: x + 4, y: y + dy, z, rot: 0, color: '#ffffff' }],
+                  },
+                },
+                { quiet: true },
+              ).ok
+            )
+              return [x, y, z];
+        }
+    return null;
+  });
+  expect(at).not.toBeNull();
+  await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Assets' }).click();
+  await page
+    .getByRole('listbox', { name: 'Assets' })
+    .getByRole('option', { name: /^Treasure chest/ })
+    .first()
+    .click();
+  const plate = page.getByRole('region', { name: 'Asset build plate' });
+  await expect(plate.locator('.studio-title')).toHaveText('Treasure chest');
+  const hud = () => plate.locator('.vp-hud').innerText();
+  const before = await hud();
+  const chest = () =>
+    page.evaluate(() => {
+      const e = (window as unknown as { __editor: Ed }).__editor;
+      return JSON.stringify(e.store.get(`assets/${e.studioAsset.value}.json`) ?? null);
+    });
+  const saved = await chest();
+  // building the mushroom in next to the chest would push the placed copy into that brick
+  await page.getByRole('button', { name: 'Build Mushroom into Treasure chest' }).first().click();
+  const alert = plate.getByRole('alert');
+  await expect(alert).toContainText('Not saved');
+  await expect(alert).toContainText('is placed on');
+  if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/not-saved.png` });
+  // the plate went back to the saved chest, and the chest is unchanged
+  await expect.poll(hud).toBe(before);
+  expect(await chest()).toBe(saved);
+  // keep it as a new asset instead
+  await alert.getByRole('button', { name: 'Keep it as a new asset' }).click();
+  await expect(plate.locator('.studio-title')).toHaveText('Treasure chest (new)');
+  await expect.poll(() => pieces(page)).toBeGreaterThan(5);
+  expect(errors.filter((e) => !/overlap|float/i.test(e))).toEqual([]);
+});
