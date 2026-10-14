@@ -854,6 +854,9 @@ export function Viewport({
             bricks: [{ type: br.type, x: ghost.x, y: ghost.y, z: ghost.z, rot: br.rot, color: br.color }],
           },
         });
+        // the see-through brick moves on at once (on top of the one just placed), so it never sits over it
+        ghostKey = '';
+        updateHover(e);
         return;
       }
       if ((tool === 'sound' || tool === 'ui') && !studio) {
