@@ -1,8 +1,18 @@
 import type { Action } from '../../core/schema';
+import { EventPicker, ListenButton } from './EventPicker';
 
 export type Choice = { id: string; name: string };
 /** Pickers for sound / music / screen actions (from AudioFields.actionChoices). */
-export type ActionChoices = { sounds: Choice[]; music: Choice[]; screens: Choice[]; cinematics: Choice[] };
+export type ActionChoices = {
+  sounds: Choice[];
+  music: Choice[];
+  screens: Choice[];
+  cinematics: Choice[];
+  /** P32: custom event names the project uses (Send event picks from them) */
+  events?: string[];
+  /** P32: plays a sound or a music state once, for the ▶ next to their pickers */
+  preview?: { sound(id: string): void; music(id: string | null): void };
+};
 
 /** The action kinds a designer can pick, with what each needs. Shared by assets, zones, screens and logic. */
 const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Action; needs?: keyof ActionChoices }[] = [
@@ -164,7 +174,11 @@ function ActionArgs({
         </select>
       );
     case 'emit':
-      return text(a.event, 'Event name', (event) => ({ ...a, event }));
+      return choices?.events ? (
+        <EventPicker value={a.event} events={choices.events} onChange={(event) => onChange({ ...a, event })} />
+      ) : (
+        text(a.event, 'Event name', (event) => ({ ...a, event }))
+      );
     case 'give':
       return (
         <span class="row" style={{ flexWrap: 'nowrap' }}>
@@ -197,11 +211,29 @@ function ActionArgs({
     case 'wait':
       return num(a.seconds, 'Seconds', (seconds) => ({ ...a, seconds: Math.max(0, seconds) }));
     case 'sound':
-      return choices ? pick(a.event, 'Sound', choices.sounds, (event) => ({ ...a, event: event as never })) : null;
+      return choices ? (
+        <span class="row" style={{ flexWrap: 'nowrap' }}>
+          {pick(a.event, 'Sound', choices.sounds, (event) => ({ ...a, event: event as never }))}
+          {choices.preview && (
+            <ListenButton
+              name={choices.sounds.find((s) => s.id === a.event)?.name ?? 'this sound'}
+              onPlay={() => choices.preview!.sound(a.event)}
+            />
+          )}
+        </span>
+      ) : null;
     case 'music':
-      return choices
-        ? pick(a.music, 'Music', choices.music, (m) => ({ ...a, music: (m || null) as never }), 'Silence')
-        : null;
+      return choices ? (
+        <span class="row" style={{ flexWrap: 'nowrap' }}>
+          {pick(a.music, 'Music', choices.music, (m) => ({ ...a, music: (m || null) as never }), 'Silence')}
+          {choices.preview && a.music && (
+            <ListenButton
+              name={choices.music.find((s) => s.id === a.music)?.name ?? 'this music'}
+              onPlay={() => choices.preview!.music(a.music)}
+            />
+          )}
+        </span>
+      ) : null;
     case 'stinger':
       return text(a.stinger, 'Stinger', (stinger) => ({ ...a, stinger }));
     case 'showScreen':

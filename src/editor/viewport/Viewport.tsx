@@ -1,5 +1,5 @@
 import { effect } from '@preact/signals';
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
 import { type FreeGroup, freeGroupsOf } from '../../core/assets/free';
 import {
@@ -104,6 +104,8 @@ export function Viewport({
   menuRef.current = onMenu;
   const studioRef = useRef(studio);
   studioRef.current = studio;
+  /** bumps when the browser takes the 3D drawing away (too many views, the GPU reset): the view starts again */
+  const [gen, setGen] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -129,6 +131,8 @@ export function Viewport({
       y: number;
       moved: boolean;
       button: number;
+      /** when the button went down: a quick press that wobbles a little is still a click (trackpads) */
+      t?: number;
       start?: { x: number; z: number };
       offset?: [number, number];
       plane?: number;
@@ -298,7 +302,19 @@ export function Viewport({
       const s = ed.scene.value;
       const b = s?.bounds();
       const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
-      if (b) camera.fit(b.min, b.max, aspect);
+      if (b && studio) {
+        // P32: an asset's build plate shows the asset with room around it to build on, not just the asset
+        const min: Vec3 = [...b.min];
+        const max: Vec3 = [...b.max];
+        for (const i of [0, 2]) {
+          const mid = (min[i]! + max[i]!) / 2;
+          const half = Math.max(8, (max[i]! - min[i]!) / 2 + 4);
+          min[i] = mid - half;
+          max[i] = mid + half;
+        }
+        min[1] = Math.min(min[1]!, 0);
+        camera.fit(min, max, aspect);
+      } else if (b) camera.fit(b.min, b.max, aspect);
       else {
         camera.target = [0, 1, 0];
         camera.baseDistance = 35;
@@ -1025,6 +1041,7 @@ export function Viewport({
         y: e.clientY,
         moved: false,
         button: e.button,
+        t: performance.now(),
         ...(offset ? { start: { x: offset[0], z: offset[1] }, offset, plane } : {}),
       };
     };
@@ -1047,7 +1064,8 @@ export function Viewport({
       }
       const dx = e.clientX - drag.x;
       const dy = e.clientY - drag.y;
-      if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+      const quick = drag.t !== undefined && performance.now() - drag.t < 300;
+      if (!drag.moved && Math.hypot(dx, dy) < (quick ? 9 : 4)) return;
       drag.moved = true;
       if (drag.kind === 'gizmo' && gz) {
         const now = local(e);
@@ -1303,8 +1321,14 @@ export function Viewport({
     canvas.addEventListener('pointerleave', onLeave);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    const onLost = (e: Event) => {
+      e.preventDefault();
+      setTimeout(() => setGen((g) => g + 1), 50);
+    };
+    canvas.addEventListener('webglcontextlost', onLost);
 
     return () => {
+      canvas.removeEventListener('webglcontextlost', onLost);
       cancelAnimationFrame(raf);
       canvas.removeEventListener('pointerenter', claim);
       setActiveView(null, self);
@@ -1314,11 +1338,17 @@ export function Viewport({
       for (const d of disposers) d();
       renderer.dispose();
     };
-  }, [ed, mode]);
+  }, [ed, mode, gen]);
 
   return (
     <div class="viewport-wrap">
-      <canvas ref={canvasRef} class="viewport-canvas" data-tour="viewport" aria-label="3D map view" />
+      <canvas
+        key={`${mode}|${editorKey(ed)}|${gen}`}
+        ref={canvasRef}
+        class="viewport-canvas"
+        data-tour="viewport"
+        aria-label="3D map view"
+      />
       <div class="vp-hud mono" ref={hudRef} />
       <div class="gizmo-tag" ref={tagRef} hidden />
       {mode === 'scene' && <ViewControls view={viewRef} studio={!!studio} />}
@@ -1327,6 +1357,16 @@ export function Viewport({
 }
 
 export { mapItems };
+
+const editorKeys = new WeakMap<EditorState, number>();
+let editorCount = 0;
+/** a number per editor state, so a view of another project gets a fresh canvas */
+function editorKey(ed: EditorState): number {
+  const k = editorKeys.get(ed);
+  if (k !== undefined) return k;
+  editorKeys.set(ed, ++editorCount);
+  return editorCount;
+}
 
 const sp3 = (p: readonly number[]): Vec3 => [p[0]!, p[1]!, p[2]!];
 const AXIS_HOT: [number, number, number] = [1, 0.85, 0.25];

@@ -3,6 +3,8 @@ import { CATALOG, nodeDef } from '../../../core/logic/catalog';
 import { graphProblems } from '../../../core/logic/graph';
 import type { LogicGraph, Variables } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
+import { EventPicker } from '../../components/EventPicker';
+import { eventNames } from '../../events';
 import { keysFor } from '../../platform';
 import { CodeView } from './CodeView';
 import { GraphView, toggleBreakpoint } from './GraphView';
@@ -350,6 +352,12 @@ function NodeInspector({
                       {a.label}
                       {a.kind === 'bool' ? (
                         <input type="checkbox" checked={!!v} onChange={() => set({ [a.name]: !v })} />
+                      ) : a.kind === 'event' ? (
+                        <EventPicker
+                          value={String(v ?? '')}
+                          events={eventNames(ed.store)}
+                          onChange={(event) => set({ [a.name]: event })}
+                        />
                       ) : choices ? (
                         <select
                           class="inp"

@@ -29,3 +29,23 @@ describe('tutorial card placement', () => {
     expect(q.x).toBeGreaterThan(800); // the strip on the right is the least covered
   });
 });
+
+describe('the card keeps off the build plate (P32)', () => {
+  const box = (p: Record<string, string>, h: number) => ({
+    x: Number.parseFloat(p.left!),
+    y: Number.parseFloat(p.top!),
+    w: Number.parseFloat(p.width!),
+    h,
+  });
+  const overlaps = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  it('sits beside the plate when the target is a toolbar above it', () => {
+    const tools = { x: 290, y: 150, w: 630, h: 80 };
+    const plate = { x: 286, y: 260, w: 638, h: 480 };
+    const p = box(cardPos(tools, { placement: 'bottom' }, false, 320, 1280, 800, [plate]), 320);
+    expect(overlaps(p, tools)).toBe(false);
+    // at most a sliver of the plate (the panels beside it are narrower than the card)
+    const covered = Math.max(0, Math.min(p.x + p.w, plate.x + plate.w) - Math.max(p.x, plate.x));
+    expect(covered).toBeLessThan(40);
+  });
+});

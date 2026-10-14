@@ -215,7 +215,7 @@ export function TutorialRunner({
         style={
           moved && !min
             ? { left: `${moved.x}px`, top: `${moved.y}px`, width: `${Math.min(W, innerWidth - 16)}px` }
-            : cardPos(rect, step, min, cardH)
+            : cardPos(rect, step, min, cardH, innerWidth, innerHeight, workAreas())
         }
         aria-label="Tutorial"
       >
@@ -441,6 +441,17 @@ const W = 360;
  * sides and the corners, and takes the first spot that leaves the target fully visible (or the one that
  * covers the least of it, for a target as big as the screen).
  */
+/**
+ * P32: where you click to build (the asset build plate, the 3D view): the card stays off them when it can,
+ * so it never sits on the bricks you are asked to click.
+ */
+function workAreas(): Rect[] {
+  return ['.studio-plate', '[data-tour="viewport"]'].flatMap((sel) => {
+    const b = document.querySelector(sel)?.getBoundingClientRect();
+    return b && b.width > 0 ? [{ x: b.left, y: b.top, w: b.width, h: b.height }] : [];
+  });
+}
+
 export function cardPos(
   r: Rect | null,
   step: Pick<Step, 'placement'>,
@@ -448,6 +459,8 @@ export function cardPos(
   h = 300,
   vw = innerWidth,
   vh = innerHeight,
+  /** areas to keep clear too, after the target (the build plate) */
+  keep: Rect[] = [],
 ): Record<string, string> {
   if (min) return { right: '16px', bottom: '40px', width: '260px' };
   const w = Math.min(W, vw - 16);
@@ -473,9 +486,12 @@ export function cardPos(
     ...Object.values(sides),
     ...corners,
   ].map(([x, y]) => clamp(x, y));
-  const overlap = ([x, y]: [number, number]) =>
-    Math.max(0, Math.min(x + w, r.x + r.w) - Math.max(x, r.x)) *
-    Math.max(0, Math.min(y + h, r.y + r.h) - Math.max(y, r.y));
+  const area = ([x, y]: [number, number], a: Rect) =>
+    Math.max(0, Math.min(x + w, a.x + a.w) - Math.max(x, a.x)) *
+    Math.max(0, Math.min(y + h, a.y + a.h) - Math.max(y, a.y));
+  // covering the target is far worse than covering a work area; a work area the target is in does not count
+  const clear = keep.filter((a) => !(r.x >= a.x && r.y >= a.y && r.x + r.w <= a.x + a.w && r.y + r.h <= a.y + a.h));
+  const overlap = (p: [number, number]) => area(p, r) * 1000 + clear.reduce((s, a) => s + area(p, a), 0);
   let best = order[0]!;
   for (const p of order) {
     if (overlap(p) === 0) {

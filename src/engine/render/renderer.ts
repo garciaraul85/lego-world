@@ -557,12 +557,15 @@ export class Renderer {
   }
 
   /** Reads the color under a pixel (tests and screenshots). */
-  dispose() {
+  /** Frees the GPU buffers; `release` also gives the drawing context back (the canvas is not drawn on again). */
+  dispose(release = false) {
     this.clearChunks();
     for (const m of this.meshes.values()) {
       this.gl.deleteBuffer(m.p);
       this.gl.deleteBuffer(m.n);
     }
     this.meshes.clear();
+    // browsers keep only about 16 drawing contexts; a closed view should not hold one
+    if (release) this.gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
 }

@@ -137,3 +137,67 @@ test('an asset is built into another: drag its row onto the plate, or press +; U
   await expect.poll(() => pieces(page)).toBe(withBush);
   expect(errors).toEqual([]);
 });
+
+test('on the chest’s plate a trackpad-style click selects a brick and places one; Send event picks from the project’s events; sounds have ▶', async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Assets' }).click();
+  await page
+    .getByRole('listbox', { name: 'Assets' })
+    .getByRole('option', { name: /^Treasure chest/ })
+    .first()
+    .click();
+  const plate = page.getByRole('region', { name: 'Asset build plate' });
+  await expect(plate.locator('.studio-title')).toHaveText('Treasure chest');
+  const canvas = plate.getByLabel('3D map view');
+  const box = (await canvas.boundingBox())!;
+  // a press that wobbles a few pixels, as on a trackpad, is still a click
+  const tap = async (x: number, y: number) => {
+    await page.mouse.move(box.x + x - 20, box.y + y - 10);
+    await page.mouse.move(box.x + x, box.y + y, { steps: 5 });
+    await page.mouse.down();
+    await page.mouse.move(box.x + x + 5, box.y + y + 3);
+    await page.mouse.up();
+  };
+  // the chest stands in the middle with room around it: a click in the middle selects one of its bricks
+  await plate.getByRole('button', { name: 'Select (V)' }).click();
+  await tap(box.width / 2, box.height / 2);
+  await expect(plate.locator('.studio-foot')).toContainText('selected');
+  // Place bricks: a click beside it adds a brick
+  await plate.getByRole('button', { name: 'Place bricks (B)' }).click();
+  const p0 = await pieces(page);
+  for (const [fx, fy] of [
+    [0.2, 0.8],
+    [0.8, 0.8],
+    [0.25, 0.3],
+    [0.75, 0.3],
+  ] as const) {
+    await tap(box.width * fx, box.height * fy);
+    if ((await pieces(page)) > p0) break;
+  }
+  expect(await pieces(page)).toBeGreaterThan(p0);
+
+  // Send event: a list of the events the project uses, plus New event…
+  const inter = page.locator('[data-tour="asset-interactions"] .interaction').first();
+  const ev = inter.getByRole('combobox', { name: 'Event name' });
+  await expect(ev).toHaveValue('chest-opened');
+  await ev.selectOption('__new__');
+  const name = inter.getByRole('textbox', { name: 'New event name' });
+  await name.fill('treasure-found');
+  await name.press('Enter');
+  await expect(inter.getByRole('combobox', { name: 'Event name' })).toHaveValue('treasure-found');
+  // the new name is now in the event lists, next to New event…
+  await expect(inter.getByRole('combobox', { name: 'Event name' }).locator('option')).toContainText([
+    'treasure-found',
+    'New event',
+  ]);
+  // sounds have a ▶ to hear them
+  await inter
+    .getByRole('button', { name: /^Listen to / })
+    .first()
+    .click();
+  expect(errors).toEqual([]);
+});

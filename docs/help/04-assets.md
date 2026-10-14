@@ -21,7 +21,7 @@ The build tools above the plate move, turn, paint and remove bricks. Its panels 
 
 - **States**: closed / open, on / off… Each state can hide, show or move bricks. "Showing state" previews them.
 - **Sockets**: where the hero stands to interact.
-- **Interactions**: what E does at a socket: change state, give an item, play a sound or a cinematic, send an event to logic. The chest opens its lid and sends "chest-opened".
+- **Interactions**: what E does at a socket: change state, give an item, play a sound or a cinematic, send an event to logic. The chest opens its lid and sends "chest-opened". Send event picks from the events the project already uses (so the logic that listens spells it the same way), or New event… to type a new one; ▶ next to a sound or music plays it so you can hear what you picked.
 - **Smash and rebuild**: whether F smashes it, what it drops, and whether holding E rebuilds it.
 - **Generator rules**: whether the terrain generator scatters it, in which environments, how often (weight) and on what ground.
 
