@@ -459,7 +459,20 @@ export async function perform(c: Ctx, d: Do): Promise<void> {
   }
   if ('action' in d) return runAction(action(d.action), c);
   if ('click' in d) {
-    (document.querySelector(d.click) as HTMLElement | null)?.click();
+    const el = document.querySelector(d.click) as HTMLElement | null;
+    if (!el) throw new Error(`Could not find ${d.say ?? 'the control to click'}.`);
+    el.scrollIntoView({ block: 'nearest' });
+    el.click();
+    return;
+  }
+  if ('choose' in d) {
+    const el = document.querySelector(d.choose) as HTMLSelectElement | null;
+    if (!el) throw new Error(`Could not find ${d.say ?? 'the list to pick from'}.`);
+    el.scrollIntoView({ block: 'nearest' });
+    const opt = [...el.options].find((o) => o.value === d.value || o.text === d.value);
+    if (!opt) throw new Error(`“${d.value}” is not in that list.`);
+    el.value = opt.value;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
     return;
   }
   if ('cmd' in d) return run(c, { type: d.cmd, payload: fill(c, d.args) }, d.cmd);

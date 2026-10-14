@@ -103,3 +103,47 @@ test('Tutorial (I try first): Do it for me through every step builds a playable 
   expect(userSteps).toBeGreaterThan(20);
   expect(errors).toEqual([]);
 });
+
+test('Tutorial: the Interactions step says click by click where to click, and Show me clicks there', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const card = await startTutorial(page, 'try');
+  for (let i = 0; i < 30 && !(await card.getByRole('heading', { name: 'Interactions' }).isVisible()); i++) {
+    const pos = await card.locator('header .mono').innerText();
+    await card.getByRole('button', { name: /Next ▶|Skip ▶▶/ }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos);
+  }
+  // the card lists every click: where it is and what it does
+  const how = card.getByRole('list', { name: 'Click by click' });
+  await expect(how.getByRole('listitem')).toHaveCount(5);
+  await expect(how).toContainText('+ Action');
+  await expect(how).toContainText('Give item');
+  const props = page.getByRole('region', { name: 'Asset properties' });
+  const gives = () =>
+    props
+      .locator('select[aria-label="Action"]')
+      .evaluateAll((s) => s.filter((x) => (x as HTMLSelectElement).value === 'give').length);
+  const before = await gives();
+
+  // Show me: the pointer and the spotlight go to + Action, then to the new row's Action list
+  await card.getByRole('button', { name: /Show me/ }).click();
+  await expect(card.locator('.tut-note')).toContainText('+ Action', { timeout: 30_000 });
+  await expect(how.locator('li.on')).toContainText('+ Action');
+  await expect(card.locator('.tut-note')).toContainText('Give item', { timeout: 30_000 });
+  await expect(how.locator('li.on')).toContainText('Give item');
+  await expect(card.getByRole('button', { name: 'My turn ▶' })).toBeVisible({ timeout: 30_000 });
+  expect(await gives()).toBe(before + 1);
+  await card.getByRole('button', { name: 'My turn ▶' }).click();
+  await expect(card.getByText(/Your turn/).first()).toBeVisible({ timeout: 30_000 });
+  expect(await gives()).toBe(before);
+
+  // the same clicks by hand complete the step
+  const inter = page.locator('[data-tour="asset-interactions"] .interaction').first();
+  await inter.getByRole('button', { name: '+ Action' }).click();
+  await inter.locator('.action-row').last().getByLabel('Action', { exact: true }).selectOption('give');
+  await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 30_000 });
+  expect(errors).toEqual([]);
+});

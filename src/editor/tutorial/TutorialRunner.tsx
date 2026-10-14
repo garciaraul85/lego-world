@@ -70,7 +70,11 @@ export function TutorialRunner({
   /** true while Show me or Do it for me is still working (buttons wait for it) */
   const [working, setWorking] = useState(false);
   const step = STEPS[index]!;
-  const rect = useTargetRect(step.target);
+  /** during Show me: the control the pointer is on now, so the spotlight follows each click */
+  const [focus, setFocus] = useState<string | null>(null);
+  /** during Show me: which line of the click-by-click list is being done (0-based) */
+  const [howAt, setHowAt] = useState(-1);
+  const rect = useTargetRect(focus ?? step.target);
   const doneRef = useRef(false);
 
   const go = (i: number) => {
@@ -110,8 +114,9 @@ export function TutorialRunner({
     return arm(step.check, c, () => complete(at));
   }, [phase, index]);
 
-  const target = (): { x: number; y: number } => {
-    const el = document.querySelector(step.target) as HTMLElement | null;
+  const target = (sel = step.target): { x: number; y: number } => {
+    const el = document.querySelector(sel) as HTMLElement | null;
+    el?.scrollIntoView({ block: 'nearest' });
     const b = el?.getBoundingClientRect();
     return b?.width
       ? { x: b.left + b.width / 2, y: b.top + Math.min(b.height / 2, 40) }
@@ -132,8 +137,14 @@ export function TutorialRunner({
       await wait(60);
       // the pointer goes to the control before each action (earlier actions may open the panel it is in)
       for (const d of step.doItForMe) {
-        setGhost(target());
-        await wait(750);
+        // a click names its control: the pointer and the spotlight go there, and the card says what it is
+        const sel = 'click' in d ? d.click : 'choose' in d ? d.choose : null;
+        if (sel) setFocus(sel);
+        if (('click' in d || 'choose' in d) && d.line) setHowAt(d.line - 1);
+        if (('click' in d || 'choose' in d) && d.say) setNote(d.say);
+        await wait(sel ? 120 : 0);
+        setGhost(target(sel ?? step.target));
+        await wait(sel ? 1400 : 750);
         setClicking(true);
         await wait(220);
         setClicking(false);
@@ -163,6 +174,8 @@ export function TutorialRunner({
       }
       restore(c, snap);
       setGhost(null);
+      setFocus(null);
+      setHowAt(-1);
       busy.current = false;
       setWorking(false);
       setNote(`Your turn: ${step.task}`);
@@ -259,6 +272,13 @@ export function TutorialRunner({
                   : '👉 Your turn:'}{' '}
               {phase === 'done' ? '' : keysFor(step.task)}
             </p>
+            {step.how && phase !== 'done' && (
+              <ol class="tut-how" aria-label="Click by click">
+                {step.how.map((h, i) => (
+                  <li class={i === howAt ? 'on' : ''}>{keysFor(h)}</li>
+                ))}
+              </ol>
+            )}
             {step.code && (
               <figure class="tut-figure" aria-label="Code to type">
                 <pre class="tut-code">{fillCode(step.code, courseTokens(ed))}</pre>

@@ -2645,6 +2645,23 @@ select.inp {
   border-left-color: var(--teal);
   color: var(--teal);
 }
+/* P32: click by click, under the task; the line being shown lights up */
+.tut-how {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--fg2);
+}
+.tut-how li.on {
+  color: var(--fg);
+  font-weight: 600;
+}
+.tut-how li.on::marker {
+  color: var(--acc);
+}
 .tut-note {
   color: var(--info);
   font-size: 12px;

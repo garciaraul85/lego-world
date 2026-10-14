@@ -40,13 +40,34 @@
     {
       "id": "assets.interact",
       "title": "Interactions",
-      "body": "An interaction says what happens when the hero presses E at a socket: change state, give an item, play a sound or a cinematic, send an event to logic. The chest opens its lid and sends “chest-opened”.",
-      "task": "Add an action to the chest's interaction (for example Give item).",
-      "target": "section[aria-label=\"Asset properties\"]",
+      "body": "An interaction says what happens when the hero presses E at a socket of the asset: change its state, give an item, play a sound or a cinematic, send an event to logic. The Treasure chest has two on its lid socket: when closed, it plays a sound, opens and sends “chest-opened”; when open, it closes again. You will add one more action to the first one, so opening the chest also gives the hero a coin.",
+      "task": "In the Asset properties on the right, add a Give item action to the chest’s first interaction (“when closed”).",
+      "target": "[data-tour=\"asset-interactions\"]",
       "placement": "left",
       "workspace": "Assets",
       "check": { "kind": "command", "type": "asset.update" },
-      "doItForMe": [{ "fn": "chestGivesCoin" }]
+      "doItForMe": [
+        { "fn": "editAsset", "args": { "name": "Treasure chest" } },
+        {
+          "click": "[data-tour=\"asset-interactions\"] .interaction .actions-field > button.btn",
+          "say": "Click + Action at the bottom of the first interaction (“lid · when closed”) in Interactions, on the right. A new action row appears, set to Set state.",
+          "line": 3
+        },
+        {
+          "choose": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type select[aria-label=\"Action\"]",
+          "value": "give",
+          "say": "In the new row, open the Action drop-down (its first box) and pick Give item. The row now gives the hero 1 coin.",
+          "line": 4
+        }
+      ],
+      "how": [
+        "Check the chest is open: the build plate’s title says Treasure chest (if not, click Treasure chest in the Asset library on the left).",
+        "In the Asset properties panel on the right, scroll down to Interactions. The first box is the chest’s “lid · when closed” interaction, with three actions: Play sound, Set state (open), Send event.",
+        "Click + Action at the bottom of that first box. A new action row appears under Send event, set to Set state.",
+        "Click that new row’s first drop-down (Action) and pick Give item.",
+        "Its fields show the item (coin) and how many (1). Change them if you like: press Enter or click away to save."
+      ],
+      "setup": [{ "fn": "editAsset", "args": { "name": "Treasure chest" } }]
     },
     {
       "id": "assets.build",

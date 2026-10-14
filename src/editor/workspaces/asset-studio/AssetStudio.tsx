@@ -845,7 +845,7 @@ function Properties({
           <div class="hint">Select a socket, then use ◎ and click the build plate to move it.</div>
         </div>
 
-        <div class="sec">
+        <div class="sec" data-tour="asset-interactions">
           <div class="sech">
             <span>Interactions</span>
             <span>E in play</span>

@@ -20,7 +20,20 @@ export const Do = z.union([
     value: z.union([z.string(), z.boolean(), z.null()]).optional(),
   }),
   z.strictObject({ action: z.string() }),
-  z.strictObject({ click: z.string() }),
+  /** click a control; `say` is what the demo says while its pointer is on it (where, and what the click does) */
+  z.strictObject({
+    click: z.string(),
+    say: z.string().max(200).optional(),
+    /** the line of the step's click-by-click list (`how`, from 1) this click does */
+    line: z.number().int().min(1).max(8).optional(),
+  }),
+  /** pick `value` in a drop-down list (a select) */
+  z.strictObject({
+    choose: z.string(),
+    value: z.string(),
+    say: z.string().max(200).optional(),
+    line: z.number().int().min(1).max(8).optional(),
+  }),
   z.strictObject({ cmd: z.string(), args: z.record(z.string(), z.unknown()) }),
   z.strictObject({ fn: z.string(), args: z.record(z.string(), z.unknown()).optional() }),
 ]);
@@ -59,6 +72,8 @@ export const Step = z.strictObject({
   setup: z.array(Do).optional(),
   /** code to type, shown in the card (coding course); {{tokens}} are filled from the sandbox */
   code: z.string().max(2000).optional(),
+  /** click by click: where each click goes and what it does, shown as a numbered list under the task */
+  how: z.array(z.string().min(1).max(200)).max(8).optional(),
   /** a keyboard shortcut or tip shown under the task */
   tip: z.string().max(200).optional(),
 });
