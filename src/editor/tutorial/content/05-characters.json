@@ -26,13 +26,46 @@
     {
       "id": "chars.look",
       "title": "Change the look",
-      "body": "The properties on the right change every part of the look; the preview updates at once. Each change is one undo step.",
-      "task": "Rename the character or change a color.",
+      "body": "The properties on the right change every part of the look; the preview updates at once. Each choice (hair, hat, shirt…) is a button with a picture: it opens a panel of pictures of your character wearing each option. Colors are color boxes. Each change is one undo step.",
+      "task": "Rename the character Robin, then give it a cowboy hat.",
       "target": "section[aria-label=\"Character properties\"]",
       "placement": "left",
       "workspace": "Characters",
       "check": { "kind": "command", "type": "character.update" },
-      "doItForMe": [{ "fn": "renameCharacter", "args": { "name": "Robin" } }]
+      "doItForMe": [],
+      "how": [
+        {
+          "text": "In the panel “Character” (right), click the box “Name”, select its text, type Robin and press Enter. The title above the preview and the name in the list on the left change to Robin.",
+          "check": { "kind": "state", "test": "characterNamed", "args": "Robin" },
+          "do": [
+            {
+              "fill": "[data-tour=\"char-name\"]",
+              "value": "Robin",
+              "say": "Type Robin in the box “Name” (right) and press Enter."
+            }
+          ]
+        },
+        {
+          "text": "Scroll the same panel to the section “Face & hair” and click the button “Hat” (it shows a small picture of the hat your character wears now). A panel of pictures opens: your character wearing each hat.",
+          "check": { "kind": "dom", "selector": "[data-tour=\"pick-hat-list\"]" },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-hat\"]",
+              "say": "Click the button “Hat” under “Face & hair”: a panel of hat pictures opens."
+            }
+          ]
+        },
+        {
+          "text": "In that panel, click the picture “Cowboy hat”. The panel closes, the preview wears the cowboy hat, and the button “Hat” now reads “Cowboy hat”.",
+          "check": { "kind": "state", "test": "characterWears", "args": { "field": "hat", "value": "Cowboy hat" } },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-hat-list\"] [data-value=\"Cowboy hat\"]",
+              "say": "Click the picture “Cowboy hat”: the preview wears it."
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "chars.hero",
@@ -85,7 +118,7 @@
           ]
         },
         {
-          "text": "In the timeline tools (the bar just under the preview), open the drop-down “+ Track…” and pick “Right arm · z”. A lane named “Right arm · z” appears with a key ◆ at 0 s (value 0).",
+          "text": "In the timeline tools (the bar just under the preview), open the drop-down “+ Track…” and pick “Right arm · z”. A lane named “Right arm · z” appears with a key ◆ at 0 s (value 0); it is selected, so the preview rings the right arm and names it.",
           "check": { "kind": "state", "test": "clipTrack", "args": { "bone": "rightArm", "prop": "z" } },
           "do": [
             {
@@ -117,7 +150,7 @@
           ]
         },
         {
-          "text": "Click that new key ◆ (at 1 s) to select it. Under the lanes, in the box “value”, type 2.6 and press Enter. The arm is now up at 1 s.",
+          "text": "Click that new key ◆ (at 1 s) to select it. Under the lanes, click the box “value”, select its text, type 2.6 and press Enter. The number 2.6 now shows next to the key on the lane, and the arm is up at 1 s.",
           "check": {
             "kind": "state",
             "test": "clipKey",
@@ -126,7 +159,7 @@
           "do": [
             { "click": ".tl-lane.on .tl-key:last-child", "say": "Click the key at 1 s to select it." },
             {
-              "fill": ".tl-foot label:nth-of-type(2) input",
+              "fill": "[data-tour=\"key-value\"]",
               "value": "2.6",
               "say": "In the box “value” under the lanes, type 2.6 and press Enter: the arm goes up at 1 s."
             }

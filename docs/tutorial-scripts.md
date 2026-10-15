@@ -65,7 +65,7 @@ an unknown doer, or acts without a check.
 
 State tests available for lines include `workspace`, `rightTab`, `dockTab`, `menuOpen`,
 `hasSelection`, `clipOpen`, `clipTrack`, `clipTime`, `clipKey`, `clipPlaying`, `studioAssetIs`,
-`assetActions` and `assetDoes`. Add a test there when a new kind of result needs checking; never
+`assetActions`, `assetDoes`, `characterNamed` and `characterWears`. Add a test there when a new kind of result needs checking; never
 check by looking at pixels.
 
 ## Writing a new scripted step
@@ -75,5 +75,19 @@ check by looking at pixels.
 3. Pick the check that proves the click worked; add a state test if none fits.
 4. Run `npx vitest run tests/unit/tutorial-targets.test.ts`, then try Show me and Do it for me in the editor.
 
-Scripted steps today: `assets.interact` (Interactions), `assets.build` (Build a new asset) and
-`chars.animate` (Animate the clip).
+Scripted steps today: `assets.interact` (Interactions), `assets.build` (Build a new asset),
+`chars.look` (Change the look) and `chars.animate` (Animate the clip).
+
+## Hooks a script can use
+
+| Hook | Control |
+| --- | --- |
+| `[data-tour="char-name"]` | Character studio › Name |
+| `[data-tour="pick-<choice>"]`, e.g. `pick-hat` | a look choice's picture button (Hat, Hair, Shirt…) |
+| `[data-tour="pick-<choice>-list"] [data-value="<option>"]` | one picture in that choice's open panel |
+| `[data-tour="clip-length"]` | timeline tools › Length |
+| `[data-tour="key-time"]`, `[data-tour="key-value"]` | the selected key's “at” and “value” boxes |
+| `[data-tour="clip-play"]` | the clip's Play / Pause button |
+
+Text boxes keep what is typed while the screen redraws and take it on Enter (or when the box loses
+focus), so `fill` works the same as a person typing.

@@ -21,7 +21,10 @@
       "recommended": true,
       "style": { "noNonNullAssertion": "off" },
       "suspicious": { "noExplicitAny": "error" },
-      "a11y": { "useSemanticElements": "off" },
+      "a11y": {
+        "useSemanticElements": "off",
+        "noLabelWithoutControl": { "level": "error", "options": { "inputComponents": ["DraftText"] } }
+      },
       "complexity": { "noImportantStyles": "off" }
     }
   }

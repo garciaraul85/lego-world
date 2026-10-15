@@ -6,8 +6,9 @@ const ALIB = area('Asset library');
 const BUILD = area('Build tools');
 const APROPS = area('Asset properties');
 
+/** P32: each look choice is a picture button named "<Choice>: <what it is now>" */
 const LOOK =
-  /^(Height|Gender|Head|Hair|Face|Eyes|Expression|Facial Hair|Glasses|Hat|Costume|Outfit|Shirt|Pants|Dress|Hero Cut|Swimwear|Underwear|Lingerie|Pattern|Shoes|Gloves|Back|Cape|Scarf|Neck|Ears|Wrist|Belt)$/;
+  /^(Height|Gender|Head|Hair|Face|Eyes|Expression|Facial Hair|Glasses|Hat|Costume|Outfit|Shirt|Pants|Dress|Hero Cut|Swimwear|Underwear|Lingerie|Pattern|Shoes|Gloves|Back|Cape|Scarf|Neck|Ears|Wrist|Belt): /;
 const COLOURS = /^(Skin|Hair|Eye|Glasses|Hat|Shirt|Pants|Dress|Shoe|Accent|Glove|Accessory) color$/;
 
 export const CHARACTERS: HelpEntry[] = [
@@ -59,7 +60,14 @@ export const CHARACTERS: HelpEntry[] = [
     screen: 'characters',
     kind: 'view',
     name: 'Character preview',
-    purpose: 'The character in 3D. Drag to turn it; Turntable spins it slowly so you see every side.',
+    purpose:
+      'The character in 3D, with the open clip’s timeline under it. Drag to turn it; Turntable spins it slowly so you see every side. Click a track’s name in the timeline (or one of its keys ◆): the preview rings that body part and names it, and the track’s lane shows the value of each key next to it.',
+    steps: [
+      'Click a clip on the left; its timeline opens under the preview.',
+      'Click a track name (for example “Right arm · z”): the right arm is ringed in the preview.',
+      'Click a key ◆ on that lane: its time (“at”) and value show under the lanes. Type a new value and press Enter.',
+      'Type a new Length (seconds) in the timeline tools and press Enter to make the clip longer or shorter.',
+    ],
     match: [{ in: area('Character preview and timeline') }],
   },
   {
@@ -97,8 +105,12 @@ export const CHARACTERS: HelpEntry[] = [
     kind: 'field',
     name: 'Look',
     purpose:
-      'Body, face, hair, clothes and accessories. Each list changes one part; the preview updates as you choose. Outfit decides which clothing lists show.',
-    match: [{ in: CPROPS, role: 'combobox', name: LOOK }],
+      'Body, face, hair, clothes and accessories. Each choice is a button showing a small picture of what the character wears now; click it to open a panel of pictures of your character wearing each option (close-ups of the head for hats and hair, of the legs for shoes), then click one. The preview updates at once. Outfit decides which clothing choices show.',
+    steps: ['Click a choice’s button (for example “Hat”).', 'Click a picture in the panel that opens.'],
+    match: [
+      { in: CPROPS, role: 'button', name: LOOK },
+      { in: CPROPS, role: 'option' },
+    ],
   },
   {
     id: 'characters.colors',
@@ -114,7 +126,7 @@ export const CHARACTERS: HelpEntry[] = [
     kind: 'field',
     name: 'Held item, power and spell',
     purpose: 'What the character holds (hammer, sword, torch…), its super power, and its spell, used in Play.',
-    match: [{ in: CPROPS, role: 'combobox', name: /^(Held|Power|Spell)$/ }],
+    match: [{ in: CPROPS, role: 'button', name: /^(Held|Power|Spell): / }],
   },
 ];
 

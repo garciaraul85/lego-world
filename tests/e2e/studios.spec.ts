@@ -176,3 +176,74 @@ test('in play, E opens a chest placed near the start', async ({ page }) => {
   await page.keyboard.press('F5'); // stop (Esc is the game's back / pause now)
   expect(errors).toEqual([]);
 });
+
+test('Character studio: looks are picked from pictures; typed timeline values stick while the clip plays; a picked track is ringed', async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Characters' }).click();
+  await page.getByRole('button', { name: '+ New character' }).click();
+  await page
+    .getByRole('listbox', { name: 'New character from a preset' })
+    .getByRole('option', { name: 'Knight' })
+    .click();
+  const props = page.getByRole('region', { name: 'Character properties' });
+  // a choice is a button with a picture; it opens pictures of the character wearing each option
+  const hat = props.locator('[data-tour="pick-hat"]');
+  await expect(hat).toHaveAccessibleName(/^Hat: /);
+  await hat.click();
+  const hats = props.getByRole('listbox', { name: 'Hat' });
+  await expect(hats.locator('.char-thumb img').first()).toBeVisible({ timeout: 30_000 });
+  await hats.getByRole('option', { name: 'Cowboy hat' }).click();
+  await expect(hat).toHaveAccessibleName('Hat: Cowboy hat');
+  const wears = () =>
+    page.evaluate(() => {
+      const e = (window as unknown as { __editor: Ed & { studioCharacter: { value: string } } }).__editor;
+      return (e.store.get(`characters/${e.studioCharacter.value}.json`) as { profile: { hat: string } }).profile.hat;
+    });
+  expect(await wears()).toBe('Cowboy hat');
+  // the name box keeps what is typed
+  const name = props.getByLabel('Character name');
+  await name.click();
+  await name.press('Control+a');
+  await page.keyboard.type('Sir Robin', { delay: 30 });
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.studio-title')).toHaveText('Sir Robin');
+
+  // a clip that plays: the timeline redraws every frame, typing still sticks
+  await page.getByRole('option', { name: 'Squats' }).click();
+  await page.getByRole('button', { name: 'Duplicate to edit' }).click();
+  await expect(page.locator('.char-studio').getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  const len = page.getByLabel('Clip length in seconds');
+  await len.click();
+  await len.press('Control+a');
+  await page.keyboard.type('3.5', { delay: 120 });
+  await expect(len).toHaveValue('3.5');
+  await page.keyboard.press('Enter');
+  const length = () =>
+    page.evaluate(() => {
+      const e = (window as unknown as { __editor: Ed & { studioClip: { value: string } } }).__editor;
+      return (e.store.get(`clips/${e.studioClip.value}.json`) as { length: number }).length;
+    });
+  await expect.poll(length).toBe(3.5);
+
+  // picking a track rings its body part on the preview and names it
+  await page.locator('.tl-label', { hasText: 'Right arm · z' }).click();
+  await expect(page.locator('.part-mark .part-ring')).toBeVisible();
+  await expect(page.locator('.part-tag')).toHaveText('Right arm');
+  await expect(page.getByRole('status').filter({ hasText: 'Selected: Right arm · z' })).toBeVisible();
+  // its lane shows each key's value
+  await expect(page.locator('.tl-lane.on .tl-keyval').first()).toBeVisible();
+  // a key's value typed by hand
+  await page.locator('.tl-lane.on .tl-key').nth(1).click();
+  const value = page.locator('[data-tour="key-value"]');
+  await value.click();
+  await value.press('Control+a');
+  await page.keyboard.type('1.25', { delay: 120 });
+  await expect(value).toHaveValue('1.25');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.tl-lane.on .tl-keyval', { hasText: '1.25' })).toBeVisible();
+  expect(errors).toEqual([]);
+});

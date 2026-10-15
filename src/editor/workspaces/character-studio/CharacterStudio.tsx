@@ -6,10 +6,12 @@ import { newId } from '../../../core/ids';
 import { type Character, type Clip, paths } from '../../../core/schema';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import type { ActionCtx } from '../../actions/registry';
+import { DraftText } from '../../components/fields';
+import { PreviewPicker } from '../../components/PreviewPicker';
 import { Timeline } from '../../components/timeline/Timeline';
 import { actionChoices } from '../../panels/AudioFields';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
-import { CharacterThumb } from './thumbs';
+import { CharacterThumb, type ThumbView } from './thumbs';
 
 /** Look fields grouped the way v68's character builder groups them. */
 const SECTIONS: [string, string[]][] = [
@@ -55,6 +57,30 @@ const SECTIONS: [string, string[]][] = [
   ['Gear & powers', ['held', 'power', 'spell']],
 ];
 
+/** where a choice is worn, so its picture is a close-up of that part */
+const viewOf = (k: string): ThumbView =>
+  ['head', 'hair', 'face', 'eyes', 'expression', 'facialHair', 'glasses', 'hat', 'ears'].includes(k)
+    ? 'head'
+    : ['pants', 'shoes', 'underwear', 'swimwear'].includes(k)
+      ? 'legs'
+      : ['back', 'cape'].includes(k)
+        ? 'back'
+        : [
+              'shirt',
+              'outfit',
+              'dress',
+              'heroCut',
+              'lingerie',
+              'pattern',
+              'gloves',
+              'scarf',
+              'neck',
+              'wrist',
+              'belt',
+            ].includes(k)
+          ? 'torso'
+          : 'full';
+
 const pretty = (k: string) =>
   k
     .replace(/([A-Z])/g, ' $1')
@@ -91,8 +117,10 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     ed.clipPlaying.value = v;
   };
   const [turntable, setTurntable] = useState(false);
-  const preview = useRef<PreviewInput>({ profile: chr.profile, clip, time, turntable });
-  preview.current = { profile: chr.profile, clip, time, turntable };
+  // P32: the timeline's picked track, ringed on the preview
+  const [part, setPart] = useState<PreviewInput['part']>(null);
+  const preview = useRef<PreviewInput>({ profile: chr.profile, clip, time, turntable, part: null });
+  preview.current = { profile: chr.profile, clip, time, turntable, part: clip ? part : null };
 
   // play the clip in real time
   useEffect(() => {
@@ -317,6 +345,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                 setTime(t);
               }}
               onChange={saveClip}
+              onTrackSelect={setPart}
             />
           </>
         ) : (
@@ -332,13 +361,15 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           <div class="sec">
             <label class="field">
               Name
-              <input
+              <DraftText
                 class="inp"
+                tour="char-name"
                 value={chr.name}
                 aria-label="Character name"
-                onChange={(e) => {
-                  const name = (e.target as HTMLInputElement).value.trim().slice(0, 32);
-                  if (name) saveChr({ ...chr, name, profile: { ...chr.profile, name } }, 'Rename character');
+                onCommit={(text) => {
+                  const name = text.trim().slice(0, 32);
+                  if (!name) return false;
+                  saveChr({ ...chr, name, profile: { ...chr.profile, name } }, 'Rename character');
                 }}
               />
             </label>
@@ -403,18 +434,21 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                       />
                     </label>
                   ) : L.CharacterCatalog.choices[k] ? (
-                    <label class="field">
+                    // P32: each choice is a picture of this character wearing it, close up where it is worn
+                    <div class="field">
                       {pretty(k)}
-                      <select
-                        class="inp"
+                      <PreviewPicker
+                        label={pretty(k)}
                         value={String(chr.profile[k])}
-                        onChange={(e) => setField(k, (e.target as HTMLSelectElement).value)}
-                      >
-                        {L.CharacterCatalog.choices[k]!.map((o) => (
-                          <option value={o}>{o}</option>
-                        ))}
-                      </select>
-                    </label>
+                        options={L.CharacterCatalog.choices[k]!.map((o) => ({
+                          value: o,
+                          name: o,
+                          thumb: <CharacterThumb profile={{ ...chr.profile, [k]: o }} view={viewOf(k)} size={40} />,
+                        }))}
+                        onPick={(v) => setField(k, v)}
+                        tour={k}
+                      />
+                    </div>
                   ) : null,
                 )}
             </div>

@@ -1,14 +1,15 @@
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Clip } from '../../../core/schema';
 import { ALL_TRACKS } from '../../../engine/character/clip-params';
 import { sampleTrack } from '../../../engine/character/routine';
+import { DraftText } from '../fields';
 
 type Key = Clip['tracks'][number]['keys'][number];
 type Sel = { kind: 'key'; track: number; key: number } | { kind: 'event'; index: number } | null;
 
 const SNAP = 1 / 30;
 const EASES: Key[2][] = ['easeInOut', 'linear', 'easeIn', 'easeOut', 'step'];
-const BONE_NAMES: Record<string, string> = {
+export const BONE_NAMES: Record<string, string> = {
   root: 'Body',
   hips: 'Hips',
   torso: 'Torso',
@@ -37,6 +38,7 @@ export function Timeline({
   onSeek,
   onChange,
   choices,
+  onTrackSelect,
 }: {
   clip: Clip;
   time: number;
@@ -45,6 +47,8 @@ export function Timeline({
   onChange: (next: Clip, label: string) => void;
   /** sound events and cinematics for marker pickers (P5 / P6.4) */
   choices?: { sounds: { id: string; name: string }[]; cinematics: { id: string; name: string }[] };
+  /** P32: the track picked in the timeline (a label, a key or a new track), so the preview can point at its part */
+  onTrackSelect?: (track: { bone: string; prop: string } | null) => void;
 }) {
   const [sel, setSel] = useState<Sel>(null);
   const [trackSel, setTrackSel] = useState(0);
@@ -100,6 +104,7 @@ export function Timeline({
   };
 
   const track = clip.tracks[trackSel];
+  useEffect(() => onTrackSelect?.(track ? { bone: track.bone, prop: track.prop } : null), [track?.bone, track?.prop]);
   const key = sel?.kind === 'key' ? clip.tracks[sel.track]?.keys[sel.key] : null;
   const ev = sel?.kind === 'event' ? clip.events[sel.index] : null;
   const unused = ALL_TRACKS.filter((a) => !clip.tracks.some((t) => t.bone === a.bone && t.prop === a.prop));
@@ -115,15 +120,18 @@ export function Timeline({
         </label>
         <label class="lbl small">
           Length
-          <input
+          <DraftText
             class="inp mono"
             style={{ width: '64px' }}
+            inputMode="decimal"
             aria-label="Clip length in seconds"
+            tour="clip-length"
             disabled={readOnly}
-            value={L}
-            onChange={(e) => {
-              const v = Number((e.target as HTMLInputElement).value);
-              if (!(v > 0)) return;
+            value={String(L)}
+            same={(a, b) => Number(a) === Number(b)}
+            onCommit={(text) => {
+              const v = Number(text);
+              if (!(v > 0) || !Number.isFinite(v)) return false;
               onChange(
                 {
                   ...clip,
@@ -266,11 +274,19 @@ export function Timeline({
           </div>
           {clip.tracks.map((t, ti) => (
             <div class={`tl-lane ${ti === trackSel ? 'on' : ''}`}>
+              {/* the selected lane shows each key's value next to it */}
+              {ti === trackSel &&
+                t.keys.map((k) => (
+                  <span class="tl-keyval mono" style={{ left: pct(k[0]) }} aria-hidden="true">
+                    {Math.round(k[1] * 100) / 100}
+                  </span>
+                ))}
               {t.keys.map((k, ki) => (
                 <button
                   type="button"
                   class={`tl-key ${sel?.kind === 'key' && sel.track === ti && sel.key === ki ? 'on' : ''}`}
                   style={{ left: pct(k[0]) }}
+                  title={`${trackLabel(t.bone, t.prop)} at ${k[0].toFixed(2)} s: value ${Math.round(k[1] * 1000) / 1000}`}
                   aria-label={`Key ${trackLabel(t.bone, t.prop)} at ${k[0].toFixed(2)} s`}
                   onPointerDown={(p) => {
                     setSel({ kind: 'key', track: ti, key: ki });
@@ -297,6 +313,7 @@ export function Timeline({
             <DraftNum
               key={`at-${sel.track}-${sel.key}`}
               label="at"
+              tour="key-time"
               width="64px"
               disabled={readOnly}
               value={key[0]}
@@ -313,6 +330,7 @@ export function Timeline({
             <DraftNum
               key={`value-${sel.track}-${sel.key}`}
               label="value"
+              tour="key-value"
               width="72px"
               disabled={readOnly}
               value={key[1]}
@@ -367,17 +385,17 @@ export function Timeline({
               {'emit' in ev ? 'Sends event' : 'sound' in ev ? 'Plays sound' : 'Starts cinematic'}
             </span>
             {'emit' in ev || !choices ? (
-              <input
+              <DraftText
                 class="inp"
                 style={{ width: '160px' }}
                 disabled={readOnly}
                 aria-label="Marker name"
                 value={'emit' in ev ? ev.emit : 'sound' in ev ? ev.sound : ev.cinematic}
-                onChange={(e) => {
-                  const v = (e.target as HTMLInputElement).value.trim();
-                  if (!v) return;
-                  if ('sound' in ev && !/^snd_[0-9a-z]{10}$/.test(v)) return;
-                  if ('cinematic' in ev && !/^cin_[0-9a-z]{10}$/.test(v)) return;
+                onCommit={(text) => {
+                  const v = text.trim();
+                  if (!v) return false;
+                  if ('sound' in ev && !/^snd_[0-9a-z]{10}$/.test(v)) return false;
+                  if ('cinematic' in ev && !/^cin_[0-9a-z]{10}$/.test(v)) return false;
                   const next =
                     'emit' in ev
                       ? { t: ev.t, emit: v }
@@ -455,10 +473,7 @@ function markerLabel(e: Clip['events'][number]) {
   return `Cinematic ${e.cinematic}`;
 }
 
-/**
- * A number box that keeps what is being typed while the timeline redraws (a playing clip redraws every frame),
- * and changes the clip once: on Enter, or when the box loses focus.
- */
+/** A number box (see DraftText): keeps what is typed while the timeline redraws, changes the clip once. */
 function DraftNum({
   label,
   value,
@@ -466,7 +481,9 @@ function DraftNum({
   onCommit,
   width,
   disabled,
+  tour,
 }: {
+  tour: string;
   label: string;
   value: number;
   show: (n: number) => string;
@@ -474,28 +491,22 @@ function DraftNum({
   width: string;
   disabled: boolean;
 }) {
-  const [draft, setDraft] = useState<string | null>(null);
-  // Enter and the change event both commit; only the first one counts
-  const done = useRef(value);
-  done.current = value;
-  const commit = (text: string) => {
-    setDraft(null);
-    const n = Number(text);
-    if (text.trim() === '' || !Number.isFinite(n) || show(n) === show(done.current)) return;
-    done.current = n;
-    onCommit(n);
-  };
   return (
     <label class="lbl small">
       {label}
-      <input
+      <DraftText
         class="inp mono"
         style={{ width }}
+        inputMode="decimal"
+        tour={tour}
         disabled={disabled}
-        value={draft ?? show(value)}
-        onInput={(e) => setDraft((e.target as HTMLInputElement).value)}
-        onChange={(e) => commit((e.target as HTMLInputElement).value)}
-        onKeyDown={(e) => e.key === 'Enter' && commit((e.target as HTMLInputElement).value)}
+        value={show(value)}
+        same={(a, b) => Number(a) === Number(b)}
+        onCommit={(text) => {
+          const n = Number(text);
+          if (text.trim() === '' || !Number.isFinite(n)) return false;
+          onCommit(n);
+        }}
       />
     </label>
   );

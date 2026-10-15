@@ -140,7 +140,7 @@ Assets are reusable objects made of bricks. Pick one in the dock and place it wi
 
 ## 8. Characters
 
-The **Characters** workspace dresses minifigures (hair, face, outfit, colors, gear) and animates them with keyframe **clips** on a timeline. Start from one of v68's presets; **Make player character** picks the hero.
+The **Characters** workspace dresses minifigures (hair, face, outfit, colors, gear) and animates them with keyframe **clips** on a timeline. Start from one of v68's presets; **Make player character** picks the hero. Every look choice opens a panel of pictures of your character wearing each option. In a clip's timeline, clicking a track rings its body part on the preview, and the selected lane shows each key's value.
 
 ![The Character studio](screenshots/engine/08-character-studio.png)
 

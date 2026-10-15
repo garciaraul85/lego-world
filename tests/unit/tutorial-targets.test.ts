@@ -20,6 +20,7 @@ const SRC = sources('src/editor') + sources('src/engine') + sources('src/apps');
 /** data-tour values built from templates in the shell. */
 const TEMPLATED: Record<string, RegExp> = {
   ws: /data-tour=\{`ws-\$\{/,
+  pick: /`pick-\$\{tour\}/,
   tab: /data-tour=\{`tab-\$\{/,
   menu: /data-tour=\{`menu-\$\{/,
 };
@@ -27,6 +28,8 @@ const TEMPLATED: Record<string, RegExp> = {
 function present(attr: string, value: string): boolean {
   if (SRC.includes(`${attr}="${value}"`) || SRC.includes(`${attr}={'${value}'}`)) return true;
   if (attr === 'data-tour') {
+    // a component that renders the hook from its `tour` prop (DraftText, PreviewPicker)
+    if (SRC.includes(`tour="${value}"`)) return true;
     const prefix = value.split('-')[0]!;
     return !!TEMPLATED[prefix]?.test(SRC);
   }

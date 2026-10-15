@@ -1411,6 +1411,16 @@ select.inp {
 .tl-key.on {
   background: var(--acc);
 }
+.tl-keyval {
+  position: absolute;
+  top: 4px;
+  margin-left: 9px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--acc);
+  pointer-events: none;
+  white-space: nowrap;
+}
 .tl-event {
   position: absolute;
   top: 2px;
@@ -4195,4 +4205,81 @@ select.inp {
 .asset-search {
   width: 180px;
   min-width: 120px;
+}
+
+/* P32: the body part of the track picked in a clip's timeline, ringed on the character preview */
+.part-mark {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.part-mark[hidden] {
+  display: none;
+}
+.part-ring {
+  position: absolute;
+  left: -16px;
+  top: -16px;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--acc);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px #0008,
+    0 0 12px var(--acc);
+  animation: part-pulse 1.2s ease-in-out infinite;
+}
+.part-tag {
+  position: absolute;
+  left: 20px;
+  top: -30px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--acc);
+  color: #1a1306;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px #0008;
+}
+@keyframes part-pulse {
+  50% {
+    transform: scale(1.18);
+    opacity: 0.75;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .part-ring {
+    animation: none;
+  }
+}
+.part-status {
+  position: absolute;
+  left: 8px;
+  bottom: 6px;
+  max-width: calc(100% - 16px);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #000a;
+  color: var(--fg);
+  font-size: 12px;
+  pointer-events: none;
+}
+.part-status:empty {
+  display: none;
+}
+/* P32: a character choice picker sits in a property row like the other fields */
+.field .pv-field {
+  justify-self: stretch;
+}
+.field .pv-btn-thumb .char-thumb {
+  width: 26px !important;
+  height: 26px !important;
+  padding: 0;
+}
+.pv-thumb .char-thumb {
+  width: 100% !important;
+  height: 48px !important;
 }

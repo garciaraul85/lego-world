@@ -1,5 +1,5 @@
 import type { Command } from '../../core/commands';
-import { type Asset, type Cinematic, type Clip, paths, type Screen } from '../../core/schema';
+import { type Asset, type Character, type Cinematic, type Clip, paths, type Screen } from '../../core/schema';
 import { assetLibrary } from '../assets';
 import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
@@ -54,6 +54,12 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
       (ed.store.get<Asset>(paths.asset(id))?.name ?? assetLibrary(ed).find((x) => x.asset.id === id)?.asset.name) === a
     );
   },
+  // P32: the Character studio's open character
+  characterNamed: (ed, a) => studioCharacter(ed)?.name === a,
+  characterWears: (ed, a) => {
+    const { field, value } = a as { field: string; value: string };
+    return studioCharacter(ed)?.profile[field] === value;
+  },
   // P32: an asset's interactions
   assetActions: (ed, a) => {
     const { name, atLeast } = a as { name: string; atLeast: number };
@@ -67,6 +73,10 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
 };
 
 type TrackArg = { bone: string; prop: string };
+function studioCharacter(ed: EditorState): Character | null {
+  const id = ed.studioCharacter.value;
+  return id ? (ed.store.get<Character>(paths.character(id)) ?? null) : null;
+}
 function openClip(ed: EditorState): Clip | null {
   const id = ed.studioClip.value;
   return id ? (ed.store.get<Clip>(paths.clip(id)) ?? null) : null;

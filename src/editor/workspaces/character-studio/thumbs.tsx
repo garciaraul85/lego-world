@@ -12,7 +12,20 @@ import { FRAGMENT } from '../../../engine/render/shaders';
 const W = 96;
 const H = 120;
 const cache = new Map<string, string>();
-const waiting = new Map<string, { profile: Record<string, unknown>; done: ((url: string) => void)[] }>();
+const waiting = new Map<
+  string,
+  { profile: Record<string, unknown>; view: ThumbView; done: ((url: string) => void)[] }
+>();
+
+/** Which part of the character a picture shows: the whole figure, or a close-up of where a choice is worn. */
+export type ThumbView = 'full' | 'head' | 'torso' | 'legs' | 'back';
+const VIEWS: Record<ThumbView, { target: [number, number, number]; distance: number; yaw: number; pitch: number }> = {
+  full: { target: [0, 1.75, 0], distance: 7, yaw: 0.35, pitch: 0.12 },
+  head: { target: [0, 3.95, 0], distance: 3.5, yaw: 0.3, pitch: 0.1 },
+  torso: { target: [0, 2.5, 0], distance: 4.2, yaw: 0.35, pitch: 0.1 },
+  legs: { target: [0, 1.0, 0], distance: 4.2, yaw: 0.35, pitch: 0.18 },
+  back: { target: [0, 2.3, 0], distance: 5.6, yaw: Math.PI - 0.5, pitch: 0.12 },
+};
 let shared: {
   canvas: HTMLCanvasElement;
   renderer: Renderer;
@@ -55,9 +68,14 @@ function setup() {
   return shared;
 }
 
-function draw(profile: Record<string, unknown>): string {
+function draw(profile: Record<string, unknown>, view: ThumbView): string {
   const s = setup();
   if (!s) return '';
+  const v = VIEWS[view];
+  s.cam.target = [...v.target];
+  s.cam.baseDistance = v.distance;
+  s.cam.yaw = v.yaw;
+  s.cam.pitch = v.pitch;
   const L = legacyRuntime();
   const state = { ...L.StudioAnimations.sample('still', 0, profile).state, heading: 0 };
   s.renderer.render(s.cam.frame(), s.cam.target, [], [], [], (mvp, eye) => {
@@ -80,7 +98,7 @@ function pump() {
     waiting.delete(key);
     let url = '';
     try {
-      url = draw(job.profile);
+      url = draw(job.profile, job.view);
     } catch {
       /* a look the model cannot draw gets no picture */
     }
@@ -91,8 +109,8 @@ function pump() {
 }
 
 /** The picture of a character's look ('' while it is being drawn, or if it cannot be). */
-export function useCharacterThumb(profile: Record<string, unknown>): string {
-  const key = JSON.stringify(profile);
+export function useCharacterThumb(profile: Record<string, unknown>, view: ThumbView = 'full'): string {
+  const key = `${view}|${JSON.stringify(profile)}`;
   const [url, setUrl] = useState(() => cache.get(key) ?? '');
   useEffect(() => {
     const hit = cache.get(key);
@@ -101,7 +119,7 @@ export function useCharacterThumb(profile: Record<string, unknown>): string {
       return;
     }
     let live = true;
-    const job = waiting.get(key) ?? { profile, done: [] };
+    const job = waiting.get(key) ?? { profile, view, done: [] };
     job.done.push((u) => live && setUrl(u));
     waiting.set(key, job);
     pump();
@@ -112,8 +130,16 @@ export function useCharacterThumb(profile: Record<string, unknown>): string {
   return url;
 }
 
-export function CharacterThumb({ profile, size = 40 }: { profile: Record<string, unknown>; size?: number }) {
-  const url = useCharacterThumb(profile);
+export function CharacterThumb({
+  profile,
+  size = 40,
+  view = 'full',
+}: {
+  profile: Record<string, unknown>;
+  size?: number;
+  view?: ThumbView;
+}) {
+  const url = useCharacterThumb(profile, view);
   return (
     <span
       class="char-thumb"
