@@ -47,6 +47,8 @@ export interface ExecCtx {
   travel(map: string, spawn: string): void;
   give(item: string, count: number): void;
   spawn(asset: string, at: string): string | null;
+  /** P32: an asset (by name or id) at an object's item spot (an instance id, or an asset name: the nearest copy) */
+  spawnNear(item: string, near: string): string | null;
   despawn(target: string): void;
   media(
     kind: 'sound' | 'music' | 'stopMusic' | 'show' | 'hide' | 'setText' | 'cinematic' | 'stopCinematic',

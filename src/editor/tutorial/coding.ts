@@ -56,12 +56,19 @@ export const fillCode = (code: string, t: Record<string, string>) =>
 
 /** Opens the course's graph in the Code view (making it on first use) and waits for the editor. */
 async function openCourse(c: ActionCtx, view: 'code' | 'split' = 'code') {
-  const { ed, ui } = c;
+  const { ed } = c;
   let g = courseGraph(ed);
   if (!g) {
     g = newGraph(COURSE, { type: 'event.onStart' });
     run(c, { type: 'logic.create', payload: { graph: g } }, 'New logic');
   }
+  return openCode(c, g.id, view);
+}
+
+/** Opens a graph in the Code (or Split) view and waits for its code editor. */
+export async function openCode(c: ActionCtx, graph: string, view: 'code' | 'split' = 'code') {
+  const { ed, ui } = c;
+  const g = { id: graph };
   ui.workspace('Logic');
   ed.logicGraph.value = g.id;
   if (ed.logicView.value === 'graph') ed.logicView.value = view;
@@ -78,34 +85,9 @@ export const CODING_DOERS: Record<string, (c: ActionCtx, a: Record<string, unkno
   /** Types code into the Code view (you watch it appear); the editor turns it into the graph. */
   async typeCode(c, a) {
     await openCourse(c);
-    const target = fillCode(String(a.code), courseTokens(c.ed));
-    // the live editor, looked up again for every chunk (it is recreated when the view or graph changes)
-    const view = () => activeCode.cm?.view ?? null;
-    const set = (from: number, insert: string) => {
-      const v = view();
-      if (!v) return;
-      const len = v.state.doc.length;
-      v.dispatch({
-        changes: { from: Math.min(from, len), to: len, insert },
-        selection: { anchor: Math.min(from, len) + insert.length },
-      });
-    };
-    const cur = activeCode.cm?.getDoc() ?? '';
-    let pre = 0;
-    while (pre < cur.length && pre < target.length && cur[pre] === target[pre]) pre++;
-    view()?.focus();
-    set(pre, '');
-    const rest = target.slice(pre);
-    const step = Math.max(2, Math.ceil(rest.length / 45));
-    for (let i = 0; i < rest.length; i += step) {
-      const v = view();
-      if (!v) break;
-      set(v.state.doc.length, rest.slice(i, i + step));
-      await wait(16);
-    }
-    if ((activeCode.cm?.getDoc() ?? '') !== target) set(0, target);
-    await wait(800); // the Code view turns the text into the graph after a short pause
+    await typeInto(c, fillCode(String(a.code), courseTokens(c.ed)));
   },
+
   /** Places what the course's snippets talk about: a chest, a trigger zone and a reward scene. */
   setStage(c) {
     const { ed } = c;
@@ -216,3 +198,33 @@ export const CODING_TESTS: Record<string, (ed: EditorState, args: unknown) => bo
     );
   },
 };
+
+/** Types `target` into the open code editor, keeping what already matches (you watch the rest appear). */
+export async function typeInto(_c: ActionCtx, target: string) {
+  // the live editor, looked up again for every chunk (it is recreated when the view or graph changes)
+  const view = () => activeCode.cm?.view ?? null;
+  const set = (from: number, insert: string) => {
+    const v = view();
+    if (!v) return;
+    const len = v.state.doc.length;
+    v.dispatch({
+      changes: { from: Math.min(from, len), to: len, insert },
+      selection: { anchor: Math.min(from, len) + insert.length },
+    });
+  };
+  const cur = activeCode.cm?.getDoc() ?? '';
+  let pre = 0;
+  while (pre < cur.length && pre < target.length && cur[pre] === target[pre]) pre++;
+  view()?.focus();
+  set(pre, '');
+  const rest = target.slice(pre);
+  const step = Math.max(2, Math.ceil(rest.length / 45));
+  for (let i = 0; i < rest.length; i += step) {
+    const v = view();
+    if (!v) break;
+    set(v.state.doc.length, rest.slice(i, i + step));
+    await wait(16);
+  }
+  if ((activeCode.cm?.getDoc() ?? '') !== target) set(0, target);
+  await wait(800); // the Code view turns the text into the graph after a short pause
+}

@@ -265,6 +265,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                 };
                 if (ed.exec({ type: 'clip.create', payload: { clip: blank } }).ok) setClipId(blank.id);
               }}
+              data-tour="clip-new"
             >
               + New
             </button>
@@ -378,6 +379,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                 type="button"
                 class="btn on"
                 style={{ flex: 1 }}
+                data-tour="char-hero"
                 disabled={!inProject || isHero}
                 onClick={() =>
                   ed.exec({ type: 'project.update', payload: { hero: chr.id } }, { label: 'Choose player character' })
@@ -398,6 +400,27 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               </button>
             </div>
           </div>
+          {clip && !builtinClip && (
+            <div class="sec">
+              <div class="sech">
+                <span>Clip</span>
+              </div>
+              <label class="field">
+                Clip name
+                <DraftText
+                  class="inp"
+                  tour="clip-name"
+                  aria-label="Clip name"
+                  value={clip.name ?? ''}
+                  onCommit={(text) => {
+                    const name = text.trim().slice(0, 60);
+                    if (!name) return false;
+                    saveClip({ ...clip, name }, 'Rename clip');
+                  }}
+                />
+              </label>
+            </div>
+          )}
           {clip && (
             <div class="sec">
               <div class="sech">

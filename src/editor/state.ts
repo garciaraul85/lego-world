@@ -99,6 +99,9 @@ export class EditorState {
   readonly workspace = signal('Scene');
   /** the cinematic open in the Director (P6.3) */
   readonly cinematicId = signal<string | null>(null);
+  /** P32: the Director's playhead (seconds), and a request to move it (scripts: tutorial lines, AI plans) */
+  readonly cineTime = signal(0);
+  readonly cineSeek = signal<{ t: number } | null>(null);
   /** what the Audio workspace shows: an event, a music state, the mixer or media (P5.6) */
   readonly audioSel = signal<{ kind: 'event' | 'music' | 'mixer' | 'media'; id: string | null }>({
     kind: 'event',

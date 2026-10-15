@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (48 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (49 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -316,11 +316,21 @@ Puts a copy of an asset at a spawn point of the current map.
 - Outputs: entity (entity)
 - Code: `world.spawn(asset, at);`
 
+### Spawn item at object
+
+`world.spawnNear` · action
+
+Puts a copy of an asset at an object’s item spot (a chest’s inside, a table’s top), turned like the object. Item: the asset’s name or id, so a variable can choose it. Object: a placed asset’s id or its name (the copy nearest the hero). Its output is the new copy, for Set state.
+
+- Inputs: item (string), object (entity)
+- Outputs: entity (entity)
+- Code: `world.spawnNear(item, near);`
+
 ### Remove
 
 `world.despawn` · action
 
-Removes a placed asset from the world for this play.
+Removes a placed asset from the world for this play (an id, or an asset name: the copy nearest the hero).
 
 - Inputs: target (entity)
 - Code: `world.despawn(target);`
@@ -329,7 +339,7 @@ Removes a placed asset from the world for this play.
 
 `world.setState` · action
 
-Switches a placed asset to one of its states (a chest open, a lamp off).
+Switches a placed asset to one of its states (a chest open, a lamp off). Target: an id, or an asset name (the copy nearest the hero). Moving parts ease to the new state.
 
 - Inputs: target (entity), state (string)
 - Code: `world.setState(target, state);`

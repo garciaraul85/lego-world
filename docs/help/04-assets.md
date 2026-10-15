@@ -33,4 +33,15 @@ Its panels set:
 
 Some things lean or tilt: a crooked roof, a branch, a wheel on its side. In the Asset studio, select those bricks (Alt-click picks single bricks, Shift-click adds more), then use Rotate (E): the red ring turns them about X, the green about Y, the blue about Z, in 15° steps. Resize (Q) on several bricks sizes them the same way. They become a part of the asset, listed under Turned parts on the right, and every placed copy shows them turned, also when the copy itself is turned. Straighten puts them back. For the brick rules a part keeps its straight place, so nothing that was built on it is left floating; nothing new can be built on a turned part.
 
+## Moving parts
+
+A part can also move between the asset's states: the treasure chest's lid swings open, a door turns on its hinge, the built-in Sword rises out of a chest. Each moving part has a pose in every state (a turn in degrees about X, Y and Z, and a move in studs) and a hinge it turns around; every placed copy eases from one pose to the next when its state changes, over the seconds you set.
+
+1. Select the bricks that move (the lid), then click **Selected bricks → moving part** under Parts (right). A part that is already turned has a **Moves** button instead.
+2. Pick a state above the plate (for example **open**) and type its pose: **turn x°** −105 lifts a lid up and back.
+3. In **Turns around** pick the hinge: **Back bottom edge** for a lid, **Left/Right bottom edge** for a door, **Its middle** to spin in place.
+4. Set **seconds**. Pick each state above the plate to see the part there; in Play it eases between them.
+
+An asset made only of moving parts floats when logic puts it in the world with **Spawn item at object**: it is drawn but does not have to fit among the bricks, so a sword can rise out of a closed-looking chest.
+
 The piece button above the build plate shows the brick you are building with; click it to pick the kind and size from pictures, and pick the color next to it.

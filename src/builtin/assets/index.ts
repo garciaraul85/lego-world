@@ -1,5 +1,5 @@
 // Generated list of the built-in asset library (P3.2). Structures come from scripts/extract-assets.mjs;
-// interactive props (chest, door, lamp post, stall, bench, fence, signpost) are hand-made.
+// interactive props (chest, door, lamp post, stall, bench, fence, signpost, sword) are hand-made.
 import { shapeId } from '../../core/assets/instancify';
 import { Asset } from '../../core/schema';
 import autumnMapleTree from './autumn-maple-tree.json';
@@ -24,6 +24,7 @@ import rainforestTree from './rainforest-tree.json';
 import shrub from './shrub.json';
 import signpost from './signpost.json';
 import skyscraper from './skyscraper.json';
+import sword from './sword.json';
 import tower from './tower.json';
 import willowTree from './willow-tree.json';
 
@@ -50,6 +51,7 @@ const RAW: Record<string, unknown> = {
   shrub: shrub,
   signpost: signpost,
   skyscraper: skyscraper,
+  sword: sword,
   tower: tower,
   'willow-tree': willowTree,
 };

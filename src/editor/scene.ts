@@ -1,4 +1,4 @@
-import { type FreeGroup, freeGroups } from '../core/assets/free';
+import { type FreeGroup, freeGroups, posedAffine } from '../core/assets/free';
 import { type ExpandedInstance, expandInstances } from '../core/assets/instances';
 import {
   type FreeTransform,
@@ -20,7 +20,16 @@ import { brickHeightUnits, type RenderBrick } from '../engine/render/renderer';
 import { type CategoryId, categoryOf } from './categories';
 
 /** A part of the asset open in the Asset studio: plate brick ids and its turn and size. */
-export type StudioPart = { index: number; name: string; ids: number[]; tilt?: Tilt; scale?: Scale };
+export type StudioPart = {
+  index: number;
+  name: string;
+  ids: number[];
+  tilt?: Tilt;
+  scale?: Scale;
+  /** P32: a moving part's pose in the state the plate shows, turned around `hinge` (plate = asset frame) */
+  pose?: { turn: [number, number, number]; move: [number, number, number] };
+  hinge?: [number, number, number];
+};
 
 export type Hit = { brick: Brick; t: number; point: Vec3; normal: Vec3 };
 export type SurfaceHit = { x: number; z: number; y: number; t: number; on: Brick | null };
@@ -109,7 +118,7 @@ export class SceneModel {
   private studioGroups(): FreeGroup[] {
     if (!this.parts) return [];
     return this.parts.flatMap((p) => {
-      if (!hasTilt(p.tilt) && !hasScale(p.scale)) return [];
+      if (!hasTilt(p.tilt) && !hasScale(p.scale) && !p.pose) return [];
       const bricks = p.ids.flatMap((id) => {
         const b = this.byId.get(id)?.brick;
         return b ? [b] : [];
@@ -117,7 +126,8 @@ export class SceneModel {
       if (!bricks.length) return [];
       const tilt = (p.tilt ?? [0, 0, 0]) as Tilt;
       const scale = (p.scale ?? [1, 1, 1]) as Scale;
-      const { affine, center } = freeAffine(bricks, tilt, scale);
+      const base = freeAffine(bricks, tilt, scale);
+      const { affine, center } = p.pose ? posedAffine(base, p.pose.turn, p.pose.move, p.hinge ?? null) : base;
       return [
         {
           key: `part#${p.index}`,

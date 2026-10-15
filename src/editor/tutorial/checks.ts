@@ -1,8 +1,19 @@
 import type { Command } from '../../core/commands';
-import { type Asset, type Character, type Cinematic, type Clip, paths, type Screen } from '../../core/schema';
+import {
+  type Asset,
+  type Character,
+  type Cinematic,
+  type Clip,
+  type LogicGraph,
+  type MapDoc,
+  paths,
+  type Screen,
+  type Variables,
+} from '../../core/schema';
 import { assetLibrary } from '../assets';
 import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
+import { chestFront } from './story';
 
 /** Named tests for `state` checks (P7.3). They read the editor; none of them changes anything. */
 export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boolean> = {
@@ -41,11 +52,22 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     return Math.abs(ed.clipTime.value - t) <= within;
   },
   clipKey: (ed, a) => {
-    const { t, within = 0.2, atLeast } = a as TrackArg & { t: number; within?: number; atLeast?: number };
+    const {
+      t,
+      within = 0.2,
+      atLeast,
+      atMost,
+    } = a as TrackArg & { t: number; within?: number; atLeast?: number; atMost?: number };
     return !!clipTrack(ed, a as TrackArg)?.keys.some(
-      (k) => Math.abs(k[0] - t) <= within && (atLeast === undefined || k[1] >= atLeast),
+      (k) =>
+        Math.abs(k[0] - t) <= within &&
+        (atLeast === undefined || k[1] >= atLeast) &&
+        (atMost === undefined || k[1] <= atMost),
     );
   },
+  clipNamed: (ed, a) => openClip(ed)?.name === a,
+  clipLoop: (ed, a) => !!openClip(ed) && openClip(ed)!.loop === a,
+  clipLength: (ed, a) => Math.abs((openClip(ed)?.length ?? -1) - Number(a)) < 0.01,
   clipPlaying: (ed) => ed.clipPlaying.value && !!openClip(ed),
   studioAssetIs: (ed, a) => {
     const id = ed.studioAsset.value;
@@ -60,6 +82,91 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     const { field, value } = a as { field: string; value: string };
     return studioCharacter(ed)?.profile[field] === value;
   },
+  // P32: the treasure-chest story — logic
+  graphNamed: (ed, a) => openGraph(ed)?.name === a,
+  hasVar: (ed, a) => {
+    const { name, type, value } = a as { name: string; type?: string; value?: unknown };
+    const v = ed.store.get<Variables>(paths.variables)?.vars[name];
+    return !!v && (type === undefined || v.type === type) && (value === undefined || v.default === value);
+  },
+  graphHas: (ed, a) => {
+    const { type, args } = a as { type: string; args?: Record<string, unknown> };
+    return !!openGraph(ed)?.nodes.some((n) => n.type === type && matches(n.args ?? {}, args));
+  },
+  graphEdge: (ed, a) => {
+    const { from, out, to, into } = a as {
+      from: { type: string; args?: Record<string, unknown> };
+      out: string;
+      to: { type: string; args?: Record<string, unknown> };
+      into: string;
+    };
+    const g = openGraph(ed);
+    if (!g) return false;
+    const is = (id: string, w: typeof from) => {
+      const n = g.nodes.find((x) => x.id === id);
+      return !!n && n.type === w.type && matches(n.args ?? {}, w.args);
+    };
+    return g.edges.some((e) => e[1] === out && e[3] === into && is(e[0], from) && is(e[2], to));
+  },
+  /** the chest's code: the item comes from the variable, rises out, is given; take-sword removes it */
+  chestCode: (ed) => {
+    const g = openGraph(ed);
+    if (!g) return false;
+    const node = (id: string) => g.nodes.find((n) => n.id === id);
+    const fed = (id: string, pin: string, type: string, args?: Record<string, unknown>) =>
+      g.edges.some(
+        (e) => e[2] === id && e[3] === pin && node(e[0])?.type === type && matches(node(e[0])?.args ?? {}, args),
+      );
+    const spawn = g.nodes.find(
+      (n) => n.type === 'world.spawnNear' && fed(n.id, 'item', 'var.get', { var: 'chestItem' }),
+    );
+    if (!spawn) return false;
+    const rises = g.edges.some(
+      (e) =>
+        e[0] === spawn.id &&
+        e[1] === 'entity' &&
+        node(e[2])?.type === 'world.setState' &&
+        node(e[2])?.args?.state === 'out',
+    );
+    const gives = g.nodes.some((n) => n.type === 'world.give' && fed(n.id, 'item', 'var.get', { var: 'chestItem' }));
+    const takes = g.nodes.some((n) => n.type === 'event.onCustom' && n.args?.event === 'take-sword');
+    return rises && gives && takes;
+  },
+  // P32: the treasure-chest story — the cinematic
+  cineNamed: (ed, a) => openCine(ed)?.name === a,
+  cineLength: (ed, a) => Math.abs((openCine(ed)?.length ?? -1) - Number(a)) < 0.01,
+  cineTime: (ed, a) => Math.abs(ed.cineTime.value - Number(a)) <= 0.15,
+  cineMarkAtChest: (ed) => {
+    const c = openCine(ed);
+    const front = chestFront(ed);
+    const m = c?.marks[0];
+    return !!m && !!front && Math.hypot(m.pos[0] - front.pos[0], m.pos[2] - front.pos[2]) < 1.2;
+  },
+  cineItem: (ed, a) => {
+    const { role, kind, ...want } = a as { role?: string; kind?: string } & Record<string, unknown>;
+    const c = openCine(ed);
+    if (!c) return false;
+    const clipName = want.clipName as string | undefined;
+    delete want.clipName;
+    return c.tracks.some(
+      (t) =>
+        (kind ? t.kind === kind : t.kind === 'actor') &&
+        (!role || (t.kind === 'actor' && t.role === role)) &&
+        (t.items as Record<string, unknown>[]).some(
+          (it) =>
+            matches(it, want) && (!clipName || ed.store.get<Clip>(paths.clip(String(it.clip)))?.name === clipName),
+        ),
+    );
+  },
+  cineShots: (ed, a) => (openCine(ed)?.tracks.find((t) => t.kind === 'camera')?.items.length ?? 0) >= Number(a),
+  zonePlaysScene: (ed, a) => {
+    const c = ed.store
+      .list('cinematics/')
+      .map((p) => ed.store.get<Cinematic>(p)!)
+      .find((x) => x.name === a);
+    const m = ed.store.get<MapDoc>(paths.map(ed.store.manifest.entry.map));
+    return !!c && !!m?.zones.some((z) => z.onEnter?.some((x) => x.do === 'cinematic' && x.cinematic === c.id));
+  },
   // P32: an asset's interactions
   assetActions: (ed, a) => {
     const { name, atLeast } = a as { name: string; atLeast: number };
@@ -73,6 +180,14 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
 };
 
 type TrackArg = { bone: string; prop: string };
+function openGraph(ed: EditorState): LogicGraph | null {
+  const id = ed.logicGraph.value ?? ed.store.list('logic/lg_')[0]?.slice(6, -5);
+  return id ? (ed.store.get<LogicGraph>(paths.logic(id)) ?? null) : null;
+}
+function openCine(ed: EditorState): Cinematic | null {
+  const id = ed.cinematicId.value ?? ed.store.list('cinematics/')[0]?.slice(11, -5);
+  return id ? (ed.store.get<Cinematic>(paths.cinematic(id)) ?? null) : null;
+}
 function studioCharacter(ed: EditorState): Character | null {
   const id = ed.studioCharacter.value;
   return id ? (ed.store.get<Character>(paths.character(id)) ?? null) : null;

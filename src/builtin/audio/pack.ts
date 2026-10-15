@@ -92,6 +92,25 @@ export const SOUNDS: Record<string, SfxRecipe> = {
     { wave: 'square', f0: 1047, at: 0.36, dur: 0.6, gain: 0.22, lp: 3000 },
     { wave: 'sine', f0: 262, at: 0.36, dur: 0.6, gain: 0.3 },
   ]),
+  /** P32: an item found in a chest — a rising shimmer, then a bright cadence (an original fanfare) */
+  treasure: sfx(
+    [
+      { wave: 'noise', f0: 5200, f1: 9000, dur: 0.5, gain: 0.08, attack: 0.2 },
+      { wave: 'tri', f0: 392, dur: 0.16, gain: 0.32 },
+      { wave: 'tri', f0: 494, at: 0.14, dur: 0.16, gain: 0.32 },
+      { wave: 'tri', f0: 587, at: 0.28, dur: 0.16, gain: 0.32 },
+      { wave: 'square', f0: 698, at: 0.42, dur: 0.34, gain: 0.16, lp: 2600 },
+      { wave: 'sine', f0: 523, at: 0.78, dur: 1.3, gain: 0.3, trem: [6, 0.15] },
+      { wave: 'sine', f0: 659, at: 0.78, dur: 1.3, gain: 0.26, trem: [6, 0.15] },
+      { wave: 'sine', f0: 784, at: 0.78, dur: 1.3, gain: 0.24, trem: [6, 0.15] },
+      { wave: 'square', f0: 1047, at: 0.78, dur: 1.1, gain: 0.12, lp: 3200 },
+      { wave: 'sine', f0: 131, at: 0.78, dur: 1.2, gain: 0.35 },
+      { wave: 'sine', f0: 2093, at: 0.95, dur: 0.12, gain: 0.08 },
+      { wave: 'sine', f0: 2637, at: 1.1, dur: 0.12, gain: 0.08 },
+      { wave: 'sine', f0: 3136, at: 1.25, dur: 0.18, gain: 0.07 },
+    ],
+    7,
+  ),
   wind: sfx([
     { wave: 'noise', f0: 260, f1: 420, dur: 4, gain: 0.5, attack: 0.001, trem: [0.25, 0.5] },
     { wave: 'noise', f0: 600, f1: 300, dur: 4, gain: 0.25, attack: 0.001, trem: [0.5, 0.6] },
@@ -216,6 +235,7 @@ export const SND = {
   gameover: sndId('gameover'),
   splash: sndId('splash'),
   victory: sndId('victory'),
+  treasure: sndId('treasure'),
   wind: sndId('wind'),
   lava: sndId('lava'),
   birds: sndId('birds'),
@@ -255,6 +275,7 @@ export const DEFAULT_EVENTS: SoundEvents = {
     ev('gameover', ['gameover'], { bus: 'ui', spatial: false, maxVoices: 1 }),
     ev('splash', ['splash'], { bus: 'ui', spatial: false, maxVoices: 1 }),
     ev('victory', ['victory'], { bus: 'ui', spatial: false, maxVoices: 1 }),
+    ev('treasure', ['treasure'], { bus: 'ui', spatial: false, maxVoices: 1 }),
     ev('wind', ['wind'], { bus: 'ambience', spatial: false, maxVoices: 2, volume: -8 }),
     ev('lava', ['lava'], { bus: 'ambience', maxVoices: 4, volume: -4 }),
     ev('birds', ['birds'], { bus: 'ambience', maxVoices: 4, volume: -6 }),
@@ -269,7 +290,7 @@ const state = (name: string, volume = 0): [string, Music['states'][string]] => [
 export const DEFAULT_MUSIC: Music = {
   states: Object.fromEntries([state('explore', -4), state('night', -3), state('menu', -4), state('castle', -4)]),
   crossfade: 1.5,
-  stingers: { victory: ref('victory'), gameover: ref('gameover'), splash: ref('splash') },
+  stingers: { victory: ref('victory'), gameover: ref('gameover'), splash: ref('splash'), treasure: ref('treasure') },
 };
 
 export const DEFAULT_MIXER: Mixer = {

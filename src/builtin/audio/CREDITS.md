@@ -16,6 +16,7 @@ audio). Projects can import their own .wav/.mp3/.ogg/.m4a files in the Audio wor
 | rebuild, rebuilt | rebuild tick, rebuild done chime | generated |
 | jump, land, step1-3 | hero movement | generated |
 | pickup, chest, door, gate | world interactions | generated |
+| treasure | item found in a chest: shimmer and a rising fanfare (original) | generated |
 | uiclick, uiback, uiconfirm | menu sounds | generated |
 | talk1-3 | dialogue blips | generated |
 | hurt, gameover, splash, victory | game feedback and stingers | generated |

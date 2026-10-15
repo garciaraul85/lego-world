@@ -65,7 +65,7 @@ export function Director({ c }: { c: ActionCtx }) {
               <button type="button" class="btn on" onClick={() => create('reward')}>
                 New reward scene (example)
               </button>
-              <button type="button" class="btn" onClick={() => create('blank')}>
+              <button type="button" class="btn" data-tour="cine-new" onClick={() => create('blank')}>
                 New empty scene
               </button>
             </div>
@@ -119,6 +119,16 @@ function DirectorFor({
     preview?.seek(v);
     setTime(v);
   };
+  // P32: the playhead is shared with scripts: they read it and can ask to move it
+  useEffect(() => {
+    ed.cineTime.value = time;
+  }, [time]);
+  const want = ed.cineSeek.value;
+  useEffect(() => {
+    if (!want) return;
+    ed.cineSeek.value = null;
+    seek(want.t);
+  }, [want, preview]);
   // real-time playback with sound
   useEffect(() => {
     if (!playing || !preview) return;
@@ -217,7 +227,7 @@ function DirectorFor({
           <div class="sech" style={{ padding: '8px 10px 4px' }}>
             <span>Scenes · {list.length}</span>
             <span class="row">
-              <button type="button" class="link" onClick={() => onCreate('blank')}>
+              <button type="button" class="link" data-tour="cine-new" onClick={() => onCreate('blank')}>
                 + New
               </button>
               <button type="button" class="link" onClick={() => onCreate('reward')} title="An example reward scene">

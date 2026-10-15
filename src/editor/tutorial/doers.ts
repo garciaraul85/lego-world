@@ -25,6 +25,7 @@ import { buildInto } from '../workspaces/asset-studio/scratch';
 import { newGraph } from '../workspaces/logic/model';
 import { CODING_DOERS } from './coding';
 import type { Do } from './schema';
+import { STORY_DOERS } from './story';
 
 type Ctx = ActionCtx;
 const run = (c: Ctx, cmds: Command | Command[], label: string) => {
@@ -437,6 +438,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     );
   },
   ...CODING_DOERS,
+  ...STORY_DOERS,
   async walkHero(c) {
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');

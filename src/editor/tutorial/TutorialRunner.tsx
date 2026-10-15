@@ -99,7 +99,9 @@ export function TutorialRunner({
     setNote(null);
     setGhost(null);
     if (step.workspace && ed.workspace.value !== step.workspace && !ed.session.value) ui.workspace(step.workspace);
-    for (const d of step.setup ?? []) void perform(c, d);
+    // a setup that cannot run says so on the card (Do it for me would fail the same way)
+    for (const d of step.setup ?? [])
+      perform(c, d).catch((e) => setNote(`This step could not get ready: ${e instanceof Error ? e.message : e}`));
     // the demo waits for Show me, so there is time to read the step first
     setPhase('try');
   }, [index]);

@@ -21,8 +21,9 @@ export function EventPicker({
   const [typing, setTyping] = useState(false);
   const [draft, setDraft] = useState('');
   const list = [...new Set([...events, ...(value ? [value] : [])])].sort((a, b) => a.localeCompare(b));
-  const keep = () => {
-    const name = draft.trim().slice(0, 60);
+  // the box's own text: a script may type and press Enter before the next redraw
+  const keep = (text = draft) => {
+    const name = text.trim().slice(0, 60);
     if (name) onChange(name);
     setTyping(false);
     setDraft('');
@@ -38,13 +39,13 @@ export function EventPicker({
         value={draft}
         onInput={(e) => setDraft((e.target as HTMLInputElement).value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') keep();
+          if (e.key === 'Enter') keep((e.target as HTMLInputElement).value);
           if (e.key === 'Escape') {
             e.stopPropagation();
             setTyping(false);
           }
         }}
-        onBlur={keep}
+        onBlur={(e) => keep((e.target as HTMLInputElement).value)}
       />
     );
   return (

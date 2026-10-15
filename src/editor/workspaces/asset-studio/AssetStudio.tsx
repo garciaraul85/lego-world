@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { builtinAsset } from '../../../builtin/assets';
 import { expandAsset } from '../../../core/assets/expand';
-import { hasScale, hasTilt, type Scale, type Tilt } from '../../../core/assets/tilt';
+import { partPose } from '../../../core/assets/free';
+import { bricksBox, hasScale, hasTilt, type Scale, type Tilt } from '../../../core/assets/tilt';
 import type { Brick } from '../../../core/bricks/codec';
 import { MapBricks } from '../../../core/bricks/map-bricks';
 import { CommandBus, registerAll } from '../../../core/commands';
@@ -18,6 +19,7 @@ import { assetLibrary, newAssetDef, resolveAsset, sameAsset } from '../../assets
 import { ActionListField } from '../../components/ActionListField';
 import { AssetThumb } from '../../components/AssetThumb';
 import { BrickIcon, BrickPicker } from '../../components/BrickIcon';
+import { Num } from '../../components/fields';
 import { endDrag, startDrag } from '../../interact/drag';
 import { actionChoices } from '../../panels/AudioFields';
 import { Swatches } from '../../panels/Inspector';
@@ -150,15 +152,15 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     sed.brush.value = ed.brush.value;
     synced.current = stableStringify(def);
     const indexOf = initialIndex(def, scratch.hidden);
-    sed.scene.value?.setParts(studioParts(def, indexOf));
+    sed.scene.value?.setParts(studioParts(def, indexOf, state));
     return { scratch, sed, def, indexOf, hidden: scratch.hidden };
   }, [id, state, nonce, !!def]);
 
   // the plate shows the asset's turned parts (after a turn, a Straighten, an undo)
   const partsKey = JSON.stringify(def?.parts ?? []);
   useEffect(() => {
-    if (studio) studio.sed.scene.value?.setParts(studioParts(def!, studio.indexOf));
-  }, [studio, partsKey]);
+    if (studio) studio.sed.scene.value?.setParts(studioParts(def!, studio.indexOf, state));
+  }, [studio, partsKey, state]);
 
   // asset changed outside the studio (undo in the Scene, another tab) -> reload the plate
   useEffect(() => {
@@ -215,7 +217,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
       if (commit(r.asset, extra?.length ? 'Build in another asset' : 'Edit asset bricks')) {
         studio.indexOf = r.indexOf;
         studio.hidden = r.hidden;
-        sed.scene.value?.setParts(studioParts(r.asset, r.indexOf));
+        sed.scene.value?.setParts(studioParts(r.asset, r.indexOf, state));
         // the plate shows the saved asset now, every brick (not only the chunks the change touched)
         plateView.current?.resync();
       } else {
@@ -246,6 +248,14 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     return true;
   };
   const patch = (p: Partial<Asset>, label = 'Edit asset') => def && commit({ ...def, ...p }, label);
+  /** asset brick indexes of the bricks selected on the plate */
+  const selectedIndexes = () =>
+    studio
+      ? [...studio.sed.selection.value].flatMap((id) => {
+          const k = studio.indexOf.get(id as number);
+          return k === undefined ? [] : [k];
+        })
+      : [];
 
   // the plate's tool and brush stay the same when another asset is opened
   useEffect(() => {
@@ -311,12 +321,12 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         const { tilt: _t, scale: _s, ...q } = parts[p.index]!;
         parts[p.index] = { ...q, bricks: idx, ...free };
       } else parts.push({ name: `Part ${parts.length + 1}`, bricks: idx, ...free });
-      // a part that is straight and normal size again is just bricks
-      const next = parts.filter((q) => q.bricks.length && (hasTilt(q.tilt) || hasScale(q.scale)));
+      // a part that is straight and normal size again is just bricks (unless it moves between states)
+      const next = parts.filter((q) => q.bricks.length && (hasTilt(q.tilt) || hasScale(q.scale) || q.pose));
       const { parts: _old, ...rest } = cur;
       const asset = { ...rest, ...(next.length ? { parts: next } : {}) };
       if (commit(asset, p.index === null ? 'Make a turned part' : 'Turn part')) {
-        sed.scene.value?.setParts(studioParts(asset, studio.indexOf));
+        sed.scene.value?.setParts(studioParts(asset, studio.indexOf, state));
         sed.revision.value++;
       }
     },
@@ -487,6 +497,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         }}
         socket={socket}
         setSocket={setSocket}
+        selectedIndexes={selectedIndexes}
       />
     </div>
   );
@@ -692,6 +703,7 @@ function Properties({
   openedAs,
   socket,
   setSocket,
+  selectedIndexes,
 }: {
   c: ActionCtx;
   def: Asset;
@@ -702,9 +714,13 @@ function Properties({
   openedAs: Asset | null;
   socket: string | null;
   setSocket: (s: string | null) => void;
+  /** P32: asset brick indexes of the bricks selected on the plate */
+  selectedIndexes: () => number[];
 }) {
   const { ed } = c;
   const inProject = ed.store.has(paths.asset(def.id));
+  const setPart = (i: number, next: NonNullable<Asset['parts']>[number], label: string) =>
+    patch({ parts: (def.parts ?? []).map((q, j) => (j === i ? next : q)) }, label);
   const used = inProject ? mapsUsing(ed.store, def.id).length : 0;
   const [newState, setNewState] = useState('');
   // P32: a changed asset can go back: a built-in to how it came, your own to how it was when you opened it
@@ -856,29 +872,65 @@ function Properties({
             <span>{def.parts?.length ?? 0}</span>
           </div>
           {(def.parts ?? []).map((p, i) => (
-            <div class="socket-row">
-              <span class="small">
-                <strong>{p.name}</strong> · {p.bricks.length} brick{p.bricks.length === 1 ? '' : 's'}
-                {p.tilt ? ` · ${p.tilt.map((a) => `${a}°`).join(' ')}` : ''}
-                {p.scale ? ` · ${p.scale.map((v) => `${Math.round(v * 100)}%`).join(' ')}` : ''}
-              </span>
-              <button
-                type="button"
-                class="btn"
-                style={{ minHeight: '24px', fontSize: '11px' }}
-                data-tip="Put these bricks back straight and at their real size"
-                onClick={() => {
-                  const next = (def.parts ?? []).filter((_, j) => j !== i);
-                  patch({ parts: next.length ? next : undefined }, 'Straighten part');
-                }}
-              >
-                Straighten
-              </button>
-            </div>
+            <>
+              <div class="socket-row">
+                <span class="small">
+                  <strong>{p.name}</strong> · {p.bricks.length} brick{p.bricks.length === 1 ? '' : 's'}
+                  {p.tilt ? ` · ${p.tilt.map((a) => `${a}°`).join(' ')}` : ''}
+                  {p.scale ? ` · ${p.scale.map((v) => `${Math.round(v * 100)}%`).join(' ')}` : ''}
+                </span>
+                {!p.pose && def.states.length > 1 && (
+                  <button
+                    type="button"
+                    class="btn"
+                    style={{ minHeight: '24px', fontSize: '11px' }}
+                    data-tip="Give this part a pose in each state: it eases there when the state changes"
+                    onClick={() => setPart(i, { ...p, pose: {} }, 'Make part move')}
+                  >
+                    Moves
+                  </button>
+                )}
+                <button
+                  type="button"
+                  class="btn"
+                  style={{ minHeight: '24px', fontSize: '11px' }}
+                  data-tip="Put these bricks back straight and at their real size"
+                  onClick={() => {
+                    const next = (def.parts ?? []).filter((_, j) => j !== i);
+                    patch({ parts: next.length ? next : undefined }, 'Straighten part');
+                  }}
+                >
+                  Straighten
+                </button>
+              </div>
+              {p.pose && (
+                <MovingPart def={def} part={p} index={i} onChange={(next, label) => setPart(i, next, label)} />
+              )}
+            </>
           ))}
+          <button
+            type="button"
+            class="btn"
+            data-tour="part-from-selection"
+            disabled={!selectedIndexes().length}
+            onClick={() => {
+              const idx = selectedIndexes();
+              const taken = new Set(idx);
+              const rest = (def.parts ?? [])
+                .map((q) => ({ ...q, bricks: q.bricks.filter((k) => !taken.has(k)) }))
+                .filter((q) => q.bricks.length);
+              patch(
+                { parts: [...rest, { name: `Part ${rest.length + 1}`, bricks: idx, pose: {} }] },
+                'Make a moving part',
+              );
+            }}
+          >
+            Selected bricks → moving part
+          </button>
           <div class="hint">
             Select some bricks (a roof, a branch, a wheel), then turn them with Rotate (E) on the red, green and blue
-            rings, or size them with Resize (Q). They become a part that every copy shows turned.
+            rings, or size them with Resize (Q). They become a part that every copy shows turned. A part that moves (a
+            lid, a door, a drawbridge) has a pose in each state: pick a state above the plate to see it there.
           </div>
         </div>
 
@@ -1156,7 +1208,7 @@ function whyNotSaved(ed: EditorState, next: Asset, error: string): string {
 }
 
 /** The asset's parts as plate brick ids (the plate's ids map to asset indexes through indexOf). */
-function studioParts(def: Asset, indexOf: Map<number, number>): StudioPart[] {
+function studioParts(def: Asset, indexOf: Map<number, number>, state: string): StudioPart[] {
   const idOf = new Map([...indexOf].map(([id, i]) => [i, id]));
   return (def.parts ?? []).map((p, index) => ({
     index,
@@ -1164,5 +1216,108 @@ function studioParts(def: Asset, indexOf: Map<number, number>): StudioPart[] {
     ids: p.bricks.flatMap((i) => (idOf.has(i) ? [idOf.get(i)!] : [])),
     ...(p.tilt ? { tilt: p.tilt as Tilt } : {}),
     ...(p.scale ? { scale: p.scale as Scale } : {}),
+    // P32: a moving part stands on the plate as it does in the state shown
+    ...(p.pose ? { pose: partPose(p, state), ...(p.hinge ? { hinge: p.hinge } : {}) } : {}),
   }));
+}
+
+type Part = NonNullable<Asset['parts']>[number];
+/** Hinge choices for a moving part: the middle, or an edge of the part's bottom (asset frame, like sockets). */
+export function hingeChoices(def: Asset, part: Pick<Part, 'bricks'>): { name: string; at: [number, number, number] }[] {
+  // every brick of the asset, whatever state it shows in (brick id = asset index)
+  const all = expandAsset({ ...def, onlyIn: undefined }, { pos: [0, 0, 0], rot: 0, idBase: 0 }).bricks;
+  const mine = all.filter((b) => part.bricks.includes(b.id));
+  if (!mine.length) return [];
+  const [lo, hi] = bricksBox(mine);
+  const mid = (a: number, b: number) => Math.round(((a + b) / 2) * 100) / 100;
+  const r = (v: number) => Math.round(v * 100) / 100;
+  const y = r(lo[1]);
+  return [
+    { name: 'Its middle', at: [mid(lo[0], hi[0]), mid(lo[1], hi[1]), mid(lo[2], hi[2])] },
+    { name: 'Back bottom edge', at: [mid(lo[0], hi[0]), y, r(lo[2])] },
+    { name: 'Front bottom edge', at: [mid(lo[0], hi[0]), y, r(hi[2])] },
+    { name: 'Left bottom edge', at: [r(lo[0]), y, mid(lo[2], hi[2])] },
+    { name: 'Right bottom edge', at: [r(hi[0]), y, mid(lo[2], hi[2])] },
+    { name: 'Bottom middle', at: [mid(lo[0], hi[0]), y, mid(lo[2], hi[2])] },
+  ];
+}
+
+/** P32: how a part moves between the asset's states — its pose in each state, the hinge and the ease time. */
+function MovingPart({
+  def,
+  part,
+  index,
+  onChange,
+}: {
+  def: Asset;
+  part: Part;
+  index: number;
+  onChange: (next: Part, label: string) => void;
+}) {
+  const hinges = hingeChoices(def, part);
+  const hingeName =
+    hinges.find((h) => part.hinge && h.at.every((v, k) => Math.abs(v - part.hinge![k]!) < 0.01))?.name ??
+    (part.hinge ? 'Custom' : 'Its middle');
+  const pose = (st: string) => part.pose?.[st] ?? {};
+  const setPose = (st: string, key: 'turn' | 'move', k: number, v: number) => {
+    const cur = pose(st);
+    const vec = [...(cur[key] ?? [0, 0, 0])] as [number, number, number];
+    vec[k] = v;
+    const nextPose = { ...cur, [key]: vec };
+    const clean = Object.fromEntries(
+      Object.entries(nextPose).filter(([, x]) => (x as number[]).some((n) => Math.abs(n) > 1e-6)),
+    );
+    const all = { ...(part.pose ?? {}), [st]: clean };
+    onChange({ ...part, pose: all }, 'Part pose');
+  };
+  return (
+    <div class="moving-part" data-tour={`part-${index}`}>
+      <div class="small muted">Moves between states (each copy eases there when its state changes):</div>
+      {def.states.map((st) => (
+        <div class="pose-row" role="group" aria-label={`${part.name} in “${st}”`} data-tour={`pose-${index}-${st}`}>
+          <span class="small mono">{st}</span>
+          {(['x', 'y', 'z'] as const).map((ax, k) => (
+            <Num
+              label={`turn ${ax}°`}
+              value={pose(st).turn?.[k] ?? 0}
+              onCommit={(v) => setPose(st, 'turn', k, Math.max(-360, Math.min(360, v)))}
+            />
+          ))}
+          {(['x', 'y', 'z'] as const).map((ax, k) => (
+            <Num
+              label={`move ${ax}`}
+              value={pose(st).move?.[k] ?? 0}
+              onCommit={(v) => setPose(st, 'move', k, Math.max(-50, Math.min(50, v)))}
+            />
+          ))}
+        </div>
+      ))}
+      <div class="row" style={{ gap: '8px', flexWrap: 'wrap' }}>
+        <label class="lbl small">
+          Turns around
+          <select
+            class="inp"
+            aria-label={`${part.name} turns around`}
+            value={hingeName}
+            onChange={(e) => {
+              const h = hinges.find((x) => x.name === (e.target as HTMLSelectElement).value);
+              if (!h) return;
+              const { hinge: _h, ...rest } = part;
+              onChange(h.name === 'Its middle' ? rest : { ...rest, hinge: h.at }, 'Part hinge');
+            }}
+          >
+            {hinges.map((h) => (
+              <option value={h.name}>{h.name}</option>
+            ))}
+            {hingeName === 'Custom' && <option value="Custom">Custom</option>}
+          </select>
+        </label>
+        <Num
+          label="seconds"
+          value={part.ease ?? 0.6}
+          onCommit={(v) => onChange({ ...part, ease: Math.max(0, Math.min(10, v)) }, 'Part ease')}
+        />
+      </div>
+    </div>
+  );
 }

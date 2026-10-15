@@ -223,6 +223,9 @@ export class LogicRuntime {
             if (n.type === 'world.spawn') {
               const entity = this.ctx.spawn(String(n.args?.asset), String(n.args?.at));
               run.outputs.set(i.node, { entity });
+            } else if (n.type === 'world.spawnNear') {
+              const entity = this.ctx.spawnNear(String(ins.item ?? ''), String(ins.near ?? ''));
+              run.outputs.set(i.node, { entity });
             } else def.exec?.(this.ctx, n.args ?? {}, ins);
             run.pc++;
             break;

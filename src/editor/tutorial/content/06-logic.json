@@ -5,7 +5,7 @@
     {
       "id": "logic.open",
       "title": "Game rules",
-      "body": "Logic is what makes a map a game: when something happens (an event), do something (actions), maybe only if a condition holds. You can write it as a node graph or as code — they stay in sync.",
+      "body": "Logic makes a map a game: when something happens (an event), do something (actions). Here it decides what the chest holds: when the cinematic says “open-chest”, logic opens the lid, puts the item in the chest, lifts it out and gives it to the hero. Graph and code are two views of the same rules.",
       "task": "Open the Logic workspace.",
       "target": "[data-tour=\"ws-logic\"]",
       "placement": "bottom",
@@ -14,58 +14,253 @@
     },
     {
       "id": "logic.new",
-      "title": "A new graph",
-      "body": "A project can have many graphs; each holds one or more event chains. + New makes a graph that starts with On start.",
-      "task": "Make a new logic graph (Graphs › + New).",
+      "title": "A graph for the chest",
+      "body": "A graph holds rules: event chains that start with an event node (teal). + New makes one that starts with “On start”. Name graphs after what they are about, so you find them later.",
+      "task": "Make a new graph named “Treasure chest”.",
       "target": "section[aria-label=\"Logic graphs, variables and nodes\"]",
       "placement": "right",
       "workspace": "Logic",
       "check": { "kind": "command", "type": "logic.create" },
-      "doItForMe": [{ "fn": "newGraph" }]
-    },
-    {
-      "id": "logic.node",
-      "title": "Add a node",
-      "body": "The palette lists every node by category: events (teal), flow (purple), variables, maths, world actions, audio, screens and cinematics. Click one to add it; search finds it by name.",
-      "task": "Add a Give item node from the palette.",
-      "target": "section[aria-label=\"Logic graphs, variables and nodes\"]",
-      "placement": "right",
-      "workspace": "Logic",
-      "check": { "kind": "command", "type": "logic.addNode" },
-      "doItForMe": [{ "fn": "addNode", "args": { "type": "world.give" } }]
-    },
-    {
-      "id": "logic.wire",
-      "title": "Wire it up",
-      "body": "Drag from a node's output pin to another node's input pin. White diamonds carry the flow (then → in); coloured circles carry values. Wrong types are refused with a tooltip.",
-      "task": "Connect On start's “then” to Give item's “in”.",
-      "target": "section[aria-label=\"Logic editor\"]",
-      "placement": "left",
-      "workspace": "Logic",
-      "check": { "kind": "command", "type": "logic.connect" },
-      "doItForMe": [{ "fn": "wireStartToLast" }]
-    },
-    {
-      "id": "logic.code",
-      "title": "Graph or code",
-      "body": "Code shows the same graph as a few lines of JavaScript-like script; edit either and the other follows. Split shows both side by side. F9 on a node sets a breakpoint that pauses Play there.",
-      "task": "Switch the view to Code.",
-      "target": "section[aria-label=\"Logic editor\"] [aria-label=\"View\"]",
-      "placement": "bottom",
-      "workspace": "Logic",
-      "check": { "kind": "state", "test": "logicView", "args": "code" },
-      "doItForMe": [{ "ui": "logicView", "value": "code" }]
+      "doItForMe": [],
+      "how": [
+        {
+          "text": "In the panel on the left, next to “Graphs”, click “+ New”. A graph “Logic …” opens with an “On start” node.",
+          "check": { "kind": "command", "type": "logic.create" },
+          "do": [{ "click": "[data-tour=\"logic-new\"]", "say": "Click “+ New” next to “Graphs” (left)." }]
+        },
+        {
+          "text": "At the top of the editor, click the graph’s name, select it, type Treasure chest and press Enter.",
+          "check": { "kind": "state", "test": "graphNamed", "args": "Treasure chest" },
+          "do": [
+            {
+              "fill": "input[aria-label=\"Graph name\"]",
+              "value": "Treasure chest",
+              "say": "Type Treasure chest as the graph’s name and press Enter."
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "logic.var",
-      "title": "Variables",
-      "body": "Variables remember things while playing: a score, coins found, hearts. Logic reads and changes them; screens and signs show them with {name}.",
-      "task": "Add a variable named score.",
+      "title": "The chest’s item is a variable",
+      "body": "Variables remember things while playing. Here “chestItem” holds the name of what is inside the chest. The rules read it instead of saying “Sword”, so changing this one value makes the same chest give anything (any asset by its name).",
+      "task": "Add a text variable “chestItem” that starts as Sword.",
       "target": "input[aria-label=\"New variable name\"]",
       "placement": "right",
       "workspace": "Logic",
-      "check": { "kind": "command", "type": "logic.setVariable" },
-      "doItForMe": [{ "fn": "addVariable", "args": { "name": "score" } }]
+      "check": {
+        "kind": "state",
+        "test": "hasVar",
+        "args": { "name": "chestItem", "type": "string", "value": "Sword" }
+      },
+      "doItForMe": [],
+      "how": [
+        {
+          "text": "Under “Variables” (left), type chestItem in the box “New variable” and click “Add”. A row “chestItem” appears, a number starting at 0.",
+          "check": { "kind": "state", "test": "hasVar", "args": { "name": "chestItem" } },
+          "do": [
+            {
+              "fill": "input[aria-label=\"New variable name\"]",
+              "value": "chestItem",
+              "say": "Type chestItem in “New variable”."
+            },
+            { "click": "button[aria-label=\"Add variable\"]", "say": "Click “Add”." }
+          ]
+        },
+        {
+          "text": "In that row, open the drop-down (it says “number”) and pick “text”.",
+          "check": { "kind": "state", "test": "hasVar", "args": { "name": "chestItem", "type": "string" } },
+          "do": [
+            {
+              "choose": "select[aria-label=\"chestItem type\"]",
+              "value": "string",
+              "say": "Pick “text” in the row’s drop-down."
+            }
+          ]
+        },
+        {
+          "text": "In the row’s box (starts at), type Sword and press Enter. The chest will hold a Sword.",
+          "check": {
+            "kind": "state",
+            "test": "hasVar",
+            "args": { "name": "chestItem", "type": "string", "value": "Sword" }
+          },
+          "do": [
+            {
+              "fill": "input[aria-label=\"chestItem starts at\"]",
+              "value": "Sword",
+              "say": "Type Sword in the row’s box and press Enter."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "logic.event",
+      "title": "Listen for the cinematic",
+      "body": "Events start a chain. “On custom event” runs when something sends that event’s name: a cinematic, an asset interaction, another graph. The scene you direct later sends “open-chest” at the moment Rowan lifts the lid.",
+      "task": "Add an “On custom event” node for the event “open-chest”.",
+      "target": "section[aria-label=\"Logic graphs, variables and nodes\"]",
+      "placement": "right",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "graphHas",
+        "args": { "type": "event.onCustom", "args": { "event": "open-chest" } }
+      },
+      "doItForMe": [],
+      "how": [
+        {
+          "text": "Under “Nodes” (left), type custom in “Find a node”, then click “On custom event”. The node appears in the graph and is selected: its settings show on the right.",
+          "check": { "kind": "state", "test": "graphHas", "args": { "type": "event.onCustom" } },
+          "do": [
+            { "fill": "input[aria-label=\"Find a node\"]", "value": "custom", "say": "Type custom in “Find a node”." },
+            {
+              "click": "section[aria-label=\"Logic graphs, variables and nodes\"] .lg-pal[data-node=\"event.onCustom\"]",
+              "say": "Click “On custom event”: it is added and selected."
+            }
+          ]
+        },
+        {
+          "text": "On the right, open “Event name”, pick “＋ New event…”, type open-chest and press Enter.",
+          "check": {
+            "kind": "state",
+            "test": "graphHas",
+            "args": { "type": "event.onCustom", "args": { "event": "open-chest" } }
+          },
+          "do": [
+            {
+              "choose": "[aria-label=\"Node inspector\"] select[aria-label=\"Event name\"]",
+              "value": "__new__",
+              "say": "Open “Event name” and pick “＋ New event…”."
+            },
+            {
+              "fill": "[aria-label=\"Node inspector\"] input[aria-label=\"New event name\"]",
+              "value": "open-chest",
+              "say": "Type open-chest and press Enter."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "logic.state",
+      "title": "Open the lid",
+      "body": "“Set state” switches a placed asset to one of its states. Its target can be an id or an asset’s name: “Treasure chest” means the chest nearest the hero. The chest’s lid is a moving part: it swings open over 0.7 s. Wires carry the flow from a white “then” pin to a white “in” pin.",
+      "task": "Add “Set state” (Treasure chest → open) and wire “On custom event” then → its in.",
+      "target": "section[aria-label=\"Logic editor\"]",
+      "placement": "left",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "graphEdge",
+        "args": {
+          "from": { "type": "event.onCustom", "args": { "event": "open-chest" } },
+          "out": "then",
+          "to": { "type": "world.setState" },
+          "into": "in"
+        }
+      },
+      "doItForMe": [],
+      "how": [
+        {
+          "text": "Type set state in “Find a node” (left) and click “Set state”. It is added and selected.",
+          "check": { "kind": "state", "test": "graphHas", "args": { "type": "world.setState" } },
+          "do": [
+            {
+              "fill": "input[aria-label=\"Find a node\"]",
+              "value": "set state",
+              "say": "Type set state in “Find a node”."
+            },
+            {
+              "click": "section[aria-label=\"Logic graphs, variables and nodes\"] .lg-pal[data-node=\"world.setState\"]",
+              "say": "Click “Set state”."
+            }
+          ]
+        },
+        {
+          "text": "On the right under “Values”, in “target”, type Treasure chest and press Enter; “state” already says open.",
+          "check": {
+            "kind": "state",
+            "test": "graphHas",
+            "args": { "type": "world.setState", "args": { "target": "Treasure chest" } }
+          },
+          "do": [
+            {
+              "fill": "[aria-label=\"Node inspector\"] [data-tour=\"field-target\"]",
+              "value": "Treasure chest",
+              "say": "Type Treasure chest in “target”."
+            }
+          ]
+        },
+        {
+          "text": "In the graph, drag from the white “then” pin of “On custom event” to the white “in” pin of “Set state”. A wire joins them: when the event comes, the lid opens.",
+          "check": {
+            "kind": "state",
+            "test": "graphEdge",
+            "args": {
+              "from": { "type": "event.onCustom", "args": { "event": "open-chest" } },
+              "out": "then",
+              "to": { "type": "world.setState" },
+              "into": "in"
+            }
+          },
+          "do": [
+            {
+              "show": "section[aria-label=\"Logic editor\"] [aria-label=\"Logic graph\"]",
+              "say": "Drag from “then” on “On custom event” to “in” on “Set state”."
+            },
+            {
+              "fn": "wireNodes",
+              "say": "The wire joins them.",
+              "args": {
+                "from": { "type": "event.onCustom", "args": { "event": "open-chest" } },
+                "out": "then",
+                "to": { "type": "world.setState" },
+                "into": "in"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "logic.code",
+      "title": "The rest as code",
+      "body": "The same rules as code: each node is a line. Spawn item at object puts the item named in chestItem inside the chest; Set state “out” makes it rise (the Sword’s moving part); Give item puts it in the hero’s bag. A second event, “take-sword”, removes the floating sword when Rowan takes it. Split shows code and graph.",
+      "task": "Switch to Split and type the code; the graph grows with every line.",
+      "target": "section[aria-label=\"Logic editor\"]",
+      "placement": "left",
+      "workspace": "Logic",
+      "code": "on(\"custom\", { event: \"open-chest\" }, (e) => {\n  world.setState(\"Treasure chest\", \"open\");\n  const item = world.spawnNear(vars.chestItem, \"Treasure chest\");\n  world.setState(item, \"out\");\n  world.give(vars.chestItem, 1);\n});\n\non(\"custom\", { event: \"take-sword\" }, (e) => {\n  world.despawn(vars.chestItem);\n});\n",
+      "check": { "kind": "state", "test": "chestCode" },
+      "doItForMe": [],
+      "how": [
+        {
+          "text": "At the top of the editor, click “Split”: code on one side, the graph on the other.",
+          "check": { "kind": "state", "test": "logicView", "args": "split" },
+          "do": [
+            {
+              "click": "section[aria-label=\"Logic editor\"] [aria-label=\"View\"] [role=\"radio\"]:nth-child(3)",
+              "say": "Click “Split”."
+            }
+          ]
+        },
+        {
+          "text": "In the code, below what is there, type the lines shown in the card (or select all the code and type them in its place). After a short pause the graph shows the new nodes and wires.",
+          "check": { "kind": "state", "test": "chestCode" },
+          "do": [
+            {
+              "fn": "typeHere",
+              "say": "The code is typed; the graph follows.",
+              "args": {
+                "code": "on(\"custom\", { event: \"open-chest\" }, (e) => {\n  world.setState(\"Treasure chest\", \"open\");\n  const item = world.spawnNear(vars.chestItem, \"Treasure chest\");\n  world.setState(item, \"out\");\n  world.give(vars.chestItem, 1);\n});\n\non(\"custom\", { event: \"take-sword\" }, (e) => {\n  world.despawn(vars.chestItem);\n});\n"
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

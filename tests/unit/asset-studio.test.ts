@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { BUILTIN_ASSETS } from '../../src/builtin/assets';
 import { expandAsset } from '../../src/core/assets/expand';
 import { MapBricks } from '../../src/core/bricks/map-bricks';
 import { CommandBus, registerAll } from '../../src/core/commands';
 import { ProjectStore } from '../../src/core/project/store';
+import { Asset } from '../../src/core/schema';
 import { assetFromScratch, initialIndex, scratchFor } from '../../src/editor/workspaces/asset-studio/scratch';
+import fixture from './fixtures/chest-swap-lid.json';
 
-const chest = BUILTIN_ASSETS.find((a) => a.name === 'Treasure chest')!;
+// a chest whose lid swaps bricks between states (the built-in chest's lid is a moving part since P32)
+const chest = Asset.parse({ ...fixture, id: 'ast_chestswap0' });
 
 function plate(state: string) {
   const sc = scratchFor(chest, state);

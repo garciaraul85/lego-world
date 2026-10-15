@@ -2,15 +2,9 @@
   "id": null,
   "name": "Treasure chest",
   "category": "prop",
-  "bricks": [
-    [0, 0, 0, 0, 0, 0, 0],
-    [1, 0, 3, 0, 0, 1, 0],
-    [0, 0, 4, 0, 0, 0, 0],
-    [2, 0, 4, 0, 0, 0, 0],
-    [3, 1, 4, 1, 0, 1, 0]
-  ],
+  "bricks": [[0, 0, 0, 0, 0, 0, 0], [1, 0, 3, 0, 0, 1, 0], [0, 0, 4, 0, 0, 0, 0], [2, 1, 7, 1, 0, 1, 0]],
   "palette": {
-    "types": ["brick2x4", "plate2x4", "brick1x4", "tile1x2"],
+    "types": ["brick2x4", "plate2x4", "tile1x2"],
     "colors": ["#754429", "#f7c900"]
   },
   "pivot": [0, 0, 0],
@@ -21,6 +15,11 @@
       "kind": "interact",
       "pos": [2, 2.8, 2],
       "prompt": "Open"
+    },
+    {
+      "id": "item",
+      "kind": "spawn",
+      "pos": [2, 1.6, 1]
     }
   ],
   "states": ["closed", "open"],
@@ -71,8 +70,17 @@
   },
   "generator": null,
   "origin": "builtin",
-  "onlyIn": {
-    "closed": [2],
-    "open": [3, 4]
-  }
+  "parts": [
+    {
+      "name": "Lid",
+      "bricks": [2, 3],
+      "hinge": [2, 1.6, 0],
+      "pose": {
+        "open": {
+          "turn": [-105, 0, 0]
+        }
+      },
+      "ease": 0.7
+    }
+  ]
 }

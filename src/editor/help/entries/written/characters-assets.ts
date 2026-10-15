@@ -66,7 +66,8 @@ export const CHARACTERS: HelpEntry[] = [
       'Click a clip on the left; its timeline opens under the preview.',
       'Click a track name (for example “Right arm · z”): the right arm is ringed in the preview.',
       'Click a key ◆ on that lane: its time (“at”) and value show under the lanes. Type a new value and press Enter.',
-      'Type a new Length (seconds) in the timeline tools and press Enter to make the clip longer or shorter.',
+      'Type a new Length (seconds) in the timeline tools and press Enter to make the clip longer or shorter. Untick Loop for a clip that plays once and holds its last pose.',
+      '⇆ Mirror copies the selected track to the other side (Right arm → Left arm), mirrored, so both sides move together.',
     ],
     match: [{ in: area('Character preview and timeline') }],
   },
@@ -86,6 +87,14 @@ export const CHARACTERS: HelpEntry[] = [
     name: 'Character name',
     purpose: 'How the editor, cinematics and dialogue call this character.',
     match: [{ in: CPROPS, name: 'Character name' }],
+  },
+  {
+    id: 'characters.clipName',
+    screen: 'characters',
+    kind: 'field',
+    name: 'Clip name',
+    purpose: 'The name of your own clip, as the clip list, cinematics (Play a clip) and emotes show it.',
+    match: [{ in: CPROPS, name: 'Clip name' }],
   },
   {
     id: 'characters.player',
@@ -188,6 +197,27 @@ export const ASSETS: HelpEntry[] = [
       'OK closes the message.',
     ],
     related: ['assets.plate', 'scene.tool.move'],
+  },
+  {
+    id: 'assets.parts',
+    also: ['moving part', 'animate an asset', 'lid', 'hinge', 'door swings', 'drawbridge', 'rise', 'pose', 'turned part'],
+    screen: 'assets',
+    kind: 'area',
+    name: 'Parts and moving parts',
+    purpose:
+      'Groups of the asset’s bricks drawn turned or sized (a leaning roof), or moving between the asset’s states: a chest lid that swings open, a door, a sword that rises. A moving part has a pose in each state — a turn in degrees about X, Y and Z around a hinge, and a move in studs — and every placed copy eases to the new pose when its state changes (seconds sets how long).',
+    steps: [
+      'Select the bricks that move on the plate (a lid), then click “Selected bricks → moving part”.',
+      'Pick a state above the plate (for example “open”) and type its turn: −105 in “turn x°” swings a lid up.',
+      'In “Turns around” pick where it turns: the back bottom edge for a lid, a side edge for a door, its middle to spin.',
+      'Set “seconds” for how long the move takes. Pick each state above the plate to see the part there.',
+    ],
+    tips: [
+      'An asset made only of moving parts floats when logic puts it in the world (Spawn item at object): it does not have to fit among the bricks, like the Sword rising out of a chest.',
+    ],
+    commands: ['asset.update'],
+    match: [{ sel: '[data-tour="asset-parts"]' }, { in: '[data-tour="asset-parts"]' }],
+    related: ['assets.plate', 'assets.props'],
   },
   {
     id: 'assets.reset',

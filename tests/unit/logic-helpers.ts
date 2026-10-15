@@ -34,6 +34,10 @@ export function recorder() {
       log.push(`spawn ${a} ${at}`);
       return 'ins_spawned001';
     },
+    spawnNear: (item, near) => {
+      log.push(`spawnNear ${item} ${near}`);
+      return 'ins_spawned002';
+    },
     despawn: (t) => log.push(`despawn ${t}`),
     media: (k, id) => log.push(`${k} ${id}`),
     inZone: () => ['hero', 'ins_a', 'ins_b'],

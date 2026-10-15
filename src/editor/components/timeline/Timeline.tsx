@@ -24,6 +24,16 @@ export const BONE_NAMES: Record<string, string> = {
   rightShin: 'Right knee',
   prop: 'Prop',
 };
+/**
+ * P32: a track copied to the other side of the body: left ↔ right, with sideways turns (y, z) reversed so the
+ * two sides move as mirror images (both arms reach forward; one up on the left is one up on the right).
+ */
+export function mirrorTrack(t: Clip['tracks'][number]): Clip['tracks'][number] {
+  const bone = t.bone.startsWith('left') ? `right${t.bone.slice(4)}` : `left${t.bone.slice(5)}`;
+  const flip = t.prop === 'y' || t.prop === 'z';
+  return { bone, prop: t.prop, keys: t.keys.map((k) => [k[0], flip ? -k[1] : k[1], k[2]] as Key) };
+}
+
 export const trackLabel = (bone: string, prop: string) => `${BONE_NAMES[bone] ?? bone} · ${prop || 'value'}`;
 
 /**
@@ -151,6 +161,7 @@ export function Timeline({
             type="checkbox"
             checked={clip.loop}
             disabled={readOnly}
+            data-tour="clip-loop"
             onChange={() => onChange({ ...clip, loop: !clip.loop }, 'Clip loop')}
           />{' '}
           Loop
@@ -189,11 +200,33 @@ export function Timeline({
               onClick={() => {
                 if (!track) return;
                 const t = q(time);
-                const keys = track.keys.filter((k) => Math.abs(k[0] - t) > 1e-6);
-                setKeys(trackSel, [...keys, [t, sampleTrack(track.keys, t), 'easeInOut']], 'Add key');
+                const keys = [
+                  ...track.keys.filter((k) => Math.abs(k[0] - t) > 1e-6),
+                  [t, sampleTrack(track.keys, t), 'easeInOut'] as Key,
+                ].sort((a, b) => a[0] - b[0]);
+                setKeys(trackSel, keys, 'Add key');
+                // P32: the new key is selected, so its value can be typed at once
+                setSel({ kind: 'key', track: trackSel, key: keys.findIndex((k) => k[0] === t) });
               }}
             >
               ◆ Key
+            </button>
+            <button
+              type="button"
+              class="btn"
+              data-tour="track-mirror"
+              disabled={!track || !/^(left|right)/.test(track.bone)}
+              title="Copy the selected track to the other side (left ↔ right), mirrored"
+              onClick={() => {
+                if (!track) return;
+                const m = mirrorTrack(track);
+                const at = clip.tracks.findIndex((x) => x.bone === m.bone && x.prop === m.prop);
+                const tracks = at >= 0 ? clip.tracks.map((x, i) => (i === at ? m : x)) : [...clip.tracks, m];
+                onChange({ ...clip, tracks }, 'Mirror track');
+                setTrackSel(at >= 0 ? at : clip.tracks.length);
+              }}
+            >
+              ⇆ Mirror
             </button>
             <button
               type="button"

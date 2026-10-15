@@ -20,11 +20,28 @@ export const WORLD: NodeDef[] = [
     },
   },
   {
+    type: 'world.spawnNear',
+    kind: 'action',
+    title: 'Spawn item at object',
+    category: 'World',
+    doc: 'Puts a copy of an asset at an object’s item spot (a chest’s inside, a table’s top), turned like the object. Item: the asset’s name or id, so a variable can choose it. Object: a placed asset’s id or its name (the copy nearest the hero). Its output is the new copy, for Set state.',
+    inputs: [
+      EXEC_IN,
+      { name: 'item', type: 'string', default: 'Sword' },
+      { name: 'near', type: 'entity', label: 'object', default: 'Treasure chest' },
+    ],
+    outputs: [EXEC_OUT, { name: 'entity', type: 'entity' }],
+    code: { name: 'world.spawnNear', style: 'call' },
+    exec: (c, _a, i) => {
+      c.spawnNear(String(i.item), String(i.near));
+    },
+  },
+  {
     type: 'world.despawn',
     kind: 'action',
     title: 'Remove',
     category: 'World',
-    doc: 'Removes a placed asset from the world for this play.',
+    doc: 'Removes a placed asset from the world for this play (an id, or an asset name: the copy nearest the hero).',
     inputs: [EXEC_IN, { name: 'target', type: 'entity', default: '' }],
     outputs: [EXEC_OUT],
     code: { name: 'world.despawn', style: 'call' },
@@ -35,7 +52,7 @@ export const WORLD: NodeDef[] = [
     kind: 'action',
     title: 'Set state',
     category: 'World',
-    doc: 'Switches a placed asset to one of its states (a chest open, a lamp off).',
+    doc: 'Switches a placed asset to one of its states (a chest open, a lamp off). Target: an id, or an asset name (the copy nearest the hero). Moving parts ease to the new state.',
     inputs: [
       EXEC_IN,
       { name: 'target', type: 'entity', default: '' },

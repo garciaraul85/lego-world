@@ -25,7 +25,20 @@ const TEMPLATED: Record<string, RegExp> = {
   menu: /data-tour=\{`menu-\$\{/,
 };
 
+/** attributes built from template literals (aria-label={`Add to ${row.label}`}) as patterns */
+const TEMPLATE_ATTRS = (attr: string) =>
+  [...SRC.matchAll(new RegExp(`${attr}=\\{\`([^\`]*)\`\\}`, 'g'))].map(
+    (m) =>
+      new RegExp(
+        `^${m[1]!
+          .split(/\$\{[^}]*\}/)
+          .map((x) => x.replace(/[.*+?^$()|[\]\\]/g, '\\$&'))
+          .join('.+')}$`,
+      ),
+  );
+
 function present(attr: string, value: string): boolean {
+  if (TEMPLATE_ATTRS(attr).some((r) => r.test(value))) return true;
   if (SRC.includes(`${attr}="${value}"`) || SRC.includes(`${attr}={'${value}'}`)) return true;
   if (attr === 'data-tour') {
     // a component that renders the hook from its `tour` prop (DraftText, PreviewPicker)

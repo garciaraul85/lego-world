@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'preact/hooks';
 import { CATALOG, nodeDef } from '../../../core/logic/catalog';
 import { graphProblems } from '../../../core/logic/graph';
-import type { LogicGraph, Variables } from '../../../core/schema';
+import { type LogicGraph, paths, type Variables } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
 import { EventPicker } from '../../components/EventPicker';
 import { eventNames } from '../../events';
@@ -32,7 +32,7 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
 
   return (
     <div class="studio logic-ws">
-      <Sidebar c={c} list={list} graph={graph} onCreate={create} />
+      <Sidebar c={c} list={list} graph={graph} onCreate={create} onAdded={(id) => setSelected(new Set([id]))} />
       <section class="panel studio-main" aria-label="Logic editor">
         <div class="ptabs studio-head">
           {graph ? (
@@ -127,11 +127,14 @@ function Sidebar({
   list,
   graph,
   onCreate,
+  onAdded,
 }: {
   c: ActionCtx;
   list: LogicGraph[];
   graph: LogicGraph | null;
   onCreate: () => void;
+  /** P32: the node just added from the list (it is selected, so its settings show at once) */
+  onAdded: (node: string) => void;
 }) {
   const { ed } = c;
   const [q, setQ] = useState('');
@@ -159,10 +162,13 @@ function Sidebar({
           return n.pos[1] + (d ? nodeHeight(d, true) : 80) + 20;
         }),
     );
-    ed.exec({
+    const before = new Set(graph.nodes.map((n) => n.id));
+    const r = ed.exec({
       type: 'logic.addNode',
       payload: { graph: graph.id, node: { type, pos: [80, Math.round(y / 10) * 10] } },
     });
+    const made = r.ok ? ed.store.get<LogicGraph>(paths.logic(graph.id))?.nodes.find((n) => !before.has(n.id)) : null;
+    if (made) onAdded(made.id);
   };
   return (
     <section class="panel studio-lib" aria-label="Logic graphs, variables and nodes">
@@ -172,7 +178,7 @@ function Sidebar({
       <div class="scroll">
         <div class="sech" style={{ padding: '8px 10px 4px' }}>
           <span>Graphs</span>
-          <button type="button" class="link" onClick={onCreate}>
+          <button type="button" class="link" data-tour="logic-new" onClick={onCreate}>
             + New
           </button>
         </div>
@@ -279,6 +285,7 @@ function Sidebar({
                 <button
                   type="button"
                   class="lg-pal"
+                  data-node={d.type}
                   draggable
                   disabled={!graph}
                   title={d.doc}
@@ -361,6 +368,7 @@ function NodeInspector({
                       ) : choices ? (
                         <select
                           class="inp"
+                          data-tour={`field-${a.name}`}
                           value={String(v ?? '')}
                           onChange={(e) => set({ [a.name]: (e.target as HTMLSelectElement).value || undefined })}
                         >
@@ -373,12 +381,14 @@ function NodeInspector({
                       ) : a.kind === 'number' ? (
                         <input
                           class="inp mono"
+                          data-tour={`field-${a.name}`}
                           value={String(v ?? '')}
                           onChange={(e) => set({ [a.name]: Number((e.target as HTMLInputElement).value) })}
                         />
                       ) : (
                         <input
                           class="inp"
+                          data-tour={`field-${a.name}`}
                           value={String(v ?? '')}
                           onChange={(e) => set({ [a.name]: (e.target as HTMLInputElement).value })}
                         />
@@ -410,6 +420,7 @@ function NodeInspector({
                         ) : (
                           <input
                             class="inp mono"
+                            data-tour={`field-${p.name}`}
                             value={typeof v === 'string' ? v : JSON.stringify(v ?? null)}
                             onChange={(e) => {
                               const raw = (e.target as HTMLInputElement).value;

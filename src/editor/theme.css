@@ -4283,3 +4283,29 @@ select.inp {
   width: 100% !important;
   height: 48px !important;
 }
+/* P32: a part that moves between an asset's states */
+.moving-part {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px 0 8px 10px;
+  padding-left: 8px;
+  border-left: 2px solid var(--acc2, #3a8);
+}
+.pose-row {
+  display: grid;
+  grid-template-columns: 52px repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  align-items: end;
+}
+.pose-row label {
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  color: var(--mut);
+}
+.pose-row .inp {
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+}

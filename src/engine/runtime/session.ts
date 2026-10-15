@@ -67,12 +67,21 @@ export type MapWorld = {
   brokenSerial: number;
   /** asset instances of this map (their state changes while playing) */
   instances: PlayInstance[];
+  /** bumped when instances are added, removed or change state (the renderer regroups their moving parts) */
+  rev: number;
   /** sound emitters and world UI of this map (P5.5, P5.9) */
   emitters: EmitterInstance[];
   worldUi: UiInstance[];
 };
 
-export type PlayInstance = ExpandedInstance & { state: string };
+/** P32: an item made only of moving parts floats — drawn, but outside the brick rules (a rising sword) */
+const floating = (def: Asset) => {
+  const moving = new Set((def.parts ?? []).filter((p) => p.pose).flatMap((p) => p.bricks));
+  return def.bricks.length > 0 && def.bricks.every((_, i) => moving.has(i));
+};
+
+/** `anim`: P32 moving parts — the state it left and when (session clock), while its parts ease to the new pose */
+export type PlayInstance = ExpandedInstance & { state: string; anim?: { from: string; since: number } };
 export type Prompt = { instance: PlayInstance; socket: string; label: string; pos: [number, number, number] };
 
 export type InputState = { keys: Set<string>; jump: boolean; touch: Set<string> };
@@ -156,7 +165,7 @@ export class PlaySession {
     const self = this;
     const host = {
       setState: (state: string, target: string | undefined, me: string | undefined) =>
-        this.setInstanceState(target ?? me, state),
+        this.setInstanceState(target ? (this.resolveEntity(target)?.inst.id ?? target) : me, state),
       teleport: (spawn: string) => {
         const sp = this.world.doc.spawns.find((x) => x.id === spawn);
         if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
@@ -274,6 +283,7 @@ export class PlaySession {
         ...e,
         state: e.inst.state ?? e.def.initialState,
       })),
+      rev: 0,
       emitters: (inst?.items ?? []).filter((i): i is EmitterInstance => i.kind === 'emitter'),
       worldUi: (inst?.items ?? []).filter((i): i is UiInstance => i.kind === 'ui'),
     };
@@ -706,8 +716,9 @@ export class PlaySession {
       emit: (e) => this.emit('event', `Event “${e}”`),
       random: Math.random,
       setState: (target, state) => {
-        if (target) this.setInstanceState(target, state);
-        else this.emit('info', `Set state ${state}: no target wired`);
+        const inst = this.resolveEntity(target);
+        if (inst) this.setInstanceState(inst.inst.id, state);
+        else this.emit('info', `Set state ${state}: ${target ? `nothing called “${target}” here` : 'no target wired'}`);
       },
       teleport: (spawn) => {
         const sp = this.world.doc.spawns.find((x) => x.id === spawn);
@@ -724,7 +735,11 @@ export class PlaySession {
         this.audio.play(SND.pickup);
       },
       spawn: (asset, at) => this.spawnAsset(asset, at),
-      despawn: (target) => this.despawn(target),
+      spawnNear: (item, near) => this.spawnNear(item, near),
+      despawn: (target) => {
+        const inst = this.resolveEntity(target);
+        if (inst) this.despawn(inst.inst.id);
+      },
       media: (kind, id, extra) => {
         switch (kind) {
           case 'sound':
@@ -985,6 +1000,73 @@ export class PlaySession {
     this.audio.stopAll();
   }
 
+  /** An asset by id or by name (the project's own first, then the built-in library). */
+  findAsset(ref: string): Asset | null {
+    const r = ref.trim();
+    const byId = (this.snapshot.get(paths.asset(r)) as Asset | undefined) ?? BUILTIN_ASSETS.find((a) => a.id === r);
+    if (byId) return byId;
+    const low = r.toLowerCase();
+    for (const p of this.snapshot.keys())
+      if (p.startsWith('assets/')) {
+        const a = this.snapshot.get(p) as Asset | undefined;
+        if (a?.name.toLowerCase() === low) return a;
+      }
+    return BUILTIN_ASSETS.find((a) => a.name.toLowerCase() === low) ?? null;
+  }
+
+  /**
+   * P32: a placed asset by instance id, or by its asset's name or id — then the copy nearest the hero
+   * (so logic can say “Treasure chest” instead of an id).
+   */
+  resolveEntity(ref: string | null | undefined): PlayInstance | null {
+    if (!ref) return null;
+    const w = this.world;
+    const exact = w.instances.find((i) => i.inst.id === ref);
+    if (exact) return exact;
+    const low = ref.trim().toLowerCase();
+    const h = this.heroState;
+    let best: PlayInstance | null = null;
+    let bd = Infinity;
+    for (const i of w.instances) {
+      if (i.def.id !== ref && i.def.name.toLowerCase() !== low) continue;
+      const d = Math.hypot(i.inst.pos[0] - h.x, i.inst.pos[2] - h.z);
+      if (d < bd) {
+        bd = d;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * P32 world.spawnNear: a copy of an asset (by name or id) at a placed object's item spot — its first
+   * “spawn” socket, or the middle of its top — turned like it, for this play only. An item made only of
+   * moving parts (a sword rising out of a chest) floats: it is drawn, and skips the brick rules.
+   */
+  spawnNear(item: string, near: string): string | null {
+    const def = this.findAsset(item);
+    const host = this.resolveEntity(near);
+    if (!def || !host) {
+      this.emit('info', `Spawn ${item}: ${def ? `nothing called “${near}” here` : 'no asset with that name'}.`);
+      return null;
+    }
+    const spot =
+      host.sockets.find((s) => s.kind === 'spawn')?.world ??
+      (() => {
+        const xs = host.bricks.map((b) => b.x);
+        const zs = host.bricks.map((b) => b.z);
+        const top = Math.max(...host.bricks.map((b) => b.y)) + 3;
+        return [(Math.min(...xs) + Math.max(...xs) + 1) / 2, top * 0.4, (Math.min(...zs) + Math.max(...zs) + 1) / 2];
+      })();
+    const rot = host.inst.rot;
+    const [fw, fd] = rot % 2 ? [def.footprint[1], def.footprint[0]] : [def.footprint[0], def.footprint[1]];
+    return this.placeCopy(
+      def,
+      [Math.round(spot[0]! - fw / 2), Math.round(spot[1]! / 0.4), Math.round(spot[2]! - fd / 2)],
+      rot,
+    );
+  }
+
   /** world.spawn: a copy of an asset at a spawn point, for this play only. */
   spawnAsset(assetId: string, at: string): string | null {
     const def =
@@ -994,6 +1076,19 @@ export class PlaySession {
       this.emit('info', 'Spawn: that asset or spawn point is missing.');
       return null;
     }
+    return this.placeCopy(
+      def,
+      [
+        Math.round(sp.pos[0] - def.footprint[0] / 2),
+        Math.round(sp.pos[1] / 0.4),
+        Math.round(sp.pos[2] - def.footprint[1] / 2),
+      ],
+      0,
+    );
+  }
+
+  /** Adds a copy of an asset to this play's world (refused if its bricks would not fit). */
+  private placeCopy(def: Asset, pos: [number, number, number], rot: number): string | null {
     const w = this.world;
     const idBase =
       Math.max(0, ...w.pieces.map((p) => p.id ?? 0), ...w.broken.flatMap((b) => b.originals.map((p) => p.id ?? 0))) + 1;
@@ -1001,17 +1096,14 @@ export class PlaySession {
       id: `ins_play${String(++this.spawnSerial).padStart(6, '0')}` as AssetInstanceId,
       kind: 'asset' as const,
       asset: def.id,
-      pos: [
-        Math.round(sp.pos[0] - def.footprint[0] / 2),
-        Math.round(sp.pos[1] / 0.4),
-        Math.round(sp.pos[2] - def.footprint[1] / 2),
-      ] as [number, number, number],
-      rot: 0,
+      pos,
+      rot,
       idBase,
     };
     const exp = expandAsset(def, inst);
     const pieces = [...w.pieces, ...exp.bricks.map((b) => brickToPiece(b, true))];
-    const check = inspectPieces(pieces);
+    // a floating item (every brick in a moving part) is drawn only: it does not have to fit
+    const check = floating(def) ? { ok: true as const, reason: '' } : inspectPieces(pieces);
     if (!check.ok) {
       this.emit('info', `Spawn ${def.name}: ${check.reason}`);
       return null;
@@ -1019,6 +1111,7 @@ export class PlaySession {
     w.pieces = pieces;
     for (const b of exp.bricks) w.dirtyChunks.add(chunkKeyOf(brickToPiece(b)));
     w.instances.push({ inst, def, ...exp, state: def.initialState });
+    w.rev++;
     w.controller.replace(w.pieces, w.meta);
     this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
     return inst.id;
@@ -1040,6 +1133,7 @@ export class PlaySession {
     for (const p of w.pieces) if (p.id! >= lo && p.id! < hi) w.dirtyChunks.add(chunkKeyOf(p));
     w.pieces = pieces;
     w.instances = w.instances.filter((i) => i !== inst);
+    w.rev++;
     w.controller.replace(w.pieces, w.meta);
     this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
   }
@@ -1151,7 +1245,7 @@ export class PlaySession {
       ...w.pieces.filter((p) => p.id! < lo || p.id! >= hi),
       ...next.bricks.map((b) => brickToPiece(b, true)),
     ];
-    const check = inspectPieces(pieces);
+    const check = floating(inst.def) ? { ok: true as const, reason: '' } : inspectPieces(pieces);
     if (!check.ok) {
       this.say(`Something is in the way: ${check.reason}`, 2);
       return;
@@ -1159,8 +1253,10 @@ export class PlaySession {
     for (const p of w.pieces) if (p.id! >= lo && p.id! < hi) w.dirtyChunks.add(chunkKeyOf(p));
     for (const b of next.bricks) w.dirtyChunks.add(chunkKeyOf(brickToPiece(b)));
     w.pieces = pieces.sort((a, b) => a.id! - b.id!);
+    inst.anim = { from: inst.state, since: this.clock };
     inst.state = state;
     inst.bricks = next.bricks;
+    w.rev++;
     w.controller.replace(w.pieces, w.meta);
     this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
     this.emit('info', `${inst.def.name} is now ${state}`);
