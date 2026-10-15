@@ -147,3 +147,64 @@ test('Tutorial: the Interactions step says click by click where to click, and Sh
   await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 30_000 });
   expect(errors).toEqual([]);
 });
+
+test('Tutorial: a step with click-by-click lines is checked one line at a time (Animate the clip)', async ({
+  page,
+}) => {
+  test.setTimeout(400_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const card = await startTutorial(page, 'try');
+  // through the Characters chapter to the animate step (the earlier character steps done for us)
+  for (let i = 0; i < 40 && !(await card.getByRole('heading', { name: 'Animate the clip' }).isVisible()); i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    if (/New character|Change the look|player character|Animation clips/i.test(title)) {
+      await card.getByRole('button', { name: 'Do it for me' }).click();
+      await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 60_000 });
+    }
+    await card.getByRole('button', { name: /Next ▶|Skip ▶▶/ }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos);
+  }
+  const how = card.getByRole('list', { name: 'Click by click' });
+  const ticked = () => how.locator('li.done').count();
+  // line 1 (the clip is open) passes at once; the step is not done
+  await expect.poll(ticked).toBe(1);
+  await expect(card.getByText(/✓ Done!/)).toHaveCount(0);
+  await expect(how.locator('li.on')).toContainText('+ Track');
+  // 2: + Track… › Right arm · z
+  await page
+    .getByRole('toolbar', { name: 'Timeline tools' })
+    .getByLabel('Add a track')
+    .selectOption({ label: 'Right arm · z' });
+  await expect.poll(ticked).toBe(2);
+  await expect(card.getByText(/✓ Done!/)).toHaveCount(0);
+  // 3: click the lanes halfway (1.00 s)
+  const lanes = page.locator('.tl-lanes');
+  const box = (await lanes.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height - 6);
+  await expect.poll(ticked).toBe(3);
+  // 4: ◆ Key
+  await page.getByRole('button', { name: '◆ Key' }).click();
+  await expect.poll(ticked).toBe(4);
+  // 5: the new key's value 2.6
+  await page
+    .getByRole('button', { name: /^Key Right arm · z at (?!0\.00)/ })
+    .last()
+    .click();
+  const value = page.locator('.tl-foot').getByLabel('value');
+  await value.fill('2.6');
+  await value.press('Enter');
+  await expect.poll(ticked).toBe(5);
+  await expect(card.getByText(/✓ Done!/)).toHaveCount(0);
+  // 6: Play
+  const studio = page.locator('.char-studio');
+  const play = studio.getByRole('button', { name: 'Play', exact: true });
+  if (await play.isVisible()) await play.click();
+  else {
+    await studio.getByRole('button', { name: 'Pause', exact: true }).click();
+    await studio.getByRole('button', { name: 'Play', exact: true }).click();
+  }
+  await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 30_000 });
+  expect(errors).toEqual([]);
+});

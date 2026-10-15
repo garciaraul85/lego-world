@@ -74,12 +74,34 @@
       "placement": "top",
       "workspace": "Characters",
       "how": [
-        "Your new clip is open (highlighted under Clips, left); its timeline is under the preview, with the time at 0.00 / 2.00 s.",
-        "In the timeline tools, open + Track… and pick Right arm · z (it lifts the arm out to the side). A lane appears with a key ◆ at 0 s, value 0.",
-        "Click the timeline lanes halfway across, so the time reads 1.00 / 2.00 s (the playhead line moves there).",
-        "Click ◆ Key: a second key appears on the lane at 1 s.",
-        "Click that key; under the lanes, type 2.6 in value and press Enter. The arm is up at 1 s.",
-        "Press Play above the preview: the arm rises and falls. Add more tracks (Right elbow · bend, Head · turn) the same way."
+        {
+          "text": "Your new clip is open (highlighted under Clips, left); its timeline is under the preview, with the time at 0.00 / 2.00 s.",
+          "check": { "kind": "state", "test": "clipOpen" }
+        },
+        {
+          "text": "In the timeline tools, open + Track… and pick Right arm · z (it lifts the arm out to the side). A lane appears with a key ◆ at 0 s, value 0.",
+          "check": { "kind": "state", "test": "clipTrack", "args": { "bone": "rightArm", "prop": "z" } }
+        },
+        {
+          "text": "Click the timeline lanes halfway across, so the time reads 1.00 / 2.00 s (the playhead line moves there).",
+          "check": { "kind": "state", "test": "clipTime", "args": { "t": 1 } }
+        },
+        {
+          "text": "Click ◆ Key: a second key appears on the lane at 1 s.",
+          "check": { "kind": "state", "test": "clipKey", "args": { "bone": "rightArm", "prop": "z", "t": 1 } }
+        },
+        {
+          "text": "Click that key; under the lanes, type 2.6 in value and press Enter. The arm is up at 1 s.",
+          "check": {
+            "kind": "state",
+            "test": "clipKey",
+            "args": { "bone": "rightArm", "prop": "z", "t": 1, "atLeast": 2 }
+          }
+        },
+        {
+          "text": "Press Play above the preview: the arm rises and falls. Add more tracks (Right elbow · bend, Head · turn) the same way.",
+          "check": { "kind": "state", "test": "clipPlaying" }
+        }
       ],
       "check": { "kind": "command", "type": "clip.update" },
       "doItForMe": [

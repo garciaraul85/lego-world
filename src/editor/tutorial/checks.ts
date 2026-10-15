@@ -1,5 +1,5 @@
 import type { Command } from '../../core/commands';
-import { type Cinematic, paths, type Screen } from '../../core/schema';
+import { type Asset, type Cinematic, type Clip, paths, type Screen } from '../../core/schema';
 import { assetLibrary } from '../assets';
 import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
@@ -33,8 +33,51 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
         (p) => (ed.store.get<Cinematic>(p)!.tracks.find((t) => t.kind === 'camera')?.items.length ?? 0) >= Number(a),
       ),
   projectHas: (ed, a) => ed.store.has(paths.cinematic(String(a))),
+  // P32: the Character studio's clip, one click at a time
+  clipOpen: (ed) => !!openClip(ed),
+  clipTrack: (ed, a) => !!clipTrack(ed, a as TrackArg),
+  clipTime: (ed, a) => {
+    const { t, within = 0.2 } = a as { t: number; within?: number };
+    return Math.abs(ed.clipTime.value - t) <= within;
+  },
+  clipKey: (ed, a) => {
+    const { t, within = 0.2, atLeast } = a as TrackArg & { t: number; within?: number; atLeast?: number };
+    return !!clipTrack(ed, a as TrackArg)?.keys.some(
+      (k) => Math.abs(k[0] - t) <= within && (atLeast === undefined || k[1] >= atLeast),
+    );
+  },
+  clipPlaying: (ed) => ed.clipPlaying.value && !!openClip(ed),
+  studioAssetIs: (ed, a) => {
+    const id = ed.studioAsset.value;
+    return (
+      !!id &&
+      (ed.store.get<Asset>(paths.asset(id))?.name ?? assetLibrary(ed).find((x) => x.asset.id === id)?.asset.name) === a
+    );
+  },
+  // P32: an asset's interactions
+  assetActions: (ed, a) => {
+    const { name, atLeast } = a as { name: string; atLeast: number };
+    return projectAsset(ed, name)?.interactions.some((i) => i.do.length >= atLeast) ?? false;
+  },
+  assetDoes: (ed, a) => {
+    const { name, does } = a as { name: string; does: string };
+    return projectAsset(ed, name)?.interactions.some((i) => i.do.some((x) => x.do === does)) ?? false;
+  },
   ...CODING_TESTS,
 };
+
+type TrackArg = { bone: string; prop: string };
+function openClip(ed: EditorState): Clip | null {
+  const id = ed.studioClip.value;
+  return id ? (ed.store.get<Clip>(paths.clip(id)) ?? null) : null;
+}
+const clipTrack = (ed: EditorState, a: TrackArg) =>
+  openClip(ed)?.tracks.find((t) => t.bone === a.bone && t.prop === a.prop) ?? null;
+const projectAsset = (ed: EditorState, name: string) =>
+  ed.store
+    .list('assets/')
+    .map((p) => ed.store.get<Asset>(p)!)
+    .find((x) => x?.name === name) ?? null;
 
 /** true when `payload` has every field of `where` (deep, arrays compared as sets of items) */
 export function matches(payload: unknown, where: Record<string, unknown> | undefined): boolean {

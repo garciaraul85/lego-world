@@ -2709,6 +2709,13 @@ select.inp {
   font-size: 12px;
   color: var(--fg2);
 }
+.tut-how li.done {
+  color: var(--mut2, #8a93a0);
+}
+.tut-how .tut-tick {
+  color: var(--teal);
+  font-weight: 700;
+}
 .tut-how li.on {
   color: var(--fg);
   font-weight: 600;

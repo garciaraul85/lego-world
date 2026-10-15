@@ -108,6 +108,9 @@ export class EditorState {
   readonly studioCharacter = signal<string | null>(null);
   /** the clip open on the Character studio's timeline (P32: the tutorial opens the clip it made) */
   readonly studioClip = signal<string | null>(null);
+  /** where the clip's playhead is (seconds), and whether the clip plays in the preview (tutorial checks) */
+  readonly clipTime = signal(0);
+  readonly clipPlaying = signal(false);
   readonly view = signal<ViewTab>('scene');
   readonly left = signal<LeftTab>('hier');
   readonly right = signal<RightTab>('inspect');

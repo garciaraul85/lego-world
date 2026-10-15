@@ -61,10 +61,19 @@
         }
       ],
       "how": [
-        "Check the chest is open: the build plate’s title says Treasure chest (if not, click Treasure chest in the Asset library on the left).",
+        {
+          "text": "Check the chest is open: the build plate’s title says Treasure chest (if not, click Treasure chest in the Asset library on the left).",
+          "check": { "kind": "state", "test": "studioAssetIs", "args": "Treasure chest" }
+        },
         "In the Asset properties panel on the right, scroll down to Interactions. The first box is the chest’s “lid · when closed” interaction, with three actions: Play sound, Set state (open), Send event.",
-        "Click + Action at the bottom of that first box. A new action row appears under Send event, set to Set state.",
-        "Click that new row’s first drop-down (Action) and pick Give item.",
+        {
+          "text": "Click + Action at the bottom of that first box. A new action row appears under Send event, set to Set state.",
+          "check": { "kind": "state", "test": "assetActions", "args": { "name": "Treasure chest", "atLeast": 4 } }
+        },
+        {
+          "text": "Click that new row’s first drop-down (Action) and pick Give item.",
+          "check": { "kind": "state", "test": "assetDoes", "args": { "name": "Treasure chest", "does": "give" } }
+        },
         "Its fields show the item (coin) and how many (1). Change them if you like: press Enter or click away to save."
       ],
       "setup": [{ "fn": "editAsset", "args": { "name": "Treasure chest" } }]
@@ -97,9 +106,21 @@
         { "fn": "addBrickToOpenAsset" }
       ],
       "how": [
-        "Click + New asset at the top of the Asset library (left). A new asset opens on the plate with one red brick.",
-        "Click the Bricks tab of the Asset library, then click a piece (Brick 2×4, say) and a colour under the pieces. Place bricks (B) turns on.",
-        "Move the pointer over the build plate: a see-through brick shows where it will go (red means it can’t go there). Click to put it down, or drag the piece from the tab onto the plate.",
+        {
+          "text": "Click + New asset at the top of the Asset library (left). A new asset opens on the plate with one red brick.",
+          "check": { "kind": "command", "type": "asset.create" }
+        },
+        {
+          "text": "Click the Bricks tab of the Asset library, then click a piece (Brick 2×4, say) and a colour under the pieces. Place bricks (B) turns on.",
+          "check": {
+            "kind": "dom",
+            "selector": "[aria-label=\"Asset library\"] [role=\"tab\"][aria-selected=\"true\"]:nth-child(2)"
+          }
+        },
+        {
+          "text": "Move the pointer over the build plate: a see-through brick shows where it will go (red means it can’t go there). Click to put it down, or drag the piece from the tab onto the plate.",
+          "check": { "kind": "command", "type": "asset.update" }
+        },
         "To change a brick: Select (V) and click it, then Move (W), Rotate (E), Color paint (C) or Erase (X) from the tools above the plate."
       ]
     },

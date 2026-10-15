@@ -6,7 +6,7 @@ import { courseTokens, fillCode } from './coding';
 import { perform } from './doers';
 import { type Track, trackOf } from './index';
 import { GhostCursor, type Rect, Spotlight, useTargetRect } from './Spotlight';
-import type { Check, Step } from './schema';
+import { type Check, howLines, type Step } from './schema';
 
 /** demo: Show me is running; shown: the demo waits for My turn; try: your turn; done: waits for Next */
 type Phase = 'demo' | 'shown' | 'try' | 'done';
@@ -107,13 +107,33 @@ export function TutorialRunner({
   // leaving the tutorial during a demo lets it put everything back
   useEffect(() => () => myTurn.current?.(), []);
 
+  // P32: a step whose click-by-click lines have checks is done one line at a time, in order
+  const lines = howLines(step);
+  const lineChecked = lines.some((l) => l.check);
+  const [linesDone, setLinesDone] = useState<boolean[]>([]);
+  useEffect(() => setLinesDone([]), [index]);
+  /** the line being worked on: the first one with a check that has not passed yet (-1 when all have) */
+  const current = lineChecked ? lines.findIndex((l, i) => l.check && !linesDone[i]) : -1;
+
   // the check, armed while it is the user's turn
   // (not while Do it for me is still working: its own clicks would end this step early, or the next one)
   useEffect(() => {
     if (phase !== 'try' || working) return;
     const at = index;
-    return arm(step.check, c, () => complete(at));
-  }, [phase, index, working]);
+    if (!lineChecked) return arm(step.check, c, () => complete(at));
+    if (current < 0) {
+      complete(at);
+      return;
+    }
+    return arm(lines[current]!.check!, c, () => {
+      if (at !== indexRef.current) return;
+      setLinesDone((d) => {
+        const next = [...d];
+        next[current] = true;
+        return next;
+      });
+    });
+  }, [phase, index, working, current]);
 
   const target = (sel = step.target): { x: number; y: number } => {
     const el = document.querySelector(sel) as HTMLElement | null;
@@ -274,11 +294,20 @@ export function TutorialRunner({
                   : '👉 Your turn:'}{' '}
               {phase === 'done' ? '' : keysFor(step.task)}
             </p>
-            {step.how && phase !== 'done' && (
+            {lines.length > 0 && phase !== 'done' && (
               <ol class="tut-how" aria-label="Click by click">
-                {step.how.map((h, i) => (
-                  <li class={i === howAt ? 'on' : ''}>{keysFor(h)}</li>
-                ))}
+                {lines.map((h, i) => {
+                  // a line is done when its check passed, or (no check) when a later checked line is reached
+                  const done =
+                    phase === 'try' && lineChecked && (h.check ? !!linesDone[i] : current < 0 || i < current);
+                  const on = howAt >= 0 ? i === howAt : phase === 'try' && i === current;
+                  return (
+                    <li class={`${on ? 'on' : ''} ${done ? 'done' : ''}`} aria-current={on ? 'step' : undefined}>
+                      {done && <span class="tut-tick">✓ </span>}
+                      {keysFor(h.text)}
+                    </li>
+                  );
+                })}
               </ol>
             )}
             {step.code && (

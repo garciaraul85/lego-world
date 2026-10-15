@@ -155,7 +155,8 @@ export function Timeline({
                 onChange(
                   {
                     ...clip,
-                    tracks: [...clip.tracks, { bone: a.bone, prop: a.prop, keys: [[q(time), 0, 'easeInOut']] }],
+                    // the first key is at the start of the clip (where the joint starts out)
+                    tracks: [...clip.tracks, { bone: a.bone, prop: a.prop, keys: [[0, 0, 'easeInOut']] }],
                   },
                   'Add track',
                 );

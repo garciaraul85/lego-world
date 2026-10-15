@@ -83,6 +83,13 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
   const builtinClip = !!clip && !ownClips.some((x) => x.id === clip.id);
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(true);
+  // the playhead and Play state, for the tutorial's click-by-click checks
+  useEffect(() => {
+    ed.clipTime.value = time;
+  }, [time]);
+  useEffect(() => {
+    ed.clipPlaying.value = playing && !!ed.studioClip.value;
+  }, [playing, ed.studioClip.value]);
   const [turntable, setTurntable] = useState(false);
   const preview = useRef<PreviewInput>({ profile: chr.profile, clip, time, turntable });
   preview.current = { profile: chr.profile, clip, time, turntable };

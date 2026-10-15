@@ -77,8 +77,20 @@ export const Step = z.strictObject({
   setup: z.array(Do).optional(),
   /** code to type, shown in the card (coding course); {{tokens}} are filled from the sandbox */
   code: z.string().max(2000).optional(),
-  /** click by click: where each click goes and what it does, shown as a numbered list under the task */
-  how: z.array(z.string().min(1).max(200)).max(8).optional(),
+  /**
+   * click by click: where each click goes and what it does, shown as a numbered list under the task. A line
+   * with a `check` is ticked when that check passes, one line at a time in order; a step with such lines is
+   * done when all of them are (the step's own `check` is then not used).
+   */
+  how: z
+    .array(
+      z.union([
+        z.string().min(1).max(200),
+        z.strictObject({ text: z.string().min(1).max(200), check: Check.optional() }),
+      ]),
+    )
+    .max(8)
+    .optional(),
   /** a keyboard shortcut or tip shown under the task */
   tip: z.string().max(200).optional(),
 });
@@ -90,3 +102,8 @@ export const Chapter = z.strictObject({
   steps: z.array(Step).min(1),
 });
 export type Chapter = z.infer<typeof Chapter>;
+
+/** A line of a step's click-by-click list, whatever way it was written. */
+export type HowLine = { text: string; check?: Check | undefined };
+export const howLines = (s: Pick<Step, 'how'>): HowLine[] =>
+  (s.how ?? []).map((h) => (typeof h === 'string' ? { text: h } : h));
