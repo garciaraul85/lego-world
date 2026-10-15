@@ -63,7 +63,8 @@ test('Tutorial (Show me): the demo performs the step, then puts it back for the 
 });
 
 test('Tutorial (I try first): Do it for me through every step builds a playable two-map game', async ({ page }) => {
-  test.setTimeout(600_000);
+  // the story chapters script dozens of clicks on a generated two-map world
+  test.setTimeout(1_800_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const card = await startTutorial(page, 'try');
@@ -78,7 +79,7 @@ test('Tutorial (I try first): Do it for me through every step builds a playable 
     if (await doIt.isVisible()) {
       await expect(doIt).toBeEnabled({ timeout: 30_000 });
       await doIt.click();
-      await expect(card.getByText(/✓ Done!/), `step ${pos} ${title}`).toBeVisible({ timeout: 60_000 });
+      await expect(card.getByText(/✓ Done!/), `step ${pos} ${title}`).toBeVisible({ timeout: 180_000 });
       if (pos.startsWith(`${total}/`)) break;
       await card.getByRole('button', { name: 'Next ▶' }).click();
       await expect(card.locator('header .mono'), `step ${pos} ${title}`).not.toHaveText(pos, { timeout: 60_000 });

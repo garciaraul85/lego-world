@@ -4,6 +4,7 @@ import { rigPose } from '../../../engine/character/animator';
 import { sampleParams } from '../../../engine/character/routine';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { OrbitCamera } from '../../../engine/render/camera';
+import { drawCharacter, placement } from '../../../engine/render/place-character';
 import { Renderer } from '../../../engine/render/renderer';
 import { FRAGMENT } from '../../../engine/render/shaders';
 import { BONE_NAMES, trackLabel } from '../../components/timeline/Timeline';
@@ -100,7 +101,16 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
         renderer.render(cam.frame(), cam.target, [], [], [], (mvp, eye) => {
           view = mvp;
           chars.begin(mvp, eye, renderer.skySample);
-          chars.draw(profile, state, true, !!clip);
+          // a clip pose turns with the turntable too
+          drawCharacter(
+            L,
+            chars,
+            { mvp, eye: eye as number[], light: renderer.skySample },
+            profile,
+            state as never,
+            true,
+            !!clip,
+          );
         });
       } catch {
         /* a profile mid-edit can be invalid for one frame */
@@ -125,7 +135,10 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
           const pose = M.jointPose(state, !animated, profile);
           const m = pose[at[0]];
           if (m) {
-            const [x = 0, y = 0, z = 0] = M.transform(M.scaledMatrix(m, state, profile), at[1]);
+            let pt = M.transform(M.scaledMatrix(m, state, profile), at[1]);
+            // a clip pose is built at the origin; it is drawn where the character stands (turntable)
+            if (state.studioPose) pt = M.transform(placement(L, state as never), pt);
+            const [x = 0, y = 0, z = 0] = pt;
             const cx = mvp[0]! * x + mvp[4]! * y + mvp[8]! * z + mvp[12]!;
             const cy = mvp[1]! * x + mvp[5]! * y + mvp[9]! * z + mvp[13]!;
             const cw = mvp[3]! * x + mvp[7]! * y + mvp[11]! * z + mvp[15]!;

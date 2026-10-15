@@ -153,7 +153,8 @@ export function TutorialRunner({
     for (const part of parts) {
       if (part.line !== null) setHowAt(part.line);
       // armed before the actions, so a command they cause is seen
-      const verified = part.check ? verify(part.check, c, 8000) : null;
+      // a big map can keep the editor busy for a while (the Director reloads its preview): 20 s before giving up
+      const verified = part.check ? verify(part.check, c, 20000) : null;
       for (const d of part.actions) {
         const said = d as { say?: string };
         if (show) {

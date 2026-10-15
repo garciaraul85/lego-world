@@ -332,14 +332,15 @@ test.describe('on a Retina Mac screen', () => {
       .click();
     await expect(plate.locator('.studio-title')).toHaveText('Treasure chest');
     await page.getByRole('button', { name: 'Build Mushroom into Treasure chest' }).first().click();
-    await expect.poll(() => pieces(page)).toBeGreaterThan(5);
+    // the chest has 4 pieces (base, gold trim, and its moving lid with a gold band)
+    await expect.poll(() => pieces(page)).toBeGreaterThan(4);
     await expect(page.getByRole('listbox', { name: 'Assets' }).getByText('· changed')).toBeVisible();
     await expect(
       page.getByRole('region', { name: 'Asset properties' }).getByRole('button', { name: 'Reset to built-in' }),
     ).toBeVisible();
     await page.getByRole('navigation', { name: 'Menu' }).getByRole('button', { name: 'Assets' }).click();
     await page.getByRole('menuitem', { name: /Reset changed built-in assets/ }).click();
-    await expect.poll(() => pieces(page)).toBe(5);
+    await expect.poll(() => pieces(page)).toBe(4);
     await expect(page.getByRole('listbox', { name: 'Assets' }).getByText('· changed')).toHaveCount(0);
     expect(errors).toEqual([]);
   });

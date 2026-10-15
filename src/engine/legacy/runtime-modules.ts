@@ -123,6 +123,9 @@ export interface LegacyRuntime {
       neutral: boolean,
       profile: Record<string, unknown>,
     ): Record<string, Float32Array>;
+    /** v68 column-major 4×4: translate to (x, y, z), then turn by yaw (heading), pitch, roll */
+    matrix(x: number, y: number, z: number, yaw?: number, pitch?: number, roll?: number): Float32Array;
+    mul(a: ArrayLike<number>, b: ArrayLike<number>): Float32Array;
     /** a joint matrix scaled to the character's size */
     scaledMatrix(m: Float32Array, state: Record<string, unknown>, profile: Record<string, unknown>): Float32Array;
     transform(m: ArrayLike<number>, p: number[]): number[];

@@ -137,12 +137,12 @@ export const STORY_DOERS: Record<string, (c: ActionCtx, a: Record<string, unknow
     const def = chestDef();
     const at = (p: V3) => localToWorld(def, inst, p);
     const chest = at([2, 1.2, 1]);
+    // world positions around the chest (local frame: x along the chest, z out of its front, the hero at z 3.6)
     const shots = [
-      { t: 0, shot: 'Wide', pos: at([-5, 6, 12]), lookAt: chest, fov: 55, blend: 0 },
-      { t: 2, shot: 'Close on the chest', pos: at([-5.5, 3.2, 4.5]), lookAt: at([2, 1.4, 2.4]), fov: 45, blend: 0 },
-      // beside the chest's left end, a little in front of the hero's face (the open lid blocks the view from behind
-      // the chest)
-      { t: 4, shot: 'Hold it up', pos: at([-4.5, 3.6, 1]), look: 'hero', fov: 42, blend: 0.6 },
+      { t: 0, shot: 'Wide', pos: at([-6, 7, 13]), lookAt: chest, fov: 55, blend: 0 },
+      { t: 2, shot: 'Close on the chest', pos: at([-6.5, 5, 7.5]), lookAt: at([2.5, 2, 2.8]), fov: 50, blend: 0 },
+      // from the chest's left, a little in front of the hero's face (the open lid blocks the view from behind)
+      { t: 4, shot: 'Hold it up', pos: at([-7.5, 5.6, 1.6]), lookAt: at([2, 3.8, 3.6]), fov: 48, blend: 0.6 },
     ];
     const tracks = cin.tracks.some((t) => t.kind === 'camera')
       ? cin.tracks.map((t) => (t.kind === 'camera' ? { kind: 'camera' as const, items: shots } : t))

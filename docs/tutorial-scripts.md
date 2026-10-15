@@ -65,7 +65,9 @@ an unknown doer, or acts without a check.
 
 State tests available for lines include `workspace`, `rightTab`, `dockTab`, `menuOpen`,
 `hasSelection`, `clipOpen`, `clipTrack`, `clipTime`, `clipKey`, `clipPlaying`, `studioAssetIs`,
-`assetActions`, `assetDoes`, `characterNamed` and `characterWears`. Add a test there when a new kind of result needs checking; never
+`assetActions`, `assetDoes`, `characterNamed`, `characterWears`, `clipNamed`, `clipLoop`,
+`clipLength`, `graphNamed`, `hasVar`, `graphHas`, `graphEdge`, `chestCode`, `cineNamed`, `cineLength`,
+`cineTime`, `cineMarkAtChest`, `cineItem`, `cineShots` and `zonePlaysScene`. Add a test there when a new kind of result needs checking; never
 check by looking at pixels.
 
 ## Writing a new scripted step
@@ -75,8 +77,9 @@ check by looking at pixels.
 3. Pick the check that proves the click worked; add a state test if none fits.
 4. Run `npx vitest run tests/unit/tutorial-targets.test.ts`, then try Show me and Do it for me in the editor.
 
-Scripted steps today: `assets.interact` (Interactions), `assets.build` (Build a new asset),
-`chars.look` (Change the look) and `chars.animate` (Animate the clip).
+Scripted steps today: `assets.interact`, `assets.build`, every step of the Characters chapter after the
+first two (`chars.look` … `chars.holdup`), the Logic chapter (`logic.new` … `logic.code`) and the
+Cinematics chapter (`cine.new` … `cine.play`): the treasure-chest story.
 
 ## Hooks a script can use
 
@@ -88,6 +91,17 @@ Scripted steps today: `assets.interact` (Interactions), `assets.build` (Build a 
 | `[data-tour="clip-length"]` | timeline tools › Length |
 | `[data-tour="key-time"]`, `[data-tour="key-value"]` | the selected key's “at” and “value” boxes |
 | `[data-tour="clip-play"]` | the clip's Play / Pause button |
+| `[data-tour="clip-new"]`, `[data-tour="clip-name"]`, `[data-tour="clip-loop"]` | Clips › + New; the clip's name; Loop |
+| `[data-tour="track-mirror"]`, `[data-tour="char-hero"]` | ⇆ Mirror; Make player character |
+| `[data-tour="logic-new"]`, `.lg-pal[data-node="<type>"]` | Graphs › + New; a node in the node list |
+| `[aria-label="Node inspector"] [data-tour="field-<name>"]` | a node's setting or value box |
+| `[data-tour="cine-new"]`, `button[aria-label="Add to <row>"]` | Scenes › + New; + on a Director row |
+| `[aria-label="Item properties"] select[aria-label="Does"]` … | the selected Director item's fields, by label |
+| `[data-tour="asset-parts"]`, `[data-tour="part-from-selection"]`, `[data-tour="pose-<part>-<state>"]` | Parts; Selected bricks → moving part; a part's pose in a state |
+
+Doers for what a click cannot express (in `src/editor/tutorial/story.ts`): `chestStage`,
+`markAtChest`, `seekScene`, `chestCameras`, `chestZonePlays`, `wireNodes`, `typeHere`, `waitScene`;
+`seekClip` moves a clip's playhead.
 
 Text boxes keep what is typed while the screen redraws and take it on Enter (or when the box loses
 focus), so `fill` works the same as a person typing.
