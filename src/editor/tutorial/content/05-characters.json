@@ -69,55 +69,82 @@
       "id": "chars.animate",
       "title": "Animate the clip",
       "body": "Animating means adding keys: at a moment of the clip, set where a joint is. Here the right arm goes up at 1 second and back down at the end, so the clip lifts the arm and drops it again, over and over (Loop).",
-      "task": "Make the right arm rise and fall: add a Right arm · z track and a key at 1 s with the arm up (value 2.6).",
+      "task": "Make the right arm rise and fall: add the track “Right arm · z”, then a key at 1 second with the value 2.6, then press “Play”.",
       "target": "[aria-label=\"Timeline tools\"]",
       "placement": "top",
       "workspace": "Characters",
       "how": [
         {
-          "text": "Your new clip is open (highlighted under Clips, left); its timeline is under the preview, with the time at 0.00 / 2.00 s.",
-          "check": { "kind": "state", "test": "clipOpen" }
+          "text": "Your new clip must be open: it is highlighted under “Clips › Mine” (left), and its timeline is under the preview, starting at 0.00 / 2.00 s. If it is not, click it there.",
+          "check": { "kind": "state", "test": "clipOpen" },
+          "do": [
+            {
+              "fn": "openOwnClip",
+              "say": "Your clip is open: highlighted under Clips › Mine, with its timeline under the preview."
+            }
+          ]
         },
         {
-          "text": "In the timeline tools, open + Track… and pick Right arm · z (it lifts the arm out to the side). A lane appears with a key ◆ at 0 s, value 0.",
-          "check": { "kind": "state", "test": "clipTrack", "args": { "bone": "rightArm", "prop": "z" } }
+          "text": "In the timeline tools (the bar just under the preview), open the drop-down “+ Track…” and pick “Right arm · z”. A lane named “Right arm · z” appears with a key ◆ at 0 s (value 0).",
+          "check": { "kind": "state", "test": "clipTrack", "args": { "bone": "rightArm", "prop": "z" } },
+          "do": [
+            {
+              "choose": "[aria-label=\"Timeline tools\"] select[aria-label=\"Add a track\"]",
+              "value": "Right arm · z",
+              "say": "Open “+ Track…” in the timeline tools and pick “Right arm · z”: a lane appears with a key at 0 s."
+            }
+          ]
         },
         {
-          "text": "Click the timeline lanes halfway across, so the time reads 1.00 / 2.00 s (the playhead line moves there).",
-          "check": { "kind": "state", "test": "clipTime", "args": { "t": 1 } }
+          "text": "Click the lanes area halfway across, so the time at the left of the timeline tools reads about 1.00 / 2.00 s. The thin playhead line moves there and the clip stops playing.",
+          "check": { "kind": "state", "test": "clipTime", "args": { "t": 1 } },
+          "do": [
+            {
+              "fn": "seekClip",
+              "args": { "t": 1 },
+              "say": "Click halfway across the lanes: the playhead moves to 1.00 s."
+            }
+          ]
         },
         {
-          "text": "Click ◆ Key: a second key appears on the lane at 1 s.",
-          "check": { "kind": "state", "test": "clipKey", "args": { "bone": "rightArm", "prop": "z", "t": 1 } }
+          "text": "Click the button “◆ Key” in the timeline tools. A second key ◆ appears on the “Right arm · z” lane, at the playhead (1 s).",
+          "check": { "kind": "state", "test": "clipKey", "args": { "bone": "rightArm", "prop": "z", "t": 1 } },
+          "do": [
+            {
+              "click": "[aria-label=\"Timeline tools\"] button[title=\"Key the selected track at the playhead\"]",
+              "say": "Click “◆ Key”: a key appears at 1 s on the Right arm · z lane."
+            }
+          ]
         },
         {
-          "text": "Click that key; under the lanes, type 2.6 in value and press Enter. The arm is up at 1 s.",
+          "text": "Click that new key ◆ (at 1 s) to select it. Under the lanes, in the box “value”, type 2.6 and press Enter. The arm is now up at 1 s.",
           "check": {
             "kind": "state",
             "test": "clipKey",
             "args": { "bone": "rightArm", "prop": "z", "t": 1, "atLeast": 2 }
-          }
+          },
+          "do": [
+            { "click": ".tl-lane.on .tl-key:last-child", "say": "Click the key at 1 s to select it." },
+            {
+              "fill": ".tl-foot label:nth-of-type(2) input",
+              "value": "2.6",
+              "say": "In the box “value” under the lanes, type 2.6 and press Enter: the arm goes up at 1 s."
+            }
+          ]
         },
         {
-          "text": "Press Play above the preview: the arm rises and falls. Add more tracks (Right elbow · bend, Head · turn) the same way.",
-          "check": { "kind": "state", "test": "clipPlaying" }
+          "text": "Press the button “Play” at the top right of the preview. The arm rises and falls as the clip loops. Add more tracks the same way (for example “Right elbow · bend” or “Head · turn”).",
+          "check": { "kind": "state", "test": "clipPlaying" },
+          "do": [
+            {
+              "click": "[data-tour=\"clip-play\"]",
+              "say": "Press “Play” at the top right of the preview: the arm rises and falls."
+            }
+          ]
         }
       ],
       "check": { "kind": "command", "type": "clip.update" },
-      "doItForMe": [
-        { "fn": "openOwnClip", "say": "Your new clip is open on the timeline under the preview.", "line": 1 },
-        {
-          "choose": "[aria-label=\"Timeline tools\"] select[aria-label=\"Add a track\"]",
-          "value": "Right arm · z",
-          "say": "Open + Track… in the timeline tools and pick Right arm · z. A lane appears with a key at 0 s.",
-          "line": 2
-        },
-        {
-          "fn": "armUpKeys",
-          "say": "At 1 s, ◆ Key, then value 2.6 (and back down at the end): the arm rises and falls as the clip loops.",
-          "line": 5
-        }
-      ]
+      "doItForMe": []
     }
   ]
 }

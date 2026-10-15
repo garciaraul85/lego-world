@@ -25,21 +25,34 @@ export const Do = z.union([
     click: z.string(),
     say: z.string().max(200).optional(),
     /** the line of the step's click-by-click list (`how`, from 1) this click does */
-    line: z.number().int().min(1).max(8).optional(),
+    line: z.number().int().min(1).max(10).optional(),
   }),
   /** pick `value` in a drop-down list (a select) */
   z.strictObject({
     choose: z.string(),
     value: z.string(),
     say: z.string().max(200).optional(),
-    line: z.number().int().min(1).max(8).optional(),
+    line: z.number().int().min(1).max(10).optional(),
+  }),
+  /** P32: type `value` into a text box and confirm it (as pressing Enter does) */
+  z.strictObject({
+    fill: z.string(),
+    value: z.string(),
+    say: z.string().max(200).optional(),
+    line: z.number().int().min(1).max(10).optional(),
+  }),
+  /** P32: point at a control without using it (scrolls it into view), to show where something is */
+  z.strictObject({
+    show: z.string(),
+    say: z.string().max(200).optional(),
+    line: z.number().int().min(1).max(10).optional(),
   }),
   z.strictObject({ cmd: z.string(), args: z.record(z.string(), z.unknown()) }),
   z.strictObject({
     fn: z.string(),
     args: z.record(z.string(), z.unknown()).optional(),
     say: z.string().max(200).optional(),
-    line: z.number().int().min(1).max(8).optional(),
+    line: z.number().int().min(1).max(10).optional(),
   }),
 ]);
 export type Do = z.infer<typeof Do>;
@@ -86,10 +99,19 @@ export const Step = z.strictObject({
     .array(
       z.union([
         z.string().min(1).max(200),
-        z.strictObject({ text: z.string().min(1).max(200), check: Check.optional() }),
+        z.strictObject({
+          text: z.string().min(1).max(320),
+          check: Check.optional(),
+          /**
+           * P32: what Show me and Do it for me do for this line, in order (the same clicks a person makes),
+           * after which the line's check must pass before the next line starts. The same list is the script
+           * an AI follows: each line is UI actions plus one verification.
+           */
+          do: z.array(Do).optional(),
+        }),
       ]),
     )
-    .max(8)
+    .max(10)
     .optional(),
   /** a keyboard shortcut or tip shown under the task */
   tip: z.string().max(200).optional(),
@@ -104,6 +126,6 @@ export const Chapter = z.strictObject({
 export type Chapter = z.infer<typeof Chapter>;
 
 /** A line of a step's click-by-click list, whatever way it was written. */
-export type HowLine = { text: string; check?: Check | undefined };
+export type HowLine = { text: string; check?: Check | undefined; do?: Do[] | undefined };
 export const howLines = (s: Pick<Step, 'how'>): HowLine[] =>
   (s.how ?? []).map((h) => (typeof h === 'string' ? { text: h } : h));

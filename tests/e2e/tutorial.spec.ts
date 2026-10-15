@@ -208,3 +208,49 @@ test('Tutorial: a step with click-by-click lines is checked one line at a time (
   await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 30_000 });
   expect(errors).toEqual([]);
 });
+
+test('Tutorial: Show me and Do it for me run a scripted step line by line, verifying each line', async ({ page }) => {
+  test.setTimeout(400_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const card = await startTutorial(page, 'try');
+  for (let i = 0; i < 40 && !(await card.getByRole('heading', { name: 'Animate the clip' }).isVisible()); i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    if (/New character|Change the look|player character|Animation clips/i.test(title)) {
+      await card.getByRole('button', { name: 'Do it for me' }).click();
+      await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 60_000 });
+    }
+    await card.getByRole('button', { name: /Next ▶|Skip ▶▶/ }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos);
+  }
+  const how = card.getByRole('list', { name: 'Click by click' });
+  const lines = await how.getByRole('listitem').count();
+  expect(lines).toBe(6);
+
+  // Show me: the pointer walks the lines in order; each is ticked once its check passes
+  await card.getByRole('button', { name: /Show me/ }).click();
+  await expect(how.locator('li.on')).toContainText('+ Track', { timeout: 30_000 });
+  await expect(card.locator('.tut-note')).toContainText(/Track/);
+  await expect(how.locator('li.on')).toContainText('◆ Key', { timeout: 30_000 });
+  await expect(card.getByRole('button', { name: 'My turn ▶' })).toBeVisible({ timeout: 60_000 });
+  expect(await how.locator('li.done').count()).toBe(lines);
+  await card.getByRole('button', { name: 'My turn ▶' }).click();
+  await expect(card.getByText(/Your turn/).first()).toBeVisible({ timeout: 30_000 });
+  // the demo is taken back: only the first line (the clip is open) still holds
+  await expect.poll(() => how.locator('li.done').count()).toBe(1);
+
+  // Do it for me: same lines, Next stays off until every line is verified
+  await card.getByRole('button', { name: 'Do it for me' }).click();
+  await expect(card.getByRole('button', { name: /Next ▶|Skip ▶▶/ })).toBeDisabled();
+  // Done comes only after every line's check passed (a failed one stops the run on that line)
+  await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 60_000 });
+  const labels = await get(page, (e) => e.bus.history().map((h) => h.label));
+  for (const l of ['Add track', 'Add key', 'Key value']) expect(labels).toContain(l);
+  const track = await page.evaluate(() => {
+    const e = (window as unknown as { __editor: { studioClip: { value: string | null } } }).__editor;
+    return e.studioClip.value;
+  });
+  expect(track).toBeTruthy();
+  expect(errors).toEqual([]);
+});

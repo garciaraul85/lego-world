@@ -6,7 +6,7 @@ import { courseTokens, fillCode } from './coding';
 import { perform } from './doers';
 import { type Track, trackOf } from './index';
 import { GhostCursor, type Rect, Spotlight, useTargetRect } from './Spotlight';
-import { type Check, howLines, type Step } from './schema';
+import { type Check, type Do, howLines, type Step } from './schema';
 
 /** demo: Show me is running; shown: the demo waits for My turn; try: your turn; done: waits for Next */
 type Phase = 'demo' | 'shown' | 'try' | 'done';
@@ -145,6 +145,50 @@ export function TutorialRunner({
   };
 
   /** Show me: perform the step with the demo pointer, show the result, then put everything back. */
+  /** P32: one line of the step at a time: its actions, then its check must pass (Show me and Do it for me). */
+  async function runScript(show: boolean) {
+    const parts = scriptOf(step);
+    for (const part of parts) {
+      if (part.line !== null) setHowAt(part.line);
+      // armed before the actions, so a command they cause is seen
+      const verified = part.check ? verify(part.check, c, 8000) : null;
+      for (const d of part.actions) {
+        const said = d as { say?: string };
+        if (show) {
+          const sel =
+            'click' in d ? d.click : 'choose' in d ? d.choose : 'fill' in d ? d.fill : 'show' in d ? d.show : null;
+          if (sel) setFocus(sel);
+          setNote(said.say ?? (part.text ? `Step ${(part.line ?? 0) + 1}: ${part.text}` : null));
+          await wait(sel ? 120 : 0);
+          setGhost(target(sel ?? step.target));
+          await wait(sel ? 1400 : 750);
+          if (!('show' in d)) {
+            setClicking(true);
+            await wait(220);
+            setClicking(false);
+          }
+        }
+        await perform(c, d);
+        await wait(show ? 350 : 150);
+      }
+      if (verified && !(await verified.done))
+        throw new Error(
+          `step ${(part.line ?? 0) + 1} did not happen${part.text ? ` (“${part.text.slice(0, 80)}…”)` : ''}. ${verified.why()}`,
+        );
+      verified?.stop();
+      if (part.line !== null) {
+        const n = part.line;
+        setLinesDone((d) => {
+          const next = [...d];
+          next[n] = true;
+          return next;
+        });
+      }
+      await wait(show ? 500 : 200);
+    }
+  }
+
+  /** Show me: perform the step line by line with the demo pointer, show the result, then put everything back. */
   async function demo() {
     if (busy.current) return;
     busy.current = true;
@@ -156,23 +200,7 @@ export function TutorialRunner({
     try {
       setGhost({ x: innerWidth - 120, y: innerHeight - 80 });
       await wait(60);
-      // the pointer goes to the control before each action (earlier actions may open the panel it is in)
-      for (const d of step.doItForMe) {
-        // a click names its control: the pointer and the spotlight go there, and the card says what it is
-        const sel = 'click' in d ? d.click : 'choose' in d ? d.choose : null;
-        if (sel) setFocus(sel);
-        const said = d as { say?: string; line?: number };
-        if (said.line) setHowAt(said.line - 1);
-        if (said.say) setNote(said.say);
-        await wait(sel ? 120 : 0);
-        setGhost(target(sel ?? step.target));
-        await wait(sel ? 1400 : 750);
-        setClicking(true);
-        await wait(220);
-        setClicking(false);
-        await perform(c, d);
-        await wait(350);
-      }
+      await runScript(true);
       // look at the result as long as you like; My turn puts everything back
       setPhase('shown');
       setNote('That’s how it’s done. Look around, then press My turn: everything goes back so you can do it yourself.');
@@ -198,6 +226,7 @@ export function TutorialRunner({
       setGhost(null);
       setFocus(null);
       setHowAt(-1);
+      setLinesDone([]);
       busy.current = false;
       setWorking(false);
       setNote(`Your turn: ${step.task}`);
@@ -205,25 +234,26 @@ export function TutorialRunner({
     }
   }
 
+  /** Do it for me: the same lines, one at a time, each checked before the next. */
   async function doIt() {
     if (busy.current) return;
     busy.current = true;
     setWorking(true);
     const at = indexRef.current;
     try {
-      for (const d of step.doItForMe) {
-        await perform(c, d);
-        await wait(120);
-      }
+      await runScript(false);
       complete(at);
     } catch (e) {
       setNote(`Could not do it automatically: ${e instanceof Error ? e.message : e}`);
     } finally {
+      setHowAt(-1);
       busy.current = false;
       setWorking(false);
     }
   }
 
+  /** Show me and Do it for me have something to do: the step's do-list, or its lines' actions */
+  const scripted = scriptOf(step).some((p) => p.actions.length);
   const chapterSteps = STEPS.filter((s) => s.chapter === step.chapter);
   const k = chapterSteps.indexOf(step) + 1;
   const last = index === STEPS.length - 1;
@@ -297,9 +327,10 @@ export function TutorialRunner({
             {lines.length > 0 && phase !== 'done' && (
               <ol class="tut-how" aria-label="Click by click">
                 {lines.map((h, i) => {
-                  // a line is done when its check passed, or (no check) when a later checked line is reached
+                  // a line is done when its check passed (by hand, Show me or Do it for me), or (no check) when a
+                  // later checked line is reached
                   const done =
-                    phase === 'try' && lineChecked && (h.check ? !!linesDone[i] : current < 0 || i < current);
+                    !!linesDone[i] || (phase === 'try' && lineChecked && !h.check && (current < 0 || i < current));
                   const on = howAt >= 0 ? i === howAt : phase === 'try' && i === current;
                   return (
                     <li class={`${on ? 'on' : ''} ${done ? 'done' : ''}`} aria-current={on ? 'step' : undefined}>
@@ -331,7 +362,7 @@ export function TutorialRunner({
                   My turn ▶
                 </button>
               ) : (
-                step.doItForMe.length > 0 && (
+                scripted && (
                   <button
                     type="button"
                     class={`btn ${mode === 'show' && phase === 'try' && !working ? 'on' : ''}`}
@@ -342,7 +373,7 @@ export function TutorialRunner({
                   </button>
                 )
               )}
-              {step.doItForMe.length > 0 && (
+              {scripted && (
                 <button type="button" class="btn" disabled={phase !== 'try' || working} onClick={() => void doIt()}>
                   Do it for me
                 </button>
@@ -389,14 +420,14 @@ export function TutorialRunner({
 }
 
 /** Starts watching for a check; returns the stop function. */
-function arm(check: Check, c: ActionCtx, done: () => void): () => void {
+function arm(check: Check, c: ActionCtx, done: () => void, anySource = false): () => void {
   const { ed } = c;
   switch (check.kind) {
     case 'manual':
       return () => {};
     case 'command':
       return ed.bus.onExecute((cmds, source) => {
-        if (source !== 'tutorial' && commandMatches(cmds, check.type, check.where)) done();
+        if ((anySource || source !== 'tutorial') && commandMatches(cmds, check.type, check.where)) done();
       });
     default: {
       const s0 = ed.session.value;
@@ -537,4 +568,49 @@ export function cardPos(
     if (overlap(p) < overlap(best)) best = p;
   }
   return { left: `${best[0]}px`, top: `${best[1]}px`, width: `${w}px` };
+}
+
+type ScriptPart = { line: number | null; text: string; actions: Do[]; check: Check | null };
+/**
+ * P32: what Show me and Do it for me run. A step whose click-by-click lines have their own actions runs them
+ * line by line, each verified by the line's check; other steps run their do-list as one part.
+ */
+export function scriptOf(step: Step): ScriptPart[] {
+  const lines = howLines(step);
+  if (lines.some((l) => l.do?.length))
+    return lines.flatMap((l, i): ScriptPart[] =>
+      l.do?.length || l.check ? [{ line: i, text: l.text, actions: l.do ?? [], check: l.check ?? null }] : [],
+    );
+  return [{ line: null, text: '', actions: step.doItForMe, check: null }];
+}
+
+/** Waits for a check to pass (any source of change counts), up to `ms`. */
+function verify(check: Check, c: ActionCtx, ms: number) {
+  let stop = () => {};
+  let passed = false;
+  const done = new Promise<boolean>((resolve) => {
+    const t = setTimeout(() => {
+      stop();
+      resolve(false);
+    }, ms);
+    stop = arm(
+      check,
+      c,
+      () => {
+        passed = true;
+        clearTimeout(t);
+        stop();
+        resolve(true);
+      },
+      true,
+    );
+  });
+  return {
+    done,
+    stop: () => stop(),
+    why: () =>
+      passed
+        ? ''
+        : `Its check (${check.kind === 'state' ? check.test : check.kind === 'command' ? check.type : check.kind}) did not pass.`,
+  };
 }

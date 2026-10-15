@@ -41,40 +41,64 @@
       "id": "assets.interact",
       "title": "Interactions",
       "body": "An interaction says what happens when the hero presses E at a socket of the asset: change its state, give an item, play a sound or a cinematic, send an event to logic. The Treasure chest has two on its lid socket: when closed, it plays a sound, opens and sends “chest-opened”; when open, it closes again. You will add one more action to the first one, so opening the chest also gives the hero a coin.",
-      "task": "In the Asset properties on the right, add a Give item action to the chest’s first interaction (“when closed”).",
+      "task": "Add a “Give item” action to the Treasure chest’s first interaction (“lid · when closed”), in the Asset properties panel on the right.",
       "target": "[data-tour=\"asset-interactions\"]",
       "placement": "left",
       "workspace": "Assets",
       "check": { "kind": "command", "type": "asset.update" },
-      "doItForMe": [
-        { "fn": "editAsset", "args": { "name": "Treasure chest" } },
-        {
-          "click": "[data-tour=\"asset-interactions\"] .interaction .actions-field > button.btn",
-          "say": "Click + Action at the bottom of the first interaction (“lid · when closed”) in Interactions, on the right. A new action row appears, set to Set state.",
-          "line": 3
-        },
-        {
-          "choose": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type select[aria-label=\"Action\"]",
-          "value": "give",
-          "say": "In the new row, open the Action drop-down (its first box) and pick Give item. The row now gives the hero 1 coin.",
-          "line": 4
-        }
-      ],
+      "doItForMe": [],
       "how": [
         {
-          "text": "Check the chest is open: the build plate’s title says Treasure chest (if not, click Treasure chest in the Asset library on the left).",
-          "check": { "kind": "state", "test": "studioAssetIs", "args": "Treasure chest" }
+          "text": "Check that the asset on the build plate is the Treasure chest: its name is the title above the plate. If it is not, click “Treasure chest” in the Asset library (left).",
+          "check": { "kind": "state", "test": "studioAssetIs", "args": "Treasure chest" },
+          "do": [
+            {
+              "fn": "editAsset",
+              "args": { "name": "Treasure chest" },
+              "say": "The Treasure chest is open on the build plate (its name is the title above the plate)."
+            }
+          ]
         },
-        "In the Asset properties panel on the right, scroll down to Interactions. The first box is the chest’s “lid · when closed” interaction, with three actions: Play sound, Set state (open), Send event.",
         {
-          "text": "Click + Action at the bottom of that first box. A new action row appears under Send event, set to Set state.",
-          "check": { "kind": "state", "test": "assetActions", "args": { "name": "Treasure chest", "atLeast": 4 } }
+          "text": "In the Asset properties panel (right), scroll down to the section “Interactions”. Its first box is the chest’s interaction “lid · when closed”, with three actions: “Play sound”, “Set state” (open) and “Send event” (chest-opened).",
+          "check": { "kind": "dom", "selector": "[data-tour=\"asset-interactions\"] .interaction" },
+          "do": [
+            {
+              "show": "[data-tour=\"asset-interactions\"]",
+              "say": "Scroll the Asset properties panel (right) down to “Interactions”. The first box is “lid · when closed”, with three actions."
+            }
+          ]
         },
         {
-          "text": "Click that new row’s first drop-down (Action) and pick Give item.",
-          "check": { "kind": "state", "test": "assetDoes", "args": { "name": "Treasure chest", "does": "give" } }
+          "text": "In that first box, under its three actions, click the button “+ Action”. A fourth action row appears, set to “Set state”.",
+          "check": { "kind": "state", "test": "assetActions", "args": { "name": "Treasure chest", "atLeast": 4 } },
+          "do": [
+            {
+              "click": "[data-tour=\"asset-interactions\"] .interaction .actions-field > button.btn",
+              "say": "Click “+ Action” under the three actions of the first box. A fourth row appears, set to “Set state”."
+            }
+          ]
         },
-        "Its fields show the item (coin) and how many (1). Change them if you like: press Enter or click away to save."
+        {
+          "text": "In the new fourth row, open its first drop-down (labelled “Action”) and pick “Give item”. The row now shows the item “coin” and the count “1”.",
+          "check": { "kind": "state", "test": "assetDoes", "args": { "name": "Treasure chest", "does": "give" } },
+          "do": [
+            {
+              "choose": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type select[aria-label=\"Action\"]",
+              "value": "give",
+              "say": "In the fourth row, open the drop-down “Action” and pick “Give item”: it gives 1 coin."
+            }
+          ]
+        },
+        {
+          "text": "Optional: type another item name or count in that row and press Enter to save it. Opening the chest in Play now also gives the hero a coin.",
+          "do": [
+            {
+              "show": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type",
+              "say": "That row now gives the hero a coin when the chest is opened."
+            }
+          ]
+        }
       ],
       "setup": [{ "fn": "editAsset", "args": { "name": "Treasure chest" } }]
     },
@@ -82,46 +106,68 @@
       "id": "assets.build",
       "title": "Build on the plate",
       "body": "The build plate is where an asset gets its bricks. Practise on a new asset: the chest is already standing in your world, and a change only saves if every copy still fits where it stands (if not, the change is taken back and the message says why). Bricks come from the Bricks tab of the Asset library; the tools above the plate select, move, turn, paint and erase them.",
-      "task": "Make a new asset and add a brick to it.",
+      "task": "Make a new asset and put one brick on its build plate.",
       "target": "[aria-label=\"Build tools\"]",
       "placement": "bottom",
       "workspace": "Assets",
       "check": { "kind": "command", "type": "asset.update" },
-      "doItForMe": [
-        {
-          "click": "[aria-label=\"Asset library\"] button.btn.on",
-          "say": "Click + New asset at the top of the Asset library. A new asset opens with one red brick.",
-          "line": 1
-        },
-        {
-          "click": "[aria-label=\"Asset library\"] [role=\"tab\"]:nth-child(2)",
-          "say": "Click the Bricks tab of the Asset library.",
-          "line": 2
-        },
-        {
-          "click": "[aria-label=\"Asset library\"] [aria-label=\"Piece sizes\"] [role=\"option\"]",
-          "say": "Click a piece: Place bricks (B) turns on with it.",
-          "line": 2
-        },
-        { "fn": "addBrickToOpenAsset" }
-      ],
+      "doItForMe": [],
       "how": [
         {
-          "text": "Click + New asset at the top of the Asset library (left). A new asset opens on the plate with one red brick.",
-          "check": { "kind": "command", "type": "asset.create" }
+          "text": "Click the button “+ New asset” at the top of the Asset library (left). A new asset named “New asset …” opens on the build plate with one red brick.",
+          "check": { "kind": "command", "type": "asset.create" },
+          "do": [
+            {
+              "click": "[aria-label=\"Asset library\"] button.btn.on",
+              "say": "Click “+ New asset” at the top of the Asset library. A new asset opens with one red brick."
+            }
+          ]
         },
         {
-          "text": "Click the Bricks tab of the Asset library, then click a piece (Brick 2×4, say) and a colour under the pieces. Place bricks (B) turns on.",
+          "text": "At the top of the Asset library, click the tab “Bricks”. The piece kinds (Brick, Plate, Tile), every piece size and the colours appear.",
           "check": {
             "kind": "dom",
             "selector": "[aria-label=\"Asset library\"] [role=\"tab\"][aria-selected=\"true\"]:nth-child(2)"
-          }
+          },
+          "do": [
+            {
+              "click": "[aria-label=\"Asset library\"] [role=\"tab\"]:nth-child(2)",
+              "say": "Click the tab “Bricks” at the top of the Asset library."
+            }
+          ]
         },
         {
-          "text": "Move the pointer over the build plate: a see-through brick shows where it will go (red means it can’t go there). Click to put it down, or drag the piece from the tab onto the plate.",
-          "check": { "kind": "command", "type": "asset.update" }
+          "text": "Click one of the piece cards (each shows its size, for example “Brick 2×4”). The tool “Place bricks (B)” above the plate turns on.",
+          "check": {
+            "kind": "dom",
+            "selector": "[aria-label=\"Build tools\"] [aria-label=\"Place bricks (B)\"][aria-pressed=\"true\"]"
+          },
+          "do": [
+            {
+              "click": "[aria-label=\"Asset library\"] [aria-label=\"Piece sizes\"] [role=\"option\"]",
+              "say": "Click a piece card in the Bricks tab: “Place bricks (B)” turns on."
+            }
+          ]
         },
-        "To change a brick: Select (V) and click it, then Move (W), Rotate (E), Color paint (C) or Erase (X) from the tools above the plate."
+        {
+          "text": "Move the pointer over the build plate: a see-through brick shows where the piece will go (red means it cannot go there). Click to put it down, or drag the card onto the plate. The piece count next to the title goes up by one.",
+          "check": { "kind": "command", "type": "asset.update" },
+          "do": [
+            {
+              "fn": "addBrickToOpenAsset",
+              "say": "Click the build plate where the see-through brick is: the piece is added to the asset."
+            }
+          ]
+        },
+        {
+          "text": "To change a brick afterwards, use the tools above the plate: “Select (V)” and click it, then “Move (W)”, “Rotate (E)”, “Color paint (C)” or “Erase (X)”.",
+          "do": [
+            {
+              "show": "[aria-label=\"Build tools\"]",
+              "say": "These tools select, move, turn, paint and erase bricks on the plate."
+            }
+          ]
+        }
       ]
     },
     {

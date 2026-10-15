@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DOERS } from '../../src/editor/tutorial/doers';
 import { CHAPTERS, CODING_STEPS, STEPS } from '../../src/editor/tutorial/index';
+import { type Do, howLines } from '../../src/editor/tutorial/schema';
 
 /** All editor and engine UI sources, concatenated (targets are checked statically). */
 function sources(dir: string): string {
@@ -57,14 +58,39 @@ describe('tutorial content (P7.4)', () => {
     expect(missing).toEqual([]);
   });
 
+  /** every action a step can perform: its Do it for me list and the actions of its click-by-click lines */
+  const actionsOf = (s: (typeof STEPS)[number]): Do[] => [...s.doItForMe, ...howLines(s).flatMap((l) => l.do ?? [])];
+
   it('every Do it for me uses a known doer', () => {
     const bad: string[] = [];
-    for (const s of STEPS) for (const d of s.doItForMe) if ('fn' in d && !(d.fn in DOERS)) bad.push(`${s.id}: ${d.fn}`);
+    for (const s of STEPS)
+      for (const d of actionsOf(s)) if ('fn' in d && !(d.fn in DOERS)) bad.push(`${s.id}: ${d.fn}`);
     expect(bad).toEqual([]);
     // everything except reading steps can be done automatically
     const manual = [...STEPS, ...CODING_STEPS]
-      .filter((s) => !s.doItForMe.length && s.check.kind !== 'manual')
+      .filter((s) => !actionsOf(s).length && s.check.kind !== 'manual')
       .map((s) => s.id);
     expect(manual).toEqual([]);
+  });
+
+  it('scripted lines (P32) are runnable by a person or an AI: named controls, one verification each', () => {
+    const bad: string[] = [];
+    for (const s of STEPS) {
+      const lines = howLines(s);
+      if (!lines.some((l) => l.do?.length)) continue;
+      lines.forEach((l, i) => {
+        const at = `${s.id} line ${i + 1}`;
+        // every line that acts is verified before the next line starts (pointing with `show` changes nothing)
+        if (l.do?.some((d) => !('show' in d)) && !l.check) bad.push(`${at}: acts without a check`);
+        for (const d of l.do ?? []) {
+          const sel =
+            'click' in d ? d.click : 'choose' in d ? d.choose : 'fill' in d ? d.fill : 'show' in d ? d.show : null;
+          if (sel === null) continue;
+          for (const m of sel.matchAll(/\[(data-tour|aria-label|title)="([^"]+)"\]/g))
+            if (!present(m[1]!, m[2]!)) bad.push(`${at}: ${m[0]}`);
+        }
+      });
+    }
+    expect(bad).toEqual([]);
   });
 });

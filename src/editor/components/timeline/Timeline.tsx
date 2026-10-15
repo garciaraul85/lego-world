@@ -66,8 +66,12 @@ export function Timeline({
     if (readOnly) return;
     start.stopPropagation();
     const el = start.currentTarget as HTMLElement;
-    el.setPointerCapture(start.pointerId);
-    let t = q(tAt(start.clientX));
+    // a scripted click (tutorial, AI plan) has no live pointer to capture
+    try {
+      el.setPointerCapture(start.pointerId);
+    } catch {}
+    const from = q(tAt(start.clientX));
+    let t = from;
     const move = (e: PointerEvent) => {
       t = q(tAt(e.clientX));
       el.style.left = pct(t);
@@ -75,7 +79,8 @@ export function Timeline({
     const up = () => {
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
-      apply(t);
+      // a click without a drag only selects: no change, nothing to undo
+      if (t !== from) apply(t);
     };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
@@ -289,41 +294,37 @@ export function Timeline({
         {key && sel?.kind === 'key' && (
           <span class="row">
             <span class="small">{trackLabel(clip.tracks[sel.track]!.bone, clip.tracks[sel.track]!.prop)}</span>
-            <label class="lbl small">
-              at
-              <input
-                class="inp mono"
-                style={{ width: '64px' }}
-                disabled={readOnly}
-                value={key[0].toFixed(3)}
-                onChange={(e) => {
-                  const v = q(Number((e.target as HTMLInputElement).value));
-                  setKeys(
-                    sel.track,
-                    clip.tracks[sel.track]!.keys.map((x, j) => (j === sel.key ? [v, x[1], x[2]] : x)),
-                    'Move key',
-                  );
-                }}
-              />
-            </label>
-            <label class="lbl small">
-              value
-              <input
-                class="inp mono"
-                style={{ width: '72px' }}
-                disabled={readOnly}
-                value={Math.round(key[1] * 1000) / 1000}
-                onChange={(e) => {
-                  const v = Number((e.target as HTMLInputElement).value);
-                  if (Number.isFinite(v))
-                    setKeys(
-                      sel.track,
-                      clip.tracks[sel.track]!.keys.map((x, j) => (j === sel.key ? [x[0], v, x[2]] : x)),
-                      'Key value',
-                    );
-                }}
-              />
-            </label>
+            <DraftNum
+              key={`at-${sel.track}-${sel.key}`}
+              label="at"
+              width="64px"
+              disabled={readOnly}
+              value={key[0]}
+              show={(n) => n.toFixed(3)}
+              onCommit={(n) => {
+                const v = q(n);
+                setKeys(
+                  sel.track,
+                  clip.tracks[sel.track]!.keys.map((x, j) => (j === sel.key ? [v, x[1], x[2]] : x)),
+                  'Move key',
+                );
+              }}
+            />
+            <DraftNum
+              key={`value-${sel.track}-${sel.key}`}
+              label="value"
+              width="72px"
+              disabled={readOnly}
+              value={key[1]}
+              show={(n) => String(Math.round(n * 1000) / 1000)}
+              onCommit={(v) =>
+                setKeys(
+                  sel.track,
+                  clip.tracks[sel.track]!.keys.map((x, j) => (j === sel.key ? [x[0], v, x[2]] : x)),
+                  'Key value',
+                )
+              }
+            />
             <select
               class="inp"
               style={{ width: 'auto' }}
@@ -452,4 +453,50 @@ function markerLabel(e: Clip['events'][number]) {
   if ('emit' in e) return `Event ${e.emit}`;
   if ('sound' in e) return `Sound ${e.sound}`;
   return `Cinematic ${e.cinematic}`;
+}
+
+/**
+ * A number box that keeps what is being typed while the timeline redraws (a playing clip redraws every frame),
+ * and changes the clip once: on Enter, or when the box loses focus.
+ */
+function DraftNum({
+  label,
+  value,
+  show,
+  onCommit,
+  width,
+  disabled,
+}: {
+  label: string;
+  value: number;
+  show: (n: number) => string;
+  onCommit: (n: number) => void;
+  width: string;
+  disabled: boolean;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  // Enter and the change event both commit; only the first one counts
+  const done = useRef(value);
+  done.current = value;
+  const commit = (text: string) => {
+    setDraft(null);
+    const n = Number(text);
+    if (text.trim() === '' || !Number.isFinite(n) || show(n) === show(done.current)) return;
+    done.current = n;
+    onCommit(n);
+  };
+  return (
+    <label class="lbl small">
+      {label}
+      <input
+        class="inp mono"
+        style={{ width }}
+        disabled={disabled}
+        value={draft ?? show(value)}
+        onInput={(e) => setDraft((e.target as HTMLInputElement).value)}
+        onChange={(e) => commit((e.target as HTMLInputElement).value)}
+        onKeyDown={(e) => e.key === 'Enter' && commit((e.target as HTMLInputElement).value)}
+      />
+    </label>
+  );
 }

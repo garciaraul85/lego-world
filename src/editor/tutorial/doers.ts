@@ -273,6 +273,11 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     if (!open) throw new Error('Make a clip first (Clips › + New).');
     c.ed.studioClip.value = open.id;
   },
+  seekClip(c, a) {
+    // what clicking the timeline does: stop the clip and put the playhead at `t` seconds
+    c.ed.clipPlaying.value = false;
+    c.ed.clipTime.value = Number(a.t ?? 0);
+  },
   armUpKeys(c) {
     // what the clicks do: on the Right arm · z lane, a key at 1 s with the arm up, back down at the end
     const id = c.ed.studioClip.value;
@@ -506,14 +511,31 @@ export async function perform(c: Ctx, d: Do): Promise<void> {
   if ('action' in d) return runAction(action(d.action), c);
   if ('click' in d) {
     const el = document.querySelector(d.click) as HTMLElement | null;
-    if (!el) throw new Error(`Could not find ${d.say ?? 'the control to click'}.`);
+    if (!el) throw new Error(`Could not find ${d.say ?? 'the control to click'} (${d.click}).`);
     el.scrollIntoView({ block: 'nearest' });
-    el.click();
+    pressAndClick(el);
+    return;
+  }
+  if ('fill' in d) {
+    const el = document.querySelector(d.fill) as HTMLInputElement | null;
+    if (!el) throw new Error(`Could not find ${d.say ?? 'the box to type in'} (${d.fill}).`);
+    el.scrollIntoView({ block: 'nearest' });
+    el.focus();
+    el.value = d.value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    return;
+  }
+  if ('show' in d) {
+    const el = document.querySelector(d.show) as HTMLElement | null;
+    if (!el) throw new Error(`Could not find ${d.say ?? 'that part of the screen'} (${d.show}).`);
+    el.scrollIntoView({ block: 'nearest' });
     return;
   }
   if ('choose' in d) {
     const el = document.querySelector(d.choose) as HTMLSelectElement | null;
-    if (!el) throw new Error(`Could not find ${d.say ?? 'the list to pick from'}.`);
+    if (!el) throw new Error(`Could not find ${d.say ?? 'the list to pick from'} (${d.choose}).`);
     el.scrollIntoView({ block: 'nearest' });
     const opt = [...el.options].find((o) => o.value === d.value || o.text === d.value);
     if (!opt) throw new Error(`“${d.value}” is not in that list.`);
@@ -525,4 +547,26 @@ export async function perform(c: Ctx, d: Do): Promise<void> {
   const fn = DOERS[d.fn];
   if (!fn) throw new Error(`Unknown tutorial action ${d.fn}`);
   await fn(c, (fill(c, d.args ?? {}) as Record<string, unknown>) ?? {});
+}
+
+/**
+ * A click the way a pointer makes it: press, release, click, at the middle of the control. Controls that act
+ * on press (timeline keys, drag handles) react as they do to a person.
+ */
+function pressAndClick(el: HTMLElement) {
+  const r = el.getBoundingClientRect();
+  const at = {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    clientX: r.x + r.width / 2,
+    clientY: r.y + r.height / 2,
+    button: 0,
+  };
+  const P = typeof PointerEvent === 'function' ? PointerEvent : MouseEvent;
+  el.dispatchEvent(new P('pointerdown', { ...at, pointerId: 1, isPrimary: true, buttons: 1 }));
+  el.dispatchEvent(new MouseEvent('mousedown', { ...at, buttons: 1 }));
+  el.dispatchEvent(new P('pointerup', { ...at, pointerId: 1, isPrimary: true }));
+  el.dispatchEvent(new MouseEvent('mouseup', at));
+  el.click();
 }

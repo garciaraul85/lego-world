@@ -81,15 +81,15 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
   const setClipId = (id: string | null) => (ed.studioClip.value = id);
   const clip = allClips.find((x) => x.id === clipId) ?? null;
   const builtinClip = !!clip && !ownClips.some((x) => x.id === clip.id);
-  const [time, setTime] = useState(0);
-  const [playing, setPlaying] = useState(true);
-  // the playhead and Play state, for the tutorial's click-by-click checks
-  useEffect(() => {
-    ed.clipTime.value = time;
-  }, [time]);
-  useEffect(() => {
-    ed.clipPlaying.value = playing && !!ed.studioClip.value;
-  }, [playing, ed.studioClip.value]);
+  // the playhead and Play are editor state, so the tutorial (and scripts) can read and set them
+  const time = ed.clipTime.value;
+  const setTime = (v: number | ((t: number) => number)) => {
+    ed.clipTime.value = typeof v === 'function' ? v(ed.clipTime.peek()) : v;
+  };
+  const playing = ed.clipPlaying.value;
+  const setPlaying = (v: boolean) => {
+    ed.clipPlaying.value = v;
+  };
   const [turntable, setTurntable] = useState(false);
   const preview = useRef<PreviewInput>({ profile: chr.profile, clip, time, turntable });
   preview.current = { profile: chr.profile, clip, time, turntable };
@@ -286,7 +286,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               Turntable
             </button>
             {clip && (
-              <button type="button" class="btn" onClick={() => setPlaying(!playing)}>
+              <button type="button" class="btn" data-tour="clip-play" onClick={() => setPlaying(!playing)}>
                 {playing ? 'Pause' : 'Play'}
               </button>
             )}
