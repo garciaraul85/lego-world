@@ -9,6 +9,7 @@ import { newId } from '../../core/ids';
 import {
   type Asset,
   type Character,
+  type Clip,
   type Gates,
   type LogicGraph,
   type MapDoc,
@@ -254,13 +255,42 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     run(c, { type: 'project.update', payload: { hero: id } }, 'Choose player character');
   },
   newClip(c) {
+    const id = newId('clip');
     run(
       c,
       {
         type: 'clip.create',
-        payload: { clip: { id: newId('clip'), name: 'Wave hello', length: 2, loop: true, tracks: [], events: [] } },
+        payload: { clip: { id, name: 'Wave hello', length: 2, loop: true, tracks: [], events: [] } },
       },
       'New clip',
+    );
+    c.ed.studioClip.value = id;
+  },
+  openOwnClip(c) {
+    // the clip you made (the newest of your own), open on the timeline
+    const own = c.ed.store.list('clips/').map((p) => c.ed.store.get<{ id: string }>(p)!);
+    const open = own.find((x) => x.id === c.ed.studioClip.value) ?? own.at(-1);
+    if (!open) throw new Error('Make a clip first (Clips › + New).');
+    c.ed.studioClip.value = open.id;
+  },
+  armUpKeys(c) {
+    // what the clicks do: on the Right arm · z lane, a key at 1 s with the arm up, back down at the end
+    const id = c.ed.studioClip.value;
+    const clip = id ? c.ed.store.get<Clip>(paths.clip(id)) : null;
+    if (!clip) throw new Error('Open your clip first.');
+    const keys: Clip['tracks'][number]['keys'] = [
+      [0, 0.06, 'easeInOut'],
+      [1, 2.6, 'easeInOut'],
+      [clip.length, 0.06, 'easeInOut'],
+    ];
+    const others = clip.tracks.filter((t) => !(t.bone === 'rightArm' && t.prop === 'z'));
+    run(
+      c,
+      {
+        type: 'clip.update',
+        payload: { clip: { ...clip, tracks: [...others, { bone: 'rightArm', prop: 'z', keys }] } },
+      },
+      'Raise the arm',
     );
   },
   newGraph(c) {

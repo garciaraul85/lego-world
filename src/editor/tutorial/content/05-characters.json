@@ -15,9 +15,9 @@
     {
       "id": "chars.new",
       "title": "A new character",
-      "body": "Start from one of v68's presets. The copy is yours to change; presets themselves stay as they are.",
-      "task": "Create a character from a preset (the + New character menu).",
-      "target": "select[aria-label=\"New character from a preset\"]",
+      "body": "Start from one of v68's presets: + New character shows a picture of each one; click the one you want. The copy is yours to change; presets themselves stay as they are.",
+      "task": "Click + New character, then click a preset’s picture.",
+      "target": "[data-tour=\"char-new\"]",
       "placement": "right",
       "workspace": "Characters",
       "check": { "kind": "command", "type": "character.create" },
@@ -48,13 +48,54 @@
     {
       "id": "chars.clip",
       "title": "Animation clips",
-      "body": "Clips are keyframe animations on a timeline: a lane per joint, keys you drag in time, and markers that send events, play sounds or start cinematics. Keys 1–4 play the hero's emotes in Play. + New under Clips makes your own.",
-      "task": "Make a new clip (Clips › + New).",
+      "body": "Clips are keyframe animations on a timeline: a lane per joint (track), keys (◆) that say where the joint is at a moment, and markers that send events, play sounds or start cinematics. Between two keys the joint moves smoothly. Keys 1–4 play the hero’s emotes in Play.",
+      "task": "Make a new clip: Clips › + New (left).",
       "target": "section[aria-label=\"Characters and clips\"]",
       "placement": "right",
       "workspace": "Characters",
       "check": { "kind": "command", "type": "clip.create" },
-      "doItForMe": [{ "fn": "newClip" }]
+      "doItForMe": [
+        {
+          "fn": "newClip",
+          "say": "Click + New next to Clips (left). The new clip opens with an empty timeline under the preview.",
+          "line": 1
+        }
+      ],
+      "how": [
+        "In the panel on the left, scroll down to Clips and click + New (right of the word Clips). A clip called New clip is made and opens: the timeline appears under the preview."
+      ]
+    },
+    {
+      "id": "chars.animate",
+      "title": "Animate the clip",
+      "body": "Animating means adding keys: at a moment of the clip, set where a joint is. Here the right arm goes up at 1 second and back down at the end, so the clip lifts the arm and drops it again, over and over (Loop).",
+      "task": "Make the right arm rise and fall: add a Right arm · z track and a key at 1 s with the arm up (value 2.6).",
+      "target": "[aria-label=\"Timeline tools\"]",
+      "placement": "top",
+      "workspace": "Characters",
+      "how": [
+        "Your new clip is open (highlighted under Clips, left); its timeline is under the preview, with the time at 0.00 / 2.00 s.",
+        "In the timeline tools, open + Track… and pick Right arm · z (it lifts the arm out to the side). A lane appears with a key ◆ at 0 s, value 0.",
+        "Click the timeline lanes halfway across, so the time reads 1.00 / 2.00 s (the playhead line moves there).",
+        "Click ◆ Key: a second key appears on the lane at 1 s.",
+        "Click that key; under the lanes, type 2.6 in value and press Enter. The arm is up at 1 s.",
+        "Press Play above the preview: the arm rises and falls. Add more tracks (Right elbow · bend, Head · turn) the same way."
+      ],
+      "check": { "kind": "command", "type": "clip.update" },
+      "doItForMe": [
+        { "fn": "openOwnClip", "say": "Your new clip is open on the timeline under the preview.", "line": 1 },
+        {
+          "choose": "[aria-label=\"Timeline tools\"] select[aria-label=\"Add a track\"]",
+          "value": "Right arm · z",
+          "say": "Open + Track… in the timeline tools and pick Right arm · z. A lane appears with a key at 0 s.",
+          "line": 2
+        },
+        {
+          "fn": "armUpKeys",
+          "say": "At 1 s, ◆ Key, then value 2.6 (and back down at the end): the arm rises and falls as the clip loops.",
+          "line": 5
+        }
+      ]
     }
   ]
 }

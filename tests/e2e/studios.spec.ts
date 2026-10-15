@@ -102,7 +102,16 @@ test('Asset studio: building on the plate changes the asset; Character studio: a
   expect(await bricks()).toBe(6);
 
   await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Characters' }).click();
-  await page.getByLabel('New character from a preset').selectOption({ label: 'Knight' });
+  // P32: presets are cards with a picture of each character
+  await page.getByRole('button', { name: '+ New character' }).click();
+  const presets = page.getByRole('listbox', { name: 'New character from a preset' });
+  await expect(presets.locator('.char-thumb img').first()).toBeVisible({ timeout: 30_000 });
+  await presets.getByRole('option', { name: 'Knight' }).click();
+  await expect(presets).toHaveCount(0);
+  // the list shows pictures too
+  await expect(page.getByRole('listbox', { name: 'Characters' }).locator('.char-thumb img').first()).toBeVisible({
+    timeout: 30_000,
+  });
   await page.getByRole('option', { name: 'Squats' }).click();
   await page.getByRole('button', { name: 'Duplicate to edit' }).click();
   const keys = () =>

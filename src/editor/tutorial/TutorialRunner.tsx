@@ -141,8 +141,9 @@ export function TutorialRunner({
         // a click names its control: the pointer and the spotlight go there, and the card says what it is
         const sel = 'click' in d ? d.click : 'choose' in d ? d.choose : null;
         if (sel) setFocus(sel);
-        if (('click' in d || 'choose' in d) && d.line) setHowAt(d.line - 1);
-        if (('click' in d || 'choose' in d) && d.say) setNote(d.say);
+        const said = d as { say?: string; line?: number };
+        if (said.line) setHowAt(said.line - 1);
+        if (said.say) setNote(said.say);
         await wait(sel ? 120 : 0);
         setGhost(target(sel ?? step.target));
         await wait(sel ? 1400 : 750);

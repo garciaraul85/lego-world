@@ -106,6 +106,8 @@ export class EditorState {
   });
   /** the character open in the Character studio */
   readonly studioCharacter = signal<string | null>(null);
+  /** the clip open on the Character studio's timeline (P32: the tutorial opens the clip it made) */
+  readonly studioClip = signal<string | null>(null);
   readonly view = signal<ViewTab>('scene');
   readonly left = signal<LeftTab>('hier');
   readonly right = signal<RightTab>('inspect');

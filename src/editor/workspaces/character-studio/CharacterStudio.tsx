@@ -9,6 +9,7 @@ import type { ActionCtx } from '../../actions/registry';
 import { Timeline } from '../../components/timeline/Timeline';
 import { actionChoices } from '../../panels/AudioFields';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
+import { CharacterThumb } from './thumbs';
 
 /** Look fields grouped the way v68's character builder groups them. */
 const SECTIONS: [string, string[]][] = [
@@ -64,6 +65,8 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
   const L = legacyRuntime();
+  /** P32: the preset cards are open (+ New character) */
+  const [picking, setPicking] = useState(false);
   const own = ed.store.list('characters/').map((p) => ed.store.get<Character>(p)!);
   const ownClips = ed.store.list('clips/').map((p) => ed.store.get<Clip>(p)!);
   const chrId = ed.studioCharacter.value ?? ed.store.manifest.hero ?? own[0]?.id ?? BUILTIN_CHARACTERS[0]!.id;
@@ -74,7 +77,8 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     BUILTIN_CHARACTERS[0]!;
   const inProject = own.some((x) => x.id === chr.id);
   const allClips = [...ownClips, ...BUILTIN_CLIPS];
-  const [clipId, setClipId] = useState<string | null>(null);
+  const clipId = ed.studioClip.value;
+  const setClipId = (id: string | null) => (ed.studioClip.value = id);
   const clip = allClips.find((x) => x.id === clipId) ?? null;
   const builtinClip = !!clip && !ownClips.some((x) => x.id === clip.id);
   const [time, setTime] = useState(0);
@@ -158,28 +162,43 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           <span class="tab on">Characters</span>
         </div>
         <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <select
-            class="inp"
-            aria-label="New character from a preset"
-            value=""
-            onChange={(e) => {
-              const p = BUILTIN_CHARACTERS.find((x) => x.id === (e.target as HTMLSelectElement).value);
-              if (!p) return;
-              const id = newId('character');
-              if (ed.exec({ type: 'character.create', payload: { character: { ...p, id } } }).ok)
-                ed.studioCharacter.value = id;
-            }}
+          <button
+            type="button"
+            class={`btn ${picking ? '' : 'on'}`}
+            data-tour="char-new"
+            aria-expanded={picking}
+            onClick={() => setPicking(!picking)}
           >
-            <option value="">+ New character from preset…</option>
-            {BUILTIN_CHARACTERS.map((p) => (
-              <option value={p.id}>{p.name}</option>
-            ))}
-          </select>
+            {picking ? 'Close the presets' : '+ New character'}
+          </button>
+          {picking && (
+            <div class="char-presets" role="listbox" aria-label="New character from a preset">
+              {BUILTIN_CHARACTERS.map((p) => (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  class="char-card"
+                  data-tip={`Make a new character that starts as ${p.name}`}
+                  onClick={() => {
+                    const id = newId('character');
+                    if (ed.exec({ type: 'character.create', payload: { character: { ...p, id } } }).ok) {
+                      ed.studioCharacter.value = id;
+                      setPicking(false);
+                    }
+                  }}
+                >
+                  <CharacterThumb profile={p.profile} size={56} />
+                  <span>{p.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div class="scroll" role="listbox" aria-label="Characters">
           {!own.length && (
             <div class="hint" style={{ padding: '6px 10px' }}>
-              No characters in this game yet. Pick a preset above.
+              No characters in this game yet. Press + New character and pick one to start from.
             </div>
           )}
           {own.map((x) => (
@@ -190,7 +209,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               class={`lib-item ${x.id === chr.id ? 'on' : ''}`}
               onClick={() => (ed.studioCharacter.value = x.id)}
             >
-              <span class="dot" style={{ background: String(x.profile.shirtColor ?? '#888') }} />
+              <CharacterThumb profile={x.profile} size={30} />
               <span class="asset-name">{x.name}</span>
               <span class="mono small muted">{ed.store.manifest.hero === x.id ? 'player' : x.role}</span>
             </button>

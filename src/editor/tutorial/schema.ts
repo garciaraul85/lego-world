@@ -35,7 +35,12 @@ export const Do = z.union([
     line: z.number().int().min(1).max(8).optional(),
   }),
   z.strictObject({ cmd: z.string(), args: z.record(z.string(), z.unknown()) }),
-  z.strictObject({ fn: z.string(), args: z.record(z.string(), z.unknown()).optional() }),
+  z.strictObject({
+    fn: z.string(),
+    args: z.record(z.string(), z.unknown()).optional(),
+    say: z.string().max(200).optional(),
+    line: z.number().int().min(1).max(8).optional(),
+  }),
 ]);
 export type Do = z.infer<typeof Do>;
 

@@ -37,7 +37,10 @@ export const CHARACTERS: HelpEntry[] = [
     name: 'New character',
     purpose: 'Makes a new character: + New starts from the default; the preset list starts from a ready-made look.',
     commands: ['character.create'],
-    match: [{ in: CLIPS, name: /^(\+ New|New character from a preset)/ }],
+    match: [
+      { in: CLIPS, name: /^(\+ New|New character from a preset|Close the presets)/ },
+      { in: area('New character from a preset') },
+    ],
   },
   {
     id: 'characters.clip',
