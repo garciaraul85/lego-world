@@ -13,7 +13,7 @@ import {
 import { assetLibrary } from '../assets';
 import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
-import { chestFront } from './story';
+import { MARK_FACING, MARK_RADIUS, markTarget } from './story';
 
 /** Named tests for `state` checks (P7.3). They read the editor; none of them changes anything. */
 export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boolean> = {
@@ -108,7 +108,7 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     };
     return g.edges.some((e) => e[1] === out && e[3] === into && is(e[0], from) && is(e[2], to));
   },
-  /** the chest's code: the item comes from the variable, rises out, is given; take-sword removes it */
+  /** the chest's code: the item comes from the variable, rises out, is given; scene-takes-sword removes it */
   chestCode: (ed) => {
     const g = openGraph(ed);
     if (!g) return false;
@@ -129,18 +129,22 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
         node(e[2])?.args?.state === 'out',
     );
     const gives = g.nodes.some((n) => n.type === 'world.give' && fed(n.id, 'item', 'var.get', { var: 'chestItem' }));
-    const takes = g.nodes.some((n) => n.type === 'event.onCustom' && n.args?.event === 'take-sword');
+    const takes = g.nodes.some((n) => n.type === 'event.onCustom' && n.args?.event === 'scene-takes-sword');
     return rises && gives && takes;
   },
   // P32: the treasure-chest story — the cinematic
   cineNamed: (ed, a) => openCine(ed)?.name === a,
   cineLength: (ed, a) => Math.abs((openCine(ed)?.length ?? -1) - Number(a)) < 0.01,
   cineTime: (ed, a) => Math.abs(ed.cineTime.value - Number(a)) <= 0.15,
-  cineMarkAtChest: (ed) => {
+  /** the scene's first mark is in the ring in front of the chest (and, with {facing: true}, turned to it) */
+  cineMarkAtChest: (ed, a) => {
     const c = openCine(ed);
-    const front = chestFront(ed);
+    const t = markTarget(ed);
     const m = c?.marks[0];
-    return !!m && !!front && Math.hypot(m.pos[0] - front.pos[0], m.pos[2] - front.pos[2]) < 1.2;
+    if (!m || !t || Math.hypot(m.pos[0] - t.x, m.pos[2] - t.z) > MARK_RADIUS) return false;
+    if (!(a as { facing?: boolean } | undefined)?.facing) return true;
+    const d = (((((m.yaw * 180) / Math.PI - t.facing) % 360) + 540) % 360) - 180;
+    return Math.abs(d) <= MARK_FACING;
   },
   cineItem: (ed, a) => {
     const { role, kind, ...want } = a as { role?: string; kind?: string } & Record<string, unknown>;

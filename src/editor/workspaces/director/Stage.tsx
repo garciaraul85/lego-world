@@ -24,6 +24,7 @@ export function Stage({
   onMoveMark,
   onGround,
   onApi,
+  spot,
 }: {
   preview: DirectorPreview;
   cin: Cinematic;
@@ -33,10 +34,12 @@ export function Stage({
   onMoveMark: (id: string, pos: Vec3) => void;
   onGround: (pos: Vec3) => void;
   onApi: (a: StageApi) => void;
+  /** P32: a tutorial's target, drawn as a ring on the ground */
+  spot?: Spot | null;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const live = useRef({ cin, selMark, record, dirty: true });
-  live.current = { cin, selMark, record, dirty: true };
+  const live = useRef({ cin, selMark, record, spot, dirty: true });
+  live.current = { cin, selMark, record, spot, dirty: true };
   useEffect(() => {
     const canvas = ref.current!;
     const pr = new PlayRenderer(canvas, preview.session);
@@ -59,9 +62,9 @@ export function Stage({
       if (!live.current.dirty && t === lastT) return;
       live.current.dirty = false;
       lastT = t;
-      const { cin: c, selMark: sm } = live.current;
+      const { cin: c, selMark: sm, spot: sp } = live.current;
       pr.cameraOverride = cam.frame();
-      pr.extra = overlays(preview, c, sm);
+      pr.extra = overlays(preview, c, sm, sp ?? null);
       pr.render();
     };
     raf = requestAnimationFrame(frame);
@@ -150,17 +153,48 @@ export function Stage({
     <div class="viewport-wrap dr-stage">
       <canvas ref={ref} class={`viewport-canvas ${record ? 'recording' : ''}`} aria-label="Stage view" />
       <span class="dr-tag">Stage{record ? ' · ● Record: click the ground to walk the selected role there' : ''}</span>
+      {spot && (
+        <span class="dr-spot" role="status">
+          ◎ {spot.label}: x {spot.pos[0]}, z {spot.pos[2]} (within {spot.radius} studs)
+          {cin.marks.some((m) => inSpot(spot, m.pos)) ? ' · ✓ a mark is in the ring' : ''}
+        </span>
+      )}
     </div>
   );
 }
 
+type Spot = { pos: [number, number, number]; radius: number; label: string };
+const inSpot = (s: Spot, p: readonly number[]) => Math.hypot(p[0]! - s.pos[0], p[2]! - s.pos[2]) <= s.radius;
+const GREEN: [number, number, number] = [0.35, 0.95, 0.45];
 const TEAL: [number, number, number] = [0.31, 0.82, 0.77];
 const ORANGE: [number, number, number] = [1, 0.72, 0.2];
 const GOLD: [number, number, number] = [0.95, 0.75, 0.25];
 
-function overlays(preview: DirectorPreview, cin: Cinematic, selMark: string | null) {
+function overlays(preview: DirectorPreview, cin: Cinematic, selMark: string | null, spot: Spot | null) {
   const lines: LineSet[] = [];
   const markers: Marker[] = [];
+  if (spot) {
+    // the target: a ring on the ground (gold, green once a mark is inside) and a post above its middle
+    const ok = cin.marks.some((m) => inSpot(spot, m.pos));
+    const [x, y, z] = spot.pos;
+    const ring: number[] = [];
+    for (let i = 0; i < 40; i++) {
+      const a0 = (i / 40) * Math.PI * 2;
+      const a1 = ((i + 1) / 40) * Math.PI * 2;
+      for (const r of [spot.radius, spot.radius * 0.96])
+        ring.push(
+          x + Math.sin(a0) * r,
+          y + 0.06,
+          z + Math.cos(a0) * r,
+          x + Math.sin(a1) * r,
+          y + 0.06,
+          z + Math.cos(a1) * r,
+        );
+    }
+    ring.push(x, y + 0.06, z, x, y + 2.2, z);
+    lines.push({ lines: ring, color: ok ? GREEN : GOLD });
+    markers.push({ pos: [x, y + 2.2, z], size: [0.25, 0.25, 0.25], color: ok ? GREEN : GOLD, alpha: 0.95 });
+  }
   for (const m of cin.marks) {
     const on = m.id === selMark;
     markers.push({

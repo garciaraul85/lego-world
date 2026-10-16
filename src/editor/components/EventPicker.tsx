@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { describeUse, type EventUse } from '../events';
 
 const NEW = '__new__';
 
@@ -12,11 +13,14 @@ export function EventPicker({
   events,
   onChange,
   label = 'Event name',
+  uses,
 }: {
   value: string;
   events: readonly string[];
   onChange: (event: string) => void;
   label?: string;
+  /** P32: who sends and who listens to each name, shown next to it in the list */
+  uses?: Map<string, EventUse>;
 }) {
   const [typing, setTyping] = useState(false);
   const [draft, setDraft] = useState('');
@@ -62,9 +66,15 @@ export function EventPicker({
       }}
     >
       {!value && <option value="">choose…</option>}
-      {list.map((ev) => (
-        <option value={ev}>{ev}</option>
-      ))}
+      {list.map((ev) => {
+        const u = uses?.get(ev);
+        const note = u ? describeUse(u) : '';
+        return (
+          <option value={ev} title={note}>
+            {note ? `${ev} — ${note.length > 70 ? `${note.slice(0, 69)}…` : note}` : ev}
+          </option>
+        );
+      })}
       <option value={NEW}>＋ New event…</option>
     </select>
   );

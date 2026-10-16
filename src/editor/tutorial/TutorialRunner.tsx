@@ -7,6 +7,7 @@ import { perform } from './doers';
 import { type Track, trackOf } from './index';
 import { GhostCursor, type Rect, Spotlight, useTargetRect } from './Spotlight';
 import { type Check, type Do, howLines, type Step } from './schema';
+import { storyText } from './story';
 
 /** demo: Show me is running; shown: the demo waits for My turn; try: your turn; done: waits for Next */
 type Phase = 'demo' | 'shown' | 'try' | 'done';
@@ -98,6 +99,8 @@ export function TutorialRunner({
     doneRef.current = false;
     setNote(null);
     setGhost(null);
+    // a target a step drew on the stage belongs to that step only
+    ed.tutorialSpot.value = null;
     if (step.workspace && ed.workspace.value !== step.workspace && !ed.session.value) ui.workspace(step.workspace);
     // a setup that cannot run says so on the card (Do it for me would fail the same way)
     for (const d of step.setup ?? [])
@@ -107,7 +110,13 @@ export function TutorialRunner({
   }, [index]);
 
   // leaving the tutorial during a demo lets it put everything back
-  useEffect(() => () => myTurn.current?.(), []);
+  useEffect(
+    () => () => {
+      myTurn.current?.();
+      ed.tutorialSpot.value = null;
+    },
+    [],
+  );
 
   // P32: a step whose click-by-click lines have checks is done one line at a time, in order
   const lines = howLines(step);
@@ -161,7 +170,13 @@ export function TutorialRunner({
           const sel =
             'click' in d ? d.click : 'choose' in d ? d.choose : 'fill' in d ? d.fill : 'show' in d ? d.show : null;
           if (sel) setFocus(sel);
-          setNote(said.say ?? (part.text ? `Step ${(part.line ?? 0) + 1}: ${part.text}` : null));
+          setNote(
+            said.say
+              ? storyText(ed, said.say)
+              : part.text
+                ? `Step ${(part.line ?? 0) + 1}: ${storyText(ed, part.text)}`
+                : null,
+          );
           await wait(sel ? 120 : 0);
           setGhost(target(sel ?? step.target));
           await wait(sel ? 1400 : 750);
@@ -232,7 +247,7 @@ export function TutorialRunner({
       setLinesDone([]);
       busy.current = false;
       setWorking(false);
-      setNote(`Your turn: ${step.task}`);
+      setNote(`Your turn: ${storyText(ed, step.task)}`);
       setPhase('try');
     }
   }
@@ -316,7 +331,7 @@ export function TutorialRunner({
         {!min && (
           <>
             <h3>{keysFor(step.title)}</h3>
-            <p>{keysFor(step.body)}</p>
+            <p>{keysFor(storyText(ed, step.body))}</p>
             <p class={`tut-task ${phase}`}>
               {phase === 'done'
                 ? last
@@ -325,7 +340,7 @@ export function TutorialRunner({
                 : phase === 'demo' || phase === 'shown'
                   ? '👀 Watch:'
                   : '👉 Your turn:'}{' '}
-              {phase === 'done' ? '' : keysFor(step.task)}
+              {phase === 'done' ? '' : keysFor(storyText(ed, step.task))}
             </p>
             {lines.length > 0 && phase !== 'done' && (
               <ol class="tut-how" aria-label="Click by click">
@@ -338,7 +353,7 @@ export function TutorialRunner({
                   return (
                     <li class={`${on ? 'on' : ''} ${done ? 'done' : ''}`} aria-current={on ? 'step' : undefined}>
                       {done && <span class="tut-tick">✓ </span>}
-                      {keysFor(h.text)}
+                      {keysFor(storyText(ed, h.text))}
                     </li>
                   );
                 })}

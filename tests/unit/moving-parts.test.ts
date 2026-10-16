@@ -57,7 +57,7 @@ describe('items at an object, in play', () => {
     const map = s.manifest.entry.map;
     const g = graph(
       [
-        ['event.onCustom', { event: 'open-chest' }],
+        ['event.onCustom', { event: 'scene-opens-chest' }],
         ['world.setState', { target: 'Treasure chest', state: 'open' }],
         ['world.spawnNear', { item: 'Sword', near: 'Treasure chest' }],
         ['world.setState', { state: 'out' }],
@@ -86,7 +86,7 @@ describe('items at an object, in play', () => {
   it('logic opens the chest by name and puts the sword at its item spot; the sword rises', () => {
     const play = game();
     const n0 = play.world.instances.length;
-    play.logic.fire({ type: 'event.onCustom', match: { event: 'open-chest' } });
+    play.logic.fire({ type: 'event.onCustom', match: { event: 'scene-opens-chest' } });
     play.runtime.stepOnce();
     const c = play.world.instances.find((i) => i.def.name === 'Treasure chest')!;
     expect(c.state).toBe('open');

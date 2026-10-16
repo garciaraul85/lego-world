@@ -11,7 +11,7 @@ import { PreviewPicker } from '../../components/PreviewPicker';
 import { Timeline } from '../../components/timeline/Timeline';
 import { actionChoices } from '../../panels/AudioFields';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
-import { CharacterThumb, type ThumbView } from './thumbs';
+import { CharacterThumb, peakTime, type ThumbView, trackPose } from './thumbs';
 
 /** Look fields grouped the way v68's character builder groups them. */
 const SECTIONS: [string, string[]][] = [
@@ -292,6 +292,8 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                       setPlaying(true);
                     }}
                   >
+                    {/* P32: the clip's strongest pose, so the list shows what each clip does */}
+                    <CharacterThumb profile={chr.profile} size={22} pose={{ clip: x, time: peakTime(x) }} />
                     <span class="asset-name">{x.name ?? x.id}</span>
                     {emotes.includes(x.id as never) && (
                       <span class="chip">key {emotes.indexOf(x.id as never) + 1}</span>
@@ -347,6 +349,10 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               }}
               onChange={saveClip}
               onTrackSelect={setPart}
+              trackThumb={(bone, prop) => {
+                const pose = trackPose(bone, prop);
+                return <CharacterThumb profile={chr.profile} size={40} {...(pose ? { pose } : {})} />;
+              }}
             />
           </>
         ) : (

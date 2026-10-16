@@ -97,9 +97,28 @@ Cinematics chapter (`cine.new` … `cine.play`): the treasure-chest story.
 | `[aria-label="Node inspector"] [data-tour="field-<name>"]` | a node's setting or value box |
 | `[data-tour="cine-new"]`, `button[aria-label="Add to <row>"]` | Scenes › + New; + on a Director row |
 | `[aria-label="Item properties"] select[aria-label="Does"]` … | the selected Director item's fields, by label |
+| `[data-tour="pick-track"]`, `[data-tour="pick-track-list"] [data-value="<bone>.<prop>"]` | timeline tools › + Track…; one track's picture (e.g. `rightArm.z`) |
+| `[data-tour="pick-cine-clip"]`, `[data-tour="pick-cine-clip-list"] [data-name="<clip name>"]` | a Director item's Clip; one clip's picture, by its name |
+| `[data-tour="pick-cine-held"]`, `… [data-value="<prop>"]` | Hold an item › Item; one prop (Sword, Map…) |
+| `[data-tour="mark-<id>"]`, `[aria-label="Item properties"] input[aria-label="Position X"]`, `… "Facing (°)"` | Marks › a mark; its Position X / Y / Z and Facing |
+| `input[aria-label="New variable name"]`, `select[aria-label="New variable type"]`, `input[aria-label="New variable starts at"]` | the New variable box (Name, Type, Starting value) |
+| `[aria-label="Node inspector"] [data-tour="field-<name>"]` on a list field | choose a value from it (`choose`); the list also has “＋ Type a name…” |
 | `[data-tour="asset-parts"]`, `[data-tour="part-from-selection"]`, `[data-tour="pose-<part>-<state>"]` | Parts; Selected bricks → moving part; a part's pose in a state |
 
-Doers for what a click cannot express (in `src/editor/tutorial/story.ts`): `chestStage`,
+Every picture picker's cards carry `data-value` (the stored value) and `data-name` (what the card says), so a
+line can click a user's clip by its name.
+
+## Exact numbers and ranges
+
+A person must never have to guess what counts. A line that asks for a time says which times pass (“Any time
+from 0.30 to 0.70 s counts”) and how to reach one exactly (← and → move the playhead 0.1 s). A line that asks
+for a position names the numbers to type and the tolerance. Numbers that depend on the project are written as
+tokens and filled when the card is shown and when an action runs (`storyText` in `story.ts`): `{{markX}}`,
+`{{markZ}}`, `{{markFacing}}` and `{{markRadius}}` come from the placed chest. A step's `setup` can draw the
+target on the Director's stage (`chestSpot` sets `ed.tutorialSpot`, a ring that turns green when a mark is
+inside); it is cleared when the step changes.
+
+Doers for what a click cannot express (in `src/editor/tutorial/story.ts`): `chestStage`, `chestSpot`,
 `markAtChest`, `seekScene`, `chestCameras`, `chestZonePlays`, `wireNodes`, `typeHere`, `waitScene`;
 `seekClip` moves a clip's playhead.
 

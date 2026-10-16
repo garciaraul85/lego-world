@@ -14,6 +14,7 @@ export function PreviewPicker({
   onPick,
   footer,
   tour,
+  placeholder = '—',
 }: {
   label: string;
   value: string;
@@ -23,13 +24,15 @@ export function PreviewPicker({
   footer?: (close: () => void) => ComponentChildren;
   /** P32: hook names for scripts (tutorial lines, AI plans): the button is `pick-<tour>`, its cards `pick-<tour>-list` */
   tour?: string;
+  /** P32: what the button says while nothing is chosen (“+ Track…”) */
+  placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
   const pop = useRef<HTMLDivElement>(null);
   const cur = options.find((o) => o.value === value) ?? {
     value,
-    name: value ? `(missing) ${value}` : '—',
+    name: value ? `(missing) ${value}` : placeholder,
     thumb: null,
   };
   useEffect(() => {
@@ -89,6 +92,7 @@ export function PreviewPicker({
                 role="option"
                 aria-selected={o.value === value}
                 data-value={o.value}
+                data-name={o.name}
                 class={`pv-opt ${o.value === value ? 'on' : ''}`}
                 title={o.note ? `${o.name} · ${o.note}` : o.name}
                 onClick={() => {
@@ -100,6 +104,7 @@ export function PreviewPicker({
                   {o.thumb}
                 </span>
                 <span class="pv-name small">{o.name}</span>
+                {o.note && <span class="pv-note small muted">{o.note}</span>}
               </button>
             ))}
           </div>

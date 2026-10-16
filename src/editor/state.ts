@@ -102,6 +102,8 @@ export class EditorState {
   /** P32: the Director's playhead (seconds), and a request to move it (scripts: tutorial lines, AI plans) */
   readonly cineTime = signal(0);
   readonly cineSeek = signal<{ t: number } | null>(null);
+  /** P32: where a tutorial step wants something put (the Director's stage draws it as a ring) */
+  readonly tutorialSpot = signal<{ pos: [number, number, number]; radius: number; label: string } | null>(null);
   /** what the Audio workspace shows: an event, a music state, the mixer or media (P5.6) */
   readonly audioSel = signal<{ kind: 'event' | 'music' | 'mixer' | 'media'; id: string | null }>({
     kind: 'event',

@@ -62,6 +62,42 @@ export function chestFront(ed: EditorState): { pos: V3; yaw: number; zone: { min
   };
 }
 
+/** a number as the editor shows it (no trailing zeros) */
+const num = (v: number) => String(Math.round(v * 100) / 100);
+/** half studs: where a dragged mark lands, and what the Position boxes take */
+const half = (v: number) => Math.round(v * 2) / 2;
+
+/**
+ * Where mark1 goes for the chest scene, as the editor shows it: X and Z (half studs) and Facing (°, to the
+ * nearest 15, as the Facing box steps). The tutorial's lines name these numbers ({{markX}}, {{markZ}},
+ * {{markFacing}}), so nobody has to guess where “in front of the chest” is.
+ */
+export function markTarget(ed: EditorState): { x: number; z: number; y: number; facing: number } | null {
+  const f = chestFront(ed);
+  if (!f) return null;
+  let facing = Math.round((f.yaw * 180) / Math.PI / 15) * 15;
+  if (facing <= -180) facing += 360;
+  if (facing > 180) facing -= 360;
+  return { x: half(f.pos[0]), z: half(f.pos[2]), y: f.pos[1], facing };
+}
+
+/** How near the mark must be to the target (studs) and how close its facing (degrees) for the step to pass. */
+export const MARK_RADIUS = 1.2;
+export const MARK_FACING = 30;
+
+/** Fills a tutorial text's story numbers ({{markX}} …) from the project as it is now. */
+export function storyText(ed: EditorState, text: string): string {
+  if (!text.includes('{{')) return text;
+  const m = markTarget(ed);
+  const t: Record<string, string> = m
+    ? { markX: num(m.x), markZ: num(m.z), markFacing: num(m.facing), markRadius: num(MARK_RADIUS) }
+    : {};
+  return text.replace(
+    /\{\{(markX|markZ|markFacing|markRadius)\}\}/g,
+    (_, k: string) => t[k] ?? '(place the chest first)',
+  );
+}
+
 /** a bare map (nothing built yet): a spot on the ground a few steps from the start */
 function openGroundSpot(c: ActionCtx, map: string, asset: string): Command | null {
   const sp = c.ed.store.get<MapDoc>(paths.map(map))?.spawns[0]?.pos ?? [0, 0, 0];
@@ -113,7 +149,13 @@ export const STORY_DOERS: Record<string, (c: ActionCtx, a: Record<string, unknow
     const mid: V3 = [(f.zone.min[0] + f.zone.max[0]) / 2, f.zone.min[1], (f.zone.min[2] + f.zone.max[2]) / 2];
     if (!m.zones.some((z) => inside(z, mid)))
       run(c, { type: 'map.addZone', payload: { map, zone: { ...f.zone, tags: ['Chest'] } } }, 'Add the chest zone');
-    ed.openMap(map);
+    if (ed.mapId.value !== map) ed.openMap(map);
+  },
+  /** P32: the stage shows where mark1 goes (a ring in front of the chest), until the step changes */
+  chestSpot(c) {
+    const m = markTarget(c.ed);
+    if (!m) throw new Error('Place the treasure chest first (the Director step does it for you).');
+    c.ed.tutorialSpot.value = { pos: [m.x, m.y, m.z], radius: MARK_RADIUS, label: 'mark1 goes here' };
   },
   /** the scene's first mark moves in front of the chest, facing it */
   markAtChest(c) {

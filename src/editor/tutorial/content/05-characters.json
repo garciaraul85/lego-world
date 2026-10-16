@@ -154,18 +154,21 @@
       "doItForMe": [],
       "how": [
         {
-          "text": "In the timeline tools, open the drop-down “+ Track…” and pick “Right arm · x”. A lane appears with a key ◆ at 0 s; it is selected, so the preview rings the right arm.",
+          "text": "In the timeline tools, click “+ Track…”. A panel of pictures opens: Rowan with one joint moved, one picture per track. Click “Right arm · x” (the right arm reaching forward). A lane appears with a key ◆ at 0 s; it is selected, so the preview rings the right arm.",
           "check": { "kind": "state", "test": "clipTrack", "args": { "bone": "rightArm", "prop": "x" } },
           "do": [
             {
-              "choose": "[aria-label=\"Timeline tools\"] select[aria-label=\"Add a track\"]",
-              "value": "Right arm · x",
-              "say": "Open “+ Track…” and pick “Right arm · x”: the right arm is ringed."
+              "click": "[aria-label=\"Timeline tools\"] [data-tour=\"pick-track\"]",
+              "say": "Click “+ Track…”: a picture of Rowan for each track opens, showing what that track moves."
+            },
+            {
+              "click": "[data-tour=\"pick-track-list\"] [data-value=\"rightArm.x\"]",
+              "say": "Click the picture “Right arm · x”: the right arm is ringed."
             }
           ]
         },
         {
-          "text": "Click the lanes a quarter of the way across, so the time at the left reads about 0.50 / 1.60 s.",
+          "text": "Click the lanes a quarter of the way across, so the time at the left reads about 0.50 / 1.60 s. Any time from 0.30 to 0.70 s counts; after a click on the lanes, ← and → move the playhead 0.1 s.",
           "check": { "kind": "state", "test": "clipTime", "args": { "t": 0.5 } },
           "do": [
             { "fn": "seekClip", "say": "Click the lanes at 0.50 s: the playhead moves there.", "args": { "t": 0.5 } }
@@ -197,7 +200,7 @@
           ]
         },
         {
-          "text": "Click the lanes about two thirds of the way across, so the time reads about 1.10 / 1.60 s.",
+          "text": "Click the lanes about two thirds of the way across, so the time reads about 1.10 / 1.60 s. Any time from 0.90 to 1.30 s counts; after a click on the lanes, ← and → move the playhead 0.1 s.",
           "check": { "kind": "state", "test": "clipTime", "args": { "t": 1.1 } },
           "do": [{ "fn": "seekClip", "say": "Click the lanes at 1.10 s.", "args": { "t": 1.1 } }]
         },
@@ -246,7 +249,7 @@
       "id": "chars.holdup",
       "title": "A clip: Hold it up",
       "body": "The second clip raises both arms above the head, the way a hero shows off what they found. “Right arm · z” turns the arm out to the side and up; “⇆ Mirror” turns the left one the other way, so both go up.",
-      "task": "Make a clip “Hold it up”, 4 s, Loop off: Right arm · z at 2.9 from 0.5 s, mirrored, then Play.",
+      "task": "Make a clip “Hold it up” (Loop off): Right arm · z at 2.9 from 0.5 s, mirrored, then Play.",
       "target": "section[aria-label=\"Characters and clips\"]",
       "placement": "right",
       "workspace": "Characters",
@@ -275,23 +278,21 @@
           "do": [{ "click": "[data-tour=\"clip-loop\"]", "say": "Untick “Loop”." }]
         },
         {
-          "text": "In the timeline tools, in “Length”, type 4 and press Enter: the arms stay up for the rest of the scene (a clip that does not loop ends when its time is up).",
-          "check": { "kind": "state", "test": "clipLength", "args": 4 },
-          "do": [{ "fill": "[data-tour=\"clip-length\"]", "value": "4", "say": "Type 4 in “Length” and press Enter." }]
-        },
-        {
-          "text": "Open “+ Track…” and pick “Right arm · z”. The right arm is ringed in the preview.",
+          "text": "Click “+ Track…” and click the picture “Right arm · z” (the right arm raised out to the side). The right arm is ringed in the preview.",
           "check": { "kind": "state", "test": "clipTrack", "args": { "bone": "rightArm", "prop": "z" } },
           "do": [
             {
-              "choose": "[aria-label=\"Timeline tools\"] select[aria-label=\"Add a track\"]",
-              "value": "Right arm · z",
-              "say": "Pick “Right arm · z” in “+ Track…”."
+              "click": "[aria-label=\"Timeline tools\"] [data-tour=\"pick-track\"]",
+              "say": "Click “+ Track…”: a picture of Rowan for each track opens, showing what that track moves."
+            },
+            {
+              "click": "[data-tour=\"pick-track-list\"] [data-value=\"rightArm.z\"]",
+              "say": "Click the picture “Right arm · z”."
             }
           ]
         },
         {
-          "text": "Click the lanes a quarter of the way across (about 0.50 s).",
+          "text": "Click the lanes a quarter of the way across (about 0.50 s). Any time from 0.30 to 0.70 s counts; after a click on the lanes, ← and → move the playhead 0.1 s.",
           "check": { "kind": "state", "test": "clipTime", "args": { "t": 0.5 } },
           "do": [{ "fn": "seekClip", "say": "Click the lanes at 0.50 s.", "args": { "t": 0.5 } }]
         },

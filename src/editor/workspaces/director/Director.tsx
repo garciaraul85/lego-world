@@ -250,6 +250,7 @@ function DirectorFor({
             </button>
           ))}
           <CastPanel ed={ed} cin={cin} role={role} onRole={setRole} onChange={save} />
+          <MarkList cin={cin} sel={sel && 'mark' in sel ? sel.mark : null} onPick={(mark) => setSel({ mark })} />
           <ShotList
             cin={cin}
             sel={sel}
@@ -331,6 +332,7 @@ function DirectorFor({
               }
               onGround={recordAt}
               onApi={(a) => (stage.current = a)}
+              spot={ed.tutorialSpot.value}
             />
             <CameraPreview preview={preview} tick={time} />
           </div>
@@ -370,6 +372,32 @@ function DirectorFor({
           />
         </div>
       </section>
+    </div>
+  );
+}
+
+/** P32: the scene's marks, to select one (then type its position and facing on the right) */
+function MarkList({ cin, sel, onPick }: { cin: Cinematic; sel: string | null; onPick: (mark: string) => void }) {
+  return (
+    <div class="sec dr-marks">
+      <div class="sech">
+        <span>Marks · {cin.marks.length}</span>
+      </div>
+      {cin.marks.map((m) => (
+        <button
+          type="button"
+          class={`lib-item ${m.id === sel ? 'on' : ''}`}
+          data-tour={`mark-${m.id}`}
+          aria-label={`Mark ${m.id}`}
+          onClick={() => onPick(m.id)}
+        >
+          <span class="asset-name">◉ {m.id}</span>
+          <span class="mono small muted">
+            x {m.pos[0]} z {m.pos[2]} · {Math.round((m.yaw * 180) / Math.PI)}°
+          </span>
+        </button>
+      ))}
+      {!cin.marks.length && <div class="hint">No marks yet: ● Record and click the ground to add one.</div>}
     </div>
   );
 }

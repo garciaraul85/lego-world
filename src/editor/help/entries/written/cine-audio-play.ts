@@ -48,6 +48,16 @@ export const CINEMATICS: HelpEntry[] = [
     ],
   },
   {
+    id: 'cinematics.marks',
+    screen: 'cinematics',
+    kind: 'list',
+    name: 'Marks',
+    purpose:
+      'Spots on the map that actors walk to and cameras look at, each with a direction. Click a mark to select it: its Position (X across, Y up, Z along, in studs) and Facing (° — 0 looks toward +Z, 180 toward −Z) show on the right, to type exact numbers. Drag a mark on the stage to move it in half studs. In a tutorial, a gold ring on the stage shows where a mark should go; it turns green when a mark is inside.',
+    commands: ['cinematic.put'],
+    match: [{ in: '.dr-marks' }],
+  },
+  {
     id: 'cinematics.shots',
     screen: 'cinematics',
     kind: 'list',
@@ -92,7 +102,7 @@ export const CINEMATICS: HelpEntry[] = [
     kind: 'area',
     name: 'Scene and block properties',
     purpose:
-      'The selected block’s settings, or the scene’s: name, length, map, whether players can skip it, letterbox bars and hiding the HUD.',
+      'The selected block’s settings, or the scene’s: name, length, map, whether players can skip it, letterbox bars and hiding the HUD. Each field has a “?” that says what it is and where its value comes from. Clip, Gesture and Item (Hold an item) show a picture of the actor for each choice; Event name lists the names your project uses, with who sends and who hears each (an On custom event node with exactly that name runs when the scene sends it); ▶ Listen plays a sound or music.',
     match: [{ in: ITEM }, { sel: ITEM }],
   },
 ];

@@ -23,7 +23,10 @@
       "suspicious": { "noExplicitAny": "error" },
       "a11y": {
         "useSemanticElements": "off",
-        "noLabelWithoutControl": { "level": "error", "options": { "inputComponents": ["DraftText"] } }
+        "noLabelWithoutControl": {
+          "level": "error",
+          "options": { "inputComponents": ["DraftText", "StartInput", "ChoiceOrText"] }
+        }
       },
       "complexity": { "noImportantStyles": "off" }
     }

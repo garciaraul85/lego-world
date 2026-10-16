@@ -147,3 +147,58 @@ export function DraftText({
     />
   );
 }
+
+/**
+ * P32: the “?” next to a field. Hover (or focus) shows what the field is and where its value comes from; a
+ * click keeps the explanation open under the field (for touch screens and for reading it slowly).
+ */
+export function FieldHelp({
+  label,
+  text,
+  link,
+}: {
+  label: string;
+  text: string;
+  /** where the value comes from, to go and look (“Open Treasure chest’s states”) */
+  link?: { label: string; go: () => void };
+}) {
+  const [open, setOpen] = useState(false);
+  if (!text) return null;
+  return (
+    <span class="fhelp-wrap">
+      <button
+        type="button"
+        class="fhelp"
+        aria-label={`What is “${label}”?`}
+        aria-expanded={open}
+        data-tip={text}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+      >
+        ?
+      </button>
+      {open && (
+        <span class="fhelp-text" role="note">
+          {text}
+          {link && (
+            <button
+              type="button"
+              class="link fhelp-go"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setOpen(false);
+                link.go();
+              }}
+            >
+              {link.label} →
+            </button>
+          )}
+        </span>
+      )}
+    </span>
+  );
+}

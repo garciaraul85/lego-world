@@ -1,8 +1,10 @@
+import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Clip } from '../../../core/schema';
 import { ALL_TRACKS } from '../../../engine/character/clip-params';
 import { sampleTrack } from '../../../engine/character/routine';
 import { DraftText } from '../fields';
+import { PreviewPicker } from '../PreviewPicker';
 
 type Key = Clip['tracks'][number]['keys'][number];
 type Sel = { kind: 'key'; track: number; key: number } | { kind: 'event'; index: number } | null;
@@ -49,6 +51,7 @@ export function Timeline({
   onChange,
   choices,
   onTrackSelect,
+  trackThumb,
 }: {
   clip: Clip;
   time: number;
@@ -59,6 +62,8 @@ export function Timeline({
   choices?: { sounds: { id: string; name: string }[]; cinematics: { id: string; name: string }[] };
   /** P32: the track picked in the timeline (a label, a key or a new track), so the preview can point at its part */
   onTrackSelect?: (track: { bone: string; prop: string } | null) => void;
+  /** P32: a picture of the character with this joint moved, so “+ Track…” shows what each track does */
+  trackThumb?: (bone: string, prop: string) => ComponentChildren;
 }) {
   const [sel, setSel] = useState<Sel>(null);
   const [trackSel, setTrackSel] = useState(0);
@@ -118,6 +123,18 @@ export function Timeline({
   const key = sel?.kind === 'key' ? clip.tracks[sel.track]?.keys[sel.key] : null;
   const ev = sel?.kind === 'event' ? clip.events[sel.index] : null;
   const unused = ALL_TRACKS.filter((a) => !clip.tracks.some((t) => t.bone === a.bone && t.prop === a.prop));
+  const addTrack = (a: { bone: string; prop: string } | undefined) => {
+    if (!a) return;
+    onChange(
+      {
+        ...clip,
+        // the first key is at the start of the clip (where the joint starts out)
+        tracks: [...clip.tracks, { bone: a.bone, prop: a.prop, keys: [[0, 0, 'easeInOut']] }],
+      },
+      'Add track',
+    );
+    setTrackSel(clip.tracks.length);
+  };
 
   return (
     <div class="timeline">
@@ -168,30 +185,33 @@ export function Timeline({
         </label>
         {!readOnly && (
           <>
-            <select
-              class="inp"
-              style={{ width: 'auto' }}
-              aria-label="Add a track"
-              value=""
-              onChange={(e) => {
-                const a = unused[Number((e.target as HTMLSelectElement).value)];
-                if (!a) return;
-                onChange(
-                  {
-                    ...clip,
-                    // the first key is at the start of the clip (where the joint starts out)
-                    tracks: [...clip.tracks, { bone: a.bone, prop: a.prop, keys: [[0, 0, 'easeInOut']] }],
-                  },
-                  'Add track',
-                );
-                setTrackSel(clip.tracks.length);
-              }}
-            >
-              <option value="">+ Track…</option>
-              {unused.map((a, i) => (
-                <option value={i}>{trackLabel(a.bone, a.prop)}</option>
-              ))}
-            </select>
+            {trackThumb ? (
+              <PreviewPicker
+                label="Add a track"
+                value=""
+                placeholder="+ Track…"
+                tour="track"
+                options={unused.map((a) => ({
+                  value: `${a.bone}.${a.prop}`,
+                  name: trackLabel(a.bone, a.prop),
+                  thumb: trackThumb(a.bone, a.prop),
+                }))}
+                onPick={(v) => addTrack(unused.find((a) => `${a.bone}.${a.prop}` === v))}
+              />
+            ) : (
+              <select
+                class="inp"
+                style={{ width: 'auto' }}
+                aria-label="Add a track"
+                value=""
+                onChange={(e) => addTrack(unused[Number((e.target as HTMLSelectElement).value)])}
+              >
+                <option value="">+ Track…</option>
+                {unused.map((a, i) => (
+                  <option value={i}>{trackLabel(a.bone, a.prop)}</option>
+                ))}
+              </select>
+            )}
             <button
               type="button"
               class="btn"
@@ -285,7 +305,25 @@ export function Timeline({
             </button>
           ))}
         </div>
-        <div class="tl-lanes" ref={lanes} onPointerDown={scrub}>
+        {/* P32: after a click on the lanes, ← and → move the playhead 0.1 s (to reach an exact time) */}
+        <div
+          class="tl-lanes"
+          ref={lanes}
+          onPointerDown={scrub}
+          tabIndex={0}
+          role="slider"
+          aria-label="Clip time"
+          aria-valuemin={0}
+          aria-valuemax={L}
+          aria-valuenow={Math.round(time * 100) / 100}
+          onKeyDown={(e) => {
+            if (e.target !== e.currentTarget) return;
+            const step = e.key === 'ArrowRight' ? 0.1 : e.key === 'ArrowLeft' ? -0.1 : 0;
+            if (!step) return;
+            e.preventDefault();
+            onSeek(Math.max(0, Math.min(L, Math.round((time + step) * 10) / 10)));
+          }}
+        >
           <div class="tl-lane head">
             {clip.events.map((e, i) => (
               <button

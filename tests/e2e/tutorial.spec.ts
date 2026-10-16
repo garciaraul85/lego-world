@@ -192,7 +192,9 @@ test('Tutorial: a step with click-by-click lines is checked one line at a time (
     await page.keyboard.press('Enter');
   };
   // 1: + Track… › Right arm · x
-  await tools.getByLabel('Add a track').selectOption({ label: 'Right arm · x' });
+  // (a picture per track: the character with that joint moved)
+  await tools.locator('[data-tour="pick-track"]').click();
+  await page.locator('[data-tour="pick-track-list"] [data-value="rightArm.x"]').click();
   await expect.poll(ticked).toBe(1);
   await expect(card.getByText(/✓ Done!/)).toHaveCount(0);
   // 2–4: the playhead at 0.5 s, ◆ Key (selects it), value −1.3
@@ -297,5 +299,44 @@ test('Tutorial: the chest story — Do it for me through Characters, Logic and C
   });
   expect(chest).toBe('open');
   await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 60_000 });
+  expect(errors).toEqual([]);
+});
+
+test('Tutorial: the mark step names the exact numbers; typing them by hand passes it', async ({ page }) => {
+  test.setTimeout(600_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const card = await startTutorial(page, 'try');
+  await toStep(page, card, 'A mark at the chest', /^Cinematics/);
+  const how = card.getByRole('list', { name: 'Click by click' });
+  // the card says where: X, Z and Facing as numbers (no {{tokens}} left), and the stage draws the ring
+  const text = await how.innerText();
+  expect(text).not.toContain('{{');
+  const x = /type (-?[\d.]+) in X/.exec(text)?.[1];
+  const z = /then (-?[\d.]+) in Z/.exec(text)?.[1];
+  const facing = /“Facing \(°\)” type (-?[\d.]+)/.exec(text)?.[1];
+  expect(x && z && facing).toBeTruthy();
+  const spot = page.locator('.dr-spot');
+  await expect(spot).toContainText(`x ${x}, z ${z}`);
+  await expect(spot).not.toContainText('✓');
+  // by hand, as the lines say
+  await page.locator('[data-tour="mark-mark1"]').click();
+  await expect(how.locator('li.done')).toHaveCount(1);
+  const props = page.getByRole('region', { name: 'Item properties' });
+  for (const [box, v] of [
+    ['Position X', x],
+    ['Position Z', z],
+  ] as const) {
+    const el = props.getByLabel(box, { exact: true });
+    await el.fill(v!);
+    await el.press('Enter');
+  }
+  await expect(spot).toContainText('✓ a mark is in the ring');
+  await expect(how.locator('li.done')).toHaveCount(2);
+  const f = props.getByLabel('Facing (°)', { exact: true });
+  await f.fill(facing!);
+  await f.press('Enter');
+  await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 30_000 });
+  await page.screenshot({ path: 'test-results/mark-step.png' });
   expect(errors).toEqual([]);
 });

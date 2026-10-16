@@ -48,7 +48,8 @@ export const CHARACTERS: HelpEntry[] = [
     screen: 'characters',
     kind: 'list',
     name: 'Animation clips',
-    purpose: 'Movements the character can do. Click one to play it in the preview; Standing stops.',
+    purpose:
+      'Movements the character can do, each with a small picture of its strongest pose. Click one to play it in the preview; Standing stops.',
     commands: ['clip.create', 'clip.update', 'clip.delete'],
     match: [
       { in: CLIPS, role: 'option' },
@@ -64,6 +65,8 @@ export const CHARACTERS: HelpEntry[] = [
       'The character in 3D, with the open clip’s timeline under it. Drag to turn it; Turntable spins it slowly so you see every side. Click a track’s name in the timeline (or one of its keys ◆): the preview rings that body part and names it, and the track’s lane shows the value of each key next to it.',
     steps: [
       'Click a clip on the left; its timeline opens under the preview.',
+      'Click “+ Track…” to add a track: a picture of the character for each track shows which joint it moves and how (an arm’s x reaches forward, its z raises it out to the side). Click a picture to add that track.',
+      'Click the lanes to move the playhead; then ← and → move it 0.1 s, to reach an exact time.',
       'Click a track name (for example “Right arm · z”): the right arm is ringed in the preview.',
       'Click a key ◆ on that lane: its time (“at”) and value show under the lanes. Type a new value and press Enter.',
       'Type a new Length (seconds) in the timeline tools and press Enter to make the clip longer or shorter. Untick Loop for a clip that plays once and holds its last pose.',

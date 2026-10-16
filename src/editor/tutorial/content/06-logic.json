@@ -5,7 +5,7 @@
     {
       "id": "logic.open",
       "title": "Game rules",
-      "body": "Logic makes a map a game: when something happens (an event), do something (actions). Here it decides what the chest holds: when the cinematic says “open-chest”, logic opens the lid, puts the item in the chest, lifts it out and gives it to the hero. Graph and code are two views of the same rules.",
+      "body": "Logic makes a map a game: when something happens (an event), do something (actions). Here it decides what the chest holds: when the cinematic sends “scene-opens-chest”, logic opens the lid, puts the item in the chest, lifts it out and gives it to the hero. Graph and code are two views of the same rules. Every field has a “?”: hover it (or click it) to see what the field is and where its value comes from.",
       "task": "Open the Logic workspace.",
       "target": "[data-tour=\"ws-logic\"]",
       "placement": "bottom",
@@ -44,9 +44,9 @@
     {
       "id": "logic.var",
       "title": "The chest’s item is a variable",
-      "body": "Variables remember things while playing. Here “chestItem” holds the name of what is inside the chest. The rules read it instead of saying “Sword”, so changing this one value makes the same chest give anything (any asset by its name).",
-      "task": "Add a text variable “chestItem” that starts as Sword.",
-      "target": "input[aria-label=\"New variable name\"]",
+      "body": "Variables remember things while playing. A variable has three parts, each labelled in the form: a Name you invent (here chestItem: nothing else is called that, it is just our label), a Type (Text, because it holds a name) and a Starting value: Sword, the name of the built-in Sword asset as the Assets screen lists it. The rules read chestItem instead of saying “Sword”, so changing this one value makes the chest give any asset. Each variable card lists where it is used.",
+      "task": "Add a variable: Name chestItem, Type Text, Starting value Sword.",
+      "target": "[aria-label=\"New variable\"]",
       "placement": "right",
       "workspace": "Logic",
       "check": {
@@ -57,30 +57,7 @@
       "doItForMe": [],
       "how": [
         {
-          "text": "Under “Variables” (left), type chestItem in the box “New variable” and click “Add”. A row “chestItem” appears, a number starting at 0.",
-          "check": { "kind": "state", "test": "hasVar", "args": { "name": "chestItem" } },
-          "do": [
-            {
-              "fill": "input[aria-label=\"New variable name\"]",
-              "value": "chestItem",
-              "say": "Type chestItem in “New variable”."
-            },
-            { "click": "button[aria-label=\"Add variable\"]", "say": "Click “Add”." }
-          ]
-        },
-        {
-          "text": "In that row, open the drop-down (it says “number”) and pick “text”.",
-          "check": { "kind": "state", "test": "hasVar", "args": { "name": "chestItem", "type": "string" } },
-          "do": [
-            {
-              "choose": "select[aria-label=\"chestItem type\"]",
-              "value": "string",
-              "say": "Pick “text” in the row’s drop-down."
-            }
-          ]
-        },
-        {
-          "text": "In the row’s box (starts at), type Sword and press Enter. The chest will hold a Sword.",
+          "text": "Under “Variables” (left), in the box “New variable”: in “Name” type chestItem; in “Type” pick “Text”; in “Starting value” type Sword (spelled as the asset’s name in the Assets screen); then click “Add variable”. A card “chestItem” appears: Type Text, Starting value Sword.",
           "check": {
             "kind": "state",
             "test": "hasVar",
@@ -88,10 +65,21 @@
           },
           "do": [
             {
-              "fill": "input[aria-label=\"chestItem starts at\"]",
+              "fill": "input[aria-label=\"New variable name\"]",
+              "value": "chestItem",
+              "say": "Type chestItem in “Name”: a name we invent."
+            },
+            {
+              "choose": "select[aria-label=\"New variable type\"]",
+              "value": "string",
+              "say": "Pick “Text” in “Type”: it holds a name."
+            },
+            {
+              "fill": "input[aria-label=\"New variable starts at\"]",
               "value": "Sword",
-              "say": "Type Sword in the row’s box and press Enter."
-            }
+              "say": "Type Sword in “Starting value”: the Sword asset’s name."
+            },
+            { "click": "button[aria-label=\"Add variable\"]", "say": "Click “Add variable”." }
           ]
         }
       ]
@@ -99,15 +87,15 @@
     {
       "id": "logic.event",
       "title": "Listen for the cinematic",
-      "body": "Events start a chain. “On custom event” runs when something sends that event’s name: a cinematic, an asset interaction, another graph. The scene you direct later sends “open-chest” at the moment Rowan lifts the lid.",
-      "task": "Add an “On custom event” node for the event “open-chest”.",
+      "body": "Events start a chain. “On custom event” runs when something sends exactly its name: a cinematic, an asset interaction, another graph. “scene-opens-chest” is a name we invent here; the scene you direct in Cinematics will send it at the moment Rowan lifts the lid. (The chest asset has its own event, “chest-opened”, sent when a player presses E at it: a different name, not used in this story.)",
+      "task": "Add an “On custom event” node for the event “scene-opens-chest”.",
       "target": "section[aria-label=\"Logic graphs, variables and nodes\"]",
       "placement": "right",
       "workspace": "Logic",
       "check": {
         "kind": "state",
         "test": "graphHas",
-        "args": { "type": "event.onCustom", "args": { "event": "open-chest" } }
+        "args": { "type": "event.onCustom", "args": { "event": "scene-opens-chest" } }
       },
       "doItForMe": [],
       "how": [
@@ -123,11 +111,11 @@
           ]
         },
         {
-          "text": "On the right, open “Event name”, pick “＋ New event…”, type open-chest and press Enter.",
+          "text": "On the right, open “Event name”; the list shows the names your project already uses and who sends them. Pick “＋ New event…”, type scene-opens-chest and press Enter. The note under it says nothing sends it yet: the scene will, in Cinematics.",
           "check": {
             "kind": "state",
             "test": "graphHas",
-            "args": { "type": "event.onCustom", "args": { "event": "open-chest" } }
+            "args": { "type": "event.onCustom", "args": { "event": "scene-opens-chest" } }
           },
           "do": [
             {
@@ -137,8 +125,8 @@
             },
             {
               "fill": "[aria-label=\"Node inspector\"] input[aria-label=\"New event name\"]",
-              "value": "open-chest",
-              "say": "Type open-chest and press Enter."
+              "value": "scene-opens-chest",
+              "say": "Type scene-opens-chest and press Enter."
             }
           ]
         }
@@ -147,8 +135,9 @@
     {
       "id": "logic.state",
       "title": "Open the lid",
-      "body": "“Set state” switches a placed asset to one of its states. Its target can be an id or an asset’s name: “Treasure chest” means the chest nearest the hero. The chest’s lid is a moving part: it swings open over 0.7 s. Wires carry the flow from a white “then” pin to a white “in” pin.",
-      "task": "Add “Set state” (Treasure chest → open) and wire “On custom event” then → its in.",
+      "body": "“Set state” switches a placed object to one of its states. “target” lists the objects placed on your maps by their asset’s name: “Treasure chest” is the built-in asset’s name (Assets screen), and we put one on your start map for this story; in Play the copy nearest the hero is used. “state” lists that asset’s states, as Assets › Treasure chest › States defines them: closed and open. The lid is a moving part that swings open over 0.7 s. Wires carry the flow from a white “then” pin to a white “in” pin.",
+      "task": "Add “Set state” (target Treasure chest, state open) and wire “On custom event” then → its in.",
+      "setup": [{ "fn": "chestStage" }],
       "target": "section[aria-label=\"Logic editor\"]",
       "placement": "left",
       "workspace": "Logic",
@@ -156,7 +145,7 @@
         "kind": "state",
         "test": "graphEdge",
         "args": {
-          "from": { "type": "event.onCustom", "args": { "event": "open-chest" } },
+          "from": { "type": "event.onCustom", "args": { "event": "scene-opens-chest" } },
           "out": "then",
           "to": { "type": "world.setState" },
           "into": "in"
@@ -180,7 +169,7 @@
           ]
         },
         {
-          "text": "On the right under “Values”, in “target”, type Treasure chest and press Enter; “state” already says open.",
+          "text": "On the right under “Values”, open “target” and pick “Treasure chest — placed on …” (the objects on your maps, by asset name).",
           "check": {
             "kind": "state",
             "test": "graphHas",
@@ -188,9 +177,24 @@
           },
           "do": [
             {
-              "fill": "[aria-label=\"Node inspector\"] [data-tour=\"field-target\"]",
+              "choose": "[aria-label=\"Node inspector\"] [data-tour=\"field-target\"]",
               "value": "Treasure chest",
-              "say": "Type Treasure chest in “target”."
+              "say": "Pick “Treasure chest” in “target”."
+            }
+          ]
+        },
+        {
+          "text": "Open “state” and pick “open” (the list now holds the Treasure chest’s states: closed and open). The note under it names where they come from.",
+          "check": {
+            "kind": "state",
+            "test": "graphHas",
+            "args": { "type": "world.setState", "args": { "target": "Treasure chest", "state": "open" } }
+          },
+          "do": [
+            {
+              "choose": "[aria-label=\"Node inspector\"] [data-tour=\"field-state\"]",
+              "value": "open",
+              "say": "Pick “open” in “state”: one of the chest’s states."
             }
           ]
         },
@@ -200,7 +204,7 @@
             "kind": "state",
             "test": "graphEdge",
             "args": {
-              "from": { "type": "event.onCustom", "args": { "event": "open-chest" } },
+              "from": { "type": "event.onCustom", "args": { "event": "scene-opens-chest" } },
               "out": "then",
               "to": { "type": "world.setState" },
               "into": "in"
@@ -215,7 +219,7 @@
               "fn": "wireNodes",
               "say": "The wire joins them.",
               "args": {
-                "from": { "type": "event.onCustom", "args": { "event": "open-chest" } },
+                "from": { "type": "event.onCustom", "args": { "event": "scene-opens-chest" } },
                 "out": "then",
                 "to": { "type": "world.setState" },
                 "into": "in"
@@ -228,12 +232,12 @@
     {
       "id": "logic.code",
       "title": "The rest as code",
-      "body": "The same rules as code: each node is a line. Spawn item at object puts the item named in chestItem inside the chest; Set state “out” makes it rise (the Sword’s moving part); Give item puts it in the hero’s bag. A second event, “take-sword”, removes the floating sword when Rowan takes it. Split shows code and graph.",
+      "body": "The same rules as code: each node is a line. Spawn item at object puts the item named in chestItem inside the chest; Set state “out” makes it rise (the Sword’s moving part); Give item puts it in the hero’s bag. A second event, “scene-takes-sword” (another name we invent, sent by the scene), removes the floating sword when Rowan takes it. In code, \"Treasure chest\", \"open\" and \"out\" are the same names the pickers list: the asset’s name and its states (the Sword’s states are in and out). Split shows code and graph.",
       "task": "Switch to Split and type the code; the graph grows with every line.",
       "target": "section[aria-label=\"Logic editor\"]",
       "placement": "left",
       "workspace": "Logic",
-      "code": "on(\"custom\", { event: \"open-chest\" }, (e) => {\n  world.setState(\"Treasure chest\", \"open\");\n  const item = world.spawnNear(vars.chestItem, \"Treasure chest\");\n  world.setState(item, \"out\");\n  world.give(vars.chestItem, 1);\n});\n\non(\"custom\", { event: \"take-sword\" }, (e) => {\n  world.despawn(vars.chestItem);\n});\n",
+      "code": "on(\"custom\", { event: \"scene-opens-chest\" }, (e) => {\n  world.setState(\"Treasure chest\", \"open\");\n  const item = world.spawnNear(vars.chestItem, \"Treasure chest\");\n  world.setState(item, \"out\");\n  world.give(vars.chestItem, 1);\n});\n\non(\"custom\", { event: \"scene-takes-sword\" }, (e) => {\n  world.despawn(vars.chestItem);\n});\n",
       "check": { "kind": "state", "test": "chestCode" },
       "doItForMe": [],
       "how": [
@@ -255,7 +259,7 @@
               "fn": "typeHere",
               "say": "The code is typed; the graph follows.",
               "args": {
-                "code": "on(\"custom\", { event: \"open-chest\" }, (e) => {\n  world.setState(\"Treasure chest\", \"open\");\n  const item = world.spawnNear(vars.chestItem, \"Treasure chest\");\n  world.setState(item, \"out\");\n  world.give(vars.chestItem, 1);\n});\n\non(\"custom\", { event: \"take-sword\" }, (e) => {\n  world.despawn(vars.chestItem);\n});\n"
+                "code": "on(\"custom\", { event: \"scene-opens-chest\" }, (e) => {\n  world.setState(\"Treasure chest\", \"open\");\n  const item = world.spawnNear(vars.chestItem, \"Treasure chest\");\n  world.setState(item, \"out\");\n  world.give(vars.chestItem, 1);\n});\n\non(\"custom\", { event: \"scene-takes-sword\" }, (e) => {\n  world.despawn(vars.chestItem);\n});\n"
               }
             }
           ]

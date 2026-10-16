@@ -25,7 +25,7 @@ import { buildInto } from '../workspaces/asset-studio/scratch';
 import { newGraph } from '../workspaces/logic/model';
 import { CODING_DOERS } from './coding';
 import type { Do } from './schema';
-import { STORY_DOERS } from './story';
+import { STORY_DOERS, storyText } from './story';
 
 type Ctx = ActionCtx;
 const run = (c: Ctx, cmds: Command | Command[], label: string) => {
@@ -523,7 +523,7 @@ export async function perform(c: Ctx, d: Do): Promise<void> {
     if (!el) throw new Error(`Could not find ${d.say ?? 'the box to type in'} (${d.fill}).`);
     el.scrollIntoView({ block: 'nearest' });
     el.focus();
-    el.value = d.value;
+    el.value = storyText(c.ed, d.value);
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
     el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
@@ -539,7 +539,8 @@ export async function perform(c: Ctx, d: Do): Promise<void> {
     const el = document.querySelector(d.choose) as HTMLSelectElement | null;
     if (!el) throw new Error(`Could not find ${d.say ?? 'the list to pick from'} (${d.choose}).`);
     el.scrollIntoView({ block: 'nearest' });
-    const opt = [...el.options].find((o) => o.value === d.value || o.text === d.value);
+    const want = storyText(c.ed, d.value);
+    const opt = [...el.options].find((o) => o.value === want || o.text === want);
     if (!opt) throw new Error(`“${d.value}” is not in that list.`);
     el.value = opt.value;
     el.dispatchEvent(new Event('change', { bubbles: true }));

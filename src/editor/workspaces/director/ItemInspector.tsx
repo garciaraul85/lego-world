@@ -2,10 +2,28 @@ import { BUILTIN_CLIPS } from '../../../builtin/clips';
 import { EMOTE_KINDS } from '../../../builtin/clips/emotes';
 import { usesOf } from '../../../core/audio/usage';
 import type { ActorItem, CameraItem, Cinematic, Clip, PostItem } from '../../../core/schema';
+import { EventPicker } from '../../components/EventPicker';
+import { FieldHelp } from '../../components/fields';
+import { describeUse, eventUses } from '../../events';
 import { musicOptions, soundOptions } from '../../panels/AudioFields';
 import type { EditorState } from '../../state';
 import { Check, NumIn, Pick, Sec, TextIn, Vec } from './fields';
 import { type Item, itemAt, type Sel, setItem } from './model';
+import { ClipPicker, GesturePicker, HeldPicker, roleProfile } from './pictures';
+
+/** P32: what the Director's fields are and where their values come from (the “?” beside each) */
+const HELP = {
+  t: 'When it starts, in seconds from the start of the scene. New items are added at the playhead (the line across the rows); type a time here to move one.',
+  does: 'What this actor does from “Starts at” on: walk to a mark, play one of your clips (Characters › Clips), a gesture, hold an item, say a line…',
+  mark: 'One of the scene’s marks: the numbered rings on the stage. Drag a mark on the stage to move it; select it to type its position and facing.',
+  clip: 'A clip from Characters › Clips (yours under “Mine”, then the built-in ones). Each picture is the actor at the clip’s strongest moment.',
+  gesture: 'A built-in gesture (Characters › Clips › Gestures).',
+  held: 'What the actor holds in its hand: one of the hand-held props every character can carry (Characters › Held). It is drawn in the hand; it is not a placed asset.',
+  event:
+    'A logic event name. When the scene reaches this item it sends the name, and every “On custom event” node with exactly this name runs (Logic). The list shows who already sends and who listens to each name.',
+  sound: 'A sound event from the Audio workspace. ▶ Listen plays it.',
+  music: 'A music state from the Audio workspace. ▶ Listen plays it.',
+};
 
 type Change = (c: Cinematic, label: string) => void;
 
@@ -34,7 +52,14 @@ export function ItemInspector({
   const marks = cin.marks.map((m) => ({ id: m.id, name: `mark ${m.id}` }));
   const head = (
     <>
-      <NumIn label="Starts at (s)" value={it.t} min={0} max={cin.length} onChange={(t) => put({ ...it, t } as Item)} />
+      <NumIn
+        label="Starts at (s)"
+        help={HELP.t}
+        value={it.t}
+        min={0}
+        max={cin.length}
+        onChange={(t) => put({ ...it, t } as Item)}
+      />
     </>
   );
   const del = (
@@ -51,10 +76,9 @@ export function ItemInspector({
   );
   if (tr.kind === 'actor') {
     const a = it as ActorItem;
-    const clips = [...ed.store.list('clips/').map((p) => ed.store.get<Clip>(p)!), ...BUILTIN_CLIPS].map((c) => ({
-      id: c.id,
-      name: c.name ?? c.id,
-    }));
+    const fullClips = [...ed.store.list('clips/').map((p) => ed.store.get<Clip>(p)!), ...BUILTIN_CLIPS];
+    const clips = fullClips.map((c) => ({ id: c.id, name: c.name ?? c.id }));
+    const profile = roleProfile(ed, cin, tr.role);
     const make = (d: ActorItem['do']): ActorItem => {
       const t = a.t;
       switch (d) {
@@ -78,6 +102,7 @@ export function ItemInspector({
       <Sec title={`${tr.role} · instruction`}>
         <Pick
           label="Does"
+          help={HELP.does}
           value={a.do}
           options={[
             { id: 'moveTo', name: 'Walk / run to a mark' },
@@ -94,7 +119,13 @@ export function ItemInspector({
         {head}
         {a.do === 'moveTo' && (
           <>
-            <Pick label="Mark" value={a.mark} options={marks} onChange={(mark) => put({ ...a, mark })} />
+            <Pick
+              label="Mark"
+              help={HELP.mark}
+              value={a.mark}
+              options={marks}
+              onChange={(mark) => put({ ...a, mark })}
+            />
             <Pick
               label="Speed"
               value={a.speed}
@@ -141,21 +172,25 @@ export function ItemInspector({
           </>
         )}
         {a.do === 'emote' && (
-          <Pick
-            label="Gesture"
-            value={a.kind}
-            options={EMOTE_KINDS.map((k) => ({ id: k, name: k }))}
-            onChange={(kind) => put({ ...a, kind })}
-          />
+          <GesturePicker profile={profile} value={a.kind} kinds={EMOTE_KINDS} onPick={(kind) => put({ ...a, kind })} />
         )}
         {a.do === 'play' && (
           <>
-            <Pick label="Clip" value={a.clip} options={clips} onChange={(clip) => put({ ...a, clip: clip as never })} />
+            <ClipPicker
+              profile={profile}
+              value={a.clip}
+              clips={fullClips}
+              onPick={(clip) => put({ ...a, clip: clip as never })}
+            />
+            <p class="hint">{HELP.clip}</p>
             <Check label="Loop until the next instruction" value={!!a.loop} onChange={(loop) => put({ ...a, loop })} />
           </>
         )}
         {a.do === 'equip' && (
-          <TextIn label="Item" value={a.item} onChange={(item) => item.trim() && put({ ...a, item: item.trim() })} />
+          <>
+            <HeldPicker profile={profile} value={a.item} onPick={(item) => put({ ...a, item })} />
+            <p class="hint">{HELP.held}</p>
+          </>
         )}
         {del}
       </Sec>
@@ -264,11 +299,17 @@ export function ItemInspector({
         {head}
         <Pick
           label="Music"
+          help={HELP.music}
           value={m.stop ? '' : (m.music ?? '')}
           options={[{ id: '', name: 'Stop the music' }, ...musicOptions(ed)]}
           onChange={(v) => put((v ? { t: m.t, music: v, fade: m.fade } : { t: m.t, stop: true, fade: m.fade }) as Item)}
         />
         <NumIn label="Fade (s)" value={m.fade} min={0} onChange={(fade) => put({ ...m, fade } as Item)} />
+        {m.music && !m.stop && (
+          <button type="button" class="btn wide" onClick={() => ed.audio.previewMusic(m.music!)}>
+            ▶ Listen
+          </button>
+        )}
         <p class="hint">Scene music wins over every other music; the map’s music returns when the scene ends.</p>
         {del}
       </Sec>
@@ -281,6 +322,7 @@ export function ItemInspector({
         {head}
         <Pick
           label="Sound"
+          help={HELP.sound}
           value={s.event}
           options={soundOptions(ed).map((o) => ({ id: o.id, name: o.name }))}
           onChange={(event) => put({ ...s, event } as Item)}
@@ -394,13 +436,7 @@ export function ItemInspector({
         }
       />
       {head}
-      {e.emit !== undefined && (
-        <TextIn
-          label="Event name"
-          value={e.emit}
-          onChange={(emit) => emit.trim() && put({ t: e.t, emit: emit.trim() } as Item)}
-        />
-      )}
+      {e.emit !== undefined && <SceneEvent ed={ed} value={e.emit} onChange={(emit) => put({ t: e.t, emit } as Item)} />}
       {e.setVar !== undefined && (
         <>
           <TextIn
@@ -446,9 +482,15 @@ function MarkProps({
   const used = JSON.stringify(cin.tracks).includes(`"${id}"`) || cin.cast.some((c) => c.at === id);
   return (
     <Sec title={`Mark ${m.id}`}>
-      <Vec label="Position" value={m.pos} onChange={(pos) => set({ pos })} />
+      <Vec
+        label="Position"
+        help="Where the mark stands on the map, in studs: X across, Y up (the ground), Z along. Type a number and press Enter, or drag the mark on the stage (it moves in half studs)."
+        value={m.pos}
+        onChange={(pos) => set({ pos })}
+      />
       <NumIn
         label="Facing (°)"
+        help="The way an actor faces when it arrives, in degrees: 0 looks toward +Z, 90 toward +X, 180 toward −Z, −90 toward −X. The short line from the mark on the stage points this way."
         value={Math.round((m.yaw * 180) / Math.PI)}
         step={15}
         onChange={(d) => set({ yaw: (d * Math.PI) / 180 })}
@@ -512,6 +554,33 @@ function SceneProps({ ed, cin, onChange }: { ed: EditorState; cin: Cinematic; on
           </div>
         ))}
       </Sec>
+    </>
+  );
+}
+
+/** P32: the event a scene sends, picked from the names the project uses (and who sends and hears each). */
+function SceneEvent({ ed, value, onChange }: { ed: EditorState; value: string; onChange: (v: string) => void }) {
+  const uses = eventUses(ed.store);
+  const u = uses.get(value);
+  return (
+    <>
+      <div class="dr-f">
+        <span>
+          Event name
+          <FieldHelp label="Event name" text={HELP.event} />
+        </span>
+        <EventPicker
+          value={value}
+          events={[...uses.keys()].sort((a, b) => a.localeCompare(b))}
+          uses={uses}
+          onChange={(v) => v.trim() && onChange(v.trim())}
+        />
+      </div>
+      <div class={u?.listeners.length ? 'field-note' : 'field-warn'}>
+        “{value}”: {describeUse(u)}.
+        {!u?.listeners.length &&
+          ' Add an “On custom event” node with exactly this name in Logic, or pick a name from the list.'}
+      </div>
     </>
   );
 }

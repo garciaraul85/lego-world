@@ -95,10 +95,23 @@ export const LOGIC: HelpEntry[] = [
     kind: 'field',
     name: 'Variables',
     purpose:
-      'Game variables: numbers, true/false or text the game remembers while playing (score, keys, doorOpen). Logic reads and changes them; screens show them as {name}.',
-    steps: ['Type a name in New variable name and press Add.', 'Pick its type and starting value.'],
+      'Game variables: numbers, true/false or text the game remembers while playing (score, keys, chestItem). Logic reads them with Get variable (vars.name in code) and changes them with Set variable; screens show them as {name}. Each variable is a card with three labelled parts and a “Used in” list of the graphs, screens and scenes that use it.',
+    options: [
+      ['Name', 'a name you invent: one word, letters and digits (chestItem); logic and screens use exactly this name'],
+      ['Type', 'Number (3, 0.5), Text (Sword) or True / false'],
+      ['Starting value', 'the value it has when the game starts, and again on every new play'],
+    ],
+    steps: [
+      'Under Variables, in the box New variable: type a Name, pick a Type, type a Starting value.',
+      'Click Add variable: its card appears.',
+      'Change a card’s Type or Starting value at any time; × removes it.',
+    ],
     commands: ['logic.setVariable'],
-    match: [{ in: LIB, name: /^(New variable name|Add variable)$/ }, { in: `${LIB} .lg-var` }],
+    match: [
+      { in: LIB, name: /^(New variable (name|type|starts at)|Add variable|What is “Variables”\?)$/ },
+      { in: `${LIB} .lg-var-card` },
+      { in: `${LIB} .lg-var-new` },
+    ],
   },
   {
     id: 'logic.palette',
@@ -175,7 +188,7 @@ export const LOGIC: HelpEntry[] = [
     kind: 'area',
     name: 'Node inspector',
     purpose:
-      'The selected node: what it does, its settings (which zone, which variable, how many seconds…) and its breakpoint.',
+      'The selected node: what it does, its settings (which zone, which variable, how many seconds…) and its breakpoint. Each field has a “?”: hover it (or click it) to read what the field is and where its value comes from, with a link there. Fields that name something are lists of what your project has: an object lists the assets placed on your maps, a state lists that asset’s states (Assets › the asset › States), an item lists your assets, an event name lists the names your project sends or listens to, with who does. A name that matches nothing is shown in orange under the field and in the graph’s problem count.',
     commands: ['logic.setArgs'],
     match: [{ sel: area('Node inspector') }, { in: area('Node inspector') }],
   },
