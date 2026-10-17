@@ -174,20 +174,19 @@ export class PlayRenderer {
       lines.push(...this.extra.lines);
       markers.push(...this.extra.markers);
     }
-    // P9b: lock-on, Zelda style — a yellow arrow bobs over what Z would lock on to (gone when out of range);
-    // locked on, a red arrow pulses over the target
-    const locked = s.combat.targetPos();
-    const hint = locked ? null : s.combat.targetPos(s.combat.hint);
-    const at = locked ?? hint;
+    // P9b: lock-on, Zelda style — a yellow down-pointing arrow bobs over what Z would lock on to (gone when out
+    // of range); locked on, a red one pulses over the target. Drawn over everything, so nothing hides it.
+    const locked = s.combat.markerPos(s.combat.target);
+    const at = locked ?? s.combat.markerPos(s.combat.hint);
     if (at) {
-      const k = locked ? 0.7 + 0.1 * Math.sin(s.clock * 8) : 0.55;
-      const bob = locked ? 0 : 0.15 * Math.sin(s.clock * 4);
+      const k = locked ? 1 + 0.12 * Math.sin(s.clock * 8) : 0.85;
+      const bob = locked ? 0 : 0.18 * (1 + Math.sin(s.clock * 4));
       markers.push({
-        pos: [at[0], at[1] + 2.6 + k + bob, at[2]],
-        size: [k, k * 1.3, k],
-        color: locked ? [1, 0.3, 0.25] : [1, 0.85, 0.25],
-        alpha: locked ? 0.95 : 0.8,
-        cone: '-y',
+        pos: [at[0], at[1] + bob, at[2]],
+        size: [0.8 * k, 0.75 * k, 0.12],
+        color: locked ? [1, 0.25, 0.2] : [1, 0.82, 0.2],
+        tri: s.camYaw,
+        onTop: true,
       });
     }
     // P9b.1: where smashed things can be rebuilt — their bricks float as ghosts where they go back (filling

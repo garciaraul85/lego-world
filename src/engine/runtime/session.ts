@@ -610,6 +610,12 @@ export class PlaySession {
   }
 
   /** the middle of a placed object, in world units */
+  /** P9b.1: the height of the top of a placed object (where the lock-on arrow goes), or null */
+  instanceTop(i: PlayInstance): number | null {
+    if (!i.bricks.length) return null;
+    return Math.max(...i.bricks.map((b) => b.y)) * 0.4 + 1.2;
+  }
+
   instanceCenter(i: PlayInstance): [number, number, number] | null {
     if (!i.bricks.length) return null;
     const xs = i.bricks.map((b) => b.x);

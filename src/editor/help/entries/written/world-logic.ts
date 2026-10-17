@@ -88,7 +88,7 @@ export const LOGIC: HelpEntry[] = [
     purpose:
       'Each file is one graph of rules and its code. Click one to open it; + New makes another; × deletes one. Files share every variable and talk to each other with custom events (emit in one, on custom in any).',
     commands: ['logic.create', 'logic.delete'],
-    match: [{ in: `${LIB} .lib-item` }, { in: LIB, name: /^(\+ New|New file)$/ }],
+    match: [{ in: `${LIB} .lib-item` }, { in: LIB, name: /^(\+ New|New file|What is “Files”\?)$/ }],
   },
   {
     id: 'logic.vars',

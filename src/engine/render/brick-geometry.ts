@@ -229,3 +229,42 @@ export function plainBox(w: number, h: number, d: number, r = 0.04): Geometry {
   g.box(0, 0, 0, w, h, d, r);
   return g.done();
 }
+
+/**
+ * P9b.1: a flat triangle with its point down (the lock-on arrow): `w` wide, `h` tall, `t` thick, its tip at the
+ * origin, its face turned to `yaw` (the way the camera looks from).
+ */
+export function downTriangle(w: number, h: number, t: number, yaw: number): Geometry {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  // local: x across, y up, z through the face; turned about y by yaw
+  const at = (x: number, y: number, z: number): [number, number, number] => [x * c + z * s, y, -x * s + z * c];
+  const dir = (x: number, y: number, z: number): [number, number, number] => {
+    const [a, b, d] = at(x, y, z);
+    const l = Math.hypot(a, b, d) || 1;
+    return [a / l, b / l, d / l];
+  };
+  const pos: number[] = [];
+  const nor: number[] = [];
+  const tri = (p: [number, number, number][], n: [number, number, number]) => {
+    for (const v of p) {
+      pos.push(...v);
+      nor.push(...n);
+    }
+  };
+  const L = (z: number) => at(-w / 2, h, z);
+  const R = (z: number) => at(w / 2, h, z);
+  const T = (z: number) => at(0, 0, z);
+  const f = t / 2;
+  tri([L(f), T(f), R(f)], dir(0, 0, 1)); // front
+  tri([L(-f), R(-f), T(-f)], dir(0, 0, -1)); // back
+  tri([L(f), R(f), R(-f)], dir(0, 1, 0)); // top
+  tri([L(f), R(-f), L(-f)], dir(0, 1, 0));
+  const sl = dir(-h, -w / 2, 0); // left slope
+  tri([L(f), L(-f), T(-f)], sl);
+  tri([L(f), T(-f), T(f)], sl);
+  const sr = dir(h, -w / 2, 0); // right slope
+  tri([R(f), T(f), T(-f)], sr);
+  tri([R(f), T(-f), R(-f)], sr);
+  return { positions: new Float32Array(pos), normals: new Float32Array(nor) };
+}

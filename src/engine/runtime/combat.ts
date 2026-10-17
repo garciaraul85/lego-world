@@ -66,6 +66,7 @@ export interface CombatHost {
   /** the hero locked on to something (logic's On locked on) */
   lockedOn(t: LockTarget): void;
   instanceCenter(i: HostInstance): [number, number, number] | null;
+  instanceTop(i: HostInstance): number | null;
 }
 
 export class Combat {
@@ -363,6 +364,20 @@ export class Combat {
     return this.s.instanceCenter(i);
   }
 
+  /** where the lock-on arrow's tip goes: just over the target's head, or over the top of an object */
+  markerPos(t: LockTarget | null): [number, number, number] | null {
+    if (!t) return null;
+    const p = this.targetPos(t);
+    if (!p) return null;
+    if (t.kind === 'npc') {
+      const n = this.s.world.npcs.find((x) => x.id === t.id);
+      return n ? [n.state.x, n.state.y + 4.6, n.state.z] : null;
+    }
+    const i = this.s.world.instances.find((x) => x.inst.id === t.id);
+    const top = i ? this.s.instanceTop(i) : null;
+    return [p[0], (top ?? p[1]) + 0.5, p[2]];
+  }
+
   /** keeps the hero facing the target and the camera behind them; lets go when it is gone or far */
   stepLock() {
     const p = this.targetPos();
@@ -385,7 +400,22 @@ export class Combat {
 
   /** each frame while nothing is locked: the best thing to lock on to, for the marker that says Z will work */
   stepHint() {
-    this.hint = this.target || this.s.over ? null : (this.candidates()[0] ?? null);
+    if (this.target || this.s.over) {
+      this.hint = null;
+      return;
+    }
+    const best = this.candidates()[0] ?? null;
+    // the arrow stays on what it shows while that is still near and roughly in front (no flicker at the edge)
+    this.hint = best ?? (this.hint && this.stillInView(this.hint) ? this.hint : null);
+  }
+
+  /** a target still within range and not behind the camera */
+  private stillInView(t: LockTarget): boolean {
+    const p = this.targetPos(t);
+    if (!p) return false;
+    const h = this.s.heroState;
+    if (Math.hypot(p[0] - h.x, p[2] - h.z) > LOCK_RANGE) return false;
+    return Math.abs(angleDiff(Math.atan2(p[0] - h.x, p[2] - h.z), this.s.camYaw + Math.PI)) <= 1.8;
   }
 
   /** the neighbour locked on to (T talks to them), if any */
