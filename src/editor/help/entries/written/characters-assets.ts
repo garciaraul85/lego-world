@@ -143,9 +143,12 @@ export const CHARACTERS: HelpEntry[] = [
     id: 'characters.gear',
     screen: 'characters',
     kind: 'field',
-    name: 'Held item, power and spell',
-    purpose: 'What the character holds (hammer, sword, torch…), its super power, and its spell, used in Play.',
-    match: [{ in: CPROPS, role: 'button', name: /^(Held|Power|Spell): / }],
+    name: 'Held item, off hand, power and spell',
+    also: ['shield', 'off hand', 'guard', 'block'],
+    purpose:
+      'What the character holds (hammer, sword, torch…), what is in its other hand (a shield, or nothing), its super power, and its spell, used in Play. With a shield the hero guards (hold Q): hits from the front are blocked for some stamina, and raising it just before a hit parries it. Without one the hero still defends, but half of each hit gets through.',
+    match: [{ in: CPROPS, role: 'button', name: /^(Held|Off hand|Power|Spell): / }],
+    related: ['play.view', 'characters.harm'],
   },
 ];
 

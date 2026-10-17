@@ -121,8 +121,20 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
   const [turntable, setTurntable] = useState(false);
   // P32: the timeline's picked track, ringed on the preview
   const [part, setPart] = useState<PreviewInput['part']>(null);
-  const preview = useRef<PreviewInput>({ profile: chr.profile, clip, time, turntable, part: null });
-  preview.current = { profile: chr.profile, clip, time, turntable, part: clip ? part : null };
+  const preview = useRef<PreviewInput>({
+    profile: { ...chr.profile, offHand: chr.gear?.offHand ?? 'None' },
+    clip,
+    time,
+    turntable,
+    part: null,
+  });
+  preview.current = {
+    profile: { ...chr.profile, offHand: chr.gear?.offHand ?? 'None' },
+    clip,
+    time,
+    turntable,
+    part: clip ? part : null,
+  };
 
   // play the clip in real time
   useEffect(() => {
@@ -524,6 +536,23 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                     </div>
                   ) : null,
                 )}
+              {/* P9b: the off hand (a shield on the left forearm) */}
+              {title === 'Gear & powers' && (
+                <div class="field">
+                  Off hand
+                  <PreviewPicker
+                    label="Off hand"
+                    tour="offHand"
+                    value={chr.gear?.offHand ?? 'None'}
+                    options={(['None', 'Shield'] as const).map((o) => ({
+                      value: o,
+                      name: o,
+                      thumb: <CharacterThumb profile={{ ...chr.profile, offHand: o }} view="torso" size={40} />,
+                    }))}
+                    onPick={(v) => saveChr({ ...chr, gear: { offHand: v as 'None' | 'Shield' } }, `Off hand: ${v}`)}
+                  />
+                </div>
+              )}
             </div>
           ))}
           <div class="sec" style={{ borderBottom: 0 }}>

@@ -17,5 +17,7 @@ export const Character = z.strictObject({
   emotes: z.array(id('clip')).max(8).optional(),
   /** P9a: a neighbour the hero can hurt (“Can be harmed”); without it, hits do nothing (villagers default to off) */
   harm: z.strictObject({ canBeHarmed: z.boolean(), health: Health }).optional(),
+  /** P9b: what the off hand holds (the main hand is the profile's held item) */
+  gear: z.strictObject({ offHand: z.enum(['None', 'Shield']) }).optional(),
 });
 export type Character = z.infer<typeof Character>;

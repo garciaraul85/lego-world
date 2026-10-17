@@ -195,10 +195,25 @@ const ORDER = [
   characterCatalog,
   rigCollision,
   gamePhysics,
-  characterModel,
+  withOffHand(characterModel),
   characterArt,
   npcWorld,
 ];
+
+/**
+ * P9b: an item in the off hand (a shield), strapped to the outside of the left forearm. v68's model only has a
+ * right-hand item; the new engine adds this to its own copy at load time, so v68's files (and Play in v68)
+ * stay exactly as they were.
+ */
+function withOffHand(src: string): string {
+  const at = "paintSlot='held';if(p.held!=='None'){";
+  if (!src.includes(at)) throw new Error('character model: the held-item block moved; update withOffHand');
+  const shield =
+    "if(p.offHand==='Shield'){paintSlot='offhand';part('leftForearm',access);const sx=-1.27,sy=1.98,sz=.34;" +
+    "box(sx,sy,sz,.14,1.05,.80);part('leftForearm',accent);box(sx-.075,sy,sz,.01,.66,.09);" +
+    'box(sx-.075,sy+.08,sz,.01,.09,.50);}';
+  return src.replace(at, shield + at);
+}
 
 let runtime: LegacyRuntime | null = null;
 export function legacyRuntime(): LegacyRuntime {

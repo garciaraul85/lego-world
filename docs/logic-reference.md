@@ -514,8 +514,8 @@ A labelled frame to group nodes on the canvas.
 
 Hurts the hero, a placed object or a neighbour, as a hit of this power and type would (armour and resistances count).
 
-- Inputs: target (entity), amount (number), type (string)
-- Code: `health.damage(target, amount, type);`
+- Inputs: target (entity), amount (number), type (string), from (entity)
+- Code: `health.damage(target, amount, type, from);`
 
 ### Heal
 

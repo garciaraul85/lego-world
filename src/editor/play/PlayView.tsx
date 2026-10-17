@@ -123,7 +123,13 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
         /* used the prompted interaction */
       } else if (MOVE_KEYS.has(k)) s.input.keys.add(k);
       else if (k === ' ') s.input.jump = true;
-      else if (k === 'f' && !e.repeat) s.smash();
+      else if (k === 'f') {
+        // P9b: tap for a light attack; hold to charge (spin when held long); in the air: jump attack / plunge
+        if (!e.repeat) s.combat.press();
+      } else if (k === 'q') s.input.keys.add('q');
+      else if (k === 'c' && !e.repeat) s.combat.roll();
+      else if (k === 'z' && !e.repeat) s.combat.toggleLock();
+      else if (k === 'tab' && !e.repeat) s.combat.cycleLock();
       else if (k === 't' && !e.repeat) s.talk();
       else if (k === 'p' && !e.repeat) ed.paused.value = !ed.paused.value;
       else if (/^[1-4]$/.test(k) && !e.repeat) s.emote(Number(k) - 1);
@@ -132,10 +138,15 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       e.preventDefault();
       e.stopPropagation();
     };
-    const onUp = (e: KeyboardEvent) => s.input.keys.delete(e.key.toLowerCase());
+    const onUp = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      if (k === 'f') s.combat.release();
+      s.input.keys.delete(k);
+    };
     const onBlur = () => {
       s.input.keys.clear();
       s.input.touch.clear();
+      s.combat.charge = null;
       s.rebuildHeld = false;
     };
     window.addEventListener('keydown', onDown, true);
@@ -313,8 +324,34 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
             >
               Jump
             </button>
-            <button type="button" class="tbtn" {...tap('Smash', (s) => s.smash())}>
+            <button
+              type="button"
+              class="tbtn"
+              {...hold(
+                'Smash',
+                (s) => s.combat.press(),
+                (s) => s.combat.release(),
+              )}
+            >
               Smash
+            </button>
+            {/* P9b: guard while held, dodge roll, lock on */}
+            <button
+              type="button"
+              class="tbtn"
+              {...hold(
+                'Guard (hold)',
+                (s) => s.input.touch.add('guard'),
+                (s) => s.input.touch.delete('guard'),
+              )}
+            >
+              Guard
+            </button>
+            <button type="button" class="tbtn" {...tap('Roll', (s) => s.combat.roll())}>
+              Roll
+            </button>
+            <button type="button" class="tbtn" {...tap('Lock on', (s) => s.combat.toggleLock())}>
+              Lock
             </button>
             <button
               type="button"

@@ -81,7 +81,7 @@ export interface ExecCtx {
   /** entities (instance ids and 'hero') inside a zone */
   inZone(zone: string): string[];
   /** P9a: hurt the hero, a placed object or a neighbour (a hit of this power and damage type) */
-  damage(target: string, amount: number, type: string): void;
+  damage(target: string, amount: number, type: string, from?: string): void;
   /** P9a: give health back (never above the maximum) */
   heal(target: string, amount: number): void;
   /** P9a: nothing hurts it while on */

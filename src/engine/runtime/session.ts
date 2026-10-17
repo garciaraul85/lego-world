@@ -43,6 +43,7 @@ import { formatValue } from '../ui/bindings';
 import { ScreenStack } from '../ui/ScreenStack';
 import { resolveScreen, screenOfKind } from '../ui/screens';
 import { ActionRunner } from './actions';
+import { ATTACKS, type AttackKind, Combat, hasShield, MAX_STAMINA } from './combat';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './health';
 import { chunkKeyOf, inspectPieces } from './pieces';
 import { Runtime, type System } from './runtime';
@@ -118,8 +119,13 @@ export class PlaySession {
   talking: Npc | null = null;
   rebuildHeld = false;
   rebuildEntry: BrokenEntry | null = null;
-  private pendingSmash: { remaining: number; reach: number; id: number | null; group?: string | undefined } | null =
-    null;
+  private pendingSmash: {
+    remaining: number;
+    reach: number;
+    id: number | null;
+    group?: string | undefined;
+    kind: AttackKind;
+  } | null = null;
   private smashCooldown = 0;
   private travelLock: { spawn: string } | null = null;
   readonly listeners = new Set<(e: GameEvent) => void>();
@@ -136,6 +142,9 @@ export class PlaySession {
   private spawnSerial = 0;
   /** P9a: health of the hero, objects and neighbours, for this play */
   readonly health = new HealthBook();
+  /** P9b: attacks, guarding, moves and lock-on */
+  readonly combat: Combat = new Combat(this);
+  private lastStamina = -1;
   onBreak: ((b: NonNullable<LogicRuntime['paused']>) => void) | null = null;
   emotes: Clip[] = [];
   /** P5: audio, screens and world UI */
@@ -221,6 +230,8 @@ export class PlaySession {
     });
     const heroChr = project.hero ? (snapshot.get(paths.character(project.hero)) as Character | undefined) : undefined;
     this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...(heroChr?.profile ?? {}) });
+    // P9b: the off hand (a shield) lives beside v68's profile, which only knows a right-hand item
+    this.hero.offHand = heroChr?.gear?.offHand ?? 'None';
     this.emotes = this.resolveEmotes(heroChr);
     const mapId = opts.mapId ?? project.entry.map;
     this.world = this.loadWorld(mapId);
@@ -235,6 +246,8 @@ export class PlaySession {
     // hearts: games without their own hp / maxHp variables get 3
     if (!this.logic.vars.has('maxHp')) this.logic.vars.set('maxHp', 3);
     if (!this.logic.vars.has('hp')) this.logic.vars.set('hp', this.logic.vars.get('maxHp'));
+    // P9b: guarding uses stamina (screens can show it: {stamina} of {maxStamina})
+    if (!this.logic.vars.has('maxStamina')) this.logic.vars.set('maxStamina', MAX_STAMINA);
     this.runtime = new Runtime<PlaySession>(this, this.systems());
     this.screens.onChange(() => this.screensChanged());
     this.applyMapAudio();
@@ -246,7 +259,7 @@ export class PlaySession {
     this.logic.fire({ type: 'event.onStart' });
     this.emit(
       'start',
-      `Playing ${this.world.doc.name}${spawn ? ` from ${spawn.name}` : ''}. WASD moves, Space jumps, F smashes, hold E rebuilds, T talks.`,
+      `Playing ${this.world.doc.name}${spawn ? ` from ${spawn.name}` : ''}. WASD moves, Space jumps, F attacks (hold to charge), Q guards, C rolls, Z locks on, hold E rebuilds, T talks.`,
     );
   }
 
@@ -336,18 +349,32 @@ export class PlaySession {
 
   // ---------- actions (keyboard / touch / cheats) ----------
 
+  /** F (a light attack: the touch button, and what a quick tap of F does) */
   smash() {
-    if (this.cine.active) return;
+    this.strike('light');
+  }
+
+  /**
+   * P9b: one attack. Light, heavy and charged swing the held item (v68's swing) and land on contact; jump,
+   * plunge, bash and spin come from a move and land at once. Spin and plunge hit everything around.
+   */
+  strike(kind: AttackKind) {
+    if (this.cine.active || this.over) return;
     const s = this.heroState;
-    if (this.smashCooldown > 0 || s.building || this.talking) return;
     const w = this.L.GameWeapons.get(this.hero.held);
-    Object.assign(s, { attack: w.duration, attackDuration: w.duration, attackWeapon: this.hero.held });
-    delete (s as Record<string, unknown>).attackImpact;
-    this.smashCooldown = w.duration + 0.02;
-    const hit = this.world.controller.target(w.reach);
-    this.pendingSmash = hit
-      ? { id: hit.id, group: hit.group, remaining: w.contact, reach: w.reach }
-      : { id: null, remaining: w.contact, reach: w.reach };
+    if (kind === 'light' || kind === 'heavy' || kind === 'charged') {
+      if (this.smashCooldown > 0 || s.building || this.talking || this.combat.stagger > 0) return;
+      const slow = kind === 'light' ? 1 : 1.35;
+      Object.assign(s, { attack: w.duration * slow, attackDuration: w.duration * slow, attackWeapon: this.hero.held });
+      delete (s as Record<string, unknown>).attackImpact;
+      this.smashCooldown = w.duration * slow + 0.02;
+      const hit = this.world.controller.target(w.reach);
+      this.pendingSmash = hit
+        ? { id: hit.id, group: hit.group, remaining: w.contact * slow, reach: w.reach, kind }
+        : { id: null, remaining: w.contact * slow, reach: w.reach, kind };
+      return;
+    }
+    this.resolveStrike(kind, w.reach, null);
   }
 
   talk() {
@@ -411,7 +438,7 @@ export class PlaySession {
     ];
   }
 
-  private inputVector() {
+  inputVector() {
     const k = this.input.keys;
     const t = this.input.touch;
     const has = (...names: string[]) => names.some((n) => k.has(n) || t.has(n));
@@ -431,20 +458,37 @@ export class PlaySession {
       this.input.jump = false;
       return;
     }
-    const input =
-      this.talking || this.over || this.cine.active
-        ? { x: 0, z: 0, run: false, jump: false, vertical: 0 }
-        : this.inputVector();
+    const still = this.talking || this.over || this.cine.active;
+    // P9b: guard (Q held), charging, moves and lock-on
+    const c = this.combat;
+    c.stepGuard(dt, !still && (this.input.keys.has('q') || this.input.touch.has('guard')));
+    let input: ReturnType<PlaySession['inputVector']> & { speedScale?: number; jumpSpeed?: number } =
+      still || c.stagger > 0 ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
+    if (input.jump && c.lockedJump(input.x, input.z)) input = { ...input, jump: false };
+    const moving = c.moveInput();
+    if (moving) input = moving;
+    else if (c.guard || c.charge !== null) input = { ...input, run: false, speedScale: 0.45 };
     this.input.jump = false;
     const before = this.heroState;
     const wasGrounded = before.grounded;
     const fallSpeed = before.vy;
     // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
     this.world.controller.step(
-      { ...input, speedScale: 1, jumpSpeed: this.hero.power === 'Super jumping' ? 19 : 9.5 },
+      {
+        ...input,
+        speedScale: input.speedScale ?? 1,
+        jumpSpeed: input.jumpSpeed ?? (this.hero.power === 'Super jumping' ? 19 : 9.5),
+      },
       dt,
       this.camYaw,
     );
+    c.stepMove(dt);
+    if (c.target) c.stepLock();
+    const st = Math.round(c.stamina);
+    if (st !== this.lastStamina) {
+      this.lastStamina = st;
+      this.logic.vars.set('stamina', st);
+    }
     this.movementSounds(dt, wasGrounded, fallSpeed);
     if (this.heroState.y < -15) {
       this.world.controller.spawn();
@@ -502,22 +546,73 @@ export class PlaySession {
     strike.remaining -= dt;
     if (strike.remaining > 1e-6) return;
     this.pendingSmash = null;
-    const attack = heldAttack(this.hero.held);
-    // P9a: a neighbour that can be harmed, in front of the hero and in reach, takes the hit first
-    const npc = this.npcInReach(strike.reach + 0.8);
-    if (npc) {
-      this.hitNpc(npc, attack);
+    this.resolveStrike(strike.kind, strike.reach, strike);
+  }
+
+  /** where an attack lands: the neighbour or object in front (or everything around, for spin and plunge) */
+  private resolveStrike(
+    kind: AttackKind,
+    reach: number,
+    aim: { id: number | null; group?: string | undefined } | null,
+  ) {
+    const attack = this.combat.hitOf(kind);
+    const how = ATTACKS[kind];
+    const push = { knock: how.knock, stun: how.stun };
+    const h = this.heroState;
+    if (how.around) {
+      const r = reach + 1.2;
+      let any = false;
+      for (const n of [...this.world.npcs])
+        if (Math.hypot(n.state.x - h.x, n.state.z - h.z) <= r + 0.6 && this.canHarm(n)) {
+          this.hitNpc(n, attack, push);
+          any = true;
+        }
+      for (const i of [...this.world.instances]) {
+        if (!i.def.health) continue;
+        const c = this.instanceCenter(i);
+        if (c && Math.hypot(c[0] - h.x, c[2] - h.z) <= r + Math.max(i.def.footprint[0], i.def.footprint[1]) / 2) {
+          this.hitInstance(i, attack);
+          any = true;
+        }
+      }
+      if (!any) this.emit('smash', `${kind === 'spin' ? 'Spin attack' : 'Plunge'}: nothing in reach`);
       return;
     }
-    const hit = this.world.controller.target(strike.reach);
-    if (!hit || (strike.id !== null && hit.id !== strike.id && (!strike.group || hit.group !== strike.group))) return;
+    // P9a: a neighbour that can be harmed, in front of the hero and in reach, takes the hit first
+    const npc = this.npcInReach(reach + 0.8);
+    if (npc) {
+      this.hitNpc(npc, attack, push);
+      return;
+    }
+    const hit = this.world.controller.target(reach);
+    if (!hit || (aim && aim.id !== null && hit.id !== aim.id && (!aim.group || hit.group !== aim.group))) return;
     // P9a: an object with health loses some; it breaks only when its health reaches zero
     const owner = this.instanceOfPiece(hit.id);
     if (owner?.def.health) {
       this.hitInstance(owner, attack, hit);
       return;
     }
-    this.breakHit(hit, { heading: this.heroState.heading, impulse: 2, mass: 1 });
+    // a shield bash only shoves: it does not break plain bricks
+    if (kind === 'bash') return;
+    this.breakHit(hit, { heading: this.heroState.heading, impulse: 2 * how.mult, mass: 1 });
+  }
+
+  /** a neighbour the hero's hits hurt (its character has Can be harmed on) */
+  canHarm(n: Npc): boolean {
+    return !!npcCharacter(this.snapshot, this.world.mapId, n)?.harm?.canBeHarmed;
+  }
+
+  /** the middle of a placed object, in world units */
+  instanceCenter(i: PlayInstance): [number, number, number] | null {
+    if (!i.bricks.length) return null;
+    const xs = i.bricks.map((b) => b.x);
+    const zs = i.bricks.map((b) => b.z);
+    const ys = i.bricks.map((b) => b.y);
+    return [
+      (Math.min(...xs) + Math.max(...xs) + 1) / 2,
+      ((Math.min(...ys) + Math.max(...ys)) / 2) * 0.4 + 0.6,
+      (Math.min(...zs) + Math.max(...zs) + 1) / 2,
+    ];
   }
 
   // ---------- health (P9a) ----------
@@ -533,7 +628,7 @@ export class PlaySession {
       const d = Math.hypot(dx, dz);
       if (d > bd || Math.abs(n.state.y - h.y) > 2) continue;
       const off = Math.abs(((Math.atan2(dx, dz) - h.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-      if (off > 1 || !npcCharacter(this.snapshot, this.world.mapId, n)?.harm?.canBeHarmed) continue;
+      if (off > 1 || !this.canHarm(n)) continue;
       best = n;
       bd = d;
     }
@@ -593,7 +688,7 @@ export class PlaySession {
   }
 
   /** a hit on a neighbour that can be harmed */
-  hitNpc(npc: Npc, attack: AttackHit) {
+  hitNpc(npc: Npc, attack: AttackHit, push?: { knock: number; stun: number }) {
     const chr = npcCharacter(this.snapshot, this.world.mapId, npc);
     const name = String(npc.profile.name ?? 'Neighbour');
     if (!chr?.harm?.canBeHarmed) {
@@ -612,6 +707,15 @@ export class PlaySession {
     this.audio.play(SND.hurt, { pos });
     this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
     if (wound.hp > 0) {
+      // P9b: knocked back (away from the hero) and stunned for a moment
+      if (push) {
+        const dx = npc.state.x - this.heroState.x;
+        const dz = npc.state.z - this.heroState.z;
+        const d = Math.hypot(dx, dz) || 1;
+        npc.state.x += (dx / d) * push.knock * 0.5;
+        npc.state.z += (dz / d) * push.knock * 0.5;
+        this.combat.stunNpc(npc, push.stun);
+      }
       this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
       this.logic.fire({
         type: 'event.onDamaged',
@@ -660,11 +764,22 @@ export class PlaySession {
   }
 
   /** logic's Damage: the hero, a placed object (id or asset name) or a neighbour (name) */
-  damage(ref: string, amount: number, type: string) {
+  damage(ref: string, amount: number, type: string, from?: string) {
     const attack: AttackHit = { power: amount, type: asDamageType(type) };
     if (!ref || ref === 'hero') {
       if (this.health.invulnerable.has('hero')) return;
-      this.hurt(damageOf(attack, {}));
+      // P9b: the guard blocks (or parries) hits from the front; a dodge roll avoids them
+      const src = from ? this.positionOf(from) : null;
+      const r = this.combat.defend(attack, src ? [src[0], src[2]] : null);
+      if (r.how === 'parry') {
+        this.say('Parry!', 1.2);
+        this.emit('smash', 'Parried');
+        const npc = from ? this.npcByRef(from) : null;
+        if (npc) this.combat.stunNpc(npc, 1.2);
+      } else if (r.how === 'block') this.say('Blocked', 0.8);
+      else if (r.how === 'break') this.say('Your guard broke!', 1.5);
+      else if (r.how === 'dodge') this.emit('info', 'Dodged');
+      if (r.taken > 0) this.hurt(r.taken);
       return;
     }
     const inst = this.resolveEntity(ref);
@@ -672,6 +787,15 @@ export class PlaySession {
     const npc = this.npcByRef(ref);
     if (npc) return this.hitNpc(npc, attack);
     this.emit('info', `Damage: nothing called “${ref}” here.`);
+  }
+
+  /** where a thing is: the hero, a placed object (id or asset name) or a neighbour (name) */
+  positionOf(ref: string): [number, number, number] | null {
+    if (ref === 'hero') return [this.heroState.x, this.heroState.y, this.heroState.z];
+    const inst = this.resolveEntity(ref);
+    if (inst) return this.instanceCenter(inst);
+    const npc = this.npcByRef(ref);
+    return npc ? [npc.state.x, npc.state.y, npc.state.z] : null;
   }
 
   /** logic's Heal (never above the maximum; the hero: hearts) */
@@ -934,7 +1058,7 @@ export class PlaySession {
         if (this.snapshot.get(paths.map(map))) this.travel(map, spawn);
       },
       give: (item, count) => this.give(item, count),
-      damage: (target, amount, type) => this.damage(target, amount, type),
+      damage: (target, amount, type, from) => this.damage(target, amount, type, from),
       heal: (target, amount) => this.heal(target, amount),
       setInvulnerable: (target, on) => this.setInvulnerable(target, on),
       spawn: (asset, at) => this.spawnAsset(asset, at),
@@ -1173,7 +1297,7 @@ export class PlaySession {
   lookup = (name: string): unknown => {
     switch (name) {
       case 'hero.gear':
-        return String(this.hero.held ?? 'hands');
+        return `${String(this.hero.held ?? 'hands')}${hasShield(this.hero) ? ' + Shield' : ''}`;
       case 'hero.name':
         return String(this.hero.name ?? 'Hero');
       case 'map.name':
@@ -1473,7 +1597,10 @@ export class PlaySession {
   stepNpcs(dt: number) {
     const w = this.world;
     if (!w.npcs.length) return;
-    const free = this.cine.active ? w.npcs.filter((n) => !this.cine.isCast(n)) : w.npcs;
+    // P9b: stunned neighbours stand still for a moment
+    const free = (this.cine.active ? w.npcs.filter((n) => !this.cine.isCast(n)) : w.npcs).filter(
+      (n) => !this.combat.isStunned(n),
+    );
     this.L.NPCWorld.step(free, dt * this.slowmo, this.heroState, this.talking?.id ?? null);
     if (
       this.talking &&
@@ -1558,7 +1685,8 @@ export class PlaySession {
         w.controller.replace(w.pieces, w.meta);
       }
     }
-    if (kind === 'held' && arg) this.hero = this.L.CharacterCatalog.validate({ ...this.hero, held: arg });
+    if (kind === 'held' && arg)
+      this.hero = { ...this.L.CharacterCatalog.validate({ ...this.hero, held: arg }), offHand: this.hero.offHand };
     this.emit('cheat', `Cheat: ${kind}${arg ? ` ${arg}` : ''}`);
   }
 }

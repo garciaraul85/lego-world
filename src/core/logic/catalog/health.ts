@@ -64,10 +64,24 @@ export const HEALTH: NodeDef[] = [
       { name: 'target', type: 'entity', default: 'hero', pick: { kind: 'object' }, help: WHO },
       { name: 'amount', type: 'number', default: 1, help: 'The hit’s power (a sword hit is 2, bare hands 1).' },
       { name: 'type', type: 'string', default: 'blunt', help: TYPES },
+      {
+        name: 'from',
+        type: 'entity',
+        default: '',
+        label: 'from',
+        pick: { kind: 'object' },
+        help: 'Where the hit comes from (optional): an object or a neighbour. The hero’s guard blocks hits from the front, and parries them just after it is raised; empty: it cannot be blocked.',
+      },
     ],
     outputs: [EXEC_OUT],
     code: { name: 'health.damage', style: 'call' },
-    exec: (c, _a, i) => c.damage(String(i.target ?? 'hero'), Number(i.amount ?? 1), String(i.type ?? 'blunt')),
+    exec: (c, _a, i) =>
+      c.damage(
+        String(i.target ?? 'hero'),
+        Number(i.amount ?? 1),
+        String(i.type ?? 'blunt'),
+        String(i.from ?? '') || undefined,
+      ),
   },
   {
     type: 'health.heal',

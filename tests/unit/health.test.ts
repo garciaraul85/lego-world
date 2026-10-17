@@ -216,6 +216,6 @@ describe('health in code', () => {
         'health.setInvulnerable',
       ]),
     );
-    expect(printGraph(g as never).code).toContain('health.damage("hero", 2, "fire")');
+    expect(printGraph(g as never).code).toContain('health.damage("hero", 2, "fire", "")');
   });
 });

@@ -13,6 +13,7 @@ import bicepsCurl from './biceps-curl.json';
 import block from './block.json';
 import chair from './chair.json';
 import cobra from './cobra.json';
+import { COMBAT_CLIPS } from './combat';
 import dodge from './dodge.json';
 import { EMOTE_CLIPS } from './emotes';
 import frontKick from './front-kick.json';
@@ -96,6 +97,7 @@ const RAW: Record<string, unknown> = {
 export const BUILTIN_CLIPS: readonly Clip[] = [
   ...Object.values(RAW).map((raw) => Clip.parse(raw)),
   ...EMOTE_CLIPS.map((c) => Clip.parse(c)),
+  ...COMBAT_CLIPS.map((c) => Clip.parse(c)),
 ];
 
 export const builtinClip = (id: string) => BUILTIN_CLIPS.find((c) => c.id === id) ?? null;

@@ -174,6 +174,17 @@ export class PlayRenderer {
       lines.push(...this.extra.lines);
       markers.push(...this.extra.markers);
     }
+    // P9b: the locked-on target: a red diamond over it, pulsing
+    const locked = s.combat.targetPos();
+    if (locked) {
+      const k = 0.32 + 0.06 * Math.sin(s.clock * 8);
+      markers.push({
+        pos: [locked[0], locked[1] + 2.2, locked[2]],
+        size: [k, k, k],
+        color: [1, 0.3, 0.25],
+        alpha: 0.95,
+      });
+    }
     if (s.prompt) {
       const [x, y, z] = s.prompt.pos;
       markers.push({
@@ -233,7 +244,10 @@ export class PlayRenderer {
           c.bindCollision(s.hero, w.controller);
           this.bound.add(w.controller);
         }
-        const pose = s.heroAnim.params();
+        // P9b: a combat move (guard, roll, spin…) shows over an emote
+        const fight = s.combat.anim.params();
+        const pose = fight ?? s.heroAnim.params();
+        const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;
         const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
         if (heroCast) {
           if (!heroCast.state.hidden) draw(heroCast.profile, heroCast.state);
@@ -241,7 +255,7 @@ export class PlayRenderer {
           draw(
             s.hero,
             pose
-              ? { ...s.heroState, studioPose: rigPose(pose, s.heroAnim.clip), studioProgress: 0, studioFist: false }
+              ? { ...s.heroState, studioPose: rigPose(pose, poseClip), studioProgress: 0, studioFist: false }
               : s.heroState,
           );
         for (const d of w.debris) c.debris(this.debrisMesh, d);
