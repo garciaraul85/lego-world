@@ -52,6 +52,27 @@ export const HEALTH_EVENTS: NodeDef[] = [
   ),
 ];
 
+/** P9b.1: the hero locked on (Z) to something — a foe, a neighbour, or an asset that can be locked on */
+HEALTH_EVENTS.push({
+  type: 'event.onLockedOn',
+  kind: 'event',
+  title: 'On locked on',
+  category: 'Events',
+  doc: 'Runs when the hero locks on (Z or Tab) to something: a neighbour, an object with health, or an asset with “Can be locked on” (a switch or target in a puzzle). Target is what was locked on to.',
+  inputs: [],
+  outputs: [EXEC_OUT, { name: 'target', type: 'entity' }],
+  args: [
+    {
+      name: 'asset',
+      kind: 'asset',
+      label: 'Asset',
+      optional: true,
+      help: 'Only for copies of this asset (empty: anything locked on to).',
+    },
+  ],
+  code: { name: 'lockedOn', style: 'event' },
+});
+
 export const HEALTH: NodeDef[] = [
   {
     type: 'health.damage',

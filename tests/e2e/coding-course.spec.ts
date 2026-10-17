@@ -109,10 +109,15 @@ test('Coding course: Do it for me through every lesson ends with a game written 
   }
   const code = await page.evaluate(() => {
     const e = (window as unknown as { __editor: Ed }).__editor;
-    const p = e.store.list('logic/lg_').find((x) => (e.store.get(x) as { name: string }).name === 'Coding course')!;
-    return JSON.stringify(e.store.get(p));
+    const file = (name: string) =>
+      JSON.stringify(
+        e.store.get(e.store.list('logic/lg_').find((x) => (e.store.get(x) as { name: string }).name === name)!),
+      );
+    return { main: file('Coding course'), rewards: file('Rewards') };
   });
-  expect(code).toContain('event.onCustom');
-  expect(code).toContain('cinematic.play');
+  // P9b.1: the game is in two files that talk with an event
+  expect(code.main).toContain('misc.emit');
+  expect(code.rewards).toContain('event.onCustom');
+  expect(code.rewards).toContain('cinematic.play');
   expect(errors).toEqual([]);
 });

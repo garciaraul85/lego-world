@@ -47,7 +47,9 @@ describe('coding course (P8)', () => {
       if ('error' in r) continue;
       const printed = printGraph(r).code;
       if (s.check.kind === 'state' && (s.check.test === 'codeHas' || s.check.test === 'codeFixed')) {
-        const res = Array.isArray(s.check.args) ? s.check.args : [s.check.args];
+        const a = s.check.args as unknown;
+        const want = a && typeof a === 'object' && !Array.isArray(a) ? (a as { has: unknown }).has : a;
+        const res = Array.isArray(want) ? want : [want];
         for (const re of res) expect(printed, `${s.id}: ${re}`).toMatch(new RegExp(fillCode(String(re), TOKENS), 'm'));
       }
       // the printed code reads back to the same graph (what you type is what you get)

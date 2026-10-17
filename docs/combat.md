@@ -41,9 +41,11 @@ blocked. The hero moves at 45 % speed while guarding or charging.
 
 | Move | Key | What |
 | --- | --- | --- |
-| Dodge roll | C | 0.45 s roll the way the hero moves; can't be hurt for the first 0.3 s |
+| Dodge roll | C | 0.45 s roll the way the hero faces; can't be hurt for the first 0.3 s |
 | Side hop | Space + A / D, locked on | a short sideways jump, still facing the target |
 | Back flip | Space + S, locked on | a jump backwards, still facing the target |
+
+During a spin attack the hero can keep walking (at 60 % speed): `Combat.pose()` swaps the clip's legs for a walk cycle while the hero moves (also while guarding or charging).
 
 Each move plays a clip from the **Combat** group (`src/builtin/clips/combat.ts`: Guard, Defend, Charge, Spin
 attack, Dodge roll, Side hop, Back flip, Jump attack, Plunge, Shield bash) on its own animator, drawn over
@@ -51,10 +53,13 @@ walking.
 
 ## Lock-on
 
-Z locks on to the best candidate: a neighbour that can be harmed or an object with health, within 14 studs and
-in front of the camera (nearest and most central first). Tab picks the next one. While locked, the hero
-faces the target, the camera turns to look past the hero at it and a red marker pulses over it. It lets go
-on Z, when the target is defeated or broken, or beyond 20 studs.
+Z locks on to the best candidate: any neighbour, an object with health, or an asset with `lockOn: true` (**Can
+be locked on**), within `LOCK_RANGE` (14 studs) and in front of the camera (nearest and most central first).
+While nothing is locked, `Combat.hint` is that candidate and a yellow arrow bobs over it; out of range it goes.
+Tab picks the next one. While locked, the hero faces the target, the camera turns to look past the hero at it
+and a red arrow pulses over it; T talks to a locked-on neighbour within 7 studs. It lets go on Z, when the
+target is defeated or broken, or beyond `LOCK_RELEASE` (16 studs). Each lock fires `event.onLockedOn`
+(target: the object's id or the neighbour's name; filter by asset).
 
 ## Touch
 

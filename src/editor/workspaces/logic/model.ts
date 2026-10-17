@@ -1,6 +1,7 @@
 import { newId } from '../../../core/ids';
 import type { ArgKind, NodeDef, PinType } from '../../../core/logic/catalog';
-import { type Asset, type Gates, type LogicGraph, type MapDoc, paths, type Variables } from '../../../core/schema';
+import { NAME_KINDS, type NameKind, namedThings } from '../../../core/logic/code/names';
+import { type Asset, type LogicGraph, paths, type Variables } from '../../../core/schema';
 import type { EditorState } from '../../state';
 
 export const NODE_W = 200;
@@ -68,29 +69,26 @@ export const graphs = (ed: EditorState) =>
 
 export const variables = (ed: EditorState) => ed.store.get<Variables>(paths.variables)?.vars ?? {};
 
-/** Choices for an arg editor (zones, assets, spawns...), labelled for people. */
-export function argChoices(ed: EditorState, kind: ArgKind): { value: string; label: string }[] | null {
-  const maps = (ed.store.get<Gates>(paths.gates)?.mapOrder ?? [])
-    .map((id) => ed.store.get<MapDoc>(paths.map(id))!)
-    .filter(Boolean);
-  switch (kind) {
-    case 'var':
-      return Object.keys(variables(ed)).map((v) => ({ value: v, label: v }));
-    case 'zone':
-      return maps.flatMap((m) => m.zones.map((z) => ({ value: z.id, label: `${z.tags[0] ?? 'Zone'} · ${m.name}` })));
-    case 'spawn':
-      return maps.flatMap((m) => m.spawns.map((s) => ({ value: s.id, label: `${s.name} · ${m.name}` })));
-    case 'map':
-      return maps.map((m) => ({ value: m.id, label: m.name }));
-    case 'asset':
-      return ed.store
-        .list('assets/')
-        .map((p) => ed.store.get<Asset>(p)!)
-        .filter((a) => a.origin !== 'generated' || a.sockets.length)
-        .map((a) => ({ value: a.id, label: a.name }));
-    default:
-      return null;
-  }
+/**
+ * Choices for an arg editor (zones, assets, spawns, sounds, music, screens, scenes…), labelled for people. P9b.1:
+ * every setting that names something is picked from a list; the value stays the id.
+ */
+export function argChoices(ed: EditorState, kind: ArgKind): { value: string; label: string; note?: string }[] | null {
+  if (kind === 'var') return Object.keys(variables(ed)).map((v) => ({ value: v, label: v }));
+  if (kind === 'asset')
+    return ed.store
+      .list('assets/')
+      .map((p) => ed.store.get<Asset>(p)!)
+      .filter((a) => a.origin !== 'generated' || a.sockets.length)
+      .map((a) => ({ value: a.id, label: a.name }));
+  if (!(NAME_KINDS as readonly string[]).includes(kind)) return null;
+  const all = namedThings(ed.store)[kind as NameKind];
+  const maps = all.length && (kind === 'zone' || kind === 'spawn');
+  return all.map((t) => ({
+    value: t.id,
+    label: maps ? `${t.name} · ${t.note.replace(/^.* on /, '').split(' · ')[0]}` : t.name,
+    note: t.note,
+  }));
 }
 
 /** A new graph with one event node (P4.6 "Open in Logic"). */

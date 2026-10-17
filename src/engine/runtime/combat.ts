@@ -1,6 +1,7 @@
 import { combatClip } from '../../builtin/clips/combat';
 import { type AttackHit, type DamageType, damageOf, heldAttack } from '../../core/combat/damage';
 import { Animator } from '../character/animator';
+import type { PoseParams } from '../character/routine';
 import type { HeroState, Npc } from '../legacy/runtime-modules';
 
 /**
@@ -27,6 +28,10 @@ export const SPIN_TIME = 1.2;
 /** Guarding this soon before a hit parries it. */
 export const PARRY_WINDOW = 0.25;
 export const MAX_STAMINA = 100;
+/** Lock-on: what is within this many studs (and in front of the camera) can be locked on to… */
+export const LOCK_RANGE = 14;
+/** …and a lock lets go beyond this */
+export const LOCK_RELEASE = 16;
 
 export type Move = {
   kind: 'roll' | 'hop' | 'flip' | 'jump' | 'plunge' | 'bash' | 'spin';
@@ -44,7 +49,7 @@ export type LockTarget = { kind: 'inst'; id: string } | { kind: 'npc'; id: numbe
 export const hasShield = (profile: Record<string, unknown>) => profile.offHand === 'Shield';
 
 /** What combat needs of the play session (PlaySession; kept structural so the two files don't import each other). */
-type HostInstance = { def: { health?: unknown }; inst: { id: string } };
+type HostInstance = { def: { name: string; health?: unknown; lockOn?: boolean }; inst: { id: string } };
 export interface CombatHost {
   readonly heroState: HeroState;
   readonly over: boolean;
@@ -55,9 +60,11 @@ export interface CombatHost {
   readonly world: { npcs: Npc[]; instances: HostInstance[] };
   readonly health: { peek(key: string): { hp: number } | undefined };
   strike(kind: AttackKind): void;
-  inputVector(): { x: number; z: number };
+  inputVector(): { x: number; z: number; run: boolean; jump: boolean; vertical: number };
   say(msg: string, seconds?: number): void;
   canHarm(n: Npc): boolean;
+  /** the hero locked on to something (logic's On locked on) */
+  lockedOn(t: LockTarget): void;
   instanceCenter(i: HostInstance): [number, number, number] | null;
 }
 
@@ -74,10 +81,14 @@ export class Combat {
   iframes = 0;
   move: Move | null = null;
   target: LockTarget | null = null;
+  /** what Z would lock on to now (a marker shows over it), when nothing is locked */
+  hint: LockTarget | null = null;
   /** neighbours that are stunned (can't move) until this clock time */
   readonly stunned = new Map<number, number>();
   /** clips of the moves (guard, roll…) — drawn over everything else */
   readonly anim = new Animator();
+  /** walking phase of the legs under a fight clip */
+  private gait = 0;
 
   constructor(private readonly s: CombatHost) {}
 
@@ -111,11 +122,11 @@ export class Combat {
 
   // ---------- moves ----------
 
-  /** dodge roll (C) in the direction the hero moves (forward when standing) */
+  /** dodge roll (C): always the way the hero faces */
   roll() {
     const h = this.s.heroState;
     if (!h.grounded || this.move || this.stagger > 0 || this.guard) return;
-    this.startMove('roll', 0.45);
+    this.startMove('roll', 0.45, this.facing());
     this.iframes = 0.3;
   }
 
@@ -131,6 +142,12 @@ export class Combat {
       return true;
     }
     return false;
+  }
+
+  /** where the hero faces, as controller input (camera space: x right, z forward) */
+  facing(): [number, number] {
+    const a = this.s.heroState.heading - this.s.camYaw;
+    return [Math.sin(a), -Math.cos(a)];
   }
 
   private startMove(kind: Move['kind'], dur: number, dir?: [number, number]) {
@@ -174,6 +191,11 @@ export class Combat {
         return { x: 0, z: -1, run: false, jump: first, vertical: 0, speedScale: 1.6, jumpSpeed: 8.5 };
       case 'jump':
         return { x: m.dir[0], z: m.dir[1], run: false, jump: false, vertical: 0, speedScale: 1.6 };
+      case 'spin': {
+        // the hero can keep walking through a spin attack (the legs walk: see pose())
+        const v = this.s.inputVector();
+        return { x: v.x, z: v.z, run: false, jump: false, vertical: 0, speedScale: 0.6 };
+      }
       default:
         return { x: 0, z: 0, run: false, jump: false, vertical: 0, speedScale: 1 };
     }
@@ -229,6 +251,29 @@ export class Combat {
       if (this.charge >= 0.15 && this.anim.clip?.name !== 'Charge' && !this.move) this.anim.play(combatClip('Charge'));
     } else if (this.anim.clip?.name === 'Charge') this.anim.stop();
     this.anim.step(dt);
+    const h2 = this.s.heroState;
+    this.gait = h2.grounded && h2.speed > 0.3 ? this.gait + dt * (3 + h2.speed * 1.1) : 0;
+  }
+
+  /**
+   * The pose of the fight clip playing now (null: none). While the hero walks during a spin attack, guarding
+   * or charging, the legs walk instead of standing still.
+   */
+  pose(): PoseParams | null {
+    const p = this.anim.params();
+    if (!p) return null;
+    const h = this.s.heroState;
+    const kind = this.move?.kind;
+    if (!h.grounded || h.speed < 0.3 || (kind && kind !== 'spin')) return p;
+    const sw = Math.sin(this.gait);
+    const amp = Math.min(1, h.speed / 3.5) * 0.6;
+    return {
+      ...p,
+      ll: [sw * amp, 0, 0],
+      rl: [-sw * amp, 0, 0],
+      lk: 0.05 + Math.max(0, -sw) * amp * 1.3,
+      rk: 0.05 + Math.max(0, sw) * amp * 1.3,
+    };
   }
 
   /**
@@ -269,6 +314,10 @@ export class Combat {
     }
     this.target = this.candidates()[0] ?? null;
     if (!this.target) this.s.say('Nothing to lock on to here.', 1.2);
+    else {
+      this.hint = null;
+      this.s.lockedOn(this.target);
+    }
   }
 
   /** Tab while locked: the next target (by angle) */
@@ -278,23 +327,24 @@ export class Combat {
     if (list.length < 2) return;
     const i = list.findIndex((c) => sameTarget(c, this.target));
     this.target = list[(i + 1) % list.length] ?? null;
+    if (this.target) this.s.lockedOn(this.target);
   }
 
-  /** neighbours that can be harmed and objects with health, within 14 studs, in front of the camera */
+  /** neighbours (foes to fight, people to talk to), objects with health and assets that can be locked on, in range and in front of the camera */
   candidates(): LockTarget[] {
     const h = this.s.heroState;
     const camDir = this.s.camYaw + Math.PI;
     const out: { t: LockTarget; score: number }[] = [];
     const consider = (t: LockTarget, x: number, z: number) => {
       const d = Math.hypot(x - h.x, z - h.z);
-      if (d > 14 || d < 0.3) return;
+      if (d > LOCK_RANGE || d < 0.3) return;
       const off = Math.abs(angleDiff(Math.atan2(x - h.x, z - h.z), camDir));
       if (off > 1.3) return;
       out.push({ t, score: d + off * 4 });
     };
-    for (const n of this.s.world.npcs) if (this.s.canHarm(n)) consider({ kind: 'npc', id: n.id }, n.state.x, n.state.z);
+    for (const n of this.s.world.npcs) consider({ kind: 'npc', id: n.id }, n.state.x, n.state.z);
     for (const i of this.s.world.instances) {
-      if (!i.def.health) continue;
+      if (!i.def.health && !i.def.lockOn) continue;
       const c = this.s.instanceCenter(i);
       if (c) consider({ kind: 'inst', id: i.inst.id }, c[0], c[2]);
     }
@@ -302,8 +352,7 @@ export class Combat {
   }
 
   /** where the target is now (null: it is gone: defeated, broken or out of reach) */
-  targetPos(): [number, number, number] | null {
-    const t = this.target;
+  targetPos(t: LockTarget | null = this.target): [number, number, number] | null {
     if (!t) return null;
     if (t.kind === 'npc') {
       const n = this.s.world.npcs.find((x) => x.id === t.id);
@@ -323,7 +372,7 @@ export class Combat {
     }
     const h = this.s.heroState;
     const d = Math.hypot(p[0] - h.x, p[2] - h.z);
-    if (d > 20) {
+    if (d > LOCK_RELEASE) {
       this.target = null;
       return;
     }
@@ -332,6 +381,17 @@ export class Combat {
     // the camera turns (smoothly) to look past the hero at the target
     const want = face + Math.PI;
     this.s.camYaw += angleDiff(want, this.s.camYaw) * 0.15;
+  }
+
+  /** each frame while nothing is locked: the best thing to lock on to, for the marker that says Z will work */
+  stepHint() {
+    this.hint = this.target || this.s.over ? null : (this.candidates()[0] ?? null);
+  }
+
+  /** the neighbour locked on to (T talks to them), if any */
+  lockedNpc(): Npc | null {
+    const t = this.target;
+    return t?.kind === 'npc' ? (this.s.world.npcs.find((n) => n.id === t.id) ?? null) : null;
   }
 
   stunNpc(n: Npc, seconds: number) {

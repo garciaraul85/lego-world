@@ -1169,6 +1169,23 @@ function Properties({
                 />
               </>
             )}
+            {/* P9b.1: lock-on — things with health always can; any other asset when this is on (a puzzle) */}
+            <label class="lbl" data-tour="asset-lock-on">
+              <input
+                type="checkbox"
+                checked={!!def.health || !!def.lockOn}
+                disabled={!!def.health}
+                onChange={() => {
+                  const { lockOn: _l, ...rest } = def;
+                  reset((def.lockOn ? rest : { ...def, lockOn: true }) as Asset, 'Can be locked on');
+                }}
+              />{' '}
+              Can be locked on (Z)
+              <FieldHelp
+                label="Can be locked on"
+                text="In Play, Z locks the hero on to it when it is close and in front: a marker shows over it, the hero faces it and the camera turns to it. Things with health can always be locked on; turn this on for anything else (a switch to hit, a target in a puzzle). Logic's On locked on runs when it happens."
+              />
+            </label>
           </div>
         )}
 

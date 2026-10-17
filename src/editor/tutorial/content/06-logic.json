@@ -24,9 +24,9 @@
       "doItForMe": [],
       "how": [
         {
-          "text": "In the panel on the left, next to “Graphs”, click “+ New”. A graph “Logic …” opens with an “On start” node.",
+          "text": "In the panel on the left, next to “Files”, click “+ New”. A graph “Logic …” opens with an “On start” node.",
           "check": { "kind": "command", "type": "logic.create" },
-          "do": [{ "click": "[data-tour=\"logic-new\"]", "say": "Click “+ New” next to “Graphs” (left)." }]
+          "do": [{ "click": "[data-tour=\"logic-new\"]", "say": "Click “+ New” next to “Files” (left)." }]
         },
         {
           "text": "At the top of the editor, click the graph’s name, select it, type Treasure chest and press Enter.",

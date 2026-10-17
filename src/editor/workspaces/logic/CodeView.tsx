@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { nameBook, withIds, withNames } from '../../../core/logic/code/names';
 import { type ParseError, parseCode } from '../../../core/logic/code/parse';
 import { PrintError, printGraph } from '../../../core/logic/code/print';
 import type { LogicGraph } from '../../../core/schema';
 import type { EditorState } from '../../state';
 import type { CodeEditor } from './codemirror';
+import { complete } from './complete';
 import { toggleBreakpoint } from './GraphView';
 
 /** The code editor on screen (the coding course types into it, so you watch the code appear). */
@@ -20,25 +22,32 @@ export function CodeView({
   selected,
   setSelected,
   highlight,
+  reveal,
 }: {
   ed: EditorState;
   graph: LogicGraph;
   selected: ReadonlySet<string>;
   setSelected: (s: Set<string>) => void;
   highlight: string | null;
+  /** P9b.1: scroll to this node's code (a card was clicked); `n` changes on every click */
+  reveal?: { node: string; n: number } | null;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const cm = useRef<CodeEditor | null>(null);
   const [error, setError] = useState<ParseError | null>(null);
   const [loading, setLoading] = useState(true);
+  // P9b.1: the code names zones, sounds, spawn points… by their names (the graph keeps ids)
+  const book = useMemo(() => nameBook(ed.store), [ed.revision.value]);
+  const bookRef = useRef(book);
+  bookRef.current = book;
   const printed = useMemo(() => {
     try {
-      return { ok: true as const, ...printGraph(graph) };
+      return { ok: true as const, ...printGraph(withNames(graph, book)) };
     } catch (e) {
       if (e instanceof PrintError) return { ok: false as const, message: e.message, node: e.node };
       throw e;
     }
-  }, [graph]);
+  }, [graph, book]);
   const graphRef = useRef(graph);
   graphRef.current = graph;
   const printedRef = useRef(printed);
@@ -48,12 +57,15 @@ export function CodeView({
 
   const apply = (text: string) => {
     const g = graphRef.current;
-    const r = parseCode(text, g);
-    if ('error' in r) {
+    const b = bookRef.current;
+    const parsed = parseCode(text, withNames(g, b));
+    if ('error' in parsed) {
+      const r = parsed;
       setError(r.error);
       cm.current?.setError(r.error);
       return;
     }
+    const r = withIds(parsed, b);
     setError(null);
     cm.current?.setError(null);
     const before = printGraph(g).code;
@@ -86,6 +98,8 @@ export function CodeView({
           const node = [...pr.line].find(([id, l]) => l === line && !id.startsWith('note'))?.[0];
           if (node) toggleBreakpoint(ed, graphRef.current.id, node);
         },
+        complete: (doc, pos, explicit) => complete(ed.store, doc, pos, explicit),
+        preview: (p) => (p.kind === 'sound' ? ed.audio.previewEvent(p.id) : ed.audio.previewMusic(p.id)),
         onCursorLine: (line) => {
           const pr = printedRef.current;
           if (!pr.ok) return;
@@ -131,6 +145,14 @@ export function CodeView({
     );
     c.mark(highlight && printed.line.get(highlight) ? [printed.line.get(highlight)!] : [], 'hit');
   }, [bps, selected, highlight, printed, loading]);
+
+  // P9b.1: a clicked card's code scrolls into the middle of the editor
+  useEffect(() => {
+    const c = cm.current;
+    if (!c || !reveal || !printed.ok) return;
+    const line = printed.line.get(reveal.node);
+    if (line) c.reveal(line);
+  }, [reveal?.n, loading]);
 
   return (
     <div class="lg-code">

@@ -174,15 +174,46 @@ export class PlayRenderer {
       lines.push(...this.extra.lines);
       markers.push(...this.extra.markers);
     }
-    // P9b: the locked-on target: a red diamond over it, pulsing
+    // P9b: lock-on, Zelda style — a yellow arrow bobs over what Z would lock on to (gone when out of range);
+    // locked on, a red arrow pulses over the target
     const locked = s.combat.targetPos();
-    if (locked) {
-      const k = 0.32 + 0.06 * Math.sin(s.clock * 8);
+    const hint = locked ? null : s.combat.targetPos(s.combat.hint);
+    const at = locked ?? hint;
+    if (at) {
+      const k = locked ? 0.7 + 0.1 * Math.sin(s.clock * 8) : 0.55;
+      const bob = locked ? 0 : 0.15 * Math.sin(s.clock * 4);
       markers.push({
-        pos: [locked[0], locked[1] + 2.2, locked[2]],
-        size: [k, k, k],
-        color: [1, 0.3, 0.25],
-        alpha: 0.95,
+        pos: [at[0], at[1] + 2.6 + k + bob, at[2]],
+        size: [k, k * 1.3, k],
+        color: locked ? [1, 0.3, 0.25] : [1, 0.85, 0.25],
+        alpha: locked ? 0.95 : 0.8,
+        cone: '-y',
+      });
+    }
+    // P9b.1: where smashed things can be rebuilt — their bricks float as ghosts where they go back (filling
+    // in while E is held), over a glowing patch that shows where to stand
+    let ghosts = 0;
+    for (const spot of s.rebuildSpots()) {
+      const b = spot.bounds;
+      const glow = 0.5 + 0.5 * Math.sin(s.clock * 3);
+      markers.push({
+        pos: [(b.x0 + b.x1) / 2, b.y0 + 0.03, (b.z0 + b.z1) / 2],
+        size: [b.x1 - b.x0 + 2.4, 0.06, b.z1 - b.z0 + 2.4],
+        color: spot.near ? [0.35, 0.95, 0.5] : [0.45, 0.75, 1],
+        alpha: 0.18 + 0.17 * glow,
+      });
+      const n = spot.entry.originals.length;
+      spot.entry.originals.forEach((p, i) => {
+        if (ghosts++ > 160) return;
+        const g = s.L.GamePhysics.bounds(p);
+        const built = i < spot.entry.progress * n;
+        const bob = built ? 0 : 0.08 * Math.sin(s.clock * 3 + i * 0.7);
+        markers.push({
+          pos: [(g.x0 + g.x1) / 2, (g.y0 + g.y1) / 2 + bob, (g.z0 + g.z1) / 2],
+          size: [g.x1 - g.x0 - 0.04, g.y1 - g.y0 - 0.04, g.z1 - g.z0 - 0.04],
+          color: built ? [0.95, 0.95, 0.75] : spot.near ? [0.55, 1, 0.65] : [0.6, 0.85, 1],
+          alpha: built ? 0.75 : (spot.near ? 0.3 : 0.16) + 0.1 * glow,
+        });
       });
     }
     if (s.prompt) {
@@ -245,7 +276,7 @@ export class PlayRenderer {
           this.bound.add(w.controller);
         }
         // P9b: a combat move (guard, roll, spin…) shows over an emote
-        const fight = s.combat.anim.params();
+        const fight = s.combat.pose();
         const pose = fight ?? s.heroAnim.params();
         const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;
         const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);

@@ -96,6 +96,8 @@ export const Asset = z.strictObject({
   }),
   /** P9a: hit points, armour, resistances and what happens at zero (no health: one hit smashes it, as before) */
   health: Health.optional(),
+  /** P9b.1: the hero can lock on to it (Z) even without health — a target for a puzzle */
+  lockOn: z.boolean().optional(),
   generator: z
     .strictObject({ environments: z.array(z.enum(BIOMES)), weight: z.number().min(0).max(1), placeOn: z.string() })
     .nullable(),

@@ -43,7 +43,7 @@ import { formatValue } from '../ui/bindings';
 import { ScreenStack } from '../ui/ScreenStack';
 import { resolveScreen, screenOfKind } from '../ui/screens';
 import { ActionRunner } from './actions';
-import { ATTACKS, type AttackKind, Combat, hasShield, MAX_STAMINA } from './combat';
+import { ATTACKS, type AttackKind, Combat, hasShield, type LockTarget, MAX_STAMINA } from './combat';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './health';
 import { chunkKeyOf, inspectPieces } from './pieces';
 import { Runtime, type System } from './runtime';
@@ -383,7 +383,13 @@ export class PlaySession {
       this.endTalk();
       return;
     }
-    const npc = this.L.NPCWorld.nearest(this.world.npcs, this.heroState);
+    // P9b.1: locked on to a neighbour: talk to them (from a bit further away than usual)
+    const locked = this.combat.lockedNpc();
+    const h = this.heroState;
+    const npc =
+      locked && Math.hypot(locked.state.x - h.x, locked.state.z - h.z) <= 7
+        ? locked
+        : this.L.NPCWorld.nearest(this.world.npcs, this.heroState);
     if (!npc) {
       this.say('Nobody close enough to talk to.', 1.5);
       return;
@@ -484,6 +490,7 @@ export class PlaySession {
     );
     c.stepMove(dt);
     if (c.target) c.stepLock();
+    else c.stepHint();
     const st = Math.round(c.stamina);
     if (st !== this.lastStamina) {
       this.lastStamina = st;
@@ -789,6 +796,22 @@ export class PlaySession {
     this.emit('info', `Damage: nothing called “${ref}” here.`);
   }
 
+  /** P9b.1: logic's On locked on (target: the object's id, or the neighbour's name) */
+  lockedOn(t: LockTarget) {
+    if (t.kind === 'npc') {
+      const n = this.world.npcs.find((x) => x.id === t.id);
+      this.logic.fire({
+        type: 'event.onLockedOn',
+        match: { asset: '' },
+        payload: { target: String(n?.profile.name ?? '') },
+      });
+      return;
+    }
+    const i = this.world.instances.find((x) => x.inst.id === t.id);
+    if (!i) return;
+    this.logic.fire({ type: 'event.onLockedOn', match: { asset: i.def.id }, payload: { target: i.inst.id } });
+  }
+
   /** where a thing is: the hero, a placed object (id or asset name) or a neighbour (name) */
   positionOf(ref: string): [number, number, number] | null {
     if (ref === 'hero') return [this.heroState.x, this.heroState.y, this.heroState.z];
@@ -949,6 +972,24 @@ export class PlaySession {
       b.z1 = Math.max(b.z1, c.z1);
     }
     return b;
+  }
+
+  /**
+   * P9b.1: smashed things the hero can rebuild, within 30 studs: their bounds, their bricks (drawn as ghosts
+   * where they will go back) and whether the hero stands close enough to hold E.
+   */
+  rebuildSpots(): { entry: BrokenEntry; bounds: ReturnType<PlaySession['damagedBounds']>; near: boolean }[] {
+    const s = this.heroState;
+    const near = this.nearestBroken();
+    const out: { entry: BrokenEntry; bounds: ReturnType<PlaySession['damagedBounds']>; near: boolean }[] = [];
+    for (const e of this.world.broken) {
+      const owner = this.instanceOfPiece(e.originals[0]?.id);
+      if (owner && !owner.def.smash.rebuild) continue;
+      const b = this.damagedBounds(e);
+      if (Math.hypot((b.x0 + b.x1) / 2 - s.x, (b.z0 + b.z1) / 2 - s.z) > 30) continue;
+      out.push({ entry: e, bounds: b, near: e === near });
+    }
+    return out;
   }
 
   nearestBroken(): BrokenEntry | null {

@@ -42,7 +42,7 @@ export type Marker = {
   alpha?: number;
   onTop?: boolean;
   /** an arrowhead pointing along +axis instead of a box (editor gizmos) */
-  cone?: 'x' | 'y' | 'z';
+  cone?: 'x' | 'y' | 'z' | '-y';
 };
 
 export type FrameStats = { drawCalls: number; instances: number; chunksDrawn: number; chunks: number; ms: number };
@@ -204,7 +204,7 @@ export class Renderer {
     return this.boxMesh(`lod:${w},${d},${kind}`, w - 0.025, brickHeightUnits(kind), d - 0.025);
   }
 
-  private coneMesh(r: number, h: number, axis: 'x' | 'y' | 'z'): Mesh {
+  private coneMesh(r: number, h: number, axis: 'x' | 'y' | 'z' | '-y'): Mesh {
     const key = `cone:${r},${h},${axis}`;
     let m = this.meshes.get(key);
     if (!m) {

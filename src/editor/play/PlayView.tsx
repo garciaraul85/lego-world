@@ -1,6 +1,7 @@
 import { useSignal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { nodeDef } from '../../core/logic/catalog';
+import { nameBook, withNames } from '../../core/logic/code/names';
 import { printGraph } from '../../core/logic/code/print';
 import type { LogicGraph } from '../../core/schema';
 import { PlayRenderer } from '../../engine/runtime/play-renderer';
@@ -406,7 +407,7 @@ function BreakBanner({ ed, brk }: { ed: EditorState; brk: NonNullable<EditorStat
   let code = '';
   try {
     if (g) {
-      const p = printGraph(g);
+      const p = printGraph(withNames(g, nameBook(ed.store)));
       const line = p.line.get(brk.node);
       if (line) code = `${line}: ${p.code.split('\n')[line - 1]?.trim()}`;
     }

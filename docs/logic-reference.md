@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (54 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (55 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -129,6 +129,16 @@ Runs when something with health reaches zero (after it breaks, drops its item an
 - Settings: Asset (asset, optional)
 - Outputs: target (entity)
 - Code: `on("defeated", { asset: … }, (e) => { … });`
+
+### On locked on
+
+`event.onLockedOn` · event
+
+Runs when the hero locks on (Z or Tab) to something: a neighbour, an object with health, or an asset with “Can be locked on” (a switch or target in a puzzle). Target is what was locked on to.
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity)
+- Code: `on("lockedOn", { asset: … }, (e) => { … });`
 
 ## Flow
 

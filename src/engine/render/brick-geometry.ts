@@ -181,7 +181,7 @@ export function brickGeometry(
 
 /** A plain box (for the floor, markers and far LOD). */
 /** A cone (arrowhead) with its base centered on the origin, pointing along +x, +y or +z. */
-export function coneGeometry(radius: number, height: number, axis: 'x' | 'y' | 'z', segments = 16): Geometry {
+export function coneGeometry(radius: number, height: number, axis: 'x' | 'y' | 'z' | '-y', segments = 16): Geometry {
   const g = new Builder();
   g.lathe(
     0,
@@ -195,6 +195,18 @@ export function coneGeometry(radius: number, height: number, axis: 'x' | 'y' | '
   );
   const out = g.done();
   if (axis === 'y') return out;
+  if (axis === '-y') {
+    // pointing down: mirror y and keep the triangles facing out (swap two corners of each)
+    for (const arr of [out.positions, out.normals]) for (let i = 1; i < arr.length; i += 3) arr[i] = -arr[i]!;
+    for (const arr of [out.positions, out.normals])
+      for (let t = 0; t < arr.length; t += 9)
+        for (let k = 0; k < 3; k++) {
+          const a = arr[t + 3 + k]!;
+          arr[t + 3 + k] = arr[t + 6 + k]!;
+          arr[t + 6 + k] = a;
+        }
+    return out;
+  }
   // y-up cone -> point along x (x <- y, y <- -x) or along z (z <- y, y <- -z)
   for (const arr of [out.positions, out.normals])
     for (let i = 0; i < arr.length; i += 3) {

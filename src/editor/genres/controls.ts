@@ -197,6 +197,7 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   // P9a: health
   'event.onDamaged': S('combat'),
   'event.onDefeated': S('combat'),
+  'event.onLockedOn': S('combat'),
   'health.damage': S('combat'),
   'health.heal': S('combat'),
   'health.setInvulnerable': A('combat'),

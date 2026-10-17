@@ -2,6 +2,7 @@ import { MapBricks } from '../bricks/map-bricks';
 import { rewardScene } from '../cinematic/templates';
 import type { CommandBus } from '../commands/bus';
 import type { Command } from '../commands/types';
+import { nameBook, withIds } from '../logic/code/names';
 import { parseCode } from '../logic/code/parse';
 import type { ProjectSnapshot, ProjectStore } from '../project/store';
 import { type Gates, type LogicGraph, paths } from '../schema';
@@ -62,8 +63,10 @@ function expandHelper(store: ProjectStore, c: PlanCommand, earlier: Set<string>)
   if (c.type === 'logic.code') {
     const graphId = String(p.graph);
     const existing = store.get<LogicGraph>(paths.logic(graphId));
-    const parsed = parseCode(String(p.code), existing);
-    if ('error' in parsed) return `code line ${parsed.error.line}:${parsed.error.column}: ${parsed.error.message}`;
+    const parsed0 = parseCode(String(p.code), existing);
+    if ('error' in parsed0) return `code line ${parsed0.error.line}:${parsed0.error.column}: ${parsed0.error.message}`;
+    // code may name zones, sounds, spawn points… by name (as the Code view shows them) or by id
+    const parsed = withIds(parsed0, nameBook(store));
     const graph: LogicGraph = {
       id: graphId as LogicGraph['id'],
       name: String(p.name),

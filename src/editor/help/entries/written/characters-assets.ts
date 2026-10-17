@@ -212,6 +212,18 @@ export const ASSETS: HelpEntry[] = [
     related: ['assets.plate', 'scene.tool.move'],
   },
   {
+    id: 'assets.lockOn',
+    also: ['lock on', 'target', 'z-target', 'puzzle', 'switch'],
+    screen: 'assets',
+    kind: 'field',
+    name: 'Can be locked on',
+    purpose:
+      'Whether the hero can lock on to copies of this asset with Z in Play (a yellow arrow shows over it when it is close and in front; locked on, a red one). Things with health always can; turn it on for anything else — a switch to hit, a target in a puzzle. Logic’s On locked on runs when it happens.',
+    commands: ['asset.update'],
+    related: ['node.event.onLockedOn', 'play.view'],
+    match: [{ in: '[data-tour="asset-lock-on"]' }],
+  },
+  {
     id: 'assets.health',
     also: ['breakable', 'hit points', 'hp', 'takes hits', 'armour', 'armor', 'resistance', 'damage', 'crate', 'loot'],
     screen: 'assets',

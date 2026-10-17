@@ -7,10 +7,11 @@ import { ProjectStore } from '../../src/core/project/store';
 import { type Asset, type Character, Clip, paths } from '../../src/core/schema';
 import { CHARGE_TIME, PARRY_WINDOW, SPIN_TIME } from '../../src/engine/runtime/combat';
 import { PlaySession } from '../../src/engine/runtime/session';
+import { graph } from './logic-helpers';
 
 /** P9b: kinds of attack, guarding (block, parry, stamina), moves and lock-on. */
 const crate = BUILTIN_ASSETS.find((a) => a.name === 'Wooden crate')!;
-/** a 24 × 24 floor to fight on (a play area is as big as what stands on the ground) */
+/** a 32 × 32 floor to fight on (a play area is as big as what stands on the ground) */
 const floor: Asset = {
   ...crate,
   id: 'ast_yardfloor0' as Asset['id'],
@@ -18,11 +19,22 @@ const floor: Asset = {
   health: undefined,
   smash: { enabled: false, rebuild: false, sound: null, studs: 0 },
   palette: { types: ['plate8x8'], colors: ['#5a8f3c'] },
-  footprint: [24, 24],
-  bricks: [0, 1, 2].flatMap((i) => [0, 1, 2].map((j) => [0, i * 8, 0, j * 8, 0, 0, 0] as Asset['bricks'][number])),
+  footprint: [32, 32],
+  bricks: [0, 1, 2, 3].flatMap((i) =>
+    [0, 1, 2, 3].map((j) => [0, i * 8, 0, j * 8, 0, 0, 0] as Asset['bricks'][number]),
+  ),
 };
 
-function game(opts: { shield?: boolean; held?: string } = {}) {
+const lever: Asset = {
+  ...crate,
+  id: 'ast_switch0000' as Asset['id'],
+  name: 'Switch',
+  health: undefined,
+  lockOn: true,
+  smash: { enabled: false, rebuild: false, sound: null, studs: 0 },
+};
+
+function game(opts: { shield?: boolean; held?: string; lockable?: boolean } = {}) {
   const s = new ProjectStore(newProjectFiles({ name: 'Yard', random: () => 0.3 }));
   const bus = registerAll(new CommandBus(s));
   const map = s.manifest.entry.map;
@@ -41,6 +53,24 @@ function game(opts: { shield?: boolean; held?: string } = {}) {
       { type: 'project.update', payload: { hero: hero.id } },
       { type: 'asset.create', payload: { asset: crate } },
       { type: 'asset.place', payload: { map, asset: crate.id, pos: [6, 1, 3] } },
+      ...(opts.lockable
+        ? [
+            { type: 'asset.create', payload: { asset: lever } },
+            { type: 'asset.place', payload: { map, asset: lever.id, pos: [12, 1, 4] } },
+            {
+              type: 'logic.create',
+              payload: {
+                graph: graph(
+                  [
+                    ['event.onLockedOn', { asset: lever.id }],
+                    ['misc.log', { value: 'locked' }],
+                  ],
+                  [[1, 'then', 2, 'in']],
+                ),
+              },
+            },
+          ]
+        : []),
     ],
     { source: 'user' },
   );
@@ -198,5 +228,61 @@ describe('moves and lock-on', () => {
     expect(p.hero.offHand).toBe('Shield');
     expect(game().hero.offHand).toBe('None');
     expect(paths.character('chr_heroaaaaaa')).toBe('characters/chr_heroaaaaaa.json');
+  });
+
+  it('P9b.1: a dodge roll goes the way the hero faces, whatever is pressed', () => {
+    const p = game();
+    p.placeAt([6.5, 0.4, 1.6], Math.PI / 2); // facing +x
+    p.camYaw = Math.PI;
+    const x0 = p.heroState.x;
+    p.input.keys.add('s');
+    p.combat.roll();
+    p.input.keys.delete('s');
+    step(p, 0.5);
+    expect(p.heroState.x - x0).toBeGreaterThan(0.5);
+  });
+
+  it('P9b.1: the hero can walk during a spin attack, legs walking', () => {
+    const p = game({ held: 'None' });
+    p.placeAt([6.5, 0.4, 1.6], Math.PI); // facing away from the crate
+    p.combat.press();
+    step(p, SPIN_TIME + 0.05);
+    p.combat.release();
+    p.input.keys.add('a');
+    const x0 = p.heroState.x;
+    step(p, 0.3);
+    expect(p.combat.move?.kind).toBe('spin');
+    expect(Math.abs(p.heroState.x - x0)).toBeGreaterThan(0.2);
+    const pose = p.combat.pose();
+    expect(pose?.ll).toBeDefined();
+  });
+
+  it('P9b.1: a marker shows what Z would lock on to while it is in range, and a lock lets go out of range', () => {
+    const p = game();
+    step(p, 1 / 60);
+    expect(p.combat.hint?.kind).toBe('inst');
+    p.placeAt([6.5, 0.4, -7], 0); // 10+ studs away… still in range
+    step(p, 1 / 60);
+    expect(p.combat.hint).not.toBeNull();
+    p.placeAt([6.5, 0.4, 1.6], 0);
+    p.combat.toggleLock();
+    expect(p.combat.target).not.toBeNull();
+    expect(p.combat.hint).toBeNull();
+    p.placeAt([24, 0.4, 16], 0); // over 16 studs away
+    step(p, 1 / 60);
+    expect(p.combat.target).toBeNull();
+  });
+
+  it('P9b.1: any asset marked “Can be locked on” is a target, and On locked on runs', () => {
+    const p = game({ lockable: true });
+    p.placeAt([12, 0.4, 1.6], 0);
+    step(p, 1 / 60);
+    p.combat.toggleLock();
+    const t = p.combat.target;
+    expect(t?.kind).toBe('inst');
+    const inst = p.world.instances.find((i) => t?.kind === 'inst' && i.inst.id === t.id);
+    expect(inst?.def.name).toBe('Switch');
+    step(p, 1 / 60);
+    expect(p.events.map((e) => e.msg).join('\n')).toMatch(/Logic: locked/);
   });
 });
