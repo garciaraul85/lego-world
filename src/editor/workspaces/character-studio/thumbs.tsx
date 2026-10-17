@@ -115,13 +115,15 @@ function draw(profile: Record<string, unknown>, view: ThumbView, pose?: ThumbPos
   return s.canvas.toDataURL('image/png');
 }
 
-/** Draws the waiting pictures one per frame, so opening a long list never stalls the editor. */
+/** Draws the waiting pictures one per frame, newest request first, so opening a long list never stalls the editor. */
 function pump() {
   if (busy) return;
   busy = true;
   requestAnimationFrame(() => {
     busy = false;
-    const next = waiting.entries().next().value;
+    // newest first: the panel just opened (a pick list) is drawn before older pictures still waiting
+    let next: [string, typeof waiting extends Map<string, infer J> ? J : never] | undefined;
+    for (const e of waiting) next = e;
     if (!next) return;
     const [key, job] = next;
     waiting.delete(key);
