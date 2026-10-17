@@ -2,12 +2,14 @@ import { useState } from 'preact/hooks';
 import { type GeneratedGame, generateGame } from '../../core/gamegen/generateGame';
 import type { GameOptions } from '../../core/gamegen/recipes';
 import type { ProjectMeta } from '../../core/project/backend';
+import { GenreStart } from '../genres/GenreCards';
 import type { EditorState } from '../state';
 import type { Track } from '../tutorial/index';
 import { GenerateCard } from './GenerateCard';
 import { hubAtStartup, setHubAtStartup } from './intent';
 import { RecentProjects } from './RecentProjects';
 import { Templates } from './Templates';
+import { TEMPLATES } from './template-list';
 
 export type HubHost = {
   startGame(game: GeneratedGame, then: 'play' | 'build' | 'open'): Promise<void>;
@@ -26,6 +28,7 @@ export function StartHub({
   onClose,
   onHelp,
   onAi,
+  onNewProject,
 }: {
   ed: EditorState;
   host: HubHost;
@@ -33,6 +36,8 @@ export function StartHub({
   onHelp: () => void;
   /** opens the AI builder (P8) */
   onAi?: () => void;
+  /** P18: a blank project of a genre (the Open card) */
+  onNewProject?: (genre: string) => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [atStart, setAtStart] = useState(hubAtStartup());
@@ -68,6 +73,14 @@ export function StartHub({
         </header>
         <div class="hub-body">
           <div class="hub-col">
+            <GenreStart
+              busy={!!busy}
+              onStart={(g) => {
+                const t = TEMPLATES.find((x) => x.id === g.template.recipe);
+                if (t) make(t.options, t.seed, 'open');
+                else onNewProject?.(g.id);
+              }}
+            />
             <GenerateCard busy={busy} onGo={make} />
             <Templates busy={!!busy} onPick={(t) => make(t.options, t.seed, 'open')} />
           </div>

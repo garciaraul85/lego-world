@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIONS, type ActionCtx, action, type EditorAction, MENUS, runAction } from '../actions/registry';
 import { resolveAsset } from '../assets';
+import { controlMenu, GenrePicker } from '../genres/GenrePicker';
+import { shows, tabsInView } from '../genres/view';
 import { keysFor } from '../platform';
 import type { EditorState } from '../state';
 import { TOOLS } from './tools';
@@ -57,6 +59,7 @@ export function MenuBar({ c }: { c: ActionCtx }) {
         ))}
       </nav>
       <div class="right">
+        <GenrePicker c={c} />
         <span class="mono projname" title="Project name">
           {ed.store.manifest.name}
         </span>
@@ -77,9 +80,13 @@ export function MenuBar({ c }: { c: ActionCtx }) {
               Asset creation arrives with the Asset studio (Phase 3).
             </div>
           )}
-          {(MENUS[open] ?? []).map((id, i) =>
-            id === '-' ? <div class="sep" key={`s${i}`} /> : <MenuItem key={id} a={action(id)} c={c} />,
-          )}
+          {/* P18: the genre view hides menu items for features this kind of game does not use */}
+          {(MENUS[open] ?? [])
+            .filter((id) => id === '-' || shows(ed, 'action', id))
+            .filter((id, i, list) => id !== '-' || (i > 0 && i < list.length - 1 && list[i - 1] !== '-'))
+            .map((id, i) =>
+              id === '-' ? <div class="sep" key={`s${i}`} /> : <MenuItem key={id} a={action(id)} c={c} />,
+            )}
         </div>
       )}
     </div>
@@ -116,21 +123,71 @@ export const WORKSPACES = [
   ['Audio', null],
 ] as const;
 
-export function WorkspaceTabs({ current, onPick }: { current: string; onPick: (w: string) => void }) {
+export function WorkspaceTabs({ c, current, onPick }: { c: ActionCtx; current: string; onPick: (w: string) => void }) {
+  const { ed } = c;
+  // P18: the genre's tabs in its order; the rest under More (the open one shows too, so you see where you are)
+  const { main, more } = tabsInView(
+    ed,
+    WORKSPACES.map(([w]) => w),
+  );
+  const shown = more.includes(current) ? [...main, current] : main;
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const close = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.ws-more')) setMoreOpen(false);
+    };
+    window.addEventListener('pointerdown', close);
+    return () => window.removeEventListener('pointerdown', close);
+  }, [moreOpen]);
   return (
     <nav class="workspaces" aria-label="Workspaces" data-tour="workspaces">
-      {WORKSPACES.map(([w, later]) => (
+      {shown.map((w) => (
         <button
           type="button"
           class={`tab ${current === w ? 'on' : ''}`}
           aria-current={current === w ? 'page' : undefined}
           data-tour={`ws-${w.toLowerCase().replace(/ /g, '-')}`}
-          title={later ? `Full workspace in ${later}` : undefined}
           onClick={() => onPick(w)}
+          onContextMenu={(e) => controlMenu(c, 'tab', w, `${w} tab`, e)}
         >
           {w}
         </button>
       ))}
+      {more.length > 0 && (
+        <span class="ws-more">
+          <button
+            type="button"
+            class="tab"
+            data-tour="ws-more"
+            aria-haspopup="menu"
+            aria-expanded={moreOpen}
+            title="The other screens (this genre shows them less often)"
+            onClick={() => setMoreOpen(!moreOpen)}
+          >
+            More ▾
+          </button>
+          {moreOpen && (
+            <div class="popmenu ws-more-menu" role="menu" aria-label="More screens">
+              {more.map((w) => (
+                <button
+                  type="button"
+                  class="mi"
+                  role="menuitem"
+                  data-tour={`ws-more-${w.toLowerCase().replace(/ /g, '-')}`}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    onPick(w);
+                  }}
+                  onContextMenu={(e) => controlMenu(c, 'tab', w, `${w} tab`, e)}
+                >
+                  <span>{w}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </span>
+      )}
     </nav>
   );
 }
@@ -165,7 +222,7 @@ export function Toolbar({ c }: { c: ActionCtx }) {
     <div class="toolbar">
       {!studioWs && (
         <div class="group" role="group" aria-label="Tools" data-tour="tools">
-          {TOOLS.filter((t) => !t.hidden).map((t) => {
+          {TOOLS.filter((t) => !t.hidden && shows(ed, 'tool', t.id)).map((t) => {
             const on = ed.tool.value === t.id || (t.id === 'place' && placing);
             return (
               <button
@@ -176,6 +233,7 @@ export function Toolbar({ c }: { c: ActionCtx }) {
                 data-tip={t.later ? `${t.label} — ${t.later}` : `${t.help} Shortcut: ${t.key}.`}
                 data-help="scene"
                 disabled={!!t.later}
+                onContextMenu={(e) => controlMenu(c, 'tool', t.id, `${t.label} tool`, e)}
                 onClick={() => {
                   // the Scene's Place puts down assets (bricks are built in the Assets screen)
                   ed.tool.value = t.id === 'place' ? 'asset' : t.id;
@@ -213,22 +271,26 @@ export function Toolbar({ c }: { c: ActionCtx }) {
           </svg>
           {ed.session.value ? 'Stop' : 'Play'}
         </button>
-        <button
-          type="button"
-          class="btn opt"
-          onClick={() => ui.play('v68')}
-          title="Play in the LEGO World v68 runtime: guns, magic, super powers and the volcano still run there (F6)"
-        >
-          Play in v68
-        </button>
-        <button
-          type="button"
-          class="btn opt"
-          onClick={() => ui.play('edit')}
-          title="Open in LEGO World v68: characters and neighbors are still edited there (Shift F6)"
-        >
-          v68 studio
-        </button>
+        {shows(ed, 'action', 'play.v68') && (
+          <button
+            type="button"
+            class="btn opt"
+            onClick={() => ui.play('v68')}
+            title="Play in the LEGO World v68 runtime: guns, magic, super powers and the volcano still run there (F6)"
+          >
+            Play in v68
+          </button>
+        )}
+        {shows(ed, 'action', 'play.legacy') && (
+          <button
+            type="button"
+            class="btn opt"
+            onClick={() => ui.play('edit')}
+            title="Open in LEGO World v68: characters and neighbors are still edited there (Shift F6)"
+          >
+            v68 studio
+          </button>
+        )}
       </div>
       <label class="group lbl" data-tour="map-select">
         Map

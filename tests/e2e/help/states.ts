@@ -367,4 +367,39 @@ export const HELP_STATES: HelpState[] = [
       await p.waitForTimeout(1500);
     },
   },
+  // P18: the New project dialog asks what you are making
+  {
+    id: 'new-project',
+    screen: 'shell',
+    setup: async (p) => {
+      await p.keyboard.press('Escape');
+      if (await p.getByLabel('Game view').isVisible()) await p.keyboard.press('F5');
+      await ws(p, 'Scene');
+      await p.getByRole('navigation', { name: 'Menu' }).getByRole('button', { name: 'File', exact: true }).click();
+      await p.getByRole('menuitem', { name: /^New project/ }).click();
+      await p.getByRole('radiogroup', { name: 'What are you making?' }).waitFor();
+    },
+  },
+  // P18: a genre view (last: it changes which tabs show), with More open and a hidden feature in use
+  {
+    id: 'genre-explore',
+    screen: 'shell',
+    setup: async (p) => {
+      await p.keyboard.press('Escape');
+      const cancel = p.getByRole('dialog', { name: 'New project' }).getByRole('button', { name: 'Cancel' });
+      if (await cancel.isVisible()) await cancel.click();
+      if (await p.getByLabel('Game view').isVisible()) await p.keyboard.press('F5');
+      await p.getByLabel('Genre', { exact: true }).selectOption('explore');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const g = e.store.list('logic/lg_')[0];
+        if (!g) return;
+        const graph = e.store.get(g) as { id: string; nodes: { type: string }[] };
+        if (!graph.nodes.some((n) => n.type === 'misc.log'))
+          e.exec({ type: 'logic.addNode', payload: { graph: graph.id, node: { type: 'misc.log', pos: [40, 400] } } });
+      });
+      await ws(p, 'Logic');
+      await p.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'More ▾' }).click();
+    },
+  },
 ];

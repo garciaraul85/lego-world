@@ -6,6 +6,7 @@ import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
 import { assetLibrary } from '../assets';
 import { AssetThumb } from '../components/AssetThumb';
+import { shows } from '../genres/view';
 import { endDrag, startDrag } from '../interact/drag';
 import { keysFor } from '../platform';
 import { MELEE } from '../play/debug';
@@ -30,7 +31,7 @@ export function Dock({ c }: { c: ActionCtx }) {
   const { ed } = c;
   const tab = ed.dock.value;
   const problems = useProblems(ed);
-  const tabs: [typeof tab, string][] = [
+  const tabs: [DockTab, string][] = [
     ['assets', 'Assets'],
     ['console', 'Console'],
     ['timeline', 'Timeline'],
@@ -42,18 +43,21 @@ export function Dock({ c }: { c: ActionCtx }) {
   return (
     <section class="panel dockpanel" aria-label="Bottom dock" data-tour="dock">
       <div class="ptabs">
-        {tabs.map(([id, label]) => (
-          <button
-            type="button"
-            class={`tab ${tab === id ? 'on' : ''}`}
-            onClick={() => {
-              ed.dock.value = id;
-              ed.persistUi();
-            }}
-          >
-            {label}
-          </button>
-        ))}
+        {/* P18: the genre view hides dock tabs it does not use (the open one stays) */}
+        {tabs
+          .filter(([id]) => id === tab || shows(ed, 'dock', id))
+          .map(([id, label]) => (
+            <button
+              type="button"
+              class={`tab ${tab === id ? 'on' : ''}`}
+              onClick={() => {
+                ed.dock.value = id;
+                ed.persistUi();
+              }}
+            >
+              {label}
+            </button>
+          ))}
       </div>
       {tab === 'assets' && <Assets c={c} />}
       {tab === 'console' && <Console ed={ed} />}
@@ -462,7 +466,7 @@ function Debug({ c }: { c: ActionCtx }) {
   );
 }
 
-const ASSET_FILTERS: [string, string][] = [
+export const ASSET_FILTERS: [string, string][] = [
   ['all', 'All'],
   ['mine', 'Mine'],
   ['building', 'Buildings'],
@@ -503,7 +507,7 @@ function AssetCards({ c }: { c: ActionCtx }) {
           onKeyDown={(e) => e.key === 'Escape' && setQ('')}
         />
         <div class="row" role="radiogroup" aria-label="Asset kind">
-          {ASSET_FILTERS.map(([id, label]) => (
+          {ASSET_FILTERS.filter(([id]) => id === filter || shows(c.ed, 'assetFilter', id)).map(([id, label]) => (
             <button
               type="button"
               role="radio"
@@ -649,3 +653,7 @@ function MapTimeline({ c }: { c: ActionCtx }) {
     </div>
   );
 }
+
+/** P18: every dock tab (for the tag tests) */
+export const DOCK_TABS = ['assets', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const;
+type DockTab = (typeof DOCK_TABS)[number];

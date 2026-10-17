@@ -160,9 +160,10 @@ async function boot() {
       writeIntent({ kind: 'tutorial', project: s.manifest.id, mode, track });
       reopen(s.manifest.id);
     },
-    async newProject() {
+    async newProject(genre) {
       const files = newProjectFiles({
         name: 'New brick game',
+        ...(genre ? { genre } : {}),
         generate: { ...DEFAULT_WORLD, seed: Math.floor(Math.random() * 99_999_999) },
       });
       const s = new ProjectStore(files);

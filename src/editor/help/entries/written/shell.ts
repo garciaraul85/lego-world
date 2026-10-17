@@ -55,6 +55,73 @@ export const SHELL: HelpEntry[] = [
     match: [{ sel: '.workspaces' }],
   },
   {
+    id: 'genre.pick',
+    screen: 'shell',
+    kind: 'field',
+    name: 'Genre',
+    purpose:
+      'What kind of game this is. The editor shows the tabs, tools, menu items and logic nodes that kind of game uses, and lists its own logic nodes first; Open (everything) shows every control. The genre is saved with the game; changing it is one undo step and changes nothing else in the game.',
+    options: [
+      ['Open (everything)', 'every tab, tool and logic node: the advanced view, for any kind of game'],
+      [
+        'Explore and collect',
+        'walk a world, open chests, find items: World graph moves under More, the v68 buttons, the Profiler and Timeline dock tabs and advanced logic nodes are hidden',
+      ],
+    ],
+    steps: [
+      'Open the Genre list at the top right and pick a kind of game.',
+      'Right-click a tab, a tool or a logic node to pin it to this view or hide it (only on this device).',
+    ],
+    tips: [
+      'Hidden controls still work in the game, and a search in the node list finds every node.',
+      'New genres arrive with the phases whose systems they need (racing, platformers, shooters…).',
+    ],
+    commands: ['project.update'],
+    related: ['genre.open', 'genre.hidden', 'shell.more'],
+    also: ['kind of game', 'game type', 'view', 'advanced', 'simple'],
+    match: [{ sel: '.genre-pick' }, { in: '.genre-pick' }],
+  },
+  {
+    id: 'genre.open',
+    screen: 'shell',
+    kind: 'button',
+    name: 'Show everything',
+    purpose:
+      'Shows every control on this device without changing the game (its genre stays). “Showing everything · back to …” goes back to the genre’s view.',
+    related: ['genre.pick'],
+    match: [{ sel: '[data-tour="genre-open"]' }, { sel: '[data-tour="genre-back"]' }],
+  },
+  {
+    id: 'genre.hidden',
+    screen: 'shell',
+    kind: 'button',
+    name: 'Hidden features in use',
+    purpose:
+      'Appears when the game uses something the current view hides (a logic node, a screen). Click it to see what and where; Show everything shows every control, Pin them to this view keeps just those.',
+    related: ['genre.pick', 'genre.open'],
+    match: [{ sel: '[data-tour="genre-hidden"]' }, { in: area('Hidden features in use') }],
+  },
+  {
+    id: 'shell.more',
+    screen: 'shell',
+    kind: 'menu',
+    name: 'More screens',
+    purpose:
+      'The workspaces this genre uses less often. Pick one to open it; while it is open it shows as a tab. Right-click one to pin it to the tab bar.',
+    related: ['shell.workspaces', 'genre.pick'],
+    match: [{ sel: '[data-tour="ws-more"]' }, { in: area('More screens') }],
+  },
+  {
+    id: 'genre.cards',
+    screen: 'shell',
+    kind: 'list',
+    name: 'What are you making?',
+    purpose:
+      'A card per kind of game (Start hub, New project). Explore and collect starts from its template, a treasure hunt; Open starts a blank project with every control.',
+    related: ['genre.pick'],
+    match: [{ in: area('What are you making?') }],
+  },
+  {
     id: 'shell.map',
     screen: 'shell',
     kind: 'field',
@@ -186,6 +253,16 @@ export const SHELL: HelpEntry[] = [
     name: 'Close a window',
     purpose: 'Closes the window on top (shortcuts, about, palette). Esc does the same.',
     match: [{ in: '.modal', name: 'Close' }],
+  },
+  {
+    id: 'shell.newProject',
+    screen: 'shell',
+    kind: 'button',
+    name: 'New project',
+    purpose:
+      'Makes a new game with a freshly generated map, of the kind picked under “What are you making?”. The current project stays saved on this device (File › Open project). Cancel keeps working on this one.',
+    related: ['genre.cards', 'genre.pick'],
+    match: [{ in: area('New project'), name: /^(Create new project|Cancel)$/ }],
   },
   {
     id: 'shell.shortcutsList',

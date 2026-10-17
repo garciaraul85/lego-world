@@ -1,4 +1,5 @@
 import type { Problem } from '../migrate/problems';
+import { upgradeManifest } from '../migrate/v5to6';
 import { paths, validateFile } from '../schema';
 import type { FileBackend } from './backend';
 import { ProjectStore } from './store';
@@ -25,6 +26,7 @@ export async function loadProject(
       });
       continue;
     }
+    if (path === paths.project) value = upgradeManifest(value);
     for (const i of validateFile(path, value))
       problems.push({ level: 'error', code: 'load.schema', message: `${i.at}: ${i.message}`, file: path });
     entries.push([path, value]);

@@ -1,3 +1,4 @@
+import { GENRES } from '../../../builtin/genres';
 import { expandAsset } from '../../assets/expand';
 import { maxBrickId } from '../../assets/instances';
 import { generatedInstanceId, instancify } from '../../assets/instancify';
@@ -230,15 +231,22 @@ export type UpdateProject = {
   hero?: string | null;
   /** the first screen the player sees (P5.8), null = straight into the game */
   entryScreen?: string | null;
+  /** P18: the kind of game (a genre id from src/builtin/genres): what the editor shows */
+  genre?: string;
 };
 
 export const updateProject: CommandHandler<UpdateProject> = {
-  label: () => 'Edit project settings',
+  label: (p) =>
+    p.genre !== undefined && Object.keys(p).length === 1
+      ? `Genre: ${GENRES.find((g) => g.id === p.genre)?.name ?? p.genre}`
+      : 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.hero && !store.has(paths.character(p.hero))) return 'That character does not exist.';
     if (p.entryMap !== undefined && !store.has(paths.map(p.entryMap))) return 'Start map not found.';
     if (p.entryScreen && !/^scr_[0-9a-z]{10}$/.test(p.entryScreen)) return 'Pick a screen.';
+    if (p.genre !== undefined && !GENRES.some((g) => g.id === p.genre))
+      return `No genre “${p.genre}”: pick one of ${GENRES.map((g) => g.id).join(', ')}.`;
     if (p.entrySpawn) {
       const map = p.entryMap ?? store.manifest.entry.map;
       if (!getMap(store, map).spawns.some((s) => s.id === p.entrySpawn)) return 'Start spawn is not on the start map.';
@@ -264,6 +272,7 @@ export const updateProject: CommandHandler<UpdateProject> = {
         ...(p.entryScreen !== undefined ? { screen: p.entryScreen as Project['entry']['screen'] } : {}),
       },
       ...(p.hero !== undefined ? { hero: p.hero as Project['hero'] } : {}),
+      ...(p.genre !== undefined ? { genre: p.genre } : {}),
     });
   },
 };

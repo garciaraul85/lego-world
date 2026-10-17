@@ -24,6 +24,21 @@ The Scene workspace has the Hierarchy on the left, the 3D map in the middle, the
 
 Everything you do is one undo step and saves itself to this device a moment later. The status bar shows "All changes saved".
 
+## What kind of game? (genres)
+
+Every game has a **genre**: the list at the top right of the editor. The editor shows the tabs, tools, menu items and logic nodes that kind of game uses, and lists its own logic nodes first. **Open (everything)** shows every control.
+
+| Genre | What it shows |
+| --- | --- |
+| Open (everything) | Every tab, tool and logic node: the advanced view, for any kind of game. |
+| Explore and collect | Walking a world, chests, items and people. The World graph tab is under **More**. The v68 buttons, the Profiler and Timeline dock tabs, and advanced logic nodes are hidden. A treasure hunt is its starter game. |
+
+Changing the genre is one undo step and changes nothing else in the game. **Show everything** shows every control on this device without changing the game. If the game uses something the view hides, a chip says **“1 item uses hidden features”**: click it to see what. Hidden controls still work when you play, and a search in the node list finds every node.
+
+Right-click a tab, a tool or a logic node to **pin** it to the current view or **hide** it. Pins and hides are kept on this device, per genre. Recently added logic nodes rise to **Recent** at the top of the node list.
+
+The Start hub and **File › New project** ask **What are you making?** with a card per genre. More genres (racing, platformers, shooters…) arrive with the engine phases whose systems they need.
+
 ## Command palette
 
 Ctrl K (⌘K on a Mac) opens the command palette: type a few letters to find and run any command.

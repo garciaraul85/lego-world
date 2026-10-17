@@ -12,6 +12,8 @@ export type NewProjectOptions = {
   generate?: GenerateConfig;
   now?: string;
   random?: () => number;
+  /** P18: the kind of game (src/builtin/genres); omitted = open (every control) */
+  genre?: string;
 };
 
 /** Files of a brand-new project with one map (generated or empty) and one spawn point. */
@@ -56,13 +58,14 @@ export function newProjectFiles(o: NewProjectOptions): Map<string, unknown> {
   files.set(paths.settings, { quality: 'auto', legacy: { characters: false } } satisfies Settings);
   const project: Project = {
     format: 'brickworlds-project',
-    schema: 5,
+    schema: 6,
     id: newId('project', rnd) as Project['id'],
     name: o.name,
     created: now,
     modified: now,
     entry: { map: mapId, spawn: spawnId, screen: 'scr_splash0000' },
     hero: null,
+    genre: o.genre ?? 'open',
     files: {},
   };
   files.set(paths.project, project);

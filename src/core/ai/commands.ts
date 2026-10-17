@@ -478,10 +478,11 @@ export const AI_COMMANDS: AiCommand[] = [
       entrySpawn: ids('spawn').nullable().optional(),
       hero: ids('character').nullable().optional(),
       entryScreen: ids('screen').nullable().optional(),
+      genre: z.string().optional(),
     }),
     ['map', 'character', 'screen'],
     'Scene',
-    'Game name, start map and spawn, hero character, first screen.',
+    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore).',
     { name: 'Coin Quest', hero: 'chr_hhhhhhhhhh' },
   ),
   def(

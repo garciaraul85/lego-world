@@ -125,6 +125,17 @@ export const LOGIC: HelpEntry[] = [
     related: ['help:logic-reference'],
   },
   {
+    id: 'logic.moreNodes',
+    screen: 'logic',
+    kind: 'list',
+    name: 'More nodes',
+    purpose:
+      'Nodes the current genre does not use, folded away so the list stays short. Open it to add one; a search in Find a node always finds every node. The genre’s own nodes are listed first (For …), with your Pinned and Recent ones above them.',
+    steps: ['Click More nodes to unfold it.', 'Right-click a node to pin it to the top of the list or hide it.'],
+    related: ['logic.palette', 'genre.pick'],
+    match: [{ in: '[data-tour="logic-more-nodes"]' }],
+  },
+  {
     id: 'logic.editor',
     screen: 'logic',
     kind: 'area',

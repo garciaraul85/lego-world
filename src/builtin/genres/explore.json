@@ -1,0 +1,49 @@
+{
+  "id": "explore",
+  "name": "Explore and collect",
+  "blurb": "Walk a world, open chests, find items and talk to people. Treasure hunts and small adventures.",
+  "icon": "🗺",
+  "features": [
+    "build",
+    "world",
+    "assets",
+    "characters",
+    "logic",
+    "collect",
+    "screens",
+    "cinematics",
+    "audio",
+    "debug",
+    "ai"
+  ],
+  "level": "simple",
+  "tabs": ["Scene", "Assets", "Characters", "Logic", "Cinematics", "Screens", "Audio"],
+  "nodesFirst": [
+    "event.onInteract",
+    "event.onEnterZone",
+    "event.onCustom",
+    "world.give",
+    "world.setState",
+    "world.spawnNear",
+    "var.add",
+    "flow.branch",
+    "compare.gte",
+    "audio.playSound",
+    "screen.show",
+    "cinematic.play"
+  ],
+  "defaults": { "camera": "explore", "controls": "walk", "music": "explore" },
+  "template": { "name": "Treasure hunt", "recipe": "treasure" },
+  "tutorial": "editor",
+  "help": "start",
+  "checklist": [
+    "A map to explore with a start spawn",
+    "A hero the player controls",
+    "Things to find: chests, coins or items",
+    "A rule that counts what was found",
+    "A HUD that shows the count",
+    "A goal: find them all to win",
+    "Music and sounds for finding things"
+  ],
+  "readyAfter": "P8"
+}

@@ -8,6 +8,8 @@ import { ChoiceOrText } from '../../components/ChoiceOrText';
 import { EventPicker } from '../../components/EventPicker';
 import { DraftText, FieldHelp } from '../../components/fields';
 import { describeUse, eventUses } from '../../events';
+import { controlMenu } from '../../genres/GenrePicker';
+import { noteRecent, prefsOf, shows, viewGenre } from '../../genres/view';
 import { keysFor } from '../../platform';
 import { CodeView } from './CodeView';
 import { GraphView, toggleBreakpoint } from './GraphView';
@@ -163,9 +165,9 @@ function Sidebar({
     setNewStart('0');
   };
   const nodes = CATALOG.filter((d) => `${d.title} ${d.category} ${d.type}`.toLowerCase().includes(q.toLowerCase()));
-  const cats = [...new Set(nodes.map((d) => d.category))];
   const add = (type: string) => {
     if (!graph) return;
+    noteRecent(ed, type);
     // below everything already in the left column, so nothing is covered
     const y = Math.max(
       40,
@@ -305,30 +307,79 @@ function Sidebar({
             onInput={(e) => setQ((e.target as HTMLInputElement).value)}
           />
         </div>
-        {cats.map((cat) => (
-          <>
+        {/* P18: the genre's nodes first (pinned, recent, then the genre's own), the rest by category; nodes the
+            view hides wait under “More nodes”, and a search finds every node */}
+        {(() => {
+          const view = viewGenre(ed);
+          const prefs = prefsOf(view.id);
+          const searching = !!q.trim();
+          const pal = (d: (typeof CATALOG)[number], muted = false) => (
+            <button
+              type="button"
+              class={`lg-pal ${muted ? 'muted' : ''}`}
+              data-node={d.type}
+              draggable
+              disabled={!graph}
+              title={d.doc}
+              onDragStart={(e) => e.dataTransfer?.setData('text/x-logic-node', d.type)}
+              onClick={() => add(d.type)}
+              onContextMenu={(e) => controlMenu(c, 'node', d.type, d.title, e)}
+            >
+              <span class="lg-dot" style={{ background: CAT_COLOR[d.category] }} />
+              {d.title}
+            </button>
+          );
+          const head = (label: string, n?: number) => (
             <div class="sech" style={{ padding: '4px 10px 2px' }}>
-              <span>{cat}</span>
+              <span>{label}</span>
+              {n !== undefined && <span>{n}</span>}
             </div>
-            {nodes
-              .filter((d) => d.category === cat)
-              .map((d) => (
-                <button
-                  type="button"
-                  class="lg-pal"
-                  data-node={d.type}
-                  draggable
-                  disabled={!graph}
-                  title={d.doc}
-                  onDragStart={(e) => e.dataTransfer?.setData('text/x-logic-node', d.type)}
-                  onClick={() => add(d.type)}
-                >
-                  <span class="lg-dot" style={{ background: CAT_COLOR[d.category] }} />
-                  {d.title}
-                </button>
+          );
+          const visible = nodes.filter((d) => searching || shows(ed, 'node', d.type));
+          const hidden = searching ? [] : nodes.filter((d) => !shows(ed, 'node', d.type));
+          const byType = (types: string[]) =>
+            types.map((t) => visible.find((d) => d.type === t)).filter((d): d is (typeof CATALOG)[number] => !!d);
+          const pinned = searching ? [] : byType(prefs.pin.filter((k) => k.startsWith('node:')).map((k) => k.slice(5)));
+          const recent = searching ? [] : byType(prefs.recent).filter((d) => !pinned.includes(d));
+          const first = searching || view.features === 'all' ? [] : byType(view.nodesFirst);
+          return (
+            <>
+              {pinned.length > 0 && (
+                <>
+                  {head('Pinned')}
+                  {pinned.map((d) => pal(d))}
+                </>
+              )}
+              {recent.length > 0 && (
+                <>
+                  {head('Recent')}
+                  {recent.map((d) => pal(d))}
+                </>
+              )}
+              {first.length > 0 && (
+                <>
+                  {head(`For ${view.name}`)}
+                  {first.map((d) => pal(d))}
+                </>
+              )}
+              {[...new Set(visible.map((d) => d.category))].map((cat) => (
+                <>
+                  {head(cat)}
+                  {visible.filter((d) => d.category === cat).map((d) => pal(d))}
+                </>
               ))}
-          </>
-        ))}
+              {hidden.length > 0 && (
+                <details class="lg-more" data-tour="logic-more-nodes">
+                  <summary class="sech" style={{ padding: '6px 10px 2px' }}>
+                    <span>More nodes ({hidden.length})</span>
+                    <span class="small muted">not used by {view.name}</span>
+                  </summary>
+                  {hidden.map((d) => pal(d, true))}
+                </details>
+              )}
+            </>
+          );
+        })()}
       </div>
     </section>
   );

@@ -6,6 +6,7 @@ import type { ProjectMeta } from '../core/project/backend';
 import { type Cinematic, type MediaIndex, paths } from '../core/schema';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { AiPanel } from './ai/AiPanel';
+import { GenreChoice } from './genres/GenreCards';
 import { WorldGraph } from './graph/WorldGraph';
 import { contextHelpPage } from './help/context';
 import { HelpView } from './help/HelpView';
@@ -51,7 +52,8 @@ const STUDIOS = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'C
 export type AppHost = HubHost & {
   /** show the Start hub when the editor opens */
   showHub: boolean;
-  newProject(): Promise<void>;
+  /** P18: a new project of this genre (default Open) */
+  newProject(genre?: string): Promise<void>;
   openProject(id: string): void;
   listProjects(): Promise<ProjectMeta[]>;
   importBytes(name: string, bytes: Uint8Array): Promise<void>;
@@ -61,6 +63,8 @@ export type AppHost = HubHost & {
 export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const vp = useRef<ViewportApi | null>(null);
   const [modal, setModal] = useState<null | 'shortcuts' | 'open' | 'about' | 'new'>(null);
+  /** P18: the kind of game the New project dialog makes */
+  const [newGenre, setNewGenre] = useState('explore');
   const [hub, setHub] = useState(host.showHub);
   const [intent, setIntent] = useState(() => readIntent(ed.store.manifest.id));
   const [help, setHelp] = useState<string | null>(null);
@@ -227,7 +231,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       class={`app${sceneFullscreen.value ? ' scene-full' : ''}${sceneFullscreen.value && fullscreenDock.value ? ' dock-open' : ''}`}
     >
       <MenuBar c={c} />
-      <WorkspaceTabs current={workspace} onPick={(w) => ui.workspace(w)} />
+      <WorkspaceTabs c={c} current={workspace} onPick={(w) => ui.workspace(w)} />
       <Toolbar c={c} />
       {STUDIOS.has(workspace) && !engine ? (
         <div class="body studio-body">
@@ -304,6 +308,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
             Start a new game with a freshly generated map. Your current project stays saved on this device (File › Open
             project).
           </p>
+          <GenreChoice value={newGenre} onPick={setNewGenre} />
           <div class="row">
             <button
               type="button"
@@ -311,7 +316,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
               onClick={async () => {
                 setModal(null);
                 await ed.autosave.flush();
-                await host.newProject();
+                await host.newProject(newGenre);
               }}
             >
               Create new project
@@ -359,6 +364,11 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           onHelp={() => {
             setHub(false);
             setHelp('build-a-game');
+          }}
+          onNewProject={async (genre) => {
+            setHub(false);
+            await ed.autosave.flush();
+            await host.newProject(genre);
           }}
           onAi={() => {
             setHub(false);
