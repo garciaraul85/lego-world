@@ -4,7 +4,7 @@ import { COMBAT_CLIPS } from '../../src/builtin/clips/combat';
 import { CommandBus, registerAll } from '../../src/core/commands';
 import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
-import { type Asset, type Character, Clip, paths } from '../../src/core/schema';
+import { type Asset, type Character, Clip, type Instances, paths } from '../../src/core/schema';
 import { CHARGE_TIME, PARRY_WINDOW, SPIN_TIME } from '../../src/engine/runtime/combat';
 import { PlaySession } from '../../src/engine/runtime/session';
 import { graph } from './logic-helpers';
@@ -34,7 +34,7 @@ const lever: Asset = {
   smash: { enabled: false, rebuild: false, sound: null, studs: 0 },
 };
 
-function game(opts: { shield?: boolean; held?: string; lockable?: boolean } = {}) {
+function game(opts: { shield?: boolean; held?: string; lockable?: boolean; npc?: boolean } = {}) {
   const s = new ProjectStore(newProjectFiles({ name: 'Yard', random: () => 0.3 }));
   const bus = registerAll(new CommandBus(s));
   const map = s.manifest.entry.map;
@@ -75,6 +75,28 @@ function game(opts: { shield?: boolean; held?: string; lockable?: boolean } = {}
     { source: 'user' },
   );
   expect(r.ok, r.error).toBe(true);
+  if (opts.npc) {
+    // a villager 10 studs away from where the test puts the hero
+    const chr = { id: 'chr_villager01', name: 'Mira', role: 'npc', profile: { name: 'Mira' } };
+    const inst = s.get<Instances>(paths.instances(map))!;
+    s.put(paths.character(chr.id), chr);
+    s.put(paths.instances(map), {
+      ...inst,
+      npcsSaved: true,
+      items: [
+        ...inst.items,
+        {
+          id: 'ins_villager01',
+          kind: 'npc',
+          character: chr.id,
+          legacyId: 9,
+          biome: 'prairie',
+          role: 'villager',
+          state: { x: 16, y: 0.4, z: 12, heading: Math.PI },
+        },
+      ],
+    } as Instances);
+  }
   const p = new PlaySession(s.snapshot());
   // the hero stands in front of the crate (which is at x 6..8, z 3..5), facing it (+z), the camera behind
   p.placeAt([6.5, 0.4, 1.6], 0);
@@ -284,5 +306,21 @@ describe('moves and lock-on', () => {
     expect(inst?.def.name).toBe('Switch');
     step(p, 1 / 60);
     expect(p.events.map((e) => e.msg).join('\n')).toMatch(/Logic: locked/);
+  });
+
+  it('P9b.1: locked on to a neighbour, T talks to them at once, even from across the lock range', () => {
+    const p = game({ npc: true });
+    p.placeAt([16, 0.4, 1.6], 0);
+    step(p, 1 / 60);
+    const mira = p.world.npcs.find((n) => n.id === 9)!;
+    expect(mira).toBeTruthy();
+    // too far for a plain T
+    p.talk();
+    expect(p.talking).toBeNull();
+    p.combat.toggleLock();
+    expect(p.combat.target).toEqual({ kind: 'npc', id: 9 });
+    expect(p.message).toMatch(/T to talk/);
+    p.talk();
+    expect(p.talking?.id).toBe(9);
   });
 });

@@ -383,13 +383,8 @@ export class PlaySession {
       this.endTalk();
       return;
     }
-    // P9b.1: locked on to a neighbour: talk to them (from a bit further away than usual)
-    const locked = this.combat.lockedNpc();
-    const h = this.heroState;
-    const npc =
-      locked && Math.hypot(locked.state.x - h.x, locked.state.z - h.z) <= 7
-        ? locked
-        : this.L.NPCWorld.nearest(this.world.npcs, this.heroState);
+    // P9b.1: locked on to a neighbour: talk to them, wherever they are within the lock
+    const npc = this.combat.lockedNpc() ?? this.L.NPCWorld.nearest(this.world.npcs, this.heroState);
     if (!npc) {
       this.say('Nobody close enough to talk to.', 1.5);
       return;
@@ -806,6 +801,7 @@ export class PlaySession {
   lockedOn(t: LockTarget) {
     if (t.kind === 'npc') {
       const n = this.world.npcs.find((x) => x.id === t.id);
+      if (n) this.say(`${n.profile.name ?? 'Neighbour'} — T to talk`, 2);
       this.logic.fire({
         type: 'event.onLockedOn',
         match: { asset: '' },
