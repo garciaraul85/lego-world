@@ -498,7 +498,7 @@ export const SCENE: HelpEntry[] = [
     purpose:
       'The game’s characters (all but the player). Place puts one on the open map as a neighbour, a few studs in front of the first spawn point; in Play it wanders there, talks, and fights the hero if its character is an enemy. Open the Character studio to make or change characters.',
     commands: ['npc.place'],
-    match: [{ in: '[data-tour="dock-characters"]' }],
+    match: [{ sel: '[data-tour="dock-characters"]' }, { in: '[data-tour="dock-characters"]', name: /^Place / }],
     related: ['characters.enemy'],
   },
   {

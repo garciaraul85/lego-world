@@ -38,7 +38,11 @@ function CharacterCards({ c, hint }: { c: ActionCtx; hint: string }) {
     );
   };
   return (
-    <div data-tour="dock-characters" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    <div
+      data-tour="dock-characters"
+      data-help="scene.dock.characters"
+      style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}
+    >
       <span class="muted small">
         {hint} Place puts one on this map as a neighbour, in front of the first spawn point.
       </span>
