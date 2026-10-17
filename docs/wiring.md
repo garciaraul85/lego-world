@@ -48,8 +48,9 @@ full; Screens › bar › Hide when full).
 ## Training yard
 
 `src/core/gamegen/training-yard.ts` returns the commands that build the sample map (World › Add the Training
-yard, one undo step): a floor, two training dummies (health 4, can be locked on), a cracked wall (blunt ×2,
-slash ×½), a practice target wired to open the “Yard gate” door when locked on to, a treasure chest behind
+yard, one undo step) on mock terrain to test on: a 48 × 48 floor fenced all round, a terraced “Grassy hill”
+(jump up, plunge down on the dummy at its foot), boulders to fight around, trees and bushes; three training
+dummies (health 4, can be locked on), a cracked wall (blunt ×2, slash ×½), a practice target wired to open the “Yard gate” door when locked on to, a treasure chest behind
 the gate, a “Sparring knight” enemy (Grunt preset, drops a medal) and four signs.
 
 ## Combat course

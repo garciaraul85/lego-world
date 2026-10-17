@@ -18,7 +18,7 @@ export interface EditorUi {
   /** engine: new runtime (P2); v68: LEGO World v68 runtime; edit: v68 studio */
   play(
     mode: 'engine' | 'v68' | 'edit',
-    opts?: { fromSelectedSpawn?: boolean; fromEntry?: boolean; cinematic?: string },
+    opts?: { fromSelectedSpawn?: boolean; fromEntry?: boolean; cinematic?: string; map?: string },
   ): void;
   stopPlay(): void;
   /** open the Asset studio on an asset (P3.4) */
@@ -302,7 +302,7 @@ export const ACTIONS: EditorAction[] = [
       if (r.ok) {
         ed.openMap(y.map);
         ed.notify(
-          'The Training yard: dummies, a cracked wall, a target that opens a gate, and a sparring knight. Press Play.',
+          'The Training yard: dummies, a hill, a cracked wall, a target that opens a gate and a sparring knight. Play › Play this map tries it.',
         );
       }
     },
@@ -320,6 +320,12 @@ export const ACTIONS: EditorAction[] = [
   { id: 'world.connected', label: 'Generate connected worlds…', run: ({ ui }) => ui.play('edit') },
   // Play
   { id: 'play.start', label: 'Play from the start spawn', key: 'F5', run: ({ ui }) => ui.play('engine') },
+  {
+    // P9c: the open map from its first spawn (the Training yard, a map being tested on its own)
+    id: 'play.map',
+    label: 'Play this map',
+    run: ({ ed, ui }) => ui.play('engine', { map: ed.mapId.value }),
+  },
   {
     id: 'play.here',
     label: 'Play from the selected spawn',
@@ -448,7 +454,17 @@ export const MENUS: Record<string, (string | '-')[]> = {
   ],
   Assets: ['assets.open', 'assets.new', '-', 'assets.resetBuiltins'],
   World: ['world.addMap', 'world.trainingYard', 'world.generate', 'world.graph', 'world.validate', '-', 'play.legacy'],
-  Play: ['play.start', 'play.here', 'play.entry', 'play.pause', 'play.stop', '-', 'play.v68', 'play.legacy'],
+  Play: [
+    'play.start',
+    'play.map',
+    'play.here',
+    'play.entry',
+    'play.pause',
+    'play.stop',
+    '-',
+    'play.v68',
+    'play.legacy',
+  ],
   Window: [
     'window.1',
     'window.2',

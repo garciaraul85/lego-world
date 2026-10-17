@@ -91,6 +91,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'world.connected': A('v68'),
   'play.start': S('core'),
   'play.here': S('core'),
+  'play.map': S('core'),
   'play.entry': S('screens'),
   'play.pause': S('core'),
   'play.stop': S('core'),

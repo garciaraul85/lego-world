@@ -74,6 +74,7 @@ export const ACTION_HELP: Record<string, string> = {
   'world.connected': 'Generates several connected maps at once.',
   'play.start': 'Plays the game from the start spawn of this map.',
   'play.here': 'Plays the game from the selected spawn point.',
+  'play.map': 'Plays the open map from its first spawn point (for example the Training yard), not the game’s start.',
   'play.entry': 'Plays the whole game from its first screen (splash, title, then the game).',
   'play.pause': 'Pauses or resumes the running game.',
   'play.stop': 'Stops playing and goes back to editing. Nothing that happened in Play changes the project.',

@@ -122,11 +122,11 @@
       "id": "combat.play",
       "title": "Fight",
       "body": "In Play: a yellow arrow shows what Z locks on to; locked on, it turns red and the hero faces it. Tap F to attack, hold F to charge, Shift+F for a heavy hit. Hold Q to guard (with a shield, a hit from the front is blocked; raise it just as the red “!” is about to strike to parry). C rolls. Lock on to the red-and-white target to open the gate; smash a dummy to open the chest.",
-      "task": "Press Play and try the yard.",
-      "target": "[data-tour=\"play\"]",
+      "task": "Open the Play menu and click “Play this map”.",
+      "target": "[data-tour=\"menu-play\"]",
       "placement": "bottom",
       "check": { "kind": "play", "event": "running" },
-      "doItForMe": [{ "ui": "play" }]
+      "doItForMe": [{ "action": "play.map" }]
     },
     {
       "id": "combat.done",

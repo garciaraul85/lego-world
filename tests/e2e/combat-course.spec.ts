@@ -54,6 +54,14 @@ test('Combat course: Do it for me adds the Training yard, makes the knight tough
         expect(knight?.enemy).toMatchObject({ power: 2, windup: 0.9 });
       }
       if (title === 'Fight') {
+        // Play this map: the yard itself, not the game's start
+        expect(
+          await page.evaluate(
+            () =>
+              (window as unknown as { __editor: { session: { value: { world: { doc: { name: string } } } | null } } })
+                .__editor.session.value?.world.doc.name,
+          ),
+        ).toBe('Training yard');
         await page.keyboard.press('F5');
       }
     }

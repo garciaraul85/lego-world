@@ -122,7 +122,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         }
         const spawnId = opts?.fromSelectedSpawn ? ed.selectedSpawn.value : null;
         const scene = opts?.cinematic ? ed.store.get<Cinematic>(paths.cinematic(opts.cinematic)) : undefined;
-        const mapId = scene?.map ?? (opts?.fromSelectedSpawn ? ed.mapId.value : ed.store.manifest.entry.map);
+        const mapId =
+          scene?.map ?? opts?.map ?? (opts?.fromSelectedSpawn ? ed.mapId.value : ed.store.manifest.entry.map);
         setWorkspace('Scene');
         setEngine({
           mapId,

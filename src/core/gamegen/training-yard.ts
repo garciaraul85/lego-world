@@ -31,9 +31,10 @@ const asset = (name: string, over: Partial<Asset>): Asset => ({
   ...over,
 });
 
-/** 32 × 32 studs of ground: sixteen 8 × 8 plates, a darker one every other */
-const floorBricks: Bricks = [0, 1, 2, 3].flatMap((i) =>
-  [0, 1, 2, 3].map((j) => [0, i * 8, 0, j * 8, 0, (i + j) % 2, 0] as Bricks[number]),
+/** 48 × 48 studs of ground: thirty-six 8 × 8 plates, a darker one every other */
+const SIDE = [0, 1, 2, 3, 4, 5];
+const floorBricks: Bricks = SIDE.flatMap((i) =>
+  SIDE.map((j) => [0, i * 8, 0, j * 8, 0, (i + j) % 2, 0] as Bricks[number]),
 );
 
 export function trainingYard(opts: { name?: string } = {}): TrainingYard {
@@ -41,7 +42,7 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
   const spawn = newId('spawn');
   const floor = asset('Yard floor', {
     palette: { types: ['plate8x8'], colors: ['#6aa84f', '#5a9443'] },
-    footprint: [32, 32],
+    footprint: [48, 48],
     bricks: floorBricks,
     smash: { enabled: false, rebuild: false, sound: null, studs: 0 },
   });
@@ -81,6 +82,40 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
     smash: { enabled: false, rebuild: false, sound: null, studs: 0 },
     lockOn: true,
   });
+  // mock terrain to test on: a terraced hill (jump up, plunge down), boulders to fight around
+  const hill = asset('Grassy hill', {
+    category: 'nature',
+    palette: { types: ['brick8x8', 'brick4x4'], colors: ['#5c8a3a', '#4f7a31', '#7a5b3a'] },
+    footprint: [16, 16],
+    bricks: [
+      [0, 0, 0, 0, 0, 0, 0],
+      [0, 8, 0, 0, 0, 0, 0],
+      [0, 0, 0, 8, 0, 0, 0],
+      [0, 8, 0, 8, 0, 0, 0],
+      [0, 4, 3, 4, 0, 1, 0],
+      [1, 6, 6, 6, 0, 2, 0],
+    ],
+    smash: { enabled: false, rebuild: false, sound: null, studs: 0 },
+  });
+  const boulder = asset('Boulder', {
+    category: 'nature',
+    palette: { types: ['brick2x4', 'brick2x2', 'brick1x2'], colors: ['#8a8f96', '#6f747b'] },
+    footprint: [4, 2],
+    bricks: [
+      [0, 0, 0, 0, 0, 0, 0],
+      [1, 1, 3, 0, 0, 1, 0],
+      [2, 1, 6, 0, 0, 0, 0],
+    ],
+    smash: { enabled: false, rebuild: false, sound: null, studs: 0 },
+  });
+  const nature = (n: string) => BUILTIN_ASSETS.find((a) => a.name === n)!;
+  const [pine, oak, shrub, fern, bush] = ['Pine tree', 'Oak tree', 'Shrub', 'Fern', 'Flower bush'].map(nature) as [
+    Asset,
+    Asset,
+    Asset,
+    Asset,
+    Asset,
+  ];
   const door = BUILTIN_ASSETS.find((a) => a.name === 'Door')!;
   const fence = BUILTIN_ASSETS.find((a) => a.name === 'Fence')!;
   const chest = BUILTIN_ASSETS.find((a) => a.name === 'Treasure chest')!;
@@ -109,7 +144,7 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
     type: 'item.add',
     payload: {
       map,
-      item: { id: newId('instance'), kind: 'ui', widget: 'sign', pos: [x, 3.2, z], text, maxDistance: 18 },
+      item: { id: newId('instance'), kind: 'ui', widget: 'sign', pos: [x, 3.2, z], text, maxDistance: 9 },
     },
   });
   // locking on to the target opens the gate: a wire (two cards in the target's own script)
@@ -130,8 +165,31 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
     },
     { type: 'map.updateSpawn', payload: { map, spawn, pos: [0, 0.4, -12], yaw: Math.PI, name: 'Yard entrance' } },
     ...[floor, dummy, wall, target].map((a) => ({ type: 'asset.create', payload: { asset: a } })),
-    ...[door, fence, chest].map((a) => ({ type: 'asset.create', payload: { asset: a } })),
-    { type: 'asset.place', payload: { map, asset: floor.id, pos: [-16, 0, -16] } },
+    ...[door, fence, chest, hill, boulder, pine, oak, shrub, fern, bush].map((a) => ({
+      type: 'asset.create',
+      payload: { asset: a },
+    })),
+    { type: 'asset.place', payload: { map, asset: floor.id, pos: [-24, 0, -24] } },
+    // the mock terrain: a fence all round, a hill in the north-west, boulders, trees and bushes
+    ...[-24, -20, -16, -12, -8, -4, 0, 4, 8, 12, 16, 20].flatMap((x) => [
+      { type: 'asset.place', payload: { map, asset: fence.id, pos: [x, 1, -24] } },
+      { type: 'asset.place', payload: { map, asset: fence.id, pos: [x, 1, 23] } },
+    ]),
+    ...[-23, -19, -15, -11, -7, -3, 1, 5, 9, 13, 17].flatMap((z) => [
+      { type: 'asset.place', payload: { map, asset: fence.id, pos: [-24, 1, z], rot: 1 } },
+      { type: 'asset.place', payload: { map, asset: fence.id, pos: [23, 1, z], rot: 1 } },
+    ]),
+    { type: 'asset.place', payload: { map, asset: hill.id, pos: [-23, 1, 7] } },
+    { type: 'asset.place', payload: { map, asset: boulder.id, pos: [18, 1, -14] } },
+    { type: 'asset.place', payload: { map, asset: boulder.id, pos: [-19, 1, 0] } },
+    { type: 'asset.place', payload: { map, asset: boulder.id, pos: [3, 1, 15] } },
+    { type: 'asset.place', payload: { map, asset: pine.id, pos: [-22, 1, -22] } },
+    { type: 'asset.place', payload: { map, asset: pine.id, pos: [14, 1, -22] } },
+    { type: 'asset.place', payload: { map, asset: oak.id, pos: [15, 1, 14] } },
+    { type: 'asset.place', payload: { map, asset: shrub.id, pos: [-14, 1, -20] } },
+    { type: 'asset.place', payload: { map, asset: shrub.id, pos: [19, 1, -6] } },
+    { type: 'asset.place', payload: { map, asset: fern.id, pos: [-18, 1, -8] } },
+    { type: 'asset.place', payload: { map, asset: bush.id, pos: [2, 1, -20] } },
     // left: two dummies to lock on to and hit
     { type: 'asset.place', payload: { map, asset: dummy.id, pos: [-9, 1, -4], id: ins.dummyA } },
     { type: 'asset.place', payload: { map, asset: dummy.id, pos: [-5, 1, -2], id: ins.dummyB } },
@@ -153,6 +211,9 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
     sign(0, 3, 'Cracked wall: blunt hits (a hammer) break it faster than a sword'),
     sign(7, -7, 'Lock on to the target (Z) to open the gate'),
     sign(-1, 8, 'Sparring knight: hold Q to guard, raise it just in time to parry, C to roll'),
+    // a third dummy at the foot of the hill: jump down from the top and press F while falling (plunge)
+    { type: 'asset.place', payload: { map, asset: dummy.id, pos: [-5, 1, 18] } },
+    sign(-10, 4, 'Hill: jump up (Space), then from the top press F while falling to plunge on the dummy'),
   ];
   return { map, spawn, commands };
 }
