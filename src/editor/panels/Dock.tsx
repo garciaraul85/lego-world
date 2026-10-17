@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'preact/hooks';
 import { usesOf } from '../../core/audio/usage';
 import type { Cinematic } from '../../core/schema';
+import { type Character, type MapDoc, paths } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
 import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
@@ -13,6 +14,51 @@ import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
 import { MixerView } from '../workspaces/audio/MixerView';
 import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
+
+/**
+ * P9c: the game's characters, each with “Place” — it stands on the open map as a neighbour, a few studs in
+ * front of the map's first spawn point (an enemy fights the hero there in Play). Looks are made in the studio.
+ */
+function CharacterCards({ c, hint }: { c: ActionCtx; hint: string }) {
+  const { ed } = c;
+  ed.revision.value;
+  const list = ed.store
+    .list('characters/')
+    .map((p) => ed.store.get<Character>(p)!)
+    .filter((x) => x && x.id !== ed.store.manifest.hero);
+  const place = (chr: Character) => {
+    const map = ed.mapId.value;
+    const sp = ed.store.get<MapDoc>(paths.map(map))?.spawns[0];
+    const yaw = sp?.yaw ?? 0;
+    const at = sp?.pos ?? [0, 0.4, 0];
+    const pos: [number, number, number] = [at[0] - Math.sin(yaw) * 5, at[1], at[2] - Math.cos(yaw) * 5];
+    ed.exec(
+      { type: 'npc.place', payload: { map, character: chr.id, pos, heading: yaw } },
+      { label: `Place ${chr.name}` },
+    );
+  };
+  return (
+    <div data-tour="dock-characters" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <span class="muted small">
+        {hint} Place puts one on this map as a neighbour, in front of the first spawn point.
+      </span>
+      {list.map((chr) => (
+        <div class="row small" style={{ gap: '6px' }}>
+          <span style={{ flex: 1 }}>
+            {chr.name}
+            {chr.enemy ? ' · enemy' : ''}
+          </span>
+          <button type="button" class="btn" aria-label={`Place ${chr.name}`} onClick={() => place(chr)}>
+            Place
+          </button>
+        </div>
+      ))}
+      <button type="button" class="btn on" onClick={() => c.ui.workspace('Characters')}>
+        Open the Character studio
+      </button>
+    </div>
+  );
+}
 
 const CATS: [string, string | null, string][] = [
   [
@@ -101,13 +147,7 @@ function Assets({ c }: { c: ActionCtx }) {
         {cur[0] === 'Assets' ? (
           <AssetCards c={c} />
         ) : cur[0] === 'Characters' ? (
-          <div class="placeholder" style={{ padding: '8px' }}>
-            <strong>Characters</strong>
-            <span class="muted">{cur[2]}</span>
-            <button type="button" class="btn on" onClick={() => c.ui.workspace('Characters')}>
-              Open the Character studio
-            </button>
-          </div>
+          <CharacterCards c={c} hint={cur[2]} />
         ) : cur[0] === 'Cinematics' ? (
           <MediaCards
             c={c}

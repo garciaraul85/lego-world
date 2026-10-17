@@ -490,6 +490,18 @@ export const SCENE: HelpEntry[] = [
     ],
   },
   {
+    id: 'scene.dock.characters',
+    also: ['place a neighbour', 'place an enemy', 'add npc', 'put a character on the map'],
+    screen: 'scene',
+    kind: 'list',
+    name: 'Characters in the dock',
+    purpose:
+      'The game’s characters (all but the player). Place puts one on the open map as a neighbour, a few studs in front of the first spawn point; in Play it wanders there, talks, and fights the hero if its character is an enemy. Open the Character studio to make or change characters.',
+    commands: ['npc.place'],
+    match: [{ in: '[data-tour="dock-characters"]' }],
+    related: ['characters.enemy'],
+  },
+  {
     id: 'scene.script',
     also: ['wire', 'wiring', 'switch', 'lever', 'connect', 'script on object', 'name an object', 'this'],
     screen: 'scene',

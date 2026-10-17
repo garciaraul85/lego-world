@@ -268,3 +268,18 @@ export function downTriangle(w: number, h: number, t: number, yaw: number): Geom
   tri([R(f), T(-f), R(-f)], sr);
   return { positions: new Float32Array(pos), normals: new Float32Array(nor) };
 }
+
+/** P9c: a copy of a geometry turned about y (x goes to (cos, 0, −sin)), for markers that face the camera */
+export function turnedY(g: Geometry, yaw: number): Geometry {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  const out = { positions: new Float32Array(g.positions), normals: new Float32Array(g.normals) };
+  for (const arr of [out.positions, out.normals])
+    for (let i = 0; i < arr.length; i += 3) {
+      const x = arr[i]!;
+      const z = arr[i + 2]!;
+      arr[i] = x * c + z * s;
+      arr[i + 2] = -x * s + z * c;
+    }
+  return out;
+}

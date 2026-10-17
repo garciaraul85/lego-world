@@ -256,6 +256,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               type="button"
               role="option"
               aria-selected={x.id === chr.id}
+              data-name={x.name}
               class={`lib-item ${x.id === chr.id ? 'on' : ''}`}
               onClick={() => (ed.studioCharacter.value = x.id)}
             >

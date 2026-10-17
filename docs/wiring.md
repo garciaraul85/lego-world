@@ -32,3 +32,27 @@ an unnamed target first); the Scene view draws a teal line from each wired objec
 then a `windup` (arm raised, a red “!” drawn over the head) and the swing, which goes through
 `PlaySession.damage('hero', power, type, 'n:<id>')` — so guard, parry (stuns it), dodge and stamina apply —
 and `cooldown`. Enemies stop while stunned, during a cinematic, a talk or after the game is over.
+
+## Placing neighbours
+
+`npc.place` puts a character on a map as a neighbour (`NpcInstance`, next free `legacyId`, `npcsSaved: true`,
+so v68's default neighbours no longer appear on that map); `npc.remove` takes one off.
+
+## Health bars and stamina
+
+`PlaySession.healthBars()` lists hurt objects and neighbours (and enemies in a fight) within 25 studs; the play
+renderer draws each as two camera-facing boxes (`Marker.facing`, `turnedY`) over everything. The built-in HUD
+has a stamina `bar` bound to `stamina` / `maxStamina` with `style.hideFull` (new: a bar that hides while
+full; Screens › bar › Hide when full).
+
+## Training yard
+
+`src/core/gamegen/training-yard.ts` returns the commands that build the sample map (World › Add the Training
+yard, one undo step): a floor, two training dummies (health 4, can be locked on), a cracked wall (blunt ×2,
+slash ×½), a practice target wired to open the “Yard gate” door when locked on to, a treasure chest behind
+the gate, a “Sparring knight” enemy (Grunt preset, drops a medal) and four signs.
+
+## Combat course
+
+Help › Combat course (track `combat`, `src/editor/tutorial/content/11-combat.json`): add the Training yard,
+make the knight hit harder and warn longer (click-by-click lines), wire a dummy to the chest, play.

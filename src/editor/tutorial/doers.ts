@@ -77,6 +77,15 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     }
     setTimeout(() => c.ui.frameSelection(), 30);
   },
+  /** P9c: selects the first placed copy of an asset (by name) on the open map and frames it */
+  selectObject(c, a) {
+    const s = c.ed.scene.value;
+    if (!s) return;
+    const pick = [...new Set(s.instanceOf.values())].find((i) => i.def.name === a.asset);
+    if (!pick) throw new Error(`There is no ${String(a.asset)} on this map.`);
+    c.ed.select(pick.bricks.map((b) => b.id));
+    setTimeout(() => c.ui.frameSelection(), 30);
+  },
   moveSomething(c) {
     // the selected object (or a placed asset) moves a few studs to where it can stand
     const s = c.ed.scene.value!;

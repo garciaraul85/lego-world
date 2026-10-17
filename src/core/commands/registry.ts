@@ -61,6 +61,7 @@ import {
   updateSpawn,
   updateZone,
 } from './handlers/map';
+import { placeNpc, removeNpc } from './handlers/npcs';
 
 /** Every command type the engine knows. Append-only: add new handlers at the end. */
 export function registerAll(bus: CommandBus): CommandBus {
@@ -88,6 +89,8 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('instance.remove', removeInstance);
   bus.register('instance.setState', setInstanceState);
   bus.register('instance.rename', renameInstance);
+  bus.register('npc.place', placeNpc);
+  bus.register('npc.remove', removeNpc);
   bus.register('instance.unpack', unpackInstance);
   bus.register('instance.transform', transformInstance);
   bus.register('asset.make', makeAsset);

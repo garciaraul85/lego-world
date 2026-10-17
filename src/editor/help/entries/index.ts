@@ -38,6 +38,8 @@ export const COMMAND_TYPES = [
   'instance.remove',
   'instance.setState',
   'instance.rename',
+  'npc.place',
+  'npc.remove',
   'instance.unpack',
   'instance.transform',
   'character.create',

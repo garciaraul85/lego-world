@@ -1,0 +1,158 @@
+import { BUILTIN_ASSETS } from '../../builtin/assets';
+import { BUILTIN_CHARACTERS } from '../../builtin/characters';
+import { ENEMY_PRESETS } from '../combat/enemy';
+import type { Command } from '../commands';
+import { newId } from '../ids';
+import { addWire } from '../logic/wiring';
+import type { Asset, Character } from '../schema';
+
+/**
+ * P9c: the Training yard — a sample map to practise everything P9 adds, made only from engine commands (so it
+ * undoes in one step and the AI builder could make the same): a floor, training dummies (lock on with Z, hit
+ * with F), a cracked wall that blunt hits break faster, a target that opens a gate when you lock on to it
+ * (wired, no code), a chest behind the gate, a sparring knight who fights back, and signs that say what to try.
+ */
+export type TrainingYard = { map: string; spawn: string; commands: Command[] };
+
+type Bricks = Asset['bricks'];
+const base = BUILTIN_ASSETS.find((a) => a.name === 'Wooden crate')!;
+const asset = (name: string, over: Partial<Asset>): Asset => ({
+  ...base,
+  id: newId('asset') as Asset['id'],
+  name,
+  category: 'prop',
+  health: undefined,
+  sockets: [],
+  states: ['default'],
+  initialState: 'default',
+  interactions: [],
+  generator: null,
+  origin: 'user',
+  ...over,
+});
+
+/** 32 × 32 studs of ground: sixteen 8 × 8 plates, a darker one every other */
+const floorBricks: Bricks = [0, 1, 2, 3].flatMap((i) =>
+  [0, 1, 2, 3].map((j) => [0, i * 8, 0, j * 8, 0, (i + j) % 2, 0] as Bricks[number]),
+);
+
+export function trainingYard(opts: { name?: string } = {}): TrainingYard {
+  const map = newId('map');
+  const spawn = newId('spawn');
+  const floor = asset('Yard floor', {
+    palette: { types: ['plate8x8'], colors: ['#6aa84f', '#5a9443'] },
+    footprint: [32, 32],
+    bricks: floorBricks,
+    smash: { enabled: false, rebuild: false, sound: null, studs: 0 },
+  });
+  const dummy = asset('Training dummy', {
+    palette: { types: ['plate2x2', 'brick2x2'], colors: ['#6e4626', '#c8a165', '#e8d1a0'] },
+    footprint: [2, 2],
+    bricks: [
+      [0, 0, 0, 0, 0, 0, 0],
+      [1, 0, 1, 0, 0, 1, 0],
+      [1, 0, 4, 0, 0, 1, 0],
+      [1, 0, 7, 0, 0, 2, 0],
+    ],
+    smash: { enabled: true, rebuild: true, sound: null, studs: 0 },
+    health: { hp: 4, atZero: { break: true } },
+    lockOn: true,
+  });
+  const wall = asset('Cracked wall', {
+    palette: { types: ['brick1x8'], colors: ['#8d8d8d', '#a5a5a5'] },
+    footprint: [8, 1],
+    bricks: [
+      [0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 3, 0, 0, 1, 0],
+      [0, 0, 6, 0, 0, 0, 0],
+    ],
+    smash: { enabled: true, rebuild: true, sound: null, studs: 0 },
+    // blunt hits (a hammer) do double, blades only half
+    health: { hp: 6, resist: { blunt: 2, slash: 0.5 }, atZero: { break: true } },
+  });
+  const target = asset('Practice target', {
+    palette: { types: ['brick2x2'], colors: ['#d93a3a', '#f4f4f4'] },
+    footprint: [2, 2],
+    bricks: [
+      [0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 3, 0, 0, 1, 0],
+      [0, 0, 6, 0, 0, 0, 0],
+    ],
+    smash: { enabled: false, rebuild: false, sound: null, studs: 0 },
+    lockOn: true,
+  });
+  const door = BUILTIN_ASSETS.find((a) => a.name === 'Door')!;
+  const fence = BUILTIN_ASSETS.find((a) => a.name === 'Fence')!;
+  const chest = BUILTIN_ASSETS.find((a) => a.name === 'Treasure chest')!;
+  const knightLook = BUILTIN_CHARACTERS.find((c) => c.name === 'Knight') ?? BUILTIN_CHARACTERS[0]!;
+  const grunt = ENEMY_PRESETS.grunt!;
+  const knight: Character = {
+    id: newId('character') as Character['id'],
+    name: 'Sparring knight',
+    role: 'npc',
+    profile: { ...knightLook.profile, name: 'Sparring knight', held: 'Sword' },
+    harm: {
+      canBeHarmed: true,
+      health: { ...grunt.health, atZero: { break: false, drop: { item: 'medal', count: 1 } } },
+    },
+    enemy: { ...grunt.enemy, sight: 8 },
+  };
+  const ins = {
+    dummyA: newId('instance'),
+    dummyB: newId('instance'),
+    wall: newId('instance'),
+    target: newId('instance'),
+    gate: newId('instance'),
+    chest: newId('instance'),
+  };
+  const sign = (x: number, z: number, text: string) => ({
+    type: 'item.add',
+    payload: {
+      map,
+      item: { id: newId('instance'), kind: 'ui', widget: 'sign', pos: [x, 3.2, z], text, maxDistance: 18 },
+    },
+  });
+  // locking on to the target opens the gate: a wire (two cards in the target's own script)
+  const targetScript = addWire(
+    null,
+    { id: ins.target, name: 'Practice target', newId: () => newId('logic') },
+    'lockedOn',
+    {
+      kind: 'state',
+      target: 'Yard gate',
+      state: 'open',
+    },
+  );
+  const commands: Command[] = [
+    {
+      type: 'map.create',
+      payload: { id: map, name: opts.name ?? 'Training yard', spawnId: spawn },
+    },
+    { type: 'map.updateSpawn', payload: { map, spawn, pos: [0, 0.4, -12], yaw: Math.PI, name: 'Yard entrance' } },
+    ...[floor, dummy, wall, target].map((a) => ({ type: 'asset.create', payload: { asset: a } })),
+    ...[door, fence, chest].map((a) => ({ type: 'asset.create', payload: { asset: a } })),
+    { type: 'asset.place', payload: { map, asset: floor.id, pos: [-16, 0, -16] } },
+    // left: two dummies to lock on to and hit
+    { type: 'asset.place', payload: { map, asset: dummy.id, pos: [-9, 1, -4], id: ins.dummyA } },
+    { type: 'asset.place', payload: { map, asset: dummy.id, pos: [-5, 1, -2], id: ins.dummyB } },
+    // middle: the cracked wall
+    { type: 'asset.place', payload: { map, asset: wall.id, pos: [-4, 1, 6], id: ins.wall } },
+    // right: the target, and the gated pen with the chest
+    { type: 'asset.place', payload: { map, asset: target.id, pos: [7, 1, -4], id: ins.target } },
+    { type: 'asset.place', payload: { map, asset: fence.id, pos: [5, 1, 6] } },
+    { type: 'asset.place', payload: { map, asset: door.id, pos: [9, 1, 6], id: ins.gate } },
+    { type: 'asset.place', payload: { map, asset: fence.id, pos: [13, 1, 6] } },
+    { type: 'asset.place', payload: { map, asset: chest.id, pos: [10, 1, 10], id: ins.chest } },
+    { type: 'instance.rename', payload: { map, instance: ins.gate, name: 'Yard gate' } },
+    { type: 'instance.rename', payload: { map, instance: ins.target, name: 'Practice target' } },
+    { type: 'logic.create', payload: { graph: { ...targetScript, name: 'Practice target script' } } },
+    // the sparring knight: an enemy that walks over when you come close
+    { type: 'character.create', payload: { character: knight } },
+    { type: 'npc.place', payload: { map, character: knight.id, pos: [0, 0.4, 11], heading: Math.PI } },
+    sign(-7, -7, 'Dummies: Z locks on, F attacks (hold to charge, Shift+F heavy)'),
+    sign(0, 3, 'Cracked wall: blunt hits (a hammer) break it faster than a sword'),
+    sign(7, -7, 'Lock on to the target (Z) to open the gate'),
+    sign(-1, 8, 'Sparring knight: hold Q to guard, raise it just in time to parry, C to roll'),
+  ];
+  return { map, spawn, commands };
+}

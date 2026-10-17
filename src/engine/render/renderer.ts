@@ -1,5 +1,5 @@
 import type { SkySample } from '../../core/legacy/modules';
-import { brickGeometry, coneGeometry, downTriangle, type Geometry, PLATE, plainBox } from './brick-geometry';
+import { brickGeometry, coneGeometry, downTriangle, type Geometry, PLATE, plainBox, turnedY } from './brick-geometry';
 import type { CameraFrame } from './camera';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from './math';
 import { FRAGMENT, SKY_FRAGMENT, SKY_VERTEX, VERTEX } from './shaders';
@@ -45,6 +45,8 @@ export type Marker = {
   cone?: 'x' | 'y' | 'z' | '-y';
   /** a flat triangle pointing down (size: width, height, thickness), turned to face this yaw — the lock-on arrow */
   tri?: number;
+  /** a box turned about y to this yaw (its width along the camera's right): health bars */
+  facing?: number;
 };
 
 export type FrameStats = { drawCalls: number; instances: number; chunksDrawn: number; chunks: number; ms: number };
@@ -220,6 +222,16 @@ export class Renderer {
       return mesh;
     }
     if (m.cone) return this.coneMesh(m.size[0] / 2, m.size[1], m.cone);
+    if (m.facing !== undefined) {
+      const step = Math.round((m.facing / (Math.PI * 2)) * 64) & 63;
+      const key = `face:${m.size.join(',')}:${step}`;
+      let mesh = this.meshes.get(key);
+      if (!mesh) {
+        mesh = this.upload(turnedY(plainBox(m.size[0], m.size[1], m.size[2]), (step / 64) * Math.PI * 2));
+        this.meshes.set(key, mesh);
+      }
+      return mesh;
+    }
     return this.boxMesh(`marker:${m.size.join(',')}`, m.size[0], m.size[1], m.size[2]);
   }
 

@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DOERS } from '../../src/editor/tutorial/doers';
-import { CHAPTERS, CODING_STEPS, STEPS } from '../../src/editor/tutorial/index';
+import { CHAPTERS, CODING_STEPS, COMBAT_STEPS, STEPS } from '../../src/editor/tutorial/index';
 import { type Do, howLines } from '../../src/editor/tutorial/schema';
 
 /** All editor and engine UI sources, concatenated (targets are checked statically). */
@@ -23,6 +23,7 @@ const TEMPLATED: Record<string, RegExp> = {
   pick: /`pick-\$\{tour\}/,
   tab: /data-tour=\{`tab-\$\{/,
   menu: /data-tour=\{`menu-\$\{/,
+  enemy: /tour=\{`enemy-\$\{/,
 };
 
 /** attributes built from template literals (aria-label={`Add to ${row.label}`}) as patterns */
@@ -66,7 +67,7 @@ describe('tutorial content (P7.4)', () => {
 
   it('every target selector names something the editor renders', () => {
     const missing: string[] = [];
-    for (const s of [...STEPS, ...CODING_STEPS]) {
+    for (const s of [...STEPS, ...CODING_STEPS, ...COMBAT_STEPS]) {
       for (const m of s.target.matchAll(/\[(data-tour|aria-label|title)="([^"]+)"\]/g)) {
         if (!present(m[1]!, m[2]!)) missing.push(`${s.id}: ${m[0]}`);
       }
@@ -79,11 +80,11 @@ describe('tutorial content (P7.4)', () => {
 
   it('every Do it for me uses a known doer', () => {
     const bad: string[] = [];
-    for (const s of STEPS)
+    for (const s of [...STEPS, ...COMBAT_STEPS])
       for (const d of actionsOf(s)) if ('fn' in d && !(d.fn in DOERS)) bad.push(`${s.id}: ${d.fn}`);
     expect(bad).toEqual([]);
     // everything except reading steps can be done automatically
-    const manual = [...STEPS, ...CODING_STEPS]
+    const manual = [...STEPS, ...CODING_STEPS, ...COMBAT_STEPS]
       .filter((s) => !actionsOf(s).length && s.check.kind !== 'manual')
       .map((s) => s.id);
     expect(manual).toEqual([]);
@@ -91,7 +92,7 @@ describe('tutorial content (P7.4)', () => {
 
   it('scripted lines (P32) are runnable by a person or an AI: named controls, one verification each', () => {
     const bad: string[] = [];
-    for (const s of STEPS) {
+    for (const s of [...STEPS, ...COMBAT_STEPS]) {
       const lines = howLines(s);
       if (!lines.some((l) => l.do?.length)) continue;
       lines.forEach((l, i) => {

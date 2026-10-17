@@ -168,6 +168,8 @@ export function WidgetView(props: WidgetProps) {
       const v = asNumber(cur ? host.lookup(cur) : 0);
       const m = Math.max(0.0001, asNumber(max ? host.lookup(max) : (w.style?.max ?? 100), 100));
       const k = Math.max(0, Math.min(1, v / m));
+      // P9c: a bar that only shows while it is not full (stamina while guarding)
+      if (w.style?.hideFull && k >= 1 && !host.preview) return null;
       const color = typeof w.style?.color === 'string' ? w.style.color : '#4ade80';
       return frame(
         p,

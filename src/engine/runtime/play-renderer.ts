@@ -201,6 +201,25 @@ export class PlayRenderer {
       });
       markers.push({ pos: [n.state.x, y, n.state.z], size: [0.16, 0.16, 0.16], color: [1, 0.2, 0.15], onTop: true });
     }
+    // P9c: health bars over hurt objects and neighbours, and over enemies in a fight
+    for (const b of s.healthBars()) {
+      const W = 1.6;
+      const yaw = s.camYaw;
+      const right: Vec3 = [Math.cos(yaw), 0, -Math.sin(yaw)];
+      const toEye: Vec3 = [Math.sin(yaw) * 0.03, 0, Math.cos(yaw) * 0.03];
+      markers.push({ pos: b.pos, size: [W + 0.08, 0.26, 0.04], color: [0.08, 0.08, 0.1], facing: yaw, onTop: true });
+      const k = Math.max(0, Math.min(1, b.k));
+      if (k > 0) {
+        const shift = -(W - W * k) / 2;
+        markers.push({
+          pos: [b.pos[0] + right[0] * shift + toEye[0], b.pos[1], b.pos[2] + right[2] * shift + toEye[2]],
+          size: [W * k, 0.18, 0.04],
+          color: k > 0.5 ? [0.35, 0.85, 0.35] : k > 0.25 ? [0.95, 0.75, 0.2] : [0.95, 0.3, 0.25],
+          facing: yaw,
+          onTop: true,
+        });
+      }
+    }
     // P9b.1: where smashed things can be rebuilt — their bricks float as ghosts where they go back (filling
     // in while E is held), over a glowing patch that shows where to stand
     let ghosts = 0;

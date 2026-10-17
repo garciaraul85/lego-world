@@ -8,6 +8,7 @@ import * as G from '../commands/handlers/gates';
 import * as I from '../commands/handlers/items';
 import * as L from '../commands/handlers/logic';
 import * as M from '../commands/handlers/map';
+import * as Np from '../commands/handlers/npcs';
 import type { CommandHandler } from '../commands/types';
 import type { idPattern } from '../ids';
 import {
@@ -357,6 +358,30 @@ export const AI_COMMANDS: AiCommand[] = [
     'Scene',
     'Names one placed copy (“Gate switch”) so logic and wiring can refer to it by name; null removes the name.',
     { map: M1, instance: 'ins_ffffffffff', name: 'Gate switch' },
+  ),
+  def(
+    'npc.place',
+    Np.placeNpc,
+    z.strictObject({
+      map,
+      character: ids('character'),
+      pos: z.tuple([z.number(), z.number(), z.number()]),
+      heading: z.number().optional(),
+      id: ids('instance').optional(),
+    }),
+    ['map', 'character'],
+    'Scene',
+    'Puts a character on a map as a neighbour (it wanders near there, talks, and fights the hero if its character is an enemy). pos is in studs; y 0.4 stands on the ground plate.',
+    { map: M1, character: 'chr_knight0000', pos: [4, 0.4, 6] },
+  ),
+  def(
+    'npc.remove',
+    Np.removeNpc,
+    z.strictObject({ map, instance: ids('instance') }),
+    ['map'],
+    'Scene',
+    'Takes a placed neighbour off a map.',
+    { map: M1, instance: 'ins_ffffffffff' },
   ),
   def(
     'instance.transform',

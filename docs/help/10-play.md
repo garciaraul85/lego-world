@@ -36,6 +36,14 @@ The `stamina` and `maxStamina` variables hold the guard's stamina, for a HUD bar
 
 F swings what the hero holds. Bare hands, a hammer or a wrench hit for 1 (blunt), a sword for 2 (slash), a war hammer for 2.5 and a sledgehammer for 3 (blunt), a torch for 1 (fire). Things with health lose some with each hit and break at zero; things without health break at the first hit, as before. Neighbours are only hurt when their character has **Can be harmed** on. The hero's health is its hearts (the hp variable): falling off the world, or logic's **Damage**, takes them; **Heal** gives them back.
 
+## Health bars and stamina
+
+A bar over a thing shows its health once it has been hurt (green, then yellow, then red), and over an enemy for as long as it fights. The HUD's stamina bar (under the hearts) shows while you guard and fills back up when you stop; it hides when full.
+
+## Enemies
+
+A neighbour whose character **fights the hero** (Character studio) wanders until it sees you, walks over, raises its arm with a red **!** over its head, then swings. Guard (Q) to block from the front, raise the guard just as it swings to parry (it is stunned), or roll (C). The **Training yard** (World › Add the Training yard) has one to practise on.
+
 ## Rebuilding
 
 Smashed things that can be rebuilt show where they go back: their bricks float there as see-through ghosts over a glowing patch. Stand on or next to the patch (it turns green when you are close enough) and hold E: the ghost bricks fill in one by one until it is whole again.

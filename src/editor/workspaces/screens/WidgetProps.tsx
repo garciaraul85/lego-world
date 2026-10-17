@@ -427,6 +427,16 @@ export function WidgetProps({
             />
             Hide when empty
           </label>
+          {w.type === 'bar' && (
+            <label class="row small">
+              <input
+                type="checkbox"
+                checked={!!w.style?.hideFull}
+                onChange={(e) => style('hideFull', (e.target as HTMLInputElement).checked ? 1 : undefined)}
+              />
+              Hide when full
+            </label>
+          )}
           <label class="row small">
             <input
               type="checkbox"

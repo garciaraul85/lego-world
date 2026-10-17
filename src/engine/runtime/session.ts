@@ -775,6 +775,33 @@ export class PlaySession {
   }
 
   /** the neighbour called this (by name, or n:<id>) */
+  /**
+   * P9c: health bars to draw: objects and neighbours that have been hurt (and are still standing), and enemies
+   * in a fight, within 25 studs. k = health left (0–1).
+   */
+  healthBars(): { pos: Vec3; k: number }[] {
+    const h = this.heroState;
+    const out: { pos: Vec3; k: number }[] = [];
+    const near = (x: number, z: number) => Math.hypot(x - h.x, z - h.z) <= 25;
+    for (const i of this.world.instances) {
+      const w = this.health.peek(`i:${i.inst.id}`);
+      if (!w || w.hp <= 0 || w.hp >= w.max) continue;
+      const c = this.instanceCenter(i);
+      const top = this.instanceTop(i);
+      if (c && top !== null && near(c[0], c[2])) out.push({ pos: [c[0], top + 1.1, c[2]], k: w.hp / w.max });
+    }
+    for (const n of this.world.npcs) {
+      const w = this.health.peek(`n:${n.id}`);
+      const fighting = this.enemies.engaged(n);
+      if (!fighting && (!w || w.hp >= w.max)) continue;
+      if (w && w.hp <= 0) continue;
+      if (!near(n.state.x, n.state.z)) continue;
+      const max = w?.max ?? npcCharacter(this.snapshot, this.world.mapId, n)?.harm?.health.hp ?? 1;
+      out.push({ pos: [n.state.x, n.state.y + 5.8, n.state.z], k: (w?.hp ?? max) / max });
+    }
+    return out;
+  }
+
   /** P9c: no fighting now (game over, a cinematic, a talk) */
   calm(): boolean {
     return this.over || this.cine.active || !!this.talking;

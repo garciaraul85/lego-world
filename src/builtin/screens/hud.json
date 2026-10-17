@@ -15,6 +15,13 @@
         "style": { "layout": "row", "gap": 14, "bg": "#0b1020b0", "pad": 10, "radius": 12 },
         "children": [
           { "type": "hearts", "id": "hearts", "bind": ["hp", "maxHp"] },
+          {
+            "type": "bar",
+            "id": "stamina",
+            "bind": ["stamina", "maxStamina"],
+            "label": "Stamina",
+            "style": { "w": 110, "h": 18, "color": "#7dd3fc", "radius": 9, "fontSize": 12, "hideFull": 1 }
+          },
           { "type": "text", "id": "gear", "text": "⚒ {hero.gear}", "style": { "fontSize": 18, "color": "#e8ecf4" } }
         ]
       },

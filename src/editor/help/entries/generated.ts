@@ -66,6 +66,8 @@ export const ACTION_HELP: Record<string, string> = {
   'view.top': 'Looks straight down on the map.',
   'view.palette': 'Opens the command palette: type a few letters of any command and press Enter.',
   'world.addMap': 'Adds a new map to the project. Connect maps with gates in the World graph.',
+  'world.trainingYard':
+    'Adds the Training yard, a sample map to practise fighting: dummies to lock on to and hit, a cracked wall that blunt hits break faster, a target that opens a gate when you lock on to it (a wire, no code), a chest behind the gate and a sparring knight who fights back. One undo takes it all away.',
   'world.generate': 'Opens map generation: choose districts, mountains and a seed, then generate the terrain.',
   'world.graph': 'Opens the World graph: every map, its spawn points and the gates between them.',
   'world.validate': 'Checks every gate leads somewhere the hero can reach and lists problems.',
@@ -81,6 +83,8 @@ export const ACTION_HELP: Record<string, string> = {
   'help.about': 'Shows the engine version and credits.',
   'help.tutorial': 'Starts the guided tutorial: every feature, step by step, with Show me and Do it for me.',
   'help.coding': 'Starts the coding course: the logic language, one line at a time.',
+  'help.combat':
+    'Starts the combat course on a sandbox: add the Training yard, make an enemy hit harder, wire a dummy to a chest, then fight — Show me and Do it for me for every step.',
   'help.guide': 'Opens Help. Press F1 (or ⌘/ on a Mac) while pointing at any control to open its own page.',
   'help.here':
     'Opens the Help page of the control under the pointer: the same as F1, for keyboards (like a Mac’s) where F1 changes the screen brightness.',

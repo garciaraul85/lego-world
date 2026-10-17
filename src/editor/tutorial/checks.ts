@@ -1,9 +1,11 @@
 import type { Command } from '../../core/commands';
+import { wiresOf } from '../../core/logic/wiring';
 import {
   type Asset,
   type Character,
   type Cinematic,
   type Clip,
+  type Instances,
   type LogicGraph,
   type MapDoc,
   paths,
@@ -179,6 +181,25 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   assetDoes: (ed, a) => {
     const { name, does } = a as { name: string; does: string };
     return projectAsset(ed, name)?.interactions.some((i) => i.do.some((x) => x.do === does)) ?? false;
+  },
+  // P9c: the combat course
+  mapNamed: (ed, a) => ed.mapDoc.value?.name === a,
+  enemyStat: (ed, a) => {
+    const { stat, value } = a as { stat: string; value: number };
+    const e = studioCharacter(ed)?.enemy as Record<string, unknown> | undefined;
+    return !!e && Math.abs(Number(e[stat]) - value) < 0.001;
+  },
+  wireOn: (ed, a) => {
+    const { asset, when } = a as { asset: string; when: string };
+    const map = ed.mapId.value;
+    const items = ed.store.get<Instances>(paths.instances(map))?.items ?? [];
+    return ed.store.list('logic/lg_').some((p) => {
+      const g = ed.store.get<LogicGraph>(p);
+      const owner = g?.owner && items.find((i) => i.id === g.owner);
+      if (!owner || owner.kind !== 'asset') return false;
+      const def = ed.store.get<{ name: string }>(paths.asset(owner.asset));
+      return def?.name === asset && wiresOf(g).some((w) => w.when === when);
+    });
   },
   ...CODING_TESTS,
 };
