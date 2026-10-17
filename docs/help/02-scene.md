@@ -58,6 +58,10 @@ Select a placed object and look under **Name, script & wires** in the Inspector.
 
 For example, a lever that opens a gate: select the lever, choose When this **is used**, Then **set another object's state**, Object **Gate**, State **open**, + Wire.
 
+## Hints and messages
+
+Help text for the player belongs on the screen, not in the world. Every action list (a trigger zone's On enter, an asset's interaction, a screen button, a cinematic's events) has **Show message**: its text appears in the HUD's message line for a few seconds. The Training yard's tips are zones that show a message when the hero walks into each spot.
+
 ## Make asset
 
 Loose bricks (the ground, or something built before bricks moved into assets) are not changed one by one in the Scene. Select them and choose Make asset (Outliner, Inspector or right-click) to turn them into a reusable asset with its own states, interactions and smash rules, then change it in the Assets screen.

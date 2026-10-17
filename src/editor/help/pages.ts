@@ -79,7 +79,7 @@ function keysMarkdown(): string {
     '| Jump attack / plunge | F in the air (rising / falling) | |',
     '| Guard, shield bash | hold Q; F while guarding | Guard (hold) |',
     '| Dodge roll | C | Roll |',
-    '| Lock on, next target | Z, Tab | Lock |',
+    '| Lock on, next target, let go (after the last) | Z | Lock |',
     '| Side hop, back flip (locked on) | Space + left/right, Space + back | |',
     '| Use, open, rebuild (hold) | E | use button |',
     '| Talk | T | |',

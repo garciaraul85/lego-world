@@ -203,6 +203,7 @@ export class PlaySession {
       gave: () => this.audio.play(SND.pickup),
       spawn: (asset: string, at: string) => void this.spawnAsset(asset, at),
       despawn: (target: string) => this.despawn(target),
+      message: (text: string, seconds: number) => this.say(text, seconds),
       cinematic: (id: string, once: boolean) => void this.cine.play(id, { once }),
     };
     this.actions = new ActionRunner(host);

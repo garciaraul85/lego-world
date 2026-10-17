@@ -22,12 +22,12 @@ WASD or the arrows move, Space jumps, Shift runs, F attacks, hold E to rebuild, 
 | Guard | hold Q | Guard (hold) |
 | Shield bash (stuns) | F while guarding with a shield | |
 | Dodge roll the way the hero faces (can't be hurt at its start) | C | Roll |
-| Lock on / next target | Z / Tab | Lock |
+| Lock on / next target / let go | Z (each press: the next target; after the last, let go) | Lock |
 | Side hop / back flip (while locked on) | Space + left or right / Space + back | |
 
 **Guarding.** Give the hero a shield (Character studio → Gear & powers → **Off hand**). Holding Q raises it: hits from the front are blocked and cost stamina; raising it just before a hit **parries** it (no stamina, and a neighbour that swung is stunned). When stamina runs out the guard breaks and the hero staggers for a moment; stamina comes back when the guard is down. Without a shield the hero still defends, but half of each hit gets through and blocks cost more stamina. Hits from behind are never blocked. The hero walks slowly while guarding or charging.
 
-**Lock-on.** When something you can lock on to is in front of the camera and within 14 studs, a yellow arrow bobs over it: Z locks on to it. That is any neighbour (a foe to fight, or someone to talk to: locked on to a neighbour, T talks to them straight away, however far they are within the lock), an object with health, or an asset with **Can be locked on** (Asset studio, under Health — for puzzles). Locked on, the arrow turns red, the hero keeps facing the target and the camera turns to look past the hero at it. Tab picks the next one; Z again, a defeat, or walking more than 16 studs away lets go, and the arrow disappears out of range. Logic's **On locked on** runs each time.
+**Lock-on.** When something you can lock on to is in front of the camera and within 14 studs, a yellow arrow bobs over it: Z locks on to it. That is any neighbour (a foe to fight, or someone to talk to: locked on to a neighbour, T talks to them straight away, however far they are within the lock), an object with health, or an asset with **Can be locked on** (Asset studio, under Health — for puzzles). Locked on, the arrow turns red, the hero keeps facing the target and the camera turns to look past the hero at it. With several targets in range, each Z moves to the next one (Tab too); after the last one, Z lets go of everything, and the next Z starts again from the first. A defeat, or walking more than 16 studs away, also lets go, and the arrow disappears out of range. Logic's **On locked on** runs each time.
 
 The `stamina` and `maxStamina` variables hold the guard's stamina, for a HUD bar.
 

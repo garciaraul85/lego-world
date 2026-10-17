@@ -10,7 +10,7 @@ import type { Asset, Character } from '../schema';
  * P9c: the Training yard — a sample map to practise everything P9 adds, made only from engine commands (so it
  * undoes in one step and the AI builder could make the same): a floor, training dummies (lock on with Z, hit
  * with F), a cracked wall that blunt hits break faster, a target that opens a gate when you lock on to it
- * (wired, no code), a chest behind the gate, a sparring knight who fights back, and signs that say what to try.
+ * (wired, no code), a chest behind the gate, a sparring knight who fights back, and tips that show in the HUD as you walk up to each spot.
  */
 export type TrainingYard = { map: string; spawn: string; commands: Command[] };
 
@@ -140,11 +140,18 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
     gate: newId('instance'),
     chest: newId('instance'),
   };
-  const sign = (x: number, z: number, text: string) => ({
-    type: 'item.add',
+  // tips show in the HUD's message line when the hero walks into each spot (screen UI, not signs in the world)
+  const tip = (min: [number, number], max: [number, number], name: string, text: string) => ({
+    type: 'map.addZone',
     payload: {
       map,
-      item: { id: newId('instance'), kind: 'ui', widget: 'sign', pos: [x, 3.2, z], text, maxDistance: 9 },
+      zone: {
+        id: newId('zone'),
+        min: [min[0], 0, min[1]],
+        max: [max[0], 4, max[1]],
+        tags: [name],
+        onEnter: [{ do: 'message', text, seconds: 5 }],
+      },
     },
   });
   // locking on to the target opens the gate: a wire (two cards in the target's own script)
@@ -207,13 +214,34 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
     // the sparring knight: an enemy that walks over when you come close
     { type: 'character.create', payload: { character: knight } },
     { type: 'npc.place', payload: { map, character: knight.id, pos: [0, 0.4, 11], heading: Math.PI } },
-    sign(-7, -7, 'Dummies: Z locks on, F attacks (hold to charge, Shift+F heavy)'),
-    sign(0, 3, 'Cracked wall: blunt hits (a hammer) break it faster than a sword'),
-    sign(7, -7, 'Lock on to the target (Z) to open the gate'),
-    sign(-1, 8, 'Sparring knight: hold Q to guard, raise it just in time to parry, C to roll'),
+    tip(
+      [-4, -16],
+      [4, -9],
+      'Entrance tip',
+      'Training yard: walk up to the dummies, the wall, the target, the knight or the hill for a tip.',
+    ),
+    tip(
+      [-12, -8],
+      [-2, 2],
+      'Dummies tip',
+      'Dummies: Z locks on (Z again for the next one), F attacks — hold to charge, Shift+F heavy.',
+    ),
+    tip([-6, 3], [6, 8], 'Wall tip', 'Cracked wall: blunt hits (a hammer) break it faster than a sword.'),
+    tip([4, -9], [13, -1], 'Target tip', 'Lock on to the red-and-white target (Z) to open the gate.'),
+    tip(
+      [-5, 9],
+      [5, 16],
+      'Knight tip',
+      'Sparring knight: hold Q to guard; raise it just as the red ! strikes to parry; C rolls.',
+    ),
     // a third dummy at the foot of the hill: jump down from the top and press F while falling (plunge)
     { type: 'asset.place', payload: { map, asset: dummy.id, pos: [-5, 1, 18] } },
-    sign(-10, 4, 'Hill: jump up (Space), then from the top press F while falling to plunge on the dummy'),
+    tip(
+      [-23, 4],
+      [-7, 7],
+      'Hill tip',
+      'Hill: jump up (Space), then from the top press F while falling to plunge on the dummy.',
+    ),
   ];
   return { map, spawn, commands };
 }

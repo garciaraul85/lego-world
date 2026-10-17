@@ -19,6 +19,7 @@ const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Act
   { do: 'setState', label: 'Set state', make: () => ({ do: 'setState', state: 'default' }) },
   { do: 'emit', label: 'Send event', make: () => ({ do: 'emit', event: 'event' }) },
   { do: 'give', label: 'Give item', make: () => ({ do: 'give', item: 'coin', count: 1 }) },
+  { do: 'message', label: 'Show message', make: () => ({ do: 'message', text: 'Hello!', seconds: 3 }) },
   { do: 'addVar', label: 'Add to variable', make: () => ({ do: 'addVar', var: 'score', value: 1 }) },
   { do: 'setVar', label: 'Set variable', make: () => ({ do: 'setVar', var: 'flag', value: true }) },
   { do: 'wait', label: 'Wait', make: () => ({ do: 'wait', seconds: 1 }) },
@@ -178,6 +179,13 @@ function ActionArgs({
         <EventPicker value={a.event} events={choices.events} onChange={(event) => onChange({ ...a, event })} />
       ) : (
         text(a.event, 'Event name', (event) => ({ ...a, event }))
+      );
+    case 'message':
+      return (
+        <span class="row" style={{ flexWrap: 'nowrap' }}>
+          {text(a.text, 'Message', (t) => ({ ...a, text: t.slice(0, 200) }))}
+          {num(a.seconds ?? 3, 'Seconds', (seconds) => ({ ...a, seconds: Math.min(30, Math.max(0.5, seconds)) }))}
+        </span>
       );
     case 'give':
       return (

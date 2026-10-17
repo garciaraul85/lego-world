@@ -56,7 +56,7 @@ walking.
 Z locks on to the best candidate: any neighbour, an object with health, or an asset with `lockOn: true` (**Can
 be locked on**), within `LOCK_RANGE` (14 studs) and in front of the camera (nearest and most central first).
 While nothing is locked, `Combat.hint` is that candidate and a yellow arrow bobs over it; out of range it goes.
-Tab picks the next one. While locked, the hero faces the target, the camera turns to look past the hero at it
+Z again moves to the next target that was in range when the lock started (by distance, so ones off to the side still count), and after the last one lets go; the next Z starts from the first. Tab does the same. While locked, the hero faces the target, the camera turns to look past the hero at it
 and a red arrow pulses over it; T talks to a locked-on neighbour at once, wherever they are within the lock (the message “… — T to talk” says so). It lets go on Z, when the
 target is defeated or broken, or beyond `LOCK_RELEASE` (16 studs). Each lock fires `event.onLockedOn`
 (target: the object's id or the neighbour's name; filter by asset).

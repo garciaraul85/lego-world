@@ -25,6 +25,12 @@ export const Action = z.discriminatedUnion('do', [
   z.strictObject({ do: z.literal('game'), op: z.enum(['start', 'resume', 'pause', 'retry', 'quit']) }),
   /** a one-shot music stinger from audio/music.json (ducks the music while it plays) */
   z.strictObject({ do: z.literal('stinger'), stinger: z.string().min(1) }),
+  /** P9c: a message in the HUD's message line (help, hints, story text): screen UI, never in the 3D world */
+  z.strictObject({
+    do: z.literal('message'),
+    text: z.string().min(1).max(200),
+    seconds: z.number().min(0.5).max(30).optional(),
+  }),
 ]);
 export type Action = z.infer<typeof Action>;
 export const ActionList = z.array(Action);

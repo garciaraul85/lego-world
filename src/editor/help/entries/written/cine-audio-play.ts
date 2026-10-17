@@ -232,7 +232,7 @@ export const PLAY: HelpEntry[] = [
     name: 'Game view',
     also: ['combat', 'fight', 'attack', 'guard', 'lock on', 'dodge'],
     purpose:
-      'The game. WASD or arrows move, Space jumps, E uses, T talks, Esc pauses. Fighting: tap F to attack (Shift+F a heavy attack), hold F to charge and let go (hold longer for a spin attack), F in the air for a jump attack or a plunge; hold Q to guard (F while guarding: shield bash), C to dodge-roll, Z to lock on to the nearest foe (Tab: the next one; Space + left/right side-hops, Space + back back-flips). On a touch screen the Guard, Roll and Lock buttons do the same.',
+      'The game. WASD or arrows move, Space jumps, E uses, T talks, Esc pauses. Fighting: tap F to attack (Shift+F a heavy attack), hold F to charge and let go (hold longer for a spin attack), F in the air for a jump attack or a plunge; hold Q to guard (F while guarding: shield bash), C to dodge-roll, Z to lock on (Z again: the next target; after the last, let go; Space + left/right side-hops, Space + back back-flips). On a touch screen the Guard, Roll and Lock buttons do the same.',
     match: [{ in: area('Play view'), role: 'canvas' }, { sel: area('Play view') }],
     related: ['help:keys#playing'],
   },

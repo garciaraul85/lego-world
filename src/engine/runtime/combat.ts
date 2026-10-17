@@ -307,28 +307,45 @@ export class Combat {
 
   // ---------- lock-on ----------
 
-  /** Z: lock on to the nearest thing to fight in front of the camera, or let go */
+  /** the targets in range when Z was first pressed, in order: Z walks through them, then lets go */
+  private cycle: LockTarget[] = [];
+
+  /**
+   * Z: nothing locked → lock on to the first (nearest, most central) target. Locked → the next target in range;
+   * after the last one, let go of everything (the next Z starts again from the first).
+   */
   toggleLock() {
-    if (this.target) {
-      this.target = null;
+    if (!this.target) {
+      this.cycle = this.candidates();
+      this.target = this.cycle[0] ?? null;
+      if (!this.target) this.s.say('Nothing to lock on to here.', 1.2);
+      else {
+        this.hint = null;
+        this.s.lockedOn(this.target);
+      }
       return;
     }
-    this.target = this.candidates()[0] ?? null;
-    if (!this.target) this.s.say('Nothing to lock on to here.', 1.2);
-    else {
-      this.hint = null;
-      this.s.lockedOn(this.target);
+    // the next one in the list that is still there and in range
+    const i = this.cycle.findIndex((c) => sameTarget(c, this.target));
+    // (by distance only: the camera has turned to the current target, so the others may be off to the side)
+    const h = this.s.heroState;
+    const near = (c: LockTarget) => {
+      const p = this.targetPos(c);
+      return !!p && Math.hypot(p[0] - h.x, p[2] - h.z) <= LOCK_RANGE;
+    };
+    const next = this.cycle.slice(i + 1).find(near);
+    if (!next) {
+      this.target = null;
+      this.cycle = [];
+      return;
     }
+    this.target = next;
+    this.s.lockedOn(next);
   }
 
-  /** Tab while locked: the next target (by angle) */
+  /** Tab while locked: the same as Z (the next target; after the last, let go) */
   cycleLock() {
-    if (!this.target) return this.toggleLock();
-    const list = this.candidates();
-    if (list.length < 2) return;
-    const i = list.findIndex((c) => sameTarget(c, this.target));
-    this.target = list[(i + 1) % list.length] ?? null;
-    if (this.target) this.s.lockedOn(this.target);
+    this.toggleLock();
   }
 
   /** neighbours (foes to fight, people to talk to), objects with health and assets that can be locked on, in range and in front of the camera */

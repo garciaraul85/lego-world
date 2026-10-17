@@ -23,6 +23,8 @@ export interface ActionHost {
   spawn?(asset: string, at: string): void;
   cinematic?(id: string, once: boolean): void;
   despawn?(target: string): void;
+  /** P9c: a message in the HUD's message line */
+  message?(text: string, seconds: number): void;
 }
 
 type Pending = { actions: Action[]; at: number; self: string | undefined };
@@ -86,6 +88,10 @@ export class ActionRunner {
           h.log('info', `${a.var} = ${v}`);
           break;
         }
+        case 'message':
+          if (h.message) h.message(a.text, a.seconds ?? 3);
+          else h.log('info', a.text);
+          break;
         case 'give': {
           const n = (h.inventory.get(a.item) ?? 0) + (a.count ?? 1);
           h.inventory.set(a.item, n);

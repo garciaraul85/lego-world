@@ -323,4 +323,24 @@ describe('moves and lock-on', () => {
     p.talk();
     expect(p.talking?.id).toBe(9);
   });
+
+  it('Z walks through every target in range, then lets go; the next Z starts from the first again', () => {
+    const p = game({ lockable: true });
+    p.placeAt([9, 0.4, 0], 0); // the crate and the switch both in front
+    step(p, 1 / 60);
+    p.combat.toggleLock();
+    const first = p.combat.target;
+    expect(first).not.toBeNull();
+    const seen = [JSON.stringify(first)];
+    for (let i = 0; i < 20 && p.combat.target; i++) {
+      p.combat.toggleLock();
+      if (p.combat.target) seen.push(JSON.stringify(p.combat.target));
+    }
+    // every press went to a new target, and after the last one nothing is locked
+    expect(p.combat.target).toBeNull();
+    expect(seen.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(seen).size).toBe(seen.length);
+    p.combat.toggleLock();
+    expect(p.combat.target).toEqual(first);
+  });
 });
