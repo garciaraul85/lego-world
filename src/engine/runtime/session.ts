@@ -4,6 +4,7 @@ import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { expandAsset } from '../../core/assets/expand';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
 import { brickToPiece, exactColors, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
+import { type AttackHit, damageOf, type Health, heldAttack } from '../../core/combat/damage';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import type { ExecCtx } from '../../core/logic/catalog';
@@ -42,6 +43,7 @@ import { formatValue } from '../ui/bindings';
 import { ScreenStack } from '../ui/ScreenStack';
 import { resolveScreen, screenOfKind } from '../ui/screens';
 import { ActionRunner } from './actions';
+import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './health';
 import { chunkKeyOf, inspectPieces } from './pieces';
 import { Runtime, type System } from './runtime';
 
@@ -132,6 +134,8 @@ export class PlaySession {
   /** zones the hero is inside, by zone id */
   private inZones = new Set<string>();
   private spawnSerial = 0;
+  /** P9a: health of the hero, objects and neighbours, for this play */
+  readonly health = new HealthBook();
   onBreak: ((b: NonNullable<LogicRuntime['paused']>) => void) | null = null;
   emotes: Clip[] = [];
   /** P5: audio, screens and world UI */
@@ -466,10 +470,17 @@ export class PlaySession {
 
   /** lose hearts (falling off the world, logic); at 0 the game is over */
   hurt(n: number) {
+    if (n <= 0 || this.health.invulnerable.has('hero') || this.over) return;
     const hp = Math.max(0, Number(this.logic.vars.get('hp') ?? 0) - n);
     this.logic.setVar('hp', hp);
     this.audio.play(SND.hurt);
-    if (hp <= 0) this.gameOver();
+    // P9a: the hero's hearts are its health
+    if (hp > 0)
+      this.logic.fire({ type: 'event.onDamaged', match: { asset: '' }, payload: { target: 'hero', amount: n, hp } });
+    else {
+      this.logic.fire({ type: 'event.onDefeated', match: { asset: '' }, payload: { target: 'hero' } });
+      this.gameOver();
+    }
   }
 
   /** hp can also drop through logic or actions (addVar hp -1): 0 hearts is game over */
@@ -491,16 +502,211 @@ export class PlaySession {
     strike.remaining -= dt;
     if (strike.remaining > 1e-6) return;
     this.pendingSmash = null;
+    const attack = heldAttack(this.hero.held);
+    // P9a: a neighbour that can be harmed, in front of the hero and in reach, takes the hit first
+    const npc = this.npcInReach(strike.reach + 0.8);
+    if (npc) {
+      this.hitNpc(npc, attack);
+      return;
+    }
     const hit = this.world.controller.target(strike.reach);
     if (!hit || (strike.id !== null && hit.id !== strike.id && (!strike.group || hit.group !== strike.group))) return;
+    // P9a: an object with health loses some; it breaks only when its health reaches zero
+    const owner = this.instanceOfPiece(hit.id);
+    if (owner?.def.health) {
+      this.hitInstance(owner, attack, hit);
+      return;
+    }
     this.breakHit(hit, { heading: this.heroState.heading, impulse: 2, mass: 1 });
   }
 
+  // ---------- health (P9a) ----------
+
+  /** the nearest neighbour that can be harmed, in front of the hero within reach */
+  private npcInReach(reach: number): Npc | null {
+    const h = this.heroState;
+    let best: Npc | null = null;
+    let bd = reach;
+    for (const n of this.world.npcs) {
+      const dx = n.state.x - h.x;
+      const dz = n.state.z - h.z;
+      const d = Math.hypot(dx, dz);
+      if (d > bd || Math.abs(n.state.y - h.y) > 2) continue;
+      const off = Math.abs(((Math.atan2(dx, dz) - h.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      if (off > 1 || !npcCharacter(this.snapshot, this.world.mapId, n)?.harm?.canBeHarmed) continue;
+      best = n;
+      bd = d;
+    }
+    return best;
+  }
+
+  /** a hit on a placed object with health: it loses some, and at zero breaks, drops, sends and is defeated */
+  hitInstance(owner: PlayInstance, attack: AttackHit, piece?: LegacyPiece) {
+    const def = assetHealth(owner.def);
+    const name = owner.def.name;
+    if (!def) {
+      this.say(`The ${name.toLowerCase()} can’t be hurt.`, 1.5);
+      return;
+    }
+    const key = `i:${owner.inst.id}`;
+    const before = this.health.peek(key)?.hp ?? def.hp;
+    if (before <= 0) return;
+    const { dealt, wound } = this.health.hit(key, def, attack);
+    const pos: Vec3 = [
+      owner.inst.pos[0] + owner.def.footprint[0] / 2,
+      owner.inst.pos[1] * 0.4,
+      owner.inst.pos[2] + owner.def.footprint[1] / 2,
+    ];
+    if (dealt <= 0) {
+      this.say(
+        this.health.invulnerable.has(key)
+          ? `The ${name.toLowerCase()} can’t be hurt right now.`
+          : `The ${name.toLowerCase()} shrugs it off: only ${hurtBy(def)} hurts it.`,
+        2,
+      );
+      return;
+    }
+    this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
+    if (wound.hp > 0) {
+      this.audio.play(owner.def.smash.sound ?? SND.smash, { pos, volume: 0.6 });
+      this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
+      this.logic.fire({
+        type: 'event.onDamaged',
+        match: { asset: owner.def.id },
+        payload: { target: owner.inst.id, amount: dealt, hp: wound.hp },
+      });
+      return;
+    }
+    this.defeatInstance(owner, def, piece);
+  }
+
+  private defeatInstance(owner: PlayInstance, def: Health, piece?: LegacyPiece) {
+    const at = owner.inst.id;
+    if (def.atZero.break) {
+      const brick = piece ?? this.world.pieces.find((p) => this.instanceOfPiece(p.id) === owner);
+      if (brick) this.breakHit(brick, { heading: this.heroState.heading, impulse: 2, mass: 1 }, true);
+    }
+    if (def.atZero.drop) this.drop(def.atZero.drop, { near: at });
+    if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
+    this.emit('smash', `${owner.def.name} defeated`);
+    this.logic.fire({ type: 'event.onDefeated', match: { asset: owner.def.id }, payload: { target: at } });
+  }
+
+  /** a hit on a neighbour that can be harmed */
+  hitNpc(npc: Npc, attack: AttackHit) {
+    const chr = npcCharacter(this.snapshot, this.world.mapId, npc);
+    const name = String(npc.profile.name ?? 'Neighbour');
+    if (!chr?.harm?.canBeHarmed) {
+      this.say(`${name} can’t be harmed.`, 1.5);
+      return;
+    }
+    const key = `n:${npc.id}`;
+    const def = chr.harm.health;
+    if ((this.health.peek(key)?.hp ?? def.hp) <= 0) return;
+    const { dealt, wound } = this.health.hit(key, def, attack);
+    const pos: Vec3 = [npc.state.x, npc.state.y, npc.state.z];
+    if (dealt <= 0) {
+      this.say(this.health.invulnerable.has(key) ? `${name} can’t be hurt right now.` : `${name} shrugs it off.`, 1.5);
+      return;
+    }
+    this.audio.play(SND.hurt, { pos });
+    this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
+    if (wound.hp > 0) {
+      this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
+      this.logic.fire({
+        type: 'event.onDamaged',
+        match: { asset: '' },
+        payload: { target: name, amount: dealt, hp: wound.hp },
+      });
+      return;
+    }
+    // at zero the neighbour leaves this play (puff of bricks where it stood)
+    this.world.npcs = this.world.npcs.filter((n) => n !== npc);
+    if (this.talking === npc) this.talking = null;
+    if (def.atZero.drop) this.drop(def.atZero.drop, { at: pos });
+    if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
+    this.say(`${name} is defeated.`, 2);
+    this.emit('smash', `${name} defeated`);
+    this.logic.fire({ type: 'event.onDefeated', match: { asset: '' }, payload: { target: name } });
+  }
+
+  /** an item at zero: an asset (by name) put there, else an inventory item given to the hero */
+  private drop(d: { item: string; count: number }, where: { near?: string; at?: Vec3 }) {
+    const def = this.findAsset(d.item);
+    if (def && where.near && this.spawnNear(d.item, where.near)) return;
+    if (def && where.at) {
+      const p = where.at;
+      const [fw, fd] = def.footprint;
+      if (this.placeCopy(def, [Math.round(p[0] - fw / 2), Math.round(p[1] / 0.4), Math.round(p[2] - fd / 2)], 0))
+        return;
+    }
+    this.give(d.item, d.count);
+  }
+
+  private give(item: string, count: number) {
+    const n = (this.inventory.get(item) ?? 0) + count;
+    this.inventory.set(item, n);
+    this.emit('info', `Got ${count} × ${item} (${n} in total)`);
+    this.say(`+${count} ${item}`, 1.5);
+    this.audio.play(SND.pickup);
+  }
+
+  /** the neighbour called this (by name, or n:<id>) */
+  private npcByRef(ref: string): Npc | null {
+    const low = ref.trim().toLowerCase();
+    return (
+      this.world.npcs.find((n) => `n:${n.id}` === ref || String(n.profile.name ?? '').toLowerCase() === low) ?? null
+    );
+  }
+
+  /** logic's Damage: the hero, a placed object (id or asset name) or a neighbour (name) */
+  damage(ref: string, amount: number, type: string) {
+    const attack: AttackHit = { power: amount, type: asDamageType(type) };
+    if (!ref || ref === 'hero') {
+      if (this.health.invulnerable.has('hero')) return;
+      this.hurt(damageOf(attack, {}));
+      return;
+    }
+    const inst = this.resolveEntity(ref);
+    if (inst) return this.hitInstance(inst, attack);
+    const npc = this.npcByRef(ref);
+    if (npc) return this.hitNpc(npc, attack);
+    this.emit('info', `Damage: nothing called “${ref}” here.`);
+  }
+
+  /** logic's Heal (never above the maximum; the hero: hearts) */
+  heal(ref: string, amount: number) {
+    if (!ref || ref === 'hero') {
+      const max = Number(this.logic.vars.get('maxHp') ?? 3);
+      this.logic.setVar('hp', Math.min(max, Number(this.logic.vars.get('hp') ?? 0) + Math.max(0, amount)));
+      return;
+    }
+    const inst = this.resolveEntity(ref);
+    const def = inst ? assetHealth(inst.def) : null;
+    if (inst && def) {
+      this.health.heal(`i:${inst.inst.id}`, def, amount);
+      return;
+    }
+    const npc = this.npcByRef(ref);
+    const harm = npc ? npcCharacter(this.snapshot, this.world.mapId, npc)?.harm : undefined;
+    if (npc && harm) this.health.heal(`n:${npc.id}`, harm.health, amount);
+  }
+
+  /** logic's Set invulnerable */
+  setInvulnerable(ref: string, on: boolean) {
+    const inst = ref && ref !== 'hero' ? this.resolveEntity(ref) : null;
+    const npc = ref && ref !== 'hero' && !inst ? this.npcByRef(ref) : null;
+    const key = !ref || ref === 'hero' ? 'hero' : inst ? `i:${inst.inst.id}` : npc ? `n:${npc.id}` : null;
+    if (!key) return this.emit('info', `Set invulnerable: nothing called “${ref}” here.`);
+    if (on) this.health.invulnerable.add(key);
+    else this.health.invulnerable.delete(key);
+  }
+
   /** Port of v68 breakHit: the hit brick (or its whole group) plus anything it was holding up. */
-  breakHit(hit: LegacyPiece, impact?: { heading: number; impulse: number; mass: number }) {
+  breakHit(hit: LegacyPiece, impact?: { heading: number; impulse: number; mass: number }, force = false) {
     const w = this.world;
     const owner = this.instanceOfPiece(hit.id);
-    if (owner && !owner.def.smash.enabled) {
+    if (owner && !owner.def.smash.enabled && !force) {
       this.say(`The ${owner.def.name.toLowerCase()} can’t be smashed.`, 1.5);
       return 0;
     }
@@ -727,13 +933,10 @@ export class PlaySession {
       travel: (map, spawn) => {
         if (this.snapshot.get(paths.map(map))) this.travel(map, spawn);
       },
-      give: (item, count) => {
-        const n = (this.inventory.get(item) ?? 0) + count;
-        this.inventory.set(item, n);
-        this.emit('info', `Got ${count} × ${item} (${n} in total)`);
-        this.say(`+${count} ${item}`, 1.5);
-        this.audio.play(SND.pickup);
-      },
+      give: (item, count) => this.give(item, count),
+      damage: (target, amount, type) => this.damage(target, amount, type),
+      heal: (target, amount) => this.heal(target, amount),
+      setInvulnerable: (target, on) => this.setInvulnerable(target, on),
       spawn: (asset, at) => this.spawnAsset(asset, at),
       spawnNear: (item, near) => this.spawnNear(item, near),
       despawn: (target) => {

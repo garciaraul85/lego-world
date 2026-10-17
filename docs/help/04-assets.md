@@ -45,3 +45,15 @@ A part can also move between the asset's states: the treasure chest's lid swings
 An asset made only of moving parts floats when logic puts it in the world with **Spawn item at object**: it is drawn but does not have to fit among the bricks, so a sword can rise out of a closed-looking chest.
 
 The piece button above the build plate shows the brick you are building with; click it to pick the kind and size from pictures, and pick the color next to it.
+
+## Health: things that take several hits
+
+Without health, one hit smashes an asset (when **Can be smashed** is on). With **Health** (Asset properties, under Smash) it takes several hits first:
+
+- **Make breakable** gives it health in one click: 2 hits like a crate, 1 like a pot, 5 like a door, or only explosions like a stone wall.
+- **Hit points**: how much damage it takes. Bare hands or a hammer do 1 per hit, a sword 2, a sledgehammer 3.
+- **Armour** is taken off every hit; a hit weaker than it does nothing.
+- **Hits by type**: for slash, blunt, pierce, fire, explosive and electric hits, choose normal, weak ×2, half or immune.
+- **At zero**: break into bricks, leave an item (an asset by name put where it was, or an inventory item given to the hero) and send an event.
+
+In Play, each hit says how much is left (“Wooden crate: 1 of 2 left”), and logic's **On damaged** and **On defeated** run. The built-in **Wooden crate** takes 2 hits.

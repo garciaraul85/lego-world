@@ -19,6 +19,7 @@ export const CAT_COLOR: Record<string, string> = {
   Cinematics: '#e990b3',
   Misc: '#9aa4b2',
   Notes: '#ffd277',
+  Health: '#ff8a7a',
 };
 
 export const PIN_COLOR: Record<PinType, string> = {

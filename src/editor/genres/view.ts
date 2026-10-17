@@ -142,6 +142,18 @@ export function hiddenInUse(ed: EditorState): HiddenUse[] {
   for (const [tab, used] of tabUse)
     if (used && !shows(ed, 'tab', tab))
       out.push({ kind: 'tab', id: tab, what: `the ${tab} screen`, where: 'this game' });
+  // P9a: health on the game's own assets and neighbours, when the view hides its section
+  if (!shows(ed, 'section', 'asset.health'))
+    for (const p of ed.store.list('assets/')) {
+      const a = ed.store.get<{ name: string; health?: unknown }>(p);
+      if (a?.health) out.push({ kind: 'section', id: 'asset.health', what: 'health', where: `asset ${a.name}` });
+    }
+  if (!shows(ed, 'section', 'character.harm'))
+    for (const p of ed.store.list('characters/')) {
+      const c = ed.store.get<{ name: string; harm?: { canBeHarmed: boolean } }>(p);
+      if (c?.harm?.canBeHarmed)
+        out.push({ kind: 'section', id: 'character.harm', what: '“Can be harmed”', where: `character ${c.name}` });
+    }
   return out;
 }
 

@@ -58,6 +58,10 @@ on("custom", { event: "scene-takes-sword" }, (e) => {
 - **Set state** “out” on that copy makes the Sword's moving part rise out of the chest.
 - **Give item** adds it to the hero's inventory; **Remove** takes the floating copy away when the hero holds the sword.
 
+## Health
+
+**On damaged** runs when something with health is hurt and still has some left; **On defeated** when it reaches zero. Both give the target (the hero, an object or a neighbour's name), and On damaged gives the amount and the health left; pick an asset to react only to its copies. **Damage** hurts the hero, an object or a neighbour like a hit of that power and type would (armour and resistances count), **Heal** gives health back (never above its maximum), and **Set invulnerable** stops all damage until it is switched off. In code: `on("damaged", { asset: "Wooden crate" }, (e) => { ... })`, `health.damage("hero", 1, "fire")`.
+
 ## Debugging
 
 F9 on a node sets a breakpoint that pauses Play there. While playing, the dock's Debug tab shows variables and the Console shows log() output. A graph stops a chain after 1000 steps so a loop can't freeze the game.

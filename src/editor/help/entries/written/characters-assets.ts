@@ -7,6 +7,8 @@ const BUILD = area('Build tools');
 const APROPS = area('Asset properties');
 
 /** P32: each look choice is a picture button named "<Choice>: <what it is now>" */
+/** P9a */
+const HARM = '[data-tour="char-harm"]';
 const LOOK =
   /^(Height|Gender|Head|Hair|Face|Eyes|Expression|Facial Hair|Glasses|Hat|Costume|Outfit|Shirt|Pants|Dress|Hero Cut|Swimwear|Underwear|Lingerie|Pattern|Shoes|Gloves|Back|Cape|Scarf|Neck|Ears|Wrist|Belt): /;
 const COLOURS = /^(Skin|Hair|Eye|Glasses|Hat|Shirt|Pants|Dress|Shoe|Accent|Glove|Accessory) color$/;
@@ -106,6 +108,17 @@ export const CHARACTERS: HelpEntry[] = [
     ],
   },
   {
+    id: 'characters.harm',
+    also: ['can be harmed', 'enemy', 'hurt', 'health', 'villager', 'neighbour hp'],
+    screen: 'characters',
+    kind: 'area',
+    name: 'Can be harmed',
+    purpose:
+      'Whether the hero’s hits hurt this character when it is a neighbour on a map. Off (villagers): hits do nothing. On: it has health like an object — hit points, armour, what each kind of hit does — and at zero it leaves the play, leaves an item and sends an event. The player character’s health is its hearts.',
+    related: ['assets.health', 'node.event.onDefeated'],
+    match: [{ in: HARM }],
+  },
+  {
     id: 'characters.look',
     screen: 'characters',
     kind: 'field',
@@ -194,6 +207,30 @@ export const ASSETS: HelpEntry[] = [
       'OK closes the message.',
     ],
     related: ['assets.plate', 'scene.tool.move'],
+  },
+  {
+    id: 'assets.health',
+    also: ['breakable', 'hit points', 'hp', 'takes hits', 'armour', 'armor', 'resistance', 'damage', 'crate', 'loot'],
+    screen: 'assets',
+    kind: 'area',
+    name: 'Health',
+    purpose:
+      'How much it takes to break the asset. Without health one hit smashes it (when it can be smashed). With health it takes several hits; armour is taken off every hit; each kind of hit (slash, blunt, pierce, fire, explosive, electric) can be normal, weak (double), half or immune; at zero it breaks into bricks, leaves an item and sends an event.',
+    steps: [
+      'Pick how it breaks in **Make breakable**: 2 hits like a crate, 1 like a pot, 5 like a door, or only explosions like a stone wall.',
+      'Change the **hit points** and **armour**, and what each kind of hit does.',
+      'Under **At zero**, choose whether it breaks into bricks, what it leaves (an asset by name, or an inventory item) and an event to send.',
+      'Press Play and hit it with F: it says how much is left, and On damaged / On defeated run in logic.',
+    ],
+    options: [
+      ['hit points', 'a hit with bare hands or a hammer does 1, a sword 2, a sledgehammer 3'],
+      ['armour', 'taken off every hit: a hit weaker than it does nothing'],
+      ['hits by type', 'normal, weak ×2, half or immune, for each damage type'],
+      ['leaves', 'an asset put where it was, or an item given to the hero'],
+    ],
+    commands: ['asset.update'],
+    related: ['node.event.onDamaged', 'node.event.onDefeated', 'node.health.damage'],
+    match: [{ in: '[data-tour="asset-health-sec"]' }],
   },
   {
     id: 'assets.parts',

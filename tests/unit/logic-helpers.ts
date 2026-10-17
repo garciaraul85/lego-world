@@ -41,6 +41,9 @@ export function recorder() {
     despawn: (t) => log.push(`despawn ${t}`),
     media: (k, id) => log.push(`${k} ${id}`),
     inZone: () => ['hero', 'ins_a', 'ins_b'],
+    damage: (t, a, ty) => log.push(`damage ${t} ${a} ${ty}`),
+    heal: (t, a) => log.push(`heal ${t} ${a}`),
+    setInvulnerable: (t, on) => log.push(`invulnerable ${t} ${on}`),
   };
   return { ctx, log, vars };
 }

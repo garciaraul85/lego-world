@@ -10,6 +10,11 @@ F5 plays from the start spawn, Shift F5 from the selected spawn, Ctrl F5 from th
 
 WASD or the arrows move, Space jumps, Shift runs, F smashes, hold E to rebuild, E uses chests and doors, T talks to neighbours, 1–4 play emotes. Drag to look around. Esc opens the pause menu. On touch screens, on-screen arrows and buttons do the same.
 
+
+## Hits and health
+
+F swings what the hero holds. Bare hands, a hammer or a wrench hit for 1 (blunt), a sword for 2 (slash), a war hammer for 2.5 and a sledgehammer for 3 (blunt), a torch for 1 (fire). Things with health lose some with each hit and break at zero; things without health break at the first hit, as before. Neighbours are only hurt when their character has **Can be harmed** on. The hero's health is its hearts (the hp variable): falling off the world, or logic's **Damage**, takes them; **Heal** gives them back.
+
 ## The play bar
 
 Pause (F6) freezes the game, Step (Shift F6) advances one frame, and 0.25× to 2× change the speed.

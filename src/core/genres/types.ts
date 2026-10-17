@@ -30,6 +30,8 @@ export const FEATURES = [
   'v68',
   /** watching the running game: console, debug drawing, profiler */
   'debug',
+  /** health, damage, breakable things, fighting (P9) */
+  'combat',
   /** the AI builder */
   'ai',
 ] as const;

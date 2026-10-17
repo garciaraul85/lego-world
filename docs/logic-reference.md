@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (49 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (54 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -109,6 +109,26 @@ Runs when Send event (or an asset interaction) sends this event name.
 
 - Settings: Event name (event)
 - Code: `on("custom", { event: … }, (e) => { … });`
+
+### On damaged
+
+`event.onDamaged` · event
+
+Runs when something with health is hurt and still has some left: the hero, a neighbour that can be harmed, or an object with health.
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity), amount (number), hp left (number)
+- Code: `on("damaged", { asset: … }, (e) => { … });`
+
+### On defeated
+
+`event.onDefeated` · event
+
+Runs when something with health reaches zero (after it breaks, drops its item and sends its event).
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity)
+- Code: `on("defeated", { asset: … }, (e) => { … });`
 
 ## Flow
 
@@ -485,3 +505,32 @@ A note on the canvas. It does nothing when the game runs.
 A labelled frame to group nodes on the canvas.
 
 - Settings: Title (string), Width (number), Height (number)
+
+## Health
+
+### Damage
+
+`health.damage` · action
+
+Hurts the hero, a placed object or a neighbour, as a hit of this power and type would (armour and resistances count).
+
+- Inputs: target (entity), amount (number), type (string)
+- Code: `health.damage(target, amount, type);`
+
+### Heal
+
+`health.heal` · action
+
+Gives health back, never above its maximum (the hero: hearts).
+
+- Inputs: target (entity), amount (number)
+- Code: `health.heal(target, amount);`
+
+### Set invulnerable
+
+`health.setInvulnerable` · action
+
+Nothing can hurt it while on (a shield spell, a cutscene, a boss between phases); off makes it take damage again.
+
+- Inputs: target (entity), on (bool)
+- Code: `health.setInvulnerable(target, on);`

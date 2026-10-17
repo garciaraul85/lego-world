@@ -1,5 +1,6 @@
 import { EVENTS } from './events';
 import { FLOW } from './flow';
+import { HEALTH, HEALTH_EVENTS } from './health';
 import { COMPARE, MATH } from './math';
 import { MEDIA } from './media';
 import { MISC } from './misc';
@@ -19,6 +20,9 @@ export const CATALOG: readonly NodeDef[] = [
   ...WORLD,
   ...MEDIA,
   ...MISC,
+  // P9a (append-only: saved graphs name these types)
+  ...HEALTH_EVENTS,
+  ...HEALTH,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

@@ -1,0 +1,25 @@
+{
+  "id": null,
+  "name": "Wooden crate",
+  "category": "prop",
+  "bricks": [[0, 0, 0, 0, 0, 0, 0], [0, 0, 3, 0, 0, 1, 0], [1, 0, 6, 0, 0, 0, 0]],
+  "palette": {
+    "types": ["brick2x2", "plate2x2"],
+    "colors": ["#9c6b3c", "#6e4626"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [2, 2],
+  "sockets": [],
+  "states": ["default"],
+  "initialState": "default",
+  "interactions": [],
+  "smash": {
+    "enabled": true,
+    "rebuild": true,
+    "sound": null,
+    "studs": 0
+  },
+  "health": { "hp": 2, "atZero": { "break": true } },
+  "generator": null,
+  "origin": "builtin"
+}

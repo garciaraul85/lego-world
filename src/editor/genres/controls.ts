@@ -194,9 +194,21 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   'misc.emit': S('logic'),
   'note.comment': S('logic'),
   'note.group': S('logic'),
+  // P9a: health
+  'event.onDamaged': S('combat'),
+  'event.onDefeated': S('combat'),
+  'health.damage': S('combat'),
+  'health.heal': S('combat'),
+  'health.setInvulnerable': A('combat'),
 };
 
-export type ControlKind = 'tab' | 'tool' | 'action' | 'dock' | 'assetFilter' | 'node';
+/** P9a: sections of the studios that belong to a feature */
+export const SECTION_TAGS: Record<string, ControlTags> = {
+  'asset.health': S('collect', 'combat'),
+  'character.harm': S('combat'),
+};
+
+export type ControlKind = 'tab' | 'tool' | 'action' | 'dock' | 'assetFilter' | 'node' | 'section';
 export const CONTROL_TAGS: Record<ControlKind, Record<string, ControlTags>> = {
   tab: TAB_TAGS,
   tool: TOOL_TAGS,
@@ -204,6 +216,7 @@ export const CONTROL_TAGS: Record<ControlKind, Record<string, ControlTags>> = {
   dock: DOCK_TAGS,
   assetFilter: ASSET_FILTER_TAGS,
   node: NODE_TAGS,
+  section: SECTION_TAGS,
 };
 
 /** A control's tags (an untagged one counts as advanced and core-less: only Open shows it). */
@@ -219,4 +232,5 @@ export const KIND_NAMES: Record<ControlKind, string> = {
   dock: 'dock tab',
   assetFilter: 'asset filter',
   node: 'logic node',
+  section: 'section',
 };

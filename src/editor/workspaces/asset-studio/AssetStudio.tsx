@@ -19,7 +19,9 @@ import { assetLibrary, newAssetDef, resolveAsset, sameAsset } from '../../assets
 import { ActionListField } from '../../components/ActionListField';
 import { AssetThumb } from '../../components/AssetThumb';
 import { BrickIcon, BrickPicker } from '../../components/BrickIcon';
-import { Num } from '../../components/fields';
+import { FieldHelp, Num } from '../../components/fields';
+import { HealthFields, MakeBreakable } from '../../components/HealthFields';
+import { shows } from '../../genres/view';
 import { endDrag, startDrag } from '../../interact/drag';
 import { actionChoices } from '../../panels/AudioFields';
 import { Swatches } from '../../panels/Inspector';
@@ -1123,6 +1125,52 @@ function Properties({
             Can be rebuilt (hold E)
           </label>
         </div>
+
+        {/* P9a: health — how many hits it takes, what each kind of hit does, what happens at zero */}
+        {shows(ed, 'section', 'asset.health') && (
+          <div class="sec" data-tour="asset-health-sec">
+            <div class="sech">
+              <span>
+                Health
+                <FieldHelp
+                  label="Health"
+                  text="How much it takes to break it. Without health one hit smashes it (when it can be smashed); with health it takes several, some kinds of hit do more or nothing, and at zero it breaks, leaves an item and sends an event."
+                />
+              </span>
+              {def.health && (
+                <button
+                  type="button"
+                  class="link"
+                  aria-label="Remove health"
+                  onClick={() => {
+                    const { health: _h, ...rest } = def;
+                    reset(rest as Asset, 'Remove health');
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {def.health ? (
+              <HealthFields
+                ed={ed}
+                tour="asset-health"
+                health={def.health}
+                onChange={(health, label) => patch({ health }, label)}
+              />
+            ) : (
+              <>
+                <p class="hint">No health: one hit smashes it{def.smash.enabled ? '' : ' (when it can be smashed)'}.</p>
+                <MakeBreakable
+                  tour="make-breakable"
+                  onPick={(health, name) =>
+                    patch({ health, smash: { ...def.smash, enabled: true } }, `Make breakable: ${name}`)
+                  }
+                />
+              </>
+            )}
+          </div>
+        )}
 
         <div class="sec" style={{ borderBottom: 0 }}>
           <div class="sech">

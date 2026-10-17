@@ -6,9 +6,11 @@ import { newId } from '../../../core/ids';
 import { type Character, type Clip, paths } from '../../../core/schema';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import type { ActionCtx } from '../../actions/registry';
-import { DraftText } from '../../components/fields';
+import { DraftText, FieldHelp } from '../../components/fields';
+import { HealthFields } from '../../components/HealthFields';
 import { PreviewPicker } from '../../components/PreviewPicker';
 import { Timeline } from '../../components/timeline/Timeline';
+import { shows } from '../../genres/view';
 import { actionChoices } from '../../panels/AudioFields';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
 import { CharacterThumb, peakTime, type ThumbView, trackPose } from './thumbs';
@@ -406,6 +408,48 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               </button>
             </div>
           </div>
+          {/* P9a: a neighbour the hero can hurt (villagers are off: hits do nothing) */}
+          {!isHero && shows(ed, 'section', 'character.harm') && (
+            <div class="sec" data-tour="char-harm">
+              <div class="sech">
+                <span>
+                  Health
+                  <FieldHelp
+                    label="Can be harmed"
+                    text="On: when this character is a neighbour on a map, the hero's hits hurt it, and at zero it leaves the play (and can leave an item and send an event). Off: hits do nothing — villagers are off. The player character's health is its hearts (the hp variable)."
+                  />
+                </span>
+              </div>
+              <label class="lbl">
+                <input
+                  type="checkbox"
+                  data-tour="char-can-be-harmed"
+                  checked={!!chr.harm?.canBeHarmed}
+                  onChange={() =>
+                    saveChr(
+                      {
+                        ...chr,
+                        harm: {
+                          canBeHarmed: !chr.harm?.canBeHarmed,
+                          health: chr.harm?.health ?? { hp: 3, atZero: { break: false } },
+                        },
+                      },
+                      chr.harm?.canBeHarmed ? 'Cannot be harmed' : 'Can be harmed',
+                    )
+                  }
+                />{' '}
+                Can be harmed
+              </label>
+              {chr.harm?.canBeHarmed && (
+                <HealthFields
+                  ed={ed}
+                  tour="char-health"
+                  health={chr.harm.health}
+                  onChange={(health, label) => saveChr({ ...chr, harm: { canBeHarmed: true, health } }, label)}
+                />
+              )}
+            </div>
+          )}
           {clip && !builtinClip && (
             <div class="sec">
               <div class="sech">

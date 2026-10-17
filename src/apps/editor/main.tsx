@@ -205,6 +205,8 @@ async function boot() {
     },
   };
   (window as unknown as { __editor: EditorState }).__editor = ed;
+  // the built-in asset library, for e2e tests that place a built-in asset by name
+  (window as unknown as { __builtinAssets: typeof BUILTIN_ASSETS }).__builtinAssets = BUILTIN_ASSETS;
   // e2e helpers: place a built-in asset the way the dock does
   (window as unknown as { __assets: unknown }).__assets = {
     placeCommands,
