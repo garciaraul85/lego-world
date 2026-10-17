@@ -16,6 +16,16 @@ const get = <T>(page: Page, fn: (e: Ed) => T) =>
     return f((window as unknown as { __editor: Ed }).__editor);
   }, fn.toString());
 
+/** Do it for me, then Do the rest when it stops after a line (it waits for Continue so you can look). */
+async function doItForMe(card: Locator, timeout = 180_000, what = '') {
+  await card.getByRole('button', { name: 'Do it for me' }).click();
+  const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+  const done = card.getByText(/✓ Done!/);
+  await expect(rest.or(done), what).toBeVisible({ timeout });
+  if (await rest.isVisible()) await rest.click();
+  await expect(done, what).toBeVisible({ timeout });
+}
+
 async function startTutorial(page: Page, mode: 'show' | 'try') {
   await page.goto('/editor.html?hub');
   await ready(page);
@@ -51,8 +61,7 @@ test('Tutorial (Show me): the demo performs the step, then puts it back for the 
   await expect(card.getByText(/Your turn/).first()).toBeVisible({ timeout: 60_000 });
   expect(await get(page, (e) => e.scene.value!.count)).toBe(before);
   // the user repeats it (Do it for me stands in for the clicks) and the step completes
-  await card.getByRole('button', { name: 'Do it for me' }).click();
-  await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 60_000 });
+  await doItForMe(card, 60_000);
   // nothing moves on by itself: the step waits for Next
   const pos = await card.locator('header .mono').innerText();
   await page.waitForTimeout(2500);
@@ -78,8 +87,7 @@ test('Tutorial (I try first): Do it for me through every step builds a playable 
     const doIt = card.getByRole('button', { name: 'Do it for me' });
     if (await doIt.isVisible()) {
       await expect(doIt).toBeEnabled({ timeout: 30_000 });
-      await doIt.click();
-      await expect(card.getByText(/✓ Done!/), `step ${pos} ${title}`).toBeVisible({ timeout: 180_000 });
+      await doItForMe(card, 180_000, `step ${pos} ${title}`);
       if (pos.startsWith(`${total}/`)) break;
       await card.getByRole('button', { name: 'Next ▶' }).click();
       await expect(card.locator('header .mono'), `step ${pos} ${title}`).not.toHaveText(pos, { timeout: 60_000 });
@@ -155,8 +163,7 @@ async function toStep(page: Page, card: Locator, title: string, chapter: RegExp)
     const pos = await card.locator('header .mono').innerText();
     const chap = await card.locator('.tut-chapter').innerText();
     if (chapter.test(chap)) {
-      await card.getByRole('button', { name: 'Do it for me' }).click();
-      await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 60_000 });
+      await doItForMe(card, 60_000);
     }
     await card.getByRole('button', { name: /Next ▶|Skip ▶▶/ }).click();
     await expect(card.locator('header .mono')).not.toHaveText(pos);
@@ -251,8 +258,19 @@ test('Tutorial: Show me and Do it for me run a scripted step line by line, verif
 
   // Do it for me: same lines, Next stays off until every line is verified
   await card.getByRole('button', { name: 'Do it for me' }).click();
-  await expect(card.getByRole('button', { name: /Next ▶|Skip ▶▶/ })).toBeDisabled();
-  // Done comes only after every line's check passed (a failed one stops the run on that line)
+  await expect(card.getByRole('button', { name: /^(Next ▶|Skip ▶▶)$/ })).toBeDisabled();
+  // it stops after each line so you can see what it did: Continue does the next one
+  const cont = card.getByRole('button', { name: 'Continue ▶' });
+  await expect(cont).toBeVisible({ timeout: 30_000 });
+  await expect(how.locator('li.done')).toHaveCount(1);
+  await expect(card.locator('.tut-note')).toContainText('Done: line 1');
+  await page.waitForTimeout(1500);
+  await expect(how.locator('li.done')).toHaveCount(1);
+  await cont.click();
+  await expect(how.locator('li.done')).toHaveCount(2, { timeout: 30_000 });
+  await expect(cont).toBeVisible();
+  // Do the rest finishes without stopping; Done comes only after every line's check passed
+  await card.getByRole('button', { name: 'Do the rest ▶▶' }).click();
   await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 90_000 });
   const labels = await get(page, (e) => e.bus.history().map((h) => h.label));
   for (const l of ['Add track', 'Add key', 'Key value', 'Mirror track']) expect(labels).toContain(l);
@@ -281,6 +299,8 @@ test('Tutorial: the chest story — Do it for me through Characters, Logic and C
   expect(story.scenes).toContain('Treasure chest');
   // Watch it: the game plays the scene; logic opens the chest and the sword rises out of it
   await card.getByRole('button', { name: 'Do it for me' }).click();
+  // (it stops after the first line: Do the rest plays the scene)
+  await card.getByRole('button', { name: 'Do the rest ▶▶' }).click({ timeout: 60_000 });
   await page.waitForFunction(
     () => {
       const s = (window as unknown as { __editor: { session: { value: unknown } } }).__editor.session.value as {

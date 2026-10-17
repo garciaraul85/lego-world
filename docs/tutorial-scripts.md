@@ -6,7 +6,7 @@ The same lines are used by:
 
 - the tutorial card (the numbered "Click by click" list, ticked one line at a time);
 - **Show me** (the pointer goes to each control, says what it does, performs it, then everything is undone for "My turn");
-- **Do it for me** (the same actions without the pointer);
+- **Do it for me** (the same actions without the pointer, stopping after each line: the spotlight shows the control it just used, **Continue ▶** does the next line and **Do the rest ▶▶** finishes the step without stopping);
 - AI plans, which run the same kind of script against the editor's UI.
 
 The AI never edits the engine's code or the project's files (manifest, maps, assets, logic) directly.

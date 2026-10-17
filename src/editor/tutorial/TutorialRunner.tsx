@@ -68,6 +68,12 @@ export function TutorialRunner({
   });
   /** resolves the demo's pause when you press My turn */
   const myTurn = useRef<(() => void) | null>(null);
+  /**
+   * P32: Do it for me stops after each line so you can see what it did; Continue does the next line, Do the
+   * rest finishes the step without stopping. Holds the line just done while it waits.
+   */
+  const [paused, setPaused] = useState<number | null>(null);
+  const resume = useRef<((how: 'next' | 'rest' | 'stop') => void) | null>(null);
   /** true while Show me or Do it for me is still working (buttons wait for it) */
   const [working, setWorking] = useState(false);
   const step = STEPS[index]!;
@@ -113,6 +119,7 @@ export function TutorialRunner({
   useEffect(
     () => () => {
       myTurn.current?.();
+      resume.current?.('stop');
       ed.tutorialSpot.value = null;
     },
     [],
@@ -157,13 +164,14 @@ export function TutorialRunner({
 
   /** Show me: perform the step with the demo pointer, show the result, then put everything back. */
   /** P32: one line of the step at a time: its actions, then its check must pass (Show me and Do it for me). */
-  async function runScript(show: boolean) {
+  async function runScript(show: boolean, stepByStep = false) {
     const parts = scriptOf(step);
-    for (const part of parts) {
+    let rest = !stepByStep;
+    for (const [i, part] of parts.entries()) {
       if (part.line !== null) setHowAt(part.line);
       // armed before the actions, so a command they cause is seen
-      // a big map can keep the editor busy for a while (the Director reloads its preview): 20 s before giving up
-      const verified = part.check ? verify(part.check, c, 20000) : null;
+      // a big map can keep the editor busy for a while (the Director reloads its preview): 45 s before giving up
+      const verified = part.check ? verify(part.check, c, 45000) : null;
       for (const d of part.actions) {
         const said = d as { say?: string };
         if (show) {
@@ -203,6 +211,26 @@ export function TutorialRunner({
         });
       }
       await wait(show ? 500 : 200);
+      // Do it for me: wait after each line (but the last) so you can see what changed
+      if (!rest && i < parts.length - 1 && part.line !== null) {
+        const last = [...part.actions].reverse().find((d) => 'click' in d || 'choose' in d || 'fill' in d);
+        const sel = last ? ('click' in last ? last.click : 'choose' in last ? last.choose : last.fill) : null;
+        if (sel && document.querySelector(sel)) setFocus(sel);
+        setPaused(part.line);
+        setNote(
+          `Done: line ${part.line + 1}${part.text ? ` — ${storyText(ed, part.text)}` : ''} Press Continue for line ${part.line + 2}.`,
+        );
+        setHowAt(part.line + 1);
+        const how = await new Promise<'next' | 'rest' | 'stop'>((r) => {
+          resume.current = r;
+        });
+        resume.current = null;
+        if (how === 'stop') throw new Error('stopped');
+        rest = how === 'rest';
+        setPaused(null);
+        setFocus(null);
+        setNote(null);
+      }
     }
   }
 
@@ -259,7 +287,7 @@ export function TutorialRunner({
     setWorking(true);
     const at = indexRef.current;
     try {
-      await runScript(false);
+      await runScript(false, true);
       complete(at);
     } catch (e) {
       setNote(`Could not do it automatically: ${e instanceof Error ? e.message : e}`);
@@ -391,10 +419,26 @@ export function TutorialRunner({
                   </button>
                 )
               )}
-              {scripted && (
-                <button type="button" class="btn" disabled={phase !== 'try' || working} onClick={() => void doIt()}>
-                  Do it for me
-                </button>
+              {paused !== null ? (
+                <>
+                  <button type="button" class="btn on" onClick={() => resume.current?.('next')}>
+                    Continue ▶
+                  </button>
+                  <button
+                    type="button"
+                    class="btn"
+                    title="Do the remaining lines without stopping"
+                    onClick={() => resume.current?.('rest')}
+                  >
+                    Do the rest ▶▶
+                  </button>
+                </>
+              ) : (
+                scripted && (
+                  <button type="button" class="btn" disabled={phase !== 'try' || working} onClick={() => void doIt()}>
+                    Do it for me
+                  </button>
+                )
               )}
               {step.check.kind === 'manual' || phase === 'done' ? (
                 <button

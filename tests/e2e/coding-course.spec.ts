@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 type Ed = {
   scene: { value: unknown };
@@ -8,6 +8,15 @@ const ready = (page: Page) =>
   page.waitForFunction(() => !!(window as unknown as { __editor?: Ed }).__editor?.scene.value, undefined, {
     timeout: 60_000,
   });
+
+/** Do it for me stops after each line of a multi-line step: Do the rest finishes it. */
+async function finishDoIt(card: Locator, timeout: number, what = '') {
+  const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+  const done = card.getByText(/✓ Done!/);
+  await expect(rest.or(done), what).toBeVisible({ timeout });
+  if (await rest.isVisible()) await rest.click();
+  await expect(done, what).toBeVisible({ timeout });
+}
 
 test('Coding course: Show me types the code into the Code view, then puts it back', async ({ page }) => {
   test.setTimeout(240_000);
@@ -30,7 +39,7 @@ test('Coding course: Show me types the code into the Code view, then puts it bac
     const doIt = card.getByRole('button', { name: 'Do it for me' });
     if (await doIt.isVisible()) {
       await doIt.click();
-      await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 30_000 });
+      await finishDoIt(card, 30_000);
     }
     await card.getByRole('button', { name: /Next ▶/ }).click();
     await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 30_000 });
@@ -77,7 +86,7 @@ test('Coding course: Do it for me through every lesson ends with a game written 
     if (await doIt.isVisible()) {
       await expect(doIt).toBeEnabled({ timeout: 30_000 });
       await doIt.click();
-      await expect(card.getByText(/✓ Done!/), `${pos} ${title}`).toBeVisible({ timeout: 60_000 });
+      await finishDoIt(card, 60_000, `${pos} ${title}`);
       if (pos.startsWith(`${total}/`)) break;
       await card.getByRole('button', { name: 'Next ▶' }).click();
     } else {
