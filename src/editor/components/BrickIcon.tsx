@@ -1,5 +1,6 @@
 import { footprint } from '../../core/bricks/inspect';
 import { BRICK_SIZES } from '../../core/schema';
+import { endDrag, startDrag } from '../interact/drag';
 
 const shade = (hex: string, f: number) => {
   const n = Number.parseInt(hex.slice(1), 16);
@@ -93,11 +94,14 @@ export function BrickPicker({
   color,
   rot,
   onPick,
+  draggable = false,
 }: {
   type: string;
   color: string;
   rot: number;
   onPick: (type: string) => void;
+  /** cards can be dragged straight onto the asset's build plate (Assets screen) */
+  draggable?: boolean;
 }) {
   const kind = type.replace(/\d.*$/, '');
   return (
@@ -133,7 +137,14 @@ export function BrickPicker({
               class={`card ${on ? 'on' : ''}`}
               role="option"
               aria-selected={on}
-              data-tip={`${kind.charAt(0).toUpperCase() + kind.slice(1)} ${r}×${cc}: ${r} by ${cc} studs`}
+              data-tip={`${kind.charAt(0).toUpperCase() + kind.slice(1)} ${r}×${cc}: ${r} by ${cc} studs${draggable ? '. Click it, then click the build plate, or drag it straight onto the plate.' : ''}`}
+              draggable={draggable}
+              onDragStart={(e) => {
+                if (!draggable) return;
+                onPick(t);
+                startDrag(e as unknown as DragEvent, { kind: 'brick', type: t, color, rot });
+              }}
+              onDragEnd={endDrag}
               onClick={() => onPick(t)}
             >
               <span class="thumb" aria-hidden="true">

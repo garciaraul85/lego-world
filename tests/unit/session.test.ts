@@ -125,7 +125,7 @@ describe('PlaySession', () => {
 });
 
 describe('PlaySession asset interactions (P3.1)', () => {
-  it('a chest near the hero shows a prompt; E opens it (its lid bricks swap) and Stop keeps the project unchanged', async () => {
+  it('a chest near the hero shows a prompt; E opens it (its lid swings open) and Stop keeps the project unchanged', async () => {
     const { newProjectFiles } = await import('../../src/core/project/new-project');
     const { CommandBus, registerAll } = await import('../../src/core/commands');
     const { BUILTIN_ASSETS } = await import('../../src/builtin/assets');
@@ -150,7 +150,9 @@ describe('PlaySession asset interactions (P3.1)', () => {
     expect(game.prompt?.label).toBe('Open');
     expect(game.interact()).toBe(true);
     expect(game.world.instances[0]!.state).toBe('open');
-    expect(game.world.pieces.length).toBe(n0 + 1); // closed lid out; open lid + coins in
+    // P32: the lid is a moving part: the same bricks, easing to the open pose
+    expect(game.world.pieces.length).toBe(n0);
+    expect(game.world.instances[0]!.anim).toMatchObject({ from: 'closed' });
     expect(game.events.some((e) => e.msg.includes('chest-opened'))).toBe(true);
     game.runtime.stepOnce();
     expect(game.interact()).toBe(true); // the open chest's interaction closes it again

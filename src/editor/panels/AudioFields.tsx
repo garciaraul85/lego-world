@@ -4,6 +4,7 @@ import { audioData } from '../../engine/audio/data';
 import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
 import { Header, Num, TextField } from '../components/fields';
+import { eventNames } from '../events';
 import type { EditorState } from '../state';
 
 /** Pickers for ActionListField (sound, music and screen actions). */
@@ -13,6 +14,12 @@ export function actionChoices(ed: EditorState) {
     music: musicOptions(ed),
     screens: allScreens(ed.store).map((s) => ({ id: s.id, name: `${s.name} · ${s.kind}` })),
     cinematics: cinematicOptions(ed),
+    // P32: Send event picks from the events the project uses; ▶ plays sounds and music
+    events: eventNames(ed.store),
+    preview: {
+      sound: (id: string) => ed.audio.previewEvent(id),
+      music: (id: string | null) => ed.audio.previewMusic(id),
+    },
   };
 }
 

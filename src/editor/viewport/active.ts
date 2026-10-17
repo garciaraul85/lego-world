@@ -6,6 +6,8 @@ export type ViewportApi = {
   camera: OrbitCamera;
   renderer: Renderer | null;
   redraw(): void;
+  /** P32: hands every brick to the renderer again and draws (after a change it must show at once) */
+  resync(): void;
   fit(): void;
   frameSelection(): void;
 };

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { BUILD } from '../build-info';
 import { toLegacy } from '../core/bridge/legacy-bridge';
 import { packProject } from '../core/project/archive';
 import type { ProjectMeta } from '../core/project/backend';
@@ -6,6 +7,7 @@ import { type Cinematic, type MediaIndex, paths } from '../core/schema';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { AiPanel } from './ai/AiPanel';
 import { WorldGraph } from './graph/WorldGraph';
+import { contextHelpPage } from './help/context';
 import { HelpView } from './help/HelpView';
 import { ContextMenu } from './interact/ContextMenu';
 import { HoverTip } from './interact/HoverTip';
@@ -14,6 +16,7 @@ import { openSelectionMenu } from './interact/scene-menus';
 import { Dock } from './panels/Dock';
 import { RightPanel } from './panels/Inspector';
 import { Outliner } from './panels/Outliner';
+import { anyKeyboard } from './platform';
 import { PlayLayer } from './play/PlayLayer';
 import { type PlayStart, PlayView } from './play/PlayView';
 import {
@@ -31,6 +34,7 @@ import { BuildViewer } from './start/BuildViewer';
 import { readIntent, writeIntent } from './start/intent';
 import { type HubHost, StartHub } from './start/StartHub';
 import type { EditorState } from './state';
+import type { Track } from './tutorial/index';
 import { TutorialRunner } from './tutorial/TutorialRunner';
 import { activeView, fullscreenDock, sceneFullscreen, viewOp } from './viewport/active';
 import type { ViewportApi } from './viewport/Viewport';
@@ -153,9 +157,9 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       showShortcuts: () => setModal('shortcuts'),
       startHub: () => setHub(true),
       tutorial: (track = 'editor') => {
-        void ed.autosave.flush().then(() => host.startTutorial('show', track));
+        void ed.autosave.flush().then(() => host.startTutorial('show', track as Track));
       },
-      help: (page) => setHelp(page ?? 'start'),
+      help: (page) => setHelp(page ?? contextHelpPage(ed.workspace.value) ?? 'start'),
       aiBuilder: () => setAi(true),
       about: () => setModal('about'),
     }),
@@ -177,12 +181,17 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);
 
+  // the key handler reads what is open now (a key pressed right after Help closes still works)
+  const open = useRef({ play, modal, help });
+  open.current = { play, modal, help };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (play || modal || help || ed.palette.value || openMenuState.value) return;
+      const o = open.current;
+      if (o.play || o.modal || o.help || ed.palette.value || openMenuState.value) return;
       if (ed.session.value) {
         // While playing only the play shortcuts reach the editor; the game owns the rest (Esc = game back/pause).
-        if (e.key === 'F5') {
+        // F5, or ⌘ Return / Ctrl Enter (a Mac's F5 is a media key unless fn is held)
+        if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) {
           e.preventDefault();
           setEngine(null);
         }
@@ -197,19 +206,20 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         return;
       }
       // P31: the menu key and Shift+F10 open the right-click menu for the selection
-      if (k === 'ContextMenu' || k === 'Shift F10') {
+      if (k === 'ContextMenu' || k === 'Shift F10' || k === anyKeyboard('Shift F10')) {
         const el = document.querySelector('.viewport-canvas')?.getBoundingClientRect();
         if (el && openSelectionMenu(c, el.left + el.width / 2, el.top + el.height / 2)) e.preventDefault();
         return;
       }
-      const a = ACTIONS.find((x) => x.key === k);
+      // every shortcut also has a key any keyboard has (a Mac's F-keys, Home, Page Up… — see MAC_KEYS)
+      const a = ACTIONS.find((x) => x.key === k) ?? ACTIONS.find((x) => x.key && anyKeyboard(x.key) === k);
       if (!a) return;
       e.preventDefault();
       runAction(a, c);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [play, modal, help]);
+  }, []);
 
   const later = WORKSPACES.find(([w]) => w === workspace)?.[1];
   return (
@@ -319,6 +329,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
             studio, Character studio, Logic, Screens, Cinematics and Audio on the v5 project format, with Play on the
             new engine runtime, grown from LEGO World v68.
           </p>
+          <p class="mono small">Build {BUILD}</p>
           <p class="muted">
             Projects are saved as small JSON files in this browser. Guns, magic, super powers, the volcano and the
             not-yet-ported studios still run on the v68 runtime (Play in v68).

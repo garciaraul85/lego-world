@@ -1,4 +1,13 @@
 import type { ComponentChildren } from 'preact';
+import { FieldHelp } from '../../components/fields';
+
+/** P32: a field's name with its “?” (what it is, where its value comes from) */
+const Head = ({ label, help }: { label: string; help?: string | undefined }) => (
+  <span>
+    {label}
+    {help && <FieldHelp label={label} text={help} />}
+  </span>
+);
 
 /** Small form helpers for the Director panels (commit on change, like the rest of the editor). */
 export function NumIn({
@@ -8,6 +17,7 @@ export function NumIn({
   min,
   max,
   onChange,
+  help,
 }: {
   label: string;
   value: number;
@@ -15,10 +25,12 @@ export function NumIn({
   min?: number;
   max?: number;
   onChange: (v: number) => void;
+  /** P32: the “?” text */
+  help?: string;
 }) {
   return (
     <label class="dr-f">
-      <span>{label}</span>
+      <Head label={label} help={help} />
       <input
         class="inp mono"
         type="number"
@@ -41,16 +53,19 @@ export function TextIn({
   value,
   onChange,
   area,
+  help,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   area?: boolean;
+  /** P32: the “?” text */
+  help?: string;
 }) {
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: the control is one of two elements below
     <label class="dr-f">
-      <span>{label}</span>
+      <Head label={label} help={help} />
       {area ? (
         <textarea
           class="inp"
@@ -76,15 +91,18 @@ export function Pick({
   value,
   options,
   onChange,
+  help,
 }: {
   label: string;
   value: string;
   options: { id: string; name: string }[];
   onChange: (v: string) => void;
+  /** P32: the “?” text */
+  help?: string;
 }) {
   return (
     <label class="dr-f">
-      <span>{label}</span>
+      <Head label={label} help={help} />
       <select
         class="inp"
         aria-label={label}
@@ -112,14 +130,17 @@ export function Vec({
   label,
   value,
   onChange,
+  help,
 }: {
   label: string;
   value: readonly number[];
   onChange: (v: [number, number, number]) => void;
+  /** P32: the “?” text */
+  help?: string;
 }) {
   return (
     <div class="dr-f">
-      <span>{label}</span>
+      <Head label={label} help={help} />
       <div class="grid3">
         {(['X', 'Y', 'Z'] as const).map((a, i) => (
           <input

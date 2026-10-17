@@ -15,7 +15,9 @@ export type Block =
   | { t: 'ul' | 'ol'; items: Inline[][] }
   | { t: 'pre'; v: string }
   | { t: 'table'; head: Inline[][]; rows: Inline[][][] }
-  | { t: 'quote'; c: Inline[] };
+  | { t: 'quote'; c: Inline[] }
+  /** P32: a screenshot of an editor state with callouts — `!shot <focus>` where focus is an entry id or guide:<screen> */
+  | { t: 'shot'; focus: string };
 
 export const slugify = (s: string) =>
   s
@@ -95,6 +97,12 @@ export function parseMarkdown(md: string): Block[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     if (/^<!--.*-->\s*$/.test(line.trim())) continue;
+    const shot = /^!shot\s+(\S+)\s*$/.exec(line.trim());
+    if (shot) {
+      flush();
+      out.push({ t: 'shot', focus: shot[1]! });
+      continue;
+    }
     const h = /^(#{1,3})\s+(.*)$/.exec(line);
     if (h) {
       flush();

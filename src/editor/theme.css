@@ -571,6 +571,14 @@ select.inp {
   color: var(--fg2);
   pointer-events: none;
 }
+.vp-overlay.save-problem {
+  border-color: var(--err);
+  flex-direction: column;
+  align-items: flex-start;
+  width: min(440px, calc(100% - 24px));
+  line-height: 1.4;
+  z-index: 5;
+}
 .vp-overlay {
   position: absolute;
   left: 50%;
@@ -1108,7 +1116,7 @@ select.inp {
 }
 .studio {
   display: grid;
-  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(290px, 340px);
+  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr) minmax(290px, 340px);
   grid-template-rows: minmax(0, 1fr);
   gap: 8px;
   min-height: 0;
@@ -1173,6 +1181,38 @@ select.inp {
   font-size: 12px;
   text-align: left;
   cursor: pointer;
+}
+/* P32: a library row: open the asset, or + builds it into the open one */
+.studio-lib .changed-tag {
+  color: var(--warn);
+  font-size: 11px;
+}
+.studio-lib .lib-row {
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+}
+.studio-lib .lib-row .lib-add {
+  min-height: 22px;
+  min-width: 22px;
+  padding: 0 4px;
+  opacity: 0.55;
+}
+.studio-lib .lib-row:hover .lib-add,
+.studio-lib .lib-row .lib-add:focus-visible {
+  opacity: 1;
+}
+.studio-lib .lib-item[draggable="true"] {
+  cursor: grab;
+}
+.studio-lib .plate-bricks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+}
+.studio-lib .plate-bricks .cards {
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
 }
 .studio-lib .lib-item .asset-name {
   flex: 1;
@@ -1241,6 +1281,48 @@ select.inp {
 }
 .char-plate .viewport-wrap {
   flex: 1;
+}
+/* P32 character pictures: preset cards and list rows */
+.char-thumb {
+  display: inline-flex;
+  flex: none;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--bg);
+}
+.char-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.char-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+  max-height: 46vh;
+  overflow: auto;
+}
+.char-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel2);
+  color: var(--fg);
+  font: inherit;
+  font-size: 11px;
+  text-align: center;
+  cursor: pointer;
+}
+.char-card:hover,
+.char-card:focus-visible {
+  border-color: var(--acc);
+  background: var(--accbg);
 }
 .lib-item .dot {
   width: 12px;
@@ -1328,6 +1410,16 @@ select.inp {
 }
 .tl-key.on {
   background: var(--acc);
+}
+.tl-keyval {
+  position: absolute;
+  top: 4px;
+  margin-left: 9px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--acc);
+  pointer-events: none;
+  white-space: nowrap;
 }
 .tl-event {
   position: absolute;
@@ -2616,6 +2708,30 @@ select.inp {
 .tut-task.done {
   border-left-color: var(--teal);
   color: var(--teal);
+}
+/* P32: click by click, under the task; the line being shown lights up */
+.tut-how {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--fg2);
+}
+.tut-how li.done {
+  color: var(--mut2, #8a93a0);
+}
+.tut-how .tut-tick {
+  color: var(--teal);
+  font-weight: 700;
+}
+.tut-how li.on {
+  color: var(--fg);
+  font-weight: 600;
+}
+.tut-how li.on::marker {
+  color: var(--acc);
 }
 .tut-note {
   color: var(--info);
@@ -4024,4 +4140,265 @@ select.inp {
   font-size: 11px;
   color: var(--mut);
   min-width: 0;
+}
+
+/* ---------- Help pictures and Show me (P32) ---------- */
+.help-shot {
+  margin: 10px 0 14px;
+}
+.help-shot-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #0c0f13;
+}
+.help-shot-frame img {
+  position: absolute;
+  max-width: none;
+  display: block;
+}
+.help-callout {
+  position: absolute;
+  border: 2px solid var(--acc);
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px #000a;
+  pointer-events: none;
+}
+.help-callout-n {
+  position: absolute;
+  left: -10px;
+  top: -10px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--acc);
+  color: #000;
+  font: 700 12px / 20px var(--font);
+  text-align: center;
+  box-shadow: 0 1px 4px #000a;
+}
+.help-flash {
+  position: fixed;
+  z-index: 200;
+  border: 3px solid var(--acc);
+  border-radius: 6px;
+  pointer-events: none;
+  animation: help-flash 0.65s ease-in-out 4;
+}
+@keyframes help-flash {
+  50% {
+    box-shadow: 0 0 0 8px #f2b63255;
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .help-flash {
+    animation: none;
+  }
+}
+.tut-card .tut-drag {
+  cursor: move;
+  touch-action: none;
+}
+.asset-search {
+  width: 180px;
+  min-width: 120px;
+}
+
+/* P32: the body part of the track picked in a clip's timeline, ringed on the character preview */
+.part-mark {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.part-mark[hidden] {
+  display: none;
+}
+.part-ring {
+  position: absolute;
+  left: -16px;
+  top: -16px;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--acc);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px #0008,
+    0 0 12px var(--acc);
+  animation: part-pulse 1.2s ease-in-out infinite;
+}
+.part-tag {
+  position: absolute;
+  left: 20px;
+  top: -30px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--acc);
+  color: #1a1306;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px #0008;
+}
+@keyframes part-pulse {
+  50% {
+    transform: scale(1.18);
+    opacity: 0.75;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .part-ring {
+    animation: none;
+  }
+}
+.part-status {
+  position: absolute;
+  left: 8px;
+  bottom: 6px;
+  max-width: calc(100% - 16px);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #000a;
+  color: var(--fg);
+  font-size: 12px;
+  pointer-events: none;
+}
+.part-status:empty {
+  display: none;
+}
+/* P32: a character choice picker sits in a property row like the other fields */
+.field .pv-field {
+  justify-self: stretch;
+}
+.field .pv-btn-thumb .char-thumb {
+  width: 26px !important;
+  height: 26px !important;
+  padding: 0;
+}
+.pv-thumb .char-thumb {
+  width: 100% !important;
+  height: 48px !important;
+}
+/* P32: a part that moves between an asset's states */
+.moving-part {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px 0 8px 10px;
+  padding-left: 8px;
+  border-left: 2px solid var(--acc2, #3a8);
+}
+.pose-row {
+  display: grid;
+  grid-template-columns: 52px repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  align-items: end;
+}
+.pose-row label {
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  color: var(--mut);
+}
+.pose-row .inp {
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+}
+/* P32: “?” next to a field: what it is and where its value comes from */
+.fhelp-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+}
+.fhelp {
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid var(--bd);
+  border-radius: 50%;
+  background: var(--btn);
+  color: var(--mut2, #aeb7c4);
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 700;
+  cursor: help;
+}
+.fhelp:hover,
+.fhelp:focus-visible,
+.fhelp[aria-expanded="true"] {
+  color: var(--fg);
+  border-color: var(--acc);
+}
+.fhelp-text {
+  display: block;
+  margin: 4px 0 2px;
+  padding: 6px 8px;
+  max-width: 280px;
+  border-radius: 4px;
+  background: #0c0f13;
+  border: 1px solid var(--bd);
+  color: var(--fg2, #c9d1d9);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: normal;
+}
+.field-note {
+  font-size: 11px;
+  color: var(--mut2, #aeb7c4);
+  margin: -2px 0 6px;
+}
+.field-warn {
+  font-size: 11px;
+  color: #ffb454;
+  margin: -2px 0 6px;
+}
+
+/* P32: a variable with every part labelled */
+.lg-var-card,
+.lg-var-new {
+  margin: 4px 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 4px;
+}
+.lg-var-new legend {
+  font-size: 11px;
+  color: var(--mut);
+  padding: 0 4px;
+}
+.lg-var-card .row {
+  justify-content: space-between;
+}
+.lg-var-name {
+  font-weight: 600;
+}
+.lg-var-used {
+  line-height: 1.3;
+}
+.fhelp-go {
+  display: block;
+  margin-top: 4px;
+}
+
+/* P32: a tutorial's target on the Director's stage */
+.dr-spot {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.65);
+  color: var(--acc2);
+  font-size: 12px;
+  pointer-events: none;
 }

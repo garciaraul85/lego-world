@@ -1,11 +1,18 @@
 import { useMemo, useState } from 'preact/hooks';
 import { CATALOG, nodeDef } from '../../../core/logic/catalog';
+import { fieldHelp } from '../../../core/logic/field-help';
 import { graphProblems } from '../../../core/logic/graph';
-import type { LogicGraph, Variables } from '../../../core/schema';
+import { type LogicGraph, paths, type Variables } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
+import { ChoiceOrText } from '../../components/ChoiceOrText';
+import { EventPicker } from '../../components/EventPicker';
+import { DraftText, FieldHelp } from '../../components/fields';
+import { describeUse, eventUses } from '../../events';
+import { keysFor } from '../../platform';
 import { CodeView } from './CodeView';
 import { GraphView, toggleBreakpoint } from './GraphView';
 import { argChoices, CAT_COLOR, graphs, newGraph, nodeHeight, variables } from './model';
+import { assetNames, assetOfInput, nameProblem, nameProblems, placedObjects, statesOf, variableUses } from './pickers';
 
 type Mode = 'graph' | 'code' | 'split';
 
@@ -20,7 +27,10 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const brk = ed.logicBreak.value;
   const highlight = brk && graph && brk.graph === graph.id ? brk.node : null;
-  const problems = useMemo(() => (graph ? graphProblems(graph) : []), [graph]);
+  const problems = useMemo(
+    () => (graph ? [...graphProblems(graph), ...nameProblems(ed, graph)] : []),
+    [graph, ed.revision.value],
+  );
 
   const create = () => {
     const g = newGraph(`Logic ${list.length + 1}`, { type: 'event.onStart' });
@@ -29,7 +39,7 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
 
   return (
     <div class="studio logic-ws">
-      <Sidebar c={c} list={list} graph={graph} onCreate={create} />
+      <Sidebar c={c} list={list} graph={graph} onCreate={create} onAdded={(id) => setSelected(new Set([id]))} />
       <section class="panel studio-main" aria-label="Logic editor">
         <div class="ptabs studio-head">
           {graph ? (
@@ -124,23 +134,33 @@ function Sidebar({
   list,
   graph,
   onCreate,
+  onAdded,
 }: {
   c: ActionCtx;
   list: LogicGraph[];
   graph: LogicGraph | null;
   onCreate: () => void;
+  /** P32: the node just added from the list (it is selected, so its settings show at once) */
+  onAdded: (node: string) => void;
 }) {
   const { ed } = c;
   const [q, setQ] = useState('');
   const [newVar, setNewVar] = useState('');
+  const [newType, setNewType] = useState<VarType>('number');
+  const [newStart, setNewStart] = useState('0');
   const vars = variables(ed);
   const canAdd = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(newVar) && !(newVar in vars);
   const addVar = () => {
+    // the starting value typed but not yet confirmed counts too
+    const box = document.querySelector<HTMLInputElement | HTMLSelectElement>('[aria-label="New variable starts at"]');
+    const start = parseStart(newType, box?.value ?? newStart);
     ed.exec({
       type: 'logic.setVariable',
-      payload: { name: newVar, def: { type: 'number', default: 0, scope: 'global' } },
+      payload: { name: newVar, def: { type: newType, default: start, scope: 'global' } },
     });
     setNewVar('');
+    setNewType('number');
+    setNewStart('0');
   };
   const nodes = CATALOG.filter((d) => `${d.title} ${d.category} ${d.type}`.toLowerCase().includes(q.toLowerCase()));
   const cats = [...new Set(nodes.map((d) => d.category))];
@@ -156,10 +176,13 @@ function Sidebar({
           return n.pos[1] + (d ? nodeHeight(d, true) : 80) + 20;
         }),
     );
-    ed.exec({
+    const before = new Set(graph.nodes.map((n) => n.id));
+    const r = ed.exec({
       type: 'logic.addNode',
       payload: { graph: graph.id, node: { type, pos: [80, Math.round(y / 10) * 10] } },
     });
+    const made = r.ok ? ed.store.get<LogicGraph>(paths.logic(graph.id))?.nodes.find((n) => !before.has(n.id)) : null;
+    if (made) onAdded(made.id);
   };
   return (
     <section class="panel studio-lib" aria-label="Logic graphs, variables and nodes">
@@ -169,7 +192,7 @@ function Sidebar({
       <div class="scroll">
         <div class="sech" style={{ padding: '8px 10px 4px' }}>
           <span>Graphs</span>
-          <button type="button" class="link" onClick={onCreate}>
+          <button type="button" class="link" data-tour="logic-new" onClick={onCreate}>
             + New
           </button>
         </div>
@@ -196,61 +219,78 @@ function Sidebar({
         )}
 
         <div class="sech" style={{ padding: '12px 10px 4px' }}>
-          <span>Variables</span>
+          <span>
+            Variables
+            <FieldHelp label="Variables" text={VAR_HELP.what} />
+          </span>
         </div>
         {Object.entries(vars).map(([name, v]) => (
-          <div class="lg-var">
-            <span class="mono small">{name}</span>
-            <select
-              class="inp"
-              aria-label={`${name} type`}
-              value={v.type}
-              onChange={(e) => {
-                const type = (e.target as HTMLSelectElement).value as Variables['vars'][string]['type'];
-                const def = type === 'number' ? 0 : type === 'bool' ? false : '';
-                ed.exec({ type: 'logic.setVariable', payload: { name, def: { ...v, type, default: def } } });
-              }}
-            >
-              <option value="number">number</option>
-              <option value="bool">true/false</option>
-              <option value="string">text</option>
-            </select>
+          <VariableCard c={c} name={name} v={v} />
+        ))}
+        <fieldset class="lg-var-new" aria-label="New variable">
+          <legend>New variable</legend>
+          <label class="field">
+            <span>
+              Name
+              <FieldHelp label="Name" text={VAR_HELP.name} />
+            </span>
             <input
               class="inp mono"
-              aria-label={`${name} starts at`}
-              value={String(v.default)}
-              onChange={(e) => {
-                const raw = (e.target as HTMLInputElement).value;
-                const value = v.type === 'number' ? Number(raw) || 0 : v.type === 'bool' ? raw === 'true' : raw;
-                ed.exec({ type: 'logic.setVariable', payload: { name, def: { ...v, default: value } } });
+              placeholder="e.g. chestItem"
+              aria-label="New variable name"
+              value={newVar}
+              onInput={(e) => setNewVar((e.target as HTMLInputElement).value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canAdd) addVar();
               }}
             />
-            <button
-              type="button"
-              class="link"
-              aria-label={`Remove ${name}`}
-              onClick={() => ed.exec({ type: 'logic.setVariable', payload: { name, def: null } })}
+          </label>
+          <label class="field">
+            <span>
+              Type
+              <FieldHelp label="Type" text={VAR_HELP.type} />
+            </span>
+            <select
+              class="inp"
+              aria-label="New variable type"
+              value={newType}
+              onChange={(e) => {
+                const t = (e.target as HTMLSelectElement).value as VarType;
+                setNewType(t);
+                setNewStart(String(START[t]));
+              }}
             >
-              ×
-            </button>
-          </div>
-        ))}
-        <div class="row" style={{ padding: '4px 10px' }}>
-          <input
-            class="inp"
-            style={{ flex: 1 }}
-            placeholder="New variable (e.g. repaired)"
-            aria-label="New variable name"
-            value={newVar}
-            onInput={(e) => setNewVar((e.target as HTMLInputElement).value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && canAdd) addVar();
-            }}
-          />
-          <button type="button" class="btn" disabled={!canAdd} onClick={addVar}>
-            Add
+              {TYPES.map(([t, l]) => (
+                <option value={t}>{l}</option>
+              ))}
+            </select>
+          </label>
+          <label class="field">
+            <span>
+              Starting value
+              <FieldHelp label="Starting value" text={VAR_HELP.start} />
+            </span>
+            <StartInput
+              type={newType}
+              label="New variable starts at"
+              value={newStart}
+              onCommit={(t) => {
+                setNewStart(t);
+                return true;
+              }}
+            />
+          </label>
+          {newVar && !canAdd && (
+            <div class="field-warn">
+              {newVar in vars
+                ? `There is already a variable “${newVar}”.`
+                : 'A name is one word: letters, digits and _, starting with a letter (chestItem, coins_left).'}
+            </div>
+          )}
+          <button type="button" class="btn" aria-label="Add variable" disabled={!canAdd} onClick={addVar}>
+            Add variable
           </button>
-        </div>
+        </fieldset>
 
         <div class="sech" style={{ padding: '12px 10px 4px' }}>
           <span>Nodes</span>
@@ -276,6 +316,7 @@ function Sidebar({
                 <button
                   type="button"
                   class="lg-pal"
+                  data-node={d.type}
                   draggable
                   disabled={!graph}
                   title={d.doc}
@@ -308,6 +349,7 @@ function NodeInspector({
   const set = (args: Record<string, unknown>) =>
     graph && node && ed.exec({ type: 'logic.setArgs', payload: { graph: graph.id, node: node.id, args } });
   const bp = !!(graph && node && ed.breakpoints.value.has(`${graph.id}:${node.id}`));
+  const uses = eventUses(ed.store);
   return (
     <section class="panel right studio-props" aria-label="Node inspector">
       <div class="ptabs">
@@ -318,8 +360,9 @@ function NodeInspector({
           <div class="sec">
             <div class="muted">{selected.size > 1 ? `${selected.size} nodes selected.` : 'Nothing selected.'}</div>
             <p class="hint">
-              Events (teal) start a chain; flow (purple) decides where it goes; actions change the world. Drag from a
-              pin to another to wire them. Delete removes, F9 sets a breakpoint, the wheel zooms.
+              {keysFor(
+                'Events (teal) start a chain; flow (purple) decides where it goes; actions change the world. Drag from a pin to another to wire them. Delete removes, F9 sets a breakpoint, the wheel zooms.',
+              )}
             </p>
           </div>
         ) : (
@@ -342,38 +385,68 @@ function NodeInspector({
                 {def.args!.map((a) => {
                   const v = node.args?.[a.name] ?? a.default;
                   const choices = argChoices(ed, a.kind);
+                  const help = fieldHelp(def, a.name);
+                  const use = a.kind === 'event' && v ? uses.get(String(v)) : undefined;
                   return (
-                    // biome-ignore lint/a11y/noLabelWithoutControl: the control is the select/input chosen below
-                    <label class="field">
-                      {a.label}
-                      {a.kind === 'bool' ? (
-                        <input type="checkbox" checked={!!v} onChange={() => set({ [a.name]: !v })} />
-                      ) : choices ? (
-                        <select
-                          class="inp"
-                          value={String(v ?? '')}
-                          onChange={(e) => set({ [a.name]: (e.target as HTMLSelectElement).value || undefined })}
+                    <>
+                      {/* biome-ignore lint/a11y/noLabelWithoutControl: the control is the select/input chosen below */}
+                      <label class="field">
+                        <span>
+                          {a.label}
+                          <FieldHelp label={a.label} text={help} />
+                        </span>
+                        {a.kind === 'bool' ? (
+                          <input type="checkbox" checked={!!v} onChange={() => set({ [a.name]: !v })} />
+                        ) : a.kind === 'event' ? (
+                          <EventPicker
+                            value={String(v ?? '')}
+                            events={[...uses.keys()].sort((x, y) => x.localeCompare(y))}
+                            uses={uses}
+                            onChange={(event) => set({ [a.name]: event })}
+                          />
+                        ) : choices ? (
+                          <select
+                            class="inp"
+                            data-tour={`field-${a.name}`}
+                            value={String(v ?? '')}
+                            onChange={(e) => set({ [a.name]: (e.target as HTMLSelectElement).value || undefined })}
+                          >
+                            <option value="">{a.optional ? 'any' : 'choose…'}</option>
+                            {choices.map((ch) => (
+                              <option value={ch.value}>{ch.label}</option>
+                            ))}
+                            {v && !choices.some((ch) => ch.value === v) && (
+                              <option value={String(v)}>{String(v)}</option>
+                            )}
+                          </select>
+                        ) : a.kind === 'number' ? (
+                          <input
+                            class="inp mono"
+                            data-tour={`field-${a.name}`}
+                            value={String(v ?? '')}
+                            onChange={(e) => set({ [a.name]: Number((e.target as HTMLInputElement).value) })}
+                          />
+                        ) : (
+                          <input
+                            class="inp"
+                            data-tour={`field-${a.name}`}
+                            value={String(v ?? '')}
+                            onChange={(e) => set({ [a.name]: (e.target as HTMLInputElement).value })}
+                          />
+                        )}
+                      </label>
+                      {a.kind === 'event' && v ? (
+                        <div
+                          class={
+                            (def.type === 'event.onCustom' ? use?.senders.length : use?.listeners.length)
+                              ? 'field-note'
+                              : 'field-warn'
+                          }
                         >
-                          <option value="">{a.optional ? 'any' : 'choose…'}</option>
-                          {choices.map((ch) => (
-                            <option value={ch.value}>{ch.label}</option>
-                          ))}
-                          {v && !choices.some((ch) => ch.value === v) && <option value={String(v)}>{String(v)}</option>}
-                        </select>
-                      ) : a.kind === 'number' ? (
-                        <input
-                          class="inp mono"
-                          value={String(v ?? '')}
-                          onChange={(e) => set({ [a.name]: Number((e.target as HTMLInputElement).value) })}
-                        />
-                      ) : (
-                        <input
-                          class="inp"
-                          value={String(v ?? '')}
-                          onChange={(e) => set({ [a.name]: (e.target as HTMLInputElement).value })}
-                        />
-                      )}
-                    </label>
+                          “{String(v)}”: {describeUse(use)}.
+                        </div>
+                      ) : null}
+                    </>
                   );
                 })}
               </div>
@@ -389,33 +462,81 @@ function NodeInspector({
                   .map((p) => {
                     const wired = graph!.edges.some((e) => e[2] === node.id && e[3] === p.name);
                     const v = node.args?.[p.name] ?? p.default;
+                    const label = p.label ?? p.name;
+                    const help = fieldHelp(def, p.name);
+                    const text = typeof v === 'string' ? v : JSON.stringify(v ?? null);
+                    // P32: pick from what the project has where the value names something
+                    const isState = p.pick?.kind === 'state';
+                    const isItem = p.pick?.kind === 'asset';
+                    const target = p.pick?.kind === 'state' ? assetOfInput(ed, graph!, node.id, p.pick.of) : null;
+                    const picks =
+                      p.pick?.kind === 'object'
+                        ? placedObjects(ed)
+                        : isState && target
+                          ? statesOf(target)
+                          : isItem
+                            ? assetNames(ed)
+                            : null;
+                    const problem = nameProblem(ed, graph!, node.id, p.name);
                     return (
-                      // biome-ignore lint/a11y/noLabelWithoutControl: the control is the select/input chosen below
-                      <label class="field">
-                        {p.label ?? p.name}
-                        {wired ? (
-                          <span class="muted small">wired</span>
-                        ) : p.type === 'bool' ? (
-                          <input type="checkbox" checked={!!v} onChange={() => set({ [p.name]: !v })} />
-                        ) : (
-                          <input
-                            class="inp mono"
-                            value={typeof v === 'string' ? v : JSON.stringify(v ?? null)}
-                            onChange={(e) => {
-                              const raw = (e.target as HTMLInputElement).value;
-                              let val: unknown = raw;
-                              if (p.type === 'number') val = Number(raw) || 0;
-                              else if (p.type !== 'string')
-                                try {
-                                  val = JSON.parse(raw);
-                                } catch {
-                                  val = raw;
-                                }
-                              set({ [p.name]: val });
-                            }}
-                          />
+                      <>
+                        {/* biome-ignore lint/a11y/noLabelWithoutControl: the control is the select/input chosen below */}
+                        <label class="field">
+                          <span>
+                            {label}
+                            <FieldHelp
+                              label={label}
+                              text={help}
+                              link={
+                                target
+                                  ? { label: `Open ${target.name}’s states`, go: () => c.ui.editAsset(target.id) }
+                                  : p.pick?.kind === 'object'
+                                    ? { label: 'Open the Scene', go: () => c.ui.workspace('Scene') }
+                                    : p.pick?.kind === 'asset'
+                                      ? { label: 'Open the Asset library', go: () => c.ui.workspace('Assets') }
+                                      : undefined
+                              }
+                            />
+                          </span>
+                          {wired ? (
+                            <span class="muted small">wired</span>
+                          ) : p.type === 'bool' ? (
+                            <input type="checkbox" checked={!!v} onChange={() => set({ [p.name]: !v })} />
+                          ) : picks ? (
+                            <ChoiceOrText
+                              label={label}
+                              tour={`field-${p.name}`}
+                              value={text === 'null' ? '' : text}
+                              choices={picks}
+                              onChange={(val) => set({ [p.name]: val })}
+                            />
+                          ) : (
+                            <input
+                              class="inp mono"
+                              data-tour={`field-${p.name}`}
+                              value={text}
+                              onChange={(e) => {
+                                const raw = (e.target as HTMLInputElement).value;
+                                let val: unknown = raw;
+                                if (p.type === 'number') val = Number(raw) || 0;
+                                else if (p.type !== 'string')
+                                  try {
+                                    val = JSON.parse(raw);
+                                  } catch {
+                                    val = raw;
+                                  }
+                                set({ [p.name]: val });
+                              }}
+                            />
+                          )}
+                        </label>
+                        {problem && <div class="field-warn">{problem}</div>}
+                        {!problem && isState && target && !wired && (
+                          <div class="field-note">
+                            {target.name}’s states: {target.states.join(', ')} (Assets › {target.name} › States).
+                          </div>
                         )}
-                      </label>
+                      </>
                     );
                   })}
               </div>
@@ -428,7 +549,7 @@ function NodeInspector({
                     checked={bp}
                     onChange={() => graph && toggleBreakpoint(ed, graph.id, node.id)}
                   />{' '}
-                  Breakpoint (pause Play here, F9)
+                  {keysFor('Breakpoint (pause Play here, F9)')}
                 </label>
               </div>
             )}
@@ -447,5 +568,111 @@ function NodeInspector({
         )}
       </div>
     </section>
+  );
+}
+
+type VarType = Variables['vars'][string]['type'];
+const TYPES: [VarType, string][] = [
+  ['number', 'Number'],
+  ['string', 'Text'],
+  ['bool', 'True / false'],
+];
+const START: Record<VarType, string | number | boolean> = { number: 0, string: '', bool: false };
+const parseStart = (type: VarType, raw: string) =>
+  type === 'number' ? Number(raw) || 0 : type === 'bool' ? raw === 'true' : raw;
+
+/** P32: what the parts of a variable are (the “?” beside them, and the Logic Help page). */
+export const VAR_HELP = {
+  what: 'Variables are values the whole game remembers while it plays (coins, a door repaired, the item in a chest). Logic reads them with Get variable (vars.name in code) and changes them with Set variable; screens show them as {name}.',
+  name: 'A name you choose: one word, letters and digits (chestItem). Logic and screens use exactly this name.',
+  type: 'What kind of value it holds: a Number (3, 0.5), a Text (Sword) or True / false.',
+  start:
+    'The value it has when the game starts (and again on every new play). Nodes can change it while the game runs.',
+};
+
+/** P32: one variable, with every part labelled, and where it is used. */
+function VariableCard({ c, name, v }: { c: ActionCtx; name: string; v: Variables['vars'][string] }) {
+  const { ed } = c;
+  const used = variableUses(ed, name);
+  const put = (def: Variables['vars'][string] | null) => ed.exec({ type: 'logic.setVariable', payload: { name, def } });
+  return (
+    <div class="lg-var-card" data-tour={`var-${name}`} role="group" aria-label={`Variable ${name}`}>
+      <div class="row">
+        <span class="mono lg-var-name">{name}</span>
+        <button type="button" class="link" aria-label={`Remove ${name}`} onClick={() => put(null)}>
+          ×
+        </button>
+      </div>
+      <label class="field">
+        <span>
+          Type
+          <FieldHelp label="Type" text={VAR_HELP.type} />
+        </span>
+        <select
+          class="inp"
+          aria-label={`${name} type`}
+          value={v.type}
+          onChange={(e) => {
+            const type = (e.target as HTMLSelectElement).value as VarType;
+            put({ ...v, type, default: START[type] });
+          }}
+        >
+          {TYPES.map(([t, l]) => (
+            <option value={t}>{l}</option>
+          ))}
+        </select>
+      </label>
+      <label class="field">
+        <span>
+          Starting value
+          <FieldHelp label="Starting value" text={VAR_HELP.start} />
+        </span>
+        <StartInput
+          type={v.type}
+          label={`${name} starts at`}
+          value={String(v.default)}
+          onCommit={(t) => put({ ...v, default: parseStart(v.type, t) }).ok}
+        />
+      </label>
+      <div class="small muted lg-var-used">
+        {used.length ? `Used in: ${used.join(', ')}` : 'Not used yet: add Get variable or Set variable to a graph.'}
+      </div>
+    </div>
+  );
+}
+
+/** a starting value: a box for a number or a text, a list for true / false */
+function StartInput({
+  type,
+  label,
+  value,
+  onCommit,
+}: {
+  type: VarType;
+  label: string;
+  value: string;
+  onCommit: (text: string) => boolean | undefined;
+}) {
+  if (type === 'bool')
+    return (
+      <select
+        class="inp"
+        aria-label={label}
+        value={value}
+        onChange={(e) => onCommit((e.target as HTMLSelectElement).value)}
+      >
+        <option value="false">false</option>
+        <option value="true">true</option>
+      </select>
+    );
+  return (
+    <DraftText
+      class={type === 'number' ? 'inp mono' : 'inp'}
+      aria-label={label}
+      inputMode={type === 'number' ? 'decimal' : 'text'}
+      placeholder={type === 'string' ? 'e.g. Sword' : undefined}
+      value={value}
+      onCommit={onCommit}
+    />
   );
 }

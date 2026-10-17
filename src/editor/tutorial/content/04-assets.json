@@ -20,7 +20,7 @@
     {
       "id": "assets.place",
       "title": "Place an asset",
-      "body": "With Place (B), click the map to put a copy down, or drag the card straight in; T turns it. Every copy is an instance of the same asset, so editing the asset updates them all.",
+      "body": "With Place (B), click the map to put a copy down, or drag the card straight in; press T to turn it a quarter turn before you put it down. Every copy is an instance of the same asset, so editing the asset updates them all.",
       "task": "Place the chest on the map.",
       "target": "button[aria-label=\"Place (B)\"]",
       "placement": "bottom",
@@ -30,7 +30,7 @@
     {
       "id": "assets.studio",
       "title": "The Asset studio",
-      "body": "The Assets workspace is a build plate for one asset: bricks, states (closed / open), sockets (where the hero interacts), interactions (what E does), smash and rebuild rules, and generator rules (where the terrain generator scatters it).",
+      "body": "The Assets workspace is where bricks are built into assets: the Asset library on the left (every asset, and a Bricks tab with every piece), a build plate for one asset in the middle, and on the right its states (closed / open), sockets (where the hero interacts), interactions (what E does), smash and rebuild rules, and generator rules (where the terrain generator scatters it).",
       "task": "Open the Assets workspace.",
       "target": "[data-tour=\"ws-assets\"]",
       "placement": "bottom",
@@ -40,24 +40,146 @@
     {
       "id": "assets.interact",
       "title": "Interactions",
-      "body": "An interaction says what happens when the hero presses E at a socket: change state, give an item, play a sound or a cinematic, send an event to logic. The chest opens its lid and sends “chest-opened”.",
-      "task": "Add an action to the chest's interaction (for example Give item).",
-      "target": "section[aria-label=\"Asset properties\"]",
+      "body": "An interaction says what happens when the hero presses E at a socket of the asset: change its state, give an item, play a sound or a cinematic, send an event to logic. The Treasure chest has two on its lid socket: when closed, it plays a sound, opens and sends “chest-opened”; when open, it closes again. You will add one more action to the first one, so opening the chest also gives the hero a coin.",
+      "task": "Add a “Give item” action to the Treasure chest’s first interaction (“lid · when closed”), in the Asset properties panel on the right.",
+      "target": "[data-tour=\"asset-interactions\"]",
       "placement": "left",
       "workspace": "Assets",
       "check": { "kind": "command", "type": "asset.update" },
-      "doItForMe": [{ "fn": "chestGivesCoin" }]
+      "doItForMe": [],
+      "how": [
+        {
+          "text": "Check that the asset on the build plate is the Treasure chest: its name is the title above the plate. If it is not, click “Treasure chest” in the Asset library (left).",
+          "check": { "kind": "state", "test": "studioAssetIs", "args": "Treasure chest" },
+          "do": [
+            {
+              "fn": "editAsset",
+              "args": { "name": "Treasure chest" },
+              "say": "The Treasure chest is open on the build plate (its name is the title above the plate)."
+            }
+          ]
+        },
+        {
+          "text": "In the Asset properties panel (right), scroll down to the section “Interactions”. Its first box is the chest’s interaction “lid · when closed”, with three actions: “Play sound”, “Set state” (open) and “Send event” (chest-opened).",
+          "check": { "kind": "dom", "selector": "[data-tour=\"asset-interactions\"] .interaction" },
+          "do": [
+            {
+              "show": "[data-tour=\"asset-interactions\"]",
+              "say": "Scroll the Asset properties panel (right) down to “Interactions”. The first box is “lid · when closed”, with three actions."
+            }
+          ]
+        },
+        {
+          "text": "In that first box, under its three actions, click the button “+ Action”. A fourth action row appears, set to “Set state”.",
+          "check": { "kind": "state", "test": "assetActions", "args": { "name": "Treasure chest", "atLeast": 4 } },
+          "do": [
+            {
+              "click": "[data-tour=\"asset-interactions\"] .interaction .actions-field > button.btn",
+              "say": "Click “+ Action” under the three actions of the first box. A fourth row appears, set to “Set state”."
+            }
+          ]
+        },
+        {
+          "text": "In the new fourth row, open its first drop-down (labelled “Action”) and pick “Give item”. The row now shows the item “coin” and the count “1”.",
+          "check": { "kind": "state", "test": "assetDoes", "args": { "name": "Treasure chest", "does": "give" } },
+          "do": [
+            {
+              "choose": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type select[aria-label=\"Action\"]",
+              "value": "give",
+              "say": "In the fourth row, open the drop-down “Action” and pick “Give item”: it gives 1 coin."
+            }
+          ]
+        },
+        {
+          "text": "Optional: type another item name or count in that row and press Enter to save it. Opening the chest in Play now also gives the hero a coin.",
+          "do": [
+            {
+              "show": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type",
+              "say": "That row now gives the hero a coin when the chest is opened."
+            }
+          ]
+        }
+      ],
+      "setup": [{ "fn": "editAsset", "args": { "name": "Treasure chest" } }]
     },
     {
       "id": "assets.build",
       "title": "Build on the plate",
-      "body": "Use the build tools above the plate to add, paint or remove bricks of the asset; Showing state previews each state. Make asset (Scene, with bricks selected) turns anything you built into a new asset.",
-      "task": "Have a look at the build tools, then press Next.",
+      "body": "The build plate is where an asset gets its bricks. Practise on a new asset: the chest is already standing in your world, and a change only saves if every copy still fits where it stands (if not, the change is taken back and the message says why). Bricks come from the Bricks tab of the Asset library; the tools above the plate select, move, turn, paint and erase them.",
+      "task": "Make a new asset and put one brick on its build plate.",
       "target": "[aria-label=\"Build tools\"]",
       "placement": "bottom",
       "workspace": "Assets",
-      "check": { "kind": "manual" },
-      "doItForMe": []
+      "check": { "kind": "command", "type": "asset.update" },
+      "doItForMe": [],
+      "how": [
+        {
+          "text": "Click the button “+ New asset” at the top of the Asset library (left). A new asset named “New asset …” opens on the build plate with one red brick.",
+          "check": { "kind": "command", "type": "asset.create" },
+          "do": [
+            {
+              "click": "[aria-label=\"Asset library\"] button.btn.on",
+              "say": "Click “+ New asset” at the top of the Asset library. A new asset opens with one red brick."
+            }
+          ]
+        },
+        {
+          "text": "At the top of the Asset library, click the tab “Bricks”. The piece kinds (Brick, Plate, Tile), every piece size and the colours appear.",
+          "check": {
+            "kind": "dom",
+            "selector": "[aria-label=\"Asset library\"] [role=\"tab\"][aria-selected=\"true\"]:nth-child(2)"
+          },
+          "do": [
+            {
+              "click": "[aria-label=\"Asset library\"] [role=\"tab\"]:nth-child(2)",
+              "say": "Click the tab “Bricks” at the top of the Asset library."
+            }
+          ]
+        },
+        {
+          "text": "Click one of the piece cards (each shows its size, for example “Brick 2×4”). The tool “Place bricks (B)” above the plate turns on.",
+          "check": {
+            "kind": "dom",
+            "selector": "[aria-label=\"Build tools\"] [aria-label=\"Place bricks (B)\"][aria-pressed=\"true\"]"
+          },
+          "do": [
+            {
+              "click": "[aria-label=\"Asset library\"] [aria-label=\"Piece sizes\"] [role=\"option\"]",
+              "say": "Click a piece card in the Bricks tab: “Place bricks (B)” turns on."
+            }
+          ]
+        },
+        {
+          "text": "Move the pointer over the build plate: a see-through brick shows where the piece will go (red means it cannot go there). Click to put it down, or drag the card onto the plate. The piece count next to the title goes up by one.",
+          "check": { "kind": "command", "type": "asset.update" },
+          "do": [
+            {
+              "fn": "addBrickToOpenAsset",
+              "say": "Click the build plate where the see-through brick is: the piece is added to the asset."
+            }
+          ]
+        },
+        {
+          "text": "To change a brick afterwards, use the tools above the plate: “Select (V)” and click it, then “Move (W)”, “Rotate (E)”, “Color paint (C)” or “Erase (X)”.",
+          "do": [
+            {
+              "show": "[aria-label=\"Build tools\"]",
+              "say": "These tools select, move, turn, paint and erase bricks on the plate."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "assets.reuse",
+      "title": "Build assets from assets",
+      "body": "An asset can be built from other assets too: a street from houses, a garden bench from a bench and a flower bush. Drag an asset from the Asset library onto the build plate (or press + on its row) and a copy of its bricks is built into the open asset, picked up as one so Move (W) can put it in place. It is a copy: changing the other asset later does not change this one.",
+      "task": "Build another asset into the open one (drag it onto the plate, or press + on its row).",
+      "target": "[aria-label=\"Asset library\"]",
+      "placement": "right",
+      "workspace": "Assets",
+      "check": { "kind": "command", "type": "asset.update" },
+      "doItForMe": [{ "fn": "buildInto", "args": { "name": "Flower bush", "into": "Bench", "as": "Garden bench" } }]
     }
   ]
 }

@@ -1,3 +1,4 @@
+import type { ScreenId } from '../help/entries';
 import cBasics from './coding/01-basics.json';
 import cVars from './coding/02-vars.json';
 import cEvents from './coding/03-events.json';
@@ -16,9 +17,10 @@ import screens from './content/07-screens.json';
 import cinematics from './content/08-cinematics.json';
 import audio from './content/09-audio.json';
 import play from './content/10-play.json';
+import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
-export type Track = 'editor' | 'coding';
+export type Track = 'editor' | 'coding' | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
 const steps = (chapters: Chapter[]): TrackStep[] =>
@@ -45,7 +47,15 @@ export const CODING_CHAPTERS: Chapter[] = [cBasics, cVars, cEvents, cFlow, cWorl
 export const STEPS: TrackStep[] = steps(CHAPTERS);
 export const CODING_STEPS: TrackStep[] = steps(CODING_CHAPTERS);
 
-export const TRACKS: Record<Track, { title: string; steps: TrackStep[] }> = {
+/** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
+export const COURSES = screenCourses(CHAPTERS);
+
+export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   editor: { title: 'Editor tour', steps: STEPS },
   coding: { title: 'Coding course', steps: CODING_STEPS },
+  ...Object.fromEntries(
+    Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
+  ),
 };
+export const trackOf = (t: Track) => TRACKS[t] ?? TRACKS.editor!;
+export type { ScreenId };

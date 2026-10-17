@@ -22,7 +22,7 @@ both follow this page. Times are seconds from the start of the scene; every item
 | --- | --- | --- |
 | actor | `moveTo {mark, speed: walk\|run\|teleport}` | Path-finds on the nav grid (one cell per stud, steps up to 1.25 studs, no corner cutting) at 4 (walk) or 7.8 (run) studs/s — v68's speeds — and arrives facing the mark's yaw. A later `moveTo` of the same role cuts it where it got to. `teleport` is instant. No path: straight line. |
 | actor | `face {target \| yaw}` | Turns to a role or mark (or a yaw) once standing; while walking the actor faces where it walks. |
-| actor | `play {clip, loop?}` | Plays a keyframe clip from its start; `loop` (default: the clip's own) holds until the role's next play/emote/move. Moving cancels it. |
+| actor | `play {clip, loop?}` | Plays a keyframe clip from its start; `loop` (default: the clip's own) holds until the role's next play/emote/move. Moving cancels it. The pose is drawn where the actor stands, facing its way (v68's clip poses are built at the origin; P32 places them). A clip that does not loop ends when its length is up. |
 | actor | `say {text, dur, voice?}` | Shows the line in the dialogue box for `dur` s (the newest line wins) and plays voice blips (`voice`, default the built-in *talk* sound) every 0.14 s, about one per 5 letters. |
 | actor | `emote {kind}` | A built-in gesture: wave, cheer, nod, bow, shrug, point. |
 | actor | `equip {item}` / `hide` / `show` | Held item for the scene / invisible / visible again. |

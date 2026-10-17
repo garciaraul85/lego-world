@@ -72,7 +72,7 @@
     {
       "id": "map.select",
       "title": "Select an object",
-      "body": "With the Select tool (V), click an object to select all of it — a house, a tree. Alt-click selects a single brick, Shift-click adds to the selection. The Hierarchy on the left lists every object by type.",
+      "body": "With the Select tool (V), click an object to select all of it — a house, a tree. Shift-click adds to the selection. The Hierarchy on the left lists every object by type.",
       "task": "Select a building (click it, or pick one in the Hierarchy).",
       "target": "[data-tour=\"outliner\"]",
       "placement": "right",
@@ -91,48 +91,65 @@
       ]
     },
     {
-      "id": "map.paint",
-      "title": "Recolor",
-      "body": "The Inspector shows what you selected: its bricks, position and colors. Click a swatch to recolor the whole selection. Asset instances are recolored after Unpack; loose bricks recolor directly. The Color paint tool (C) paints by clicking.",
-      "task": "Recolor some bricks (Inspector swatches or the Color paint tool).",
-      "target": "[data-tour=\"inspector\"]",
-      "placement": "left",
-      "check": {
-        "kind": "command",
-        "type": "bricks.paint"
-      },
-      "doItForMe": [
-        {
-          "fn": "paintSomething"
-        }
-      ]
-    },
-    {
       "id": "map.place",
-      "title": "Place bricks",
-      "body": "Place (B) puts down what you picked in the dock: here, a brick. Pick its shape and color in the dock below (Assets › Bricks); T turns it. Bricks must sit on studs and never overlap — the same rules as LEGO World v68.",
-      "task": "Place a brick with Place (B).",
+      "title": "Place an asset",
+      "body": "The Scene puts whole things into the world: assets (houses, trees, benches, chests), characters, spawn points, zones, sounds and signs. Place (B) puts down the asset you pick in the dock below (Assets): click the ground, or drag its card straight in. Press T to turn it a quarter turn before you put it down. Bricks themselves are built into assets in the Assets screen.",
+      "task": "Place a bench with Place (B).",
       "target": "button[aria-label=\"Place (B)\"]",
       "placement": "bottom",
       "check": {
         "kind": "command",
-        "type": "bricks.place"
+        "type": "asset.place"
+      },
+      "doItForMe": [
+        {
+          "ui": "dock",
+          "value": "assets"
+        },
+        {
+          "ui": "assetCat",
+          "value": "Assets"
+        },
+        {
+          "fn": "pickAsset",
+          "args": {
+            "name": "Bench"
+          }
+        },
+        {
+          "fn": "placeAsset",
+          "args": {
+            "name": "Bench"
+          }
+        }
+      ]
+    },
+    {
+      "id": "map.move",
+      "title": "Move it",
+      "body": "With Move (W), drag one of the red, green or blue arrows to move the selection that way, or drag the object itself to slide it along the ground. It is checked only where you drop it, and it settles onto what is below, so a chest on a tower can go straight to the tower’s door.",
+      "task": "Move an object with Move (W).",
+      "target": "button[aria-label=\"Move (W)\"]",
+      "placement": "bottom",
+      "check": {
+        "kind": "command",
+        "type": "bricks.move"
       },
       "doItForMe": [
         {
           "ui": "tool",
-          "value": "place"
+          "value": "move"
         },
         {
-          "fn": "placeBrick"
+          "fn": "moveSomething"
         }
       ]
     },
     {
       "id": "map.erase",
       "title": "Erase",
-      "body": "The Erase tool (X) removes the brick you click (Shift removes the whole object). Bricks that hold others up are protected so the map never breaks.",
-      "task": "Erase a brick with the Erase tool (X).",
+      "body": "Erase (X) removes the object you click: a whole asset copy, a house, a tree. Things that hold others up are protected so the map never breaks. Single bricks are erased on an asset’s build plate in the Assets screen.",
+      "task": "Erase an object with the Erase tool (X).",
       "target": "button[aria-label=\"Erase (X)\"]",
       "placement": "bottom",
       "check": {
@@ -145,14 +162,14 @@
           "value": "erase"
         },
         {
-          "fn": "eraseBrick"
+          "fn": "eraseObject"
         }
       ]
     },
     {
       "id": "map.undo",
       "title": "Undo and redo",
-      "body": "Everything you do is one undo step: placing, painting, generating a whole map. Ctrl Z undoes, Ctrl Shift Z redoes. The project saves itself to this device a moment after each change.",
+      "body": "Everything you do is one undo step: placing, moving, erasing, generating a whole map. Ctrl Z undoes, Ctrl Shift Z redoes. The project saves itself to this device a moment after each change.",
       "task": "Undo your last change (Ctrl Z or the Undo button).",
       "target": "button[title=\"Undo (Ctrl Z)\"]",
       "placement": "bottom",

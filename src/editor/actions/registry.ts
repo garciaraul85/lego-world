@@ -1,5 +1,7 @@
+import { builtinAsset } from '../../builtin/assets';
 import type { Brick } from '../../core/bricks/codec';
 import { rotateQuarter } from '../../core/bricks/transform';
+import { changedBuiltins, newAssetDef } from '../assets';
 import type { EditorState, ToolId } from '../state';
 import type { ViewOp } from '../viewport/active';
 
@@ -32,7 +34,8 @@ export interface EditorUi {
   about(): void;
   /** P7: the Start hub, the guided tutorial and the help guide */
   startHub(): void;
-  tutorial(track?: 'editor' | 'coding'): void;
+  /** editor, coding, or a screen course: course.<screen> (P32) */
+  tutorial(track?: string): void;
   help(page?: string): void;
   /** opens the AI builder panel (P8.3) */
   aiBuilder(): void;
@@ -210,9 +213,23 @@ export const ACTIONS: EditorAction[] = [
   { id: 'tool.move', label: 'Move tool', key: 'W', run: tool('move') },
   { id: 'tool.rotate', label: 'Rotate tool', key: 'E', run: tool('rotate') },
   { id: 'tool.resize', label: 'Resize tool', key: 'Q', run: tool('resize') },
-  { id: 'tool.place', label: 'Place bricks', key: 'B', run: tool('place') },
+  // P32: B places assets in the Scene and bricks on an asset's build plate (Assets screen)
+  {
+    id: 'tool.place',
+    label: 'Place tool',
+    key: 'B',
+    run: (c) => tool(c.ed.buildsBricks ? 'place' : 'asset')(c),
+  },
   { id: 'tool.asset', label: 'Place asset', key: 'A', run: tool('asset') },
-  { id: 'tool.paint', label: 'Color paint', key: 'C', run: tool('paint') },
+  {
+    id: 'tool.paint',
+    label: 'Color paint (Assets screen)',
+    key: 'C',
+    run: (c) => {
+      if (c.ed.buildsBricks) tool('paint')(c);
+      else c.ed.notify('Colors are painted in the Assets screen: open an asset there and use Color paint (C).');
+    },
+  },
   { id: 'tool.erase', label: 'Erase', key: 'X', run: tool('erase') },
   { id: 'tool.spawn', label: 'Spawn point tool', key: 'P', run: tool('spawn') },
   { id: 'tool.zone', label: 'Trigger zone tool', key: 'Z', run: tool('zone') },
@@ -336,6 +353,8 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('coding'),
   },
   { id: 'help.guide', label: 'Help guide', key: 'F1', run: ({ ui }) => ui.help() },
+  // P32: Macs send F1 to the screen brightness unless fn is held; ⌘/ (Ctrl / elsewhere) works everywhere
+  { id: 'help.here', label: 'Help on what the pointer is on', key: 'Ctrl /', run: ({ ui }) => ui.help() },
   { id: 'help.build', label: 'Watch a game being built…', run: ({ ui }) => ui.startHub() },
   {
     id: 'help.ai',
@@ -344,6 +363,41 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.aiBuilder(),
   },
 ];
+
+// P32: the Assets menu
+ACTIONS.push(
+  { id: 'assets.open', label: 'Open the Assets screen', run: ({ ui }) => ui.workspace('Assets') },
+  {
+    id: 'assets.new',
+    label: 'New asset',
+    run: ({ ed, ui }) => {
+      const asset = newAssetDef(ed);
+      if (ed.exec({ type: 'asset.create', payload: { asset } }, { label: 'New asset' }).ok) {
+        ed.studioAsset.value = asset.id;
+        ui.workspace('Assets');
+      }
+    },
+  },
+  {
+    id: 'assets.resetBuiltins',
+    label: 'Reset changed built-in assets',
+    run: ({ ed }) => {
+      const changed = changedBuiltins(ed);
+      if (!changed.length) {
+        ed.notify('No built-in asset has been changed.');
+        return;
+      }
+      const r = ed.exec(
+        changed.map((a) => ({ type: 'asset.update', payload: { asset: builtinAsset(a.id)! } })),
+        { label: 'Reset changed built-in assets' },
+      );
+      if (r.ok)
+        ed.notify(
+          `Reset ${changed.map((a) => a.name).join(', ')} as they came with the engine. Undo brings your versions back.`,
+        );
+    },
+  },
+);
 
 export const action = (id: string) => ACTIONS.find((a) => a.id === id)!;
 
@@ -371,7 +425,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     '-',
     'view.palette',
   ],
-  Assets: [],
+  Assets: ['assets.open', 'assets.new', '-', 'assets.resetBuiltins'],
   World: ['world.addMap', 'world.generate', 'world.graph', 'world.validate', '-', 'play.legacy'],
   Play: ['play.start', 'play.here', 'play.entry', 'play.pause', 'play.stop', '-', 'play.v68', 'play.legacy'],
   Window: [
@@ -397,11 +451,14 @@ export const MENUS: Record<string, (string | '-')[]> = {
 /** Normalizes a keyboard event to the `key` notation used above. */
 export function keyOf(e: KeyboardEvent): string {
   const parts: string[] = [];
+  let k = e.key;
+  // ⌥ Option (Alt) on a Mac types a special character (⌥P is π): use the key's place instead
+  if (e.altKey && /^Key[A-Z]$/.test(e.code ?? '')) k = e.code.slice(3);
+  if (e.altKey && /^Digit\d$/.test(e.code ?? '')) k = e.code.slice(5);
   if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
   if (e.altKey) parts.push('Alt');
-  if (e.shiftKey && e.key.length > 1) parts.push('Shift');
-  if (e.shiftKey && /^[a-z]$/i.test(e.key)) parts.push('Shift');
-  let k = e.key;
+  if (e.shiftKey && k.length > 1) parts.push('Shift');
+  if (e.shiftKey && /^[a-z]$/i.test(k)) parts.push('Shift');
   // zoom keys work with or without Shift, and on the number pad
   if (k === '=' || k === 'Add') k = '+';
   if (k === '_' || k === 'Subtract') k = '-';

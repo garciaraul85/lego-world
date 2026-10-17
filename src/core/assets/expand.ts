@@ -81,17 +81,30 @@ export function expandAsset(def: Asset, inst: InstanceLike): { bricks: Brick[]; 
       group,
     });
   }
-  const sockets = def.sockets.map((s): WorldSocket => {
-    let [x, y, z] = s.pos;
-    let fd = def.footprint[1];
-    let fw = def.footprint[0];
-    for (let r = 0; r < rot; r++) {
-      [x, z] = [fd - z, x];
-      [fw, fd] = [fd, fw];
-    }
-    return { ...s, instance: inst.id, world: [inst.pos[0] + x, inst.pos[1] * 0.4 + y, inst.pos[2] + z] };
-  });
+  const sockets = def.sockets.map(
+    (s): WorldSocket => ({ ...s, instance: inst.id, world: localToWorld(def, inst, s.pos) }),
+  );
   return { bricks, sockets };
+}
+
+/**
+ * A point in an asset's own frame (studs across, world units up, like socket positions) → where it is in the
+ * world for a placed copy.
+ */
+export function localToWorld(
+  def: Pick<Asset, 'footprint'>,
+  inst: Pick<InstanceLike, 'pos' | 'rot'>,
+  p: readonly number[],
+): [number, number, number] {
+  const rot = ((inst.rot % 4) + 4) % 4;
+  let [x, y, z] = p as [number, number, number];
+  let fd = def.footprint[1];
+  let fw = def.footprint[0];
+  for (let r = 0; r < rot; r++) {
+    [x, z] = [fd - z, x];
+    [fw, fd] = [fd, fw];
+  }
+  return [inst.pos[0] + x, inst.pos[1] * 0.4 + y, inst.pos[2] + z];
 }
 
 /**

@@ -21,7 +21,14 @@ export const MISC: NodeDef[] = [
     doc: 'Sends a custom event that “On custom event” nodes react to.',
     inputs: [EXEC_IN],
     outputs: [EXEC_OUT],
-    args: [{ name: 'event', kind: 'event', label: 'Event name' }],
+    args: [
+      {
+        name: 'event',
+        kind: 'event',
+        label: 'Event name',
+        help: 'A name you choose; every “On custom event” with exactly this name runs.',
+      },
+    ],
     code: { name: 'emit', style: 'call' },
     exec: (c, a) => c.emit(String(a.event)),
   },

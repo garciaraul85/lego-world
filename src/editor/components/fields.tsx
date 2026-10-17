@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 
 /** Number input that commits on blur / Enter. */
 export function Num({
@@ -91,5 +91,114 @@ export function Header({ title, sub, color }: { title: string; sub: string; colo
         <div class="mono small muted">{sub}</div>
       </div>
     </div>
+  );
+}
+
+/**
+ * A text box that keeps what is being typed while its screen redraws (a playing clip redraws every frame, which
+ * would put a plain box back to its saved value at each frame), and hands the text over once: on Enter, or when
+ * the box loses focus. `onCommit` returns false to refuse the text (the box then shows the saved value again).
+ */
+export function DraftText({
+  value,
+  onCommit,
+  same = (a, b) => a === b,
+  tour,
+  ...rest
+}: {
+  value: string;
+  onCommit: (text: string) => boolean | undefined;
+  /** two texts that mean the same value (no change to make) */
+  same?: (a: string, b: string) => boolean;
+  class?: string;
+  style?: Record<string, string | number>;
+  'aria-label'?: string;
+  title?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  inputMode?: 'decimal' | 'numeric' | 'text';
+  /** hook name for scripts (tutorial lines, AI plans) */
+  tour?: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  // Enter and the change event both hand the text over; only the first one counts
+  const last = useRef(value);
+  last.current = value;
+  const commit = (text: string) => {
+    setDraft(null);
+    if (same(text, last.current)) return;
+    if (onCommit(text) === false) return;
+    last.current = text;
+  };
+  return (
+    <input
+      {...rest}
+      data-tour={tour}
+      value={draft ?? value}
+      onInput={(e) => setDraft((e.target as HTMLInputElement).value)}
+      onChange={(e) => commit((e.target as HTMLInputElement).value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit((e.target as HTMLInputElement).value);
+        else if (e.key === 'Escape') {
+          setDraft(null);
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+    />
+  );
+}
+
+/**
+ * P32: the “?” next to a field. Hover (or focus) shows what the field is and where its value comes from; a
+ * click keeps the explanation open under the field (for touch screens and for reading it slowly).
+ */
+export function FieldHelp({
+  label,
+  text,
+  link,
+}: {
+  label: string;
+  text: string;
+  /** where the value comes from, to go and look (“Open Treasure chest’s states”) */
+  link?: { label: string; go: () => void };
+}) {
+  const [open, setOpen] = useState(false);
+  if (!text) return null;
+  return (
+    <span class="fhelp-wrap">
+      <button
+        type="button"
+        class="fhelp"
+        aria-label={`What is “${label}”?`}
+        aria-expanded={open}
+        data-tip={text}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+      >
+        ?
+      </button>
+      {open && (
+        <span class="fhelp-text" role="note">
+          {text}
+          {link && (
+            <button
+              type="button"
+              class="link fhelp-go"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setOpen(false);
+                link.go();
+              }}
+            >
+              {link.label} →
+            </button>
+          )}
+        </span>
+      )}
+    </span>
   );
 }

@@ -12,7 +12,7 @@ In the Map tab, pick environments (forest, city, prairie, mountains, volcanoesâ€
 
 ## 3. Shape it
 
-Select objects with V, recolor them with the Inspector swatches or Color paint (C), add bricks and assets with Place (B), erase with X. Bricks sit on studs and never overlap, as in v68. Undo with Ctrl Z.
+Select objects with V, place assets with Place (B), move them with W, erase with X. To build something new from bricks, or change the bricks and colours of an asset, use the Assets screen: every copy in the Scene follows. Bricks sit on studs and never overlap, as in v68. Undo with Ctrl Z.
 
 ## 4. Add a second map and a gate
 
@@ -20,7 +20,7 @@ In the World graph, + Add map, generate its terrain, then drag from a spawn's po
 
 ## 5. Place the props
 
-Pick an asset in the dock (Assets) and place it with A; T turns it. A treasure chest already has an interaction: E opens it. Edit what an asset does in the Asset studio. [Open the Asset studio](open:Assets)
+Pick an asset in the dock (Assets) and place it with A; press T to turn it a quarter turn before you put it down. A treasure chest already has an interaction: E opens it. Edit what an asset does in the Asset studio. [Open the Asset studio](open:Assets)
 
 ## 6. Choose the hero
 

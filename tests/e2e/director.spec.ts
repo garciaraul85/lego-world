@@ -56,7 +56,7 @@ test('Director: author a scene without typing numbers, then play it in the game 
 
   // a line of dialogue: + on the hero row, then pick "Say a line"
   await page.getByRole('button', { name: 'Add to hero' }).click();
-  await page.getByLabel('Does').selectOption('say');
+  await page.getByLabel('Does', { exact: true }).selectOption('say');
   await expect(page.getByRole('button', { name: /hero: “Hello!”/ })).toBeVisible();
 
   // drag the say item along the timeline: it moves and snaps to 0.1 s

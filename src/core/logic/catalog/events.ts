@@ -81,6 +81,11 @@ export const EVENTS: NodeDef[] = [
     { name: 'button', kind: 'string', label: 'Button' },
   ]),
   ev('Custom', 'On custom event', 'Runs when Send event (or an asset interaction) sends this event name.', [
-    { name: 'event', kind: 'event', label: 'Event name' },
+    {
+      name: 'event',
+      kind: 'event',
+      label: 'Event name',
+      help: 'A name you choose. It runs when something sends exactly this name: a cinematic’s Events row, an asset interaction (Send event), a zone, a screen button or a Send event node. The list shows the names your project already sends, and who sends them.',
+    },
   ]),
 ];

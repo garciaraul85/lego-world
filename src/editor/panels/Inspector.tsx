@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'preact/hooks';
-import type { Brick } from '../../core/bricks/codec';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import { worldGenerator } from '../../core/legacy/modules';
-import { BIOMES, BRICK_SIZES, TIMES } from '../../core/schema';
+import { BIOMES, TIMES } from '../../core/schema';
 import type { GenerateConfig } from '../../core/worldgen/generate';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { groupLabel } from '../categories';
 import { ActionListField } from '../components/ActionListField';
 import { ColorPicker } from '../components/ColorPicker';
 import { Header, Num, TextField } from '../components/fields';
+import { makeAssetOfSelection } from '../interact/scene-menus';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
 
@@ -81,13 +81,25 @@ export function RightPanel({ c, className }: { c: ActionCtx; className?: string 
           </button>
         ))}
       </div>
-      <div class="scroll">
+      <div
+        class="scroll"
+        data-help={tab === 'map' ? 'scene.map' : tab === 'project' ? 'scene.project' : inspectHelp(ed)}
+      >
         {tab === 'inspect' && <InspectorTab c={c} />}
         {tab === 'map' && <MapTab c={c} />}
         {tab === 'project' && <ProjectTab c={c} />}
       </div>
     </section>
   );
+}
+
+/** P32: which Help entry describes what the Inspector shows now */
+function inspectHelp(ed: ActionCtx['ed']): string {
+  if (ed.selectedZone.value) return 'scene.zone';
+  if (ed.selectedItem.value) return 'scene.item';
+  if (ed.selectedSpawn.value) return 'scene.spawn';
+  if (ed.selectedInstance.value) return 'scene.asset';
+  return 'scene.selection';
 }
 
 function InspectorTab({ c }: { c: ActionCtx }) {
@@ -180,8 +192,8 @@ function InspectorTab({ c }: { c: ActionCtx }) {
       <div class="sec">
         <div class="muted">Nothing selected.</div>
         <p class="hint">
-          Click an object in the map or the Hierarchy. Alt-click picks a single brick, Shift-click adds to the
-          selection. Use Place (B) to build, and the Map tab to generate terrain.
+          Click an object in the map or the Hierarchy; Shift-click adds to the selection. Place (B) puts down assets
+          from the dock, the Map tab generates terrain, and the Assets screen builds assets from bricks.
         </p>
       </div>
     );
@@ -233,19 +245,21 @@ function InspectorTab({ c }: { c: ActionCtx }) {
         </div>
       </div>
       {inst && <AssetSection c={c} />}
-      {one && !hasAsset && <BrickShape c={c} b={one} />}
       {hasAsset ? null : (
         <div class="sec">
           <div class="sech">
-            <span>Color</span>
+            <span>Loose bricks</span>
             <span class="mono" style={{ textTransform: 'none' }}>
               {colors.size === 1 ? sel[0]!.color : `${colors.size} colors`}
             </span>
           </div>
-          <Swatches
-            value={colors.size === 1 ? sel[0]!.color : undefined}
-            onPick={(color) => ed.exec({ type: 'bricks.paint', payload: { map, ids: sel.map((b) => b.id), color } })}
-          />
+          <div class="hint">
+            The Scene places assets. To change these bricks (their shape, pieces or colours), make them an asset and
+            change it in the Assets screen; the copy here changes with it.
+          </div>
+          <button type="button" class="btn on" onClick={() => makeAssetOfSelection(c)}>
+            Make an asset of these bricks
+          </button>
         </div>
       )}
       <div class="sec">
@@ -327,7 +341,7 @@ function AssetSection({ c }: { c: ActionCtx }) {
         {e.def.sockets.length
           ? `${e.def.sockets.length} socket${e.def.sockets.length === 1 ? '' : 's'}${e.def.interactions.length ? ` · ${e.def.interactions.length} interaction${e.def.interactions.length === 1 ? '' : 's'}` : ''}. `
           : ''}
-        Colors and shape are edited in the Asset studio and change every copy. Unpack turns this copy into loose bricks.
+        Colors, bricks and shape are changed in the Assets screen, and every copy changes with them.
       </div>
       <div class="field">
         Logic
@@ -352,16 +366,8 @@ function AssetSection({ c }: { c: ActionCtx }) {
         </span>
       </div>
       <div class="row">
-        <button type="button" class="btn" style={{ flex: 1 }} onClick={() => c.ui.editAsset(e.def.id)}>
-          Edit in Asset studio
-        </button>
-        <button
-          type="button"
-          class="btn"
-          style={{ flex: 1 }}
-          onClick={() => ed.exec({ type: 'instance.unpack', payload: { map, instances: [e.inst.id] } })}
-        >
-          Unpack
+        <button type="button" class="btn on" style={{ flex: 1 }} onClick={() => c.ui.editAsset(e.def.id)}>
+          Edit in the Assets screen
         </button>
       </div>
     </div>
@@ -370,47 +376,6 @@ function AssetSection({ c }: { c: ActionCtx }) {
 
 function runRotate(c: ActionCtx) {
   runAction(action('edit.rotate'), c);
-}
-
-function BrickShape({ c, b }: { c: ActionCtx; b: Brick }) {
-  const { ed } = c;
-  const m = /^(brick|plate|tile)(\d+)x(\d+)$/.exec(b.type)!;
-  const set = (type: string) =>
-    ed.exec({ type: 'bricks.update', payload: { map: ed.mapId.value, bricks: [{ id: b.id, type }] } });
-  return (
-    <div class="sec">
-      <div class="sech">
-        <span>Piece</span>
-        <span class="mono">id {b.id}</span>
-      </div>
-      <div class="field">
-        Kind
-        <select
-          class="inp"
-          value={m[1]}
-          onChange={(e) => set(`${(e.target as HTMLSelectElement).value}${m[2]}x${m[3]}`)}
-        >
-          <option value="brick">Brick (3 plates)</option>
-          <option value="plate">Plate</option>
-          <option value="tile">Tile (no studs)</option>
-        </select>
-      </div>
-      <div class="field">
-        Size
-        <select
-          class="inp"
-          value={`${m[2]}x${m[3]}`}
-          onChange={(e) => set(`${m[1]}${(e.target as HTMLSelectElement).value}`)}
-        >
-          {BRICK_SIZES.map(([r, cc]) => (
-            <option value={`${r}x${cc}`}>
-              {r} × {cc}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
-  );
 }
 
 function MapTab({ c }: { c: ActionCtx }) {

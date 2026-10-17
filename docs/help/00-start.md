@@ -2,9 +2,15 @@
 
 Brick Worlds Engine is a game engine made of bricks, grown from LEGO World v68. You build maps from bricks and assets, connect them into a world, dress characters, write game rules, design screens, direct cinematics and mix the sound. Then you press Play.
 
+## Help on anything
+
+Point at any button, field, list or area and press **F1** (on a Mac: **⌘ /**, or fn F1), or press the **?** in its hover tip: Help opens on that control's own page, with a picture of where it is, what it does, how to use it step by step, its options and shortcut. **Show me where it is** closes Help and makes the real control pulse. Right-click menus end with a Help item too.
+
+Every screen has a **screen guide** (left, under Screen guides): a picture of the whole screen with its areas numbered, what each area is for, and the five things people do there most. Each guide ends with a short **course** for that screen (3 to 5 minutes): a tour of its areas, then a few things to do, shown first and then done by you. [Every control](help:controls) lists them all.
+
 ## Ways to learn
 
-- **Guided tutorial**: walks through every workspace and tool on a sandbox project. In each step it can show you how it's done first (a demo pointer does it, then puts everything back), and then you do it yourself. [Start the tutorial](action:help.tutorial)
+- **Guided tutorial**: walks through every workspace and tool on a sandbox project. You set the pace: read a step, press **Show me** to watch it done (it waits until you press **My turn**, then puts everything back), do it yourself, and press **Next** when you are ready. [Start the tutorial](action:help.tutorial)
 - **Watch a game being built**: the Start hub generates a complete game and replays it stage by stage: name, terrain, maps, gates, hero, props, logic, screens, cinematic, audio. Each stage says what it did and how you would do it yourself. [Open the Start hub](action:help.build)
 - **Coding course**: the logic language line by line, in the Code view — events, variables, if/else, wait, once, gates, world actions, sound, screens, scenes and debugging, ending with a whole game written in code. [Start the coding course](action:help.coding)
 - **AI builder**: ask for a change in plain words and watch it being made, step by step, before you accept it. [About the AI builder](help:ai-builder)

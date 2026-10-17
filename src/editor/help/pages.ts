@@ -23,6 +23,8 @@ import { MAX_FILE_BYTES, MAX_PROJECT_BYTES } from '../../core/media/import';
 import { MAX_STEPS } from '../../engine/logic/interpreter';
 import { MAX_WORLD_UI } from '../../engine/ui/WorldUI';
 import { ACTIONS, MENUS } from '../actions/registry';
+import { keysFor, MAC_KEYS } from '../platform';
+import { entryPages, guidePages, indexMarkdown } from './entry-pages';
 import type { HelpPage } from './search';
 
 /** The keyboard and touch reference, built from the action registry so it always matches the editor. */
@@ -30,7 +32,7 @@ function keysMarkdown(): string {
   const out = [
     '# Keyboard and touch',
     '',
-    'Every editor shortcut, by menu. Shortcuts work when the focus is not in a text field. Ctrl means ⌘ on a Mac.',
+    'Every editor shortcut, by menu. Shortcuts work when the focus is not in a text field. Ctrl means ⌘ on a Mac, and Alt is ⌥ Option. The Mac keys work on every computer too.',
     '',
   ];
   const listed = new Set<string>();
@@ -38,7 +40,8 @@ function keysMarkdown(): string {
     const a = ACTIONS.find((x) => x.id === id);
     if (!a?.key || listed.has(id)) return null;
     listed.add(id);
-    return `| ${a.label.replace(/\|/g, '/')} | \`${a.key}\` |`;
+    const mac = MAC_KEYS[a.key] ? `\`${keysFor(MAC_KEYS[a.key]!, true)}\`` : 'same';
+    return `| ${a.label.replace(/\|/g, '/')} | \`${a.key}\` | ${mac} |`;
   };
   for (const [menu, ids] of Object.entries(MENUS)) {
     const rows = ids
@@ -46,10 +49,10 @@ function keysMarkdown(): string {
       .map(row)
       .filter(Boolean);
     if (!rows.length) continue;
-    out.push(`## ${menu}`, '', '| Command | Key |', '|---|---|', ...(rows as string[]), '');
+    out.push(`## ${menu}`, '', '| Command | Key | On a Mac |', '|---|---|---|', ...(rows as string[]), '');
   }
   const rest = ACTIONS.filter((a) => a.key && !listed.has(a.id)).map((a) => row(a.id)!);
-  out.push('## Tools and selection', '', '| Command | Key |', '|---|---|', ...rest, '');
+  out.push('## Tools and selection', '', '| Command | Key | On a Mac |', '|---|---|---|', ...rest, '');
   out.push(
     '## Camera',
     '',
@@ -117,6 +120,7 @@ let cache: HelpGroup[] | null = null;
 export function helpGroups(): HelpGroup[] {
   cache ??= [
     { name: 'Start', pages: [page('start', start), page('build-a-game', buildAGame)] },
+    { name: 'Screen guides', pages: guidePages() },
     {
       name: 'Workspaces',
       pages: [
@@ -137,6 +141,7 @@ export function helpGroups(): HelpGroup[] {
     {
       name: 'Reference',
       pages: [
+        { ...page('controls', indexMarkdown()), rank: 0.5 },
         { ...page('logic-reference', logicReferenceMarkdown()), rank: 0.6 },
         { ...page('keys', keysMarkdown()), rank: 0.8 },
         page('limits', limitsMarkdown()),
@@ -146,4 +151,9 @@ export function helpGroups(): HelpGroup[] {
   ];
   return cache;
 }
-export const helpPages = () => helpGroups().flatMap((g) => g.pages);
+let every: HelpPage[] | null = null;
+/** Every page: the side bar's, and one per Help entry (P32), found by search and links. */
+export const helpPages = () => {
+  every ??= [...helpGroups().flatMap((g) => g.pages), ...entryPages()];
+  return every;
+};

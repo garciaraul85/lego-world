@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIONS, type ActionCtx, action, type EditorAction, MENUS, runAction } from '../actions/registry';
 import { resolveAsset } from '../assets';
-import type { EditorState, ToolId } from '../state';
+import { keysFor } from '../platform';
+import type { EditorState } from '../state';
+import { TOOLS } from './tools';
+
+export { TOOLS };
+
 import { resizeHint } from '../viewport/gizmo';
 
 export function MenuBar({ c }: { c: ActionCtx }) {
@@ -95,7 +100,7 @@ function MenuItem({ a, c }: { a: EditorAction; c: ActionCtx }) {
       }}
     >
       <span>{a.label}</span>
-      {a.later ? <span class="later">{a.later}</span> : <span class="k">{a.key ?? ''}</span>}
+      {a.later ? <span class="later">{a.later}</span> : <span class="k">{keysFor(a.key ?? '')}</span>}
     </button>
   );
 }
@@ -130,115 +135,16 @@ export function WorkspaceTabs({ current, onPick }: { current: string; onPick: (w
   );
 }
 
-export const TOOLS: {
-  id: ToolId;
-  glyph: string;
-  label: string;
-  key: string;
-  help: string;
-  later?: string;
-  /** shares a toolbar button with another tool (Place covers bricks and assets) */
-  hidden?: boolean;
-}[] = [
-  {
-    id: 'select',
-    glyph: '↖',
-    label: 'Select',
-    key: 'V',
-    help: 'Select: click an object (Alt: one brick, Shift: add). Drag to orbit, right-drag to pan.',
-  },
-  {
-    id: 'move',
-    glyph: '✥',
-    label: 'Move',
-    key: 'W',
-    help: 'Move: select something, then drag the red, green or blue arrow to move it along that way. Drag the object itself to slide it on the ground.',
-  },
-  {
-    id: 'rotate',
-    glyph: '↻',
-    label: 'Rotate',
-    key: 'E',
-    help: 'Rotate: select something, then drag a ring. A whole asset turns freely about X (red), Y (green) and Z (blue) in 15° steps; bricks turn in quarter turns. R turns once.',
-  },
-  {
-    id: 'resize',
-    glyph: '⤡',
-    label: 'Resize',
-    key: 'Q',
-    help: 'Resize: select an asset, a trigger zone or one brick, then drag a square handle. Assets grow freely (the white corner grows them evenly); bricks snap to real LEGO sizes; the top handle makes a plate or a brick.',
-  },
-  {
-    id: 'place',
-    glyph: '▦',
-    label: 'Place',
-    key: 'B',
-    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). T turns it.',
-  },
-  {
-    id: 'asset',
-    glyph: '▦',
-    label: 'Place',
-    key: 'A',
-    help: 'Place: pick a brick or an asset in the dock below, then click the ground (or drag a card straight in). T turns it.',
-    hidden: true,
-  },
-  {
-    id: 'paint',
-    glyph: '◐',
-    label: 'Color paint',
-    key: 'C',
-    help: 'Color paint: click an object to recolor it with the brush color (Alt: one brick).',
-  },
-  {
-    id: 'erase',
-    glyph: '⌫',
-    label: 'Erase',
-    key: 'X',
-    help: 'Erase: click a brick to remove it (Shift: whole object). Supporting bricks are protected.',
-  },
-  {
-    id: 'spawn',
-    glyph: '⚑',
-    label: 'Spawn point',
-    key: 'P',
-    help: 'Spawn point: click open ground to add one, facing the way the camera looks.',
-  },
-  {
-    id: 'zone',
-    glyph: '⬚',
-    label: 'Trigger zone',
-    key: 'Z',
-    help: 'Trigger zone: drag on the ground to draw a zone; logic reacts when the hero walks in or out.',
-  },
-  {
-    id: 'sound',
-    glyph: '♫',
-    label: 'Sound emitter',
-    key: 'S',
-    help: 'Sound emitter: click the ground to place a looping or repeating sound. Music and ambience zones: pick a zone’s Music in the Inspector.',
-  },
-  {
-    id: 'ui',
-    glyph: '▭',
-    label: 'Sign',
-    key: 'U',
-    help: 'Sign: click the ground to put up a sign in the world; its text can show {variables} while playing. The HUD, title and splash screens are made in the Screens workspace.',
-  },
-];
-
 const STUDIO_WORKSPACES = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics']);
 const STUDIO_HINT: Record<string, string> = {
-  Assets: 'Asset studio: build the asset with the tools above the build plate. Every placed copy updates.',
+  Assets:
+    'Asset studio: build the asset from bricks (Bricks tab) and other assets (drag them onto the plate). Every placed copy updates.',
   Characters: 'Character studio: pick parts, colors and moves on the right.',
   Logic: 'Logic: rules and scripts for this game.',
   Screens: 'Screens: the HUD, title, splash, pause and other game screens.',
   Audio: 'Audio: sounds, music and the mix.',
   Cinematics: 'Cinematics: cutscenes on a timeline.',
 };
-
-/** the last kind of Place used (a brick or an asset) */
-let lastPlace: 'place' | 'asset' | null = null;
 
 export function Toolbar({ c }: { c: ActionCtx }) {
   const { ed, ui } = c;
@@ -247,14 +153,13 @@ export function Toolbar({ c }: { c: ActionCtx }) {
   // the studios have their own tools; the Scene tools would only be a second toolbar there
   const studioWs = STUDIO_WORKSPACES.has(ed.workspace.value);
   const placing = ed.tool.value === 'place' || ed.tool.value === 'asset';
-  if (placing) lastPlace = ed.tool.value as 'place' | 'asset';
   // Resize says why nothing shows when the selection has no size to change; Place says what it puts down
   const hint =
     (tool.id === 'resize' && resizeHint(ed)) ||
     (ed.tool.value === 'asset' && resolveAsset(ed, ed.assetBrush.value.asset)
-      ? `Place ${resolveAsset(ed, ed.assetBrush.value.asset)!.name}: click the ground, or drag cards from the dock. T turns it. Pick a brick in the dock to place bricks instead.`
-      : ed.tool.value === 'place'
-        ? `Place a ${ed.brush.value.type.replace(/^(brick|plate|tile)(\d+)x(\d+)$/, '$1 $2×$3')}: click the ground, or drag it. T turns it. Pick an asset in the dock to place that instead.`
+      ? `Place ${resolveAsset(ed, ed.assetBrush.value.asset)!.name}: click the ground, or drag cards from the dock. Press T to turn it a quarter turn before you put it down.`
+      : placing
+        ? 'Place: pick an asset in the dock below, then click the ground (or drag its card in). New bricks are built into an asset in the Assets screen.'
         : tool.help);
   return (
     <div class="toolbar">
@@ -272,9 +177,8 @@ export function Toolbar({ c }: { c: ActionCtx }) {
                 data-help="scene"
                 disabled={!!t.later}
                 onClick={() => {
-                  // Place picks up where you left off: the asset you chose, or the brick brush
-                  ed.tool.value =
-                    t.id === 'place' ? (lastPlace ?? (ed.assetBrush.value.asset ? 'asset' : 'place')) : t.id;
+                  // the Scene's Place puts down assets (bricks are built in the Assets screen)
+                  ed.tool.value = t.id === 'place' ? 'asset' : t.id;
                   ed.persistUi();
                 }}
               >
@@ -290,7 +194,7 @@ export function Toolbar({ c }: { c: ActionCtx }) {
         <span class="toolhint opt">{STUDIO_HINT[ed.workspace.value] ?? ''}</span>
       ) : (
         <span class="toolhint opt" data-tip={hint} data-tour="tool-hint">
-          {hint}
+          {keysFor(hint)}
         </span>
       )}
       <div class="group" role="group" aria-label="Play controls" data-tour="play">
@@ -480,7 +384,7 @@ export function CommandPalette({ c }: { c: ActionCtx }) {
             onClick={() => run(a)}
           >
             <span>{a.label}</span>
-            <span class="k">{a.later ?? a.key ?? ''}</span>
+            <span class="k">{a.later ?? keysFor(a.key ?? '')}</span>
           </button>
         ))}
       </div>
@@ -500,7 +404,7 @@ export function Shortcuts({ onClose }: { onClose: () => void }) {
         {keyed.map((a) => [
           <span>{a.label}</span>,
           <span class="mono" style={{ color: 'var(--acc2)' }}>
-            {a.key}
+            {keysFor(a.key ?? '')}
           </span>,
         ])}
       </div>

@@ -189,7 +189,7 @@ describe('P31 scene menus', () => {
     expect(ed.scene.value!.count).toBe(count + lib.bricks.length);
   });
 
-  it('asset copies get Asset studio, Unpack and Logic entries; loose bricks get paint', () => {
+  it('asset copies get Edit in the Assets screen and Logic entries; loose bricks get Make an asset', () => {
     const c = setup();
     const { ed } = c;
     const s = ed.scene.value!;
@@ -200,9 +200,9 @@ describe('P31 scene menus', () => {
     const inst = selectedInstance(c)!;
     expect(inst).toBeTruthy();
     const r = checkRules(c, objectMenu(c));
-    expect(ids(r)).toEqual(
-      expect.arrayContaining(['asset.edit', 'asset.unpack', 'logic.interact', 'asset.duplicate', 'edit.delete']),
-    );
+    expect(ids(r)).toEqual(expect.arrayContaining(['asset.edit', 'logic.interact', 'asset.duplicate', 'edit.delete']));
+    // P32: the Scene places whole assets; nothing turns a copy back into loose bricks
+    expect(ids(r)).not.toContain('asset.unpack');
     openMenu(c, objectMenu(c), 0, 0);
     runMenuItem('asset.edit');
     expect(c.ui.editAsset).toHaveBeenCalledWith(inst.def.id);
@@ -210,9 +210,17 @@ describe('P31 scene menus', () => {
     const loose = s.all().find((b) => !s.ownerOf(b.id))!;
     ed.select([loose.id]);
     const lr = checkRules(c, objectMenu(c));
-    expect(ids(lr)).toContain('bricks.paint');
+    expect(ids(lr)).not.toContain('bricks.paint');
+    expect(ids(lr)).toContain('bricks.makeAsset');
     expect(ids(lr)).not.toContain('asset.edit');
     expect(items(lr).find((x) => x.id === 'edit.duplicate')!.disabled).toBe(false);
+    // loose bricks become an asset placed where they were, to change in the Assets screen
+    const assets = ed.store.list('assets/').length;
+    const copies = ed.scene.value!.instances.length;
+    openMenu(c, objectMenu(c), 0, 0);
+    expect(runMenuItem('bricks.makeAsset')).toBe(true);
+    expect(ed.store.list('assets/').length).toBe(assets + 1);
+    expect(ed.scene.value!.instances.length).toBe(copies + 1);
   });
 
   it('zone, spawn and item menus delete the right thing, and Delete undoes', () => {

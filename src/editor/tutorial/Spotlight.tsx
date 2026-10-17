@@ -6,8 +6,14 @@ export type Rect = { x: number; y: number; w: number; h: number };
 export function useTargetRect(selector: string): Rect | null {
   const [r, setR] = useState<Rect | null>(null);
   useEffect(() => {
+    let shown = false;
     const read = () => {
       const el = document.querySelector(selector) as HTMLElement | null;
+      // a target inside a scrolled panel (say, low in the Asset properties) is scrolled into view once
+      if (el && !shown) {
+        shown = true;
+        el.scrollIntoView({ block: 'nearest' });
+      }
       const b = el?.getBoundingClientRect();
       const next = b && b.width + b.height > 0 ? { x: b.left, y: b.top, w: b.width, h: b.height } : null;
       setR((cur) =>

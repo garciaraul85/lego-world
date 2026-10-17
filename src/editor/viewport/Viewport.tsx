@@ -1,5 +1,5 @@
 import { effect } from '@preact/signals';
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
 import { type FreeGroup, freeGroupsOf } from '../../core/assets/free';
 import {
@@ -15,6 +15,7 @@ import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import type { Command } from '../../core/commands';
 import { skyCycle } from '../../core/legacy/modules';
+import type { Asset } from '../../core/schema';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
 import { type LineSet, type Marker, type Overlay, type RenderBrick, Renderer } from '../../engine/render/renderer';
@@ -52,6 +53,7 @@ import {
   ringPoints,
   targetBox,
 } from './gizmo';
+import { settleMove } from './settle';
 
 const kindOf = (type: string) =>
   (type.startsWith('brick') ? 'brick' : type.startsWith('plate') ? 'plate' : 'tile') as RenderBrick['kind'];
@@ -62,6 +64,14 @@ export type { ViewportApi } from './active';
 export type StudioHooks = {
   markers(): Marker[];
   onPoint(pos: [number, number, number]): void;
+  /**
+   * P32: another asset dragged onto the plate is built into this one. `def` finds it (the plate's own project
+   * has only this asset's bricks); `drop` adds its bricks at `at` (studs, plates) turned `rot` quarter turns.
+   */
+  reuse?: {
+    def(id: string): Asset | null;
+    drop(id: string, at: [number, number, number], rot: number): void;
+  };
   /** a part of the asset was turned or sized on the plate (P31): save it into the asset */
   onPart?(p: {
     index: number | null;
@@ -94,6 +104,8 @@ export function Viewport({
   menuRef.current = onMenu;
   const studioRef = useRef(studio);
   studioRef.current = studio;
+  /** bumps when the browser takes the 3D drawing away (too many views, the GPU reset): the view starts again */
+  const [gen, setGen] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -109,12 +121,18 @@ export function Viewport({
     let raf = 0;
     let hover: Brick | null = null;
     let ghost: RenderBrick | null = null;
+    /** why the brick or asset under the pointer can't go there (the ghost turns red), and the last spot checked */
+    let ghostBad: string | null = null;
+    let ghostKey = '';
+    let ghostFit: { dy: number; bad: string | null } = { dy: 0, bad: null };
     let drag: {
       kind: 'orbit' | 'pan' | 'move' | 'zone' | 'gizmo';
       x: number;
       y: number;
       moved: boolean;
       button: number;
+      /** when the button went down: a quick press that wobbles a little is still a click (trackpads) */
+      t?: number;
       start?: { x: number; z: number };
       offset?: [number, number];
       plane?: number;
@@ -148,6 +166,106 @@ export function Viewport({
       checkedKey = key;
       blocked = cmd ? ed.bus.check(cmd) : null;
       return blocked;
+    };
+    /**
+     * A sideways move lands where it can stand: when the spot at the same height is refused (floating with no
+     * studs under it, or cutting into something), it goes down onto what is below, else up until it fits.
+     * Only the final spot is checked, so a chest on a tower can be dragged straight to the tower's door.
+     */
+    let settleKey = '';
+    let settled: { cmd: Command; dy: number } | null = null;
+    const settle = (cmd: Command | null): { cmd: Command; dy: number } | null => {
+      if (!cmd) return null;
+      const key = `${ed.revision.value}:${JSON.stringify(cmd)}`;
+      if (key === settleKey) return settled;
+      settleKey = key;
+      settled = settleMove(cmd, (c) => ed.bus.check(c));
+      return settled;
+    };
+    const plates = (dy: number) =>
+      dy ? ` · ${dy < 0 ? 'down' : 'up'} ${Math.abs(dy)} plate${Math.abs(dy) === 1 ? '' : 's'} to stand` : '';
+    /**
+     * The brick about to be placed (Place tool or a card dragged in): it sits on what is under it, going up
+     * until it fits instead of cutting into a neighbour; `bad` says why it can't go there at all (red ghost).
+     */
+    const fitBrick = (
+      hit: { x: number; y: number; z: number },
+      br: { type: string; rot: number; color: string },
+    ): { ghost: RenderBrick; bad: string | null } => {
+      const [w, d] = footprint({ type: br.type, rot: br.rot });
+      const x = Math.round(hit.x - w / 2);
+      const z = Math.round(hit.z - d / 2);
+      const key = `b:${ed.revision.value}:${br.type}:${br.rot}:${x},${hit.y},${z}`;
+      if (key !== ghostKey) {
+        ghostKey = key;
+        const at = (dy: number) => ({
+          type: 'bricks.place',
+          payload: {
+            map: ed.mapId.value,
+            bricks: [{ type: br.type, x, y: hit.y + dy, z, rot: br.rot, color: br.color }],
+          },
+        });
+        const first = ed.bus.check(at(0));
+        ghostFit = { dy: 0, bad: first };
+        if (first)
+          for (let dy = 1; dy <= 36; dy++)
+            if (!ed.bus.check(at(dy))) {
+              ghostFit = { dy, bad: null };
+              break;
+            }
+      }
+      return {
+        bad: ghostFit.bad,
+        ghost: {
+          id: -1,
+          w,
+          d,
+          kind: kindOf(br.type),
+          x,
+          y: hit.y + ghostFit.dy,
+          z,
+          color: ghostFit.bad ? '#ff3b30' : br.color,
+        },
+      };
+    };
+    /**
+     * P32: another asset dragged onto the build plate: its bricks sit where the pointer is, going up until
+     * they fit (like a brick); `bad` says why they can't go there at all.
+     */
+    const fitReuse = (
+      def: Asset,
+      hit: { x: number; y: number; z: number },
+      rot: number,
+    ): { at: [number, number, number]; bricks: Brick[]; bad: string | null } => {
+      const [w, d] = rotatedFootprint(def, rot);
+      const at: [number, number, number] = [Math.round(hit.x - w / 2), hit.y, Math.round(hit.z - d / 2)];
+      const shape = (dy: number) => expandAsset(def, { pos: [at[0], at[1] + dy, at[2]], rot, idBase: 1 }).bricks;
+      const key = `r:${ed.revision.value}:${def.id}:${rot}:${at.join()}`;
+      if (key !== ghostKey) {
+        ghostKey = key;
+        const check = (dy: number) =>
+          ed.bus.check({
+            type: 'bricks.place',
+            payload: {
+              map: ed.mapId.value,
+              bricks: shape(dy).map(({ id: _i, group: _g, ...b }) => b),
+            },
+          });
+        const first = check(0);
+        ghostFit = { dy: 0, bad: first };
+        if (first)
+          for (let dy = 1; dy <= 36; dy++)
+            if (!check(dy)) {
+              ghostFit = { dy, bad: null };
+              break;
+            }
+      }
+      const dy = ghostFit.dy;
+      return {
+        at: [at[0], at[1] + dy, at[2]],
+        bricks: shape(dy).map((b) => (ghostFit.bad ? { ...b, color: '#ff3b30' } : b)),
+        bad: ghostFit.bad,
+      };
     };
     let tagTimer = 0;
     let gz: {
@@ -184,7 +302,19 @@ export function Viewport({
       const s = ed.scene.value;
       const b = s?.bounds();
       const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
-      if (b) camera.fit(b.min, b.max, aspect);
+      if (b && studio) {
+        // P32: an asset's build plate shows the asset with room around it to build on, not just the asset
+        const min: Vec3 = [...b.min];
+        const max: Vec3 = [...b.max];
+        for (const i of [0, 2]) {
+          const mid = (min[i]! + max[i]!) / 2;
+          const half = Math.max(8, (max[i]! - min[i]!) / 2 + 4);
+          min[i] = mid - half;
+          max[i] = mid + half;
+        }
+        min[1] = Math.min(min[1]!, 0);
+        camera.fit(min, max, aspect);
+      } else if (b) camera.fit(b.min, b.max, aspect);
       else {
         camera.target = [0, 1, 0];
         camera.baseDistance = 35;
@@ -253,6 +383,7 @@ export function Viewport({
         return renderer;
       },
       redraw,
+      resync: () => syncChunks([], true),
       fit: fitAll,
       frameSelection,
     };
@@ -383,10 +514,25 @@ export function Viewport({
       }
     };
 
+    let failed = '';
     const frame = () => {
       raf = requestAnimationFrame(frame);
       if (!dirty) return;
       dirty = false;
+      try {
+        draw();
+        failed = '';
+      } catch (e) {
+        // a drawing error must not leave the view frozen on an old picture: say so once, try again next change
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg !== failed) {
+          failed = msg;
+          ed.notify(`The 3D view could not draw: ${msg}`, true);
+          console.error(e);
+        }
+      }
+    };
+    const draw = () => {
       const s = ed.scene.value;
       const overlays: Overlay[] = [];
       const lines: LineSet[] = [];
@@ -635,6 +781,7 @@ export function Viewport({
       ghost = null;
       assetGhost = null;
       assetAt = null;
+      ghostBad = null;
       if (tool === 'asset') {
         const def = resolveAsset(ed, ed.assetBrush.value.asset);
         const hit = def && s.surface(r, (b) => !ed.isVisible(b));
@@ -642,25 +789,24 @@ export function Viewport({
           const rot = ed.assetBrush.value.rot;
           const [w, d] = rotatedFootprint(def, rot);
           assetAt = [Math.round(hit.x - w / 2), hit.y, Math.round(hit.z - d / 2)];
-          assetGhost = expandAsset(def, { pos: assetAt, rot, idBase: 1 }).bricks;
+          const key = `a:${ed.revision.value}:${def.id}:${rot}:${assetAt.join()}`;
+          if (key !== ghostKey) {
+            ghostKey = key;
+            ghostFit = { dy: 0, bad: ed.bus.check(placeCommands(ed, def.id, assetAt, rot)) };
+          }
+          ghostBad = ghostFit.bad;
+          assetGhost = expandAsset(def, { pos: assetAt, rot, idBase: 1 }).bricks.map((b) =>
+            ghostBad ? { ...b, color: '#ff3b30' } : b,
+          );
           ed.cursor.value = { x: assetAt[0], z: assetAt[2], y: assetAt[1] };
         }
         hover = null;
       } else if (tool === 'place') {
         const hit = s.surface(r, (b) => !ed.isVisible(b));
         if (hit) {
-          const br = ed.brush.value;
-          const [w, d] = footprint({ type: br.type, rot: br.rot });
-          ghost = {
-            id: -1,
-            w,
-            d,
-            kind: kindOf(br.type),
-            x: Math.round(hit.x - w / 2),
-            y: hit.y,
-            z: Math.round(hit.z - d / 2),
-            color: br.color,
-          };
+          const fit = fitBrick(hit, ed.brush.value);
+          ghost = fit.ghost;
+          ghostBad = fit.bad;
           ed.cursor.value = { x: ghost.x, z: ghost.z, y: ghost.y };
         }
         hover = null;
@@ -688,10 +834,15 @@ export function Viewport({
       if (tool === 'asset') {
         const id = ed.assetBrush.value.asset;
         if (!id) ed.notify('Pick an asset in the dock (Assets › Assets) first.');
+        else if (assetAt && ghostBad) flashTag(`Can't place it here: ${ghostBad}`, local(e));
         else if (assetAt) {
           const def = resolveAsset(ed, id);
           ed.exec(placeCommands(ed, id, assetAt, ed.assetBrush.value.rot), { label: `Place ${def?.name ?? 'asset'}` });
         }
+        return;
+      }
+      if (tool === 'place' && ghost && ghostBad) {
+        flashTag(`Can't place it here: ${ghostBad}`, local(e));
         return;
       }
       if (tool === 'place' && ghost) {
@@ -703,6 +854,9 @@ export function Viewport({
             bricks: [{ type: br.type, x: ghost.x, y: ghost.y, z: ghost.z, rot: br.rot, color: br.color }],
           },
         });
+        // the see-through brick moves on at once (on top of the one just placed), so it never sits over it
+        ghostKey = '';
+        updateHover(e);
         return;
       }
       if ((tool === 'sound' || tool === 'ui') && !studio) {
@@ -784,9 +938,14 @@ export function Viewport({
       }
       if (tool === 'erase') {
         const owner = s.ownerOf(b.id);
+        // the Scene erases whole objects; one brick at a time is for an asset's build plate
+        if (!studio && !owner && !b.group) {
+          flashTag('Erase removes whole objects here. Loose bricks: select them and Make asset, or Delete.', local(e));
+          return;
+        }
         const ids = owner
           ? owner.bricks.map((x) => x.id)
-          : e.shiftKey && b.group
+          : (e.shiftKey || !studio) && b.group
             ? (s.groups.get(b.group) ?? [b.id])
             : [b.id];
         if (ed.exec({ type: 'bricks.remove', payload: { map, ids } }).ok) ed.pruneSelection();
@@ -901,6 +1060,7 @@ export function Viewport({
         y: e.clientY,
         moved: false,
         button: e.button,
+        t: performance.now(),
         ...(offset ? { start: { x: offset[0], z: offset[1] }, offset, plane } : {}),
       };
     };
@@ -923,7 +1083,8 @@ export function Viewport({
       }
       const dx = e.clientX - drag.x;
       const dy = e.clientY - drag.y;
-      if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+      const quick = drag.t !== undefined && performance.now() - drag.t < 300;
+      if (!drag.moved && Math.hypot(dx, dy) < (quick ? 9 : 4)) return;
       drag.moved = true;
       if (drag.kind === 'gizmo' && gz) {
         const now = local(e);
@@ -945,9 +1106,11 @@ export function Viewport({
           const e = t.inst ? ed.scene.value?.instances.find((x) => x.inst.id === t.inst!.id) : null;
           setLiveHide((e?.bricks ?? t.bricks).map((b) => b.id));
         }
-        preview = gz.change.bricks ?? null;
-        const why = checkCommand(gz.change.command);
-        showTag(why ? `${gz.change.label} · can't go here: ${why}` : gz.change.label, now, !!why);
+        const fit = gz.mode === 'move' ? settle(gz.change.command) : null;
+        const fdy = fit?.dy ?? 0;
+        preview = gz.change.bricks?.map((b) => (fdy ? { ...b, y: b.y + fdy } : b)) ?? null;
+        const why = checkCommand(fit?.cmd ?? gz.change.command);
+        showTag(why ? `${gz.change.label} · can't go here: ${why}` : gz.change.label + plates(fdy), now, !!why);
         dirty = true;
         return;
       }
@@ -968,10 +1131,8 @@ export function Viewport({
         if (!g) return;
         const mx = Math.round(g[0] - drag.start.x);
         const mz = Math.round(g[1] - drag.start.z);
-        preview = ed.selectedBricks.value.map((b) => ({ ...b, x: b.x + mx, z: b.z + mz }));
-        ed.cursor.value = { x: mx, z: mz, y: 0 };
         const sel = ed.selectedBricks.value;
-        const why = checkCommand(
+        const fit = settle(
           mx || mz
             ? {
                 type: 'bricks.move',
@@ -979,9 +1140,13 @@ export function Viewport({
               }
             : null,
         );
+        const fdy = fit?.dy ?? 0;
+        preview = sel.map((b) => ({ ...b, x: b.x + mx, y: b.y + fdy, z: b.z + mz }));
+        ed.cursor.value = { x: mx, z: mz, y: fdy };
+        const why = checkCommand(fit?.cmd ?? null);
         const unit = (n: number) => `${n > 0 ? '+' : ''}${n}`;
         const what = `${unit(mx)} X  ${unit(mz)} Z`;
-        showTag(why ? `${what} · can't go here: ${why}` : what, local(e), !!why);
+        showTag(why ? `${what} · can't go here: ${why}` : what + plates(fdy), local(e), !!why);
         dirty = true;
         return;
       }
@@ -1009,7 +1174,8 @@ export function Viewport({
         dirty = true;
         if (g?.change?.part) studioRef.current?.onPart?.(g.change.part);
         if (g?.change?.command) {
-          const r = ed.exec(g.change.command, { label: g.change.undoLabel });
+          const cmd = g.mode === 'move' ? (settle(g.change.command)?.cmd ?? g.change.command) : g.change.command;
+          const r = ed.exec(cmd, { label: g.change.undoLabel });
           if (!r.ok) flashTag(`Not moved: ${r.error ?? 'that spot is not allowed'}`, local(e));
         }
         blocked = null;
@@ -1044,6 +1210,7 @@ export function Viewport({
       if (d.kind === 'move' && d.moved && preview) {
         const sel = ed.selectedBricks.value;
         const dx = (preview[0]?.x ?? 0) - (sel[0]?.x ?? 0);
+        const dy = (preview[0]?.y ?? 0) - (sel[0]?.y ?? 0);
         const dz = (preview[0]?.z ?? 0) - (sel[0]?.z ?? 0);
         preview = null;
         blocked = null;
@@ -1052,7 +1219,7 @@ export function Viewport({
         if (dx || dz) {
           const r = ed.exec({
             type: 'bricks.move',
-            payload: { map: ed.mapId.value, ids: sel.map((b) => b.id), dx, dy: 0, dz },
+            payload: { map: ed.mapId.value, ids: sel.map((b) => b.id), dx, dy, dz },
           });
           if (!r.ok) flashTag(`Not moved: ${r.error ?? 'that spot is not allowed'}`, local(e));
         }
@@ -1080,10 +1247,31 @@ export function Viewport({
     const onDragOver = (e: DragEvent) => {
       const p = dragPayload.value;
       const s = ed.scene.value;
-      if (!p || !s || mode !== 'scene' || studio) return;
+      if (!p || !s || mode !== 'scene') return;
+      // the Scene takes assets; an asset's build plate takes bricks and other assets
+      if (p.kind === 'brick' ? !studio : studio && !studio.reuse) return;
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
       const hit = s.surface(rayAt(e), (b) => !ed.isVisible(b));
+      if (studio && p.kind === 'asset') {
+        const def = studio.reuse!.def(p.asset);
+        const fit = def && hit ? fitReuse(def, hit, p.rot) : null;
+        assetGhost = fit?.bricks ?? null;
+        ghostBad = fit?.bad ?? null;
+        hover = null;
+        dirty = true;
+        return;
+      }
+      if (p.kind === 'brick') {
+        // a brick card dragged in: the same preview as the Place tool
+        const fit = hit ? fitBrick(hit, p) : null;
+        ghost = fit?.ghost ?? null;
+        ghostBad = fit?.bad ?? null;
+        hover = null;
+        sceneHover.value = null;
+        dirty = true;
+        return;
+      }
       const def = resolveAsset(ed, p.asset);
       const at = hit && assetCorner(ed, p.asset, p.rot, hit);
       assetAt = at ?? null;
@@ -1095,16 +1283,49 @@ export function Viewport({
     const onDrop = (e: DragEvent) => {
       const p = dragPayload.value;
       const s = ed.scene.value;
-      if (!p || !s || mode !== 'scene' || studio) return;
+      if (!p || !s || mode !== 'scene') return;
+      if (p.kind === 'brick' ? !studio : studio && !studio.reuse) return;
       e.preventDefault();
       const hit = s.surface(rayAt(e), (b) => !ed.isVisible(b));
       assetGhost = null;
       assetAt = null;
       dirty = true;
       endDrag();
+      if (studio && p.kind === 'asset') {
+        const def = studio.reuse!.def(p.asset);
+        const fit = def && hit ? fitReuse(def, hit, p.rot) : null;
+        ghostKey = '';
+        if (!fit) return;
+        if (fit.bad) flashTag(`Can't put it here: ${fit.bad}`, local(e));
+        else studio.reuse!.drop(p.asset, fit.at, p.rot);
+        return;
+      }
+      if (p.kind === 'brick') {
+        const fit = hit ? fitBrick(hit, p) : null;
+        ghost = null;
+        // the Place tool stays on with this brick, so the next ones are a click away
+        ed.tool.value = 'place';
+        if (!fit) return;
+        if (fit.bad) flashTag(`Can't place it here: ${fit.bad}`, local(e));
+        else {
+          const g = fit.ghost;
+          ed.exec(
+            {
+              type: 'bricks.place',
+              payload: {
+                map: ed.mapId.value,
+                bricks: [{ type: p.type, x: g.x, y: g.y, z: g.z, rot: p.rot, color: p.color }],
+              },
+            },
+            { label: 'Place brick' },
+          );
+        }
+        return;
+      }
       if (hit) placeAssetAt(ed, p.asset, p.rot, hit);
     };
     const onDragLeave = () => {
+      ghost = null;
       assetGhost = null;
       assetAt = null;
       dirty = true;
@@ -1119,8 +1340,14 @@ export function Viewport({
     canvas.addEventListener('pointerleave', onLeave);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    const onLost = (e: Event) => {
+      e.preventDefault();
+      setTimeout(() => setGen((g) => g + 1), 50);
+    };
+    canvas.addEventListener('webglcontextlost', onLost);
 
     return () => {
+      canvas.removeEventListener('webglcontextlost', onLost);
       cancelAnimationFrame(raf);
       canvas.removeEventListener('pointerenter', claim);
       setActiveView(null, self);
@@ -1128,13 +1355,21 @@ export function Viewport({
       ro.disconnect();
       unsubScene?.();
       for (const d of disposers) d();
-      renderer.dispose();
+      // a build plate is closed for good when another asset opens: give its drawing context back at once
+      // (browsers keep only about 16, and a plate opened many times would use them up)
+      renderer.dispose(!!studioRef.current);
     };
-  }, [ed, mode]);
+  }, [ed, mode, gen]);
 
   return (
     <div class="viewport-wrap">
-      <canvas ref={canvasRef} class="viewport-canvas" data-tour="viewport" aria-label="3D map view" />
+      <canvas
+        key={`${mode}|${editorKey(ed)}|${gen}`}
+        ref={canvasRef}
+        class="viewport-canvas"
+        data-tour="viewport"
+        aria-label="3D map view"
+      />
       <div class="vp-hud mono" ref={hudRef} />
       <div class="gizmo-tag" ref={tagRef} hidden />
       {mode === 'scene' && <ViewControls view={viewRef} studio={!!studio} />}
@@ -1143,6 +1378,16 @@ export function Viewport({
 }
 
 export { mapItems };
+
+const editorKeys = new WeakMap<EditorState, number>();
+let editorCount = 0;
+/** a number per editor state, so a view of another project gets a fresh canvas */
+function editorKey(ed: EditorState): number {
+  const k = editorKeys.get(ed);
+  if (k !== undefined) return k;
+  editorKeys.set(ed, ++editorCount);
+  return editorCount;
+}
 
 const sp3 = (p: readonly number[]): Vec3 => [p[0]!, p[1]!, p[2]!];
 const AXIS_HOT: [number, number, number] = [1, 0.85, 0.25];

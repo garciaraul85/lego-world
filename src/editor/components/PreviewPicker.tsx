@@ -13,6 +13,8 @@ export function PreviewPicker({
   options,
   onPick,
   footer,
+  tour,
+  placeholder = '—',
 }: {
   label: string;
   value: string;
@@ -20,13 +22,17 @@ export function PreviewPicker({
   onPick: (value: string) => void;
   /** extra content under the cards (e.g. "Make a new one…") */
   footer?: (close: () => void) => ComponentChildren;
+  /** P32: hook names for scripts (tutorial lines, AI plans): the button is `pick-<tour>`, its cards `pick-<tour>-list` */
+  tour?: string;
+  /** P32: what the button says while nothing is chosen (“+ Track…”) */
+  placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
   const pop = useRef<HTMLDivElement>(null);
   const cur = options.find((o) => o.value === value) ?? {
     value,
-    name: value ? `(missing) ${value}` : '—',
+    name: value ? `(missing) ${value}` : placeholder,
     thumb: null,
   };
   useEffect(() => {
@@ -67,6 +73,7 @@ export function PreviewPicker({
         class="btn pv-btn"
         aria-label={`${label}: ${cur.name}`}
         aria-haspopup="listbox"
+        data-tour={tour ? `pick-${tour}` : undefined}
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
@@ -78,12 +85,14 @@ export function PreviewPicker({
       </button>
       {open && (
         <div ref={pop} class="pv-pop" role="dialog" aria-label={`${label} choices`}>
-          <div class="pv-grid" role="listbox" aria-label={label}>
+          <div class="pv-grid" role="listbox" aria-label={label} data-tour={tour ? `pick-${tour}-list` : undefined}>
             {options.map((o) => (
               <button
                 type="button"
                 role="option"
                 aria-selected={o.value === value}
+                data-value={o.value}
+                data-name={o.name}
                 class={`pv-opt ${o.value === value ? 'on' : ''}`}
                 title={o.note ? `${o.name} · ${o.note}` : o.name}
                 onClick={() => {
@@ -95,6 +104,7 @@ export function PreviewPicker({
                   {o.thumb}
                 </span>
                 <span class="pv-name small">{o.name}</span>
+                {o.note && <span class="pv-note small muted">{o.note}</span>}
               </button>
             ))}
           </div>

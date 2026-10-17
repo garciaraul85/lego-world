@@ -1,11 +1,12 @@
-import { freeGroups } from '../../core/assets/free';
+import { freeGroups, partsMoving } from '../../core/assets/free';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { rigPose } from '../character/animator';
-import type { CharacterRenderer, Controller } from '../legacy/runtime-modules';
+import type { CharacterRenderer, Controller, HeroState } from '../legacy/runtime-modules';
 import { brickGeometry } from '../render/brick-geometry';
 import type { CameraFrame } from '../render/camera';
 import { cross, normalize, type Vec3 } from '../render/math';
+import { drawCharacter } from '../render/place-character';
 import { type LineSet, type Marker, type Mesh, type Overlay, type RenderBrick, Renderer } from '../render/renderer';
 import { FRAGMENT } from '../render/shaders';
 import { chunkKeyOf } from './pieces';
@@ -78,16 +79,30 @@ export class PlayRenderer {
     groups: [],
   };
 
+  private tiltedRev = -1;
+  private moving = false;
+
   private syncTilted() {
     const w = this.session.world;
     const ids = new Set<number>();
     const groups: { ids: Set<number>; model: Float32Array }[] = [];
-    for (const g of freeGroups(w.instances)) {
+    const now = this.session.clock;
+    // P32: moving parts ease to their state's pose after a state change
+    const anim = (id: string) => {
+      const i = w.instances.find((x) => x.inst.id === id);
+      return i?.anim ? { ...i.anim, now } : null;
+    };
+    for (const g of freeGroups(w.instances, anim)) {
       const set = new Set(g.bricks.map((b) => b.id));
       for (const id of set) ids.add(id);
       groups.push({ ids: set, model: g.t.model });
     }
+    // bricks that joined or left a group move between the chunks and the overlays
+    for (const p of w.pieces)
+      if (p.id !== undefined && ids.has(p.id) !== this.tilted.ids.has(p.id)) w.dirtyChunks.add(chunkKeyOf(p));
     this.tilted = { ids, groups };
+    this.tiltedRev = w.rev;
+    this.moving = w.instances.some((i) => partsMoving(i.def, i.state, i.anim ? { ...i.anim, now } : null));
   }
 
   private tiltedOverlays(): Overlay[] {
@@ -104,7 +119,9 @@ export class PlayRenderer {
   private syncBricks() {
     const w = this.session.world;
     const r = this.renderer;
+    if (this.shown === w && (this.tiltedRev !== w.rev || this.moving)) this.syncTilted();
     if (this.shown !== w) {
+      this.tilted = { ids: new Set(), groups: [] };
       this.syncTilted();
       this.shown = w;
       r.clearChunks();
@@ -198,6 +215,10 @@ export class PlayRenderer {
       (mvp, eye) => {
         const c = this.chars;
         c.begin(mvp, eye, sky);
+        // a character playing a clip (a cinematic, an emote) is drawn where it stands
+        const frame = { mvp, eye: eye as number[], light: sky };
+        const draw = (profile: Record<string, unknown>, state: HeroState) =>
+          drawCharacter(s.L, c, frame, profile, state);
         for (const n of w.npcs) {
           if (!this.bound.has(n.controller)) {
             c.bindCollision(n.profile, n.controller);
@@ -205,9 +226,9 @@ export class PlayRenderer {
           }
           const cast = s.cine.drawFor(n, n.profile, n.state);
           if (cast?.state.hidden) continue;
-          c.draw(cast?.profile ?? n.profile, cast?.state ?? n.state);
+          draw(cast?.profile ?? n.profile, cast?.state ?? n.state);
         }
-        for (const x of s.cine.extras()) c.draw(x.profile, x.state);
+        for (const x of s.cine.extras()) draw(x.profile, x.state);
         if (!this.bound.has(w.controller)) {
           c.bindCollision(s.hero, w.controller);
           this.bound.add(w.controller);
@@ -215,9 +236,9 @@ export class PlayRenderer {
         const pose = s.heroAnim.params();
         const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
         if (heroCast) {
-          if (!heroCast.state.hidden) c.draw(heroCast.profile, heroCast.state);
+          if (!heroCast.state.hidden) draw(heroCast.profile, heroCast.state);
         } else
-          c.draw(
+          draw(
             s.hero,
             pose
               ? { ...s.heroState, studioPose: rigPose(pose, s.heroAnim.clip), studioProgress: 0, studioFist: false }

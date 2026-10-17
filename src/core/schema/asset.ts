@@ -52,6 +52,29 @@ export const Asset = z.strictObject({
         scale: z
           .tuple([z.number().min(0.1).max(10), z.number().min(0.1).max(10), z.number().min(0.1).max(10)])
           .optional(),
+        /**
+         * P32 moving parts: how the part stands in each state, on top of its tilt: turned (degrees about
+         * X, Y, Z, around `hinge`) and moved (studs). When the asset changes state the part eases from one
+         * pose to the other over `ease` seconds (a lid swings open, a sword rises). States not listed use
+         * no turn and no move. Like turned parts, it keeps its straight cells for the brick rules.
+         */
+        pose: z
+          .record(
+            z.string(),
+            z.strictObject({
+              turn: z
+                .tuple([z.number().min(-360).max(360), z.number().min(-360).max(360), z.number().min(-360).max(360)])
+                .optional(),
+              move: z
+                .tuple([z.number().min(-50).max(50), z.number().min(-50).max(50), z.number().min(-50).max(50)])
+                .optional(),
+            }),
+          )
+          .optional(),
+        /** the point the part turns around, in the asset's frame like a socket (studs; height in world units) */
+        hinge: Vec3.optional(),
+        /** seconds the part takes to reach its new pose (default 0.6) */
+        ease: z.number().min(0).max(10).optional(),
       }),
     )
     .optional(),

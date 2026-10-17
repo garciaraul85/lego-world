@@ -6,9 +6,12 @@ import { newId } from '../../../core/ids';
 import { type Character, type Clip, paths } from '../../../core/schema';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import type { ActionCtx } from '../../actions/registry';
+import { DraftText } from '../../components/fields';
+import { PreviewPicker } from '../../components/PreviewPicker';
 import { Timeline } from '../../components/timeline/Timeline';
 import { actionChoices } from '../../panels/AudioFields';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
+import { CharacterThumb, peakTime, type ThumbView, trackPose } from './thumbs';
 
 /** Look fields grouped the way v68's character builder groups them. */
 const SECTIONS: [string, string[]][] = [
@@ -54,6 +57,30 @@ const SECTIONS: [string, string[]][] = [
   ['Gear & powers', ['held', 'power', 'spell']],
 ];
 
+/** where a choice is worn, so its picture is a close-up of that part */
+const viewOf = (k: string): ThumbView =>
+  ['head', 'hair', 'face', 'eyes', 'expression', 'facialHair', 'glasses', 'hat', 'ears'].includes(k)
+    ? 'head'
+    : ['pants', 'shoes', 'underwear', 'swimwear'].includes(k)
+      ? 'legs'
+      : ['back', 'cape'].includes(k)
+        ? 'back'
+        : [
+              'shirt',
+              'outfit',
+              'dress',
+              'heroCut',
+              'lingerie',
+              'pattern',
+              'gloves',
+              'scarf',
+              'neck',
+              'wrist',
+              'belt',
+            ].includes(k)
+          ? 'torso'
+          : 'full';
+
 const pretty = (k: string) =>
   k
     .replace(/([A-Z])/g, ' $1')
@@ -64,6 +91,8 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
   const L = legacyRuntime();
+  /** P32: the preset cards are open (+ New character) */
+  const [picking, setPicking] = useState(false);
   const own = ed.store.list('characters/').map((p) => ed.store.get<Character>(p)!);
   const ownClips = ed.store.list('clips/').map((p) => ed.store.get<Clip>(p)!);
   const chrId = ed.studioCharacter.value ?? ed.store.manifest.hero ?? own[0]?.id ?? BUILTIN_CHARACTERS[0]!.id;
@@ -74,14 +103,24 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     BUILTIN_CHARACTERS[0]!;
   const inProject = own.some((x) => x.id === chr.id);
   const allClips = [...ownClips, ...BUILTIN_CLIPS];
-  const [clipId, setClipId] = useState<string | null>(null);
+  const clipId = ed.studioClip.value;
+  const setClipId = (id: string | null) => (ed.studioClip.value = id);
   const clip = allClips.find((x) => x.id === clipId) ?? null;
   const builtinClip = !!clip && !ownClips.some((x) => x.id === clip.id);
-  const [time, setTime] = useState(0);
-  const [playing, setPlaying] = useState(true);
+  // the playhead and Play are editor state, so the tutorial (and scripts) can read and set them
+  const time = ed.clipTime.value;
+  const setTime = (v: number | ((t: number) => number)) => {
+    ed.clipTime.value = typeof v === 'function' ? v(ed.clipTime.peek()) : v;
+  };
+  const playing = ed.clipPlaying.value;
+  const setPlaying = (v: boolean) => {
+    ed.clipPlaying.value = v;
+  };
   const [turntable, setTurntable] = useState(false);
-  const preview = useRef<PreviewInput>({ profile: chr.profile, clip, time, turntable });
-  preview.current = { profile: chr.profile, clip, time, turntable };
+  // P32: the timeline's picked track, ringed on the preview
+  const [part, setPart] = useState<PreviewInput['part']>(null);
+  const preview = useRef<PreviewInput>({ profile: chr.profile, clip, time, turntable, part: null });
+  preview.current = { profile: chr.profile, clip, time, turntable, part: clip ? part : null };
 
   // play the clip in real time
   useEffect(() => {
@@ -158,28 +197,43 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           <span class="tab on">Characters</span>
         </div>
         <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <select
-            class="inp"
-            aria-label="New character from a preset"
-            value=""
-            onChange={(e) => {
-              const p = BUILTIN_CHARACTERS.find((x) => x.id === (e.target as HTMLSelectElement).value);
-              if (!p) return;
-              const id = newId('character');
-              if (ed.exec({ type: 'character.create', payload: { character: { ...p, id } } }).ok)
-                ed.studioCharacter.value = id;
-            }}
+          <button
+            type="button"
+            class={`btn ${picking ? '' : 'on'}`}
+            data-tour="char-new"
+            aria-expanded={picking}
+            onClick={() => setPicking(!picking)}
           >
-            <option value="">+ New character from preset…</option>
-            {BUILTIN_CHARACTERS.map((p) => (
-              <option value={p.id}>{p.name}</option>
-            ))}
-          </select>
+            {picking ? 'Close the presets' : '+ New character'}
+          </button>
+          {picking && (
+            <div class="char-presets" role="listbox" aria-label="New character from a preset">
+              {BUILTIN_CHARACTERS.map((p) => (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  class="char-card"
+                  data-tip={`Make a new character that starts as ${p.name}`}
+                  onClick={() => {
+                    const id = newId('character');
+                    if (ed.exec({ type: 'character.create', payload: { character: { ...p, id } } }).ok) {
+                      ed.studioCharacter.value = id;
+                      setPicking(false);
+                    }
+                  }}
+                >
+                  <CharacterThumb profile={p.profile} size={56} />
+                  <span>{p.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div class="scroll" role="listbox" aria-label="Characters">
           {!own.length && (
             <div class="hint" style={{ padding: '6px 10px' }}>
-              No characters in this game yet. Pick a preset above.
+              No characters in this game yet. Press + New character and pick one to start from.
             </div>
           )}
           {own.map((x) => (
@@ -190,7 +244,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               class={`lib-item ${x.id === chr.id ? 'on' : ''}`}
               onClick={() => (ed.studioCharacter.value = x.id)}
             >
-              <span class="dot" style={{ background: String(x.profile.shirtColor ?? '#888') }} />
+              <CharacterThumb profile={x.profile} size={30} />
               <span class="asset-name">{x.name}</span>
               <span class="mono small muted">{ed.store.manifest.hero === x.id ? 'player' : x.role}</span>
             </button>
@@ -211,6 +265,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                 };
                 if (ed.exec({ type: 'clip.create', payload: { clip: blank } }).ok) setClipId(blank.id);
               }}
+              data-tour="clip-new"
             >
               + New
             </button>
@@ -237,6 +292,8 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                       setPlaying(true);
                     }}
                   >
+                    {/* P32: the clip's strongest pose, so the list shows what each clip does */}
+                    <CharacterThumb profile={chr.profile} size={22} pose={{ clip: x, time: peakTime(x) }} />
                     <span class="asset-name">{x.name ?? x.id}</span>
                     {emotes.includes(x.id as never) && (
                       <span class="chip">key {emotes.indexOf(x.id as never) + 1}</span>
@@ -260,7 +317,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               Turntable
             </button>
             {clip && (
-              <button type="button" class="btn" onClick={() => setPlaying(!playing)}>
+              <button type="button" class="btn" data-tour="clip-play" onClick={() => setPlaying(!playing)}>
                 {playing ? 'Pause' : 'Play'}
               </button>
             )}
@@ -291,6 +348,11 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                 setTime(t);
               }}
               onChange={saveClip}
+              onTrackSelect={setPart}
+              trackThumb={(bone, prop) => {
+                const pose = trackPose(bone, prop);
+                return <CharacterThumb profile={chr.profile} size={40} {...(pose ? { pose } : {})} />;
+              }}
             />
           </>
         ) : (
@@ -306,13 +368,15 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           <div class="sec">
             <label class="field">
               Name
-              <input
+              <DraftText
                 class="inp"
+                tour="char-name"
                 value={chr.name}
                 aria-label="Character name"
-                onChange={(e) => {
-                  const name = (e.target as HTMLInputElement).value.trim().slice(0, 32);
-                  if (name) saveChr({ ...chr, name, profile: { ...chr.profile, name } }, 'Rename character');
+                onCommit={(text) => {
+                  const name = text.trim().slice(0, 32);
+                  if (!name) return false;
+                  saveChr({ ...chr, name, profile: { ...chr.profile, name } }, 'Rename character');
                 }}
               />
             </label>
@@ -321,6 +385,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                 type="button"
                 class="btn on"
                 style={{ flex: 1 }}
+                data-tour="char-hero"
                 disabled={!inProject || isHero}
                 onClick={() =>
                   ed.exec({ type: 'project.update', payload: { hero: chr.id } }, { label: 'Choose player character' })
@@ -341,6 +406,27 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               </button>
             </div>
           </div>
+          {clip && !builtinClip && (
+            <div class="sec">
+              <div class="sech">
+                <span>Clip</span>
+              </div>
+              <label class="field">
+                Clip name
+                <DraftText
+                  class="inp"
+                  tour="clip-name"
+                  aria-label="Clip name"
+                  value={clip.name ?? ''}
+                  onCommit={(text) => {
+                    const name = text.trim().slice(0, 60);
+                    if (!name) return false;
+                    saveClip({ ...clip, name }, 'Rename clip');
+                  }}
+                />
+              </label>
+            </div>
+          )}
           {clip && (
             <div class="sec">
               <div class="sech">
@@ -377,18 +463,21 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                       />
                     </label>
                   ) : L.CharacterCatalog.choices[k] ? (
-                    <label class="field">
+                    // P32: each choice is a picture of this character wearing it, close up where it is worn
+                    <div class="field">
                       {pretty(k)}
-                      <select
-                        class="inp"
+                      <PreviewPicker
+                        label={pretty(k)}
                         value={String(chr.profile[k])}
-                        onChange={(e) => setField(k, (e.target as HTMLSelectElement).value)}
-                      >
-                        {L.CharacterCatalog.choices[k]!.map((o) => (
-                          <option value={o}>{o}</option>
-                        ))}
-                      </select>
-                    </label>
+                        options={L.CharacterCatalog.choices[k]!.map((o) => ({
+                          value: o,
+                          name: o,
+                          thumb: <CharacterThumb profile={{ ...chr.profile, [k]: o }} view={viewOf(k)} size={40} />,
+                        }))}
+                        onPick={(v) => setField(k, v)}
+                        tour={k}
+                      />
+                    </div>
                   ) : null,
                 )}
             </div>

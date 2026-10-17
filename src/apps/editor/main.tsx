@@ -1,3 +1,11 @@
+import {
+  accessibleName,
+  entryForElement,
+  entryRects,
+  helpEntries,
+  roleOf,
+  visibleControls,
+} from '../../editor/help/entries';
 /**
  * Editor entry (dist/editor.html, and the claude.ai artifact).
  * Opens the last project from IndexedDB, or imports an existing LEGO World v68 autosave,
@@ -201,6 +209,18 @@ async function boot() {
     placeCommands,
     chestId: BUILTIN_ASSETS.find((a) => a.name === 'Treasure chest')?.id,
   };
+  // P32 help coverage and screenshots: which Help entry describes a control
+  (window as unknown as { __help: unknown }).__help = {
+    entryFor: (el: Element) => entryForElement(el, helpEntries())?.id ?? null,
+    name: accessibleName,
+    role: roleOf,
+    controls: () => visibleControls(),
+    rects: () => entryRects(helpEntries()),
+  };
+  (window as unknown as { __helpEntries: unknown }).__helpEntries = helpEntries().map((e) => ({
+    id: e.id,
+    screen: e.screen,
+  }));
   render(<App ed={ed} host={host} />, root);
 }
 

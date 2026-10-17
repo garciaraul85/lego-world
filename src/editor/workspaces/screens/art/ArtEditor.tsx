@@ -155,7 +155,7 @@ export function ArtEditor({ ed, art, onClose }: { ed: EditorState; art: Art; onC
         {src.type === 'pixels' && <PixelEditor src={src} save={save} icon={art.kind === 'icon'} />}
         {src.type === 'pixelFont' && <FontDesigner ed={ed} art={art} src={src} save={save} />}
         {src.type === 'image' && (
-          <div class="art-preview">
+          <div class="art-preview" data-help="art.image">
             {artUrl(ed, art.id) ? <img src={artUrl(ed, art.id)} alt={art.name} /> : <span class="muted">Loading…</span>}
           </div>
         )}

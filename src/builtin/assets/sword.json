@@ -1,0 +1,31 @@
+{
+  "id": null,
+  "name": "Sword",
+  "category": "prop",
+  "bricks": [[0, 0, 0, 1, 0, 1, 0], [1, 1, 0, 1, 0, 2, 0], [2, 3, 0, 0, 1, 1, 0], [3, 4, 0, 1, 0, 0, 0]],
+  "palette": {
+    "types": ["plate1x1", "plate1x2", "plate1x3", "tile1x3"],
+    "colors": ["#d5dbe2", "#f7c900", "#6b3f1f"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [7, 3],
+  "sockets": [],
+  "states": ["in", "out"],
+  "initialState": "in",
+  "interactions": [],
+  "smash": { "enabled": false, "rebuild": false, "sound": null, "studs": 0 },
+  "generator": null,
+  "origin": "builtin",
+  "parts": [
+    {
+      "name": "Sword",
+      "bricks": [0, 1, 2, 3],
+      "scale": [0.8, 0.8, 0.8],
+      "pose": {
+        "in": { "move": [0, -0.6, 0] },
+        "out": { "turn": [0, 0, 90], "move": [0, 3.4, 0] }
+      },
+      "ease": 1.4
+    }
+  ]
+}

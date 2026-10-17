@@ -1,7 +1,14 @@
 import type { NodeDef } from './types';
 import { EXEC_IN, EXEC_OUT } from './types';
 
-const VAR = [{ name: 'var', kind: 'var' as const, label: 'Variable' }];
+const VAR = [
+  {
+    name: 'var',
+    kind: 'var' as const,
+    label: 'Variable',
+    help: 'A game variable from the Variables list (left). Make one there first: a name, a type and its starting value.',
+  },
+];
 
 export const VARS: NodeDef[] = [
   {

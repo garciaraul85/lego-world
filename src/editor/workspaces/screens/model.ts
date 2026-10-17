@@ -210,3 +210,30 @@ export const KIND_LABEL: Record<Screen['kind'], string> = {
   gameover: 'Game over',
   custom: 'Custom',
 };
+
+/** Widget names and one-line tips (the palette and Help). */
+export const WIDGET_NAMES: Record<Widget['type'], string> = {
+  text: 'Text',
+  button: 'Button',
+  panel: 'Panel',
+  image: 'Image',
+  hearts: 'Hearts',
+  bar: 'Bar',
+  list: 'List',
+  dialogue: 'Dialogue',
+  minimap: 'Minimap',
+  slot: 'Slot',
+};
+
+export const WIDGET_TIPS: Record<Widget['type'], string> = {
+  text: 'Words on the screen; {hp} shows a live value',
+  button: 'Something to press: runs actions',
+  panel: 'A box that holds other widgets in a row or column',
+  image: 'A picture or icon',
+  hearts: 'Health as hearts',
+  bar: 'A bar that fills up: health, stamina, a timer',
+  list: 'A list of things, like the inventory',
+  dialogue: 'Where characters talk',
+  minimap: 'A small map of the world',
+  slot: 'A place for touch controls',
+};

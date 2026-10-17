@@ -115,7 +115,25 @@ export interface LegacyRuntime {
     validate(p: Record<string, unknown>): Record<string, unknown>;
     heightScale(p: Record<string, unknown>): number;
   };
-  CharacterModel: { create(gl: WebGLRenderingContext, fragment: string, onDirty?: () => void): CharacterRenderer };
+  CharacterModel: {
+    create(gl: WebGLRenderingContext, fragment: string, onDirty?: () => void): CharacterRenderer;
+    /** v68 rig: each joint's world matrix for a pose state (16 numbers, column-major) */
+    jointPose(
+      state: Record<string, unknown>,
+      neutral: boolean,
+      profile: Record<string, unknown>,
+    ): Record<string, Float32Array>;
+    /** v68 column-major 4×4: translate to (x, y, z), then turn by yaw (heading), pitch, roll */
+    matrix(x: number, y: number, z: number, yaw?: number, pitch?: number, roll?: number): Float32Array;
+    mul(a: ArrayLike<number>, b: ArrayLike<number>): Float32Array;
+    /** a joint matrix scaled to the character's size */
+    scaledMatrix(m: Float32Array, state: Record<string, unknown>, profile: Record<string, unknown>): Float32Array;
+    transform(m: ArrayLike<number>, p: number[]): number[];
+    /** each joint's rest position */
+    pivots: Record<string, number[]>;
+    /** the hand's grip point from the elbow, for a side (-1 left, 1 right) */
+    handGrip(side: number): number[];
+  };
   GameWeapons: {
     get(name: unknown): {
       style?: string;

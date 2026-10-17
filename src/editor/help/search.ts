@@ -1,7 +1,7 @@
 import { type Block, parseMarkdown, plain } from './markdown';
 
 /** `rank` < 1 lowers a page in search (the long generated references). */
-export type HelpPage = { id: string; title: string; md: string; rank?: number };
+export type HelpPage = { id: string; title: string; md: string; rank?: number; keywords?: string };
 export type Section = { rank: number; page: string; pageTitle: string; anchor: string; title: string; text: string };
 export type Hit = Section & { score: number; snippet: string };
 
@@ -63,7 +63,9 @@ export function sections(page: HelpPage, blocks: Block[] = parseMarkdown(page.md
             ? b.v
             : b.t === 'table'
               ? [b.head, ...b.rows].map((r) => r.map(plain).join(' ')).join(' ')
-              : b.items.map(plain).join(' ');
+              : b.t === 'shot'
+                ? ''
+                : b.items.map(plain).join(' ');
     cur.text += `${text} `;
   }
   out.push(cur);
@@ -79,6 +81,7 @@ export class HelpIndex {
 
   constructor(pages: HelpPage[]) {
     for (const p of pages) {
+      let first = true;
       for (const s of sections(p)) {
         const i = this.sections.push(s) - 1;
         const add = (words: string[], w: number) => {
@@ -91,6 +94,9 @@ export class HelpIndex {
         add(tokens(s.title), 6);
         add(tokens(s.pageTitle), 3);
         add(tokens(s.text), 1);
+        // words people use that aren't in the text (other names), on the page's first section
+        if (first && p.keywords) add(tokens(p.keywords), 2);
+        first = false;
       }
     }
   }

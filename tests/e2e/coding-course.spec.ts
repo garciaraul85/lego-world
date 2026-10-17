@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 type Ed = {
   scene: { value: unknown };
@@ -8,6 +8,15 @@ const ready = (page: Page) =>
   page.waitForFunction(() => !!(window as unknown as { __editor?: Ed }).__editor?.scene.value, undefined, {
     timeout: 60_000,
   });
+
+/** Do it for me stops after each line of a multi-line step: Do the rest finishes it. */
+async function finishDoIt(card: Locator, timeout: number, what = '') {
+  const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+  const done = card.getByText(/✓ Done!/);
+  await expect(rest.or(done), what).toBeVisible({ timeout });
+  if (await rest.isVisible()) await rest.click();
+  await expect(done, what).toBeVisible({ timeout });
+}
 
 test('Coding course: Show me types the code into the Code view, then puts it back', async ({ page }) => {
   test.setTimeout(240_000);
@@ -28,15 +37,19 @@ test('Coding course: Show me types the code into the Code view, then puts it bac
   for (let i = 0; i < 8 && !(await card.getByRole('heading', { name: 'Your first line' }).isVisible()); i++) {
     const pos = await card.locator('header .mono').innerText();
     const doIt = card.getByRole('button', { name: 'Do it for me' });
-    if (await doIt.isVisible()) await doIt.click();
-    else await card.getByRole('button', { name: /Next ▶/ }).click();
+    if (await doIt.isVisible()) {
+      await doIt.click();
+      await finishDoIt(card, 30_000);
+    }
+    await card.getByRole('button', { name: /Next ▶/ }).click();
     await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 30_000 });
   }
   await expect(card.getByLabel('Code to type')).toContainText('log("Hello, bricks!");');
   await card.getByRole('button', { name: /Show me/ }).click();
   // the demo types into the real code editor…
   await expect(page.locator('.lg-code .cm-content')).toContainText('Hello, bricks!', { timeout: 20_000 });
-  // …then puts it back for you to type
+  // …waits while you read it, then My turn puts it back for you to type
+  await card.getByRole('button', { name: 'My turn ▶' }).click();
   await expect(card.getByText(/Your turn/).first()).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.lg-code .cm-content')).not.toContainText('Hello, bricks!');
   // you type it yourself and the step completes
@@ -45,7 +58,7 @@ test('Coding course: Show me types the code into the Code view, then puts it bac
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('log("Hello, bricks!");');
-  await expect(card.getByText('✓ Done!')).toBeVisible({ timeout: 15_000 });
+  await expect(card.getByText(/✓ Done!/)).toBeVisible({ timeout: 15_000 });
   expect(errors).toEqual([]);
 });
 
@@ -73,6 +86,9 @@ test('Coding course: Do it for me through every lesson ends with a game written 
     if (await doIt.isVisible()) {
       await expect(doIt).toBeEnabled({ timeout: 30_000 });
       await doIt.click();
+      await finishDoIt(card, 60_000, `${pos} ${title}`);
+      if (pos.startsWith(`${total}/`)) break;
+      await card.getByRole('button', { name: 'Next ▶' }).click();
     } else {
       const finish = card.getByRole('button', { name: 'Finish ✓' });
       if (await finish.isVisible()) {

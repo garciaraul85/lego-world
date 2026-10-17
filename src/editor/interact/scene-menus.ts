@@ -2,6 +2,7 @@ import { rotatedFootprint } from '../../core/assets/expand';
 import type { ExpandedInstance } from '../../core/assets/instances';
 import type { ActionCtx } from '../actions/registry';
 import { placeCommands, resolveAsset } from '../assets';
+import { groupLabel } from '../categories';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { type MenuEntry, type MenuSpec, openMenu } from './menu';
 import {
@@ -40,6 +41,22 @@ export function selectedInstance(c: ActionCtx): ExpandedInstance | null {
   return sel.every((id) => s.ownerOf(id)?.inst.id === owner.inst.id) ? owner : null;
 }
 
+/**
+ * P32: the selected loose bricks (the ground, an old build) become an asset placed where they were, to be
+ * changed brick by brick in the Assets screen.
+ */
+export function makeAssetOfSelection(c: ActionCtx): boolean {
+  const { ed } = c;
+  const sel = ed.selectedBricks.value;
+  if (!sel.length || ed.selectionHasAsset.value) return false;
+  const name = sel[0]?.group ? groupLabel(sel[0].group).replace(/ \d+$/, '') : 'My asset';
+  const r = ed.exec({ type: 'asset.make', payload: { map: ed.mapId.value, ids: sel.map((b) => b.id), name } });
+  if (!r.ok) return false;
+  ed.select([]);
+  ed.notify(`Made the asset “${name}”. Change it brick by brick in the Assets screen.`);
+  return true;
+}
+
 /** Bricks (loose or an asset copy) that are selected. */
 export function objectMenu(c: ActionCtx): MenuSpec {
   const { ed } = c;
@@ -51,7 +68,7 @@ export function objectMenu(c: ActionCtx): MenuSpec {
     const [w] = rotatedFootprint(def, inst.inst.rot);
     return {
       title: def.name,
-      help: { page: 'assets', label: 'Help about assets' },
+      help: { page: 'e/scene.asset', label: 'Help about assets' },
       entries: [
         item('asset.duplicate', 'Duplicate', () => {
           const p = inst.inst.pos;
@@ -82,10 +99,7 @@ export function objectMenu(c: ActionCtx): MenuSpec {
             ),
           !inst.inst.scale,
         ),
-        item('asset.edit', 'Edit in Asset studio…', () => c.ui.editAsset(def.id)),
-        item('asset.unpack', 'Unpack into loose bricks', () =>
-          ed.exec({ type: 'instance.unpack', payload: { map, instances: [inst.inst.id] } }),
-        ),
+        item('asset.edit', 'Edit in the Assets screen…', () => c.ui.editAsset(def.id)),
         SEP,
         item('logic.interact', 'When the player uses it…', () =>
           openLogicFor(c, `${def.name} · on interact`, 'event.onInteract', { asset: def.id }),
@@ -102,19 +116,14 @@ export function objectMenu(c: ActionCtx): MenuSpec {
   }
   return {
     title: n === 1 ? 'Brick' : `${n} bricks`,
-    help: { page: 'scene', label: 'Help about building' },
+    help: { page: 'e/scene.selection', label: 'Help about building' },
     entries: [
       act('edit.duplicate'),
       act('edit.rotate', 'Turn 90°'),
       act('view.frame', 'Zoom to it'),
       act('edit.selectGroup'),
       SEP,
-      item('bricks.paint', 'Paint with the current colour', () =>
-        ed.exec({
-          type: 'bricks.paint',
-          payload: { map, ids: [...ed.selection.value], color: ed.brush.value.color },
-        }),
-      ),
+      item('bricks.makeAsset', 'Make an asset of these bricks', () => makeAssetOfSelection(c)),
       act('edit.delete'),
     ],
   };
@@ -126,7 +135,7 @@ export function spawnMenu(c: ActionCtx, id: string): MenuSpec {
   const isStart = ed.store.manifest.entry.spawn === id && ed.store.manifest.entry.map === ed.mapId.value;
   return {
     title: sp?.name ?? 'Spawn point',
-    help: { page: 'scene', label: 'Help about spawn points' },
+    help: { page: 'e/scene.spawn', label: 'Help about spawn points' },
     entries: [
       act('play.here', 'Play from here'),
       item(
@@ -151,7 +160,7 @@ export function zoneMenu(c: ActionCtx, id: string): MenuSpec {
   const name = z?.tags[0] ?? 'Trigger zone';
   return {
     title: name,
-    help: { page: 'logic', label: 'Help about trigger zones' },
+    help: { page: 'e/scene.zone', label: 'Help about trigger zones' },
     entries: [
       item('logic.enter', 'When someone walks in…', () =>
         openLogicFor(c, `${name} · enter`, 'event.onEnterZone', { zone: id }),
@@ -188,7 +197,7 @@ export function groundMenu(c: ActionCtx, at: GroundPoint, brick?: number): MenuS
   const def = brush.asset ? resolveAsset(ed, brush.asset) : null;
   return {
     title: 'Ground',
-    help: { page: 'scene', label: 'Help about the scene' },
+    help: { page: 'guide/scene', label: 'Help about the scene' },
     entries: [
       item(
         'ground.asset',
@@ -202,7 +211,7 @@ export function groundMenu(c: ActionCtx, at: GroundPoint, brick?: number): MenuS
       item('ground.sign', 'Add a sign here', () => placeItemAt(ed, 'sign', at)),
       SEP,
       ...(brick !== undefined ? [item('ground.select', 'Select this ground brick', () => ed.select([brick]))] : []),
-      act('tool.place', 'Paint bricks'),
+      act('tool.asset', 'Place assets'),
       act('view.fit', 'Show the whole map'),
     ],
   };

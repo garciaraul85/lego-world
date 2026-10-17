@@ -4,11 +4,12 @@ import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
 import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
-import { arrivalSpot, assetSpot, brickSpot, reachable } from '../../core/gamegen/places';
+import { arrivalSpot, assetSpot, reachable } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
 import {
   type Asset,
   type Character,
+  type Clip,
   type Gates,
   type LogicGraph,
   type MapDoc,
@@ -19,9 +20,12 @@ import {
 } from '../../core/schema';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { assetLibrary } from '../assets';
+import { settleMove } from '../viewport/settle';
+import { buildInto } from '../workspaces/asset-studio/scratch';
 import { newGraph } from '../workspaces/logic/model';
 import { CODING_DOERS } from './coding';
 import type { Do } from './schema';
+import { STORY_DOERS, storyText } from './story';
 
 type Ctx = ActionCtx;
 const run = (c: Ctx, cmds: Command | Command[], label: string) => {
@@ -73,28 +77,39 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     }
     setTimeout(() => c.ui.frameSelection(), 30);
   },
-  paintSomething(c) {
+  moveSomething(c) {
+    // the selected object (or a placed asset) moves a few studs to where it can stand
     const s = c.ed.scene.value!;
-    const loose = s.all().filter((b) => !s.ownerOf(b.id));
-    const b = loose.find((x) => x.y > 0) ?? loose[0];
-    if (!b) throw new Error('No loose bricks to paint.');
-    c.ed.select([b.id]);
-    run(c, { type: 'bricks.paint', payload: { map: map(c), ids: [b.id], color: '#f7c900' } }, 'Paint');
+    let ids = [...c.ed.selection.value];
+    if (!ids.length) {
+      const inst = [...new Set(s.instanceOf.values())].at(-1);
+      if (!inst) throw new Error('Place something first.');
+      ids = inst.bricks.map((b) => b.id);
+      c.ed.select(ids);
+    }
+    for (const [dx, dz] of [
+      [2, 0],
+      [-2, 0],
+      [0, 2],
+      [0, -2],
+      [4, 0],
+      [-4, 0],
+      [0, 4],
+      [0, -4],
+    ] as const) {
+      const cmd: Command = { type: 'bricks.move', payload: { map: map(c), ids, dx, dy: 0, dz } };
+      const fit = settleMove(cmd, (x) => c.ed.bus.check(x));
+      if (!c.ed.bus.check(fit.cmd)) return run(c, fit.cmd, 'Move');
+    }
+    throw new Error('There is no room to move it.');
   },
-  placeBrick(c) {
-    const cmd = brickSpot(c.ed.store, c.ed.bus, map(c));
-    if (!cmd) throw new Error('No free spot for a brick.');
-    run(c, cmd, 'Place brick');
-  },
-  eraseBrick(c) {
+  eraseObject(c) {
+    // the asset copy placed last goes again (a whole object, as the Scene's Erase tool does it)
     const s = c.ed.scene.value!;
-    const loose = s
-      .all()
-      .filter((b) => !s.ownerOf(b.id) && b.y > 0)
-      .sort((a, b) => b.id - a.id);
-    for (const b of loose.slice(0, 60)) {
-      const cmd: Command = { type: 'bricks.remove', payload: { map: map(c), ids: [b.id] } };
-      if (c.ed.bus.dryRun([cmd]).ok) return run(c, cmd, 'Erase');
+    const insts = [...new Set(s.instanceOf.values())].sort((a, b) => b.inst.idBase - a.inst.idBase);
+    for (const e of insts.slice(0, 60)) {
+      const cmd: Command = { type: 'bricks.remove', payload: { map: map(c), ids: e.bricks.map((b) => b.id) } };
+      if (c.ed.bus.dryRun([cmd]).ok) return run(c, cmd, `Erase ${e.def.name}`);
     }
     throw new Error('Nothing can be erased here.');
   },
@@ -181,6 +196,36 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const def = assetByName(c, String(a.name));
     c.ui.editAsset(def?.id ?? null);
   },
+  buildInto(c, a) {
+    // P32: a copy of one asset built into another (as dragging it onto the build plate does)
+    const base = assetByName(c, String(a.into));
+    const other = assetByName(c, String(a.name));
+    if (!base || !other) throw new Error('Open an asset first.');
+    // `as` names a new asset started from `into`, so copies already on the map stay as they are
+    const into: Asset = a.as ? { ...base, id: newId('asset'), name: String(a.as), origin: 'user' } : base;
+    const cmds: Command[] = [];
+    if (!c.ed.store.has(paths.asset(into.id))) cmds.push({ type: 'asset.create', payload: { asset: into } });
+    const next = buildInto(into, other, [into.footprint[0], 0, 0]);
+    cmds.push({ type: 'asset.update', payload: { asset: next } });
+    run(c, cmds, `Build ${other.name} into ${into.name}`);
+    c.ed.studioAsset.value = into.id;
+  },
+  addBrickToOpenAsset(c) {
+    // P32: one more brick on top of the open asset (what clicking the build plate with Place bricks does)
+    const id = c.ed.studioAsset.value;
+    const def = id ? c.ed.store.get<Asset>(paths.asset(id)) : null;
+    if (!def) throw new Error('Open an asset with + New asset first.');
+    const b = c.ed.brush.value;
+    const types = [...def.palette.types];
+    const colors = [...def.palette.colors];
+    const ix = (arr: string[], v: string) => (arr.includes(v) ? arr.indexOf(v) : arr.push(v) - 1);
+    const top = Math.max(...def.bricks.map((t) => t[2] + (def.palette.types[t[0]]!.startsWith('brick') ? 3 : 1)));
+    const bricks = [
+      ...def.bricks,
+      [ix(types, b.type), 0, top, 0, 0, ix(colors, b.color.toLowerCase()), 0],
+    ] as Asset['bricks'];
+    run(c, { type: 'asset.update', payload: { asset: { ...def, bricks, palette: { types, colors } } } }, 'Add a brick');
+  },
   chestGivesCoin(c) {
     const def = c.ed.store
       .list('assets/')
@@ -211,13 +256,47 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     run(c, { type: 'project.update', payload: { hero: id } }, 'Choose player character');
   },
   newClip(c) {
+    const id = newId('clip');
     run(
       c,
       {
         type: 'clip.create',
-        payload: { clip: { id: newId('clip'), name: 'Wave hello', length: 2, loop: true, tracks: [], events: [] } },
+        payload: { clip: { id, name: 'Wave hello', length: 2, loop: true, tracks: [], events: [] } },
       },
       'New clip',
+    );
+    c.ed.studioClip.value = id;
+  },
+  openOwnClip(c) {
+    // the clip you made (the newest of your own), open on the timeline
+    const own = c.ed.store.list('clips/').map((p) => c.ed.store.get<{ id: string }>(p)!);
+    const open = own.find((x) => x.id === c.ed.studioClip.value) ?? own.at(-1);
+    if (!open) throw new Error('Make a clip first (Clips › + New).');
+    c.ed.studioClip.value = open.id;
+  },
+  seekClip(c, a) {
+    // what clicking the timeline does: stop the clip and put the playhead at `t` seconds
+    c.ed.clipPlaying.value = false;
+    c.ed.clipTime.value = Number(a.t ?? 0);
+  },
+  armUpKeys(c) {
+    // what the clicks do: on the Right arm · z lane, a key at 1 s with the arm up, back down at the end
+    const id = c.ed.studioClip.value;
+    const clip = id ? c.ed.store.get<Clip>(paths.clip(id)) : null;
+    if (!clip) throw new Error('Open your clip first.');
+    const keys: Clip['tracks'][number]['keys'] = [
+      [0, 0.06, 'easeInOut'],
+      [1, 2.6, 'easeInOut'],
+      [clip.length, 0.06, 'easeInOut'],
+    ];
+    const others = clip.tracks.filter((t) => !(t.bone === 'rightArm' && t.prop === 'z'));
+    run(
+      c,
+      {
+        type: 'clip.update',
+        payload: { clip: { ...clip, tracks: [...others, { bone: 'rightArm', prop: 'z', keys }] } },
+      },
+      'Raise the arm',
     );
   },
   newGraph(c) {
@@ -359,6 +438,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     );
   },
   ...CODING_DOERS,
+  ...STORY_DOERS,
   async walkHero(c) {
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
@@ -432,11 +512,64 @@ export async function perform(c: Ctx, d: Do): Promise<void> {
   }
   if ('action' in d) return runAction(action(d.action), c);
   if ('click' in d) {
-    (document.querySelector(d.click) as HTMLElement | null)?.click();
+    const el = document.querySelector(d.click) as HTMLElement | null;
+    if (!el) throw new Error(`Could not find ${d.say ?? 'the control to click'} (${d.click}).`);
+    el.scrollIntoView({ block: 'nearest' });
+    pressAndClick(el);
+    return;
+  }
+  if ('fill' in d) {
+    const el = document.querySelector(d.fill) as HTMLInputElement | null;
+    if (!el) throw new Error(`Could not find ${d.say ?? 'the box to type in'} (${d.fill}).`);
+    el.scrollIntoView({ block: 'nearest' });
+    el.focus();
+    el.value = storyText(c.ed, d.value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    return;
+  }
+  if ('show' in d) {
+    const el = document.querySelector(d.show) as HTMLElement | null;
+    if (!el) throw new Error(`Could not find ${d.say ?? 'that part of the screen'} (${d.show}).`);
+    el.scrollIntoView({ block: 'nearest' });
+    return;
+  }
+  if ('choose' in d) {
+    const el = document.querySelector(d.choose) as HTMLSelectElement | null;
+    if (!el) throw new Error(`Could not find ${d.say ?? 'the list to pick from'} (${d.choose}).`);
+    el.scrollIntoView({ block: 'nearest' });
+    const want = storyText(c.ed, d.value);
+    const opt = [...el.options].find((o) => o.value === want || o.text === want);
+    if (!opt) throw new Error(`“${d.value}” is not in that list.`);
+    el.value = opt.value;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
     return;
   }
   if ('cmd' in d) return run(c, { type: d.cmd, payload: fill(c, d.args) }, d.cmd);
   const fn = DOERS[d.fn];
   if (!fn) throw new Error(`Unknown tutorial action ${d.fn}`);
   await fn(c, (fill(c, d.args ?? {}) as Record<string, unknown>) ?? {});
+}
+
+/**
+ * A click the way a pointer makes it: press, release, click, at the middle of the control. Controls that act
+ * on press (timeline keys, drag handles) react as they do to a person.
+ */
+function pressAndClick(el: HTMLElement) {
+  const r = el.getBoundingClientRect();
+  const at = {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    clientX: r.x + r.width / 2,
+    clientY: r.y + r.height / 2,
+    button: 0,
+  };
+  const P = typeof PointerEvent === 'function' ? PointerEvent : MouseEvent;
+  el.dispatchEvent(new P('pointerdown', { ...at, pointerId: 1, isPrimary: true, buttons: 1 }));
+  el.dispatchEvent(new MouseEvent('mousedown', { ...at, buttons: 1 }));
+  el.dispatchEvent(new P('pointerup', { ...at, pointerId: 1, isPrimary: true }));
+  el.dispatchEvent(new MouseEvent('mouseup', at));
+  el.click();
 }

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ActionCtx } from '../actions/registry';
+import { entryNear, helpEntries } from '../help/entries';
+import { keysFor } from '../platform';
 import { sceneHover } from './drag';
 import { openMenuState } from './menu';
 
@@ -52,7 +54,7 @@ export function HoverTip({ c }: { c: ActionCtx }) {
         const below = r.top < 80;
         setTip({
           text: el.getAttribute('data-tip') ?? '',
-          ...(el.getAttribute('data-help') ? { help: el.getAttribute('data-help')! } : {}),
+          ...helpFor(el),
           x: Math.max(8, Math.min(r.left, window.innerWidth - 300)),
           y: below ? r.bottom + 6 : r.top - 6,
           below,
@@ -88,12 +90,13 @@ export function HoverTip({ c }: { c: ActionCtx }) {
           role="tooltip"
           style={`left:${tip.x}px;top:${tip.y}px;${tip.below ? '' : 'transform:translateY(-100%)'}`}
         >
-          <span>{tip.text}</span>
+          <span>{keysFor(tip.text)}</span>
           {tip.help && (
             <button
               type="button"
               class="tip-help"
-              aria-label="Open help about this"
+              aria-label="Open help about this (F1 or ⌘/)"
+              title="Help (F1 or ⌘/)"
               onClick={() => {
                 const page = tip.help!;
                 setTip(null);
@@ -112,4 +115,12 @@ export function HoverTip({ c }: { c: ActionCtx }) {
       )}
     </>
   );
+}
+
+/** P32: every tip's “?” opens the page of the control it belongs to (else the data-help page). */
+function helpFor(el: Element): { help?: string } {
+  const e = entryNear(el, helpEntries());
+  if (e) return { help: `e/${e.id}` };
+  const page = el.getAttribute('data-help');
+  return page ? { help: page } : {};
 }

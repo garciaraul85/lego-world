@@ -18,6 +18,9 @@ test('Help guide: F1 opens it, search finds “music zone”, links open workspa
   await page.keyboard.press('F1');
   const help = page.getByRole('dialog', { name: 'Help' });
   await expect(help).toBeVisible();
+  // P32: F1 opens the page of what the pointer is on (here the status line); Welcome is one click away
+  await expect(help.getByRole('heading', { name: 'Status line', level: 1 })).toBeVisible();
+  await help.getByRole('navigation', { name: 'Help pages' }).getByRole('button', { name: 'Welcome' }).click();
   await expect(help.getByRole('heading', { name: 'Welcome' })).toBeVisible();
 
   await help.getByLabel('Search help').fill('music zone');

@@ -3,13 +3,21 @@
 //   node scripts/build.mjs            -> dist/build/*.js and dist/engine.html
 //   node scripts/build.mjs --dev      -> unminified with inline source maps
 import { execFileSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dev = process.argv.includes('--dev');
+/** P32: which build this is (Help › About shows it), so a report can say which version it came from */
+let stamp = 'dev';
+try {
+  stamp = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT }).toString().trim();
+} catch {
+  /* not a git checkout */
+}
+const BUILD = `${stamp} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 mkdirSync(resolve(ROOT, 'dist/build'), { recursive: true });
 
 /** App entries (src/apps/<name>/main.ts). Append new apps here (editor and player arrive in P1 / P8). */
@@ -58,7 +66,7 @@ for (const [name, entry] of Object.entries(ENTRIES)) {
     minify: !dev,
     sourcemap: dev ? 'inline' : false,
     legalComments: 'none',
-    define: { __DEV__: String(dev) },
+    define: { __DEV__: String(dev), __BUILD__: JSON.stringify(BUILD) },
     metafile: true,
     logLevel: 'warning',
     plugins: [zodEnglishOnly, rawText],
@@ -71,3 +79,15 @@ for (const [name, entry] of Object.entries(ENTRIES)) {
 }
 execFileSync(process.execPath, [resolve(ROOT, 'scripts/inline-html.mjs'), '--engine'], { stdio: 'inherit' });
 execFileSync(process.execPath, [resolve(ROOT, 'scripts/inline-html.mjs'), '--editor'], { stdio: 'inherit' });
+// P32: the Help pictures sit next to the editor (help-shots/), loaded only when Help shows them
+{
+  const from = resolve(ROOT, 'docs/help/shots');
+  const to = resolve(ROOT, 'dist/help-shots');
+  if (existsSync(from)) {
+    rmSync(to, { recursive: true, force: true });
+    mkdirSync(to, { recursive: true });
+    const pics = readdirSync(from).filter((f) => f.endsWith('.webp'));
+    for (const f of pics) cpSync(resolve(from, f), resolve(to, f));
+    console.log(`copied ${pics.length} Help pictures to dist/help-shots/`);
+  }
+}

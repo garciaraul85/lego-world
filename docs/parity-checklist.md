@@ -9,7 +9,7 @@ closing it brings the changes back as one undo step. Those rows move into new wo
 | World › environments, size, seed, mountains, Generate / Reroll | Map tab › Terrain generator (Generate, New seed) | unit `map-commands`, e2e `editor` |
 | World › time of day, rain, snow cover, snowing | Map tab › Sky & weather | e2e `editor` |
 | Bricks › shape, kind, color | Dock › Assets › Bricks (kind, size, palette); Inspector › Piece / Color | e2e `editor` |
-| Bricks › place (ghost + click) | Brick paint tool (B), T turns the brush | e2e `editor` |
+| Bricks › place (ghost + click) | Asset studio: Place bricks (B) or drag a piece from the Bricks tab onto the plate, T turns the brush (the Scene places assets) | e2e `simple-ui`, `studios` |
 | Generated houses, trees, cars… | Asset instances (one asset per shape, reused); Place asset tool (A), Unpack, Make asset; Asset studio | unit `worldgen-golden` (equal to v68 for 3 seeds × 11 environments), `asset-commands`, e2e `studios` |
 | Bricks › select | Select tool (V): objects by group, Alt = one brick, Shift = add; Hierarchy, Find | e2e `editor` |
 | Bricks › move | Move tool (W) drag; arrows / PgUp / PgDn; Inspector X/Z/Height | unit `commands` |
@@ -201,8 +201,9 @@ only.
 - Guided tutorial (`src/editor/tutorial/`): 10 chapters, 51 data-driven steps (`content/*.json`, validated
   with Zod) covering every workspace and tool. Each step has a spotlighted target, a task and a check
   (a command type, an editor state, a play event, a DOM element or Next). **Show me** moves a demo pointer to
-  the control, performs the step with the same commands a user would issue, then undoes it and restores
-  the panels so the user repeats it; *Show me each step first* does that on every step. **Do it for me**,
+  the control, performs the step with the same commands a user would issue, waits until the user presses
+  **My turn**, then undoes it and restores the panels so the user repeats it. Nothing moves on by itself:
+  a finished step waits for **Next** (P32). *Suggest Show me on each step* highlights Show me. **Do it for me**,
   Back and Skip always work; progress is kept per project. `CommandBus.onExecute` lets checks see what the
   user did (the tutorial's own commands don't count).
 - Help guide (`src/editor/help/`, F1): pages in `docs/help/*.md` bundled at build time, a tiny Markdown

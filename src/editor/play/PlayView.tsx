@@ -6,6 +6,7 @@ import type { LogicGraph } from '../../core/schema';
 import { PlayRenderer } from '../../engine/runtime/play-renderer';
 import { PlaySession } from '../../engine/runtime/session';
 import { moveFocus } from '../../engine/ui/ScreenRenderer';
+import { keysFor } from '../platform';
 import type { EditorState } from '../state';
 import { GameScreens } from './GameScreens';
 
@@ -269,7 +270,9 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
           ))}
         </span>
         <span class="muted small opt play-hint">
-          WASD move · Space jump · F smash · E use · hold E rebuild · T talk · 1-4 emotes · Esc pause · F5 stop
+          {keysFor(
+            'WASD move · Space jump · F smash · E use · hold E rebuild · T talk · 1-4 emotes · Esc pause · F5 stop',
+          )}
         </span>
         <button type="button" class="btn go" style={{ marginLeft: 'auto' }} onClick={onStop} title="Stop (F5)">
           ■ Stop

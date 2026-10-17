@@ -15,7 +15,22 @@ export type PinType =
   | 'music'
   | 'any';
 
-export type PinDef = { name: string; type: PinType; label?: string; default?: unknown };
+/**
+ * P32: what a value names, so the inspector can offer a list instead of a text box and flag a name that
+ * matches nothing: a placed object, a state of the object named by pin `of`, an asset, a custom event.
+ */
+export type PickKind = { kind: 'object' } | { kind: 'state'; of: string } | { kind: 'asset' } | { kind: 'event' };
+
+export type PinDef = {
+  name: string;
+  type: PinType;
+  label?: string;
+  default?: unknown;
+  /** P32: the list the inspector offers for this value */
+  pick?: PickKind;
+  /** P32: what the value is and where it comes from (the inspector's “?”) */
+  help?: string;
+};
 
 /** An inline constant edited on the node (variable name, asset id, zone...). */
 export type ArgKind =
@@ -33,7 +48,15 @@ export type ArgKind =
   | 'music'
   | 'screen'
   | 'cinematic';
-export type ArgDef = { name: string; kind: ArgKind; label: string; optional?: boolean; default?: unknown };
+export type ArgDef = {
+  name: string;
+  kind: ArgKind;
+  label: string;
+  optional?: boolean;
+  default?: unknown;
+  /** P32: what the setting is and where its value comes from (the inspector's “?”) */
+  help?: string;
+};
 
 /** What a running graph may do to the game. The play session implements it. */
 export interface ExecCtx {
@@ -47,6 +70,8 @@ export interface ExecCtx {
   travel(map: string, spawn: string): void;
   give(item: string, count: number): void;
   spawn(asset: string, at: string): string | null;
+  /** P32: an asset (by name or id) at an object's item spot (an instance id, or an asset name: the nearest copy) */
+  spawnNear(item: string, near: string): string | null;
   despawn(target: string): void;
   media(
     kind: 'sound' | 'music' | 'stopMusic' | 'show' | 'hide' | 'setText' | 'cinematic' | 'stopCinematic',

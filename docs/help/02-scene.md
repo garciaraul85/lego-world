@@ -1,6 +1,6 @@
 # Scene
 
-The Scene workspace is where you build a map. [Open it](open:Scene)
+The Scene workspace is where you put a map together: assets (houses, trees, chests, benches), characters, spawn points, trigger zones, sounds and signs. Bricks are not placed here one by one: they are built into assets in the [Assets screen](help:assets), and the Scene places whole assets. [Open it](open:Scene)
 
 ## Camera
 
@@ -12,11 +12,11 @@ The buttons in the top-right corner of the 3D view: ◎ focuses on the selection
 
 ## Selecting
 
-With the Select tool (V), click an object to select all of it (a house, a tree). Alt-click selects a single brick, Shift-click adds to the selection, G selects the whole group, Esc deselects. The Hierarchy lists every object by type (terrain, buildings, nature, spawn points, zones, sounds, signs) with a filter box; Layers and Find are next to it.
+With the Select tool (V), click an object to select all of it (a house, a tree). Shift-click adds to the selection, G selects the whole group, Esc deselects. The Hierarchy lists every object by type (terrain, buildings, nature, spawn points, zones, sounds, signs) with a filter box; Layers and Find are next to it.
 
 ## Right-click, hover and drag
 
-Right-click anything in the 3D view or the Hierarchy to see everything you can do to it. An object offers Duplicate, Turn, Zoom to it, and for an asset copy also Edit in Asset studio, Unpack and the Logic events (when the player uses it, when it is smashed, when it is rebuilt). Spawn points offer Play from here and Start the game here; trigger zones offer logic for walking in and out. Right-click empty ground to add an asset, a trigger zone, a spawn point, a sound or a sign right there. Help is always near the bottom of the menu and Delete is always last. Everything in a menu can be undone. On the keyboard, Shift F10 or the menu key opens the menu for the selection; the arrow keys move and Enter picks.
+Right-click anything in the 3D view or the Hierarchy to see everything you can do to it. An object offers Duplicate, Turn, Zoom to it, and for an asset copy also Edit in the Assets screen and the Logic events (when the player uses it, when it is smashed, when it is rebuilt). Spawn points offer Play from here and Start the game here; trigger zones offer logic for walking in and out. Right-click empty ground to add an asset, a trigger zone, a spawn point, a sound or a sign right there. Help is always near the bottom of the menu and Delete is always last. Everything in a menu can be undone. On the keyboard, Shift F10 or the menu key opens the menu for the selection; the arrow keys move and Enter picks.
 
 Hold the pointer over a tool or a card for a moment to see what it does; the ? in the tip opens its Help page. Over the 3D view, the name of the thing under the pointer follows it.
 
@@ -26,17 +26,19 @@ Drag an asset card from the dock straight into the 3D view: a ghost shows where 
 
 Pick what you want to do in the toolbar, like in other 3D tools, and the selection shows handles for it:
 
-- **Move (W)**: three arrows. Drag the red one to move along X, the green one to move up and down, the blue one to move along Z. Bricks move by whole studs, and up and down by plates. You can also drag the object itself to slide it across the ground.
-- **Rotate (E)**: rings around the object. A whole asset (a house, a tree, a car) gets three rings and turns freely: red about X, green about Y, blue about Z, in 15° steps. Loose bricks and spawn points get the green ring and turn in quarter turns. R turns the selection once.
-- **Resize (Q)**: square handles on the sides and top. A whole asset grows freely in 5% steps: a side makes it wider or deeper (from the middle), the top makes it taller, and the white corner grows it evenly; the Inspector shows its size in percent and Reset size puts it back. On a trigger zone the handles move that side. On a single brick they snap to real LEGO sizes (1×2, 2×4, 2×8…), and the top handle switches between a plate and a brick.
+- **Move (W)**: three arrows. Drag the red one to move along X, the green one to move up and down, the blue one to move along Z. Things move by whole studs, and up and down by plates. You can also drag the object itself to slide it across the ground.
+- **Rotate (E)**: rings around the object. A whole asset (a house, a tree, a car) gets three rings and turns freely: red about X, green about Y, blue about Z, in 15° steps. Spawn points get the green ring and turn in quarter turns. R turns the selection once.
+- **Resize (Q)**: square handles on the sides and top. A whole asset grows freely in 5% steps: a side makes it wider or deeper (from the middle), the top makes it taller, and the white corner grows it evenly; the Inspector shows its size in percent and Reset size puts it back. On a trigger zone the handles move that side.
 
-A turned or resized asset is a free object: it can lean into the ground or a neighbour, nothing is built on top of it, and in Play things bump into it as if it stood straight at its normal size. The Inspector shows its X, Y and Z angles (you can type them), and Straighten (also in the right-click menu) puts it back on the brick grid. Turning it a whole quarter about Y with no lean also puts it back on the grid. Unpack works once it is straight and normal size, because loose bricks always stand studs-up at their real size. LEGO World v68 saves show it straight.
+A turned or resized asset is a free object: it can lean into the ground or a neighbour, nothing is built on top of it, and in Play things bump into it as if it stood straight at its normal size. The Inspector shows its X, Y and Z angles (you can type them), and Straighten (also in the right-click menu) puts it back on the brick grid. Turning it a whole quarter about Y with no lean also puts it back on the grid. LEGO World v68 saves show it straight.
 
 While you drag, a ghost shows the result and a label shows how far it went. If the spot is not allowed, the ghost turns red and the label says why (for example, pieces would overlap or float); letting go there changes nothing and tells you why. Letting go makes one change you can undo. Spots where bricks would float or overlap are refused, so the map always keeps v68's rules. The arrow keys and Page Up / Page Down still nudge the selection, Ctrl D duplicates and Delete removes it.
 
-## Place, Color paint and Erase
+## Place and Erase
 
-Place (B) puts down whatever you picked in the dock: a brick (Bricks: pick its shape and color) or an asset (Assets: a house, a tree, a chest). Click the ground, or drag a card straight into the scene; T turns it. The tool hint says what you are placing. Color paint (C) recolors the brick you click. Erase (X) removes it (Shift removes the whole object); bricks that hold others up are protected. Any #rrggbb color is allowed: the last swatch, Any colour…, opens a picker (shade square, hue, hex, recent colours and an eyedropper), and Play shows that exact colour; v68's Play in v68 and the legacy export use the nearest of v68's 18 colors.
+Place (B) puts down the asset you picked in the dock (Assets: a house, a tree, a chest). Click the ground, or drag a card straight into the scene; press T to turn it a quarter turn before you put it down. The tool hint says what you are placing. Erase (X) removes the whole object you click; things that hold others up are protected.
+
+To change the bricks or colours of something, double-click its card in the dock, or select it and press Edit in the Assets screen: the asset opens on its build plate, and every copy in the world changes with it.
 
 ## Terrain generator
 
@@ -48,7 +50,7 @@ The Map tab also sets the time of day, sky and weather, the map's music and ambi
 
 ## Make asset
 
-Select loose bricks and choose Make asset to turn them into a reusable asset with its own states, interactions and smash rules.
+Loose bricks (the ground, or something built before bricks moved into assets) are not changed one by one in the Scene. Select them and choose Make asset (Outliner, Inspector or right-click) to turn them into a reusable asset with its own states, interactions and smash rules, then change it in the Assets screen.
 
 ## Problems
 

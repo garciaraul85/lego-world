@@ -7,3 +7,4 @@ bench/results.json
 dist/build/
 dist/engine.html
 dist/editor.html
+dist/help-shots/
