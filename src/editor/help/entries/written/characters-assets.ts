@@ -119,6 +119,26 @@ export const CHARACTERS: HelpEntry[] = [
     match: [{ in: HARM }],
   },
   {
+    id: 'characters.enemy',
+    also: ['enemy', 'foe', 'monster', 'fight', 'attack the hero', 'make enemy', 'grunt', 'brute'],
+    screen: 'characters',
+    kind: 'area',
+    name: 'Fights the hero',
+    purpose:
+      'Makes this character an enemy. As a neighbour on a map it wanders until it sees the hero, then walks over, raises its arm (a red “!” over its head: guard, dodge or parry now) and swings. **Make enemy** starts from a preset (Grunt, Brute, Swift) and turns on Can be harmed with its health; then change any number. × stops it fighting.',
+    options: [
+      ['Hits for', 'hearts its swing takes (a shield blocks it from the front)'],
+      ['Reach', 'how close the hero must be for it to swing, in studs'],
+      ['Sees the hero within', 'how far away it notices the hero, in studs'],
+      ['Walking speed', '1 is a neighbour’s normal walk'],
+      ['Seconds between swings', 'how long it waits after a swing'],
+      ['Warning before a swing', 'how long the red “!” shows before the swing lands'],
+    ],
+    commands: ['character.update'],
+    match: [{ in: '[data-tour="char-enemy"]' }],
+    related: ['characters.harm', 'play.view'],
+  },
+  {
     id: 'characters.look',
     screen: 'characters',
     kind: 'field',

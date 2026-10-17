@@ -23,7 +23,13 @@ export type LogicProblem = { graph: string; node: string | null; message: string
 export type BreakInfo = { graph: string; node: string; values: Record<string, unknown> };
 
 /** Event filters: which event node args must match the fired event. */
-export type EventInfo = { type: string; match?: Record<string, unknown>; payload?: Record<string, unknown> };
+export type EventInfo = {
+  type: string;
+  match?: Record<string, unknown>;
+  payload?: Record<string, unknown>;
+  /** P9c: the placed object or neighbour (instance id) the event is about; scripts on another one ignore it */
+  self?: string;
+};
 
 /**
  * Event-driven logic (P4.2): every event node of every graph is a program; firing an event starts a
@@ -126,7 +132,13 @@ export class LogicRuntime {
     let guard = 0;
     while (this.queue.length && !this.paused && guard++ < 200) {
       const e = this.queue.shift()!;
-      for (const p of this.programs) if (p.type === e.type && matches(p.args, e.match)) this.start(p, e.payload ?? {});
+      for (const p of this.programs) {
+        if (p.type !== e.type || !matches(p.args, e.match)) continue;
+        // P9c: a script on an object hears events about that object only (and every event about nothing)
+        const owner = this.graphs.get(p.graph)?.owner;
+        if (owner && e.self !== undefined && e.self !== owner) continue;
+        this.start(p, e.payload ?? {});
+      }
     }
   }
 
@@ -181,6 +193,11 @@ export class LogicRuntime {
       cache.set(key, v);
       return v;
     };
+    // P9c: in a script on an object, "this" is that object
+    const owner = run.graph.owner;
+    const self = (v: unknown) => (owner && typeof v === 'string' && v.trim().toLowerCase() === 'this' ? owner : v);
+    const selfArgs = (a: Record<string, unknown>) =>
+      owner ? Object.fromEntries(Object.entries(a).map(([k, v]) => [k, self(v)])) : a;
     const inputs = (node: string, depth = 0): Record<string, unknown> => {
       const n = run.graph.nodes.find((x) => x.id === node)!;
       const def = nodeDef(n.type)!;
@@ -188,7 +205,7 @@ export class LogicRuntime {
       for (const p of def.inputs) {
         if (p.type === 'exec') continue;
         const e = run.graph.edges.find((x) => x[2] === node && x[3] === p.name);
-        out[p.name] = e ? value(e[0], e[1], depth) : (n.args?.[p.name] ?? p.default);
+        out[p.name] = e ? value(e[0], e[1], depth) : self(n.args?.[p.name] ?? p.default);
       }
       return out;
     };
@@ -221,12 +238,12 @@ export class LogicRuntime {
             const def = nodeDef(n.type)!;
             const ins = inputs(i.node);
             if (n.type === 'world.spawn') {
-              const entity = this.ctx.spawn(String(n.args?.asset), String(n.args?.at));
+              const entity = this.ctx.spawn(String(n.args?.asset), String(self(n.args?.at)));
               run.outputs.set(i.node, { entity });
             } else if (n.type === 'world.spawnNear') {
               const entity = this.ctx.spawnNear(String(ins.item ?? ''), String(ins.near ?? ''));
               run.outputs.set(i.node, { entity });
-            } else def.exec?.(this.ctx, n.args ?? {}, ins);
+            } else def.exec?.(this.ctx, selfArgs(n.args ?? {}), ins);
             run.pc++;
             break;
           }

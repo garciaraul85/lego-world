@@ -81,6 +81,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // P9c: the same object, scrolled to its name, script and wires
+    id: 'scene-script',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await selectAsset(p);
+      await p.locator('[data-tour="object-script"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     // P32: loose bricks (the ground) selected: the Inspector offers to make them an asset
     id: 'scene-loose',
     screen: 'scene',

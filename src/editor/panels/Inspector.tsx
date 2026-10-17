@@ -11,6 +11,7 @@ import { Header, Num, TextField } from '../components/fields';
 import { makeAssetOfSelection } from '../interact/scene-menus';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
+import { ScriptSection } from './ScriptSection';
 
 const BIOME_NAMES = Object.fromEntries(worldGenerator().biomes);
 const pretty = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -245,6 +246,7 @@ function InspectorTab({ c }: { c: ActionCtx }) {
         </div>
       </div>
       {inst && <AssetSection c={c} />}
+      {inst && <ScriptSection c={c} />}
       {hasAsset ? null : (
         <div class="sec">
           <div class="sech">

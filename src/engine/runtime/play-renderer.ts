@@ -189,6 +189,18 @@ export class PlayRenderer {
         onTop: true,
       });
     }
+    // P9c: an enemy winding up a swing shows a red “!” over its head — the moment to guard, dodge or parry
+    for (const n of w.npcs) {
+      if (!s.enemies.windingUp(n)) continue;
+      const y = n.state.y + 4.9;
+      markers.push({
+        pos: [n.state.x, y + 0.45, n.state.z],
+        size: [0.16, 0.55, 0.16],
+        color: [1, 0.2, 0.15],
+        onTop: true,
+      });
+      markers.push({ pos: [n.state.x, y, n.state.z], size: [0.16, 0.16, 0.16], color: [1, 0.2, 0.15], onTop: true });
+    }
     // P9b.1: where smashed things can be rebuilt — their bricks float as ghosts where they go back (filling
     // in while E is held), over a glowing patch that shows where to stand
     let ghosts = 0;

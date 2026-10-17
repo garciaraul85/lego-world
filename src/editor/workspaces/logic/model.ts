@@ -91,6 +91,25 @@ export function argChoices(ed: EditorState, kind: ArgKind): { value: string; lab
   }));
 }
 
+/** P9c: who a script belongs to: the placed object's own name, else its asset's name, and its map */
+export function ownerOf(ed: EditorState, owner: string | undefined): { name: string; map: string } | null {
+  if (!owner) return null;
+  for (const p of ed.store.list('maps/')) {
+    if (!p.endsWith('/instances.json')) continue;
+    const item = ed.store
+      .get<{ items: { id: string; kind: string; name?: string; asset?: string; character?: string }[] }>(p)
+      ?.items.find((i) => i.id === owner);
+    if (!item) continue;
+    const map = p.split('/')[1]!;
+    if (item.name) return { name: item.name, map };
+    if (item.asset) return { name: ed.store.get<Asset>(paths.asset(item.asset))?.name ?? 'an object', map };
+    if (item.character)
+      return { name: ed.store.get<{ name: string }>(paths.character(item.character))?.name ?? 'a neighbour', map };
+    return { name: 'an object', map };
+  }
+  return { name: 'a removed object', map: '' };
+}
+
 /** A new graph with one event node (P4.6 "Open in Logic"). */
 export function newGraph(name: string, event?: { type: string; args?: Record<string, unknown> }): LogicGraph {
   return {

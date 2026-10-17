@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Health } from '../combat/damage';
+import { Enemy } from '../combat/enemy';
 import { id } from './common';
 
 /**
@@ -19,5 +20,7 @@ export const Character = z.strictObject({
   harm: z.strictObject({ canBeHarmed: z.boolean(), health: Health }).optional(),
   /** P9b: what the off hand holds (the main hand is the profile's held item) */
   gear: z.strictObject({ offHand: z.enum(['None', 'Shield']) }).optional(),
+  /** P9c: it fights the hero (it also needs “Can be harmed” to be beaten) */
+  enemy: Enemy.optional(),
 });
 export type Character = z.infer<typeof Character>;

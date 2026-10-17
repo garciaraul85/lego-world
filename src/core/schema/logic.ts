@@ -14,6 +14,11 @@ export const LogicGraph = z
     id: id('logic'),
     name: z.string().min(1).max(80),
     scope: z.union([z.literal('global'), id('map')]),
+    /**
+     * P9c: a script on one placed object or neighbour (its instance id). Its events about objects (used, hit,
+     * smashed, rebuilt, locked on…) run only for that one, and "this" in it means that one.
+     */
+    owner: id('instance').optional(),
     nodes: z.array(LogicNode),
     edges: z.array(z.tuple([z.string(), z.string(), z.string(), z.string()])),
   })

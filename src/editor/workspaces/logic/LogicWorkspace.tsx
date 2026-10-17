@@ -13,7 +13,7 @@ import { noteRecent, prefsOf, shows, viewGenre } from '../../genres/view';
 import { keysFor } from '../../platform';
 import { CodeView } from './CodeView';
 import { GraphView, toggleBreakpoint } from './GraphView';
-import { argChoices, CAT_COLOR, graphs, newGraph, nodeHeight, variables } from './model';
+import { argChoices, CAT_COLOR, graphs, newGraph, nodeHeight, ownerOf, variables } from './model';
 import { assetNames, assetOfInput, nameProblem, nameProblems, placedObjects, statesOf, variableUses } from './pickers';
 
 type Mode = 'graph' | 'code' | 'split';
@@ -84,6 +84,12 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
             ▶ Play &amp; trace
           </button>
         </div>
+        {graph?.owner && (
+          <div class="lg-owner small" role="note">
+            Script on <strong>{ownerOf(ed, graph.owner)?.name}</strong>: its events about objects (used, hit, smashed,
+            rebuilt, locked on) run only for this one, and “this” means it.
+          </div>
+        )}
         {brk && (
           <div class="lg-break" role="alert">
             Play is paused at a breakpoint:{' '}
@@ -230,6 +236,7 @@ function Sidebar({
           <div class={`lib-item ${g.id === graph?.id ? 'on' : ''}`}>
             <button type="button" class="link lg-graph-name" onClick={() => (ed.logicGraph.value = g.id)}>
               {g.name}
+              {g.owner && <span class="small muted"> · on {ownerOf(ed, g.owner)?.name}</span>}
             </button>
             <span class="mono small muted">{g.nodes.length}</span>
             <button

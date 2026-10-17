@@ -4,7 +4,8 @@ import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { expandAsset } from '../../core/assets/expand';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
 import { brickToPiece, exactColors, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
-import { type AttackHit, damageOf, type Health, heldAttack } from '../../core/combat/damage';
+import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
+import type { Enemy } from '../../core/combat/enemy';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import type { ExecCtx } from '../../core/logic/catalog';
@@ -43,7 +44,8 @@ import { formatValue } from '../ui/bindings';
 import { ScreenStack } from '../ui/ScreenStack';
 import { resolveScreen, screenOfKind } from '../ui/screens';
 import { ActionRunner } from './actions';
-import { ATTACKS, type AttackKind, Combat, hasShield, type LockTarget, MAX_STAMINA } from './combat';
+import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
+import { Enemies } from './enemies';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './health';
 import { chunkKeyOf, inspectPieces } from './pieces';
 import { Runtime, type System } from './runtime';
@@ -142,6 +144,8 @@ export class PlaySession {
   private spawnSerial = 0;
   /** P9a: health of the hero, objects and neighbours, for this play */
   readonly health = new HealthBook();
+  /** P9c: neighbours that fight the hero */
+  readonly enemies: Enemies = new Enemies(this);
   /** P9b: attacks, guarding, moves and lock-on */
   readonly combat: Combat = new Combat(this);
   private lastStamina = -1;
@@ -677,6 +681,7 @@ export class PlaySession {
         type: 'event.onDamaged',
         match: { asset: owner.def.id },
         payload: { target: owner.inst.id, amount: dealt, hp: wound.hp },
+        self: owner.inst.id,
       });
       return;
     }
@@ -692,7 +697,7 @@ export class PlaySession {
     if (def.atZero.drop) this.drop(def.atZero.drop, { near: at });
     if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
     this.emit('smash', `${owner.def.name} defeated`);
-    this.logic.fire({ type: 'event.onDefeated', match: { asset: owner.def.id }, payload: { target: at } });
+    this.logic.fire({ type: 'event.onDefeated', match: { asset: owner.def.id }, payload: { target: at }, self: at });
   }
 
   /** a hit on a neighbour that can be harmed */
@@ -729,6 +734,7 @@ export class PlaySession {
         type: 'event.onDamaged',
         match: { asset: '' },
         payload: { target: name, amount: dealt, hp: wound.hp },
+        ...this.npcSelf(npc),
       });
       return;
     }
@@ -739,7 +745,12 @@ export class PlaySession {
     if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
     this.say(`${name} is defeated.`, 2);
     this.emit('smash', `${name} defeated`);
-    this.logic.fire({ type: 'event.onDefeated', match: { asset: '' }, payload: { target: name } });
+    this.logic.fire({
+      type: 'event.onDefeated',
+      match: { asset: '' },
+      payload: { target: name },
+      ...this.npcSelf(npc),
+    });
   }
 
   /** an item at zero: an asset (by name) put there, else an inventory item given to the hero */
@@ -764,10 +775,44 @@ export class PlaySession {
   }
 
   /** the neighbour called this (by name, or n:<id>) */
+  /** P9c: no fighting now (game over, a cinematic, a talk) */
+  calm(): boolean {
+    return this.over || this.cine.active || !!this.talking;
+  }
+
+  isStunned(n: Npc): boolean {
+    return this.combat.isStunned(n);
+  }
+
+  /** P9c: an enemy's swing lands on the hero (through guard, parry and dodge) */
+  hitHero(n: Npc, power: number, type: DamageType) {
+    this.damage('hero', power, type, `n:${n.id}`);
+  }
+
+  /** P9c: what a neighbour fights with (null: it does not fight) — from its character, looked up once */
+  private enemyCache = new Map<number, Enemy | null>();
+  enemyOf(n: Npc): Enemy | null {
+    if (!this.enemyCache.has(n.id)) {
+      const chr = npcCharacter(this.snapshot, this.world.mapId, n);
+      this.enemyCache.set(n.id, chr?.enemy ?? null);
+    }
+    return this.enemyCache.get(n.id) ?? null;
+  }
+
+  /** P9c: the instance id of a neighbour (what a script on it is owned by) */
+  npcSelf(n: Npc): { self?: string } {
+    const inst = this.snapshot.get(paths.instances(this.world.mapId)) as Instances | undefined;
+    const item = inst?.items.find((i) => i.kind === 'npc' && i.legacyId === n.id);
+    return item ? { self: item.id } : {};
+  }
+
   private npcByRef(ref: string): Npc | null {
     const low = ref.trim().toLowerCase();
     return (
-      this.world.npcs.find((n) => `n:${n.id}` === ref || String(n.profile.name ?? '').toLowerCase() === low) ?? null
+      this.world.npcs.find(
+        (n) =>
+          `n:${n.id}` === ref || this.npcSelf(n).self === ref || String(n.profile.name ?? '').toLowerCase() === low,
+      ) ?? null
     );
   }
 
@@ -806,12 +851,18 @@ export class PlaySession {
         type: 'event.onLockedOn',
         match: { asset: '' },
         payload: { target: String(n?.profile.name ?? '') },
+        ...(n ? this.npcSelf(n) : {}),
       });
       return;
     }
     const i = this.world.instances.find((x) => x.inst.id === t.id);
     if (!i) return;
-    this.logic.fire({ type: 'event.onLockedOn', match: { asset: i.def.id }, payload: { target: i.inst.id } });
+    this.logic.fire({
+      type: 'event.onLockedOn',
+      match: { asset: i.def.id },
+      payload: { target: i.inst.id },
+      self: i.inst.id,
+    });
   }
 
   /** where a thing is: the hero, a placed object (id or asset name) or a neighbour (name) */
@@ -896,6 +947,7 @@ export class PlaySession {
       type: 'event.onSmash',
       match: { asset: owner?.def.id ?? '' },
       payload: { target: owner?.inst.id ?? hit.group ?? String(hit.id), bricks: originals.length },
+      ...(owner ? { self: owner.inst.id } : {}),
     });
     this.say(
       `${originals.length} ${originals.length === 1 ? 'brick' : 'bricks'} smashed into loose pieces. Hold E nearby to put them back.`,
@@ -1072,6 +1124,7 @@ export class PlaySession {
       type: 'event.onRebuildFinished',
       match: { asset: owner?.def.id ?? '' },
       payload: { target: owner?.inst.id ?? entry.originals[0]?.group ?? '' },
+      ...(owner ? { self: owner.inst.id } : {}),
     });
     this.say('Rebuilt! Every original brick is back in place.', 2);
   }
@@ -1394,6 +1447,9 @@ export class PlaySession {
     const exact = w.instances.find((i) => i.inst.id === ref);
     if (exact) return exact;
     const low = ref.trim().toLowerCase();
+    // P9c: a copy's own name (“Gate switch”)
+    const named = w.instances.find((i) => i.inst.name?.toLowerCase() === low);
+    if (named) return named;
     const h = this.heroState;
     let best: PlayInstance | null = null;
     let bd = Infinity;
@@ -1598,6 +1654,7 @@ export class PlaySession {
       type: 'event.onInteract',
       match: { asset: p.instance.def.id },
       payload: { target: p.instance.inst.id, socket: p.socket },
+      self: p.instance.inst.id,
     });
     this.stepInteract();
     return true;
@@ -1640,14 +1697,16 @@ export class PlaySession {
   stepNpcs(dt: number) {
     const w = this.world;
     if (!w.npcs.length) return;
-    // P9b: stunned neighbours stand still for a moment
-    const free = (this.cine.active ? w.npcs.filter((n) => !this.cine.isCast(n)) : w.npcs).filter(
-      (n) => !this.combat.isStunned(n),
-    );
+    const acting = this.cine.active ? w.npcs.filter((n) => !this.cine.isCast(n)) : w.npcs;
+    // P9c: enemies in a fight move themselves; P9b: stunned neighbours stand still for a moment
+    this.enemies.step(acting, dt * this.slowmo);
+    const free = acting.filter((n) => !this.combat.isStunned(n) && !this.enemies.engaged(n));
     this.L.NPCWorld.step(free, dt * this.slowmo, this.heroState, this.talking?.id ?? null);
+    // a talk ends when the hero walks away (further, when they are locked on to the one they talk to)
+    const reach = this.talking && this.combat.lockedNpc() === this.talking ? LOCK_RELEASE : 4.5;
     if (
       this.talking &&
-      Math.hypot(this.talking.state.x - this.heroState.x, this.talking.state.z - this.heroState.z) > 4.5
+      Math.hypot(this.talking.state.x - this.heroState.x, this.talking.state.z - this.heroState.z) > reach
     )
       this.endTalk();
   }

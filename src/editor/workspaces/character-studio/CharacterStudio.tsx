@@ -6,6 +6,7 @@ import { newId } from '../../../core/ids';
 import { type Character, type Clip, paths } from '../../../core/schema';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import type { ActionCtx } from '../../actions/registry';
+import { ENEMY_HELP, EnemyFields } from '../../components/EnemyFields';
 import { DraftText, FieldHelp } from '../../components/fields';
 import { HealthFields } from '../../components/HealthFields';
 import { PreviewPicker } from '../../components/PreviewPicker';
@@ -460,6 +461,40 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                   onChange={(health, label) => saveChr({ ...chr, harm: { canBeHarmed: true, health } }, label)}
                 />
               )}
+            </div>
+          )}
+          {/* P9c: an enemy — it walks to the hero and swings at them */}
+          {!isHero && shows(ed, 'section', 'character.enemy') && (
+            <div class="sec" data-tour="char-enemy" data-help="characters.enemy">
+              <div class="sech">
+                <span>
+                  Fights the hero
+                  <FieldHelp label="Fights the hero" text={ENEMY_HELP.make} />
+                </span>
+                {chr.enemy && (
+                  <button
+                    type="button"
+                    class="link"
+                    aria-label="Stop fighting the hero"
+                    onClick={() => {
+                      const { enemy: _e, ...rest } = chr;
+                      saveChr(rest as typeof chr, 'Not an enemy');
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              <EnemyFields
+                enemy={chr.enemy}
+                onChange={(enemy, label) => {
+                  if (!enemy) return;
+                  saveChr({ ...chr, enemy }, label);
+                }}
+                onMake={(enemy, health, name) =>
+                  saveChr({ ...chr, enemy, harm: { canBeHarmed: true, health } }, `Make enemy: ${name}`)
+                }
+              />
             </div>
           )}
           {clip && !builtinClip && (

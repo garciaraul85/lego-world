@@ -207,6 +207,8 @@ export const NODE_TAGS: Record<string, ControlTags> = {
 export const SECTION_TAGS: Record<string, ControlTags> = {
   'asset.health': S('collect', 'combat'),
   'character.harm': S('combat'),
+  'character.enemy': S('combat'),
+  'object.script': S('logic'),
 };
 
 export type ControlKind = 'tab' | 'tool' | 'action' | 'dock' | 'assetFilter' | 'node' | 'section';

@@ -490,6 +490,29 @@ export const SCENE: HelpEntry[] = [
     ],
   },
   {
+    id: 'scene.script',
+    also: ['wire', 'wiring', 'switch', 'lever', 'connect', 'script on object', 'name an object', 'this'],
+    screen: 'scene',
+    kind: 'area',
+    name: 'Name, script & wires',
+    purpose:
+      'Behaviour for this one placed copy. **Name** gives it its own name (“Gate switch”) so logic and wires point at exactly this copy. **+ Script on this object** makes a logic file that belongs to it: its events about objects (used, hit, smashed, rebuilt, locked on) run only for this copy, and “this” in it means this copy. **Wires** connect it to other objects without writing logic.',
+    steps: [
+      'Select the switch (or crate, or target) in the Scene.',
+      'Under **Wires**, choose **When this** (is used, is hit, is smashed, is rebuilt, is locked on).',
+      'Choose **Then**: set another object’s state, remove another object, or send a custom event.',
+      'Pick the **Object** and its **State** (for a door or chest: open), then press **+ Wire**. A line joins the two objects in the Scene.',
+      'Press Play and use, hit or lock on to the switch: the other object changes.',
+    ],
+    tips: [
+      'A wire is two cards in the object’s script: Open script shows them in Logic, where you can add more (a sound, a wait, a condition).',
+      'Wiring to an object without a name gives it one (“Treasure chest 1”), so the wire always finds that copy.',
+    ],
+    commands: ['instance.rename', 'logic.create', 'logic.replace'],
+    match: [{ in: '[data-tour="object-script"]' }],
+    related: ['guide:logic', 'assets.lockOn'],
+  },
+  {
     id: 'scene.asset',
     screen: 'scene',
     kind: 'area',

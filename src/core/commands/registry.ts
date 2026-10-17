@@ -7,6 +7,7 @@ import {
   moveInstance,
   placeAsset,
   removeInstance,
+  renameInstance,
   setInstanceState,
   transformInstance,
   unpackInstance,
@@ -86,6 +87,7 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('instance.move', moveInstance);
   bus.register('instance.remove', removeInstance);
   bus.register('instance.setState', setInstanceState);
+  bus.register('instance.rename', renameInstance);
   bus.register('instance.unpack', unpackInstance);
   bus.register('instance.transform', transformInstance);
   bus.register('asset.make', makeAsset);

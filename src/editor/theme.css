@@ -4505,3 +4505,18 @@ select.inp {
   display: grid;
   gap: 2px;
 }
+
+/* P9c: a script that belongs to one placed object */
+.lg-owner {
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--accent, #4fd1c5) 12%, transparent);
+  border-bottom: 1px solid var(--line, #2a313b);
+}
+.wire-new {
+  border: 1px dashed var(--line, #2a313b);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-top: 6px;
+  display: grid;
+  gap: 4px;
+}

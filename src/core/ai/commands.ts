@@ -350,6 +350,15 @@ export const AI_COMMANDS: AiCommand[] = [
     { map: M1, instance: 'ins_ffffffffff', state: 'open' },
   ),
   def(
+    'instance.rename',
+    A.renameInstance,
+    z.strictObject({ map, instance: ids('instance'), name: z.string().min(1).max(40).nullable() }),
+    ['map', 'asset'],
+    'Scene',
+    'Names one placed copy (“Gate switch”) so logic and wiring can refer to it by name; null removes the name.',
+    { map: M1, instance: 'ins_ffffffffff', name: 'Gate switch' },
+  ),
+  def(
     'instance.transform',
     A.transformInstance,
     z.strictObject({
