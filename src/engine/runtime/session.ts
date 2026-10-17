@@ -2,6 +2,7 @@ import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { SND } from '../../builtin/audio';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { expandAsset } from '../../core/assets/expand';
+import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
 import { brickToPiece, exactColors, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
 import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
@@ -489,6 +490,7 @@ export class PlaySession {
       this.camYaw,
     );
     c.stepMove(dt);
+    this.keepOutOfParts();
     if (c.target) c.stepLock();
     else c.stepHint();
     const st = Math.round(c.stamina);
@@ -1057,6 +1059,107 @@ export class PlaySession {
   }
 
   /**
+   * P9c: moving parts that are posed away from where they rest (an open chest's lid) take up room: the hero is
+   * pushed out of them, so a lid never swings through the player. Their boxes, in world units.
+   */
+  partBoxes(): { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number; cx: number; cz: number }[] {
+    const w = this.world;
+    const list = w.instances.filter(
+      (i) => i.def.parts?.some((p) => p.pose) && (i.state !== i.def.initialState || i.anim),
+    );
+    if (!list.length) return [];
+    const now = this.clock;
+    const groups = freeGroups(list, (id) => {
+      const i = list.find((x) => x.inst.id === id);
+      return i?.anim ? { ...i.anim, now } : null;
+    });
+    const out: { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number; cx: number; cz: number }[] =
+      [];
+    for (const g of groups) {
+      if (g.part === null) continue;
+      const box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, z0: Infinity, z1: -Infinity };
+      for (const b of g.bricks) {
+        const piece = w.pieces.find((p) => p.id === b.id);
+        if (!piece) continue;
+        const r = this.L.GamePhysics.bounds(piece);
+        for (const x of [r.x0, r.x1])
+          for (const y of [r.y0, r.y1])
+            for (const z of [r.z0, r.z1]) {
+              const [px, py, pz] = g.t.point([x, y, z]);
+              box.x0 = Math.min(box.x0, px);
+              box.x1 = Math.max(box.x1, px);
+              box.y0 = Math.min(box.y0, py);
+              box.y1 = Math.max(box.y1, py);
+              box.z0 = Math.min(box.z0, pz);
+              box.z1 = Math.max(box.z1, pz);
+            }
+      }
+      // the middle of the whole object: the hero is pushed away from it, never into it
+      const owner = list.find((i) => i.inst.id === g.instance);
+      const c = owner ? this.instanceCenter(owner) : null;
+      if (box.x0 < box.x1)
+        out.push({ ...box, cx: c?.[0] ?? (box.x0 + box.x1) / 2, cz: c?.[2] ?? (box.z0 + box.z1) / 2 });
+    }
+    return out;
+  }
+
+  /** P9c: steps the hero out of any posed moving part it stands in (sideways, the shortest way) */
+  private keepOutOfParts() {
+    const h = this.heroState;
+    const r = 0.45;
+    for (const b of this.partBoxes()) {
+      // under it, or standing on top of it (a closed lid is the chest's top): not in its way
+      if (h.y + 3.8 < b.y0 || h.y >= b.y1 - 0.1) continue;
+      const cx = Math.max(b.x0, Math.min(h.x, b.x1));
+      const cz = Math.max(b.z0, Math.min(h.z, b.z1));
+      const dx = h.x - cx;
+      const dz = h.z - cz;
+      const d = Math.hypot(dx, dz);
+      if (d >= r) continue;
+      if (d > 1e-6) {
+        h.x = cx + (dx / d) * r;
+        h.z = cz + (dz / d) * r;
+        continue;
+      }
+      // inside: out through the nearest side that faces away from the object (not into it)
+      const ax = h.x - b.cx;
+      const az = h.z - b.cz;
+      const sides: [number, number, number][] = [
+        [h.x - b.x0, -1, 0],
+        [b.x1 - h.x, 1, 0],
+        [h.z - b.z0, 0, -1],
+        [b.z1 - h.z, 0, 1],
+      ];
+      const away = sides.filter(([, sx, sz]) => sx * ax + sz * az > 0);
+      const [depth, sx, sz] = (away.length ? away : sides).sort((a, c) => a[0] - c[0])[0]!;
+      h.x += sx * (depth + r);
+      h.z += sz * (depth + r);
+    }
+  }
+
+  /** P9c: where to stand to rebuild a smashed thing — the nearest spot just outside it, on the hero's side */
+  rebuildStand(b: { x0: number; x1: number; y0: number; z0: number; z1: number }): [number, number, number] {
+    const h = this.heroState;
+    const m = 1.4;
+    const x0 = b.x0 - m;
+    const x1 = b.x1 + m;
+    const z0 = b.z0 - m;
+    const z1 = b.z1 + m;
+    let x = Math.max(x0, Math.min(h.x, x1));
+    let z = Math.max(z0, Math.min(h.z, z1));
+    if (x > x0 && x < x1 && z > z0 && z < z1) {
+      // the hero is in the ring: the nearest edge
+      const d = [x - x0, x1 - x, z - z0, z1 - z];
+      const k = d.indexOf(Math.min(...d));
+      if (k === 0) x = x0;
+      else if (k === 1) x = x1;
+      else if (k === 2) z = z0;
+      else z = z1;
+    }
+    return [x, b.y0, z];
+  }
+
+  /**
    * P9b.1: smashed things the hero can rebuild, within 30 studs: their bounds, their bricks (drawn as ghosts
    * where they will go back) and whether the hero stands close enough to hold E.
    */
@@ -1429,7 +1532,10 @@ export class PlaySession {
       case 'game.name':
         return this.project.name;
       case 'prompt':
-        return this.prompt && !this.talking ? `E · ${this.prompt.label}` : '';
+        if (this.talking) return '';
+        if (this.prompt) return `E · ${this.prompt.label}`;
+        // P9c: standing where a smashed thing can be rebuilt
+        return this.nearestBroken() ? 'Hold E · Rebuild' : '';
       case 'message':
         return this.clock < this.messageUntil ? this.message : '';
       case 'dialogue.speaker':

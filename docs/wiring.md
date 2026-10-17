@@ -57,3 +57,14 @@ the gate, a “Sparring knight” enemy (Grunt preset, drops a medal) and four s
 
 Help › Combat course (track `combat`, `src/editor/tutorial/content/11-combat.json`): add the Training yard,
 make the knight hit harder and warn longer (click-by-click lines), wire a dummy to the chest, play.
+
+## Rebuild spots and moving parts
+
+`PlaySession.rebuildStand(bounds)` is the stand spot for a smashed thing: the nearest point to the hero on a
+ring 1.4 studs outside it (within the 3.4-stud rebuild reach). The play renderer draws a ring there and, until
+the hero is close enough, a bobbing arrow over it; `lookup('prompt')` says “Hold E · Rebuild” when the hero can
+rebuild. See-through markers (ghost bricks) no longer write depth, so they never hide characters.
+
+`PlaySession.partBoxes()` are the boxes of moving parts posed away from rest (an open chest's lid, from the
+same transforms the renderer uses); each step the hero is pushed out of them, away from the object's middle,
+so a lid never swings through the player.

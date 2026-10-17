@@ -481,12 +481,16 @@ export class Renderer {
 
     for (const m of markers) {
       if (m.onTop) continue;
-      if (m.alpha !== undefined && m.alpha < 1) {
+      const see = m.alpha !== undefined && m.alpha < 1;
+      if (see) {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        // see-through markers (ghost bricks) never hide the characters drawn after them
+        gl.depthMask(false);
       }
       this.drawSingle(this.markerMesh(m), m.pos, m.color, m.alpha ?? 1, true);
       gl.disable(gl.BLEND);
+      gl.depthMask(true);
     }
 
     for (const o of overlays) {

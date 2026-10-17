@@ -220,18 +220,31 @@ export class PlayRenderer {
         });
       }
     }
-    // P9b.1: where smashed things can be rebuilt — their bricks float as ghosts where they go back (filling
-    // in while E is held), over a glowing patch that shows where to stand
+    // P9b.1 / P9c: where smashed things can be rebuilt — their bricks float as faint ghosts where they go back
+    // (filling in while E is held), and a ring on the ground with an arrow over it shows exactly where to stand
     let ghosts = 0;
     for (const spot of s.rebuildSpots()) {
       const b = spot.bounds;
       const glow = 0.5 + 0.5 * Math.sin(s.clock * 3);
-      markers.push({
-        pos: [(b.x0 + b.x1) / 2, b.y0 + 0.03, (b.z0 + b.z1) / 2],
-        size: [b.x1 - b.x0 + 2.4, 0.06, b.z1 - b.z0 + 2.4],
-        color: spot.near ? [0.35, 0.95, 0.5] : [0.45, 0.75, 1],
-        alpha: 0.18 + 0.17 * glow,
-      });
+      const col: [number, number, number] = spot.near ? [0.35, 0.95, 0.5] : [0.45, 0.8, 1];
+      const [sx, sy, sz] = s.rebuildStand(b);
+      const R = 0.8;
+      const t = 0.12;
+      for (const [dx, dz, w, d] of [
+        [0, -R, 2 * R + t, t],
+        [0, R, 2 * R + t, t],
+        [-R, 0, t, 2 * R],
+        [R, 0, t, 2 * R],
+      ] as const)
+        markers.push({ pos: [sx + dx, sy + 0.06, sz + dz], size: [w, 0.1, d], color: col });
+      if (!spot.near)
+        markers.push({
+          pos: [sx, sy + 1.2 + 0.25 * (1 + Math.sin(s.clock * 4)), sz],
+          size: [0.9, 0.85, 0.12],
+          color: col,
+          tri: s.camYaw,
+          onTop: true,
+        });
       const n = spot.entry.originals.length;
       spot.entry.originals.forEach((p, i) => {
         if (ghosts++ > 160) return;
@@ -241,8 +254,8 @@ export class PlayRenderer {
         markers.push({
           pos: [(g.x0 + g.x1) / 2, (g.y0 + g.y1) / 2 + bob, (g.z0 + g.z1) / 2],
           size: [g.x1 - g.x0 - 0.04, g.y1 - g.y0 - 0.04, g.z1 - g.z0 - 0.04],
-          color: built ? [0.95, 0.95, 0.75] : spot.near ? [0.55, 1, 0.65] : [0.6, 0.85, 1],
-          alpha: built ? 0.75 : (spot.near ? 0.3 : 0.16) + 0.1 * glow,
+          color: built ? [0.95, 0.95, 0.75] : col,
+          alpha: built ? 0.7 : 0.12 + 0.08 * glow,
         });
       });
     }
