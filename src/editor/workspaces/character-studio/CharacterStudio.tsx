@@ -348,7 +348,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           <>
             {builtinClip && (
               <div class="studio-foot small">
-                v68 routine (read-only).{' '}
+                {clip.group === 'Combat' || clip.group === 'Gestures' ? 'Built-in clip' : 'v68 routine'} (read-only).{' '}
                 <button type="button" class="link" onClick={() => duplicate(clip)}>
                   Duplicate to edit
                 </button>

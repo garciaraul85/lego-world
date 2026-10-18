@@ -44,14 +44,51 @@ export const COMBAT_CLIPS: Clip[] = [
     hold('rightForearm', 'bend', -1.9),
     hold('root', 'height', 1.62),
   ]),
-  // winding up: sword arm back, body turned
+  // winding up: sword arm back, body turned, feet apart; it breathes while held (P9d)
   clip('clp_cbcharge00', 'Charge', 1, true, [
-    hold('rightArm', 'x', 1.1),
-    hold('rightArm', 'z', 0.55),
-    hold('rightForearm', 'bend', -0.5),
-    hold('hips', 'turn', -0.45),
-    hold('leftArm', 'x', -0.7),
-    hold('root', 'height', 1.6),
+    tr('rightArm', 'x', [
+      [0, 1.1, E],
+      [0.5, 1.25, E],
+      [1, 1.1, E],
+    ]),
+    tr('rightArm', 'z', [
+      [0, 0.55, E],
+      [1, 0.55, E],
+    ]),
+    tr('rightForearm', 'bend', [
+      [0, -0.5, E],
+      [1, -0.5, E],
+    ]),
+    tr('hips', 'turn', [
+      [0, -0.45, E],
+      [0.5, -0.55, E],
+      [1, -0.45, E],
+    ]),
+    tr('leftArm', 'x', [
+      [0, -0.7, E],
+      [1, -0.7, E],
+    ]),
+    tr('root', 'height', [
+      [0, 1.6, E],
+      [0.5, 1.56, E],
+      [1, 1.6, E],
+    ]),
+    tr('leftLeg', 'x', [
+      [0, -0.45, E],
+      [1, -0.45, E],
+    ]),
+    tr('rightLeg', 'x', [
+      [0, 0.35, E],
+      [1, 0.35, E],
+    ]),
+    tr('leftShin', 'bend', [
+      [0, 0.5, E],
+      [1, 0.5, E],
+    ]),
+    tr('root', 'stance', [
+      [0, 0.55, E],
+      [1, 0.55, E],
+    ]),
   ]),
   // a full turn with the sword arm out
   clip('clp_cbspin0000', 'Spin attack', 0.5, false, [
@@ -82,17 +119,40 @@ export const COMBAT_CLIPS: Clip[] = [
     hold('leftArm', 'x', -1.2, 0.45),
     hold('rightArm', 'x', -1.2, 0.45),
   ]),
-  // a quick hop to the side, leaning into it
+  // a quick hop to the side: dip, spring up with the knees tucked, lean into it (P9d)
   clip('clp_cbsidehop0', 'Side hop', 0.4, false, [
     tr('torso', 'roll', [
       [0, 0, E],
-      [0.15, 0.25, E],
+      [0.15, 0.45, E],
       [0.4, 0, E],
     ]),
-    hold('leftArm', 'z', -0.5, 0.4),
-    hold('rightArm', 'z', 0.5, 0.4),
-    hold('leftShin', 'bend', 0.6, 0.4),
-    hold('rightShin', 'bend', 0.6, 0.4),
+    tr('leftArm', 'z', [
+      [0, -0.06, E],
+      [0.15, -0.9, E],
+      [0.4, -0.06, E],
+    ]),
+    tr('rightArm', 'z', [
+      [0, 0.06, E],
+      [0.15, 0.9, E],
+      [0.4, 0.06, E],
+    ]),
+    tr('leftShin', 'bend', [
+      [0, 0.035, E],
+      [0.18, 0.9, E],
+      [0.4, 0.035, E],
+    ]),
+    tr('rightShin', 'bend', [
+      [0, 0.035, E],
+      [0.18, 0.9, E],
+      [0.4, 0.035, E],
+    ]),
+    tr('root', 'height', [
+      [0, 1.78, E],
+      [0.06, 1.62, E],
+      [0.18, 1.95, E],
+      [0.32, 1.7, E],
+      [0.4, 1.78, E],
+    ]),
   ]),
   // backwards somersault
   clip('clp_cbbackflp0', 'Back flip', 0.6, false, [
@@ -122,27 +182,97 @@ export const COMBAT_CLIPS: Clip[] = [
     hold('leftShin', 'bend', 0.9, 0.5),
     hold('rightShin', 'bend', 0.9, 0.5),
   ]),
-  // falling straight down, sword pointing at the ground
+  // falling straight down: sword raised in both hands, then driven down at the ground (P9d)
   clip('clp_cbplunge00', 'Plunge', 0.6, false, [
-    hold('rightArm', 'x', -0.15, 0.6),
-    hold('leftArm', 'x', -0.15, 0.6),
-    hold('rightForearm', 'bend', -0.1, 0.6),
-    hold('root', 'pitch', 0.35, 0.6),
-    hold('leftShin', 'bend', 1.0, 0.6),
-    hold('rightShin', 'bend', 1.0, 0.6),
+    tr('rightArm', 'x', [
+      [0, -2.7, E],
+      [0.18, -2.8, E],
+      [0.32, -0.7, E],
+      [0.6, -0.7, E],
+    ]),
+    tr('leftArm', 'x', [
+      [0, -2.7, E],
+      [0.18, -2.8, E],
+      [0.32, -0.7, E],
+      [0.6, -0.7, E],
+    ]),
+    tr('rightForearm', 'bend', [
+      [0, -0.3, E],
+      [0.32, -0.5, E],
+      [0.6, -0.5, E],
+    ]),
+    tr('leftShin', 'bend', [
+      [0, 1.1, E],
+      [0.6, 1.1, E],
+    ]),
+    tr('rightShin', 'bend', [
+      [0, 1.1, E],
+      [0.6, 1.1, E],
+    ]),
+    tr('rightArm', 'z', [
+      [0, -0.25, E],
+      [0.6, -0.25, E],
+    ]),
+    tr('leftArm', 'z', [
+      [0, 0.25, E],
+      [0.6, 0.25, E],
+    ]),
+    tr('leftForearm', 'bend', [
+      [0, -0.3, E],
+      [0.32, -0.5, E],
+      [0.6, -0.5, E],
+    ]),
+    tr('rightLeg', 'x', [
+      [0, -0.5, E],
+      [0.6, -0.5, E],
+    ]),
+    tr('leftLeg', 'x', [
+      [0, -0.5, E],
+      [0.6, -0.5, E],
+    ]),
+    tr('torso', 'lean', [
+      [0, 0, E],
+      [0.32, 0.25, E],
+      [0.6, 0.25, E],
+    ]),
   ]),
-  // shove with the shield
+  // shove with the shield: pull it in, then drive it out with the hips (P9d)
   clip('clp_cbbash0000', 'Shield bash', 0.35, false, [
     tr('leftArm', 'x', [
-      [0, -1.3, E],
-      [0.12, -1.65, E],
+      [0, -1.1, E],
+      [0.1, -0.7, E],
+      [0.18, -1.6, E],
       [0.35, -1.3, E],
     ]),
-    hold('leftForearm', 'bend', -0.6, 0.35),
+    tr('leftForearm', 'bend', [
+      [0, -1.3, E],
+      [0.1, -1.8, E],
+      [0.18, -0.3, E],
+      [0.35, -0.9, E],
+    ]),
     tr('root', 'forward', [
       [0, 0, E],
       [0.12, 0.45, E],
       [0.35, 0, E],
+    ]),
+    tr('hips', 'turn', [
+      [0, 0, E],
+      [0.1, 0.35, E],
+      [0.18, -0.3, E],
+      [0.35, 0, E],
+    ]),
+    tr('torso', 'lean', [
+      [0, 0, E],
+      [0.18, 0.3, E],
+      [0.35, 0, E],
+    ]),
+    tr('rightArm', 'x', [
+      [0, -0.45, E],
+      [0.35, -0.45, E],
+    ]),
+    tr('rightForearm', 'bend', [
+      [0, -0.6, E],
+      [0.35, -0.6, E],
     ]),
   ]),
 ];
