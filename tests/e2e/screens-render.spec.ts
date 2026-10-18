@@ -81,6 +81,9 @@ test('Play from the first screen: splash → title → Play → HUD; Esc pauses,
   const pause = page.getByRole('region', { name: 'Pause' });
   await expect(pause).toBeVisible();
   await expect(pause.getByRole('button', { name: 'Resume' })).toBeFocused();
+  // P26: Save game comes next (this game saves anywhere); Load game shows only once there is a save
+  await page.keyboard.press('ArrowDown');
+  await expect(pause.getByRole('button', { name: 'Save game' })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(pause.getByRole('button', { name: 'Restart from checkpoint' })).toBeFocused();
   await pause.getByRole('button', { name: 'Resume' }).click();
