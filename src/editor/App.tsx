@@ -4,6 +4,7 @@ import { toLegacy } from '../core/bridge/legacy-bridge';
 import { packProject } from '../core/project/archive';
 import type { ProjectMeta } from '../core/project/backend';
 import { type Cinematic, type MediaIndex, paths } from '../core/schema';
+import { scanFiles } from '../core/security/secrets';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { AiPanel } from './ai/AiPanel';
 import { GenreChoice } from './genres/GenreCards';
@@ -92,6 +93,16 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       openProjectDialog: () => setModal('open'),
       importFile: () => fileRef.current?.click(),
       exportProject: async () => {
+        // P33: a project file never carries a secret (a key pasted into a sign, a variable or a dialogue line)
+        const hits = scanFiles([...ed.store.keys()].map((k) => [k, ed.store.get(k)] as [string, unknown]));
+        if (hits.length) {
+          ed.notify(
+            `Not saved: ${hits[0]!.name} found in ${hits[0]!.where} (${hits[0]!.sample}). Remove it, then save the project file again.`,
+            true,
+          );
+          ed.log('WARN', `Secret scan: ${hits.length} key-shaped string(s) in the project; the file was not saved.`);
+          return;
+        }
         // imported media go into the .bwproj as media/<sha256>
         const media = new Map<string, Uint8Array>();
         for (const ref of Object.keys(ed.store.get<MediaIndex>(paths.media)?.items ?? {})) {

@@ -12,6 +12,20 @@ const MENU_TEXT: Record<string, string> = {
 
 export const SHELL: HelpEntry[] = [
   {
+    id: 'ai.lock',
+    also: ['passphrase', 'lock the key', 'spending cap', 'cap per game', 'secret'],
+    screen: 'shell',
+    kind: 'setting',
+    name: 'Key lock and spending caps',
+    purpose:
+      'How the AI builder keeps your secret for Claude on this device. **Locked with a passphrase** (recommended): encrypted here, unlocked by typing the passphrase each time you open the editor. **This session only**: forgotten when the page closes. **Remembered unlocked**: stored as it is (anyone using this computer can read it). It is never in your project, exports, saves, logs or undo history, and the editor page may only talk to Anthropic’s servers. **Daily soft cap** and **Cap per game** ask before spending more tokens today.',
+    tips: [
+      'Encryption protects the key at rest (backups, other people on this computer), not from code running in the page while it is unlocked; the page’s security policy and the sandboxed game scripts cover that.',
+      'Saving a project file is refused if anything in the project looks like a key.',
+    ],
+    related: ['action.help.ai'],
+  },
+  {
     id: 'shell.window',
     screen: 'shell',
     kind: 'screen',
