@@ -63,7 +63,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   editor: { title: 'Editor tour', steps: STEPS },
   coding: { title: 'Coding course', steps: CODING_STEPS },
   combat: { title: 'Combat course', steps: COMBAT_STEPS },
-  saving: { title: 'Saving course', steps: SAVING_STEPS },
+  saving: { title: 'Saving and progress course', steps: SAVING_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

@@ -9,8 +9,10 @@ import * as I from '../commands/handlers/items';
 import * as L from '../commands/handlers/logic';
 import * as M from '../commands/handlers/map';
 import * as Np from '../commands/handlers/npcs';
+import * as Pr from '../commands/handlers/progress';
 import type { CommandHandler } from '../commands/types';
 import type { idPattern } from '../ids';
+import { ProgressDoc } from '../save/progress';
 import { Saving } from '../save/save';
 import {
   Action,
@@ -383,6 +385,22 @@ export const AI_COMMANDS: AiCommand[] = [
     'Scene',
     'Takes a placed neighbour off a map.',
     { map: M1, instance: 'ins_ffffffffff' },
+  ),
+  def(
+    'progress.put',
+    Pr.putProgress,
+    z.strictObject({ progress: ProgressDoc }),
+    [],
+    'Scene',
+    'The game’s progress setup (Project › Progress): achievements {id, name, description, hidden?} (logic unlocks them by id), collections {item, label, total} (completion counts them), bests {var, label, better: higher|lower}, newGamePlus {enabled, keepItems, keepVars}. Put the whole document.',
+    {
+      progress: {
+        achievements: [{ id: 'first-chest', name: 'Treasure hunter', description: 'Open your first chest.' }],
+        collections: [{ item: 'coin', label: 'Coins', total: 10 }],
+        bests: [{ var: 'score', label: 'Score', better: 'higher' }],
+        newGamePlus: { enabled: true, keepItems: true, keepVars: [] },
+      },
+    },
   ),
   def(
     'instance.transform',

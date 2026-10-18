@@ -125,7 +125,7 @@ test('Saving course: Do it for me sets Saving, places a flag and a save point, s
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });
   const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
-  expect(total).toBe(8);
+  expect(total).toBe(10);
   const titles: string[] = [];
   for (let i = 0; i < total + 2; i++) {
     const pos = await card.locator('header .mono').innerText();
@@ -152,5 +152,67 @@ test('Saving course: Do it for me sets Saving, places a flag and a save point, s
   expect(await get(page, (e) => e.store.manifest.saving)).toEqual({ mode: 'anywhere', slots: 2, autosave: true });
   const names = await get(page, (e) => e.store.list('assets/').map((p) => (e.store.get(p) as { name: string }).name));
   expect(names).toEqual(expect.arrayContaining(['Checkpoint flag', 'Save point']));
+  expect(errors).toEqual([]);
+});
+
+test('progress: an achievement shows under Pause › Achievements; Settings buttons step and stay', async ({ page }) => {
+  test.setTimeout(420_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await open(page);
+  await menu(page, 'World', /Add the Training yard/);
+  await expect.poll(() => get(page, (e) => e.mapDoc.value?.name)).toBe('Training yard');
+  // Project › Progress lists the yard's goals
+  await page.locator('[data-tour="tab-project"]').click();
+  const prog = page.locator('[data-tour="game-progress"]');
+  await expect(prog.getByRole('group', { name: 'Achievement Sparring champion' })).toBeVisible();
+  await menu(page, 'Play', /^Play this map/);
+  await expect.poll(() => get(page, (e) => !!e.session.value)).toBe(true);
+  // beating the knight (its event) unlocks Sparring champion: a 🏆 message
+  await page.evaluate(() =>
+    (
+      window as unknown as {
+        __editor: { session: { value: { logic: { fire(e: unknown, now: boolean): void } } } };
+      }
+    ).__editor.session.value.logic.fire({ type: 'event.onCustom', match: { event: 'knight-beaten' } }, true),
+  );
+  await expect.poll(() => ses(page, (s) => s.message)).toBe('🏆 Sparring champion');
+  await page
+    .locator('canvas')
+    .first()
+    .click({ position: { x: 20, y: 20 } });
+  await page.keyboard.press('Escape');
+  const pause = page.getByRole('region', { name: 'Pause' });
+  await pause.getByRole('button', { name: 'Achievements' }).click();
+  const ach = page.getByRole('region', { name: 'Achievements' });
+  await expect(ach.getByText('Achievements 1 / 3')).toBeVisible();
+  await expect(ach.getByText('🏆 Sparring champion — Beat the sparring knight.')).toBeVisible();
+  await expect(ach.getByText(/^Complete: \d+% · Time played: /)).toBeVisible();
+  await page.screenshot({ path: 'test-results/progress-achievements.png' });
+  await ach.getByRole('button', { name: 'Back' }).click();
+  await pause.getByRole('button', { name: 'Settings' }).click();
+  const set = page.getByRole('region', { name: 'Settings' });
+  await set.getByRole('button', { name: 'Difficulty: normal' }).click();
+  await expect(set.getByRole('button', { name: 'Difficulty: hard (double damage)' })).toBeVisible();
+  await set.getByRole('button', { name: 'Text size: normal' }).click();
+  await expect(set.getByRole('button', { name: 'Text size: large' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/progress-settings.png' });
+  // kept for the next play
+  await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Stop' }).click();
+  await menu(page, 'Play', /^Play this map/);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __editor: { session: { value: { progress: { settings: { difficulty: string } } } } };
+            }
+          ).__editor.session.value?.progress.settings.difficulty,
+      ),
+    )
+    .toBe('hard');
+  await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Stop' }).click();
+  await page.locator('[data-tour="progress-reset"]').click();
   expect(errors).toEqual([]);
 });

@@ -13,7 +13,14 @@ import type { EditorState } from '../state';
 import { GameScreens } from './GameScreens';
 
 /** `boot: 'entry'` starts at the project's first screen (splash → title), as the exported game does. */
-export type PlayStart = { mapId: string; spawnId: string | null; boot?: 'game' | 'entry'; cinematic?: string };
+export type PlayStart = {
+  mapId: string;
+  spawnId: string | null;
+  boot?: 'game' | 'entry';
+  cinematic?: string;
+  /** P28: start the hero here (Play from here, on the open map) */
+  at?: [number, number, number];
+};
 
 const SPEEDS = [0.25, 0.5, 1, 2] as const;
 const MOVE_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift', 'e']);
@@ -67,6 +74,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     };
     for (const p of s.logic.problems) ed.log('WARN', `Logic: ${p.message}${p.node ? ` (${p.node})` : ''}`);
     if (start.cinematic) s.cine.play(start.cinematic);
+    if (start.at) s.placeAt(start.at, s.heroState.heading);
 
     let raf = 0;
     let last = performance.now();
@@ -164,8 +172,12 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     };
     const pMove = (e: PointerEvent) => {
       if (!drag || drag.id !== e.pointerId) return;
-      s.camYaw -= (e.clientX - drag.x) * 0.008;
-      s.camPitch = Math.max(0.05, Math.min(1.25, s.camPitch + (e.clientY - drag.y) * 0.006));
+      // P26: the player's camera speed and invert setting
+      const ps = s.progress.settings;
+      const k = ps.cameraSpeed / 100;
+      s.camYaw -= (e.clientX - drag.x) * 0.008 * k;
+      const dy = (e.clientY - drag.y) * 0.006 * k * (ps.invertY ? -1 : 1);
+      s.camPitch = Math.max(0.05, Math.min(1.25, s.camPitch + dy));
       drag.x = e.clientX;
       drag.y = e.clientY;
     };

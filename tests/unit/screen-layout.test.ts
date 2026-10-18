@@ -61,8 +61,10 @@ describe('Screen layout (P5.7)', () => {
 
   it('built-in screens are valid and cover the flow; project files override by id', () => {
     for (const s of BUILTIN_SCREENS) expect(Screen.safeParse(s).success).toBe(true);
-    // P26: the Saves screen (slot buttons) is a custom screen
+    // P26: the Saves, Settings and Achievements screens are custom screens
     expect(BUILTIN_SCREENS.map((s) => s.kind).sort()).toEqual([
+      'custom',
+      'custom',
       'custom',
       'dialogue',
       'gameover',
@@ -86,6 +88,8 @@ describe('Screen layout (P5.7)', () => {
       'Dialogue',
       'Game over',
       'Saves',
+      'Settings',
+      'Achievements',
       'Shop',
     ]);
     expect(screenOfKind(files, 'hud')?.name).toBe('My HUD');

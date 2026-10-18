@@ -71,6 +71,28 @@
           },
           {
             "type": "button",
+            "id": "achievements",
+            "label": "Achievements",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "achievementsMenu"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "settings",
+            "label": "Settings",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "settingsMenu"
+              }
+            ]
+          },
+          {
+            "type": "button",
             "id": "retry",
             "label": "Restart from checkpoint",
             "onPress": [

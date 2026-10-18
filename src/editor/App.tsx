@@ -131,6 +131,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           key: Date.now(),
           boot: opts?.fromEntry ? 'entry' : 'game',
           ...(scene ? { cinematic: scene.id } : {}),
+          ...(opts?.at ? { at: opts.at } : {}),
         });
       },
       stopPlay: () => setEngine(null),

@@ -23,6 +23,8 @@ export interface ActionHost {
   game?(op: GameOp): void;
   /** P26: save (to a slot), load (a slot; none: the newest), a Saves-screen slot button, set the checkpoint */
   saving?(op: 'save' | 'load' | 'slot' | 'checkpoint', slot: number | undefined): void;
+  /** P26 part 2: unlock an achievement, or step / set a player setting */
+  progress?(op: 'achieve' | 'setting', key: string, value?: unknown): void;
   gave?(item: string, count: number): void;
   spawn?(asset: string, at: string): void;
   cinematic?(id: string, once: boolean): void;
@@ -131,6 +133,14 @@ export class ActionRunner {
         case 'checkpoint':
           if (h.saving) h.saving(a.do, 'slot' in a ? a.slot : undefined);
           else h.log('info', `${a.do}${'slot' in a && a.slot !== undefined ? ` slot ${a.slot}` : ''}`);
+          break;
+        case 'achieve':
+          if (h.progress) h.progress('achieve', a.id);
+          else h.log('info', `achievement ${a.id}`);
+          break;
+        case 'setting':
+          if (h.progress) h.progress('setting', a.key, a.value);
+          else h.log('info', `setting ${a.key}`);
           break;
         case 'cinematic':
           if (h.cinematic) h.cinematic(a.cinematic, !!a.once);

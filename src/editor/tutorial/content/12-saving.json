@@ -1,6 +1,6 @@
 {
   "id": "saving",
-  "title": "Saving course",
+  "title": "Saving and progress course",
   "steps": [
     {
       "id": "saving.yard",
@@ -274,6 +274,68 @@
       ]
     },
     {
+      "id": "saving.goal",
+      "title": "An achievement",
+      "body": "Achievements are goals players unlock: logic's Unlock achievement card unlocks one by its id. They stay with the player across saves and new games, and Pause › Achievements lists them with the completion % (collections and achievements) and the time played. The Training yard already has three, unlocked by its “Yard goals” logic.",
+      "task": "In Project › Progress, add an achievement.",
+      "target": "[data-tour=\"inspector\"]",
+      "placement": "left",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "achievementsAtLeast",
+        "args": 4
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "project"
+        },
+        {
+          "fn": "addAchievement",
+          "args": {
+            "id": "goal-4",
+            "name": "Goal 4",
+            "description": "What the player did."
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "On the right, click the tab “Project” and scroll to the section “Progress”. Under “Achievements” you see the yard's three: Smasher, Sharp eye, Sparring champion.",
+          "check": {
+            "kind": "state",
+            "test": "rightTab",
+            "args": "project"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"tab-project\"]",
+              "say": "Click the tab “Project”."
+            },
+            {
+              "show": "[data-tour=\"game-progress\"]",
+              "say": "The section “Progress”: achievements, collections, best scores, new game plus."
+            }
+          ]
+        },
+        {
+          "text": "Click “+ Achievement”. A new one, “Goal 4” (id goal-4), is added: type a name and a description in its two boxes. Logic unlocks it with Unlock achievement › goal-4.",
+          "check": {
+            "kind": "state",
+            "test": "achievementsAtLeast",
+            "args": 4
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"progress-add-achievement\"]",
+              "say": "Click “+ Achievement”."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "saving.play",
       "title": "Save while playing",
       "body": "In Play: walk into the Checkpoint flag — the flag goes up and “Checkpoint · saved” shows at the bottom. Walk to the Save point and press E: “Game saved · Slot 1”. Press Esc for the pause menu: “Save game” opens the slots (Slot 1, Slot 2) — click one to save there; “Load game” opens the same list to load one back; “Restart from checkpoint” puts you back at the flag.",
@@ -321,6 +383,66 @@
           "do": [
             {
               "action": "play.saveNow"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "saving.options",
+      "title": "Settings for players",
+      "body": "Players change their own settings from Pause › Settings (and the title): music and sound volume, camera speed, invert camera, text size and difficulty (story: half damage, hard: double). Each button steps to the next value. Settings stay with the player, like achievements.",
+      "task": "In Play: Esc › Settings, then set Difficulty to story.",
+      "target": "[data-tour=\"play\"]",
+      "placement": "bottom",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "playerSetting",
+        "args": {
+          "difficulty": "story"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "playerSetting",
+          "args": {
+            "key": "difficulty",
+            "value": "story"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In the game, press Esc: the pause menu opens. Click “Settings”.",
+          "check": {
+            "kind": "state",
+            "test": "screenShown",
+            "args": "Settings"
+          },
+          "do": [
+            {
+              "action": "play.settingsMenu"
+            }
+          ]
+        },
+        {
+          "text": "Click the button “Difficulty: normal” twice: it steps to hard, then story (half damage). Press Back, then Resume.",
+          "check": {
+            "kind": "state",
+            "test": "playerSetting",
+            "args": {
+              "difficulty": "story"
+            }
+          },
+          "do": [
+            {
+              "fn": "playerSetting",
+              "args": {
+                "key": "difficulty",
+                "value": "story"
+              },
+              "say": "Set Difficulty to story."
             }
           ]
         }

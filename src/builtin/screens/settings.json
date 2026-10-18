@@ -1,0 +1,119 @@
+{
+  "id": "scr_settings00",
+  "kind": "custom",
+  "name": "Settings",
+  "music": null,
+  "pausesGame": true,
+  "root": {
+    "type": "panel",
+    "style": {
+      "bg": "#05070dc8"
+    },
+    "children": [
+      {
+        "type": "panel",
+        "id": "menu",
+        "anchor": [0.5, 0.5],
+        "style": {
+          "layout": "column",
+          "gap": 10,
+          "w": 480,
+          "bg": "#141a2be8",
+          "pad": 24,
+          "radius": 16
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "title",
+            "text": "Settings",
+            "style": {
+              "fontSize": 34,
+              "weight": "bold",
+              "color": "#ffffff",
+              "align": "center"
+            }
+          },
+          {
+            "type": "button",
+            "id": "music",
+            "label": "{settings.music}",
+            "onPress": [
+              {
+                "do": "setting",
+                "key": "music"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "sounds",
+            "label": "{settings.sounds}",
+            "onPress": [
+              {
+                "do": "setting",
+                "key": "sounds"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "cameraSpeed",
+            "label": "{settings.cameraSpeed}",
+            "onPress": [
+              {
+                "do": "setting",
+                "key": "cameraSpeed"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "invertY",
+            "label": "{settings.invertY}",
+            "onPress": [
+              {
+                "do": "setting",
+                "key": "invertY"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "textSize",
+            "label": "{settings.textSize}",
+            "onPress": [
+              {
+                "do": "setting",
+                "key": "textSize"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "difficulty",
+            "label": "{settings.difficulty}",
+            "onPress": [
+              {
+                "do": "setting",
+                "key": "difficulty"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "back",
+            "label": "Back",
+            "onPress": [
+              {
+                "do": "hideScreen",
+                "screen": "scr_settings00"
+              }
+            ],
+            "sound": "snd_uiback0000"
+          }
+        ]
+      }
+    ]
+  }
+}

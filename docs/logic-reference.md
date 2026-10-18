@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (58 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (61 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -139,6 +139,15 @@ Runs when the hero locks on (Z or Tab) to something: a neighbour, an object with
 - Settings: Asset (asset, optional)
 - Outputs: target (entity)
 - Code: `on("lockedOn", { asset: … }, (e) => { … });`
+
+### On achievement
+
+`event.onAchievement` · event
+
+Runs when the player unlocks an achievement (empty: any of them).
+
+- Settings: Achievement id (string, optional)
+- Code: `on("achievement", { achievement: … }, (e) => { … });`
 
 ## Flow
 
@@ -564,6 +573,23 @@ Loads a saved game: the maps, the hero and everything carried come back as they 
 
 - Settings: Slot (number, optional)
 - Code: `game.load(slot);`
+
+### Unlock achievement
+
+`game.unlockAchievement` · action
+
+Unlocks one of the game’s achievements (Project › Progress) for this player: a 🏆 message shows, and it stays unlocked in every save and new game.
+
+- Settings: Achievement id (string)
+- Code: `game.unlockAchievement(achievement);`
+
+### Finish game
+
+`game.finish` · action
+
+The player finished the game: it counts as finished (best scores are kept, new game plus opens on the title) and the title screen shows.
+
+- Code: `game.finish();`
 
 ### Set checkpoint
 

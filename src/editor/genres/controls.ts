@@ -94,6 +94,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'play.map': S('core'),
   'play.entry': S('screens'),
   'play.saveNow': S('core'),
+  'play.settingsMenu': S('core'),
   'play.pause': S('core'),
   'play.stop': S('core'),
   'play.v68': A('v68'),
@@ -210,6 +211,9 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   'game.save': S('logic'),
   'game.load': S('logic'),
   'game.setCheckpoint': S('logic'),
+  'game.unlockAchievement': S('logic'),
+  'game.finish': S('logic'),
+  'event.onAchievement': S('logic'),
 };
 
 /** P9a: sections of the studios that belong to a feature */
@@ -219,6 +223,7 @@ export const SECTION_TAGS: Record<string, ControlTags> = {
   'character.enemy': S('combat'),
   'object.script': S('logic'),
   'game.saving': S('core'),
+  'game.progress': S('core'),
   'asset.checkpoint': S('build'),
 };
 

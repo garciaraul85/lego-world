@@ -34,6 +34,31 @@ export class BrowserSaveStore implements SaveStore {
     }
   }
 
+  readPlayer(game: string): unknown {
+    try {
+      const text = this.storage?.getItem(`brickworlds.player.${game}`);
+      return text ? JSON.parse(text) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  writePlayer(game: string, record: unknown): void {
+    try {
+      this.storage?.setItem(`brickworlds.player.${game}`, JSON.stringify(record));
+    } catch {
+      /* storage full or blocked */
+    }
+  }
+
+  removePlayer(game: string): void {
+    try {
+      this.storage?.removeItem(`brickworlds.player.${game}`);
+    } catch {
+      /* nothing to remove */
+    }
+  }
+
   remove(game: string, slot: number): void {
     try {
       this.storage?.removeItem(key(game, slot));

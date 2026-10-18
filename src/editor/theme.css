@@ -4520,3 +4520,12 @@ select.inp {
   display: grid;
   gap: 4px;
 }
+
+/* P26: Project › Progress — one achievement per block (name, description, id, hidden, remove) */
+.prog-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line, #2a3140);
+}

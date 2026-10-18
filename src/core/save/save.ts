@@ -105,6 +105,10 @@ export interface SaveStore {
   read(game: string, slot: number): SaveGame | null;
   write(save: SaveGame): void;
   remove(game: string, slot: number): void;
+  /** P26: the player's record of this game (achievements, best scores, settings); null: none yet */
+  readPlayer(game: string): unknown;
+  writePlayer(game: string, record: unknown): void;
+  removePlayer(game: string): void;
 }
 
 /** Saves kept for this page only (tests, and storage that is not allowed). */
@@ -118,6 +122,16 @@ export class MemorySaveStore implements SaveStore {
   }
   remove(game: string, slot: number) {
     this.all.delete(`${game}:${slot}`);
+  }
+  private readonly players = new Map<string, unknown>();
+  readPlayer(game: string) {
+    return this.players.get(game) ?? null;
+  }
+  writePlayer(game: string, record: unknown) {
+    this.players.set(game, structuredClone(record));
+  }
+  removePlayer(game: string) {
+    this.players.delete(game);
   }
 }
 

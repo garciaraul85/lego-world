@@ -17,6 +17,21 @@ const act = (type: string, title: string, doc: string, args: NodeDef['args'], ru
   ...(run ? { exec: run } : {}),
 });
 
+/** P26 part 2: an achievement was unlocked */
+export const PROGRESS_EVENTS: NodeDef[] = [
+  {
+    type: 'event.onAchievement',
+    kind: 'event',
+    title: 'On achievement',
+    category: 'Events',
+    doc: 'Runs when the player unlocks an achievement (empty: any of them).',
+    inputs: [],
+    outputs: [EXEC_OUT],
+    args: [{ name: 'achievement', kind: 'string', label: 'Achievement id', optional: true }],
+    code: { name: 'achievement', style: 'event' },
+  },
+];
+
 /** P26: saving from logic — save to a slot, load one, and set where Retry and falls bring the hero back. */
 export const SAVE: NodeDef[] = [
   act(
@@ -40,6 +55,27 @@ export const SAVE: NodeDef[] = [
       },
     ],
     (c, a) => c.saving?.('load', a.slot === undefined || a.slot === '' ? undefined : Number(a.slot)),
+  ),
+  act(
+    'game.unlockAchievement',
+    'Unlock achievement',
+    'Unlocks one of the game’s achievements (Project › Progress) for this player: a 🏆 message shows, and it stays unlocked in every save and new game.',
+    [
+      {
+        name: 'achievement',
+        kind: 'string',
+        label: 'Achievement id',
+        help: 'The id of an achievement in Project › Progress (for example first-chest).',
+      },
+    ],
+    (c, a) => c.progress?.('achieve', String(a.achievement ?? '')),
+  ),
+  act(
+    'game.finish',
+    'Finish game',
+    'The player finished the game: it counts as finished (best scores are kept, new game plus opens on the title) and the title screen shows.',
+    [],
+    (c) => c.progress?.('finish', ''),
   ),
   act(
     'game.setCheckpoint',

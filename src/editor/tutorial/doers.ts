@@ -4,6 +4,7 @@ import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
 import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
+import { progressOf } from '../../core/commands/handlers/progress';
 import { arrivalSpot, assetSpot, reachable } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
 import { allSaves, type Saving } from '../../core/save/save';
@@ -413,6 +414,29 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   setSaving(c, a) {
     const s = { ...savingOf(c.ed.store.manifest), ...(a as Partial<Saving>) };
     run(c, { type: 'project.update', payload: { saving: s } }, 'Saving settings');
+  },
+  addAchievement(c, a) {
+    const cur = progressOf((p) => c.ed.store.get(p));
+    const id = String(a.id);
+    if (cur.achievements.some((x) => x.id === id)) return;
+    run(
+      c,
+      {
+        type: 'progress.put',
+        payload: {
+          progress: {
+            ...cur,
+            achievements: [...cur.achievements, { id, name: String(a.name), description: String(a.description ?? '') }],
+          },
+        },
+      },
+      'Add achievement',
+    );
+  },
+  playerSetting(c, a) {
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    s.progress.setSetting(a.key as 'difficulty', a.value);
   },
   clearSaves(c) {
     const store = new BrowserSaveStore();

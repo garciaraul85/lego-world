@@ -84,12 +84,15 @@ export function ScreenLayer({
   host,
   safe = NO_INSETS,
   tick,
+  textScale = 1,
 }: {
   screens: Screen[];
   host: ScreenHost;
   safe?: Insets;
   /** changes every frame so bound values refresh */
   tick?: number;
+  /** P26: the player's text size (1, or 1.25 for large) */
+  textScale?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1280, h: 720 });
@@ -124,7 +127,7 @@ export function ScreenLayer({
   }, []);
   const scale = screenScale(size.w, size.h, safe);
   return (
-    <div ref={ref} class="bw-layer">
+    <div ref={ref} class="bw-layer" style={textScale !== 1 ? { '--bw-text': String(textScale) } : undefined}>
       {screens.map((s) => (
         <ScreenView key={s.id} screen={s} host={host} scale={scale} />
       ))}

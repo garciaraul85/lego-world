@@ -56,6 +56,41 @@
                 "op": "start"
               }
             ]
+          },
+          {
+            "type": "button",
+            "id": "plus",
+            "label": "New game +",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "newGamePlus"
+              }
+            ],
+            "showIf": "progress.canPlus",
+            "sound": "snd_uiconfirm0"
+          },
+          {
+            "type": "button",
+            "id": "achievements",
+            "label": "Achievements",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "achievementsMenu"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "settings",
+            "label": "Settings",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "settingsMenu"
+              }
+            ]
           }
         ]
       },

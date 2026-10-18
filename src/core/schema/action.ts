@@ -24,7 +24,21 @@ export const Action = z.discriminatedUnion('do', [
   /** game flow from screens: start (title → HUD), resume (close pause), retry (last checkpoint), quit (to title) */
   z.strictObject({
     do: z.literal('game'),
-    op: z.enum(['start', 'resume', 'pause', 'retry', 'quit', 'continue', 'saveMenu', 'loadMenu']),
+    op: z.enum([
+      'start',
+      'resume',
+      'pause',
+      'retry',
+      'quit',
+      'continue',
+      'saveMenu',
+      'loadMenu',
+      // P26 part 2
+      'finish',
+      'newGamePlus',
+      'settingsMenu',
+      'achievementsMenu',
+    ]),
   }),
   /** P26: save the game (to a slot; none: the slot in use) — a save point's “Save” runs this */
   z.strictObject({ do: z.literal('save'), slot: z.number().int().min(1).max(3).optional() }),
@@ -34,6 +48,14 @@ export const Action = z.discriminatedUnion('do', [
   z.strictObject({ do: z.literal('slot'), slot: z.number().int().min(1).max(3) }),
   /** P26: Retry and falls come back to where the hero stands now */
   z.strictObject({ do: z.literal('checkpoint') }),
+  /** P26 part 2: unlock an achievement (Project › Progress) for this player */
+  z.strictObject({ do: z.literal('achieve'), id: z.string().min(1).max(40) }),
+  /** P26 part 2: a player setting steps to its next value (Settings screen), or is set */
+  z.strictObject({
+    do: z.literal('setting'),
+    key: z.enum(['music', 'sounds', 'invertY', 'cameraSpeed', 'textSize', 'difficulty']),
+    value: z.union([z.number(), z.boolean(), z.string()]).optional(),
+  }),
   /** a one-shot music stinger from audio/music.json (ducks the music while it plays) */
   z.strictObject({ do: z.literal('stinger'), stinger: z.string().min(1) }),
   /** P9c: a message in the HUD's message line (help, hints, story text): screen UI, never in the 3D world */

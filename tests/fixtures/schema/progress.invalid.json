@@ -1,0 +1,19 @@
+{
+  "path": "game/progress.json",
+  "value": {
+    "achievements": [
+      {
+        "id": "Bad Id!",
+        "name": "x",
+        "description": ""
+      }
+    ],
+    "collections": [],
+    "bests": [],
+    "newGamePlus": {
+      "enabled": true,
+      "keepItems": true,
+      "keepVars": []
+    }
+  }
+}

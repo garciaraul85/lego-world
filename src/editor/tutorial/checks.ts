@@ -220,6 +220,15 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     const n = allSaves(new BrowserSaveStore(), ed.store.manifest.id).length;
     return a === 0 ? n === 0 : n >= Number(a);
   },
+  // P26 part 2
+  achievementsAtLeast: (ed, a) =>
+    ((ed.store.get(paths.progress) as { achievements?: unknown[] } | undefined)?.achievements?.length ?? 0) >=
+    Number(a),
+  playerSetting: (ed, a) => {
+    const s = ed.session.value;
+    return !!s && matches(s.progress.settings, a as Record<string, unknown>);
+  },
+  screenShown: (ed, a) => !!ed.session.value?.screens.screens().some((x) => x.name === a),
   ...CODING_TESTS,
 };
 

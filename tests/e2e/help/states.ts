@@ -176,6 +176,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // P26 part 2: the Project tab scrolled to Progress
+    id: 'scene-progress',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'project' });
+      await p.locator('[data-tour="game-progress"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     id: 'scene-layers',
     screen: 'scene',
     setup: async (p) => {

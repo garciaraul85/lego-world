@@ -18,7 +18,14 @@ export interface EditorUi {
   /** engine: new runtime (P2); v68: LEGO World v68 runtime; edit: v68 studio */
   play(
     mode: 'engine' | 'v68' | 'edit',
-    opts?: { fromSelectedSpawn?: boolean; fromEntry?: boolean; cinematic?: string; map?: string },
+    opts?: {
+      fromSelectedSpawn?: boolean;
+      fromEntry?: boolean;
+      cinematic?: string;
+      map?: string;
+      /** P28: start the hero at this point of the open map (test from any spot) */
+      at?: [number, number, number];
+    },
   ): void;
   stopPlay(): void;
   /** open the Asset studio on an asset (P3.4) */
@@ -357,6 +364,13 @@ export const ACTIONS: EditorAction[] = [
     },
   },
   {
+    // P26 part 2: the player's Settings screen (volume, camera, text size, difficulty)
+    id: 'play.settingsMenu',
+    label: 'Player settings (while playing)',
+    when: ({ ed }) => !!ed.session.value,
+    run: ({ ed }) => ed.session.value?.gameOp('settingsMenu'),
+  },
+  {
     id: 'play.v68',
     label: 'Play in LEGO World v68 (guns, magic, powers, volcano)',
     key: 'F6',
@@ -391,7 +405,7 @@ export const ACTIONS: EditorAction[] = [
   },
   {
     id: 'help.saving',
-    label: 'Saving course (checkpoints, save points, Continue)',
+    label: 'Saving course (checkpoints, save points, achievements, settings)',
     run: ({ ui }) => ui.tutorial('saving'),
   },
   { id: 'help.guide', label: 'Help guide', key: 'F1', run: ({ ui }) => ui.help() },
@@ -477,6 +491,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'play.pause',
     'play.stop',
     'play.saveNow',
+    'play.settingsMenu',
     '-',
     'play.v68',
     'play.legacy',

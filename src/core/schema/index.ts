@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { ProgressDoc } from '../save/progress';
 import { Art } from './art';
 import { Asset } from './asset';
 import { MediaIndex, Mixer, Music, SoundEvents } from './audio';
@@ -52,6 +53,8 @@ const KINDS = [
   ['mixer', /^audio\/mixer\.json$/, Mixer],
   ['media', /^media\/index\.json$/, MediaIndex],
   ['art', /^art\/art_[0-9a-z]{10}\.json$/, Art],
+  // P26: achievements, collections, best scores, new game plus
+  ['progress', /^game\/progress\.json$/, ProgressDoc],
 ] as const satisfies ReadonlyArray<readonly [string, RegExp, z.ZodType]>;
 
 export type FileKind = (typeof KINDS)[number][0] | 'editor';
@@ -103,4 +106,5 @@ export const paths = {
   media: 'media/index.json',
   art: (id: string) => `art/${id}.json`,
   artDir: 'art/',
+  progress: 'game/progress.json',
 } as const;

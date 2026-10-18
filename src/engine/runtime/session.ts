@@ -60,6 +60,7 @@ import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTar
 import { Enemies } from './enemies';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './health';
 import { chunkKeyOf, inspectPieces } from './pieces';
+import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
 import { Runtime, type System } from './runtime';
 import { applySave, captureSave, loadMessage, type SaveHost } from './saves';
 
@@ -67,6 +68,9 @@ type AssetInstanceId = import('../../core/schema').AssetInstance['id'];
 
 /** P26: the built-in Saves screen (slot buttons) */
 const SAVES_SCREEN = 'scr_saves00000';
+/** P26 part 2: the built-in Settings and Achievements screens */
+const SETTINGS_SCREEN = 'scr_settings00';
+const ACHIEVEMENTS_SCREEN = 'scr_achieve000';
 
 const inBox = (z: { min: number[]; max: number[] }, x: number, y: number, zz: number) =>
   x >= z.min[0]! && x <= z.max[0]! && y >= z.min[1]! && y <= z.max[1]! && zz >= z.min[2]! && zz <= z.max[2]!;
@@ -189,6 +193,8 @@ export class PlaySession {
   private playBase = 0;
   /** Quit to title, then Play: a new game from the start */
   private quitToTitle = false;
+  /** P26 part 2: achievements, best scores, times finished and the player's settings */
+  progress!: PlayerProgress;
   readonly emitterSystem = new EmitterSystem();
   /** the cinematic playing now, if any (P6.2) */
   readonly cine: CinematicSystem;
@@ -236,6 +242,10 @@ export class PlaySession {
       screen: (op: 'show' | 'hide', screen: string, replace: boolean) => this.screenOp(op, screen, replace),
       game: (op: GameOp) => this.gameOp(op),
       saving: (op: 'save' | 'load' | 'slot' | 'checkpoint', slot: number | undefined) => this.savingOp(op, slot),
+      progress: (op: 'achieve' | 'setting', key: string, value?: unknown) => {
+        if (op === 'achieve') this.progress.unlock(key);
+        else if (isSettingKey(key)) this.progress.setSetting(key, value);
+      },
       gave: () => this.audio.play(SND.pickup),
       spawn: (asset: string, at: string) => void this.spawnAsset(asset, at),
       despawn: (target: string) => this.despawn(target),
@@ -290,6 +300,9 @@ export class PlaySession {
     if (!this.logic.vars.has('hp')) this.logic.vars.set('hp', this.logic.vars.get('maxHp'));
     // P9b: guarding uses stamina (screens can show it: {stamina} of {maxStamina})
     if (!this.logic.vars.has('maxStamina')) this.logic.vars.set('maxStamina', MAX_STAMINA);
+    this.progress = new PlayerProgress(this as unknown as ProgressHost);
+    this.progress.onSettings = () => this.applySettings();
+    this.applySettings();
     this.runtime = new Runtime<PlaySession>(this, this.systems());
     this.screens.onChange(() => this.screensChanged());
     this.applyMapAudio();
@@ -468,6 +481,7 @@ export class PlaySession {
       { id: 'gates', fixed: (g) => g.stepGates() },
       { id: 'interact', fixed: (g) => g.stepInteract() },
       { id: 'checkpoints', fixed: (g) => g.stepCheckpoints() },
+      { id: 'progress', fixed: (g) => g.runtime.ticks % 30 === 0 && g.progress.stepBests() },
       { id: 'anim', fixed: (g, dt) => g.stepAnim(dt) },
       { id: 'zones', fixed: (g) => g.stepZones() },
       { id: 'logic', fixed: (g) => g.logic.step(g.clock) },
@@ -568,7 +582,9 @@ export class PlaySession {
   }
 
   /** lose hearts (falling off the world, logic); at 0 the game is over */
-  hurt(n: number) {
+  hurt(n0: number) {
+    // P26: the player's difficulty scales the damage the hero takes (story: half, hard: double)
+    const n = this.progress.damage(n0);
     if (n <= 0 || this.health.invulnerable.has('hero') || this.over) return;
     const hp = Math.max(0, Number(this.logic.vars.get('hp') ?? 0) - n);
     this.logic.setVar('hp', hp);
@@ -1336,6 +1352,10 @@ export class PlaySession {
       heal: (target, amount) => this.heal(target, amount),
       setInvulnerable: (target, on) => this.setInvulnerable(target, on),
       saving: (op, slot) => this.savingOp(op, slot),
+      progress: (op, id) => {
+        if (op === 'achieve') this.progress.unlock(id);
+        else this.gameOp('finish');
+      },
       spawn: (asset, at) => this.spawnAsset(asset, at),
       spawnNear: (item, near) => this.spawnNear(item, near),
       despawn: (target) => {
@@ -1534,6 +1554,35 @@ export class PlaySession {
       case 'loadMenu':
         this.openSaves(op === 'saveMenu' ? 'save' : 'load');
         break;
+      // P26 part 2
+      case 'settingsMenu':
+      case 'achievementsMenu': {
+        const id = op === 'settingsMenu' ? SETTINGS_SCREEN : ACHIEVEMENTS_SCREEN;
+        if (resolveScreen(this.snapshot, id) && !this.screens.has(id)) this.screens.push(id);
+        break;
+      }
+      case 'finish': {
+        if (this.over) break;
+        this.progress.finish();
+        const pct = this.progress.percent();
+        this.emit(
+          'screen',
+          `Game finished${this.progress.doc.collections.length || this.progress.doc.achievements.length ? ` · ${pct}%` : ''}`,
+        );
+        if (this.saving.autosave) this.saveGame(AUTO_SLOT, true);
+        const t = screenOfKind(this.snapshot, 'title');
+        this.screens.set(t ? [t.id] : []);
+        this.quitToTitle = true;
+        this.say(
+          `The end · ${this.progress.record.finished === 1 ? 'finished!' : `finished ${this.progress.record.finished} times`}`,
+          4,
+        );
+        break;
+      }
+      case 'newGamePlus':
+        this.newGamePlus();
+        this.startGame();
+        break;
       case 'pause': {
         const p = screenOfKind(this.snapshot, 'pause');
         if (p && !this.screens.has(p.id)) this.screens.push(p.id);
@@ -1668,6 +1717,25 @@ export class PlaySession {
     this.logic.fire({ type: 'event.onStart' });
   }
 
+  /** P26: a new game that keeps what Project › Progress › New game plus says (items, chosen variables) */
+  newGamePlus() {
+    const ng = this.progress.doc.newGamePlus;
+    const items = ng.keepItems ? new Map(this.inventory) : new Map<string, number>();
+    const vars = new Map(ng.keepVars.map((k) => [k, this.logic.vars.get(k)] as const));
+    this.newGame();
+    for (const [k, v] of items) this.inventory.set(k, v);
+    for (const [k, v] of vars) if (v !== undefined) this.logic.vars.set(k, v);
+    this.logic.vars.set('newGamePlus', this.progress.record.finished);
+    this.emit('info', `New game plus (${this.progress.record.finished})`);
+    this.say(`New game + ${this.progress.record.finished > 1 ? this.progress.record.finished : ''}`.trim(), 2.5);
+  }
+
+  /** P26: the player's settings that the game applies itself (volumes); the play view reads the camera ones */
+  applySettings() {
+    const s = this.progress.settings;
+    this.audio.playerVolume?.(s.music / 100, s.sounds / 100);
+  }
+
   private entryPos(): [number, number, number] {
     const sp = this.world.doc.spawns[0];
     const s = this.heroState;
@@ -1790,11 +1858,15 @@ export class PlaySession {
     }
     if (name.startsWith('inventory.')) return this.inventory.get(name.slice(10)) ?? 0;
     if (name.startsWith('save.')) return this.saveValue(name);
+    if (/^(progress|achievements|collections|collection|bests|best|settings)\./.test(name))
+      return this.progress.value(name);
     return this.logic.vars.get(name);
   };
 
   /** Stop: silence everything this session started. */
   dispose() {
+    // the editor's own sounds go back to full volume
+    this.audio.playerVolume?.(1, 1);
     this.emitterSystem.reset(this.audio);
     this.audio.stopAll();
   }

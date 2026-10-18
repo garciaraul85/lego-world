@@ -131,7 +131,7 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
     profile: { ...knightLook.profile, name: 'Sparring knight', held: 'Sword' },
     harm: {
       canBeHarmed: true,
-      health: { ...grunt.health, atZero: { break: false, drop: { item: 'medal', count: 1 } } },
+      health: { ...grunt.health, atZero: { break: false, drop: { item: 'medal', count: 1 }, emit: 'knight-beaten' } },
     },
     enemy: { ...grunt.enemy, sight: 8 },
   };
@@ -252,6 +252,45 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
       'Save point tip',
       'Save point: press E to save. Pause (Esc) › Load game brings it back; the title’s Continue loads the newest save.',
     ),
+    // P26 part 2: goals — three achievements and the knight's medal to collect
+    {
+      type: 'progress.put',
+      payload: {
+        progress: {
+          achievements: [
+            { id: 'first-smash', name: 'Smasher', description: 'Smash a training dummy.' },
+            { id: 'sharp-eye', name: 'Sharp eye', description: 'Lock on to the practice target.' },
+            { id: 'knight-beaten', name: 'Sparring champion', description: 'Beat the sparring knight.' },
+          ],
+          collections: [{ item: 'medal', label: 'Medals', total: 1 }],
+          bests: [],
+          newGamePlus: { enabled: true, keepItems: true, keepVars: [] },
+        },
+      },
+    },
+    {
+      type: 'logic.create',
+      payload: {
+        graph: {
+          id: newId('logic'),
+          name: 'Yard goals',
+          scope: 'global',
+          nodes: [
+            { id: 'n1', type: 'event.onSmash', pos: [40, 40], args: { asset: dummy.id } },
+            { id: 'n2', type: 'game.unlockAchievement', pos: [320, 40], args: { achievement: 'first-smash' } },
+            { id: 'n3', type: 'event.onLockedOn', pos: [40, 180], args: { asset: target.id } },
+            { id: 'n4', type: 'game.unlockAchievement', pos: [320, 180], args: { achievement: 'sharp-eye' } },
+            { id: 'n5', type: 'event.onCustom', pos: [40, 320], args: { event: 'knight-beaten' } },
+            { id: 'n6', type: 'game.unlockAchievement', pos: [320, 320], args: { achievement: 'knight-beaten' } },
+          ],
+          edges: [
+            ['n1', 'then', 'n2', 'in'],
+            ['n3', 'then', 'n4', 'in'],
+            ['n5', 'then', 'n6', 'in'],
+          ],
+        },
+      },
+    },
     // a third dummy at the foot of the hill: jump down from the top and press F while falling (plunge)
     { type: 'asset.place', payload: { map, asset: dummy.id, pos: [-5, 1, 18] } },
     tip(

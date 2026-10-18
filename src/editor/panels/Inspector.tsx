@@ -11,6 +11,7 @@ import { Header, Num, TextField } from '../components/fields';
 import { makeAssetOfSelection } from '../interact/scene-menus';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
+import { ProgressSection } from './ProgressSection';
 import { SavingSection } from './SavingSection';
 import { ScriptSection } from './ScriptSection';
 
@@ -648,6 +649,7 @@ function ProjectTab({ c }: { c: ActionCtx }) {
         </div>
       </div>
       <SavingSection c={c} />
+      <ProgressSection c={c} />
       <div class="sec">
         <div class="sech">
           <span>Limits</span>

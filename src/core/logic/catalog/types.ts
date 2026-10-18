@@ -88,6 +88,8 @@ export interface ExecCtx {
   setInvulnerable(target: string, on: boolean): void;
   /** P26: save to a slot, load one (none: the newest), or set the checkpoint where the hero stands */
   saving?(op: 'save' | 'load' | 'checkpoint', slot: number | undefined): void;
+  /** P26 part 2: unlock an achievement (by id), or finish the game */
+  progress?(op: 'achieve' | 'finish', id: string): void;
 }
 
 export type Args = Record<string, unknown>;
