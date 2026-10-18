@@ -40,9 +40,10 @@ export const SHELL: HelpEntry[] = [
     kind: 'area',
     name: 'Brix panel',
     purpose:
-      'Where you talk to Brix: your questions, its answers with steps, **Show me** buttons and 📖 Help links. **Explain**: press it, then click any part of the editor, and Brix tells you what that part is (the click does nothing else).',
+      'Where you talk to Brix: your questions, its answers with steps, **Show me** buttons and 📖 Help links. The 📍 line under the title is where Brix thinks you are: the screen and tab, and what is selected or open. “This”, “it” and “here” in a question mean that, and the screen you are on is answered first. **Explain**: press it, then click any part of the editor, and Brix tells you what that part is (the click does nothing else).',
     steps: [
-      'Ask a question in the box at the bottom.',
+      'Ask a question in the box at the bottom. “What can I do here?” lists what people do most on the screen you are on, each with Show me.',
+      'Asking to make or change something (“add a door here”)? Brix shows how, and **✦ Ask the AI builder to do this** types the request into the AI builder, with what “this” and “here” were, for you to send and approve.',
       'Press **Explain**, then click a button, tab or panel to hear what it does. Esc cancels.',
       'Tick **Ask Claude** to have Claude answer (it uses your AI builder settings and spending caps); untick it to search Help only.',
       'Press × or Esc to close the panel.',

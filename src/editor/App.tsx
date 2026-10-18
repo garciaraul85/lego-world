@@ -72,6 +72,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const [help, setHelp] = useState<string | null>(null);
   const [ai, setAi] = useState(false);
   const [brix, setBrix] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState<{ text: string; key: number } | null>(null);
   // Generate & play: straight into Play from the first screen (P7.2)
   useEffect(() => {
     if (intent?.kind !== 'play') return;
@@ -179,7 +180,10 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         void ed.autosave.flush().then(() => host.startTutorial('show', track as Track));
       },
       help: (page) => setHelp(page ?? contextHelpPage(ed.workspace.value) ?? 'start'),
-      aiBuilder: () => setAi(true),
+      aiBuilder: (prompt) => {
+        if (prompt) setAiPrompt({ text: prompt, key: Date.now() });
+        setAi(true);
+      },
       brix: () => setBrix(true),
       about: () => setModal('about'),
     }),
@@ -370,7 +374,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           }}
         />
       )}
-      {ai && <AiPanel c={c} onClose={() => setAi(false)} />}
+      {ai && <AiPanel c={c} prompt={aiPrompt} onClose={() => setAi(false)} />}
       {!hub && <Brix c={c} open={brix} onOpen={() => setBrix(true)} onClose={() => setBrix(false)} />}
       {help && <HelpView c={c} page={help} onClose={() => setHelp(null)} />}
       {hub && (

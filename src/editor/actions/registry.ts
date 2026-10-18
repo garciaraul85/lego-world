@@ -46,8 +46,8 @@ export interface EditorUi {
   /** editor, coding, or a screen course: course.<screen> (P32) */
   tutorial(track?: string): void;
   help(page?: string): void;
-  /** opens the AI builder panel (P8.3) */
-  aiBuilder(): void;
+  /** opens the AI builder panel (P8.3); P19: with a request typed in (from Brix), for you to send */
+  aiBuilder(prompt?: string): void;
   /** P19: opens Brix, the helper (answers from Help, Show me, Explain) */
   brix?(): void;
 }

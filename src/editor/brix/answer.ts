@@ -1,7 +1,8 @@
-import { helpEntry } from '../help/entries';
+import { helpEntry, screenGuide } from '../help/entries';
 import { entryPageId } from '../help/entry-pages';
 import { helpPages } from '../help/pages';
 import { HelpIndex, type Hit } from '../help/search';
+import { type BrixContext, focusLabel, POINTING } from './context';
 import { showSteps } from './views';
 
 /**
@@ -32,7 +33,7 @@ const entryIndex = () => (entriesOnly ??= new HelpIndex(helpPages().filter((p) =
  * word, so filler verbs would pull in pages that merely say “add” (logic nodes say “add it to the graph”).
  */
 const FILLER = new Set(
-  'add make create use using get put set change where what which can could would should please want need find show me there here this that game my your some new way'.split(
+  'how do does i a an the to is add make create use using get put set change where what which can could would should please want need find show me there here this that it these selected game my your some new way'.split(
     ' ',
   ),
 );
@@ -43,10 +44,17 @@ export function focusWords(q: string): string {
 }
 /** Brix explains controls first: node and command reference pages rank lower than the screens' own entries. */
 const KIND_WEIGHT: Record<string, number> = { node: 0.55, command: 0.3, action: 0.8 };
-function entryHits(q: string, limit: number): Hit[] {
+/** the screen you are on counts: its own controls rank above the same words elsewhere */
+const HERE_WEIGHT = 2;
+function entryHits(q: string, limit: number, ctx?: BrixContext | null): Hit[] {
   return entryIndex()
-    .search(q, 24)
-    .map((h) => ({ ...h, score: h.score * (KIND_WEIGHT[helpEntry(h.page.slice(2))?.kind ?? ''] ?? 1) }))
+    .search(q, 48)
+    .map((h) => {
+      const e = helpEntry(h.page.slice(2));
+      const here =
+        ctx && e && (e.screen === ctx.screen || (ctx.screen === 'screens' && e.screen === 'art')) ? HERE_WEIGHT : 1;
+      return { ...h, score: h.score * (KIND_WEIGHT[e?.kind ?? ''] ?? 1) * here };
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }
@@ -61,14 +69,45 @@ const linkOf = (h: Hit): BrixLink => ({
 export const linkRef = (l: BrixLink) => (l.anchor ? `${l.page}#${l.anchor}` : l.page);
 
 /** Help entries with a control Show me can find, for the words asked. */
-export function showable(question: string, limit = 3): string[] {
+export function showable(question: string, limit = 3, ctx?: BrixContext | null): string[] {
   const out: string[] = [];
-  for (const h of entryHits(focusWords(question), 12)) {
+  for (const h of entryHits(withFocus(question, ctx), 12, ctx)) {
     const id = entryOf(h);
     if (id && !out.includes(id) && showSteps(id)) out.push(id);
     if (out.length >= limit) break;
   }
   return out;
+}
+
+/** The question's words, plus the selected thing's Help word when the question points at it (“this”). */
+export function withFocus(question: string, ctx?: BrixContext | null): string {
+  const w = focusWords(question);
+  if (!ctx?.focus || !POINTING.test(question)) return w;
+  return w.split(' ').includes(ctx.focus.words) ? w : `${w} ${ctx.focus.words}`;
+}
+
+/** “What can I do here?”, “where am I?”: the screen you are on. */
+const HERE =
+  /^(what can i do (here|now|on this screen)|where am i|what('s| is) (this|here)( screen| place| workspace| panel)?|what('s| is) this for|help( me)?( here)?|what now|what next)\W*$/i;
+
+function hereAnswer(ctx: BrixContext): BrixAnswer {
+  const g = screenGuide(ctx.screen);
+  const at = `You’re in ${ctx.where}${ctx.focus ? `, with ${focusLabel(ctx.focus)} ${ctx.focus.kind === 'brick' ? 'selected' : 'open'}` : ''}.`;
+  if (!g)
+    return {
+      text: at,
+      steps: [],
+      links: [{ page: 'start', anchor: '', title: 'Help: Start here' }],
+      show: [],
+      offline: true,
+    };
+  return {
+    text: `${at} ${g.intro} The things people do here most:`,
+    steps: g.top.map(([label]) => label),
+    links: [{ page: `guide/${ctx.screen}`, anchor: '', title: `Guide to this screen` }],
+    show: g.top.map(([, id]) => id).filter((id) => !!showSteps(id)),
+    offline: true,
+  };
 }
 
 const SMALL_TALK: [RegExp, string][] = [
@@ -83,10 +122,11 @@ const SMALL_TALK: [RegExp, string][] = [
   ],
 ];
 
-export function answerOffline(question: string): BrixAnswer {
+export function answerOffline(question: string, ctx?: BrixContext | null): BrixAnswer {
   const q = question.trim();
   for (const [re, text] of SMALL_TALK) if (re.test(q)) return { text, steps: [], links: [], show: [], offline: true };
-  const hits = helpIndex().search(focusWords(q), 8);
+  if (ctx && HERE.test(q)) return hereAnswer(ctx);
+  const hits = helpIndex().search(withFocus(q, ctx), 8);
   if (!hits.length)
     return {
       text: 'I couldn’t find that in Help. Try other words (say “checkpoint”, “music”, “enemy”), or press Explain and click the part you’re curious about.',
@@ -95,11 +135,12 @@ export function answerOffline(question: string): BrixAnswer {
       show: [],
       offline: true,
     };
-  const show = showable(q);
+  const show = showable(q, 3, ctx);
   // the entry Show me points at leads: its text and steps fit a “how do I” question
   const top = hits[0]!;
   const e = show[0] ? helpEntry(show[0]) : entryOf(top) ? helpEntry(entryOf(top)!) : null;
-  const text = e ? `${e.name}: ${e.purpose}` : `${top.title}: ${top.snippet.replace(/^…/, '')}`;
+  const about = ctx?.focus && POINTING.test(q) ? `For ${focusLabel(ctx.focus)}: ` : '';
+  const text = about + (e ? `${e.name}: ${e.purpose}` : `${top.title}: ${top.snippet.replace(/^…/, '')}`);
   const links: BrixLink[] = [];
   const add = (l: BrixLink) => {
     if (!links.some((x) => x.page === l.page && x.anchor === l.anchor)) links.push(l);

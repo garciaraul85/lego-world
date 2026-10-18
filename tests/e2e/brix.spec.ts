@@ -131,3 +131,56 @@ test('Meet Brix course: Do it for me asks, shows, finishes the walk-through and 
   expect(await page.evaluate(() => !!(window as unknown as { __editor: Ed }).__editor.session.value)).toBe(false);
   expect(errors).toEqual([]);
 });
+
+test('Brix knows where you are: “this” is the selected object; a change request goes to the AI builder', async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  const before = await project(page);
+  const name = await page.evaluate(() => {
+    const e = (
+      window as unknown as {
+        __editor: {
+          scene: {
+            value: { instances: { def: { name: string }; inst: { name?: string }; bricks: { id: number }[] }[] };
+          };
+          select(ids: number[]): void;
+        };
+      }
+    ).__editor;
+    const i = e.scene.value.instances[0]!;
+    e.select(i.bricks.map((b) => b.id));
+    return i.inst.name ?? i.def.name;
+  });
+  await page.getByRole('button', { name: 'Ask Brix' }).click();
+  const brix = page.getByRole('complementary', { name: 'Brix' });
+  await expect(brix.locator('.brix-where')).toHaveText(`📍 Scene › Inspector · ${name}`);
+  // the screen you are on
+  await brix.getByRole('button', { name: 'What can I do here?' }).click();
+  await expect(brix.locator('.brix-answer').last()).toContainText('You’re in Scene › Inspector');
+  await expect(
+    brix
+      .locator('.brix-answer')
+      .last()
+      .getByRole('button', { name: /^Show me:/ })
+      .first(),
+  ).toBeVisible();
+  // “this” is the selected object
+  const box = brix.getByRole('textbox', { name: 'Ask Brix' });
+  await box.fill('how do I make this open with a key?');
+  await box.press('Enter');
+  const answer = brix.locator('.brix-answer').last();
+  await expect(answer).toContainText(`For the placed asset “${name}”`);
+  await page.screenshot({ path: 'test-results/brix-context.png' });
+  // Brix doesn't build: it hands the request, with what “this” was, to the AI builder for you to send
+  await answer.getByRole('button', { name: '✦ Ask the AI builder to do this' }).click();
+  const ai = page.getByRole('complementary', { name: 'AI builder' });
+  await expect(ai).toBeVisible();
+  await expect(ai.getByLabel('Ask the AI builder')).toHaveValue(
+    `how do I make this open with a key? (I'm in Scene › Inspector; the placed asset “${name}” is selected or open.)`,
+  );
+  expect(await project(page)).toBe(before);
+  expect(errors).toEqual([]);
+});

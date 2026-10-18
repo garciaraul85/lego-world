@@ -40,7 +40,16 @@ const TOOL_ICON: Record<string, string> = {
  * commands (never engine code), the editor checks it with a dry run, and you review it step by step —
  * watching each step happen live in its workspace — before anything is kept.
  */
-export function AiPanel({ c, onClose }: { c: ActionCtx; onClose: () => void }) {
+export function AiPanel({
+  c,
+  prompt,
+  onClose,
+}: {
+  c: ActionCtx;
+  /** P19: a request Brix handed over, typed into the box for you to read and send */
+  prompt?: { text: string; key: number } | null;
+  onClose: () => void;
+}) {
   const { ed } = c;
   const [settings, setSettings] = useState<AiSettings>(loadAi);
   const settingsRef = useRef(settings);
@@ -48,7 +57,10 @@ export function AiPanel({ c, onClose }: { c: ActionCtx; onClose: () => void }) {
   const [items, setItems] = useState<Item[]>([]);
   const [turns, setTurns] = useState<AiTurn[]>([]);
   const [scope, setScope] = useState<Scope>('game');
-  const [text, setText] = useState('');
+  const [text, setText] = useState(prompt?.text ?? '');
+  useEffect(() => {
+    if (prompt) setText(prompt.text);
+  }, [prompt?.key]);
   const [running, setRunning] = useState<AbortController | null>(null);
   const [setup, setSetup] = useState(false);
   const [artifact, setArtifact] = useState<boolean | null>(null);

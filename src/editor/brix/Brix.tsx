@@ -10,6 +10,7 @@ import { entryPageId } from '../help/entry-pages';
 import { findControl, flash } from '../help/show';
 import { askBrix } from './agent';
 import { answerOffline, type BrixAnswer, linkRef } from './answer';
+import { brixContext, contextForAi, contextLine, focusLabel } from './context';
 import { type ShowStep, showSteps } from './views';
 
 /**
@@ -19,7 +20,13 @@ import { type ShowStep, showSteps } from './views';
  * would, then rings the control. Explain: click any part of the editor to hear what it is. Brix only reads
  * Help and moves around the editor; it never changes your project.
  */
-type Msg = { from: 'you'; text: string } | { from: 'brix'; answer: BrixAnswer; explained?: boolean };
+type Msg =
+  | { from: 'you'; text: string }
+  | { from: 'brix'; answer: BrixAnswer; explained?: boolean; question?: string; build?: boolean };
+
+/** A request to change the game: Brix can hand it to the AI builder (which plans it for you to approve). */
+const CHANGE =
+  /^(please\s+|can you\s+|could you\s+|i want( you)? to\s+|let'?s\s+|how (do|can|would) i\s+)?(add|make|create|build|put|place|change|remove|delete|turn|give|set up|connect|move|paint|write)\b/i;
 
 export function BrixMascot({ size = 40, mood = 'happy' }: { size?: number; mood?: 'happy' | 'think' }) {
   // an original character: a 2×2 brick with two studs, round eyes and a smile
@@ -146,26 +153,36 @@ export function Brix({ c, open, onOpen, onClose }: { c: ActionCtx; open: boolean
     if (!question || busy) return;
     setText('');
     add({ from: 'you', text: question });
+    // where the person is right now: the screen, what is selected or open (read, never changed)
+    const ctx = brixContext(ed);
+    const build = CHANGE.test(question);
     const s = withKey(loadAi());
     const game = ed.store.manifest.id;
     const capped =
       (s.dailyCap > 0 && s.spent.tokens >= s.dailyCap) || (s.gameCap > 0 && gameSpent(s, game) >= s.gameCap);
     const provider = useAi && !capped ? await pickProvider(() => s) : null;
     if (!provider) {
-      const a = answerOffline(question);
+      const a = answerOffline(question, ctx);
       if (useAi && capped) a.text = `${a.text} (Answered from Help: today's AI spending cap is reached.)`;
-      add({ from: 'brix', answer: a });
+      add({ from: 'brix', answer: a, question, build });
       return;
     }
     const ctl = new AbortController();
     setBusy(ctl);
     try {
-      const r = await askBrix({ provider, question, history: history.current.slice(-8), signal: ctl.signal });
+      const r = await askBrix({
+        provider,
+        question,
+        history: history.current.slice(-8),
+        context: () => contextForAi(ed, brixContext(ed)),
+        ctx,
+        signal: ctl.signal,
+      });
       history.current = r.turns;
       if (r.usage) saveAi(recordSpend(loadAi(), r.usage.inputTokens + r.usage.outputTokens, r.usage.requests, game));
-      add({ from: 'brix', answer: r.answer });
+      add({ from: 'brix', answer: r.answer, question, build });
     } catch (err) {
-      const a = answerOffline(question);
+      const a = answerOffline(question, ctx);
       const why = err instanceof Error ? err.message : String(err);
       add({
         from: 'brix',
@@ -185,6 +202,13 @@ export function Brix({ c, open, onOpen, onClose }: { c: ActionCtx; open: boolean
   }
 
   const genre = projectGenre(ed);
+
+  /** The AI builder plans the change for you to approve; it is told what “this” and “here” were. */
+  function handOff(question: string) {
+    const x = brixContext(ed);
+    const where = `(I'm in ${x.where}${x.focus ? `; ${focusLabel(x.focus)} is ${x.focus.kind === 'brick' ? 'selected' : 'selected or open'}` : ''}.)`;
+    c.ui.aiBuilder(`${question} ${where}`);
+  }
 
   return (
     <>
@@ -221,6 +245,13 @@ export function Brix({ c, open, onOpen, onClose }: { c: ActionCtx; open: boolean
               ×
             </button>
           </header>
+          <p
+            class="brix-where small"
+            data-tour="brix-where"
+            title="Where Brix thinks you are: “this” and “here” mean this"
+          >
+            📍 {contextLine(brixContext(ed))}
+          </p>
           <div class="brix-msgs" ref={list} aria-live="polite">
             {!msgs.length && (
               <div class="brix-hello">
@@ -230,6 +261,7 @@ export function Brix({ c, open, onOpen, onClose }: { c: ActionCtx; open: boolean
                 </p>
                 <div class="brix-chips">
                   {[
+                    'What can I do here?',
                     'How do I add a checkpoint?',
                     'How do I make an enemy?',
                     'How do I add music?',
@@ -279,6 +311,13 @@ export function Brix({ c, open, onOpen, onClose }: { c: ActionCtx; open: boolean
                           📖 {l.title}
                         </button>
                       ))}
+                    </div>
+                  )}
+                  {m.build && m.question && (
+                    <div class="brix-acts">
+                      <button type="button" class="btn small ai" onClick={() => handOff(m.question!)}>
+                        ✦ Ask the AI builder to do this
+                      </button>
                     </div>
                   )}
                 </div>

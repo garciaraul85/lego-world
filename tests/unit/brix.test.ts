@@ -9,7 +9,8 @@ import { ProjectStore } from '../../src/core/project/store';
 import type { ActionCtx, EditorUi } from '../../src/editor/actions/registry';
 import { ACTIONS, MENUS } from '../../src/editor/actions/registry';
 import { askBrix, brixTools } from '../../src/editor/brix/agent';
-import { answerOffline, linkRef, showable } from '../../src/editor/brix/answer';
+import { answerOffline, linkRef, showable, withFocus } from '../../src/editor/brix/answer';
+import { brixContext, contextForAi, contextLine } from '../../src/editor/brix/context';
 import { showSteps, stepsToView, viewOf } from '../../src/editor/brix/views';
 import { helpEntries } from '../../src/editor/help/entries';
 import { helpPages } from '../../src/editor/help/pages';
@@ -137,5 +138,85 @@ describe('Help menu', () => {
     const a = ACTIONS.find((x) => x.id === 'help.brix')!;
     expect(a.key).toBe('Shift F1');
     expect(MENUS.Help).toContain('help.brix');
+  });
+});
+
+describe('Brix knows where you are', () => {
+  function onMap() {
+    const sb = sandbox();
+    sb.ed.mapId.value = sb.store.manifest.entry.map;
+    return sb;
+  }
+
+  it('reads the screen, the tab and what is selected or open', () => {
+    const { ed, store } = onMap();
+    let x = brixContext(ed);
+    expect(x.screen).toBe('scene');
+    expect(x.where).toBe('Scene › Inspector');
+    expect(x.focus).toBeNull();
+    ed.right.value = 'project';
+    expect(brixContext(ed).where).toBe('Scene › Project tab');
+    // a trigger zone selected
+    ed.exec({ type: 'map.addZone', payload: { map: ed.mapId.value, zone: { min: [0, 0, 0], max: [4, 3, 4] } } });
+    const zone = (store.get(`maps/${ed.mapId.value}/map.json`) as { zones: { id: string }[] }).zones[0]!.id;
+    ed.selectedZone.value = zone;
+    x = brixContext(ed);
+    expect(x.focus?.kind).toBe('zone');
+    expect(contextLine(x)).toMatch(/^Scene › Project tab · /);
+    // the Assets screen: the asset open in the studio (the first one until you pick)
+    ed.workspace.value = 'Assets';
+    x = brixContext(ed);
+    expect(x.screen).toBe('assets');
+    expect(x.focus?.kind).toBe('asset');
+    expect(x.focus?.name.length).toBeGreaterThan(0);
+  });
+
+  it('“what can I do here?” answers for the screen you are on', () => {
+    const { ed } = onMap();
+    const scene = answerOffline('What can I do here?', brixContext(ed));
+    expect(scene.text).toMatch(/^You’re in Scene/);
+    expect(scene.links[0]!.page).toBe('guide/scene');
+    expect(scene.steps.length).toBeGreaterThan(2);
+    expect(scene.show.length).toBeGreaterThan(0);
+    ed.workspace.value = 'Logic';
+    const logic = answerOffline('where am I?', brixContext(ed));
+    expect(logic.links[0]!.page).toBe('guide/logic');
+    // without knowing where you are it is an ordinary search
+    expect(answerOffline('What can I do here?').text).not.toMatch(/^You’re in/);
+  });
+
+  it('“this” means the selected thing; the screen you are on ranks first', () => {
+    const { ed, store } = onMap();
+    ed.exec({ type: 'map.addZone', payload: { map: ed.mapId.value, zone: { min: [0, 0, 0], max: [4, 3, 4] } } });
+    ed.selectedZone.value = (store.get(`maps/${ed.mapId.value}/map.json`) as { zones: { id: string }[] }).zones[0]!.id;
+    const x = brixContext(ed);
+    expect(withFocus('how do I make this bigger?', x)).toBe('bigger zone');
+    expect(withFocus('how do I add music?', x)).toBe('music');
+    const a = answerOffline('how do I make this bigger?', x);
+    expect(a.text).toMatch(/^For the trigger zone/);
+    // the same word on another screen leads with that screen's control
+    ed.selectedZone.value = null;
+    expect(showable('add', 1, brixContext(ed))[0]).toMatch(/^scene\./);
+    ed.workspace.value = 'Screens';
+    expect(showable('add', 1, brixContext(ed))[0]).toMatch(/^screens\./);
+  });
+
+  it('Claude is told where you are and can ask again (get_context)', async () => {
+    const { ed } = onMap();
+    ed.right.value = 'map';
+    const fake = new FakeProvider([
+      { tools: [{ name: 'get_context', input: {} }] },
+      { text: 'You are on the Map tab.' },
+    ]);
+    const r = await askBrix({
+      provider: fake,
+      question: 'what is this tab for?',
+      context: () => contextForAi(ed, brixContext(ed)),
+      signal: new AbortController().signal,
+    });
+    expect(fake.runs[0]!.instructions).toMatch(/Where the person is now:\nScreen: Scene › Map tab\./);
+    expect(fake.runs[0]!.instructions).toMatch(/# Project/);
+    expect(fake.log[0]!.result).toMatch(/Scene › Map tab/);
+    expect(r.answer.text).toMatch(/Map tab/);
   });
 });

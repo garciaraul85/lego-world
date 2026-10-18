@@ -4,6 +4,7 @@ import { helpEntry } from '../help/entries';
 import { helpPages } from '../help/pages';
 import { TRACKS } from '../tutorial/index';
 import { type BrixAnswer, type BrixLink, helpIndex, showable } from './answer';
+import type { BrixContext } from './context';
 import { showSteps } from './views';
 
 /**
@@ -22,12 +23,25 @@ how to use the editor. Rules:
 - Cite the pages you used: call cite with each page id (and anchor) you relied on.
 - You never change the project. If asked to build or change something, say how to do it, and mention that the
   AI builder (Help › AI builder) can plan the change for them to approve.
+- You know where the person is (below). When they say “this”, “it” or “here”, they mean what is selected or open.
+  Answer for that screen and that thing; call get_context if they may have moved since.
 - Write for beginners. Use the names the editor shows.`;
 
 export type BrixRun = { answer: BrixAnswer; usage: AiUsage | null; turns: AiTurn[] };
 
-export function brixTools(rec: { show: string[]; links: BrixLink[] }): AiTool[] {
+export function brixTools(rec: { show: string[]; links: BrixLink[] }, now?: () => string): AiTool[] {
   return [
+    ...(now
+      ? [
+          {
+            name: 'get_context',
+            description:
+              'Where the person is right now: screen, what is selected or open, map, kind of game, project summary.',
+            inputSchema: { type: 'object' as const, properties: {} },
+            execute: () => now(),
+          },
+        ]
+      : []),
     {
       name: 'search_help',
       description:
@@ -108,15 +122,19 @@ export async function askBrix(o: {
   provider: AiProvider;
   question: string;
   history?: AiTurn[];
+  /** where the person is (brix/context.ts), read again by get_context */
+  context?: () => string;
+  /** the thing a question saying “this” means, for Show me without a point_at */
+  ctx?: BrixContext | null;
   signal: AbortSignal;
   onText?(t: string): void;
 }): Promise<BrixRun> {
   const rec = { show: [] as string[], links: [] as BrixLink[] };
   const turns: AiTurn[] = [...(o.history ?? []), { role: 'user', content: o.question }];
   const r = await o.provider.run({
-    instructions: INSTRUCTIONS,
+    instructions: o.context ? `${INSTRUCTIONS}\n\nWhere the person is now:\n${o.context()}` : INSTRUCTIONS,
     turns,
-    tools: brixTools(rec),
+    tools: brixTools(rec, o.context),
     maxRounds: BRIX_ROUNDS,
     maxTokens: 1500,
     signal: o.signal,
@@ -124,7 +142,7 @@ export async function askBrix(o: {
   });
   const text = r.text.trim() || 'I couldn’t find an answer in Help.';
   // no point_at from the model: still offer Show me for what the question names
-  const show = rec.show.length ? rec.show : showable(o.question, 2);
+  const show = rec.show.length ? rec.show : showable(o.question, 2, o.ctx);
   return {
     answer: { text, steps: [], links: rec.links, show, offline: false },
     usage: r.usage,
