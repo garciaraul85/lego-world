@@ -80,9 +80,11 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     let last = performance.now();
     let lastTick = 0;
     const frameMs: number[] = [];
+    let heldFrames = 0;
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
-      const dt = Math.min(0.1, (now - last) / 1000);
+      // a rAF time can be a little before the time Play started: never a negative step
+      const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
       last = now;
       // a title, pause or game-over screen holds the game; the UI clock keeps running (P5.8)
       s.runtime.paused = ed.paused.value || s.screenPaused;
@@ -91,7 +93,11 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       const steps = s.runtime.advance(dt);
       pr.debug = ed.debugDraw.value;
       const t0 = performance.now();
-      const st = pr.render();
+      // while a screen holds the game (splash, title, pause) the world is still: redraw it 4 times a second, so
+      // menus stay quick on slow graphics
+      const held = s.runtime.paused && !ed.paused.value;
+      const st = !held || ++heldFrames % 15 === 0 ? pr.render() : null;
+      if (!held) heldFrames = 0;
       frameMs.push(dt * 1000);
       if (frameMs.length > 30) frameMs.shift();
       uiTick.value++;

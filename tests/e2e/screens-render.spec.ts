@@ -71,6 +71,10 @@ test('Play from the first screen: splash → title → Play → HUD; Esc pauses,
   await expect(page.getByRole('region', { name: 'Splash' })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText('Made with Brick Worlds')).toBeVisible();
   const play = page.getByRole('region', { name: 'Title' }).getByRole('button', { name: 'Play' });
+  // the splash moves on by itself after 2.2 s of screen time; on slow graphics that can take long, so the test
+  // also checks that Esc (the splash's back action) skips to the title
+  await page.getByLabel('Game view').focus();
+  await page.keyboard.press('Escape');
   await expect(play).toBeVisible({ timeout: 120_000 });
   await play.click();
   const hud = page.getByRole('region', { name: 'HUD' });
@@ -84,6 +88,11 @@ test('Play from the first screen: splash → title → Play → HUD; Esc pauses,
   // P26: Save game comes next (this game saves anywhere); Load game shows only once there is a save
   await page.keyboard.press('ArrowDown');
   await expect(pause.getByRole('button', { name: 'Save game' })).toBeFocused();
+  // P26 part 2: then Achievements and Settings, then Restart from checkpoint
+  await page.keyboard.press('ArrowDown');
+  await expect(pause.getByRole('button', { name: 'Achievements' })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(pause.getByRole('button', { name: 'Settings' })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(pause.getByRole('button', { name: 'Restart from checkpoint' })).toBeFocused();
   await pause.getByRole('button', { name: 'Resume' }).click();
