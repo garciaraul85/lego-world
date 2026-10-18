@@ -8,10 +8,7 @@ import { entryForElement, helpEntries, helpEntry, SCREENS, visibleControls } fro
 export function showControl(c: ActionCtx, id: string, tries = 0): void {
   const e = helpEntry(id);
   if (!e) return;
-  const entries = helpEntries();
-  const el =
-    visibleControls().find((x) => entryForElement(x, entries)?.id === id) ??
-    findArea(e.match?.map((m) => m.sel).filter((s): s is string => !!s) ?? []);
+  const el = findControl(id);
   if (el) {
     flash(el);
     return;
@@ -24,6 +21,23 @@ export function showControl(c: ActionCtx, id: string, tries = 0): void {
     return;
   }
   c.ed.notify(`${e.name} isn't on screen right now. ${e.steps?.[0] ?? ''}`.trim());
+}
+
+/** The control (or area) a Help entry describes, when it is on screen now. */
+export function findControl(id: string, preferArea = false): HTMLElement | null {
+  const e = helpEntry(id);
+  if (!e) return null;
+  const entries = helpEntries();
+  const area = () => findArea(e.match?.map((m) => m.sel).filter((s): s is string => !!s) ?? []);
+  const control = () => visibleControls().find((x) => entryForElement(x, entries)?.id === id) ?? null;
+  if (!preferArea) return control() ?? area();
+  // Brix's Show me rings the whole setting (its row or small section) when the entry names one
+  const c = control();
+  for (const m of e.match ?? []) {
+    const box = m.in ? c?.closest<HTMLElement>(m.in) : null;
+    if (box && box.getBoundingClientRect().height < 220) return box;
+  }
+  return area() ?? c;
 }
 
 function findArea(sels: string[]): HTMLElement | null {

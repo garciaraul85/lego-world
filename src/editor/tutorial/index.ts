@@ -19,10 +19,11 @@ import audio from './content/09-audio.json';
 import play from './content/10-play.json';
 import combat from './content/11-combat.json';
 import saving from './content/12-saving.json';
+import brix from './content/13-brix.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
-export type Track = 'editor' | 'coding' | 'combat' | 'saving' | `course.${string}`;
+export type Track = 'editor' | 'coding' | 'combat' | 'saving' | 'brix' | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
 const steps = (chapters: Chapter[]): TrackStep[] =>
@@ -50,10 +51,13 @@ export const CODING_CHAPTERS: Chapter[] = [cBasics, cVars, cEvents, cFlow, cWorl
 export const COMBAT_CHAPTERS: Chapter[] = [combat].map((c) => Chapter.parse(c));
 /** P26: the saving course — settings, a checkpoint, a save point, Continue. */
 export const SAVING_CHAPTERS: Chapter[] = [saving].map((c) => Chapter.parse(c));
+/** P19: meet Brix — ask, Show me, Explain. */
+export const BRIX_CHAPTERS: Chapter[] = [brix].map((c) => Chapter.parse(c));
 
 export const STEPS: TrackStep[] = steps(CHAPTERS);
 export const COMBAT_STEPS: TrackStep[] = steps(COMBAT_CHAPTERS);
 export const SAVING_STEPS: TrackStep[] = steps(SAVING_CHAPTERS);
+export const BRIX_STEPS: TrackStep[] = steps(BRIX_CHAPTERS);
 export const CODING_STEPS: TrackStep[] = steps(CODING_CHAPTERS);
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
@@ -64,6 +68,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   coding: { title: 'Coding course', steps: CODING_STEPS },
   combat: { title: 'Combat course', steps: COMBAT_STEPS },
   saving: { title: 'Saving and progress course', steps: SAVING_STEPS },
+  brix: { title: 'Meet Brix', steps: BRIX_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

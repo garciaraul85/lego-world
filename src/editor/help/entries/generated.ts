@@ -98,6 +98,10 @@ export const ACTION_HELP: Record<string, string> = {
   'help.here':
     'Opens the Help page of the control under the pointer: the same as F1, for keyboards (like a Mac’s) where F1 changes the screen brightness.',
   'help.build': 'Watch a whole game being built step by step, with each stage explained.',
+  'help.brix':
+    'Opens Brix, the helper in the corner: ask how to do something and Brix answers from Help, links the pages and shows you where the control is. Explain tells you what any part of the editor is.',
+  'help.brixCourse':
+    'Starts the Meet Brix course: ask a question, follow Show me to the control, and use Explain on a button.',
   'help.ai': 'Opens the AI builder: describe a change, watch each step, then approve or reject it.',
 };
 

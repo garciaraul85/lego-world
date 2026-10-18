@@ -48,6 +48,8 @@ export interface EditorUi {
   help(page?: string): void;
   /** opens the AI builder panel (P8.3) */
   aiBuilder(): void;
+  /** P19: opens Brix, the helper (answers from Help, Show me, Explain) */
+  brix?(): void;
 }
 
 export type EditorAction = {
@@ -430,6 +432,13 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('saving'),
   },
   { id: 'help.guide', label: 'Help guide', key: 'F1', run: ({ ui }) => ui.help() },
+  {
+    id: 'help.brix',
+    label: 'Ask Brix (how do I…? Show me where, Explain a control)',
+    key: 'Shift F1',
+    run: ({ ui }) => ui.brix?.(),
+  },
+  { id: 'help.brixCourse', label: 'Meet Brix course (ask, Show me, Explain)', run: ({ ui }) => ui.tutorial('brix') },
   // P32: Macs send F1 to the screen brightness unless fn is held; ⌘/ (Ctrl / elsewhere) works everywhere
   { id: 'help.here', label: 'Help on what the pointer is on', key: 'Ctrl /', run: ({ ui }) => ui.help() },
   { id: 'help.build', label: 'Watch a game being built…', run: ({ ui }) => ui.startHub() },
@@ -545,10 +554,12 @@ export const MENUS: Record<string, (string | '-')[]> = {
   ],
   Help: [
     'help.guide',
+    'help.brix',
     'help.tutorial',
     'help.coding',
     'help.combat',
     'help.saving',
+    'help.brixCourse',
     'help.build',
     'help.shortcuts',
     'help.ai',

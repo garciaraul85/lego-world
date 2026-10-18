@@ -12,6 +12,59 @@ const MENU_TEXT: Record<string, string> = {
 
 export const SHELL: HelpEntry[] = [
   {
+    id: 'shell.brix',
+    also: ['mascot', 'helper', 'assistant', 'ask', 'how do i', 'show me', 'where is'],
+    screen: 'shell',
+    kind: 'button',
+    name: 'Brix, the helper',
+    purpose:
+      'The little brick in the bottom corner. Ask it how to do something (“how do I add a checkpoint?”): Brix answers from Help, links the pages it used, and **Show me** walks you to the control. Brix only reads Help and moves around the editor; it never changes your project.',
+    steps: [
+      'Click the brick in the bottom-right corner (or Help › Ask Brix, Shift F1).',
+      'Type a question in **Ask Brix…** and press Enter, or pick one of the suggested questions.',
+      'Press **Show me** to watch Brix open the right workspace and tab and ring the control.',
+      'Press a 📖 link to read the Help page the answer came from.',
+    ],
+    tips: [
+      'No API key needed: Brix searches Help itself. With the AI builder set up, Claude answers instead, still only from Help.',
+      'To change your game with AI, use the AI builder: it plans each step and waits for your approval.',
+    ],
+    key: 'Shift F1',
+    related: ['shell.brix.panel', 'shell.brix.show', 'action.help.ai'],
+    match: [{ sel: '.brix-button' }],
+  },
+  {
+    id: 'shell.brix.panel',
+    also: ['explain', 'what is this', 'ask brix'],
+    screen: 'shell',
+    kind: 'area',
+    name: 'Brix panel',
+    purpose:
+      'Where you talk to Brix: your questions, its answers with steps, **Show me** buttons and 📖 Help links. **Explain**: press it, then click any part of the editor, and Brix tells you what that part is (the click does nothing else).',
+    steps: [
+      'Ask a question in the box at the bottom.',
+      'Press **Explain**, then click a button, tab or panel to hear what it does. Esc cancels.',
+      'Tick **Ask Claude** to have Claude answer (it uses your AI builder settings and spending caps); untick it to search Help only.',
+      'Press × or Esc to close the panel.',
+    ],
+    tips: ['A new project shows the checklist for its kind of game under the suggested questions.'],
+    related: ['shell.brix', 'shell.brix.show'],
+    match: [{ sel: '[aria-label="Brix"]' }],
+  },
+  {
+    id: 'shell.brix.show',
+    screen: 'shell',
+    kind: 'area',
+    name: 'Show me',
+    purpose:
+      'Brix walks you to a control: a pointer glides to each workspace button, tab or menu and presses it (just as you would), then a ring marks the control and the callout says what it does. Stop ends it; Read more opens its Help page.',
+    tips: [
+      'Show me only opens workspaces, tabs, menus and selections. It never adds or changes anything in your game.',
+    ],
+    related: ['shell.brix', 'shell.brix.panel'],
+    match: [{ sel: '[aria-label="Brix shows you"]' }],
+  },
+  {
     id: 'ai.lock',
     also: ['passphrase', 'lock the key', 'spending cap', 'cap per game', 'secret'],
     screen: 'shell',

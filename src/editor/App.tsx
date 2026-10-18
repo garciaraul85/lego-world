@@ -7,6 +7,7 @@ import { type Cinematic, type MediaIndex, paths } from '../core/schema';
 import { scanFiles } from '../core/security/secrets';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { AiPanel } from './ai/AiPanel';
+import { Brix } from './brix/Brix';
 import { GenreChoice } from './genres/GenreCards';
 import { WorldGraph } from './graph/WorldGraph';
 import { contextHelpPage } from './help/context';
@@ -70,6 +71,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const [intent, setIntent] = useState(() => readIntent(ed.store.manifest.id));
   const [help, setHelp] = useState<string | null>(null);
   const [ai, setAi] = useState(false);
+  const [brix, setBrix] = useState(false);
   // Generate & play: straight into Play from the first screen (P7.2)
   useEffect(() => {
     if (intent?.kind !== 'play') return;
@@ -178,6 +180,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       },
       help: (page) => setHelp(page ?? contextHelpPage(ed.workspace.value) ?? 'start'),
       aiBuilder: () => setAi(true),
+      brix: () => setBrix(true),
       about: () => setModal('about'),
     }),
     [ed],
@@ -368,6 +371,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         />
       )}
       {ai && <AiPanel c={c} onClose={() => setAi(false)} />}
+      {!hub && <Brix c={c} open={brix} onOpen={() => setBrix(true)} onClose={() => setBrix(false)} />}
       {help && <HelpView c={c} page={help} onClose={() => setHelp(null)} />}
       {hub && (
         <StartHub

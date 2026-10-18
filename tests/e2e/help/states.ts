@@ -41,6 +41,11 @@ export async function openEditor(page: Page) {
 
 const ws = async (page: Page, name: string) => {
   await page.keyboard.press('Escape');
+  // P19: Brix's walk-through and panel close first (they would cover the screen)
+  const done = page.getByRole('dialog', { name: 'Brix shows you' }).getByRole('button', { name: /^(Done|Stop)$/ });
+  if (await done.isVisible()) await done.click();
+  const close = page.getByRole('button', { name: 'Close Brix' });
+  if (await close.isVisible()) await close.click();
   await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name, exact: true }).click();
   await page.waitForTimeout(250);
 };
@@ -418,6 +423,30 @@ export const HELP_STATES: HelpState[] = [
       await p.getByRole('navigation', { name: 'Menu' }).getByRole('button', { name: 'File', exact: true }).click();
       await p.getByRole('menuitem', { name: /^New project/ }).click();
       await p.getByRole('radiogroup', { name: 'What are you making?' }).waitFor();
+    },
+  },
+  // P19: Brix with an answer, then Show me pointing at the Project tab's Saving section
+  {
+    id: 'brix',
+    screen: 'shell',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await p.getByRole('button', { name: 'Ask Brix' }).click();
+      const box = p.getByRole('complementary', { name: 'Brix' }).getByRole('textbox', { name: 'Ask Brix' });
+      await box.fill('how do I add a checkpoint?');
+      await box.press('Enter');
+      await p.locator('.brix-answer').first().waitFor();
+    },
+  },
+  {
+    id: 'brix-show',
+    screen: 'shell',
+    setup: async (p) => {
+      await p.locator('.brix-answer .brix-acts button.on').first().click();
+      await p
+        .getByRole('dialog', { name: 'Brix shows you' })
+        .getByRole('button', { name: 'Done' })
+        .waitFor({ timeout: 30_000 });
     },
   },
   // P18: a genre view (last: it changes which tabs show), with More open and a hidden feature in use

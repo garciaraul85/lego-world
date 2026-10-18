@@ -10,6 +10,7 @@ Every screen has a **screen guide** (left, under Screen guides): a picture of th
 
 ## Ways to learn
 
+- **Ask Brix**: the yellow brick in the bottom-right corner (**Shift F1**). Ask "how do I add a checkpoint?" and Brix answers from this guide, links the pages it used, and **Show me** walks you there: it opens the workspace, tab or menu on the way and rings the control. **Explain**: press it, then click anything to hear what it is. Brix never changes your game. [Open Brix](action:help.brix) · [Meet Brix course](action:help.brixCourse)
 - **Guided tutorial**: walks through every workspace and tool on a sandbox project. You set the pace: read a step, press **Show me** to watch it done (it waits until you press **My turn**, then puts everything back), do it yourself, and press **Next** when you are ready. [Start the tutorial](action:help.tutorial)
 - **Watch a game being built**: the Start hub generates a complete game and replays it stage by stage: name, terrain, maps, gates, hero, props, logic, screens, cinematic, audio. Each stage says what it did and how you would do it yourself. [Open the Start hub](action:help.build)
 - **Coding course**: the logic language line by line, in the Code view — events, variables, if/else, wait, once, gates, world actions, sound, screens, scenes and debugging, ending with a whole game written in code. [Start the coding course](action:help.coding)

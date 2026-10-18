@@ -24,6 +24,7 @@ export const MAC_KEYS: Record<string, string> = {
   'Shift F6': 'Ctrl Alt Shift P',
   F6: 'Ctrl Alt P',
   F1: 'Ctrl /',
+  'Shift F1': 'Ctrl Alt B',
   F9: 'Shift B',
   'Shift F10': 'Shift M',
   Home: 'H',
