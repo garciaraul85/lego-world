@@ -449,7 +449,7 @@ export function ShowMe({ c, steps, onDone }: { c: ActionCtx; steps: ShowStep[]; 
   }, []);
 
   const entry = steps[steps.length - 1]?.entry ? helpEntry(steps[steps.length - 1]!.entry!) : null;
-  const below = !box || box.y + box.h + 170 < window.innerHeight;
+  const below = !box || box.y + box.h + 270 < window.innerHeight;
   const left = box ? Math.max(12, Math.min(window.innerWidth - 332, box.x + box.w / 2 - 160)) : 0;
   const pad = 6;
   return (
