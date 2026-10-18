@@ -86,6 +86,8 @@ export interface ExecCtx {
   heal(target: string, amount: number): void;
   /** P9a: nothing hurts it while on */
   setInvulnerable(target: string, on: boolean): void;
+  /** P26: save to a slot, load one (none: the newest), or set the checkpoint where the hero stands */
+  saving?(op: 'save' | 'load' | 'checkpoint', slot: number | undefined): void;
 }
 
 export type Args = Record<string, unknown>;

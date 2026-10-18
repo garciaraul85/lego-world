@@ -347,6 +347,16 @@ export const ACTIONS: EditorAction[] = [
   },
   { id: 'play.stop', label: 'Stop', when: ({ ed }) => !!ed.session.value, run: ({ ui }) => ui.stopPlay() },
   {
+    // P26: what pressing E at a save point does, from the menu (to test saving quickly)
+    id: 'play.saveNow',
+    label: 'Save the game now (test)',
+    when: ({ ed }) => !!ed.session.value,
+    run: ({ ed }) => {
+      const s = ed.session.value;
+      if (s) s.saveGame(s.slot);
+    },
+  },
+  {
     id: 'play.v68',
     label: 'Play in LEGO World v68 (guns, magic, powers, volcano)',
     key: 'F6',
@@ -378,6 +388,11 @@ export const ACTIONS: EditorAction[] = [
     id: 'help.combat',
     label: 'Combat course (Training yard, enemies, wires)',
     run: ({ ui }) => ui.tutorial('combat'),
+  },
+  {
+    id: 'help.saving',
+    label: 'Saving course (checkpoints, save points, Continue)',
+    run: ({ ui }) => ui.tutorial('saving'),
   },
   { id: 'help.guide', label: 'Help guide', key: 'F1', run: ({ ui }) => ui.help() },
   // P32: Macs send F1 to the screen brightness unless fn is held; ⌘/ (Ctrl / elsewhere) works everywhere
@@ -461,6 +476,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'play.entry',
     'play.pause',
     'play.stop',
+    'play.saveNow',
     '-',
     'play.v68',
     'play.legacy',
@@ -487,6 +503,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.tutorial',
     'help.coding',
     'help.combat',
+    'help.saving',
     'help.build',
     'help.shortcuts',
     'help.ai',

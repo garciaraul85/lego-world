@@ -34,13 +34,34 @@ export function npcCharacter(host: HealthHost, mapId: string, npc: Npc): Charact
 
 export class HealthBook {
   private book = new Map<string, Wound>();
+  /** P26: health from a loaded save, used when each target is first touched */
+  private pending = new Map<string, number>();
   readonly invulnerable = new Set<string>();
+
+  /** P26: everything hurt so far (for a save) */
+  entries(): Wound[] {
+    return [...this.book.values()].filter((w) => w.hp < w.max);
+  }
+
+  /** P26: forget all health (a load, a new game) */
+  clear() {
+    this.book.clear();
+    this.pending.clear();
+    this.invulnerable.clear();
+  }
+
+  /** P26: health a save remembers, by key */
+  preset(hp: Record<string, number>) {
+    for (const [k, v] of Object.entries(hp)) this.pending.set(k, v);
+  }
 
   /** the current health of a target (made on first touch, full) */
   of(key: string, def: Health): Wound {
     let w = this.book.get(key);
     if (!w) {
-      w = { key, hp: def.hp, max: def.hp, def };
+      const saved = this.pending.get(key);
+      this.pending.delete(key);
+      w = { key, hp: saved === undefined ? def.hp : Math.max(0, Math.min(def.hp, saved)), max: def.hp, def };
       this.book.set(key, w);
       if (def.invulnerable) this.invulnerable.add(key);
     }

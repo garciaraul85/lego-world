@@ -4,6 +4,7 @@ import { HEALTH, HEALTH_EVENTS } from './health';
 import { COMPARE, MATH } from './math';
 import { MEDIA } from './media';
 import { MISC } from './misc';
+import { SAVE } from './save';
 import type { NodeDef, PinDef } from './types';
 import { VARS } from './vars';
 import { WORLD } from './world';
@@ -23,6 +24,8 @@ export const CATALOG: readonly NodeDef[] = [
   // P9a (append-only: saved graphs name these types)
   ...HEALTH_EVENTS,
   ...HEALTH,
+  // P26
+  ...SAVE,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

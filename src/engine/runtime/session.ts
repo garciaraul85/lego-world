@@ -1,6 +1,7 @@
 import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { SND } from '../../builtin/audio';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
+import { genreById } from '../../builtin/genres';
 import { expandAsset } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
@@ -10,6 +11,16 @@ import type { Enemy } from '../../core/combat/enemy';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import type { ExecCtx } from '../../core/logic/catalog';
+import {
+  AUTO_SLOT,
+  DEFAULT_SAVING,
+  MemorySaveStore,
+  newestSave,
+  type SaveStore,
+  type Saving,
+  slotLine,
+  slotName,
+} from '../../core/save/save';
 import {
   type Asset,
   type Character,
@@ -44,14 +55,18 @@ import { EmitterSystem } from '../systems/emitters';
 import { formatValue } from '../ui/bindings';
 import { ScreenStack } from '../ui/ScreenStack';
 import { resolveScreen, screenOfKind } from '../ui/screens';
-import { ActionRunner } from './actions';
+import { ActionRunner, type GameOp } from './actions';
 import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
 import { Enemies } from './enemies';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './health';
 import { chunkKeyOf, inspectPieces } from './pieces';
 import { Runtime, type System } from './runtime';
+import { applySave, captureSave, loadMessage, type SaveHost } from './saves';
 
 type AssetInstanceId = import('../../core/schema').AssetInstance['id'];
+
+/** P26: the built-in Saves screen (slot buttons) */
+const SAVES_SCREEN = 'scr_saves00000';
 
 const inBox = (z: { min: number[]; max: number[] }, x: number, y: number, zz: number) =>
   x >= z.min[0]! && x <= z.max[0]! && y >= z.min[1]! && y <= z.max[1]! && zz >= z.min[2]! && zz <= z.max[2]!;
@@ -78,6 +93,8 @@ export type MapWorld = {
   /** sound emitters and world UI of this map (P5.5, P5.9) */
   emitters: EmitterInstance[];
   worldUi: UiInstance[];
+  /** P26: what the map started with (instance id → state, neighbour ids), so a save keeps only what changed */
+  start: { instances: Map<string, string>; npcs: number[] };
 };
 
 /** P32: an item made only of moving parts floats — drawn, but outside the brick rules (a rising sword) */
@@ -161,8 +178,17 @@ export class PlaySession {
   /** texts set by logic (Set screen text), by "screenId:widgetId" */
   readonly screenText = new Map<string, string>();
   dialogue: { speaker: string; text: string } | null = null;
-  /** where Retry puts the hero back: the last spawn arrived at */
-  checkpoint: { map: string; spawn: string | null };
+  /** where Retry puts the hero back: the last spawn arrived at, or the last checkpoint touched (P26) */
+  checkpoint: { map: string; spawn: string | null; pos?: [number, number, number]; heading?: number };
+  /** P26: where saves are kept, how this game saves, the slot in use, and the Saves screen's purpose */
+  readonly saves: SaveStore;
+  readonly saving: Saving;
+  slot = 1;
+  saveMenu: 'save' | 'load' | null = null;
+  /** seconds played before this session (from a loaded save) */
+  private playBase = 0;
+  /** Quit to title, then Play: a new game from the start */
+  private quitToTitle = false;
   readonly emitterSystem = new EmitterSystem();
   /** the cinematic playing now, if any (P6.2) */
   readonly cine: CinematicSystem;
@@ -176,9 +202,17 @@ export class PlaySession {
 
   constructor(
     readonly snapshot: FileSource,
-    opts: { mapId?: string; spawnId?: string | null; audio?: AudioPort; boot?: 'game' | 'entry' } = {},
+    opts: {
+      mapId?: string;
+      spawnId?: string | null;
+      audio?: AudioPort;
+      boot?: 'game' | 'entry';
+      /** P26: where saves are kept (default: this session only) */
+      saves?: SaveStore;
+    } = {},
   ) {
     this.L = legacyRuntime();
+    this.saves = opts.saves ?? new MemorySaveStore();
     this.audio = opts.audio ?? new RecordingAudio();
     const self = this;
     const host = {
@@ -200,7 +234,8 @@ export class PlaySession {
       music: (music: string | null, fade: number | undefined) => this.audio.music('logic', music, fade),
       stinger: (name: string) => this.audio.stinger(name),
       screen: (op: 'show' | 'hide', screen: string, replace: boolean) => this.screenOp(op, screen, replace),
-      game: (op: 'start' | 'resume' | 'pause' | 'retry' | 'quit') => this.gameOp(op),
+      game: (op: GameOp) => this.gameOp(op),
+      saving: (op: 'save' | 'load' | 'slot' | 'checkpoint', slot: number | undefined) => this.savingOp(op, slot),
       gave: () => this.audio.play(SND.pickup),
       spawn: (asset: string, at: string) => void this.spawnAsset(asset, at),
       despawn: (target: string) => this.despawn(target),
@@ -211,6 +246,7 @@ export class PlaySession {
     this.uiActions = new ActionRunner(host);
     const project = snapshot.get(paths.project) as Project;
     this.project = project;
+    this.saving = project.saving ?? genreById(project.genre).saving ?? DEFAULT_SAVING;
     this.screens = new ScreenStack((id) => resolveScreen(snapshot, id));
     this.cine = new CinematicSystem({
       snapshot,
@@ -271,7 +307,7 @@ export class PlaySession {
 
   // ---------- worlds ----------
 
-  private loadWorld(mapId: string): MapWorld {
+  loadWorld(mapId: string): MapWorld {
     const cached = this.worlds.get(mapId);
     if (cached) return cached;
     const doc = this.snapshot.get(paths.map(mapId)) as MapDoc;
@@ -309,7 +345,9 @@ export class PlaySession {
       rev: 0,
       emitters: (inst?.items ?? []).filter((i): i is EmitterInstance => i.kind === 'emitter'),
       worldUi: (inst?.items ?? []).filter((i): i is UiInstance => i.kind === 'ui'),
+      start: { instances: new Map(), npcs: npcs.map((n) => n.id) },
     };
+    for (const i of w.instances) w.start.instances.set(i.inst.id, i.state);
     this.worlds.set(mapId, w);
     return w;
   }
@@ -429,6 +467,7 @@ export class PlaySession {
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
       { id: 'gates', fixed: (g) => g.stepGates() },
       { id: 'interact', fixed: (g) => g.stepInteract() },
+      { id: 'checkpoints', fixed: (g) => g.stepCheckpoints() },
       { id: 'anim', fixed: (g, dt) => g.stepAnim(dt) },
       { id: 'zones', fixed: (g) => g.stepZones() },
       { id: 'logic', fixed: (g) => g.logic.step(g.clock) },
@@ -476,6 +515,8 @@ export class PlaySession {
     if (moving) input = moving;
     else if (c.guard || c.charge !== null) input = { ...input, run: false, speedScale: 0.45 };
     this.input.jump = false;
+    // P26: a fall off the world comes back to the checkpoint (v68's controller would use its safe spot)
+    if (this.heroState.y < -14) return this.fellOff();
     const before = this.heroState;
     const wasGrounded = before.grounded;
     const fallSpeed = before.vy;
@@ -499,11 +540,16 @@ export class PlaySession {
       this.logic.vars.set('stamina', st);
     }
     this.movementSounds(dt, wasGrounded, fallSpeed);
-    if (this.heroState.y < -15) {
-      this.world.controller.spawn();
-      this.say('Back on solid ground.', 2);
-      this.hurt(1);
-    }
+    if (this.heroState.y < -14) this.fellOff();
+  }
+
+  /** back on solid ground after a fall: at the checkpoint touched on this map, else the map's safe spot */
+  private fellOff() {
+    const cp = this.checkpoint;
+    if (cp.pos && cp.map === this.world.mapId) this.placeAt(cp.pos, cp.heading ?? this.heroState.heading);
+    else this.world.controller.spawn();
+    this.say('Back on solid ground.', 2);
+    this.hurt(1);
   }
 
   /** jump, land and footsteps (P5.3: the hero's own sounds) */
@@ -943,15 +989,16 @@ export class PlaySession {
     const ids = new Set(
       w.pieces.filter((p) => p.y > 0 && (p.id === hit.id || (hit.group && p.group === hit.group))).map((p) => p.id!),
     );
-    let remaining = w.pieces.filter((p) => !ids.has(p.id!));
+    let remaining = this.solid(w.pieces.filter((p) => !ids.has(p.id!)));
     let check = inspectPieces(remaining);
     if (!check.ok && check.connected) {
       remaining.forEach((p, i) => {
         if (!check.connected!.has(i)) ids.add(p.id!);
       });
-      remaining = w.pieces.filter((p) => !ids.has(p.id!));
+      remaining = this.solid(w.pieces.filter((p) => !ids.has(p.id!)));
       check = inspectPieces(remaining);
     }
+    remaining = w.pieces.filter((p) => !ids.has(p.id!));
     if (!check.ok) {
       this.say(check.reason ?? 'That can’t break.', 2);
       return 0;
@@ -1232,7 +1279,7 @@ export class PlaySession {
     this.say(`Rebuilding ${entry.originals.length} bricks… ${Math.round(entry.progress * 100)}%`, 0.2);
     if (entry.progress < 1) return;
     const restored = [...w.pieces, ...entry.originals.map((p) => ({ ...p }))];
-    const check = inspectPieces(restored);
+    const check = inspectPieces(this.solid(restored));
     if (!check.ok) {
       this.cancelRebuild();
       this.rebuildHeld = false;
@@ -1288,6 +1335,7 @@ export class PlaySession {
       damage: (target, amount, type, from) => this.damage(target, amount, type, from),
       heal: (target, amount) => this.heal(target, amount),
       setInvulnerable: (target, on) => this.setInvulnerable(target, on),
+      saving: (op, slot) => this.savingOp(op, slot),
       spawn: (asset, at) => this.spawnAsset(asset, at),
       spawnNear: (item, near) => this.spawnNear(item, near),
       despawn: (target) => {
@@ -1465,10 +1513,26 @@ export class PlaySession {
     this.screens.set(hud ? [hud.id] : []);
   }
 
-  gameOp(op: 'start' | 'resume' | 'pause' | 'retry' | 'quit') {
+  gameOp(op: GameOp) {
     switch (op) {
       case 'start':
+        // after Quit to title, Play is a new game; the first Play of a session starts the world as it is
+        if (this.quitToTitle) this.newGame();
         this.startGame();
+        break;
+      case 'continue': {
+        // P26: the newest save (autosave or a slot); none yet: a new game
+        const save = newestSave(this.saves, this.project.id);
+        if (save) this.loadSave(save.slot);
+        else {
+          if (this.quitToTitle) this.newGame();
+          this.startGame();
+        }
+        break;
+      }
+      case 'saveMenu':
+      case 'loadMenu':
+        this.openSaves(op === 'saveMenu' ? 'save' : 'load');
         break;
       case 'pause': {
         const p = screenOfKind(this.snapshot, 'pause');
@@ -1482,8 +1546,12 @@ export class PlaySession {
         this.over = false;
         this.logic.setVar('hp', this.logic.vars.get('maxHp') ?? 3);
         const cp = this.checkpoint;
-        if (cp.map !== this.world.mapId && cp.spawn) this.travel(cp.map, cp.spawn);
-        else {
+        if (cp.map !== this.world.mapId && (cp.spawn || cp.pos)) {
+          this.travel(cp.map, cp.spawn ?? '');
+          this.checkpoint = cp;
+        }
+        if (cp.pos && cp.map === this.world.mapId) this.placeAt(cp.pos, cp.heading ?? this.heroState.heading);
+        else if (cp.map === this.world.mapId) {
           const sp = this.world.doc.spawns.find((x) => x.id === cp.spawn);
           if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
           else this.world.controller.spawn();
@@ -1495,9 +1563,182 @@ export class PlaySession {
       case 'quit': {
         const t = screenOfKind(this.snapshot, 'title');
         this.screens.set(t ? [t.id] : []);
+        this.quitToTitle = true;
         break;
       }
     }
+  }
+
+  // ---------- saving (P26) ----------
+
+  /** seconds played in this game, counting the loaded save */
+  playTime(): number {
+    return this.playBase + this.clock;
+  }
+
+  /** Save, Load, a Saves-screen slot button, or Set checkpoint (from actions, logic and screens). */
+  savingOp(op: 'save' | 'load' | 'slot' | 'checkpoint', slot: number | undefined) {
+    if (op === 'save') this.saveGame(slot ?? this.slot);
+    else if (op === 'load') {
+      const s = slot ?? newestSave(this.saves, this.project.id)?.slot;
+      if (s === undefined) this.say('No saved game yet.', 2);
+      else this.loadSave(s);
+    } else if (op === 'checkpoint') this.setCheckpoint();
+    else if (slot !== undefined) {
+      if (this.saveMenu === 'load') this.loadSave(slot);
+      else this.saveGame(slot);
+      this.closeSaves();
+    }
+  }
+
+  /** Writes the game to a slot (0: the autosave). */
+  saveGame(slot: number, quiet = false) {
+    if (this.over) return;
+    const n = Math.max(0, Math.min(this.saving.slots, slot));
+    this.saves.write(captureSave(this as unknown as SaveHost, n));
+    if (n !== AUTO_SLOT) this.slot = n;
+    if (!quiet) {
+      this.emit('info', `Saved to ${slotName(n)}`);
+      this.say(n === AUTO_SLOT ? 'Autosaved' : `Game saved · ${slotName(n)}`, 2);
+      this.audio.play(SND.pickup);
+    }
+  }
+
+  /** Loads a slot: the world, the hero and everything carried come back as they were saved. */
+  loadSave(slot: number): boolean {
+    const save = this.saves.read(this.project.id, slot);
+    if (!save) {
+      this.say(`${slotName(slot)} is empty.`, 2);
+      return false;
+    }
+    this.cancelRebuild();
+    this.pendingSmash = null;
+    this.endTalk();
+    this.emitterSystem.reset(this.audio);
+    this.inZones.clear();
+    const r = applySave(this as unknown as SaveHost, save);
+    this.placeAt(save.map === r.map ? save.hero.pos : this.entryPos(), save.hero.heading);
+    this.world.controller.state.heading = save.hero.heading;
+    this.camYaw = this.heroState.heading + Math.PI;
+    // standing on a gate when it was saved must not travel at once
+    const sp = this.world.doc.spawns.find(
+      (x) => Math.hypot(x.pos[0] - this.heroState.x, x.pos[2] - this.heroState.z) < 2.5,
+    );
+    this.travelLock = sp ? { spawn: sp.id } : null;
+    this.playBase = save.playTime;
+    this.clock = 0;
+    this.messageUntil = 0;
+    if (slot !== AUTO_SLOT) this.slot = slot;
+    this.over = false;
+    this.quitToTitle = false;
+    this.startGame();
+    this.zoneAudio();
+    this.applyMapAudio();
+    const msg = loadMessage(slot, r);
+    this.emit('info', msg);
+    this.say(msg, 2.5);
+    return true;
+  }
+
+  /** A new game from the start: every map as the maker built it, variables at their first values. */
+  newGame() {
+    this.quitToTitle = false;
+    this.worlds.clear();
+    this.world = this.loadWorld(this.project.entry.map);
+    const sp = this.world.doc.spawns.find((s) => s.id === this.project.entry.spawn) ?? this.world.doc.spawns[0];
+    if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
+    this.checkpoint = { map: this.world.mapId, spawn: sp?.id ?? null };
+    this.travelLock = sp ? { spawn: sp.id } : null;
+    this.inventory.clear();
+    this.health.clear();
+    this.cine.seen.clear();
+    this.logic.vars.clear();
+    const vars = this.snapshot.get(paths.variables) as Variables | undefined;
+    for (const [k, v] of Object.entries(vars?.vars ?? {})) this.logic.vars.set(k, v.default);
+    if (!this.logic.vars.has('maxHp')) this.logic.vars.set('maxHp', 3);
+    if (!this.logic.vars.has('hp')) this.logic.vars.set('hp', this.logic.vars.get('maxHp'));
+    if (!this.logic.vars.has('maxStamina')) this.logic.vars.set('maxStamina', MAX_STAMINA);
+    this.playBase = 0;
+    this.clock = 0;
+    this.over = false;
+    this.inZones.clear();
+    this.zoneAudio();
+    this.applyMapAudio();
+    this.camYaw = this.heroState.heading + Math.PI;
+    this.logic.fire({ type: 'event.onStart' });
+  }
+
+  private entryPos(): [number, number, number] {
+    const sp = this.world.doc.spawns[0];
+    const s = this.heroState;
+    return sp ? (sp.pos as [number, number, number]) : [s.x, s.y, s.z];
+  }
+
+  /** Retry and falls come back here: where the hero stands now (a checkpoint, or Set checkpoint in logic). */
+  setCheckpoint() {
+    const s = this.heroState;
+    this.checkpoint = { map: this.world.mapId, spawn: null, pos: [s.x, s.y, s.z], heading: s.heading };
+    this.emit('info', 'Checkpoint');
+  }
+
+  /** P26: touching a checkpoint asset: it is the new checkpoint (its flag goes up) and the game autosaves */
+  stepCheckpoints() {
+    if (this.cine.active || this.over) return;
+    const s = this.heroState;
+    for (const i of this.world.instances) {
+      if (!i.def.checkpoint) continue;
+      const c = this.instanceCenter(i);
+      if (!c || Math.hypot(c[0] - s.x, c[2] - s.z) > 2.6 || Math.abs(c[1] - s.y) > 4) continue;
+      const cp = this.checkpoint;
+      const here = cp.pos && cp.map === this.world.mapId && Math.hypot(cp.pos[0] - c[0], cp.pos[2] - c[2]) < 3;
+      if (here) continue;
+      this.checkpoint = { map: this.world.mapId, spawn: null, pos: [s.x, s.y, s.z], heading: s.heading };
+      // its last state means “touched” (a flag up); every other checkpoint here goes back to its first state
+      for (const o of this.world.instances)
+        if (o.def.checkpoint && o !== i && o.state !== o.def.initialState)
+          this.setInstanceState(o.inst.id, o.def.initialState);
+      const up = i.def.states[i.def.states.length - 1]!;
+      if (i.state !== up) this.setInstanceState(i.inst.id, up);
+      this.emit('info', `Checkpoint: ${i.inst.name ?? i.def.name}`);
+      this.logic.fire({
+        type: 'event.onCustom',
+        match: { event: 'checkpoint' },
+      });
+      if (this.saving.autosave) this.saveGame(AUTO_SLOT, true);
+      this.say(this.saving.autosave ? 'Checkpoint · saved' : 'Checkpoint', 2);
+      this.audio.play(SND.pickup);
+      return;
+    }
+  }
+
+  /** the Saves screen (P26): slot buttons that save or load */
+  private openSaves(mode: 'save' | 'load') {
+    if (mode === 'save' && this.saving.mode !== 'anywhere') {
+      this.say(this.saving.mode === 'savePoints' ? 'Save at a save point.' : 'This game saves at checkpoints.', 2);
+      return;
+    }
+    this.saveMenu = mode;
+    const s = resolveScreen(this.snapshot, SAVES_SCREEN);
+    if (s && !this.screens.has(s.id)) this.screens.push(s.id);
+  }
+
+  private closeSaves() {
+    this.saveMenu = null;
+    if (this.screens.has(SAVES_SCREEN)) this.screens.hide(SAVES_SCREEN);
+  }
+
+  /** {save.…} values for screens: whether a save exists, what each slot holds */
+  private saveValue(name: string): unknown {
+    const game = this.project.id;
+    if (name === 'save.any') return !!newestSave(this.saves, game);
+    if (name === 'save.canSave') return this.saving.mode === 'anywhere';
+    if (name === 'save.menuTitle') return this.saveMenu === 'load' ? 'Load game' : 'Save game';
+    if (name === 'save.slot') return slotName(this.slot);
+    const m = /^save\.slot([1-3])(\.shown)?$/.exec(name);
+    if (!m) return undefined;
+    const n = Number(m[1]);
+    if (m[2]) return n <= this.saving.slots;
+    return slotLine(n, this.saves.read(game, n));
   }
 
   /** a screen button was pressed: logic's On screen button (screen + button id) */
@@ -1548,6 +1789,7 @@ export class PlaySession {
         return Math.floor(this.clock);
     }
     if (name.startsWith('inventory.')) return this.inventory.get(name.slice(10)) ?? 0;
+    if (name.startsWith('save.')) return this.saveValue(name);
     return this.logic.vars.get(name);
   };
 
@@ -1648,12 +1890,21 @@ export class PlaySession {
   }
 
   /** Adds a copy of an asset to this play's world (refused if its bricks would not fit). */
-  private placeCopy(def: Asset, pos: [number, number, number], rot: number): string | null {
+  placeCopy(
+    def: Asset,
+    pos: [number, number, number],
+    rot: number,
+    as?: { id: string; idBase: number },
+  ): string | null {
     const w = this.world;
     const idBase =
+      as?.idBase ??
       Math.max(0, ...w.pieces.map((p) => p.id ?? 0), ...w.broken.flatMap((b) => b.originals.map((p) => p.id ?? 0))) + 1;
+    // P26: a copy put back by a save keeps its id; new ones count on from the highest
+    if (as) this.spawnSerial = Math.max(this.spawnSerial, Number(as.id.slice(8)) || 0);
+    if (as && w.instances.some((i) => i.inst.id === as.id)) return null;
     const inst = {
-      id: `ins_play${String(++this.spawnSerial).padStart(6, '0')}` as AssetInstanceId,
+      id: (as?.id ?? `ins_play${String(++this.spawnSerial).padStart(6, '0')}`) as AssetInstanceId,
       kind: 'asset' as const,
       asset: def.id,
       pos,
@@ -1663,7 +1914,7 @@ export class PlaySession {
     const exp = expandAsset(def, inst);
     const pieces = [...w.pieces, ...exp.bricks.map((b) => brickToPiece(b, true))];
     // a floating item (every brick in a moving part) is drawn only: it does not have to fit
-    const check = floating(def) ? { ok: true as const, reason: '' } : inspectPieces(pieces);
+    const check = floating(def) ? { ok: true as const, reason: '' } : inspectPieces(this.solid(pieces));
     if (!check.ok) {
       this.emit('info', `Spawn ${def.name}: ${check.reason}`);
       return null;
@@ -1685,7 +1936,7 @@ export class PlaySession {
     const lo = inst.inst.idBase;
     const hi = lo + inst.def.bricks.length;
     const pieces = w.pieces.filter((p) => p.id! < lo || p.id! >= hi);
-    const check = inspectPieces(pieces);
+    const check = inspectPieces(this.solid(pieces));
     if (!check.ok) {
       this.emit('info', `Remove ${inst.def.name}: ${check.reason}`);
       return;
@@ -1806,7 +2057,7 @@ export class PlaySession {
       ...w.pieces.filter((p) => p.id! < lo || p.id! >= hi),
       ...next.bricks.map((b) => brickToPiece(b, true)),
     ];
-    const check = floating(inst.def) ? { ok: true as const, reason: '' } : inspectPieces(pieces);
+    const check = floating(inst.def) ? { ok: true as const, reason: '' } : inspectPieces(this.solid(pieces));
     if (!check.ok) {
       this.say(`Something is in the way: ${check.reason}`, 2);
       return;
@@ -1900,6 +2151,36 @@ export class PlaySession {
       ? (this.snapshot.get(paths.gates) as Gates | undefined)?.gates.find((g) => g.id === gateId)
       : undefined;
     if (gate?.onArrive?.length) this.actions.run(gate.onArrive, this.clock);
+    // P26: a new map is a good place to autosave (not while a cinematic travels)
+    if (this.saving.autosave && !this.cine.active) this.saveGame(AUTO_SLOT, true);
+  }
+
+  /** P26 (saves): the brick rules for a changed list of pieces */
+  piecesOk(pieces: LegacyPiece[]): boolean {
+    return inspectPieces(this.solid(pieces)).ok;
+  }
+
+  /**
+   * The bricks the brick rules look at: all but floating items (a sword risen out of a chest is drawn
+   * only). Without this, one floating item would make every later change fail the rules.
+   */
+  private solid(pieces: LegacyPiece[]): LegacyPiece[] {
+    const ranges = this.world.instances
+      .filter((i) => floating(i.def))
+      .map((i) => [i.inst.idBase, i.inst.idBase + i.def.bricks.length] as const);
+    if (!ranges.length) return pieces;
+    return pieces.filter((p) => !ranges.some(([lo, hi]) => p.id! >= lo && p.id! < hi));
+  }
+
+  /** P26 (saves): after pieces changed, collision and neighbours see the new bricks */
+  piecesChanged(w: MapWorld) {
+    w.rev++;
+    w.controller.replace(w.pieces, w.meta);
+    this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+  }
+
+  chunkOf(p: LegacyPiece): string {
+    return chunkKeyOf(p);
   }
 
   // ---------- cheats (P2.4) ----------
@@ -1913,7 +2194,7 @@ export class PlaySession {
     }
     if (kind === 'rebuildAll' && w.broken.length) {
       const restored = [...w.pieces, ...w.broken.flatMap((e) => e.originals.map((p) => ({ ...p })))];
-      if (inspectPieces(restored).ok) {
+      if (inspectPieces(this.solid(restored)).ok) {
         for (const e of w.broken) for (const p of e.originals) w.dirtyChunks.add(chunkKeyOf(p));
         w.pieces = restored;
         w.broken = [];

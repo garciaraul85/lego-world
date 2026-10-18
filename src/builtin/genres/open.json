@@ -7,8 +7,19 @@
   "level": "advanced",
   "tabs": ["Scene", "World graph", "Logic", "Characters", "Assets", "Screens", "Cinematics", "Audio"],
   "nodesFirst": [],
-  "defaults": { "camera": "explore", "controls": "walk" },
-  "template": { "name": "Blank project", "recipe": null },
+  "defaults": {
+    "camera": "explore",
+    "controls": "walk"
+  },
+  "saving": {
+    "mode": "anywhere",
+    "slots": 3,
+    "autosave": true
+  },
+  "template": {
+    "name": "Blank project",
+    "recipe": null
+  },
   "tutorial": "editor",
   "help": "start",
   "checklist": [],

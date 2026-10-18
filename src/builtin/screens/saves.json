@@ -1,0 +1,55 @@
+{
+  "id": "scr_saves00000",
+  "kind": "custom",
+  "name": "Saves",
+  "music": null,
+  "pausesGame": true,
+  "root": {
+    "type": "panel",
+    "style": { "bg": "#05070dc8" },
+    "children": [
+      {
+        "type": "panel",
+        "id": "menu",
+        "anchor": [0.5, 0.5],
+        "style": { "layout": "column", "gap": 12, "w": 460, "bg": "#141a2be8", "pad": 24, "radius": 16 },
+        "children": [
+          {
+            "type": "text",
+            "id": "title",
+            "text": "{save.menuTitle}",
+            "style": { "fontSize": 34, "weight": "bold", "color": "#ffffff", "align": "center" }
+          },
+          {
+            "type": "button",
+            "id": "slot1",
+            "label": "{save.slot1}",
+            "showIf": "save.slot1.shown",
+            "onPress": [{ "do": "slot", "slot": 1 }]
+          },
+          {
+            "type": "button",
+            "id": "slot2",
+            "label": "{save.slot2}",
+            "showIf": "save.slot2.shown",
+            "onPress": [{ "do": "slot", "slot": 2 }]
+          },
+          {
+            "type": "button",
+            "id": "slot3",
+            "label": "{save.slot3}",
+            "showIf": "save.slot3.shown",
+            "onPress": [{ "do": "slot", "slot": 3 }]
+          },
+          {
+            "type": "button",
+            "id": "back",
+            "label": "Back",
+            "sound": "snd_uiback0000",
+            "onPress": [{ "do": "hideScreen", "screen": "scr_saves00000" }]
+          }
+        ]
+      }
+    ]
+  }
+}

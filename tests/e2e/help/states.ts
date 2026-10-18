@@ -166,6 +166,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // P26: the Project tab scrolled to Saving
+    id: 'scene-saving',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'project' });
+      await p.locator('[data-tour="game-saving"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     id: 'scene-layers',
     screen: 'scene',
     setup: async (p) => {
@@ -286,6 +296,16 @@ export const HELP_STATES: HelpState[] = [
     setup: async (p) => {
       await ws(p, 'Assets');
       await p.getByRole('listbox').getByRole('option').first().click();
+    },
+  },
+  {
+    // P26: an open asset scrolled to its Checkpoint box
+    id: 'assets-checkpoint',
+    screen: 'assets',
+    setup: async (p) => {
+      await ws(p, 'Assets');
+      await p.getByRole('listbox').getByRole('option').first().click();
+      await p.locator('[data-tour="asset-checkpoint"]').scrollIntoViewIfNeeded();
     },
   },
   {

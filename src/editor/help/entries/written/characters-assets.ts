@@ -244,6 +244,22 @@ export const ASSETS: HelpEntry[] = [
     match: [{ in: '[data-tour="asset-lock-on"]' }],
   },
   {
+    id: 'assets.checkpoint',
+    also: ['checkpoint', 'respawn point', 'flag', 'autosave', 'save point'],
+    screen: 'assets',
+    kind: 'field',
+    name: 'Checkpoint',
+    purpose:
+      'Makes copies of this asset checkpoints. In Play, when the hero touches one, Retry (after game over) and falls off the world bring the hero back there, and the game autosaves (when Autosave is on in Project › Saving). The asset shows its last state once touched — the built-in Checkpoint flag goes from down to up — and other checkpoints on the map go back to their first state.',
+    tips: [
+      'The built-in Save point is the other half: its interaction is Save, so E next to it saves the game.',
+      'Give a checkpoint two states (down, up) with bricks that show only in one, so players see it was touched.',
+    ],
+    commands: ['asset.update'],
+    related: ['scene.saving', 'node.game.setCheckpoint'],
+    match: [{ in: '[data-tour="asset-checkpoint"]' }],
+  },
+  {
     id: 'assets.health',
     also: ['breakable', 'hit points', 'hp', 'takes hits', 'armour', 'armor', 'resistance', 'damage', 'crate', 'loot'],
     screen: 'assets',

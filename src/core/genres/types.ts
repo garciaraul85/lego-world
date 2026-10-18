@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Saving } from '../save/save';
 
 /**
  * P18: what a control is about. Every control (tab, tool, menu action, dock tab, asset filter, logic node)
@@ -66,6 +67,8 @@ export const Genre = z.strictObject({
     controls: z.enum(['walk', 'drive', 'fly', 'swim']),
     music: z.string().max(40).optional(),
   }),
+  /** P26: how a game of this genre saves, until the maker picks (Game settings › Saving) */
+  saving: Saving.optional(),
   /** the start hub's generator recipe for a new game (null: a blank project) */
   template: z.strictObject({ name: z.string().min(1).max(40), recipe: z.string().nullable() }),
   /** the tutorial track that teaches it */

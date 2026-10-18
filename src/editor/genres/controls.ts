@@ -93,6 +93,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'play.here': S('core'),
   'play.map': S('core'),
   'play.entry': S('screens'),
+  'play.saveNow': S('core'),
   'play.pause': S('core'),
   'play.stop': S('core'),
   'play.v68': A('v68'),
@@ -110,6 +111,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.tutorial': S('core'),
   'help.coding': S('logic'),
   'help.combat': S('combat'),
+  'help.saving': S('core'),
   'help.guide': S('core'),
   'help.here': S('core'),
   'help.build': S('core'),
@@ -204,6 +206,10 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   'health.damage': S('combat'),
   'health.heal': S('combat'),
   'health.setInvulnerable': A('combat'),
+  // P26: saving
+  'game.save': S('logic'),
+  'game.load': S('logic'),
+  'game.setCheckpoint': S('logic'),
 };
 
 /** P9a: sections of the studios that belong to a feature */
@@ -212,6 +218,8 @@ export const SECTION_TAGS: Record<string, ControlTags> = {
   'character.harm': S('combat'),
   'character.enemy': S('combat'),
   'object.script': S('logic'),
+  'game.saving': S('core'),
+  'asset.checkpoint': S('build'),
 };
 
 export type ControlKind = 'tab' | 'tool' | 'action' | 'dock' | 'assetFilter' | 'node' | 'section';

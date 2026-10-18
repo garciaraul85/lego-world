@@ -1,5 +1,6 @@
 import type { Command } from '../../core/commands';
 import { wiresOf } from '../../core/logic/wiring';
+import { allSaves } from '../../core/save/save';
 import {
   type Asset,
   type Character,
@@ -12,7 +13,9 @@ import {
   type Screen,
   type Variables,
 } from '../../core/schema';
+import { BrowserSaveStore } from '../../platform/saves';
 import { assetLibrary } from '../assets';
+import { savingOf } from '../panels/SavingSection';
 import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
 import { MARK_FACING, MARK_RADIUS, markTarget } from './story';
@@ -200,6 +203,22 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
       const def = ed.store.get<{ name: string }>(paths.asset(owner.asset));
       return def?.name === asset && wiresOf(g).some((w) => w.when === when);
     });
+  },
+  // P26: the saving course
+  savingIs: (ed, a) => matches(savingOf(ed.store.manifest), a as Record<string, unknown>),
+  placedAsset: (ed, a) => {
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return items.some(
+      (i) => i.kind === 'asset' && (ed.store.get<Asset>(paths.asset(i.asset))?.name ?? '') === String(a),
+    );
+  },
+  titleShown: (ed) => {
+    const s = ed.session.value;
+    return !!s && s.screens.screens().some((x) => x.kind === 'title');
+  },
+  savesOf: (ed, a) => {
+    const n = allSaves(new BrowserSaveStore(), ed.store.manifest.id).length;
+    return a === 0 ? n === 0 : n >= Number(a);
   },
   ...CODING_TESTS,
 };

@@ -1126,6 +1126,27 @@ function Properties({
           </label>
         </div>
 
+        {/* P26: a checkpoint — touching it sets where the hero comes back, and autosaves */}
+        {shows(ed, 'section', 'asset.checkpoint') && (
+          <div class="sec" data-help="asset.checkpoint">
+            <label class="lbl" data-tour="asset-checkpoint">
+              <input
+                type="checkbox"
+                checked={!!def.checkpoint}
+                onChange={() => {
+                  const { checkpoint: _c, ...rest } = def;
+                  reset((def.checkpoint ? rest : { ...def, checkpoint: true }) as Asset, 'Checkpoint');
+                }}
+              />{' '}
+              Checkpoint (touch to save)
+              <FieldHelp
+                label="Checkpoint"
+                text="In Play, when the hero touches it, Retry (after game over) and falls bring the hero back here, and the game autosaves (when Autosave is on in Game settings › Saving). It shows its last state once touched (the Checkpoint flag goes from down to up); other checkpoints on the map go back to their first state."
+              />
+            </label>
+          </div>
+        )}
+
         {/* P9a: health — how many hits it takes, what each kind of hit does, what happens at zero */}
         {shows(ed, 'section', 'asset.health') && (
           <div class="sec" data-tour="asset-health-sec">

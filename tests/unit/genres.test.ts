@@ -94,7 +94,14 @@ describe('every control is tagged (P18: views can only hide what is tagged)', ()
       dock: [...DOCK_TABS],
       assetFilter: ASSET_FILTERS.map(([id]) => id),
       node: CATALOG.map((d) => d.type),
-      section: ['asset.health', 'character.harm', 'character.enemy', 'object.script'],
+      section: [
+        'asset.health',
+        'character.harm',
+        'character.enemy',
+        'object.script',
+        'game.saving',
+        'asset.checkpoint',
+      ],
     };
     for (const [kind, ids] of Object.entries(have)) {
       const table = CONTROL_TAGS[kind as keyof typeof CONTROL_TAGS];

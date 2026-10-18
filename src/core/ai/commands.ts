@@ -11,6 +11,7 @@ import * as M from '../commands/handlers/map';
 import * as Np from '../commands/handlers/npcs';
 import type { CommandHandler } from '../commands/types';
 import type { idPattern } from '../ids';
+import { Saving } from '../save/save';
 import {
   Action,
   Asset,
@@ -513,10 +514,11 @@ export const AI_COMMANDS: AiCommand[] = [
       hero: ids('character').nullable().optional(),
       entryScreen: ids('screen').nullable().optional(),
       genre: z.string().optional(),
+      saving: Saving.nullable().optional(),
     }),
     ['map', 'character', 'screen'],
     'Scene',
-    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore).',
+    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}).',
     { name: 'Coin Quest', hero: 'chr_hhhhhhhhhh' },
   ),
   def(

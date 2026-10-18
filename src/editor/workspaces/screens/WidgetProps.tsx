@@ -445,6 +445,26 @@ export function WidgetProps({
             />
             Touch screens only
           </label>
+          {/* P26: shown only while a value is on (Continue only when there is a save) */}
+          <label
+            class="row small"
+            title="Shown only while this value is on: a variable, or save.any (a save exists), save.canSave (Pause may save). Empty: always shown."
+          >
+            Shown when
+            <select
+              class="inp"
+              aria-label="Shown when"
+              value={w.showIf ?? ''}
+              onChange={(e) => set({ showIf: (e.target as HTMLSelectElement).value || undefined })}
+            >
+              <option value="">always</option>
+              <option value="save.any">there is a save (save.any)</option>
+              <option value="save.canSave">Pause may save (save.canSave)</option>
+              {w.showIf && !['save.any', 'save.canSave'].includes(w.showIf) && (
+                <option value={w.showIf}>{w.showIf}</option>
+              )}
+            </select>
+          </label>
         </div>
       </div>
       <div class="sec">

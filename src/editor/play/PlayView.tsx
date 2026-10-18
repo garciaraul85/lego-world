@@ -7,6 +7,7 @@ import type { LogicGraph } from '../../core/schema';
 import { PlayRenderer } from '../../engine/runtime/play-renderer';
 import { PlaySession } from '../../engine/runtime/session';
 import { moveFocus } from '../../engine/ui/ScreenRenderer';
+import { BrowserSaveStore } from '../../platform/saves';
 import { keysFor } from '../platform';
 import type { EditorState } from '../state';
 import { GameScreens } from './GameScreens';
@@ -38,7 +39,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     try {
       ed.audio.init();
       void ed.audio.ctx?.resume().catch(() => {});
-      s = new PlaySession(ed.store.snapshot(), { ...start, audio: ed.audio });
+      s = new PlaySession(ed.store.snapshot(), { ...start, audio: ed.audio, saves: new BrowserSaveStore() });
       pr = new PlayRenderer(canvas, s);
       prRef.current = pr;
     } catch (e) {

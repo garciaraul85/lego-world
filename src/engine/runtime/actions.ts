@@ -1,5 +1,7 @@
 import type { Action } from '../../core/schema';
 
+export type GameOp = Extract<Action, { do: 'game' }>['op'];
+
 /** What actions can do to the running game. The PlaySession implements it. */
 export interface ActionHost {
   /** the instance an asset interaction belongs to (setState with no target) */
@@ -18,7 +20,9 @@ export interface ActionHost {
   music?(music: string | null, fade: number | undefined): void;
   stinger?(name: string): void;
   screen?(op: 'show' | 'hide', screen: string, replace: boolean): void;
-  game?(op: 'start' | 'resume' | 'pause' | 'retry' | 'quit'): void;
+  game?(op: GameOp): void;
+  /** P26: save (to a slot), load (a slot; none: the newest), a Saves-screen slot button, set the checkpoint */
+  saving?(op: 'save' | 'load' | 'slot' | 'checkpoint', slot: number | undefined): void;
   gave?(item: string, count: number): void;
   spawn?(asset: string, at: string): void;
   cinematic?(id: string, once: boolean): void;
@@ -120,6 +124,13 @@ export class ActionRunner {
         case 'game':
           if (h.game) h.game(a.op);
           else h.log('info', `Game ${a.op}`);
+          break;
+        case 'save':
+        case 'load':
+        case 'slot':
+        case 'checkpoint':
+          if (h.saving) h.saving(a.do, 'slot' in a ? a.slot : undefined);
+          else h.log('info', `${a.do}${'slot' in a && a.slot !== undefined ? ` slot ${a.slot}` : ''}`);
           break;
         case 'cinematic':
           if (h.cinematic) h.cinematic(a.cinematic, !!a.once);

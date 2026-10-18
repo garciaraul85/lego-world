@@ -17,7 +17,10 @@ describe('built-in clips', () => {
     for (const c of [...COMBAT_CLIPS, ...EMOTE_CLIPS])
       for (const t of c.tracks) {
         const ts = t.keys.map((k) => k[0]);
-        expect([...ts].sort((a, b) => a - b), `${c.name} ${t.bone}.${t.prop}`).toEqual(ts);
+        expect(
+          [...ts].sort((a, b) => a - b),
+          `${c.name} ${t.bone}.${t.prop}`,
+        ).toEqual(ts);
         expect(Math.max(...ts), c.name).toBeLessThanOrEqual(c.length + 1e-9);
       }
   });

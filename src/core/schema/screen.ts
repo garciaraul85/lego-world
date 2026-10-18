@@ -19,6 +19,8 @@ export type Widget = {
   portrait?: { anchor?: [number, number]; offset?: [number, number]; style?: Record<string, string | number> };
   /** P31: placed next to another widget of the same screen (like Android constraints) */
   pin?: WidgetPin;
+  /** P26: shown only while this value is on (a {binding} name such as save.any) */
+  showIf?: string;
 };
 
 export type WidgetPin = {
@@ -60,6 +62,7 @@ export const Widget: z.ZodType<Widget> = z.lazy(() =>
         gap: z.number().min(-2000).max(2000).optional(),
       })
       .optional(),
+    showIf: z.string().min(1).max(60).optional(),
   }),
 );
 

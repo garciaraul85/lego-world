@@ -50,6 +50,10 @@ const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Act
     make: (c) => ({ do: 'hideScreen', screen: (c?.screens[0]?.id ?? 'scr_pause00000') as never }),
   },
   { do: 'game', label: 'Game flow', make: () => ({ do: 'game', op: 'resume' }) },
+  // P26: saving
+  { do: 'save', label: 'Save game', make: () => ({ do: 'save' }) },
+  { do: 'load', label: 'Load game', make: () => ({ do: 'load' }) },
+  { do: 'checkpoint', label: 'Set checkpoint', make: () => ({ do: 'checkpoint' }) },
   // P6.4
   {
     do: 'cinematic',
@@ -276,8 +280,35 @@ function ActionArgs({
           <option value="pause">Pause</option>
           <option value="retry">Retry from checkpoint</option>
           <option value="quit">Quit to title</option>
+          <option value="continue">Continue (load the newest save)</option>
+          <option value="saveMenu">Open the save slots (save)</option>
+          <option value="loadMenu">Open the save slots (load)</option>
         </select>
       );
+    case 'save':
+    case 'load':
+      return (
+        <select
+          class="inp"
+          aria-label={a.do === 'save' ? 'Save to slot' : 'Load slot'}
+          value={a.slot === undefined ? '' : String(a.slot)}
+          onChange={(e) => {
+            const v = (e.target as HTMLSelectElement).value;
+            const { slot: _s, ...rest } = a;
+            onChange(v === '' ? (rest as Action) : ({ ...a, slot: Number(v) } as Action));
+          }}
+        >
+          <option value="">{a.do === 'save' ? 'the slot in use' : 'the newest save'}</option>
+          {a.do === 'load' && <option value="0">Autosave</option>}
+          {[1, 2, 3].map((n) => (
+            <option value={String(n)}>Slot {n}</option>
+          ))}
+        </select>
+      );
+    case 'slot':
+      return num(a.slot, 'Slot', (slot) => ({ ...a, slot: Math.min(3, Math.max(1, Math.round(slot))) }));
+    case 'checkpoint':
+      return <span class="muted small">where the hero stands now</span>;
     default:
       return <span class="muted small">kept as is</span>;
   }

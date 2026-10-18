@@ -6,6 +6,7 @@ import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
 import { arrivalSpot, assetSpot, reachable } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
+import { allSaves, type Saving } from '../../core/save/save';
 import {
   type Asset,
   type Character,
@@ -18,8 +19,10 @@ import {
   type Screen,
   type Widget,
 } from '../../core/schema';
+import { BrowserSaveStore } from '../../platform/saves';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { assetLibrary } from '../assets';
+import { savingOf } from '../panels/SavingSection';
 import { settleMove } from '../viewport/settle';
 import { buildInto } from '../workspaces/asset-studio/scratch';
 import { newGraph } from '../workspaces/logic/model';
@@ -405,6 +408,16 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     );
     c.ed.selectedZone.value = z.id;
     c.ed.right.value = 'inspect';
+  },
+  // P26: the saving course
+  setSaving(c, a) {
+    const s = { ...savingOf(c.ed.store.manifest), ...(a as Partial<Saving>) };
+    run(c, { type: 'project.update', payload: { saving: s } }, 'Saving settings');
+  },
+  clearSaves(c) {
+    const store = new BrowserSaveStore();
+    for (const g of allSaves(store, c.ed.store.manifest.id)) store.remove(c.ed.store.manifest.id, g.slot);
+    c.ed.revision.value++;
   },
   tweakSmash(c) {
     const id = 'snd_smash00000';

@@ -93,6 +93,11 @@ export function WidgetView(props: WidgetProps) {
   const p = props.host.portrait ? { ...props, w: effectiveWidget(props.w, true) } : props;
   const { w, host } = p;
   if (w.touchOnly && !host.touch && !host.preview) return null;
+  // P26: shown only while its value is on (Continue only when there is a save); the editor shows it always
+  if (w.showIf && !host.preview) {
+    const v = host.lookup(w.showIf);
+    if (!v || v === 'false' || v === '0') return null;
+  }
   switch (w.type) {
     case 'panel':
       return frame(

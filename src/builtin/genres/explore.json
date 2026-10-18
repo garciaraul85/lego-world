@@ -32,8 +32,20 @@
     "screen.show",
     "cinematic.play"
   ],
-  "defaults": { "camera": "explore", "controls": "walk", "music": "explore" },
-  "template": { "name": "Treasure hunt", "recipe": "treasure" },
+  "defaults": {
+    "camera": "explore",
+    "controls": "walk",
+    "music": "explore"
+  },
+  "saving": {
+    "mode": "anywhere",
+    "slots": 3,
+    "autosave": true
+  },
+  "template": {
+    "name": "Treasure hunt",
+    "recipe": "treasure"
+  },
   "tutorial": "editor",
   "help": "start",
   "checklist": [

@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (55 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (58 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -544,3 +544,31 @@ Nothing can hurt it while on (a shield spell, a cutscene, a boss between phases)
 
 - Inputs: target (entity), on (bool)
 - Code: `health.setInvulnerable(target, on);`
+
+## Saving
+
+### Save game
+
+`game.save` · action
+
+Saves the game to a slot: where the hero is, what they carry, variables, and everything changed on the maps they visited. Use it for a save point, or after a big moment.
+
+- Settings: Slot (number, optional)
+- Code: `game.save(slot);`
+
+### Load game
+
+`game.load` · action
+
+Loads a saved game: the maps, the hero and everything carried come back as they were saved. Empty slot: the newest save.
+
+- Settings: Slot (number, optional)
+- Code: `game.load(slot);`
+
+### Set checkpoint
+
+`game.setCheckpoint` · action
+
+From now on, Retry (after game over) and falling off the world bring the hero back to where they stand now.
+
+- Code: `game.setCheckpoint();`

@@ -5,10 +5,11 @@ import dialogue from './dialogue.json';
 import gameover from './gameover.json';
 import hud from './hud.json';
 import pause from './pause.json';
+import saves from './saves.json';
 import splash from './splash.json';
 import title from './title.json';
 
-export const BUILTIN_SCREENS: readonly Screen[] = [splash, title, hud, pause, dialogue, gameover].map((s) =>
+export const BUILTIN_SCREENS: readonly Screen[] = [splash, title, hud, pause, dialogue, gameover, saves].map((s) =>
   Screen.parse(s),
 );
 
@@ -19,4 +20,5 @@ export const SCR = {
   pause: 'scr_pause00000',
   dialogue: 'scr_dialogue00',
   gameover: 'scr_gameover00',
+  saves: 'scr_saves00000',
 } as const;

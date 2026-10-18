@@ -22,7 +22,18 @@ export const Action = z.discriminatedUnion('do', [
   z.strictObject({ do: z.literal('despawn'), target: id('instance') }),
   z.strictObject({ do: z.literal('wait'), seconds: z.number().min(0) }),
   /** game flow from screens: start (title → HUD), resume (close pause), retry (last checkpoint), quit (to title) */
-  z.strictObject({ do: z.literal('game'), op: z.enum(['start', 'resume', 'pause', 'retry', 'quit']) }),
+  z.strictObject({
+    do: z.literal('game'),
+    op: z.enum(['start', 'resume', 'pause', 'retry', 'quit', 'continue', 'saveMenu', 'loadMenu']),
+  }),
+  /** P26: save the game (to a slot; none: the slot in use) — a save point's “Save” runs this */
+  z.strictObject({ do: z.literal('save'), slot: z.number().int().min(1).max(3).optional() }),
+  /** P26: load a save (none: the newest) */
+  z.strictObject({ do: z.literal('load'), slot: z.number().int().min(0).max(3).optional() }),
+  /** P26: a slot button of the Saves screen: saves or loads that slot, as the screen was opened for */
+  z.strictObject({ do: z.literal('slot'), slot: z.number().int().min(1).max(3) }),
+  /** P26: Retry and falls come back to where the hero stands now */
+  z.strictObject({ do: z.literal('checkpoint') }),
   /** a one-shot music stinger from audio/music.json (ducks the music while it plays) */
   z.strictObject({ do: z.literal('stinger'), stinger: z.string().min(1) }),
   /** P9c: a message in the HUD's message line (help, hints, story text): screen UI, never in the 3D world */

@@ -18,10 +18,11 @@ import cinematics from './content/08-cinematics.json';
 import audio from './content/09-audio.json';
 import play from './content/10-play.json';
 import combat from './content/11-combat.json';
+import saving from './content/12-saving.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
-export type Track = 'editor' | 'coding' | 'combat' | `course.${string}`;
+export type Track = 'editor' | 'coding' | 'combat' | 'saving' | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
 const steps = (chapters: Chapter[]): TrackStep[] =>
@@ -47,9 +48,12 @@ export const CODING_CHAPTERS: Chapter[] = [cBasics, cVars, cEvents, cFlow, cWorl
 
 /** P9c: the combat course — the Training yard, an enemy, a wire, a fight. */
 export const COMBAT_CHAPTERS: Chapter[] = [combat].map((c) => Chapter.parse(c));
+/** P26: the saving course — settings, a checkpoint, a save point, Continue. */
+export const SAVING_CHAPTERS: Chapter[] = [saving].map((c) => Chapter.parse(c));
 
 export const STEPS: TrackStep[] = steps(CHAPTERS);
 export const COMBAT_STEPS: TrackStep[] = steps(COMBAT_CHAPTERS);
+export const SAVING_STEPS: TrackStep[] = steps(SAVING_CHAPTERS);
 export const CODING_STEPS: TrackStep[] = steps(CODING_CHAPTERS);
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
@@ -59,6 +63,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   editor: { title: 'Editor tour', steps: STEPS },
   coding: { title: 'Coding course', steps: CODING_STEPS },
   combat: { title: 'Combat course', steps: COMBAT_STEPS },
+  saving: { title: 'Saving course', steps: SAVING_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

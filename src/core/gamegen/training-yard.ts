@@ -119,6 +119,9 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
   const door = BUILTIN_ASSETS.find((a) => a.name === 'Door')!;
   const fence = BUILTIN_ASSETS.find((a) => a.name === 'Fence')!;
   const chest = BUILTIN_ASSETS.find((a) => a.name === 'Treasure chest')!;
+  // P26: a checkpoint flag and a save point by the entrance
+  const flag = BUILTIN_ASSETS.find((a) => a.name === 'Checkpoint flag')!;
+  const savePoint = BUILTIN_ASSETS.find((a) => a.name === 'Save point')!;
   const knightLook = BUILTIN_CHARACTERS.find((c) => c.name === 'Knight') ?? BUILTIN_CHARACTERS[0]!;
   const grunt = ENEMY_PRESETS.grunt!;
   const knight: Character = {
@@ -172,7 +175,7 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
     },
     { type: 'map.updateSpawn', payload: { map, spawn, pos: [0, 0.4, -12], yaw: Math.PI, name: 'Yard entrance' } },
     ...[floor, dummy, wall, target].map((a) => ({ type: 'asset.create', payload: { asset: a } })),
-    ...[door, fence, chest, hill, boulder, pine, oak, shrub, fern, bush].map((a) => ({
+    ...[door, fence, chest, hill, boulder, pine, oak, shrub, fern, bush, flag, savePoint].map((a) => ({
       type: 'asset.create',
       payload: { asset: a },
     })),
@@ -233,6 +236,21 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
       [5, 16],
       'Knight tip',
       'Sparring knight: hold Q to guard; raise it just as the red ! strikes to parry; C rolls.',
+    ),
+    // P26: saving — touch the flag (checkpoint and autosave), press E at the save point
+    { type: 'asset.place', payload: { map, asset: flag.id, pos: [12, 1, -14] } },
+    { type: 'asset.place', payload: { map, asset: savePoint.id, pos: [-12, 1, -14] } },
+    tip(
+      [9, -17],
+      [16, -10],
+      'Checkpoint tip',
+      'Checkpoint flag: touch it and the flag goes up. A fall or Retry brings you back here, and the game autosaves.',
+    ),
+    tip(
+      [-15, -17],
+      [-8, -10],
+      'Save point tip',
+      'Save point: press E to save. Pause (Esc) › Load game brings it back; the title’s Continue loads the newest save.',
     ),
     // a third dummy at the foot of the hill: jump down from the top and press F while falling (plunge)
     { type: 'asset.place', payload: { map, asset: dummy.id, pos: [-5, 1, 18] } },

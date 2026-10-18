@@ -98,6 +98,9 @@ export const Asset = z.strictObject({
   health: Health.optional(),
   /** P9b.1: the hero can lock on to it (Z) even without health — a target for a puzzle */
   lockOn: z.boolean().optional(),
+  /** P26: a checkpoint: touching it sets where the hero comes back (Retry, a fall) and autosaves; it shows its
+   * second state once touched (a flag goes up) */
+  checkpoint: z.boolean().optional(),
   generator: z
     .strictObject({ environments: z.array(z.enum(BIOMES)), weight: z.number().min(0).max(1), placeOn: z.string() })
     .nullable(),

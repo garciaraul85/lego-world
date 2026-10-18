@@ -1,0 +1,16 @@
+{
+  "id": null,
+  "name": "Save point",
+  "category": "prop",
+  "bricks": [[0, 0, 0, 0, 0, 0, 0], [1, 0, 1, 0, 0, 1, 0], [1, 0, 4, 0, 0, 1, 0], [2, 0, 7, 0, 0, 2, 0]],
+  "palette": { "types": ["plate2x2", "brick2x2", "tile2x2"], "colors": ["#5b6470", "#3c8fd8", "#a8e2ff"] },
+  "pivot": [0, 0, 0],
+  "footprint": [2, 2],
+  "sockets": [{ "id": "save", "kind": "interact", "pos": [1, 2.8, 2], "prompt": "Save" }],
+  "states": ["ready"],
+  "initialState": "ready",
+  "interactions": [{ "socket": "save", "do": [{ "do": "save" }] }],
+  "smash": { "enabled": false, "rebuild": false, "sound": null, "studs": 0 },
+  "generator": null,
+  "origin": "builtin"
+}
