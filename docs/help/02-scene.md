@@ -48,6 +48,20 @@ Map tab › Terrain generator: tick environments (forest, city, prairie, mountai
 
 The Map tab also sets the time of day, sky and weather, the map's music and ambience loop.
 
+## Names, scripts and wires
+
+Select a placed object and look under **Name, script & wires** in the Inspector.
+
+- **Name** gives this copy its own name (“Gate switch”), so logic and wires point at exactly this copy. Without one, logic finds copies by their asset's name (the one nearest the hero).
+- **+ Script on this object** makes a logic file that belongs to this copy. Its events about objects (used, hit, smashed, rebuilt, locked on) run only for this copy, and `"this"` in it means this copy. **Open script** shows it in Logic.
+- **Wires** connect it to other objects without writing logic: choose **When this** (is used, is hit, is smashed, is rebuilt, is locked on), **Then** (set another object's state, remove another object, or send a custom event), the object and its state, and press **+ Wire**. A teal line joins the two objects in the view. A wire is two cards in the object's script, so Logic can add more to it (a sound, a wait, a condition). Wiring to an object without a name names it (“Treasure chest 1”).
+
+For example, a lever that opens a gate: select the lever, choose When this **is used**, Then **set another object's state**, Object **Gate**, State **open**, + Wire.
+
+## Hints and messages
+
+Help text for the player belongs on the screen, not in the world. Every action list (a trigger zone's On enter, an asset's interaction, a screen button, a cinematic's events) has **Show message**: its text appears in the HUD's message line for a few seconds. The Training yard's tips are zones that show a message when the hero walks into each spot.
+
 ## Make asset
 
 Loose bricks (the ground, or something built before bricks moved into assets) are not changed one by one in the Scene. Select them and choose Make asset (Outliner, Inspector or right-click) to turn them into a reusable asset with its own states, interactions and smash rules, then change it in the Assets screen.

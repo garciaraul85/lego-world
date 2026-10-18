@@ -79,6 +79,7 @@ export class AudioEngine implements AudioPort {
     }
     if (!this.ctx) return false;
     this.mixer = new Mixer(this.ctx);
+    this.mixer.setPlayer(...this.playerVol);
     this.applyMixer();
     if (typeof window !== 'undefined') this.unlockOff = audioUnlock(this.ctx, window);
     return true;
@@ -392,6 +393,13 @@ export class AudioEngine implements AudioPort {
   /** Throw away decoded buffers of media that changed (re-import) — built-ins are kept. */
   forget(ref: string) {
     this.buffers.delete(ref);
+  }
+
+  /** P26: the player's volumes (Settings screen) */
+  private playerVol: [number, number] = [1, 1];
+  playerVolume(music: number, sounds: number) {
+    this.playerVol = [music, sounds];
+    this.mixer?.setPlayer(music, sounds);
   }
 
   stopAll() {

@@ -83,10 +83,12 @@ export const LOGIC: HelpEntry[] = [
     id: 'logic.graphs',
     screen: 'logic',
     kind: 'list',
-    name: 'Logic graphs',
-    purpose: 'Each graph is a set of rules. Click one to open it; + New makes another; the bin deletes one.',
+    name: 'Logic files',
+    also: ['graphs', 'files', 'scripts', 'split code'],
+    purpose:
+      'Each file is one graph of rules and its code. Click one to open it; + New makes another; × deletes one. Files share every variable and talk to each other with custom events (emit in one, on custom in any).',
     commands: ['logic.create', 'logic.delete'],
-    match: [{ in: `${LIB} .lib-item` }, { in: LIB, name: /^\+ New$/ }],
+    match: [{ in: `${LIB} .lib-item` }, { in: LIB, name: /^(\+ New|New file|What is “Files”\?)$/ }],
   },
   {
     id: 'logic.vars',
@@ -95,7 +97,7 @@ export const LOGIC: HelpEntry[] = [
     kind: 'field',
     name: 'Variables',
     purpose:
-      'Game variables: numbers, true/false or text the game remembers while playing (score, keys, chestItem). Logic reads them with Get variable (vars.name in code) and changes them with Set variable; screens show them as {name}. Each variable is a card with three labelled parts and a “Used in” list of the graphs, screens and scenes that use it.',
+      'Game variables: numbers, true/false or text the game remembers while playing (score, keys, chestItem). They are global — every logic file shares them. Logic reads them with Get variable (vars.name in code) and changes them with Set variable; screens show them as {name}. Each variable is a card with three labelled parts and a “Used in” list of the graphs, screens and scenes that use it.',
     options: [
       ['Name', 'a name you invent: one word, letters and digits (chestItem); logic and screens use exactly this name'],
       ['Type', 'Number (3, 0.5), Text (Sword) or True / false'],
@@ -123,6 +125,17 @@ export const LOGIC: HelpEntry[] = [
     steps: ['Type in Find a node to narrow the list.', 'Click a node (or drag it) to add it to the graph.'],
     match: [{ in: LIB, name: 'Find a node' }],
     related: ['help:logic-reference'],
+  },
+  {
+    id: 'logic.moreNodes',
+    screen: 'logic',
+    kind: 'list',
+    name: 'More nodes',
+    purpose:
+      'Nodes the current genre does not use, folded away so the list stays short. Open it to add one; a search in Find a node always finds every node. The genre’s own nodes are listed first (For …), with your Pinned and Recent ones above them.',
+    steps: ['Click More nodes to unfold it.', 'Right-click a node to pin it to the top of the list or hide it.'],
+    related: ['logic.palette', 'genre.pick'],
+    match: [{ in: '[data-tour="logic-more-nodes"]' }],
   },
   {
     id: 'logic.editor',

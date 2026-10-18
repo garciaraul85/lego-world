@@ -109,7 +109,8 @@ export function widgetCss(w: Widget): Record<string, string | number> {
   set('maxWidth', px('maxW'));
   set('padding', px('pad'));
   set('gap', px('gap'));
-  set('fontSize', px('fontSize'));
+  // P26: the player's text size (Settings) scales every text through --bw-text
+  set('fontSize', num(s.fontSize) !== undefined ? `calc(${s.fontSize}px * var(--bw-text, 1))` : undefined);
   set('borderRadius', px('radius'));
   set('color', typeof s.color === 'string' ? s.color : undefined);
   set('background', typeof s.bg === 'string' ? s.bg : undefined);

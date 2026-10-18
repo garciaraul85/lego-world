@@ -1,9 +1,11 @@
 // CodeMirror 6 for the logic code view (P4.4). Imported only when the Code view opens.
-import { javascript } from '@codemirror/lang-javascript';
+import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
+import { javascript, javascriptLanguage } from '@codemirror/lang-javascript';
 import { type Diagnostic, setDiagnostics } from '@codemirror/lint';
 import { EditorState, RangeSet, StateEffect, StateField } from '@codemirror/state';
 import { Decoration, EditorView, GutterMarker, gutter } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
+import type { Completion as Offer, Suggestion } from './complete';
 
 export type CodeEditor = {
   view: EditorView;
@@ -13,6 +15,8 @@ export type CodeEditor = {
   setBreakpoints(lines: number[]): void;
   /** highlight lines (selection from the graph, or where Play stopped) */
   mark(lines: number[], kind: 'sel' | 'hit'): void;
+  /** P9b.1: scrolls a line into the middle of the view */
+  reveal(line: number): void;
   destroy(): void;
 };
 
@@ -79,6 +83,15 @@ const theme = EditorView.theme(
     '.cm-bp': { color: '#ff6b6b', cursor: 'pointer', paddingLeft: '3px' },
     '.cm-bp-gutter': { width: '14px', cursor: 'pointer' },
     '.cm-scroller': { overflow: 'auto' },
+    '.cm-name-info': {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '6px',
+      maxWidth: '260px',
+      whiteSpace: 'pre-wrap',
+    },
+    '.cm-tooltip.cm-tooltip-autocomplete': { backgroundColor: '#161b22', border: '1px solid #2a313b' },
+    '.cm-tooltip.cm-completionInfo': { backgroundColor: '#161b22', border: '1px solid #2a313b', padding: '6px 8px' },
   },
   { dark: true },
 );
@@ -91,8 +104,45 @@ export function createCodeEditor(
     onToggleBreakpoint(line: number): void;
     onCursorLine(line: number): void;
     readOnly: boolean;
+    /** P9b.1: names and actions to offer as you type */
+    complete?(doc: string, pos: number, explicit: boolean): Offer | null;
+    /** P9b.1: the ▶ in a suggestion's side panel */
+    preview?(p: NonNullable<Suggestion['preview']>): void;
   },
 ): CodeEditor {
+  const source = (ctx: CompletionContext): CompletionResult | null => {
+    const r = opts.complete?.(ctx.state.doc.toString(), ctx.pos, ctx.explicit);
+    if (!r?.options.length) return null;
+    return {
+      from: r.from,
+      validFor: /^[^"'\n]*$/,
+      options: r.options.map((o) => ({
+        label: o.label,
+        ...(o.detail ? { detail: o.detail } : {}),
+        type: o.type === 'name' ? 'constant' : o.type,
+        info: () => {
+          const d = document.createElement('div');
+          d.className = 'cm-name-info';
+          const t = document.createElement('div');
+          t.textContent = o.info ?? o.detail ?? '';
+          d.appendChild(t);
+          const pv = o.preview;
+          if (pv && opts.preview) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn small';
+            b.textContent = `▶ Listen to ${o.label}`;
+            b.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              opts.preview!(pv);
+            });
+            d.appendChild(b);
+          }
+          return d;
+        },
+      })),
+    };
+  };
   let silent = false;
   const view = new EditorView({
     parent,
@@ -115,6 +165,7 @@ export function createCodeEditor(
         markDeco,
         basicSetup,
         javascript(),
+        javascriptLanguage.data.of({ autocomplete: source }),
         theme,
         EditorState.readOnly.of(opts.readOnly),
         EditorView.updateListener.of((u) => {
@@ -149,6 +200,10 @@ export function createCodeEditor(
     },
     mark(lines, kind) {
       view.dispatch({ effects: setMarks.of({ lines, kind }) });
+    },
+    reveal(line) {
+      const n = Math.max(1, Math.min(line, view.state.doc.lines));
+      view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.line(n).from, { y: 'center' }) });
     },
     destroy: () => view.destroy(),
   };

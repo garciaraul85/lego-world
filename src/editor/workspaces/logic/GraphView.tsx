@@ -35,12 +35,15 @@ export function GraphView({
   selected,
   setSelected,
   highlight,
+  onOpenCode,
 }: {
   ed: EditorState;
   graph: LogicGraph;
   selected: ReadonlySet<string>;
   setSelected: (s: Set<string>) => void;
   highlight: string | null;
+  /** P9b.1: a card clicked (not dragged): show its code */
+  onOpenCode?: (node: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>(() => views.get(graph.id) ?? { x: 40, y: 40, k: 1 });
@@ -128,7 +131,10 @@ export function GraphView({
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
       setMoving(null);
-      if (Math.hypot(d.dx, d.dy) < 2) return;
+      if (Math.hypot(d.dx, d.dy) < 2) {
+        if (!e.shiftKey) onOpenCode?.(id);
+        return;
+      }
       const snap = (v: number) => Math.round(v / 10) * 10;
       exec('logic.moveNodes', {
         moves: graph.nodes

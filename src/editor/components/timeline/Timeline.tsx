@@ -1,7 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Clip } from '../../../core/schema';
-import { ALL_TRACKS } from '../../../engine/character/clip-params';
+import { ALL_TRACKS, POSE_DEFAULTS } from '../../../engine/character/clip-params';
 import { sampleTrack } from '../../../engine/character/routine';
 import { DraftText } from '../fields';
 import { PreviewPicker } from '../PreviewPicker';
@@ -34,6 +34,13 @@ export function mirrorTrack(t: Clip['tracks'][number]): Clip['tracks'][number] {
   const bone = t.bone.startsWith('left') ? `right${t.bone.slice(4)}` : `left${t.bone.slice(5)}`;
   const flip = t.prop === 'y' || t.prop === 'z';
   return { bone, prop: t.prop, keys: t.keys.map((k) => [k[0], flip ? -k[1] : k[1], k[2]] as Key) };
+}
+
+/** P9d: a track's value when the character just stands (the rig's default pose) */
+export function restValue(a: { param: string; k: number }): number {
+  const d = POSE_DEFAULTS[a.param];
+  const v = Array.isArray(d) ? d[a.k] : d;
+  return typeof v === 'number' ? v : 0;
 }
 
 export const trackLabel = (bone: string, prop: string) => `${BONE_NAMES[bone] ?? bone} · ${prop || 'value'}`;
@@ -123,13 +130,14 @@ export function Timeline({
   const key = sel?.kind === 'key' ? clip.tracks[sel.track]?.keys[sel.key] : null;
   const ev = sel?.kind === 'event' ? clip.events[sel.index] : null;
   const unused = ALL_TRACKS.filter((a) => !clip.tracks.some((t) => t.bone === a.bone && t.prop === a.prop));
-  const addTrack = (a: { bone: string; prop: string } | undefined) => {
+  const addTrack = (a: (typeof ALL_TRACKS)[number] | undefined) => {
     if (!a) return;
     onChange(
       {
         ...clip,
-        // the first key is at the start of the clip (where the joint starts out)
-        tracks: [...clip.tracks, { bone: a.bone, prop: a.prop, keys: [[0, 0, 'easeInOut']] }],
+        // the first key is at the start of the clip, where the joint is when standing (P9d: “Body · height”
+        // starts at standing height, not 0, so adding it does not sink the character into the floor)
+        tracks: [...clip.tracks, { bone: a.bone, prop: a.prop, keys: [[0, restValue(a), 'easeInOut']] }],
       },
       'Add track',
     );

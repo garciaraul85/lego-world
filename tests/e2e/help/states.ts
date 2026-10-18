@@ -81,6 +81,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // P9c: the same object, scrolled to its name, script and wires
+    id: 'scene-script',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await selectAsset(p);
+      await p.locator('[data-tour="object-script"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     // P32: loose bricks (the ground) selected: the Inspector offers to make them an asset
     id: 'scene-loose',
     screen: 'scene',
@@ -153,6 +163,26 @@ export const HELP_STATES: HelpState[] = [
     setup: async (p) => {
       await ws(p, 'Scene');
       await signals(p, { right: 'project' });
+    },
+  },
+  {
+    // P26: the Project tab scrolled to Saving
+    id: 'scene-saving',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'project' });
+      await p.locator('[data-tour="game-saving"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    // P26 part 2: the Project tab scrolled to Progress
+    id: 'scene-progress',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'project' });
+      await p.locator('[data-tour="game-progress"]').scrollIntoViewIfNeeded();
     },
   },
   {
@@ -279,6 +309,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // P26: an open asset scrolled to its Checkpoint box
+    id: 'assets-checkpoint',
+    screen: 'assets',
+    setup: async (p) => {
+      await ws(p, 'Assets');
+      await p.getByRole('listbox').getByRole('option').first().click();
+      await p.locator('[data-tour="asset-checkpoint"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     // P32: the bricks to build with, in the Asset library's Bricks tab
     id: 'assets-bricks',
     screen: 'assets',
@@ -365,6 +405,41 @@ export const HELP_STATES: HelpState[] = [
       await p.keyboard.press('F5');
       await p.getByLabel('Game view').waitFor({ timeout: 60_000 });
       await p.waitForTimeout(1500);
+    },
+  },
+  // P18: the New project dialog asks what you are making
+  {
+    id: 'new-project',
+    screen: 'shell',
+    setup: async (p) => {
+      await p.keyboard.press('Escape');
+      if (await p.getByLabel('Game view').isVisible()) await p.keyboard.press('F5');
+      await ws(p, 'Scene');
+      await p.getByRole('navigation', { name: 'Menu' }).getByRole('button', { name: 'File', exact: true }).click();
+      await p.getByRole('menuitem', { name: /^New project/ }).click();
+      await p.getByRole('radiogroup', { name: 'What are you making?' }).waitFor();
+    },
+  },
+  // P18: a genre view (last: it changes which tabs show), with More open and a hidden feature in use
+  {
+    id: 'genre-explore',
+    screen: 'shell',
+    setup: async (p) => {
+      await p.keyboard.press('Escape');
+      const cancel = p.getByRole('dialog', { name: 'New project' }).getByRole('button', { name: 'Cancel' });
+      if (await cancel.isVisible()) await cancel.click();
+      if (await p.getByLabel('Game view').isVisible()) await p.keyboard.press('F5');
+      await p.getByLabel('Genre', { exact: true }).selectOption('explore');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const g = e.store.list('logic/lg_')[0];
+        if (!g) return;
+        const graph = e.store.get(g) as { id: string; nodes: { type: string }[] };
+        if (!graph.nodes.some((n) => n.type === 'misc.log'))
+          e.exec({ type: 'logic.addNode', payload: { graph: graph.id, node: { type: 'misc.log', pos: [40, 400] } } });
+      });
+      await ws(p, 'Logic');
+      await p.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'More ▾' }).click();
     },
   },
 ];

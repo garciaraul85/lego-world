@@ -7,6 +7,8 @@ const BUILD = area('Build tools');
 const APROPS = area('Asset properties');
 
 /** P32: each look choice is a picture button named "<Choice>: <what it is now>" */
+/** P9a */
+const HARM = '[data-tour="char-harm"]';
 const LOOK =
   /^(Height|Gender|Head|Hair|Face|Eyes|Expression|Facial Hair|Glasses|Hat|Costume|Outfit|Shirt|Pants|Dress|Hero Cut|Swimwear|Underwear|Lingerie|Pattern|Shoes|Gloves|Back|Cape|Scarf|Neck|Ears|Wrist|Belt): /;
 const COLOURS = /^(Skin|Hair|Eye|Glasses|Hat|Shirt|Pants|Dress|Shoe|Accent|Glove|Accessory) color$/;
@@ -65,7 +67,7 @@ export const CHARACTERS: HelpEntry[] = [
       'The character in 3D, with the open clip’s timeline under it. Drag to turn it; Turntable spins it slowly so you see every side. Click a track’s name in the timeline (or one of its keys ◆): the preview rings that body part and names it, and the track’s lane shows the value of each key next to it.',
     steps: [
       'Click a clip on the left; its timeline opens under the preview.',
-      'Click “+ Track…” to add a track: a picture of the character for each track shows which joint it moves and how (an arm’s x reaches forward, its z raises it out to the side). Click a picture to add that track.',
+      'Click “+ Track…” to add a track: a picture of the character for each track shows which joint it moves and how (an arm’s x reaches forward, its z raises it out to the side). Click a picture to add that track: its first key, at 0 s, is where that joint is when the character just stands.',
       'Click the lanes to move the playhead; then ← and → move it 0.1 s, to reach an exact time.',
       'Click a track name (for example “Right arm · z”): the right arm is ringed in the preview.',
       'Click a key ◆ on that lane: its time (“at”) and value show under the lanes. Type a new value and press Enter.',
@@ -106,6 +108,37 @@ export const CHARACTERS: HelpEntry[] = [
     ],
   },
   {
+    id: 'characters.harm',
+    also: ['can be harmed', 'enemy', 'hurt', 'health', 'villager', 'neighbour hp'],
+    screen: 'characters',
+    kind: 'area',
+    name: 'Can be harmed',
+    purpose:
+      'Whether the hero’s hits hurt this character when it is a neighbour on a map. Off (villagers): hits do nothing. On: it has health like an object — hit points, armour, what each kind of hit does — and at zero it leaves the play, leaves an item and sends an event. The player character’s health is its hearts.',
+    related: ['assets.health', 'node.event.onDefeated'],
+    match: [{ in: HARM }],
+  },
+  {
+    id: 'characters.enemy',
+    also: ['enemy', 'foe', 'monster', 'fight', 'attack the hero', 'make enemy', 'grunt', 'brute'],
+    screen: 'characters',
+    kind: 'area',
+    name: 'Fights the hero',
+    purpose:
+      'Makes this character an enemy. As a neighbour on a map it wanders until it sees the hero, then walks over, raises its arm (a red “!” over its head: guard, dodge or parry now) and swings. **Make enemy** starts from a preset (Grunt, Brute, Swift) and turns on Can be harmed with its health; then change any number. × stops it fighting.',
+    options: [
+      ['Hits for', 'hearts its swing takes (a shield blocks it from the front)'],
+      ['Reach', 'how close the hero must be for it to swing, in studs'],
+      ['Sees the hero within', 'how far away it notices the hero, in studs'],
+      ['Walking speed', '1 is a neighbour’s normal walk'],
+      ['Seconds between swings', 'how long it waits after a swing'],
+      ['Warning before a swing', 'how long the red “!” shows before the swing lands'],
+    ],
+    commands: ['character.update'],
+    match: [{ in: '[data-tour="char-enemy"]' }],
+    related: ['characters.harm', 'play.view'],
+  },
+  {
     id: 'characters.look',
     screen: 'characters',
     kind: 'field',
@@ -130,9 +163,12 @@ export const CHARACTERS: HelpEntry[] = [
     id: 'characters.gear',
     screen: 'characters',
     kind: 'field',
-    name: 'Held item, power and spell',
-    purpose: 'What the character holds (hammer, sword, torch…), its super power, and its spell, used in Play.',
-    match: [{ in: CPROPS, role: 'button', name: /^(Held|Power|Spell): / }],
+    name: 'Held item, off hand, power and spell',
+    also: ['shield', 'off hand', 'guard', 'block'],
+    purpose:
+      'What the character holds (hammer, sword, torch…), what is in its other hand (a shield, or nothing), its super power, and its spell, used in Play. With a shield the hero guards (hold Q): hits from the front are blocked for some stamina, and raising it just before a hit parries it. Without one the hero still defends, but half of each hit gets through.',
+    match: [{ in: CPROPS, role: 'button', name: /^(Held|Off hand|Power|Spell): / }],
+    related: ['play.view', 'characters.harm'],
   },
 ];
 
@@ -194,6 +230,58 @@ export const ASSETS: HelpEntry[] = [
       'OK closes the message.',
     ],
     related: ['assets.plate', 'scene.tool.move'],
+  },
+  {
+    id: 'assets.lockOn',
+    also: ['lock on', 'target', 'z-target', 'puzzle', 'switch'],
+    screen: 'assets',
+    kind: 'field',
+    name: 'Can be locked on',
+    purpose:
+      'Whether the hero can lock on to copies of this asset with Z in Play (a yellow arrow shows over it when it is close and in front; locked on, a red one). Things with health always can; turn it on for anything else — a switch to hit, a target in a puzzle. Logic’s On locked on runs when it happens.',
+    commands: ['asset.update'],
+    related: ['node.event.onLockedOn', 'play.view'],
+    match: [{ in: '[data-tour="asset-lock-on"]' }],
+  },
+  {
+    id: 'assets.checkpoint',
+    also: ['checkpoint', 'respawn point', 'flag', 'autosave', 'save point'],
+    screen: 'assets',
+    kind: 'field',
+    name: 'Checkpoint',
+    purpose:
+      'Makes copies of this asset checkpoints. In Play, when the hero touches one, Retry (after game over) and falls off the world bring the hero back there, and the game autosaves (when Autosave is on in Project › Saving). The asset shows its last state once touched — the built-in Checkpoint flag goes from down to up — and other checkpoints on the map go back to their first state.',
+    tips: [
+      'The built-in Save point is the other half: its interaction is Save, so E next to it saves the game.',
+      'Give a checkpoint two states (down, up) with bricks that show only in one, so players see it was touched.',
+    ],
+    commands: ['asset.update'],
+    related: ['scene.saving', 'node.game.setCheckpoint'],
+    match: [{ in: '[data-tour="asset-checkpoint"]' }],
+  },
+  {
+    id: 'assets.health',
+    also: ['breakable', 'hit points', 'hp', 'takes hits', 'armour', 'armor', 'resistance', 'damage', 'crate', 'loot'],
+    screen: 'assets',
+    kind: 'area',
+    name: 'Health',
+    purpose:
+      'How much it takes to break the asset. Without health one hit smashes it (when it can be smashed). With health it takes several hits; armour is taken off every hit; each kind of hit (slash, blunt, pierce, fire, explosive, electric) can be normal, weak (double), half or immune; at zero it breaks into bricks, leaves an item and sends an event.',
+    steps: [
+      'Pick how it breaks in **Make breakable**: 2 hits like a crate, 1 like a pot, 5 like a door, or only explosions like a stone wall.',
+      'Change the **hit points** and **armour**, and what each kind of hit does.',
+      'Under **At zero**, choose whether it breaks into bricks, what it leaves (an asset by name, or an inventory item) and an event to send.',
+      'Press Play and hit it with F: it says how much is left, and On damaged / On defeated run in logic.',
+    ],
+    options: [
+      ['hit points', 'a hit with bare hands or a hammer does 1, a sword 2, a sledgehammer 3'],
+      ['armour', 'taken off every hit: a hit weaker than it does nothing'],
+      ['hits by type', 'normal, weak ×2, half or immune, for each damage type'],
+      ['leaves', 'an asset put where it was, or an item given to the hero'],
+    ],
+    commands: ['asset.update'],
+    related: ['node.event.onDamaged', 'node.event.onDefeated', 'node.health.damage'],
+    match: [{ in: '[data-tour="asset-health-sec"]' }],
   },
   {
     id: 'assets.parts',

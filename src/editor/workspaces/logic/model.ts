@@ -1,6 +1,7 @@
 import { newId } from '../../../core/ids';
 import type { ArgKind, NodeDef, PinType } from '../../../core/logic/catalog';
-import { type Asset, type Gates, type LogicGraph, type MapDoc, paths, type Variables } from '../../../core/schema';
+import { NAME_KINDS, type NameKind, namedThings } from '../../../core/logic/code/names';
+import { type Asset, type LogicGraph, paths, type Variables } from '../../../core/schema';
 import type { EditorState } from '../../state';
 
 export const NODE_W = 200;
@@ -19,6 +20,7 @@ export const CAT_COLOR: Record<string, string> = {
   Cinematics: '#e990b3',
   Misc: '#9aa4b2',
   Notes: '#ffd277',
+  Health: '#ff8a7a',
 };
 
 export const PIN_COLOR: Record<PinType, string> = {
@@ -67,29 +69,45 @@ export const graphs = (ed: EditorState) =>
 
 export const variables = (ed: EditorState) => ed.store.get<Variables>(paths.variables)?.vars ?? {};
 
-/** Choices for an arg editor (zones, assets, spawns...), labelled for people. */
-export function argChoices(ed: EditorState, kind: ArgKind): { value: string; label: string }[] | null {
-  const maps = (ed.store.get<Gates>(paths.gates)?.mapOrder ?? [])
-    .map((id) => ed.store.get<MapDoc>(paths.map(id))!)
-    .filter(Boolean);
-  switch (kind) {
-    case 'var':
-      return Object.keys(variables(ed)).map((v) => ({ value: v, label: v }));
-    case 'zone':
-      return maps.flatMap((m) => m.zones.map((z) => ({ value: z.id, label: `${z.tags[0] ?? 'Zone'} · ${m.name}` })));
-    case 'spawn':
-      return maps.flatMap((m) => m.spawns.map((s) => ({ value: s.id, label: `${s.name} · ${m.name}` })));
-    case 'map':
-      return maps.map((m) => ({ value: m.id, label: m.name }));
-    case 'asset':
-      return ed.store
-        .list('assets/')
-        .map((p) => ed.store.get<Asset>(p)!)
-        .filter((a) => a.origin !== 'generated' || a.sockets.length)
-        .map((a) => ({ value: a.id, label: a.name }));
-    default:
-      return null;
+/**
+ * Choices for an arg editor (zones, assets, spawns, sounds, music, screens, scenes…), labelled for people. P9b.1:
+ * every setting that names something is picked from a list; the value stays the id.
+ */
+export function argChoices(ed: EditorState, kind: ArgKind): { value: string; label: string; note?: string }[] | null {
+  if (kind === 'var') return Object.keys(variables(ed)).map((v) => ({ value: v, label: v }));
+  if (kind === 'asset')
+    return ed.store
+      .list('assets/')
+      .map((p) => ed.store.get<Asset>(p)!)
+      .filter((a) => a.origin !== 'generated' || a.sockets.length)
+      .map((a) => ({ value: a.id, label: a.name }));
+  if (!(NAME_KINDS as readonly string[]).includes(kind)) return null;
+  const all = namedThings(ed.store)[kind as NameKind];
+  const maps = all.length && (kind === 'zone' || kind === 'spawn');
+  return all.map((t) => ({
+    value: t.id,
+    label: maps ? `${t.name} · ${t.note.replace(/^.* on /, '').split(' · ')[0]}` : t.name,
+    note: t.note,
+  }));
+}
+
+/** P9c: who a script belongs to: the placed object's own name, else its asset's name, and its map */
+export function ownerOf(ed: EditorState, owner: string | undefined): { name: string; map: string } | null {
+  if (!owner) return null;
+  for (const p of ed.store.list('maps/')) {
+    if (!p.endsWith('/instances.json')) continue;
+    const item = ed.store
+      .get<{ items: { id: string; kind: string; name?: string; asset?: string; character?: string }[] }>(p)
+      ?.items.find((i) => i.id === owner);
+    if (!item) continue;
+    const map = p.split('/')[1]!;
+    if (item.name) return { name: item.name, map };
+    if (item.asset) return { name: ed.store.get<Asset>(paths.asset(item.asset))?.name ?? 'an object', map };
+    if (item.character)
+      return { name: ed.store.get<{ name: string }>(paths.character(item.character))?.name ?? 'a neighbour', map };
+    return { name: 'an object', map };
   }
+  return { name: 'a removed object', map: '' };
 }
 
 /** A new graph with one event node (P4.6 "Open in Logic"). */

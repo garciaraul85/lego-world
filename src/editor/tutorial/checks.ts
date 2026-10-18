@@ -1,16 +1,21 @@
 import type { Command } from '../../core/commands';
+import { wiresOf } from '../../core/logic/wiring';
+import { allSaves } from '../../core/save/save';
 import {
   type Asset,
   type Character,
   type Cinematic,
   type Clip,
+  type Instances,
   type LogicGraph,
   type MapDoc,
   paths,
   type Screen,
   type Variables,
 } from '../../core/schema';
+import { BrowserSaveStore } from '../../platform/saves';
 import { assetLibrary } from '../assets';
+import { savingOf } from '../panels/SavingSection';
 import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
 import { MARK_FACING, MARK_RADIUS, markTarget } from './story';
@@ -180,6 +185,50 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     const { name, does } = a as { name: string; does: string };
     return projectAsset(ed, name)?.interactions.some((i) => i.do.some((x) => x.do === does)) ?? false;
   },
+  // P9c: the combat course
+  mapNamed: (ed, a) => ed.mapDoc.value?.name === a,
+  enemyStat: (ed, a) => {
+    const { stat, value } = a as { stat: string; value: number };
+    const e = studioCharacter(ed)?.enemy as Record<string, unknown> | undefined;
+    return !!e && Math.abs(Number(e[stat]) - value) < 0.001;
+  },
+  wireOn: (ed, a) => {
+    const { asset, when } = a as { asset: string; when: string };
+    const map = ed.mapId.value;
+    const items = ed.store.get<Instances>(paths.instances(map))?.items ?? [];
+    return ed.store.list('logic/lg_').some((p) => {
+      const g = ed.store.get<LogicGraph>(p);
+      const owner = g?.owner && items.find((i) => i.id === g.owner);
+      if (!owner || owner.kind !== 'asset') return false;
+      const def = ed.store.get<{ name: string }>(paths.asset(owner.asset));
+      return def?.name === asset && wiresOf(g).some((w) => w.when === when);
+    });
+  },
+  // P26: the saving course
+  savingIs: (ed, a) => matches(savingOf(ed.store.manifest), a as Record<string, unknown>),
+  placedAsset: (ed, a) => {
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return items.some(
+      (i) => i.kind === 'asset' && (ed.store.get<Asset>(paths.asset(i.asset))?.name ?? '') === String(a),
+    );
+  },
+  titleShown: (ed) => {
+    const s = ed.session.value;
+    return !!s && s.screens.screens().some((x) => x.kind === 'title');
+  },
+  savesOf: (ed, a) => {
+    const n = allSaves(new BrowserSaveStore(), ed.store.manifest.id).length;
+    return a === 0 ? n === 0 : n >= Number(a);
+  },
+  // P26 part 2
+  achievementsAtLeast: (ed, a) =>
+    ((ed.store.get(paths.progress) as { achievements?: unknown[] } | undefined)?.achievements?.length ?? 0) >=
+    Number(a),
+  playerSetting: (ed, a) => {
+    const s = ed.session.value;
+    return !!s && matches(s.progress.settings, a as Record<string, unknown>);
+  },
+  screenShown: (ed, a) => !!ed.session.value?.screens.screens().some((x) => x.name === a),
   ...CODING_TESTS,
 };
 

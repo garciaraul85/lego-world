@@ -5,6 +5,7 @@ import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
 import { assetSpot, reachable } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
+import { nameBook, withNames } from '../../core/logic/code/names';
 import { printGraph } from '../../core/logic/code/print';
 import { type Instances, type LogicGraph, type MapDoc, paths } from '../../core/schema';
 import type { ActionCtx } from '../actions/registry';
@@ -23,22 +24,23 @@ const run = (c: ActionCtx, cmds: Command | Command[], label: string) => {
 };
 const entryMap = (ed: EditorState) => ed.store.get<MapDoc>(paths.map(ed.store.manifest.entry.map))!;
 
-export function courseGraph(ed: EditorState): LogicGraph | null {
+/** The course's file (graph): the main one, or another by name (P9b.1: a game in several files). */
+export function courseGraph(ed: EditorState, file: string = COURSE): LogicGraph | null {
   for (const p of ed.store.list('logic/lg_')) {
     const g = ed.store.get<LogicGraph>(p);
-    if (g?.name === COURSE) return g;
+    if (g?.name === file) return g;
   }
   return null;
 }
 
-/** Values the course's code snippets refer to: {{chest}}, {{zone}}, {{spawn}}… filled from the sandbox. */
-export function courseTokens(ed: EditorState) {
+/** The ids behind the course's snippets (the sandbox's chest, zone, scene…). */
+export function courseIds(ed: EditorState) {
   const m = entryMap(ed);
   const items = ed.store.get<Instances>(paths.instances(m.id))?.items ?? [];
   const chestInst = items.find((i) => i.kind === 'asset' && i.asset === chest().id);
   const cine = ed.store.list('cinematics/')[0]?.slice(11, -5);
   const sound =
-    Object.keys(DEFAULT_EVENTS.events).find((k) => k.includes('coin')) ?? Object.keys(DEFAULT_EVENTS.events)[0]!;
+    Object.keys(DEFAULT_EVENTS.events).find((k) => k.includes('chest')) ?? Object.keys(DEFAULT_EVENTS.events)[0]!;
   return {
     chest: chest().id,
     chestInstance: chestInst?.id ?? 'ins_aaaaaaaaaa',
@@ -51,16 +53,37 @@ export function courseTokens(ed: EditorState) {
     music: 'mus_night00000',
   };
 }
+
+/**
+ * Values the course's code snippets refer to: {{chest}}, {{zone}}, {{spawn}}… filled from the sandbox. P9b.1:
+ * by name, as the Code view prints them ("Pond", "Treasure chest", "chest").
+ */
+export function courseTokens(ed: EditorState): Record<string, string> {
+  const t = courseIds(ed);
+  const b = nameBook(ed.store);
+  return {
+    chest: b.nameOf('asset', t.chest),
+    chestInstance: b.nameOf('asset', t.chest),
+    zone: b.nameOf('zone', t.zone),
+    spawn: b.nameOf('spawn', t.spawn),
+    map: b.nameOf('map', t.map),
+    hud: b.nameOf('screen', t.hud),
+    cinematic: b.nameOf('cinematic', t.cinematic),
+    sound: b.nameOf('sound', t.sound),
+    music: b.nameOf('music', t.music),
+  };
+}
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export const fillCode = (code: string, t: Record<string, string>) =>
   code.replace(/\{\{(\w+)\}\}/g, (_, k: string) => t[k] ?? `{{${k}}}`);
 
 /** Opens the course's graph in the Code view (making it on first use) and waits for the editor. */
-async function openCourse(c: ActionCtx, view: 'code' | 'split' = 'code') {
+async function openCourse(c: ActionCtx, view: 'code' | 'split' = 'code', file: string = COURSE) {
   const { ed } = c;
-  let g = courseGraph(ed);
+  let g = courseGraph(ed, file);
   if (!g) {
-    g = newGraph(COURSE, { type: 'event.onStart' });
-    run(c, { type: 'logic.create', payload: { graph: g } }, 'New logic');
+    g = newGraph(file, file === COURSE ? { type: 'event.onStart' } : undefined);
+    run(c, { type: 'logic.create', payload: { graph: g } }, file === COURSE ? 'New logic' : `New file ${file}`);
   }
   return openCode(c, g.id, view);
 }
@@ -79,12 +102,12 @@ export async function openCode(c: ActionCtx, graph: string, view: 'code' | 'spli
 
 /** Coding course actions for “Do it for me” and the “Show me” demo. */
 export const CODING_DOERS: Record<string, (c: ActionCtx, a: Record<string, unknown>) => void | Promise<void>> = {
-  async courseGraph(c) {
-    await openCourse(c);
+  async courseGraph(c, a) {
+    await openCourse(c, 'code', a.file ? String(a.file) : COURSE);
   },
-  /** Types code into the Code view (you watch it appear); the editor turns it into the graph. */
+  /** Types code into the Code view (you watch it appear); the editor turns it into the graph. `file`: another file. */
   async typeCode(c, a) {
-    await openCourse(c);
+    await openCourse(c, 'code', a.file ? String(a.file) : COURSE);
     await typeInto(c, fillCode(String(a.code), courseTokens(c.ed)));
   },
 
@@ -165,12 +188,16 @@ export const CODING_DOERS: Record<string, (c: ActionCtx, a: Record<string, unkno
 export const CODING_TESTS: Record<string, (ed: EditorState, args: unknown) => boolean> = {
   /** the course graph's code matches a regular expression (after {{tokens}} are filled) */
   codeHas: (ed, a) => {
-    const g = courseGraph(ed);
+    // P9b.1: { file, has } checks another of the course's files
+    const inFile = a && typeof a === 'object' && !Array.isArray(a) ? (a as { file: string; has: unknown }) : null;
+    const g = courseGraph(ed, inFile?.file);
     if (!g) return false;
     try {
-      const code = printGraph(g).code;
-      const list = Array.isArray(a) ? a : [a];
-      return list.every((re) => new RegExp(fillCode(String(re), courseTokens(ed)), 'm').test(code));
+      const code = printGraph(withNames(g, nameBook(ed.store))).code;
+      const want = inFile ? inFile.has : a;
+      const list = Array.isArray(want) ? want : [want];
+      const t = Object.fromEntries(Object.entries(courseTokens(ed)).map(([k, v]) => [k, escapeRe(v)]));
+      return list.every((re) => new RegExp(fillCode(String(re), t), 'm').test(code));
     } catch {
       return false;
     }
@@ -192,7 +219,7 @@ export const CODING_TESTS: Record<string, (ed: EditorState, args: unknown) => bo
   /** the error is gone and the code says what it should */
   codeFixed: (ed, a) => !document.querySelector('.lg-code-status.err') && CODING_TESTS.codeHas!(ed, a),
   courseReady: (ed) => {
-    const t = courseTokens(ed);
+    const t = courseIds(ed);
     return (
       !t.chestInstance.endsWith('aaaaaaaaaa') && !t.zone.endsWith('aaaaaaaaaa') && !t.cinematic.endsWith('aaaaaaaaaa')
     );

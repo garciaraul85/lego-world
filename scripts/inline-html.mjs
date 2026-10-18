@@ -43,6 +43,28 @@ export function buildEngine(hostJs, root = ROOT) {
 
 const escapeScript = (js) => js.replaceAll('</script', '<\\/script');
 
+/**
+ * P33: the editor's content security policy. The page may only talk to itself and to the AI host
+ * (api.anthropic.com): a script that gets in (a remixed game, a starter pack) cannot send the key or the
+ * project anywhere else. Fonts come from Google Fonts; everything else is inline, data: or blob:.
+ * 'unsafe-eval' is for the bundled LEGO World v68 modules, which load with new Function (game logic never
+ * does: it is data the interpreter runs).
+ */
+export const EDITOR_CSP = [
+  "default-src 'self' data: blob:",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob:",
+  "media-src 'self' data: blob:",
+  "connect-src 'self' data: blob: https://api.anthropic.com",
+  "worker-src 'self' blob:",
+  "frame-src 'self' blob: data:",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join('; ');
+
 /** The editor page: one self-contained file (fonts from Google Fonts, everything else inline). */
 export function buildEditor(js, css) {
   return `<!doctype html>
@@ -50,6 +72,7 @@ export function buildEditor(js, css) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="${EDITOR_CSP}">
 <title>Brick Worlds Engine</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

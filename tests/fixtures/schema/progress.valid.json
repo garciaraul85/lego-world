@@ -1,0 +1,34 @@
+{
+  "path": "game/progress.json",
+  "value": {
+    "achievements": [
+      {
+        "id": "first-chest",
+        "name": "Treasure hunter",
+        "description": "Open your first chest.",
+        "hidden": false
+      }
+    ],
+    "collections": [
+      {
+        "item": "coin",
+        "label": "Coins",
+        "total": 10
+      }
+    ],
+    "bests": [
+      {
+        "var": "score",
+        "label": "Score",
+        "better": "higher"
+      }
+    ],
+    "newGamePlus": {
+      "enabled": true,
+      "keepItems": true,
+      "keepVars": [
+        "level"
+      ]
+    }
+  }
+}

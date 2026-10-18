@@ -80,6 +80,16 @@ export interface ExecCtx {
   ): void;
   /** entities (instance ids and 'hero') inside a zone */
   inZone(zone: string): string[];
+  /** P9a: hurt the hero, a placed object or a neighbour (a hit of this power and damage type) */
+  damage(target: string, amount: number, type: string, from?: string): void;
+  /** P9a: give health back (never above the maximum) */
+  heal(target: string, amount: number): void;
+  /** P9a: nothing hurts it while on */
+  setInvulnerable(target: string, on: boolean): void;
+  /** P26: save to a slot, load one (none: the newest), or set the checkpoint where the hero stands */
+  saving?(op: 'save' | 'load' | 'checkpoint', slot: number | undefined): void;
+  /** P26 part 2: unlock an achievement (by id), or finish the game */
+  progress?(op: 'achieve' | 'finish', id: string): void;
 }
 
 export type Args = Record<string, unknown>;

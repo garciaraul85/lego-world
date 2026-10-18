@@ -1,17 +1,69 @@
 import { useMemo, useState } from 'preact/hooks';
 import { usesOf } from '../../core/audio/usage';
 import type { Cinematic } from '../../core/schema';
+import { type Character, type MapDoc, paths } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
 import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
+import { runPlayCheck } from '../actions/registry';
 import { assetLibrary } from '../assets';
 import { AssetThumb } from '../components/AssetThumb';
+import { shows } from '../genres/view';
 import { endDrag, startDrag } from '../interact/drag';
 import { keysFor } from '../platform';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
 import { MixerView } from '../workspaces/audio/MixerView';
 import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
+
+/**
+ * P9c: the game's characters, each with “Place” — it stands on the open map as a neighbour, a few studs in
+ * front of the map's first spawn point (an enemy fights the hero there in Play). Looks are made in the studio.
+ */
+function CharacterCards({ c, hint }: { c: ActionCtx; hint: string }) {
+  const { ed } = c;
+  ed.revision.value;
+  const list = ed.store
+    .list('characters/')
+    .map((p) => ed.store.get<Character>(p)!)
+    .filter((x) => x && x.id !== ed.store.manifest.hero);
+  const place = (chr: Character) => {
+    const map = ed.mapId.value;
+    const sp = ed.store.get<MapDoc>(paths.map(map))?.spawns[0];
+    const yaw = sp?.yaw ?? 0;
+    const at = sp?.pos ?? [0, 0.4, 0];
+    const pos: [number, number, number] = [at[0] - Math.sin(yaw) * 5, at[1], at[2] - Math.cos(yaw) * 5];
+    ed.exec(
+      { type: 'npc.place', payload: { map, character: chr.id, pos, heading: yaw } },
+      { label: `Place ${chr.name}` },
+    );
+  };
+  return (
+    <div
+      data-tour="dock-characters"
+      data-help="scene.dock.characters"
+      style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}
+    >
+      <span class="muted small">
+        {hint} Place puts one on this map as a neighbour, in front of the first spawn point.
+      </span>
+      {list.map((chr) => (
+        <div class="row small" style={{ gap: '6px' }}>
+          <span style={{ flex: 1 }}>
+            {chr.name}
+            {chr.enemy ? ' · enemy' : ''}
+          </span>
+          <button type="button" class="btn" aria-label={`Place ${chr.name}`} onClick={() => place(chr)}>
+            Place
+          </button>
+        </div>
+      ))}
+      <button type="button" class="btn on" onClick={() => c.ui.workspace('Characters')}>
+        Open the Character studio
+      </button>
+    </div>
+  );
+}
 
 const CATS: [string, string | null, string][] = [
   [
@@ -30,7 +82,7 @@ export function Dock({ c }: { c: ActionCtx }) {
   const { ed } = c;
   const tab = ed.dock.value;
   const problems = useProblems(ed);
-  const tabs: [typeof tab, string][] = [
+  const tabs: [DockTab, string][] = [
     ['assets', 'Assets'],
     ['console', 'Console'],
     ['timeline', 'Timeline'],
@@ -42,18 +94,21 @@ export function Dock({ c }: { c: ActionCtx }) {
   return (
     <section class="panel dockpanel" aria-label="Bottom dock" data-tour="dock">
       <div class="ptabs">
-        {tabs.map(([id, label]) => (
-          <button
-            type="button"
-            class={`tab ${tab === id ? 'on' : ''}`}
-            onClick={() => {
-              ed.dock.value = id;
-              ed.persistUi();
-            }}
-          >
-            {label}
-          </button>
-        ))}
+        {/* P18: the genre view hides dock tabs it does not use (the open one stays) */}
+        {tabs
+          .filter(([id]) => id === tab || shows(ed, 'dock', id))
+          .map(([id, label]) => (
+            <button
+              type="button"
+              class={`tab ${tab === id ? 'on' : ''}`}
+              onClick={() => {
+                ed.dock.value = id;
+                ed.persistUi();
+              }}
+            >
+              {label}
+            </button>
+          ))}
       </div>
       {tab === 'assets' && <Assets c={c} />}
       {tab === 'console' && <Console ed={ed} />}
@@ -97,13 +152,7 @@ function Assets({ c }: { c: ActionCtx }) {
         {cur[0] === 'Assets' ? (
           <AssetCards c={c} />
         ) : cur[0] === 'Characters' ? (
-          <div class="placeholder" style={{ padding: '8px' }}>
-            <strong>Characters</strong>
-            <span class="muted">{cur[2]}</span>
-            <button type="button" class="btn on" onClick={() => c.ui.workspace('Characters')}>
-              Open the Character studio
-            </button>
-          </div>
+          <CharacterCards c={c} hint={cur[2]} />
         ) : cur[0] === 'Cinematics' ? (
           <MediaCards
             c={c}
@@ -291,19 +340,67 @@ function useProblems(ed: EditorState): LiveProblem[] {
             }
           : { label: 'Open', run: () => ed.openMap(i.map) },
       });
+    // P28: the last “Can this game be finished?” check
+    for (const i of ed.playCheck.value?.issues ?? []) {
+      const map = i.map;
+      out.push({
+        level: i.level,
+        msg: i.message,
+        where: map ? name(map) : 'Project › Progress',
+        ...(map
+          ? {
+              fix: {
+                label: 'Select',
+                run: () => {
+                  ed.openMap(map);
+                  if (i.spawn) ed.selectedSpawn.value = i.spawn;
+                  else if (i.zone) ed.selectedZone.value = i.zone;
+                  else if (i.instance) {
+                    const s = ed.scene.value;
+                    const pick = s && [...new Set(s.instanceOf.values())].find((x) => x.inst.id === i.instance);
+                    if (pick) ed.select(pick.bricks.map((b) => b.id));
+                  }
+                },
+              },
+            }
+          : {}),
+      });
+    }
     return out;
-  }, [rev, ed.problems.value]);
+  }, [rev, ed.problems.value, ed.playCheck.value]);
 }
 
-function Problems({ problems }: { c: ActionCtx; problems: LiveProblem[] }) {
+function Problems({ c, problems }: { c: ActionCtx; problems: LiveProblem[] }) {
+  const check = c.ed.playCheck.value;
+  // P28: “Can this game be finished?” — run on demand (it walks every map)
+  const bar = (
+    <div class="row small" style={{ padding: '6px 12px', gap: '8px' }} data-tour="play-check" data-help="play.check">
+      <button type="button" class="btn" onClick={() => runPlayCheck(c.ed)}>
+        {check ? 'Check again' : 'Can this game be finished? Check'}
+      </button>
+      <span class="muted">
+        {check
+          ? `Checked ${new Date(check.at).toLocaleTimeString()}: ${
+              check.issues.filter((i) => i.level !== 'info').length
+                ? `${check.issues.filter((i) => i.level !== 'info').length} thing(s) to look at`
+                : 'nothing blocks finishing the game'
+            }.`
+          : 'Walks every map from where the hero arrives: gates, objects to use, zones, achievements, collections, an ending.'}
+      </span>
+    </div>
+  );
   if (!problems.length)
     return (
-      <div class="muted" style={{ padding: '10px 12px' }}>
-        No problems found.
+      <div class="scroll">
+        {bar}
+        <div class="muted" style={{ padding: '10px 12px' }}>
+          No problems found.
+        </div>
       </div>
     );
   return (
     <div class="scroll">
+      {bar}
       {problems.map((p) => (
         <div class="problem">
           <span
@@ -456,13 +553,82 @@ function Debug({ c }: { c: ActionCtx }) {
             </select>
           </label>
         </div>
+        <TestShortcuts c={c} />
         <span class="muted small">Cheats change only this Play session; Stop discards them.</span>
       </div>
     </div>
   );
 }
 
-const ASSET_FILTERS: [string, string][] = [
+/** P28: test shortcuts — god mode, set any variable, a snapshot to come back to (this Play only) */
+function TestShortcuts({ c }: { c: ActionCtx }) {
+  const s = c.ed.session.value;
+  const [name, setName] = useState('');
+  const [value, setValue] = useState('');
+  if (!s) return null;
+  const vars = [...s.logic.vars.keys()].sort();
+  return (
+    <div class="row" role="group" aria-label="Test shortcuts" data-tour="test-shortcuts" data-help="play.test">
+      <label class="lbl">
+        <input
+          type="checkbox"
+          aria-label="God mode"
+          checked={s.god}
+          onChange={(e) => {
+            s.god = (e.target as HTMLInputElement).checked;
+            s.emit('cheat', `God mode ${s.god ? 'on' : 'off'}`);
+          }}
+        />{' '}
+        God mode
+      </label>
+      <button type="button" class="btn" onClick={() => s.snapshotMoment()}>
+        Snapshot
+      </button>
+      <button type="button" class="btn" disabled={!s.moment} onClick={() => s.restoreMoment()}>
+        Back to snapshot
+      </button>
+      <label class="lbl">
+        Set
+        <input
+          class="inp mono"
+          style={{ width: '90px' }}
+          list="test-vars"
+          aria-label="Variable to set"
+          placeholder="variable"
+          value={name}
+          onInput={(e) => setName((e.target as HTMLInputElement).value)}
+        />
+        <datalist id="test-vars">
+          {vars.map((v) => (
+            <option value={v} />
+          ))}
+        </datalist>
+        =
+        <input
+          class="inp mono"
+          style={{ width: '70px' }}
+          aria-label="New value"
+          placeholder="value"
+          value={value}
+          onInput={(e) => setValue((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || !name.trim()) return;
+            let v: unknown = value;
+            try {
+              v = JSON.parse(value);
+            } catch {
+              /* plain text */
+            }
+            s.logic.setVar(name.trim(), v);
+            s.emit('cheat', `Set ${name.trim()} = ${JSON.stringify(v)}`);
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
+export const ASSET_FILTERS: [string, string][] = [
   ['all', 'All'],
   ['mine', 'Mine'],
   ['building', 'Buildings'],
@@ -503,7 +669,7 @@ function AssetCards({ c }: { c: ActionCtx }) {
           onKeyDown={(e) => e.key === 'Escape' && setQ('')}
         />
         <div class="row" role="radiogroup" aria-label="Asset kind">
-          {ASSET_FILTERS.map(([id, label]) => (
+          {ASSET_FILTERS.filter(([id]) => id === filter || shows(c.ed, 'assetFilter', id)).map(([id, label]) => (
             <button
               type="button"
               role="radio"
@@ -649,3 +815,7 @@ function MapTimeline({ c }: { c: ActionCtx }) {
     </div>
   );
 }
+
+/** P18: every dock tab (for the tag tests) */
+export const DOCK_TABS = ['assets', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const;
+type DockTab = (typeof DOCK_TABS)[number];

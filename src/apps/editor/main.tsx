@@ -160,9 +160,10 @@ async function boot() {
       writeIntent({ kind: 'tutorial', project: s.manifest.id, mode, track });
       reopen(s.manifest.id);
     },
-    async newProject() {
+    async newProject(genre) {
       const files = newProjectFiles({
         name: 'New brick game',
+        ...(genre ? { genre } : {}),
         generate: { ...DEFAULT_WORLD, seed: Math.floor(Math.random() * 99_999_999) },
       });
       const s = new ProjectStore(files);
@@ -204,6 +205,8 @@ async function boot() {
     },
   };
   (window as unknown as { __editor: EditorState }).__editor = ed;
+  // the built-in asset library, for e2e tests that place a built-in asset by name
+  (window as unknown as { __builtinAssets: typeof BUILTIN_ASSETS }).__builtinAssets = BUILTIN_ASSETS;
   // e2e helpers: place a built-in asset the way the dock does
   (window as unknown as { __assets: unknown }).__assets = {
     placeCommands,

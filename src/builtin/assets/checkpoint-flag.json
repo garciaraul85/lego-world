@@ -1,0 +1,30 @@
+{
+  "id": null,
+  "name": "Checkpoint flag",
+  "category": "prop",
+  "bricks": [
+    [0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 1, 0, 0, 1, 0],
+    [1, 0, 4, 0, 0, 1, 0],
+    [1, 0, 7, 0, 0, 1, 0],
+    [1, 0, 10, 0, 0, 1, 0],
+    [1, 0, 13, 0, 0, 1, 0],
+    [2, 0, 1, 1, 0, 2, 0],
+    [3, 0, 16, 0, 0, 3, 0]
+  ],
+  "palette": {
+    "types": ["plate2x2", "brick1x1", "plate1x2", "plate2x2"],
+    "colors": ["#9ba5b0", "#eef0f2", "#c8202a", "#2e9e46"]
+  },
+  "pivot": [0, 0, 0],
+  "footprint": [2, 2],
+  "sockets": [],
+  "states": ["down", "up"],
+  "initialState": "down",
+  "onlyIn": { "down": [6], "up": [7] },
+  "checkpoint": true,
+  "interactions": [],
+  "smash": { "enabled": false, "rebuild": false, "sound": null, "studs": 0 },
+  "generator": null,
+  "origin": "builtin"
+}

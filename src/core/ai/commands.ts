@@ -8,8 +8,12 @@ import * as G from '../commands/handlers/gates';
 import * as I from '../commands/handlers/items';
 import * as L from '../commands/handlers/logic';
 import * as M from '../commands/handlers/map';
+import * as Np from '../commands/handlers/npcs';
+import * as Pr from '../commands/handlers/progress';
 import type { CommandHandler } from '../commands/types';
 import type { idPattern } from '../ids';
+import { ProgressDoc } from '../save/progress';
+import { Saving } from '../save/save';
 import {
   Action,
   Asset,
@@ -350,6 +354,55 @@ export const AI_COMMANDS: AiCommand[] = [
     { map: M1, instance: 'ins_ffffffffff', state: 'open' },
   ),
   def(
+    'instance.rename',
+    A.renameInstance,
+    z.strictObject({ map, instance: ids('instance'), name: z.string().min(1).max(40).nullable() }),
+    ['map', 'asset'],
+    'Scene',
+    'Names one placed copy (“Gate switch”) so logic and wiring can refer to it by name; null removes the name.',
+    { map: M1, instance: 'ins_ffffffffff', name: 'Gate switch' },
+  ),
+  def(
+    'npc.place',
+    Np.placeNpc,
+    z.strictObject({
+      map,
+      character: ids('character'),
+      pos: z.tuple([z.number(), z.number(), z.number()]),
+      heading: z.number().optional(),
+      id: ids('instance').optional(),
+    }),
+    ['map', 'character'],
+    'Scene',
+    'Puts a character on a map as a neighbour (it wanders near there, talks, and fights the hero if its character is an enemy). pos is in studs; y 0.4 stands on the ground plate.',
+    { map: M1, character: 'chr_knight0000', pos: [4, 0.4, 6] },
+  ),
+  def(
+    'npc.remove',
+    Np.removeNpc,
+    z.strictObject({ map, instance: ids('instance') }),
+    ['map'],
+    'Scene',
+    'Takes a placed neighbour off a map.',
+    { map: M1, instance: 'ins_ffffffffff' },
+  ),
+  def(
+    'progress.put',
+    Pr.putProgress,
+    z.strictObject({ progress: ProgressDoc }),
+    [],
+    'Scene',
+    'The game’s progress setup (Project › Progress): achievements {id, name, description, hidden?} (logic unlocks them by id), collections {item, label, total} (completion counts them), bests {var, label, better: higher|lower}, newGamePlus {enabled, keepItems, keepVars}. Put the whole document.',
+    {
+      progress: {
+        achievements: [{ id: 'first-chest', name: 'Treasure hunter', description: 'Open your first chest.' }],
+        collections: [{ item: 'coin', label: 'Coins', total: 10 }],
+        bests: [{ var: 'score', label: 'Score', better: 'higher' }],
+        newGamePlus: { enabled: true, keepItems: true, keepVars: [] },
+      },
+    },
+  ),
+  def(
     'instance.transform',
     A.transformInstance,
     z.strictObject({
@@ -478,10 +531,12 @@ export const AI_COMMANDS: AiCommand[] = [
       entrySpawn: ids('spawn').nullable().optional(),
       hero: ids('character').nullable().optional(),
       entryScreen: ids('screen').nullable().optional(),
+      genre: z.string().optional(),
+      saving: Saving.nullable().optional(),
     }),
     ['map', 'character', 'screen'],
     'Scene',
-    'Game name, start map and spawn, hero character, first screen.',
+    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}).',
     { name: 'Coin Quest', hero: 'chr_hhhhhhhhhh' },
   ),
   def(

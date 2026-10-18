@@ -6,33 +6,113 @@
   "pausesGame": true,
   "root": {
     "type": "panel",
-    "style": { "bg": "#05070dc0" },
+    "style": {
+      "bg": "#05070dc0"
+    },
     "children": [
       {
         "type": "panel",
         "id": "menu",
         "anchor": [0.5, 0.5],
-        "style": { "layout": "column", "gap": 12, "w": 340, "bg": "#141a2be8", "pad": 24, "radius": 16 },
+        "style": {
+          "layout": "column",
+          "gap": 12,
+          "w": 340,
+          "bg": "#141a2be8",
+          "pad": 24,
+          "radius": 16
+        },
         "children": [
           {
             "type": "text",
             "id": "title",
             "text": "Paused",
-            "style": { "fontSize": 36, "weight": "bold", "color": "#ffffff", "align": "center" }
+            "style": {
+              "fontSize": 36,
+              "weight": "bold",
+              "color": "#ffffff",
+              "align": "center"
+            }
           },
-          { "type": "button", "id": "resume", "label": "Resume", "onPress": [{ "do": "game", "op": "resume" }] },
+          {
+            "type": "button",
+            "id": "resume",
+            "label": "Resume",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "resume"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "save",
+            "label": "Save game",
+            "showIf": "save.canSave",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "saveMenu"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "load",
+            "label": "Load game",
+            "showIf": "save.any",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "loadMenu"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "achievements",
+            "label": "Achievements",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "achievementsMenu"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "settings",
+            "label": "Settings",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "settingsMenu"
+              }
+            ]
+          },
           {
             "type": "button",
             "id": "retry",
             "label": "Restart from checkpoint",
-            "onPress": [{ "do": "game", "op": "retry" }]
+            "onPress": [
+              {
+                "do": "game",
+                "op": "retry"
+              }
+            ]
           },
           {
             "type": "button",
             "id": "quit",
             "label": "Quit to title",
             "sound": "snd_uiback0000",
-            "onPress": [{ "do": "game", "op": "quit" }]
+            "onPress": [
+              {
+                "do": "game",
+                "op": "quit"
+              }
+            ]
           }
         ]
       }

@@ -1,12 +1,27 @@
 import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { SND } from '../../builtin/audio';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
+import { genreById } from '../../builtin/genres';
 import { expandAsset } from '../../core/assets/expand';
+import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
 import { brickToPiece, exactColors, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
+import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
+import type { Enemy } from '../../core/combat/enemy';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import type { ExecCtx } from '../../core/logic/catalog';
+import {
+  AUTO_SLOT,
+  DEFAULT_SAVING,
+  MemorySaveStore,
+  newestSave,
+  type SaveGame,
+  type SaveStore,
+  type Saving,
+  slotLine,
+  slotName,
+} from '../../core/save/save';
 import {
   type Asset,
   type Character,
@@ -41,11 +56,22 @@ import { EmitterSystem } from '../systems/emitters';
 import { formatValue } from '../ui/bindings';
 import { ScreenStack } from '../ui/ScreenStack';
 import { resolveScreen, screenOfKind } from '../ui/screens';
-import { ActionRunner } from './actions';
+import { ActionRunner, type GameOp } from './actions';
+import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
+import { Enemies } from './enemies';
+import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './health';
 import { chunkKeyOf, inspectPieces } from './pieces';
+import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
 import { Runtime, type System } from './runtime';
+import { applySave, captureSave, loadMessage, type SaveHost } from './saves';
 
 type AssetInstanceId = import('../../core/schema').AssetInstance['id'];
+
+/** P26: the built-in Saves screen (slot buttons) */
+const SAVES_SCREEN = 'scr_saves00000';
+/** P26 part 2: the built-in Settings and Achievements screens */
+const SETTINGS_SCREEN = 'scr_settings00';
+const ACHIEVEMENTS_SCREEN = 'scr_achieve000';
 
 const inBox = (z: { min: number[]; max: number[] }, x: number, y: number, zz: number) =>
   x >= z.min[0]! && x <= z.max[0]! && y >= z.min[1]! && y <= z.max[1]! && zz >= z.min[2]! && zz <= z.max[2]!;
@@ -72,6 +98,8 @@ export type MapWorld = {
   /** sound emitters and world UI of this map (P5.5, P5.9) */
   emitters: EmitterInstance[];
   worldUi: UiInstance[];
+  /** P26: what the map started with (instance id → state, neighbour ids), so a save keeps only what changed */
+  start: { instances: Map<string, string>; npcs: number[] };
 };
 
 /** P32: an item made only of moving parts floats — drawn, but outside the brick rules (a rising sword) */
@@ -116,8 +144,13 @@ export class PlaySession {
   talking: Npc | null = null;
   rebuildHeld = false;
   rebuildEntry: BrokenEntry | null = null;
-  private pendingSmash: { remaining: number; reach: number; id: number | null; group?: string | undefined } | null =
-    null;
+  private pendingSmash: {
+    remaining: number;
+    reach: number;
+    id: number | null;
+    group?: string | undefined;
+    kind: AttackKind;
+  } | null = null;
   private smashCooldown = 0;
   private travelLock: { spawn: string } | null = null;
   readonly listeners = new Set<(e: GameEvent) => void>();
@@ -132,6 +165,13 @@ export class PlaySession {
   /** zones the hero is inside, by zone id */
   private inZones = new Set<string>();
   private spawnSerial = 0;
+  /** P9a: health of the hero, objects and neighbours, for this play */
+  readonly health = new HealthBook();
+  /** P9c: neighbours that fight the hero */
+  readonly enemies: Enemies = new Enemies(this);
+  /** P9b: attacks, guarding, moves and lock-on */
+  readonly combat: Combat = new Combat(this);
+  private lastStamina = -1;
   onBreak: ((b: NonNullable<LogicRuntime['paused']>) => void) | null = null;
   emotes: Clip[] = [];
   /** P5: audio, screens and world UI */
@@ -143,8 +183,19 @@ export class PlaySession {
   /** texts set by logic (Set screen text), by "screenId:widgetId" */
   readonly screenText = new Map<string, string>();
   dialogue: { speaker: string; text: string } | null = null;
-  /** where Retry puts the hero back: the last spawn arrived at */
-  checkpoint: { map: string; spawn: string | null };
+  /** where Retry puts the hero back: the last spawn arrived at, or the last checkpoint touched (P26) */
+  checkpoint: { map: string; spawn: string | null; pos?: [number, number, number]; heading?: number };
+  /** P26: where saves are kept, how this game saves, the slot in use, and the Saves screen's purpose */
+  readonly saves: SaveStore;
+  readonly saving: Saving;
+  slot = 1;
+  saveMenu: 'save' | 'load' | null = null;
+  /** seconds played before this session (from a loaded save) */
+  private playBase = 0;
+  /** Quit to title, then Play: a new game from the start */
+  private quitToTitle = false;
+  /** P26 part 2: achievements, best scores, times finished and the player's settings */
+  progress!: PlayerProgress;
   readonly emitterSystem = new EmitterSystem();
   /** the cinematic playing now, if any (P6.2) */
   readonly cine: CinematicSystem;
@@ -158,9 +209,17 @@ export class PlaySession {
 
   constructor(
     readonly snapshot: FileSource,
-    opts: { mapId?: string; spawnId?: string | null; audio?: AudioPort; boot?: 'game' | 'entry' } = {},
+    opts: {
+      mapId?: string;
+      spawnId?: string | null;
+      audio?: AudioPort;
+      boot?: 'game' | 'entry';
+      /** P26: where saves are kept (default: this session only) */
+      saves?: SaveStore;
+    } = {},
   ) {
     this.L = legacyRuntime();
+    this.saves = opts.saves ?? new MemorySaveStore();
     this.audio = opts.audio ?? new RecordingAudio();
     const self = this;
     const host = {
@@ -182,16 +241,23 @@ export class PlaySession {
       music: (music: string | null, fade: number | undefined) => this.audio.music('logic', music, fade),
       stinger: (name: string) => this.audio.stinger(name),
       screen: (op: 'show' | 'hide', screen: string, replace: boolean) => this.screenOp(op, screen, replace),
-      game: (op: 'start' | 'resume' | 'pause' | 'retry' | 'quit') => this.gameOp(op),
+      game: (op: GameOp) => this.gameOp(op),
+      saving: (op: 'save' | 'load' | 'slot' | 'checkpoint', slot: number | undefined) => this.savingOp(op, slot),
+      progress: (op: 'achieve' | 'setting', key: string, value?: unknown) => {
+        if (op === 'achieve') this.progress.unlock(key);
+        else if (isSettingKey(key)) this.progress.setSetting(key, value);
+      },
       gave: () => this.audio.play(SND.pickup),
       spawn: (asset: string, at: string) => void this.spawnAsset(asset, at),
       despawn: (target: string) => this.despawn(target),
+      message: (text: string, seconds: number) => this.say(text, seconds),
       cinematic: (id: string, once: boolean) => void this.cine.play(id, { once }),
     };
     this.actions = new ActionRunner(host);
     this.uiActions = new ActionRunner(host);
     const project = snapshot.get(paths.project) as Project;
     this.project = project;
+    this.saving = project.saving ?? genreById(project.genre).saving ?? DEFAULT_SAVING;
     this.screens = new ScreenStack((id) => resolveScreen(snapshot, id));
     this.cine = new CinematicSystem({
       snapshot,
@@ -217,6 +283,8 @@ export class PlaySession {
     });
     const heroChr = project.hero ? (snapshot.get(paths.character(project.hero)) as Character | undefined) : undefined;
     this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...(heroChr?.profile ?? {}) });
+    // P9b: the off hand (a shield) lives beside v68's profile, which only knows a right-hand item
+    this.hero.offHand = heroChr?.gear?.offHand ?? 'None';
     this.emotes = this.resolveEmotes(heroChr);
     const mapId = opts.mapId ?? project.entry.map;
     this.world = this.loadWorld(mapId);
@@ -231,6 +299,11 @@ export class PlaySession {
     // hearts: games without their own hp / maxHp variables get 3
     if (!this.logic.vars.has('maxHp')) this.logic.vars.set('maxHp', 3);
     if (!this.logic.vars.has('hp')) this.logic.vars.set('hp', this.logic.vars.get('maxHp'));
+    // P9b: guarding uses stamina (screens can show it: {stamina} of {maxStamina})
+    if (!this.logic.vars.has('maxStamina')) this.logic.vars.set('maxStamina', MAX_STAMINA);
+    this.progress = new PlayerProgress(this as unknown as ProgressHost);
+    this.progress.onSettings = () => this.applySettings();
+    this.applySettings();
     this.runtime = new Runtime<PlaySession>(this, this.systems());
     this.screens.onChange(() => this.screensChanged());
     this.applyMapAudio();
@@ -242,13 +315,13 @@ export class PlaySession {
     this.logic.fire({ type: 'event.onStart' });
     this.emit(
       'start',
-      `Playing ${this.world.doc.name}${spawn ? ` from ${spawn.name}` : ''}. WASD moves, Space jumps, F smashes, hold E rebuilds, T talks.`,
+      `Playing ${this.world.doc.name}${spawn ? ` from ${spawn.name}` : ''}. WASD moves, Space jumps, F attacks (hold to charge), Q guards, C rolls, Z locks on, hold E rebuilds, T talks.`,
     );
   }
 
   // ---------- worlds ----------
 
-  private loadWorld(mapId: string): MapWorld {
+  loadWorld(mapId: string): MapWorld {
     const cached = this.worlds.get(mapId);
     if (cached) return cached;
     const doc = this.snapshot.get(paths.map(mapId)) as MapDoc;
@@ -286,7 +359,9 @@ export class PlaySession {
       rev: 0,
       emitters: (inst?.items ?? []).filter((i): i is EmitterInstance => i.kind === 'emitter'),
       worldUi: (inst?.items ?? []).filter((i): i is UiInstance => i.kind === 'ui'),
+      start: { instances: new Map(), npcs: npcs.map((n) => n.id) },
     };
+    for (const i of w.instances) w.start.instances.set(i.inst.id, i.state);
     this.worlds.set(mapId, w);
     return w;
   }
@@ -332,18 +407,32 @@ export class PlaySession {
 
   // ---------- actions (keyboard / touch / cheats) ----------
 
+  /** F (a light attack: the touch button, and what a quick tap of F does) */
   smash() {
-    if (this.cine.active) return;
+    this.strike('light');
+  }
+
+  /**
+   * P9b: one attack. Light, heavy and charged swing the held item (v68's swing) and land on contact; jump,
+   * plunge, bash and spin come from a move and land at once. Spin and plunge hit everything around.
+   */
+  strike(kind: AttackKind) {
+    if (this.cine.active || this.over) return;
     const s = this.heroState;
-    if (this.smashCooldown > 0 || s.building || this.talking) return;
     const w = this.L.GameWeapons.get(this.hero.held);
-    Object.assign(s, { attack: w.duration, attackDuration: w.duration, attackWeapon: this.hero.held });
-    delete (s as Record<string, unknown>).attackImpact;
-    this.smashCooldown = w.duration + 0.02;
-    const hit = this.world.controller.target(w.reach);
-    this.pendingSmash = hit
-      ? { id: hit.id, group: hit.group, remaining: w.contact, reach: w.reach }
-      : { id: null, remaining: w.contact, reach: w.reach };
+    if (kind === 'light' || kind === 'heavy' || kind === 'charged') {
+      if (this.smashCooldown > 0 || s.building || this.talking || this.combat.stagger > 0) return;
+      const slow = kind === 'light' ? 1 : 1.35;
+      Object.assign(s, { attack: w.duration * slow, attackDuration: w.duration * slow, attackWeapon: this.hero.held });
+      delete (s as Record<string, unknown>).attackImpact;
+      this.smashCooldown = w.duration * slow + 0.02;
+      const hit = this.world.controller.target(w.reach);
+      this.pendingSmash = hit
+        ? { id: hit.id, group: hit.group, remaining: w.contact * slow, reach: w.reach, kind }
+        : { id: null, remaining: w.contact * slow, reach: w.reach, kind };
+      return;
+    }
+    this.resolveStrike(kind, w.reach, null);
   }
 
   talk() {
@@ -352,7 +441,8 @@ export class PlaySession {
       this.endTalk();
       return;
     }
-    const npc = this.L.NPCWorld.nearest(this.world.npcs, this.heroState);
+    // P9b.1: locked on to a neighbour: talk to them, wherever they are within the lock
+    const npc = this.combat.lockedNpc() ?? this.L.NPCWorld.nearest(this.world.npcs, this.heroState);
     if (!npc) {
       this.say('Nobody close enough to talk to.', 1.5);
       return;
@@ -391,6 +481,8 @@ export class PlaySession {
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
       { id: 'gates', fixed: (g) => g.stepGates() },
       { id: 'interact', fixed: (g) => g.stepInteract() },
+      { id: 'checkpoints', fixed: (g) => g.stepCheckpoints() },
+      { id: 'progress', fixed: (g) => g.runtime.ticks % 30 === 0 && g.progress.stepBests() },
       { id: 'anim', fixed: (g, dt) => g.stepAnim(dt) },
       { id: 'zones', fixed: (g) => g.stepZones() },
       { id: 'logic', fixed: (g) => g.logic.step(g.clock) },
@@ -407,7 +499,7 @@ export class PlaySession {
     ];
   }
 
-  private inputVector() {
+  inputVector() {
     const k = this.input.keys;
     const t = this.input.touch;
     const has = (...names: string[]) => names.some((n) => k.has(n) || t.has(n));
@@ -427,26 +519,53 @@ export class PlaySession {
       this.input.jump = false;
       return;
     }
-    const input =
-      this.talking || this.over || this.cine.active
-        ? { x: 0, z: 0, run: false, jump: false, vertical: 0 }
-        : this.inputVector();
+    const still = this.talking || this.over || this.cine.active;
+    // P9b: guard (Q held), charging, moves and lock-on
+    const c = this.combat;
+    c.stepGuard(dt, !still && (this.input.keys.has('q') || this.input.touch.has('guard')));
+    let input: ReturnType<PlaySession['inputVector']> & { speedScale?: number; jumpSpeed?: number } =
+      still || c.stagger > 0 ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
+    if (input.jump && c.lockedJump(input.x, input.z)) input = { ...input, jump: false };
+    const moving = c.moveInput();
+    if (moving) input = moving;
+    else if (c.guard || c.charge !== null) input = { ...input, run: false, speedScale: 0.45 };
     this.input.jump = false;
+    // P26: a fall off the world comes back to the checkpoint (v68's controller would use its safe spot)
+    if (this.heroState.y < -14) return this.fellOff();
     const before = this.heroState;
     const wasGrounded = before.grounded;
     const fallSpeed = before.vy;
     // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
     this.world.controller.step(
-      { ...input, speedScale: 1, jumpSpeed: this.hero.power === 'Super jumping' ? 19 : 9.5 },
+      {
+        ...input,
+        speedScale: input.speedScale ?? 1,
+        jumpSpeed: input.jumpSpeed ?? (this.hero.power === 'Super jumping' ? 19 : 9.5),
+      },
       dt,
       this.camYaw,
     );
-    this.movementSounds(dt, wasGrounded, fallSpeed);
-    if (this.heroState.y < -15) {
-      this.world.controller.spawn();
-      this.say('Back on solid ground.', 2);
-      this.hurt(1);
+    c.stepMove(dt);
+    if (this.god) c.stamina = MAX_STAMINA;
+    this.keepOutOfParts();
+    if (c.target) c.stepLock();
+    else c.stepHint();
+    const st = Math.round(c.stamina);
+    if (st !== this.lastStamina) {
+      this.lastStamina = st;
+      this.logic.vars.set('stamina', st);
     }
+    this.movementSounds(dt, wasGrounded, fallSpeed);
+    if (this.heroState.y < -14) this.fellOff();
+  }
+
+  /** back on solid ground after a fall: at the checkpoint touched on this map, else the map's safe spot */
+  private fellOff() {
+    const cp = this.checkpoint;
+    if (cp.pos && cp.map === this.world.mapId) this.placeAt(cp.pos, cp.heading ?? this.heroState.heading);
+    else this.world.controller.spawn();
+    this.say('Back on solid ground.', 2);
+    this.hurt(1);
   }
 
   /** jump, land and footsteps (P5.3: the hero's own sounds) */
@@ -465,11 +584,21 @@ export class PlaySession {
   }
 
   /** lose hearts (falling off the world, logic); at 0 the game is over */
-  hurt(n: number) {
+  hurt(n0: number) {
+    if (this.god) return;
+    // P26: the player's difficulty scales the damage the hero takes (story: half, hard: double)
+    const n = this.progress.damage(n0);
+    if (n <= 0 || this.health.invulnerable.has('hero') || this.over) return;
     const hp = Math.max(0, Number(this.logic.vars.get('hp') ?? 0) - n);
     this.logic.setVar('hp', hp);
     this.audio.play(SND.hurt);
-    if (hp <= 0) this.gameOver();
+    // P9a: the hero's hearts are its health
+    if (hp > 0)
+      this.logic.fire({ type: 'event.onDamaged', match: { asset: '' }, payload: { target: 'hero', amount: n, hp } });
+    else {
+      this.logic.fire({ type: 'event.onDefeated', match: { asset: '' }, payload: { target: 'hero' } });
+      this.gameOver();
+    }
   }
 
   /** hp can also drop through logic or actions (addVar hp -1): 0 hearts is game over */
@@ -491,31 +620,404 @@ export class PlaySession {
     strike.remaining -= dt;
     if (strike.remaining > 1e-6) return;
     this.pendingSmash = null;
-    const hit = this.world.controller.target(strike.reach);
-    if (!hit || (strike.id !== null && hit.id !== strike.id && (!strike.group || hit.group !== strike.group))) return;
-    this.breakHit(hit, { heading: this.heroState.heading, impulse: 2, mass: 1 });
+    this.resolveStrike(strike.kind, strike.reach, strike);
+  }
+
+  /** where an attack lands: the neighbour or object in front (or everything around, for spin and plunge) */
+  private resolveStrike(
+    kind: AttackKind,
+    reach: number,
+    aim: { id: number | null; group?: string | undefined } | null,
+  ) {
+    const attack = this.combat.hitOf(kind);
+    const how = ATTACKS[kind];
+    const push = { knock: how.knock, stun: how.stun };
+    const h = this.heroState;
+    if (how.around) {
+      const r = reach + 1.2;
+      let any = false;
+      for (const n of [...this.world.npcs])
+        if (Math.hypot(n.state.x - h.x, n.state.z - h.z) <= r + 0.6 && this.canHarm(n)) {
+          this.hitNpc(n, attack, push);
+          any = true;
+        }
+      for (const i of [...this.world.instances]) {
+        if (!i.def.health) continue;
+        const c = this.instanceCenter(i);
+        if (c && Math.hypot(c[0] - h.x, c[2] - h.z) <= r + Math.max(i.def.footprint[0], i.def.footprint[1]) / 2) {
+          this.hitInstance(i, attack);
+          any = true;
+        }
+      }
+      if (!any) this.emit('smash', `${kind === 'spin' ? 'Spin attack' : 'Plunge'}: nothing in reach`);
+      return;
+    }
+    // P9a: a neighbour that can be harmed, in front of the hero and in reach, takes the hit first
+    const npc = this.npcInReach(reach + 0.8);
+    if (npc) {
+      this.hitNpc(npc, attack, push);
+      return;
+    }
+    const hit = this.world.controller.target(reach);
+    if (!hit || (aim && aim.id !== null && hit.id !== aim.id && (!aim.group || hit.group !== aim.group))) return;
+    // P9a: an object with health loses some; it breaks only when its health reaches zero
+    const owner = this.instanceOfPiece(hit.id);
+    if (owner?.def.health) {
+      this.hitInstance(owner, attack, hit);
+      return;
+    }
+    // a shield bash only shoves: it does not break plain bricks
+    if (kind === 'bash') return;
+    this.breakHit(hit, { heading: this.heroState.heading, impulse: 2 * how.mult, mass: 1 });
+  }
+
+  /** a neighbour the hero's hits hurt (its character has Can be harmed on) */
+  canHarm(n: Npc): boolean {
+    return !!npcCharacter(this.snapshot, this.world.mapId, n)?.harm?.canBeHarmed;
+  }
+
+  /** the middle of a placed object, in world units */
+  /** P9b.1: the height of the top of a placed object (where the lock-on arrow goes), or null */
+  instanceTop(i: PlayInstance): number | null {
+    if (!i.bricks.length) return null;
+    return Math.max(...i.bricks.map((b) => b.y)) * 0.4 + 1.2;
+  }
+
+  instanceCenter(i: PlayInstance): [number, number, number] | null {
+    if (!i.bricks.length) return null;
+    const xs = i.bricks.map((b) => b.x);
+    const zs = i.bricks.map((b) => b.z);
+    const ys = i.bricks.map((b) => b.y);
+    return [
+      (Math.min(...xs) + Math.max(...xs) + 1) / 2,
+      ((Math.min(...ys) + Math.max(...ys)) / 2) * 0.4 + 0.6,
+      (Math.min(...zs) + Math.max(...zs) + 1) / 2,
+    ];
+  }
+
+  // ---------- health (P9a) ----------
+
+  /** the nearest neighbour that can be harmed, in front of the hero within reach */
+  private npcInReach(reach: number): Npc | null {
+    const h = this.heroState;
+    let best: Npc | null = null;
+    let bd = reach;
+    for (const n of this.world.npcs) {
+      const dx = n.state.x - h.x;
+      const dz = n.state.z - h.z;
+      const d = Math.hypot(dx, dz);
+      if (d > bd || Math.abs(n.state.y - h.y) > 2) continue;
+      const off = Math.abs(((Math.atan2(dx, dz) - h.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      if (off > 1 || !this.canHarm(n)) continue;
+      best = n;
+      bd = d;
+    }
+    return best;
+  }
+
+  /** a hit on a placed object with health: it loses some, and at zero breaks, drops, sends and is defeated */
+  hitInstance(owner: PlayInstance, attack: AttackHit, piece?: LegacyPiece) {
+    const def = assetHealth(owner.def);
+    const name = owner.def.name;
+    if (!def) {
+      this.say(`The ${name.toLowerCase()} can’t be hurt.`, 1.5);
+      return;
+    }
+    const key = `i:${owner.inst.id}`;
+    const before = this.health.peek(key)?.hp ?? def.hp;
+    if (before <= 0) return;
+    const { dealt, wound } = this.health.hit(key, def, attack);
+    const pos: Vec3 = [
+      owner.inst.pos[0] + owner.def.footprint[0] / 2,
+      owner.inst.pos[1] * 0.4,
+      owner.inst.pos[2] + owner.def.footprint[1] / 2,
+    ];
+    if (dealt <= 0) {
+      this.say(
+        this.health.invulnerable.has(key)
+          ? `The ${name.toLowerCase()} can’t be hurt right now.`
+          : `The ${name.toLowerCase()} shrugs it off: only ${hurtBy(def)} hurts it.`,
+        2,
+      );
+      return;
+    }
+    this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
+    if (wound.hp > 0) {
+      this.audio.play(owner.def.smash.sound ?? SND.smash, { pos, volume: 0.6 });
+      this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
+      this.logic.fire({
+        type: 'event.onDamaged',
+        match: { asset: owner.def.id },
+        payload: { target: owner.inst.id, amount: dealt, hp: wound.hp },
+        self: owner.inst.id,
+      });
+      return;
+    }
+    this.defeatInstance(owner, def, piece);
+  }
+
+  private defeatInstance(owner: PlayInstance, def: Health, piece?: LegacyPiece) {
+    const at = owner.inst.id;
+    if (def.atZero.break) {
+      const brick = piece ?? this.world.pieces.find((p) => this.instanceOfPiece(p.id) === owner);
+      if (brick) this.breakHit(brick, { heading: this.heroState.heading, impulse: 2, mass: 1 }, true);
+    }
+    if (def.atZero.drop) this.drop(def.atZero.drop, { near: at });
+    if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
+    this.emit('smash', `${owner.def.name} defeated`);
+    this.logic.fire({ type: 'event.onDefeated', match: { asset: owner.def.id }, payload: { target: at }, self: at });
+  }
+
+  /** a hit on a neighbour that can be harmed */
+  hitNpc(npc: Npc, attack: AttackHit, push?: { knock: number; stun: number }) {
+    const chr = npcCharacter(this.snapshot, this.world.mapId, npc);
+    const name = String(npc.profile.name ?? 'Neighbour');
+    if (!chr?.harm?.canBeHarmed) {
+      this.say(`${name} can’t be harmed.`, 1.5);
+      return;
+    }
+    const key = `n:${npc.id}`;
+    const def = chr.harm.health;
+    if ((this.health.peek(key)?.hp ?? def.hp) <= 0) return;
+    const { dealt, wound } = this.health.hit(key, def, attack);
+    const pos: Vec3 = [npc.state.x, npc.state.y, npc.state.z];
+    if (dealt <= 0) {
+      this.say(this.health.invulnerable.has(key) ? `${name} can’t be hurt right now.` : `${name} shrugs it off.`, 1.5);
+      return;
+    }
+    this.audio.play(SND.hurt, { pos });
+    this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
+    if (wound.hp > 0) {
+      // P9b: knocked back (away from the hero) and stunned for a moment
+      if (push) {
+        const dx = npc.state.x - this.heroState.x;
+        const dz = npc.state.z - this.heroState.z;
+        const d = Math.hypot(dx, dz) || 1;
+        npc.state.x += (dx / d) * push.knock * 0.5;
+        npc.state.z += (dz / d) * push.knock * 0.5;
+        this.combat.stunNpc(npc, push.stun);
+      }
+      this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
+      this.logic.fire({
+        type: 'event.onDamaged',
+        match: { asset: '' },
+        payload: { target: name, amount: dealt, hp: wound.hp },
+        ...this.npcSelf(npc),
+      });
+      return;
+    }
+    // at zero the neighbour leaves this play (puff of bricks where it stood)
+    this.world.npcs = this.world.npcs.filter((n) => n !== npc);
+    if (this.talking === npc) this.talking = null;
+    if (def.atZero.drop) this.drop(def.atZero.drop, { at: pos });
+    if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
+    this.say(`${name} is defeated.`, 2);
+    this.emit('smash', `${name} defeated`);
+    this.logic.fire({
+      type: 'event.onDefeated',
+      match: { asset: '' },
+      payload: { target: name },
+      ...this.npcSelf(npc),
+    });
+  }
+
+  /** an item at zero: an asset (by name) put there, else an inventory item given to the hero */
+  private drop(d: { item: string; count: number }, where: { near?: string; at?: Vec3 }) {
+    const def = this.findAsset(d.item);
+    if (def && where.near && this.spawnNear(d.item, where.near)) return;
+    if (def && where.at) {
+      const p = where.at;
+      const [fw, fd] = def.footprint;
+      if (this.placeCopy(def, [Math.round(p[0] - fw / 2), Math.round(p[1] / 0.4), Math.round(p[2] - fd / 2)], 0))
+        return;
+    }
+    this.give(d.item, d.count);
+  }
+
+  private give(item: string, count: number) {
+    const n = (this.inventory.get(item) ?? 0) + count;
+    this.inventory.set(item, n);
+    this.emit('info', `Got ${count} × ${item} (${n} in total)`);
+    this.say(`+${count} ${item}`, 1.5);
+    this.audio.play(SND.pickup);
+  }
+
+  /** the neighbour called this (by name, or n:<id>) */
+  /**
+   * P9c: health bars to draw: objects and neighbours that have been hurt (and are still standing), and enemies
+   * in a fight, within 25 studs. k = health left (0–1).
+   */
+  healthBars(): { pos: Vec3; k: number }[] {
+    const h = this.heroState;
+    const out: { pos: Vec3; k: number }[] = [];
+    const near = (x: number, z: number) => Math.hypot(x - h.x, z - h.z) <= 25;
+    for (const i of this.world.instances) {
+      const w = this.health.peek(`i:${i.inst.id}`);
+      if (!w || w.hp <= 0 || w.hp >= w.max) continue;
+      const c = this.instanceCenter(i);
+      const top = this.instanceTop(i);
+      if (c && top !== null && near(c[0], c[2])) out.push({ pos: [c[0], top + 1.1, c[2]], k: w.hp / w.max });
+    }
+    for (const n of this.world.npcs) {
+      const w = this.health.peek(`n:${n.id}`);
+      const fighting = this.enemies.engaged(n);
+      if (!fighting && (!w || w.hp >= w.max)) continue;
+      if (w && w.hp <= 0) continue;
+      if (!near(n.state.x, n.state.z)) continue;
+      const max = w?.max ?? npcCharacter(this.snapshot, this.world.mapId, n)?.harm?.health.hp ?? 1;
+      out.push({ pos: [n.state.x, n.state.y + 5.8, n.state.z], k: (w?.hp ?? max) / max });
+    }
+    return out;
+  }
+
+  /** P9c: no fighting now (game over, a cinematic, a talk) */
+  calm(): boolean {
+    return this.over || this.cine.active || !!this.talking;
+  }
+
+  isStunned(n: Npc): boolean {
+    return this.combat.isStunned(n);
+  }
+
+  /** P9c: an enemy's swing lands on the hero (through guard, parry and dodge) */
+  hitHero(n: Npc, power: number, type: DamageType) {
+    this.damage('hero', power, type, `n:${n.id}`);
+  }
+
+  /** P9c: what a neighbour fights with (null: it does not fight) — from its character, looked up once */
+  private enemyCache = new Map<number, Enemy | null>();
+  enemyOf(n: Npc): Enemy | null {
+    if (!this.enemyCache.has(n.id)) {
+      const chr = npcCharacter(this.snapshot, this.world.mapId, n);
+      this.enemyCache.set(n.id, chr?.enemy ?? null);
+    }
+    return this.enemyCache.get(n.id) ?? null;
+  }
+
+  /** P9c: the instance id of a neighbour (what a script on it is owned by) */
+  npcSelf(n: Npc): { self?: string } {
+    const inst = this.snapshot.get(paths.instances(this.world.mapId)) as Instances | undefined;
+    const item = inst?.items.find((i) => i.kind === 'npc' && i.legacyId === n.id);
+    return item ? { self: item.id } : {};
+  }
+
+  private npcByRef(ref: string): Npc | null {
+    const low = ref.trim().toLowerCase();
+    return (
+      this.world.npcs.find(
+        (n) =>
+          `n:${n.id}` === ref || this.npcSelf(n).self === ref || String(n.profile.name ?? '').toLowerCase() === low,
+      ) ?? null
+    );
+  }
+
+  /** logic's Damage: the hero, a placed object (id or asset name) or a neighbour (name) */
+  damage(ref: string, amount: number, type: string, from?: string) {
+    const attack: AttackHit = { power: amount, type: asDamageType(type) };
+    if (!ref || ref === 'hero') {
+      if (this.health.invulnerable.has('hero')) return;
+      // P9b: the guard blocks (or parries) hits from the front; a dodge roll avoids them
+      const src = from ? this.positionOf(from) : null;
+      const r = this.combat.defend(attack, src ? [src[0], src[2]] : null);
+      if (r.how === 'parry') {
+        this.say('Parry!', 1.2);
+        this.emit('smash', 'Parried');
+        const npc = from ? this.npcByRef(from) : null;
+        if (npc) this.combat.stunNpc(npc, 1.2);
+      } else if (r.how === 'block') this.say('Blocked', 0.8);
+      else if (r.how === 'break') this.say('Your guard broke!', 1.5);
+      else if (r.how === 'dodge') this.emit('info', 'Dodged');
+      if (r.taken > 0) this.hurt(r.taken);
+      return;
+    }
+    const inst = this.resolveEntity(ref);
+    if (inst) return this.hitInstance(inst, attack);
+    const npc = this.npcByRef(ref);
+    if (npc) return this.hitNpc(npc, attack);
+    this.emit('info', `Damage: nothing called “${ref}” here.`);
+  }
+
+  /** P9b.1: logic's On locked on (target: the object's id, or the neighbour's name) */
+  lockedOn(t: LockTarget) {
+    if (t.kind === 'npc') {
+      const n = this.world.npcs.find((x) => x.id === t.id);
+      if (n) this.say(`${n.profile.name ?? 'Neighbour'} — T to talk`, 2);
+      this.logic.fire({
+        type: 'event.onLockedOn',
+        match: { asset: '' },
+        payload: { target: String(n?.profile.name ?? '') },
+        ...(n ? this.npcSelf(n) : {}),
+      });
+      return;
+    }
+    const i = this.world.instances.find((x) => x.inst.id === t.id);
+    if (!i) return;
+    this.logic.fire({
+      type: 'event.onLockedOn',
+      match: { asset: i.def.id },
+      payload: { target: i.inst.id },
+      self: i.inst.id,
+    });
+  }
+
+  /** where a thing is: the hero, a placed object (id or asset name) or a neighbour (name) */
+  positionOf(ref: string): [number, number, number] | null {
+    if (ref === 'hero') return [this.heroState.x, this.heroState.y, this.heroState.z];
+    const inst = this.resolveEntity(ref);
+    if (inst) return this.instanceCenter(inst);
+    const npc = this.npcByRef(ref);
+    return npc ? [npc.state.x, npc.state.y, npc.state.z] : null;
+  }
+
+  /** logic's Heal (never above the maximum; the hero: hearts) */
+  heal(ref: string, amount: number) {
+    if (!ref || ref === 'hero') {
+      const max = Number(this.logic.vars.get('maxHp') ?? 3);
+      this.logic.setVar('hp', Math.min(max, Number(this.logic.vars.get('hp') ?? 0) + Math.max(0, amount)));
+      return;
+    }
+    const inst = this.resolveEntity(ref);
+    const def = inst ? assetHealth(inst.def) : null;
+    if (inst && def) {
+      this.health.heal(`i:${inst.inst.id}`, def, amount);
+      return;
+    }
+    const npc = this.npcByRef(ref);
+    const harm = npc ? npcCharacter(this.snapshot, this.world.mapId, npc)?.harm : undefined;
+    if (npc && harm) this.health.heal(`n:${npc.id}`, harm.health, amount);
+  }
+
+  /** logic's Set invulnerable */
+  setInvulnerable(ref: string, on: boolean) {
+    const inst = ref && ref !== 'hero' ? this.resolveEntity(ref) : null;
+    const npc = ref && ref !== 'hero' && !inst ? this.npcByRef(ref) : null;
+    const key = !ref || ref === 'hero' ? 'hero' : inst ? `i:${inst.inst.id}` : npc ? `n:${npc.id}` : null;
+    if (!key) return this.emit('info', `Set invulnerable: nothing called “${ref}” here.`);
+    if (on) this.health.invulnerable.add(key);
+    else this.health.invulnerable.delete(key);
   }
 
   /** Port of v68 breakHit: the hit brick (or its whole group) plus anything it was holding up. */
-  breakHit(hit: LegacyPiece, impact?: { heading: number; impulse: number; mass: number }) {
+  breakHit(hit: LegacyPiece, impact?: { heading: number; impulse: number; mass: number }, force = false) {
     const w = this.world;
     const owner = this.instanceOfPiece(hit.id);
-    if (owner && !owner.def.smash.enabled) {
+    if (owner && !owner.def.smash.enabled && !force) {
       this.say(`The ${owner.def.name.toLowerCase()} can’t be smashed.`, 1.5);
       return 0;
     }
     const ids = new Set(
       w.pieces.filter((p) => p.y > 0 && (p.id === hit.id || (hit.group && p.group === hit.group))).map((p) => p.id!),
     );
-    let remaining = w.pieces.filter((p) => !ids.has(p.id!));
+    let remaining = this.solid(w.pieces.filter((p) => !ids.has(p.id!)));
     let check = inspectPieces(remaining);
     if (!check.ok && check.connected) {
       remaining.forEach((p, i) => {
         if (!check.connected!.has(i)) ids.add(p.id!);
       });
-      remaining = w.pieces.filter((p) => !ids.has(p.id!));
+      remaining = this.solid(w.pieces.filter((p) => !ids.has(p.id!)));
       check = inspectPieces(remaining);
     }
+    remaining = w.pieces.filter((p) => !ids.has(p.id!));
     if (!check.ok) {
       this.say(check.reason ?? 'That can’t break.', 2);
       return 0;
@@ -541,6 +1043,7 @@ export class PlaySession {
       type: 'event.onSmash',
       match: { asset: owner?.def.id ?? '' },
       payload: { target: owner?.inst.id ?? hit.group ?? String(hit.id), bricks: originals.length },
+      ...(owner ? { self: owner.inst.id } : {}),
     });
     this.say(
       `${originals.length} ${originals.length === 1 ? 'brick' : 'bricks'} smashed into loose pieces. Hold E nearby to put them back.`,
@@ -621,6 +1124,125 @@ export class PlaySession {
     return b;
   }
 
+  /**
+   * P9c: moving parts that are posed away from where they rest (an open chest's lid) take up room: the hero is
+   * pushed out of them, so a lid never swings through the player. Their boxes, in world units.
+   */
+  partBoxes(): { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number; cx: number; cz: number }[] {
+    const w = this.world;
+    const list = w.instances.filter(
+      (i) => i.def.parts?.some((p) => p.pose) && (i.state !== i.def.initialState || i.anim),
+    );
+    if (!list.length) return [];
+    const now = this.clock;
+    const groups = freeGroups(list, (id) => {
+      const i = list.find((x) => x.inst.id === id);
+      return i?.anim ? { ...i.anim, now } : null;
+    });
+    const out: { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number; cx: number; cz: number }[] =
+      [];
+    for (const g of groups) {
+      if (g.part === null) continue;
+      const box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, z0: Infinity, z1: -Infinity };
+      for (const b of g.bricks) {
+        const piece = w.pieces.find((p) => p.id === b.id);
+        if (!piece) continue;
+        const r = this.L.GamePhysics.bounds(piece);
+        for (const x of [r.x0, r.x1])
+          for (const y of [r.y0, r.y1])
+            for (const z of [r.z0, r.z1]) {
+              const [px, py, pz] = g.t.point([x, y, z]);
+              box.x0 = Math.min(box.x0, px);
+              box.x1 = Math.max(box.x1, px);
+              box.y0 = Math.min(box.y0, py);
+              box.y1 = Math.max(box.y1, py);
+              box.z0 = Math.min(box.z0, pz);
+              box.z1 = Math.max(box.z1, pz);
+            }
+      }
+      // the middle of the whole object: the hero is pushed away from it, never into it
+      const owner = list.find((i) => i.inst.id === g.instance);
+      const c = owner ? this.instanceCenter(owner) : null;
+      if (box.x0 < box.x1)
+        out.push({ ...box, cx: c?.[0] ?? (box.x0 + box.x1) / 2, cz: c?.[2] ?? (box.z0 + box.z1) / 2 });
+    }
+    return out;
+  }
+
+  /** P9c: steps the hero out of any posed moving part it stands in (sideways, the shortest way) */
+  private keepOutOfParts() {
+    const h = this.heroState;
+    const r = 0.45;
+    for (const b of this.partBoxes()) {
+      // under it, or standing on top of it (a closed lid is the chest's top): not in its way
+      if (h.y + 3.8 < b.y0 || h.y >= b.y1 - 0.1) continue;
+      const cx = Math.max(b.x0, Math.min(h.x, b.x1));
+      const cz = Math.max(b.z0, Math.min(h.z, b.z1));
+      const dx = h.x - cx;
+      const dz = h.z - cz;
+      const d = Math.hypot(dx, dz);
+      if (d >= r) continue;
+      if (d > 1e-6) {
+        h.x = cx + (dx / d) * r;
+        h.z = cz + (dz / d) * r;
+        continue;
+      }
+      // inside: out through the nearest side that faces away from the object (not into it)
+      const ax = h.x - b.cx;
+      const az = h.z - b.cz;
+      const sides: [number, number, number][] = [
+        [h.x - b.x0, -1, 0],
+        [b.x1 - h.x, 1, 0],
+        [h.z - b.z0, 0, -1],
+        [b.z1 - h.z, 0, 1],
+      ];
+      const away = sides.filter(([, sx, sz]) => sx * ax + sz * az > 0);
+      const [depth, sx, sz] = (away.length ? away : sides).sort((a, c) => a[0] - c[0])[0]!;
+      h.x += sx * (depth + r);
+      h.z += sz * (depth + r);
+    }
+  }
+
+  /** P9c: where to stand to rebuild a smashed thing — the nearest spot just outside it, on the hero's side */
+  rebuildStand(b: { x0: number; x1: number; y0: number; z0: number; z1: number }): [number, number, number] {
+    const h = this.heroState;
+    const m = 1.4;
+    const x0 = b.x0 - m;
+    const x1 = b.x1 + m;
+    const z0 = b.z0 - m;
+    const z1 = b.z1 + m;
+    let x = Math.max(x0, Math.min(h.x, x1));
+    let z = Math.max(z0, Math.min(h.z, z1));
+    if (x > x0 && x < x1 && z > z0 && z < z1) {
+      // the hero is in the ring: the nearest edge
+      const d = [x - x0, x1 - x, z - z0, z1 - z];
+      const k = d.indexOf(Math.min(...d));
+      if (k === 0) x = x0;
+      else if (k === 1) x = x1;
+      else if (k === 2) z = z0;
+      else z = z1;
+    }
+    return [x, b.y0, z];
+  }
+
+  /**
+   * P9b.1: smashed things the hero can rebuild, within 30 studs: their bounds, their bricks (drawn as ghosts
+   * where they will go back) and whether the hero stands close enough to hold E.
+   */
+  rebuildSpots(): { entry: BrokenEntry; bounds: ReturnType<PlaySession['damagedBounds']>; near: boolean }[] {
+    const s = this.heroState;
+    const near = this.nearestBroken();
+    const out: { entry: BrokenEntry; bounds: ReturnType<PlaySession['damagedBounds']>; near: boolean }[] = [];
+    for (const e of this.world.broken) {
+      const owner = this.instanceOfPiece(e.originals[0]?.id);
+      if (owner && !owner.def.smash.rebuild) continue;
+      const b = this.damagedBounds(e);
+      if (Math.hypot((b.x0 + b.x1) / 2 - s.x, (b.z0 + b.z1) / 2 - s.z) > 30) continue;
+      out.push({ entry: e, bounds: b, near: e === near });
+    }
+    return out;
+  }
+
   nearestBroken(): BrokenEntry | null {
     const s = this.heroState;
     let best: BrokenEntry | null = null;
@@ -676,7 +1298,7 @@ export class PlaySession {
     this.say(`Rebuilding ${entry.originals.length} bricks… ${Math.round(entry.progress * 100)}%`, 0.2);
     if (entry.progress < 1) return;
     const restored = [...w.pieces, ...entry.originals.map((p) => ({ ...p }))];
-    const check = inspectPieces(restored);
+    const check = inspectPieces(this.solid(restored));
     if (!check.ok) {
       this.cancelRebuild();
       this.rebuildHeld = false;
@@ -699,6 +1321,7 @@ export class PlaySession {
       type: 'event.onRebuildFinished',
       match: { asset: owner?.def.id ?? '' },
       payload: { target: owner?.inst.id ?? entry.originals[0]?.group ?? '' },
+      ...(owner ? { self: owner.inst.id } : {}),
     });
     this.say('Rebuilt! Every original brick is back in place.', 2);
   }
@@ -727,12 +1350,14 @@ export class PlaySession {
       travel: (map, spawn) => {
         if (this.snapshot.get(paths.map(map))) this.travel(map, spawn);
       },
-      give: (item, count) => {
-        const n = (this.inventory.get(item) ?? 0) + count;
-        this.inventory.set(item, n);
-        this.emit('info', `Got ${count} × ${item} (${n} in total)`);
-        this.say(`+${count} ${item}`, 1.5);
-        this.audio.play(SND.pickup);
+      give: (item, count) => this.give(item, count),
+      damage: (target, amount, type, from) => this.damage(target, amount, type, from),
+      heal: (target, amount) => this.heal(target, amount),
+      setInvulnerable: (target, on) => this.setInvulnerable(target, on),
+      saving: (op, slot) => this.savingOp(op, slot),
+      progress: (op, id) => {
+        if (op === 'achieve') this.progress.unlock(id);
+        else this.gameOp('finish');
       },
       spawn: (asset, at) => this.spawnAsset(asset, at),
       spawnNear: (item, near) => this.spawnNear(item, near),
@@ -911,9 +1536,54 @@ export class PlaySession {
     this.screens.set(hud ? [hud.id] : []);
   }
 
-  gameOp(op: 'start' | 'resume' | 'pause' | 'retry' | 'quit') {
+  gameOp(op: GameOp) {
     switch (op) {
       case 'start':
+        // after Quit to title, Play is a new game; the first Play of a session starts the world as it is
+        if (this.quitToTitle) this.newGame();
+        this.startGame();
+        break;
+      case 'continue': {
+        // P26: the newest save (autosave or a slot); none yet: a new game
+        const save = newestSave(this.saves, this.project.id);
+        if (save) this.loadSave(save.slot);
+        else {
+          if (this.quitToTitle) this.newGame();
+          this.startGame();
+        }
+        break;
+      }
+      case 'saveMenu':
+      case 'loadMenu':
+        this.openSaves(op === 'saveMenu' ? 'save' : 'load');
+        break;
+      // P26 part 2
+      case 'settingsMenu':
+      case 'achievementsMenu': {
+        const id = op === 'settingsMenu' ? SETTINGS_SCREEN : ACHIEVEMENTS_SCREEN;
+        if (resolveScreen(this.snapshot, id) && !this.screens.has(id)) this.screens.push(id);
+        break;
+      }
+      case 'finish': {
+        if (this.over) break;
+        this.progress.finish();
+        const pct = this.progress.percent();
+        this.emit(
+          'screen',
+          `Game finished${this.progress.doc.collections.length || this.progress.doc.achievements.length ? ` · ${pct}%` : ''}`,
+        );
+        if (this.saving.autosave) this.saveGame(AUTO_SLOT, true);
+        const t = screenOfKind(this.snapshot, 'title');
+        this.screens.set(t ? [t.id] : []);
+        this.quitToTitle = true;
+        this.say(
+          `The end · ${this.progress.record.finished === 1 ? 'finished!' : `finished ${this.progress.record.finished} times`}`,
+          4,
+        );
+        break;
+      }
+      case 'newGamePlus':
+        this.newGamePlus();
         this.startGame();
         break;
       case 'pause': {
@@ -928,8 +1598,12 @@ export class PlaySession {
         this.over = false;
         this.logic.setVar('hp', this.logic.vars.get('maxHp') ?? 3);
         const cp = this.checkpoint;
-        if (cp.map !== this.world.mapId && cp.spawn) this.travel(cp.map, cp.spawn);
-        else {
+        if (cp.map !== this.world.mapId && (cp.spawn || cp.pos)) {
+          this.travel(cp.map, cp.spawn ?? '');
+          this.checkpoint = cp;
+        }
+        if (cp.pos && cp.map === this.world.mapId) this.placeAt(cp.pos, cp.heading ?? this.heroState.heading);
+        else if (cp.map === this.world.mapId) {
           const sp = this.world.doc.spawns.find((x) => x.id === cp.spawn);
           if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
           else this.world.controller.spawn();
@@ -941,9 +1615,232 @@ export class PlaySession {
       case 'quit': {
         const t = screenOfKind(this.snapshot, 'title');
         this.screens.set(t ? [t.id] : []);
+        this.quitToTitle = true;
         break;
       }
     }
+  }
+
+  // ---------- saving (P26) ----------
+
+  /** seconds played in this game, counting the loaded save */
+  playTime(): number {
+    return this.playBase + this.clock;
+  }
+
+  /** Save, Load, a Saves-screen slot button, or Set checkpoint (from actions, logic and screens). */
+  savingOp(op: 'save' | 'load' | 'slot' | 'checkpoint', slot: number | undefined) {
+    if (op === 'save') this.saveGame(slot ?? this.slot);
+    else if (op === 'load') {
+      const s = slot ?? newestSave(this.saves, this.project.id)?.slot;
+      if (s === undefined) this.say('No saved game yet.', 2);
+      else this.loadSave(s);
+    } else if (op === 'checkpoint') this.setCheckpoint();
+    else if (slot !== undefined) {
+      if (this.saveMenu === 'load') this.loadSave(slot);
+      else this.saveGame(slot);
+      this.closeSaves();
+    }
+  }
+
+  /** Writes the game to a slot (0: the autosave). */
+  saveGame(slot: number, quiet = false) {
+    if (this.over) return;
+    const n = Math.max(0, Math.min(this.saving.slots, slot));
+    this.saves.write(captureSave(this as unknown as SaveHost, n));
+    if (n !== AUTO_SLOT) this.slot = n;
+    if (!quiet) {
+      this.emit('info', `Saved to ${slotName(n)}`);
+      this.say(n === AUTO_SLOT ? 'Autosaved' : `Game saved · ${slotName(n)}`, 2);
+      this.audio.play(SND.pickup);
+    }
+  }
+
+  /** Loads a slot: the world, the hero and everything carried come back as they were saved. */
+  loadSave(slot: number): boolean {
+    const save = this.saves.read(this.project.id, slot);
+    if (!save) {
+      this.say(`${slotName(slot)} is empty.`, 2);
+      return false;
+    }
+    this.putBack(save, slot);
+    return true;
+  }
+
+  /** puts a save back into this play (a slot, or a test moment); returns the message it showed */
+  private putBack(save: SaveGame, slot: number | null): string {
+    this.cancelRebuild();
+    this.pendingSmash = null;
+    this.endTalk();
+    this.emitterSystem.reset(this.audio);
+    this.inZones.clear();
+    const r = applySave(this as unknown as SaveHost, save);
+    this.placeAt(save.map === r.map ? save.hero.pos : this.entryPos(), save.hero.heading);
+    this.world.controller.state.heading = save.hero.heading;
+    this.camYaw = this.heroState.heading + Math.PI;
+    // standing on a gate when it was saved must not travel at once
+    const sp = this.world.doc.spawns.find(
+      (x) => Math.hypot(x.pos[0] - this.heroState.x, x.pos[2] - this.heroState.z) < 2.5,
+    );
+    this.travelLock = sp ? { spawn: sp.id } : null;
+    this.playBase = save.playTime;
+    this.clock = 0;
+    this.messageUntil = 0;
+    if (slot !== null && slot !== AUTO_SLOT) this.slot = slot;
+    this.over = false;
+    this.quitToTitle = false;
+    this.startGame();
+    this.zoneAudio();
+    this.applyMapAudio();
+    const msg =
+      slot === null ? loadMessage(0, r).replace('Loaded Autosave', 'Back to the snapshot') : loadMessage(slot, r);
+    this.emit('info', msg);
+    this.say(msg, 2.5);
+    return msg;
+  }
+
+  // ---------- test shortcuts (P28) ----------
+
+  /** god mode: nothing hurts the hero and stamina never runs out (testing) */
+  god = false;
+  /** a moment kept to come back to (testing a puzzle again) */
+  moment: SaveGame | null = null;
+
+  /** keeps this moment of the play (everything a save keeps), to come back to with restoreMoment */
+  snapshotMoment() {
+    this.moment = captureSave(this as unknown as SaveHost, AUTO_SLOT);
+    this.emit('cheat', 'Snapshot taken');
+    this.say('Snapshot taken', 1.5);
+  }
+
+  /** back to the snapshot: the world, the hero and everything carried as they were */
+  restoreMoment(): boolean {
+    if (!this.moment) return false;
+    const keepClock = this.clock + this.playBase;
+    this.putBack(this.moment, null);
+    this.playBase = keepClock;
+    this.emit('cheat', 'Back to the snapshot');
+    return true;
+  }
+
+  /** A new game from the start: every map as the maker built it, variables at their first values. */
+  newGame() {
+    this.quitToTitle = false;
+    this.worlds.clear();
+    this.world = this.loadWorld(this.project.entry.map);
+    const sp = this.world.doc.spawns.find((s) => s.id === this.project.entry.spawn) ?? this.world.doc.spawns[0];
+    if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
+    this.checkpoint = { map: this.world.mapId, spawn: sp?.id ?? null };
+    this.travelLock = sp ? { spawn: sp.id } : null;
+    this.inventory.clear();
+    this.health.clear();
+    this.cine.seen.clear();
+    this.logic.vars.clear();
+    const vars = this.snapshot.get(paths.variables) as Variables | undefined;
+    for (const [k, v] of Object.entries(vars?.vars ?? {})) this.logic.vars.set(k, v.default);
+    if (!this.logic.vars.has('maxHp')) this.logic.vars.set('maxHp', 3);
+    if (!this.logic.vars.has('hp')) this.logic.vars.set('hp', this.logic.vars.get('maxHp'));
+    if (!this.logic.vars.has('maxStamina')) this.logic.vars.set('maxStamina', MAX_STAMINA);
+    this.playBase = 0;
+    this.clock = 0;
+    this.over = false;
+    this.inZones.clear();
+    this.zoneAudio();
+    this.applyMapAudio();
+    this.camYaw = this.heroState.heading + Math.PI;
+    this.logic.fire({ type: 'event.onStart' });
+  }
+
+  /** P26: a new game that keeps what Project › Progress › New game plus says (items, chosen variables) */
+  newGamePlus() {
+    const ng = this.progress.doc.newGamePlus;
+    const items = ng.keepItems ? new Map(this.inventory) : new Map<string, number>();
+    const vars = new Map(ng.keepVars.map((k) => [k, this.logic.vars.get(k)] as const));
+    this.newGame();
+    for (const [k, v] of items) this.inventory.set(k, v);
+    for (const [k, v] of vars) if (v !== undefined) this.logic.vars.set(k, v);
+    this.logic.vars.set('newGamePlus', this.progress.record.finished);
+    this.emit('info', `New game plus (${this.progress.record.finished})`);
+    this.say(`New game + ${this.progress.record.finished > 1 ? this.progress.record.finished : ''}`.trim(), 2.5);
+  }
+
+  /** P26: the player's settings that the game applies itself (volumes); the play view reads the camera ones */
+  applySettings() {
+    const s = this.progress.settings;
+    this.audio.playerVolume?.(s.music / 100, s.sounds / 100);
+  }
+
+  private entryPos(): [number, number, number] {
+    const sp = this.world.doc.spawns[0];
+    const s = this.heroState;
+    return sp ? (sp.pos as [number, number, number]) : [s.x, s.y, s.z];
+  }
+
+  /** Retry and falls come back here: where the hero stands now (a checkpoint, or Set checkpoint in logic). */
+  setCheckpoint() {
+    const s = this.heroState;
+    this.checkpoint = { map: this.world.mapId, spawn: null, pos: [s.x, s.y, s.z], heading: s.heading };
+    this.emit('info', 'Checkpoint');
+  }
+
+  /** P26: touching a checkpoint asset: it is the new checkpoint (its flag goes up) and the game autosaves */
+  stepCheckpoints() {
+    if (this.cine.active || this.over) return;
+    const s = this.heroState;
+    for (const i of this.world.instances) {
+      if (!i.def.checkpoint) continue;
+      const c = this.instanceCenter(i);
+      if (!c || Math.hypot(c[0] - s.x, c[2] - s.z) > 2.6 || Math.abs(c[1] - s.y) > 4) continue;
+      const cp = this.checkpoint;
+      const here = cp.pos && cp.map === this.world.mapId && Math.hypot(cp.pos[0] - c[0], cp.pos[2] - c[2]) < 3;
+      if (here) continue;
+      this.checkpoint = { map: this.world.mapId, spawn: null, pos: [s.x, s.y, s.z], heading: s.heading };
+      // its last state means “touched” (a flag up); every other checkpoint here goes back to its first state
+      for (const o of this.world.instances)
+        if (o.def.checkpoint && o !== i && o.state !== o.def.initialState)
+          this.setInstanceState(o.inst.id, o.def.initialState);
+      const up = i.def.states[i.def.states.length - 1]!;
+      if (i.state !== up) this.setInstanceState(i.inst.id, up);
+      this.emit('info', `Checkpoint: ${i.inst.name ?? i.def.name}`);
+      this.logic.fire({
+        type: 'event.onCustom',
+        match: { event: 'checkpoint' },
+      });
+      if (this.saving.autosave) this.saveGame(AUTO_SLOT, true);
+      this.say(this.saving.autosave ? 'Checkpoint · saved' : 'Checkpoint', 2);
+      this.audio.play(SND.pickup);
+      return;
+    }
+  }
+
+  /** the Saves screen (P26): slot buttons that save or load */
+  private openSaves(mode: 'save' | 'load') {
+    if (mode === 'save' && this.saving.mode !== 'anywhere') {
+      this.say(this.saving.mode === 'savePoints' ? 'Save at a save point.' : 'This game saves at checkpoints.', 2);
+      return;
+    }
+    this.saveMenu = mode;
+    const s = resolveScreen(this.snapshot, SAVES_SCREEN);
+    if (s && !this.screens.has(s.id)) this.screens.push(s.id);
+  }
+
+  private closeSaves() {
+    this.saveMenu = null;
+    if (this.screens.has(SAVES_SCREEN)) this.screens.hide(SAVES_SCREEN);
+  }
+
+  /** {save.…} values for screens: whether a save exists, what each slot holds */
+  private saveValue(name: string): unknown {
+    const game = this.project.id;
+    if (name === 'save.any') return !!newestSave(this.saves, game);
+    if (name === 'save.canSave') return this.saving.mode === 'anywhere';
+    if (name === 'save.menuTitle') return this.saveMenu === 'load' ? 'Load game' : 'Save game';
+    if (name === 'save.slot') return slotName(this.slot);
+    const m = /^save\.slot([1-3])(\.shown)?$/.exec(name);
+    if (!m) return undefined;
+    const n = Number(m[1]);
+    if (m[2]) return n <= this.saving.slots;
+    return slotLine(n, this.saves.read(game, n));
   }
 
   /** a screen button was pressed: logic's On screen button (screen + button id) */
@@ -970,7 +1867,7 @@ export class PlaySession {
   lookup = (name: string): unknown => {
     switch (name) {
       case 'hero.gear':
-        return String(this.hero.held ?? 'hands');
+        return `${String(this.hero.held ?? 'hands')}${hasShield(this.hero) ? ' + Shield' : ''}`;
       case 'hero.name':
         return String(this.hero.name ?? 'Hero');
       case 'map.name':
@@ -978,7 +1875,10 @@ export class PlaySession {
       case 'game.name':
         return this.project.name;
       case 'prompt':
-        return this.prompt && !this.talking ? `E · ${this.prompt.label}` : '';
+        if (this.talking) return '';
+        if (this.prompt) return `E · ${this.prompt.label}`;
+        // P9c: standing where a smashed thing can be rebuilt
+        return this.nearestBroken() ? 'Hold E · Rebuild' : '';
       case 'message':
         return this.clock < this.messageUntil ? this.message : '';
       case 'dialogue.speaker':
@@ -991,11 +1891,16 @@ export class PlaySession {
         return Math.floor(this.clock);
     }
     if (name.startsWith('inventory.')) return this.inventory.get(name.slice(10)) ?? 0;
+    if (name.startsWith('save.')) return this.saveValue(name);
+    if (/^(progress|achievements|collections|collection|bests|best|settings)\./.test(name))
+      return this.progress.value(name);
     return this.logic.vars.get(name);
   };
 
   /** Stop: silence everything this session started. */
   dispose() {
+    // the editor's own sounds go back to full volume
+    this.audio.playerVolume?.(1, 1);
     this.emitterSystem.reset(this.audio);
     this.audio.stopAll();
   }
@@ -1024,6 +1929,9 @@ export class PlaySession {
     const exact = w.instances.find((i) => i.inst.id === ref);
     if (exact) return exact;
     const low = ref.trim().toLowerCase();
+    // P9c: a copy's own name (“Gate switch”)
+    const named = w.instances.find((i) => i.inst.name?.toLowerCase() === low);
+    if (named) return named;
     const h = this.heroState;
     let best: PlayInstance | null = null;
     let bd = Infinity;
@@ -1088,12 +1996,21 @@ export class PlaySession {
   }
 
   /** Adds a copy of an asset to this play's world (refused if its bricks would not fit). */
-  private placeCopy(def: Asset, pos: [number, number, number], rot: number): string | null {
+  placeCopy(
+    def: Asset,
+    pos: [number, number, number],
+    rot: number,
+    as?: { id: string; idBase: number },
+  ): string | null {
     const w = this.world;
     const idBase =
+      as?.idBase ??
       Math.max(0, ...w.pieces.map((p) => p.id ?? 0), ...w.broken.flatMap((b) => b.originals.map((p) => p.id ?? 0))) + 1;
+    // P26: a copy put back by a save keeps its id; new ones count on from the highest
+    if (as) this.spawnSerial = Math.max(this.spawnSerial, Number(as.id.slice(8)) || 0);
+    if (as && w.instances.some((i) => i.inst.id === as.id)) return null;
     const inst = {
-      id: `ins_play${String(++this.spawnSerial).padStart(6, '0')}` as AssetInstanceId,
+      id: (as?.id ?? `ins_play${String(++this.spawnSerial).padStart(6, '0')}`) as AssetInstanceId,
       kind: 'asset' as const,
       asset: def.id,
       pos,
@@ -1103,7 +2020,7 @@ export class PlaySession {
     const exp = expandAsset(def, inst);
     const pieces = [...w.pieces, ...exp.bricks.map((b) => brickToPiece(b, true))];
     // a floating item (every brick in a moving part) is drawn only: it does not have to fit
-    const check = floating(def) ? { ok: true as const, reason: '' } : inspectPieces(pieces);
+    const check = floating(def) ? { ok: true as const, reason: '' } : inspectPieces(this.solid(pieces));
     if (!check.ok) {
       this.emit('info', `Spawn ${def.name}: ${check.reason}`);
       return null;
@@ -1125,7 +2042,7 @@ export class PlaySession {
     const lo = inst.inst.idBase;
     const hi = lo + inst.def.bricks.length;
     const pieces = w.pieces.filter((p) => p.id! < lo || p.id! >= hi);
-    const check = inspectPieces(pieces);
+    const check = inspectPieces(this.solid(pieces));
     if (!check.ok) {
       this.emit('info', `Remove ${inst.def.name}: ${check.reason}`);
       return;
@@ -1228,6 +2145,7 @@ export class PlaySession {
       type: 'event.onInteract',
       match: { asset: p.instance.def.id },
       payload: { target: p.instance.inst.id, socket: p.socket },
+      self: p.instance.inst.id,
     });
     this.stepInteract();
     return true;
@@ -1245,7 +2163,7 @@ export class PlaySession {
       ...w.pieces.filter((p) => p.id! < lo || p.id! >= hi),
       ...next.bricks.map((b) => brickToPiece(b, true)),
     ];
-    const check = floating(inst.def) ? { ok: true as const, reason: '' } : inspectPieces(pieces);
+    const check = floating(inst.def) ? { ok: true as const, reason: '' } : inspectPieces(this.solid(pieces));
     if (!check.ok) {
       this.say(`Something is in the way: ${check.reason}`, 2);
       return;
@@ -1270,11 +2188,16 @@ export class PlaySession {
   stepNpcs(dt: number) {
     const w = this.world;
     if (!w.npcs.length) return;
-    const free = this.cine.active ? w.npcs.filter((n) => !this.cine.isCast(n)) : w.npcs;
+    const acting = this.cine.active ? w.npcs.filter((n) => !this.cine.isCast(n)) : w.npcs;
+    // P9c: enemies in a fight move themselves; P9b: stunned neighbours stand still for a moment
+    this.enemies.step(acting, dt * this.slowmo);
+    const free = acting.filter((n) => !this.combat.isStunned(n) && !this.enemies.engaged(n));
     this.L.NPCWorld.step(free, dt * this.slowmo, this.heroState, this.talking?.id ?? null);
+    // a talk ends when the hero walks away (further, when they are locked on to the one they talk to)
+    const reach = this.talking && this.combat.lockedNpc() === this.talking ? LOCK_RELEASE : 4.5;
     if (
       this.talking &&
-      Math.hypot(this.talking.state.x - this.heroState.x, this.talking.state.z - this.heroState.z) > 4.5
+      Math.hypot(this.talking.state.x - this.heroState.x, this.talking.state.z - this.heroState.z) > reach
     )
       this.endTalk();
   }
@@ -1334,6 +2257,36 @@ export class PlaySession {
       ? (this.snapshot.get(paths.gates) as Gates | undefined)?.gates.find((g) => g.id === gateId)
       : undefined;
     if (gate?.onArrive?.length) this.actions.run(gate.onArrive, this.clock);
+    // P26: a new map is a good place to autosave (not while a cinematic travels)
+    if (this.saving.autosave && !this.cine.active) this.saveGame(AUTO_SLOT, true);
+  }
+
+  /** P26 (saves): the brick rules for a changed list of pieces */
+  piecesOk(pieces: LegacyPiece[]): boolean {
+    return inspectPieces(this.solid(pieces)).ok;
+  }
+
+  /**
+   * The bricks the brick rules look at: all but floating items (a sword risen out of a chest is drawn
+   * only). Without this, one floating item would make every later change fail the rules.
+   */
+  private solid(pieces: LegacyPiece[]): LegacyPiece[] {
+    const ranges = this.world.instances
+      .filter((i) => floating(i.def))
+      .map((i) => [i.inst.idBase, i.inst.idBase + i.def.bricks.length] as const);
+    if (!ranges.length) return pieces;
+    return pieces.filter((p) => !ranges.some(([lo, hi]) => p.id! >= lo && p.id! < hi));
+  }
+
+  /** P26 (saves): after pieces changed, collision and neighbours see the new bricks */
+  piecesChanged(w: MapWorld) {
+    w.rev++;
+    w.controller.replace(w.pieces, w.meta);
+    this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+  }
+
+  chunkOf(p: LegacyPiece): string {
+    return chunkKeyOf(p);
   }
 
   // ---------- cheats (P2.4) ----------
@@ -1347,7 +2300,7 @@ export class PlaySession {
     }
     if (kind === 'rebuildAll' && w.broken.length) {
       const restored = [...w.pieces, ...w.broken.flatMap((e) => e.originals.map((p) => ({ ...p })))];
-      if (inspectPieces(restored).ok) {
+      if (inspectPieces(this.solid(restored)).ok) {
         for (const e of w.broken) for (const p of e.originals) w.dirtyChunks.add(chunkKeyOf(p));
         w.pieces = restored;
         w.broken = [];
@@ -1355,7 +2308,8 @@ export class PlaySession {
         w.controller.replace(w.pieces, w.meta);
       }
     }
-    if (kind === 'held' && arg) this.hero = this.L.CharacterCatalog.validate({ ...this.hero, held: arg });
+    if (kind === 'held' && arg)
+      this.hero = { ...this.L.CharacterCatalog.validate({ ...this.hero, held: arg }), offHand: this.hero.offHand };
     this.emit('cheat', `Cheat: ${kind}${arg ? ` ${arg}` : ''}`);
   }
 }

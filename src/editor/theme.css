@@ -4402,3 +4402,130 @@ select.inp {
   font-size: 12px;
   pointer-events: none;
 }
+
+/* P18: genre views */
+.genre-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.genre-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.genre-pick select {
+  width: auto;
+  max-width: 190px;
+  padding: 2px 6px;
+}
+.genre-all.on {
+  border-color: var(--acc);
+  color: var(--acc2);
+}
+.genre-hidden-wrap,
+.ws-more {
+  position: relative;
+}
+.genre-hidden-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 320px;
+  gap: 6px;
+  color: var(--fg2);
+}
+.genre-hidden-list ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.ws-more-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 180px;
+}
+.lg-more > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.lg-more > summary::-webkit-details-marker {
+  display: none;
+}
+.lg-pal.muted {
+  opacity: 0.75;
+}
+.genre-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+}
+.genre-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--panel2);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.genre-card:hover:not(:disabled),
+.genre-card.on {
+  border-color: var(--acc);
+}
+.genre-icon {
+  font-size: 20px;
+}
+
+/* P9a: health fields */
+.health-fields {
+  display: grid;
+  gap: 6px;
+}
+.health-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.health-row > input.inp {
+  width: 64px;
+}
+.health-types {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+}
+.health-types label {
+  display: grid;
+  gap: 2px;
+}
+
+/* P9c: a script that belongs to one placed object */
+.lg-owner {
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--accent, #4fd1c5) 12%, transparent);
+  border-bottom: 1px solid var(--line, #2a313b);
+}
+.wire-new {
+  border: 1px dashed var(--line, #2a313b);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-top: 6px;
+  display: grid;
+  gap: 4px;
+}
+
+/* P26: Project › Progress — one achievement per block (name, description, id, hidden, remove) */
+.prog-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line, #2a3140);
+}

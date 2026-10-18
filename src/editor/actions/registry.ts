@@ -1,6 +1,8 @@
 import { builtinAsset } from '../../builtin/assets';
 import type { Brick } from '../../core/bricks/codec';
 import { rotateQuarter } from '../../core/bricks/transform';
+import { checkPlayable } from '../../core/checks/playable';
+import { trainingYard } from '../../core/gamegen/training-yard';
 import { changedBuiltins, newAssetDef } from '../assets';
 import type { EditorState, ToolId } from '../state';
 import type { ViewOp } from '../viewport/active';
@@ -17,7 +19,14 @@ export interface EditorUi {
   /** engine: new runtime (P2); v68: LEGO World v68 runtime; edit: v68 studio */
   play(
     mode: 'engine' | 'v68' | 'edit',
-    opts?: { fromSelectedSpawn?: boolean; fromEntry?: boolean; cinematic?: string },
+    opts?: {
+      fromSelectedSpawn?: boolean;
+      fromEntry?: boolean;
+      cinematic?: string;
+      map?: string;
+      /** P28: start the hero at this point of the open map (test from any spot) */
+      at?: [number, number, number];
+    },
   ): void;
   stopPlay(): void;
   /** open the Asset studio on an asset (P3.4) */
@@ -98,6 +107,20 @@ const tool =
     ed.tool.value = id;
     ed.persistUi();
   };
+
+/** P28: runs the playability check, keeps its findings for the Problems tab, and opens it */
+export function runPlayCheck(ed: EditorState) {
+  const issues = checkPlayable(ed.store);
+  ed.playCheck.value = { at: Date.now(), issues };
+  ed.dock.value = 'problems';
+  const warn = issues.filter((i) => i.level !== 'info').length;
+  ed.log(
+    warn ? 'WARN' : 'INFO',
+    warn
+      ? `Can this game be finished? ${warn} thing(s) to look at (see Problems).`
+      : 'Can this game be finished? Nothing blocks it.',
+  );
+}
 
 export const ACTIONS: EditorAction[] = [
   // File
@@ -291,6 +314,21 @@ export const ACTIONS: EditorAction[] = [
       if (r.ok) ed.openMap(ed.maps.value.at(-1)!.id);
     },
   },
+  {
+    // P9c: a sample map to practise combat, lock-on and wiring
+    id: 'world.trainingYard',
+    label: 'Add the Training yard',
+    run: ({ ed }) => {
+      const y = trainingYard();
+      const r = ed.exec(y.commands, { label: 'Add the Training yard' });
+      if (r.ok) {
+        ed.openMap(y.map);
+        ed.notify(
+          'The Training yard: dummies, a hill, a cracked wall, a target that opens a gate and a sparring knight. Play › Play this map tries it.',
+        );
+      }
+    },
+  },
   { id: 'world.generate', label: 'Generate terrain…', run: ({ ed }) => (ed.right.value = 'map') },
   { id: 'world.graph', label: 'World graph', run: ({ ui }) => ui.workspace('World graph') },
   {
@@ -301,9 +339,21 @@ export const ACTIONS: EditorAction[] = [
       ed.log('INFO', 'Checked routes between maps (see Problems).');
     },
   },
+  {
+    // P28: walk the game the way a player would meet it, without playing it
+    id: 'world.checkPlayable',
+    label: 'Can this game be finished? (check)',
+    run: ({ ed }) => runPlayCheck(ed),
+  },
   { id: 'world.connected', label: 'Generate connected worlds…', run: ({ ui }) => ui.play('edit') },
   // Play
   { id: 'play.start', label: 'Play from the start spawn', key: 'F5', run: ({ ui }) => ui.play('engine') },
+  {
+    // P9c: the open map from its first spawn (the Training yard, a map being tested on its own)
+    id: 'play.map',
+    label: 'Play this map',
+    run: ({ ed, ui }) => ui.play('engine', { map: ed.mapId.value }),
+  },
   {
     id: 'play.here',
     label: 'Play from the selected spawn',
@@ -324,6 +374,23 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ed }) => (ed.paused.value = !ed.paused.value),
   },
   { id: 'play.stop', label: 'Stop', when: ({ ed }) => !!ed.session.value, run: ({ ui }) => ui.stopPlay() },
+  {
+    // P26: what pressing E at a save point does, from the menu (to test saving quickly)
+    id: 'play.saveNow',
+    label: 'Save the game now (test)',
+    when: ({ ed }) => !!ed.session.value,
+    run: ({ ed }) => {
+      const s = ed.session.value;
+      if (s) s.saveGame(s.slot);
+    },
+  },
+  {
+    // P26 part 2: the player's Settings screen (volume, camera, text size, difficulty)
+    id: 'play.settingsMenu',
+    label: 'Player settings (while playing)',
+    when: ({ ed }) => !!ed.session.value,
+    run: ({ ed }) => ed.session.value?.gameOp('settingsMenu'),
+  },
   {
     id: 'play.v68',
     label: 'Play in LEGO World v68 (guns, magic, powers, volcano)',
@@ -351,6 +418,16 @@ export const ACTIONS: EditorAction[] = [
     id: 'help.coding',
     label: 'Coding course (the logic language, line by line)',
     run: ({ ui }) => ui.tutorial('coding'),
+  },
+  {
+    id: 'help.combat',
+    label: 'Combat course (Training yard, enemies, wires)',
+    run: ({ ui }) => ui.tutorial('combat'),
+  },
+  {
+    id: 'help.saving',
+    label: 'Saving course (checkpoints, save points, achievements, settings)',
+    run: ({ ui }) => ui.tutorial('saving'),
   },
   { id: 'help.guide', label: 'Help guide', key: 'F1', run: ({ ui }) => ui.help() },
   // P32: Macs send F1 to the screen brightness unless fn is held; ⌘/ (Ctrl / elsewhere) works everywhere
@@ -426,8 +503,29 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'view.palette',
   ],
   Assets: ['assets.open', 'assets.new', '-', 'assets.resetBuiltins'],
-  World: ['world.addMap', 'world.generate', 'world.graph', 'world.validate', '-', 'play.legacy'],
-  Play: ['play.start', 'play.here', 'play.entry', 'play.pause', 'play.stop', '-', 'play.v68', 'play.legacy'],
+  World: [
+    'world.addMap',
+    'world.trainingYard',
+    'world.generate',
+    'world.graph',
+    'world.validate',
+    'world.checkPlayable',
+    '-',
+    'play.legacy',
+  ],
+  Play: [
+    'play.start',
+    'play.map',
+    'play.here',
+    'play.entry',
+    'play.pause',
+    'play.stop',
+    'play.saveNow',
+    'play.settingsMenu',
+    '-',
+    'play.v68',
+    'play.legacy',
+  ],
   Window: [
     'window.1',
     'window.2',
@@ -445,7 +543,18 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'view.top',
     'view.fullscreen',
   ],
-  Help: ['help.guide', 'help.tutorial', 'help.coding', 'help.build', 'help.shortcuts', 'help.ai', '-', 'help.about'],
+  Help: [
+    'help.guide',
+    'help.tutorial',
+    'help.coding',
+    'help.combat',
+    'help.saving',
+    'help.build',
+    'help.shortcuts',
+    'help.ai',
+    '-',
+    'help.about',
+  ],
 };
 
 /** Normalizes a keyboard event to the `key` notation used above. */

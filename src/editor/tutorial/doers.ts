@@ -4,8 +4,10 @@ import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
 import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
+import { progressOf } from '../../core/commands/handlers/progress';
 import { arrivalSpot, assetSpot, reachable } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
+import { allSaves, type Saving } from '../../core/save/save';
 import {
   type Asset,
   type Character,
@@ -18,8 +20,10 @@ import {
   type Screen,
   type Widget,
 } from '../../core/schema';
+import { BrowserSaveStore } from '../../platform/saves';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { assetLibrary } from '../assets';
+import { savingOf } from '../panels/SavingSection';
 import { settleMove } from '../viewport/settle';
 import { buildInto } from '../workspaces/asset-studio/scratch';
 import { newGraph } from '../workspaces/logic/model';
@@ -75,6 +79,15 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       const b = s.all().find((x) => x.y > 0);
       if (b) c.ed.select([b.id]);
     }
+    setTimeout(() => c.ui.frameSelection(), 30);
+  },
+  /** P9c: selects the first placed copy of an asset (by name) on the open map and frames it */
+  selectObject(c, a) {
+    const s = c.ed.scene.value;
+    if (!s) return;
+    const pick = [...new Set(s.instanceOf.values())].find((i) => i.def.name === a.asset);
+    if (!pick) throw new Error(`There is no ${String(a.asset)} on this map.`);
+    c.ed.select(pick.bricks.map((b) => b.id));
     setTimeout(() => c.ui.frameSelection(), 30);
   },
   moveSomething(c) {
@@ -396,6 +409,39 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     );
     c.ed.selectedZone.value = z.id;
     c.ed.right.value = 'inspect';
+  },
+  // P26: the saving course
+  setSaving(c, a) {
+    const s = { ...savingOf(c.ed.store.manifest), ...(a as Partial<Saving>) };
+    run(c, { type: 'project.update', payload: { saving: s } }, 'Saving settings');
+  },
+  addAchievement(c, a) {
+    const cur = progressOf((p) => c.ed.store.get(p));
+    const id = String(a.id);
+    if (cur.achievements.some((x) => x.id === id)) return;
+    run(
+      c,
+      {
+        type: 'progress.put',
+        payload: {
+          progress: {
+            ...cur,
+            achievements: [...cur.achievements, { id, name: String(a.name), description: String(a.description ?? '') }],
+          },
+        },
+      },
+      'Add achievement',
+    );
+  },
+  playerSetting(c, a) {
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    s.progress.setSetting(a.key as 'difficulty', a.value);
+  },
+  clearSaves(c) {
+    const store = new BrowserSaveStore();
+    for (const g of allSaves(store, c.ed.store.manifest.id)) store.remove(c.ed.store.manifest.id, g.slot);
+    c.ed.revision.value++;
   },
   tweakSmash(c) {
     const id = 'snd_smash00000';

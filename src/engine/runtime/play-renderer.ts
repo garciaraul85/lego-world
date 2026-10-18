@@ -174,6 +174,91 @@ export class PlayRenderer {
       lines.push(...this.extra.lines);
       markers.push(...this.extra.markers);
     }
+    // P9b: lock-on, Zelda style — a yellow down-pointing arrow bobs over what Z would lock on to (gone when out
+    // of range); locked on, a red one pulses over the target. Drawn over everything, so nothing hides it.
+    const locked = s.combat.markerPos(s.combat.target);
+    const at = locked ?? s.combat.markerPos(s.combat.hint);
+    if (at) {
+      const k = locked ? 1 + 0.12 * Math.sin(s.clock * 8) : 0.85;
+      const bob = locked ? 0 : 0.18 * (1 + Math.sin(s.clock * 4));
+      markers.push({
+        pos: [at[0], at[1] + bob, at[2]],
+        size: [0.8 * k, 0.75 * k, 0.12],
+        color: locked ? [1, 0.25, 0.2] : [1, 0.82, 0.2],
+        tri: s.camYaw,
+        onTop: true,
+      });
+    }
+    // P9c: an enemy winding up a swing shows a red “!” over its head — the moment to guard, dodge or parry
+    for (const n of w.npcs) {
+      if (!s.enemies.windingUp(n)) continue;
+      const y = n.state.y + 4.9;
+      markers.push({
+        pos: [n.state.x, y + 0.45, n.state.z],
+        size: [0.16, 0.55, 0.16],
+        color: [1, 0.2, 0.15],
+        onTop: true,
+      });
+      markers.push({ pos: [n.state.x, y, n.state.z], size: [0.16, 0.16, 0.16], color: [1, 0.2, 0.15], onTop: true });
+    }
+    // P9c: health bars over hurt objects and neighbours, and over enemies in a fight
+    for (const b of s.healthBars()) {
+      const W = 1.6;
+      const yaw = s.camYaw;
+      const right: Vec3 = [Math.cos(yaw), 0, -Math.sin(yaw)];
+      const toEye: Vec3 = [Math.sin(yaw) * 0.03, 0, Math.cos(yaw) * 0.03];
+      markers.push({ pos: b.pos, size: [W + 0.08, 0.26, 0.04], color: [0.08, 0.08, 0.1], facing: yaw, onTop: true });
+      const k = Math.max(0, Math.min(1, b.k));
+      if (k > 0) {
+        const shift = -(W - W * k) / 2;
+        markers.push({
+          pos: [b.pos[0] + right[0] * shift + toEye[0], b.pos[1], b.pos[2] + right[2] * shift + toEye[2]],
+          size: [W * k, 0.18, 0.04],
+          color: k > 0.5 ? [0.35, 0.85, 0.35] : k > 0.25 ? [0.95, 0.75, 0.2] : [0.95, 0.3, 0.25],
+          facing: yaw,
+          onTop: true,
+        });
+      }
+    }
+    // P9b.1 / P9c: where smashed things can be rebuilt — their bricks float as faint ghosts where they go back
+    // (filling in while E is held), and a ring on the ground with an arrow over it shows exactly where to stand
+    let ghosts = 0;
+    for (const spot of s.rebuildSpots()) {
+      const b = spot.bounds;
+      const glow = 0.5 + 0.5 * Math.sin(s.clock * 3);
+      const col: [number, number, number] = spot.near ? [0.35, 0.95, 0.5] : [0.45, 0.8, 1];
+      const [sx, sy, sz] = s.rebuildStand(b);
+      const R = 0.8;
+      const t = 0.12;
+      for (const [dx, dz, w, d] of [
+        [0, -R, 2 * R + t, t],
+        [0, R, 2 * R + t, t],
+        [-R, 0, t, 2 * R],
+        [R, 0, t, 2 * R],
+      ] as const)
+        markers.push({ pos: [sx + dx, sy + 0.06, sz + dz], size: [w, 0.1, d], color: col });
+      if (!spot.near)
+        markers.push({
+          pos: [sx, sy + 1.2 + 0.25 * (1 + Math.sin(s.clock * 4)), sz],
+          size: [0.9, 0.85, 0.12],
+          color: col,
+          tri: s.camYaw,
+          onTop: true,
+        });
+      const n = spot.entry.originals.length;
+      spot.entry.originals.forEach((p, i) => {
+        if (ghosts++ > 160) return;
+        const g = s.L.GamePhysics.bounds(p);
+        const built = i < spot.entry.progress * n;
+        const bob = built ? 0 : 0.08 * Math.sin(s.clock * 3 + i * 0.7);
+        markers.push({
+          pos: [(g.x0 + g.x1) / 2, (g.y0 + g.y1) / 2 + bob, (g.z0 + g.z1) / 2],
+          size: [g.x1 - g.x0 - 0.04, g.y1 - g.y0 - 0.04, g.z1 - g.z0 - 0.04],
+          color: built ? [0.95, 0.95, 0.75] : col,
+          alpha: built ? 0.7 : 0.12 + 0.08 * glow,
+        });
+      });
+    }
     if (s.prompt) {
       const [x, y, z] = s.prompt.pos;
       markers.push({
@@ -233,7 +318,10 @@ export class PlayRenderer {
           c.bindCollision(s.hero, w.controller);
           this.bound.add(w.controller);
         }
-        const pose = s.heroAnim.params();
+        // P9b: a combat move (guard, roll, spin…) shows over an emote
+        const fight = s.combat.pose();
+        const pose = fight ?? s.heroAnim.params();
+        const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;
         const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
         if (heroCast) {
           if (!heroCast.state.hidden) draw(heroCast.profile, heroCast.state);
@@ -241,7 +329,7 @@ export class PlayRenderer {
           draw(
             s.hero,
             pose
-              ? { ...s.heroState, studioPose: rigPose(pose, s.heroAnim.clip), studioProgress: 0, studioFist: false }
+              ? { ...s.heroState, studioPose: rigPose(pose, poseClip), studioProgress: 0, studioFist: false }
               : s.heroState,
           );
         for (const d of w.debris) c.debris(this.debrisMesh, d);

@@ -1,5 +1,7 @@
 import type { Action } from '../../core/schema';
 
+export type GameOp = Extract<Action, { do: 'game' }>['op'];
+
 /** What actions can do to the running game. The PlaySession implements it. */
 export interface ActionHost {
   /** the instance an asset interaction belongs to (setState with no target) */
@@ -18,11 +20,17 @@ export interface ActionHost {
   music?(music: string | null, fade: number | undefined): void;
   stinger?(name: string): void;
   screen?(op: 'show' | 'hide', screen: string, replace: boolean): void;
-  game?(op: 'start' | 'resume' | 'pause' | 'retry' | 'quit'): void;
+  game?(op: GameOp): void;
+  /** P26: save (to a slot), load (a slot; none: the newest), a Saves-screen slot button, set the checkpoint */
+  saving?(op: 'save' | 'load' | 'slot' | 'checkpoint', slot: number | undefined): void;
+  /** P26 part 2: unlock an achievement, or step / set a player setting */
+  progress?(op: 'achieve' | 'setting', key: string, value?: unknown): void;
   gave?(item: string, count: number): void;
   spawn?(asset: string, at: string): void;
   cinematic?(id: string, once: boolean): void;
   despawn?(target: string): void;
+  /** P9c: a message in the HUD's message line */
+  message?(text: string, seconds: number): void;
 }
 
 type Pending = { actions: Action[]; at: number; self: string | undefined };
@@ -86,6 +94,10 @@ export class ActionRunner {
           h.log('info', `${a.var} = ${v}`);
           break;
         }
+        case 'message':
+          if (h.message) h.message(a.text, a.seconds ?? 3);
+          else h.log('info', a.text);
+          break;
         case 'give': {
           const n = (h.inventory.get(a.item) ?? 0) + (a.count ?? 1);
           h.inventory.set(a.item, n);
@@ -114,6 +126,21 @@ export class ActionRunner {
         case 'game':
           if (h.game) h.game(a.op);
           else h.log('info', `Game ${a.op}`);
+          break;
+        case 'save':
+        case 'load':
+        case 'slot':
+        case 'checkpoint':
+          if (h.saving) h.saving(a.do, 'slot' in a ? a.slot : undefined);
+          else h.log('info', `${a.do}${'slot' in a && a.slot !== undefined ? ` slot ${a.slot}` : ''}`);
+          break;
+        case 'achieve':
+          if (h.progress) h.progress('achieve', a.id);
+          else h.log('info', `achievement ${a.id}`);
+          break;
+        case 'setting':
+          if (h.progress) h.progress('setting', a.key, a.value);
+          else h.log('info', `setting ${a.key}`);
           break;
         case 'cinematic':
           if (h.cinematic) h.cinematic(a.cinematic, !!a.once);

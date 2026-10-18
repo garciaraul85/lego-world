@@ -272,13 +272,15 @@ function convert(save: LegacySave, opts: V5Options, problems: Problem[]): Map<st
   const firstSpawn = (files.get(paths.map(activeMap)) as MapDoc | undefined)?.spawns[0]?.id ?? null;
   files.set(paths.project, {
     format: 'brickworlds-project',
-    schema: 5,
+    schema: 6,
     id: opts.projectId,
     name: opts.name,
     created: opts.now,
     modified: opts.now,
     entry: { map: activeMap, spawn: firstSpawn, screen: null },
     hero,
+    // P18: legacy saves had no genre: they open with every control
+    genre: 'open',
     files: {},
   });
   return files;

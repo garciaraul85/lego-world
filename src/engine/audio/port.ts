@@ -13,6 +13,8 @@ export interface AudioPort {
   stinger(name: string): void;
   /** stop every voice and the music (Play stopped) */
   stopAll(): void;
+  /** P26: the player's own volumes, 0–1 (music, and every other sound) */
+  playerVolume?(music: number, sounds: number): void;
 }
 
 /** Records calls; used when no AudioContext exists (tests, Node) and by unit tests. */

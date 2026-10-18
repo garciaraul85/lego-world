@@ -142,6 +142,33 @@ export const removeInstance: CommandHandler<{ map: string; instances: string[] }
   },
 };
 
+/** P9c: names one placed copy (null: no name), so logic and wiring can refer to it. Names are unique on a map. */
+export const renameInstance: CommandHandler<{ map: string; instance: string; name: string | null }> = {
+  label: (p) => (p.name ? `Name it ${p.name}` : 'Remove name'),
+  validate(store, p) {
+    const inst = findInstance(store, p.map, p.instance);
+    if (!inst) return 'Asset instance not found.';
+    if (p.name === null) return null;
+    const name = p.name.trim();
+    if (!name || name.length > 40) return 'A name is 1 to 40 characters.';
+    if (name.toLowerCase() === 'this' || name.toLowerCase() === 'hero')
+      return `“${name}” is a word logic uses; pick another name.`;
+    const taken = assetInstances(store, p.map).find(
+      (i) => i.id !== p.instance && i.name?.toLowerCase() === name.toLowerCase(),
+    );
+    return taken ? `Another object on this map is already called “${name}”.` : null;
+  },
+  apply(store, p) {
+    putInstances(store, p.map, (items) =>
+      items.map((i) => {
+        if (i.id !== p.instance || i.kind !== 'asset') return i;
+        const { name: _n, ...rest } = i;
+        return p.name ? { ...rest, name: p.name.trim() } : rest;
+      }),
+    );
+  },
+};
+
 export const setInstanceState: CommandHandler<{ map: string; instance: string; state: string }> = {
   label: (p) => `Set state ${p.state}`,
   validate(store, p) {

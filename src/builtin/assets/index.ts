@@ -1,5 +1,5 @@
 // Generated list of the built-in asset library (P3.2). Structures come from scripts/extract-assets.mjs;
-// interactive props (chest, door, lamp post, stall, bench, fence, signpost, sword) are hand-made.
+// interactive props (chest, crate, door, lamp post, stall, bench, fence, signpost, sword) are hand-made.
 import { shapeId } from '../../core/assets/instancify';
 import { Asset } from '../../core/schema';
 import autumnMapleTree from './autumn-maple-tree.json';
@@ -8,7 +8,9 @@ import birchTree from './birch-tree.json';
 import cactus from './cactus.json';
 import car from './car.json';
 import castleWall from './castle-wall.json';
+import checkpointFlag from './checkpoint-flag.json';
 import chest from './chest.json';
+import crate from './crate.json';
 import door from './door.json';
 import fence from './fence.json';
 import fern from './fern.json';
@@ -21,6 +23,7 @@ import oakTree from './oak-tree.json';
 import palm from './palm.json';
 import pineTree from './pine-tree.json';
 import rainforestTree from './rainforest-tree.json';
+import savePoint from './save-point.json';
 import shrub from './shrub.json';
 import signpost from './signpost.json';
 import skyscraper from './skyscraper.json';
@@ -35,7 +38,9 @@ const RAW: Record<string, unknown> = {
   cactus: cactus,
   car: car,
   'castle-wall': castleWall,
+  'checkpoint-flag': checkpointFlag,
   chest: chest,
+  crate: crate,
   door: door,
   fence: fence,
   fern: fern,
@@ -48,6 +53,7 @@ const RAW: Record<string, unknown> = {
   palm: palm,
   'pine-tree': pineTree,
   'rainforest-tree': rainforestTree,
+  'save-point': savePoint,
   shrub: shrub,
   signpost: signpost,
   skyscraper: skyscraper,

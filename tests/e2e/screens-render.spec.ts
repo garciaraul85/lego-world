@@ -71,20 +71,34 @@ test('Play from the first screen: splash → title → Play → HUD; Esc pauses,
   await expect(page.getByRole('region', { name: 'Splash' })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText('Made with Brick Worlds')).toBeVisible();
   const play = page.getByRole('region', { name: 'Title' }).getByRole('button', { name: 'Play' });
+  // the splash moves on by itself after 2.2 s of screen time; on slow graphics that can take long, so the test
+  // also checks that Esc (the splash's back action) skips to the title
+  await page.getByLabel('Game view').focus();
+  await page.keyboard.press('Escape');
   await expect(play).toBeVisible({ timeout: 120_000 });
+  // a slow machine draws a frame every second or so under menus: allow it
+  const slow = expect.configure({ timeout: 30_000 });
   await play.click();
   const hud = page.getByRole('region', { name: 'HUD' });
-  await expect(hud).toBeVisible();
-  await expect(hud.getByText('3 of 3 hearts')).toBeAttached();
+  await slow(hud).toBeVisible();
+  await slow(hud.getByText('3 of 3 hearts')).toBeAttached();
   await page.getByLabel('Game view').focus();
   await page.keyboard.press('Escape');
   const pause = page.getByRole('region', { name: 'Pause' });
-  await expect(pause).toBeVisible();
-  await expect(pause.getByRole('button', { name: 'Resume' })).toBeFocused();
+  await slow(pause).toBeVisible();
+  await slow(pause.getByRole('button', { name: 'Resume' })).toBeFocused();
+  // P26: Save game comes next (this game saves anywhere); Load game shows only once there is a save
   await page.keyboard.press('ArrowDown');
-  await expect(pause.getByRole('button', { name: 'Restart from checkpoint' })).toBeFocused();
+  await slow(pause.getByRole('button', { name: 'Save game' })).toBeFocused();
+  // P26 part 2: then Achievements and Settings, then Restart from checkpoint
+  await page.keyboard.press('ArrowDown');
+  await slow(pause.getByRole('button', { name: 'Achievements' })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await slow(pause.getByRole('button', { name: 'Settings' })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await slow(pause.getByRole('button', { name: 'Restart from checkpoint' })).toBeFocused();
   await pause.getByRole('button', { name: 'Resume' }).click();
-  await expect(pause).toHaveCount(0);
+  await slow(pause).toHaveCount(0);
   const ticks = await page.evaluate(
     () => (window as unknown as { __editor: Ed }).__editor.session.value!.runtime.ticks,
   );
@@ -96,7 +110,7 @@ test('Play from the first screen: splash → title → Play → HUD; Esc pauses,
     },
   );
   await page.keyboard.press('F5');
-  await expect(page.getByLabel('Game view')).toHaveCount(0);
+  await slow(page.getByLabel('Game view')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

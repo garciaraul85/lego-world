@@ -19,6 +19,7 @@ const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Act
   { do: 'setState', label: 'Set state', make: () => ({ do: 'setState', state: 'default' }) },
   { do: 'emit', label: 'Send event', make: () => ({ do: 'emit', event: 'event' }) },
   { do: 'give', label: 'Give item', make: () => ({ do: 'give', item: 'coin', count: 1 }) },
+  { do: 'message', label: 'Show message', make: () => ({ do: 'message', text: 'Hello!', seconds: 3 }) },
   { do: 'addVar', label: 'Add to variable', make: () => ({ do: 'addVar', var: 'score', value: 1 }) },
   { do: 'setVar', label: 'Set variable', make: () => ({ do: 'setVar', var: 'flag', value: true }) },
   { do: 'wait', label: 'Wait', make: () => ({ do: 'wait', seconds: 1 }) },
@@ -49,6 +50,13 @@ const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Act
     make: (c) => ({ do: 'hideScreen', screen: (c?.screens[0]?.id ?? 'scr_pause00000') as never }),
   },
   { do: 'game', label: 'Game flow', make: () => ({ do: 'game', op: 'resume' }) },
+  // P26: saving
+  { do: 'save', label: 'Save game', make: () => ({ do: 'save' }) },
+  { do: 'load', label: 'Load game', make: () => ({ do: 'load' }) },
+  { do: 'checkpoint', label: 'Set checkpoint', make: () => ({ do: 'checkpoint' }) },
+  // P26 part 2
+  { do: 'achieve', label: 'Unlock achievement', make: () => ({ do: 'achieve', id: 'goal-1' }) },
+  { do: 'setting', label: 'Change a player setting', make: () => ({ do: 'setting', key: 'music' }) },
   // P6.4
   {
     do: 'cinematic',
@@ -179,6 +187,13 @@ function ActionArgs({
       ) : (
         text(a.event, 'Event name', (event) => ({ ...a, event }))
       );
+    case 'message':
+      return (
+        <span class="row" style={{ flexWrap: 'nowrap' }}>
+          {text(a.text, 'Message', (t) => ({ ...a, text: t.slice(0, 200) }))}
+          {num(a.seconds ?? 3, 'Seconds', (seconds) => ({ ...a, seconds: Math.min(30, Math.max(0.5, seconds)) }))}
+        </span>
+      );
     case 'give':
       return (
         <span class="row" style={{ flexWrap: 'nowrap' }}>
@@ -268,6 +283,55 @@ function ActionArgs({
           <option value="pause">Pause</option>
           <option value="retry">Retry from checkpoint</option>
           <option value="quit">Quit to title</option>
+          <option value="continue">Continue (load the newest save)</option>
+          <option value="saveMenu">Open the save slots (save)</option>
+          <option value="loadMenu">Open the save slots (load)</option>
+          <option value="finish">Finish the game</option>
+          <option value="newGamePlus">New game plus</option>
+          <option value="settingsMenu">Open Settings</option>
+          <option value="achievementsMenu">Open Achievements</option>
+        </select>
+      );
+    case 'save':
+    case 'load':
+      return (
+        <select
+          class="inp"
+          aria-label={a.do === 'save' ? 'Save to slot' : 'Load slot'}
+          value={a.slot === undefined ? '' : String(a.slot)}
+          onChange={(e) => {
+            const v = (e.target as HTMLSelectElement).value;
+            const { slot: _s, ...rest } = a;
+            onChange(v === '' ? (rest as Action) : ({ ...a, slot: Number(v) } as Action));
+          }}
+        >
+          <option value="">{a.do === 'save' ? 'the slot in use' : 'the newest save'}</option>
+          {a.do === 'load' && <option value="0">Autosave</option>}
+          {[1, 2, 3].map((n) => (
+            <option value={String(n)}>Slot {n}</option>
+          ))}
+        </select>
+      );
+    case 'slot':
+      return num(a.slot, 'Slot', (slot) => ({ ...a, slot: Math.min(3, Math.max(1, Math.round(slot))) }));
+    case 'checkpoint':
+      return <span class="muted small">where the hero stands now</span>;
+    case 'achieve':
+      return text(a.id, 'Achievement id', (id) => ({ ...a, id: id.trim().toLowerCase() }));
+    case 'setting':
+      return (
+        <select
+          class="inp"
+          aria-label="Player setting"
+          value={a.key}
+          onChange={(e) => onChange({ do: 'setting', key: (e.target as HTMLSelectElement).value as typeof a.key })}
+        >
+          <option value="music">Music volume (next step)</option>
+          <option value="sounds">Sound volume (next step)</option>
+          <option value="cameraSpeed">Camera speed (next step)</option>
+          <option value="invertY">Invert camera (on/off)</option>
+          <option value="textSize">Text size (normal/large)</option>
+          <option value="difficulty">Difficulty (story/normal/hard)</option>
         </select>
       );
     default:

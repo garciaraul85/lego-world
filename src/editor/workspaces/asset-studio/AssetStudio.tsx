@@ -19,7 +19,9 @@ import { assetLibrary, newAssetDef, resolveAsset, sameAsset } from '../../assets
 import { ActionListField } from '../../components/ActionListField';
 import { AssetThumb } from '../../components/AssetThumb';
 import { BrickIcon, BrickPicker } from '../../components/BrickIcon';
-import { Num } from '../../components/fields';
+import { FieldHelp, Num } from '../../components/fields';
+import { HealthFields, MakeBreakable } from '../../components/HealthFields';
+import { shows } from '../../genres/view';
 import { endDrag, startDrag } from '../../interact/drag';
 import { actionChoices } from '../../panels/AudioFields';
 import { Swatches } from '../../panels/Inspector';
@@ -1123,6 +1125,90 @@ function Properties({
             Can be rebuilt (hold E)
           </label>
         </div>
+
+        {/* P26: a checkpoint — touching it sets where the hero comes back, and autosaves */}
+        {shows(ed, 'section', 'asset.checkpoint') && (
+          <div class="sec" data-help="asset.checkpoint">
+            <label class="lbl" data-tour="asset-checkpoint">
+              <input
+                type="checkbox"
+                checked={!!def.checkpoint}
+                onChange={() => {
+                  const { checkpoint: _c, ...rest } = def;
+                  reset((def.checkpoint ? rest : { ...def, checkpoint: true }) as Asset, 'Checkpoint');
+                }}
+              />{' '}
+              Checkpoint (touch to save)
+              <FieldHelp
+                label="Checkpoint"
+                text="In Play, when the hero touches it, Retry (after game over) and falls bring the hero back here, and the game autosaves (when Autosave is on in Game settings › Saving). It shows its last state once touched (the Checkpoint flag goes from down to up); other checkpoints on the map go back to their first state."
+              />
+            </label>
+          </div>
+        )}
+
+        {/* P9a: health — how many hits it takes, what each kind of hit does, what happens at zero */}
+        {shows(ed, 'section', 'asset.health') && (
+          <div class="sec" data-tour="asset-health-sec">
+            <div class="sech">
+              <span>
+                Health
+                <FieldHelp
+                  label="Health"
+                  text="How much it takes to break it. Without health one hit smashes it (when it can be smashed); with health it takes several, some kinds of hit do more or nothing, and at zero it breaks, leaves an item and sends an event."
+                />
+              </span>
+              {def.health && (
+                <button
+                  type="button"
+                  class="link"
+                  aria-label="Remove health"
+                  onClick={() => {
+                    const { health: _h, ...rest } = def;
+                    reset(rest as Asset, 'Remove health');
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {def.health ? (
+              <HealthFields
+                ed={ed}
+                tour="asset-health"
+                health={def.health}
+                onChange={(health, label) => patch({ health }, label)}
+              />
+            ) : (
+              <>
+                <p class="hint">No health: one hit smashes it{def.smash.enabled ? '' : ' (when it can be smashed)'}.</p>
+                <MakeBreakable
+                  tour="make-breakable"
+                  onPick={(health, name) =>
+                    patch({ health, smash: { ...def.smash, enabled: true } }, `Make breakable: ${name}`)
+                  }
+                />
+              </>
+            )}
+            {/* P9b.1: lock-on — things with health always can; any other asset when this is on (a puzzle) */}
+            <label class="lbl" data-tour="asset-lock-on">
+              <input
+                type="checkbox"
+                checked={!!def.health || !!def.lockOn}
+                disabled={!!def.health}
+                onChange={() => {
+                  const { lockOn: _l, ...rest } = def;
+                  reset((def.lockOn ? rest : { ...def, lockOn: true }) as Asset, 'Can be locked on');
+                }}
+              />{' '}
+              Can be locked on (Z)
+              <FieldHelp
+                label="Can be locked on"
+                text="In Play, Z locks the hero on to it when it is close and in front: a marker shows over it, the hero faces it and the camera turns to it. Things with health can always be locked on; turn this on for anything else (a switch to hit, a target in a puzzle). Logic's On locked on runs when it happens."
+              />
+            </label>
+          </div>
+        )}
 
         <div class="sec" style={{ borderBottom: 0 }}>
           <div class="sech">

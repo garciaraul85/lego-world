@@ -248,8 +248,8 @@
     {
       "id": "chars.holdup",
       "title": "A clip: Hold it up",
-      "body": "The second clip raises both arms above the head, the way a hero shows off what they found. “Right arm · z” turns the arm out to the side and up; “⇆ Mirror” turns the left one the other way, so both go up.",
-      "task": "Make a clip “Hold it up” (Loop off): Right arm · z at 2.9 from 0.5 s, mirrored, then Play.",
+      "body": "The second clip raises both arms above the head, the way a hero shows off what they found. “Right arm · x” swings the arm forward and up (negative is forward, like Open chest); at −2.9 it points straight up over the head. “⇆ Mirror” copies it to the left arm, so both lift together in front, the way a hero holds up a find.",
+      "task": "Make a clip “Hold it up” (Loop off): Right arm · x at −2.9 from 0.5 s, mirrored, then Play.",
       "target": "section[aria-label=\"Characters and clips\"]",
       "placement": "right",
       "workspace": "Characters",
@@ -278,16 +278,16 @@
           "do": [{ "click": "[data-tour=\"clip-loop\"]", "say": "Untick “Loop”." }]
         },
         {
-          "text": "Click “+ Track…” and click the picture “Right arm · z” (the right arm raised out to the side). The right arm is ringed in the preview.",
-          "check": { "kind": "state", "test": "clipTrack", "args": { "bone": "rightArm", "prop": "z" } },
+          "text": "Click “+ Track…” and click the picture “Right arm · x” (the right arm reaching forward). A lane appears with a key ◆ at 0 s (the arm down); the right arm is ringed in the preview.",
+          "check": { "kind": "state", "test": "clipTrack", "args": { "bone": "rightArm", "prop": "x" } },
           "do": [
             {
               "click": "[aria-label=\"Timeline tools\"] [data-tour=\"pick-track\"]",
               "say": "Click “+ Track…”: a picture of Rowan for each track opens, showing what that track moves."
             },
             {
-              "click": "[data-tour=\"pick-track-list\"] [data-value=\"rightArm.z\"]",
-              "say": "Click the picture “Right arm · z”."
+              "click": "[data-tour=\"pick-track-list\"] [data-value=\"rightArm.x\"]",
+              "say": "Click the picture “Right arm · x”."
             }
           ]
         },
@@ -298,7 +298,7 @@
         },
         {
           "text": "Click “◆ Key”: a key at 0.5 s, selected.",
-          "check": { "kind": "state", "test": "clipKey", "args": { "bone": "rightArm", "prop": "z", "t": 0.5 } },
+          "check": { "kind": "state", "test": "clipKey", "args": { "bone": "rightArm", "prop": "x", "t": 0.5 } },
           "do": [
             {
               "click": "[aria-label=\"Timeline tools\"] button[title=\"Key the selected track at the playhead\"]",
@@ -307,27 +307,27 @@
           ]
         },
         {
-          "text": "In “value” (under the lanes), type 2.9 and press Enter: the right arm points up, and stays up to the end (after the last key a track holds its value).",
+          "text": "In “value” (under the lanes), select its text, type -2.9 and press Enter: from 0 to 0.5 s the right arm lifts in front until it points straight up, and stays up to the end (after the last key a track holds its value).",
           "check": {
             "kind": "state",
             "test": "clipKey",
-            "args": { "bone": "rightArm", "prop": "z", "t": 0.5, "atLeast": 2.5 }
+            "args": { "bone": "rightArm", "prop": "x", "t": 0.5, "atMost": -2.5 }
           },
           "do": [
             {
               "fill": "[data-tour=\"key-value\"]",
-              "value": "2.9",
-              "say": "Type 2.9 in “value” and press Enter: the arm goes up."
+              "value": "-2.9",
+              "say": "Type -2.9 in “value” and press Enter: the arm lifts up in front."
             }
           ]
         },
         {
-          "text": "Click “⇆ Mirror”: “Left arm · z” gets −2.9, so the left arm goes up too.",
-          "check": { "kind": "state", "test": "clipTrack", "args": { "bone": "leftArm", "prop": "z" } },
+          "text": "Click “⇆ Mirror”: a lane “Left arm · x” appears with the same keys, so the left arm lifts too.",
+          "check": { "kind": "state", "test": "clipTrack", "args": { "bone": "leftArm", "prop": "x" } },
           "do": [{ "click": "[data-tour=\"track-mirror\"]", "say": "Click “⇆ Mirror”: both arms go up." }]
         },
         {
-          "text": "Press “Play” (top right of the preview): both arms rise and stay up.",
+          "text": "Press “Play” (top right of the preview): both arms rise in front, meet over the head and stay up.",
           "check": { "kind": "state", "test": "clipPlaying" },
           "do": [{ "click": "[data-tour=\"clip-play\"]", "say": "Press “Play” to watch it." }]
         }

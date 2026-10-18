@@ -4,8 +4,10 @@ import { toLegacy } from '../core/bridge/legacy-bridge';
 import { packProject } from '../core/project/archive';
 import type { ProjectMeta } from '../core/project/backend';
 import { type Cinematic, type MediaIndex, paths } from '../core/schema';
+import { scanFiles } from '../core/security/secrets';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { AiPanel } from './ai/AiPanel';
+import { GenreChoice } from './genres/GenreCards';
 import { WorldGraph } from './graph/WorldGraph';
 import { contextHelpPage } from './help/context';
 import { HelpView } from './help/HelpView';
@@ -51,7 +53,8 @@ const STUDIOS = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'C
 export type AppHost = HubHost & {
   /** show the Start hub when the editor opens */
   showHub: boolean;
-  newProject(): Promise<void>;
+  /** P18: a new project of this genre (default Open) */
+  newProject(genre?: string): Promise<void>;
   openProject(id: string): void;
   listProjects(): Promise<ProjectMeta[]>;
   importBytes(name: string, bytes: Uint8Array): Promise<void>;
@@ -61,6 +64,8 @@ export type AppHost = HubHost & {
 export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const vp = useRef<ViewportApi | null>(null);
   const [modal, setModal] = useState<null | 'shortcuts' | 'open' | 'about' | 'new'>(null);
+  /** P18: the kind of game the New project dialog makes */
+  const [newGenre, setNewGenre] = useState('explore');
   const [hub, setHub] = useState(host.showHub);
   const [intent, setIntent] = useState(() => readIntent(ed.store.manifest.id));
   const [help, setHelp] = useState<string | null>(null);
@@ -88,6 +93,16 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       openProjectDialog: () => setModal('open'),
       importFile: () => fileRef.current?.click(),
       exportProject: async () => {
+        // P33: a project file never carries a secret (a key pasted into a sign, a variable or a dialogue line)
+        const hits = scanFiles([...ed.store.keys()].map((k) => [k, ed.store.get(k)] as [string, unknown]));
+        if (hits.length) {
+          ed.notify(
+            `Not saved: ${hits[0]!.name} found in ${hits[0]!.where} (${hits[0]!.sample}). Remove it, then save the project file again.`,
+            true,
+          );
+          ed.log('WARN', `Secret scan: ${hits.length} key-shaped string(s) in the project; the file was not saved.`);
+          return;
+        }
         // imported media go into the .bwproj as media/<sha256>
         const media = new Map<string, Uint8Array>();
         for (const ref of Object.keys(ed.store.get<MediaIndex>(paths.media)?.items ?? {})) {
@@ -118,7 +133,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         }
         const spawnId = opts?.fromSelectedSpawn ? ed.selectedSpawn.value : null;
         const scene = opts?.cinematic ? ed.store.get<Cinematic>(paths.cinematic(opts.cinematic)) : undefined;
-        const mapId = scene?.map ?? (opts?.fromSelectedSpawn ? ed.mapId.value : ed.store.manifest.entry.map);
+        const mapId =
+          scene?.map ?? opts?.map ?? (opts?.fromSelectedSpawn ? ed.mapId.value : ed.store.manifest.entry.map);
         setWorkspace('Scene');
         setEngine({
           mapId,
@@ -126,6 +142,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           key: Date.now(),
           boot: opts?.fromEntry ? 'entry' : 'game',
           ...(scene ? { cinematic: scene.id } : {}),
+          ...(opts?.at ? { at: opts.at } : {}),
         });
       },
       stopPlay: () => setEngine(null),
@@ -227,7 +244,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       class={`app${sceneFullscreen.value ? ' scene-full' : ''}${sceneFullscreen.value && fullscreenDock.value ? ' dock-open' : ''}`}
     >
       <MenuBar c={c} />
-      <WorkspaceTabs current={workspace} onPick={(w) => ui.workspace(w)} />
+      <WorkspaceTabs c={c} current={workspace} onPick={(w) => ui.workspace(w)} />
       <Toolbar c={c} />
       {STUDIOS.has(workspace) && !engine ? (
         <div class="body studio-body">
@@ -304,6 +321,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
             Start a new game with a freshly generated map. Your current project stays saved on this device (File › Open
             project).
           </p>
+          <GenreChoice value={newGenre} onPick={setNewGenre} />
           <div class="row">
             <button
               type="button"
@@ -311,7 +329,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
               onClick={async () => {
                 setModal(null);
                 await ed.autosave.flush();
-                await host.newProject();
+                await host.newProject(newGenre);
               }}
             >
               Create new project
@@ -359,6 +377,11 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           onHelp={() => {
             setHub(false);
             setHelp('build-a-game');
+          }}
+          onNewProject={async (genre) => {
+            setHub(false);
+            await ed.autosave.flush();
+            await host.newProject(genre);
           }}
           onAi={() => {
             setHub(false);

@@ -185,7 +185,7 @@ Games ask for named **sound events** (smash, jump, chest…) — each picks a cl
 
 ## 13. Play and debug
 
-**Play (F5)** runs the game right in the editor; Shift F5 starts from the selected spawn, Ctrl F5 from the first screen. WASD or arrows move, Space jumps, F smashes, E uses and (held) rebuilds, T talks, 1–4 play emotes, Esc pauses. Nothing that happens while playing changes your project.
+**Play (F5)** runs the game right in the editor; Shift F5 starts from the selected spawn, Ctrl F5 from the first screen. WASD or arrows move, Space jumps, F attacks (hold to charge), Q guards, C rolls, Z locks on, E uses and (held) rebuilds, T talks, 1–4 play emotes, Esc pauses. Nothing that happens while playing changes your project.
 
 ![Playing a generated game](screenshots/engine/14-play.png)
 

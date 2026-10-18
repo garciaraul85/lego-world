@@ -1,5 +1,6 @@
 import { batch, computed, effect, signal } from '@preact/signals';
 import type { Brick } from '../core/bricks/codec';
+import type { PlayIssue } from '../core/checks/playable';
 import type { Command, CommandBus, ExecuteResult, Source } from '../core/commands';
 import type { Problem } from '../core/migrate/problems';
 import type { Autosave, SaveStatus } from '../core/project/autosave';
@@ -126,6 +127,8 @@ export class EditorState {
   );
   readonly logs = signal<LogLine[]>([]);
   readonly problems = signal<Problem[]>([]);
+  /** P28: the last “Can this game be finished?” check (null: not run yet) */
+  readonly playCheck = signal<{ at: number; issues: PlayIssue[] } | null>(null);
   readonly save = signal<SaveStatus>({ state: 'saved', dirty: 0 });
   readonly stats = signal<FrameStats & { fps: number }>({
     drawCalls: 0,

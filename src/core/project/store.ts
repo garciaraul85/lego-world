@@ -1,3 +1,4 @@
+import { upgradeManifest } from '../migrate/v5to6';
 import type { Project } from '../schema';
 import { paths, validateFile } from '../schema';
 
@@ -50,7 +51,10 @@ export class ProjectStore {
   constructor(initial: Iterable<[string, unknown]> = [], opts: StoreOptions = {}) {
     this.validate = opts.validate ?? true;
     this.freeze = opts.freeze ?? true;
-    for (const [p, v] of initial) {
+    for (const [p, v0] of initial) {
+      // P18: an older project.json (schema 5) is upgraded as it opens, and saved upgraded
+      const v = p === paths.project ? upgradeManifest(v0) : v0;
+      if (v !== v0) this.dirtySet.add(p);
       if (opts.validateInitial ?? true) this.check(p, v);
       this.files.set(p, this.freeze ? deepFreeze(v) : v);
     }

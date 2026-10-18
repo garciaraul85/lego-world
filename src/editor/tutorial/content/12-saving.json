@@ -1,0 +1,569 @@
+{
+  "id": "saving",
+  "title": "Saving and progress course",
+  "steps": [
+    {
+      "id": "saving.yard",
+      "title": "A map to test on",
+      "body": "The Training yard is a sample map with room to place things, a checkpoint flag and a save point by its entrance. You add your own flag and save point to it in this course. One undo takes the whole yard away again.",
+      "task": "Open the World menu and click “Add the Training yard”.",
+      "target": "[data-tour=\"menu-world\"]",
+      "placement": "bottom",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "mapNamed",
+        "args": "Training yard"
+      },
+      "doItForMe": [
+        {
+          "action": "world.trainingYard"
+        }
+      ],
+      "how": [
+        {
+          "text": "Open the menu “World” in the bar at the very top and click “Add the Training yard”. The new map opens in the 3D view: a fenced yard with dummies, a wall, a knight, a hill — and a checkpoint flag and a save point by the entrance.",
+          "check": {
+            "kind": "state",
+            "test": "mapNamed",
+            "args": "Training yard"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"menu-world\"]",
+              "say": "Open the World menu."
+            },
+            {
+              "action": "world.trainingYard"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "saving.settings",
+      "title": "How the game saves",
+      "body": "A save keeps the player's progress: where the hero is, what they carry, the game's variables, and everything that changed on the maps they visited (opened chests, smashed walls, beaten enemies). Saves are player data: they are kept in the browser, never in the project. The Project tab's Saving section decides how players save.",
+      "task": "In Project › Saving: Save anywhere, 2 save slots, Autosave on.",
+      "target": "[data-tour=\"inspector\"]",
+      "placement": "left",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "savingIs",
+        "args": {
+          "mode": "anywhere",
+          "slots": 2,
+          "autosave": true
+        }
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "project"
+        },
+        {
+          "fn": "setSaving",
+          "args": {
+            "mode": "anywhere",
+            "slots": 2,
+            "autosave": true
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "At the top of the panel on the right, click the tab “Project”. The game's settings open: Game, Saving, Limits and Files.",
+          "check": {
+            "kind": "state",
+            "test": "rightTab",
+            "args": "project"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"tab-project\"]",
+              "say": "Click the tab “Project” at the top of the right panel."
+            }
+          ]
+        },
+        {
+          "text": "In the section “Saving”, open the list “How players save” and pick “Save anywhere (Pause › Save game)”. Players can then save from the pause menu at any time; save points and checkpoints still work too.",
+          "check": {
+            "kind": "state",
+            "test": "savingIs",
+            "args": {
+              "mode": "anywhere"
+            }
+          },
+          "do": [
+            {
+              "choose": "select[aria-label=\"How players save\"]",
+              "value": "anywhere",
+              "say": "Pick “Save anywhere (Pause › Save game)” in “How players save”."
+            }
+          ]
+        },
+        {
+          "text": "Open the list “Save slots” just below and pick 2. Pause › Save game will then offer Slot 1 and Slot 2, so a player can keep two games.",
+          "check": {
+            "kind": "state",
+            "test": "savingIs",
+            "args": {
+              "slots": 2
+            }
+          },
+          "do": [
+            {
+              "choose": "select[aria-label=\"Save slots\"]",
+              "value": "2",
+              "say": "Pick 2 in “Save slots”."
+            }
+          ]
+        },
+        {
+          "text": "Make sure the box “Autosave” is ticked (click it if it is empty). With Autosave on, the game saves by itself in its own Autosave slot when the hero touches a checkpoint or goes through a gate to another map.",
+          "check": {
+            "kind": "state",
+            "test": "savingIs",
+            "args": {
+              "autosave": true
+            }
+          },
+          "do": [
+            {
+              "fn": "setSaving",
+              "args": {
+                "autosave": true
+              },
+              "say": "Tick “Autosave”."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "saving.flag",
+      "title": "A checkpoint",
+      "body": "A Checkpoint flag is an asset marked Checkpoint (Asset studio › Checkpoint). In Play, when the hero touches it, the flag goes up: from then on Retry (after game over) and falling off the world bring the hero back there, and the game autosaves.",
+      "task": "Place a Checkpoint flag on the map.",
+      "target": "[data-tour=\"dock\"]",
+      "placement": "top",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "placedAsset",
+        "args": "Checkpoint flag"
+      },
+      "doItForMe": [
+        {
+          "ui": "tool",
+          "value": "asset"
+        },
+        {
+          "fn": "placeAsset",
+          "args": {
+            "name": "Checkpoint flag"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In the dock at the bottom, open the tab “Assets” and click the card “Checkpoint flag” (a white pole with a red flag at its foot). The Place tool (B) turns on with the flag in hand.",
+          "check": {
+            "kind": "state",
+            "test": "assetBrush",
+            "args": "Checkpoint flag"
+          },
+          "do": [
+            {
+              "ui": "tool",
+              "value": "asset"
+            },
+            {
+              "fn": "pickAsset",
+              "args": {
+                "name": "Checkpoint flag"
+              },
+              "say": "Click the card “Checkpoint flag” in the Assets dock."
+            }
+          ]
+        },
+        {
+          "text": "Click the ground in the 3D view, somewhere inside the yard the hero walks past (for example near the hill): the flag is placed there. The yard's own flag by the entrance stays; the newest one touched is the checkpoint.",
+          "check": {
+            "kind": "state",
+            "test": "placedAsset",
+            "args": "Checkpoint flag"
+          },
+          "do": [
+            {
+              "fn": "placeAsset",
+              "args": {
+                "name": "Checkpoint flag"
+              },
+              "say": "Click the ground near the start to place it."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "saving.point",
+      "title": "A save point",
+      "body": "A Save point is an asset whose interaction is Save: in Play, “E · Save” shows when the hero is next to it, and E saves the game to the slot in use. In “Only at save points” mode, this is the only way players can save.",
+      "task": "Place a Save point on the map.",
+      "target": "[data-tour=\"dock\"]",
+      "placement": "top",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "placedAsset",
+        "args": "Save point"
+      },
+      "doItForMe": [
+        {
+          "ui": "tool",
+          "value": "asset"
+        },
+        {
+          "fn": "placeAsset",
+          "args": {
+            "name": "Save point"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In the Assets dock, click the card “Save point” (a blue pillar with a light-blue top).",
+          "check": {
+            "kind": "state",
+            "test": "assetBrush",
+            "args": "Save point"
+          },
+          "do": [
+            {
+              "ui": "tool",
+              "value": "asset"
+            },
+            {
+              "fn": "pickAsset",
+              "args": {
+                "name": "Save point"
+              },
+              "say": "Click the card “Save point” in the Assets dock."
+            }
+          ]
+        },
+        {
+          "text": "Click the ground near your flag to place it.",
+          "check": {
+            "kind": "state",
+            "test": "placedAsset",
+            "args": "Save point"
+          },
+          "do": [
+            {
+              "fn": "placeAsset",
+              "args": {
+                "name": "Save point"
+              },
+              "say": "Click the ground to place the save point."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "saving.goal",
+      "title": "An achievement",
+      "body": "Achievements are goals players unlock: logic's Unlock achievement card unlocks one by its id. They stay with the player across saves and new games, and Pause › Achievements lists them with the completion % (collections and achievements) and the time played. The Training yard already has three, unlocked by its “Yard goals” logic.",
+      "task": "In Project › Progress, add an achievement.",
+      "target": "[data-tour=\"inspector\"]",
+      "placement": "left",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "achievementsAtLeast",
+        "args": 4
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "project"
+        },
+        {
+          "fn": "addAchievement",
+          "args": {
+            "id": "goal-4",
+            "name": "Goal 4",
+            "description": "What the player did."
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "On the right, click the tab “Project” and scroll to the section “Progress”. Under “Achievements” you see the yard's three: Smasher, Sharp eye, Sparring champion.",
+          "check": {
+            "kind": "state",
+            "test": "rightTab",
+            "args": "project"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"tab-project\"]",
+              "say": "Click the tab “Project”."
+            },
+            {
+              "show": "[data-tour=\"game-progress\"]",
+              "say": "The section “Progress”: achievements, collections, best scores, new game plus."
+            }
+          ]
+        },
+        {
+          "text": "Click “+ Achievement”. A new one, “Goal 4” (id goal-4), is added: type a name and a description in its two boxes. Logic unlocks it with Unlock achievement › goal-4.",
+          "check": {
+            "kind": "state",
+            "test": "achievementsAtLeast",
+            "args": 4
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"progress-add-achievement\"]",
+              "say": "Click “+ Achievement”."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "saving.play",
+      "title": "Save while playing",
+      "body": "In Play: walk into the Checkpoint flag — the flag goes up and “Checkpoint · saved” shows at the bottom. Walk to the Save point and press E: “Game saved · Slot 1”. Press Esc for the pause menu: “Save game” opens the slots (Slot 1, Slot 2) — click one to save there; “Load game” opens the same list to load one back; “Restart from checkpoint” puts you back at the flag.",
+      "task": "Play the yard (Play › Play this map), touch a flag, then save at a save point (E).",
+      "target": "[data-tour=\"play\"]",
+      "placement": "bottom",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "savesOf",
+        "args": 1
+      },
+      "doItForMe": [
+        {
+          "action": "play.map"
+        },
+        {
+          "action": "play.saveNow"
+        }
+      ],
+      "how": [
+        {
+          "text": "Open the menu “Play” at the top and click “Play this map”: the Training yard runs in the 3D view, from its entrance.",
+          "check": {
+            "kind": "play",
+            "event": "running"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"menu-play\"]",
+              "say": "Open the Play menu."
+            },
+            {
+              "action": "play.map"
+            }
+          ]
+        },
+        {
+          "text": "Walk (WASD) into a Checkpoint flag: it goes up and “Checkpoint · saved” shows at the bottom. Then walk to a Save point and press E: “Game saved · Slot 1”. (Or press Esc and pick Save game › Slot 1.)",
+          "check": {
+            "kind": "state",
+            "test": "savesOf",
+            "args": 1
+          },
+          "do": [
+            {
+              "action": "play.saveNow"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "saving.options",
+      "title": "Settings for players",
+      "body": "Players change their own settings from Pause › Settings (and the title): music and sound volume, camera speed, invert camera, text size and difficulty (story: half damage, hard: double). Each button steps to the next value. Settings stay with the player, like achievements.",
+      "task": "In Play: Esc › Settings, then set Difficulty to story.",
+      "target": "[data-tour=\"play\"]",
+      "placement": "bottom",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "playerSetting",
+        "args": {
+          "difficulty": "story"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "playerSetting",
+          "args": {
+            "key": "difficulty",
+            "value": "story"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In the game, press Esc: the pause menu opens. Click “Settings”.",
+          "check": {
+            "kind": "state",
+            "test": "screenShown",
+            "args": "Settings"
+          },
+          "do": [
+            {
+              "action": "play.settingsMenu"
+            }
+          ]
+        },
+        {
+          "text": "Click the button “Difficulty: normal” twice: it steps to hard, then story (half damage). Press Back, then Resume.",
+          "check": {
+            "kind": "state",
+            "test": "playerSetting",
+            "args": {
+              "difficulty": "story"
+            }
+          },
+          "do": [
+            {
+              "fn": "playerSetting",
+              "args": {
+                "key": "difficulty",
+                "value": "story"
+              },
+              "say": "Set Difficulty to story."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "saving.continue",
+      "title": "Continue",
+      "body": "Stop throws the play away, as a player closing the game. Ctrl F5 plays from the first screen, like the exported game: the title screen now shows “Continue” above “Play”. Continue loads the newest save (the autosave or a slot) — here the Training yard, with the flag up — while Play starts a new game from the beginning.",
+      "task": "Stop, then play from the first screen (Ctrl F5) and see Continue on the title.",
+      "target": "[data-tour=\"play\"]",
+      "placement": "bottom",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "titleShown"
+      },
+      "doItForMe": [
+        {
+          "action": "play.stop"
+        },
+        {
+          "action": "play.entry"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press Stop in the bar at the top (or Esc twice, then Stop).",
+          "check": {
+            "kind": "play",
+            "event": "stopped"
+          },
+          "do": [
+            {
+              "action": "play.stop"
+            }
+          ]
+        },
+        {
+          "text": "Open the Play menu and click “Play from the first screen (splash, title)” (Ctrl F5). After the splash, the title shows Continue and Play. Click Continue: you are back where you saved, with the flag up.",
+          "check": {
+            "kind": "state",
+            "test": "titleShown"
+          },
+          "do": [
+            {
+              "action": "play.entry"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "saving.clear",
+      "title": "A fresh start",
+      "body": "Saves you make while testing stay in this browser until you delete them. Project › Saving lists them; “Delete these saves” removes them, so the next test starts from the beginning and the title hides Continue.",
+      "task": "Stop, then delete the test saves in Project › Saving.",
+      "target": "[data-tour=\"inspector\"]",
+      "placement": "left",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "savesOf",
+        "args": 0
+      },
+      "doItForMe": [
+        {
+          "action": "play.stop"
+        },
+        {
+          "ui": "right",
+          "value": "project"
+        },
+        {
+          "fn": "clearSaves"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press Stop in the bar at the top.",
+          "check": {
+            "kind": "play",
+            "event": "stopped"
+          },
+          "do": [
+            {
+              "action": "play.stop"
+            }
+          ]
+        },
+        {
+          "text": "On the right, tab “Project”, section “Saving”: under “Saves made while testing” you see your saves (Slot 1, Autosave). Click “Delete these saves”.",
+          "check": {
+            "kind": "state",
+            "test": "savesOf",
+            "args": 0
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "project"
+            },
+            {
+              "click": "[data-tour=\"saving-clear\"]",
+              "say": "Click “Delete these saves”."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "saving.done",
+      "title": "Your game saves",
+      "body": "Players can now quit and come back. Logic can save too: the cards Save game, Load game and Set checkpoint (category Saving). Saves keep working after you change the game: things a save mentions that you have since deleted are skipped.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "placement": "bottom",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": []
+    }
+  ]
+}

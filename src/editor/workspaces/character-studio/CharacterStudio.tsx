@@ -6,9 +6,12 @@ import { newId } from '../../../core/ids';
 import { type Character, type Clip, paths } from '../../../core/schema';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import type { ActionCtx } from '../../actions/registry';
-import { DraftText } from '../../components/fields';
+import { ENEMY_HELP, EnemyFields } from '../../components/EnemyFields';
+import { DraftText, FieldHelp } from '../../components/fields';
+import { HealthFields } from '../../components/HealthFields';
 import { PreviewPicker } from '../../components/PreviewPicker';
 import { Timeline } from '../../components/timeline/Timeline';
+import { shows } from '../../genres/view';
 import { actionChoices } from '../../panels/AudioFields';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
 import { CharacterThumb, peakTime, type ThumbView, trackPose } from './thumbs';
@@ -119,8 +122,20 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
   const [turntable, setTurntable] = useState(false);
   // P32: the timeline's picked track, ringed on the preview
   const [part, setPart] = useState<PreviewInput['part']>(null);
-  const preview = useRef<PreviewInput>({ profile: chr.profile, clip, time, turntable, part: null });
-  preview.current = { profile: chr.profile, clip, time, turntable, part: clip ? part : null };
+  const preview = useRef<PreviewInput>({
+    profile: { ...chr.profile, offHand: chr.gear?.offHand ?? 'None' },
+    clip,
+    time,
+    turntable,
+    part: null,
+  });
+  preview.current = {
+    profile: { ...chr.profile, offHand: chr.gear?.offHand ?? 'None' },
+    clip,
+    time,
+    turntable,
+    part: clip ? part : null,
+  };
 
   // play the clip in real time
   useEffect(() => {
@@ -241,6 +256,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               type="button"
               role="option"
               aria-selected={x.id === chr.id}
+              data-name={x.name}
               class={`lib-item ${x.id === chr.id ? 'on' : ''}`}
               onClick={() => (ed.studioCharacter.value = x.id)}
             >
@@ -332,7 +348,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           <>
             {builtinClip && (
               <div class="studio-foot small">
-                v68 routine (read-only).{' '}
+                {clip.group === 'Combat' || clip.group === 'Gestures' ? 'Built-in clip' : 'v68 routine'} (read-only).{' '}
                 <button type="button" class="link" onClick={() => duplicate(clip)}>
                   Duplicate to edit
                 </button>
@@ -406,6 +422,82 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               </button>
             </div>
           </div>
+          {/* P9a: a neighbour the hero can hurt (villagers are off: hits do nothing) */}
+          {!isHero && shows(ed, 'section', 'character.harm') && (
+            <div class="sec" data-tour="char-harm">
+              <div class="sech">
+                <span>
+                  Health
+                  <FieldHelp
+                    label="Can be harmed"
+                    text="On: when this character is a neighbour on a map, the hero's hits hurt it, and at zero it leaves the play (and can leave an item and send an event). Off: hits do nothing — villagers are off. The player character's health is its hearts (the hp variable)."
+                  />
+                </span>
+              </div>
+              <label class="lbl">
+                <input
+                  type="checkbox"
+                  data-tour="char-can-be-harmed"
+                  checked={!!chr.harm?.canBeHarmed}
+                  onChange={() =>
+                    saveChr(
+                      {
+                        ...chr,
+                        harm: {
+                          canBeHarmed: !chr.harm?.canBeHarmed,
+                          health: chr.harm?.health ?? { hp: 3, atZero: { break: false } },
+                        },
+                      },
+                      chr.harm?.canBeHarmed ? 'Cannot be harmed' : 'Can be harmed',
+                    )
+                  }
+                />{' '}
+                Can be harmed
+              </label>
+              {chr.harm?.canBeHarmed && (
+                <HealthFields
+                  ed={ed}
+                  tour="char-health"
+                  health={chr.harm.health}
+                  onChange={(health, label) => saveChr({ ...chr, harm: { canBeHarmed: true, health } }, label)}
+                />
+              )}
+            </div>
+          )}
+          {/* P9c: an enemy — it walks to the hero and swings at them */}
+          {!isHero && shows(ed, 'section', 'character.enemy') && (
+            <div class="sec" data-tour="char-enemy" data-help="characters.enemy">
+              <div class="sech">
+                <span>
+                  Fights the hero
+                  <FieldHelp label="Fights the hero" text={ENEMY_HELP.make} />
+                </span>
+                {chr.enemy && (
+                  <button
+                    type="button"
+                    class="link"
+                    aria-label="Stop fighting the hero"
+                    onClick={() => {
+                      const { enemy: _e, ...rest } = chr;
+                      saveChr(rest as typeof chr, 'Not an enemy');
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              <EnemyFields
+                enemy={chr.enemy}
+                onChange={(enemy, label) => {
+                  if (!enemy) return;
+                  saveChr({ ...chr, enemy }, label);
+                }}
+                onMake={(enemy, health, name) =>
+                  saveChr({ ...chr, enemy, harm: { canBeHarmed: true, health } }, `Make enemy: ${name}`)
+                }
+              />
+            </div>
+          )}
           {clip && !builtinClip && (
             <div class="sec">
               <div class="sech">
@@ -480,6 +572,23 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                     </div>
                   ) : null,
                 )}
+              {/* P9b: the off hand (a shield on the left forearm) */}
+              {title === 'Gear & powers' && (
+                <div class="field">
+                  Off hand
+                  <PreviewPicker
+                    label="Off hand"
+                    tour="offHand"
+                    value={chr.gear?.offHand ?? 'None'}
+                    options={(['None', 'Shield'] as const).map((o) => ({
+                      value: o,
+                      name: o,
+                      thumb: <CharacterThumb profile={{ ...chr.profile, offHand: o }} view="torso" size={40} />,
+                    }))}
+                    onPick={(v) => saveChr({ ...chr, gear: { offHand: v as 'None' | 'Shield' } }, `Off hand: ${v}`)}
+                  />
+                </div>
+              )}
             </div>
           ))}
           <div class="sec" style={{ borderBottom: 0 }}>

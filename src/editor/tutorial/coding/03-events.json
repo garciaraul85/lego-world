@@ -5,7 +5,7 @@
     {
       "id": "ev.zone",
       "title": "When the hero walks in",
-      "body": "on(\"enterZone\", { zone: … }, …) runs when the hero enters a trigger zone. The { zone: \"zn_…\" } part says which zone — your pond's id is filled in for you here.",
+      "body": "on(\"enterZone\", { zone: … }, …) runs when the hero enters a trigger zone. The { zone: \"Pond\" } part says which zone, by its name. Inside the quotes, press Ctrl Space for a list of every zone in the game.",
       "task": "Add an enterZone block for the pond.",
       "target": ".lg-code",
       "workspace": "Logic",
@@ -24,7 +24,7 @@
       ],
       "code": "on(\"enterZone\", { zone: \"{{zone}}\" }, (e) => {\n  log(\"You found the pond!\");\n});\n",
       "placement": "left",
-      "tip": "Every zone, asset and screen has an id; the inspector shows it."
+      "tip": "Code names zones, sounds, spawn points, screens and scenes as the editor does. A quote after zone: or audio.playSound( opens a list of them (▶ plays a sound)."
     },
     {
       "id": "ev.interact",

@@ -132,3 +132,33 @@ test('a breakpoint pauses Play on the node and Continue runs on; the logic chang
   await page.keyboard.press('F5'); // stop (Esc is the game's back / pause now)
   expect(errors).toEqual([]);
 });
+
+test('P9b.1: clicking a card opens its code beside it; code names things and offers them as you type', async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Logic' }).click();
+  await page.getByRole('button', { name: '+ New logic graph' }).click();
+  await expect.poll(async () => (await graph(page))?.nodes.length).toBe(1);
+  await page.locator('.lg-pal', { hasText: 'Log' }).first().click();
+  await expect.poll(async () => (await graph(page)).nodes.length).toBe(2);
+  const g = await graph(page);
+  // a click (no drag) on a card in Graph view: Split opens, the card's code line is marked
+  await expect(page.getByRole('radio', { name: 'Graph' })).toHaveAttribute('aria-checked', 'true');
+  await page.locator(`.lg-node[data-node="${g.nodes[0]!.id}"]`).click({ position: { x: 40, y: 10 } });
+  await expect(page.getByRole('radio', { name: 'Split' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('.cm-content')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.cm-sel-line').first()).toBeVisible();
+  // inside quotes, the list offers the game's own names: here its sounds, each with ▶ to listen
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.insertText('\non("custom", { event: "x" }, (e) => {\n  audio.playSound("');
+  await page.keyboard.press('Control+Space');
+  const list = page.locator('.cm-tooltip-autocomplete');
+  await expect(list).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.cm-completionInfo')).toContainText('Listen to');
+  await page.keyboard.press('Escape');
+  expect(errors).toEqual([]);
+});

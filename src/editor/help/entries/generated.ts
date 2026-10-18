@@ -66,13 +66,18 @@ export const ACTION_HELP: Record<string, string> = {
   'view.top': 'Looks straight down on the map.',
   'view.palette': 'Opens the command palette: type a few letters of any command and press Enter.',
   'world.addMap': 'Adds a new map to the project. Connect maps with gates in the World graph.',
+  'world.trainingYard':
+    'Adds the Training yard, a sample map to practise fighting: dummies to lock on to and hit, a cracked wall that blunt hits break faster, a target that opens a gate when you lock on to it (a wire, no code), a chest behind the gate and a sparring knight who fights back. One undo takes it all away.',
   'world.generate': 'Opens map generation: choose districts, mountains and a seed, then generate the terrain.',
   'world.graph': 'Opens the World graph: every map, its spawn points and the gates between them.',
   'world.validate': 'Checks every gate leads somewhere the hero can reach and lists problems.',
   'world.connected': 'Generates several connected maps at once.',
   'play.start': 'Plays the game from the start spawn of this map.',
   'play.here': 'Plays the game from the selected spawn point.',
+  'play.map': 'Plays the open map from its first spawn point (for example the Training yard), not the game’s start.',
   'play.entry': 'Plays the whole game from its first screen (splash, title, then the game).',
+  'play.saveNow':
+    'While playing: saves the game to the slot in use, as pressing E at a save point does. Pause › Load game or the title’s Continue bring it back.',
   'play.pause': 'Pauses or resumes the running game.',
   'play.stop': 'Stops playing and goes back to editing. Nothing that happened in Play changes the project.',
   'play.v68': 'Plays the map in the original LEGO World v68 runtime (guns, magic, powers, volcano).',
@@ -81,6 +86,14 @@ export const ACTION_HELP: Record<string, string> = {
   'help.about': 'Shows the engine version and credits.',
   'help.tutorial': 'Starts the guided tutorial: every feature, step by step, with Show me and Do it for me.',
   'help.coding': 'Starts the coding course: the logic language, one line at a time.',
+  'help.combat':
+    'Starts the combat course on a sandbox: add the Training yard, make an enemy hit harder, wire a dummy to a chest, then fight — Show me and Do it for me for every step.',
+  'help.saving':
+    'Starts the saving and progress course: how players save (Project › Saving), a checkpoint flag, a save point, an achievement, saving and Settings in Play, Continue on the title, and deleting test saves — Show me and Do it for me for every step.',
+  'world.checkPlayable':
+    'Checks whether the game can be finished, the way a player would meet it, without playing: every map can be reached, every gate, object to use and zone that does something can be walked to, every achievement is unlocked somewhere, every collection can be found, and something finishes the game. Findings show in Problems with a button to select each one.',
+  'play.settingsMenu':
+    'While playing: opens the player’s Settings screen (music and sound volume, camera speed, invert camera, text size, difficulty), as Pause › Settings does.',
   'help.guide': 'Opens Help. Press F1 (or ⌘/ on a Mac) while pointing at any control to open its own page.',
   'help.here':
     'Opens the Help page of the control under the pointer: the same as F1, for keyboards (like a Mac’s) where F1 changes the screen brightness.',

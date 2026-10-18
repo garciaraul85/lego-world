@@ -166,6 +166,15 @@ describe('P31 scene menus', () => {
     expect(ed.selectedItem.value).toBe(after.at(-1)!.id);
   });
 
+  it('P28: the ground menu plays from that spot (test)', () => {
+    const c = setup();
+    const calls: unknown[] = [];
+    (c.ui as { play: (...a: unknown[]) => void }).play = (...a: unknown[]) => void calls.push(a);
+    openMenu(c, groundMenu(c, { x: 3, y: 2, z: 5 }), 0, 0);
+    runMenuItem('ground.playHere');
+    expect(calls).toEqual([['engine', { map: c.ed.mapId.value, at: [3, 0.8, 5] }]]);
+  });
+
   it('ground menu places the dock asset only once one is picked', () => {
     const c = setup();
     const { ed } = c;

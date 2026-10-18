@@ -1,17 +1,26 @@
 import { useSignal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { nodeDef } from '../../core/logic/catalog';
+import { nameBook, withNames } from '../../core/logic/code/names';
 import { printGraph } from '../../core/logic/code/print';
 import type { LogicGraph } from '../../core/schema';
 import { PlayRenderer } from '../../engine/runtime/play-renderer';
 import { PlaySession } from '../../engine/runtime/session';
 import { moveFocus } from '../../engine/ui/ScreenRenderer';
+import { BrowserSaveStore } from '../../platform/saves';
 import { keysFor } from '../platform';
 import type { EditorState } from '../state';
 import { GameScreens } from './GameScreens';
 
 /** `boot: 'entry'` starts at the project's first screen (splash → title), as the exported game does. */
-export type PlayStart = { mapId: string; spawnId: string | null; boot?: 'game' | 'entry'; cinematic?: string };
+export type PlayStart = {
+  mapId: string;
+  spawnId: string | null;
+  boot?: 'game' | 'entry';
+  cinematic?: string;
+  /** P28: start the hero here (Play from here, on the open map) */
+  at?: [number, number, number];
+};
 
 const SPEEDS = [0.25, 0.5, 1, 2] as const;
 const MOVE_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift', 'e']);
@@ -37,7 +46,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     try {
       ed.audio.init();
       void ed.audio.ctx?.resume().catch(() => {});
-      s = new PlaySession(ed.store.snapshot(), { ...start, audio: ed.audio });
+      s = new PlaySession(ed.store.snapshot(), { ...start, audio: ed.audio, saves: new BrowserSaveStore() });
       pr = new PlayRenderer(canvas, s);
       prRef.current = pr;
     } catch (e) {
@@ -65,14 +74,17 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     };
     for (const p of s.logic.problems) ed.log('WARN', `Logic: ${p.message}${p.node ? ` (${p.node})` : ''}`);
     if (start.cinematic) s.cine.play(start.cinematic);
+    if (start.at) s.placeAt(start.at, s.heroState.heading);
 
     let raf = 0;
     let last = performance.now();
     let lastTick = 0;
     const frameMs: number[] = [];
+    let heldFrames = 0;
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
-      const dt = Math.min(0.1, (now - last) / 1000);
+      // a rAF time can be a little before the time Play started: never a negative step
+      const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
       last = now;
       // a title, pause or game-over screen holds the game; the UI clock keeps running (P5.8)
       s.runtime.paused = ed.paused.value || s.screenPaused;
@@ -81,7 +93,11 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       const steps = s.runtime.advance(dt);
       pr.debug = ed.debugDraw.value;
       const t0 = performance.now();
-      const st = pr.render();
+      // while a screen holds the game (splash, title, pause) the world is still: redraw it 4 times a second, so
+      // menus stay quick on slow graphics
+      const held = s.runtime.paused && !ed.paused.value;
+      const st = !held || ++heldFrames % 15 === 0 ? pr.render() : null;
+      if (!held) heldFrames = 0;
       frameMs.push(dt * 1000);
       if (frameMs.length > 30) frameMs.shift();
       uiTick.value++;
@@ -123,7 +139,13 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
         /* used the prompted interaction */
       } else if (MOVE_KEYS.has(k)) s.input.keys.add(k);
       else if (k === ' ') s.input.jump = true;
-      else if (k === 'f' && !e.repeat) s.smash();
+      else if (k === 'f') {
+        // P9b: tap for a light attack; hold to charge (spin when held long); in the air: jump attack / plunge
+        if (!e.repeat) s.combat.press();
+      } else if (k === 'q') s.input.keys.add('q');
+      else if (k === 'c' && !e.repeat) s.combat.roll();
+      else if (k === 'z' && !e.repeat) s.combat.toggleLock();
+      else if (k === 'tab' && !e.repeat) s.combat.cycleLock();
       else if (k === 't' && !e.repeat) s.talk();
       else if (k === 'p' && !e.repeat) ed.paused.value = !ed.paused.value;
       else if (/^[1-4]$/.test(k) && !e.repeat) s.emote(Number(k) - 1);
@@ -132,10 +154,15 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       e.preventDefault();
       e.stopPropagation();
     };
-    const onUp = (e: KeyboardEvent) => s.input.keys.delete(e.key.toLowerCase());
+    const onUp = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      if (k === 'f') s.combat.release();
+      s.input.keys.delete(k);
+    };
     const onBlur = () => {
       s.input.keys.clear();
       s.input.touch.clear();
+      s.combat.charge = null;
       s.rebuildHeld = false;
     };
     window.addEventListener('keydown', onDown, true);
@@ -151,8 +178,12 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     };
     const pMove = (e: PointerEvent) => {
       if (!drag || drag.id !== e.pointerId) return;
-      s.camYaw -= (e.clientX - drag.x) * 0.008;
-      s.camPitch = Math.max(0.05, Math.min(1.25, s.camPitch + (e.clientY - drag.y) * 0.006));
+      // P26: the player's camera speed and invert setting
+      const ps = s.progress.settings;
+      const k = ps.cameraSpeed / 100;
+      s.camYaw -= (e.clientX - drag.x) * 0.008 * k;
+      const dy = (e.clientY - drag.y) * 0.006 * k * (ps.invertY ? -1 : 1);
+      s.camPitch = Math.max(0.05, Math.min(1.25, s.camPitch + dy));
       drag.x = e.clientX;
       drag.y = e.clientY;
     };
@@ -313,8 +344,34 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
             >
               Jump
             </button>
-            <button type="button" class="tbtn" {...tap('Smash', (s) => s.smash())}>
+            <button
+              type="button"
+              class="tbtn"
+              {...hold(
+                'Smash',
+                (s) => s.combat.press(),
+                (s) => s.combat.release(),
+              )}
+            >
               Smash
+            </button>
+            {/* P9b: guard while held, dodge roll, lock on */}
+            <button
+              type="button"
+              class="tbtn"
+              {...hold(
+                'Guard (hold)',
+                (s) => s.input.touch.add('guard'),
+                (s) => s.input.touch.delete('guard'),
+              )}
+            >
+              Guard
+            </button>
+            <button type="button" class="tbtn" {...tap('Roll', (s) => s.combat.roll())}>
+              Roll
+            </button>
+            <button type="button" class="tbtn" {...tap('Lock on', (s) => s.combat.toggleLock())}>
+              Lock
             </button>
             <button
               type="button"
@@ -369,7 +426,7 @@ function BreakBanner({ ed, brk }: { ed: EditorState; brk: NonNullable<EditorStat
   let code = '';
   try {
     if (g) {
-      const p = printGraph(g);
+      const p = printGraph(withNames(g, nameBook(ed.store)));
       const line = p.line.get(brk.node);
       if (line) code = `${line}: ${p.code.split('\n')[line - 1]?.trim()}`;
     }

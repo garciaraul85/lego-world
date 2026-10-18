@@ -2,6 +2,7 @@ import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { DEFAULT_EVENTS, DEFAULT_MIXER, DEFAULT_MUSIC } from '../../builtin/audio/pack';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
+import { GENRES } from '../../builtin/genres';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
 import { MapBricks } from '../bricks/map-bricks';
 import { printGraph } from '../logic/code/print';
@@ -94,6 +95,14 @@ export function projectSummary(store: ProjectStore, opts: { budget?: number; cur
   L.push(
     `start: map ${man.entry.map}${man.entry.spawn ? ` spawn ${man.entry.spawn}` : ''} · hero: ${man.hero ?? 'none'} · first screen: ${man.entry.screen ?? 'none (straight into the game)'}`,
   );
+  // P18: what kind of game it is (the editor shows that genre's tools; plan with them first)
+  const genre = GENRES.find((g) => g.id === man.genre);
+  if (genre)
+    L.push(
+      genre.features === 'all'
+        ? 'genre: open (every control shows)'
+        : `genre: ${genre.id} (${genre.name}) · uses ${genre.features.join(', ')}${genre.checklist.length ? ` · a finished game has: ${genre.checklist.join('; ')}` : ''}`,
+    );
   if (opts.currentMap) L.push(`the user is looking at map ${opts.currentMap}`);
 
   L.push('', '## Maps');

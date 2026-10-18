@@ -84,7 +84,8 @@ export function buildGame(options: GameOptions, seed: number, now?: string): Gen
   const nMaps = Math.max(1, Math.min(5, Math.round(options.maps)));
   const size = options.length === 'short' ? 24 : 32;
   const { count, hearts } = questSize(options);
-  const files = newProjectFiles({ name: 'New game', random: r, ...(now ? { now } : {}) });
+  // P18: a generated game is an explore-and-collect game (a treasure hunt, a quest): it opens in that view
+  const files = newProjectFiles({ name: 'New game', random: r, genre: 'explore', ...(now ? { now } : {}) });
   const store = new ProjectStore(files);
   const bus = registerAll(new CommandBus(store));
   const stages: BuildStage[] = [];

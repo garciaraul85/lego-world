@@ -14,6 +14,15 @@ Change hair, face, outfit, colors and gear in the properties; the preview update
 
 One character is the hero the player controls. Make player character (or Project tab › Hero) picks it. Other characters are neighbours the hero can talk to (T).
 
+
+## Can be harmed
+
+A character that lives on a map as a neighbour can be harmed only when **Can be harmed** is on (Character properties › Health). Then it has hit points, armour and what each kind of hit does, like an object, and at zero it leaves the play, leaves an item and sends an event. Villagers have it off: hits do nothing to them.
+
+## Fights the hero
+
+**Make enemy** turns a neighbour into a foe: pick Grunt (3 hits, slow swings), Brute (tough, armoured, hits hard) or Swift (fragile and fast). It switches on Can be harmed with that health and fills in how it fights: **Hits for** (hearts per swing), **Reach**, **Sees the hero within**, **Walking speed**, **Seconds between swings** and **Warning before a swing**. In Play it wanders until it sees the hero, walks over, raises its arm with a red “!” over its head, then swings. Guard (hold Q) to block from the front, raise the guard just before the swing to parry it (it is stunned), or dodge-roll (C). × stops it fighting.
+
 ## Animation clips
 
 Clips are keyframe animations on a timeline: a lane per joint, keys you drag in time, and markers that send events, play sounds or start cinematics. + New under Clips makes your own. The built-in Gestures group holds the emotes that keys 1–4 play in Play.

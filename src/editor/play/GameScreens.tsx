@@ -71,7 +71,12 @@ export function GameScreens({
       {cine && s.cine.frame && (
         <CinematicOverlay post={s.cine.frame.post} skippable={cine.cin.skippable} onSkip={() => s.cine.skip()} />
       )}
-      <ScreenLayer screens={screens} host={host} tick={t} />
+      <ScreenLayer
+        screens={screens}
+        host={host}
+        tick={t}
+        textScale={s.progress.settings.textSize === 'large' ? 1.25 : 1}
+      />
     </>
   );
 }

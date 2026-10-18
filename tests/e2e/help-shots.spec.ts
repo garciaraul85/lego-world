@@ -59,10 +59,13 @@ test('capture Help pictures', async ({ page }) => {
       ]) ?? [],
     ),
   );
-  // each entry is shown in the first state of its own screen that has it, else the first state that has it
+  // each entry is shown in the first state of its own screen where it is in view (P26: a control further down a
+  // panel is pictured where it was scrolled to), else the first state of its screen, else the first that has it
+  const inView = (x: { r: Rect[] }) => x.r.some(([l, t, w, h]) => l >= 0 && t >= 0 && l + w <= 1280 && t + h <= 800);
   const entries: Record<string, { s: string; r: Rect[] }> = {};
   for (const [id, list] of Object.entries(seen)) {
-    const best = list.find((x) => x.screen === entryScreen[id]) ?? list[0]!;
+    const own = list.filter((x) => x.screen === entryScreen[id]);
+    const best = own.find(inView) ?? own[0] ?? list.find(inView) ?? list[0]!;
     entries[id] = { s: best.s, r: best.r };
   }
   const guides: Record<string, { s: string; areas: Record<string, Rect> }> = {};

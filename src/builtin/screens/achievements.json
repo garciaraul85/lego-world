@@ -1,0 +1,96 @@
+{
+  "id": "scr_achieve000",
+  "kind": "custom",
+  "name": "Achievements",
+  "music": null,
+  "pausesGame": true,
+  "root": {
+    "type": "panel",
+    "style": {
+      "bg": "#05070dc8"
+    },
+    "children": [
+      {
+        "type": "panel",
+        "id": "menu",
+        "anchor": [0.5, 0.5],
+        "style": {
+          "layout": "column",
+          "gap": 10,
+          "w": 560,
+          "bg": "#141a2be8",
+          "pad": 24,
+          "radius": 16
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "title",
+            "text": "Achievements {achievements.unlocked} / {achievements.total}",
+            "style": {
+              "fontSize": 30,
+              "weight": "bold",
+              "color": "#ffffff",
+              "align": "center"
+            }
+          },
+          {
+            "type": "text",
+            "id": "stats",
+            "text": "Complete: {progress.percent}% · Time played: {progress.time}",
+            "style": {
+              "fontSize": 18,
+              "color": "#cfd6e6",
+              "align": "center"
+            }
+          },
+          {
+            "type": "list",
+            "id": "achievements",
+            "bind": ["achievements.list"],
+            "style": {
+              "fontSize": 18,
+              "color": "#ffffff",
+              "max": 12,
+              "hideEmpty": 1
+            }
+          },
+          {
+            "type": "list",
+            "id": "collections",
+            "bind": ["collections.list"],
+            "style": {
+              "fontSize": 18,
+              "color": "#f7c900",
+              "max": 8,
+              "hideEmpty": 1
+            }
+          },
+          {
+            "type": "list",
+            "id": "bests",
+            "bind": ["bests.list"],
+            "style": {
+              "fontSize": 18,
+              "color": "#9fe2ff",
+              "max": 6,
+              "hideEmpty": 1
+            }
+          },
+          {
+            "type": "button",
+            "id": "back",
+            "label": "Back",
+            "onPress": [
+              {
+                "do": "hideScreen",
+                "screen": "scr_achieve000"
+              }
+            ],
+            "sound": "snd_uiback0000"
+          }
+        ]
+      }
+    ]
+  }
+}

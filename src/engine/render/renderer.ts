@@ -1,5 +1,5 @@
 import type { SkySample } from '../../core/legacy/modules';
-import { brickGeometry, coneGeometry, type Geometry, PLATE, plainBox } from './brick-geometry';
+import { brickGeometry, coneGeometry, downTriangle, type Geometry, PLATE, plainBox, turnedY } from './brick-geometry';
 import type { CameraFrame } from './camera';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from './math';
 import { FRAGMENT, SKY_FRAGMENT, SKY_VERTEX, VERTEX } from './shaders';
@@ -42,7 +42,11 @@ export type Marker = {
   alpha?: number;
   onTop?: boolean;
   /** an arrowhead pointing along +axis instead of a box (editor gizmos) */
-  cone?: 'x' | 'y' | 'z';
+  cone?: 'x' | 'y' | 'z' | '-y';
+  /** a flat triangle pointing down (size: width, height, thickness), turned to face this yaw — the lock-on arrow */
+  tri?: number;
+  /** a box turned about y to this yaw (its width along the camera's right): health bars */
+  facing?: number;
 };
 
 export type FrameStats = { drawCalls: number; instances: number; chunksDrawn: number; chunks: number; ms: number };
@@ -204,7 +208,34 @@ export class Renderer {
     return this.boxMesh(`lod:${w},${d},${kind}`, w - 0.025, brickHeightUnits(kind), d - 0.025);
   }
 
-  private coneMesh(r: number, h: number, axis: 'x' | 'y' | 'z'): Mesh {
+  /** the mesh a marker draws: a down-pointing triangle, a cone or a box */
+  private markerMesh(m: Marker): Mesh {
+    if (m.tri !== undefined) {
+      // the facing is kept to 64 steps so a handful of meshes are cached
+      const step = Math.round((m.tri / (Math.PI * 2)) * 64) & 63;
+      const key = `tri:${m.size.join(',')}:${step}`;
+      let mesh = this.meshes.get(key);
+      if (!mesh) {
+        mesh = this.upload(downTriangle(m.size[0], m.size[1], m.size[2], (step / 64) * Math.PI * 2));
+        this.meshes.set(key, mesh);
+      }
+      return mesh;
+    }
+    if (m.cone) return this.coneMesh(m.size[0] / 2, m.size[1], m.cone);
+    if (m.facing !== undefined) {
+      const step = Math.round((m.facing / (Math.PI * 2)) * 64) & 63;
+      const key = `face:${m.size.join(',')}:${step}`;
+      let mesh = this.meshes.get(key);
+      if (!mesh) {
+        mesh = this.upload(turnedY(plainBox(m.size[0], m.size[1], m.size[2]), (step / 64) * Math.PI * 2));
+        this.meshes.set(key, mesh);
+      }
+      return mesh;
+    }
+    return this.boxMesh(`marker:${m.size.join(',')}`, m.size[0], m.size[1], m.size[2]);
+  }
+
+  private coneMesh(r: number, h: number, axis: 'x' | 'y' | 'z' | '-y'): Mesh {
     const key = `cone:${r},${h},${axis}`;
     let m = this.meshes.get(key);
     if (!m) {
@@ -450,18 +481,16 @@ export class Renderer {
 
     for (const m of markers) {
       if (m.onTop) continue;
-      if (m.alpha !== undefined && m.alpha < 1) {
+      const see = m.alpha !== undefined && m.alpha < 1;
+      if (see) {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        // see-through markers (ghost bricks) never hide the characters drawn after them
+        gl.depthMask(false);
       }
-      this.drawSingle(
-        this.boxMesh(`marker:${m.size.join(',')}`, m.size[0], m.size[1], m.size[2]),
-        m.pos,
-        m.color,
-        m.alpha ?? 1,
-        true,
-      );
+      this.drawSingle(this.markerMesh(m), m.pos, m.color, m.alpha ?? 1, true);
       gl.disable(gl.BLEND);
+      gl.depthMask(true);
     }
 
     for (const o of overlays) {
@@ -506,16 +535,7 @@ export class Renderer {
     const top = markers.filter((m) => m.onTop);
     if (top.length) {
       gl.clear(gl.DEPTH_BUFFER_BIT);
-      for (const m of top)
-        this.drawSingle(
-          m.cone
-            ? this.coneMesh(m.size[0] / 2, m.size[1], m.cone)
-            : this.boxMesh(`marker:${m.size.join(',')}`, m.size[0], m.size[1], m.size[2]),
-          m.pos,
-          m.color,
-          1,
-          true,
-        );
+      for (const m of top) this.drawSingle(this.markerMesh(m), m.pos, m.color, 1, true);
     }
     this.stats.ms = performance.now() - t0;
     return this.stats;

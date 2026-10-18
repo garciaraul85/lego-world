@@ -1,0 +1,142 @@
+{
+  "id": "combat",
+  "title": "Combat course",
+  "steps": [
+    {
+      "id": "combat.yard",
+      "title": "The Training yard",
+      "body": "The Training yard is a sample map made only from editor commands: training dummies, a cracked wall, a target that opens a gate, a chest, and a sparring knight who fights back. Signs on the map say what to try. One undo takes it all away again.",
+      "task": "Open the World menu and click “Add the Training yard”.",
+      "target": "[data-tour=\"menu-world\"]",
+      "placement": "bottom",
+      "workspace": "Scene",
+      "check": { "kind": "state", "test": "mapNamed", "args": "Training yard" },
+      "doItForMe": [{ "action": "world.trainingYard" }],
+      "tip": "The Map list at the top of the editor switches between your maps."
+    },
+    {
+      "id": "combat.enemy",
+      "title": "An enemy",
+      "body": "The sparring knight is a character with “Fights the hero” on. As a neighbour on a map it wanders until it sees the hero, walks over, raises its arm with a red “!” over its head, then swings. “Make enemy” turns any other character into one (Grunt, Brute or Swift).",
+      "task": "Make the sparring knight hit harder and warn you for longer.",
+      "target": "section[aria-label=\"Character properties\"]",
+      "placement": "left",
+      "workspace": "Characters",
+      "check": { "kind": "state", "test": "enemyStat", "args": { "stat": "windup", "value": 0.9 } },
+      "doItForMe": [],
+      "how": [
+        {
+          "text": "In the list “Characters and clips” on the left, click “Sparring knight”. Its properties open on the right.",
+          "check": { "kind": "state", "test": "characterNamed", "args": "Sparring knight" },
+          "do": [
+            {
+              "click": "[aria-label=\"Characters and clips\"] [data-name=\"Sparring knight\"]",
+              "say": "Click “Sparring knight” in the list on the left."
+            }
+          ]
+        },
+        {
+          "text": "In the panel on the right, find the section “Fights the hero”. Click the box “Hits for”, type 2 and press Enter: each swing now takes two hearts.",
+          "check": { "kind": "state", "test": "enemyStat", "args": { "stat": "power", "value": 2 } },
+          "do": [
+            {
+              "fill": "[data-tour=\"enemy-power\"]",
+              "value": "2",
+              "say": "Type 2 in “Hits for” under “Fights the hero” and press Enter."
+            }
+          ]
+        },
+        {
+          "text": "In the same section, click the box “Warning before a swing”, type 0.9 and press Enter: the red “!” now shows for 0.9 seconds before each swing, time to raise your guard.",
+          "check": { "kind": "state", "test": "enemyStat", "args": { "stat": "windup", "value": 0.9 } },
+          "do": [
+            {
+              "fill": "[data-tour=\"enemy-windup\"]",
+              "value": "0.9",
+              "say": "Type 0.9 in “Warning before a swing” and press Enter."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "combat.wire",
+      "title": "Wire a dummy to the chest",
+      "body": "Wires connect objects without writing logic: when this one is used, hit, smashed, rebuilt or locked on, another one changes. The yard's target already opens the gate when you lock on to it. Now make smashing a training dummy open the treasure chest.",
+      "task": "Wire a training dummy: when it is smashed, the treasure chest opens.",
+      "target": "[data-tour=\"object-script\"]",
+      "placement": "left",
+      "workspace": "Scene",
+      "check": { "kind": "state", "test": "wireOn", "args": { "asset": "Training dummy", "when": "smashed" } },
+      "doItForMe": [],
+      "how": [
+        {
+          "text": "Select a training dummy: click one of the two brown dummies on the left of the yard in the 3D view. The Inspector on the right shows it, with a section “Name, script & wires”.",
+          "check": { "kind": "state", "test": "hasSelection" },
+          "do": [
+            {
+              "fn": "selectObject",
+              "args": { "asset": "Training dummy" },
+              "say": "Click a training dummy in the 3D view."
+            }
+          ]
+        },
+        {
+          "text": "In the Inspector's box “New wire”, open “When this” and pick “is smashed”.",
+          "check": { "kind": "dom", "selector": "[data-tour=\"wire-new\"]" },
+          "do": [
+            {
+              "choose": "select[aria-label=\"Wire when\"]",
+              "value": "smashed",
+              "say": "Pick “is smashed” in “When this”."
+            }
+          ]
+        },
+        {
+          "text": "Open “Then” and pick “set another object's state”, then open “Object” and pick “Treasure chest”.",
+          "check": { "kind": "dom", "selector": "select[aria-label=\"Wire state\"]:not([disabled])" },
+          "do": [
+            {
+              "choose": "select[aria-label=\"Wire does\"]",
+              "value": "state",
+              "say": "Pick “set another object's state” in “Then”."
+            },
+            {
+              "choose": "select[aria-label=\"Wire target\"]",
+              "value": "Treasure chest",
+              "say": "Pick “Treasure chest” in “Object”."
+            }
+          ]
+        },
+        {
+          "text": "Open “State” and pick “open”, then press “+ Wire”. The wire is listed above the box (“When is smashed → Treasure chest 1: open”) and a teal line joins the dummy and the chest in the 3D view.",
+          "check": { "kind": "state", "test": "wireOn", "args": { "asset": "Training dummy", "when": "smashed" } },
+          "do": [
+            { "choose": "select[aria-label=\"Wire state\"]", "value": "open", "say": "Pick “open” in “State”." },
+            { "click": "button[aria-label=\"Add wire\"]", "say": "Press “+ Wire”." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "combat.play",
+      "title": "Fight",
+      "body": "In Play: a yellow arrow shows what Z locks on to; locked on, it turns red and the hero faces it. Tap F to attack, hold F to charge, Shift+F for a heavy hit. Hold Q to guard (with a shield, a hit from the front is blocked; raise it just as the red “!” is about to strike to parry). C rolls. Lock on to the red-and-white target to open the gate; smash a dummy to open the chest.",
+      "task": "Open the Play menu and click “Play this map”.",
+      "target": "[data-tour=\"menu-play\"]",
+      "placement": "bottom",
+      "check": { "kind": "play", "event": "running" },
+      "doItForMe": [{ "action": "play.map" }]
+    },
+    {
+      "id": "combat.done",
+      "title": "You can make fights",
+      "body": "Stop with F5 when you are done. Everything you used is in the editor: Make breakable and Can be locked on in the Asset studio, Fights the hero in the Character studio, Name, script & wires in the Scene, and On damaged, On defeated and On locked on in Logic. Help › Help guide › Play has every control.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "placement": "bottom",
+      "check": { "kind": "manual" },
+      "doItForMe": []
+    }
+  ]
+}

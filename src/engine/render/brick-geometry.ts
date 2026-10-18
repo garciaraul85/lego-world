@@ -181,7 +181,7 @@ export function brickGeometry(
 
 /** A plain box (for the floor, markers and far LOD). */
 /** A cone (arrowhead) with its base centered on the origin, pointing along +x, +y or +z. */
-export function coneGeometry(radius: number, height: number, axis: 'x' | 'y' | 'z', segments = 16): Geometry {
+export function coneGeometry(radius: number, height: number, axis: 'x' | 'y' | 'z' | '-y', segments = 16): Geometry {
   const g = new Builder();
   g.lathe(
     0,
@@ -195,6 +195,18 @@ export function coneGeometry(radius: number, height: number, axis: 'x' | 'y' | '
   );
   const out = g.done();
   if (axis === 'y') return out;
+  if (axis === '-y') {
+    // pointing down: mirror y and keep the triangles facing out (swap two corners of each)
+    for (const arr of [out.positions, out.normals]) for (let i = 1; i < arr.length; i += 3) arr[i] = -arr[i]!;
+    for (const arr of [out.positions, out.normals])
+      for (let t = 0; t < arr.length; t += 9)
+        for (let k = 0; k < 3; k++) {
+          const a = arr[t + 3 + k]!;
+          arr[t + 3 + k] = arr[t + 6 + k]!;
+          arr[t + 6 + k] = a;
+        }
+    return out;
+  }
   // y-up cone -> point along x (x <- y, y <- -x) or along z (z <- y, y <- -z)
   for (const arr of [out.positions, out.normals])
     for (let i = 0; i < arr.length; i += 3) {
@@ -216,4 +228,58 @@ export function plainBox(w: number, h: number, d: number, r = 0.04): Geometry {
   const g = new Builder();
   g.box(0, 0, 0, w, h, d, r);
   return g.done();
+}
+
+/**
+ * P9b.1: a flat triangle with its point down (the lock-on arrow): `w` wide, `h` tall, `t` thick, its tip at the
+ * origin, its face turned to `yaw` (the way the camera looks from).
+ */
+export function downTriangle(w: number, h: number, t: number, yaw: number): Geometry {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  // local: x across, y up, z through the face; turned about y by yaw
+  const at = (x: number, y: number, z: number): [number, number, number] => [x * c + z * s, y, -x * s + z * c];
+  const dir = (x: number, y: number, z: number): [number, number, number] => {
+    const [a, b, d] = at(x, y, z);
+    const l = Math.hypot(a, b, d) || 1;
+    return [a / l, b / l, d / l];
+  };
+  const pos: number[] = [];
+  const nor: number[] = [];
+  const tri = (p: [number, number, number][], n: [number, number, number]) => {
+    for (const v of p) {
+      pos.push(...v);
+      nor.push(...n);
+    }
+  };
+  const L = (z: number) => at(-w / 2, h, z);
+  const R = (z: number) => at(w / 2, h, z);
+  const T = (z: number) => at(0, 0, z);
+  const f = t / 2;
+  tri([L(f), T(f), R(f)], dir(0, 0, 1)); // front
+  tri([L(-f), R(-f), T(-f)], dir(0, 0, -1)); // back
+  tri([L(f), R(f), R(-f)], dir(0, 1, 0)); // top
+  tri([L(f), R(-f), L(-f)], dir(0, 1, 0));
+  const sl = dir(-h, -w / 2, 0); // left slope
+  tri([L(f), L(-f), T(-f)], sl);
+  tri([L(f), T(-f), T(f)], sl);
+  const sr = dir(h, -w / 2, 0); // right slope
+  tri([R(f), T(f), T(-f)], sr);
+  tri([R(f), T(-f), R(-f)], sr);
+  return { positions: new Float32Array(pos), normals: new Float32Array(nor) };
+}
+
+/** P9c: a copy of a geometry turned about y (x goes to (cos, 0, −sin)), for markers that face the camera */
+export function turnedY(g: Geometry, yaw: number): Geometry {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  const out = { positions: new Float32Array(g.positions), normals: new Float32Array(g.normals) };
+  for (const arr of [out.positions, out.normals])
+    for (let i = 0; i < arr.length; i += 3) {
+      const x = arr[i]!;
+      const z = arr[i + 2]!;
+      arr[i] = x * c + z * s;
+      arr[i + 2] = -x * s + z * c;
+    }
+  return out;
 }

@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (49 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (61 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -109,6 +109,45 @@ Runs when Send event (or an asset interaction) sends this event name.
 
 - Settings: Event name (event)
 - Code: `on("custom", { event: … }, (e) => { … });`
+
+### On damaged
+
+`event.onDamaged` · event
+
+Runs when something with health is hurt and still has some left: the hero, a neighbour that can be harmed, or an object with health.
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity), amount (number), hp left (number)
+- Code: `on("damaged", { asset: … }, (e) => { … });`
+
+### On defeated
+
+`event.onDefeated` · event
+
+Runs when something with health reaches zero (after it breaks, drops its item and sends its event).
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity)
+- Code: `on("defeated", { asset: … }, (e) => { … });`
+
+### On locked on
+
+`event.onLockedOn` · event
+
+Runs when the hero locks on (Z or Tab) to something: a neighbour, an object with health, or an asset with “Can be locked on” (a switch or target in a puzzle). Target is what was locked on to.
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity)
+- Code: `on("lockedOn", { asset: … }, (e) => { … });`
+
+### On achievement
+
+`event.onAchievement` · event
+
+Runs when the player unlocks an achievement (empty: any of them).
+
+- Settings: Achievement id (string, optional)
+- Code: `on("achievement", { achievement: … }, (e) => { … });`
 
 ## Flow
 
@@ -485,3 +524,77 @@ A note on the canvas. It does nothing when the game runs.
 A labelled frame to group nodes on the canvas.
 
 - Settings: Title (string), Width (number), Height (number)
+
+## Health
+
+### Damage
+
+`health.damage` · action
+
+Hurts the hero, a placed object or a neighbour, as a hit of this power and type would (armour and resistances count).
+
+- Inputs: target (entity), amount (number), type (string), from (entity)
+- Code: `health.damage(target, amount, type, from);`
+
+### Heal
+
+`health.heal` · action
+
+Gives health back, never above its maximum (the hero: hearts).
+
+- Inputs: target (entity), amount (number)
+- Code: `health.heal(target, amount);`
+
+### Set invulnerable
+
+`health.setInvulnerable` · action
+
+Nothing can hurt it while on (a shield spell, a cutscene, a boss between phases); off makes it take damage again.
+
+- Inputs: target (entity), on (bool)
+- Code: `health.setInvulnerable(target, on);`
+
+## Saving
+
+### Save game
+
+`game.save` · action
+
+Saves the game to a slot: where the hero is, what they carry, variables, and everything changed on the maps they visited. Use it for a save point, or after a big moment.
+
+- Settings: Slot (number, optional)
+- Code: `game.save(slot);`
+
+### Load game
+
+`game.load` · action
+
+Loads a saved game: the maps, the hero and everything carried come back as they were saved. Empty slot: the newest save.
+
+- Settings: Slot (number, optional)
+- Code: `game.load(slot);`
+
+### Unlock achievement
+
+`game.unlockAchievement` · action
+
+Unlocks one of the game’s achievements (Project › Progress) for this player: a 🏆 message shows, and it stays unlocked in every save and new game.
+
+- Settings: Achievement id (string)
+- Code: `game.unlockAchievement(achievement);`
+
+### Finish game
+
+`game.finish` · action
+
+The player finished the game: it counts as finished (best scores are kept, new game plus opens on the title) and the title screen shows.
+
+- Code: `game.finish();`
+
+### Set checkpoint
+
+`game.setCheckpoint` · action
+
+From now on, Retry (after game over) and falling off the world bring the hero back to where they stand now.
+
+- Code: `game.setCheckpoint();`

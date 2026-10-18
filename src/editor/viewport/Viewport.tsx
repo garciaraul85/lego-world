@@ -15,7 +15,8 @@ import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import type { Command } from '../../core/commands';
 import { skyCycle } from '../../core/legacy/modules';
-import type { Asset } from '../../core/schema';
+import { wiresOf } from '../../core/logic/wiring';
+import type { Asset, LogicGraph } from '../../core/schema';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
 import { type LineSet, type Marker, type Overlay, type RenderBrick, Renderer } from '../../engine/render/renderer';
@@ -657,6 +658,8 @@ export function Viewport({
             });
           }
         }
+        // P9c: wires between placed objects (a switch → the gate it opens), as lines over everything
+        if (!studio) lines.push(...wireLines(ed, s.instances));
         // sound emitters (♫, with their range when selected) and world UI signs (P5.5, P5.9)
         for (const it of studio ? [] : mapItems(ed)) {
           const sel = it.id === ed.selectedItem.value;
@@ -1546,4 +1549,35 @@ function plainGroup(bricks: Brick[]): FreeGroup {
     bricks,
     t: transformOf(IDENTITY, bricks, [0, 0, 0], [1, 1, 1], [0, 0, 0]),
   };
+}
+
+/** P9c: a line from each object with wires to every object its wires change, with an arrowhead tick at the end */
+function wireLines(
+  ed: EditorState,
+  instances: readonly { inst: { id: string; name?: string }; bricks: readonly { x: number; y: number; z: number }[] }[],
+): LineSet[] {
+  const center = (b: readonly { x: number; y: number; z: number }[]): Vec3 | null =>
+    b.length
+      ? [
+          b.reduce((a, x) => a + x.x, 0) / b.length + 0.5,
+          Math.max(...b.map((x) => x.y)) * 0.4 + 1.4,
+          b.reduce((a, x) => a + x.z, 0) / b.length + 0.5,
+        ]
+      : null;
+  const pts: number[] = [];
+  for (const p of ed.store.list('logic/lg_')) {
+    const g = ed.store.get<LogicGraph>(p);
+    if (!g?.owner) continue;
+    const from = instances.find((i) => i.inst.id === g.owner);
+    const a = from && center(from.bricks);
+    if (!a) continue;
+    for (const w of wiresOf(g)) {
+      if (w.do.kind === 'emit') continue;
+      const ref = w.do.target.toLowerCase();
+      const to = instances.find((i) => i.inst.name?.toLowerCase() === ref);
+      const b = to && center(to.bricks);
+      if (b) pts.push(...a, ...b);
+    }
+  }
+  return pts.length ? [{ lines: pts, color: [0.3, 0.92, 0.85], onTop: true }] : [];
 }

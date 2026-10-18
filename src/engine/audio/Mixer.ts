@@ -7,7 +7,7 @@ export type Bus = (typeof BUSES)[number];
 export const dbToGain = (db: number) => (db <= -60 ? 0 : 10 ** (db / 20));
 export const gainToDb = (g: number) => (g <= 0.001 ? -60 : 20 * Math.log10(g));
 
-type BusNodes = { input: GainNode; fader: GainNode; duck: GainNode; meter: AnalyserNode };
+type BusNodes = { input: GainNode; fader: GainNode; duck: GainNode; player: GainNode; meter: AnalyserNode };
 
 /**
  * One audio graph (P5.1): every bus is input → fader → duck → meter → master, master → destination.
@@ -22,10 +22,12 @@ export class Mixer {
       const input = ctx.createGain();
       const fader = ctx.createGain();
       const duck = ctx.createGain();
+      // P26: the player's own volume (Settings), on top of the maker's mix
+      const player = ctx.createGain();
       const meter = ctx.createAnalyser();
       meter.fftSize = 1024;
-      input.connect(fader).connect(duck).connect(meter);
-      this.buses.set(name, { input, fader, duck, meter });
+      input.connect(fader).connect(duck).connect(player).connect(meter);
+      this.buses.set(name, { input, fader, duck, player, meter });
     }
     const master = this.buses.get('master')!;
     master.meter.connect(ctx.destination);
@@ -39,6 +41,15 @@ export class Mixer {
   apply(data: MixerData) {
     const t = this.ctx.currentTime;
     for (const name of BUSES) this.buses.get(name)!.fader.gain.setTargetAtTime(dbToGain(data.buses[name]), t, 0.02);
+  }
+
+  /** P26: the player's volumes (0–1): music on the music bus, sounds on every other bus */
+  setPlayer(music: number, sounds: number) {
+    const t = this.ctx.currentTime;
+    for (const name of BUSES) {
+      if (name === 'master') continue;
+      this.buses.get(name)!.player.gain.setTargetAtTime(name === 'music' ? music : sounds, t, 0.05);
+    }
   }
 
   duck(bus: string, db: number, timeConstant: number) {

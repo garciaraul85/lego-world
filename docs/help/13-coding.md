@@ -12,7 +12,7 @@ on("start", (e) => {
 });
 ```
 
-The event's settings go in braces before the function, e.g. `on("enterZone", { zone: "zn_…" }, (e) => { … });`. `e` carries details: `e.who` is who entered a zone. Lines starting with `//` are comments. [Open Logic](open:Logic) and switch View to Code (or Split).
+The event's settings go in braces before the function, naming things as the editor does (a zone by its tag, a sound or screen by its name), e.g. `on("enterZone", { zone: "Pond" }, (e) => { … });`. `e` carries details: `e.who` is who entered a zone. Lines starting with `//` are comments. [Open Logic](open:Logic) and switch View to Code (or Split).
 
 ## Events
 
@@ -28,7 +28,7 @@ The event's settings go in braces before the function, e.g. `on("enterZone", { z
 
 ## Flow
 
-`await wait(2);` pauses the block (write `async (e) =>`). `once(() => { … });` runs its inside the first time only. `gate("door", false, () => { … });` runs its inside only while the gate is open; `gate.open("door");` and `gate.close("door");` switch it (they must be the last line of their block). `forEachInZone("zn_…", (who) => { … });` runs once per thing in a zone.
+`await wait(2);` pauses the block (write `async (e) =>`). `once(() => { … });` runs its inside the first time only. `gate("door", false, () => { … });` runs its inside only while the gate is open; `gate.open("door");` and `gate.close("door");` switch it (they must be the last line of their block). `forEachInZone("Pond", (who) => { … });` runs once per thing in a zone.
 
 ## Actions
 
@@ -38,21 +38,27 @@ World: `world.give(item, count)`, `world.setState(instance, state)`, `world.tele
 
 If the code can't be understood, nothing changes and the line under the editor says why, with the line number; the graph keeps the last good version. Click the gutter (or F9 on a node) to set a breakpoint: Play pauses there and the Debug tab shows the variables. A chain stops after 1,000 steps so a loop can't freeze the game.
 
-## A whole game
+## A whole game, in two files
+
+Names inside quotes are the game's own: press Ctrl Space inside quotes (or just type a quote after `zone:`, `audio.playSound(`, `world.teleport(`…) for a list of every zone, sound, spawn point, asset, screen or scene, with ▶ to listen to sounds. The main file:
 
 ```
 on("start", (e) => {
   vars.coins = 0;
 });
 
-on("interact", { asset: "ast_…" }, (e) => {
+on("interact", { asset: "Treasure chest" }, (e) => {
   vars.coins += 1;
   if ((vars.coins >= 3)) {
     emit("won");
   }
 });
+```
 
+A second file, Rewards (+ New next to Files). It sees the same `vars.coins`, and runs when the main file sends `won`:
+
+```
 on("custom", { event: "won" }, (e) => {
-  cinematic.play("cin_…", true);
+  cinematic.play("Chest reward", true);
 });
 ```

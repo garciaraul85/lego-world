@@ -23,7 +23,7 @@
     {
       "id": "play.move",
       "title": "Move around",
-      "body": "WASD or the arrows move, Space jumps, F smashes, hold E to rebuild, E uses chests and doors, T talks to neighbours, 1–4 play emotes. Drag to look around. Esc opens the pause menu.",
+      "body": "WASD or the arrows move, Space jumps, F attacks (hold it to charge), Q guards, C rolls, Z locks on, hold E to rebuild, E uses chests and doors, T talks to neighbours, 1–4 play emotes. Drag to look around. Esc opens the pause menu.",
       "task": "Walk the hero a few steps (WASD).",
       "target": "[aria-label=\"Game view\"]",
       "placement": "center",

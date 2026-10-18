@@ -4,25 +4,52 @@
   "steps": [
     {
       "id": "game.write",
-      "title": "Write a game",
-      "body": "Everything together: start with 0 coins and a hint, each chest use adds a coin with a sound, three coins sends won, won plays the reward scene once, and the end of the scene shows “You win!”. Replace the whole program with this.",
-      "task": "Write the whole little game.",
+      "title": "Write the game",
+      "body": "Everything together, in parts. This file is the game itself: start with 0 coins and a hint, and each chest use adds a coin with a sound. At three coins it sends the custom event won — and stops there: what winning does goes in its own file next. Replace the whole program with this.",
+      "task": "Write the main file.",
       "target": ".lg-code",
       "workspace": "Logic",
       "check": {
         "kind": "state",
         "test": "codeHas",
-        "args": ["vars\\.coins = 0", "on\\(\"custom\", \\{ event: \"won\" \\}", "cinematic\\.play"]
+        "args": ["vars\\.coins = 0", "emit\\(\"won\"\\)"]
       },
       "doItForMe": [
         {
           "fn": "typeCode",
           "args": {
-            "code": "on(\"start\", (e) => {\n  vars.coins = 0;\n  screen.setText(\"{{hud}}\", \"message\", \"Open the chest three times!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n  screen.setText(\"{{hud}}\", \"message\", \"Keep going!\");\n  if ((vars.coins >= 3)) {\n    emit(\"won\");\n  }\n});\n\non(\"custom\", { event: \"won\" }, (e) => {\n  once(() => {\n    cinematic.play(\"{{cinematic}}\", true);\n  });\n});\n\non(\"cinematicDone\", { cinematic: \"{{cinematic}}\" }, (e) => {\n  screen.setText(\"{{hud}}\", \"message\", \"You win!\");\n});\n"
+            "code": "on(\"start\", (e) => {\n  vars.coins = 0;\n  screen.setText(\"{{hud}}\", \"message\", \"Open the chest three times!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n  screen.setText(\"{{hud}}\", \"message\", \"Keep going!\");\n  if ((vars.coins >= 3)) {\n    emit(\"won\");\n  }\n});\n"
           }
         }
       ],
-      "code": "on(\"start\", (e) => {\n  vars.coins = 0;\n  screen.setText(\"{{hud}}\", \"message\", \"Open the chest three times!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n  screen.setText(\"{{hud}}\", \"message\", \"Keep going!\");\n  if ((vars.coins >= 3)) {\n    emit(\"won\");\n  }\n});\n\non(\"custom\", { event: \"won\" }, (e) => {\n  once(() => {\n    cinematic.play(\"{{cinematic}}\", true);\n  });\n});\n\non(\"cinematicDone\", { cinematic: \"{{cinematic}}\" }, (e) => {\n  screen.setText(\"{{hud}}\", \"message\", \"You win!\");\n});\n",
+      "code": "on(\"start\", (e) => {\n  vars.coins = 0;\n  screen.setText(\"{{hud}}\", \"message\", \"Open the chest three times!\");\n});\n\non(\"interact\", { asset: \"{{chest}}\" }, (e) => {\n  vars.coins += 1;\n  audio.playSound(\"{{sound}}\");\n  screen.setText(\"{{hud}}\", \"message\", \"Keep going!\");\n  if ((vars.coins >= 3)) {\n    emit(\"won\");\n  }\n});\n",
+      "placement": "left"
+    },
+    {
+      "id": "game.file",
+      "title": "A second file: Rewards",
+      "body": "Keep each part of a game in its own file, as programmers do: the main file plays the game, a Rewards file decides what winning does. Files talk to each other: emit(\"won\") in one runs on(\"custom\", { event: \"won\" }) in every file, and vars.coins is the same variable everywhere (the Variables panel lists what all files share). Make a file called Rewards (+ New next to Files, on the left, then rename it at the top) and write this in it.",
+      "task": "Make the Rewards file and write the reward in it.",
+      "target": ".lg-code",
+      "workspace": "Logic",
+      "check": {
+        "kind": "state",
+        "test": "codeHas",
+        "args": {
+          "file": "Rewards",
+          "has": ["on\\(\"custom\", \\{ event: \"won\" \\}", "cinematic\\.play", "log\\(vars\\.coins\\)"]
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "typeCode",
+          "args": {
+            "file": "Rewards",
+            "code": "on(\"custom\", { event: \"won\" }, (e) => {\n  once(() => {\n    log(vars.coins);\n    cinematic.play(\"{{cinematic}}\", true);\n  });\n});\n\non(\"cinematicDone\", { cinematic: \"{{cinematic}}\" }, (e) => {\n  screen.setText(\"{{hud}}\", \"message\", \"You win!\");\n});\n"
+          }
+        }
+      ],
+      "code": "on(\"custom\", { event: \"won\" }, (e) => {\n  once(() => {\n    log(vars.coins);\n    cinematic.play(\"{{cinematic}}\", true);\n  });\n});\n\non(\"cinematicDone\", { cinematic: \"{{cinematic}}\" }, (e) => {\n  screen.setText(\"{{hud}}\", \"message\", \"You win!\");\n});\n",
       "placement": "left"
     },
     {
@@ -63,7 +90,7 @@
     {
       "id": "game.done",
       "title": "You can code Brick Worlds",
-      "body": "You've used every part of the language: events, variables, if/else, and/or/not, wait, once, gates, random, world actions, sound, screens, scenes and debugging. Help › Help guide › Coding guide and Logic reference list every event and action with its code. The AI builder (✦) can also write logic for you — it shows you the code it writes before you accept it.",
+      "body": "You've used every part of the language: events, variables, if/else, and/or/not, wait, once, gates, random, world actions, sound, screens, scenes, debugging, and a game split into files that share variables and talk with events. Help › Help guide › Coding guide and Logic reference list every event and action with its code. The AI builder (✦) can also write logic for you — it shows you the code it writes before you accept it.",
       "task": "Press Finish.",
       "target": "[data-tour=\"workspaces\"]",
       "check": {

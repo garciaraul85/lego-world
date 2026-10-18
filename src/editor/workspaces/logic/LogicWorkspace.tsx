@@ -8,10 +8,12 @@ import { ChoiceOrText } from '../../components/ChoiceOrText';
 import { EventPicker } from '../../components/EventPicker';
 import { DraftText, FieldHelp } from '../../components/fields';
 import { describeUse, eventUses } from '../../events';
+import { controlMenu } from '../../genres/GenrePicker';
+import { noteRecent, prefsOf, shows, viewGenre } from '../../genres/view';
 import { keysFor } from '../../platform';
 import { CodeView } from './CodeView';
 import { GraphView, toggleBreakpoint } from './GraphView';
-import { argChoices, CAT_COLOR, graphs, newGraph, nodeHeight, variables } from './model';
+import { argChoices, CAT_COLOR, graphs, newGraph, nodeHeight, ownerOf, variables } from './model';
 import { assetNames, assetOfInput, nameProblem, nameProblems, placedObjects, statesOf, variableUses } from './pickers';
 
 type Mode = 'graph' | 'code' | 'split';
@@ -25,6 +27,12 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
   const mode: Mode = ed.logicView.value;
   const setMode = (m: Mode) => (ed.logicView.value = m);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // P9b.1: a card clicked in Graph view opens Split with its code; in Split its code scrolls into view
+  const [reveal, setReveal] = useState<{ node: string; n: number } | null>(null);
+  const openCode = (node: string) => {
+    if (mode === 'graph') setMode('split');
+    setReveal((r) => ({ node, n: (r?.n ?? 0) + 1 }));
+  };
   const brk = ed.logicBreak.value;
   const highlight = brk && graph && brk.graph === graph.id ? brk.node : null;
   const problems = useMemo(
@@ -76,6 +84,12 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
             ▶ Play &amp; trace
           </button>
         </div>
+        {graph?.owner && (
+          <div class="lg-owner small" role="note">
+            Script on <strong>{ownerOf(ed, graph.owner)?.name}</strong>: its events about objects (used, hit, smashed,
+            rebuilt, locked on) run only for this one, and “this” means it.
+          </div>
+        )}
         {brk && (
           <div class="lg-break" role="alert">
             Play is paused at a breakpoint:{' '}
@@ -105,10 +119,24 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
         ) : (
           <div class={`lg-views ${mode}`}>
             {mode !== 'code' && (
-              <GraphView ed={ed} graph={graph} selected={selected} setSelected={setSelected} highlight={highlight} />
+              <GraphView
+                ed={ed}
+                graph={graph}
+                selected={selected}
+                setSelected={setSelected}
+                highlight={highlight}
+                onOpenCode={openCode}
+              />
             )}
             {mode !== 'graph' && (
-              <CodeView ed={ed} graph={graph} selected={selected} setSelected={setSelected} highlight={highlight} />
+              <CodeView
+                ed={ed}
+                graph={graph}
+                selected={selected}
+                setSelected={setSelected}
+                highlight={highlight}
+                reveal={reveal}
+              />
             )}
           </div>
         )}
@@ -163,9 +191,9 @@ function Sidebar({
     setNewStart('0');
   };
   const nodes = CATALOG.filter((d) => `${d.title} ${d.category} ${d.type}`.toLowerCase().includes(q.toLowerCase()));
-  const cats = [...new Set(nodes.map((d) => d.category))];
   const add = (type: string) => {
     if (!graph) return;
+    noteRecent(ed, type);
     // below everything already in the left column, so nothing is covered
     const y = Math.max(
       40,
@@ -191,8 +219,16 @@ function Sidebar({
       </div>
       <div class="scroll">
         <div class="sech" style={{ padding: '8px 10px 4px' }}>
-          <span>Graphs</span>
-          <button type="button" class="link" data-tour="logic-new" onClick={onCreate}>
+          <span>
+            Files
+            <FieldHelp
+              label="Files"
+              text={
+                'Each file is one logic graph, shown as cards (Graph) or as code (Code). Keep each part of the game in its own file: files share every variable (vars.name) and talk to each other with custom events — emit("won") in one file runs on("custom", { event: "won" }) in every file.'
+              }
+            />
+          </span>
+          <button type="button" class="link" data-tour="logic-new" aria-label="New file" onClick={onCreate}>
             + New
           </button>
         </div>
@@ -200,6 +236,7 @@ function Sidebar({
           <div class={`lib-item ${g.id === graph?.id ? 'on' : ''}`}>
             <button type="button" class="link lg-graph-name" onClick={() => (ed.logicGraph.value = g.id)}>
               {g.name}
+              {g.owner && <span class="small muted"> · on {ownerOf(ed, g.owner)?.name}</span>}
             </button>
             <span class="mono small muted">{g.nodes.length}</span>
             <button
@@ -214,7 +251,7 @@ function Sidebar({
         ))}
         {!list.length && (
           <div class="hint" style={{ padding: '4px 10px' }}>
-            No graphs yet.
+            No files yet.
           </div>
         )}
 
@@ -305,30 +342,79 @@ function Sidebar({
             onInput={(e) => setQ((e.target as HTMLInputElement).value)}
           />
         </div>
-        {cats.map((cat) => (
-          <>
+        {/* P18: the genre's nodes first (pinned, recent, then the genre's own), the rest by category; nodes the
+            view hides wait under “More nodes”, and a search finds every node */}
+        {(() => {
+          const view = viewGenre(ed);
+          const prefs = prefsOf(view.id);
+          const searching = !!q.trim();
+          const pal = (d: (typeof CATALOG)[number], muted = false) => (
+            <button
+              type="button"
+              class={`lg-pal ${muted ? 'muted' : ''}`}
+              data-node={d.type}
+              draggable
+              disabled={!graph}
+              title={d.doc}
+              onDragStart={(e) => e.dataTransfer?.setData('text/x-logic-node', d.type)}
+              onClick={() => add(d.type)}
+              onContextMenu={(e) => controlMenu(c, 'node', d.type, d.title, e)}
+            >
+              <span class="lg-dot" style={{ background: CAT_COLOR[d.category] }} />
+              {d.title}
+            </button>
+          );
+          const head = (label: string, n?: number) => (
             <div class="sech" style={{ padding: '4px 10px 2px' }}>
-              <span>{cat}</span>
+              <span>{label}</span>
+              {n !== undefined && <span>{n}</span>}
             </div>
-            {nodes
-              .filter((d) => d.category === cat)
-              .map((d) => (
-                <button
-                  type="button"
-                  class="lg-pal"
-                  data-node={d.type}
-                  draggable
-                  disabled={!graph}
-                  title={d.doc}
-                  onDragStart={(e) => e.dataTransfer?.setData('text/x-logic-node', d.type)}
-                  onClick={() => add(d.type)}
-                >
-                  <span class="lg-dot" style={{ background: CAT_COLOR[d.category] }} />
-                  {d.title}
-                </button>
+          );
+          const visible = nodes.filter((d) => searching || shows(ed, 'node', d.type));
+          const hidden = searching ? [] : nodes.filter((d) => !shows(ed, 'node', d.type));
+          const byType = (types: string[]) =>
+            types.map((t) => visible.find((d) => d.type === t)).filter((d): d is (typeof CATALOG)[number] => !!d);
+          const pinned = searching ? [] : byType(prefs.pin.filter((k) => k.startsWith('node:')).map((k) => k.slice(5)));
+          const recent = searching ? [] : byType(prefs.recent).filter((d) => !pinned.includes(d));
+          const first = searching || view.features === 'all' ? [] : byType(view.nodesFirst);
+          return (
+            <>
+              {pinned.length > 0 && (
+                <>
+                  {head('Pinned')}
+                  {pinned.map((d) => pal(d))}
+                </>
+              )}
+              {recent.length > 0 && (
+                <>
+                  {head('Recent')}
+                  {recent.map((d) => pal(d))}
+                </>
+              )}
+              {first.length > 0 && (
+                <>
+                  {head(`For ${view.name}`)}
+                  {first.map((d) => pal(d))}
+                </>
+              )}
+              {[...new Set(visible.map((d) => d.category))].map((cat) => (
+                <>
+                  {head(cat)}
+                  {visible.filter((d) => d.category === cat).map((d) => pal(d))}
+                </>
               ))}
-          </>
-        ))}
+              {hidden.length > 0 && (
+                <details class="lg-more" data-tour="logic-more-nodes">
+                  <summary class="sech" style={{ padding: '6px 10px 2px' }}>
+                    <span>More nodes ({hidden.length})</span>
+                    <span class="small muted">not used by {view.name}</span>
+                  </summary>
+                  {hidden.map((d) => pal(d, true))}
+                </details>
+              )}
+            </>
+          );
+        })()}
       </div>
     </section>
   );
@@ -405,20 +491,24 @@ function NodeInspector({
                             onChange={(event) => set({ [a.name]: event })}
                           />
                         ) : choices ? (
-                          <select
-                            class="inp"
-                            data-tour={`field-${a.name}`}
-                            value={String(v ?? '')}
-                            onChange={(e) => set({ [a.name]: (e.target as HTMLSelectElement).value || undefined })}
-                          >
-                            <option value="">{a.optional ? 'any' : 'choose…'}</option>
-                            {choices.map((ch) => (
-                              <option value={ch.value}>{ch.label}</option>
-                            ))}
-                            {v && !choices.some((ch) => ch.value === v) && (
-                              <option value={String(v)}>{String(v)}</option>
-                            )}
-                          </select>
+                          <span class="row" style={{ gap: '4px' }}>
+                            <select
+                              class="inp"
+                              style={{ flex: 1 }}
+                              data-tour={`field-${a.name}`}
+                              value={String(v ?? '')}
+                              onChange={(e) => set({ [a.name]: (e.target as HTMLSelectElement).value || undefined })}
+                            >
+                              <option value="">{a.optional ? 'any' : 'choose…'}</option>
+                              {choices.map((ch) => (
+                                <option value={ch.value}>{ch.label}</option>
+                              ))}
+                              {v && !choices.some((ch) => ch.value === v) && (
+                                <option value={String(v)}>{String(v)}</option>
+                              )}
+                            </select>
+                            <ArgPreview c={c} kind={a.kind} value={v ? String(v) : ''} />
+                          </span>
                         ) : a.kind === 'number' ? (
                           <input
                             class="inp mono"
@@ -571,6 +661,42 @@ function NodeInspector({
   );
 }
 
+/** P9b.1: beside a picked sound or music, ▶ listens to it; beside a screen, scene, zone or spawn point, ↗ opens it. */
+function ArgPreview({ c, kind, value }: { c: ActionCtx; kind: string; value: string }) {
+  const { ed } = c;
+  if (!value) return null;
+  if (kind === 'sound' || kind === 'music')
+    return (
+      <button
+        type="button"
+        class="btn icon"
+        aria-label={`Listen to ${value}`}
+        title="Listen"
+        onClick={() => (kind === 'sound' ? ed.audio.previewEvent(value) : ed.audio.previewMusic(value))}
+      >
+        ▶
+      </button>
+    );
+  const go =
+    kind === 'screen'
+      ? () => {
+          ed.screenId.value = value;
+          c.ui.workspace('Screens');
+        }
+      : kind === 'cinematic'
+        ? () => {
+            ed.cinematicId.value = value;
+            c.ui.workspace('Cinematics');
+          }
+        : null;
+  if (!go) return null;
+  return (
+    <button type="button" class="btn icon" aria-label={`Open ${value}`} title="Open it" onClick={go}>
+      ↗
+    </button>
+  );
+}
+
 type VarType = Variables['vars'][string]['type'];
 const TYPES: [VarType, string][] = [
   ['number', 'Number'],
@@ -583,7 +709,7 @@ const parseStart = (type: VarType, raw: string) =>
 
 /** P32: what the parts of a variable are (the “?” beside them, and the Logic Help page). */
 export const VAR_HELP = {
-  what: 'Variables are values the whole game remembers while it plays (coins, a door repaired, the item in a chest). Logic reads them with Get variable (vars.name in code) and changes them with Set variable; screens show them as {name}.',
+  what: 'Variables are values the whole game remembers while it plays (coins, a door repaired, the item in a chest). They are global: every logic file reads and changes the same ones — Get variable (vars.name in code) and Set variable — and screens show them as {name}.',
   name: 'A name you choose: one word, letters and digits (chestItem). Logic and screens use exactly this name.',
   type: 'What kind of value it holds: a Number (3, 0.5), a Text (Sword) or True / false.',
   start:

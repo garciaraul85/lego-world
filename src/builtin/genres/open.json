@@ -1,0 +1,27 @@
+{
+  "id": "open",
+  "name": "Open (everything)",
+  "blurb": "Every tab, tool and logic node, for any kind of game. The advanced view.",
+  "icon": "✱",
+  "features": "all",
+  "level": "advanced",
+  "tabs": ["Scene", "World graph", "Logic", "Characters", "Assets", "Screens", "Cinematics", "Audio"],
+  "nodesFirst": [],
+  "defaults": {
+    "camera": "explore",
+    "controls": "walk"
+  },
+  "saving": {
+    "mode": "anywhere",
+    "slots": 3,
+    "autosave": true
+  },
+  "template": {
+    "name": "Blank project",
+    "recipe": null
+  },
+  "tutorial": "editor",
+  "help": "start",
+  "checklist": [],
+  "readyAfter": "P18"
+}
