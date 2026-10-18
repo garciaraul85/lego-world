@@ -95,6 +95,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'play.entry': S('screens'),
   'play.saveNow': S('core'),
   'play.settingsMenu': S('core'),
+  'world.checkPlayable': S('core'),
   'play.pause': S('core'),
   'play.stop': S('core'),
   'play.v68': A('v68'),

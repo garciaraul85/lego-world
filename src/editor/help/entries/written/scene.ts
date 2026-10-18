@@ -338,6 +338,38 @@ export const SCENE: HelpEntry[] = [
     tips: ['Cheats only change this Play; Stop forgets them.'],
     match: [{ in: area('Cheats') }],
   },
+  {
+    id: 'play.test',
+    also: ['god mode', 'invincible', 'snapshot', 'restore', 'set variable', 'test', 'retry a puzzle'],
+    screen: 'play',
+    kind: 'area',
+    name: 'Test shortcuts',
+    purpose:
+      'Shortcuts for testing while playing (Debug tab): **God mode** (nothing hurts the hero, stamina never runs out), **Snapshot** keeps this moment and **Back to snapshot** returns to it (the world, the hero and everything carried, to try a puzzle again), and **Set** changes any variable (type its name, a value, then Enter). Right-click the ground in the Scene › **Play from here (test)** starts Play at that spot.',
+    tips: ['Like cheats, they change only this Play; Stop forgets them.'],
+    match: [{ sel: '[data-tour="test-shortcuts"]' }, { in: '[data-tour="test-shortcuts"]' }],
+    related: ['play.cheats', 'play.check'],
+  },
+  {
+    id: 'play.check',
+    also: ['can it be finished', 'playtest', 'soft-lock', 'unreachable', 'validate', 'check the game'],
+    screen: 'scene',
+    kind: 'area',
+    name: 'Can this game be finished?',
+    purpose:
+      'Checks the game the way a player would meet it, without playing it: every map can be reached through gates; from where the hero arrives, every gate, every object to use (chests, doors, switches, checkpoints) and every zone that does something can be walked to; every achievement is unlocked somewhere; every collection can be found; and something finishes the game. Each finding has **Select** to show where it is.',
+    steps: [
+      'Open **World › Can this game be finished? (check)**, or the **Problems** tab › **Check**.',
+      'Read each finding; **Select** opens its map and selects the object, spawn or zone.',
+      'Fix it (move the object, add a ramp, add the logic) and press **Check again**.',
+    ],
+    tips: [
+      'It walks the bricks the way the hero can (steps of up to 3 plates), so a chest on a tower with no stairs is reported.',
+      'Collections count fixed gives (chests, zones); a give in logic or a drop can’t be counted without playing, so those are trusted.',
+    ],
+    match: [{ sel: '[data-tour="play-check"]' }, { in: '[data-tour="play-check"]' }],
+    related: ['action.world.checkPlayable', 'scene.progress'],
+  },
   // ---------- inspector ----------
   {
     id: 'scene.inspector',

@@ -90,6 +90,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the combat course on a sandbox: add the Training yard, make an enemy hit harder, wire a dummy to a chest, then fight — Show me and Do it for me for every step.',
   'help.saving':
     'Starts the saving and progress course: how players save (Project › Saving), a checkpoint flag, a save point, an achievement, saving and Settings in Play, Continue on the title, and deleting test saves — Show me and Do it for me for every step.',
+  'world.checkPlayable':
+    'Checks whether the game can be finished, the way a player would meet it, without playing: every map can be reached, every gate, object to use and zone that does something can be walked to, every achievement is unlocked somewhere, every collection can be found, and something finishes the game. Findings show in Problems with a button to select each one.',
   'play.settingsMenu':
     'While playing: opens the player’s Settings screen (music and sound volume, camera speed, invert camera, text size, difficulty), as Pause › Settings does.',
   'help.guide': 'Opens Help. Press F1 (or ⌘/ on a Mac) while pointing at any control to open its own page.',

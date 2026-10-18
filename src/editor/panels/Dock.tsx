@@ -5,6 +5,7 @@ import { type Character, type MapDoc, paths } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
 import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
+import { runPlayCheck } from '../actions/registry';
 import { assetLibrary } from '../assets';
 import { AssetThumb } from '../components/AssetThumb';
 import { shows } from '../genres/view';
@@ -339,19 +340,67 @@ function useProblems(ed: EditorState): LiveProblem[] {
             }
           : { label: 'Open', run: () => ed.openMap(i.map) },
       });
+    // P28: the last “Can this game be finished?” check
+    for (const i of ed.playCheck.value?.issues ?? []) {
+      const map = i.map;
+      out.push({
+        level: i.level,
+        msg: i.message,
+        where: map ? name(map) : 'Project › Progress',
+        ...(map
+          ? {
+              fix: {
+                label: 'Select',
+                run: () => {
+                  ed.openMap(map);
+                  if (i.spawn) ed.selectedSpawn.value = i.spawn;
+                  else if (i.zone) ed.selectedZone.value = i.zone;
+                  else if (i.instance) {
+                    const s = ed.scene.value;
+                    const pick = s && [...new Set(s.instanceOf.values())].find((x) => x.inst.id === i.instance);
+                    if (pick) ed.select(pick.bricks.map((b) => b.id));
+                  }
+                },
+              },
+            }
+          : {}),
+      });
+    }
     return out;
-  }, [rev, ed.problems.value]);
+  }, [rev, ed.problems.value, ed.playCheck.value]);
 }
 
-function Problems({ problems }: { c: ActionCtx; problems: LiveProblem[] }) {
+function Problems({ c, problems }: { c: ActionCtx; problems: LiveProblem[] }) {
+  const check = c.ed.playCheck.value;
+  // P28: “Can this game be finished?” — run on demand (it walks every map)
+  const bar = (
+    <div class="row small" style={{ padding: '6px 12px', gap: '8px' }} data-tour="play-check" data-help="play.check">
+      <button type="button" class="btn" onClick={() => runPlayCheck(c.ed)}>
+        {check ? 'Check again' : 'Can this game be finished? Check'}
+      </button>
+      <span class="muted">
+        {check
+          ? `Checked ${new Date(check.at).toLocaleTimeString()}: ${
+              check.issues.filter((i) => i.level !== 'info').length
+                ? `${check.issues.filter((i) => i.level !== 'info').length} thing(s) to look at`
+                : 'nothing blocks finishing the game'
+            }.`
+          : 'Walks every map from where the hero arrives: gates, objects to use, zones, achievements, collections, an ending.'}
+      </span>
+    </div>
+  );
   if (!problems.length)
     return (
-      <div class="muted" style={{ padding: '10px 12px' }}>
-        No problems found.
+      <div class="scroll">
+        {bar}
+        <div class="muted" style={{ padding: '10px 12px' }}>
+          No problems found.
+        </div>
       </div>
     );
   return (
     <div class="scroll">
+      {bar}
       {problems.map((p) => (
         <div class="problem">
           <span
@@ -504,8 +553,77 @@ function Debug({ c }: { c: ActionCtx }) {
             </select>
           </label>
         </div>
+        <TestShortcuts c={c} />
         <span class="muted small">Cheats change only this Play session; Stop discards them.</span>
       </div>
+    </div>
+  );
+}
+
+/** P28: test shortcuts — god mode, set any variable, a snapshot to come back to (this Play only) */
+function TestShortcuts({ c }: { c: ActionCtx }) {
+  const s = c.ed.session.value;
+  const [name, setName] = useState('');
+  const [value, setValue] = useState('');
+  if (!s) return null;
+  const vars = [...s.logic.vars.keys()].sort();
+  return (
+    <div class="row" role="group" aria-label="Test shortcuts" data-tour="test-shortcuts" data-help="play.test">
+      <label class="lbl">
+        <input
+          type="checkbox"
+          aria-label="God mode"
+          checked={s.god}
+          onChange={(e) => {
+            s.god = (e.target as HTMLInputElement).checked;
+            s.emit('cheat', `God mode ${s.god ? 'on' : 'off'}`);
+          }}
+        />{' '}
+        God mode
+      </label>
+      <button type="button" class="btn" onClick={() => s.snapshotMoment()}>
+        Snapshot
+      </button>
+      <button type="button" class="btn" disabled={!s.moment} onClick={() => s.restoreMoment()}>
+        Back to snapshot
+      </button>
+      <label class="lbl">
+        Set
+        <input
+          class="inp mono"
+          style={{ width: '90px' }}
+          list="test-vars"
+          aria-label="Variable to set"
+          placeholder="variable"
+          value={name}
+          onInput={(e) => setName((e.target as HTMLInputElement).value)}
+        />
+        <datalist id="test-vars">
+          {vars.map((v) => (
+            <option value={v} />
+          ))}
+        </datalist>
+        =
+        <input
+          class="inp mono"
+          style={{ width: '70px' }}
+          aria-label="New value"
+          placeholder="value"
+          value={value}
+          onInput={(e) => setValue((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || !name.trim()) return;
+            let v: unknown = value;
+            try {
+              v = JSON.parse(value);
+            } catch {
+              /* plain text */
+            }
+            s.logic.setVar(name.trim(), v);
+            s.emit('cheat', `Set ${name.trim()} = ${JSON.stringify(v)}`);
+          }}
+        />
+      </label>
     </div>
   );
 }

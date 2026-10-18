@@ -1,6 +1,7 @@
 import { builtinAsset } from '../../builtin/assets';
 import type { Brick } from '../../core/bricks/codec';
 import { rotateQuarter } from '../../core/bricks/transform';
+import { checkPlayable } from '../../core/checks/playable';
 import { trainingYard } from '../../core/gamegen/training-yard';
 import { changedBuiltins, newAssetDef } from '../assets';
 import type { EditorState, ToolId } from '../state';
@@ -106,6 +107,20 @@ const tool =
     ed.tool.value = id;
     ed.persistUi();
   };
+
+/** P28: runs the playability check, keeps its findings for the Problems tab, and opens it */
+export function runPlayCheck(ed: EditorState) {
+  const issues = checkPlayable(ed.store);
+  ed.playCheck.value = { at: Date.now(), issues };
+  ed.dock.value = 'problems';
+  const warn = issues.filter((i) => i.level !== 'info').length;
+  ed.log(
+    warn ? 'WARN' : 'INFO',
+    warn
+      ? `Can this game be finished? ${warn} thing(s) to look at (see Problems).`
+      : 'Can this game be finished? Nothing blocks it.',
+  );
+}
 
 export const ACTIONS: EditorAction[] = [
   // File
@@ -324,6 +339,12 @@ export const ACTIONS: EditorAction[] = [
       ed.log('INFO', 'Checked routes between maps (see Problems).');
     },
   },
+  {
+    // P28: walk the game the way a player would meet it, without playing it
+    id: 'world.checkPlayable',
+    label: 'Can this game be finished? (check)',
+    run: ({ ed }) => runPlayCheck(ed),
+  },
   { id: 'world.connected', label: 'Generate connected worlds…', run: ({ ui }) => ui.play('edit') },
   // Play
   { id: 'play.start', label: 'Play from the start spawn', key: 'F5', run: ({ ui }) => ui.play('engine') },
@@ -482,7 +503,16 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'view.palette',
   ],
   Assets: ['assets.open', 'assets.new', '-', 'assets.resetBuiltins'],
-  World: ['world.addMap', 'world.trainingYard', 'world.generate', 'world.graph', 'world.validate', '-', 'play.legacy'],
+  World: [
+    'world.addMap',
+    'world.trainingYard',
+    'world.generate',
+    'world.graph',
+    'world.validate',
+    'world.checkPlayable',
+    '-',
+    'play.legacy',
+  ],
   Play: [
     'play.start',
     'play.map',

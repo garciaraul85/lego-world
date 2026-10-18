@@ -16,6 +16,7 @@ import {
   DEFAULT_SAVING,
   MemorySaveStore,
   newestSave,
+  type SaveGame,
   type SaveStore,
   type Saving,
   slotLine,
@@ -545,6 +546,7 @@ export class PlaySession {
       this.camYaw,
     );
     c.stepMove(dt);
+    if (this.god) c.stamina = MAX_STAMINA;
     this.keepOutOfParts();
     if (c.target) c.stepLock();
     else c.stepHint();
@@ -583,6 +585,7 @@ export class PlaySession {
 
   /** lose hearts (falling off the world, logic); at 0 the game is over */
   hurt(n0: number) {
+    if (this.god) return;
     // P26: the player's difficulty scales the damage the hero takes (story: half, hard: double)
     const n = this.progress.damage(n0);
     if (n <= 0 || this.health.invulnerable.has('hero') || this.over) return;
@@ -1660,6 +1663,12 @@ export class PlaySession {
       this.say(`${slotName(slot)} is empty.`, 2);
       return false;
     }
+    this.putBack(save, slot);
+    return true;
+  }
+
+  /** puts a save back into this play (a slot, or a test moment); returns the message it showed */
+  private putBack(save: SaveGame, slot: number | null): string {
     this.cancelRebuild();
     this.pendingSmash = null;
     this.endTalk();
@@ -1677,15 +1686,40 @@ export class PlaySession {
     this.playBase = save.playTime;
     this.clock = 0;
     this.messageUntil = 0;
-    if (slot !== AUTO_SLOT) this.slot = slot;
+    if (slot !== null && slot !== AUTO_SLOT) this.slot = slot;
     this.over = false;
     this.quitToTitle = false;
     this.startGame();
     this.zoneAudio();
     this.applyMapAudio();
-    const msg = loadMessage(slot, r);
+    const msg =
+      slot === null ? loadMessage(0, r).replace('Loaded Autosave', 'Back to the snapshot') : loadMessage(slot, r);
     this.emit('info', msg);
     this.say(msg, 2.5);
+    return msg;
+  }
+
+  // ---------- test shortcuts (P28) ----------
+
+  /** god mode: nothing hurts the hero and stamina never runs out (testing) */
+  god = false;
+  /** a moment kept to come back to (testing a puzzle again) */
+  moment: SaveGame | null = null;
+
+  /** keeps this moment of the play (everything a save keeps), to come back to with restoreMoment */
+  snapshotMoment() {
+    this.moment = captureSave(this as unknown as SaveHost, AUTO_SLOT);
+    this.emit('cheat', 'Snapshot taken');
+    this.say('Snapshot taken', 1.5);
+  }
+
+  /** back to the snapshot: the world, the hero and everything carried as they were */
+  restoreMoment(): boolean {
+    if (!this.moment) return false;
+    const keepClock = this.clock + this.playBase;
+    this.putBack(this.moment, null);
+    this.playBase = keepClock;
+    this.emit('cheat', 'Back to the snapshot');
     return true;
   }
 
