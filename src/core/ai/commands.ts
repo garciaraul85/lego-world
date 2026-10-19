@@ -485,7 +485,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ character: Character }),
     ['character'],
     'Characters',
-    'Replaces a character (look, gear, name). Send the whole character.',
+    'Replaces a character: name, look (profile), gear, and its sheet — stats (health, stamina, speed, jump, strength, defence, level, xpCurve), outfits (name, look overrides, stat bonuses) and outfit (worn), moves (style balanced/swift/heavy/defensive, power, speed), animations (idle/victory/hurt… → clip ids), voice (pitch, blip, footsteps, grunt sounds), behaviour (kind: villager, shopkeeper, questGiver, companion, enemy, boss…; routine: wander or stand), talk (conversations by condition) and barks. Send the whole character (read it first).',
     { character: { $read: 'characters/<id>.json' } } as never,
   ),
   def(

@@ -5377,3 +5377,73 @@ body.brix-explain * {
 .dlg-mini * {
   pointer-events: none !important;
 }
+
+/* ---- P22 part 2: the character sheet ---- */
+.sheet-tabs {
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+.sheet-tabs .tab {
+  padding-left: 7px;
+  padding-right: 7px;
+}
+.outfit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  margin-bottom: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.outfit-row.on {
+  border-color: var(--acc);
+}
+.outfit-row > .inp {
+  flex: 1;
+  min-width: 100px;
+}
+.grid4 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  width: 100%;
+}
+.grid4 .field {
+  font-size: 10px;
+}
+.seg.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.role-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.role-presets .chip {
+  cursor: pointer;
+  border: 1px solid var(--bd);
+  background: var(--btn);
+  color: var(--fg2);
+}
+.try-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.try-row .chip {
+  cursor: pointer;
+  border: 1px solid var(--bd);
+  background: var(--btn);
+  color: var(--fg2);
+}
+.try-row .chip.on {
+  border-color: var(--acc);
+  color: var(--acc2);
+}

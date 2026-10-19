@@ -56,6 +56,10 @@ export const Action = z.discriminatedUnion('do', [
     key: z.enum(['music', 'sounds', 'invertY', 'cameraSpeed', 'textSize', 'difficulty']),
     value: z.union([z.number(), z.boolean(), z.string()]).optional(),
   }),
+  /** P22 part 2: the hero puts on an outfit from its sheet ('' : its own look) */
+  z.strictObject({ do: z.literal('outfit'), name: z.string().max(40) }),
+  /** P22 part 2: experience for the hero (levels come from its sheet's curve) */
+  z.strictObject({ do: z.literal('xp'), amount: z.number().int().min(-10000).max(10000) }),
   /** P22: start a conversation (a sign, an object's interaction, a screen button or logic) */
   z.strictObject({ do: z.literal('talk'), conversation: id('dialogue') }),
   /** a one-shot music stinger from audio/music.json (ducks the music while it plays) */

@@ -239,6 +239,8 @@ export type UpdateProject = {
   saving?: Saving | null;
   /** P22: how conversations look (null: back to the genre's) */
   dialogue?: Partial<DialogueLook> | null;
+  /** P22 part 2: playable heroes to switch between (null: just the hero) */
+  party?: string[] | null;
 };
 
 export const updateProject: CommandHandler<UpdateProject> = {
@@ -254,6 +256,10 @@ export const updateProject: CommandHandler<UpdateProject> = {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.saving && !SavingSchema.safeParse(p.saving).success)
       return 'Saving: mode anywhere, savePoints or checkpoints; 1 to 3 slots; autosave on or off.';
+    if (p.party) {
+      if (p.party.length > 6) return 'A party has at most 6 heroes.';
+      if (p.party.some((c) => !store.has(paths.character(c)))) return 'A party member does not exist.';
+    }
     if (p.dialogue) {
       const r = DialogueLook.partial().safeParse(p.dialogue);
       if (!r.success)
@@ -296,6 +302,12 @@ export const updateProject: CommandHandler<UpdateProject> = {
       const next = { ...store.manifest } as Project & { saving?: Saving };
       if (p.saving) next.saving = { ...p.saving };
       else delete next.saving;
+      store.put(paths.project, next);
+    }
+    if (p.party !== undefined) {
+      const next = { ...store.manifest } as Project & { party?: string[] };
+      if (p.party?.length) next.party = [...new Set(p.party)] as Project['party'] & string[];
+      else delete next.party;
       store.put(paths.project, next);
     }
     if (p.dialogue !== undefined) {

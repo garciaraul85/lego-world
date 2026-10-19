@@ -94,6 +94,8 @@ export interface ExecCtx {
   progress?(op: 'achieve' | 'finish', id: string): void;
   /** P22: start a conversation (by id) */
   talk?(conversation: string): void;
+  /** P22 part 2: the hero's outfit, experience, or the next hero of the party */
+  sheet?(op: 'outfit' | 'xp' | 'switch', value: string | number): void;
 }
 
 export type Args = Record<string, unknown>;

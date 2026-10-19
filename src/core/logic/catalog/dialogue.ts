@@ -24,6 +24,71 @@ export const DIALOGUE: NodeDef[] = [
   },
 ];
 
+/** P22 part 2: the character sheet from logic */
+export const SHEET: NodeDef[] = [
+  {
+    type: 'character.giveXp',
+    kind: 'action',
+    title: 'Give experience',
+    category: 'Characters',
+    doc: 'Gives the hero experience points. Reaching the next level (its sheet’s experience curve) says “Level up!”, plays its victory clip and fires On level up. Read them as the variables xp and level.',
+    inputs: [
+      EXEC_IN,
+      { name: 'amount', type: 'number', default: 10, help: 'Points to give (negative takes some away).' },
+    ],
+    outputs: [EXEC_OUT],
+    args: [],
+    code: { name: 'hero.giveXp', style: 'call' },
+    exec: (c, _a, i) => c.sheet?.('xp', Number(i.amount ?? 10)),
+  },
+  {
+    type: 'character.setOutfit',
+    kind: 'action',
+    title: 'Change outfit',
+    category: 'Characters',
+    doc: 'The hero puts on one of the outfits on its sheet (Characters › Outfits): its look and the outfit’s stat bonuses change. Empty: its own clothes.',
+    inputs: [EXEC_IN],
+    outputs: [EXEC_OUT],
+    args: [
+      {
+        name: 'outfit',
+        kind: 'string',
+        label: 'Outfit name',
+        optional: true,
+        help: 'The outfit’s name, as on the sheet.',
+      },
+    ],
+    code: { name: 'hero.setOutfit', style: 'call' },
+    exec: (c, a) => c.sheet?.('outfit', String(a.outfit ?? '')),
+  },
+  {
+    type: 'character.switchHero',
+    kind: 'action',
+    title: 'Switch hero',
+    category: 'Characters',
+    doc: 'Plays as the next hero of the party (Project › Party), as pressing H does.',
+    inputs: [EXEC_IN],
+    outputs: [EXEC_OUT],
+    args: [],
+    code: { name: 'hero.switch', style: 'call' },
+    exec: (c) => c.sheet?.('switch', ''),
+  },
+];
+
+export const SHEET_EVENTS: NodeDef[] = [
+  {
+    type: 'event.onLevelUp',
+    kind: 'event',
+    title: 'On level up',
+    category: 'Events',
+    doc: 'Runs when the hero reaches a new level (Give experience).',
+    inputs: [],
+    outputs: [EXEC_OUT, { name: 'level', type: 'number', help: 'The level reached.' }],
+    args: [],
+    code: { name: 'levelUp', style: 'event' },
+  },
+];
+
 export const DIALOGUE_EVENTS: NodeDef[] = [
   {
     type: 'event.onChoice',

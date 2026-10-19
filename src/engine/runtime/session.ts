@@ -6,6 +6,7 @@ import { expandAsset } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
 import { brickToPiece, exactColors, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
+import { levelOf, xpFor } from '../../core/character/sheet';
 import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
 import type { Enemy } from '../../core/combat/enemy';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
@@ -64,6 +65,7 @@ import { chunkKeyOf, inspectPieces } from './pieces';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
 import { Runtime, type System } from './runtime';
 import { applySave, captureSave, loadMessage, type SaveHost } from './saves';
+import { afterDefence, movesOf, statsOf, wornProfile } from './sheet';
 import { TalkSystem } from './talk';
 
 type AssetInstanceId = import('../../core/schema').AssetInstance['id'];
@@ -133,7 +135,7 @@ export class PlaySession {
   readonly runtime: Runtime<PlaySession>;
   readonly worlds = new Map<string, MapWorld>();
   world!: MapWorld;
-  hero: Record<string, unknown>;
+  hero!: Record<string, unknown>;
   input: InputState = { keys: new Set(), jump: false, touch: new Set() };
   camYaw = 0;
   camPitch = 0.28;
@@ -148,6 +150,12 @@ export class PlaySession {
   /** P22: a sign with a conversation near the hero (E reads it) */
   signPrompt: UiInstance | null = null;
   private talkWasActive = false;
+  /** P22 part 2: the hero's character sheet (stats, outfits, moves, animations, voice) */
+  heroChr: Character | undefined;
+  /** the hero's stamina cap (its sheet's stamina) */
+  staminaMax = MAX_STAMINA;
+  private idleFor = 0;
+  private standing = new Map<number, boolean>();
   rebuildHeld = false;
   rebuildEntry: BrokenEntry | null = null;
   private pendingSmash: {
@@ -259,6 +267,8 @@ export class PlaySession {
       message: (text: string, seconds: number) => this.say(text, seconds),
       cinematic: (id: string, once: boolean) => void this.cine.play(id, { once }),
       talk: (conversation: string) => void this.startConversation(conversation, null, 'other'),
+      sheet: (op: 'outfit' | 'xp', value: string | number) =>
+        op === 'outfit' ? this.setOutfit(String(value)) : this.giveXp(Number(value) || 0),
     };
     this.actions = new ActionRunner(host);
     this.uiActions = new ActionRunner(host);
@@ -307,10 +317,7 @@ export class PlaySession {
       done: (id) => this.logic.fire({ type: 'event.onCinematicDone', match: { cinematic: id } }),
     });
     const heroChr = project.hero ? (snapshot.get(paths.character(project.hero)) as Character | undefined) : undefined;
-    this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...(heroChr?.profile ?? {}) });
-    // P9b: the off hand (a shield) lives beside v68's profile, which only knows a right-hand item
-    this.hero.offHand = heroChr?.gear?.offHand ?? 'None';
-    this.emotes = this.resolveEmotes(heroChr);
+    this.setHero(heroChr);
     const mapId = opts.mapId ?? project.entry.map;
     this.world = this.loadWorld(mapId);
     const spawn =
@@ -321,11 +328,7 @@ export class PlaySession {
     this.travelLock = spawn ? { spawn: spawn.id } : null;
     this.camYaw = this.world.controller.state.heading + Math.PI;
     this.logic = this.makeLogic();
-    // hearts: games without their own hp / maxHp variables get 3
-    if (!this.logic.vars.has('maxHp')) this.logic.vars.set('maxHp', 3);
-    if (!this.logic.vars.has('hp')) this.logic.vars.set('hp', this.logic.vars.get('maxHp'));
-    // P9b: guarding uses stamina (screens can show it: {stamina} of {maxStamina})
-    if (!this.logic.vars.has('maxStamina')) this.logic.vars.set('maxStamina', MAX_STAMINA);
+    this.heroVars();
     this.progress = new PlayerProgress(this as unknown as ProgressHost);
     this.progress.onSettings = () => this.applySettings();
     this.applySettings();
@@ -450,7 +453,7 @@ export class PlaySession {
       const slow = kind === 'light' ? 1 : 1.35;
       Object.assign(s, { attack: w.duration * slow, attackDuration: w.duration * slow, attackWeapon: this.hero.held });
       delete (s as Record<string, unknown>).attackImpact;
-      this.smashCooldown = w.duration * slow + 0.02;
+      this.smashCooldown = (w.duration * slow) / movesOf(this.heroChr).speed + 0.02;
       const hit = this.world.controller.target(w.reach);
       this.pendingSmash = hit
         ? { id: hit.id, group: hit.group, remaining: w.contact * slow, reach: w.reach, kind }
@@ -458,6 +461,89 @@ export class PlaySession {
       return;
     }
     this.resolveStrike(kind, w.reach, null);
+  }
+
+  /** P22 part 2: the hero's look, gear, emotes and sheet (on start, and when the player switches hero) */
+  setHero(chr: Character | undefined) {
+    this.heroChr = chr;
+    this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...wornProfile(chr) });
+    // P9b: the off hand (a shield) lives beside v68's profile, which only knows a right-hand item
+    this.hero.offHand = chr?.gear?.offHand ?? 'None';
+    this.emotes = this.resolveEmotes(chr);
+    this.staminaMax = chr?.stats ? statsOf(chr).stamina : MAX_STAMINA;
+  }
+
+  /** hearts, stamina, level and experience from the hero's sheet (variables the game defines itself win) */
+  private heroVars() {
+    const v = this.logic.vars;
+    const st = this.heroChr?.stats ? statsOf(this.heroChr) : null;
+    // hearts: games without their own hp / maxHp variables get the sheet's health (else 3)
+    if (!v.has('maxHp')) v.set('maxHp', st?.health ?? 3);
+    if (!v.has('hp')) v.set('hp', v.get('maxHp'));
+    // P9b: guarding uses stamina (screens can show it: {stamina} of {maxStamina})
+    if (!v.has('maxStamina')) v.set('maxStamina', this.staminaMax);
+    if (st && !v.has('level')) {
+      v.set('level', st.level);
+      v.set('xp', xpFor(st.level, st.xpCurve));
+    }
+  }
+
+  /** P22 part 2: experience for the hero; reaching a level says so (and plays its victory clip) */
+  giveXp(n: number) {
+    const st = statsOf(this.heroChr);
+    const xp = Math.max(0, Number(this.logic.vars.get('xp') ?? 0) + n);
+    this.logic.setVar('xp', xp);
+    const before = Number(this.logic.vars.get('level') ?? st.level);
+    const level = Math.max(before, levelOf(xp, st.xpCurve));
+    if (level > before) {
+      this.logic.setVar('level', level);
+      this.say(`Level up! Level ${level}`, 3);
+      this.audio.play(SND.victory);
+      this.playAction('victory');
+      this.logic.fire({ type: 'event.onLevelUp', match: {}, payload: { level } });
+    }
+  }
+
+  /** P22 part 2: the hero puts on one of its outfits ('' or an unknown name: its own look) */
+  setOutfit(name: string) {
+    const chr = this.heroChr;
+    if (!chr) return;
+    const known = chr.outfits?.some((o) => o.name === name);
+    const { outfit: _o, ...rest } = chr;
+    const next: Character = known ? { ...chr, outfit: name } : (rest as Character);
+    const hp = this.logic.vars.get('hp');
+    this.setHero(next);
+    this.logic.vars.set('hp', hp);
+    this.emit('info', known ? `Outfit: ${name}` : 'Own clothes');
+  }
+
+  /** P22 part 2: the next hero of the party (H): the look, sheet and emotes change; hearts are shared */
+  switchHero() {
+    const party = this.project.party ?? [];
+    const ids = [...new Set([this.project.hero, ...party].filter((x): x is string => !!x))];
+    if (ids.length < 2 || this.talks.active || this.over) return;
+    const at = ids.indexOf(this.heroChr?.id ?? '');
+    const id = ids[(at + 1) % ids.length]!;
+    const chr = this.snapshot.get(paths.character(id)) as Character | undefined;
+    if (!chr) return;
+    this.setHero(chr);
+    const max = statsOf(chr).health;
+    if (chr.stats) {
+      this.logic.setVar('maxHp', max);
+      this.logic.setVar('hp', Math.min(max, Number(this.logic.vars.get('hp') ?? max)));
+    }
+    this.say(`Playing as ${chr.name}`, 2);
+    this.emit('info', `Hero: ${chr.name}`);
+  }
+
+  /** the clip the hero's sheet sets for an action (idle, victory, hurt), played if it stands still */
+  playAction(action: 'idle' | 'victory' | 'hurt') {
+    const id = this.heroChr?.animations?.[action];
+    if (!id) return false;
+    const clip = (this.snapshot.get(paths.clip(id)) as Clip | undefined) ?? BUILTIN_CLIPS.find((c) => c.id === id);
+    if (!clip || !this.heroState.grounded) return false;
+    this.heroAnim.play(clip);
+    return true;
   }
 
   talk() {
@@ -609,8 +695,10 @@ export class PlaySession {
     this.world.controller.step(
       {
         ...input,
-        speedScale: input.speedScale ?? 1,
-        jumpSpeed: input.jumpSpeed ?? (this.hero.power === 'Super jumping' ? 19 : 9.5),
+        // P22 part 2: the sheet's speed and jump
+        speedScale: (input.speedScale ?? 1) * this.heroStats.speed,
+        jumpSpeed:
+          (input.jumpSpeed ?? (this.hero.power === 'Super jumping' ? 19 : 9.5)) * Math.sqrt(this.heroStats.jump),
       },
       dt,
       this.camYaw,
@@ -647,7 +735,7 @@ export class PlaySession {
     if (s.grounded && s.speed > 0.8 && !s.building) {
       this.stepTimer -= dt;
       if (this.stepTimer <= 0) {
-        this.audio.play(SND.step, { pos });
+        this.audio.play(this.heroChr?.voice?.footsteps ?? SND.step, { pos });
         this.stepTimer = s.speed > 7 ? 0.27 : 0.38;
       }
     } else this.stepTimer = 0.12;
@@ -657,11 +745,14 @@ export class PlaySession {
   hurt(n0: number) {
     if (this.god) return;
     // P26: the player's difficulty scales the damage the hero takes (story: half, hard: double)
-    const n = this.progress.damage(n0);
+    const raw = this.progress.damage(n0);
+    // P22 part 2: the sheet's defence (and a defensive fighter's guard)
+    const n = this.heroChr?.stats ? afterDefence(raw, this.heroStats.defence) : raw;
     if (n <= 0 || this.health.invulnerable.has('hero') || this.over) return;
     const hp = Math.max(0, Number(this.logic.vars.get('hp') ?? 0) - n);
     this.logic.setVar('hp', hp);
-    this.audio.play(SND.hurt);
+    this.audio.play(this.heroChr?.voice?.grunt ?? SND.hurt);
+    if (hp > 0) this.playAction('hurt');
     // P9a: the hero's hearts are its health
     if (hp > 0)
       this.logic.fire({ type: 'event.onDamaged', match: { asset: '' }, payload: { target: 'hero', amount: n, hp } });
@@ -952,6 +1043,22 @@ export class PlaySession {
   /** P9c: an enemy's swing lands on the hero (through guard, parry and dodge) */
   hitHero(n: Npc, power: number, type: DamageType) {
     this.damage('hero', power, type, `n:${n.id}`);
+  }
+
+  /** P22 part 2: a neighbour whose sheet says it stands where it was put (a shopkeeper at a counter) */
+  standsStill(n: Npc): boolean {
+    if (!this.standing.has(n.id))
+      this.standing.set(n.id, npcCharacter(this.snapshot, this.world.mapId, n)?.behaviour?.routine === 'stand');
+    return this.standing.get(n.id)!;
+  }
+
+  heroMoves() {
+    return movesOf(this.heroChr);
+  }
+
+  /** the hero's stats with its outfit's bonuses */
+  get heroStats() {
+    return statsOf(this.heroChr);
   }
 
   /** P9c: what a neighbour fights with (null: it does not fight) — from its character, looked up once */
@@ -1430,6 +1537,12 @@ export class PlaySession {
         else this.gameOp('finish');
       },
       talk: (conversation) => void this.startConversation(conversation, null, 'other'),
+      sheet: (op, value) =>
+        op === 'outfit'
+          ? this.setOutfit(String(value))
+          : op === 'xp'
+            ? this.giveXp(Number(value) || 0)
+            : this.switchHero(),
       spawn: (asset, at) => this.spawnAsset(asset, at),
       spawnNear: (item, near) => this.spawnNear(item, near),
       despawn: (target) => {
@@ -1809,9 +1922,7 @@ export class PlaySession {
     this.logic.vars.clear();
     const vars = this.snapshot.get(paths.variables) as Variables | undefined;
     for (const [k, v] of Object.entries(vars?.vars ?? {})) this.logic.vars.set(k, v.default);
-    if (!this.logic.vars.has('maxHp')) this.logic.vars.set('maxHp', 3);
-    if (!this.logic.vars.has('hp')) this.logic.vars.set('hp', this.logic.vars.get('maxHp'));
-    if (!this.logic.vars.has('maxStamina')) this.logic.vars.set('maxStamina', MAX_STAMINA);
+    this.heroVars();
     this.playBase = 0;
     this.clock = 0;
     this.over = false;
@@ -2156,12 +2267,16 @@ export class PlaySession {
 
   stepAnim(dt: number) {
     const a = this.heroAnim;
+    const v = this.inputVector();
+    const s = this.heroState;
+    // P22 part 2: standing still a moment plays the sheet's idle clip
+    const still = !v.x && !v.z && s.grounded && !s.building && !this.talks.active && !((s.attack as number) > 0);
+    this.idleFor = still ? this.idleFor + dt : 0;
+    if (!a.clip && this.idleFor > 1.5 && this.heroChr?.animations?.idle) this.playAction('idle');
     if (!a.clip) {
       a.step(dt);
       return;
     }
-    const v = this.inputVector();
-    const s = this.heroState;
     if (v.x || v.z || v.jump || !s.grounded || (s.attack as number) > 0 || s.building) {
       a.stop();
       return;
@@ -2300,7 +2415,7 @@ export class PlaySession {
     const acting = this.cine.active ? w.npcs.filter((n) => !this.cine.isCast(n)) : w.npcs;
     // P9c: enemies in a fight move themselves; P9b: stunned neighbours stand still for a moment
     this.enemies.step(acting, dt * this.slowmo);
-    const free = acting.filter((n) => !this.combat.isStunned(n) && !this.enemies.engaged(n));
+    const free = acting.filter((n) => !this.combat.isStunned(n) && !this.enemies.engaged(n) && !this.standsStill(n));
     this.L.NPCWorld.step(free, dt * this.slowmo, this.heroState, this.talking?.id ?? null);
     // a talk ends when the hero walks away (further, when they are locked on to the one they talk to)
     const reach = this.talking && this.combat.lockedNpc() === this.talking ? LOCK_RELEASE : 4.5;

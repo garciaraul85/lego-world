@@ -35,6 +35,21 @@ Clips are keyframe animations on a timeline: a lane per joint, keys you drag in 
 4. Click the key to select it. Under the lanes, type its time in “at” or its value in “value” and press Enter. The selected lane shows each key's value next to it.
 5. Press Play (top right of the preview) to watch the clip loop. Length (in the timeline tools) sets how long the clip is: type a number of seconds and press Enter.
 
+## The character sheet
+
+The right side of the Characters screen is the character's **sheet**, in tabs:
+
+- **Look**: body, face, hair, clothes and gear (🎲 **Random look** makes one from a seed).
+- **Outfits**: sets of clothes it can wear, each with stat bonuses. **Wear** one and change the look: the changes go into the outfit, and its own look stays. Logic's **Change outfit** swaps them in Play.
+- **Stats**: hearts (the player character), stamina, speed, jump, strength (hit power), defence (8% less damage a point) and a level with an experience curve. Logic's **Give experience** levels up; **On level up** reacts. The genre's simple view shows the stats its games use.
+- **Moves**: a fighting style (Balanced, Swift, Heavy, Defensive) with hit power and swing speed; a neighbour fights the hero with **Fights the hero**.
+- **Animations**: the clip for idle (standing still), victory (a level up) and hurt; walk, run, jump and attack are kept for the animation state machine (P23).
+- **Voice**: talk pitch and blip for its lines in dialogue, footsteps and its hurt sound.
+- **Dialogue**: its Talk list and barks (below).
+- **Behaviour**: what kind of character it is, whether it walks around or stands still where it was put, the role buttons (Knight, Ranger, Wizard, Shopkeeper, Brute, Boss) that fill in a sheet, and the **party**: playable characters the player switches between with H.
+
+**Try** (above the preview) plays a move on the character without leaving the sheet. Characters made before the sheet keep their look; every tab starts from the defaults. [Character sheet course](action:help.sheet)
+
 ## Dialogue: what characters say
 
 Open the **Dialogue** tab at the top of the Characters screen. A **conversation** is a few sections; each is a list of steps played in order:

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Animations, Behaviour, Moves, Outfit, Stats, Voice } from '../character/sheet';
 import { Health } from '../combat/damage';
 import { Enemy } from '../combat/enemy';
 import { Bark, TalkEntry } from '../dialogue/schema';
@@ -32,5 +33,14 @@ export const Character = z.strictObject({
     .string()
     .regex(/^#[0-9a-f]{6}$/i)
     .optional(),
+  /** P22 part 2: the character sheet */
+  stats: Stats.optional(),
+  outfits: z.array(Outfit).max(8).optional(),
+  /** the outfit it wears (an outfit's name; none: its own look) */
+  outfit: z.string().max(40).optional(),
+  moves: Moves.optional(),
+  animations: Animations.optional(),
+  voice: Voice.optional(),
+  behaviour: Behaviour.optional(),
 });
 export type Character = z.infer<typeof Character>;

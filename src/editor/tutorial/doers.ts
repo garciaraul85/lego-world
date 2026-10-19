@@ -2,6 +2,7 @@ import { BUILTIN_ASSETS, builtinAsset } from '../../builtin/assets';
 import { DEFAULT_EVENTS, DEFAULT_MIXER } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
+import { DEFAULT_STATS } from '../../core/character/sheet';
 import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
 import { progressOf } from '../../core/commands/handlers/progress';
@@ -40,6 +41,12 @@ const run = (c: Ctx, cmds: Command | Command[], label: string) => {
   if (!r.ok) throw new Error(r.error ?? label);
 };
 const map = (c: Ctx) => c.ed.mapId.value;
+const studioChr = (c: Ctx) => {
+  const id = c.ed.studioCharacter.value;
+  const chr = id ? c.ed.store.get<Character>(paths.character(id)) : null;
+  if (!chr) throw new Error('Pick a character of the game first.');
+  return chr;
+};
 const mapDoc = (c: Ctx, m = map(c)) => c.ed.store.get<MapDoc>(paths.map(m))!;
 const assetByName = (c: Ctx, name: string): Asset | null =>
   assetLibrary(c.ed).find((x) => x.asset.name === name)?.asset ?? BUILTIN_ASSETS.find((a) => a.name === name) ?? null;
@@ -480,6 +487,95 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const r = parseScript(String(a.script), cur, scriptNames(c.ed));
     if (r.errors.length) throw new Error(`Line ${r.errors[0]!.line}: ${r.errors[0]!.message}`);
     run(c, { type: 'dialogue.put', payload: { conversation: r.conversation } }, 'Edit script');
+  },
+  // P22 part 2: the character sheet course
+  sheetMake(c, a) {
+    const name = String(a.name ?? 'Sir Brick');
+    const has = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === name);
+    if (has) {
+      c.ed.studioCharacter.value = has.id;
+      return;
+    }
+    const look = BUILTIN_CHARACTERS.find((x) => x.name === 'Explorer') ?? BUILTIN_CHARACTERS[0]!;
+    const id = newId('character');
+    run(
+      c,
+      [{ type: 'character.create', payload: { character: { ...look, id, name, profile: { ...look.profile, name } } } }],
+      `Add ${name}`,
+    );
+    run(c, { type: 'project.update', payload: { hero: id } }, 'Choose player character');
+    c.ed.studioCharacter.value = id;
+    c.ed.charTab.value = 'look';
+  },
+  sheetOutfit(c, a) {
+    const chr = studioChr(c);
+    const name = String(a.name ?? 'Armour');
+    const look = (a.look ?? {}) as Record<string, unknown>;
+    const others = (chr.outfits ?? []).filter((o) => o.name !== name);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: {
+          character: { ...chr, outfits: [...others, { name, look, stats: (a.stats ?? {}) as never }], outfit: name },
+        },
+      },
+      `Outfit ${name}`,
+    );
+    c.ed.sheetTab.value = 'outfits';
+  },
+  sheetStats(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: { character: { ...chr, stats: { ...DEFAULT_STATS, ...(chr.stats ?? {}), ...(a as object) } } },
+      },
+      'Stats',
+    );
+    c.ed.sheetTab.value = 'stats';
+  },
+  sheetMoves(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      { type: 'character.update', payload: { character: { ...chr, moves: { style: a.style, power: 1, speed: 1 } } } },
+      'Fighting style',
+    );
+    c.ed.sheetTab.value = 'moves';
+  },
+  sheetVoice(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: { character: { ...chr, voice: { ...(chr.voice ?? {}), pitch: Number(a.pitch) } } },
+      },
+      'Talk pitch',
+    );
+    c.ed.sheetTab.value = 'voice';
+  },
+  sheetAnimation(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: { character: { ...chr, animations: { ...(chr.animations ?? {}), [String(a.action)]: a.clip } } },
+      },
+      'Animation',
+    );
+    c.ed.sheetTab.value = 'animations';
+  },
+  sheetXp(c, a) {
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    s.giveXp(Number(a.amount ?? 100));
   },
   dialogueTalkTo(c, a) {
     const s = c.ed.session.value;

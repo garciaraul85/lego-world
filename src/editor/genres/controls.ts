@@ -117,6 +117,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.guide': S('core'),
   'help.brix': S('core'),
   'help.dialogue': S('dialogue'),
+  'help.sheet': S('characters'),
   'help.brixCourse': S('core'),
   'help.here': S('core'),
   'help.build': S('core'),
@@ -222,6 +223,10 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   'dialogue.start': S('dialogue', 'logic'),
   'event.onChoice': S('dialogue', 'logic'),
   'event.onConversationEnd': S('dialogue', 'logic'),
+  'character.giveXp': S('characters', 'logic'),
+  'character.setOutfit': S('characters', 'logic'),
+  'character.switchHero': A('characters', 'logic'),
+  'event.onLevelUp': S('characters', 'logic'),
 };
 
 /** P9a: sections of the studios that belong to a feature */

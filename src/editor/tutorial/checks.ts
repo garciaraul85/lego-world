@@ -205,6 +205,21 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
       return def?.name === asset && wiresOf(g).some((w) => w.when === when);
     });
   },
+  // P22 part 2: the character sheet course
+  isHero: (ed) => !!ed.studioCharacter.value && ed.store.manifest.hero === ed.studioCharacter.value,
+  outfitWorn: (ed, a) => {
+    const c = studioCharacter(ed);
+    const o = c?.outfits?.find((x) => x.name === c.outfit);
+    return !!o && Object.keys(o.look).length >= Number(a ?? 1);
+  },
+  statAtLeast: (ed, a) => {
+    const { stat, value } = a as { stat: string; value: number };
+    return Number((studioCharacter(ed)?.stats as Record<string, unknown> | undefined)?.[stat] ?? 0) >= value;
+  },
+  moveStyle: (ed, a) => studioCharacter(ed)?.moves?.style === a,
+  pitchBelow: (ed, a) => (studioCharacter(ed)?.voice?.pitch ?? 1) < Number(a),
+  animationSet: (ed, a) => !!studioCharacter(ed)?.animations?.[a as 'idle'],
+  levelAtLeast: (ed, a) => Number(ed.session.value?.logic.vars.get('level') ?? 0) >= Number(a),
   // P22: the dialogue course
   characterExists: (ed, a) => ed.store.list('characters/').some((p) => ed.store.get<{ name: string }>(p)?.name === a),
   talksWith: (ed, a) =>

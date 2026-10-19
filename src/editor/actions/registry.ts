@@ -439,6 +439,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.brix?.(),
   },
   {
+    id: 'help.sheet',
+    label: 'Character sheet course (outfits, stats, moves, voice)',
+    run: ({ ui }) => ui.tutorial('sheet'),
+  },
+  {
     id: 'help.dialogue',
     label: 'Dialogue course (conversations, choices, styles)',
     run: ({ ui }) => ui.tutorial('dialogue'),
@@ -565,6 +570,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.combat',
     'help.saving',
     'help.dialogue',
+    'help.sheet',
     'help.brixCourse',
     'help.build',
     'help.shortcuts',

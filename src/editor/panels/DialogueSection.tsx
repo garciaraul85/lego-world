@@ -25,6 +25,7 @@ const sample = (look: DialogueLook, style: DialogueStyle): TalkView => ({
   who: 'chr_sample0000',
   speakerName: 'Old Tom',
   nameColor: null,
+  voice: null,
   text: 'Welcome, traveller! Mind the bridge.',
   mood: 'happy',
   choices: null,

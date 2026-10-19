@@ -117,6 +117,10 @@ export class EditorState {
   /** P22: the Character studio's view (look and clips, or dialogue) and the conversation open in it */
   readonly charTab = signal<'look' | 'dialogue'>('look');
   readonly dialogueId = signal<string | null>(null);
+  /** P22 part 2: the character sheet's open tab */
+  readonly sheetTab = signal<
+    'look' | 'outfits' | 'stats' | 'moves' | 'animations' | 'voice' | 'dialogue' | 'behaviour'
+  >('look');
   /** P22: how the open conversation is shown (a list, a graph or a script) */
   readonly dialogueView = signal<'list' | 'graph' | 'script'>('list');
   /** where the clip's playhead is (seconds), and whether the clip plays in the preview (tutorial checks) */

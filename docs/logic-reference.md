@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (64 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (68 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -166,6 +166,15 @@ Runs when a conversation ends (empty: any conversation): the last line was read,
 
 - Settings: Conversation (dialogue, optional)
 - Code: `on("conversationEnd", { conversation: … }, (e) => { … });`
+
+### On level up
+
+`event.onLevelUp` · event
+
+Runs when the hero reaches a new level (Give experience).
+
+- Outputs: level (number)
+- Code: `on("levelUp", (e) => { … });`
 
 ## Flow
 
@@ -627,3 +636,31 @@ Starts a conversation, as if the hero had talked to someone: its lines, choices 
 
 - Settings: Conversation (dialogue)
 - Code: `dialogue.start(conversation);`
+
+## Characters
+
+### Give experience
+
+`character.giveXp` · action
+
+Gives the hero experience points. Reaching the next level (its sheet’s experience curve) says “Level up!”, plays its victory clip and fires On level up. Read them as the variables xp and level.
+
+- Inputs: amount (number)
+- Code: `hero.giveXp(amount);`
+
+### Change outfit
+
+`character.setOutfit` · action
+
+The hero puts on one of the outfits on its sheet (Characters › Outfits): its look and the outfit’s stat bonuses change. Empty: its own clothes.
+
+- Settings: Outfit name (string, optional)
+- Code: `hero.setOutfit(outfit);`
+
+### Switch hero
+
+`character.switchHero` · action
+
+Plays as the next hero of the party (Project › Party), as pressing H does.
+
+- Code: `hero.switch();`

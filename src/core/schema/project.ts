@@ -24,6 +24,8 @@ export const Project = z.strictObject({
   saving: Saving.optional(),
   /** P22: how conversations look in this game (unset parts: the genre's, then the defaults) */
   dialogue: DialogueLook.partial().optional(),
+  /** P22 part 2: playable heroes the player can switch between in Play (H); the hero is always one of them */
+  party: z.array(id('character')).max(6).optional(),
   /** Every non-.editor file except project.json itself, with xxhash64 (16 hex) and byte size. */
   files: z.record(z.string(), FileEntry),
 });

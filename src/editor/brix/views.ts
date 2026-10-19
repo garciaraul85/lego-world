@@ -289,6 +289,24 @@ export function stepsToView(view: string): ShowStep[] {
       ];
     case 'characters':
       return [ws('Characters')];
+    case 'characters-outfits':
+    case 'characters-stats':
+    case 'characters-moves':
+    case 'characters-animations':
+    case 'characters-voice':
+    case 'characters-behaviour': {
+      const t = view.slice(11);
+      const label = t.charAt(0).toUpperCase() + t.slice(1);
+      return [
+        ws('Characters'),
+        {
+          say: `Open the ${label} tab of the sheet.`,
+          find: control('[aria-label="Character sheet"]', new RegExp(`^${label}$`)),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === t,
+        },
+      ];
+    }
     case 'characters-dialogue':
       return [
         ws('Characters'),

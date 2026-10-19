@@ -5,6 +5,7 @@ import type { Command } from '../../../core/commands';
 import { newId } from '../../../core/ids';
 import { type Character, type Clip, paths } from '../../../core/schema';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
+import { wornOutfit, wornProfile } from '../../../engine/runtime/sheet';
 import type { ActionCtx } from '../../actions/registry';
 import { ENEMY_HELP, EnemyFields } from '../../components/EnemyFields';
 import { DraftText, FieldHelp } from '../../components/fields';
@@ -15,6 +16,7 @@ import { shows } from '../../genres/view';
 import { actionChoices } from '../../panels/AudioFields';
 import { ConversationList, DialogueMain, TalkSection } from '../dialogue/CharacterTalk';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
+import { AnimationsTab, BehaviourTab, MovesTab, OutfitsTab, SHEET_TABS, StatsTab, VoiceTab } from './Sheet';
 import { CharacterThumb, peakTime, type ThumbView, trackPose } from './thumbs';
 
 /** Look fields grouped the way v68's character builder groups them. */
@@ -91,6 +93,16 @@ const pretty = (k: string) =>
     .replace(/^./, (c) => c.toUpperCase())
     .replace('Color', 'color');
 
+/** P22 part 2: moves to try on the preview */
+const TRY_CLIPS: [string, string][] = [
+  ['clp_emotewave0', 'Wave'],
+  ['clp_emotecheer', 'Cheer'],
+  ['clp_cbguard000', 'Guard'],
+  ['clp_cbspin0000', 'Spin attack'],
+  ['clp_cbjumpatk0', 'Jump attack'],
+  ['clp_cbroll0000', 'Roll'],
+];
+
 export function CharacterStudio({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
@@ -131,7 +143,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     part: null,
   });
   preview.current = {
-    profile: { ...chr.profile, offHand: chr.gear?.offHand ?? 'None' },
+    profile: { ...wornProfile(chr), offHand: chr.gear?.offHand ?? 'None' },
     clip,
     time,
     turntable,
@@ -179,11 +191,18 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     }
     ed.exec({ type: 'character.update', payload: { character: { ...next, profile } } }, { label });
   };
+  const worn = wornOutfit(chr);
   const setField = (k: string, v: unknown) =>
-    saveChr(
-      { ...chr, ...(k === 'name' ? { name: String(v).slice(0, 32) } : {}), profile: { ...chr.profile, [k]: v } },
-      `Change ${pretty(k).toLowerCase()}`,
-    );
+    // P22 part 2: wearing an outfit, the look changes go into it
+    worn && k !== 'name'
+      ? saveChr(
+          { ...chr, outfits: (chr.outfits ?? []).map((o) => (o === worn ? { ...o, look: { ...o.look, [k]: v } } : o)) },
+          `${worn.name}: ${pretty(k).toLowerCase()}`,
+        )
+      : saveChr(
+          { ...chr, ...(k === 'name' ? { name: String(v).slice(0, 32) } : {}), profile: { ...chr.profile, [k]: v } },
+          `Change ${pretty(k).toLowerCase()}`,
+        );
 
   const saveClip = (next: Clip, label: string) => ed.exec({ type: 'clip.update', payload: { clip: next } }, { label });
   const duplicate = (src: Clip) => {
@@ -205,6 +224,27 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     ed.exec(cmds, { label: has ? 'Remove emote' : 'Add emote' });
   };
   const isHero = ed.store.manifest.hero === chr.id;
+  const tab = ed.sheetTab.value;
+  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e6));
+  /** P22 part 2: a random look from the catalog's choices and colours (the seed makes it repeatable) */
+  const randomLook = () => {
+    let a = seed + 1;
+    const rnd = () => {
+      a = (a * 1664525 + 1013904223) % 4294967296;
+      return a / 4294967296;
+    };
+    const next: Record<string, unknown> = { ...chr.profile };
+    for (const [k, opts] of Object.entries(L.CharacterCatalog.choices as Record<string, string[]>)) {
+      if (k === 'name' || k === 'power' || k === 'held') continue;
+      next[k] = opts[Math.floor(rnd() * opts.length)];
+    }
+    for (const k of L.CharacterCatalog.colorFields as string[])
+      next[k] = `#${Math.floor(rnd() * 0xffffff)
+        .toString(16)
+        .padStart(6, '0')}`;
+    saveChr({ ...chr, profile: next }, `Random look (seed ${seed})`);
+    setSeed(Math.floor(Math.random() * 1e6));
+  };
 
   return (
     <div class="studio char-studio">
@@ -366,6 +406,23 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                 )}
               </span>
             </div>
+            {/* P22 part 2: try moves on the preview without leaving the sheet */}
+            <div class="try-row" role="group" aria-label="Try it">
+              <span class="muted small">Try:</span>
+              {TRY_CLIPS.map(([id, label]) => (
+                <button
+                  type="button"
+                  class={`chip ${clip?.id === id && playing ? 'on' : ''}`}
+                  onClick={() => {
+                    setClipId(id);
+                    setTime(0);
+                    setPlaying(true);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <div class="studio-plate char-plate">
               <div class="viewport-wrap">
                 <CharacterPreview input={preview} />
@@ -407,8 +464,21 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
       </section>
 
       <section class="panel right studio-props" aria-label="Character properties">
-        <div class="ptabs">
-          <span class="tab on">Character</span>
+        <div class="ptabs sheet-tabs" role="tablist" aria-label="Character sheet">
+          {SHEET_TABS.filter(([id]) => id !== 'dialogue' || (!isHero && shows(ed, 'section', 'character.talk'))).map(
+            ([id, label]) => (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                class={`tab ${tab === id ? 'on' : ''}`}
+                data-tour={`sheet-${id}`}
+                onClick={() => (ed.sheetTab.value = id)}
+              >
+                {label}
+              </button>
+            ),
+          )}
         </div>
         <div class="scroll">
           <div class="sec">
@@ -452,8 +522,9 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               </button>
             </div>
           </div>
+          {tab === 'stats' && <StatsTab c={c} chr={chr} save={saveChr} isHero={isHero} />}
           {/* P9a: a neighbour the hero can hurt (villagers are off: hits do nothing) */}
-          {!isHero && shows(ed, 'section', 'character.harm') && (
+          {tab === 'stats' && !isHero && shows(ed, 'section', 'character.harm') && (
             <div class="sec" data-tour="char-harm">
               <div class="sech">
                 <span>
@@ -495,9 +566,12 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
             </div>
           )}
           {/* P22: what it says — its Talk list, barks and name colour */}
-          {!isHero && shows(ed, 'section', 'character.talk') && <TalkSection c={c} chr={chr} inProject={inProject} />}
+          {tab === 'dialogue' && !isHero && shows(ed, 'section', 'character.talk') && (
+            <TalkSection c={c} chr={chr} inProject={inProject} />
+          )}
           {/* P9c: an enemy — it walks to the hero and swings at them */}
-          {!isHero && shows(ed, 'section', 'character.enemy') && (
+          {tab === 'moves' && <MovesTab c={c} chr={chr} save={saveChr} />}
+          {tab === 'moves' && !isHero && shows(ed, 'section', 'character.enemy') && (
             <div class="sec" data-tour="char-enemy" data-help="characters.enemy">
               <div class="sech">
                 <span>
@@ -530,7 +604,8 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               />
             </div>
           )}
-          {clip && !builtinClip && (
+          {tab === 'animations' && <AnimationsTab c={c} chr={chr} save={saveChr} />}
+          {tab === 'animations' && clip && !builtinClip && (
             <div class="sec">
               <div class="sech">
                 <span>Clip</span>
@@ -551,7 +626,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               </label>
             </div>
           )}
-          {clip && (
+          {tab === 'animations' && clip && (
             <div class="sec">
               <div class="sech">
                 <span>Emotes</span>
@@ -568,67 +643,90 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               </label>
             </div>
           )}
-          {SECTIONS.map(([title, keys]) => (
-            <div class="sec">
-              <div class="sech">
-                <span>{title}</span>
-              </div>
-              {keys
-                .filter((k) => k in L.CharacterCatalog.defaults)
-                .map((k) =>
-                  L.CharacterCatalog.colorFields.includes(k) ? (
-                    <label class="field">
-                      {pretty(k)}
-                      <input
-                        type="color"
-                        class="inp"
-                        value={String(chr.profile[k] ?? '#888888')}
-                        onChange={(e) => setField(k, (e.target as HTMLInputElement).value)}
-                      />
-                    </label>
-                  ) : L.CharacterCatalog.choices[k] ? (
-                    // P32: each choice is a picture of this character wearing it, close up where it is worn
-                    <div class="field">
-                      {pretty(k)}
-                      <PreviewPicker
-                        label={pretty(k)}
-                        value={String(chr.profile[k])}
-                        options={L.CharacterCatalog.choices[k]!.map((o) => ({
-                          value: o,
-                          name: o,
-                          thumb: <CharacterThumb profile={{ ...chr.profile, [k]: o }} view={viewOf(k)} size={40} />,
-                        }))}
-                        onPick={(v) => setField(k, v)}
-                        tour={k}
-                      />
-                    </div>
-                  ) : null,
-                )}
-              {/* P9b: the off hand (a shield on the left forearm) */}
-              {title === 'Gear & powers' && (
-                <div class="field">
-                  Off hand
-                  <PreviewPicker
-                    label="Off hand"
-                    tour="offHand"
-                    value={chr.gear?.offHand ?? 'None'}
-                    options={(['None', 'Shield'] as const).map((o) => ({
-                      value: o,
-                      name: o,
-                      thumb: <CharacterThumb profile={{ ...chr.profile, offHand: o }} view="torso" size={40} />,
-                    }))}
-                    onPick={(v) => saveChr({ ...chr, gear: { offHand: v as 'None' | 'Shield' } }, `Off hand: ${v}`)}
-                  />
+          {tab === 'look' && (
+            <div class="sec look-head">
+              {worn ? (
+                <div class="hint">
+                  Wearing <b>{worn.name}</b>: changes go into the outfit.{' '}
+                  <button
+                    type="button"
+                    class="link"
+                    onClick={() => {
+                      const { outfit: _o, ...rest } = chr;
+                      saveChr(rest as Character, 'Own clothes');
+                    }}
+                  >
+                    Own clothes
+                  </button>
                 </div>
-              )}
+              ) : null}
+              <div class="row">
+                <button type="button" class="btn small" data-tour="char-random" onClick={() => randomLook()}>
+                  🎲 Random look
+                </button>
+                <span class="muted small mono">seed {seed}</span>
+              </div>
             </div>
-          ))}
-          <div class="sec" style={{ borderBottom: 0 }}>
-            <div class="hint">
-              Voice, footsteps and neighbor behavior (home zone, dialogue) arrive with Audio (Phase 5) and Logic (Phase
-              4). Paint and photo looks are still made in v68 studio.
-            </div>
-          </div>
+          )}
+          {tab === 'look' &&
+            SECTIONS.map(([title, keys]) => (
+              <div class="sec">
+                <div class="sech">
+                  <span>{title}</span>
+                </div>
+                {keys
+                  .filter((k) => k in L.CharacterCatalog.defaults)
+                  .map((k) =>
+                    L.CharacterCatalog.colorFields.includes(k) ? (
+                      <label class="field">
+                        {pretty(k)}
+                        <input
+                          type="color"
+                          class="inp"
+                          value={String(chr.profile[k] ?? '#888888')}
+                          onChange={(e) => setField(k, (e.target as HTMLInputElement).value)}
+                        />
+                      </label>
+                    ) : L.CharacterCatalog.choices[k] ? (
+                      // P32: each choice is a picture of this character wearing it, close up where it is worn
+                      <div class="field">
+                        {pretty(k)}
+                        <PreviewPicker
+                          label={pretty(k)}
+                          value={String(chr.profile[k])}
+                          options={L.CharacterCatalog.choices[k]!.map((o) => ({
+                            value: o,
+                            name: o,
+                            thumb: <CharacterThumb profile={{ ...chr.profile, [k]: o }} view={viewOf(k)} size={40} />,
+                          }))}
+                          onPick={(v) => setField(k, v)}
+                          tour={k}
+                        />
+                      </div>
+                    ) : null,
+                  )}
+                {/* P9b: the off hand (a shield on the left forearm) */}
+                {title === 'Gear & powers' && (
+                  <div class="field">
+                    Off hand
+                    <PreviewPicker
+                      label="Off hand"
+                      tour="offHand"
+                      value={chr.gear?.offHand ?? 'None'}
+                      options={(['None', 'Shield'] as const).map((o) => ({
+                        value: o,
+                        name: o,
+                        thumb: <CharacterThumb profile={{ ...chr.profile, offHand: o }} view="torso" size={40} />,
+                      }))}
+                      onPick={(v) => saveChr({ ...chr, gear: { offHand: v as 'None' | 'Shield' } }, `Off hand: ${v}`)}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          {tab === 'outfits' && <OutfitsTab c={c} chr={chr} save={saveChr} />}
+          {tab === 'voice' && <VoiceTab c={c} chr={chr} save={saveChr} />}
+          {tab === 'behaviour' && <BehaviourTab c={c} chr={chr} save={saveChr} isHero={isHero} inProject={inProject} />}
         </div>
       </section>
     </div>

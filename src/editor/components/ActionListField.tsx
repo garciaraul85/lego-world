@@ -66,6 +66,9 @@ const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Act
     needs: 'cinematics',
     make: (c) => ({ do: 'cinematic', cinematic: (c?.cinematics[0]?.id ?? 'cin_none000000') as never, once: true }),
   },
+  // P22 part 2
+  { do: 'xp', label: 'Give experience', make: () => ({ do: 'xp', amount: 10 }) },
+  { do: 'outfit', label: 'Change outfit', make: () => ({ do: 'outfit', name: '' }) },
   // P22
   {
     do: 'talk',
@@ -309,6 +312,18 @@ function ActionArgs({
           <option value="settingsMenu">Open Settings</option>
           <option value="achievementsMenu">Open Achievements</option>
         </select>
+      );
+    case 'xp':
+      return num(a.amount, 'Experience', (amount) => ({ ...a, amount: Math.round(amount) }));
+    case 'outfit':
+      return (
+        <input
+          class="inp"
+          aria-label="Outfit name"
+          placeholder="own clothes"
+          value={a.name}
+          onChange={(e) => onChange({ ...a, name: (e.target as HTMLInputElement).value.trim().slice(0, 40) })}
+        />
       );
     case 'talk':
       return pick(a.conversation, 'Conversation', choices?.conversations ?? [], (conversation) => ({

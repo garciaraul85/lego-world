@@ -17,6 +17,8 @@ export type TalkView = {
   who: string;
   speakerName: string;
   nameColor: string | null;
+  /** P22 part 2: the speaker's own voice (its sheet's blip and pitch) */
+  voice: { pitch: number; blip: string | null } | null;
   text: string;
   mood: Mood;
   /** the options of a choice (null: a line) */
@@ -32,7 +34,7 @@ export type TalkHost = {
   run(actions: Action[]): void;
   like(by: number): void;
   /** a speaker's shown name and name colour */
-  speaker(who: string): { name: string; color: string | null };
+  speaker(who: string): { name: string; color: string | null; voice?: { pitch: number; blip: string | null } | null };
   /** interpolate {values} in text */
   text(t: string): string;
   chose?(conversation: string, option: string, index: number): void;
@@ -152,6 +154,7 @@ export class ConversationRunner {
             who: st.who,
             speakerName: sp.name,
             nameColor: sp.color,
+            voice: ('voice' in sp && sp.voice) || null,
             text: this.host.text(st.text),
             mood: st.mood ?? 'neutral',
             choices: null,
@@ -175,6 +178,7 @@ export class ConversationRunner {
             who: last?.who ?? '',
             speakerName: last?.speakerName ?? '',
             nameColor: last?.nameColor ?? null,
+            voice: last?.voice ?? null,
             text: last?.text ?? '',
             mood: last?.mood ?? 'neutral',
             choices: opts,

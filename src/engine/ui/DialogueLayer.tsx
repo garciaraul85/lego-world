@@ -67,13 +67,14 @@ export function DialogueLayer(p: DialogueLayerProps) {
       l.serial = v.serial;
       l.n = 0;
     }
-    if (!look.blip || !p.blip || done || v.choices) {
+    const blip = v.voice?.blip ?? look.blip;
+    if (!blip || !p.blip || done || v.choices) {
       l.n = shown;
       return;
     }
     if (shown - l.n >= 2 && /\S/.test(v.text[shown - 1] ?? '')) {
       l.n = shown;
-      p.blip(look.blip, look.pitch);
+      p.blip(blip, v.voice?.pitch ?? look.pitch);
     }
   });
   const name = v.speakerName;

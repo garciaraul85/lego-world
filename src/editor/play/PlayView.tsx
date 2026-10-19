@@ -159,6 +159,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       else if (k === 'z' && !e.repeat) s.combat.toggleLock();
       else if (k === 'tab' && !e.repeat) s.combat.cycleLock();
       else if (k === 't' && !e.repeat) s.talk();
+      else if (k === 'h' && !e.repeat) s.switchHero();
       else if (k === 'p' && !e.repeat) ed.paused.value = !ed.paused.value;
       else if (/^[1-4]$/.test(k) && !e.repeat) s.emote(Number(k) - 1);
       else if (k === 'n' && ed.paused.value) s.runtime.stepOnce();

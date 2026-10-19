@@ -111,7 +111,11 @@ export class TalkSystem {
         speaker: (who) => {
           if (who.startsWith('chr_')) {
             const c = h.get(paths.character(who)) as Character | undefined;
-            return { name: c?.name ?? who, color: c?.nameColor ?? null };
+            return {
+              name: c?.name ?? who,
+              color: c?.nameColor ?? null,
+              voice: c?.voice ? { pitch: c.voice.pitch, blip: c.voice.blip ?? null } : null,
+            };
           }
           return { name: who, color: null };
         },

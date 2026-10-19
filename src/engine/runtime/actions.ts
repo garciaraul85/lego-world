@@ -33,6 +33,8 @@ export interface ActionHost {
   message?(text: string, seconds: number): void;
   /** P22: start a conversation */
   talk?(conversation: string, self: string | undefined): void;
+  /** P22 part 2: an outfit, experience */
+  sheet?(op: 'outfit' | 'xp', value: string | number): void;
 }
 
 type Pending = { actions: Action[]; at: number; self: string | undefined };
@@ -155,6 +157,11 @@ export class ActionRunner {
         case 'despawn':
           if (h.despawn) h.despawn(a.target);
           else h.log('info', `despawn ${a.target}`);
+          break;
+        case 'outfit':
+        case 'xp':
+          if (h.sheet) h.sheet(a.do, a.do === 'outfit' ? a.name : a.amount);
+          else h.log('info', `${a.do} ${a.do === 'outfit' ? a.name : a.amount}`);
           break;
         case 'talk':
           if (h.talk) h.talk(a.conversation, self);

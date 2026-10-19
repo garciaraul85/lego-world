@@ -313,6 +313,26 @@ export const HELP_STATES: HelpState[] = [
       await ws(p, 'Characters');
     },
   },
+  ...(['outfits', 'stats', 'moves', 'animations', 'voice', 'behaviour'] as const).map((t) => ({
+    id: `characters-${t}`,
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      await signals(p, { charTab: 'look', sheetTab: t });
+      // a character of the game, so every tab shows its fields
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        if (!e.store.list('characters/').length)
+          e.exec({
+            type: 'character.create',
+            payload: { character: { id: 'chr_helpsheet01', name: 'Sam', role: 'npc', profile: { name: 'Sam' } } },
+          });
+        e.studioCharacter!.value = e.store.list('characters/')[0]!.replace(/^characters\/|\.json$/g, '');
+      });
+      if (t === 'outfits' && !(await p.locator('.outfit-row').count()))
+        await p.locator('[data-tour="outfit-new"]').click();
+    },
+  })),
   {
     id: 'characters-dialogue',
     screen: 'characters',

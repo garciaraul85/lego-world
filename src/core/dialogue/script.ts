@@ -51,6 +51,10 @@ function actionText(a: Action): string {
       return `sound ${a.event}`;
     case 'checkpoint':
       return 'checkpoint';
+    case 'xp':
+      return `xp ${a.amount}`;
+    case 'outfit':
+      return `outfit ${a.name}`.trim();
     case 'save':
       return a.slot ? `save ${a.slot}` : 'save';
     default:
@@ -139,6 +143,10 @@ function parseAction(src: string): Action | string {
       return /^snd_[0-9a-z]{10}$/.test(arg) ? { do: 'sound', event: arg } : 'Write: > sound snd_… (a sound id)';
     case 'checkpoint':
       return { do: 'checkpoint' };
+    case 'xp':
+      return /^-?\d+$/.test(arg) ? { do: 'xp', amount: Number(arg) } : 'Write: > xp 50';
+    case 'outfit':
+      return { do: 'outfit', name: arg.slice(0, 40) };
     case 'save':
       return arg ? { do: 'save', slot: Number(arg) } : { do: 'save' };
     case 'json':
@@ -148,7 +156,7 @@ function parseAction(src: string): Action | string {
         return 'That action is not valid JSON.';
       }
     default:
-      return `Unknown action “${verb}”. Use set, add, give, like, cinematic, achieve, message, emit, sound, checkpoint or save.`;
+      return `Unknown action “${verb}”. Use set, add, give, like, xp, outfit, cinematic, achieve, message, emit, sound, checkpoint or save.`;
   }
 }
 
