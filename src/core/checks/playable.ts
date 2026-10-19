@@ -1,5 +1,7 @@
 import { expandInstances } from '../assets/instances';
 import { footprint } from '../bricks/inspect';
+import { checkConversation, dialogueUses } from '../dialogue/checks';
+import type { Conversation } from '../dialogue/schema';
 import { surfaceOf } from '../gamegen/places';
 import type { ProjectStore } from '../project/store';
 import { EMPTY_PROGRESS, type ProgressDoc } from '../save/progress';
@@ -23,8 +25,12 @@ export type PlayIssue = {
     | 'achievementNever'
     | 'achievementMissing'
     | 'collectionShort'
-    | 'noEnding';
+    | 'noEnding'
+    | 'dialogueBroken'
+    | 'dialogueUnused';
   message: string;
+  /** P22: the conversation to open */
+  conversation?: string;
   map?: string;
   /** what to select: an instance, a spawn or a zone */
   instance?: string;
@@ -249,5 +255,28 @@ export function checkPlayable(store: ProjectStore): PlayIssue[] {
       code: 'noEnding',
       message: 'Nothing finishes the game (Finish game), so New game + and lower-is-better best scores never happen.',
     });
+  // P22: conversations with mistakes, and conversations nothing starts
+  for (const p of store.list(paths.dialogueDir)) {
+    const conv = store.get<Conversation>(p);
+    if (!conv) continue;
+    const bad = checkConversation(conv, {
+      character: (id) => store.has(paths.character(id)),
+      file: (f) => store.has(f),
+    }).filter((i) => i.level === 'error');
+    if (bad.length)
+      out.push({
+        level: 'error',
+        code: 'dialogueBroken',
+        message: `Conversation “${conv.name}”: ${bad[0]!.message}${bad.length > 1 ? ` (and ${bad.length - 1} more)` : ''}`,
+        conversation: conv.id,
+      });
+    if (!dialogueUses(store, conv.id).length)
+      out.push({
+        level: 'info',
+        code: 'dialogueUnused',
+        message: `Nothing starts the conversation “${conv.name}”: put it in a character’s Talk list, on a sign, or in an action.`,
+        conversation: conv.id,
+      });
+  }
   return out;
 }

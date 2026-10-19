@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { checkPlayable } from '../../src/core/checks/playable';
 import { CommandBus, registerAll } from '../../src/core/commands';
 import { checkConversation, lookOf } from '../../src/core/dialogue/checks';
 import { type CondHost, checkCondition, conditionNames, evalCondition } from '../../src/core/dialogue/condition';
@@ -174,5 +175,19 @@ describe('checks and commands', () => {
       style: 'sign',
       textSpeed: 0,
     });
+  });
+
+  it('“Can this game be finished?” lists broken conversations and ones nothing starts', () => {
+    const store = new ProjectStore(newProjectFiles({ name: 'D', mapName: 'M' }));
+    const bus = registerAll(new CommandBus(store));
+    const broken = {
+      ...SMITH,
+      id: 'dlg_broken0001',
+      sections: [{ label: 'start', steps: [{ k: 'goto' as const, to: 'nowhere' }] }],
+    };
+    bus.execute({ type: 'dialogue.put', payload: { conversation: broken } } as never, { source: 'user' });
+    const issues = checkPlayable(store).filter((i) => i.conversation === 'dlg_broken0001');
+    expect(issues.map((i) => i.code).sort()).toEqual(['dialogueBroken', 'dialogueUnused']);
+    expect(issues.find((i) => i.code === 'dialogueBroken')!.message).toMatch(/no section “nowhere”/);
   });
 });

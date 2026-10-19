@@ -81,7 +81,7 @@ const CATS: [string, string | null, string][] = [
 export function Dock({ c }: { c: ActionCtx }) {
   const { ed } = c;
   const tab = ed.dock.value;
-  const problems = useProblems(ed);
+  const problems = useProblems(ed, (w) => c.ui.workspace(w));
   const tabs: [DockTab, string][] = [
     ['assets', 'Assets'],
     ['console', 'Console'],
@@ -318,7 +318,7 @@ type LiveProblem = {
 };
 
 /** Problems from import plus live checks of the project. */
-function useProblems(ed: EditorState): LiveProblem[] {
+function useProblems(ed: EditorState, openWorkspace: (w: string) => void): LiveProblem[] {
   const rev = ed.revision.value;
   return useMemo(() => {
     const out: LiveProblem[] = ed.problems.value
@@ -346,7 +346,19 @@ function useProblems(ed: EditorState): LiveProblem[] {
       out.push({
         level: i.level,
         msg: i.message,
-        where: map ? name(map) : 'Project › Progress',
+        where: map ? name(map) : i.conversation ? 'Characters › Dialogue' : 'Project › Progress',
+        ...(i.conversation
+          ? {
+              fix: {
+                label: 'Open',
+                run: () => {
+                  ed.dialogueId.value = i.conversation!;
+                  ed.charTab.value = 'dialogue';
+                  openWorkspace('Characters');
+                },
+              },
+            }
+          : {}),
         ...(map
           ? {
               fix: {
