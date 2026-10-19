@@ -123,6 +123,12 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
   const setClipId = (id: string | null) => (ed.studioClip.value = id);
   const clip = allClips.find((x) => x.id === clipId) ?? null;
   const builtinClip = !!clip && !ownClips.some((x) => x.id === clip.id);
+  // P22 part 2: opening another clip shows its fields (name, emotes) in the sheet's Animations tab
+  const shownClip = useRef(clipId);
+  useEffect(() => {
+    if (clipId && clipId !== shownClip.current) ed.sheetTab.value = 'animations';
+    shownClip.current = clipId;
+  }, [clipId]);
   // the playhead and Play are editor state, so the tutorial (and scripts) can read and set them
   const time = ed.clipTime.value;
   const setTime = (v: number | ((t: number) => number)) => {

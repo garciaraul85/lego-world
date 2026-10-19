@@ -206,6 +206,7 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     });
   },
   // P22 part 2: the character sheet course
+  sheetTab: (ed, a) => ed.sheetTab.value === a,
   isHero: (ed) => !!ed.studioCharacter.value && ed.store.manifest.hero === ed.studioCharacter.value,
   outfitWorn: (ed, a) => {
     const c = studioCharacter(ed);

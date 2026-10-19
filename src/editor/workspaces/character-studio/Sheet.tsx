@@ -88,7 +88,9 @@ function NumField({
         min={lo}
         max={hi}
         step={step}
-        value={String(value)}
+        // uncontrolled: a redraw while typing (another field saved) must not put the old number back
+        key={String(value)}
+        defaultValue={String(value)}
         onChange={(e) => {
           const n = num((e.target as HTMLInputElement).value, lo, hi);
           if (n !== null) onCommit(step < 1 ? Math.round(n * 100) / 100 : Math.round(n));
