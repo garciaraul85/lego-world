@@ -98,6 +98,7 @@ export function groupOf(path: string): string {
         screens: 'Screens',
         cinematics: 'Cinematics',
         audio: 'Audio',
+        effects: 'Effects',
         'project.json': 'Project',
       } as Record<string, string>
     )[top] ?? 'Other'

@@ -7,6 +7,7 @@ import * as B from '../commands/handlers/bricks';
 import * as Ch from '../commands/handlers/characters';
 import * as Ci from '../commands/handlers/cinematics';
 import * as Dl from '../commands/handlers/dialogue';
+import * as Fx from '../commands/handlers/effects';
 import * as G from '../commands/handlers/gates';
 import * as I from '../commands/handlers/items';
 import * as L from '../commands/handlers/logic';
@@ -15,6 +16,7 @@ import * as Np from '../commands/handlers/npcs';
 import * as Pr from '../commands/handlers/progress';
 import type { CommandHandler } from '../commands/types';
 import { Conversation } from '../dialogue/schema';
+import { Effect } from '../effects/schema';
 import type { idPattern } from '../ids';
 import { ProgressDoc } from '../save/progress';
 import { Saving } from '../save/save';
@@ -817,6 +819,45 @@ export const AI_COMMANDS: AiCommand[] = [
         ],
       },
     },
+  ),
+  def(
+    'effect.put',
+    Fx.putEffect,
+    z.strictObject({ effect: Effect }),
+    ['map'],
+    'Effects',
+    'Adds or replaces a game effect: particles that are tiny bricks, plates, tiles or studs. mode burst (count at once) or stream (rate a second, for duration seconds, 0: while it plays); spawn point/sphere/ring/box/line with radius; direction up/out/down/forward with spread degrees; speed, life and size as [from, to]; colors (1-4, birth to death); gravity (negative rises), drag, bounce off bricks 0-1. Built-in effects (fx_fire000001, fx_sparks0001, fx_boom000001…) cannot be changed: copy one under a new id. Place one with item.add (kind effect), hook it to hits and events with project.update effects, or play it with the effect action.',
+    {
+      effect: {
+        id: 'fx_aaaaaaaaaa',
+        name: 'Green sparks',
+        shape: 'stud',
+        mode: 'burst',
+        count: 24,
+        rate: 20,
+        duration: 0,
+        spawn: 'point',
+        radius: 0,
+        direction: 'out',
+        spread: 180,
+        speed: [4, 9],
+        life: [0.3, 0.6],
+        size: [0.18, 0.04],
+        colors: ['#e8ffe0', '#4b9f4a'],
+        gravity: 10,
+        drag: 0,
+        bounce: 0.4,
+      },
+    },
+  ),
+  def(
+    'effect.delete',
+    Fx.deleteEffect,
+    z.strictObject({ id: ids('effect') }),
+    ['map'],
+    'Effects',
+    'Deletes a game effect that nothing uses (take it off maps and out of the game effects first).',
+    { id: 'fx_aaaaaaaaaa' },
   ),
   def(
     'bodyplan.delete',

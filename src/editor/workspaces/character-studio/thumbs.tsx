@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ResolvedBody } from '../../../core/character/resolve';
 import type { Clip } from '../../../core/schema';
 import { rigPose } from '../../../engine/character/animator';
@@ -202,7 +202,11 @@ export function CharacterThumb({
   /** P22 part 3: draw this body plan instead of the minifig */
   body?: ResolvedBody | null;
 }) {
-  const url = useCharacterThumb(profile, view, pose, body);
+  const fresh = useCharacterThumb(profile, view, pose, body);
+  // while a new picture is drawn, the last one stays (an animated clip picture does not blink)
+  const last = useRef('');
+  if (fresh) last.current = fresh;
+  const url = fresh || last.current;
   return (
     <span
       class="char-thumb"
@@ -247,4 +251,62 @@ export function trackPose(bone: string, prop: string): ThumbPose | null {
   // sideways turns (y, z) go the other way on the left, like ⇆ Mirror
   const value = side < 0 && (prop === 'y' || prop === 'z') ? -v : v;
   return { clip: { length: 1, tracks: [{ bone, prop, keys: [[0, value, 'linear']] }] }, time: 0 };
+}
+
+/** P23: how many pictures an animated clip picture cycles through, and how long each shows (ms) */
+const FRAMES = 8;
+const FRAME_MS = 110;
+
+/**
+ * P23: a clip's picture that moves. It shows the clip's strongest pose; while the pointer is over it (or
+ * `play` is set) it plays the clip as a little flip book of FRAMES pictures, drawn once and kept.
+ */
+export function ClipThumb({
+  profile,
+  clip,
+  size = 22,
+  play = false,
+}: {
+  profile: Record<string, unknown>;
+  clip: Pick<Clip, 'tracks' | 'length'> & Partial<Pick<Clip, 'id' | 'name'>>;
+  size?: number;
+  play?: boolean;
+}) {
+  const [hover, setHover] = useState(false);
+  const [i, setI] = useState(-1);
+  const on = hover || play;
+  useEffect(() => {
+    if (!on) {
+      setI(-1);
+      return;
+    }
+    setI(0);
+    const t = setInterval(() => setI((n) => (n + 1) % FRAMES), FRAME_MS);
+    return () => clearInterval(t);
+  }, [on]);
+  const times = Array.from({ length: FRAMES }, (_, k) => (clip.length * k) / FRAMES);
+  const time = i < 0 ? peakTime(clip) : times[i]!;
+  return (
+    <span
+      class={`clip-thumb ${on ? 'moving' : ''}`}
+      data-frame={i}
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={() => setHover(false)}
+    >
+      <CharacterThumb profile={profile} size={size} pose={{ clip, time }} />
+      {on && (
+        <span class="clip-thumb-load" aria-hidden="true">
+          {times.map((t) => (
+            <FrameLoader profile={profile} pose={{ clip, time: t }} />
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** draws one frame of a flip book ahead of time (nothing shown) */
+function FrameLoader({ profile, pose }: { profile: Record<string, unknown>; pose: ThumbPose }) {
+  useCharacterThumb(profile, 'full', pose);
+  return null;
 }

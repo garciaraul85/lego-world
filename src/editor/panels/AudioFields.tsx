@@ -6,6 +6,8 @@ import type { ActionCtx } from '../actions/registry';
 import { Header, Num, TextField } from '../components/fields';
 import { eventNames } from '../events';
 import type { EditorState } from '../state';
+import { allEffects } from '../workspaces/effects/EffectsStudio';
+import { EffectInspector } from './EffectFields';
 
 /** Pickers for ActionListField (sound, music and screen actions). */
 export function actionChoices(ed: EditorState) {
@@ -15,6 +17,17 @@ export function actionChoices(ed: EditorState) {
     screens: allScreens(ed.store).map((s) => ({ id: s.id, name: `${s.name} · ${s.kind}` })),
     cinematics: cinematicOptions(ed),
     conversations: conversationOptions(ed),
+    // P23
+    effects: (() => {
+      const { own, builtin } = allEffects(ed.store);
+      return [...own, ...builtin].map((e) => ({ id: e.id, name: e.name }));
+    })(),
+    placedEffects: ed.store
+      .list('maps/')
+      .filter((p) => p.endsWith('/instances.json'))
+      .flatMap((p) =>
+        (ed.store.get<Instances>(p)?.items ?? []).flatMap((i) => (i.kind === 'effect' && i.name ? [i.name] : [])),
+      ),
     // P32: Send event picks from the events the project uses; ▶ plays sounds and music
     events: eventNames(ed.store),
     preview: {
@@ -225,6 +238,9 @@ export function ItemInspector({ c, id }: { c: ActionCtx; id: string }) {
   const { ed } = c;
   const map = ed.mapId.value;
   ed.revision.value;
+  // P23: an effect placed on the map
+  const raw = ed.store.get<Instances>(paths.instances(map))?.items.find((i) => i.id === id);
+  if (raw?.kind === 'effect') return <EffectInspector c={c} item={raw} />;
   const it = ed.store.get<Instances>(paths.instances(map))?.items.find((i) => i.id === id) as
     | EmitterInstance
     | UiInstance

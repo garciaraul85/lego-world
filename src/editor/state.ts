@@ -128,6 +128,9 @@ export class EditorState {
   readonly bodyWalk = signal(false);
   readonly bodyBones = signal(false);
   /** P22 part 4: the mood picked in the Face tab (the preview shows its face) */
+  /** P23: the effect open in the Effects screen, and whether every setting shows (Advanced) */
+  readonly effectId = signal<string | null>(null);
+  readonly effectsAdvanced = signal(false);
   /** P22 part 4: the “A character from a picture” dialog is open */
   readonly fromPicture = signal(false);
   readonly faceMood = signal<'neutral' | 'happy' | 'angry' | 'sad' | 'scared' | 'surprised'>('neutral');

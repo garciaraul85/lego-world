@@ -46,10 +46,11 @@ import { AssetStudio } from './workspaces/asset-studio/AssetStudio';
 import { AudioWorkspace } from './workspaces/audio/AudioWorkspace';
 import { CharacterStudio } from './workspaces/character-studio/CharacterStudio';
 import { Director } from './workspaces/director/Director';
+import { EffectsStudio } from './workspaces/effects/EffectsStudio';
 import { LogicWorkspace } from './workspaces/logic/LogicWorkspace';
 import { ScreensWorkspace } from './workspaces/screens/ScreensWorkspace';
 
-const STUDIOS = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics']);
+const STUDIOS = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics', 'Effects']);
 
 export type AppHost = HubHost & {
   /** show the Start hub when the editor opens */
@@ -263,6 +264,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
             <ScreensWorkspace c={c} />
           ) : workspace === 'Audio' ? (
             <AudioWorkspace c={c} />
+          ) : workspace === 'Effects' ? (
+            <EffectsStudio c={c} />
           ) : workspace === 'Cinematics' ? (
             <Director c={c} />
           ) : (

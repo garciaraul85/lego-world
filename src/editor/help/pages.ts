@@ -13,6 +13,7 @@ import projects from '../../../docs/help/11-projects.md?raw';
 import troubleshooting from '../../../docs/help/12-troubleshooting.md?raw';
 import coding from '../../../docs/help/13-coding.md?raw';
 import aiBuilder from '../../../docs/help/14-ai-builder.md?raw';
+import effects from '../../../docs/help/15-effects.md?raw';
 import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import { MAX_CINEMATICS } from '../../core/commands/handlers/cinematics';
 import { MAX_GATES } from '../../core/commands/handlers/gates';
@@ -140,6 +141,7 @@ export function helpGroups(): HelpGroup[] {
         page('screens', screens),
         page('cinematics', cinematics),
         page('audio', audio),
+        page('effects', effects),
         page('play', play),
         page('projects', projects),
         page('ai-builder', aiBuilder),

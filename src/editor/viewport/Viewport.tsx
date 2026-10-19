@@ -666,8 +666,14 @@ export function Viewport({
           const p = it.pos;
           markers.push({
             pos: [p[0], p[1], p[2]],
-            size: it.kind === 'emitter' ? [0.7, 0.7, 0.7] : [1.6, 0.8, 0.12],
-            color: sel ? [1, 0.72, 0.2] : it.kind === 'emitter' ? [0.55, 0.45, 1] : [0.98, 0.85, 0.3],
+            size: it.kind === 'emitter' ? [0.7, 0.7, 0.7] : it.kind === 'effect' ? [0.6, 0.6, 0.6] : [1.6, 0.8, 0.12],
+            color: sel
+              ? [1, 0.72, 0.2]
+              : it.kind === 'emitter'
+                ? [0.55, 0.45, 1]
+                : it.kind === 'effect'
+                  ? [1, 0.54, 0.24]
+                  : [0.98, 0.85, 0.3],
             alpha: 0.9,
           });
           if (it.kind === 'emitter')

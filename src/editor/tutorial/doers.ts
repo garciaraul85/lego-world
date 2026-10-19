@@ -263,6 +263,22 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     run(c, { type: 'asset.update', payload: { asset: { ...def, interactions } } }, 'Edit chest');
     c.ed.studioAsset.value = def.id;
   },
+  chestGivesGems(c, a) {
+    // P22 dialogue course: opening the chest adds gems (one more action on its first interaction)
+    const def = c.ed.store
+      .list('assets/')
+      .map((p) => c.ed.store.get<Asset>(p)!)
+      .find((x) => x.name === 'Treasure chest');
+    if (!def) throw new Error('Place the chest first.');
+    const amount = Number(a.amount ?? 5);
+    const interactions = def.interactions.map((it, i) =>
+      i === 0 && !it.do.some((x) => x.do === 'addVar' && x.var === 'gems')
+        ? { ...it, do: [...it.do, { do: 'addVar' as const, var: 'gems', value: amount }] }
+        : it,
+    );
+    run(c, { type: 'asset.update', payload: { asset: { ...def, interactions } } }, 'Chest gives gems');
+    c.ed.studioAsset.value = def.id;
+  },
   newCharacter(c, a) {
     const p = BUILTIN_CHARACTERS.find((x) => x.name === a.preset) ?? BUILTIN_CHARACTERS[0]!;
     const id = newId('character');

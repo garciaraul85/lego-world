@@ -10,6 +10,9 @@ export type ActionChoices = {
   cinematics: Choice[];
   /** P22: the game's conversations (Start conversation) */
   conversations?: Choice[];
+  /** P23: effects (built-in and the game's own), and the effects placed on maps (by name) */
+  effects?: Choice[];
+  placedEffects?: string[];
   /** P32: custom event names the project uses (Send event picks from them) */
   events?: string[];
   /** P32: plays a sound or a music state once, for the ▶ next to their pickers */
@@ -69,6 +72,18 @@ const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Act
   // P22 part 2
   { do: 'xp', label: 'Give experience', make: () => ({ do: 'xp', amount: 10 }) },
   { do: 'outfit', label: 'Change outfit', make: () => ({ do: 'outfit', name: '' }) },
+  // P23
+  {
+    do: 'effect',
+    label: 'Play effect',
+    needs: 'effects',
+    make: (c) => ({ do: 'effect', effect: (c?.effects?.[0]?.id ?? 'fx_sparks0001') as never }),
+  },
+  {
+    do: 'effectOn',
+    label: 'Start or stop a placed effect',
+    make: (c) => ({ do: 'effectOn', name: c?.placedEffects?.[0] ?? 'Effect 1', on: true }),
+  },
   // P22
   {
     do: 'talk',
@@ -101,7 +116,9 @@ export function ActionListField({
           ? choices.cinematics.length
           : k.needs === 'conversations'
             ? choices.conversations?.length
-            : true)),
+            : k.needs === 'effects'
+              ? choices.effects?.length
+              : true)),
   );
   const set = (i: number, a: Action) => onChange(value.map((x, j) => (j === i ? a : x)));
   return (
@@ -324,6 +341,52 @@ function ActionArgs({
           value={a.name}
           onChange={(e) => onChange({ ...a, name: (e.target as HTMLInputElement).value.trim().slice(0, 40) })}
         />
+      );
+    case 'effect':
+      return (
+        <span class="row" style={{ gap: '4px', flexWrap: 'wrap' }}>
+          {pick(a.effect, 'Effect', choices?.effects ?? [], (effect) => ({ ...a, effect: effect as never }))}
+          <input
+            class="inp"
+            aria-label="Where"
+            placeholder="at the hero"
+            title="Empty: at the hero; self: at this object; or the name of an object, neighbour or placed effect"
+            value={a.at ?? ''}
+            onChange={(e) => {
+              const at = (e.target as HTMLInputElement).value.trim().slice(0, 60);
+              const { at: _x, ...rest } = a;
+              onChange(at ? { ...rest, at } : rest);
+            }}
+          />
+        </span>
+      );
+    case 'effectOn':
+      return (
+        <span class="row" style={{ gap: '4px' }}>
+          <select
+            class="inp"
+            aria-label="Start or stop"
+            value={a.on ? 'on' : 'off'}
+            onChange={(e) => onChange({ ...a, on: (e.target as HTMLSelectElement).value === 'on' })}
+          >
+            <option value="on">Start</option>
+            <option value="off">Stop</option>
+          </select>
+          <input
+            class="inp"
+            aria-label="Placed effect"
+            list="placed-effects"
+            value={a.name}
+            onChange={(e) =>
+              onChange({ ...a, name: (e.target as HTMLInputElement).value.trim().slice(0, 60) || a.name })
+            }
+          />
+          <datalist id="placed-effects">
+            {(choices?.placedEffects ?? []).map((n) => (
+              <option value={n} />
+            ))}
+          </datalist>
+        </span>
       );
     case 'talk':
       return pick(a.conversation, 'Conversation', choices?.conversations ?? [], (conversation) => ({

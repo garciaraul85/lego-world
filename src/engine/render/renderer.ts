@@ -1,5 +1,14 @@
 import type { SkySample } from '../../core/legacy/modules';
 import { brickGeometry, coneGeometry, downTriangle, type Geometry, PLATE, plainBox, turnedY } from './brick-geometry';
+
+/** P23: particles to draw this frame: tiny bricks, plates, tiles or studs of one size, centre and colour each (6 floats) */
+export type ParticleBatch = {
+  shape: 'brick' | 'plate' | 'tile' | 'stud';
+  size: number;
+  data: Float32Array;
+  count: number;
+};
+
 import type { CameraFrame } from './camera';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from './math';
 import { FRAGMENT, SKY_FRAGMENT, SKY_VERTEX, VERTEX } from './shaders';
@@ -109,6 +118,8 @@ export class Renderer {
   floor = true;
   skySample: SkySample | null = null;
   snow = false;
+  /** P23: the particles of this frame (set before render) */
+  particles: ParticleBatch[] = [];
   seed = 73521;
   clock = 0;
   stats: FrameStats = { drawCalls: 0, instances: 0, chunksDrawn: 0, chunks: 0, ms: 0 };
@@ -209,6 +220,18 @@ export class Renderer {
   }
 
   /** the mesh a marker draws: a down-pointing triangle, a cone or a box */
+  /** P23: one particle's mesh, centred on its point */
+  private particleMesh(shape: ParticleBatch['shape'], size: number): Mesh {
+    const key = `particle:${shape}:${size}`;
+    let m = this.meshes.get(key);
+    if (!m) {
+      const h = shape === 'brick' ? size * 1.2 : shape === 'stud' ? size * 0.7 : size * 0.4;
+      m = this.upload(plainBox(size, h, size, shape === 'stud' ? size * 0.3 : Math.min(0.04, size * 0.15)));
+      this.meshes.set(key, m);
+    }
+    return m;
+  }
+
   private markerMesh(m: Marker): Mesh {
     if (m.tri !== undefined) {
       // the facing is kept to 64 steps so a handful of meshes are cached
@@ -478,6 +501,18 @@ export class Renderer {
     }
     gl.uniform1f(this.u.uPavement!, 0);
     gl.uniform1f(this.u.uInstances!, 0);
+
+    // P23: particles, instanced by shape and size
+    if (this.particles.length && this.inst) {
+      gl.uniform1f(this.u.uInstances!, 1);
+      for (const b of this.particles) {
+        if (!b.count) continue;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.overlayBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, b.data, gl.DYNAMIC_DRAW);
+        this.drawInstanced(this.particleMesh(b.shape, b.size), this.overlayBuf, b.count);
+      }
+      gl.uniform1f(this.u.uInstances!, 0);
+    }
 
     for (const m of markers) {
       if (m.onTop) continue;

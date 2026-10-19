@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DialogueLook } from '../dialogue/schema';
+import { EffectHooks } from '../effects/schema';
 import { Saving } from '../save/save';
 import { IsoDate, id } from './common';
 
@@ -26,6 +27,8 @@ export const Project = z.strictObject({
   dialogue: DialogueLook.partial().optional(),
   /** P22 part 2: playable heroes the player can switch between in Play (H); the hero is always one of them */
   party: z.array(id('character')).max(6).optional(),
+  /** P23: which effect plays for hits (by damage type) and for things that happen (level up, healing…) */
+  effects: EffectHooks.optional(),
   /** Every non-.editor file except project.json itself, with xxhash64 (16 hex) and byte size. */
   files: z.record(z.string(), FileEntry),
 });

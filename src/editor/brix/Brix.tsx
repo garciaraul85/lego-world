@@ -4,6 +4,7 @@ import { sessionKey } from '../../platform/ai/keys';
 import { type AiSettings, gameSpent, loadAi, recordSpend, saveAi } from '../../platform/ai/settings';
 import type { ActionCtx } from '../actions/registry';
 import { pickProvider } from '../ai/providers';
+import { Rich } from '../components/Rich';
 import { projectGenre } from '../genres/view';
 import { entryNear, helpEntries, helpEntry } from '../help/entries';
 import { entryPageId } from '../help/entry-pages';
@@ -291,11 +292,15 @@ export function Brix({ c, open, onOpen, onClose }: { c: ActionCtx; open: boolean
                 </p>
               ) : (
                 <div class="brix-answer" key={i} data-explained={m.explained ? '' : undefined}>
-                  <p>{m.answer.text}</p>
+                  <p>
+                    <Rich text={m.answer.text} go={(h) => h.startsWith('help:') && c.ui.help(h.slice(5))} />
+                  </p>
                   {m.answer.steps.length > 0 && (
                     <ol>
                       {m.answer.steps.map((s) => (
-                        <li>{s}</li>
+                        <li>
+                          <Rich text={s} />
+                        </li>
                       ))}
                     </ol>
                   )}
@@ -549,17 +554,27 @@ export function ShowMe({ c, steps, onDone }: { c: ActionCtx; steps: ShowStep[]; 
         {end === 'pointing' && entry ? (
           <>
             <p>
-              <b>{entry.name}</b> — {entry.purpose}
+              <b>{entry.name}</b> — <Rich text={entry.purpose} />
             </p>
-            {steps[steps.length - 1]!.say !== entry.purpose && <p>{steps[steps.length - 1]!.say}</p>}
-            {entry.steps?.[0] && <p class="muted small">Next: {entry.steps[0]}</p>}
+            {steps[steps.length - 1]!.say !== entry.purpose && (
+              <p>
+                <Rich text={steps[steps.length - 1]!.say} />
+              </p>
+            )}
+            {entry.steps?.[0] && (
+              <p class="muted small">
+                Next: <Rich text={entry.steps[0]} />
+              </p>
+            )}
           </>
         ) : end === 'missing' && entry ? (
           <p>
-            {entry.name} isn’t on screen right now. {entry.steps?.[0] ?? ''}
+            {entry.name} isn’t on screen right now. <Rich text={entry.steps?.[0]} />
           </p>
         ) : (
-          <p>{say}</p>
+          <p>
+            <Rich text={say} />
+          </p>
         )}
         <div class="row">
           <button type="button" class="btn small on" onClick={onDone}>

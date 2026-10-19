@@ -24,6 +24,7 @@ import dialogue from './content/14-dialogue.json';
 import sheet from './content/15-sheet.json';
 import bodies from './content/16-bodies.json';
 import faces from './content/17-faces.json';
+import effects from './content/18-effects.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -83,7 +84,7 @@ export const FACES_STEPS: TrackStep[] = steps([faces].map((c) => Chapter.parse(c
 export const CODING_STEPS: TrackStep[] = steps(CODING_CHAPTERS);
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
-export const COURSES = screenCourses(CHAPTERS);
+export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
 
 export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   editor: { title: 'Editor tour', steps: STEPS },

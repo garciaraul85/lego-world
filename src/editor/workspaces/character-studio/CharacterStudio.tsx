@@ -20,7 +20,7 @@ import { CharacterPreview, type PreviewInput } from './CharacterPreview';
 import { FaceTab, withMood } from './Face';
 import { FromPicture } from './FromPicture';
 import { AnimationsTab, BehaviourTab, MovesTab, OutfitsTab, SHEET_TABS, StatsTab, VoiceTab } from './Sheet';
-import { CharacterThumb, peakTime, type ThumbView, trackPose } from './thumbs';
+import { CharacterThumb, ClipThumb, peakTime, type ThumbView, trackPose } from './thumbs';
 
 /** Look fields grouped the way v68's character builder groups them. */
 const SECTIONS: [string, string[]][] = [
@@ -389,8 +389,8 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                       setPlaying(true);
                     }}
                   >
-                    {/* P32: the clip's strongest pose, so the list shows what each clip does */}
-                    <CharacterThumb profile={chr.profile} size={22} pose={{ clip: x, time: peakTime(x) }} />
+                    {/* P32: the clip's strongest pose, so the list shows what each clip does; P23: it moves on hover */}
+                    <ClipThumb profile={chr.profile} size={22} clip={x} play={x.id === clip?.id && playing} />
                     <span class="asset-name">{x.name ?? x.id}</span>
                     {emotes.includes(x.id as never) && (
                       <span class="chip">key {emotes.indexOf(x.id as never) + 1}</span>

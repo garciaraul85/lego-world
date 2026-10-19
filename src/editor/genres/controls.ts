@@ -19,6 +19,7 @@ export const TAB_TAGS: Record<string, ControlTags> = {
   Screens: S('screens'),
   Cinematics: S('cinematics'),
   Audio: S('audio'),
+  Effects: S('effects'),
 };
 
 /** Scene tools (toolbar). */
@@ -108,6 +109,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'window.6': S('screens'),
   'window.7': S('cinematics'),
   'window.8': S('audio'),
+  'window.9': S('effects'),
   'help.shortcuts': S('core'),
   'help.about': S('core'),
   'help.tutorial': S('core'),
@@ -120,6 +122,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.sheet': S('characters'),
   'help.bodies': S('characters'),
   'help.faces': S('characters'),
+  'help.effects': S('effects'),
   'help.brixCourse': S('core'),
   'help.here': S('core'),
   'help.build': S('core'),
@@ -224,6 +227,9 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   'event.onAchievement': S('logic'),
   // P22
   'dialogue.start': S('dialogue', 'logic'),
+  'effect.play': S('effects', 'logic'),
+  'effect.start': S('effects', 'logic'),
+  'effect.stop': S('effects', 'logic'),
   'event.onChoice': S('dialogue', 'logic'),
   'event.onConversationEnd': S('dialogue', 'logic'),
   'character.giveXp': S('characters', 'logic'),

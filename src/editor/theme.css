@@ -5657,3 +5657,92 @@ img.bw-portrait {
 .fp-part {
   color: var(--acc2);
 }
+
+/* P23 part 1: the Effects screen */
+.fx-swatch {
+  display: inline-flex;
+  flex: none;
+  width: 28px;
+  height: 14px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  margin-right: 6px;
+}
+.fx-swatch > span {
+  flex: 1;
+}
+.fx-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+}
+.fx-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.fx-color input[type="color"] {
+  width: 34px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+.seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.fx-adv {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line2);
+}
+.fx-studio .studio-plate {
+  min-height: 260px;
+}
+
+/* P23: clip pictures that move, the sheet's animation rows and voice preview */
+.clip-thumb {
+  display: inline-flex;
+  flex: none;
+  position: relative;
+}
+.clip-thumb.moving .char-thumb {
+  outline: 1px solid var(--acc);
+}
+.clip-thumb.none {
+  width: 26px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px dashed var(--line);
+}
+.clip-thumb-load {
+  display: none;
+}
+.anim-row .inp {
+  flex: 1;
+  min-width: 0;
+}
+.voice-preview {
+  margin: 6px 0;
+}
+.voice-line {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--panel2);
+  min-height: 1.4em;
+}
+.body-custom select {
+  width: 100%;
+}

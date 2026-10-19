@@ -14,11 +14,12 @@
     "screens",
     "cinematics",
     "audio",
+    "effects",
     "debug",
     "ai"
   ],
   "level": "simple",
-  "tabs": ["Scene", "Assets", "Characters", "Logic", "Cinematics", "Screens", "Audio"],
+  "tabs": ["Scene", "Assets", "Characters", "Logic", "Cinematics", "Screens", "Audio", "Effects"],
   "nodesFirst": [
     "event.onInteract",
     "event.onEnterZone",

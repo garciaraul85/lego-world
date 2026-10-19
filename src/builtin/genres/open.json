@@ -5,7 +5,7 @@
   "icon": "✱",
   "features": "all",
   "level": "advanced",
-  "tabs": ["Scene", "World graph", "Logic", "Characters", "Assets", "Screens", "Cinematics", "Audio"],
+  "tabs": ["Scene", "World graph", "Logic", "Characters", "Assets", "Screens", "Cinematics", "Audio", "Effects"],
   "nodesFirst": [],
   "defaults": {
     "camera": "explore",

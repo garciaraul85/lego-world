@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (68 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (71 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -664,3 +664,32 @@ The hero puts on one of the outfits on its sheet (Characters › Outfits): its l
 Plays as the next hero of the party (Project › Party), as pressing H does.
 
 - Code: `hero.switch();`
+
+## Effects
+
+### Play effect
+
+`effect.play` · action
+
+Plays an effect (sparks, fire, a level-up burst…) at the hero, or at an object, a neighbour or an effect placed on the map, by its name. A stream effect (fire, smoke) keeps going for its own length; for one that keeps going, place it on the map and use Start effect.
+
+- Settings: Effect (effect), Where (string, optional)
+- Code: `effects.play(effect, at);`
+
+### Start effect
+
+`effect.start` · action
+
+Starts an effect placed on the map (by its name), as if it had been switched on: a stream keeps going, a burst plays on its interval, while the hero is near.
+
+- Settings: Placed effect (string)
+- Code: `effects.start(name);`
+
+### Stop effect
+
+`effect.stop` · action
+
+Stops an effect placed on the map (by its name): no new particles; the ones flying finish their life.
+
+- Settings: Placed effect (string)
+- Code: `effects.stop(name);`

@@ -60,6 +60,13 @@ export const Action = z.discriminatedUnion('do', [
   z.strictObject({ do: z.literal('outfit'), name: z.string().max(40) }),
   /** P22 part 2: experience for the hero (levels come from its sheet's curve) */
   z.strictObject({ do: z.literal('xp'), amount: z.number().int().min(-10000).max(10000) }),
+  /**
+   * P23: play an effect: at the hero (at empty), at the object doing it ('self'), or at an object, neighbour
+   * or placed effect by name
+   */
+  z.strictObject({ do: z.literal('effect'), effect: id('effect'), at: z.string().max(60).optional() }),
+  /** P23: start or stop an effect placed on the map (by its name) */
+  z.strictObject({ do: z.literal('effectOn'), name: z.string().min(1).max(60), on: z.boolean() }),
   /** P22: start a conversation (a sign, an object's interaction, a screen button or logic) */
   z.strictObject({ do: z.literal('talk'), conversation: id('dialogue') }),
   /** a one-shot music stinger from audio/music.json (ducks the music while it plays) */

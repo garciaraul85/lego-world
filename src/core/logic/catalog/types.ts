@@ -49,7 +49,9 @@ export type ArgKind =
   | 'screen'
   | 'cinematic'
   /** P22: a conversation */
-  | 'dialogue';
+  | 'dialogue'
+  /** P23: an effect (built-in or the game's own) */
+  | 'effect';
 export type ArgDef = {
   name: string;
   kind: ArgKind;
@@ -96,6 +98,8 @@ export interface ExecCtx {
   talk?(conversation: string): void;
   /** P22 part 2: the hero's outfit, experience, or the next hero of the party */
   sheet?(op: 'outfit' | 'xp' | 'switch', value: string | number): void;
+  /** P23: play an effect (by id) at a place (empty: the hero), or start / stop an effect placed on the map */
+  effect?(op: 'play' | 'on' | 'off', a: string, at?: string): void;
 }
 
 export type Args = Record<string, unknown>;

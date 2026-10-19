@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import { BodyPlan } from '../character/body';
 import { Conversation } from '../dialogue/schema';
+import { Effect } from '../effects/schema';
 import { ProgressDoc } from '../save/progress';
 import { Art } from './art';
 import { Asset } from './asset';
@@ -61,6 +62,8 @@ const KINDS = [
   ['dialogue', /^dialogue\/dlg_[0-9a-z]{10}\.json$/, Conversation],
   // P22 part 3: skeletons of the project's own
   ['bodyplan', /^bodyplans\/bpl_[0-9a-z]{10}\.json$/, BodyPlan],
+  // P23: effects of the game's own (copies of built-in ones, or new)
+  ['effect', /^effects\/fx_[0-9a-z]{10}\.json$/, Effect],
 ] as const satisfies ReadonlyArray<readonly [string, RegExp, z.ZodType]>;
 
 export type FileKind = (typeof KINDS)[number][0] | 'editor';
@@ -117,4 +120,6 @@ export const paths = {
   dialogueDir: 'dialogue/',
   bodyplan: (id: string) => `bodyplans/${id}.json`,
   bodyplanDir: 'bodyplans/',
+  effect: (id: string) => `effects/${id}.json`,
+  effectDir: 'effects/',
 } as const;

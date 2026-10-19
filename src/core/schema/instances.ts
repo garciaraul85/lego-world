@@ -49,6 +49,29 @@ export const EmitterInstance = z.strictObject({
 });
 export type EmitterInstance = z.infer<typeof EmitterInstance>;
 
+/** P23: an effect placed in a map: a stream that keeps going (fire on a torch), or a burst every few seconds. */
+export const EffectInstance = z.strictObject({
+  id: id('instance'),
+  kind: z.literal('effect'),
+  name: z.string().min(1).max(60).optional(),
+  effect: id('effect'),
+  pos: Vec3,
+  /** how big it is (1: as made) */
+  scale: z.number().min(0.1).max(5),
+  /** its colours tinted toward this one (none: as made) */
+  tint: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
+  /** a burst effect: seconds between bursts [min, max] */
+  interval: z.tuple([z.number().min(0.1).max(120), z.number().min(0.1).max(120)]),
+  /** it plays only when the hero is this close (studs) */
+  maxDistance: z.number().min(4).max(200),
+  /** off: it waits for logic (Play effect) or an action to start it */
+  playing: z.boolean(),
+});
+export type EffectInstance = z.infer<typeof EffectInstance>;
+
 /** World UI placed in a map (P5.9): a sign, a label or a bar drawn over the 3D view at pos. */
 export const UiInstance = z.strictObject({
   id: id('instance'),
@@ -72,6 +95,8 @@ export type UiInstance = z.infer<typeof UiInstance>;
 export const Instances = z.strictObject({
   /** false when the legacy save had no `npcs` key (v68 then spawns default neighbors on load) */
   npcsSaved: z.boolean(),
-  items: z.array(z.discriminatedUnion('kind', [NpcInstance, AssetInstance, EmitterInstance, UiInstance])),
+  items: z.array(
+    z.discriminatedUnion('kind', [NpcInstance, AssetInstance, EmitterInstance, UiInstance, EffectInstance]),
+  ),
 });
 export type Instances = z.infer<typeof Instances>;

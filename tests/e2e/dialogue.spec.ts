@@ -263,7 +263,7 @@ test('Dialogue course: Do it for me adds Old Tom, writes his conversation, previ
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });
   const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
-  expect(total).toBe(8);
+  expect(total).toBe(9);
   const titles: string[] = [];
   for (let i = 0; i < total + 1; i++) {
     const pos = await card.locator('header .mono').innerText();
@@ -283,5 +283,20 @@ test('Dialogue course: Do it for me adds Old Tom, writes his conversation, previ
     await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
   }
   expect(titles).toContain('Talk to Old Tom');
+  // the gems Old Tom's map costs come from the chest beside him
+  expect(titles).toContain('Gems to buy a map');
+  const gives = await page.evaluate(() => {
+    const e = (window as unknown as { __editor: Ed }).__editor;
+    return e.store
+      .list('assets/')
+      .map(
+        (p) =>
+          e.store.get(p) as { name: string; interactions: { do: { do: string; var?: string; value?: number }[] }[] },
+      )
+      .find((a) => a.name === 'Treasure chest')
+      ?.interactions.flatMap((i) => i.do)
+      .find((d) => d.do === 'addVar');
+  });
+  expect(gives).toEqual({ do: 'addVar', var: 'gems', value: 5 });
   expect(errors).toEqual([]);
 });

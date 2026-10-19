@@ -6,6 +6,7 @@ import { AiError, type AiTurn } from '../../core/ai/provider';
 import { type KeyMode, lockKey, unlockKey } from '../../platform/ai/keys';
 import { type AiSettings, gameSpent, loadAi, maskKey, recordSpend, saveAi } from '../../platform/ai/settings';
 import type { ActionCtx } from '../actions/registry';
+import { Rich } from '../components/Rich';
 import { PlanView } from './PlanView';
 import { artifactAvailable, pickProvider } from './providers';
 
@@ -240,25 +241,25 @@ export function AiPanel({
                 case 'assistant':
                   return (
                     <p key={k} class={`aip-msg ai ${it.live ? 'live' : ''}`}>
-                      {it.text}
+                      <Rich text={it.text} />
                     </p>
                   );
                 case 'activity':
                   return (
                     <p key={k} class={`aip-act ${it.problem ? 'problem' : ''}`}>
-                      {it.text}
+                      <Rich text={it.text} />
                     </p>
                   );
                 case 'note':
                   return (
                     <p key={k} class="aip-act muted">
-                      {it.text}
+                      <Rich text={it.text} />
                     </p>
                   );
                 case 'error':
                   return (
                     <p key={k} class="aip-error" role="alert">
-                      {it.text}
+                      <Rich text={it.text} />
                     </p>
                   );
                 case 'question':

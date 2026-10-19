@@ -156,7 +156,7 @@ describe('the view', () => {
       ed,
       WORKSPACES.map(([w]) => w),
     );
-    expect(main).toEqual(['Scene', 'Assets', 'Characters', 'Logic', 'Cinematics', 'Screens', 'Audio']);
+    expect(main).toEqual(['Scene', 'Assets', 'Characters', 'Logic', 'Cinematics', 'Screens', 'Audio', 'Effects']);
     expect(more).toEqual(['World graph']);
     expect(shows(ed, 'action', 'play.v68')).toBe(false);
     expect(shows(ed, 'node', 'world.give')).toBe(true);

@@ -1,4 +1,5 @@
 import { DIALOGUE, DIALOGUE_EVENTS, SHEET, SHEET_EVENTS } from './dialogue';
+import { EFFECTS } from './effects';
 import { EVENTS } from './events';
 import { FLOW } from './flow';
 import { HEALTH, HEALTH_EVENTS } from './health';
@@ -35,6 +36,7 @@ export const CATALOG: readonly NodeDef[] = [
   // P22 part 2
   ...SHEET,
   ...SHEET_EVENTS,
+  ...EFFECTS,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

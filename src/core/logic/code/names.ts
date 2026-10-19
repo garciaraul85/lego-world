@@ -1,5 +1,6 @@
 import { BUILTIN_ASSETS } from '../../../builtin/assets';
 import { DEFAULT_EVENTS, DEFAULT_MUSIC } from '../../../builtin/audio/pack';
+import { BUILTIN_EFFECTS } from '../../../builtin/effects';
 import { BUILTIN_SCREENS } from '../../../builtin/screens';
 import type { LogicGraph, MapDoc } from '../../schema';
 import { nodeDef } from '../catalog';
@@ -13,7 +14,7 @@ import type { ArgKind } from '../catalog/types';
  */
 export type NameKind = Extract<
   ArgKind,
-  'zone' | 'spawn' | 'map' | 'asset' | 'sound' | 'music' | 'screen' | 'cinematic' | 'dialogue'
+  'zone' | 'spawn' | 'map' | 'asset' | 'sound' | 'music' | 'screen' | 'cinematic' | 'dialogue' | 'effect'
 >;
 export const NAME_KINDS: readonly NameKind[] = [
   'zone',
@@ -25,6 +26,7 @@ export const NAME_KINDS: readonly NameKind[] = [
   'screen',
   'cinematic',
   'dialogue',
+  'effect',
 ];
 
 export type NamedThing = { id: string; name: string; kind: NameKind /** where it is, what it is */; note: string };
@@ -52,6 +54,7 @@ export function namedThings(s: Source): Record<NameKind, NamedThing[]> {
     screen: [],
     cinematic: [],
     dialogue: [],
+    effect: [],
   };
   const order = read<{ mapOrder: string[] }>(s, 'world/gates.json')?.mapOrder ?? [];
   const mapPaths = s.list('maps/').filter((p) => p.endsWith('/map.json'));
@@ -123,6 +126,15 @@ export function namedThings(s: Source): Record<NameKind, NamedThing[]> {
         note: `conversation · ${d.sections?.length ?? 0} sections`,
       });
   }
+  // P23: the game's own effects, then the built-in ones it has no copy of by that name
+  const own = s
+    .list('effects/')
+    .map((p) => read<{ id: string; name: string; mode?: string }>(s, p))
+    .filter((e): e is { id: string; name: string; mode?: string } => !!e?.id);
+  for (const e of own)
+    out.effect.push({ id: e.id, name: e.name, kind: 'effect', note: `effect · ${e.mode ?? 'burst'}` });
+  for (const e of BUILTIN_EFFECTS)
+    out.effect.push({ id: e.id, name: e.name, kind: 'effect', note: `built-in effect · ${e.mode}` });
   return out;
 }
 

@@ -296,6 +296,8 @@ export class PlayRenderer {
       });
     }
     const creatures = this.creatures();
+    // P23: the particles of this frame
+    this.renderer.particles = s.effects.batches();
     return this.renderer.render(
       cam,
       [s.heroState.x, s.heroState.y, s.heroState.z],

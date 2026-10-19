@@ -400,6 +400,31 @@ export function stepsToView(view: string): ShowStep[] {
       return [ws('Cinematics')];
     case 'audio':
       return [ws('Audio')];
+    // P23 part 1: effects
+    case 'effects':
+      return [ws('Effects')];
+    case 'effects-own':
+      return [
+        ws('Effects'),
+        select('Open one of your own effects (under Mine).', (c) => {
+          const own = c.ed.store.list('effects/')[0];
+          if (own) c.ed.effectId.value = own.slice(8, -5);
+          return !!own;
+        }),
+      ];
+    case 'scene-effect':
+      return [
+        ws('Scene'),
+        select('Select an effect on the map.', (c) => {
+          const items =
+            c.ed.store.get<{ items: { id: string; kind: string }[] }>(`maps/${c.ed.mapId.value}/instances.json`)
+              ?.items ?? [];
+          const it = items.find((x) => x.kind === 'effect');
+          if (it) c.ed.selectedItem.value = it.id;
+          return !!it;
+        }),
+        right('inspect', 'Inspector'),
+      ];
     case 'audio-music':
       return [
         ws('Audio'),

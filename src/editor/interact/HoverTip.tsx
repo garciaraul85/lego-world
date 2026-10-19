@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ActionCtx } from '../actions/registry';
+import { Rich } from '../components/Rich';
 import { entryNear, helpEntries } from '../help/entries';
 import { keysFor } from '../platform';
 import { sceneHover } from './drag';
@@ -90,7 +91,9 @@ export function HoverTip({ c }: { c: ActionCtx }) {
           role="tooltip"
           style={`left:${tip.x}px;top:${tip.y}px;${tip.below ? '' : 'transform:translateY(-100%)'}`}
         >
-          <span>{keysFor(tip.text)}</span>
+          <span>
+            <Rich text={keysFor(tip.text)} />
+          </span>
           {tip.help && (
             <button
               type="button"

@@ -146,14 +146,14 @@ export function entryRects(entries: readonly HelpEntry[]): Record<string, [numbe
     ];
     if (!list.some((x) => x.join() === rect.join())) list.push(rect);
   };
-  for (const el of visibleControls()) {
-    const e = entryForElement(el, entries);
-    if (e) add(e.id, el);
-  }
-  // areas: the element an entry names with a selector of its own
+  // areas first (a screen guide numbers an area by its first box): the element an entry names with a selector of its own
   for (const e of entries)
     for (const m of e.match ?? [])
       if (m.sel && !m.name && !m.in && !m.role)
         for (const el of document.querySelectorAll(m.sel)) if (!el.closest('[aria-hidden="true"]')) add(e.id, el);
+  for (const el of visibleControls()) {
+    const e = entryForElement(el, entries);
+    if (e) add(e.id, el);
+  }
   return out;
 }

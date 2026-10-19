@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { Rich } from './Rich';
 
 /** Number input that commits on blur / Enter. */
 export function Num({
@@ -182,7 +183,7 @@ export function FieldHelp({
       </button>
       {open && (
         <span class="fhelp-text" role="note">
-          {text}
+          <Rich text={text} />
           {link && (
             <button
               type="button"

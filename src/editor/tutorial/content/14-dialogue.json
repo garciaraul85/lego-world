@@ -320,9 +320,152 @@
       ]
     },
     {
+      "id": "dialogue.gems",
+      "title": "Gems to buy a map",
+      "body": "Buying the map needs 5 gems, and nothing in this world gives any yet: gems is just a number the game keeps (a variable). You place a Treasure chest and make opening it add 5 to gems, so in Play the hero can open the chest, then buy the map from Old Tom.",
+      "task": "Place a Treasure chest and make opening it add 5 to “gems”.",
+      "target": "[data-tour=\"asset-interactions\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetAdds",
+        "args": {
+          "name": "Treasure chest",
+          "var": "gems",
+          "value": 5
+        }
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "tool",
+          "value": "asset"
+        },
+        {
+          "fn": "placeAsset",
+          "args": {
+            "name": "Treasure chest"
+          }
+        },
+        {
+          "fn": "chestGivesGems",
+          "args": {
+            "amount": 5
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In the Scene, press Place (B), pick “Treasure chest” in the dock's Assets tab and click the ground near Old Tom.",
+          "check": {
+            "kind": "state",
+            "test": "placedAsset",
+            "args": "Treasure chest"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            },
+            {
+              "ui": "tool",
+              "value": "asset"
+            },
+            {
+              "fn": "placeAsset",
+              "args": {
+                "name": "Treasure chest"
+              },
+              "say": "A Treasure chest on the map, near the start."
+            }
+          ]
+        },
+        {
+          "text": "Double-click the chest (or right-click it › Edit asset). The Assets workspace opens with the Treasure chest on the build plate.",
+          "check": {
+            "kind": "state",
+            "test": "studioAssetIs",
+            "args": "Treasure chest"
+          },
+          "do": [
+            {
+              "fn": "editAsset",
+              "args": {
+                "name": "Treasure chest"
+              },
+              "say": "The Treasure chest, open in the Assets workspace."
+            }
+          ]
+        },
+        {
+          "text": "In the Asset properties panel on the right, scroll down to “Interactions”. In its first box (“lid · when closed”), click “+ Action”. A new row appears at the bottom of that box.",
+          "check": {
+            "kind": "state",
+            "test": "assetActions",
+            "args": {
+              "name": "Treasure chest",
+              "atLeast": 4
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"asset-interactions\"] .interaction .actions-field > button.btn",
+              "say": "“+ Action” in the first box of Interactions."
+            }
+          ]
+        },
+        {
+          "text": "In the new row, open the drop-down “Action” and pick “Add to variable”. The row shows a Variable box (score) and an Amount (1).",
+          "check": {
+            "kind": "state",
+            "test": "assetDoes",
+            "args": {
+              "name": "Treasure chest",
+              "does": "addVar"
+            }
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type select[aria-label=\"Action\"]",
+              "value": "addVar",
+              "say": "Action: Add to variable."
+            }
+          ]
+        },
+        {
+          "text": "Click the Variable box, replace “score” with “gems” and press Enter. Then click Amount, type 5 and press Enter.",
+          "check": {
+            "kind": "state",
+            "test": "assetAdds",
+            "args": {
+              "name": "Treasure chest",
+              "var": "gems",
+              "value": 5
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type input[aria-label=\"Variable\"]",
+              "value": "gems",
+              "say": "Variable: gems."
+            },
+            {
+              "fill": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type input[aria-label=\"Amount\"]",
+              "value": "5",
+              "say": "Amount: 5."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "left"
+    },
+    {
       "id": "dialogue.play",
       "title": "Talk to Old Tom",
-      "body": "In Play, walk up to Old Tom and press T (or E). Enter, Space or a click moves on; 1–3 or the arrows and Enter pick an option. Esc, or walking away, ends it. Logic can react with On choice made and On conversation end.",
+      "body": "In Play, open the Treasure chest first (walk to it and press E): it adds 5 gems. Then walk up to Old Tom and press T (or E). Enter, Space or a click moves on; 1–3 or the arrows and Enter pick an option, and with 5 gems “Buy a map” works. Esc, or walking away, ends it. Logic can react with On choice made and On conversation end.",
       "task": "Press Play, walk to Old Tom and press T.",
       "target": "[data-tour=\"play\"]",
       "check": {

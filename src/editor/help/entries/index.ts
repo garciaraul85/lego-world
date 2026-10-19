@@ -45,6 +45,8 @@ export const COMMAND_TYPES = [
   'dialogue.delete',
   'bodyplan.put',
   'bodyplan.delete',
+  'effect.put',
+  'effect.delete',
   'instance.unpack',
   'instance.transform',
   'character.create',

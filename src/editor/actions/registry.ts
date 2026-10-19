@@ -406,12 +406,14 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.play('edit'),
   },
   // Window
-  ...['Scene', 'World graph', 'Logic', 'Characters', 'Assets', 'Screens', 'Cinematics', 'Audio'].map((name, i) => ({
-    id: `window.${i + 1}`,
-    label: name,
-    key: String(i + 1),
-    run: ({ ui }: ActionCtx) => ui.workspace(name),
-  })),
+  ...['Scene', 'World graph', 'Logic', 'Characters', 'Assets', 'Screens', 'Cinematics', 'Audio', 'Effects'].map(
+    (name, i) => ({
+      id: `window.${i + 1}`,
+      label: name,
+      key: String(i + 1),
+      run: ({ ui }: ActionCtx) => ui.workspace(name),
+    }),
+  ),
   // Help
   { id: 'help.shortcuts', label: 'Keyboard shortcuts', key: '?', run: ({ ui }) => ui.showShortcuts() },
   { id: 'help.about', label: 'About Brick Worlds Engine', run: ({ ui }) => ui.about() },
@@ -452,6 +454,11 @@ export const ACTIONS: EditorAction[] = [
     id: 'help.faces',
     label: 'Faces and pictures course (moods, from a picture)',
     run: ({ ui }) => ui.tutorial('faces'),
+  },
+  {
+    id: 'help.effects',
+    label: 'Effects course (fire, colours, game effects)',
+    run: ({ ui }) => ui.tutorial('course.effects'),
   },
   {
     id: 'help.dialogue',
@@ -592,6 +599,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.sheet',
     'help.bodies',
     'help.faces',
+    'help.effects',
     'help.brixCourse',
     'help.build',
     'help.shortcuts',

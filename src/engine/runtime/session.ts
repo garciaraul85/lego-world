@@ -2,6 +2,7 @@ import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { SND } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
+import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS } from '../../builtin/effects';
 import { genreById } from '../../builtin/genres';
 import { expandAsset } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
@@ -12,6 +13,7 @@ import { type ResolvedBody, resolveBody } from '../../core/character/resolve';
 import { levelOf, xpFor } from '../../core/character/sheet';
 import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
 import type { Enemy } from '../../core/combat/enemy';
+import type { Effect, EffectEvent } from '../../core/effects/schema';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import type { ExecCtx } from '../../core/logic/catalog';
@@ -30,6 +32,7 @@ import {
   type Asset,
   type Character,
   type Clip,
+  type EffectInstance,
   type EmitterInstance,
   type Gates,
   type Instances,
@@ -45,6 +48,7 @@ import {
 import type { AudioPort, Vec3 } from '../audio/port';
 import { RecordingAudio } from '../audio/port';
 import { Animator } from '../character/animator';
+import { ParticleSystem, type PlayOptions, type StreamHandle } from '../effects/particles';
 import {
   type Controller,
   type Debris,
@@ -104,6 +108,8 @@ export type MapWorld = {
   rev: number;
   /** sound emitters and world UI of this map (P5.5, P5.9) */
   emitters: EmitterInstance[];
+  /** P23: effects placed on the map */
+  effects: EffectInstance[];
   worldUi: UiInstance[];
   /** P26: what the map started with (instance id → state, neighbour ids), so a save keeps only what changed */
   start: { instances: Map<string, string>; npcs: number[] };
@@ -187,6 +193,10 @@ export class PlaySession {
   private spawnSerial = 0;
   /** P9a: health of the hero, objects and neighbours, for this play */
   readonly health = new HealthBook();
+  /** P23: particles (hit sparks, fire on torches, level-up bursts…) */
+  readonly effects = new ParticleSystem(2000);
+  /** placed effects: a running stream, or when the next burst is due; and which were started by logic */
+  private placed = new Map<string, { stream: StreamHandle | null; next: number; on: boolean }>();
   /** P9c: neighbours that fight the hero */
   readonly enemies: Enemies = new Enemies(this);
   /** P9b: attacks, guarding, moves and lock-on */
@@ -275,6 +285,8 @@ export class PlaySession {
       talk: (conversation: string) => void this.startConversation(conversation, null, 'other'),
       sheet: (op: 'outfit' | 'xp', value: string | number) =>
         op === 'outfit' ? this.setOutfit(String(value)) : this.giveXp(Number(value) || 0),
+      effect: (op: 'play' | 'on' | 'off', a: string, at: string | undefined, self: string | undefined) =>
+        this.effectOp(op, a, at === 'self' ? self : at),
     };
     this.actions = new ActionRunner(host);
     this.uiActions = new ActionRunner(host);
@@ -324,6 +336,9 @@ export class PlaySession {
     });
     const heroChr = project.hero ? (snapshot.get(paths.character(project.hero)) as Character | undefined) : undefined;
     this.setHero(heroChr);
+    // P23: the quality setting caps the particles
+    const quality = (snapshot.get(paths.settings) as { quality?: string } | undefined)?.quality;
+    this.effects.cap = quality === 'low' ? 600 : quality === 'medium' ? 1200 : 2000;
     const mapId = opts.mapId ?? project.entry.map;
     this.world = this.loadWorld(mapId);
     this.forgetBodies();
@@ -393,6 +408,7 @@ export class PlaySession {
       })),
       rev: 0,
       emitters: (inst?.items ?? []).filter((i): i is EmitterInstance => i.kind === 'emitter'),
+      effects: (inst?.items ?? []).filter((i): i is EffectInstance => i.kind === 'effect'),
       worldUi: (inst?.items ?? []).filter((i): i is UiInstance => i.kind === 'ui'),
       start: { instances: new Map(), npcs: npcs.map((n) => n.id) },
     };
@@ -508,6 +524,7 @@ export class PlaySession {
       this.say(`Level up! Level ${level}`, 3);
       this.audio.play(SND.victory);
       this.playAction('victory');
+      this.eventEffect('levelUp', [this.heroState.x, this.heroState.y + 0.5, this.heroState.z]);
       this.logic.fire({ type: 'event.onLevelUp', match: {}, payload: { level } });
     }
   }
@@ -651,6 +668,7 @@ export class PlaySession {
       { id: 'zones', fixed: (g) => g.stepZones() },
       { id: 'logic', fixed: (g) => g.logic.step(g.clock) },
       { id: 'emitters', fixed: (g) => g.stepEmitters() },
+      { id: 'effects', fixed: (g, dt) => g.stepEffects(dt) },
       { id: 'health', fixed: (g) => g.checkHealth() },
       // screens and audio keep running while a screen pauses the game (frame systems always run)
       { id: 'ui', frame: (g, dt) => g.stepUi(dt) },
@@ -771,8 +789,14 @@ export class PlaySession {
   }
 
   /** hp can also drop through logic or actions (addVar hp -1): 0 hearts is game over */
+  private lastHp: number | null = null;
   checkHealth() {
-    if (!this.over && Number(this.logic.vars.get('hp') ?? 1) <= 0) this.gameOver();
+    const hp = Number(this.logic.vars.get('hp') ?? 1);
+    // P23: hearts back (a potion, logic): the healing effect on the hero
+    if (this.lastHp !== null && hp > this.lastHp && !this.over)
+      this.eventEffect('heal', [this.heroState.x, this.heroState.y, this.heroState.z]);
+    this.lastHp = hp;
+    if (!this.over && hp <= 0) this.gameOver();
   }
 
   gameOver() {
@@ -911,6 +935,8 @@ export class PlaySession {
       return;
     }
     this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
+    // P23: the hit's effect, by its damage type
+    this.hitEffect(attack.type, [pos[0], pos[1] + 1, pos[2]]);
     if (wound.hp > 0) {
       this.audio.play(owner.def.smash.sound ?? SND.smash, { pos, volume: 0.6 });
       this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
@@ -955,6 +981,7 @@ export class PlaySession {
       return;
     }
     this.audio.play(SND.hurt, { pos });
+    this.hitEffect(attack.type, [pos[0], pos[1] + 2, pos[2]]);
     this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
     if (wound.hp > 0) {
       // P9b: knocked back (away from the hero) and stunned for a moment
@@ -981,6 +1008,7 @@ export class PlaySession {
     if (def.atZero.drop) this.drop(def.atZero.drop, { at: pos });
     if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
     this.say(`${name} is defeated.`, 2);
+    this.eventEffect('defeat', [pos[0], pos[1] + 1.5, pos[2]]);
     this.emit('smash', `${name} defeated`);
     this.logic.fire({
       type: 'event.onDefeated',
@@ -1007,6 +1035,7 @@ export class PlaySession {
     const n = (this.inventory.get(item) ?? 0) + count;
     this.inventory.set(item, n);
     this.emit('info', `Got ${count} × ${item} (${n} in total)`);
+    if (count > 0) this.eventEffect('coin', [this.heroState.x, this.heroState.y + 3, this.heroState.z]);
     this.say(`+${count} ${item}`, 1.5);
     this.audio.play(SND.pickup);
   }
@@ -1116,10 +1145,142 @@ export class PlaySession {
     return Object.keys(parts).length ? parts : null;
   }
 
+  // ---------- effects (P23 part 1) ----------
+
+  /** an effect of the game (its own file) or a built-in one */
+  effectDef(id: string): Effect | null {
+    return (
+      (this.snapshot.get(paths.effect(id)) as Effect | undefined) ?? BUILTIN_EFFECTS.find((e) => e.id === id) ?? null
+    );
+  }
+
+  /** Plays an effect at a point (world units); a stream keeps going until stopped. */
+  playEffect(id: string | null | undefined, at: Vec3, opts: PlayOptions = {}): StreamHandle | null {
+    if (!id || id === 'none') return null;
+    const def = this.effectDef(id);
+    if (!def) return null;
+    return this.effects.play(def, at, opts);
+  }
+
+  /** the hit effect for a damage type (the game's pick, else the built-in one) */
+  hitEffect(type: keyof typeof DEFAULT_HITS, at: Vec3) {
+    this.playEffect(this.project.effects?.hits?.[type] ?? DEFAULT_HITS[type], at, {
+      forward: [Math.sin(this.heroState.heading), 0, Math.cos(this.heroState.heading)],
+    });
+  }
+
+  /** the effect for something that happens (level up, healing, treasure, bricks breaking, a defeat) */
+  eventEffect(ev: EffectEvent, at: Vec3) {
+    this.playEffect(this.project.effects?.events?.[ev] ?? DEFAULT_EFFECT_EVENTS[ev], at);
+  }
+
+  /** where an effect plays: the hero (empty), an object or neighbour (by id or name), or a placed effect */
+  private effectAt(at: string | undefined): Vec3 | null {
+    const s = this.heroState;
+    if (!at || at === 'hero') return [s.x, s.y + 1.2, s.z];
+    const placed = this.world.effects.find((e) => (e.name ?? e.id) === at || e.id === at);
+    if (placed) return [...placed.pos] as Vec3;
+    const low = at.trim().toLowerCase();
+    const npc = this.world.npcs.find((n) => String(n.profile.name ?? '').toLowerCase() === low);
+    if (npc) return [npc.state.x, npc.state.y + 1.5, npc.state.z];
+    const inst = this.resolveEntity(at);
+    if (inst)
+      return [
+        inst.inst.pos[0] + inst.def.footprint[0] / 2,
+        inst.inst.pos[1] * 0.4 + 1,
+        inst.inst.pos[2] + inst.def.footprint[1] / 2,
+      ];
+    return null;
+  }
+
+  /** P23: actions and logic: play an effect somewhere, or start / stop one placed on the map */
+  effectOp(op: 'play' | 'on' | 'off', a: string, at?: string) {
+    if (op === 'play') {
+      const p = this.effectAt(at);
+      if (!p) this.emit('info', `Play effect: nothing called “${at}” here.`);
+      else if (!this.playEffect(a, p) && !this.effectDef(a)) this.emit('info', `Play effect: no effect ${a}.`);
+      return;
+    }
+    if (!this.setPlacedEffect(a, op === 'on')) this.emit('info', `No effect called “${a}” on this map.`);
+  }
+
+  /** P23: logic's Play effect / Stop effect on an effect placed on the map (by its name) */
+  setPlacedEffect(name: string, on: boolean): boolean {
+    const it = this.world.effects.find((e) => (e.name ?? e.id) === name);
+    if (!it) return false;
+    const st = this.placed.get(it.id) ?? { stream: null, next: 0, on: it.playing };
+    st.on = on;
+    if (!on) {
+      this.effects.stop(st.stream);
+      st.stream = null;
+    } else {
+      const def = this.effectDef(it.effect);
+      // a burst plays now, then on its interval
+      if (def?.mode === 'burst') {
+        this.effects.play(def, it.pos as Vec3, { scale: it.scale, ...(it.tint ? { tint: it.tint } : {}) });
+        st.next = this.clock + this.effectWait(it);
+      }
+    }
+    this.placed.set(it.id, st);
+    return true;
+  }
+
+  private effectWait(it: EffectInstance) {
+    const [lo, hi] = it.interval;
+    return Math.min(lo, hi) + Math.abs(hi - lo) * Math.random();
+  }
+
+  /** bricks particles bounce off (a set of filled cells, rebuilt when bricks break or come back) */
+  private cells: { world: MapWorld; rev: number; set: Set<number> } | null = null;
+  private solidAt = (x: number, y: number, z: number): boolean => {
+    const w = this.world;
+    if (y < 0) return true;
+    if (!this.cells || this.cells.world !== w || this.cells.rev !== w.rev) {
+      const set = new Set<number>();
+      for (const p of w.pieces) {
+        const [cw, cd] = p.turn % 2 ? [p.rows, p.cols] : [p.cols, p.rows];
+        const h = p.kind === 'brick' ? 3 : 1;
+        for (let i = 0; i < cw; i++)
+          for (let j = 0; j < cd; j++) for (let k = 0; k < h; k++) set.add(cellKey(p.x + i, p.y + k, p.z + j));
+      }
+      this.cells = { world: w, rev: w.rev, set };
+    }
+    return this.cells.set.has(cellKey(Math.floor(x), Math.floor(y / 0.4), Math.floor(z)));
+  };
+
+  /** particles move; effects placed on the map play while the hero is near */
+  stepEffects(dt: number) {
+    const s = this.heroState;
+    for (const it of this.world.effects) {
+      const st = this.placed.get(it.id) ?? { stream: null, next: this.clock + Math.random() * 0.5, on: it.playing };
+      this.placed.set(it.id, st);
+      const near = Math.hypot(it.pos[0] - s.x, it.pos[1] - s.y, it.pos[2] - s.z) <= it.maxDistance;
+      const def = this.effectDef(it.effect);
+      if (!def || !st.on || !near) {
+        if (st.stream) {
+          this.effects.stop(st.stream);
+          st.stream = null;
+        }
+        continue;
+      }
+      const opts = { scale: it.scale, ...(it.tint ? { tint: it.tint } : {}) };
+      if (def.mode === 'stream') {
+        if (!this.effects.running(st.stream)) st.stream = this.effects.start(def, it.pos as Vec3, opts);
+      } else if (this.clock >= st.next) {
+        this.effects.play(def, it.pos as Vec3, opts);
+        st.next = this.clock + this.effectWait(it);
+      }
+    }
+    this.effects.step(dt * this.slowmo, this.solidAt);
+  }
+
   /** NPC ids belong to one map: a new map (or a restart) looks bodies up again */
   private forgetBodies() {
     this.bodies?.clear();
     this.standing?.clear();
+    // P23: a new map starts with no particles; its own effects start again
+    this.effects?.clear();
+    this.placed?.clear();
   }
 
   /** P22 part 3: the body plan a character wears in Play (null: the minifig) */
@@ -1295,6 +1456,19 @@ export class PlaySession {
     if (!originals.length) return 0;
     const entry: BrokenEntry = { id: w.brokenSerial++, originals, progress: 0 };
     for (const p of originals) w.dirtyChunks.add(chunkKeyOf(p));
+    // P23: dust where the bricks break
+    {
+      let cx = 0;
+      let cy = 0;
+      let cz = 0;
+      for (const p of originals) {
+        cx += p.x;
+        cy += p.y * 0.4;
+        cz += p.z;
+      }
+      const n = originals.length;
+      this.eventEffect('smash', [cx / n + 0.5, cy / n + 0.6, cz / n + 0.5]);
+    }
     w.pieces = remaining;
     w.broken.push(entry);
     this.makeDebris(entry, impact);
@@ -1629,6 +1803,7 @@ export class PlaySession {
         else this.gameOp('finish');
       },
       talk: (conversation) => void this.startConversation(conversation, null, 'other'),
+      effect: (op, a, at) => this.effectOp(op, a, at),
       sheet: (op, value) =>
         op === 'outfit'
           ? this.setOutfit(String(value))
@@ -2630,4 +2805,9 @@ export class PlaySession {
       this.hero = { ...this.L.CharacterCatalog.validate({ ...this.hero, held: arg }), offHand: this.hero.offHand };
     this.emit('cheat', `Cheat: ${kind}${arg ? ` ${arg}` : ''}`);
   }
+}
+
+/** a filled brick cell (x, z in studs; y in plates) as one number */
+function cellKey(x: number, y: number, z: number) {
+  return ((x + 1024) * 2048 + (z + 1024)) * 1024 + (y + 64);
 }

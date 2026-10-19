@@ -1,5 +1,7 @@
+import { BUILTIN_EFFECTS } from '../../builtin/effects';
 import type { Command } from '../../core/commands';
 import type { Conversation } from '../../core/dialogue/schema';
+import type { Effect } from '../../core/effects/schema';
 import { wiresOf } from '../../core/logic/wiring';
 import { allSaves } from '../../core/save/save';
 import {
@@ -20,6 +22,9 @@ import { savingOf } from '../panels/SavingSection';
 import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
 import { MARK_FACING, MARK_RADIUS, markTarget } from './story';
+
+const effectNamed = (ed: EditorState, id: string | null | undefined): Effect | undefined =>
+  id ? (ed.store.get<Effect>(paths.effect(id)) ?? BUILTIN_EFFECTS.find((e) => e.id === id)) : undefined;
 
 /** Named tests for `state` checks (P7.3). They read the editor; none of them changes anything. */
 export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boolean> = {
@@ -182,6 +187,14 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     const { name, atLeast } = a as { name: string; atLeast: number };
     return projectAsset(ed, name)?.interactions.some((i) => i.do.length >= atLeast) ?? false;
   },
+  assetAdds: (ed, a) => {
+    const { name, var: v, value } = a as { name: string; var: string; value: number };
+    return (
+      projectAsset(ed, name)?.interactions.some((i) =>
+        i.do.some((x) => x.do === 'addVar' && x.var === v && x.value === value),
+      ) ?? false
+    );
+  },
   assetDoes: (ed, a) => {
     const { name, does } = a as { name: string; does: string };
     return projectAsset(ed, name)?.interactions.some((i) => i.do.some((x) => x.do === does)) ?? false;
@@ -289,6 +302,30 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     return items.some(
       (i) => i.kind === 'asset' && (ed.store.get<Asset>(paths.asset(i.asset))?.name ?? '') === String(a),
     );
+  },
+  // P23 part 1: the effects course
+  effectOpen: (ed, a) => effectNamed(ed, ed.effectId.value)?.name === a,
+  ownEffectNamed: (ed, a) => {
+    const id = ed.effectId.value;
+    return !!id && ed.store.has(paths.effect(id)) && effectNamed(ed, id)?.name === a;
+  },
+  effectColor: (ed, a) => {
+    const { i, value } = a as { i: number; value: string };
+    const e = effectNamed(ed, ed.effectId.value);
+    return !!e && ed.store.has(paths.effect(e.id)) && e.colors[i]?.toLowerCase() === value.toLowerCase();
+  },
+  effectShape: (ed, a) => {
+    const e = effectNamed(ed, ed.effectId.value);
+    return !!e && ed.store.has(paths.effect(e.id)) && e.shape === a;
+  },
+  placedEffect: (ed, a) => {
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return items.some((i) => i.kind === 'effect' && effectNamed(ed, i.effect)?.name === String(a));
+  },
+  effectHook: (ed, a) => {
+    const { event, name } = a as { event: string; name: string };
+    const id = (ed.store.manifest.effects?.events as Record<string, string> | undefined)?.[event];
+    return !!id && effectNamed(ed, id)?.name === name;
   },
   titleShown: (ed) => {
     const s = ed.session.value;

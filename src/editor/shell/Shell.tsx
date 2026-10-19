@@ -121,6 +121,7 @@ export const WORKSPACES = [
   ['Screens', null],
   ['Cinematics', null],
   ['Audio', null],
+  ['Effects', null],
 ] as const;
 
 export function WorkspaceTabs({ c, current, onPick }: { c: ActionCtx; current: string; onPick: (w: string) => void }) {
@@ -192,7 +193,7 @@ export function WorkspaceTabs({ c, current, onPick }: { c: ActionCtx; current: s
   );
 }
 
-const STUDIO_WORKSPACES = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics']);
+const STUDIO_WORKSPACES = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics', 'Effects']);
 const STUDIO_HINT: Record<string, string> = {
   Assets:
     'Asset studio: build the asset from bricks (Bricks tab) and other assets (drag them onto the plate). Every placed copy updates.',

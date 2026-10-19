@@ -1,3 +1,4 @@
+import { BUILTIN_EFFECTS } from '../../../builtin/effects';
 import { GENRES } from '../../../builtin/genres';
 import { expandAsset } from '../../assets/expand';
 import { maxBrickId } from '../../assets/instances';
@@ -5,6 +6,7 @@ import { generatedInstanceId, instancify } from '../../assets/instancify';
 import { encodeChunks } from '../../bricks/codec';
 import { footprint, inspectBricks } from '../../bricks/inspect';
 import { DialogueLook } from '../../dialogue/schema';
+import { EffectHooks } from '../../effects/schema';
 import { hash64 } from '../../hash';
 import { type Id, newId } from '../../ids';
 import type { ProjectStore } from '../../project/store';
@@ -241,6 +243,8 @@ export type UpdateProject = {
   dialogue?: Partial<DialogueLook> | null;
   /** P22 part 2: playable heroes to switch between (null: just the hero) */
   party?: string[] | null;
+  /** P23: which effects play for hits and things that happen (null: the built-in ones) */
+  effects?: EffectHooks | null;
 };
 
 export const updateProject: CommandHandler<UpdateProject> = {
@@ -251,7 +255,9 @@ export const updateProject: CommandHandler<UpdateProject> = {
         ? 'Saving settings'
         : p.dialogue !== undefined && Object.keys(p).length === 1
           ? 'Dialogue style'
-          : 'Edit project settings',
+          : p.effects !== undefined && Object.keys(p).length === 1
+            ? 'Game effects'
+            : 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.saving && !SavingSchema.safeParse(p.saving).success)
@@ -265,6 +271,15 @@ export const updateProject: CommandHandler<UpdateProject> = {
       if (!r.success)
         return `Dialogue style: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
       if (p.dialogue.blip && !/^snd_[0-9a-z]{10}$/.test(p.dialogue.blip)) return 'The voice blip is a sound event.';
+    }
+    if (p.effects) {
+      const r = EffectHooks.safeParse(p.effects);
+      if (!r.success) return `Effects: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
+      const ids = [...Object.values(p.effects.hits ?? {}), ...Object.values(p.effects.events ?? {})];
+      const missing = ids.find(
+        (id) => id && id !== 'none' && !store.has(paths.effect(id)) && !BUILTIN_EFFECTS.some((e) => e.id === id),
+      );
+      if (missing) return `There is no effect ${missing}.`;
     }
     if (p.hero && !store.has(paths.character(p.hero))) return 'That character does not exist.';
     if (p.entryMap !== undefined && !store.has(paths.map(p.entryMap))) return 'Start map not found.';
@@ -308,6 +323,13 @@ export const updateProject: CommandHandler<UpdateProject> = {
       const next = { ...store.manifest } as Project & { party?: string[] };
       if (p.party?.length) next.party = [...new Set(p.party)] as Project['party'] & string[];
       else delete next.party;
+      store.put(paths.project, next);
+    }
+    if (p.effects !== undefined) {
+      const next = { ...store.manifest } as Project & { effects?: EffectHooks };
+      if (p.effects && (Object.keys(p.effects.hits ?? {}).length || Object.keys(p.effects.events ?? {}).length))
+        next.effects = EffectHooks.parse(p.effects);
+      else delete next.effects;
       store.put(paths.project, next);
     }
     if (p.dialogue !== undefined) {

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { BUILTIN_CLIPS } from '../../../builtin/clips';
 import {
   ANIM_ACTIONS,
@@ -14,11 +15,13 @@ import {
   type Stats,
   xpFor,
 } from '../../../core/character/sheet';
+import { lookOf } from '../../../core/dialogue/checks';
 import type { Character, Clip } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
 import { FieldHelp } from '../../components/fields';
 import { viewGenre } from '../../genres/view';
 import { soundOptions } from '../../panels/AudioFields';
+import { ClipThumb } from './thumbs';
 
 /**
  * P22 part 2: the character sheet's tabs — Outfits, Stats, Moves, Animations, Voice and Behaviour (Look
@@ -50,7 +53,7 @@ export const SHEET_TABS: [SheetTab, string][] = [
 
 export const SHEET_HELP: Record<Exclude<SheetTab, 'look' | 'dialogue'>, string> = {
   face: 'The resting face and a face for each mood. A dialogue line’s mood shows that face on the speaker in Play and in its portrait.',
-  body: 'What the character is made of: the minifig, or a body family (four legs, bird, fish, serpent, spider, insect, slime, dragon, robot walker) shaped with sliders, or a skeleton of your own. Bodies move by themselves: legs step, wings flap, spines snake. A brick build from the Asset studio can be worn on the skeleton.',
+  body: 'What the character is made of: the minifig, or a body family (four legs, bird, fish, serpent, spider, insect, slime, dragon, robot walker) shaped with sliders, or a skeleton of your own (Custom…: start from any family’s skeleton, then add, move and remove bones). Bodies move by themselves: legs step, wings flap, spines snake. A brick build from the Asset studio can be worn on the skeleton.',
   outfits:
     'Outfits are sets of clothes the character can wear: each keeps the look parts that differ (hat, shirt, colours…) and can change its stats. Logic’s Change outfit (or the action) swaps them in Play.',
   stats:
@@ -358,37 +361,76 @@ export function AnimationsTab({ c, chr, save }: Props) {
           <FieldHelp label="Animations" text={SHEET_HELP.animations} />
         </span>
       </div>
-      {ANIM_ACTIONS.map((a) => (
-        <label class="field">
-          <span>
-            {ACTION_LABEL[a]}
-            {!ANIM_LIVE.includes(a) && <span class="chip small">P23</span>}
-          </span>
-          <select
-            class="inp"
-            aria-label={`${ACTION_LABEL[a]} clip`}
-            value={anims[a] ?? ''}
-            onChange={(e) => {
-              const v = (e.target as HTMLSelectElement).value;
-              const next = { ...anims };
-              if (v) next[a] = v as Clip['id'];
-              else delete next[a];
-              save({ ...chr, animations: next }, `${a} clip`);
-            }}
-          >
-            <option value="">Built-in motion</option>
-            {clips.map((x) => (
-              <option value={x.id}>
-                {x.name ?? x.id}
-                {own.includes(x) ? ' (mine)' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-      ))}
+      {ANIM_ACTIONS.map((a) => {
+        const picked = anims[a] ? clips.find((x) => x.id === anims[a]) : undefined;
+        const showing = !!picked && c.ed.studioClip.value === picked.id && c.ed.clipPlaying.value;
+        return (
+          <div class="field anim-row" data-tour={`anim-${a}`}>
+            <span>
+              {ACTION_LABEL[a]}
+              {!ANIM_LIVE.includes(a) && <span class="chip small">P23</span>}
+            </span>
+            <span class="row" style={{ flexWrap: 'nowrap', gap: '6px' }}>
+              {picked ? (
+                <ClipThumb profile={chr.profile} clip={picked} size={26} play={showing} />
+              ) : (
+                <span class="clip-thumb none" aria-hidden="true" />
+              )}
+              <select
+                class="inp"
+                aria-label={`${ACTION_LABEL[a]} clip`}
+                value={anims[a] ?? ''}
+                onChange={(e) => {
+                  const v = (e.target as HTMLSelectElement).value;
+                  const next = { ...anims };
+                  if (v) next[a] = v as Clip['id'];
+                  else delete next[a];
+                  save({ ...chr, animations: next }, `${a} clip`);
+                  if (v) playOnFigure(c, v);
+                }}
+              >
+                <option value="">Built-in motion</option>
+                {clips.map((x) => (
+                  <option value={x.id}>
+                    {x.name ?? x.id}
+                    {own.includes(x) ? ' (mine)' : ''}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                class={`btn icon ${showing ? 'on' : ''}`}
+                aria-label={`Preview the ${ACTION_LABEL[a].toLowerCase()} clip`}
+                data-tip={
+                  picked
+                    ? `Play ${picked.name ?? 'the clip'} on the figure (again to stop)`
+                    : 'The built-in motion plays in the game; pick a clip to preview it here'
+                }
+                disabled={!picked}
+                onClick={() => {
+                  if (showing) c.ed.clipPlaying.value = false;
+                  else playOnFigure(c, picked!.id);
+                }}
+              >
+                {showing ? '■' : '▶'}
+              </button>
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
+
+/** P23: play a clip on the big figure in the middle, from its start (the timeline below shows it too) */
+export function playOnFigure(c: Props['c'], clip: string) {
+  c.ed.studioClip.value = clip;
+  c.ed.clipTime.value = 0;
+  c.ed.clipPlaying.value = true;
+}
+
+/** a line the Voice tab's preview says */
+const SAMPLE_LINE = 'Hello there! Lovely day for building, isn’t it?';
 
 export function VoiceTab({ c, chr, save }: Props) {
   const v = chr.voice ?? { pitch: 1 };
@@ -446,9 +488,51 @@ export function VoiceTab({ c, chr, save }: Props) {
           onChange={(e) => set({ pitch: Number((e.target as HTMLInputElement).value) }, 'Talk pitch')}
         />
       </label>
+      <VoicePreview c={c} chr={chr} />
       {pick('blip', 'Voice blip', 'The game’s')}
       {pick('footsteps', 'Footsteps', 'Built-in steps')}
       {pick('grunt', 'Hurt sound', 'Built-in')}
+    </div>
+  );
+}
+
+/**
+ * P23: hear the voice. The sample line appears letter by letter as it does in a conversation, with a blip
+ * every couple of letters at the voice's pitch (its own blip, or the game's dialogue blip).
+ */
+function VoicePreview({ c, chr }: Pick<Props, 'c' | 'chr'>) {
+  const [shown, setShown] = useState(-1);
+  const timer = useRef(0);
+  useEffect(() => () => clearInterval(timer.current), []);
+  const look = lookOf(c.ed.store.manifest, null);
+  const blip = chr.voice?.blip ?? look.blip;
+  const pitch = chr.voice?.pitch ?? 1;
+  const speed = Math.max(20, look.textSpeed || 40);
+  const play = () => {
+    clearInterval(timer.current);
+    let n = 0;
+    setShown(0);
+    timer.current = window.setInterval(() => {
+      n++;
+      setShown(n);
+      if (blip && n % 2 === 0 && /\S/.test(SAMPLE_LINE[n - 1] ?? '')) c.ed.audio.previewEvent(blip, pitch);
+      if (n >= SAMPLE_LINE.length) {
+        clearInterval(timer.current);
+        window.setTimeout(() => setShown(-1), 1500);
+      }
+    }, 1000 / speed);
+  };
+  return (
+    <div class="voice-preview">
+      <button type="button" class="btn" data-tour="voice-hear" onClick={play}>
+        ▶ Hear it talk
+      </button>
+      {shown >= 0 && (
+        <p class="voice-line" role="status" aria-label="Voice preview">
+          <b>{chr.name || 'Them'}:</b> {SAMPLE_LINE.slice(0, shown)}
+        </p>
+      )}
+      {!blip && <p class="muted small">No blip: this game's conversations are silent (Project › Dialogue).</p>}
     </div>
   );
 }

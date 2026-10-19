@@ -1,3 +1,4 @@
+import { useState } from 'preact/hooks';
 import {
   BODY_FAMILIES,
   BONE_ROLES,
@@ -33,6 +34,31 @@ export const BODY_HELP = {
     'The bones inside the body. Each bone hangs from another and has a role that says how it moves (a leg steps, a wing flaps, a tail sways). Edit the skeleton to add, remove, move and rename bones, set how far each one swings, and give it bricks.',
 } as const;
 
+/**
+ * A body plan of the game's own, made from a family's skeleton (sliders as they are), worn by the character:
+ * one undo step. The skeleton editor then adds, moves and removes bones.
+ */
+export function makeOwnPlan(
+  ed: Sub['c']['ed'],
+  chr: Character,
+  fam: Exclude<BodyFamily, 'minifig'>,
+  label: string,
+): boolean {
+  const body: Body = chr.body ?? {};
+  const made = makeFamily(fam, body.family === fam ? body.params : undefined);
+  if (!made) return false;
+  const plan: BodyPlan = { id: newId('bodyplan'), name: `${chr.name || 'My'} body`.slice(0, 40), family: fam, ...made };
+  const { family: _f, ...keep } = body;
+  const { body: _b, ...rest } = chr;
+  return ed.exec(
+    [
+      { type: 'bodyplan.put', payload: { plan } },
+      { type: 'character.update', payload: { character: { ...rest, body: { ...keep, plan: plan.id } } } },
+    ],
+    { label },
+  ).ok;
+}
+
 const SLOT_LABEL = { main: 'Main', accent: 'Accent', belly: 'Belly', eye: 'Eyes' } as const;
 
 /** the body of the character as drawn now (or null: the minifig) */
@@ -65,6 +91,10 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
   const own = body.plan ? (ed.store.get(`bodyplans/${body.plan}.json`) as BodyPlan | undefined) : undefined;
   const family: BodyFamily = own ? 'minifig' : (body.family ?? 'minifig');
   const isMinifig = !own && family === 'minifig';
+  const [custom, setCustom] = useState(false);
+  const [customFrom, setCustomFrom] = useState<Exclude<BodyFamily, 'minifig'>>(
+    family === 'minifig' ? 'fourLegs' : family,
+  );
   const plans = ed.store
     .list('bodyplans/')
     .map((p) => ed.store.get(p) as BodyPlan)
@@ -127,7 +157,51 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
               <span aria-hidden="true">🦴</span> {p.name}
             </button>
           ))}
+          <button
+            type="button"
+            class={`chip body-card ${custom ? 'on' : ''}`}
+            data-tour="body-custom"
+            title="A body of your own: start from a skeleton, then add, move and remove bones and give them bricks"
+            aria-expanded={custom}
+            disabled={!inProject}
+            onClick={() => setCustom(!custom)}
+          >
+            <span aria-hidden="true">✚</span> Custom…
+          </button>
         </div>
+        {custom && (
+          <div class="body-custom row" role="group" aria-label="Custom body" style={{ gap: '6px', margin: '6px 0' }}>
+            <label class="field" style={{ flex: 1 }}>
+              <span>Start from</span>
+              <select
+                class="inp"
+                aria-label="Start the custom body from"
+                data-tour="body-custom-from"
+                value={customFrom}
+                onChange={(e) => setCustomFrom((e.target as HTMLSelectElement).value as Exclude<BodyFamily, 'minifig'>)}
+              >
+                {BODY_FAMILIES.filter((f) => f !== 'minifig').map((f) => (
+                  <option value={f}>
+                    {FAMILY_INFO[f].icon} {FAMILY_INFO[f].label} skeleton
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              class="btn on"
+              data-tour="body-custom-make"
+              onClick={() => {
+                if (makeOwnPlan(ed, chr, customFrom, 'Custom body')) {
+                  ed.bodyBones.value = true;
+                  setCustom(false);
+                }
+              }}
+            >
+              Make my body
+            </button>
+          </div>
+        )}
         {!inProject && (
           <p class="muted small">A preset keeps the minifig: change anything (like its name) to make it yours first.</p>
         )}
@@ -351,25 +425,15 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
           class="btn"
           data-tour="skeleton-edit"
           onClick={() => {
-            const fam = body.family ?? 'fourLegs';
-            const made = makeFamily(fam, body.params);
-            if (!made) return;
-            const plan: BodyPlan = {
-              id: newId('bodyplan'),
-              name: `${chr.name || 'My'} body`.slice(0, 40),
-              family: fam,
-              ...made,
-            };
-            const { family: _f, ...keep } = body;
-            const { body: _b, ...rest } = chr;
-            const r = ed.exec(
-              [
-                { type: 'bodyplan.put', payload: { plan } },
-                { type: 'character.update', payload: { character: { ...rest, body: { ...keep, plan: plan.id } } } },
-              ],
-              { label: 'Edit the skeleton' },
-            );
-            if (r.ok) ed.bodyBones.value = true;
+            if (
+              makeOwnPlan(
+                ed,
+                chr,
+                body.family && body.family !== 'minifig' ? body.family : 'fourLegs',
+                'Edit the skeleton',
+              )
+            )
+              ed.bodyBones.value = true;
           }}
         >
           ✏️ Edit the skeleton

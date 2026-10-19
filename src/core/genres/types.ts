@@ -38,6 +38,8 @@ export const FEATURES = [
   'ai',
   /** P22: conversations, choices, barks, dialogue styles */
   'dialogue',
+  /** P23: particle effects (sparks, fire, bursts) and how they hook to hits and events */
+  'effects',
 ] as const;
 export type Feature = (typeof FEATURES)[number];
 

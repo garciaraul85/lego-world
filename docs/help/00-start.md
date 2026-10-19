@@ -24,7 +24,7 @@ Every screen has a **screen guide** (left, under Screen guides): a picture of th
 
 ## The editor at a glance
 
-Across the top are the menus, the workspace tabs and the toolbar. The workspaces are Scene, World graph, Logic, Characters, Assets, Screens, Cinematics and Audio. The number keys 1 to 8 (or the Window menu) switch between them.
+Across the top are the menus, the workspace tabs and the toolbar. The workspaces are Scene, World graph, Logic, Characters, Assets, Screens, Cinematics, Audio and Effects. The number keys 1 to 9 (or the Window menu) switch between them.
 
 The Scene workspace has the Hierarchy on the left, the 3D map in the middle, the dock below it (Assets, Console, Timeline, Profiler, Problems, Debug, Mixer) and the Inspector on the right. The Inspector has three tabs: Inspector (what is selected), Map (terrain, sky, weather, music) and Project (title, start map, hero, first screen).
 

@@ -21,8 +21,10 @@ type Ed = {
   selectedItem: Sig;
   logicGraph: Sig;
   exec: (c: unknown, o?: unknown) => { ok: boolean };
-  store: { list(p: string): string[]; get(p: string): unknown };
+  store: { list(p: string): string[]; get(p: string): unknown; has(p: string): boolean };
   select: (ids: number[]) => void;
+  effectId: Sig;
+  right: Sig;
 };
 
 export const ed = <T>(page: Page, f: (e: Ed) => T) => page.evaluate(`(${f.toString()})(window.__editor)`) as Promise<T>;
@@ -597,6 +599,77 @@ export const HELP_STATES: HelpState[] = [
       await ws(p, 'Cinematics');
       const ex = p.getByRole('button', { name: 'New reward scene (example)' });
       if (await ex.isVisible()) await ex.click();
+    },
+  },
+  // P23 part 1: effects
+  { id: 'effects', screen: 'effects', setup: (p) => ws(p, 'Effects') },
+  {
+    id: 'effects-own',
+    screen: 'effects',
+    setup: async (p) => {
+      await ws(p, 'Effects');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const id = 'fx_helpfire01';
+        if (!e.store.has(`effects/${id}.json`))
+          e.exec({
+            type: 'effect.put',
+            payload: {
+              effect: {
+                id,
+                name: 'Blue fire',
+                shape: 'stud',
+                mode: 'stream',
+                count: 1,
+                rate: 40,
+                duration: 0,
+                spawn: 'sphere',
+                radius: 0.35,
+                direction: 'up',
+                spread: 18,
+                speed: [1.2, 2.6],
+                life: [0.45, 0.9],
+                size: [0.45, 0.08],
+                colors: ['#fff2a8', '#3a7bff', '#1f3fbf', '#5a1d0c'],
+                gravity: -1.5,
+                drag: 0,
+                bounce: 0,
+              },
+            },
+          });
+        e.effectId.value = id;
+      });
+    },
+  },
+  {
+    id: 'scene-effect',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const map = e.mapId.value as string;
+        const id = 'ins_helpfire01';
+        e.exec({
+          type: 'item.add',
+          payload: {
+            map,
+            item: {
+              id,
+              kind: 'effect',
+              name: 'Campfire',
+              effect: 'fx_fire000001',
+              pos: [3, 1, 3],
+              scale: 1,
+              interval: [2, 4],
+              maxDistance: 40,
+              playing: true,
+            },
+          },
+        });
+        e.selectedItem.value = id;
+        e.right.value = 'inspect';
+      });
     },
   },
   { id: 'audio', screen: 'audio', setup: (p) => ws(p, 'Audio') },

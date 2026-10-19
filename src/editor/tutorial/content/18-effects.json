@@ -1,0 +1,308 @@
+{
+  "id": "effects",
+  "title": "Effects course",
+  "steps": [
+    {
+      "id": "effects.pick",
+      "title": "Fire, built in",
+      "body": "The library on the left has your effects under Mine and the editor's own under Built-in. Clicking one plays it in the middle, over and over, on a floor of studs. Fire is a stream: it keeps making small plates that rise, shrink and go from yellow to dark red.",
+      "task": "In the library, under Built-in, click “Fire”.",
+      "target": "[aria-label=\"Effects\"] [data-name=\"Fire\"]",
+      "check": {
+        "kind": "state",
+        "test": "effectOpen",
+        "args": "Fire"
+      },
+      "doItForMe": [
+        {
+          "click": "[aria-label=\"Effects\"] [data-name=\"Fire\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the library on the left, scroll to Built-in and click “Fire”. It starts playing in the preview.",
+          "check": {
+            "kind": "state",
+            "test": "effectOpen",
+            "args": "Fire"
+          },
+          "do": [
+            {
+              "click": "[aria-label=\"Effects\"] [data-name=\"Fire\"]",
+              "say": "Fire, in the Built-in list"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "right"
+    },
+    {
+      "id": "effects.copy",
+      "title": "Your own copy",
+      "body": "A built-in effect cannot be changed, so every game can count on it. To change one, make a copy: the copy belongs to this game, shows under Mine, and has every setting on the right.",
+      "task": "On the right, click “Make a copy to change it”.",
+      "target": "[data-tour=\"fx-copy\"]",
+      "check": {
+        "kind": "state",
+        "test": "ownEffectNamed",
+        "args": "Fire copy"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"fx-copy\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In Effect settings on the right, click “Make a copy to change it”. “Fire copy” appears under Mine and is selected.",
+          "check": {
+            "kind": "state",
+            "test": "ownEffectNamed",
+            "args": "Fire copy"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"fx-copy\"]",
+              "say": "Make a copy to change it"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "left"
+    },
+    {
+      "id": "effects.name",
+      "title": "Name it",
+      "body": "Give your effect a name that says what it is: logic, actions and the Scene show effects by name.",
+      "task": "Rename it “Blue fire”.",
+      "target": "[aria-label=\"Effect name\"]",
+      "check": {
+        "kind": "state",
+        "test": "ownEffectNamed",
+        "args": "Blue fire"
+      },
+      "doItForMe": [
+        {
+          "fill": "[aria-label=\"Effect name\"]",
+          "value": "Blue fire"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click the Name box at the top of the settings, replace “Fire copy” with “Blue fire” and press Enter.",
+          "check": {
+            "kind": "state",
+            "test": "ownEffectNamed",
+            "args": "Blue fire"
+          },
+          "do": [
+            {
+              "fill": "[aria-label=\"Effect name\"]",
+              "value": "Blue fire",
+              "say": "The effect's name"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "left"
+    },
+    {
+      "id": "effects.shape",
+      "title": "Made of studs",
+      "body": "Each particle is a tiny brick, plate, tile or stud. Plates look like flames; round studs look like magic.",
+      "task": "Under “Made of”, click “Studs”.",
+      "target": "[data-tour=\"fx-shape-stud\"]",
+      "check": {
+        "kind": "state",
+        "test": "effectShape",
+        "args": "stud"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"fx-shape-stud\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under “Made of”, click “Studs”. The preview now throws little round studs.",
+          "check": {
+            "kind": "state",
+            "test": "effectShape",
+            "args": "stud"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"fx-shape-stud\"]",
+              "say": "Studs"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "left"
+    },
+    {
+      "id": "effects.colour",
+      "title": "Blue flames",
+      "body": "The colours go from birth to death: a particle starts with Colour 1 and fades through the next ones to the last. Fire goes yellow, orange, red, dark red; change the middle two to make it blue.",
+      "task": "Make Colour 2 blue (#3a7bff) and Colour 3 dark blue (#1f3fbf).",
+      "target": "[data-tour=\"fx-color-1\"]",
+      "check": {
+        "kind": "state",
+        "test": "effectColor",
+        "args": {
+          "i": 2,
+          "value": "#1f3fbf"
+        }
+      },
+      "doItForMe": [
+        {
+          "fill": "[data-tour=\"fx-color-1\"]",
+          "value": "#3a7bff"
+        },
+        {
+          "fill": "[data-tour=\"fx-color-2\"]",
+          "value": "#1f3fbf"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Colours, click the second swatch (Colour 2) and pick blue, #3a7bff.",
+          "check": {
+            "kind": "state",
+            "test": "effectColor",
+            "args": {
+              "i": 1,
+              "value": "#3a7bff"
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"fx-color-1\"]",
+              "value": "#3a7bff",
+              "say": "Colour 2"
+            }
+          ]
+        },
+        {
+          "text": "Click the third swatch (Colour 3) and pick dark blue, #1f3fbf. The flames turn blue.",
+          "check": {
+            "kind": "state",
+            "test": "effectColor",
+            "args": {
+              "i": 2,
+              "value": "#1f3fbf"
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"fx-color-2\"]",
+              "value": "#1f3fbf",
+              "say": "Colour 3"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "left"
+    },
+    {
+      "id": "effects.place",
+      "title": "On the map",
+      "body": "An effect placed on a map plays there in the game: a torch, a campfire, a magic well. Place on the map puts it beside where the player starts and opens the Scene with it selected; its properties are on the right.",
+      "task": "At the top of the preview, click “Place on the map”.",
+      "target": "[data-tour=\"fx-place\"]",
+      "check": {
+        "kind": "state",
+        "test": "placedEffect",
+        "args": "Blue fire"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"fx-place\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Above the preview, click “Place on the map”. The Scene opens with the effect selected next to the start.",
+          "check": {
+            "kind": "state",
+            "test": "placedEffect",
+            "args": "Blue fire"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"fx-place\"]",
+              "say": "Place on the map"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "left"
+    },
+    {
+      "id": "effects.hook",
+      "title": "A blue level up",
+      "body": "Game effects pick which effect plays when things happen in this game. Built-in uses the editor's own; your own effects are in each list too.",
+      "task": "Back in Effects, under Game effects, set “Level up” to “Blue fire”.",
+      "target": "[data-tour=\"fx-event-levelUp\"]",
+      "check": {
+        "kind": "state",
+        "test": "effectHook",
+        "args": {
+          "event": "levelUp",
+          "name": "Blue fire"
+        }
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Effects"
+        },
+        {
+          "choose": "[data-tour=\"fx-event-levelUp\"]",
+          "value": "Blue fire"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click the Effects tab at the top to go back.",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Effects"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Effects"
+            }
+          ]
+        },
+        {
+          "text": "On the right, scroll down to Game effects. In the “Level up” list, pick “Blue fire”. When the hero levels up in Play, blue flames burst around them.",
+          "check": {
+            "kind": "state",
+            "test": "effectHook",
+            "args": {
+              "event": "levelUp",
+              "name": "Blue fire"
+            }
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"fx-event-levelUp\"]",
+              "value": "Blue fire",
+              "say": "Level up"
+            }
+          ]
+        }
+      ],
+      "placement": "left"
+    }
+  ]
+}

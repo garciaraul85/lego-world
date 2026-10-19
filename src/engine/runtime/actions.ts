@@ -35,6 +35,8 @@ export interface ActionHost {
   talk?(conversation: string, self: string | undefined): void;
   /** P22 part 2: an outfit, experience */
   sheet?(op: 'outfit' | 'xp', value: string | number): void;
+  /** P23: play an effect at a place, or start / stop an effect placed on the map */
+  effect?(op: 'play' | 'on' | 'off', a: string, at: string | undefined, self: string | undefined): void;
 }
 
 type Pending = { actions: Action[]; at: number; self: string | undefined };
@@ -162,6 +164,14 @@ export class ActionRunner {
         case 'xp':
           if (h.sheet) h.sheet(a.do, a.do === 'outfit' ? a.name : a.amount);
           else h.log('info', `${a.do} ${a.do === 'outfit' ? a.name : a.amount}`);
+          break;
+        case 'effect':
+          if (h.effect) h.effect('play', a.effect, a.at, self);
+          else h.log('info', `effect ${a.effect}`);
+          break;
+        case 'effectOn':
+          if (h.effect) h.effect(a.on ? 'on' : 'off', a.name, undefined, self);
+          else h.log('info', `effect ${a.name} ${a.on ? 'on' : 'off'}`);
           break;
         case 'talk':
           if (h.talk) h.talk(a.conversation, self);

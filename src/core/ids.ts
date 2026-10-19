@@ -18,6 +18,8 @@ export const ID_PREFIX = {
   /** P22: a conversation */
   dialogue: 'dlg',
   bodyplan: 'bpl',
+  /** P23: an effect (particles) */
+  effect: 'fx',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

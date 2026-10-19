@@ -16,6 +16,7 @@ export const SCREENS = [
   { id: 'art', name: 'Art', workspace: 'Screens' },
   { id: 'cinematics', name: 'Cinematics', workspace: 'Cinematics' },
   { id: 'audio', name: 'Audio', workspace: 'Audio' },
+  { id: 'effects', name: 'Effects', workspace: 'Effects' },
   { id: 'play', name: 'Play', workspace: null },
 ] as const;
 export type ScreenId = (typeof SCREENS)[number]['id'];

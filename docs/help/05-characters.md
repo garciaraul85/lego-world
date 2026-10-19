@@ -45,8 +45,8 @@ The right side of the Characters screen is the character's **sheet**, in tabs:
 - **Outfits**: sets of clothes it can wear, each with stat bonuses. **Wear** one and change the look: the changes go into the outfit, and its own look stays. Logic's **Change outfit** swaps them in Play.
 - **Stats**: hearts (the player character), stamina, speed, jump, strength (hit power), defence (8% less damage a point) and a level with an experience curve. Logic's **Give experience** levels up; **On level up** reacts. The genre's simple view shows the stats its games use.
 - **Moves**: a fighting style (Balanced, Swift, Heavy, Defensive) with hit power and swing speed; a neighbour fights the hero with **Fights the hero**.
-- **Animations**: the clip for idle (standing still), victory (a level up) and hurt; walk, run, jump and attack are kept for the animation state machine (P23).
-- **Voice**: talk pitch and blip for its lines in dialogue, footsteps and its hurt sound.
+- **Animations**: the clip for idle (standing still), victory (a level up) and hurt; walk, run, jump and attack are kept for the animation state machine (P23). Each row shows the clip's picture, which moves while the pointer is on it; **▶** plays the clip on the big figure (**■** stops it), and picking a clip plays it too. The clip list on the left moves the same way on hover.
+- **Voice**: talk pitch and blip for its lines in dialogue, footsteps and its hurt sound. **▶ Hear it talk** says a sample line letter by letter with the blip at its pitch, as in a conversation; **▶** beside a sound plays just that sound.
 - **Dialogue**: its Talk list and barks (below).
 - **Behaviour**: what kind of character it is, whether it walks around or stands still where it was put, the role buttons (Knight, Ranger, Wizard, Shopkeeper, Brute, Boss) that fill in a sheet, and the **party**: playable characters the player switches between with H.
 
@@ -64,7 +64,7 @@ The sliders (Size, Leg length, Neck, Tail length, Wing span, Head size, Build) c
 
 **Built from bricks**: build a creature in the Asset studio and choose it in **Brick build**; each brick follows the bone it is nearest to. To move a brick to another bone, pick the bone in **Paint onto** and click the brick in the preview. **Auto-attach** puts them all back on their nearest bones.
 
-**Skeleton**: **✏️ Edit the skeleton** turns the family into a **body plan** of your own, kept in the game, that any character can wear. Click a bone to change its name, the bone it hangs from, its role, its joint (x right, y up, z forward), its **swing** (how far it moves, in degrees) and **phase** (legs with the same phase step together). **+ Bone on …** adds a bone under the picked one, **+ Brick on …** gives it bricks, **Remove** passes its bones and bricks to its parent. **Moves by** (Walk, Fly, Swim, Slither, Hop), **Stride** and **Hover** are for the whole body. [Creatures course](action:help.bodies)
+**Custom…** (the last card) makes a body of your own: pick the skeleton to **Start from** (any family) and press **Make my body**. The bones show at once, ready to add, move and remove. **Skeleton**: **✏️ Edit the skeleton** turns the family into a **body plan** of your own, kept in the game, that any character can wear. Click a bone to change its name, the bone it hangs from, its role, its joint (x right, y up, z forward), its **swing** (how far it moves, in degrees) and **phase** (legs with the same phase step together). **+ Bone on …** adds a bone under the picked one, **+ Brick on …** gives it bricks, **Remove** passes its bones and bricks to its parent. **Moves by** (Walk, Fly, Swim, Slither, Hop), **Stride** and **Hover** are for the whole body. [Creatures course](action:help.bodies)
 
 ## Faces for moods
 
