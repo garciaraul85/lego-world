@@ -22,10 +22,20 @@ import saving from './content/12-saving.json';
 import brix from './content/13-brix.json';
 import dialogue from './content/14-dialogue.json';
 import sheet from './content/15-sheet.json';
+import bodies from './content/16-bodies.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
-export type Track = 'editor' | 'coding' | 'combat' | 'saving' | 'brix' | 'dialogue' | 'sheet' | `course.${string}`;
+export type Track =
+  | 'editor'
+  | 'coding'
+  | 'combat'
+  | 'saving'
+  | 'brix'
+  | 'dialogue'
+  | 'sheet'
+  | 'bodies'
+  | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
 const steps = (chapters: Chapter[]): TrackStep[] =>
@@ -65,6 +75,8 @@ export const BRIX_STEPS: TrackStep[] = steps(BRIX_CHAPTERS);
 export const DIALOGUE_STEPS: TrackStep[] = steps(DIALOGUE_CHAPTERS);
 /** P22 part 2: the character sheet course */
 export const SHEET_STEPS: TrackStep[] = steps([sheet].map((c) => Chapter.parse(c)));
+/** P22 part 3: the creatures course (body plans) */
+export const BODIES_STEPS: TrackStep[] = steps([bodies].map((c) => Chapter.parse(c)));
 export const CODING_STEPS: TrackStep[] = steps(CODING_CHAPTERS);
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
@@ -78,6 +90,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   brix: { title: 'Meet Brix', steps: BRIX_STEPS },
   dialogue: { title: 'Dialogue course', steps: DIALOGUE_STEPS },
   sheet: { title: 'Character sheet course', steps: SHEET_STEPS },
+  bodies: { title: 'Creatures course', steps: BODIES_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

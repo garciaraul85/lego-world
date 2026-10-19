@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
+import type { ResolvedBody } from '../../../core/character/resolve';
 import type { Clip } from '../../../core/schema';
 import { rigPose } from '../../../engine/character/animator';
+import { bodyBounds, bodyOverlays, bodyPose, bodyWorld } from '../../../engine/character/body-anim';
 import { sampleParams, sampleTrack } from '../../../engine/character/routine';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { OrbitCamera } from '../../../engine/render/camera';
@@ -17,7 +19,13 @@ const H = 120;
 const cache = new Map<string, string>();
 const waiting = new Map<
   string,
-  { profile: Record<string, unknown>; view: ThumbView; pose?: ThumbPose; done: ((url: string) => void)[] }
+  {
+    profile: Record<string, unknown>;
+    view: ThumbView;
+    pose?: ThumbPose;
+    body?: ResolvedBody | null;
+    done: ((url: string) => void)[];
+  }
 >();
 
 /** Which part of the character a picture shows: the whole figure, or a close-up of where a choice is worn. */
@@ -89,9 +97,21 @@ function setup() {
   return shared;
 }
 
-function draw(profile: Record<string, unknown>, view: ThumbView, pose?: ThumbPose): string {
+function draw(profile: Record<string, unknown>, view: ThumbView, pose?: ThumbPose, body?: ResolvedBody | null): string {
   const s = setup();
   if (!s) return '';
+  if (body) {
+    // P22 part 3: a body plan, framed on its bricks
+    const { min, max } = bodyBounds(body);
+    const size = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
+    s.cam.target = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+    s.cam.baseDistance = Math.max(4, size * 1.9);
+    s.cam.yaw = 0.7;
+    s.cam.pitch = 0.25;
+    const overlays = bodyOverlays(body, bodyPose(body, null), bodyWorld(body, { x: 0, y: 0, z: 0, heading: 0 }, null));
+    s.renderer.render(s.cam.frame(), s.cam.target, overlays, [], []);
+    return s.canvas.toDataURL('image/png');
+  }
   const v = VIEWS[view];
   s.cam.target = [...v.target];
   s.cam.baseDistance = v.distance;
@@ -129,7 +149,7 @@ function pump() {
     waiting.delete(key);
     let url = '';
     try {
-      url = draw(job.profile, job.view, job.pose);
+      url = draw(job.profile, job.view, job.pose, job.body);
     } catch {
       /* a look the model cannot draw gets no picture */
     }
@@ -144,8 +164,11 @@ export function useCharacterThumb(
   profile: Record<string, unknown>,
   view: ThumbView = 'full',
   pose?: ThumbPose,
+  body?: ResolvedBody | null,
 ): string {
-  const key = `${view}|${JSON.stringify(profile)}${pose ? `|${pose.time}|${JSON.stringify(pose.clip.tracks)}` : ''}`;
+  const key = body
+    ? `body|${JSON.stringify(body)}`
+    : `${view}|${JSON.stringify(profile)}${pose ? `|${pose.time}|${JSON.stringify(pose.clip.tracks)}` : ''}`;
   const [url, setUrl] = useState(() => cache.get(key) ?? '');
   useEffect(() => {
     const hit = cache.get(key);
@@ -154,7 +177,7 @@ export function useCharacterThumb(
       return;
     }
     let live = true;
-    const job = waiting.get(key) ?? { profile, view, ...(pose ? { pose } : {}), done: [] };
+    const job = waiting.get(key) ?? { profile, view, ...(pose ? { pose } : {}), body: body ?? null, done: [] };
     job.done.push((u) => live && setUrl(u));
     waiting.set(key, job);
     pump();
@@ -170,13 +193,16 @@ export function CharacterThumb({
   size = 40,
   view = 'full',
   pose,
+  body,
 }: {
   profile: Record<string, unknown>;
   size?: number;
   view?: ThumbView;
   pose?: ThumbPose;
+  /** P22 part 3: draw this body plan instead of the minifig */
+  body?: ResolvedBody | null;
 }) {
-  const url = useCharacterThumb(profile, view, pose);
+  const url = useCharacterThumb(profile, view, pose, body);
   return (
     <span
       class="char-thumb"

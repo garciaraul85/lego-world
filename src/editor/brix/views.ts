@@ -307,6 +307,18 @@ export function stepsToView(view: string): ShowStep[] {
         },
       ];
     }
+    case 'characters-body':
+    case 'characters-skeleton':
+      // P22 part 3: the Body tab (the skeleton editor is in it, below the shape and colours)
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Body tab of the sheet.',
+          find: control('[aria-label="Character sheet"]', /^Body$/),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === 'body',
+        },
+      ];
     case 'characters-talk':
       // the Dialogue tab of the sheet: who it talks with, its barks
       return [

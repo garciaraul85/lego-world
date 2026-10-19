@@ -6,6 +6,7 @@ import { expandAsset } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
 import { brickToPiece, exactColors, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
+import { type ResolvedBody, resolveBody } from '../../core/character/resolve';
 import { levelOf, xpFor } from '../../core/character/sheet';
 import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
 import type { Enemy } from '../../core/combat/enemy';
@@ -156,6 +157,8 @@ export class PlaySession {
   staminaMax = MAX_STAMINA;
   private idleFor = 0;
   private standing = new Map<number, boolean>();
+  /** P22 part 3: bodies other than the minifig, by NPC id ('hero' for the player) */
+  private bodies = new Map<number | 'hero', ResolvedBody | null>();
   rebuildHeld = false;
   rebuildEntry: BrokenEntry | null = null;
   private pendingSmash: {
@@ -320,6 +323,7 @@ export class PlaySession {
     this.setHero(heroChr);
     const mapId = opts.mapId ?? project.entry.map;
     this.world = this.loadWorld(mapId);
+    this.forgetBodies();
     const spawn =
       this.world.doc.spawns.find((s) => s.id === (opts.spawnId ?? project.entry.spawn)) ?? this.world.doc.spawns[0];
     if (spawn) this.placeAt(spawn.pos as [number, number, number], spawn.yaw);
@@ -466,6 +470,7 @@ export class PlaySession {
   /** P22 part 2: the hero's look, gear, emotes and sheet (on start, and when the player switches hero) */
   setHero(chr: Character | undefined) {
     this.heroChr = chr;
+    this.bodies.delete('hero');
     this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...wornProfile(chr) });
     // P9b: the off hand (a shield) lives beside v68's profile, which only knows a right-hand item
     this.hero.offHand = chr?.gear?.offHand ?? 'None';
@@ -1046,6 +1051,28 @@ export class PlaySession {
   }
 
   /** P22 part 2: a neighbour whose sheet says it stands where it was put (a shopkeeper at a counter) */
+  /** NPC ids belong to one map: a new map (or a restart) looks bodies up again */
+  private forgetBodies() {
+    this.bodies?.clear();
+    this.standing?.clear();
+  }
+
+  /** P22 part 3: the body plan a character wears in Play (null: the minifig) */
+  bodyOf(who: Npc | 'hero'): ResolvedBody | null {
+    const key = who === 'hero' ? 'hero' : who.id;
+    if (!this.bodies.has(key)) {
+      const chr = who === 'hero' ? this.heroChr : npcCharacter(this.snapshot, this.world.mapId, who);
+      let body: ResolvedBody | null = null;
+      try {
+        body = resolveBody(chr?.body, (p) => this.snapshot.get(p));
+      } catch {
+        body = null;
+      }
+      this.bodies.set(key, body);
+    }
+    return this.bodies.get(key)!;
+  }
+
   standsStill(n: Npc): boolean {
     if (!this.standing.has(n.id))
       this.standing.set(n.id, npcCharacter(this.snapshot, this.world.mapId, n)?.behaviour?.routine === 'stand');
@@ -1912,6 +1939,7 @@ export class PlaySession {
     this.quitToTitle = false;
     this.worlds.clear();
     this.world = this.loadWorld(this.project.entry.map);
+    this.forgetBodies();
     const sp = this.world.doc.spawns.find((s) => s.id === this.project.entry.spawn) ?? this.world.doc.spawns[0];
     if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
     this.checkpoint = { map: this.world.mapId, spawn: sp?.id ?? null };
@@ -2466,6 +2494,7 @@ export class PlaySession {
     this.inZones.clear();
     this.zoneAudio();
     this.world = this.loadWorld(mapId);
+    this.forgetBodies();
     const sp = this.world.doc.spawns.find((x) => x.id === spawnId) ?? this.world.doc.spawns[0];
     Object.assign(this.world.controller.state, { ...keep, vy: 0 });
     if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);

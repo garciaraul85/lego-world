@@ -17,6 +17,7 @@ export const ID_PREFIX = {
   art: 'art',
   /** P22: a conversation */
   dialogue: 'dlg',
+  bodyplan: 'bpl',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

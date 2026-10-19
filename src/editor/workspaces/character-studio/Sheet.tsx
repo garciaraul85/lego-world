@@ -24,9 +24,19 @@ import { soundOptions } from '../../panels/AudioFields';
  * P22 part 2: the character sheet's tabs — Outfits, Stats, Moves, Animations, Voice and Behaviour (Look
  * and Dialogue live in the studio and the Talk section). Each edit is one character.update, one undo step.
  */
-export type SheetTab = 'look' | 'outfits' | 'stats' | 'moves' | 'animations' | 'voice' | 'dialogue' | 'behaviour';
+export type SheetTab =
+  | 'look'
+  | 'body'
+  | 'outfits'
+  | 'stats'
+  | 'moves'
+  | 'animations'
+  | 'voice'
+  | 'dialogue'
+  | 'behaviour';
 export const SHEET_TABS: [SheetTab, string][] = [
   ['look', 'Look'],
+  ['body', 'Body'],
   ['outfits', 'Outfits'],
   ['stats', 'Stats'],
   ['moves', 'Moves'],
@@ -37,6 +47,7 @@ export const SHEET_TABS: [SheetTab, string][] = [
 ];
 
 export const SHEET_HELP: Record<Exclude<SheetTab, 'look' | 'dialogue'>, string> = {
+  body: 'What the character is made of: the minifig, or a body family (four legs, bird, fish, serpent, spider, insect, slime, dragon, robot walker) shaped with sliders, or a skeleton of your own. Bodies move by themselves: legs step, wings flap, spines snake. A brick build from the Asset studio can be worn on the skeleton.',
   outfits:
     'Outfits are sets of clothes the character can wear: each keeps the look parts that differ (hat, shirt, colours…) and can change its stats. Logic’s Change outfit (or the action) swaps them in Play.',
   stats:
@@ -51,14 +62,14 @@ export const SHEET_HELP: Record<Exclude<SheetTab, 'look' | 'dialogue'>, string> 
     'What kind of character it is and what it does on its own: walks around, or stands where it was put (a shopkeeper at a counter). Party: playable heroes the player switches between with H.',
 };
 
-type Props = { c: ActionCtx; chr: Character; save: (next: Character, label: string) => void };
+export type Props = { c: ActionCtx; chr: Character; save: (next: Character, label: string) => void };
 
-const num = (v: string, lo: number, hi: number) => {
+export const num = (v: string, lo: number, hi: number) => {
   const n = Number(v);
   return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : null;
 };
 
-function NumField({
+export function NumField({
   label,
   value,
   lo,

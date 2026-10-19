@@ -15,6 +15,7 @@ import { Timeline } from '../../components/timeline/Timeline';
 import { shows } from '../../genres/view';
 import { actionChoices } from '../../panels/AudioFields';
 import { ConversationList, DialogueMain, TalkSection } from '../dialogue/CharacterTalk';
+import { BodyTab, bodyOfChr } from './Body';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
 import { AnimationsTab, BehaviourTab, MovesTab, OutfitsTab, SHEET_TABS, StatsTab, VoiceTab } from './Sheet';
 import { CharacterThumb, peakTime, type ThumbView, trackPose } from './thumbs';
@@ -148,12 +149,28 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     turntable,
     part: null,
   });
+  // P22 part 3: a body plan instead of the minifig
+  const body = bodyOfChr(chr, (p) => ed.store.get(p));
   preview.current = {
     profile: { ...wornProfile(chr), offHand: chr.gear?.offHand ?? 'None' },
-    clip,
+    clip: body ? null : clip,
     time,
     turntable,
-    part: clip ? part : null,
+    part: clip && !body ? part : null,
+    body,
+    bones: body && ed.bodyBones.value ? { selected: ed.bodyBone.value } : null,
+    walking: !!body && ed.bodyWalk.value,
+    paint:
+      body?.fromAsset && ed.bodyPaint.value
+        ? (src: number) => {
+            const bone = ed.bodyPaint.value;
+            if (!bone || !chr.body || chr.body.attach?.[String(src)] === bone) return;
+            saveChr(
+              { ...chr, body: { ...chr.body, attach: { ...(chr.body.attach ?? {}), [String(src)]: bone } } },
+              `Brick onto ${bone}`,
+            );
+          }
+        : null,
   };
 
   // play the clip in real time
@@ -307,7 +324,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               class={`lib-item ${x.id === chr.id ? 'on' : ''}`}
               onClick={() => (ed.studioCharacter.value = x.id)}
             >
-              <CharacterThumb profile={x.profile} size={30} />
+              <CharacterThumb profile={x.profile} size={30} body={bodyOfChr(x, (p) => ed.store.get(p))} />
               <span class="asset-name">{x.name}</span>
               <span class="mono small muted">{ed.store.manifest.hero === x.id ? 'player' : x.role}</span>
             </button>
@@ -413,22 +430,24 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               </span>
             </div>
             {/* P22 part 2: try moves on the preview without leaving the sheet */}
-            <div class="try-row" role="group" aria-label="Try it">
-              <span class="muted small">Try:</span>
-              {TRY_CLIPS.map(([id, label]) => (
-                <button
-                  type="button"
-                  class={`chip ${clip?.id === id && playing ? 'on' : ''}`}
-                  onClick={() => {
-                    setClipId(id);
-                    setTime(0);
-                    setPlaying(true);
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            {!body && (
+              <div class="try-row" role="group" aria-label="Try it">
+                <span class="muted small">Try:</span>
+                {TRY_CLIPS.map(([id, label]) => (
+                  <button
+                    type="button"
+                    class={`chip ${clip?.id === id && playing ? 'on' : ''}`}
+                    onClick={() => {
+                      setClipId(id);
+                      setTime(0);
+                      setPlaying(true);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
             <div class="studio-plate char-plate">
               <div class="viewport-wrap">
                 <CharacterPreview input={preview} />
@@ -610,6 +629,23 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               />
             </div>
           )}
+          {tab === 'body' && <BodyTab c={c} chr={chr} save={saveChr} inProject={inProject} />}
+          {body && ['look', 'outfits', 'animations'].includes(tab) && (
+            <div class="sec">
+              <p class="hint" data-tour="body-note">
+                {chr.name} has a {body.name.toLowerCase()} body: its shape and colours are in the{' '}
+                <button type="button" class="link" onClick={() => (ed.sheetTab.value = 'body')}>
+                  Body tab
+                </button>
+                , and it moves by itself ({body.move}).{' '}
+                {tab === 'look'
+                  ? 'The minifig look is kept for when it is a minifig again.'
+                  : tab === 'outfits'
+                    ? 'Outfits are for minifigs.'
+                    : 'Clips are for minifigs; the clips below play only on a minifig.'}
+              </p>
+            </div>
+          )}
           {tab === 'animations' && <AnimationsTab c={c} chr={chr} save={saveChr} />}
           {tab === 'animations' && clip && !builtinClip && (
             <div class="sec">
@@ -649,7 +685,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               </label>
             </div>
           )}
-          {tab === 'look' && (
+          {tab === 'look' && !body && (
             <div class="sec look-head">
               {worn ? (
                 <div class="hint">
@@ -675,6 +711,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
             </div>
           )}
           {tab === 'look' &&
+            !body &&
             SECTIONS.map(([title, keys]) => (
               <div class="sec">
                 <div class="sech">

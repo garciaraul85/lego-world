@@ -104,6 +104,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Meet Brix course: ask a question, follow Show me to the control, and use Explain on a button.',
   'help.sheet':
     'Starts the Character sheet course: make the player character, give him an outfit, stats, a fighting style, a victory clip and a voice, then level him up in Play.',
+  'help.bodies':
+    'Starts the Creatures course: turn a neighbour into a brick dog, shape him with sliders and colours, watch him walk, make his skeleton your own, add a horn and a wagging tail, then meet him in Play.',
   'help.dialogue':
     'Starts the Dialogue course: add a villager, write a conversation with a choice as a script, see it as a list and a graph, preview every branch, pick a style and talk to him in Play.',
   'help.ai': 'Opens the AI builder: describe a change, watch each step, then approve or reject it.',

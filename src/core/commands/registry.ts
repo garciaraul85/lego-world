@@ -23,6 +23,7 @@ import {
   setMusicState,
   setSoundEvent,
 } from './handlers/audio';
+import { deleteBodyPlan, putBodyPlan } from './handlers/bodyplans';
 import { moveBricks, paintBricks, placeBricks, removeBricks, updateBricks } from './handlers/bricks';
 import {
   createCharacter,
@@ -95,6 +96,8 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('progress.put', putProgress);
   bus.register('dialogue.put', putDialogue);
   bus.register('dialogue.delete', deleteDialogue);
+  bus.register('bodyplan.put', putBodyPlan);
+  bus.register('bodyplan.delete', deleteBodyPlan);
   bus.register('npc.remove', removeNpc);
   bus.register('instance.unpack', unpackInstance);
   bus.register('instance.transform', transformInstance);

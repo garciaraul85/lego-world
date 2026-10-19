@@ -40,6 +40,7 @@ Clips are keyframe animations on a timeline: a lane per joint, keys you drag in 
 The right side of the Characters screen is the character's **sheet**, in tabs:
 
 - **Look**: body, face, hair, clothes and gear (🎲 **Random look** makes one from a seed).
+- **Body**: the minifig, or an animal or monster (below).
 - **Outfits**: sets of clothes it can wear, each with stat bonuses. **Wear** one and change the look: the changes go into the outfit, and its own look stays. Logic's **Change outfit** swaps them in Play.
 - **Stats**: hearts (the player character), stamina, speed, jump, strength (hit power), defence (8% less damage a point) and a level with an experience curve. Logic's **Give experience** levels up; **On level up** reacts. The genre's simple view shows the stats its games use.
 - **Moves**: a fighting style (Balanced, Swift, Heavy, Defensive) with hit power and swing speed; a neighbour fights the hero with **Fights the hero**.
@@ -49,6 +50,20 @@ The right side of the Characters screen is the character's **sheet**, in tabs:
 - **Behaviour**: what kind of character it is, whether it walks around or stands still where it was put, the role buttons (Knight, Ranger, Wizard, Shopkeeper, Brute, Boss) that fill in a sheet, and the **party**: playable characters the player switches between with H.
 
 **Try** (above the preview) plays a move on the character without leaving the sheet. Characters made before the sheet keep their look; every tab starts from the defaults. [Character sheet course](action:help.sheet)
+
+## Bodies: animals, monsters and skeletons of your own
+
+A character is a minifig unless the **Body** tab says otherwise. Pick a **family** and it becomes a creature made of bricks:
+
+- **Four legs** (dogs, cats, horses) walks with a diagonal step; **Dragon** adds a long neck and tail, horns and wings, and flies.
+- **Bird** hovers and flaps; **Fish** floats and swims, bending from head to tail fin; **Serpent** slithers.
+- **Spider**, **Insect** and **Robot walker** step on eight or six legs with knees; **Slime** hops.
+
+The sliders (Size, Leg length, Neck, Tail length, Wing span, Head size, Build) change its bricks and bones; the four colours (Main, Accent, Belly, Eyes) paint them. Nobody animates a body by hand: each **bone** has a role — a leg steps, a wing flaps, a spine bends, a tail sways, a jaw opens — so **▶ Walk** (Fly, Swim, Slither, Hop) shows it moving, and in Play it moves the same way as it goes. **Show the skeleton** draws the bones.
+
+**Built from bricks**: build a creature in the Asset studio and choose it in **Brick build**; each brick follows the bone it is nearest to. To move a brick to another bone, pick the bone in **Paint onto** and click the brick in the preview. **Auto-attach** puts them all back on their nearest bones.
+
+**Skeleton**: **✏️ Edit the skeleton** turns the family into a **body plan** of your own, kept in the game, that any character can wear. Click a bone to change its name, the bone it hangs from, its role, its joint (x right, y up, z forward), its **swing** (how far it moves, in degrees) and **phase** (legs with the same phase step together). **+ Bone on …** adds a bone under the picked one, **+ Brick on …** gives it bricks, **Remove** passes its bones and bricks to its parent. **Moves by** (Walk, Fly, Swim, Slither, Hop), **Stride** and **Hover** are for the whole body. [Creatures course](action:help.bodies)
 
 ## Dialogue: what characters say
 

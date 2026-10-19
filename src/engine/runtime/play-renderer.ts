@@ -2,6 +2,7 @@ import { freeGroups, partsMoving } from '../../core/assets/free';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { rigPose } from '../character/animator';
+import { advance, bodyOverlays, bodyPose, bodyWorld, type Motion, newMotion } from '../character/body-anim';
 import type { CharacterRenderer, Controller, HeroState } from '../legacy/runtime-modules';
 import { brickGeometry } from '../render/brick-geometry';
 import type { CameraFrame } from '../render/camera';
@@ -41,6 +42,9 @@ export class PlayRenderer {
   /** the Director's stage view: its own orbit camera and markers instead of the game's (P6.3) */
   cameraOverride: CameraFrame | null = null;
   extra: { lines: LineSet[]; markers: Marker[] } | null = null;
+  /** P22 part 3: the motion of each creature (by NPC id, 'hero'): its step cycle and where it was last frame */
+  private motions = new Map<number | 'hero', { m: Motion; x: number; z: number }>();
+  private lastFrame = 0;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -291,10 +295,11 @@ export class PlayRenderer {
         color: [0.4, 1, 0.5],
       });
     }
+    const creatures = this.creatures();
     return this.renderer.render(
       cam,
       [s.heroState.x, s.heroState.y, s.heroState.z],
-      this.tiltedOverlays(),
+      [...this.tiltedOverlays(), ...creatures.overlays],
       lines,
       markers,
       (mvp, eye) => {
@@ -309,6 +314,7 @@ export class PlayRenderer {
             c.bindCollision(n.profile, n.controller);
             this.bound.add(n.controller);
           }
+          if (creatures.drawn.has(n.id)) continue;
           const cast = s.cine.drawFor(n, n.profile, n.state);
           if (cast?.state.hidden) continue;
           draw(cast?.profile ?? n.profile, cast?.state ?? n.state);
@@ -323,7 +329,9 @@ export class PlayRenderer {
         const pose = fight ?? s.heroAnim.params();
         const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;
         const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
-        if (heroCast) {
+        if (creatures.drawn.has('hero')) {
+          /* drawn as a body plan (overlays) */
+        } else if (heroCast) {
           if (!heroCast.state.hidden) draw(heroCast.profile, heroCast.state);
         } else
           draw(
@@ -335,6 +343,47 @@ export class PlayRenderer {
         for (const d of w.debris) c.debris(this.debrisMesh, d);
       },
     );
+  }
+
+  /**
+   * P22 part 3: characters with a body plan are drawn as bricks on their bones, moved by their generated
+   * motion (the step cycle follows the distance they walked this frame).
+   */
+  private creatures(): { overlays: Overlay[]; drawn: Set<number | 'hero'> } {
+    const s = this.session;
+    const now = performance.now();
+    const dt = this.lastFrame ? Math.min(0.1, (now - this.lastFrame) / 1000) : 0;
+    this.lastFrame = now;
+    const overlays: Overlay[] = [];
+    const drawn = new Set<number | 'hero'>();
+    const one = (
+      key: number | 'hero',
+      who: Parameters<PlaySession['bodyOf']>[0],
+      st: { x: number; y: number; z: number; heading: number; hidden?: boolean },
+    ) => {
+      const body = s.bodyOf(who);
+      if (!body) return;
+      drawn.add(key);
+      if (st.hidden) return;
+      let mo = this.motions.get(key);
+      if (!mo) {
+        mo = { m: newMotion(), x: st.x, z: st.z };
+        this.motions.set(key, mo);
+      }
+      const dist = Math.hypot(st.x - mo.x, st.z - mo.z);
+      // a jump across the map (a teleport, a respawn) is not a step
+      advance(mo.m, body, dist < 3 ? dist : 0, dt);
+      mo.x = st.x;
+      mo.z = st.z;
+      overlays.push(...bodyOverlays(body, bodyPose(body, mo.m), bodyWorld(body, st, mo.m)));
+    };
+    for (const n of s.world.npcs) {
+      const cast = s.cine.drawFor(n, n.profile, n.state);
+      one(n.id, n, (cast?.state ?? n.state) as never);
+    }
+    const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
+    one('hero', 'hero', (heroCast?.state ?? s.heroState) as never);
+    return { overlays, drawn };
   }
 
   dispose() {

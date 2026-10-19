@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { BodyPlan } from '../character/body';
 import * as A from '../commands/handlers/assets';
 import * as Au from '../commands/handlers/audio';
+import * as Bp from '../commands/handlers/bodyplans';
 import * as B from '../commands/handlers/bricks';
 import * as Ch from '../commands/handlers/characters';
 import * as Ci from '../commands/handlers/cinematics';
@@ -787,6 +789,43 @@ export const AI_COMMANDS: AiCommand[] = [
     'Characters',
     'Deletes a conversation nothing starts any more (take it out of talk lists, signs and interactions first).',
     { id: 'dlg_aaaaaaaaaa' },
+  ),
+  def(
+    'bodyplan.put',
+    Bp.putBodyPlan,
+    z.strictObject({ plan: BodyPlan }),
+    ['character'],
+    'Characters',
+    'Adds or replaces a body plan: a skeleton of bones (name, parent, at: joint offset from the parent in world units, role: root/spine/neck/head/jaw/leg/arm/wing/tail/fin/wheel/turret/other, swing in degrees, phase 0-1 for legs that step together, side -1/1 for wings and fins), bricks that follow each bone (w, d, kind, x/z in studs and y in plates from the joint, colour: main/accent/belly/eye/dark or #hex), move (walk/fly/swim/slither/hop), stride and hover. Movement is generated from the roles. Exactly one bone has no parent. Then give a character body: { plan: id } with character.update. For an animal, a character body: { family: fourLegs/bird/fish/serpent/spider/insect/slime/dragon/robot, params: { size, legs, neck, tail, wings, head, build } } needs no body plan.',
+    {
+      plan: {
+        id: 'bpl_aaaaaaaaaa',
+        name: 'Tiny crab',
+        family: 'custom',
+        move: 'walk',
+        stride: 1.5,
+        hover: 0,
+        bones: [
+          { name: 'body', at: [0, 1.2, 0], role: 'root', swing: 3 },
+          { name: 'left leg', parent: 'body', at: [-1, 0, 0], role: 'leg', swing: 25, phase: 0, side: -1 },
+          { name: 'right leg', parent: 'body', at: [1, 0, 0], role: 'leg', swing: 25, phase: 0.5, side: 1 },
+        ],
+        bricks: [
+          { bone: 'body', w: 2, d: 2, kind: 'brick', x: -1, y: 0, z: -1, color: 'main' },
+          { bone: 'left leg', w: 1, d: 1, kind: 'brick', x: -1, y: -3, z: -0.5, color: 'accent' },
+          { bone: 'right leg', w: 1, d: 1, kind: 'brick', x: 0, y: -3, z: -0.5, color: 'accent' },
+        ],
+      },
+    },
+  ),
+  def(
+    'bodyplan.delete',
+    Bp.deleteBodyPlan,
+    z.strictObject({ id: ids('bodyplan') }),
+    ['character'],
+    'Characters',
+    'Deletes a body plan no character wears.',
+    { id: 'bpl_aaaaaaaaaa' },
   ),
   def(
     'cinematic.delete',

@@ -2,6 +2,8 @@ import { BUILTIN_ASSETS, builtinAsset } from '../../builtin/assets';
 import { DEFAULT_EVENTS, DEFAULT_MIXER } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
+import type { BodyPlan, Bone } from '../../core/character/body';
+import { makeFamily } from '../../core/character/families';
 import { DEFAULT_STATS } from '../../core/character/sheet';
 import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
@@ -576,6 +578,141 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
     s.giveXp(Number(a.amount ?? 100));
+  },
+  // P22 part 3: the creatures course
+  bodyMake(c, a) {
+    const name = String(a.name ?? 'Rex');
+    const family = String(a.family ?? 'fourLegs') as NonNullable<Character['body']>['family'];
+    const has = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === name);
+    if (has) {
+      c.ed.studioCharacter.value = has.id;
+      if (has.body?.family !== family && !has.body?.plan)
+        run(
+          c,
+          { type: 'character.update', payload: { character: { ...has, body: { ...(has.body ?? {}), family } } } },
+          `Body: ${family}`,
+        );
+    } else {
+      const id = newId('character');
+      const sp = mapDoc(c).spawns[0];
+      const at = arrivalSpot(c.ed.store, map(c)) ?? (sp?.pos as [number, number, number] | undefined) ?? [0, 0.4, 0];
+      run(
+        c,
+        [
+          {
+            type: 'character.create',
+            payload: { character: { id, name, role: 'npc', profile: { name }, body: { family } } },
+          },
+          {
+            type: 'npc.place',
+            payload: { map: map(c), character: id, pos: [at[0] + 3, at[1], at[2] + 3], heading: Math.PI },
+          },
+        ],
+        `Add ${name}`,
+      );
+      c.ed.studioCharacter.value = id;
+    }
+    c.ed.charTab.value = 'look';
+    c.ed.sheetTab.value = 'body';
+  },
+  bodyParams(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: {
+          character: {
+            ...chr,
+            body: { ...(chr.body ?? {}), params: { ...(chr.body?.params ?? {}), ...(a as object) } },
+          },
+        },
+      },
+      'Body sliders',
+    );
+  },
+  bodyColors(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: {
+          character: {
+            ...chr,
+            body: { ...(chr.body ?? {}), colors: { ...(chr.body?.colors ?? {}), ...(a as object) } },
+          },
+        },
+      },
+      'Body colours',
+    );
+  },
+  bodyEditSkeleton(c) {
+    const chr = studioChr(c);
+    if (chr.body?.plan) return;
+    const family = chr.body?.family ?? 'fourLegs';
+    const made = makeFamily(family, chr.body?.params);
+    if (!made) throw new Error('Pick a family first.');
+    const plan = { id: newId('bodyplan'), name: `${chr.name} body`.slice(0, 40), family, ...made };
+    const { family: _f, ...keep } = chr.body ?? {};
+    run(
+      c,
+      [
+        { type: 'bodyplan.put', payload: { plan } },
+        { type: 'character.update', payload: { character: { ...chr, body: { ...keep, plan: plan.id } } } },
+      ],
+      'Edit the skeleton',
+    );
+    c.ed.bodyBones.value = true;
+  },
+  bodyBone(c, a) {
+    const chr = studioChr(c);
+    const plan = chr.body?.plan ? c.ed.store.get<BodyPlan>(paths.bodyplan(chr.body.plan)) : null;
+    if (!plan) throw new Error('Edit the skeleton first.');
+    const name = String(a.name ?? 'horn');
+    const bone = {
+      name,
+      parent: String(a.parent ?? 'head'),
+      at: (a.at ?? [0, 1.6, 0]) as Bone['at'],
+      role: (a.role ?? 'other') as Bone['role'],
+      swing: Number(a.swing ?? 0),
+    };
+    const bricks = a.brick ? [{ bone: name, ...(a.brick as object) } as BodyPlan['bricks'][number]] : [];
+    const has = plan.bones.some((b) => b.name === name);
+    run(
+      c,
+      {
+        type: 'bodyplan.put',
+        payload: {
+          plan: {
+            ...plan,
+            bones: has ? plan.bones.map((b) => (b.name === name ? bone : b)) : [...plan.bones, bone],
+            bricks: [...plan.bricks.filter((k) => k.bone !== name), ...bricks],
+          },
+        },
+      },
+      `Add ${name}`,
+    );
+    c.ed.bodyBone.value = name;
+  },
+  bodyBoneSet(c, a) {
+    const chr = studioChr(c);
+    const plan = chr.body?.plan ? c.ed.store.get<BodyPlan>(paths.bodyplan(chr.body.plan)) : null;
+    if (!plan) throw new Error('Edit the skeleton first.');
+    const name = String(a.bone);
+    const { bone: _b, ...set } = a as Record<string, unknown>;
+    run(
+      c,
+      {
+        type: 'bodyplan.put',
+        payload: { plan: { ...plan, bones: plan.bones.map((b) => (b.name === name ? { ...b, ...set } : b)) } },
+      },
+      `Bone ${name}`,
+    );
+    c.ed.bodyBone.value = name;
   },
   dialogueTalkTo(c, a) {
     const s = c.ed.session.value;

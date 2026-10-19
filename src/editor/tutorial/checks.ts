@@ -220,6 +220,38 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   moveStyle: (ed, a) => studioCharacter(ed)?.moves?.style === a,
   pitchBelow: (ed, a) => (studioCharacter(ed)?.voice?.pitch ?? 1) < Number(a),
   animationSet: (ed, a) => !!studioCharacter(ed)?.animations?.[a as 'idle'],
+  // P22 part 3: the creatures course
+  bodyFamily: (ed, a) => studioCharacter(ed)?.body?.family === a,
+  bodyParam: (ed, a) => {
+    const { key, atLeast } = a as { key: string; atLeast: number };
+    return Number((studioCharacter(ed)?.body?.params as Record<string, number> | undefined)?.[key] ?? 0) >= atLeast;
+  },
+  bodyColor: (ed, a) => {
+    const { slot, value } = a as { slot: string; value: string };
+    return (
+      (studioCharacter(ed)?.body?.colors as Record<string, string> | undefined)?.[slot]?.toLowerCase() ===
+      value.toLowerCase()
+    );
+  },
+  bodyWalking: (ed) => ed.bodyWalk.value,
+  bodyBonesShown: (ed) => ed.bodyBones.value,
+  ownPlan: (ed) => {
+    const p = studioCharacter(ed)?.body?.plan;
+    return !!p && !!ed.store.get(`bodyplans/${p}.json`);
+  },
+  planHasBone: (ed, a) => {
+    const p = studioCharacter(ed)?.body?.plan;
+    const plan = p
+      ? ed.store.get<{ bones: { name: string }[]; bricks: { bone: string }[] }>(`bodyplans/${p}.json`)
+      : null;
+    return !!plan?.bones.some((b) => b.name === a) && plan.bricks.some((k) => k.bone === a);
+  },
+  boneSwing: (ed, a) => {
+    const { bone, atLeast } = a as { bone: string; atLeast: number };
+    const p = studioCharacter(ed)?.body?.plan;
+    const plan = p ? ed.store.get<{ bones: { name: string; swing: number }[] }>(`bodyplans/${p}.json`) : null;
+    return (plan?.bones.find((b) => b.name === bone)?.swing ?? 0) >= atLeast;
+  },
   levelAtLeast: (ed, a) => Number(ed.session.value?.logic.vars.get('level') ?? 0) >= Number(a),
   // P22: the dialogue course
   characterExists: (ed, a) => ed.store.list('characters/').some((p) => ed.store.get<{ name: string }>(p)?.name === a),

@@ -1,6 +1,16 @@
 import { useEffect, useRef } from 'preact/hooks';
+import type { ResolvedBody } from '../../../core/character/resolve';
 import type { Clip } from '../../../core/schema';
 import { rigPose } from '../../../engine/character/animator';
+import {
+  advance,
+  bodyBounds,
+  bodyOverlays,
+  bodyPose,
+  bodyWorld,
+  boneLines,
+  newMotion,
+} from '../../../engine/character/body-anim';
 import { sampleParams } from '../../../engine/character/routine';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { OrbitCamera } from '../../../engine/render/camera';
@@ -17,6 +27,14 @@ export type PreviewInput = {
   turntable: boolean;
   /** P32: the track picked in the timeline; the preview rings its body part and names it */
   part?: { bone: string; prop: string } | null;
+  /** P22 part 3: a body plan to draw instead of the minifig */
+  body?: ResolvedBody | null;
+  /** show the skeleton (the picked bone is drawn brighter) */
+  bones?: { selected: string | null } | null;
+  /** walk on the spot, to see the generated movement */
+  walking?: boolean;
+  /** painting bricks onto a bone: a click on a brick calls this with its index in the asset */
+  paint?: ((brick: number) => void) | null;
 };
 
 const SIDE: Record<string, number> = { left: -1, right: 1 };
@@ -97,6 +115,12 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
           }
         : { ...base, heading };
       let view: ArrayLike<number> | null = null;
+      const body = input.current.body;
+      if (body) {
+        drawBody(body, dt, heading);
+        placeMark(null, profile, state, null, false);
+        return;
+      }
       try {
         renderer.render(cam.frame(), cam.target, [], [], [], (mvp, eye) => {
           view = mvp;
@@ -116,6 +140,104 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
         /* a profile mid-edit can be invalid for one frame */
       }
       placeMark(input.current.part ?? null, profile, state, view, !!clip);
+    };
+    // P22 part 3: a body plan, its motion and skeleton
+    const motion = newMotion();
+    let framed: ResolvedBody | null = null;
+    let lastPicks: { src: number; x: number; y: number }[] = [];
+    const drawBody = (body: ResolvedBody, dt: number, heading: number) => {
+      if (framed !== body) {
+        // frame the camera on the body when it changes size or family
+        const { min, max } = bodyBounds(body);
+        const size = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
+        cam.target = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+        if (!framed || Math.abs(cam.baseDistance - Math.max(5, size * 1.8)) > 2)
+          cam.baseDistance = Math.max(5, size * 1.8);
+        framed = body;
+      }
+      advance(motion, body, input.current.walking ? body.stride * body.scale * 0.9 * dt : 0, dt);
+      const pose = bodyPose(body, motion);
+      const world = bodyWorld(body, { x: 0, y: 0, z: 0, heading }, motion);
+      const overlays = bodyOverlays(body, pose, world);
+      const lines: { lines: number[]; color: [number, number, number]; onTop?: boolean }[] = [];
+      const bones = input.current.bones;
+      if (bones) {
+        const { lines: all, joint } = boneLines(body, pose, world);
+        lines.push({ lines: all, color: [1, 0.85, 0.2], onTop: true });
+        const sel = bones.selected;
+        const b = sel ? body.bones.find((x) => x.name === sel) : undefined;
+        if (b) {
+          const j = joint.get(b.name)!;
+          const r = 0.25;
+          const cross = [
+            j[0] - r,
+            j[1],
+            j[2],
+            j[0] + r,
+            j[1],
+            j[2],
+            j[0],
+            j[1] - r,
+            j[2],
+            j[0],
+            j[1] + r,
+            j[2],
+            j[0],
+            j[1],
+            j[2] - r,
+            j[0],
+            j[1],
+            j[2] + r,
+          ];
+          const to: number[] = [];
+          if (b.parent) to.push(...joint.get(b.parent)!, ...j);
+          lines.push({ lines: [...cross, ...to], color: [0.2, 1, 1], onTop: true });
+        }
+      }
+      let mvp: Float32Array | null = null;
+      try {
+        renderer.render(cam.frame(), cam.target, overlays, lines, [], (m) => {
+          mvp = m;
+        });
+      } catch {
+        /* a body mid-edit can be invalid for one frame */
+      }
+      // where each brick of a worn build is on screen, for painting
+      lastPicks = [];
+      if (input.current.paint && mvp) {
+        const m = mvp as Float32Array;
+        const r = canvas.getBoundingClientRect();
+        for (const k of body.bricks) {
+          if (k.src === undefined) continue;
+          const bm = pose.get(k.bone);
+          if (!bm) continue;
+          const h = k.kind === 'brick' ? 1.2 : 0.4;
+          const lp = [k.x + k.w / 2, k.y * 0.4 + h / 2, k.z + k.d / 2];
+          const wm = [0, 1, 2].map((i) => bm[i]! * lp[0]! + bm[4 + i]! * lp[1]! + bm[8 + i]! * lp[2]! + bm[12 + i]!);
+          const p = [0, 1, 2].map(
+            (i) => world[i]! * wm[0]! + world[4 + i]! * wm[1]! + world[8 + i]! * wm[2]! + world[12 + i]!,
+          );
+          const cx = m[0]! * p[0]! + m[4]! * p[1]! + m[8]! * p[2]! + m[12]!;
+          const cy = m[1]! * p[0]! + m[5]! * p[1]! + m[9]! * p[2]! + m[13]!;
+          const cw = m[3]! * p[0]! + m[7]! * p[1]! + m[11]! * p[2]! + m[15]!;
+          if (cw > 0)
+            lastPicks.push({ src: k.src, x: ((cx / cw + 1) / 2) * r.width, y: ((1 - cy / cw) / 2) * r.height });
+        }
+      }
+    };
+    /** a click (not a drag) while painting: the brick nearest the pointer goes to the painted bone */
+    const pick = (e: PointerEvent) => {
+      const paint = input.current.paint;
+      if (!paint || !lastPicks.length) return;
+      const r = canvas.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      let best: { src: number; d: number } | null = null;
+      for (const p of lastPicks) {
+        const d = Math.hypot(p.x - x, p.y - y);
+        if (!best || d < best.d) best = { src: p.src, d };
+      }
+      if (best && best.d < 40) paint(best.src);
     };
     /** ring the picked part where it is drawn this frame, and say which part it is */
     const placeMark = (
@@ -157,8 +279,10 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     };
     raf = requestAnimationFrame(frame);
     let drag: { x: number; y: number } | null = null;
+    let pressed: { x: number; y: number } | null = null;
     const down = (e: PointerEvent) => {
       drag = { x: e.clientX, y: e.clientY };
+      pressed = { x: e.clientX, y: e.clientY };
       canvas.setPointerCapture(e.pointerId);
     };
     const move = (e: PointerEvent) => {
@@ -166,7 +290,11 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
       cam.orbit(e.clientX - drag.x, e.clientY - drag.y);
       drag = { x: e.clientX, y: e.clientY };
     };
-    const up = () => (drag = null);
+    const up = (e: PointerEvent) => {
+      drag = null;
+      if (pressed && Math.hypot(e.clientX - pressed.x, e.clientY - pressed.y) < 5) pick(e);
+      pressed = null;
+    };
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
       cam.zoomBy(Math.exp(-e.deltaY * 0.0015));

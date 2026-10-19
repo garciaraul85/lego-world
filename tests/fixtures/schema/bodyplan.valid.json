@@ -1,0 +1,20 @@
+{
+  "path": "bodyplans/bpl_crabby0001.json",
+  "value": {
+    "id": "bpl_crabby0001",
+    "name": "Crab",
+    "family": "custom",
+    "move": "walk",
+    "stride": 1.5,
+    "hover": 0,
+    "bones": [
+      { "name": "body", "at": [0, 1.2, 0], "role": "root", "swing": 3 },
+      { "name": "left claw", "parent": "body", "at": [-1, 0, 1], "role": "arm", "swing": 20, "side": -1 },
+      { "name": "left leg", "parent": "body", "at": [-1, 0, 0], "role": "leg", "swing": 25, "phase": 0, "side": -1 }
+    ],
+    "bricks": [
+      { "bone": "body", "w": 2, "d": 2, "kind": "brick", "x": -1, "y": 0, "z": -1, "color": "main" },
+      { "bone": "left claw", "w": 1, "d": 1, "kind": "plate", "x": -1, "y": 0, "z": 0, "color": "#c91a09" }
+    ]
+  }
+}

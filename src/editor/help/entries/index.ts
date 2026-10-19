@@ -43,6 +43,8 @@ export const COMMAND_TYPES = [
   'progress.put',
   'dialogue.put',
   'dialogue.delete',
+  'bodyplan.put',
+  'bodyplan.delete',
   'instance.unpack',
   'instance.transform',
   'character.create',

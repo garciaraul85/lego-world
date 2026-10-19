@@ -5447,3 +5447,66 @@ body.brix-explain * {
   border-color: var(--acc);
   color: var(--acc2);
 }
+
+/* P22 part 3: the Body tab — family cards, the bone tree, bricks of a bone */
+.body-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.body-grid .body-card {
+  cursor: pointer;
+  border: 1px solid var(--bd);
+  background: var(--btn);
+  color: var(--fg2);
+  justify-content: flex-start;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.body-grid .body-card.on {
+  border-color: var(--acc);
+  color: var(--acc2);
+}
+.bone-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: 6px 0;
+}
+.bone-row {
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 3px 6px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+}
+.bone-row:hover {
+  background: var(--btn);
+}
+.bone-row.on {
+  background: color-mix(in srgb, var(--acc) 25%, transparent);
+  color: var(--acc2);
+}
+.bone-edit {
+  margin-top: 6px;
+}
+.brick-row {
+  gap: 3px;
+  margin-bottom: 4px;
+  align-items: center;
+}
+.brick-row select {
+  max-width: 76px;
+}
+.brick-row input {
+  width: 46px;
+  padding: 2px 4px;
+}

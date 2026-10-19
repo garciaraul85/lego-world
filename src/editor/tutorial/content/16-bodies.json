@@ -1,0 +1,460 @@
+{
+  "id": "bodies",
+  "title": "Creatures course",
+  "steps": [
+    {
+      "id": "bodies.make",
+      "title": "A dog called Rex",
+      "body": "A character does not have to be a minifig. The Body tab of the character sheet turns it into an animal or a monster made of bricks: four legs, a bird, a fish, a serpent, a spider, an insect, a slime, a dragon or a robot walker. Bodies move by themselves: legs step, wings flap, tails sway.",
+      "task": "Make Rex, a neighbour on the map, and give him the Four legs body.",
+      "target": "[data-tour=\"sheet-body\"]",
+      "check": {
+        "kind": "state",
+        "test": "bodyFamily",
+        "args": "fourLegs"
+      },
+      "doItForMe": [
+        {
+          "fn": "bodyMake",
+          "args": {
+            "name": "Rex",
+            "family": "fourLegs"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Make a character called Rex and put him on the map, beside where the player starts (Brix's helper does both).",
+          "check": {
+            "kind": "state",
+            "test": "characterExists",
+            "args": "Rex"
+          },
+          "do": [
+            {
+              "fn": "bodyMake",
+              "args": {
+                "name": "Rex",
+                "family": "minifig"
+              },
+              "say": "Rex, a neighbour on the map."
+            }
+          ]
+        },
+        {
+          "text": "In the character sheet on the right, click the tab “Body”.",
+          "check": {
+            "kind": "state",
+            "test": "sheetTab",
+            "args": "body"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sheet-body\"]",
+              "say": "The Body tab"
+            }
+          ]
+        },
+        {
+          "text": "Under “Body”, click “🐕 Four legs”. The preview shows Rex as a brick dog.",
+          "check": {
+            "kind": "state",
+            "test": "bodyFamily",
+            "args": "fourLegs"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"body-family-fourLegs\"]",
+              "say": "Four legs: dogs, cats, horses, wolves."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "bodies.shape",
+      "title": "Shape him with sliders",
+      "body": "The sliders change the bricks and bones the family is made of: longer legs stand taller, a longer tail has more tail bones (each one sways a little after the one before), a bigger head has room for its eyes on the front.",
+      "task": "Make Rex's tail longer (Tail length 1.6) and his legs a little longer (Leg length 1.3).",
+      "target": "[data-tour=\"body-param-tail\"]",
+      "check": {
+        "kind": "state",
+        "test": "bodyParam",
+        "args": {
+          "key": "tail",
+          "atLeast": 1.5
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "bodyParams",
+          "args": {
+            "tail": 1.6,
+            "legs": 1.3
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Drag the slider “Tail length” to 1.6 (the number beside its name shows where it is).",
+          "check": {
+            "kind": "state",
+            "test": "bodyParam",
+            "args": {
+              "key": "tail",
+              "atLeast": 1.5
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"body-param-tail\"]",
+              "value": "1.6",
+              "say": "Tail length 1.6: two more tail bones."
+            }
+          ]
+        },
+        {
+          "text": "Drag the slider “Leg length” to 1.3.",
+          "check": {
+            "kind": "state",
+            "test": "bodyParam",
+            "args": {
+              "key": "legs",
+              "atLeast": 1.25
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"body-param-legs\"]",
+              "value": "1.3",
+              "say": "Leg length 1.3: a brick taller."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "bodies.colors",
+      "title": "His colours",
+      "body": "Every brick of a family takes one of four colours: Main, Accent (ears, tail tip, horns), Belly and Eyes. Change one and every brick in that colour changes.",
+      "task": "Make Rex white with black ears: Main colour white (#f4f4f4), Accent colour black (#1b1b1b).",
+      "target": "[data-tour=\"body-color-main\"]",
+      "check": {
+        "kind": "state",
+        "test": "bodyColor",
+        "args": {
+          "slot": "accent",
+          "value": "#1b1b1b"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "bodyColors",
+          "args": {
+            "main": "#f4f4f4",
+            "accent": "#1b1b1b"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Click the box “Main colour” and pick white (#f4f4f4).",
+          "check": {
+            "kind": "state",
+            "test": "bodyColor",
+            "args": {
+              "slot": "main",
+              "value": "#f4f4f4"
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"body-color-main\"]",
+              "value": "#f4f4f4",
+              "say": "Main colour: white."
+            }
+          ]
+        },
+        {
+          "text": "Click the box “Accent colour” and pick black (#1b1b1b).",
+          "check": {
+            "kind": "state",
+            "test": "bodyColor",
+            "args": {
+              "slot": "accent",
+              "value": "#1b1b1b"
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"body-color-accent\"]",
+              "value": "#1b1b1b",
+              "say": "Accent colour: black ears and tail tip."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "bodies.walk",
+      "title": "See him walk",
+      "body": "Nobody made a walking clip for Rex: his legs have the role “leg”, and legs step. Front left and back right step together, then the other two, the way dogs walk. Show the skeleton to see the bones inside the bricks.",
+      "task": "Press ▶ Walk, then tick Show the skeleton.",
+      "target": "[data-tour=\"body-walk\"]",
+      "check": {
+        "kind": "state",
+        "test": "bodyBonesShown"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"body-walk\"]"
+        },
+        {
+          "click": "[data-tour=\"body-bones\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under the colours, press “▶ Walk”. Rex walks on the spot in the preview; the button turns into “■ Stand”.",
+          "check": {
+            "kind": "state",
+            "test": "bodyWalking"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"body-walk\"]",
+              "say": "▶ Walk: the generated step."
+            }
+          ]
+        },
+        {
+          "text": "Tick “Show the skeleton”. Yellow lines show the bones: the body, four legs, the neck, the head and the tail.",
+          "check": {
+            "kind": "state",
+            "test": "bodyBonesShown"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"body-bones\"]",
+              "say": "The bones inside the bricks."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "bodies.skeleton",
+      "title": "A skeleton of your own",
+      "body": "The family's skeleton follows the sliders. To add bones or change how they move, make it a body plan of your own: it is kept in the game, and any character can wear it (it shows beside the families).",
+      "task": "Scroll down to Skeleton and press ✏️ Edit the skeleton.",
+      "target": "[data-tour=\"skeleton-edit\"]",
+      "check": {
+        "kind": "state",
+        "test": "ownPlan"
+      },
+      "doItForMe": [
+        {
+          "fn": "bodyEditSkeleton"
+        }
+      ],
+      "how": [
+        {
+          "text": "Scroll the sheet down to “Skeleton” and press “✏️ Edit the skeleton”. The list of bones appears, with the body first.",
+          "check": {
+            "kind": "state",
+            "test": "ownPlan"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"skeleton-edit\"]",
+              "say": "Rex gets a body plan of his own."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "bodies.bone",
+      "title": "A new bone: a horn",
+      "body": "Each bone hangs from another. A new bone starts on the picked one, a brick above its joint. Bricks follow their bone: when the head looks around, the horn goes with it.",
+      "task": "Pick the head, add a bone, name it horn, and give it a brick.",
+      "target": "[data-tour=\"skeleton-add\"]",
+      "check": {
+        "kind": "state",
+        "test": "planHasBone",
+        "args": "horn"
+      },
+      "doItForMe": [
+        {
+          "fn": "bodyBone",
+          "args": {
+            "name": "horn",
+            "parent": "head",
+            "at": [0, 1.6, 0.3],
+            "role": "other",
+            "swing": 0,
+            "brick": {
+              "w": 1,
+              "d": 1,
+              "kind": "brick",
+              "x": -0.5,
+              "y": 0,
+              "z": -0.5,
+              "color": "accent"
+            }
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In the list of bones, click “head”. It is drawn brighter in the preview.",
+          "do": [
+            {
+              "click": "[aria-label=\"Bones\"] [data-name=\"head\"]",
+              "say": "The head bone"
+            }
+          ]
+        },
+        {
+          "text": "Press “+ Bone on head”, then in “Bone name” type horn and press Enter.",
+          "do": [
+            {
+              "click": "[data-tour=\"skeleton-add\"]",
+              "say": "+ Bone on head"
+            },
+            {
+              "fill": "[aria-label=\"Bone name\"]",
+              "value": "horn",
+              "say": "Call it horn."
+            }
+          ]
+        },
+        {
+          "text": "Press “+ Brick on horn”: a brick in the Main colour sits on its joint.",
+          "check": {
+            "kind": "state",
+            "test": "planHasBone",
+            "args": "horn"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"skeleton-brick\"]",
+              "say": "+ Brick on horn"
+            }
+          ]
+        },
+        {
+          "text": "Lift the horn: in “Joint y” type 1.6 and press Enter. Then in the brick's colour list pick accent: the horn turns black.",
+          "do": [
+            {
+              "fill": "[aria-label=\"Joint y\"]",
+              "value": "1.6",
+              "say": "Joint y 1.6: on top of the head."
+            },
+            {
+              "choose": "[aria-label=\"Brick colour\"]",
+              "value": "accent",
+              "say": "Accent: black, like his ears."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "bodies.wag",
+      "title": "A happier tail",
+      "body": "Swing is how far a bone moves, in degrees: its joint's limit. Phase is when in the step it moves; legs with the same phase step together. A tail bone with a big swing wags.",
+      "task": "Pick “tail 1” and set its Swing to 45.",
+      "target": "[aria-label=\"Bones\"]",
+      "check": {
+        "kind": "state",
+        "test": "boneSwing",
+        "args": {
+          "bone": "tail 1",
+          "atLeast": 40
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "bodyBoneSet",
+          "args": {
+            "bone": "tail 1",
+            "swing": 45
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In the list of bones, click “tail 1”.",
+          "do": [
+            {
+              "click": "[aria-label=\"Bones\"] [data-name=\"tail 1\"]",
+              "say": "The first tail bone"
+            }
+          ]
+        },
+        {
+          "text": "In “Swing°”, type 45 and press Enter. In the preview the tail wags much further.",
+          "check": {
+            "kind": "state",
+            "test": "boneSwing",
+            "args": {
+              "bone": "tail 1",
+              "atLeast": 40
+            }
+          },
+          "do": [
+            {
+              "fill": "[aria-label=\"Swing°\"]",
+              "value": "45",
+              "say": "Swing 45°: a big wag."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "bodies.play",
+      "title": "Rex on the map",
+      "body": "Rex stands beside where the player starts. In Play he wanders like any neighbour, and his legs step as he goes; a bird or a dragon flaps and hovers, a fish swims above the ground, a slime hops.",
+      "task": "Open the Play menu and click “Play this map”, then find Rex.",
+      "target": "[data-tour=\"menu-play\"]",
+      "check": {
+        "kind": "play",
+        "event": "running"
+      },
+      "doItForMe": [
+        {
+          "action": "play.map"
+        }
+      ],
+      "placement": "bottom"
+    },
+    {
+      "id": "bodies.done",
+      "title": "You can make creatures",
+      "body": "Stop with F5. Everything you used is in the Body tab: families and their sliders, colours, a brick build from the Asset studio worn on the skeleton (Built from bricks), and the Skeleton editor. Help › Help guide › Characters has every part.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "placement": "bottom"
+    }
+  ]
+}

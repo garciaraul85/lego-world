@@ -333,6 +333,83 @@ export const HELP_STATES: HelpState[] = [
         await p.locator('[data-tour="outfit-new"]').click();
     },
   })),
+  ...(['body', 'skeleton'] as const).map((v) => ({
+    // P22 part 3: a dragon from the family's sliders; the skeleton editor on a body plan of the game's own
+    id: `characters-${v}`,
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      await signals(p, { charTab: 'look', sheetTab: 'body' });
+      await p.evaluate((v) => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        const id = v === 'body' ? 'chr_helpdragon' : 'chr_helpcrab01';
+        if (!e.store.get(`characters/${id}.json`)) {
+          if (v === 'skeleton')
+            e.exec({
+              type: 'bodyplan.put',
+              payload: {
+                plan: {
+                  id: 'bpl_helpcrab01',
+                  name: 'Crab',
+                  family: 'custom',
+                  move: 'walk',
+                  stride: 1.5,
+                  hover: 0,
+                  bones: [
+                    { name: 'body', at: [0, 1.2, 0], role: 'root', swing: 3 },
+                    { name: 'left claw', parent: 'body', at: [-1.5, 0.4, 1], role: 'arm', swing: 20, side: -1 },
+                    { name: 'right claw', parent: 'body', at: [1.5, 0.4, 1], role: 'arm', swing: 20, side: 1 },
+                    {
+                      name: 'left leg',
+                      parent: 'body',
+                      at: [-1.5, 0, -0.5],
+                      role: 'leg',
+                      swing: 25,
+                      phase: 0,
+                      side: -1,
+                    },
+                    {
+                      name: 'right leg',
+                      parent: 'body',
+                      at: [1.5, 0, -0.5],
+                      role: 'leg',
+                      swing: 25,
+                      phase: 0.5,
+                      side: 1,
+                    },
+                  ],
+                  bricks: [
+                    { bone: 'body', w: 3, d: 3, kind: 'brick', x: -1.5, y: 0, z: -1.5, color: 'main' },
+                    { bone: 'body', w: 3, d: 2, kind: 'plate', x: -1.5, y: 3, z: -1, color: 'accent' },
+                    { bone: 'left claw', w: 2, d: 2, kind: 'brick', x: -2, y: 0, z: 0, color: 'accent' },
+                    { bone: 'right claw', w: 2, d: 2, kind: 'brick', x: 0, y: 0, z: 0, color: 'accent' },
+                    { bone: 'left leg', w: 1, d: 1, kind: 'brick', x: -1, y: -3, z: -0.5, color: 'main' },
+                    { bone: 'right leg', w: 1, d: 1, kind: 'brick', x: 0, y: -3, z: -0.5, color: 'main' },
+                  ],
+                },
+              },
+            });
+          e.exec({
+            type: 'character.create',
+            payload: {
+              character: {
+                id,
+                name: v === 'body' ? 'Ember' : 'Pinch',
+                role: 'npc',
+                profile: { name: v === 'body' ? 'Ember' : 'Pinch' },
+                body: v === 'body' ? { family: 'dragon' } : { plan: 'bpl_helpcrab01', colors: { main: '#c91a09' } },
+              },
+            },
+          });
+        }
+        e.studioCharacter!.value = id;
+        e.bodyBones!.value = v === 'skeleton';
+        e.bodyBone!.value = v === 'skeleton' ? 'left claw' : null;
+        e.bodyWalk!.value = false;
+      }, v);
+      if (v === 'skeleton') await p.locator('[data-tour="char-skeleton"]').scrollIntoViewIfNeeded();
+    },
+  })),
   {
     // the sheet's Dialogue tab: a neighbour's conversations and barks
     id: 'characters-talk',
