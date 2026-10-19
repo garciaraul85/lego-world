@@ -155,7 +155,7 @@ test('From a picture: three matches from words and the picture’s colours; Clau
   await expect(dlg.getByLabel('Main colours of the picture').locator('.fp-sw')).toHaveCount(2, { timeout: 30_000 });
   await dlg.getByLabel('Describe it').fill('a little fox');
   await dlg.locator('[data-tour="fp-create"]').click();
-  const matches = dlg.getByRole('list', { name: 'Matches' }).getByRole('listitem');
+  const matches = dlg.locator('.fp-card');
   await expect(matches).toHaveCount(3, { timeout: 30_000 });
   await expect(matches.first()).toContainText('Four legs (Fox)');
   await page.screenshot({ path: 'test-results/from-picture-local.png' });
