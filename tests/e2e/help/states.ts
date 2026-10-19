@@ -411,6 +411,56 @@ export const HELP_STATES: HelpState[] = [
     },
   })),
   {
+    // P22 part 4: the Face tab, an angry face picked
+    id: 'characters-face',
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      const has = await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        return e.store.list('characters/').some((k) => (e.store.get(k) as { name?: string })?.name === 'Tom');
+      });
+      if (!has) {
+        await p.locator('[data-tour="char-new"]').click();
+        await p.getByRole('listbox', { name: 'New character from a preset' }).getByRole('option').first().click();
+      }
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        type C = { id: string; name: string; profile: Record<string, unknown> };
+        const all = e.store.list('characters/').map((k) => e.store.get(k) as C);
+        const tom = all.find((c) => c.name === 'Tom') ?? all.find((c) => c.id === e.studioCharacter!.value)!;
+        if (tom.name !== 'Tom')
+          e.exec({
+            type: 'character.update',
+            payload: {
+              character: {
+                ...tom,
+                name: 'Tom',
+                profile: { ...tom.profile, name: 'Tom' },
+                faces: { angry: { expression: 'Angry', eyes: 'Wide' } },
+              },
+            },
+          });
+        e.studioCharacter!.value = tom.id;
+        e.sheetTab!.value = 'face';
+        e.faceMood!.value = 'angry';
+      });
+    },
+  },
+  {
+    // P22 part 4: A character from a picture, with three matches from words
+    id: 'characters-from-picture',
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      await signals(p, { fromPicture: true });
+      const words = p.locator('[data-tour="fp-words"]');
+      await words.fill('a green owl with orange wings');
+      await p.locator('[data-tour="fp-create"]').click();
+      await p.locator('[data-tour="fp-match-2"]').waitFor({ timeout: 30_000 });
+    },
+  },
+  {
     // the sheet's Dialogue tab: a neighbour's conversations and barks
     id: 'characters-talk',
     screen: 'characters',

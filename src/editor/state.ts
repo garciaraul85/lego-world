@@ -119,7 +119,7 @@ export class EditorState {
   readonly dialogueId = signal<string | null>(null);
   /** P22 part 2: the character sheet's open tab */
   readonly sheetTab = signal<
-    'look' | 'body' | 'outfits' | 'stats' | 'moves' | 'animations' | 'voice' | 'dialogue' | 'behaviour'
+    'look' | 'body' | 'face' | 'outfits' | 'stats' | 'moves' | 'animations' | 'voice' | 'dialogue' | 'behaviour'
   >('look');
   /** P22 part 3: the Body tab — the bone picked in the skeleton, the bone bricks are painted onto (none: off),
    * walking on the spot in the preview, and the skeleton drawn over the bricks */
@@ -127,6 +127,10 @@ export class EditorState {
   readonly bodyPaint = signal<string | null>(null);
   readonly bodyWalk = signal(false);
   readonly bodyBones = signal(false);
+  /** P22 part 4: the mood picked in the Face tab (the preview shows its face) */
+  /** P22 part 4: the “A character from a picture” dialog is open */
+  readonly fromPicture = signal(false);
+  readonly faceMood = signal<'neutral' | 'happy' | 'angry' | 'sad' | 'scared' | 'surprised'>('neutral');
   /** P22: how the open conversation is shown (a list, a graph or a script) */
   readonly dialogueView = signal<'list' | 'graph' | 'script'>('list');
   /** where the clip's playhead is (seconds), and whether the clip plays in the preview (tutorial checks) */

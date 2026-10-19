@@ -220,6 +220,15 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   moveStyle: (ed, a) => studioCharacter(ed)?.moves?.style === a,
   pitchBelow: (ed, a) => (studioCharacter(ed)?.voice?.pitch ?? 1) < Number(a),
   animationSet: (ed, a) => !!studioCharacter(ed)?.animations?.[a as 'idle'],
+  // P22 part 4: the faces course
+  faceSet: (ed, a) => {
+    const { mood, key, value } = a as { mood: string; key: string; value: string };
+    return (studioCharacter(ed)?.faces as Record<string, Record<string, string>> | undefined)?.[mood]?.[key] === value;
+  },
+  talkMood: (ed, a) => {
+    const s = ed.session.value as { talks?: { active: boolean; view: { mood: string } | null } } | null;
+    return !!s?.talks?.active && s.talks.view?.mood === a;
+  },
   // P22 part 3: the creatures course
   bodyFamily: (ed, a) => studioCharacter(ed)?.body?.family === a,
   bodyParam: (ed, a) => {

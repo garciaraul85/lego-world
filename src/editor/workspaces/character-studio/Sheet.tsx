@@ -27,6 +27,7 @@ import { soundOptions } from '../../panels/AudioFields';
 export type SheetTab =
   | 'look'
   | 'body'
+  | 'face'
   | 'outfits'
   | 'stats'
   | 'moves'
@@ -37,6 +38,7 @@ export type SheetTab =
 export const SHEET_TABS: [SheetTab, string][] = [
   ['look', 'Look'],
   ['body', 'Body'],
+  ['face', 'Face'],
   ['outfits', 'Outfits'],
   ['stats', 'Stats'],
   ['moves', 'Moves'],
@@ -47,6 +49,7 @@ export const SHEET_TABS: [SheetTab, string][] = [
 ];
 
 export const SHEET_HELP: Record<Exclude<SheetTab, 'look' | 'dialogue'>, string> = {
+  face: 'The resting face and a face for each mood. A dialogue line’s mood shows that face on the speaker in Play and in its portrait.',
   body: 'What the character is made of: the minifig, or a body family (four legs, bird, fish, serpent, spider, insect, slime, dragon, robot walker) shaped with sliders, or a skeleton of your own. Bodies move by themselves: legs step, wings flap, spines snake. A brick build from the Asset studio can be worn on the skeleton.',
   outfits:
     'Outfits are sets of clothes the character can wear: each keeps the look parts that differ (hat, shirt, colours…) and can change its stats. Logic’s Change outfit (or the action) swaps them in Play.',

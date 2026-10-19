@@ -22,6 +22,8 @@ export type DialogueLayerProps = {
   blip?(event: string, pitch: number): void;
   /** the editor's preview: no click to advance outside the box */
   preview?: boolean;
+  /** P22 part 4: the speaker's own portrait with the line's mood (null: the plain brick face) */
+  portrait?(who: string, mood: Mood): string | null;
 };
 
 const FACE: Record<Mood, { eyes: string; mouth: string }> = {
@@ -39,8 +41,20 @@ const FACE: Record<Mood, { eyes: string; mouth: string }> = {
   },
 };
 
-/** A brick-head portrait showing the speaker's mood (faces get their own art in P23). */
-export function Portrait({ mood, color, size = 72 }: { mood: Mood; color: string | null; size?: number }) {
+/** A portrait showing the speaker's mood: its own head when the game has it (P22 part 4), else a plain brick face. */
+export function Portrait({
+  mood,
+  color,
+  size = 72,
+  src,
+}: {
+  mood: Mood;
+  color: string | null;
+  size?: number;
+  /** the speaker's own face (P22 part 4) */
+  src?: string | null;
+}) {
+  if (src) return <img class="bw-portrait" src={src} width={size} height={size} alt="" aria-hidden="true" />;
   const f = FACE[mood];
   return (
     <svg class="bw-portrait" width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
@@ -112,7 +126,8 @@ export function DialogueLayer(p: DialogueLayerProps) {
     e.stopPropagation();
     p.onNext();
   };
-  const portrait = look.portrait && v.who !== '' && <Portrait mood={v.mood} color={v.nameColor} />;
+  const face = v.who ? (p.portrait?.(v.who, v.mood) ?? null) : null;
+  const portrait = look.portrait && v.who !== '' && <Portrait mood={v.mood} color={v.nameColor} src={face} />;
   const say = (
     <div class="bw-dlg-text" aria-live="polite">
       {text}
@@ -213,7 +228,7 @@ export function DialogueLayer(p: DialogueLayerProps) {
           {v.who && (
             <div class="bwd-stage">
               <div class="bwd-left">
-                <Portrait mood={v.mood} color={v.nameColor} size={190} />
+                <Portrait mood={v.mood} color={v.nameColor} size={190} src={face} />
               </div>
             </div>
           )}

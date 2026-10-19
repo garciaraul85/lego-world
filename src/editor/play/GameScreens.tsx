@@ -105,6 +105,7 @@ export function GameScreens({
           onNext={() => s.dialogueNext()}
           onChoose={(i) => s.dialogueChoose(i)}
           blip={(ev, pitch) => s.audio.play(ev, { pitch })}
+          portrait={(who, mood) => s.portraitOf(who, mood)}
         />
       )}
     </>

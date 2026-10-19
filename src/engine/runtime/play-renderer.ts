@@ -317,7 +317,10 @@ export class PlayRenderer {
           if (creatures.drawn.has(n.id)) continue;
           const cast = s.cine.drawFor(n, n.profile, n.state);
           if (cast?.state.hidden) continue;
-          draw(cast?.profile ?? n.profile, cast?.state ?? n.state);
+          // P22 part 4: a speaker shows the face of its line's mood
+          const face = s.moodFaceOf(n);
+          const look = cast?.profile ?? n.profile;
+          draw(face ? { ...look, ...face } : look, cast?.state ?? n.state);
         }
         for (const x of s.cine.extras()) draw(x.profile, x.state);
         if (!this.bound.has(w.controller)) {
@@ -335,7 +338,7 @@ export class PlayRenderer {
           if (!heroCast.state.hidden) draw(heroCast.profile, heroCast.state);
         } else
           draw(
-            s.hero,
+            s.moodFaceOf('hero') ? { ...s.hero, ...s.moodFaceOf('hero') } : s.hero,
             pose
               ? { ...s.heroState, studioPose: rigPose(pose, poseClip), studioProgress: 0, studioFist: false }
               : s.heroState,

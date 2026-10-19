@@ -13,7 +13,7 @@ import {
   type ParamKey,
   ROLE_INFO,
 } from '../../../core/character/body';
-import { FAMILY_INFO, makeFamily } from '../../../core/character/families';
+import { FAMILY_INFO, FAMILY_PRESETS, makeFamily } from '../../../core/character/families';
 import { type ResolvedBody, resolveBody } from '../../../core/character/resolve';
 import { newId } from '../../../core/ids';
 import type { Asset, Character } from '../../../core/schema';
@@ -142,6 +142,26 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
               {own ? own.name : FAMILY_INFO[family].label}:{' '}
               {FAMILY_INFO[family]?.about && !own ? FAMILY_INFO[family].about : MOVE_INFO[own!.move]}.
             </p>
+            {!own && family !== 'minifig' && (
+              <div class="body-presets" role="group" aria-label="Presets">
+                {FAMILY_PRESETS[family].map((p, i) => (
+                  <button
+                    type="button"
+                    class="chip"
+                    data-tour={`body-preset-${i}`}
+                    title={`${p.name}: its sliders and colours`}
+                    onClick={() =>
+                      setBody(
+                        { ...body, params: { ...(p.params ?? {}) }, colors: { ...p.colors } },
+                        `Preset: ${p.name}`,
+                      )
+                    }
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
             {params.map((k) => (
               <label class="field" key={k}>
                 <span>

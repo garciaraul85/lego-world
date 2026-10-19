@@ -443,3 +443,148 @@ export function slotColors(body: Pick<Body, 'family' | 'colors'>): Record<string
   const base = (FAMILY_INFO[body.family as BodyFamily] ?? FAMILY_INFO.fourLegs).colors;
   return { ...base, ...(body.colors ?? {}), dark: '#2b2b2b' };
 }
+
+/** P22 part 4: presets for each family — sliders and colours that make a known kind of creature (all original). */
+export type BodyPreset = {
+  name: string;
+  params?: BodyParams;
+  colors: { main: string; accent: string; belly: string; eye?: string };
+};
+const c = (main: string, accent: string, belly: string, eye?: string) => ({
+  main,
+  accent,
+  belly,
+  ...(eye ? { eye } : {}),
+});
+export const FAMILY_PRESETS: Record<Exclude<BodyFamily, 'minifig'>, BodyPreset[]> = {
+  fourLegs: [
+    { name: 'Dog', colors: c('#a0724b', '#5c3a21', '#e4cd9e') },
+    {
+      name: 'Cat',
+      params: { legs: 0.8, tail: 1.6, head: 0.9, build: 0.8 },
+      colors: c('#fe8a18', '#c55a00', '#f4f4f4'),
+    },
+    {
+      name: 'Horse',
+      params: { size: 1.6, legs: 1.8, neck: 1.6, tail: 1, build: 1.2 },
+      colors: c('#6b3f1f', '#1b1b1b', '#6b3f1f'),
+    },
+    {
+      name: 'Wolf',
+      params: { size: 1.2, legs: 1.2, tail: 1.4 },
+      colors: c('#6c6e68', '#3c3e3a', '#a0a5a9', '#f2cd37'),
+    },
+    { name: 'Fox', params: { legs: 0.9, tail: 2, head: 0.9, build: 0.8 }, colors: c('#d67923', '#f4f4f4', '#f4f4f4') },
+    {
+      name: 'Cow',
+      params: { size: 1.5, legs: 1.1, neck: 0.4, tail: 0.8, build: 1.5 },
+      colors: c('#f4f4f4', '#1b1b1b', '#fc97ac'),
+    },
+    { name: 'Pig', params: { legs: 0.6, neck: 0, tail: 0.3, build: 1.4 }, colors: c('#fc97ac', '#e4637e', '#fc97ac') },
+    {
+      name: 'Bear',
+      params: { size: 1.6, legs: 0.9, neck: 0.3, tail: 0, head: 1.3, build: 1.6 },
+      colors: c('#583927', '#352100', '#a0724b'),
+    },
+  ],
+  bird: [
+    { name: 'Bluebird', colors: c('#0055bf', '#fe8a18', '#f4f4f4') },
+    { name: 'Parrot', params: { wings: 1.3, head: 1.1 }, colors: c('#4b9f4a', '#c91a09', '#f2cd37') },
+    {
+      name: 'Owl',
+      params: { size: 1.2, legs: 0.6, head: 1.4, build: 1.3 },
+      colors: c('#a0724b', '#f2cd37', '#e4cd9e', '#f2cd37'),
+    },
+    { name: 'Crow', params: { wings: 1.4 }, colors: c('#1b1b1b', '#3c3e3a', '#3c3e3a', '#f4f4f4') },
+    { name: 'Duck', params: { legs: 0.6, wings: 0.8, build: 1.3 }, colors: c('#f4f4f4', '#fe8a18', '#f4f4f4') },
+    { name: 'Flamingo', params: { legs: 2, wings: 1.2, build: 0.8 }, colors: c('#fc97ac', '#1b1b1b', '#fc97ac') },
+    { name: 'Eagle', params: { size: 1.6, wings: 2, head: 1.1 }, colors: c('#583927', '#f2cd37', '#f4f4f4') },
+    { name: 'Canary', params: { size: 0.7 }, colors: c('#f2cd37', '#fe8a18', '#f2cd37') },
+  ],
+  fish: [
+    { name: 'Goldfish', colors: c('#fe8a18', '#f4f4f4', '#f2cd37') },
+    { name: 'Shark', params: { size: 2.2, tail: 1.6, build: 1.2 }, colors: c('#6c6e68', '#3c3e3a', '#f4f4f4') },
+    { name: 'Clownfish', params: { size: 0.8 }, colors: c('#fe8a18', '#f4f4f4', '#fe8a18') },
+    { name: 'Tuna', params: { size: 1.5, tail: 1.4 }, colors: c('#0a3463', '#a0a5a9', '#f4f4f4') },
+    { name: 'Piranha', params: { head: 1.4, tail: 0.6 }, colors: c('#6c6e68', '#c91a09', '#c91a09') },
+    { name: 'Angelfish', params: { tail: 0.8, build: 0.7 }, colors: c('#f2cd37', '#1b1b1b', '#f4f4f4') },
+    { name: 'Pufferfish', params: { tail: 0, head: 1.6, build: 1.6 }, colors: c('#e4cd9e', '#583927', '#f4f4f4') },
+    { name: 'Swordfish', params: { size: 1.8, tail: 2, build: 0.8 }, colors: c('#0055bf', '#a0a5a9', '#f4f4f4') },
+  ],
+  serpent: [
+    { name: 'Grass snake', colors: c('#237841', '#f2cd37', '#bbe90b') },
+    { name: 'Cobra', params: { size: 1.3, head: 1.4 }, colors: c('#352100', '#e4cd9e', '#e4cd9e') },
+    { name: 'Python', params: { size: 1.6, tail: 2, build: 1.5 }, colors: c('#a0724b', '#583927', '#e4cd9e') },
+    {
+      name: 'Earthworm',
+      params: { size: 0.6, tail: 0.5, head: 0.6, build: 0.6 },
+      colors: c('#fc97ac', '#e4637e', '#fc97ac'),
+    },
+    { name: 'Sea serpent', params: { size: 2.4, tail: 2, build: 1.6 }, colors: c('#0055bf', '#4fd1c5', '#a0a5a9') },
+    { name: 'Coral snake', colors: c('#c91a09', '#1b1b1b', '#f2cd37') },
+    { name: 'Viper', params: { head: 1.3 }, colors: c('#6c6e68', '#1b1b1b', '#a0a5a9', '#f2cd37') },
+    { name: 'Eel', params: { tail: 1.5, head: 0.8, build: 0.9 }, colors: c('#3c3e3a', '#4b9f4a', '#a0a5a9') },
+  ],
+  spider: [
+    { name: 'Black widow', colors: c('#1b1b1b', '#c91a09', '#1b1b1b') },
+    { name: 'Tarantula', params: { size: 1.4, build: 1.3 }, colors: c('#583927', '#fe8a18', '#352100') },
+    {
+      name: 'Jumping spider',
+      params: { size: 0.8, legs: 0.7, head: 1.3 },
+      colors: c('#6c6e68', '#f4f4f4', '#3c3e3a', '#4fd1c5'),
+    },
+    { name: 'Cave spider', params: { legs: 1.6 }, colors: c('#a0a5a9', '#6c6e68', '#a0a5a9', '#f4f4f4') },
+    { name: 'Ice spider', colors: c('#9fc3e9', '#f4f4f4', '#4fd1c5') },
+    { name: 'Lava spider', colors: c('#c91a09', '#fe8a18', '#1b1b1b', '#f2cd37') },
+    { name: 'Garden spider', params: { size: 0.8 }, colors: c('#f2cd37', '#1b1b1b', '#a0724b') },
+    { name: 'Giant spider', params: { size: 2.4, legs: 1.4, build: 1.4 }, colors: c('#3c3e3a', '#4b9f4a', '#1b1b1b') },
+  ],
+  insect: [
+    { name: 'Ladybird', colors: c('#c91a09', '#1b1b1b', '#1b1b1b') },
+    { name: 'Beetle', params: { wings: 0, build: 1.3 }, colors: c('#237841', '#1b1b1b', '#1b1b1b') },
+    { name: 'Ant', params: { size: 0.7, wings: 0, build: 0.7 }, colors: c('#1b1b1b', '#3c3e3a', '#3c3e3a', '#c91a09') },
+    { name: 'Bee', params: { wings: 1.3 }, colors: c('#f2cd37', '#1b1b1b', '#1b1b1b') },
+    { name: 'Firefly', params: { wings: 1 }, colors: c('#1b1b1b', '#bbe90b', '#bbe90b', '#bbe90b') },
+    { name: 'Stag beetle', params: { size: 1.3, wings: 0, head: 1.4 }, colors: c('#583927', '#352100', '#352100') },
+    { name: 'Grasshopper', params: { legs: 1.6, wings: 0.8, build: 0.7 }, colors: c('#4b9f4a', '#bbe90b', '#237841') },
+    { name: 'Moth', params: { wings: 2 }, colors: c('#e4cd9e', '#a0724b', '#a0724b') },
+  ],
+  slime: [
+    { name: 'Green slime', colors: c('#4b9f4a', '#bbe90b', '#bbe90b') },
+    { name: 'Lava slime', colors: c('#c91a09', '#fe8a18', '#fe8a18', '#f2cd37') },
+    { name: 'Ice slime', colors: c('#9fc3e9', '#f4f4f4', '#f4f4f4', '#0055bf') },
+    { name: 'Poison slime', colors: c('#81007b', '#bbe90b', '#bbe90b', '#bbe90b') },
+    { name: 'Gold slime', params: { size: 0.8 }, colors: c('#f2cd37', '#f4f4f4', '#f4f4f4') },
+    { name: 'Shadow slime', colors: c('#1b1b1b', '#3c3e3a', '#3c3e3a', '#c91a09') },
+    { name: 'Jelly slime', params: { build: 0.8 }, colors: c('#fc97ac', '#f4f4f4', '#f4f4f4') },
+    { name: 'King slime', params: { size: 2.4, build: 1.6 }, colors: c('#0055bf', '#f2cd37', '#f2cd37') },
+  ],
+  dragon: [
+    { name: 'Red dragon', colors: c('#c91a09', '#f2cd37', '#fe8a18', '#f2cd37') },
+    { name: 'Ice dragon', colors: c('#9fc3e9', '#f4f4f4', '#f4f4f4', '#0055bf') },
+    { name: 'Forest dragon', colors: c('#237841', '#a0724b', '#bbe90b', '#f2cd37') },
+    { name: 'Gold dragon', params: { size: 1.4 }, colors: c('#f2cd37', '#a0724b', '#f4f4f4', '#c91a09') },
+    { name: 'Shadow dragon', params: { wings: 1.6 }, colors: c('#1b1b1b', '#81007b', '#3c3e3a', '#c91a09') },
+    { name: 'Sea dragon', params: { legs: 0.6, tail: 2, wings: 0.6 }, colors: c('#0055bf', '#4fd1c5', '#9fc3e9') },
+    { name: 'Baby dragon', params: { size: 0.6, head: 1.5, wings: 0.7 }, colors: c('#4b9f4a', '#f2cd37', '#bbe90b') },
+    {
+      name: 'Elder dragon',
+      params: { size: 2.4, neck: 2, tail: 2, wings: 2 },
+      colors: c('#6c6e68', '#f4f4f4', '#a0a5a9', '#f2cd37'),
+    },
+  ],
+  robot: [
+    { name: 'Scout walker', colors: c('#a0a5a9', '#0055bf', '#6c6e68') },
+    { name: 'Tank walker', params: { size: 1.6, legs: 0.6, build: 1.6 }, colors: c('#4b5320', '#1b1b1b', '#3c3e3a') },
+    { name: 'Spider bot', params: { legs: 1.6, build: 0.7 }, colors: c('#3c3e3a', '#c91a09', '#6c6e68') },
+    { name: 'Guardian', params: { size: 2, head: 1.4 }, colors: c('#f4f4f4', '#f2cd37', '#a0a5a9', '#4fd1c5') },
+    { name: 'Rust bucket', colors: c('#a0724b', '#583927', '#6c6e68') },
+    { name: 'Gold walker', colors: c('#f2cd37', '#f4f4f4', '#a0724b') },
+    { name: 'Mini walker', params: { size: 0.6 }, colors: c('#fe8a18', '#1b1b1b', '#a0a5a9') },
+    {
+      name: 'Heavy walker',
+      params: { size: 2.4, legs: 1.4, build: 1.6 },
+      colors: c('#1b1b1b', '#c91a09', '#3c3e3a', '#c91a09'),
+    },
+  ],
+};

@@ -14,9 +14,11 @@ type Sample = ((
     signal?: AbortSignal;
     tools?: SampleTool[];
     modelTier?: 'quick' | 'default' | 'complex';
+    images?: Blob[];
+    cache?: boolean;
   },
 ) => Promise<{ text: string; truncated: boolean; modelTierApplied: string }>) & {
-  limits(): Promise<{ maxPromptBytes: number; tools?: { maxCount: number } }>;
+  limits(): Promise<{ maxPromptBytes: number; tools?: { maxCount: number }; images?: { maxCount: number } }>;
 };
 type ClaudeUse = { use(name: 'sample'): Promise<Sample | null> };
 
@@ -28,6 +30,13 @@ export function sampleApi(): Promise<Sample | null> {
   return samplePromise;
 }
 
+/** P22 part 4: whether the artifact's Claude can look at pictures here (the page declares images) */
+export async function artifactImages(): Promise<boolean> {
+  const s = await sampleApi();
+  const l = s ? await s.limits().catch(() => null) : null;
+  return !!l?.images;
+}
+
 const CODES: Record<string, AiError['code']> = {
   cancelled: 'cancelled',
   not_granted: 'not-granted',
@@ -37,6 +46,8 @@ const CODES: Record<string, AiError['code']> = {
   capability_removed: 'unavailable',
   tools_unavailable: 'unavailable',
   rate_limited: 'rate-limited',
+  images_unavailable: 'unavailable',
+  image_rejected: 'bad-response',
   refused: 'refused',
 };
 
@@ -69,6 +80,7 @@ export function artifactProvider(cfg: { tier: () => 'quick' | 'default' | 'compl
             execute: t.execute,
           })),
           onText: ({ text }) => req.onText?.(text),
+          ...(req.images?.length ? { images: req.images.map((i) => i.blob) } : {}),
         });
         return { text: r.text, usage: null, truncated: r.truncated };
       } catch (e) {

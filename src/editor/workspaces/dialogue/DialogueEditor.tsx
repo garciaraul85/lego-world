@@ -20,6 +20,7 @@ import type { ActionCtx } from '../../actions/registry';
 import { ActionListField } from '../../components/ActionListField';
 import { DraftText } from '../../components/fields';
 import { actionChoices } from '../../panels/AudioFields';
+import { editorPortrait } from '../character-studio/Face';
 import { characters, freeLabel, layers, moveStep, scriptNames, speakers, withStep } from './model';
 
 /**
@@ -811,6 +812,7 @@ function Preview({ c, conv }: { c: ActionCtx; conv: Conversation }) {
             onNext={() => sys.t.next()}
             onChoose={(i) => sys.t.choose(i)}
             blip={(e, pitch) => ed.audio.previewEvent(e, pitch)}
+            portrait={editorPortrait(ed.store)}
             preview
           />
         ) : (

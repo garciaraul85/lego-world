@@ -34,6 +34,8 @@ export const ACTION_HELP: Record<string, string> = {
   'edit.back': 'Moves the selection one stud along +Z.',
   'edit.up': 'Raises the selection by one plate.',
   'edit.down': 'Lowers the selection by one plate.',
+  'characters.fromPicture':
+    'Opens “A character from a picture” on the Characters screen: a photo, a drawing or a few words become three characters made of editor settings to pick from.',
   'assets.open': 'Opens the Assets screen, where assets are built from bricks and from other assets.',
   'assets.new': 'Starts a new asset with one brick and opens it on the build plate in the Assets screen.',
   'assets.resetBuiltins':
@@ -106,6 +108,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Character sheet course: make the player character, give him an outfit, stats, a fighting style, a victory clip and a voice, then level him up in Play.',
   'help.bodies':
     'Starts the Creatures course: turn a neighbour into a brick dog, shape him with sliders and colours, watch him walk, make his skeleton your own, add a horn and a wagging tail, then meet him in Play.',
+  'help.faces':
+    'Starts the Faces and pictures course: give Tom an angry and a happy face, write lines with moods, see him glare and laugh in Play, then make an owl from a few words with From a picture.',
   'help.dialogue':
     'Starts the Dialogue course: add a villager, write a conversation with a choice as a script, see it as a list and a graph, preview every branch, pick a style and talk to him in Play.',
   'help.ai': 'Opens the AI builder: describe a change, watch each step, then approve or reject it.',

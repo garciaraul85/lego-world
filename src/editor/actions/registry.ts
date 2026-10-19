@@ -449,6 +449,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('bodies'),
   },
   {
+    id: 'help.faces',
+    label: 'Faces and pictures course (moods, from a picture)',
+    run: ({ ui }) => ui.tutorial('faces'),
+  },
+  {
     id: 'help.dialogue',
     label: 'Dialogue course (conversations, choices, styles)',
     run: ({ ui }) => ui.tutorial('dialogue'),
@@ -468,6 +473,15 @@ export const ACTIONS: EditorAction[] = [
 // P32: the Assets menu
 ACTIONS.push(
   { id: 'assets.open', label: 'Open the Assets screen', run: ({ ui }) => ui.workspace('Assets') },
+  {
+    // P22 part 4
+    id: 'characters.fromPicture',
+    label: 'New character from a picture…',
+    run: ({ ed, ui }) => {
+      ui.workspace('Characters');
+      ed.fromPicture.value = true;
+    },
+  },
   {
     id: 'assets.new',
     label: 'New asset',
@@ -526,7 +540,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     '-',
     'view.palette',
   ],
-  Assets: ['assets.open', 'assets.new', '-', 'assets.resetBuiltins'],
+  Assets: ['assets.open', 'assets.new', 'characters.fromPicture', '-', 'assets.resetBuiltins'],
   World: [
     'world.addMap',
     'world.trainingYard',
@@ -577,6 +591,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.dialogue',
     'help.sheet',
     'help.bodies',
+    'help.faces',
     'help.brixCourse',
     'help.build',
     'help.shortcuts',

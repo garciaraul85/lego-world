@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Body } from '../character/body';
+import { Faces } from '../character/faces';
 import { Animations, Behaviour, Moves, Outfit, Stats, Voice } from '../character/sheet';
 import { Health } from '../combat/damage';
 import { Enemy } from '../combat/enemy';
@@ -45,5 +46,7 @@ export const Character = z.strictObject({
   behaviour: Behaviour.optional(),
   /** P22 part 3: a body other than the minifig (a family from sliders or a body plan), its colours and bricks */
   body: Body.optional(),
+  /** P22 part 4: its face for each mood (dialogue moods): an expression and eyes */
+  faces: Faces.optional(),
 });
 export type Character = z.infer<typeof Character>;

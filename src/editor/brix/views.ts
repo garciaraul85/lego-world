@@ -307,6 +307,26 @@ export function stepsToView(view: string): ShowStep[] {
         },
       ];
     }
+    case 'characters-face':
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Face tab of the sheet.',
+          find: control('[aria-label="Character sheet"]', /^Face$/),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === 'face',
+        },
+      ];
+    case 'characters-from-picture':
+      return [
+        ws('Characters'),
+        {
+          say: 'Press ✨ From a picture… under + New character.',
+          find: control('[aria-label="Characters and clips"]', /From a picture/),
+          press: true,
+          done: (c) => c.ed.fromPicture.value,
+        },
+      ];
     case 'characters-body':
     case 'characters-skeleton':
       // P22 part 3: the Body tab (the skeleton editor is in it, below the shape and colours)

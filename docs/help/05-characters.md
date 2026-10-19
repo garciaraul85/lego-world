@@ -41,6 +41,7 @@ The right side of the Characters screen is the character's **sheet**, in tabs:
 
 - **Look**: body, face, hair, clothes and gear (🎲 **Random look** makes one from a seed).
 - **Body**: the minifig, or an animal or monster (below).
+- **Face**: the resting face and a face for each mood (below).
 - **Outfits**: sets of clothes it can wear, each with stat bonuses. **Wear** one and change the look: the changes go into the outfit, and its own look stays. Logic's **Change outfit** swaps them in Play.
 - **Stats**: hearts (the player character), stamina, speed, jump, strength (hit power), defence (8% less damage a point) and a level with an experience curve. Logic's **Give experience** levels up; **On level up** reacts. The genre's simple view shows the stats its games use.
 - **Moves**: a fighting style (Balanced, Swift, Heavy, Defensive) with hit power and swing speed; a neighbour fights the hero with **Fights the hero**.
@@ -64,6 +65,18 @@ The sliders (Size, Leg length, Neck, Tail length, Wing span, Head size, Build) c
 **Built from bricks**: build a creature in the Asset studio and choose it in **Brick build**; each brick follows the bone it is nearest to. To move a brick to another bone, pick the bone in **Paint onto** and click the brick in the preview. **Auto-attach** puts them all back on their nearest bones.
 
 **Skeleton**: **✏️ Edit the skeleton** turns the family into a **body plan** of your own, kept in the game, that any character can wear. Click a bone to change its name, the bone it hangs from, its role, its joint (x right, y up, z forward), its **swing** (how far it moves, in degrees) and **phase** (legs with the same phase step together). **+ Bone on …** adds a bone under the picked one, **+ Brick on …** gives it bricks, **Remove** passes its bones and bricks to its parent. **Moves by** (Walk, Fly, Swim, Slither, Hop), **Stride** and **Hover** are for the whole body. [Creatures course](action:help.bodies)
+
+## Faces for moods
+
+The **Face** tab shows a minifig's resting face (head shape, eyes and their colour, expression, face marks, facial hair and glasses) and a picture of its face for each mood: **Happy**, **Angry**, **Sad**, **Scared** and **Surprised**. Click a mood to see it on the preview and change its **Expression** and **Eyes**; **Default** puts it back. Dialogue lines have a mood (in a script: Tom (angry): Who left the gate open?): in Play the speaker shows that face on its figure and in the dialogue box's portrait, which is now the speaker's own head.
+
+## A character from a picture
+
+**✨ From a picture…** (under + New character, or Assets › New character from a picture…) turns a photo, a drawing or a few words into three characters to pick from, closest first, each listing what its parts matched. With the AI builder set up, Claude looks at the picture; it only chooses settings the editor has — a body family with its sliders and colours, or the minifig's parts and colours — so **Use this one** gives an ordinary character you can keep changing, and Undo removes it. Without the AI builder the words pick the kind and the parts ("a queen with a sword and a long red scarf", "a little orange fox") and the picture gives the main colours.
+
+The picture stays on this device: it is sent to Claude only when you press **Create**, and it is never saved in the game. Only use photos of yourself or of people who agreed; a famous character becomes an original character in brick style, not a copy. [Faces and pictures course](action:help.faces)
+
+Every body family also has eight **presets** (Dog, Cat, Horse, Wolf… Parrot, Owl… Shark, Clownfish…) under its description in the Body tab.
 
 ## Dialogue: what characters say
 

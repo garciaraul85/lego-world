@@ -2,6 +2,7 @@ import { AiError, type AiProvider, type AiRunRequest, type AiRunResult } from '.
 
 type Block =
   | { type: 'text'; text: string }
+  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
   | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
   | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean };
 type Msg = { role: 'user' | 'assistant'; content: string | Block[] };
@@ -30,6 +31,15 @@ export function anthropicProvider(cfg: { key: () => string; model: () => string;
       const key = cfg.key();
       if (!key) throw new AiError('no-key', 'Add your Anthropic API key in the AI builder settings.');
       const messages: Msg[] = req.turns.map((t) => ({ role: t.role, content: t.content }));
+      // pictures go with the first user turn
+      const first = messages.find((m) => m.role === 'user');
+      if (first && req.images?.length)
+        first.content = [
+          ...req.images.map(
+            (i): Block => ({ type: 'image', source: { type: 'base64', media_type: i.mediaType, data: i.base64 } }),
+          ),
+          { type: 'text', text: String(first.content) },
+        ];
       const tools = req.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema }));
       let text = '';
       let inT = 0;

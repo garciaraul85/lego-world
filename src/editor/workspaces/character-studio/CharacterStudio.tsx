@@ -17,6 +17,8 @@ import { actionChoices } from '../../panels/AudioFields';
 import { ConversationList, DialogueMain, TalkSection } from '../dialogue/CharacterTalk';
 import { BodyTab, bodyOfChr } from './Body';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
+import { FaceTab, withMood } from './Face';
+import { FromPicture } from './FromPicture';
 import { AnimationsTab, BehaviourTab, MovesTab, OutfitsTab, SHEET_TABS, StatsTab, VoiceTab } from './Sheet';
 import { CharacterThumb, peakTime, type ThumbView, trackPose } from './thumbs';
 
@@ -151,8 +153,12 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
   });
   // P22 part 3: a body plan instead of the minifig
   const body = bodyOfChr(chr, (p) => ed.store.get(p));
+  const faceOn = ed.sheetTab.value === 'face' && !body;
   preview.current = {
-    profile: { ...wornProfile(chr), offHand: chr.gear?.offHand ?? 'None' },
+    profile: faceOn
+      ? withMood({ ...wornProfile(chr), offHand: chr.gear?.offHand ?? 'None' }, chr.faces, ed.faceMood.value)
+      : { ...wornProfile(chr), offHand: chr.gear?.offHand ?? 'None' },
+    closeUp: faceOn,
     clip: body ? null : clip,
     time,
     turntable,
@@ -285,6 +291,16 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           >
             {picking ? 'Close the presets' : '+ New character'}
           </button>
+          <button
+            type="button"
+            class="btn"
+            data-tour="char-from-picture"
+            data-help="characters.fromPicture"
+            onClick={() => (ed.fromPicture.value = true)}
+          >
+            ✨ From a picture…
+          </button>
+          {ed.fromPicture.value && <FromPicture c={c} onClose={() => (ed.fromPicture.value = false)} />}
           {picking && (
             <div class="char-presets" role="listbox" aria-label="New character from a preset">
               {BUILTIN_CHARACTERS.map((p) => (
@@ -630,7 +646,10 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
             </div>
           )}
           {tab === 'body' && <BodyTab c={c} chr={chr} save={saveChr} inProject={inProject} />}
-          {body && ['look', 'outfits', 'animations'].includes(tab) && (
+          {tab === 'face' && !body && (
+            <FaceTab c={c} chr={chr} save={saveChr} profile={wornProfile(chr)} setField={setField} />
+          )}
+          {body && ['look', 'face', 'outfits', 'animations'].includes(tab) && (
             <div class="sec">
               <p class="hint" data-tour="body-note">
                 {chr.name} has a {body.name.toLowerCase()} body: its shape and colours are in the{' '}
@@ -638,7 +657,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                   Body tab
                 </button>
                 , and it moves by itself ({body.move}).{' '}
-                {tab === 'look'
+                {tab === 'look' || tab === 'face'
                   ? 'The minifig look is kept for when it is a minifig again.'
                   : tab === 'outfits'
                     ? 'Outfits are for minifigs.'

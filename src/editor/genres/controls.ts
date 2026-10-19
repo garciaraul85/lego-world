@@ -119,11 +119,13 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.dialogue': S('dialogue'),
   'help.sheet': S('characters'),
   'help.bodies': S('characters'),
+  'help.faces': S('characters'),
   'help.brixCourse': S('core'),
   'help.here': S('core'),
   'help.build': S('core'),
   'help.ai': S('ai'),
   'assets.open': S('assets'),
+  'characters.fromPicture': S('characters'),
   'assets.new': S('assets'),
   'assets.resetBuiltins': A('assets'),
   // P18: the genre picker and Show everything

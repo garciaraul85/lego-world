@@ -31,6 +31,8 @@ export type PreviewInput = {
   body?: ResolvedBody | null;
   /** show the skeleton (the picked bone is drawn brighter) */
   bones?: { selected: string | null } | null;
+  /** P22 part 4: a close-up of the head (the Face tab) */
+  closeUp?: boolean;
   /** walk on the spot, to see the generated movement */
   walking?: boolean;
   /** painting bricks onto a bone: a click on a brick calls this with its index in the asset */
@@ -96,6 +98,7 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     cam.yaw = 0.5;
     cam.fov = 0.8;
     let heading = 0;
+    let wasClose = false;
     let raf = 0;
     let last = performance.now();
     const frame = (now: number) => {
@@ -103,6 +106,13 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const { profile, clip, time, turntable } = input.current;
+      // the Face tab looks at the head; leaving it goes back to the whole figure
+      const close = !!input.current.closeUp && !input.current.body;
+      if (close !== wasClose) {
+        wasClose = close;
+        cam.target = close ? [0, 3.75, 0] : [0, 1.7, 0];
+        cam.baseDistance = close ? 4.8 : 7.5;
+      }
       if (turntable) heading += dt * 0.6;
       const base = L.StudioAnimations.sample('still', 0, profile).state;
       const state = clip

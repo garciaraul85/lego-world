@@ -1,11 +1,13 @@
 import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { SND } from '../../builtin/audio';
+import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { genreById } from '../../builtin/genres';
 import { expandAsset } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
 import { brickToPiece, exactColors, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
+import { moodFace } from '../../core/character/faces';
 import { type ResolvedBody, resolveBody } from '../../core/character/resolve';
 import { levelOf, xpFor } from '../../core/character/sheet';
 import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
@@ -53,6 +55,7 @@ import {
   type Npc,
 } from '../legacy/runtime-modules';
 import { LogicRuntime } from '../logic/interpreter';
+import { portrait } from '../render/portraits';
 import { CinematicSystem } from '../systems/cinematic';
 import { EmitterSystem } from '../systems/emitters';
 import { formatValue, interpolate } from '../ui/bindings';
@@ -1051,6 +1054,68 @@ export class PlaySession {
   }
 
   /** P22 part 2: a neighbour whose sheet says it stands where it was put (a shopkeeper at a counter) */
+  /** P22 part 4: the character a dialogue speaker is: its id, or the name of a character of the game */
+  private byName: Map<string, Character> | null = null;
+  speakerCharacter(who: string): Character | null {
+    if (!who) return null;
+    if (who.startsWith('chr_')) {
+      return (
+        (this.snapshot.get(paths.character(who)) as Character | undefined) ??
+        BUILTIN_CHARACTERS.find((c) => c.id === who) ??
+        null
+      );
+    }
+    if (!this.byName) {
+      this.byName = new Map();
+      for (const k of this.snapshot.keys())
+        if (k.startsWith('characters/')) {
+          const c = this.snapshot.get(k) as Character | undefined;
+          if (c?.name && !this.byName.has(c.name)) this.byName.set(c.name, c);
+        }
+    }
+    return this.byName.get(who) ?? null;
+  }
+
+  /** the face parts a character shows for a mood (only options the minifig has) */
+  private faceParts(chr: Character, mood: Parameters<typeof moodFace>[1]): Record<string, string> {
+    const f = moodFace(chr.faces, mood);
+    const out: Record<string, string> = {};
+    const choices = this.L.CharacterCatalog.choices as Record<string, string[]>;
+    for (const [k, v] of Object.entries(f)) if (v && choices[k]?.includes(v)) out[k] = v;
+    return out;
+  }
+
+  /** P22 part 4: the speaker's portrait for a dialogue line (null: not drawn yet, or no such character) */
+  portraitOf(who: string, mood: Parameters<typeof moodFace>[1]): string | null {
+    const chr = this.speakerCharacter(who);
+    if (!chr) return null;
+    let body: ResolvedBody | null = null;
+    try {
+      body = resolveBody(chr.body, (p) => this.snapshot.get(p));
+    } catch {
+      body = null;
+    }
+    const profile = body
+      ? {}
+      : { ...this.L.CharacterCatalog.defaults, ...wornProfile(chr), ...this.faceParts(chr, mood) };
+    return portrait(profile, body);
+  }
+
+  /**
+   * P22 part 4: while a line plays, its speaker (a neighbour on the map, or the hero) shows the face of the
+   * line's mood. Null: no change.
+   */
+  moodFaceOf(who: Npc | 'hero'): Record<string, string> | null {
+    const v = this.talks.active ? this.talks.view : null;
+    if (!v?.who || v.choices) return null;
+    const speaker = this.speakerCharacter(v.who);
+    if (!speaker) return null;
+    const chr = who === 'hero' ? this.heroChr : npcCharacter(this.snapshot, this.world.mapId, who);
+    if (!chr || chr.id !== speaker.id) return null;
+    const parts = this.faceParts(chr, v.mood);
+    return Object.keys(parts).length ? parts : null;
+  }
+
   /** NPC ids belong to one map: a new map (or a restart) looks bodies up again */
   private forgetBodies() {
     this.bodies?.clear();

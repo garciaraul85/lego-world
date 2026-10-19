@@ -5510,3 +5510,150 @@ body.brix-explain * {
   width: 46px;
   padding: 2px 4px;
 }
+.body-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 8px;
+}
+.body-presets .chip {
+  cursor: pointer;
+  border: 1px solid var(--bd);
+  background: var(--btn);
+  color: var(--fg2);
+}
+/* P22 part 4: the Face tab's moods, each a picture of the face */
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+.mood-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--bd);
+  background: var(--btn);
+  color: var(--fg2);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.mood-card.on {
+  border-color: var(--acc);
+  color: var(--acc2);
+}
+img.bw-portrait {
+  object-fit: cover;
+  border-radius: 8px;
+  background: #cfe3f5;
+}
+/* P22 part 4: A character from a picture */
+.fp-back {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(10, 12, 16, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.fp {
+  width: min(980px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  color: var(--fg);
+}
+.fp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.fp-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 14px;
+  padding: 14px;
+}
+@media (max-width: 720px) {
+  .fp-body {
+    grid-template-columns: 1fr;
+  }
+}
+.fp-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  border: 2px dashed var(--bd);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  padding: 10px;
+  color: var(--fg2);
+  position: relative;
+  overflow: hidden;
+}
+.fp-drop.has {
+  border-style: solid;
+  padding: 0;
+}
+.fp-drop img {
+  max-width: 100%;
+  max-height: 260px;
+  display: block;
+}
+.fp-drop input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.fp-swatches {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+.fp-sw {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid var(--bd);
+}
+.fp-out {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fp-card {
+  display: flex;
+  gap: 10px;
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--btn);
+}
+.fp-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.fp-matched {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: var(--fg2);
+}
+.fp-part {
+  color: var(--acc2);
+}
