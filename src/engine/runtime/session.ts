@@ -53,7 +53,7 @@ import {
 import { LogicRuntime } from '../logic/interpreter';
 import { CinematicSystem } from '../systems/cinematic';
 import { EmitterSystem } from '../systems/emitters';
-import { formatValue } from '../ui/bindings';
+import { formatValue, interpolate } from '../ui/bindings';
 import { ScreenStack } from '../ui/ScreenStack';
 import { resolveScreen, screenOfKind } from '../ui/screens';
 import { ActionRunner, type GameOp } from './actions';
@@ -64,6 +64,7 @@ import { chunkKeyOf, inspectPieces } from './pieces';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
 import { Runtime, type System } from './runtime';
 import { applySave, captureSave, loadMessage, type SaveHost } from './saves';
+import { TalkSystem } from './talk';
 
 type AssetInstanceId = import('../../core/schema').AssetInstance['id'];
 
@@ -142,6 +143,11 @@ export class PlaySession {
   message = '';
   messageUntil = 0;
   talking: Npc | null = null;
+  /** P22: conversations (with neighbours, signs, objects and logic) */
+  talks!: TalkSystem;
+  /** P22: a sign with a conversation near the hero (E reads it) */
+  signPrompt: UiInstance | null = null;
+  private talkWasActive = false;
   rebuildHeld = false;
   rebuildEntry: BrokenEntry | null = null;
   private pendingSmash: {
@@ -252,12 +258,31 @@ export class PlaySession {
       despawn: (target: string) => this.despawn(target),
       message: (text: string, seconds: number) => this.say(text, seconds),
       cinematic: (id: string, once: boolean) => void this.cine.play(id, { once }),
+      talk: (conversation: string) => void this.startConversation(conversation, null, 'other'),
     };
     this.actions = new ActionRunner(host);
     this.uiActions = new ActionRunner(host);
     const project = snapshot.get(paths.project) as Project;
     this.project = project;
     this.saving = project.saving ?? genreById(project.genre).saving ?? DEFAULT_SAVING;
+    this.talks = new TalkSystem({
+      get: (p) => this.snapshot.get(p),
+      project,
+      genre: genreById(project.genre),
+      get vars() {
+        return self.logic.vars;
+      },
+      setVar: (name, value) => this.logic.setVar(name, value),
+      inventory: this.inventory,
+      run: (actions) => this.actions.run(actions, this.clock),
+      text: (t) => interpolate(t, this.lookup),
+      timeOfDay: () => (this.world.doc.sky.time === 'night' ? 'night' : 'day'),
+      objectState: (name) => this.resolveEntity(name)?.state,
+      fire: (type, match) => this.logic.fire({ type, match }),
+      log: (msg) => this.emit('talk', msg),
+      say: (text, seconds) => this.say(text, seconds),
+      now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000,
+    });
     this.screens = new ScreenStack((id) => resolveScreen(snapshot, id));
     this.cine = new CinematicSystem({
       snapshot,
@@ -437,6 +462,11 @@ export class PlaySession {
 
   talk() {
     if (this.cine.active) return;
+    // P22: in a conversation T moves it on (Esc or walking away ends it)
+    if (this.talks.active) {
+      this.dialogueNext();
+      return;
+    }
     if (this.talking) {
       this.endTalk();
       return;
@@ -446,6 +476,15 @@ export class PlaySession {
     if (!npc) {
       this.say('Nobody close enough to talk to.', 1.5);
       return;
+    }
+    // P22: the neighbour's character has conversations: the first whose condition holds plays
+    const chr = npcCharacter(this.snapshot, this.world.mapId, npc);
+    const conv = chr ? this.talks.pick(chr) : null;
+    if (chr && conv) {
+      this.talking = npc;
+      this.audio.play(SND.talk);
+      if (this.startConversation(conv, chr.id, 'npc')) return;
+      this.talking = null;
     }
     this.talking = npc;
     this.audio.play(SND.talk);
@@ -463,7 +502,28 @@ export class PlaySession {
     if (!box || !this.screens.push(box.id)) this.say(`${npc.profile.name}: ${text}`, 5);
   }
 
+  /** P22: plays a conversation (talker: the character spoken to, for talks, likes and bubbles). */
+  startConversation(id: string, talker: string | null, from: 'npc' | 'sign' | 'other'): boolean {
+    if (this.over) return false;
+    const ok = this.talks.start(id, { talker, from });
+    if (!ok && from !== 'npc') this.emit('info', `Conversation ${id}: nothing in it plays now.`);
+    return ok;
+  }
+
+  /** P22: next line, or pick the highlighted option */
+  dialogueNext() {
+    this.talks.next();
+    if (!this.talks.active) this.endTalk();
+  }
+
+  /** P22: pick the option at this position (1 is the first) */
+  dialogueChoose(position: number) {
+    this.talks.choose(position);
+    if (!this.talks.active) this.endTalk();
+  }
+
   endTalk() {
+    if (this.talks.active) this.talks.stop();
     this.talking = null;
     this.dialogue = null;
     for (const s of this.screens.screens()) if (s.kind === 'dialogue') this.screens.hide(s.id);
@@ -481,6 +541,16 @@ export class PlaySession {
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
       { id: 'gates', fixed: (g) => g.stepGates() },
       { id: 'interact', fixed: (g) => g.stepInteract() },
+      { id: 'barks', fixed: (g) => g.runtime.ticks % 30 === 0 && g.stepBarks() },
+      {
+        id: 'talk',
+        frame: (g) => {
+          g.talks.tick();
+          // a conversation that ended by itself (auto-advance, a jump to the end) lets the hero go
+          if (g.talkWasActive && !g.talks.active) g.endTalk();
+          g.talkWasActive = g.talks.active;
+        },
+      },
       { id: 'checkpoints', fixed: (g) => g.stepCheckpoints() },
       { id: 'progress', fixed: (g) => g.runtime.ticks % 30 === 0 && g.progress.stepBests() },
       { id: 'anim', fixed: (g, dt) => g.stepAnim(dt) },
@@ -519,7 +589,7 @@ export class PlaySession {
       this.input.jump = false;
       return;
     }
-    const still = this.talking || this.over || this.cine.active;
+    const still = this.talking || this.talks.active || this.over || this.cine.active;
     // P9b: guard (Q held), charging, moves and lock-on
     const c = this.combat;
     c.stepGuard(dt, !still && (this.input.keys.has('q') || this.input.touch.has('guard')));
@@ -872,7 +942,7 @@ export class PlaySession {
 
   /** P9c: no fighting now (game over, a cinematic, a talk) */
   calm(): boolean {
-    return this.over || this.cine.active || !!this.talking;
+    return this.over || this.cine.active || !!this.talking || this.talks.active;
   }
 
   isStunned(n: Npc): boolean {
@@ -1359,6 +1429,7 @@ export class PlaySession {
         if (op === 'achieve') this.progress.unlock(id);
         else this.gameOp('finish');
       },
+      talk: (conversation) => void this.startConversation(conversation, null, 'other'),
       spawn: (asset, at) => this.spawnAsset(asset, at),
       spawnNear: (item, near) => this.spawnNear(item, near),
       despawn: (target) => {
@@ -1854,6 +1925,8 @@ export class PlaySession {
       this.cine.skip();
       return;
     }
+    // P22: Esc ends a conversation
+    if (this.talks.active) return this.endTalk();
     const top = this.screens.top();
     if (!top) return this.gameOp('pause');
     if (top.onBack?.length) return this.uiActions.run(top.onBack, this.uiClock);
@@ -1875,16 +1948,17 @@ export class PlaySession {
       case 'game.name':
         return this.project.name;
       case 'prompt':
-        if (this.talking) return '';
+        if (this.talking || this.talks.active) return '';
         if (this.prompt) return `E · ${this.prompt.label}`;
+        if (this.signPrompt) return 'E · Read';
         // P9c: standing where a smashed thing can be rebuilt
         return this.nearestBroken() ? 'Hold E · Rebuild' : '';
       case 'message':
         return this.clock < this.messageUntil ? this.message : '';
       case 'dialogue.speaker':
-        return this.dialogue?.speaker ?? '';
+        return this.talks.view?.speakerName ?? this.dialogue?.speaker ?? '';
       case 'dialogue.text':
-        return this.dialogue?.text ?? '';
+        return this.talks.view?.text ?? this.dialogue?.text ?? '';
       case 'inventory':
         return this.inventory;
       case 'time':
@@ -2127,12 +2201,47 @@ export class PlaySession {
       }
     }
     this.prompt = best;
+    // P22: a sign that tells something (a conversation) can be read with E
+    let sign: UiInstance | null = null;
+    let sd = 3;
+    for (const it of this.world.worldUi) {
+      if (!it.conversation) continue;
+      const d = Math.hypot(it.pos[0] - s.x, it.pos[2] - s.z);
+      if (d < sd) {
+        sd = d;
+        sign = it;
+      }
+    }
+    this.signPrompt = sign;
     this.actions.step(this.clock);
+  }
+
+  /** P22: a neighbour close to the hero says one of its barks (its character's short lines) */
+  stepBarks() {
+    if (this.talking || this.talks.active || this.cine.active || this.over) return;
+    const h = this.heroState;
+    for (const n of this.world.npcs) {
+      if (Math.hypot(n.state.x - h.x, n.state.z - h.z) > 4) continue;
+      const chr = npcCharacter(this.snapshot, this.world.mapId, n);
+      const line = chr ? this.talks.bark(chr, this.clock) : null;
+      if (line) {
+        this.say(line, 2.5);
+        this.emit('talk', line);
+        return;
+      }
+    }
   }
 
   /** E pressed: use the prompted interaction. Returns false when there is nothing to use. */
   interact(): boolean {
     if (this.cine.active) return false;
+    if (this.talks.active) {
+      this.dialogueNext();
+      return true;
+    }
+    const sign = this.signPrompt;
+    if (!this.prompt && sign?.conversation && !this.talking)
+      return this.startConversation(sign.conversation, null, 'sign');
     const p = this.prompt;
     if (!p || this.talking) return false;
     const list = p.instance.def.interactions.filter(

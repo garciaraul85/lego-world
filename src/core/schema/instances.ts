@@ -59,6 +59,8 @@ export const UiInstance = z.strictObject({
   text: z.string().max(200),
   bind: z.array(z.string()).optional(),
   maxDistance: z.number().min(1).max(200),
+  /** P22: a sign the hero can read (E): this conversation plays, in the Sign style unless it picks its own */
+  conversation: id('dialogue').optional(),
   color: z
     .string()
     .regex(/^#[0-9a-f]{6}$/i)

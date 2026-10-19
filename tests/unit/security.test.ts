@@ -138,6 +138,7 @@ describe('game scripts are sandboxed', () => {
       'setInvulnerable',
       'saving',
       'progress',
+      'talk',
     ];
     for (const k of allowed) expect(ctxKeys, k).toContain(k);
   });

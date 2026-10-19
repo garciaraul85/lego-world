@@ -47,7 +47,9 @@ export type ArgKind =
   | 'sound'
   | 'music'
   | 'screen'
-  | 'cinematic';
+  | 'cinematic'
+  /** P22: a conversation */
+  | 'dialogue';
 export type ArgDef = {
   name: string;
   kind: ArgKind;
@@ -90,6 +92,8 @@ export interface ExecCtx {
   saving?(op: 'save' | 'load' | 'checkpoint', slot: number | undefined): void;
   /** P26 part 2: unlock an achievement (by id), or finish the game */
   progress?(op: 'achieve' | 'finish', id: string): void;
+  /** P22: start a conversation (by id) */
+  talk?(conversation: string): void;
 }
 
 export type Args = Record<string, unknown>;

@@ -31,6 +31,8 @@ export interface ActionHost {
   despawn?(target: string): void;
   /** P9c: a message in the HUD's message line */
   message?(text: string, seconds: number): void;
+  /** P22: start a conversation */
+  talk?(conversation: string, self: string | undefined): void;
 }
 
 type Pending = { actions: Action[]; at: number; self: string | undefined };
@@ -153,6 +155,10 @@ export class ActionRunner {
         case 'despawn':
           if (h.despawn) h.despawn(a.target);
           else h.log('info', `despawn ${a.target}`);
+          break;
+        case 'talk':
+          if (h.talk) h.talk(a.conversation, self);
+          else h.log('info', `talk ${a.conversation}`);
           break;
       }
     }

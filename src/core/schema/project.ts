@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DialogueLook } from '../dialogue/schema';
 import { Saving } from '../save/save';
 import { IsoDate, id } from './common';
 
@@ -21,6 +22,8 @@ export const Project = z.strictObject({
   genre: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/),
   /** P26: how the player saves (unset: the genre's default) */
   saving: Saving.optional(),
+  /** P22: how conversations look in this game (unset parts: the genre's, then the defaults) */
+  dialogue: DialogueLook.partial().optional(),
   /** Every non-.editor file except project.json itself, with xxhash64 (16 hex) and byte size. */
   files: z.record(z.string(), FileEntry),
 });

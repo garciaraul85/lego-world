@@ -41,6 +41,8 @@ export const COMMAND_TYPES = [
   'npc.place',
   'npc.remove',
   'progress.put',
+  'dialogue.put',
+  'dialogue.delete',
   'instance.unpack',
   'instance.transform',
   'character.create',

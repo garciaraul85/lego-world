@@ -8,6 +8,8 @@ export type ActionChoices = {
   music: Choice[];
   screens: Choice[];
   cinematics: Choice[];
+  /** P22: the game's conversations (Start conversation) */
+  conversations?: Choice[];
   /** P32: custom event names the project uses (Send event picks from them) */
   events?: string[];
   /** P32: plays a sound or a music state once, for the ▶ next to their pickers */
@@ -64,6 +66,13 @@ const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Act
     needs: 'cinematics',
     make: (c) => ({ do: 'cinematic', cinematic: (c?.cinematics[0]?.id ?? 'cin_none000000') as never, once: true }),
   },
+  // P22
+  {
+    do: 'talk',
+    label: 'Start conversation',
+    needs: 'conversations',
+    make: (c) => ({ do: 'talk', conversation: (c?.conversations?.[0]?.id ?? 'dlg_none000000') as never }),
+  },
 ];
 
 /**
@@ -81,7 +90,16 @@ export function ActionListField({
   states: string[];
   choices?: ActionChoices;
 }) {
-  const kinds = KINDS.filter((k) => !k.needs || (choices && (k.needs !== 'cinematics' || choices.cinematics.length)));
+  const kinds = KINDS.filter(
+    (k) =>
+      !k.needs ||
+      (choices &&
+        (k.needs === 'cinematics'
+          ? choices.cinematics.length
+          : k.needs === 'conversations'
+            ? choices.conversations?.length
+            : true)),
+  );
   const set = (i: number, a: Action) => onChange(value.map((x, j) => (j === i ? a : x)));
   return (
     <div class="actions-field">
@@ -292,6 +310,11 @@ function ActionArgs({
           <option value="achievementsMenu">Open Achievements</option>
         </select>
       );
+    case 'talk':
+      return pick(a.conversation, 'Conversation', choices?.conversations ?? [], (conversation) => ({
+        ...a,
+        conversation: conversation as never,
+      }));
     case 'save':
     case 'load':
       return (

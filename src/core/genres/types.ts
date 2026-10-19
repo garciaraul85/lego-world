@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DialogueLook } from '../dialogue/schema';
 import { Saving } from '../save/save';
 
 /**
@@ -35,6 +36,8 @@ export const FEATURES = [
   'combat',
   /** the AI builder */
   'ai',
+  /** P22: conversations, choices, barks, dialogue styles */
+  'dialogue',
 ] as const;
 export type Feature = (typeof FEATURES)[number];
 
@@ -69,6 +72,8 @@ export const Genre = z.strictObject({
   }),
   /** P26: how a game of this genre saves, until the maker picks (Game settings › Saving) */
   saving: Saving.optional(),
+  /** P22: how this genre's conversations look until the maker picks (Project › Dialogue) */
+  dialogue: DialogueLook.partial().optional(),
   /** the start hub's generator recipe for a new game (null: a blank project) */
   template: z.strictObject({ name: z.string().min(1).max(40), recipe: z.string().nullable() }),
   /** the tutorial track that teaches it */

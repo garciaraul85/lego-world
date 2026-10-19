@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { Conversation } from '../dialogue/schema';
 import { ProgressDoc } from '../save/progress';
 import { Art } from './art';
 import { Asset } from './asset';
@@ -55,6 +56,8 @@ const KINDS = [
   ['art', /^art\/art_[0-9a-z]{10}\.json$/, Art],
   // P26: achievements, collections, best scores, new game plus
   ['progress', /^game\/progress\.json$/, ProgressDoc],
+  // P22: conversations
+  ['dialogue', /^dialogue\/dlg_[0-9a-z]{10}\.json$/, Conversation],
 ] as const satisfies ReadonlyArray<readonly [string, RegExp, z.ZodType]>;
 
 export type FileKind = (typeof KINDS)[number][0] | 'editor';
@@ -107,4 +110,6 @@ export const paths = {
   art: (id: string) => `art/${id}.json`,
   artDir: 'art/',
   progress: 'game/progress.json',
+  dialogue: (id: string) => `dialogue/${id}.json`,
+  dialogueDir: 'dialogue/',
 } as const;

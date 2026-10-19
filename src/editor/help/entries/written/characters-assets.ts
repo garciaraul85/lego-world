@@ -139,6 +139,65 @@ export const CHARACTERS: HelpEntry[] = [
     related: ['characters.harm', 'play.view'],
   },
   {
+    id: 'characters.dialogue',
+    also: ['dialogue', 'conversation', 'talk', 'lines', 'choices', 'branching', 'script', 'npc talk', 'what they say'],
+    screen: 'characters',
+    kind: 'area',
+    name: 'Dialogue',
+    purpose:
+      'Conversations: what characters say. A conversation has sections; each is a list of steps played in order — a **line** (who says it, their mood, the text), a **choice** (options the player picks, each going to a section, the end, or on), **actions** (set or add to a variable, give an item, play a cinematic, unlock an achievement…), **likes** (how much the speaker likes the hero) and **jumps**. Any step or option can have an **if**: it only plays when the condition holds. **List** edits it like a chat script, **Graph** shows sections as boxes with arrows, **Script** is plain text for writers; all three are the same conversation.',
+    steps: [
+      'In Characters, open the **Dialogue** tab (or pick a conversation under Conversations on the left; + New writes one for the open character).',
+      'Press **+ Line** and choose who says it and their mood, then type the text. Write {gems} or {hero.name} to show a value.',
+      'Press **+ Choice** for options the player picks; set each option’s → to a section (or the end). **+ Section** adds a place to go.',
+      'Press **+ if** on a step or an option and write a condition, like gems >= 50 or quest.sword is done or has key.',
+      'Press **▶ Preview** and try it, with the values set on the side (talks, likes, variables, items).',
+      'Add the conversation to the character’s **Talk** list (Properties on the right) so talking to them plays it.',
+    ],
+    options: [
+      [
+        'Conditions',
+        'gems >= 50 · quest.sword is done · has key · talks > 0 (talked before) · likes >= 20 · time is night · chance 25% · door.state is open · and, or, not',
+      ],
+      [
+        'Script',
+        '== section · Who (mood): line · * option [if …] -> section · > set / add / give / like / cinematic / achieve / message · -> end',
+      ],
+      [
+        'Style',
+        'the game’s style (Project › Dialogue), or its own: Adventure, Classic RPG, Visual novel, Speech bubbles, Cinematic, Chat, Sign, Narrator',
+      ],
+      [
+        'Checks',
+        '⚠ lists sections nothing jumps to, jumps to sections that do not exist, conditions with mistakes and deleted speakers',
+      ],
+    ],
+    tips: [
+      'In Play, T or E talks; Enter, Space or a click moves on; 1–6 or the arrows pick an option. Esc or walking away ends it.',
+      'Logic: Start conversation, On choice made and On conversation end (category Dialogue and Events).',
+    ],
+    commands: ['dialogue.put', 'dialogue.delete'],
+    match: [{ sel: '.dlg-editor' }, { in: '.dlg-editor' }],
+    related: ['characters.talk', 'scene.dialogue', 'scene.item.talk'],
+  },
+  {
+    id: 'characters.talk',
+    also: ['talk list', 'which conversation', 'barks', 'name colour', 'first meeting', 'after the quest'],
+    screen: 'characters',
+    kind: 'area',
+    name: 'Talk and barks',
+    purpose:
+      'Which conversation plays when the hero talks to this character: the list is read from the top and the first conversation whose condition holds plays (an empty condition always does) — first meeting, during the quest, after it, at night, if the hero carries the key… **Barks** are short lines it says when the hero walks past. **Name colour** colours its name in dialogue boxes.',
+    steps: [
+      'Pick a conversation in **+ Add a conversation…** (or New conversation…).',
+      'Write a condition beside it, like quest.sword is done or talks = 0. Leave the last one empty so something always plays.',
+      '↑ moves a conversation earlier: put the most specific ones first.',
+    ],
+    commands: ['character.update'],
+    match: [{ in: '[data-tour="char-talk"]' }],
+    related: ['characters.dialogue'],
+  },
+  {
     id: 'characters.look',
     screen: 'characters',
     kind: 'field',

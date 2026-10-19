@@ -56,6 +56,8 @@ export const Action = z.discriminatedUnion('do', [
     key: z.enum(['music', 'sounds', 'invertY', 'cameraSpeed', 'textSize', 'difficulty']),
     value: z.union([z.number(), z.boolean(), z.string()]).optional(),
   }),
+  /** P22: start a conversation (a sign, an object's interaction, a screen button or logic) */
+  z.strictObject({ do: z.literal('talk'), conversation: id('dialogue') }),
   /** a one-shot music stinger from audio/music.json (ducks the music while it plays) */
   z.strictObject({ do: z.literal('stinger'), stinger: z.string().min(1) }),
   /** P9c: a message in the HUD's message line (help, hints, story text): screen UI, never in the 3D world */

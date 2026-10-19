@@ -33,6 +33,7 @@ import {
   updateClip,
 } from './handlers/characters';
 import { deleteCinematic, putCinematic } from './handlers/cinematics';
+import { deleteDialogue, putDialogue } from './handlers/dialogue';
 import { deleteFile, putFile } from './handlers/file';
 import { connectGate, deleteGate, deleteMap, updateGate } from './handlers/gates';
 import { addItem, removeItem, setMapAudio, updateItem } from './handlers/items';
@@ -92,6 +93,8 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('instance.rename', renameInstance);
   bus.register('npc.place', placeNpc);
   bus.register('progress.put', putProgress);
+  bus.register('dialogue.put', putDialogue);
+  bus.register('dialogue.delete', deleteDialogue);
   bus.register('npc.remove', removeNpc);
   bus.register('instance.unpack', unpackInstance);
   bus.register('instance.transform', transformInstance);

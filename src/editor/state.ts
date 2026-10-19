@@ -114,6 +114,11 @@ export class EditorState {
   readonly studioCharacter = signal<string | null>(null);
   /** the clip open on the Character studio's timeline (P32: the tutorial opens the clip it made) */
   readonly studioClip = signal<string | null>(null);
+  /** P22: the Character studio's view (look and clips, or dialogue) and the conversation open in it */
+  readonly charTab = signal<'look' | 'dialogue'>('look');
+  readonly dialogueId = signal<string | null>(null);
+  /** P22: how the open conversation is shown (a list, a graph or a script) */
+  readonly dialogueView = signal<'list' | 'graph' | 'script'>('list');
   /** where the clip's playhead is (seconds), and whether the clip plays in the preview (tutorial checks) */
   readonly clipTime = signal(0);
   readonly clipPlaying = signal(false);

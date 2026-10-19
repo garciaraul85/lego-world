@@ -13,7 +13,7 @@ import type { ArgKind } from '../catalog/types';
  */
 export type NameKind = Extract<
   ArgKind,
-  'zone' | 'spawn' | 'map' | 'asset' | 'sound' | 'music' | 'screen' | 'cinematic'
+  'zone' | 'spawn' | 'map' | 'asset' | 'sound' | 'music' | 'screen' | 'cinematic' | 'dialogue'
 >;
 export const NAME_KINDS: readonly NameKind[] = [
   'zone',
@@ -24,6 +24,7 @@ export const NAME_KINDS: readonly NameKind[] = [
   'music',
   'screen',
   'cinematic',
+  'dialogue',
 ];
 
 export type NamedThing = { id: string; name: string; kind: NameKind /** where it is, what it is */; note: string };
@@ -50,6 +51,7 @@ export function namedThings(s: Source): Record<NameKind, NamedThing[]> {
     music: [],
     screen: [],
     cinematic: [],
+    dialogue: [],
   };
   const order = read<{ mapOrder: string[] }>(s, 'world/gates.json')?.mapOrder ?? [];
   const mapPaths = s.list('maps/').filter((p) => p.endsWith('/map.json'));
@@ -110,6 +112,16 @@ export function namedThings(s: Source): Record<NameKind, NamedThing[]> {
     const c = read<{ id: string; name: string; map?: string }>(s, p);
     const on = maps.find((m) => m.id === c?.map)?.name;
     if (c?.id) out.cinematic.push({ id: c.id, name: c.name, kind: 'cinematic', note: on ? `scene on ${on}` : 'scene' });
+  }
+  for (const p of s.list('dialogue/')) {
+    const d = read<{ id: string; name: string; sections?: unknown[] }>(s, p);
+    if (d?.id)
+      out.dialogue.push({
+        id: d.id,
+        name: d.name,
+        kind: 'dialogue',
+        note: `conversation · ${d.sections?.length ?? 0} sections`,
+      });
   }
   return out;
 }

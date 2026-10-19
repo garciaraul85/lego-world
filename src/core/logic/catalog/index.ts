@@ -1,3 +1,4 @@
+import { DIALOGUE, DIALOGUE_EVENTS } from './dialogue';
 import { EVENTS } from './events';
 import { FLOW } from './flow';
 import { HEALTH, HEALTH_EVENTS } from './health';
@@ -28,6 +29,9 @@ export const CATALOG: readonly NodeDef[] = [
   ...SAVE,
   // P26 part 2
   ...PROGRESS_EVENTS,
+  // P22
+  ...DIALOGUE,
+  ...DIALOGUE_EVENTS,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

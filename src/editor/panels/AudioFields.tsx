@@ -14,6 +14,7 @@ export function actionChoices(ed: EditorState) {
     music: musicOptions(ed),
     screens: allScreens(ed.store).map((s) => ({ id: s.id, name: `${s.name} · ${s.kind}` })),
     cinematics: cinematicOptions(ed),
+    conversations: conversationOptions(ed),
     // P32: Send event picks from the events the project uses; ▶ plays sounds and music
     events: eventNames(ed.store),
     preview: {
@@ -21,6 +22,16 @@ export function actionChoices(ed: EditorState) {
       music: (id: string | null) => ed.audio.previewMusic(id),
     },
   };
+}
+
+/** P22: the game's conversations, by name. */
+export function conversationOptions(ed: EditorState) {
+  ed.revision.value;
+  return ed.store
+    .list(paths.dialogueDir)
+    .map((p) => ed.store.get<{ id: string; name: string }>(p)!)
+    .filter(Boolean)
+    .map((c) => ({ id: c.id, name: c.name }));
 }
 
 /** The project's cinematics, by name. */
@@ -377,6 +388,25 @@ export function ItemInspector({ c, id }: { c: ActionCtx; id: string }) {
             onCommit={(v) => patch({ maxDistance: Math.max(1, Math.min(200, v)) })}
           />
         </div>
+        {it.widget === 'sign' && (
+          <label class="field" data-tour="sign-conversation" data-help="scene.item.talk">
+            Read with E
+            <select
+              class="inp"
+              aria-label="Sign conversation"
+              value={it.conversation ?? ''}
+              onChange={(e) => {
+                const v = (e.target as HTMLSelectElement).value;
+                patch({ conversation: (v || undefined) as UiInstance['conversation'] });
+              }}
+            >
+              <option value="">Nothing (the sign just shows its text)</option>
+              {conversationOptions(c.ed).map((o) => (
+                <option value={o.id}>💬 {o.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
         {pos}
         <p class="hint">
           Write {'{variable}'} to show a value, e.g. {'{inventory.coin}'}, {'{hp}'}, {'{map.name}'}.

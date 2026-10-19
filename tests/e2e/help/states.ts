@@ -191,6 +191,15 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    id: 'scene-dialogue',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'project' });
+      await p.locator('[data-tour="game-dialogue"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     id: 'scene-layers',
     screen: 'scene',
     setup: async (p) => {
@@ -302,6 +311,54 @@ export const HELP_STATES: HelpState[] = [
     setup: async (p) => {
       await signals(p, { logicView: 'graph' });
       await ws(p, 'Characters');
+    },
+  },
+  {
+    id: 'characters-dialogue',
+    screen: 'characters',
+    setup: async (p) => {
+      await ws(p, 'Characters');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        const id = 'dlg_helpsample';
+        if (!e.store.get(`dialogue/${id}.json`))
+          e.exec({
+            type: 'dialogue.put',
+            payload: {
+              conversation: {
+                id,
+                name: 'Old Tom',
+                sections: [
+                  {
+                    label: 'start',
+                    steps: [
+                      { k: 'line', who: 'Old Tom', text: 'Welcome, traveller! Mind the bridge.', mood: 'happy' },
+                      {
+                        k: 'choice',
+                        options: [
+                          { text: 'What bridge?', to: 'bridge' },
+                          { text: 'Buy a map', to: 'end', if: 'gems >= 5', failed: 'grey' },
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    label: 'bridge',
+                    steps: [
+                      { k: 'like', by: 5 },
+                      { k: 'line', who: 'Old Tom', text: 'The one to the east. It wobbles.' },
+                    ],
+                  },
+                ],
+              },
+            },
+          });
+        e.dialogueId!.value = id;
+        e.dialogueView!.value = 'list';
+        e.charTab!.value = 'dialogue';
+      });
+      const prev = p.getByRole('button', { name: '▶ Preview' });
+      if ((await prev.getAttribute('aria-pressed')) !== 'true') await prev.click();
     },
   },
   { id: 'assets', screen: 'assets', setup: (p) => ws(p, 'Assets') },

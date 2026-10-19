@@ -228,6 +228,7 @@ export function stepsToView(view: string): ShowStep[] {
     case 'scene-project':
     case 'scene-saving':
     case 'scene-progress':
+    case 'scene-dialogue':
       return [ws('Scene'), right('project', 'Project')];
     case 'scene-layers':
       return [ws('Scene'), left('layers', 'Layers')];
@@ -288,6 +289,16 @@ export function stepsToView(view: string): ShowStep[] {
       ];
     case 'characters':
       return [ws('Characters')];
+    case 'characters-dialogue':
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Dialogue tab.',
+          find: control('[aria-label="Character view"]', 'Dialogue'),
+          press: true,
+          done: (c) => c.ed.charTab.value === 'dialogue',
+        },
+      ];
     case 'assets':
       return [ws('Assets')];
     case 'assets-open':

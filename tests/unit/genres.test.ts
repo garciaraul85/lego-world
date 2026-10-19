@@ -102,6 +102,9 @@ describe('every control is tagged (P18: views can only hide what is tagged)', ()
         'game.saving',
         'asset.checkpoint',
         'game.progress',
+        'character.talk',
+        'character.dialogue',
+        'game.dialogue',
       ],
     };
     for (const [kind, ids] of Object.entries(have)) {

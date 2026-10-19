@@ -4736,3 +4736,641 @@ body.brix-explain * {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---- P22 dialogue styles (game UI) ---- */
+.bw-dlg-cinematic .bw-dlg-name {
+  white-space: nowrap;
+}
+.bw-dlg {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  font-family: var(--bw-font, var(--font));
+  font-size: calc(18px * var(--bw-text, 1));
+  line-height: 1.45;
+  color: #fff;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.bw-dlg .bw-dlg-rest {
+  visibility: hidden;
+}
+.bw-dlg-name {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.bw-dlg-more {
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
+  font-size: 14px;
+  opacity: 0.85;
+  animation: bw-dlg-bob 1s ease-in-out infinite;
+}
+@keyframes bw-dlg-bob {
+  50% {
+    transform: translateY(3px);
+  }
+}
+.bw-dlg-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  cursor: default;
+}
+.bw-dlg-choices.buttons {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.bw-dlg-choice {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  font: inherit;
+  color: #fff;
+  background: #ffffff14;
+  border: 1px solid #ffffff38;
+  border-radius: 10px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.bw-dlg-choice .n {
+  font-size: 12px;
+  opacity: 0.7;
+  min-width: 1em;
+}
+.bw-dlg-choice.focus,
+.bw-dlg-choice:hover:not(:disabled) {
+  background: #ffd27733;
+  border-color: #ffd277;
+}
+.bw-dlg-choice:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* Adventure: a box at the bottom with a name tag */
+.bw-dlg-adventure {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 16px 36px;
+}
+.bw-dlg-adventure .bwd-box {
+  position: relative;
+  width: min(760px, 100%);
+  border-radius: 14px;
+  padding: 22px 22px 26px;
+  border: 2px solid #ffffff40;
+  box-shadow: 0 8px 30px #0008;
+}
+.bw-dlg-adventure .bwd-tag {
+  position: absolute;
+  top: -16px;
+  left: 18px;
+  padding: 2px 12px;
+  border-radius: 8px;
+  border: 2px solid #ffffff40;
+  font-weight: 700;
+}
+.bw-dlg-adventure .bw-dlg-choices {
+  width: min(560px, 100%);
+  margin-bottom: 12px;
+}
+/* Classic RPG: a framed window with a portrait */
+.bw-dlg-rpg {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 16px 28px;
+}
+.bw-dlg-rpg .bwd-window {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  width: min(780px, 100%);
+  padding: 16px 18px 22px;
+  border: 4px double #e8e0c0;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 2px #000a;
+  font-family: var(--mono);
+}
+.bw-dlg-rpg .bwd-body {
+  flex: 1;
+}
+/* Visual novel: big portrait, text box, choices in the centre */
+.bw-dlg-novel .bwd-left {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.bw-dlg-novel .bwd-stage svg {
+  height: 100%;
+  width: auto;
+  max-height: 230px;
+}
+.bw-dlg-novel .bwd-stage {
+  position: absolute;
+  inset: 6% 0 130px;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 6%;
+  pointer-events: none;
+}
+.bw-dlg-novel .bwd-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bw-dlg-novel .bwd-center .bw-dlg-choices {
+  width: min(460px, 90%);
+}
+.bw-dlg-novel .bwd-box {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: min(900px, calc(100% - 32px));
+  min-height: 110px;
+  padding: 16px 22px 22px;
+  border-radius: 12px;
+  border-top: 3px solid #ffd277;
+}
+/* Speech bubbles: above the speaker */
+.bw-dlg-bubble .bwd-bubble {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 16px));
+  max-width: min(360px, 80vw);
+  padding: 10px 14px 18px;
+  border-radius: 18px;
+  border: 2px solid #ffffffa0;
+  background: #fff;
+}
+.bw-dlg-bubble .bwd-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  border: 8px solid transparent;
+  border-top-color: #ffffffa0;
+  transform: translateX(-50%);
+}
+.bw-dlg-bubble .bw-dlg-choices {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
+  width: min(460px, 90%);
+}
+/* Cinematic: letterbox bars and subtitles */
+.bw-dlg-cinematic .bwd-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 12%;
+  background: #000;
+}
+.bw-dlg-cinematic .bwd-bar.top {
+  top: 0;
+}
+.bw-dlg-cinematic .bwd-bar.bottom {
+  bottom: 0;
+  height: auto;
+  min-height: 12%;
+  padding: 10px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.bw-dlg-cinematic .bwd-sub {
+  display: flex;
+  gap: 4px;
+  text-align: center;
+  text-shadow: 0 2px 4px #000;
+}
+/* Chat: a phone with message bubbles */
+.bw-dlg-chat {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6%;
+}
+.bw-dlg-chat .bwd-phone {
+  width: min(300px, 80vw);
+  min-height: min(320px, 90%);
+  max-height: 94%;
+  overflow: hidden;
+  border-radius: 30px;
+  border: 8px solid #111;
+  background: #eef1f6;
+  color: #111;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bw-dlg-chat .bwd-top {
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px;
+  border-bottom: 1px solid #ccd;
+  padding-bottom: 6px;
+}
+.bw-dlg-chat .bwd-msg {
+  align-self: flex-start;
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 16px 16px 16px 4px;
+}
+.bw-dlg-chat .bwd-msg.note {
+  align-self: center;
+  font-style: italic;
+}
+.bw-dlg-chat .bw-dlg-choice {
+  color: #fff;
+  background: #2f7cf6;
+  border-color: #2f7cf6;
+  align-self: flex-end;
+}
+/* Sign: a plaque */
+.bw-dlg-sign {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bw-dlg-sign .bwd-plaque {
+  position: relative;
+  width: min(520px, 90%);
+  padding: 26px 30px 30px;
+  background: linear-gradient(#b58451, #8a5a2b);
+  border: 6px solid #5b3a17;
+  border-radius: 10px;
+  color: #fff8e6;
+  font-family: Georgia, serif;
+  text-align: center;
+  box-shadow: 0 10px 30px #0009;
+}
+/* Narrator: a caption */
+.bw-dlg-narrator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 8%;
+}
+.bw-dlg-narrator .bwd-caption {
+  position: relative;
+  max-width: min(640px, 90%);
+  padding: 12px 22px 18px;
+  background: #000c;
+  border-radius: 4px;
+  font-style: italic;
+  text-align: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-dlg-more {
+    animation: none;
+  }
+}
+
+/* ---- P22 dialogue editor ---- */
+.char-views {
+  flex-shrink: 0;
+}
+.dlg-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.dlg-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.dlg-head .dlg-name {
+  font-weight: 600;
+  min-width: 160px;
+  flex: 1;
+}
+.dlg-head .seg {
+  display: flex;
+  gap: 2px;
+}
+.dlg-head .btn.warn {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+.dlg-checks {
+  margin: 0;
+  padding: 6px 12px 6px 28px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  max-height: 120px;
+  overflow: auto;
+}
+.dlg-checks .error {
+  color: var(--err);
+}
+.dlg-checks .warn {
+  color: var(--warn);
+}
+.dlg-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.dlg-main {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+.dlg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px;
+}
+.dlg-sec {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel2);
+}
+.dlg-sec > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.dlg-sec .dlg-label {
+  width: 160px;
+}
+.dlg-step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px dashed var(--line2);
+}
+.dlg-step.choice,
+.dlg-step.do {
+  flex-direction: column;
+  align-items: stretch;
+}
+.dlg-step .row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dlg-step .dlg-who {
+  width: 120px;
+}
+.dlg-step .dlg-mood {
+  width: 96px;
+}
+.dlg-step .dlg-text {
+  flex: 1;
+  min-width: 160px;
+}
+.dlg-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.dlg-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-left: 12px;
+}
+.dlg-option .inp:first-of-type {
+  flex: 1;
+  min-width: 140px;
+}
+.chip.dlg-if {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--accbg);
+  color: var(--acc2);
+  border: 1px solid transparent;
+}
+.chip.dlg-if.add {
+  background: transparent;
+  color: var(--mut);
+  border: 1px dashed var(--bd);
+}
+.chip.dlg-if.bad {
+  background: #3a1612;
+  color: var(--err);
+}
+.dlg-if-edit {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dlg-if-edit .err,
+.talk-row .err {
+  color: var(--err);
+}
+.inp.bad {
+  border-color: var(--err);
+}
+.dlg-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 8px;
+}
+.dlg-graph {
+  position: relative;
+  display: flex;
+  gap: 60px;
+  padding: 16px;
+  min-height: 100%;
+  overflow: auto;
+}
+.dlg-edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  color: var(--teal);
+}
+.dlg-edges path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+.dlg-edges path.end {
+  stroke: var(--mut);
+}
+.dlg-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.dlg-node {
+  position: relative;
+  z-index: 1;
+  width: 240px;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--panel2);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 8px;
+  cursor: pointer;
+}
+.dlg-node:hover {
+  border-color: var(--acc);
+}
+.dlg-g {
+  margin-top: 4px;
+}
+.dlg-g.choice .dlg-gopt {
+  color: var(--acc2);
+}
+.dlg-g.do,
+.dlg-g.like,
+.dlg-g.goto {
+  color: var(--mut);
+}
+.dlg-gif {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--acc2);
+}
+.dlg-script {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  height: 100%;
+}
+.dlg-script textarea {
+  flex: 1;
+  min-height: 280px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.dlg-script .row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.dlg-preview {
+  width: 380px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--line);
+  overflow: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dlg-stage {
+  position: relative;
+  height: 260px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(#5d8fd4, #9fd18a 70%, #6b8f4a);
+  font-size: 13px;
+}
+.dlg-stage .bw-dlg {
+  font-size: 13px;
+}
+.dlg-ended {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #0007;
+}
+.dlg-preview .row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dlg-vars .field {
+  margin-top: 4px;
+}
+.dlg-log {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--mut);
+  max-height: 120px;
+  overflow: auto;
+}
+.dlg-empty {
+  padding: 24px;
+  max-width: 520px;
+}
+.talk-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.talk-row .inp {
+  flex: 1;
+  min-width: 80px;
+}
+.dlg-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.dlg-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--fg2);
+  background: var(--btn);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.dlg-card.on {
+  border-color: var(--acc);
+  color: var(--acc2);
+}
+.dlg-mini {
+  position: relative;
+  height: 70px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(#5d8fd4, #9fd18a);
+  pointer-events: none;
+}
+.dlg-mini > .bw-dlg {
+  width: 400%;
+  height: 400%;
+  transform: scale(0.25);
+  transform-origin: 0 0;
+}

@@ -15,6 +15,8 @@ export const ID_PREFIX = {
   spawn: 'sp',
   gate: 'gt',
   art: 'art',
+  /** P22: a conversation */
+  dialogue: 'dlg',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

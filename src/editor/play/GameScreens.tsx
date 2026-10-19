@@ -5,8 +5,9 @@ import type { PlayRenderer } from '../../engine/runtime/play-renderer';
 import type { PlaySession } from '../../engine/runtime/session';
 import { artUrl, fontCss } from '../../engine/ui/art';
 import { CinematicOverlay } from '../../engine/ui/CinematicOverlay';
+import { DialogueLayer } from '../../engine/ui/DialogueLayer';
 import { type ScreenHost, ScreenLayer } from '../../engine/ui/ScreenRenderer';
-import { WorldUI } from '../../engine/ui/WorldUI';
+import { projectPoint, WorldUI } from '../../engine/ui/WorldUI';
 import type { EditorState } from '../state';
 
 /**
@@ -64,7 +65,25 @@ export function GameScreens({
     );
   });
   const cine = s.cine.player;
-  const screens = s.screens.screens().filter((x) => !(cine?.cin.hideHud && x.kind === 'hud'));
+  // P22: a conversation hides the old dialogue box (its own layer shows the line)
+  const talk = s.talks.view;
+  const screens = s.screens
+    .screens()
+    .filter((x) => !(cine?.cin.hideHud && x.kind === 'hud') && !(talk && x.kind === 'dialogue'));
+  let anchor: { x: number; y: number } | null = null;
+  if (talk?.look.style === 'bubble') {
+    const pr = renderer();
+    const npc = s.talking;
+    const cam = pr?.lastCamera;
+    const el = worldRef.current;
+    if (cam && el) {
+      const at = npc
+        ? [npc.state.x, npc.state.y + 2.6, npc.state.z]
+        : [s.heroState.x, s.heroState.y + 2.6, s.heroState.z];
+      const pt = projectPoint(cam, (el.clientWidth || 1) / (el.clientHeight || 1), at);
+      if (pt) anchor = { x: pt.x, y: pt.y };
+    }
+  }
   return (
     <>
       <div ref={worldRef} class="bw-world-layer" aria-hidden="true" hidden={!!cine?.cin.hideHud} />
@@ -77,6 +96,17 @@ export function GameScreens({
         tick={t}
         textScale={s.progress.settings.textSize === 'large' ? 1.25 : 1}
       />
+      {talk && (
+        <DialogueLayer
+          view={talk}
+          shown={s.talks.revealed()}
+          focus={s.talks.focus}
+          anchor={anchor}
+          onNext={() => s.dialogueNext()}
+          onChoose={(i) => s.dialogueChoose(i)}
+          blip={(ev, pitch) => s.audio.play(ev, { pitch })}
+        />
+      )}
     </>
   );
 }

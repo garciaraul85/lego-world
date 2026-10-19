@@ -4,6 +4,7 @@ import { maxBrickId } from '../../assets/instances';
 import { generatedInstanceId, instancify } from '../../assets/instancify';
 import { encodeChunks } from '../../bricks/codec';
 import { footprint, inspectBricks } from '../../bricks/inspect';
+import { DialogueLook } from '../../dialogue/schema';
 import { hash64 } from '../../hash';
 import { type Id, newId } from '../../ids';
 import type { ProjectStore } from '../../project/store';
@@ -236,6 +237,8 @@ export type UpdateProject = {
   genre?: string;
   /** P26: how the player saves (null: back to the genre's default) */
   saving?: Saving | null;
+  /** P22: how conversations look (null: back to the genre's) */
+  dialogue?: Partial<DialogueLook> | null;
 };
 
 export const updateProject: CommandHandler<UpdateProject> = {
@@ -244,11 +247,19 @@ export const updateProject: CommandHandler<UpdateProject> = {
       ? `Genre: ${GENRES.find((g) => g.id === p.genre)?.name ?? p.genre}`
       : p.saving !== undefined && Object.keys(p).length === 1
         ? 'Saving settings'
-        : 'Edit project settings',
+        : p.dialogue !== undefined && Object.keys(p).length === 1
+          ? 'Dialogue style'
+          : 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.saving && !SavingSchema.safeParse(p.saving).success)
       return 'Saving: mode anywhere, savePoints or checkpoints; 1 to 3 slots; autosave on or off.';
+    if (p.dialogue) {
+      const r = DialogueLook.partial().safeParse(p.dialogue);
+      if (!r.success)
+        return `Dialogue style: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
+      if (p.dialogue.blip && !/^snd_[0-9a-z]{10}$/.test(p.dialogue.blip)) return 'The voice blip is a sound event.';
+    }
     if (p.hero && !store.has(paths.character(p.hero))) return 'That character does not exist.';
     if (p.entryMap !== undefined && !store.has(paths.map(p.entryMap))) return 'Start map not found.';
     if (p.entryScreen && !/^scr_[0-9a-z]{10}$/.test(p.entryScreen)) return 'Pick a screen.';
@@ -285,6 +296,12 @@ export const updateProject: CommandHandler<UpdateProject> = {
       const next = { ...store.manifest } as Project & { saving?: Saving };
       if (p.saving) next.saving = { ...p.saving };
       else delete next.saving;
+      store.put(paths.project, next);
+    }
+    if (p.dialogue !== undefined) {
+      const next = { ...store.manifest } as Project & { dialogue?: Partial<DialogueLook> };
+      if (p.dialogue) next.dialogue = { ...p.dialogue };
+      else delete next.dialogue;
       store.put(paths.project, next);
     }
   },

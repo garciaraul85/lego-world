@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Health } from '../combat/damage';
 import { Enemy } from '../combat/enemy';
+import { Bark, TalkEntry } from '../dialogue/schema';
 import { id } from './common';
 
 /**
@@ -22,5 +23,14 @@ export const Character = z.strictObject({
   gear: z.strictObject({ offHand: z.enum(['None', 'Shield']) }).optional(),
   /** P9c: it fights the hero (it also needs “Can be harmed” to be beaten) */
   enemy: Enemy.optional(),
+  /** P22: which conversation plays when the hero talks to it: the first whose condition holds */
+  talk: z.array(TalkEntry).max(12).optional(),
+  /** P22: short lines said when the hero walks past */
+  barks: z.array(Bark).max(12).optional(),
+  /** P22: its name's colour in dialogue boxes */
+  nameColor: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
 });
 export type Character = z.infer<typeof Character>;

@@ -217,6 +217,10 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   'game.unlockAchievement': S('logic'),
   'game.finish': S('logic'),
   'event.onAchievement': S('logic'),
+  // P22
+  'dialogue.start': S('dialogue', 'logic'),
+  'event.onChoice': S('dialogue', 'logic'),
+  'event.onConversationEnd': S('dialogue', 'logic'),
 };
 
 /** P9a: sections of the studios that belong to a feature */
@@ -228,6 +232,10 @@ export const SECTION_TAGS: Record<string, ControlTags> = {
   'game.saving': S('core'),
   'game.progress': S('core'),
   'asset.checkpoint': S('build'),
+  // P22
+  'character.talk': S('dialogue'),
+  'character.dialogue': S('dialogue'),
+  'game.dialogue': S('dialogue'),
 };
 
 export type ControlKind = 'tab' | 'tool' | 'action' | 'dock' | 'assetFilter' | 'node' | 'section';

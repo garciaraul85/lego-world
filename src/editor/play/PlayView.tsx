@@ -135,6 +135,18 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       }
       // while a menu screen is up the keyboard drives its buttons (Tab, arrows, Enter)
       if (s.screenPaused) return;
+      // P22: in a conversation: Enter, Space, E or T move on; arrows (or W/S) pick; 1–6 choose
+      if (s.talks.active) {
+        const ch = s.talks.view?.choices;
+        if (!e.repeat && (k === 'enter' || k === ' ' || k === 'e' || k === 't')) s.dialogueNext();
+        else if (ch && (k === 'arrowup' || k === 'w')) s.talks.move(-1);
+        else if (ch && (k === 'arrowdown' || k === 's')) s.talks.move(1);
+        else if (ch && /^[1-6]$/.test(k) && !e.repeat) s.dialogueChoose(Number(k) - 1);
+        else return;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       if (k === 'e' && !e.repeat && s.interact()) {
         /* used the prompted interaction */
       } else if (MOVE_KEYS.has(k)) s.input.keys.add(k);

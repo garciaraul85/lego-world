@@ -13,6 +13,7 @@ import { PreviewPicker } from '../../components/PreviewPicker';
 import { Timeline } from '../../components/timeline/Timeline';
 import { shows } from '../../genres/view';
 import { actionChoices } from '../../panels/AudioFields';
+import { ConversationList, DialogueMain, TalkSection } from '../dialogue/CharacterTalk';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
 import { CharacterThumb, peakTime, type ThumbView, trackPose } from './thumbs';
 
@@ -265,6 +266,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               <span class="mono small muted">{ed.store.manifest.hero === x.id ? 'player' : x.role}</span>
             </button>
           ))}
+          <ConversationList c={c} chr={chr} inProject={inProject} />
           <div class="sech" style={{ padding: '10px 10px 4px' }}>
             <span>Clips</span>
             <button
@@ -322,57 +324,85 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
       </section>
 
       <section class="panel studio-main" aria-label="Character preview and timeline">
-        <div class="ptabs studio-head">
-          <strong class="studio-title">{chr.name}</strong>
-          <span class="muted small">
-            {inProject ? (isHero ? 'player character' : chr.role) : 'preset (added to the game on first change)'}
-            {clip ? ` · ${clip.name ?? 'clip'}${builtinClip ? ' · built-in (read-only)' : ''}` : ''}
-          </span>
-          <span class="group" style={{ marginLeft: 'auto' }}>
-            <button type="button" class={`btn ${turntable ? 'on' : ''}`} onClick={() => setTurntable(!turntable)}>
-              Turntable
-            </button>
-            {clip && (
-              <button type="button" class="btn" data-tour="clip-play" onClick={() => setPlaying(!playing)}>
-                {playing ? 'Pause' : 'Play'}
+        <div class="ptabs char-views" role="tablist" aria-label="Character view">
+          {(
+            [
+              ['look', 'Look and clips'],
+              ['dialogue', 'Dialogue'],
+            ] as const
+          )
+            .filter(([id]) => id === 'look' || shows(ed, 'section', 'character.dialogue'))
+            .map(([id, label]) => (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={ed.charTab.value === id}
+                class={`tab ${ed.charTab.value === id ? 'on' : ''}`}
+                data-tour={`char-tab-${id}`}
+                onClick={() => (ed.charTab.value = id)}
+              >
+                {label}
               </button>
-            )}
-          </span>
+            ))}
         </div>
-        <div class="studio-plate char-plate">
-          <div class="viewport-wrap">
-            <CharacterPreview input={preview} />
-          </div>
-        </div>
-        {clip ? (
-          <>
-            {builtinClip && (
-              <div class="studio-foot small">
-                {clip.group === 'Combat' || clip.group === 'Gestures' ? 'Built-in clip' : 'v68 routine'} (read-only).{' '}
-                <button type="button" class="link" onClick={() => duplicate(clip)}>
-                  Duplicate to edit
-                </button>
-              </div>
-            )}
-            <Timeline
-              clip={clip}
-              time={Math.min(time, clip.length)}
-              readOnly={builtinClip}
-              choices={{ sounds: actionChoices(ed).sounds, cinematics: actionChoices(ed).cinematics }}
-              onSeek={(t) => {
-                setPlaying(false);
-                setTime(t);
-              }}
-              onChange={saveClip}
-              onTrackSelect={setPart}
-              trackThumb={(bone, prop) => {
-                const pose = trackPose(bone, prop);
-                return <CharacterThumb profile={chr.profile} size={40} {...(pose ? { pose } : {})} />;
-              }}
-            />
-          </>
+        {ed.charTab.value === 'dialogue' ? (
+          <DialogueMain c={c} chr={chr} inProject={inProject} />
         ) : (
-          <div class="studio-foot muted small">Pick a clip on the left to preview it here and edit its keys.</div>
+          <>
+            <div class="ptabs studio-head">
+              <strong class="studio-title">{chr.name}</strong>
+              <span class="muted small">
+                {inProject ? (isHero ? 'player character' : chr.role) : 'preset (added to the game on first change)'}
+                {clip ? ` · ${clip.name ?? 'clip'}${builtinClip ? ' · built-in (read-only)' : ''}` : ''}
+              </span>
+              <span class="group" style={{ marginLeft: 'auto' }}>
+                <button type="button" class={`btn ${turntable ? 'on' : ''}`} onClick={() => setTurntable(!turntable)}>
+                  Turntable
+                </button>
+                {clip && (
+                  <button type="button" class="btn" data-tour="clip-play" onClick={() => setPlaying(!playing)}>
+                    {playing ? 'Pause' : 'Play'}
+                  </button>
+                )}
+              </span>
+            </div>
+            <div class="studio-plate char-plate">
+              <div class="viewport-wrap">
+                <CharacterPreview input={preview} />
+              </div>
+            </div>
+            {clip ? (
+              <>
+                {builtinClip && (
+                  <div class="studio-foot small">
+                    {clip.group === 'Combat' || clip.group === 'Gestures' ? 'Built-in clip' : 'v68 routine'}{' '}
+                    (read-only).{' '}
+                    <button type="button" class="link" onClick={() => duplicate(clip)}>
+                      Duplicate to edit
+                    </button>
+                  </div>
+                )}
+                <Timeline
+                  clip={clip}
+                  time={Math.min(time, clip.length)}
+                  readOnly={builtinClip}
+                  choices={{ sounds: actionChoices(ed).sounds, cinematics: actionChoices(ed).cinematics }}
+                  onSeek={(t) => {
+                    setPlaying(false);
+                    setTime(t);
+                  }}
+                  onChange={saveClip}
+                  onTrackSelect={setPart}
+                  trackThumb={(bone, prop) => {
+                    const pose = trackPose(bone, prop);
+                    return <CharacterThumb profile={chr.profile} size={40} {...(pose ? { pose } : {})} />;
+                  }}
+                />
+              </>
+            ) : (
+              <div class="studio-foot muted small">Pick a clip on the left to preview it here and edit its keys.</div>
+            )}
+          </>
         )}
       </section>
 
@@ -464,6 +494,8 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               )}
             </div>
           )}
+          {/* P22: what it says — its Talk list, barks and name colour */}
+          {!isHero && shows(ed, 'section', 'character.talk') && <TalkSection c={c} chr={chr} inProject={inProject} />}
           {/* P9c: an enemy — it walks to the hero and swings at them */}
           {!isHero && shows(ed, 'section', 'character.enemy') && (
             <div class="sec" data-tour="char-enemy" data-help="characters.enemy">

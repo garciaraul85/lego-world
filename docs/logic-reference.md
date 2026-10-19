@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (61 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (64 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -148,6 +148,24 @@ Runs when the player unlocks an achievement (empty: any of them).
 
 - Settings: Achievement id (string, optional)
 - Code: `on("achievement", { achievement: … }, (e) => { … });`
+
+### On choice made
+
+`event.onChoice` · event
+
+Runs when the player picks an option in a conversation (empty: any conversation; option: only when the option has this text).
+
+- Settings: Conversation (dialogue, optional), Option text (string, optional)
+- Code: `on("choice", { conversation: …, option: … }, (e) => { … });`
+
+### On conversation end
+
+`event.onConversationEnd` · event
+
+Runs when a conversation ends (empty: any conversation): the last line was read, a choice led to the end, or the hero walked away.
+
+- Settings: Conversation (dialogue, optional)
+- Code: `on("conversationEnd", { conversation: … }, (e) => { … });`
 
 ## Flow
 
@@ -598,3 +616,14 @@ The player finished the game: it counts as finished (best scores are kept, new g
 From now on, Retry (after game over) and falling off the world bring the hero back to where they stand now.
 
 - Code: `game.setCheckpoint();`
+
+## Dialogue
+
+### Start conversation
+
+`dialogue.start` · action
+
+Starts a conversation, as if the hero had talked to someone: its lines, choices and actions play in the game’s dialogue style. The hero stands still until it ends.
+
+- Settings: Conversation (dialogue)
+- Code: `dialogue.start(conversation);`

@@ -8,6 +8,7 @@
     "world",
     "assets",
     "characters",
+    "dialogue",
     "logic",
     "collect",
     "screens",
@@ -57,5 +58,8 @@
     "A goal: find them all to win",
     "Music and sounds for finding things"
   ],
-  "readyAfter": "P8"
+  "readyAfter": "P8",
+  "dialogue": {
+    "style": "adventure"
+  }
 }

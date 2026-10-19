@@ -6,6 +6,35 @@ const INS = area('Inspector');
 const VIEW = `${area('Viewport')} ${area('View')}`;
 
 export const SCENE: HelpEntry[] = [
+  {
+    id: 'scene.dialogue',
+    also: ['dialogue style', 'dialogue box', 'text speed', 'voice blip', 'speech bubbles', 'visual novel', 'subtitles'],
+    screen: 'scene',
+    kind: 'area',
+    name: 'Dialogue style',
+    purpose:
+      'How conversations look in this game: pick a style in the gallery — **Adventure** (a box at the bottom with a name tag), **Classic RPG** (a framed window with a portrait), **Visual novel** (big portraits), **Speech bubbles** (above the speaker), **Cinematic** (subtitles under letterbox bars), **Chat** (a phone), **Sign** (a plaque) or **Narrator** (a caption). Then how lines appear: letters per second, the voice blip and its pitch, lines that move on by themselves, portraits, colours and how choices are laid out.',
+    steps: [
+      'Open the **Project** tab and scroll to **Dialogue**.',
+      'Click a style card. Each conversation can still pick its own style (Characters › Dialogue), and signs read as a Sign.',
+      'Set **Text speed** (0: the whole line at once) and the **Voice blip**.',
+    ],
+    commands: ['project.update'],
+    match: [{ in: '[data-tour="game-dialogue"]' }],
+    related: ['characters.dialogue'],
+  },
+  {
+    id: 'scene.item.talk',
+    also: ['readable sign', 'book', 'read with e', 'sign conversation'],
+    screen: 'scene',
+    kind: 'field',
+    name: 'Read with E',
+    purpose:
+      'A sign that tells more: pick a conversation and the hero can read the sign with E in Play (“E · Read”). It shows in the Sign style unless the conversation picks its own, so a sign can hold a long text, a riddle with choices, or a book.',
+    commands: ['item.update'],
+    match: [{ in: '[data-tour="sign-conversation"]' }],
+    related: ['characters.dialogue'],
+  },
   // ---------- areas ----------
   {
     id: 'scene.tools',

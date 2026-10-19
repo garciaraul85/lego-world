@@ -4,6 +4,7 @@ import * as Au from '../commands/handlers/audio';
 import * as B from '../commands/handlers/bricks';
 import * as Ch from '../commands/handlers/characters';
 import * as Ci from '../commands/handlers/cinematics';
+import * as Dl from '../commands/handlers/dialogue';
 import * as G from '../commands/handlers/gates';
 import * as I from '../commands/handlers/items';
 import * as L from '../commands/handlers/logic';
@@ -11,6 +12,7 @@ import * as M from '../commands/handlers/map';
 import * as Np from '../commands/handlers/npcs';
 import * as Pr from '../commands/handlers/progress';
 import type { CommandHandler } from '../commands/types';
+import { Conversation } from '../dialogue/schema';
 import type { idPattern } from '../ids';
 import { ProgressDoc } from '../save/progress';
 import { Saving } from '../save/save';
@@ -46,7 +48,7 @@ export const SCOPES: { id: Scope; label: string; hint: string }[] = [
   { id: 'game', label: 'Whole game', hint: 'anything: maps, assets, characters, logic, screens, scenes, audio' },
   { id: 'map', label: 'Map', hint: 'bricks, terrain, spawns, zones, placed assets, signs, sound emitters, gates' },
   { id: 'asset', label: 'Assets', hint: 'asset definitions and their placed copies' },
-  { id: 'character', label: 'Characters', hint: 'characters, clips and the hero' },
+  { id: 'character', label: 'Characters', hint: 'characters, clips, conversations and the hero' },
   { id: 'logic', label: 'Logic', hint: 'logic graphs (as code) and variables' },
   { id: 'screen', label: 'Screens', hint: 'screens, HUD widgets and the first screen' },
   { id: 'cinematic', label: 'Cinematics', hint: 'cinematic scenes and what triggers them' },
@@ -747,6 +749,44 @@ export const AI_COMMANDS: AiCommand[] = [
     'Cinematics',
     'Adds or replaces a cinematic scene (read docs via describe_command and an existing scene first).',
     { cinematic: { $read: 'cinematics/<id>.json' } } as never,
+  ),
+  def(
+    'dialogue.put',
+    Dl.putDialogue,
+    z.strictObject({ conversation: Conversation }),
+    ['character'],
+    'Characters',
+    'Adds or replaces a conversation: sections of steps — a line (who: a character id or a name, text, mood), a choice (options with text, optional if, to: a section or end), do (actions such as setVar, addVar, give, cinematic, achieve), like (by), goto. Conditions are words like “gems >= 50 and talks > 0”. Then add it to a character’s talk list with character.update so talking to them plays it.',
+    {
+      conversation: {
+        id: 'dlg_aaaaaaaaaa',
+        name: 'Baker hint',
+        sections: [
+          {
+            label: 'start',
+            steps: [
+              { k: 'line', who: 'chr_aaaaaaaaaa', text: 'Fresh bread today!' },
+              {
+                k: 'line',
+                who: 'chr_aaaaaaaaaa',
+                text: 'The key? Try under the mayor’s doormat.',
+                if: 'talked.mayor is true',
+              },
+              { k: 'choice', options: [{ text: 'Thanks!', to: 'end' }] },
+            ],
+          },
+        ],
+      },
+    },
+  ),
+  def(
+    'dialogue.delete',
+    Dl.deleteDialogue,
+    z.strictObject({ id: ids('dialogue') }),
+    ['character'],
+    'Characters',
+    'Deletes a conversation nothing starts any more (take it out of talk lists, signs and interactions first).',
+    { id: 'dlg_aaaaaaaaaa' },
   ),
   def(
     'cinematic.delete',
