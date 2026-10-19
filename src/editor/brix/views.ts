@@ -307,6 +307,17 @@ export function stepsToView(view: string): ShowStep[] {
         },
       ];
     }
+    case 'characters-talk':
+      // the Dialogue tab of the sheet: who it talks with, its barks
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Dialogue tab of the sheet.',
+          find: control('[aria-label="Character sheet"]', /^Dialogue$/),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === 'dialogue',
+        },
+      ];
     case 'characters-dialogue':
       return [
         ws('Characters'),

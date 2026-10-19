@@ -203,7 +203,11 @@ export function OutfitsTab({ chr, save }: Props) {
 export function StatsTab({ c, chr, save, isHero }: Props & { isHero: boolean }) {
   const full = viewGenre(c.ed).features === 'all' || (viewGenre(c.ed).features as readonly string[]).includes('combat');
   const st: Stats = { ...DEFAULT_STATS, ...(chr.stats ?? {}) };
-  const set = (k: keyof Stats, v: Stats[keyof Stats]) => save({ ...chr, stats: { ...st, [k]: v } }, `${k}`);
+  // the latest saved character: two numbers changed quickly (Tab, Tab) must not undo each other
+  const set = (k: keyof Stats, v: Stats[keyof Stats]) => {
+    const cur = (c.ed.store.get(`characters/${chr.id}.json`) as Character | undefined) ?? chr;
+    save({ ...cur, stats: { ...DEFAULT_STATS, ...(cur.stats ?? {}), [k]: v } }, `${k}`);
+  };
   return (
     <div class="sec" data-tour="char-stats" data-help="characters.stats">
       <div class="sech">

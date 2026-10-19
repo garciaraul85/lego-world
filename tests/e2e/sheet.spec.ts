@@ -95,12 +95,16 @@ test('the sheet: an outfit takes look changes while worn; stats, moves, behaviou
   expect(sam.outfit).toBe('Armour');
   // Stats: 5 hearts, speed 1.3, defence 2
   await sheet.getByRole('tab', { name: 'Stats' }).click();
-  await page.getByLabel('Hearts').fill('5');
-  await page.getByLabel('Hearts').press('Tab');
-  await page.getByLabel('Speed').fill('1.3');
-  await page.getByLabel('Speed').press('Tab');
-  await page.getByLabel('Defence').fill('2');
-  await page.getByLabel('Defence').press('Tab');
+  // one number at a time: each waits for its save (the panel redraws after it)
+  for (const [label, key, v] of [
+    ['Hearts', 'health', 5],
+    ['Speed', 'speed', 1.3],
+    ['Defence', 'defence', 2],
+  ] as const) {
+    await page.getByLabel(label, { exact: true }).fill(String(v));
+    await page.getByLabel(label, { exact: true }).press('Tab');
+    await expect.poll(async () => (await chr(page, 'chr_sheetsam01')).stats?.[key]).toBe(v);
+  }
   // Moves: heavy
   await sheet.getByRole('tab', { name: 'Moves' }).click();
   await page.getByRole('radio', { name: 'Heavy' }).click();

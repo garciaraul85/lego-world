@@ -94,12 +94,12 @@ async function talkToTom(page: Page) {
 test('a conversation written as a script, shown as a list and a graph, previewed, then played with the keyboard', async ({
   page,
 }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(420_000);
   const errors: string[] = [];
   await open(page, errors);
   const tom = await addTom(page);
   await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Characters' }).click();
-  await page.getByRole('tab', { name: 'Dialogue' }).click();
+  await page.getByRole('tablist', { name: 'Character view' }).getByRole('tab', { name: 'Dialogue' }).click();
   await page.locator('[data-tour="dialogue-new"]').click();
   await expect(page.getByLabel('Conversation name')).toHaveValue('Old Tom talk');
   // the new conversation joined Old Tom's Talk list

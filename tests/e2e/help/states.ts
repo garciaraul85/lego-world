@@ -325,7 +325,7 @@ export const HELP_STATES: HelpState[] = [
         if (!e.store.list('characters/').length)
           e.exec({
             type: 'character.create',
-            payload: { character: { id: 'chr_helpsheet01', name: 'Sam', role: 'npc', profile: { name: 'Sam' } } },
+            payload: { character: { id: 'chr_helpsheet1', name: 'Sam', role: 'npc', profile: { name: 'Sam' } } },
           });
         e.studioCharacter!.value = e.store.list('characters/')[0]!.replace(/^characters\/|\.json$/g, '');
       });
@@ -333,6 +333,24 @@ export const HELP_STATES: HelpState[] = [
         await p.locator('[data-tour="outfit-new"]').click();
     },
   })),
+  {
+    // the sheet's Dialogue tab: a neighbour's conversations and barks
+    id: 'characters-talk',
+    screen: 'characters',
+    setup: async (p) => {
+      await ws(p, 'Characters');
+      await signals(p, { charTab: 'look', sheetTab: 'dialogue' });
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        if (!e.store.get('characters/chr_helpsheet1.json'))
+          e.exec({
+            type: 'character.create',
+            payload: { character: { id: 'chr_helpsheet1', name: 'Sam', role: 'npc', profile: { name: 'Sam' } } },
+          });
+        e.studioCharacter!.value = 'chr_helpsheet1';
+      });
+    },
+  },
   {
     id: 'characters-dialogue',
     screen: 'characters',
