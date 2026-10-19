@@ -190,7 +190,7 @@ function ListView({ c, conv, save }: { c: ActionCtx; conv: Conversation; save: S
   const add = (si: number, st: Step, label: string) =>
     save({ ...conv, sections: conv.sections.map((s, k) => (k === si ? { ...s, steps: [...s.steps, st] } : s)) }, label);
   return (
-    <div class="dlg-list" aria-label="Conversation steps">
+    <div class="dlg-list" role="group" aria-label="Conversation steps">
       {conv.sections.map((sec, si) => (
         <section class="dlg-sec" id={`dlg-sec-${sec.label}`} aria-label={`Section ${sec.label}`}>
           <header>
@@ -575,7 +575,7 @@ function GraphView({ c, conv }: { c: ActionCtx; conv: Conversation }) {
   };
   const short = (t: string) => (t.length > 46 ? `${t.slice(0, 44)}…` : t);
   return (
-    <div class="dlg-graph" ref={box} aria-label="Conversation graph">
+    <div class="dlg-graph" ref={box} role="group" aria-label="Conversation graph">
       <svg class="dlg-edges" aria-hidden="true">
         <defs>
           <marker id="dlg-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">

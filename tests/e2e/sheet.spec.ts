@@ -85,7 +85,10 @@ test('the sheet: an outfit takes look changes while worn; stats, moves, behaviou
   await sheet.getByRole('tab', { name: 'Look' }).click();
   await expect(page.getByText(/Wearing\s+Armour/)).toBeVisible();
   await page.locator('[data-tour="pick-hat"]').click();
-  await page.locator('[data-tour="pick-hat-list"]').getByRole('option', { name: /Knight helmet/ }).click();
+  await page
+    .locator('[data-tour="pick-hat-list"]')
+    .getByRole('option', { name: /Knight helmet/ })
+    .click();
   let sam = await chr(page, 'chr_sheetsam01');
   expect(sam.profile.hat).toBe('None');
   expect(sam.outfits?.[0]?.look.hat).toBe('Knight helmet');

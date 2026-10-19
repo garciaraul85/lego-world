@@ -105,6 +105,13 @@ export function DialogueLayer(p: DialogueLayerProps) {
     e.stopPropagation();
     p.onNext();
   };
+  // Play's own keys move a conversation on; inside the editor's preview, Enter on the box does too
+  const onKey = (e: KeyboardEvent) => {
+    if (v.choices || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    p.onNext();
+  };
   const portrait = look.portrait && v.who !== '' && <Portrait mood={v.mood} color={v.nameColor} />;
   const say = (
     <div class="bw-dlg-text" aria-live="polite">
@@ -120,7 +127,7 @@ export function DialogueLayer(p: DialogueLayerProps) {
     case 'bubble': {
       const a = p.anchor ?? { x: 0.5, y: 0.35 };
       return (
-        <section class="bw-dlg bw-dlg-bubble" aria-label={label} data-style={style} onClick={advance}>
+        <section class="bw-dlg bw-dlg-bubble" aria-label={label} data-style={style} onClick={advance} onKeyDown={onKey}>
           <div class="bwd-bubble" style={{ left: `${a.x * 100}%`, top: `${a.y * 100}%`, ...box }}>
             {name && (
               <div class="bw-dlg-name" style={nameStyle}>
@@ -136,7 +143,13 @@ export function DialogueLayer(p: DialogueLayerProps) {
     }
     case 'cinematic':
       return (
-        <section class="bw-dlg bw-dlg-cinematic" aria-label={label} data-style={style} onClick={advance}>
+        <section
+          class="bw-dlg bw-dlg-cinematic"
+          aria-label={label}
+          data-style={style}
+          onClick={advance}
+          onKeyDown={onKey}
+        >
           <div class="bwd-bar bwd-top" />
           <div class="bwd-bar bottom">
             <div class="bwd-sub">
@@ -153,7 +166,7 @@ export function DialogueLayer(p: DialogueLayerProps) {
       );
     case 'chat':
       return (
-        <section class="bw-dlg bw-dlg-chat" aria-label={label} data-style={style} onClick={advance}>
+        <section class="bw-dlg bw-dlg-chat" aria-label={label} data-style={style} onClick={advance} onKeyDown={onKey}>
           <div class="bwd-phone">
             <div class="bwd-top">{name || 'Message'}</div>
             <div class={`bwd-msg ${v.who ? 'them' : 'note'}`} style={box}>
@@ -165,7 +178,7 @@ export function DialogueLayer(p: DialogueLayerProps) {
       );
     case 'sign':
       return (
-        <section class="bw-dlg bw-dlg-sign" aria-label={label} data-style={style} onClick={advance}>
+        <section class="bw-dlg bw-dlg-sign" aria-label={label} data-style={style} onClick={advance} onKeyDown={onKey}>
           <div class="bwd-plaque">
             {name && (
               <div class="bw-dlg-name" style={nameStyle}>
@@ -180,7 +193,13 @@ export function DialogueLayer(p: DialogueLayerProps) {
       );
     case 'narrator':
       return (
-        <section class="bw-dlg bw-dlg-narrator" aria-label={label} data-style={style} onClick={advance}>
+        <section
+          class="bw-dlg bw-dlg-narrator"
+          aria-label={label}
+          data-style={style}
+          onClick={advance}
+          onKeyDown={onKey}
+        >
           <div class="bwd-caption">
             {say}
             {more}
@@ -190,7 +209,7 @@ export function DialogueLayer(p: DialogueLayerProps) {
       );
     case 'novel':
       return (
-        <section class="bw-dlg bw-dlg-novel" aria-label={label} data-style={style} onClick={advance}>
+        <section class="bw-dlg bw-dlg-novel" aria-label={label} data-style={style} onClick={advance} onKeyDown={onKey}>
           {v.who && (
             <div class="bwd-stage">
               <div class="bwd-left">
@@ -212,7 +231,7 @@ export function DialogueLayer(p: DialogueLayerProps) {
       );
     case 'rpg':
       return (
-        <section class="bw-dlg bw-dlg-rpg" aria-label={label} data-style={style} onClick={advance}>
+        <section class="bw-dlg bw-dlg-rpg" aria-label={label} data-style={style} onClick={advance} onKeyDown={onKey}>
           <div class="bwd-window" style={box}>
             {portrait}
             <div class="bwd-body">
@@ -230,7 +249,13 @@ export function DialogueLayer(p: DialogueLayerProps) {
       );
     default:
       return (
-        <section class="bw-dlg bw-dlg-adventure" aria-label={label} data-style={style} onClick={advance}>
+        <section
+          class="bw-dlg bw-dlg-adventure"
+          aria-label={label}
+          data-style={style}
+          onClick={advance}
+          onKeyDown={onKey}
+        >
           {choices}
           <div class="bwd-box" style={box}>
             {name && (
