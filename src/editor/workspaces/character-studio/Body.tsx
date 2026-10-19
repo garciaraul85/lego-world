@@ -234,6 +234,7 @@ function BrickBuild({ c, body, resolved, setBody }: Sub & { resolved: ResolvedBo
       <label class="field">
         Brick build
         <select
+          class="inp"
           aria-label="Brick build"
           data-tour="body-asset"
           value={body.asset ?? ''}
@@ -261,6 +262,7 @@ function BrickBuild({ c, body, resolved, setBody }: Sub & { resolved: ResolvedBo
           <label class="field">
             Paint onto
             <select
+              class="inp"
               aria-label="Paint bricks onto"
               data-tour="body-paint"
               value={ed.bodyPaint.value ?? ''}
@@ -415,6 +417,7 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
         <label class="field">
           Moves by
           <select
+            class="inp"
             aria-label="Moves by"
             data-tour="skeleton-move"
             value={own.move}
@@ -545,6 +548,7 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
           <label class="field">
             Hangs from
             <select
+              class="inp"
               aria-label="Hangs from"
               value={sel.parent}
               onChange={(e) => setBone({ ...sel, parent: (e.target as HTMLSelectElement).value }, 'Bone parent')}
@@ -560,6 +564,7 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
         <label class="field">
           Role
           <select
+            class="inp"
             aria-label="Role"
             data-tour="skeleton-role"
             value={sel.role}
@@ -610,6 +615,7 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
           <label class="field">
             Side
             <select
+              class="inp"
               aria-label="Side"
               value={String(sel.side ?? 0)}
               onChange={(e) => {
@@ -631,6 +637,7 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
       {bricks.map(([k, i]) => (
         <div class="brick-row row" role="group" aria-label={`Brick ${i + 1}`}>
           <select
+            class="inp"
             aria-label="Brick kind"
             value={k.kind}
             onChange={(e) =>
@@ -670,6 +677,7 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
             />
           ))}
           <select
+            class="inp"
             aria-label="Brick colour"
             value={k.color.startsWith('#') ? 'own' : k.color}
             onChange={(e) => {

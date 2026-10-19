@@ -61,11 +61,11 @@ test('the Body tab: a family, sliders, colours, walking; a skeleton of your own;
     const sp = (e.store.get(`maps/${map}/map.json`) as { spawns: { pos: number[] }[] }).spawns[0]!.pos;
     e.exec({
       type: 'character.create',
-      payload: { character: { id: 'chr_bodyrex01', name: 'Rex', role: 'npc', profile: { name: 'Rex' } } },
+      payload: { character: { id: 'chr_bodyrex001', name: 'Rex', role: 'npc', profile: { name: 'Rex' } } },
     });
     e.exec({
       type: 'npc.place',
-      payload: { map, character: 'chr_bodyrex01', pos: [sp[0]! + 3, sp[1]!, sp[2]! + 3], heading: 0 },
+      payload: { map, character: 'chr_bodyrex001', pos: [sp[0]! + 3, sp[1]!, sp[2]! + 3], heading: 0 },
     });
     // a small brick build: a body on two legs
     e.exec({
@@ -88,17 +88,20 @@ test('the Body tab: a family, sliders, colours, walking; a skeleton of your own;
           pivot: [1, 0, 2],
           states: ['default'],
           initialState: 'default',
+          interactions: [],
+          smash: { enabled: false, rebuild: true, sound: 'snd_woodcrash1', studs: 0 },
+          generator: { environments: ['city'], weight: 0, placeOn: 'street' },
         },
       },
     });
-    e.studioCharacter.value = 'chr_bodyrex01';
+    e.studioCharacter.value = 'chr_bodyrex001';
   });
   await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Characters' }).click();
   const sheet = page.getByRole('tablist', { name: 'Character sheet' });
   await sheet.getByRole('tab', { name: 'Body' }).click();
   // a family
   await page.locator('[data-tour="body-family-fourLegs"]').click();
-  await expect.poll(async () => (await body(page, 'chr_bodyrex01'))?.family).toBe('fourLegs');
+  await expect.poll(async () => (await body(page, 'chr_bodyrex001'))?.family).toBe('fourLegs');
   // the Look tab says where the look went; Try it is for minifigs
   await sheet.getByRole('tab', { name: 'Look' }).click();
   await expect(page.locator('[data-tour="body-note"]')).toContainText('four legs body');
@@ -106,9 +109,9 @@ test('the Body tab: a family, sliders, colours, walking; a skeleton of your own;
   await sheet.getByRole('tab', { name: 'Body' }).click();
   // sliders and colours
   await page.locator('[data-tour="body-param-tail"]').fill('1.6');
-  await expect.poll(async () => (await body(page, 'chr_bodyrex01'))?.params?.tail).toBe(1.6);
+  await expect.poll(async () => (await body(page, 'chr_bodyrex001'))?.params?.tail).toBe(1.6);
   await page.locator('[data-tour="body-color-main"]').fill('#f4f4f4');
-  await expect.poll(async () => (await body(page, 'chr_bodyrex01'))?.colors?.main).toBe('#f4f4f4');
+  await expect.poll(async () => (await body(page, 'chr_bodyrex001'))?.colors?.main).toBe('#f4f4f4');
   // walk on the spot, with the skeleton showing
   await page.locator('[data-tour="body-walk"]').click();
   await expect(page.locator('[data-tour="body-walk"]')).toHaveText(/Stand/);
@@ -117,8 +120,8 @@ test('the Body tab: a family, sliders, colours, walking; a skeleton of your own;
 
   // a skeleton of its own
   await page.locator('[data-tour="skeleton-edit"]').click();
-  await expect.poll(async () => (await body(page, 'chr_bodyrex01'))?.plan).toMatch(/^bpl_/);
-  const planId = (await body(page, 'chr_bodyrex01'))!.plan!;
+  await expect.poll(async () => (await body(page, 'chr_bodyrex001'))?.plan).toMatch(/^bpl_/);
+  const planId = (await body(page, 'chr_bodyrex001'))!.plan!;
   expect((await plan(page, planId))!.bones.filter((b) => b.role === 'tail').length).toBeGreaterThanOrEqual(4);
   const bones = page.getByRole('listbox', { name: 'Bones' });
   await bones.locator('[data-name="head"]').click();
@@ -149,7 +152,7 @@ test('the Body tab: a family, sliders, colours, walking; a skeleton of your own;
 
   // a brick build worn on the skeleton; painting moves a brick to another bone
   await page.getByLabel('Brick build').selectOption('ast_bodybeast1');
-  await expect.poll(async () => (await body(page, 'chr_bodyrex01'))?.asset).toBe('ast_bodybeast1');
+  await expect.poll(async () => (await body(page, 'chr_bodyrex001'))?.asset).toBe('ast_bodybeast1');
   await page.getByLabel('Paint bricks onto').selectOption('tail 1');
   await expect(page.getByRole('status').filter({ hasText: 'follows “tail 1”' })).toBeVisible();
   const canvas = page.locator('canvas[aria-label="Character preview"]');
@@ -159,14 +162,14 @@ test('the Body tab: a family, sliders, colours, walking; a skeleton of your own;
     [0.45, 0.6],
     [0.55, 0.4],
   ] as const) {
-    if (Object.keys((await body(page, 'chr_bodyrex01'))?.attach ?? {}).length) break;
+    if (Object.keys((await body(page, 'chr_bodyrex001'))?.attach ?? {}).length) break;
     await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
     await page.waitForTimeout(500);
   }
-  await expect.poll(async () => Object.values((await body(page, 'chr_bodyrex01'))?.attach ?? {})).toContain('tail 1');
+  await expect.poll(async () => Object.values((await body(page, 'chr_bodyrex001'))?.attach ?? {})).toContain('tail 1');
   await page.screenshot({ path: 'test-results/bodies-bricks.png' });
   await page.locator('[data-tour="body-autoattach"]').click();
-  await expect.poll(async () => (await body(page, 'chr_bodyrex01'))?.attach).toBeUndefined();
+  await expect.poll(async () => (await body(page, 'chr_bodyrex001'))?.attach).toBeUndefined();
   await page.getByLabel('Paint bricks onto').selectOption('');
 
   // the player character is a bird; Rex walks on the map
@@ -176,7 +179,7 @@ test('the Body tab: a family, sliders, colours, walking; a skeleton of your own;
       type: 'character.create',
       payload: {
         character: {
-          id: 'chr_bodybird1',
+          id: 'chr_bodybird01',
           name: 'Pip',
           role: 'hero',
           profile: { name: 'Pip' },
@@ -184,7 +187,7 @@ test('the Body tab: a family, sliders, colours, walking; a skeleton of your own;
         },
       },
     });
-    e.exec({ type: 'project.update', payload: { hero: 'chr_bodybird1' } });
+    e.exec({ type: 'project.update', payload: { hero: 'chr_bodybird01' } });
   });
   await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Play', exact: true }).click();
   await page.getByLabel('Game view').waitFor({ timeout: 60_000 });
