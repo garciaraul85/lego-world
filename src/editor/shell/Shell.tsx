@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIONS, type ActionCtx, action, type EditorAction, MENUS, runAction } from '../actions/registry';
 import { resolveAsset } from '../assets';
+import { Rich } from '../components/Rich';
 import { controlMenu, GenrePicker } from '../genres/GenrePicker';
 import { shows, tabsInView } from '../genres/view';
 import { keysFor } from '../platform';
@@ -376,7 +377,7 @@ export function Toast({ ed }: { ed: EditorState }) {
   if (!t) return null;
   return (
     <div class={`toast ${t.error ? 'error' : ''}`} role={t.error ? 'alert' : 'status'}>
-      {t.msg}
+      <Rich text={t.msg} />
     </div>
   );
 }

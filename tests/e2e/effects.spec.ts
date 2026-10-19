@@ -20,6 +20,8 @@ type Ed = {
   studioClip: { value: string | null };
   clipPlaying: { value: boolean };
   session: { value: { effects: { count: number } } | null };
+  notify(msg: string): void;
+  toast: { value: unknown };
 };
 
 async function open(page: Page, errors: string[]) {
@@ -192,5 +194,12 @@ test('text from Help shows **bold** as bold: field help, Brix and the tutorial',
   await expect(answer).toBeVisible({ timeout: 30_000 });
   await expect(answer).not.toContainText('**');
   await expect(answer.locator('strong').first()).toBeVisible();
+  // a notice, and an answer written with headings and bullets, show formatted too
+  await get(page, (e) => e.notify('Click **Place on the map**'));
+  await expect(page.locator('.toast strong')).toHaveText('Place on the map');
+  await expect(page.locator('.toast')).not.toContainText('**');
+  await get(page, (e) => {
+    e.toast.value = null;
+  });
   expect(errors).toEqual([]);
 });
