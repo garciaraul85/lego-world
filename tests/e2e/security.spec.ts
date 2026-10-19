@@ -69,7 +69,17 @@ test('AI key: locked with a passphrase, never stored in plain text; unlocked by 
   const panel = page.getByRole('complementary', { name: 'AI builder' });
   await expect(panel).toBeVisible();
   const keys = panel.locator('[data-tour="ai-key"]');
-  if (!(await keys.isVisible())) await panel.getByRole('button', { name: 'AI builder settings' }).click();
+  // the panel may open its settings by itself a moment after it appears (no key yet / key locked):
+  // toggle until the key fields stay open instead of racing that
+  const showKeys = async () => {
+    for (let i = 0; i < 4 && !(await keys.isVisible()); i++) {
+      await page.waitForTimeout(400);
+      if (!(await keys.isVisible())) await panel.getByRole('button', { name: 'AI builder settings' }).click();
+      await page.waitForTimeout(400);
+    }
+    await expect(keys).toBeVisible();
+  };
+  await showKeys();
   await keys.getByLabel('How the key is kept').selectOption('locked');
   await keys.getByLabel('Anthropic API key').fill(KEY);
   await keys.getByLabel('New passphrase').fill('correct horse battery');
@@ -91,7 +101,7 @@ test('AI key: locked with a passphrase, never stored in plain text; unlocked by 
     .getByRole('button', { name: /AI builder/ })
     .first()
     .click();
-  if (!(await keys.isVisible())) await panel.getByRole('button', { name: 'AI builder settings' }).click();
+  await showKeys();
   await keys.getByLabel('Passphrase', { exact: true }).fill('wrong one!');
   await keys.getByRole('button', { name: 'Unlock key' }).click();
   await expect(keys.getByText('That passphrase does not unlock the key.')).toBeVisible({ timeout: 30_000 });
