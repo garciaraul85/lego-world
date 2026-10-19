@@ -149,11 +149,11 @@ test('character previews: clip pictures move, ▶ plays a clip on the figure, He
   // Animations: pick an idle clip, ▶ plays it on the figure, ■ stops
   const sheet = page.getByRole('tablist', { name: 'Character sheet' });
   await sheet.getByRole('tab', { name: 'Animations' }).click();
-  const idle = page.getByLabel('Idle clip');
+  const idle = page.getByLabel(/^Idle .*clip$/);
   await idle.selectOption({ index: 1 });
   const clip = await idle.inputValue();
   await expect.poll(() => get(page, (e) => [e.studioClip.value, e.clipPlaying.value])).toEqual([clip, true]);
-  const play = page.getByRole('button', { name: 'Preview the idle clip' });
+  const play = page.getByRole('button', { name: /^Preview the idle/ });
   await play.click();
   await expect.poll(() => get(page, (e) => e.clipPlaying.value)).toBe(false);
   await play.click();
@@ -180,6 +180,10 @@ test('text from Help shows **bold** as bold: field help, Brix and the tutorial',
   const errors: string[] = [];
   await open(page, errors);
   await ws(page, 'Effects');
+  // field help opens as formatted text
+  await page.getByRole('button', { name: 'What is “Effects”?' }).click();
+  await expect(page.locator('.fhelp-text').first()).toBeVisible();
+  await expect(page.locator('.fhelp-text').first()).not.toContainText('**');
   await page.getByRole('button', { name: 'Ask Brix' }).click();
   const brix = page.getByRole('complementary', { name: 'Brix' });
   await brix.getByRole('textbox', { name: 'Ask Brix' }).fill('What are game effects?');
@@ -188,9 +192,5 @@ test('text from Help shows **bold** as bold: field help, Brix and the tutorial',
   await expect(answer).toBeVisible({ timeout: 30_000 });
   await expect(answer).not.toContainText('**');
   await expect(answer.locator('strong').first()).toBeVisible();
-  // field help: the Body help mentions Custom…, shown without marks
-  await ws(page, 'Characters');
-  await page.getByRole('button', { name: 'What is “Effects”?' }).or(page.locator('.fhelp').first()).first().click();
-  await expect(page.locator('.fhelp-text').first()).not.toContainText('**');
   expect(errors).toEqual([]);
 });
