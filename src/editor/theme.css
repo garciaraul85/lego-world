@@ -5374,3 +5374,6 @@ body.brix-explain * {
   transform: scale(0.25);
   transform-origin: 0 0;
 }
+.dlg-mini * {
+  pointer-events: none !important;
+}

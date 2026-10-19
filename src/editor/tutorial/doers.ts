@@ -5,6 +5,8 @@ import { BUILTIN_SCREENS } from '../../builtin/screens';
 import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
 import { progressOf } from '../../core/commands/handlers/progress';
+import { blankConversation, type Conversation } from '../../core/dialogue/schema';
+import { parseScript } from '../../core/dialogue/script';
 import { arrivalSpot, assetSpot, reachable } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
 import { allSaves, type Saving } from '../../core/save/save';
@@ -26,6 +28,7 @@ import { assetLibrary } from '../assets';
 import { savingOf } from '../panels/SavingSection';
 import { settleMove } from '../viewport/settle';
 import { buildInto } from '../workspaces/asset-studio/scratch';
+import { scriptNames } from '../workspaces/dialogue/model';
 import { newGraph } from '../workspaces/logic/model';
 import { CODING_DOERS } from './coding';
 import type { Do } from './schema';
@@ -409,6 +412,89 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     );
     c.ed.selectedZone.value = z.id;
     c.ed.right.value = 'inspect';
+  },
+  // P22: the dialogue course
+  dialogueVillager(c, a) {
+    const name = String(a.name ?? 'Old Tom');
+    const has = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === name);
+    if (has) {
+      c.ed.studioCharacter.value = has.id;
+      return;
+    }
+    const look = BUILTIN_CHARACTERS.find((x) => /chef/i.test(x.name)) ?? BUILTIN_CHARACTERS[0]!;
+    const id = newId('character');
+    const sp = mapDoc(c).spawns[0];
+    const at = arrivalSpot(c.ed.store, map(c)) ?? (sp?.pos as [number, number, number] | undefined) ?? [0, 0.4, 0];
+    run(
+      c,
+      [
+        {
+          type: 'character.create',
+          payload: { character: { ...look, id, name, role: 'npc', profile: { ...look.profile, name } } },
+        },
+        {
+          type: 'npc.place',
+          payload: { map: map(c), character: id, pos: [at[0] + 3, at[1], at[2] + 3], heading: Math.PI },
+        },
+      ],
+      `Add ${name}`,
+    );
+    c.ed.studioCharacter.value = id;
+  },
+  dialogueConversation(c, a) {
+    const name = String(a.character ?? 'Old Tom');
+    const chr = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === name);
+    if (!chr) throw new Error(`Make ${name} first.`);
+    const open = chr.talk?.[0]?.conversation;
+    if (open && c.ed.store.has(paths.dialogue(open))) {
+      c.ed.dialogueId.value = open;
+      c.ed.charTab.value = 'dialogue';
+      return;
+    }
+    const id = newId('dialogue');
+    run(
+      c,
+      [
+        { type: 'dialogue.put', payload: { conversation: blankConversation(id, `${name} talk`, chr.id) } },
+        {
+          type: 'character.update',
+          payload: { character: { ...chr, talk: [...(chr.talk ?? []), { conversation: id }] } },
+        },
+      ],
+      'New conversation',
+    );
+    c.ed.studioCharacter.value = chr.id;
+    c.ed.dialogueId.value = id;
+    c.ed.charTab.value = 'dialogue';
+  },
+  dialogueScript(c, a) {
+    const id = c.ed.dialogueId.value;
+    const cur = id ? c.ed.store.get<Conversation>(paths.dialogue(id)) : null;
+    if (!cur) throw new Error('Open a conversation first.');
+    const r = parseScript(String(a.script), cur, scriptNames(c.ed));
+    if (r.errors.length) throw new Error(`Line ${r.errors[0]!.line}: ${r.errors[0]!.message}`);
+    run(c, { type: 'dialogue.put', payload: { conversation: r.conversation } }, 'Edit script');
+  },
+  dialogueTalkTo(c, a) {
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const n = s.world.npcs.find((x) => String(x.profile.name ?? '') === String(a.name)) ?? s.world.npcs[0];
+    if (!n) throw new Error('Nobody is on this map.');
+    s.placeAt([n.state.x, n.state.y + 0.2, n.state.z - 2], 0);
+    s.talk();
+  },
+  dialogueStyle(c, a) {
+    run(
+      c,
+      { type: 'project.update', payload: { dialogue: { ...(c.ed.store.manifest.dialogue ?? {}), style: a.style } } },
+      'Dialogue style',
+    );
   },
   // P26: the saving course
   setSaving(c, a) {

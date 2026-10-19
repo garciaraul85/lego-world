@@ -85,6 +85,7 @@ export function DialogueEditor({ c, conv }: { c: ActionCtx; conv: Conversation }
               type="button"
               role="radio"
               aria-checked={view === id}
+              data-tour={`dialogue-view-${id}`}
               class={`btn small ${view === id ? 'on' : ''}`}
               onClick={() => (ed.dialogueView.value = id)}
             >
@@ -666,7 +667,13 @@ function ScriptView({ c, conv, save }: { c: ActionCtx; conv: Conversation; save:
         }}
       />
       <div class="row">
-        <button type="button" class="btn on" disabled={!dirty || parsed.errors.length > 0} onClick={apply}>
+        <button
+          type="button"
+          class="btn on"
+          data-tour="dialogue-apply"
+          disabled={!dirty || parsed.errors.length > 0}
+          onClick={apply}
+        >
           Apply
         </button>
         {dirty && (
@@ -820,7 +827,7 @@ function Preview({ c, conv }: { c: ActionCtx; conv: Conversation }) {
           ↺ Restart
         </button>
         <span class="muted small">Click the box or press Next to move on.</span>
-        <button type="button" class="btn small" disabled={!v} onClick={() => sys.t.next()}>
+        <button type="button" class="btn small" disabled={!v || !!v.choices} onClick={() => sys.t.next()}>
           Next ▸
         </button>
       </div>
@@ -835,7 +842,7 @@ function Preview({ c, conv }: { c: ActionCtx; conv: Conversation }) {
                 aria-label="talks"
                 inputMode="numeric"
                 value={String(talks)}
-                onChange={(e) => setTalks(Number((e.target as HTMLInputElement).value) || 0)}
+                onInput={(e) => setTalks(Number((e.target as HTMLInputElement).value) || 0)}
               />
             </label>
             <label class="field">
@@ -845,7 +852,7 @@ function Preview({ c, conv }: { c: ActionCtx; conv: Conversation }) {
                 aria-label="likes"
                 inputMode="numeric"
                 value={String(likes)}
-                onChange={(e) => setLikes(Number((e.target as HTMLInputElement).value) || 0)}
+                onInput={(e) => setLikes(Number((e.target as HTMLInputElement).value) || 0)}
               />
             </label>
           </>
@@ -858,7 +865,7 @@ function Preview({ c, conv }: { c: ActionCtx; conv: Conversation }) {
               aria-label={`Preview value ${n}`}
               placeholder={n.startsWith('has ') ? '0' : String(defaults[n]?.default ?? '')}
               value={vals[n] ?? ''}
-              onChange={(e) => setVals({ ...vals, [n]: (e.target as HTMLInputElement).value })}
+              onInput={(e) => setVals({ ...vals, [n]: (e.target as HTMLInputElement).value })}
             />
           </label>
         ))}

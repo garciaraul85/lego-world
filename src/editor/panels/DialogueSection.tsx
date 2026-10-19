@@ -56,6 +56,7 @@ export function DialogueSection({ c }: { c: ActionCtx }) {
             type="button"
             role="radio"
             aria-checked={look.style === s}
+            data-tour={`dialogue-style-${s}`}
             class={`dlg-card ${look.style === s ? 'on' : ''}`}
             title={STYLE_INFO[s].looks}
             onClick={() => set({ style: s })}

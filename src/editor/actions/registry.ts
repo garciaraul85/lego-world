@@ -438,6 +438,11 @@ export const ACTIONS: EditorAction[] = [
     key: 'Shift F1',
     run: ({ ui }) => ui.brix?.(),
   },
+  {
+    id: 'help.dialogue',
+    label: 'Dialogue course (conversations, choices, styles)',
+    run: ({ ui }) => ui.tutorial('dialogue'),
+  },
   { id: 'help.brixCourse', label: 'Meet Brix course (ask, Show me, Explain)', run: ({ ui }) => ui.tutorial('brix') },
   // P32: Macs send F1 to the screen brightness unless fn is held; ⌘/ (Ctrl / elsewhere) works everywhere
   { id: 'help.here', label: 'Help on what the pointer is on', key: 'Ctrl /', run: ({ ui }) => ui.help() },
@@ -559,6 +564,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.coding',
     'help.combat',
     'help.saving',
+    'help.dialogue',
     'help.brixCourse',
     'help.build',
     'help.shortcuts',

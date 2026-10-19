@@ -1,4 +1,5 @@
 import type { Command } from '../../core/commands';
+import type { Conversation } from '../../core/dialogue/schema';
 import { wiresOf } from '../../core/logic/wiring';
 import { allSaves } from '../../core/save/save';
 import {
@@ -204,6 +205,26 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
       return def?.name === asset && wiresOf(g).some((w) => w.when === when);
     });
   },
+  // P22: the dialogue course
+  characterExists: (ed, a) => ed.store.list('characters/').some((p) => ed.store.get<{ name: string }>(p)?.name === a),
+  talksWith: (ed, a) =>
+    ed.store
+      .list('characters/')
+      .map((p) => ed.store.get<{ name: string; talk?: unknown[] }>(p))
+      .some((x) => x?.name === a && (x?.talk?.length ?? 0) > 0),
+  conversationHas: (ed, a) => {
+    const { choice, condition, action } = a as { choice?: boolean; condition?: boolean; action?: boolean };
+    const id = ed.dialogueId.value;
+    const conv = id ? ed.store.get<Conversation>(paths.dialogue(id)) : null;
+    if (!conv) return false;
+    const steps = conv.sections.flatMap((s) => s.steps);
+    if (choice && !steps.some((s) => s.k === 'choice' && s.options.length >= 2)) return false;
+    if (condition && !steps.some((s) => !!s.if || (s.k === 'choice' && s.options.some((o) => !!o.if)))) return false;
+    if (action && !steps.some((s) => s.k === 'do' || s.k === 'like')) return false;
+    return true;
+  },
+  dialogueStyleIs: (ed, a) => (ed.store.manifest.dialogue?.style ?? 'adventure') === a,
+  inConversation: (ed) => !!ed.session.value?.talks.active,
   // P26: the saving course
   savingIs: (ed, a) => matches(savingOf(ed.store.manifest), a as Record<string, unknown>),
   placedAsset: (ed, a) => {

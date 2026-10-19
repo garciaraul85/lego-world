@@ -116,6 +116,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.saving': S('core'),
   'help.guide': S('core'),
   'help.brix': S('core'),
+  'help.dialogue': S('dialogue'),
   'help.brixCourse': S('core'),
   'help.here': S('core'),
   'help.build': S('core'),

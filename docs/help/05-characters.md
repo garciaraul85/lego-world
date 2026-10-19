@@ -34,3 +34,41 @@ Clips are keyframe animations on a timeline: a lane per joint, keys you drag in 
 3. Click the lanes to move the playhead to a time, then click “◆ Key”. A key ◆ appears on the selected lane at the playhead.
 4. Click the key to select it. Under the lanes, type its time in “at” or its value in “value” and press Enter. The selected lane shows each key's value next to it.
 5. Press Play (top right of the preview) to watch the clip loop. Length (in the timeline tools) sets how long the clip is: type a number of seconds and press Enter.
+
+## Dialogue: what characters say
+
+Open the **Dialogue** tab at the top of the Characters screen. A **conversation** is a few sections; each is a list of steps played in order:
+
+- a **line**: who says it (a character, a name, or the narrator), their mood, and the text — write {gems} or {hero.name} to show a value;
+- a **choice**: options the player picks; each goes to a section, to the end, or carries on;
+- **actions**: set or add to a variable, give an item, play a cinematic, unlock an achievement, show a message, start another conversation;
+- **likes**: how much the speaker likes the hero goes up or down (−100 to 100);
+- a **jump** to another section, or to the end.
+
+Any step or option can have an **if**: it only plays when the condition holds. Conditions read like words: `gems >= 50`, `quest.sword is done`, `has key`, `talks > 0` (talked to them before), `likes >= 20`, `time is night`, `chance 25%`, `door.state is open`, joined with `and`, `or` and `not`. An option whose condition fails is hidden, or shown greyed out when you tick **grey**.
+
+**List** edits a conversation like a chat script; **Graph** shows its sections as boxes with arrows; **Script** is plain text for writers, kept in step with the other two:
+
+```
+== start
+[if talks > 0] Old Tom (happy): Back again?
+Old Tom: Welcome, traveller!
+* What bridge? -> bridge
+* Buy a map [if gems >= 5] [grey] -> map
+* Bye! -> end
+
+== map
+> add gems -5
+> give map
+Old Tom: Here you go.
+```
+
+**▶ Preview** plays it beside the editor, with the values its conditions read set on the side, so you can try every branch. **⚠** lists what can never play or is broken: sections nothing jumps to, jumps to missing sections, conditions with mistakes, deleted speakers.
+
+## Talk, barks and where conversations start
+
+A character's **Talk** list (Properties, right) says which conversation plays when the hero talks to them: the first whose condition holds — first meeting, during a quest, after it, at night, when the hero carries the key. Leave the last one without a condition so something always plays. **Barks** are short lines a neighbour says when the hero walks past.
+
+Conversations also start from a **sign** (select it, **Read with E**: it reads in the Sign style), from an object's interaction or a screen button (the action **Start conversation**), and from logic (**Start conversation**; react with **On choice made** and **On conversation end**). The look of every conversation is set in **Project › Dialogue**: [Dialogue style](help:e/scene.dialogue).
+
+In Play: T or E talks; Enter, Space or a click moves on (a line still appearing shows whole first); 1–6, or the arrows and Enter, pick an option; Esc or walking away ends it. [Dialogue course](action:help.dialogue)

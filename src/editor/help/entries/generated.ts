@@ -102,6 +102,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Opens Brix, the helper in the corner: ask how to do something and Brix answers from Help, links the pages and shows you where the control is. Explain tells you what any part of the editor is.',
   'help.brixCourse':
     'Starts the Meet Brix course: ask a question, follow Show me to the control, and use Explain on a button.',
+  'help.dialogue':
+    'Starts the Dialogue course: add a villager, write a conversation with a choice as a script, see it as a list and a graph, preview every branch, pick a style and talk to him in Play.',
   'help.ai': 'Opens the AI builder: describe a change, watch each step, then approve or reject it.',
 };
 
