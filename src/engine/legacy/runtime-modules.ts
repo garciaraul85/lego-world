@@ -194,7 +194,7 @@ const ORDER = [
   studioAnimations,
   characterCatalog,
   rigCollision,
-  gamePhysics,
+  withRoomToWalk(gamePhysics),
   withOffHand(characterModel),
   characterArt,
   npcWorld,
@@ -213,6 +213,22 @@ function withOffHand(src: string): string {
     "box(sx,sy,sz,.14,1.05,.80);part('leftForearm',accent);box(sx-.075,sy,sz,.01,.66,.09);" +
     'box(sx-.075,sy+.08,sz,.01,.09,.50);}';
   return src.replace(at, shield + at);
+}
+
+/**
+ * P23: on a map with no terrain yet, v68 lets characters walk only within the bricks standing on the ground,
+ * so one chest on a bare map shrinks the walkable room to that chest (the hero and every neighbour land on
+ * top of it). The new engine's copy keeps the bare ground's ±16 studs while the ground is that small.
+ */
+function withRoomToWalk(src: string): string {
+  const at = "for(const k of ['x1','z1'])area[k]=Math.max(area[k],b[k]);}return area;";
+  if (!src.includes(at)) throw new Error('game physics: worldBounds moved; update withRoomToWalk');
+  return src.replace(
+    at,
+    "for(const k of ['x1','z1'])area[k]=Math.max(area[k],b[k]);}" +
+      'if(area.x1-area.x0<32&&area.z1-area.z0<32){area.x0=Math.min(area.x0,-16);area.x1=Math.max(area.x1,16);' +
+      'area.z0=Math.min(area.z0,-16);area.z1=Math.max(area.z1,16);}return area;',
+  );
 }
 
 let runtime: LegacyRuntime | null = null;

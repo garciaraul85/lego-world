@@ -60,6 +60,27 @@ export function assetSpot(
     };
     if (bus.dryRun([cmd]).ok) return cmd;
   }
+  if (cells.length) return null;
+  // a map with no bricks yet (a new map, the tutorial's practice map): the bare ground near the spawn, west
+  // and south first (the tutorial puts its villager north-east of the arrival)
+  const a = spawns[0] ?? [0, 0, 0];
+  const [cx, cz] = [Math.floor(a[0]), Math.floor(a[2])];
+  const lo = Math.max(opts.minSteps ?? 3, 3);
+  for (let d = lo; d <= (opts.maxSteps ?? 40); d++)
+    for (const [dx, dz] of [
+      [-d - def.footprint[0], 0],
+      [0, -d - def.footprint[1]],
+      [d, 0],
+      [0, d],
+      [d, d],
+      [-d - def.footprint[0], -d - def.footprint[1]],
+    ] as const) {
+      const cmd: Command = {
+        type: 'asset.place',
+        payload: { map, asset: def.id, pos: [cx + dx, 0, cz + dz], rot: 0, ...(opts.id ? { id: opts.id } : {}) },
+      };
+      if (bus.dryRun([cmd]).ok) return cmd;
+    }
   return null;
 }
 
