@@ -507,7 +507,8 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
         <input
           class="inp"
           aria-label="Body plan name"
-          value={own.name}
+          key={own.name}
+          defaultValue={own.name}
           onChange={(e) => {
             const name = (e.target as HTMLInputElement).value.trim().slice(0, 40);
             if (name) put({ ...own, name }, 'Rename body plan');
@@ -637,7 +638,9 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
           <input
             class="inp"
             aria-label="Bone name"
-            value={sel.name}
+            // uncontrolled: a redraw while typing (a picture drawn, the walk) must not put the old name back
+            key={sel.name}
+            defaultValue={sel.name}
             onChange={(e) => {
               const name = (e.target as HTMLInputElement).value.trim();
               if (/^[A-Za-z][A-Za-z0-9 _-]{0,23}$/.test(name)) setBone({ ...sel, name }, 'Rename bone');
