@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import type { Action } from '../../core/schema';
 import { EventPicker, ListenButton } from './EventPicker';
 
@@ -17,6 +18,8 @@ export type ActionChoices = {
   events?: string[];
   /** P32: plays a sound or a music state once, for the ▶ next to their pickers */
   preview?: { sound(id: string): void; music(id: string | null): void };
+  /** P23: a small picture of the picked effect, screen or conversation, next to its picker */
+  thumb?: (kind: 'effect' | 'screen' | 'conversation', id: string) => ComponentChildren;
 };
 
 /** The action kinds a designer can pick, with what each needs. Shared by assets, zones, screens and logic. */
@@ -291,9 +294,12 @@ function ActionArgs({
       return text(a.stinger, 'Stinger', (stinger) => ({ ...a, stinger }));
     case 'showScreen':
     case 'hideScreen':
-      return choices
-        ? pick(a.screen, 'Screen', choices.screens, (screen) => ({ ...a, screen: screen as never }))
-        : null;
+      return choices ? (
+        <span class="row pv-row">
+          {pick(a.screen, 'Screen', choices.screens, (screen) => ({ ...a, screen: screen as never }))}
+          {choices.thumb?.('screen', a.screen)}
+        </span>
+      ) : null;
     case 'cinematic':
       return choices ? (
         <span class="row" style={{ flexWrap: 'nowrap' }}>
@@ -346,6 +352,7 @@ function ActionArgs({
       return (
         <span class="row" style={{ gap: '4px', flexWrap: 'wrap' }}>
           {pick(a.effect, 'Effect', choices?.effects ?? [], (effect) => ({ ...a, effect: effect as never }))}
+          {choices?.thumb?.('effect', a.effect)}
           <input
             class="inp"
             aria-label="Where"
@@ -389,10 +396,15 @@ function ActionArgs({
         </span>
       );
     case 'talk':
-      return pick(a.conversation, 'Conversation', choices?.conversations ?? [], (conversation) => ({
-        ...a,
-        conversation: conversation as never,
-      }));
+      return (
+        <span class="col pv-col">
+          {pick(a.conversation, 'Conversation', choices?.conversations ?? [], (conversation) => ({
+            ...a,
+            conversation: conversation as never,
+          }))}
+          {choices?.thumb?.('conversation', a.conversation)}
+        </span>
+      );
     case 'save':
     case 'load':
       return (

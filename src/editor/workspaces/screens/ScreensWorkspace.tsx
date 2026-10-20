@@ -3,6 +3,7 @@ import { newId } from '../../../core/ids';
 import { type Art, paths, type Screen, type Widget } from '../../../core/schema';
 import { allScreens, isBuiltinScreen } from '../../../engine/ui/screens';
 import type { ActionCtx } from '../../actions/registry';
+import { ScreenThumb } from '../../components/previews';
 import { ArtEditor } from './art/ArtEditor';
 import { ArtLibrary, ArtStart } from './art/ArtLibrary';
 import { artFont, artUrl } from './art/render';
@@ -138,6 +139,7 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
                   ed.widgetPath.value = '';
                 }}
               >
+                <ScreenThumb ed={ed} screen={s} width={48} />
                 <span class="asset-name">
                   {ed.store.manifest.entry.screen === s.id ? '★ ' : ''}
                   {s.name}

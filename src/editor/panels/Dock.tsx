@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
 import { usesOf } from '../../core/audio/usage';
 import type { Cinematic } from '../../core/schema';
@@ -8,12 +9,17 @@ import type { ActionCtx } from '../actions/registry';
 import { runPlayCheck } from '../actions/registry';
 import { assetLibrary } from '../assets';
 import { AssetThumb } from '../components/AssetThumb';
+import { EffectThumb, ScreenThumb } from '../components/previews';
 import { shows } from '../genres/view';
 import { endDrag, startDrag } from '../interact/drag';
+import { placeEffectAt } from '../interact/place';
 import { keysFor } from '../platform';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
 import { MixerView } from '../workspaces/audio/MixerView';
+import { bodyOfChr } from '../workspaces/character-studio/Body';
+import { CharacterThumb } from '../workspaces/character-studio/thumbs';
+import { allEffects } from '../workspaces/effects/EffectsStudio';
 import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
 
 /**
@@ -49,6 +55,7 @@ function CharacterCards({ c, hint }: { c: ActionCtx; hint: string }) {
       </span>
       {list.map((chr) => (
         <div class="row small" style={{ gap: '6px' }}>
+          <CharacterThumb profile={chr.profile} size={26} body={bodyOfChr(chr, (p) => ed.store.get(p))} />
           <span style={{ flex: 1 }}>
             {chr.name}
             {chr.enemy ? ' · enemy' : ''}
@@ -74,6 +81,7 @@ const CATS: [string, string | null, string][] = [
   ['Characters', null, 'Characters, their looks and their clips (emotes) are made in the Character studio.'],
   ['Cinematics', null, 'Directed scenes: click one to open it in the Director; ▶ plays it in the game.'],
   ['UI screens', null, 'Splash, title, HUD, pause, dialogue, game over and your own screens.'],
+  ['Effects', null, 'Fire, smoke, sparks, magic: point at one to see it play; Place puts it beside the start.'],
   ['Sounds', null, 'Sound events: ▶ to listen; place one in the map as an emitter (Sound emitter tool, S).'],
   ['Music', null, 'Music states: ▶ to audition; pick one as the map music or a zone’s music.'],
 ];
@@ -167,7 +175,12 @@ function Assets({ c }: { c: ActionCtx }) {
         ) : cur[0] === 'UI screens' ? (
           <MediaCards
             c={c}
-            items={allScreens(ed.store).map((s) => ({ id: s.id, name: s.name, sub: s.kind }))}
+            items={allScreens(ed.store).map((s) => ({
+              id: s.id,
+              name: s.name,
+              sub: s.kind,
+              thumb: <ScreenThumb ed={ed} screen={s} width={56} />,
+            }))}
             open={(id) => {
               ed.screenId.value = id;
               ed.widgetPath.value = '';
@@ -175,6 +188,8 @@ function Assets({ c }: { c: ActionCtx }) {
             }}
             hint={cur[2]}
           />
+        ) : cur[0] === 'Effects' ? (
+          <EffectCards c={c} hint={cur[2]} />
         ) : cur[0] === 'Sounds' ? (
           <MediaCards
             c={c}
@@ -222,6 +237,10 @@ function catCount(ed: EditorState, cat: string): number {
       return cinematicOptions(ed).length;
     case 'UI screens':
       return allScreens(ed.store).length;
+    case 'Effects': {
+      const { own, builtin } = allEffects(ed.store);
+      return own.length + builtin.length;
+    }
     case 'Sounds':
       return soundOptions(ed).length;
     default:
@@ -740,6 +759,33 @@ function AssetCards({ c }: { c: ActionCtx }) {
   );
 }
 
+/** P23: the Dock's effects: each one plays while the pointer is over it; Place puts it beside the start. */
+function EffectCards({ c, hint }: { c: ActionCtx; hint: string }) {
+  const { ed } = c;
+  ed.revision.value;
+  const { own, builtin } = allEffects(ed.store);
+  const place = (id: string) => {
+    const sp = ed.mapDoc.value?.spawns[0]?.pos ?? [0, 0, 0];
+    placeEffectAt(ed, { x: sp[0]! + 3, y: Math.round(sp[1]! / 0.4), z: sp[2]! + 3 }, id);
+  };
+  return (
+    <>
+      <span class="muted small">{hint}</span>
+      <div class="fx-cards" data-tour="dock-effects" data-help="scene.dock.effects">
+        {[...own, ...builtin].map((e) => (
+          <div class="fx-card" data-name={e.name}>
+            <EffectThumb effect={e} size={48} />
+            <span class="small">{e.name}</span>
+            <button type="button" class="btn small" aria-label={`Place ${e.name}`} onClick={() => place(e.id)}>
+              Place
+            </button>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 /** Dock cards for screens, sound events and music: ▶ to preview, click to open in its workspace. */
 function MediaCards({
   c,
@@ -749,7 +795,7 @@ function MediaCards({
   hint,
 }: {
   c: ActionCtx;
-  items: { id: string; name: string; sub: string }[];
+  items: { id: string; name: string; sub: string; thumb?: ComponentChildren }[];
   play?: (id: string) => void;
   open: (id: string) => void;
   hint: string;
@@ -761,6 +807,7 @@ function MediaCards({
       <div class="media-cards" data-help="scene.dock.sounds">
         {items.map((it) => (
           <div class="media-card">
+            {it.thumb}
             {play && (
               <button type="button" class="btn icon" aria-label={`Play ${it.name}`} onClick={() => play(it.id)}>
                 ▶

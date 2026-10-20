@@ -5746,3 +5746,114 @@ img.bw-portrait {
 .body-custom select {
   width: 100%;
 }
+
+/* P23: previews in lists and pickers */
+.pv-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.pv-row > select,
+.pv-row > .inp {
+  flex: 1;
+  min-width: 0;
+}
+.pv-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.pv-lines {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-style: italic;
+  max-width: 100%;
+}
+.lib-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.lib-text .pv-lines {
+  font-size: 11px;
+}
+.fx-thumb {
+  display: inline-block;
+  overflow: hidden;
+  flex: none;
+  border-radius: 6px;
+  background: radial-gradient(circle at 50% 70%, #26303d, #12161c);
+  pointer-events: auto;
+}
+.fx-thumb.moving {
+  outline: 1px solid var(--acc);
+}
+.scr-thumb {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #0c1016;
+  border: 1px solid var(--line2);
+  pointer-events: none;
+}
+.map-thumb {
+  display: inline-flex;
+  flex: none;
+  overflow: hidden;
+  border-radius: 5px;
+  border: 1px solid var(--line2);
+  background: #2b3a2f;
+}
+.map-thumb img {
+  image-rendering: pixelated;
+}
+.lib-row {
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+}
+.lib-row > .lib-item {
+  flex: 1;
+  min-width: 0;
+}
+.fx-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+}
+.fx-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  background: var(--panel2);
+  text-align: center;
+}
+.dlg-face {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--bg);
+  object-fit: cover;
+}
+.dlg-face.none {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+.body-card .char-thumb {
+  margin-right: 4px;
+}

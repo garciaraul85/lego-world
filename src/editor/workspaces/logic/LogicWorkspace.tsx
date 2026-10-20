@@ -3,18 +3,31 @@ import { CATALOG, nodeDef } from '../../../core/logic/catalog';
 import { fieldHelp } from '../../../core/logic/field-help';
 import { graphProblems } from '../../../core/logic/graph';
 import { type LogicGraph, paths, type Variables } from '../../../core/schema';
+import { resolveScreen } from '../../../engine/ui/screens';
 import type { ActionCtx } from '../../actions/registry';
+import { AssetThumb } from '../../components/AssetThumb';
 import { ChoiceOrText } from '../../components/ChoiceOrText';
-import { EventPicker } from '../../components/EventPicker';
+import { EventPicker, ListenButton } from '../../components/EventPicker';
 import { DraftText, FieldHelp } from '../../components/fields';
+import { MapThumb, MusicListen, ScreenThumb } from '../../components/previews';
 import { describeUse, eventUses } from '../../events';
 import { controlMenu } from '../../genres/GenrePicker';
 import { noteRecent, prefsOf, shows, viewGenre } from '../../genres/view';
+import { PickedThumb } from '../../panels/AudioFields';
 import { keysFor } from '../../platform';
 import { CodeView } from './CodeView';
 import { GraphView, toggleBreakpoint } from './GraphView';
 import { argChoices, CAT_COLOR, graphs, newGraph, nodeHeight, ownerOf, variables } from './model';
-import { assetNames, assetOfInput, nameProblem, nameProblems, placedObjects, statesOf, variableUses } from './pickers';
+import {
+  assetByRef,
+  assetNames,
+  assetOfInput,
+  nameProblem,
+  nameProblems,
+  placedObjects,
+  statesOf,
+  variableUses,
+} from './pickers';
 
 type Mode = 'graph' | 'code' | 'split';
 
@@ -599,6 +612,11 @@ function NodeInspector({
                               value={text === 'null' ? '' : text}
                               choices={picks}
                               onChange={(val) => set({ [p.name]: val })}
+                              after={
+                                isItem && typeof v === 'string' && assetByRef(ed, v) ? (
+                                  <AssetThumb def={assetByRef(ed, v)!} size={26} />
+                                ) : undefined
+                              }
                             />
                           ) : (
                             <input
@@ -665,18 +683,17 @@ function NodeInspector({
 function ArgPreview({ c, kind, value }: { c: ActionCtx; kind: string; value: string }) {
   const { ed } = c;
   if (!value) return null;
-  if (kind === 'sound' || kind === 'music')
-    return (
-      <button
-        type="button"
-        class="btn icon"
-        aria-label={`Listen to ${value}`}
-        title="Listen"
-        onClick={() => (kind === 'sound' ? ed.audio.previewEvent(value) : ed.audio.previewMusic(value))}
-      >
-        ▶
-      </button>
-    );
+  if (kind === 'sound') return <ListenButton name={value} onPlay={() => ed.audio.previewEvent(value)} />;
+  if (kind === 'music') return <MusicListen ed={ed} id={value} name={value} />;
+  // P23: pictures of what is picked
+  if (kind === 'effect' || kind === 'dialogue')
+    return <PickedThumb ed={ed} kind={kind === 'effect' ? 'effect' : 'conversation'} id={value} />;
+  if (kind === 'map') return <MapThumb store={ed.store} mapId={value} size={26} rev={ed.revision.value} />;
+  if (kind === 'asset') {
+    const a = assetByRef(ed, value);
+    return a ? <AssetThumb def={a} size={26} /> : null;
+  }
+  const scr = kind === 'screen' ? resolveScreen(ed.store, value) : undefined;
   const go =
     kind === 'screen'
       ? () => {
@@ -691,9 +708,12 @@ function ArgPreview({ c, kind, value }: { c: ActionCtx; kind: string; value: str
         : null;
   if (!go) return null;
   return (
-    <button type="button" class="btn icon" aria-label={`Open ${value}`} title="Open it" onClick={go}>
-      ↗
-    </button>
+    <>
+      {scr && <ScreenThumb ed={ed} screen={scr} width={40} />}
+      <button type="button" class="btn icon" aria-label={`Open ${value}`} title="Open it" onClick={go}>
+        ↗
+      </button>
+    </>
   );
 }
 

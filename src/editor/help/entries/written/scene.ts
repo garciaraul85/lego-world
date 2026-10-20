@@ -657,6 +657,18 @@ export const SCENE: HelpEntry[] = [
     related: ['characters.enemy'],
   },
   {
+    id: 'scene.dock.effects',
+    also: ['place fire', 'place smoke', 'particle library', 'effects in the dock'],
+    screen: 'scene',
+    kind: 'list',
+    name: 'Effects in the dock',
+    purpose:
+      'Every effect, built-in and the game’s own, each with a picture that plays while the pointer is over it. **Place** puts one on the open map beside where the player starts; then move it like anything else, and change it on the right. The Effects workspace makes new ones.',
+    commands: ['item.add'],
+    match: [{ sel: '[data-tour="dock-effects"]' }, { in: '[data-tour="dock-effects"]', name: /^Place / }],
+    related: ['scene.item.effect', 'effects.screen'],
+  },
+  {
     id: 'scene.script',
     also: ['wire', 'wiring', 'switch', 'lever', 'connect', 'script on object', 'name an object', 'this'],
     screen: 'scene',

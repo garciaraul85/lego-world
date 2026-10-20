@@ -14,6 +14,7 @@ import { newId } from '../../../core/ids';
 import { paths } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
 import { FieldHelp } from '../../components/fields';
+import { EffectThumb } from '../../components/previews';
 import { placeEffectAt } from '../../interact/place';
 import { EffectPreview } from './EffectPreview';
 
@@ -211,11 +212,7 @@ function EffectRow({ e, on, onPick }: { e: Effect; on: boolean; onPick(): void }
       class={`lib-item ${on ? 'on' : ''}`}
       onClick={onPick}
     >
-      <span class="fx-swatch" aria-hidden="true">
-        {e.colors.map((c) => (
-          <span style={{ background: c }} />
-        ))}
-      </span>
+      <EffectThumb effect={e} size={30} />
       <span class="asset-name">{e.name}</span>
       <span class="mono small muted">{e.mode}</span>
     </button>
@@ -542,6 +539,11 @@ function GameEffects({ c, own }: { c: ActionCtx; own: Effect[] }) {
     if (!Object.keys(g).length) delete next[group];
     ed.exec({ type: 'project.update', payload: { effects: next } }, { label: 'Game effects' });
   };
+  const shown = (v: string | undefined, def: string) => {
+    if (v === 'none') return null;
+    const e = [...own, ...BUILTIN_EFFECTS].find((x) => x.id === (v || def));
+    return e ? <EffectThumb effect={e} size={26} /> : null;
+  };
   const options = (def: string) => (
     <>
       <option value="">Built-in: {name(def)}</option>
@@ -566,30 +568,36 @@ function GameEffects({ c, own }: { c: ActionCtx; own: Effect[] }) {
       {DAMAGE_TYPES.map((t) => (
         <label class="field">
           {DAMAGE_LABEL[t]}
-          <select
-            class="inp"
-            aria-label={`Hit: ${t}`}
-            data-tour={`fx-hit-${t}`}
-            value={hooks.hits?.[t] ?? ''}
-            onChange={(x) => setHook('hits', t, (x.target as HTMLSelectElement).value)}
-          >
-            {options(DEFAULT_HITS[t])}
-          </select>
+          <span class="row pv-row">
+            <select
+              class="inp"
+              aria-label={`Hit: ${t}`}
+              data-tour={`fx-hit-${t}`}
+              value={hooks.hits?.[t] ?? ''}
+              onChange={(x) => setHook('hits', t, (x.target as HTMLSelectElement).value)}
+            >
+              {options(DEFAULT_HITS[t])}
+            </select>
+            {shown(hooks.hits?.[t], DEFAULT_HITS[t])}
+          </span>
         </label>
       ))}
       <p class="muted small">When things happen:</p>
       {EFFECT_EVENTS.map((ev) => (
         <label class="field">
           {EVENT_INFO[ev]}
-          <select
-            class="inp"
-            aria-label={`When: ${EVENT_INFO[ev]}`}
-            data-tour={`fx-event-${ev}`}
-            value={hooks.events?.[ev] ?? ''}
-            onChange={(x) => setHook('events', ev, (x.target as HTMLSelectElement).value)}
-          >
-            {options(DEFAULT_EFFECT_EVENTS[ev])}
-          </select>
+          <span class="row pv-row">
+            <select
+              class="inp"
+              aria-label={`When: ${EVENT_INFO[ev]}`}
+              data-tour={`fx-event-${ev}`}
+              value={hooks.events?.[ev] ?? ''}
+              onChange={(x) => setHook('events', ev, (x.target as HTMLSelectElement).value)}
+            >
+              {options(DEFAULT_EFFECT_EVENTS[ev])}
+            </select>
+            {shown(hooks.events?.[ev], DEFAULT_EFFECT_EVENTS[ev])}
+          </span>
         </label>
       ))}
     </div>

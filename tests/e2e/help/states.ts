@@ -225,7 +225,7 @@ export const HELP_STATES: HelpState[] = [
       await signals(p, { left: 'hier', dock: d });
     },
   })),
-  ...['Assets', 'Characters', 'Cinematics', 'UI screens', 'Sounds', 'Music'].map((c) => ({
+  ...['Assets', 'Characters', 'Cinematics', 'UI screens', 'Effects', 'Sounds', 'Music'].map((c) => ({
     id: `scene-cat-${c.toLowerCase().replace(/ /g, '-')}`,
     screen: 'scene',
     setup: async (p: Page) => {

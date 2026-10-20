@@ -12,6 +12,16 @@ const MENU_TEXT: Record<string, string> = {
 
 export const SHELL: HelpEntry[] = [
   {
+    id: 'shell.previews',
+    also: ['preview', 'listen', 'hear', 'thumbnail', 'picture', 'see what it looks like'],
+    screen: 'shell',
+    kind: 'button',
+    name: 'Previews in lists',
+    purpose:
+      'Lists and pickers show what each thing is, not just its name: assets, characters and clips as pictures, effects as pictures that play while the pointer is over them, screens drawn small, maps seen from above, a conversation’s first lines, and the speaker’s face next to each line. **▶** (Listen to …) plays a sound or a music once.',
+    match: [{ name: /^Listen to / }],
+  },
+  {
     id: 'shell.brix',
     also: ['mascot', 'helper', 'assistant', 'ask', 'how do i', 'show me', 'where is'],
     screen: 'shell',

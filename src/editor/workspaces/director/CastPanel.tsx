@@ -2,6 +2,8 @@ import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
 import type { Character, Cinematic, Instances } from '../../../core/schema';
 import { paths } from '../../../core/schema';
 import type { EditorState } from '../../state';
+import { CharacterThumb } from '../character-studio/thumbs';
+import { roleProfile } from './pictures';
 
 /** Who can be cast: the hero, the map's neighbours, the project's characters and the built-ins. */
 export function actorChoices(ed: EditorState, map: string) {
@@ -112,16 +114,19 @@ export function CastPanel({
               ×
             </button>
           </div>
-          <select
-            class="inp"
-            aria-label={`${m.role} is played by`}
-            value={m.actor}
-            onChange={(e) => setMember(i, { actor: (e.target as HTMLSelectElement).value as never })}
-          >
-            {choices.map((c) => (
-              <option value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <span class="row pv-row">
+            <CharacterThumb profile={roleProfile(ed, cin, m.role)} size={26} />
+            <select
+              class="inp"
+              aria-label={`${m.role} is played by`}
+              value={m.actor}
+              onChange={(e) => setMember(i, { actor: (e.target as HTMLSelectElement).value as never })}
+            >
+              {choices.map((c) => (
+                <option value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </span>
           <select
             class="inp"
             aria-label={`${m.role} starts at`}

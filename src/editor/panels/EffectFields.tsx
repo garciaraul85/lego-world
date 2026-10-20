@@ -1,6 +1,7 @@
 import type { EffectInstance } from '../../core/schema';
 import type { ActionCtx } from '../actions/registry';
 import { Header, Num, TextField } from '../components/fields';
+import { EffectThumb } from '../components/previews';
 import { allEffects } from '../workspaces/effects/EffectsStudio';
 
 /** P23: an effect placed on the map, selected in the Scene: which effect, size, tint, when it plays. */
@@ -29,26 +30,29 @@ export function EffectInspector({ c, item: it }: { c: ActionCtx; item: EffectIns
         </div>
         <label class="field">
           Effect
-          <select
-            class="inp"
-            aria-label="Which effect"
-            data-tour="item-effect"
-            value={it.effect}
-            onChange={(e) => patch({ effect: (e.target as HTMLSelectElement).value as EffectInstance['effect'] })}
-          >
-            {own.length > 0 && (
-              <optgroup label="This game’s">
-                {own.map((e) => (
+          <span class="row pv-row">
+            <select
+              class="inp"
+              aria-label="Which effect"
+              data-tour="item-effect"
+              value={it.effect}
+              onChange={(e) => patch({ effect: (e.target as HTMLSelectElement).value as EffectInstance['effect'] })}
+            >
+              {own.length > 0 && (
+                <optgroup label="This game’s">
+                  {own.map((e) => (
+                    <option value={e.id}>{e.name}</option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="Built-in">
+                {builtin.map((e) => (
                   <option value={e.id}>{e.name}</option>
                 ))}
               </optgroup>
-            )}
-            <optgroup label="Built-in">
-              {builtin.map((e) => (
-                <option value={e.id}>{e.name}</option>
-              ))}
-            </optgroup>
-          </select>
+            </select>
+            {def && <EffectThumb effect={def} size={30} />}
+          </span>
         </label>
         <button
           type="button"

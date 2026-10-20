@@ -18,8 +18,10 @@ import { FAMILY_INFO, FAMILY_PRESETS, makeFamily } from '../../../core/character
 import { type ResolvedBody, resolveBody } from '../../../core/character/resolve';
 import { newId } from '../../../core/ids';
 import type { Asset, Character } from '../../../core/schema';
+import { AssetThumb } from '../../components/AssetThumb';
 import { FieldHelp } from '../../components/fields';
 import { NumField, type Props, SHEET_HELP } from './Sheet';
+import { CharacterThumb } from './thumbs';
 
 /**
  * P22 part 3: the Body tab — the minifig or a body family shaped with sliders, its colours, a brick build
@@ -57,6 +59,12 @@ export function makeOwnPlan(
     ],
     { label },
   ).ok;
+}
+
+/** P23: a body family's card shows the creature itself (the minifig: this character) */
+function FamilyPicture({ f, profile }: { f: BodyFamily; profile: Record<string, unknown> }) {
+  const body = f === 'minifig' ? null : resolveBody({ family: f }, () => undefined);
+  return <CharacterThumb profile={profile} size={30} body={body} />;
 }
 
 const SLOT_LABEL = { main: 'Main', accent: 'Accent', belly: 'Belly', eye: 'Eyes' } as const;
@@ -141,7 +149,8 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
               disabled={!inProject && f !== 'minifig'}
               onClick={() => pickFamily(f)}
             >
-              <span aria-hidden="true">{FAMILY_INFO[f].icon}</span> {FAMILY_INFO[f].label}
+              <FamilyPicture f={f} profile={chr.profile} />
+              {FAMILY_INFO[f].label}
             </button>
           ))}
           {plans.map((p) => (
@@ -154,7 +163,12 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
               title={`${p.name}: a body plan of this game (${MOVE_INFO[p.move]})`}
               onClick={() => pickPlan(p)}
             >
-              <span aria-hidden="true">🦴</span> {p.name}
+              <CharacterThumb
+                profile={chr.profile}
+                size={30}
+                body={resolveBody({ plan: p.id }, (x) => ed.store.get(x))}
+              />
+              {p.name}
             </button>
           ))}
           <button
@@ -344,6 +358,9 @@ function BrickBuild({ c, body, resolved, setBody }: Sub & { resolved: ResolvedBo
             <option value={a.id}>{a.name}</option>
           ))}
         </select>
+        {body.asset && assets.find((a) => a.id === body.asset) && (
+          <AssetThumb def={assets.find((a) => a.id === body.asset)!} size={40} />
+        )}
       </label>
       {!assets.length && (
         <p class="muted small">Build one in the Asset studio first (it shows here once it is in your game).</p>

@@ -1,9 +1,12 @@
 import { SND } from '../../builtin/audio';
+import type { Conversation } from '../../core/dialogue/schema';
 import { type Cinematic, type EmitterInstance, type Instances, paths, type UiInstance } from '../../core/schema';
 import { audioData } from '../../engine/audio/data';
-import { allScreens } from '../../engine/ui/screens';
+import { allScreens, resolveScreen } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
+import { ListenButton } from '../components/EventPicker';
 import { Header, Num, TextField } from '../components/fields';
+import { conversationPreview, EffectThumb, MusicListen, ScreenThumb } from '../components/previews';
 import { eventNames } from '../events';
 import type { EditorState } from '../state';
 import { allEffects } from '../workspaces/effects/EffectsStudio';
@@ -34,7 +37,42 @@ export function actionChoices(ed: EditorState) {
       sound: (id: string) => ed.audio.previewEvent(id),
       music: (id: string | null) => ed.audio.previewMusic(id),
     },
+    thumb: (kind: 'effect' | 'screen' | 'conversation', id: string) => <PickedThumb ed={ed} kind={kind} id={id} />,
   };
+}
+
+/** P23: the picture next to an effect, screen or conversation picker (a conversation shows its first lines). */
+export function PickedThumb({
+  ed,
+  kind,
+  id,
+}: {
+  ed: EditorState;
+  kind: 'effect' | 'screen' | 'conversation';
+  id: string;
+}) {
+  if (!id) return null;
+  if (kind === 'effect') {
+    const { own, builtin } = allEffects(ed.store);
+    const e = [...own, ...builtin].find((x) => x.id === id);
+    return e ? <EffectThumb effect={e} size={26} /> : null;
+  }
+  if (kind === 'screen') {
+    const s = resolveScreen(ed.store, id);
+    return s ? <ScreenThumb ed={ed} screen={s} width={48} /> : null;
+  }
+  const text = conversationPreview(ed.store.get<Conversation>(paths.dialogue(id)), (who) => speakerName(ed, who));
+  return text ? (
+    <span class="pv-lines small muted" data-preview="conversation">
+      💬 {text}
+    </span>
+  ) : null;
+}
+
+/** who says a line: a character id or a name, shown as the character's name */
+export function speakerName(ed: EditorState, who: string): string {
+  const c = ed.store.get<{ name: string }>(paths.character(who));
+  return c?.name ?? who;
 }
 
 /** P22: the game's conversations, by name. */
@@ -83,20 +121,29 @@ export function SoundSelect({
   label: string;
   none?: string;
 }) {
+  const opts = soundOptions(ed);
   return (
-    <select
-      class="inp"
-      aria-label={label}
-      value={value ?? ''}
-      onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
-    >
-      {none !== undefined && <option value="">{none}</option>}
-      {soundOptions(ed).map((o) => (
-        <option value={o.id}>
-          {o.name} · {o.bus}
-        </option>
-      ))}
-    </select>
+    <span class="row pv-row">
+      <select
+        class="inp"
+        aria-label={label}
+        value={value ?? ''}
+        onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
+      >
+        {none !== undefined && <option value="">{none}</option>}
+        {opts.map((o) => (
+          <option value={o.id}>
+            {o.name} · {o.bus}
+          </option>
+        ))}
+      </select>
+      {value && (
+        <ListenButton
+          name={opts.find((o) => o.id === value)?.name ?? value}
+          onPlay={() => ed.audio.previewEvent(value)}
+        />
+      )}
+    </span>
   );
 }
 
@@ -115,22 +162,26 @@ export function MusicSelect({
   inherit?: string;
 }) {
   const v = value === undefined ? '~' : value === null ? '' : value;
+  const opts = musicOptions(ed);
   return (
-    <select
-      class="inp"
-      aria-label={label}
-      value={v}
-      onChange={(e) => {
-        const x = (e.target as HTMLSelectElement).value;
-        onPick(x === '~' ? undefined : x === '' ? null : x);
-      }}
-    >
-      {inherit && <option value="~">{inherit}</option>}
-      <option value="">Silence</option>
-      {musicOptions(ed).map((o) => (
-        <option value={o.id}>{o.name}</option>
-      ))}
-    </select>
+    <span class="row pv-row">
+      <select
+        class="inp"
+        aria-label={label}
+        value={v}
+        onChange={(e) => {
+          const x = (e.target as HTMLSelectElement).value;
+          onPick(x === '~' ? undefined : x === '' ? null : x);
+        }}
+      >
+        {inherit && <option value="~">{inherit}</option>}
+        <option value="">Silence</option>
+        {opts.map((o) => (
+          <option value={o.id}>{o.name}</option>
+        ))}
+      </select>
+      {value && <MusicListen ed={ed} id={value} name={opts.find((o) => o.id === value)?.name ?? value} />}
+    </span>
   );
 }
 
@@ -148,20 +199,24 @@ export function ScreenSelect({
   none: string;
 }) {
   ed.revision.value;
+  const shown = value ? resolveScreen(ed.store, value) : undefined;
   return (
-    <select
-      class="inp"
-      aria-label={label}
-      value={value ?? ''}
-      onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
-    >
-      <option value="">{none}</option>
-      {allScreens(ed.store).map((s) => (
-        <option value={s.id}>
-          {s.name} · {s.kind}
-        </option>
-      ))}
-    </select>
+    <span class="row pv-row">
+      <select
+        class="inp"
+        aria-label={label}
+        value={value ?? ''}
+        onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
+      >
+        <option value="">{none}</option>
+        {allScreens(ed.store).map((s) => (
+          <option value={s.id}>
+            {s.name} · {s.kind}
+          </option>
+        ))}
+      </select>
+      {shown && <ScreenThumb ed={ed} screen={shown} width={48} />}
+    </span>
   );
 }
 
@@ -421,6 +476,7 @@ export function ItemInspector({ c, id }: { c: ActionCtx; id: string }) {
                 <option value={o.id}>💬 {o.name}</option>
               ))}
             </select>
+            {it.conversation && <PickedThumb ed={c.ed} kind="conversation" id={it.conversation} />}
           </label>
         )}
         {pos}

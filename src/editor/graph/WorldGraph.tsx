@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { type Gates, type MapDoc, paths } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { ActionListField } from '../components/ActionListField';
+import { drawMap, MapThumb } from '../components/previews';
 import { actionChoices } from '../panels/AudioFields';
 
 type End = { map: string; spawn: string };
@@ -205,6 +206,7 @@ export function WorldGraph({ c }: { c: ActionCtx }) {
         )}
         {map && (
           <span class="group" role="group" aria-label="Selected map">
+            <MapThumb store={ed.store} mapId={map.id} size={40} rev={ed.revision.value} />
             <strong class="small">{map.name}</strong>
             <button
               type="button"
@@ -357,6 +359,7 @@ export function WorldGraph({ c }: { c: ActionCtx }) {
                       stroke={sel ? '#f2b632' : issueMaps.has(m.id) ? '#ff8a7a' : here ? '#6f7a89' : '#303844'}
                       stroke-width={sel ? 2.5 : 1.5}
                     />
+                    <MapNodePicture ed={ed} mapId={m.id} x={p.x + NODE_W - 44} y={p.y + 5} />
                     <text x={p.x + 12} y={p.y + 21} fill="#e6eaf0" font-weight="600" font-size="13">
                       {start ? '★ ' : ''}
                       {m.name}
@@ -447,4 +450,15 @@ export function WorldGraph({ c }: { c: ActionCtx }) {
       </div>
     </section>
   );
+}
+
+/** P23: a map seen from above, in the corner of its box (drawn after the graph shows) */
+function MapNodePicture({ ed, mapId, x, y }: { ed: ActionCtx['ed']; mapId: string; x: number; y: number }) {
+  const [url, setUrl] = useState('');
+  const rev = ed.revision.value;
+  useEffect(() => {
+    const t = setTimeout(() => setUrl(drawMap(ed.store, mapId, 72, rev)), 30);
+    return () => clearTimeout(t);
+  }, [mapId, rev]);
+  return url ? <image href={url} x={x} y={y} width={36} height={36} style={{ pointerEvents: 'none' }} /> : null;
 }

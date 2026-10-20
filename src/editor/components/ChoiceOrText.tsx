@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 
 export type Choice = { value: string; label: string; note?: string };
@@ -16,6 +17,7 @@ export function ChoiceOrText({
   tour,
   disabled,
   empty = 'choose…',
+  after,
 }: {
   label: string;
   value: string;
@@ -24,6 +26,8 @@ export function ChoiceOrText({
   tour?: string;
   disabled?: boolean;
   empty?: string;
+  /** P23: a preview of the picked thing, next to the list */
+  after?: ComponentChildren;
 }) {
   const [typing, setTyping] = useState(false);
   if (typing)
@@ -54,7 +58,7 @@ export function ChoiceOrText({
       />
     );
   const known = choices.some((c) => c.value === value);
-  return (
+  const select = (
     <select
       class="inp"
       aria-label={label}
@@ -76,5 +80,13 @@ export function ChoiceOrText({
       ))}
       <option value={TYPE}>＋ Type a name…</option>
     </select>
+  );
+  return after ? (
+    <span class="row pv-row">
+      {select}
+      {after}
+    </span>
+  ) : (
+    select
   );
 }

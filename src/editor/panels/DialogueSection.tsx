@@ -4,6 +4,7 @@ import { DIALOGUE_STYLES, type DialogueLook, type DialogueStyle, STYLE_INFO } fr
 import type { TalkView } from '../../engine/runtime/conversation';
 import { DialogueLayer } from '../../engine/ui/DialogueLayer';
 import type { ActionCtx } from '../actions/registry';
+import { ListenButton } from '../components/EventPicker';
 import { FieldHelp } from '../components/fields';
 import { shows } from '../genres/view';
 import { soundOptions } from './AudioFields';
@@ -98,17 +99,25 @@ export function DialogueSection({ c }: { c: ActionCtx }) {
             Voice blip
             <FieldHelp label="Voice blip" text={DIALOGUE_HELP.blip} />
           </span>
-          <select
-            class="inp"
-            aria-label="Voice blip"
-            value={look.blip ?? ''}
-            onChange={(e) => set({ blip: (e.target as HTMLSelectElement).value || null })}
-          >
-            <option value="">Silent</option>
-            {soundOptions(ed).map((o) => (
-              <option value={o.id}>{o.name}</option>
-            ))}
-          </select>
+          <span class="row pv-row">
+            <select
+              class="inp"
+              aria-label="Voice blip"
+              value={look.blip ?? ''}
+              onChange={(e) => set({ blip: (e.target as HTMLSelectElement).value || null })}
+            >
+              <option value="">Silent</option>
+              {soundOptions(ed).map((o) => (
+                <option value={o.id}>{o.name}</option>
+              ))}
+            </select>
+            {look.blip && (
+              <ListenButton
+                name={soundOptions(ed).find((o) => o.id === look.blip)?.name ?? look.blip}
+                onPlay={() => ed.audio.previewEvent(look.blip!, look.pitch)}
+              />
+            )}
+          </span>
         </label>
         <label class="field">
           Pitch {look.pitch.toFixed(1)}

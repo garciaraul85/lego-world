@@ -4,6 +4,8 @@ import { newId } from '../../../core/ids';
 import type { Character } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
 import { DraftText } from '../../components/fields';
+import { conversationPreview } from '../../components/previews';
+import { speakerName } from '../../panels/AudioFields';
 import { DialogueEditor } from './DialogueEditor';
 import { conversations } from './model';
 
@@ -56,7 +58,12 @@ export function ConversationList({ c, chr, inProject }: { c: ActionCtx; chr: Cha
           }}
         >
           <span aria-hidden="true">💬</span>
-          <span class="asset-name">{d.name}</span>
+          <span class="lib-text">
+            <span class="asset-name">{d.name}</span>
+            <span class="pv-lines small muted" aria-hidden="true">
+              {conversationPreview(d, (who) => speakerName(ed, who), 60)}
+            </span>
+          </span>
           <span class="mono small muted">{d.sections.reduce((n, s) => n + s.steps.length, 0)}</span>
         </button>
       ))}
@@ -121,7 +128,10 @@ export function TalkSection({ c, chr, inProject }: { c: ActionCtx; chr: Characte
             <button
               type="button"
               class="link"
-              title="Open it"
+              title={`Open it. ${conversationPreview(
+                list.find((d) => d.id === t.conversation),
+                (who) => speakerName(ed, who),
+              )}`}
               onClick={() => {
                 ed.dialogueId.value = t.conversation;
                 ed.charTab.value = 'dialogue';

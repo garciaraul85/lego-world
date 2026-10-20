@@ -1,8 +1,9 @@
+import { SND } from '../../../builtin/audio';
 import { BUILTIN_CLIPS } from '../../../builtin/clips';
 import { EMOTE_KINDS } from '../../../builtin/clips/emotes';
 import { usesOf } from '../../../core/audio/usage';
 import type { ActorItem, CameraItem, Cinematic, Clip, PostItem } from '../../../core/schema';
-import { EventPicker } from '../../components/EventPicker';
+import { EventPicker, ListenButton } from '../../components/EventPicker';
 import { FieldHelp } from '../../components/fields';
 import { describeUse, eventUses } from '../../events';
 import { musicOptions, soundOptions } from '../../panels/AudioFields';
@@ -162,6 +163,14 @@ export function ItemInspector({
                 { id: '', name: 'Default blips' },
                 ...soundOptions(ed).map((o) => ({ id: o.id, name: o.name })),
               ]}
+              after={
+                <ListenButton
+                  name={
+                    a.voice ? (soundOptions(ed).find((o) => o.id === a.voice)?.name ?? a.voice) : 'the default blips'
+                  }
+                  onPlay={() => ed.audio.previewEvent(a.voice ?? SND.talk)}
+                />
+              }
               onChange={(v) => {
                 const n = { ...a } as typeof a;
                 if (v) n.voice = v as never;
@@ -325,6 +334,12 @@ export function ItemInspector({
           help={HELP.sound}
           value={s.event}
           options={soundOptions(ed).map((o) => ({ id: o.id, name: o.name }))}
+          after={
+            <ListenButton
+              name={soundOptions(ed).find((o) => o.id === s.event)?.name ?? s.event}
+              onPlay={() => ed.audio.previewEvent(s.event)}
+            />
+          }
           onChange={(event) => put({ ...s, event } as Item)}
         />
         <Pick

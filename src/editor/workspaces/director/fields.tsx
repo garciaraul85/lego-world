@@ -92,6 +92,7 @@ export function Pick({
   options,
   onChange,
   help,
+  after,
 }: {
   label: string;
   value: string;
@@ -99,20 +100,33 @@ export function Pick({
   onChange: (v: string) => void;
   /** P32: the “?” text */
   help?: string;
+  /** P23: a preview next to the list (▶ Listen, a picture) */
+  after?: ComponentChildren;
 }) {
+  const select = (
+    <select
+      class="inp"
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
+    >
+      {options.map((o) => (
+        <option value={o.id}>{o.name}</option>
+      ))}
+    </select>
+  );
   return (
+    // biome-ignore lint/a11y/noLabelWithoutControl: the control is the list inside (with a preview beside it)
     <label class="dr-f">
       <Head label={label} help={help} />
-      <select
-        class="inp"
-        aria-label={label}
-        value={value}
-        onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
-      >
-        {options.map((o) => (
-          <option value={o.id}>{o.name}</option>
-        ))}
-      </select>
+      {after ? (
+        <span class="row pv-row">
+          {select}
+          {after}
+        </span>
+      ) : (
+        select
+      )}
     </label>
   );
 }

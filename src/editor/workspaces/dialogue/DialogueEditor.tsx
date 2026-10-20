@@ -8,6 +8,7 @@ import {
   type Conversation,
   DIALOGUE_STYLES,
   MOODS,
+  type Mood,
   STYLE_INFO,
   type Step,
 } from '../../../core/dialogue/schema';
@@ -188,6 +189,7 @@ function ListView({ c, conv, save }: { c: ActionCtx; conv: Conversation; save: S
   );
   const labels = conv.sections.map((s) => s.label);
   const choices = actionChoices(ed);
+  const face = useMemo(() => editorPortrait(ed.store), [ed.revision.value]);
   const add = (si: number, st: Step, label: string) =>
     save({ ...conv, sections: conv.sections.map((s, k) => (k === si ? { ...s, steps: [...s.steps, st] } : s)) }, label);
   return (
@@ -247,6 +249,7 @@ function ListView({ c, conv, save }: { c: ActionCtx; conv: Conversation; save: S
               who={who}
               labels={labels}
               choices={choices}
+              face={face}
               set={(next, label) => save(withStep(conv, si, i, next), label)}
               move={(by) => save(moveStep(conv, si, i, by), 'Move step')}
             />
@@ -312,11 +315,53 @@ function ListView({ c, conv, save }: { c: ActionCtx; conv: Conversation; save: S
   );
 }
 
+/** the speaker's face, drawn after the row shows (a portrait takes a moment the first time) */
+function SpeakerFace({
+  face,
+  who,
+  mood,
+}: {
+  face?: (who: string, mood: Mood) => string | null;
+  who: string;
+  mood: Mood;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!face || !who) {
+      setUrl(null);
+      return;
+    }
+    // a portrait is drawn a frame later: ask again until it is there (a few seconds at most)
+    let tries = 0;
+    let t = 0;
+    const ask = () => {
+      let u: string | null = null;
+      try {
+        u = face(who, mood);
+      } catch {
+        u = null;
+      }
+      setUrl(u);
+      if (!u && tries++ < 30) t = window.setTimeout(ask, 100);
+    };
+    t = window.setTimeout(ask, 0);
+    return () => clearTimeout(t);
+  }, [who, mood, !!face]);
+  return url ? (
+    <img class="dlg-face" src={url} alt="" aria-hidden="true" width={26} height={26} />
+  ) : (
+    <span class="dlg-face none" aria-hidden="true">
+      {who ? '' : '📜'}
+    </span>
+  );
+}
+
 function StepRow({
   st,
   who,
   labels,
   choices,
+  face,
   set,
   move,
 }: {
@@ -324,6 +369,8 @@ function StepRow({
   who: { who: string; name: string }[];
   labels: string[];
   choices: ReturnType<typeof actionChoices>;
+  /** P23: the speaker's face for a mood (a picture next to “Who says it”) */
+  face?: (who: string, mood: Mood) => string | null;
   set: (next: Step | null, label: string) => void;
   move: (by: number) => void;
 }) {
@@ -345,6 +392,7 @@ function StepRow({
     case 'line':
       return (
         <div class="dlg-step line">
+          <SpeakerFace face={face} who={st.who} mood={(st.mood ?? 'neutral') as Mood} />
           <select
             class="inp dlg-who"
             aria-label="Who says it"
