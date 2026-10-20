@@ -1,3 +1,4 @@
+import { DRIFTS, GRADES } from '../../effects/screen';
 import type { NodeDef } from './types';
 import { EXEC_IN, EXEC_OUT } from './types';
 
@@ -52,5 +53,59 @@ export const EFFECTS: NodeDef[] = [
     args: [{ name: 'name', kind: 'string', label: 'Placed effect', help: 'Its name in the Inspector (“Torch fire”).' }],
     code: { name: 'effects.stop', style: 'call' },
     exec: (c, a) => c.effect?.('off', String(a.name ?? '')),
+  },
+  {
+    type: 'screen.effect',
+    kind: 'action',
+    title: 'Screen effect',
+    category: 'Effects',
+    doc: 'Plays a screen effect: the camera shakes, the screen flashes or fades, the game freezes for a moment (hit-stop) or runs in slow motion. Use Fade to black, then Teleport, then Fade from black to move the hero out of sight.',
+    inputs: [EXEC_IN],
+    outputs: [EXEC_OUT],
+    args: [
+      {
+        name: 'effect',
+        kind: 'screenEffect',
+        label: 'Screen effect',
+        help: 'A built-in screen effect or one of the game’s own (Effects › Screen).',
+      },
+    ],
+    code: { name: 'screen.effect', style: 'call' },
+    exec: (c, a) => c.screen?.('play', String(a.effect ?? '')),
+  },
+  {
+    type: 'screen.mood',
+    kind: 'action',
+    title: 'Set screen mood',
+    category: 'Effects',
+    doc: 'Changes the mood of this map while the game plays: a colour grade over the view, dark edges (vignette), and something drifting across the screen. Going to another map brings back that map’s own mood.',
+    inputs: [EXEC_IN],
+    outputs: [EXEC_OUT],
+    args: [
+      { name: 'grade', kind: 'grade', label: 'Colour', default: 'none', help: `One of: ${GRADES.join(', ')}.` },
+      {
+        name: 'vignette',
+        kind: 'number',
+        label: 'Dark edges (0–1)',
+        default: 0,
+        help: '0: none; 1: strong.',
+      },
+      { name: 'drift', kind: 'drift', label: 'Drifting', default: 'none', help: `One of: ${DRIFTS.join(', ')}.` },
+      { name: 'amount', kind: 'number', label: 'How much (0–1)', default: 0.5, help: 'How much drifts across.' },
+    ],
+    code: { name: 'screen.mood', style: 'call' },
+    exec: (c, a) => c.screen?.('mood', { grade: a.grade, vignette: a.vignette, drift: a.drift, amount: a.amount }),
+  },
+  {
+    type: 'screen.clear',
+    kind: 'action',
+    title: 'Clear the screen',
+    category: 'Effects',
+    doc: 'Stops every screen effect at once (a fade to black that is holding, a shake, slow motion) and brings back the map’s own mood.',
+    inputs: [EXEC_IN],
+    outputs: [EXEC_OUT],
+    args: [],
+    code: { name: 'screen.clear', style: 'call' },
+    exec: (c) => c.screen?.('clear'),
   },
 ];

@@ -1,5 +1,6 @@
 import { BUILTIN_EFFECTS } from '../../../builtin/effects';
 import { GENRES } from '../../../builtin/genres';
+import { BUILTIN_SCREEN_EFFECTS } from '../../../builtin/screen-effects';
 import { expandAsset } from '../../assets/expand';
 import { maxBrickId } from '../../assets/instances';
 import { generatedInstanceId, instancify } from '../../assets/instancify';
@@ -7,6 +8,7 @@ import { encodeChunks } from '../../bricks/codec';
 import { footprint, inspectBricks } from '../../bricks/inspect';
 import { DialogueLook } from '../../dialogue/schema';
 import { EffectHooks } from '../../effects/schema';
+import { Mood, ScreenHooks } from '../../effects/screen';
 import { hash64 } from '../../hash';
 import { type Id, newId } from '../../ids';
 import type { ProjectStore } from '../../project/store';
@@ -37,6 +39,8 @@ export type SetEnvironment = {
   rain?: boolean;
   snow?: boolean;
   snowing?: boolean;
+  /** P23 part 2: the map's mood (null: none) */
+  mood?: Mood | null;
 };
 
 const mapMissing = (store: ProjectStore, map: string) =>
@@ -48,12 +52,21 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
   validate(store, p) {
     if (!store.has(paths.map(p.map))) return `Map ${p.map} does not exist.`;
     if (p.time !== undefined && !TIMES.includes(p.time)) return `Time must be one of ${TIMES.join(', ')}.`;
+    if (p.mood) {
+      const r = Mood.safeParse(p.mood);
+      if (!r.success) return `Mood: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
+    }
     return null;
   },
   apply(store, p) {
     const m = getMap(store, p.map);
+    const { mood: _old, ...rest } = m;
+    // a mood that does nothing is no mood (the map file stays as it was before moods)
+    const some = (x: Mood) => x.grade !== 'none' || x.vignette > 0 || x.drift !== 'none';
+    const mood = p.mood === undefined ? m.mood : p.mood && some(p.mood) ? Mood.parse(p.mood) : undefined;
     store.put(paths.map(p.map), {
-      ...m,
+      ...rest,
+      ...(mood ? { mood } : {}),
       sky: { time: p.time ?? m.sky.time },
       weather: {
         rain: p.rain ?? m.weather.rain,
@@ -245,6 +258,8 @@ export type UpdateProject = {
   party?: string[] | null;
   /** P23: which effects play for hits and things that happen (null: the built-in ones) */
   effects?: EffectHooks | null;
+  /** P23 part 2: which screen effects play when things happen; low-health edges (null: the built-in ones) */
+  screenEffects?: ScreenHooks | null;
 };
 
 export const updateProject: CommandHandler<UpdateProject> = {
@@ -257,7 +272,9 @@ export const updateProject: CommandHandler<UpdateProject> = {
           ? 'Dialogue style'
           : p.effects !== undefined && Object.keys(p).length === 1
             ? 'Game effects'
-            : 'Edit project settings',
+            : p.screenEffects !== undefined && Object.keys(p).length === 1
+              ? 'Game screen effects'
+              : 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.saving && !SavingSchema.safeParse(p.saving).success)
@@ -280,6 +297,16 @@ export const updateProject: CommandHandler<UpdateProject> = {
         (id) => id && id !== 'none' && !store.has(paths.effect(id)) && !BUILTIN_EFFECTS.some((e) => e.id === id),
       );
       if (missing) return `There is no effect ${missing}.`;
+    }
+    if (p.screenEffects) {
+      const r = ScreenHooks.safeParse(p.screenEffects);
+      if (!r.success)
+        return `Screen effects: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
+      const missing = Object.values(p.screenEffects.events ?? {}).find(
+        (id) =>
+          id && id !== 'none' && !store.has(paths.screenEffect(id)) && !BUILTIN_SCREEN_EFFECTS.some((e) => e.id === id),
+      );
+      if (missing) return `There is no screen effect ${missing}.`;
     }
     if (p.hero && !store.has(paths.character(p.hero))) return 'That character does not exist.';
     if (p.entryMap !== undefined && !store.has(paths.map(p.entryMap))) return 'Start map not found.';
@@ -330,6 +357,14 @@ export const updateProject: CommandHandler<UpdateProject> = {
       if (p.effects && (Object.keys(p.effects.hits ?? {}).length || Object.keys(p.effects.events ?? {}).length))
         next.effects = EffectHooks.parse(p.effects);
       else delete next.effects;
+      store.put(paths.project, next);
+    }
+    if (p.screenEffects !== undefined) {
+      const next = { ...store.manifest } as Project & { screenEffects?: ScreenHooks };
+      const h = p.screenEffects;
+      if (h && (Object.keys(h.events ?? {}).length || h.lowHealth !== undefined))
+        next.screenEffects = ScreenHooks.parse(h);
+      else delete next.screenEffects;
       store.put(paths.project, next);
     }
     if (p.dialogue !== undefined) {

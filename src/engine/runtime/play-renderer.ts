@@ -160,7 +160,9 @@ export class PlayRenderer {
     this.renderer.snow = w.doc.weather.snow;
     this.renderer.clock = s.clock;
     // a cinematic owns the camera while it plays (P6.2)
-    const cam = this.cameraOverride ?? s.cine.frame?.camera ?? this.camera();
+    const base = this.cameraOverride ?? s.cine.frame?.camera ?? this.camera();
+    // P23 part 2: screen effects shake the game's camera (never the Director's stage view)
+    const cam = this.cameraOverride ? base : shaken(base, s.screenFx.shake());
     this.lastCamera = cam;
     const lines: LineSet[] = [];
     const markers: Marker[] = [];
@@ -408,4 +410,23 @@ function boxLines(x0: number, y0: number, z0: number, x1: number, y1: number, z1
     [x0, y1, z1],
   ];
   return [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7].flatMap((i) => c[i]!);
+}
+
+/** a camera moved sideways and up (studs) and rolled (radians) by a screen shake */
+export function shaken<C extends CameraFrame>(c: C, [dx, dy, roll]: [number, number, number]): C {
+  if (!dx && !dy && !roll) return c;
+  const cr = Math.cos(roll);
+  const sr = Math.sin(roll);
+  const right: Vec3 = [
+    c.right[0] * cr + c.up[0] * sr,
+    c.right[1] * cr + c.up[1] * sr,
+    c.right[2] * cr + c.up[2] * sr,
+  ];
+  const up: Vec3 = [c.up[0] * cr - c.right[0] * sr, c.up[1] * cr - c.right[1] * sr, c.up[2] * cr - c.right[2] * sr];
+  const eye: Vec3 = [
+    c.eye[0] + c.right[0] * dx + c.up[0] * dy,
+    c.eye[1] + c.right[1] * dx + c.up[1] * dy,
+    c.eye[2] + c.right[2] * dx + c.up[2] * dy,
+  ];
+  return { ...c, eye, right, up };
 }

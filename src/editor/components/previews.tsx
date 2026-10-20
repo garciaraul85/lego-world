@@ -4,9 +4,11 @@ import { footprint } from '../../core/bricks/inspect';
 import { allBricks } from '../../core/commands/handlers/assets';
 import type { Conversation } from '../../core/dialogue/schema';
 import type { Effect } from '../../core/effects/schema';
+import type { ScreenEffect } from '../../core/effects/screen';
 import type { ProjectStore } from '../../core/project/store';
 import type { Screen } from '../../core/schema';
 import { ParticleSystem } from '../../engine/effects/particles';
+import { ScreenFx, screenEffectLength } from '../../engine/effects/screen';
 import { screenScale } from '../../engine/ui/layout';
 import { ScreenView } from '../../engine/ui/ScreenRenderer';
 import type { EditorState } from '../state';
@@ -281,5 +283,97 @@ export function MusicListen({ ed, id, name }: { ed: EditorState; id: string; nam
     >
       {on ? '■' : '▶'}
     </button>
+  );
+}
+
+// ---------- screen effects ----------
+
+/**
+ * A screen effect's picture: a tiny scene (sky, ground, a brick and a ball rolling across) that the effect plays
+ * on while the pointer is over it (or `play` is set): it shakes, flashes, fades; the ball stops for a hit-stop
+ * and slows down in slow motion.
+ */
+export function ScreenEffectThumb({
+  effect,
+  width = 48,
+  play = false,
+}: {
+  effect: ScreenEffect;
+  width?: number;
+  play?: boolean;
+}) {
+  const scene = useRef<HTMLSpanElement>(null);
+  const ball = useRef<HTMLSpanElement>(null);
+  const cover = useRef<HTMLSpanElement>(null);
+  const box = useRef<HTMLSpanElement>(null);
+  const [hover, setHover] = useState(false);
+  const on = hover || play;
+  const h = Math.round((width * 9) / 16);
+  useEffect(() => {
+    const sc = scene.current;
+    const b = ball.current;
+    const cv = cover.current;
+    if (!sc || !b || !cv) return;
+    const reset = () => {
+      sc.style.transform = '';
+      cv.style.background = 'transparent';
+      b.style.left = '30%';
+      if (box.current) box.current.dataset.moving = '';
+    };
+    if (!on) {
+      reset();
+      return;
+    }
+    const fx = new ScreenFx();
+    let x = 0.1;
+    let raf = 0;
+    let last = performance.now();
+    let age = 0;
+    const len = screenEffectLength(effect) + 0.6;
+    fx.play(effect);
+    if (box.current) box.current.dataset.moving = 'true';
+    const frame = (now: number) => {
+      raf = requestAnimationFrame(frame);
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      age += dt;
+      if (age > len) {
+        age = 0;
+        fx.clear();
+        fx.play(effect);
+      }
+      fx.step(dt);
+      x = (x + dt * 0.45 * fx.speed()) % 1;
+      const [dx, dy, r] = fx.shake();
+      const k = width / 12;
+      sc.style.transform = `translate(${dx * k}px, ${-dy * k}px) rotate(${r}rad)`;
+      b.style.left = `${8 + x * 80}%`;
+      const ls = fx.layers();
+      const top = ls[ls.length - 1];
+      cv.style.background = top ? top.color : 'transparent';
+      cv.style.opacity = String(top ? Math.max(...ls.map((l) => l.alpha)) : 0);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(raf);
+      reset();
+    };
+  }, [effect, on]);
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: pointing at the picture plays it; it is only a picture (hidden from readers)
+    <span
+      ref={box}
+      class={`sce-thumb ${on ? 'moving' : ''}`}
+      aria-hidden="true"
+      style={{ width: `${width}px`, height: `${h}px` }}
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={() => setHover(false)}
+    >
+      <span ref={scene} class="sce-scene">
+        <span class="sce-brick" />
+        <span ref={ball} class="sce-ball" />
+      </span>
+      <span ref={cover} class="sce-cover" />
+    </span>
   );
 }

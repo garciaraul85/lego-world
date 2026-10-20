@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (71 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (74 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -693,3 +693,29 @@ Stops an effect placed on the map (by its name): no new particles; the ones flyi
 
 - Settings: Placed effect (string)
 - Code: `effects.stop(name);`
+
+### Screen effect
+
+`screen.effect` · action
+
+Plays a screen effect: the camera shakes, the screen flashes or fades, the game freezes for a moment (hit-stop) or runs in slow motion. Use Fade to black, then Teleport, then Fade from black to move the hero out of sight.
+
+- Settings: Screen effect (screenEffect)
+- Code: `screen.effect(effect);`
+
+### Set screen mood
+
+`screen.mood` · action
+
+Changes the mood of this map while the game plays: a colour grade over the view, dark edges (vignette), and something drifting across the screen. Going to another map brings back that map’s own mood.
+
+- Settings: Colour (grade), Dark edges (0–1) (number), Drifting (drift), How much (0–1) (number)
+- Code: `screen.mood(grade, vignette, drift, amount);`
+
+### Clear the screen
+
+`screen.clear` · action
+
+Stops every screen effect at once (a fade to black that is holding, a shake, slow motion) and brings back the map’s own mood.
+
+- Code: `screen.clear();`

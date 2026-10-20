@@ -16,7 +16,8 @@ import * as Np from '../commands/handlers/npcs';
 import * as Pr from '../commands/handlers/progress';
 import type { CommandHandler } from '../commands/types';
 import { Conversation } from '../dialogue/schema';
-import { Effect } from '../effects/schema';
+import { Effect, EffectHooks } from '../effects/schema';
+import { Mood, ScreenEffect, ScreenHooks } from '../effects/screen';
 import type { idPattern } from '../ids';
 import { ProgressDoc } from '../save/progress';
 import { Saving } from '../save/save';
@@ -175,10 +176,11 @@ export const AI_COMMANDS: AiCommand[] = [
       rain: z.boolean().optional(),
       snow: z.boolean().optional(),
       snowing: z.boolean().optional(),
+      mood: Mood.nullable().optional(),
     }),
     ['map'],
     'Scene',
-    'Time of day and weather of a map.',
+    'Time of day and weather of a map, and its mood ({grade: none | warm | cold | night | dream | oldFilm | mono | toxic, vignette 0–1, drift: none | rain | snow | fog | dust | embers | leaves, amount 0–1}; null: none).',
     { map: M1, time: 'evening', rain: true },
   ),
   def(
@@ -539,10 +541,12 @@ export const AI_COMMANDS: AiCommand[] = [
       entryScreen: ids('screen').nullable().optional(),
       genre: z.string().optional(),
       saving: Saving.nullable().optional(),
+      effects: EffectHooks.nullable().optional(),
+      screenEffects: ScreenHooks.nullable().optional(),
     }),
     ['map', 'character', 'screen'],
     'Scene',
-    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}).',
+    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}), effects ({hits: {slash: fx_…}, events: {levelUp: fx_…}}; "none" plays nothing), screenEffects ({events: {hurt | bigHit | levelUp | defeat | death | land | smash: sce_… or "none"}, lowHealth: true/false}).',
     { name: 'Coin Quest', hero: 'chr_hhhhhhhhhh' },
   ),
   def(
@@ -858,6 +862,31 @@ export const AI_COMMANDS: AiCommand[] = [
     'Effects',
     'Deletes a game effect that nothing uses (take it off maps and out of the game effects first).',
     { id: 'fx_aaaaaaaaaa' },
+  ),
+  def(
+    'screenEffect.put',
+    Fx.putScreenEffect,
+    z.strictObject({ effect: ScreenEffect }),
+    ['map'],
+    'Effects',
+    'Adds or replaces a game screen effect: what happens to the whole view. Any of: shake {strength 0.02–3 studs, seconds, rumble (slow and heavy)}, flash {color, alpha 0.05–1, seconds}, fade {color, mode out | in | outIn, seconds}, hitStop (seconds the game freezes, 0.02–0.5), slowMo {speed 0.1–0.9, seconds}. Built-in ones (sce_bigshake00, sce_whiteflash, sce_bighit0000…) cannot be changed: copy one under a new id. Play one with the screenEffect action, a cinematic post item {t, screen}, or hook it to things that happen with project.update screenEffects.',
+    {
+      effect: {
+        id: 'sce_aaaaaaaaaa',
+        name: 'Thunder',
+        shake: { strength: 0.3, seconds: 0.6, rumble: true },
+        flash: { color: '#e8f0ff', alpha: 0.8, seconds: 0.4 },
+      },
+    },
+  ),
+  def(
+    'screenEffect.delete',
+    Fx.deleteScreenEffect,
+    z.strictObject({ id: ids('screenEffect') }),
+    ['map'],
+    'Effects',
+    'Deletes a game screen effect that nothing uses (take it out of the game screen effects and cinematics first).',
+    { id: 'sce_aaaaaaaaaa' },
   ),
   def(
     'bodyplan.delete',

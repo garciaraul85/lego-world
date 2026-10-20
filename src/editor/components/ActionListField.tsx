@@ -13,13 +13,15 @@ export type ActionChoices = {
   conversations?: Choice[];
   /** P23: effects (built-in and the game's own), and the effects placed on maps (by name) */
   effects?: Choice[];
+  /** P23 part 2: screen effects (built-in and the game's own) */
+  screenEffects?: Choice[];
   placedEffects?: string[];
   /** P32: custom event names the project uses (Send event picks from them) */
   events?: string[];
   /** P32: plays a sound or a music state once, for the ▶ next to their pickers */
   preview?: { sound(id: string): void; music(id: string | null): void };
   /** P23: a small picture of the picked effect, screen or conversation, next to its picker */
-  thumb?: (kind: 'effect' | 'screen' | 'conversation', id: string) => ComponentChildren;
+  thumb?: (kind: 'effect' | 'screen' | 'conversation' | 'screenEffect', id: string) => ComponentChildren;
 };
 
 /** The action kinds a designer can pick, with what each needs. Shared by assets, zones, screens and logic. */
@@ -81,6 +83,13 @@ const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Act
     label: 'Play effect',
     needs: 'effects',
     make: (c) => ({ do: 'effect', effect: (c?.effects?.[0]?.id ?? 'fx_sparks0001') as never }),
+  },
+  // P23 part 2
+  {
+    do: 'screenEffect',
+    label: 'Screen effect (shake, flash…)',
+    needs: 'screenEffects',
+    make: (c) => ({ do: 'screenEffect', effect: (c?.screenEffects?.[0]?.id ?? 'sce_bigshake00') as never }),
   },
   {
     do: 'effectOn',
@@ -367,6 +376,16 @@ function ActionArgs({
           />
         </span>
       );
+    case 'screenEffect':
+      return (
+        <span class="row pv-row">
+          {pick(a.effect, 'Screen effect', choices?.screenEffects ?? [], (effect) => ({
+            ...a,
+            effect: effect as never,
+          }))}
+          {choices?.thumb?.('screenEffect', a.effect)}
+        </span>
+      );
     case 'effectOn':
       return (
         <span class="row" style={{ gap: '4px' }}>
@@ -445,6 +464,7 @@ function ActionArgs({
           <option value="invertY">Invert camera (on/off)</option>
           <option value="textSize">Text size (normal/large)</option>
           <option value="difficulty">Difficulty (story/normal/hard)</option>
+          <option value="reduceMotion">Reduce motion (on/off)</option>
         </select>
       );
     default:

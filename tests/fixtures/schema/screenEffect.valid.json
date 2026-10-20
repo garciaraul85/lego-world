@@ -1,0 +1,17 @@
+{
+  "path": "screenfx/sce_testquake0.json",
+  "value": {
+    "id": "sce_testquake0",
+    "name": "Test quake",
+    "shake": {
+      "strength": 0.5,
+      "seconds": 1,
+      "rumble": true
+    },
+    "flash": {
+      "color": "#ffffff",
+      "alpha": 0.5,
+      "seconds": 0.3
+    }
+  }
+}

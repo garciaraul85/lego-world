@@ -121,6 +121,8 @@ export class CinematicPlayer {
     const first = !this.started;
     this.started = true;
     this.t = this.cin.length;
-    return this.cues.filter((c) => (first ? c.t >= from : c.t > from) && c.kind !== 'sfx' && c.kind !== 'voice');
+    return this.cues.filter(
+      (c) => (first ? c.t >= from : c.t > from) && c.kind !== 'sfx' && c.kind !== 'voice' && c.kind !== 'screen',
+    );
   }
 }

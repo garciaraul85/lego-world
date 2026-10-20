@@ -28,6 +28,8 @@ export interface CinematicHost {
   emit(kind: 'event' | 'info', msg: string): void;
   logicEvent(event: string): void;
   setVar(name: string, value: unknown): void;
+  /** P23 part 2: play a screen effect */
+  screenEffect?(id: string): void;
   /** the dialogue box (null hides it) */
   dialogue(line: { speaker: string; text: string } | null): void;
   done(id: string): void;
@@ -189,6 +191,9 @@ export class CinematicSystem {
           break;
         case 'setVar':
           h.setVar(c.name, c.value);
+          break;
+        case 'screen':
+          h.screenEffect?.(c.effect);
           break;
       }
     }

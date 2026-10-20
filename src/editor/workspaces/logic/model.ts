@@ -1,3 +1,4 @@
+import { DRIFT_INFO, DRIFTS, GRADE_INFO, GRADES } from '../../../core/effects/screen';
 import { newId } from '../../../core/ids';
 import type { ArgKind, NodeDef, PinType } from '../../../core/logic/catalog';
 import { NAME_KINDS, type NameKind, namedThings } from '../../../core/logic/code/names';
@@ -81,6 +82,9 @@ export function argChoices(ed: EditorState, kind: ArgKind): { value: string; lab
       .map((p) => ed.store.get<Asset>(p)!)
       .filter((a) => a.origin !== 'generated' || a.sockets.length)
       .map((a) => ({ value: a.id, label: a.name }));
+  // P23 part 2: a screen mood's colour grade and what drifts across
+  if (kind === 'grade') return GRADES.map((g) => ({ value: g, label: GRADE_INFO[g].label }));
+  if (kind === 'drift') return DRIFTS.map((d) => ({ value: d, label: DRIFT_INFO[d] }));
   if (!(NAME_KINDS as readonly string[]).includes(kind)) return null;
   const all = namedThings(ed.store)[kind as NameKind];
   const maps = all.length && (kind === 'zone' || kind === 'spawn');

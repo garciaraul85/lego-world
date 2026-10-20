@@ -1,12 +1,14 @@
 import { SND } from '../../builtin/audio';
+import { BUILTIN_SCREEN_EFFECTS } from '../../builtin/screen-effects';
 import type { Conversation } from '../../core/dialogue/schema';
+import type { ScreenEffect } from '../../core/effects/screen';
 import { type Cinematic, type EmitterInstance, type Instances, paths, type UiInstance } from '../../core/schema';
 import { audioData } from '../../engine/audio/data';
 import { allScreens, resolveScreen } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
 import { ListenButton } from '../components/EventPicker';
 import { Header, Num, TextField } from '../components/fields';
-import { conversationPreview, EffectThumb, MusicListen, ScreenThumb } from '../components/previews';
+import { conversationPreview, EffectThumb, MusicListen, ScreenEffectThumb, ScreenThumb } from '../components/previews';
 import { eventNames } from '../events';
 import type { EditorState } from '../state';
 import { allEffects } from '../workspaces/effects/EffectsStudio';
@@ -21,6 +23,7 @@ export function actionChoices(ed: EditorState) {
     cinematics: cinematicOptions(ed),
     conversations: conversationOptions(ed),
     // P23
+    screenEffects: screenEffectChoices(ed),
     effects: (() => {
       const { own, builtin } = allEffects(ed.store);
       return [...own, ...builtin].map((e) => ({ id: e.id, name: e.name }));
@@ -37,7 +40,9 @@ export function actionChoices(ed: EditorState) {
       sound: (id: string) => ed.audio.previewEvent(id),
       music: (id: string | null) => ed.audio.previewMusic(id),
     },
-    thumb: (kind: 'effect' | 'screen' | 'conversation', id: string) => <PickedThumb ed={ed} kind={kind} id={id} />,
+    thumb: (kind: 'effect' | 'screen' | 'conversation' | 'screenEffect', id: string) => (
+      <PickedThumb ed={ed} kind={kind} id={id} />
+    ),
   };
 }
 
@@ -48,10 +53,14 @@ export function PickedThumb({
   id,
 }: {
   ed: EditorState;
-  kind: 'effect' | 'screen' | 'conversation';
+  kind: 'effect' | 'screen' | 'conversation' | 'screenEffect';
   id: string;
 }) {
   if (!id) return null;
+  if (kind === 'screenEffect') {
+    const e = ed.store.get<ScreenEffect>(paths.screenEffect(id)) ?? BUILTIN_SCREEN_EFFECTS.find((x) => x.id === id);
+    return e ? <ScreenEffectThumb effect={e} width={44} /> : null;
+  }
   if (kind === 'effect') {
     const { own, builtin } = allEffects(ed.store);
     const e = [...own, ...builtin].find((x) => x.id === id);
@@ -73,6 +82,16 @@ export function PickedThumb({
 export function speakerName(ed: EditorState, who: string): string {
   const c = ed.store.get<{ name: string }>(paths.character(who));
   return c?.name ?? who;
+}
+
+/** P23 part 2: screen effects (the game's own, then the built-in ones), by name */
+export function screenEffectChoices(ed: EditorState) {
+  ed.revision.value;
+  const own = ed.store
+    .list(paths.screenEffectDir)
+    .map((p) => ed.store.get<{ id: string; name: string }>(p)!)
+    .filter(Boolean);
+  return [...own, ...BUILTIN_SCREEN_EFFECTS].map((e) => ({ id: e.id, name: e.name }));
 }
 
 /** P22: the game's conversations, by name. */

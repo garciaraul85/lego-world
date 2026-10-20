@@ -686,8 +686,14 @@ function ArgPreview({ c, kind, value }: { c: ActionCtx; kind: string; value: str
   if (kind === 'sound') return <ListenButton name={value} onPlay={() => ed.audio.previewEvent(value)} />;
   if (kind === 'music') return <MusicListen ed={ed} id={value} name={value} />;
   // P23: pictures of what is picked
-  if (kind === 'effect' || kind === 'dialogue')
-    return <PickedThumb ed={ed} kind={kind === 'effect' ? 'effect' : 'conversation'} id={value} />;
+  if (kind === 'effect' || kind === 'dialogue' || kind === 'screenEffect')
+    return (
+      <PickedThumb
+        ed={ed}
+        kind={kind === 'effect' ? 'effect' : kind === 'screenEffect' ? 'screenEffect' : 'conversation'}
+        id={value}
+      />
+    );
   if (kind === 'map') return <MapThumb store={ed.store} mapId={value} size={26} rev={ed.revision.value} />;
   if (kind === 'asset') {
     const a = assetByRef(ed, value);

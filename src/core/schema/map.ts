@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Mood } from '../effects/screen';
 import { ActionList } from './action';
 import { id, LegacyBlob, Vec3 } from './common';
 
@@ -60,6 +61,8 @@ export const MapDoc = z.strictObject({
   sky: z.strictObject({ time: z.enum(TIMES) }),
   weather: z.strictObject({ rain: z.boolean(), snow: z.boolean(), snowing: z.boolean() }),
   generator: Generator.nullable(),
+  /** P23 part 2: the map's mood: colour grade, vignette, what drifts across the screen */
+  mood: Mood.optional(),
   music: id('music').nullable(),
   ambience: id('sound').nullable(),
   spawns: z.array(Spawn).max(32),

@@ -51,7 +51,11 @@ export type ArgKind =
   /** P22: a conversation */
   | 'dialogue'
   /** P23: an effect (built-in or the game's own) */
-  | 'effect';
+  | 'effect'
+  /** P23 part 2: a screen effect; a colour grade; what drifts across the screen */
+  | 'screenEffect'
+  | 'grade'
+  | 'drift';
 export type ArgDef = {
   name: string;
   kind: ArgKind;
@@ -100,6 +104,8 @@ export interface ExecCtx {
   sheet?(op: 'outfit' | 'xp' | 'switch', value: string | number): void;
   /** P23: play an effect (by id) at a place (empty: the hero), or start / stop an effect placed on the map */
   effect?(op: 'play' | 'on' | 'off', a: string, at?: string): void;
+  /** P23 part 2: play a screen effect (by id), set this map's mood while it plays, or clear the screen */
+  screen?(op: 'play' | 'mood' | 'clear', a?: string | Record<string, unknown>): void;
 }
 
 export type Args = Record<string, unknown>;

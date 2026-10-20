@@ -4,6 +4,7 @@ import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS } from '../../builtin/effects';
 import { genreById } from '../../builtin/genres';
+import { BUILTIN_SCREEN_EFFECTS, DEFAULT_SCREEN_EVENTS } from '../../builtin/screen-effects';
 import { expandAsset } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
@@ -14,6 +15,7 @@ import { levelOf, xpFor } from '../../core/character/sheet';
 import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
 import type { Enemy } from '../../core/combat/enemy';
 import type { Effect, EffectEvent } from '../../core/effects/schema';
+import { Mood, NO_MOOD, type ScreenEffect, type ScreenEvent } from '../../core/effects/screen';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import type { ExecCtx } from '../../core/logic/catalog';
@@ -49,6 +51,7 @@ import type { AudioPort, Vec3 } from '../audio/port';
 import { RecordingAudio } from '../audio/port';
 import { Animator } from '../character/animator';
 import { ParticleSystem, type PlayOptions, type StreamHandle } from '../effects/particles';
+import { ScreenFx } from '../effects/screen';
 import {
   type Controller,
   type Debris,
@@ -195,6 +198,12 @@ export class PlaySession {
   readonly health = new HealthBook();
   /** P23: particles (hit sparks, fire on torches, level-up bursts…) */
   readonly effects = new ParticleSystem(2000);
+  /** P23 part 2: screen effects (shake, flash, fade, hit-stop, slow motion), on real time */
+  readonly screenFx = new ScreenFx();
+  /** P23 part 2: the mood logic set for this map while it plays (null: the map's own) */
+  moodOverride: Mood | null = null;
+  /** the kind of the hero's strike being resolved (a charged or spin hit plays the big-hit screen effect) */
+  private strikeKind: AttackKind | null = null;
   /** placed effects: a running stream, or when the next burst is due; and which were started by logic */
   private placed = new Map<string, { stream: StreamHandle | null; next: number; on: boolean }>();
   /** P9c: neighbours that fight the hero */
@@ -287,6 +296,7 @@ export class PlaySession {
         op === 'outfit' ? this.setOutfit(String(value)) : this.giveXp(Number(value) || 0),
       effect: (op: 'play' | 'on' | 'off', a: string, at: string | undefined, self: string | undefined) =>
         this.effectOp(op, a, at === 'self' ? self : at),
+      screenEffect: (id: string) => this.screenFxOp('play', id),
     };
     this.actions = new ActionRunner(host);
     this.uiActions = new ActionRunner(host);
@@ -325,6 +335,7 @@ export class PlaySession {
       audio: this.audio,
       emit: (kind, msg) => this.emit(kind, msg),
       logicEvent: (event) => this.logic.fire({ type: 'event.onCustom', match: { event } }),
+      screenEffect: (id) => this.playScreenEffect(id),
       setVar: (name, value) => this.logic.setVar(name, value),
       dialogue: (line) => {
         if (!line) return this.endTalk();
@@ -525,6 +536,7 @@ export class PlaySession {
       this.audio.play(SND.victory);
       this.playAction('victory');
       this.eventEffect('levelUp', [this.heroState.x, this.heroState.y + 0.5, this.heroState.z]);
+      this.screenEvent('levelUp');
       this.logic.fire({ type: 'event.onLevelUp', match: {}, payload: { level } });
     }
   }
@@ -672,6 +684,8 @@ export class PlaySession {
       { id: 'health', fixed: (g) => g.checkHealth() },
       // screens and audio keep running while a screen pauses the game (frame systems always run)
       { id: 'ui', frame: (g, dt) => g.stepUi(dt) },
+      // P23 part 2: screen effects run on real time, so a hit-stop ends even though the game is frozen
+      { id: 'screenfx', frame: (g, dt) => g.stepScreenFx(dt) },
       {
         id: 'clock',
         fixed: (g, dt) => {
@@ -758,6 +772,8 @@ export class PlaySession {
     const pos: Vec3 = [s.x, s.y, s.z];
     if (s.vy > 3 && fallSpeed <= 0.5) this.audio.play(SND.jump, { pos });
     if (!wasGrounded && s.grounded && fallSpeed < -7) this.audio.play(SND.land, { pos });
+    // P23 part 2: a landing from high up shakes the screen
+    if (!wasGrounded && s.grounded && fallSpeed < -16) this.screenEvent('land');
     if (s.grounded && s.speed > 0.8 && !s.building) {
       this.stepTimer -= dt;
       if (this.stepTimer <= 0) {
@@ -778,6 +794,7 @@ export class PlaySession {
     const hp = Math.max(0, Number(this.logic.vars.get('hp') ?? 0) - n);
     this.logic.setVar('hp', hp);
     this.audio.play(this.heroChr?.voice?.grunt ?? SND.hurt);
+    this.screenEvent(hp > 0 ? 'hurt' : 'death');
     if (hp > 0) this.playAction('hurt');
     // P9a: the hero's hearts are its health
     if (hp > 0)
@@ -818,6 +835,19 @@ export class PlaySession {
 
   /** where an attack lands: the neighbour or object in front (or everything around, for spin and plunge) */
   private resolveStrike(
+    kind: AttackKind,
+    reach: number,
+    aim: { id: number | null; group?: string | undefined } | null,
+  ) {
+    this.strikeKind = kind;
+    try {
+      this.resolveStrikeAt(kind, reach, aim);
+    } finally {
+      this.strikeKind = null;
+    }
+  }
+
+  private resolveStrikeAt(
     kind: AttackKind,
     reach: number,
     aim: { id: number | null; group?: string | undefined } | null,
@@ -937,6 +967,7 @@ export class PlaySession {
     this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
     // P23: the hit's effect, by its damage type
     this.hitEffect(attack.type, [pos[0], pos[1] + 1, pos[2]]);
+    this.bigHitScreen();
     if (wound.hp > 0) {
       this.audio.play(owner.def.smash.sound ?? SND.smash, { pos, volume: 0.6 });
       this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
@@ -982,6 +1013,7 @@ export class PlaySession {
     }
     this.audio.play(SND.hurt, { pos });
     this.hitEffect(attack.type, [pos[0], pos[1] + 2, pos[2]]);
+    this.bigHitScreen();
     this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
     if (wound.hp > 0) {
       // P9b: knocked back (away from the hero) and stunned for a moment
@@ -1009,6 +1041,7 @@ export class PlaySession {
     if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
     this.say(`${name} is defeated.`, 2);
     this.eventEffect('defeat', [pos[0], pos[1] + 1.5, pos[2]]);
+    this.screenEvent('defeat');
     this.emit('smash', `${name} defeated`);
     this.logic.fire({
       type: 'event.onDefeated',
@@ -1143,6 +1176,84 @@ export class PlaySession {
     if (!chr || chr.id !== speaker.id) return null;
     const parts = this.faceParts(chr, v.mood);
     return Object.keys(parts).length ? parts : null;
+  }
+
+  // ---------- screen effects (P23 part 2) ----------
+
+  /** a screen effect of the game (its own file) or a built-in one */
+  screenEffectDef(id: string): ScreenEffect | null {
+    return (
+      (this.snapshot.get(paths.screenEffect(id)) as ScreenEffect | undefined) ??
+      BUILTIN_SCREEN_EFFECTS.find((e) => e.id === id) ??
+      null
+    );
+  }
+
+  /** Plays a screen effect; false when there is no such effect. */
+  playScreenEffect(id: string | null | undefined): boolean {
+    if (!id || id === 'none') return false;
+    const def = this.screenEffectDef(id);
+    if (!def) return false;
+    this.screenFx.play(def);
+    // a hit-stop holds from this very step
+    this.runtime.slow = this.screenFx.speed();
+    return true;
+  }
+
+  /** the screen effect for something that happens (the game's pick, else the built-in one) */
+  screenEvent(ev: ScreenEvent) {
+    this.playScreenEffect(this.project.screenEffects?.events?.[ev] ?? DEFAULT_SCREEN_EVENTS[ev]);
+  }
+
+  private bigHitScreen() {
+    if (this.strikeKind === 'charged' || this.strikeKind === 'spin' || this.strikeKind === 'plunge')
+      this.screenEvent('bigHit');
+  }
+
+  /** the mood shown now: what logic set for this map, else the map's own */
+  get mood(): Mood {
+    return this.moodOverride ?? this.world.doc.mood ?? NO_MOOD;
+  }
+
+  /** red edges while the hero is low on health (a quarter of its hearts or less; the game can turn them off) */
+  lowHealth(): number {
+    if (this.project.screenEffects?.lowHealth === false || this.over) return 0;
+    const hp = Number(this.logic.vars.get('hp') ?? 0);
+    const max = Number(this.logic.vars.get('maxHp') ?? 3);
+    return max > 0 && hp > 0 && hp / max <= 0.25 ? 1 : 0;
+  }
+
+  /** logic and actions: play a screen effect, set this map's mood while it plays, or clear everything */
+  screenFxOp(op: 'play' | 'mood' | 'clear', a?: string | Record<string, unknown>) {
+    if (op === 'clear') {
+      this.screenFx.clear();
+      this.moodOverride = null;
+      return;
+    }
+    if (op === 'play') {
+      if (!this.playScreenEffect(String(a ?? ''))) this.emit('info', `Screen effect: no screen effect ${a}.`);
+      return;
+    }
+    const m = (a ?? {}) as Record<string, unknown>;
+    const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(1, Number(v))) : d);
+    const r = Mood.safeParse({
+      grade: m.grade ?? 'none',
+      vignette: num(m.vignette, 0),
+      drift: m.drift ?? 'none',
+      amount: num(m.amount, 0.5),
+    });
+    if (r.success) this.moodOverride = r.data;
+    else this.emit('info', 'Set screen mood: not a colour or drift the editor knows.');
+  }
+
+  stepScreenFx(realDt: number) {
+    // a pause (a menu, the debugger) holds screen effects too
+    if (this.runtime.paused) {
+      this.runtime.slow = 1;
+      return;
+    }
+    this.screenFx.step(realDt);
+    this.runtime.slow = this.screenFx.speed();
   }
 
   // ---------- effects (P23 part 1) ----------
@@ -1281,6 +1392,9 @@ export class PlaySession {
     // P23: a new map starts with no particles; its own effects start again
     this.effects?.clear();
     this.placed?.clear();
+    // P23 part 2: a new map has its own mood; screen effects do not carry over
+    this.screenFx?.clear();
+    this.moodOverride = null;
   }
 
   /** P22 part 3: the body plan a character wears in Play (null: the minifig) */
@@ -1468,6 +1582,7 @@ export class PlaySession {
       }
       const n = originals.length;
       this.eventEffect('smash', [cx / n + 0.5, cy / n + 0.6, cz / n + 0.5]);
+      this.screenEvent('smash');
     }
     w.pieces = remaining;
     w.broken.push(entry);
@@ -1804,6 +1919,7 @@ export class PlaySession {
       },
       talk: (conversation) => void this.startConversation(conversation, null, 'other'),
       effect: (op, a, at) => this.effectOp(op, a, at),
+      screen: (op, a) => this.screenFxOp(op, a),
       sheet: (op, value) =>
         op === 'outfit'
           ? this.setOutfit(String(value))
@@ -2218,6 +2334,7 @@ export class PlaySession {
   applySettings() {
     const s = this.progress.settings;
     this.audio.playerVolume?.(s.music / 100, s.sounds / 100);
+    this.screenFx.reduceMotion = !!s.reduceMotion;
   }
 
   private entryPos(): [number, number, number] {

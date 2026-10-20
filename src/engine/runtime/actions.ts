@@ -37,6 +37,8 @@ export interface ActionHost {
   sheet?(op: 'outfit' | 'xp', value: string | number): void;
   /** P23: play an effect at a place, or start / stop an effect placed on the map */
   effect?(op: 'play' | 'on' | 'off', a: string, at: string | undefined, self: string | undefined): void;
+  /** P23 part 2: play a screen effect (by id) */
+  screenEffect?(id: string): void;
 }
 
 type Pending = { actions: Action[]; at: number; self: string | undefined };
@@ -172,6 +174,10 @@ export class ActionRunner {
         case 'effectOn':
           if (h.effect) h.effect(a.on ? 'on' : 'off', a.name, undefined, self);
           else h.log('info', `effect ${a.name} ${a.on ? 'on' : 'off'}`);
+          break;
+        case 'screenEffect':
+          if (h.screenEffect) h.screenEffect(a.effect);
+          else h.log('info', `screen effect ${a.effect}`);
           break;
         case 'talk':
           if (h.talk) h.talk(a.conversation, self);

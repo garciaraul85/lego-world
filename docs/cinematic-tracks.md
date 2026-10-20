@@ -33,6 +33,7 @@ both follow this page. Times are seconds from the start of the scene; every item
 | post | `{letterbox: bool}` | Switches the bars. |
 | post | `{title, sub?, dur}` | A title card (0.4 s fade in and out). |
 | post | `{slowmo: 0.1–1, dur}` | The world outside the cast (neighbours, debris) runs slower. |
+| post | `{screen: sce_…}` | P23 part 2: plays a screen effect (shake, flash, fade, hit-stop, slow motion) at that moment. Skip does not play it. |
 | event | `{emit}` | Fires logic's **On custom event**. |
 | event | `{setVar, value}` | Sets a game variable (logic sees **On variable changed**). |
 

@@ -63,6 +63,8 @@ export const PostItem = z.union([
     dur: z.number().positive(),
   }),
   z.strictObject({ t: T, slowmo: z.number().min(0.1).max(1), dur: z.number().positive() }),
+  /** P23 part 2: a screen effect (a flash, a shake, an earthquake…) */
+  z.strictObject({ t: T, screen: id('screenEffect') }),
 ]);
 export type PostItem = z.infer<typeof PostItem>;
 

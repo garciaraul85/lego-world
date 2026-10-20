@@ -20,6 +20,8 @@ export const ID_PREFIX = {
   bodyplan: 'bpl',
   /** P23: an effect (particles) */
   effect: 'fx',
+  /** P23 part 2: a screen effect (shake, flash, fade, hit-stop, slow motion) */
+  screenEffect: 'sce',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

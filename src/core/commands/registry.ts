@@ -35,7 +35,7 @@ import {
 } from './handlers/characters';
 import { deleteCinematic, putCinematic } from './handlers/cinematics';
 import { deleteDialogue, putDialogue } from './handlers/dialogue';
-import { deleteEffect, putEffect } from './handlers/effects';
+import { deleteEffect, deleteScreenEffect, putEffect, putScreenEffect } from './handlers/effects';
 import { deleteFile, putFile } from './handlers/file';
 import { connectGate, deleteGate, deleteMap, updateGate } from './handlers/gates';
 import { addItem, removeItem, setMapAudio, updateItem } from './handlers/items';
@@ -101,6 +101,8 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('bodyplan.delete', deleteBodyPlan);
   bus.register('effect.put', putEffect);
   bus.register('effect.delete', deleteEffect);
+  bus.register('screenEffect.put', putScreenEffect);
+  bus.register('screenEffect.delete', deleteScreenEffect);
   bus.register('npc.remove', removeNpc);
   bus.register('instance.unpack', unpackInstance);
   bus.register('instance.transform', transformInstance);

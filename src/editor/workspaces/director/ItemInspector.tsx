@@ -1,12 +1,13 @@
 import { SND } from '../../../builtin/audio';
 import { BUILTIN_CLIPS } from '../../../builtin/clips';
 import { EMOTE_KINDS } from '../../../builtin/clips/emotes';
+import { SFX } from '../../../builtin/screen-effects';
 import { usesOf } from '../../../core/audio/usage';
 import type { ActorItem, CameraItem, Cinematic, Clip, PostItem } from '../../../core/schema';
 import { EventPicker, ListenButton } from '../../components/EventPicker';
 import { FieldHelp } from '../../components/fields';
 import { describeUse, eventUses } from '../../events';
-import { musicOptions, soundOptions } from '../../panels/AudioFields';
+import { musicOptions, screenEffectChoices, soundOptions } from '../../panels/AudioFields';
 import type { EditorState } from '../../state';
 import { Check, NumIn, Pick, Sec, TextIn, Vec } from './fields';
 import { type Item, itemAt, type Sel, setItem } from './model';
@@ -362,7 +363,16 @@ export function ItemInspector({
   }
   if (tr.kind === 'post') {
     const p = it as PostItem;
-    const kind = 'fade' in p ? 'fade' : 'letterbox' in p ? 'letterbox' : 'title' in p ? 'title' : 'slowmo';
+    const kind =
+      'fade' in p
+        ? 'fade'
+        : 'letterbox' in p
+          ? 'letterbox'
+          : 'title' in p
+            ? 'title'
+            : 'screen' in p
+              ? 'screen'
+              : 'slowmo';
     return (
       <Sec title="Post effect">
         <Pick
@@ -373,6 +383,7 @@ export function ItemInspector({
             { id: 'letterbox', name: 'Letterbox' },
             { id: 'title', name: 'Title card' },
             { id: 'slowmo', name: 'Slow motion' },
+            { id: 'screen', name: 'Screen effect (shake, flash…)' },
           ]}
           onChange={(k) =>
             put(
@@ -382,7 +393,9 @@ export function ItemInspector({
                   ? { t: p.t, letterbox: true }
                   : k === 'title'
                     ? { t: p.t, title: cin.name, dur: 2.5 }
-                    : { t: p.t, slowmo: 0.4, dur: 1.5 }) as Item,
+                    : k === 'screen'
+                      ? { t: p.t, screen: SFX.bigShake }
+                      : { t: p.t, slowmo: 0.4, dur: 1.5 }) as Item,
             )
           }
         />
@@ -419,6 +432,15 @@ export function ItemInspector({
             <TextIn label="Subtitle" value={p.sub ?? ''} onChange={(sub) => put({ ...p, sub: sub.slice(0, 120) })} />
             <NumIn label="Shown for (s)" value={p.dur} min={0.2} onChange={(dur) => put({ ...p, dur })} />
           </>
+        )}
+        {'screen' in p && (
+          <Pick
+            label="Screen effect"
+            help="What happens to the whole view at this moment: a shake, a flash, an earthquake (Effects › Screen makes your own)."
+            value={p.screen}
+            options={screenEffectChoices(ed)}
+            onChange={(v) => put({ ...p, screen: v as never })}
+          />
         )}
         {'slowmo' in p && (
           <>

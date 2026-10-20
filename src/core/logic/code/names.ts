@@ -1,6 +1,7 @@
 import { BUILTIN_ASSETS } from '../../../builtin/assets';
 import { DEFAULT_EVENTS, DEFAULT_MUSIC } from '../../../builtin/audio/pack';
 import { BUILTIN_EFFECTS } from '../../../builtin/effects';
+import { BUILTIN_SCREEN_EFFECTS } from '../../../builtin/screen-effects';
 import { BUILTIN_SCREENS } from '../../../builtin/screens';
 import type { LogicGraph, MapDoc } from '../../schema';
 import { nodeDef } from '../catalog';
@@ -14,7 +15,17 @@ import type { ArgKind } from '../catalog/types';
  */
 export type NameKind = Extract<
   ArgKind,
-  'zone' | 'spawn' | 'map' | 'asset' | 'sound' | 'music' | 'screen' | 'cinematic' | 'dialogue' | 'effect'
+  | 'zone'
+  | 'spawn'
+  | 'map'
+  | 'asset'
+  | 'sound'
+  | 'music'
+  | 'screen'
+  | 'cinematic'
+  | 'dialogue'
+  | 'effect'
+  | 'screenEffect'
 >;
 export const NAME_KINDS: readonly NameKind[] = [
   'zone',
@@ -27,6 +38,7 @@ export const NAME_KINDS: readonly NameKind[] = [
   'cinematic',
   'dialogue',
   'effect',
+  'screenEffect',
 ];
 
 export type NamedThing = { id: string; name: string; kind: NameKind /** where it is, what it is */; note: string };
@@ -55,6 +67,7 @@ export function namedThings(s: Source): Record<NameKind, NamedThing[]> {
     cinematic: [],
     dialogue: [],
     effect: [],
+    screenEffect: [],
   };
   const order = read<{ mapOrder: string[] }>(s, 'world/gates.json')?.mapOrder ?? [];
   const mapPaths = s.list('maps/').filter((p) => p.endsWith('/map.json'));
@@ -135,6 +148,13 @@ export function namedThings(s: Source): Record<NameKind, NamedThing[]> {
     out.effect.push({ id: e.id, name: e.name, kind: 'effect', note: `effect · ${e.mode ?? 'burst'}` });
   for (const e of BUILTIN_EFFECTS)
     out.effect.push({ id: e.id, name: e.name, kind: 'effect', note: `built-in effect · ${e.mode}` });
+  // P23 part 2: screen effects, the game's own first
+  for (const p of s.list('screenfx/')) {
+    const e = read<{ id: string; name: string }>(s, p);
+    if (e?.id) out.screenEffect.push({ id: e.id, name: e.name, kind: 'screenEffect', note: 'screen effect' });
+  }
+  for (const e of BUILTIN_SCREEN_EFFECTS)
+    out.screenEffect.push({ id: e.id, name: e.name, kind: 'screenEffect', note: 'built-in screen effect' });
   return out;
 }
 

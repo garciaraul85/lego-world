@@ -1,3 +1,4 @@
+import { BUILTIN_SCREEN_EFFECTS } from '../../../builtin/screen-effects';
 import type { Cinematic, Track } from '../../../core/schema';
 import type { CinematicPlayer } from '../../../engine/cinematic/CinematicPlayer';
 
@@ -132,6 +133,10 @@ export function itemLabel(kind: RowKind, it: Item): string {
   if ('letterbox' in it) return `Letterbox ${it.letterbox ? 'on' : 'off'}`;
   if ('title' in it) return `Title “${it.title}”`;
   if ('slowmo' in it) return `Slow ×${it.slowmo}`;
+  if ('screen' in it) {
+    const e = BUILTIN_SCREEN_EFFECTS.find((x) => x.id === it.screen);
+    return `✦ ${e?.name ?? 'Screen effect'}`;
+  }
   if ('emit' in it) return `Send ${it.emit}`;
   if ('setVar' in it) return `${it.setVar} = ${JSON.stringify(it.value)}`;
   return '•';

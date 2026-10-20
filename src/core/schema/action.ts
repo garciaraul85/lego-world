@@ -53,7 +53,7 @@ export const Action = z.discriminatedUnion('do', [
   /** P26 part 2: a player setting steps to its next value (Settings screen), or is set */
   z.strictObject({
     do: z.literal('setting'),
-    key: z.enum(['music', 'sounds', 'invertY', 'cameraSpeed', 'textSize', 'difficulty']),
+    key: z.enum(['music', 'sounds', 'invertY', 'cameraSpeed', 'textSize', 'difficulty', 'reduceMotion']),
     value: z.union([z.number(), z.boolean(), z.string()]).optional(),
   }),
   /** P22 part 2: the hero puts on an outfit from its sheet ('' : its own look) */
@@ -67,6 +67,8 @@ export const Action = z.discriminatedUnion('do', [
   z.strictObject({ do: z.literal('effect'), effect: id('effect'), at: z.string().max(60).optional() }),
   /** P23: start or stop an effect placed on the map (by its name) */
   z.strictObject({ do: z.literal('effectOn'), name: z.string().min(1).max(60), on: z.boolean() }),
+  /** P23 part 2: play a screen effect (shake, flash, fade, hit-stop, slow motion) */
+  z.strictObject({ do: z.literal('screenEffect'), effect: id('screenEffect') }),
   /** P22: start a conversation (a sign, an object's interaction, a screen button or logic) */
   z.strictObject({ do: z.literal('talk'), conversation: id('dialogue') }),
   /** a one-shot music stinger from audio/music.json (ducks the music while it plays) */
