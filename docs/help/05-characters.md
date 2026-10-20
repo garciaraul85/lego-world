@@ -46,7 +46,7 @@ The right side of the Characters screen is the character's **sheet**, in tabs:
 - **Stats**: hearts (the player character), stamina, speed, jump, strength (hit power), defence (8% less damage a point) and a level with an experience curve. Logic's **Give experience** levels up; **On level up** reacts. The genre's simple view shows the stats its games use.
 - **Moves**: a fighting style (Balanced, Swift, Heavy, Defensive) with hit power and swing speed; a neighbour fights the hero with **Fights the hero**.
 - **Animations**: the clip for idle (standing still), victory (a level up) and hurt; walk, run, jump and attack are kept for the animation state machine (P23). Each row shows the clip's picture, which moves while the pointer is on it; **▶** plays the clip on the big figure (**■** stops it), and picking a clip plays it too. The clip list on the left moves the same way on hover.
-- **Voice**: talk pitch and blip for its lines in dialogue, footsteps and its hurt sound. **▶ Hear it talk** says a sample line letter by letter with the blip at its pitch, as in a conversation; **▶** beside a sound plays just that sound.
+- **Voice**: talk pitch and blip for its lines in dialogue, footsteps and its hurt sound. **▶ Hear it talk** says a sample line letter by letter with the blip at its pitch, as in a conversation, and the figure in the preview says it with its mouth (close up); **▶** beside a sound plays just that sound.
 - **Dialogue**: its Talk list and barks (below).
 - **Behaviour**: what kind of character it is, whether it walks around or stands still where it was put, the role buttons (Knight, Ranger, Wizard, Shopkeeper, Brute, Boss) that fill in a sheet, and the **party**: playable characters the player switches between with H.
 
@@ -69,6 +69,10 @@ The sliders (Size, Leg length, Neck, Tail length, Wing span, Head size, Build) c
 ## Faces for moods
 
 The **Face** tab shows a minifig's resting face (head shape, eyes and their colour, expression, face marks, facial hair and glasses) and a picture of its face for each mood: **Happy**, **Angry**, **Sad**, **Scared** and **Surprised**. Click a mood to see it on the preview and change its **Expression** and **Eyes**; **Default** puts it back. Dialogue lines have a mood (in a script: Tom (angry): Who left the gate open?): in Play the speaker shows that face on its figure and in the dialogue box's portrait, which is now the speaker's own head.
+
+## Talking
+
+When a minifig says a line its mouth moves with the words: closed for m, b and p and between words, wide open for a and o, half open for the other letters, and closed again when the line has appeared. It talks on its figure in Play, in the dialogue box's portrait, in the conversation preview and in cinematics, with the face of the line's mood. **▶ Hear it talk** on the Face tab shows a mood's face talking. Creatures with a body plan have no mouth to move.
 
 ## A character from a picture
 

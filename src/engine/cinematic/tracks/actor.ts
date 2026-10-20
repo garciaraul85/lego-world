@@ -1,3 +1,5 @@
+import { type Mouth, mouthOverTime } from '../../../core/dialogue/lipsync';
+import type { Mood } from '../../../core/dialogue/schema';
 import type { ActorItem, Clip } from '../../../core/schema';
 import type { NavGrid, Vec3 } from '../nav';
 
@@ -20,6 +22,10 @@ export type ActorFrame = {
   held: string;
   clip: { clip: Clip; time: number } | null;
   say: { text: string; start: number; dur: number } | null;
+  /** P23 part 3: the mood whose face the actor shows now (its line's, or a Mood item's); null: its own face */
+  mood: Mood | null;
+  /** P23 part 3: the mouth while it speaks (0 closed, 0.5 half, 1 wide) */
+  mouth: Mouth;
 };
 
 type Seg = {
@@ -182,6 +188,8 @@ export class ActorTrack {
     let held = this.start.held;
     let clip: ActorFrame['clip'] = null;
     let say: ActorFrame['say'] = null;
+    let mood: Mood | null = null;
+    let mouth: Mouth = 0;
     for (const it of this.items) {
       if (it.t > t) break;
       switch (it.do) {
@@ -202,7 +210,14 @@ export class ActorTrack {
           held = it.item;
           break;
         case 'say':
-          if (t < it.t + it.dur) say = { text: it.text, start: it.t, dur: it.dur };
+          if (t < it.t + it.dur) {
+            say = { text: it.text, start: it.t, dur: it.dur };
+            mouth = mouthOverTime(it.text, t - it.t, it.dur);
+            if (it.mood) mood = it.mood;
+          }
+          break;
+        case 'mood':
+          if (t < it.t + it.dur) mood = it.mood;
           break;
         case 'play':
         case 'emote': {
@@ -219,6 +234,6 @@ export class ActorTrack {
       }
     }
     if (moving) clip = null;
-    return { pos, yaw, speed, running, phase: walked * PHASE_PER_STUD, visible, held, clip, say };
+    return { pos, yaw, speed, running, phase: walked * PHASE_PER_STUD, visible, held, clip, say, mood, mouth };
   }
 }

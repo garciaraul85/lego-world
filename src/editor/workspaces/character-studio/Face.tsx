@@ -8,6 +8,7 @@ import { wornProfile } from '../../../engine/runtime/sheet';
 import { FieldHelp } from '../../components/fields';
 import { PreviewPicker } from '../../components/PreviewPicker';
 import type { Props } from './Sheet';
+import { VoicePreview } from './Sheet';
 import { CharacterThumb } from './thumbs';
 
 /**
@@ -83,6 +84,8 @@ export function FaceTab({
             </button>
           ))}
         </div>
+        {/* P23 part 3: see the face talk in this mood (the preview's mouth moves with the words) */}
+        <VoicePreview c={c} chr={chr} />
       </div>
       {mood === 'neutral' ? (
         <div class="sec" data-tour="face-resting">
@@ -168,7 +171,7 @@ export function FaceTab({
 
 /** The dialogue preview's portraits: the speaker of the game (by id or name) with the line's mood. */
 export function editorPortrait(store: { list(p: string): string[]; get(p: string): unknown }) {
-  return (who: string, mood: Mood): string | null => {
+  return (who: string, mood: Mood, mouth = 0): string | null => {
     const chr = who.startsWith('chr_')
       ? (store.get(`characters/${who}.json`) as Character | undefined)
       : store
@@ -185,6 +188,9 @@ export function editorPortrait(store: { list(p: string): string[]; get(p: string
     const L = legacyRuntime();
     return body
       ? portrait({}, body)
-      : portrait(withMood({ ...L.CharacterCatalog.defaults, ...wornProfile(chr) }, chr.faces, mood));
+      : portrait({
+          ...withMood({ ...L.CharacterCatalog.defaults, ...wornProfile(chr) }, chr.faces, mood),
+          ...(mouth ? { mouthOpen: mouth } : {}),
+        });
   };
 }

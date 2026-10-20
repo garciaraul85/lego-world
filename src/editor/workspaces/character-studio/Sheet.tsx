@@ -16,6 +16,7 @@ import {
   xpFor,
 } from '../../../core/character/sheet';
 import { lookOf } from '../../../core/dialogue/checks';
+import { mouthAt } from '../../../core/dialogue/lipsync';
 import type { Character, Clip } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
 import { FieldHelp } from '../../components/fields';
@@ -500,10 +501,16 @@ export function VoiceTab({ c, chr, save }: Props) {
  * P23: hear the voice. The sample line appears letter by letter as it does in a conversation, with a blip
  * every couple of letters at the voice's pitch (its own blip, or the game's dialogue blip).
  */
-function VoicePreview({ c, chr }: Pick<Props, 'c' | 'chr'>) {
+export function VoicePreview({ c, chr }: Pick<Props, 'c' | 'chr'>) {
   const [shown, setShown] = useState(-1);
   const timer = useRef(0);
-  useEffect(() => () => clearInterval(timer.current), []);
+  useEffect(
+    () => () => {
+      clearInterval(timer.current);
+      c.ed.talkMouth.value = 0;
+    },
+    [],
+  );
   const look = lookOf(c.ed.store.manifest, null);
   const blip = chr.voice?.blip ?? look.blip;
   const pitch = chr.voice?.pitch ?? 1;
@@ -512,12 +519,16 @@ function VoicePreview({ c, chr }: Pick<Props, 'c' | 'chr'>) {
     clearInterval(timer.current);
     let n = 0;
     setShown(0);
+    c.ed.talkHeard.value++;
     timer.current = window.setInterval(() => {
       n++;
       setShown(n);
+      // P23 part 3: the figure in the preview says it (lip sync)
+      c.ed.talkMouth.value = mouthAt(SAMPLE_LINE, n);
       if (blip && n % 2 === 0 && /\S/.test(SAMPLE_LINE[n - 1] ?? '')) c.ed.audio.previewEvent(blip, pitch);
       if (n >= SAMPLE_LINE.length) {
         clearInterval(timer.current);
+        c.ed.talkMouth.value = 0;
         window.setTimeout(() => setShown(-1), 1500);
       }
     }, 1000 / speed);

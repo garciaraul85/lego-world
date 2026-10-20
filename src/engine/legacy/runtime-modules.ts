@@ -195,7 +195,7 @@ const ORDER = [
   characterCatalog,
   rigCollision,
   withRoomToWalk(gamePhysics),
-  withOffHand(characterModel),
+  withTalkingMouth(withOffHand(characterModel)),
   characterArt,
   npcWorld,
 ];
@@ -229,6 +229,20 @@ function withRoomToWalk(src: string): string {
       'if(area.x1-area.x0<32&&area.z1-area.z0<32){area.x0=Math.min(area.x0,-16);area.x1=Math.max(area.x1,16);' +
       'area.z0=Math.min(area.z0,-16);area.z1=Math.max(area.z1,16);}return area;',
   );
+}
+
+/**
+ * P23 part 3: a talking mouth. While a character speaks, its profile carries `mouthOpen` (0.5 half, 1 wide)
+ * and the face prints an open mouth (with a tongue) instead of the expression's mouth; the brows and eyes
+ * keep the mood. Each shape is a different profile, so the model caches each one once.
+ */
+function withTalkingMouth(src: string): string {
+  const at = "part('root',ink);const mouth=[];if(['Smile',";
+  if (!src.includes(at)) throw new Error('character model: the mouth block moved; update withTalkingMouth');
+  const open =
+    "part('root',ink);const mouth=[];if(p.mouthOpen>0){const o=p.mouthOpen;disc(0,3.47,.10+.05*o,.035+.085*o);" +
+    "part('root','#b94352');disc(0,3.43,.05+.03*o,.015+.035*o,.031);part('root',ink);}else if(['Smile',";
+  return src.replace(at, open);
 }
 
 let runtime: LegacyRuntime | null = null;

@@ -321,12 +321,15 @@ export class PlayRenderer {
           if (creatures.drawn.has(n.id)) continue;
           const cast = s.cine.drawFor(n, n.profile, n.state);
           if (cast?.state.hidden) continue;
-          // P22 part 4: a speaker shows the face of its line's mood
-          const face = s.moodFaceOf(n);
+          // P22 part 4: a speaker shows the face of its line's mood (P23 part 3: in a cinematic too)
+          const face = cast ? s.castFaceOf(n, cast.mood ?? null) : s.moodFaceOf(n);
           const look = cast?.profile ?? n.profile;
           draw(face ? { ...look, ...face } : look, cast?.state ?? n.state);
         }
-        for (const x of s.cine.extras()) draw(x.profile, x.state);
+        for (const x of s.cine.extras()) {
+          const face = x.mood && x.name ? s.speakerFace(x.name, x.mood) : null;
+          draw(face ? { ...x.profile, ...face } : x.profile, x.state);
+        }
         if (!this.bound.has(w.controller)) {
           c.bindCollision(s.hero, w.controller);
           this.bound.add(w.controller);
@@ -339,7 +342,8 @@ export class PlayRenderer {
         if (creatures.drawn.has('hero')) {
           /* drawn as a body plan (overlays) */
         } else if (heroCast) {
-          if (!heroCast.state.hidden) draw(heroCast.profile, heroCast.state);
+          const face = s.castFaceOf('hero', heroCast.mood ?? null);
+          if (!heroCast.state.hidden) draw(face ? { ...heroCast.profile, ...face } : heroCast.profile, heroCast.state);
         } else
           draw(
             s.moodFaceOf('hero') ? { ...s.hero, ...s.moodFaceOf('hero') } : s.hero,

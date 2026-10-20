@@ -1,6 +1,7 @@
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { emoteClip } from '../../builtin/clips/emotes';
+import type { Mood } from '../../core/dialogue/schema';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { type Character, type Cinematic, type Clip, type Instances, paths } from '../../core/schema';
 import type { AudioPort } from '../audio/port';
@@ -40,7 +41,13 @@ type Actor =
   | { kind: 'npc'; role: string; name: string; npc: Npc }
   | { kind: 'extra'; role: string; name: string; profile: Record<string, unknown> };
 
-export type DrawActor = { profile: Record<string, unknown>; state: HeroState & { hidden?: boolean } };
+export type DrawActor = {
+  profile: Record<string, unknown>;
+  state: HeroState & { hidden?: boolean };
+  /** P23 part 3: the mood whose face it shows now (null: its own face), and its cast member's name */
+  mood?: Mood | null;
+  name?: string;
+};
 
 /**
  * Cinematics in Play (P6.2 `systems/cinematic.ts`): one scene at a time. Cast members are driven by
@@ -273,7 +280,7 @@ export class CinematicSystem {
       const af = f.actors.get(a.role);
       if (!af) return null;
       if (!af.visible) return { profile, state: { ...state, hidden: true } };
-      return this.withPose(af, { ...profile, held: af.held }, state);
+      return { ...this.withPose(af, talking(af, { ...profile, held: af.held }), state), mood: af.mood, name: a.name };
     }
     return null;
   }
@@ -287,7 +294,11 @@ export class CinematicSystem {
       if (a.kind !== 'extra') continue;
       const af = f.actors.get(a.role);
       if (!af?.visible) continue;
-      out.push(this.withPose(af, { ...a.profile, held: af.held }, this.motion(af)));
+      out.push({
+        ...this.withPose(af, talking(af, { ...a.profile, held: af.held }), this.motion(af)),
+        mood: af.mood,
+        name: a.name,
+      });
     }
     return out;
   }
@@ -300,4 +311,9 @@ export class CinematicSystem {
       state: { ...state, studioPose: rigPose(params, af.clip.clip), studioProgress: 0, studioFist: false },
     };
   }
+}
+
+/** P23 part 3: an actor that is speaking opens its mouth with the words */
+function talking(af: ActorFrame, profile: Record<string, unknown>): Record<string, unknown> {
+  return af.mouth ? { ...profile, mouthOpen: af.mouth } : profile;
 }

@@ -108,7 +108,8 @@ export function GameScreens({
           onNext={() => s.dialogueNext()}
           onChoose={(i) => s.dialogueChoose(i)}
           blip={(ev, pitch) => s.audio.play(ev, { pitch })}
-          portrait={(who, mood) => s.portraitOf(who, mood)}
+          // P23 part 3: the portrait talks too (its closed face while a mouth shape is first drawn)
+          portrait={(who, mood) => s.portraitOf(who, mood, s.talks.mouth()) ?? s.portraitOf(who, mood)}
         />
       )}
     </>

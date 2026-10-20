@@ -136,6 +136,10 @@ export class EditorState {
   readonly screenEffectId = signal<string | null>(null);
   /** P23 part 2: show the map's mood (colour, dark edges, drifting) over the Scene view */
   readonly moodPreview = signal(true);
+  /** P23 part 3: the studio preview's mouth while a line is heard (0 closed, 0.5 half, 1 wide) */
+  readonly talkMouth = signal(0);
+  /** how many times a line was heard in the studio (the Faces course checks it) */
+  readonly talkHeard = signal(0);
   /** P22 part 4: the “A character from a picture” dialog is open */
   readonly fromPicture = signal(false);
   readonly faceMood = signal<'neutral' | 'happy' | 'angry' | 'sad' | 'scared' | 'surprised'>('neutral');

@@ -1,5 +1,6 @@
 import { lookOf } from '../../core/dialogue/checks';
 import { type CondHost, evalCondition } from '../../core/dialogue/condition';
+import { type Mouth, mouthAt } from '../../core/dialogue/lipsync';
 import type { Conversation, DialogueLook, DialogueStyle } from '../../core/dialogue/schema';
 import type { Genre } from '../../core/genres/types';
 import { type Action, type Character, paths } from '../../core/schema';
@@ -140,6 +141,18 @@ export class TalkSystem {
   }
 
   /** How many letters of the line show now (letter by letter at the style's speed). */
+  /**
+   * P23 part 3: the speaker's mouth now (lip sync): it follows the letters as they appear; a line shown all at
+   * once is spoken at 40 letters a second. A choice, the narrator or the end of the line: closed.
+   */
+  mouth(): Mouth {
+    const v = this.view;
+    if (!v || v.choices || !v.who) return 0;
+    const shown = this.revealed();
+    if (v.look.textSpeed > 0 || this.skipped) return this.skipped ? 0 : mouthAt(v.text, shown);
+    return mouthAt(v.text, (this.h.now() - this.lineAt) * 40);
+  }
+
   revealed(): number {
     const v = this.view;
     if (!v) return 0;

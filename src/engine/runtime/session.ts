@@ -1148,7 +1148,7 @@ export class PlaySession {
   }
 
   /** P22 part 4: the speaker's portrait for a dialogue line (null: not drawn yet, or no such character) */
-  portraitOf(who: string, mood: Parameters<typeof moodFace>[1]): string | null {
+  portraitOf(who: string, mood: Parameters<typeof moodFace>[1], mouth = 0): string | null {
     const chr = this.speakerCharacter(who);
     if (!chr) return null;
     let body: ResolvedBody | null = null;
@@ -1159,7 +1159,12 @@ export class PlaySession {
     }
     const profile = body
       ? {}
-      : { ...this.L.CharacterCatalog.defaults, ...wornProfile(chr), ...this.faceParts(chr, mood) };
+      : {
+          ...this.L.CharacterCatalog.defaults,
+          ...wornProfile(chr),
+          ...this.faceParts(chr, mood),
+          ...(mouth ? { mouthOpen: mouth } : {}),
+        };
     return portrait(profile, body);
   }
 
@@ -1167,14 +1172,34 @@ export class PlaySession {
    * P22 part 4: while a line plays, its speaker (a neighbour on the map, or the hero) shows the face of the
    * line's mood. Null: no change.
    */
-  moodFaceOf(who: Npc | 'hero'): Record<string, string> | null {
+  moodFaceOf(who: Npc | 'hero'): Record<string, string | number> | null {
     const v = this.talks.active ? this.talks.view : null;
     if (!v?.who || v.choices) return null;
     const speaker = this.speakerCharacter(v.who);
     if (!speaker) return null;
     const chr = who === 'hero' ? this.heroChr : npcCharacter(this.snapshot, this.world.mapId, who);
     if (!chr || chr.id !== speaker.id) return null;
-    const parts = this.faceParts(chr, v.mood);
+    // P23 part 3: and its mouth moves with the words
+    const parts: Record<string, string | number> = this.faceParts(chr, v.mood);
+    const mouth = this.talks.mouth();
+    if (mouth) parts.mouthOpen = mouth;
+    return Object.keys(parts).length ? parts : null;
+  }
+
+  /** P23 part 3: the face of a character (by id or name) for a mood: a cinematic's extra cast */
+  speakerFace(who: string, mood: Parameters<typeof moodFace>[1]): Record<string, string> | null {
+    const chr = this.speakerCharacter(who);
+    if (!chr) return null;
+    const parts = this.faceParts(chr, mood);
+    return Object.keys(parts).length ? parts : null;
+  }
+
+  /** P23 part 3: a cast member's face in a cinematic (its line's mood, or a Face item); null: its own face */
+  castFaceOf(who: Npc | 'hero', mood: Parameters<typeof moodFace>[1] | null): Record<string, string> | null {
+    if (!mood) return null;
+    const chr = who === 'hero' ? this.heroChr : npcCharacter(this.snapshot, this.world.mapId, who);
+    if (!chr) return null;
+    const parts = this.faceParts(chr, mood);
     return Object.keys(parts).length ? parts : null;
   }
 

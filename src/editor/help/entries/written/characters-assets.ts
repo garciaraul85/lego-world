@@ -269,7 +269,7 @@ export const CHARACTERS: HelpEntry[] = [
     kind: 'area',
     name: 'Face',
     purpose:
-      'A minifig’s resting face (head shape, eyes and their colour, expression, face marks like freckles, blush or a scar, facial hair and glasses) and a face for each **mood**: Happy, Angry, Sad, Scared and Surprised. Each mood starts from a sensible face; change its expression and eyes to make it the character’s own. A dialogue line has a mood: in Play its speaker shows that face on the figure and in the dialogue box’s portrait.',
+      'A minifig’s resting face (head shape, eyes and their colour, expression, face marks like freckles, blush or a scar, facial hair and glasses) and a face for each **mood**: Happy, Angry, Sad, Scared and Surprised. Each mood starts from a sensible face; change its expression and eyes to make it the character’s own. A dialogue line has a mood: in Play its speaker shows that face on the figure and in the dialogue box’s portrait, and its mouth moves with the words (lip sync), in cinematics too. **▶ Hear it talk** shows the mood’s face talking.',
     steps: [
       'Open the **Face** tab of the character sheet. The preview looks at the head.',
       'Click a mood’s picture, like **Angry**.',
@@ -417,7 +417,7 @@ export const CHARACTERS: HelpEntry[] = [
     kind: 'area',
     name: 'Voice and sounds',
     purpose:
-      'How the character sounds: **Talk pitch** and **Voice blip** for its lines in dialogue (deep for a giant, high for a mouse), its **Footsteps** and its **Hurt sound** (the player character). **▶ Hear it talk** says a sample line with the blip at its pitch, as in a conversation; ▶ beside a sound plays it.',
+      'How the character sounds: **Talk pitch** and **Voice blip** for its lines in dialogue (deep for a giant, high for a mouse), its **Footsteps** and its **Hurt sound** (the player character). **▶ Hear it talk** says a sample line with the blip at its pitch, as in a conversation, and the figure in the preview says it, its mouth moving with the words; ▶ beside a sound plays it.',
     commands: ['character.update'],
     match: [{ in: '[data-tour="char-voice"]' }],
     related: ['characters.dialogue', 'scene.dialogue'],

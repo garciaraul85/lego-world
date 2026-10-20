@@ -154,11 +154,13 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
   // P22 part 3: a body plan instead of the minifig
   const body = bodyOfChr(chr, (p) => ed.store.get(p));
   const faceOn = ed.sheetTab.value === 'face' && !body;
+  // P23 part 3: while a line is heard (Voice or Face tab) the figure's mouth moves, seen close up
+  const mouth = body ? 0 : ed.talkMouth.value;
+  const studioLook = { ...wornProfile(chr), offHand: chr.gear?.offHand ?? 'None' };
+  const shown = faceOn ? withMood(studioLook, chr.faces, ed.faceMood.value) : studioLook;
   preview.current = {
-    profile: faceOn
-      ? withMood({ ...wornProfile(chr), offHand: chr.gear?.offHand ?? 'None' }, chr.faces, ed.faceMood.value)
-      : { ...wornProfile(chr), offHand: chr.gear?.offHand ?? 'None' },
-    closeUp: faceOn,
+    profile: mouth ? { ...shown, mouthOpen: mouth } : shown,
+    closeUp: faceOn || (!body && ed.sheetTab.value === 'voice'),
     clip: body ? null : clip,
     time,
     turntable,

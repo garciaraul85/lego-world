@@ -110,7 +110,9 @@ export function itemLabel(kind: RowKind, it: Item): string {
       case 'face':
         return `Face ${it.target ?? `${Math.round(((it.yaw ?? 0) * 180) / Math.PI)}°`}`;
       case 'say':
-        return `“${it.text}”`;
+        return `“${it.text}”${it.mood && it.mood !== 'neutral' ? ` (${it.mood})` : ''}`;
+      case 'mood':
+        return `Face: ${it.mood}`;
       case 'play':
         return `Clip`;
       case 'emote':

@@ -860,7 +860,11 @@ function Preview({ c, conv }: { c: ActionCtx; conv: Conversation }) {
             onNext={() => sys.t.next()}
             onChoose={(i) => sys.t.choose(i)}
             blip={(e, pitch) => ed.audio.previewEvent(e, pitch)}
-            portrait={editorPortrait(ed.store)}
+            // P23 part 3: the portrait talks (its closed face while a mouth shape is first drawn)
+            portrait={(who, mood) => {
+              const face = editorPortrait(ed.store);
+              return face(who, mood, sys.t.mouth()) ?? face(who, mood);
+            }}
             preview
           />
         ) : (

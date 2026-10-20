@@ -11,7 +11,7 @@ import { musicOptions, screenEffectChoices, soundOptions } from '../../panels/Au
 import type { EditorState } from '../../state';
 import { Check, NumIn, Pick, Sec, TextIn, Vec } from './fields';
 import { type Item, itemAt, type Sel, setItem } from './model';
-import { ClipPicker, GesturePicker, HeldPicker, roleProfile } from './pictures';
+import { ClipPicker, GesturePicker, HeldPicker, MoodPicker, roleFaces, roleProfile } from './pictures';
 
 /** P32: what the Director's fields are and where their values come from (the “?” beside each) */
 const HELP = {
@@ -25,6 +25,7 @@ const HELP = {
     'A logic event name. When the scene reaches this item it sends the name, and every “On custom event” node with exactly this name runs (Logic). The list shows who already sends and who listens to each name.',
   sound: 'A sound event from the Audio workspace. ▶ Listen plays it.',
   music: 'A music state from the Audio workspace. ▶ Listen plays it.',
+  talk: 'While the line plays the actor’s mouth moves with the words, and it shows the face of the mood you pick (its own faces from Characters › Face, or the usual ones).',
 };
 
 type Change = (c: Cinematic, label: string) => void;
@@ -96,6 +97,8 @@ export function ItemInspector({
           return { t, do: 'emote', kind: 'wave' };
         case 'equip':
           return { t, do: 'equip', item: 'Hammer' };
+        case 'mood':
+          return { t, do: 'mood', mood: 'happy', dur: 2 };
         default:
           return { t, do: d } as ActorItem;
       }
@@ -110,6 +113,7 @@ export function ItemInspector({
             { id: 'moveTo', name: 'Walk / run to a mark' },
             { id: 'face', name: 'Face' },
             { id: 'say', name: 'Say a line' },
+            { id: 'mood', name: 'Show a mood (face)' },
             { id: 'emote', name: 'Gesture' },
             { id: 'play', name: 'Play a clip' },
             { id: 'equip', name: 'Hold an item' },
@@ -157,6 +161,19 @@ export function ItemInspector({
               onChange={(text) => text.trim() && put({ ...a, text: text.slice(0, 400) })}
             />
             <NumIn label="Shown for (s)" value={a.dur} min={0.2} onChange={(dur) => put({ ...a, dur })} />
+            <MoodPicker
+              profile={profile}
+              faces={roleFaces(ed, cin, tr.role)}
+              value={a.mood ?? ''}
+              none="Its own face"
+              onPick={(m) => {
+                const n = { ...a } as typeof a;
+                if (m) n.mood = m as never;
+                else delete n.mood;
+                put(n);
+              }}
+            />
+            <p class="hint">{HELP.talk}</p>
             <Pick
               label="Voice"
               value={a.voice ?? ''}
@@ -179,6 +196,17 @@ export function ItemInspector({
                 put(n);
               }}
             />
+          </>
+        )}
+        {a.do === 'mood' && (
+          <>
+            <MoodPicker
+              profile={profile}
+              faces={roleFaces(ed, cin, tr.role)}
+              value={a.mood}
+              onPick={(m) => put({ ...a, mood: m as never })}
+            />
+            <NumIn label="For (s)" value={a.dur} min={0.2} onChange={(dur) => put({ ...a, dur })} />
           </>
         )}
         {a.do === 'emote' && (

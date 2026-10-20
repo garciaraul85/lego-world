@@ -312,6 +312,9 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   },
   // P23 part 1: the effects course
   effectOpen: (ed, a) => effectNamed(ed, ed.effectId.value)?.name === a,
+  // P23 part 3: the Faces course hears Tom talk
+  talkHeard: (ed) => ed.talkHeard.value > 0,
+  faceMoodIs: (ed, a) => ed.faceMood.value === a,
   // P23 part 2: the screen effects course
   effectsTabIs: (ed, a) => ed.effectsTab.value === a,
   screenEffectOpen: (ed, a) => screenEffectNamed(ed, ed.screenEffectId.value)?.name === a,

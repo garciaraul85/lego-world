@@ -109,7 +109,7 @@ export const ACTION_HELP: Record<string, string> = {
   'help.bodies':
     'Starts the Creatures course: turn a neighbour into a brick dog, shape him with sliders and colours, watch him walk, make his skeleton your own, add a horn and a wagging tail, then meet him in Play.',
   'help.faces':
-    'Starts the Faces and pictures course: give Tom an angry and a happy face, write lines with moods, see him glare and laugh in Play, then make an owl from a few words with From a picture.',
+    'Starts the Faces and pictures course: give Tom an angry and a happy face, hear him talk, write lines with moods, see him glare and laugh in Play, then make an owl from a few words with From a picture.',
   'help.effects':
     'Starts the Effects course: copy the built-in Fire, name it Blue fire, make it of studs and blue, put it on the map, then make it the level-up effect of the game.',
   'help.screenfx':
