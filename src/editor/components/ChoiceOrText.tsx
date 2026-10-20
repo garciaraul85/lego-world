@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
+import { SearchSelect } from './SearchBox';
 
 export type Choice = { value: string; label: string; note?: string };
 const TYPE = '__type__';
@@ -59,27 +60,29 @@ export function ChoiceOrText({
     );
   const known = choices.some((c) => c.value === value);
   const select = (
-    <select
-      class="inp"
-      aria-label={label}
-      data-tour={tour}
-      disabled={disabled}
-      value={value}
-      onChange={(e) => {
-        const v = (e.target as HTMLSelectElement).value;
-        if (v === TYPE) setTyping(true);
-        else onChange(v);
-      }}
-    >
-      {!value && <option value="">{empty}</option>}
-      {value && !known && <option value={value}>{value} (not found)</option>}
-      {choices.map((c) => (
-        <option value={c.value} title={c.note}>
-          {c.note ? `${c.label} — ${c.note}` : c.label}
-        </option>
-      ))}
-      <option value={TYPE}>＋ Type a name…</option>
-    </select>
+    <SearchSelect label="choices">
+      <select
+        class="inp"
+        aria-label={label}
+        data-tour={tour}
+        disabled={disabled}
+        value={value}
+        onChange={(e) => {
+          const v = (e.target as HTMLSelectElement).value;
+          if (v === TYPE) setTyping(true);
+          else onChange(v);
+        }}
+      >
+        {!value && <option value="">{empty}</option>}
+        {value && !known && <option value={value}>{value} (not found)</option>}
+        {choices.map((c) => (
+          <option value={c.value} title={c.note}>
+            {c.note ? `${c.label} — ${c.note}` : c.label}
+          </option>
+        ))}
+        <option value={TYPE}>＋ Type a name…</option>
+      </select>
+    </SearchSelect>
   );
   return after ? (
     <span class="row pv-row">

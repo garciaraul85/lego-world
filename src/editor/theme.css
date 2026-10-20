@@ -6037,3 +6037,34 @@ img.bw-portrait {
   border-top: 1px solid var(--bd);
   padding-top: 6px;
 }
+
+/* every list with pictures or previews can be searched */
+.list-search {
+  width: 100%;
+  min-width: 0;
+}
+.pv-pop .list-search {
+  margin-bottom: 6px;
+}
+.no-match {
+  display: block;
+  padding: 4px 10px;
+}
+.search-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.search-select > select {
+  flex: 1;
+  min-width: 0;
+}
+.search-select > .list-search {
+  flex: 1;
+  min-width: 90px;
+}
+.search-toggle {
+  flex: none;
+}

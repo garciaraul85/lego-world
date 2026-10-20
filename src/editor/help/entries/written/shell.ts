@@ -22,6 +22,22 @@ export const SHELL: HelpEntry[] = [
     match: [{ name: /^Listen to / }],
   },
   {
+    id: 'shell.search',
+    also: ['search', 'find', 'filter', 'search a list', 'find a clip', 'find an effect', 'find a sound', 'look for'],
+    screen: 'shell',
+    kind: 'field',
+    name: 'Search a list',
+    purpose:
+      'Every list with pictures or previews has a search box: the Dock’s categories, the characters, conversations and clips of the Character studio, presets, bodies and bones, effects and screen effects, screens and art, scenes, maps in the World graph, piece sizes, sounds and music, and every pop-up of pictures. Type part of a name (or its kind, like “combat” or “mine”): only the matches stay. Several words must all match, in any order (“fire blue” finds Blue fire). **Enter** picks the first match in a pop-up; **Esc** clears the search. A dropdown with a picture beside it has **🔍**: it opens a box that leaves only the matching choices in the dropdown.',
+    steps: [
+      'Click the search box above a list (or 🔍 next to a dropdown).',
+      'Type part of a name: the list shows only what matches.',
+      'Click the one you want, or press Enter to pick the first match. Esc clears the search.',
+    ],
+    match: [{ sel: '.list-search' }, { sel: '.search-toggle' }],
+    related: ['shell.previews'],
+  },
+  {
     id: 'shell.brix',
     also: ['mascot', 'helper', 'assistant', 'ask', 'how do i', 'show me', 'where is'],
     screen: 'shell',

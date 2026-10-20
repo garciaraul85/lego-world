@@ -1,6 +1,8 @@
+import { useState } from 'preact/hooks';
 import { footprint } from '../../core/bricks/inspect';
 import { BRICK_SIZES } from '../../core/schema';
 import { endDrag, startDrag } from '../interact/drag';
+import { matches, NoMatch, SearchBox } from './SearchBox';
 
 const shade = (hex: string, f: number) => {
   const n = Number.parseInt(hex.slice(1), 16);
@@ -104,6 +106,10 @@ export function BrickPicker({
   draggable?: boolean;
 }) {
   const kind = type.replace(/\d.*$/, '');
+  // find a size by typing it: “2x4”, “2 4” or “4×2”
+  const [q, setQ] = useState('');
+  const sizeText = (r: number, cc: number) => `${r}x${cc} ${cc}x${r} ${r}×${cc} ${r} ${cc}`;
+  const sizes = BRICK_SIZES.filter(([r, cc]) => matches(q.replace(/[×*]/g, 'x'), sizeText(r, cc)));
   return (
     <div class="brick-picker">
       <div class="row" role="radiogroup" aria-label="Piece kind">
@@ -127,8 +133,10 @@ export function BrickPicker({
           </button>
         ))}
       </div>
+      <SearchBox label="piece sizes" value={q} onInput={setQ} tour="brick-size-search" />
+      <NoMatch q={sizes.length ? '' : q} what="sizes" />
       <div class="cards" role="listbox" aria-label="Piece sizes">
-        {BRICK_SIZES.map(([r, cc]) => {
+        {sizes.map(([r, cc]) => {
           const t = `${kind}${r}x${cc}`;
           const on = type === t;
           return (

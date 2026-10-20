@@ -15,6 +15,7 @@ import { paths } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
 import { FieldHelp } from '../../components/fields';
 import { EffectThumb } from '../../components/previews';
+import { matches, NoMatch, SearchBox, SearchSelect } from '../../components/SearchBox';
 import { placeEffectAt } from '../../interact/place';
 import { EffectPreview } from './EffectPreview';
 import { ScreenEffectsStudio } from './ScreenEffectsStudio';
@@ -67,6 +68,7 @@ export function EffectsStudio({ c }: { c: ActionCtx }) {
   shown.current = effect;
   const [replay, setReplay] = useState(0);
   const adv = ed.effectsAdvanced.value;
+  const [q, setQ] = useState('');
 
   const save = (next: Effect, label: string) =>
     ed.exec({ type: 'effect.put', payload: { effect: next } }, { label }).ok;
@@ -92,7 +94,11 @@ export function EffectsStudio({ c }: { c: ActionCtx }) {
             + New effect
           </button>
         </div>
+        <div style={{ padding: '0 8px 6px' }}>
+          <SearchBox label="effects" value={q} onInput={setQ} tour="fx-search" />
+        </div>
         <div class="scroll" role="listbox" aria-label="Effects">
+          <NoMatch q={[...own, ...builtin].some((e) => matches(q, e.name)) ? '' : q} what="effects" />
           <div class="lib-head">
             Mine
             <FieldHelp label="Effects" text={EFFECTS_HELP.library} />
@@ -102,13 +108,17 @@ export function EffectsStudio({ c }: { c: ActionCtx }) {
               None yet: copy a built-in one, or + New effect.
             </div>
           )}
-          {own.map((e) => (
-            <EffectRow e={e} on={e.id === effect.id} onPick={() => (ed.effectId.value = e.id)} />
-          ))}
+          {own
+            .filter((e) => matches(q, e.name))
+            .map((e) => (
+              <EffectRow e={e} on={e.id === effect.id} onPick={() => (ed.effectId.value = e.id)} />
+            ))}
           <div class="lib-head">Built-in</div>
-          {builtin.map((e) => (
-            <EffectRow e={e} on={e.id === effect.id} onPick={() => (ed.effectId.value = e.id)} />
-          ))}
+          {builtin
+            .filter((e) => matches(q, e.name))
+            .map((e) => (
+              <EffectRow e={e} on={e.id === effect.id} onPick={() => (ed.effectId.value = e.id)} />
+            ))}
         </div>
       </section>
 
@@ -535,15 +545,17 @@ function GameEffects({ c, own }: { c: ActionCtx; own: Effect[] }) {
         <label class="field">
           {DAMAGE_LABEL[t]}
           <span class="row pv-row">
-            <select
-              class="inp"
-              aria-label={`Hit: ${t}`}
-              data-tour={`fx-hit-${t}`}
-              value={hooks.hits?.[t] ?? ''}
-              onChange={(x) => setHook('hits', t, (x.target as HTMLSelectElement).value)}
-            >
-              {options(DEFAULT_HITS[t])}
-            </select>
+            <SearchSelect label="effects">
+              <select
+                class="inp"
+                aria-label={`Hit: ${t}`}
+                data-tour={`fx-hit-${t}`}
+                value={hooks.hits?.[t] ?? ''}
+                onChange={(x) => setHook('hits', t, (x.target as HTMLSelectElement).value)}
+              >
+                {options(DEFAULT_HITS[t])}
+              </select>
+            </SearchSelect>
             {shown(hooks.hits?.[t], DEFAULT_HITS[t])}
           </span>
         </label>
@@ -553,15 +565,17 @@ function GameEffects({ c, own }: { c: ActionCtx; own: Effect[] }) {
         <label class="field">
           {EVENT_INFO[ev]}
           <span class="row pv-row">
-            <select
-              class="inp"
-              aria-label={`When: ${EVENT_INFO[ev]}`}
-              data-tour={`fx-event-${ev}`}
-              value={hooks.events?.[ev] ?? ''}
-              onChange={(x) => setHook('events', ev, (x.target as HTMLSelectElement).value)}
-            >
-              {options(DEFAULT_EFFECT_EVENTS[ev])}
-            </select>
+            <SearchSelect label="effects">
+              <select
+                class="inp"
+                aria-label={`When: ${EVENT_INFO[ev]}`}
+                data-tour={`fx-event-${ev}`}
+                value={hooks.events?.[ev] ?? ''}
+                onChange={(x) => setHook('events', ev, (x.target as HTMLSelectElement).value)}
+              >
+                {options(DEFAULT_EFFECT_EVENTS[ev])}
+              </select>
+            </SearchSelect>
             {shown(hooks.events?.[ev], DEFAULT_EFFECT_EVENTS[ev])}
           </span>
         </label>

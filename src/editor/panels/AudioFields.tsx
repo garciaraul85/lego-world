@@ -9,6 +9,7 @@ import type { ActionCtx } from '../actions/registry';
 import { ListenButton } from '../components/EventPicker';
 import { Header, Num, TextField } from '../components/fields';
 import { conversationPreview, EffectThumb, MusicListen, ScreenEffectThumb, ScreenThumb } from '../components/previews';
+import { SearchSelect } from '../components/SearchBox';
 import { eventNames } from '../events';
 import type { EditorState } from '../state';
 import { allEffects } from '../workspaces/effects/EffectsStudio';
@@ -143,19 +144,21 @@ export function SoundSelect({
   const opts = soundOptions(ed);
   return (
     <span class="row pv-row">
-      <select
-        class="inp"
-        aria-label={label}
-        value={value ?? ''}
-        onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
-      >
-        {none !== undefined && <option value="">{none}</option>}
-        {opts.map((o) => (
-          <option value={o.id}>
-            {o.name} · {o.bus}
-          </option>
-        ))}
-      </select>
+      <SearchSelect label="sounds">
+        <select
+          class="inp"
+          aria-label={label}
+          value={value ?? ''}
+          onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
+        >
+          {none !== undefined && <option value="">{none}</option>}
+          {opts.map((o) => (
+            <option value={o.id}>
+              {o.name} · {o.bus}
+            </option>
+          ))}
+        </select>
+      </SearchSelect>
       {value && (
         <ListenButton
           name={opts.find((o) => o.id === value)?.name ?? value}
@@ -184,21 +187,23 @@ export function MusicSelect({
   const opts = musicOptions(ed);
   return (
     <span class="row pv-row">
-      <select
-        class="inp"
-        aria-label={label}
-        value={v}
-        onChange={(e) => {
-          const x = (e.target as HTMLSelectElement).value;
-          onPick(x === '~' ? undefined : x === '' ? null : x);
-        }}
-      >
-        {inherit && <option value="~">{inherit}</option>}
-        <option value="">Silence</option>
-        {opts.map((o) => (
-          <option value={o.id}>{o.name}</option>
-        ))}
-      </select>
+      <SearchSelect label="music">
+        <select
+          class="inp"
+          aria-label={label}
+          value={v}
+          onChange={(e) => {
+            const x = (e.target as HTMLSelectElement).value;
+            onPick(x === '~' ? undefined : x === '' ? null : x);
+          }}
+        >
+          {inherit && <option value="~">{inherit}</option>}
+          <option value="">Silence</option>
+          {opts.map((o) => (
+            <option value={o.id}>{o.name}</option>
+          ))}
+        </select>
+      </SearchSelect>
       {value && <MusicListen ed={ed} id={value} name={opts.find((o) => o.id === value)?.name ?? value} />}
     </span>
   );
@@ -221,19 +226,21 @@ export function ScreenSelect({
   const shown = value ? resolveScreen(ed.store, value) : undefined;
   return (
     <span class="row pv-row">
-      <select
-        class="inp"
-        aria-label={label}
-        value={value ?? ''}
-        onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
-      >
-        <option value="">{none}</option>
-        {allScreens(ed.store).map((s) => (
-          <option value={s.id}>
-            {s.name} · {s.kind}
-          </option>
-        ))}
-      </select>
+      <SearchSelect label="screens">
+        <select
+          class="inp"
+          aria-label={label}
+          value={value ?? ''}
+          onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
+        >
+          <option value="">{none}</option>
+          {allScreens(ed.store).map((s) => (
+            <option value={s.id}>
+              {s.name} · {s.kind}
+            </option>
+          ))}
+        </select>
+      </SearchSelect>
       {shown && <ScreenThumb ed={ed} screen={shown} width={48} />}
     </span>
   );
@@ -481,20 +488,22 @@ export function ItemInspector({ c, id }: { c: ActionCtx; id: string }) {
         {it.widget === 'sign' && (
           <label class="field" data-tour="sign-conversation" data-help="scene.item.talk">
             Read with E
-            <select
-              class="inp"
-              aria-label="Sign conversation"
-              value={it.conversation ?? ''}
-              onChange={(e) => {
-                const v = (e.target as HTMLSelectElement).value;
-                patch({ conversation: (v || undefined) as UiInstance['conversation'] });
-              }}
-            >
-              <option value="">Nothing (the sign just shows its text)</option>
-              {conversationOptions(c.ed).map((o) => (
-                <option value={o.id}>💬 {o.name}</option>
-              ))}
-            </select>
+            <SearchSelect label="conversations">
+              <select
+                class="inp"
+                aria-label="Sign conversation"
+                value={it.conversation ?? ''}
+                onChange={(e) => {
+                  const v = (e.target as HTMLSelectElement).value;
+                  patch({ conversation: (v || undefined) as UiInstance['conversation'] });
+                }}
+              >
+                <option value="">Nothing (the sign just shows its text)</option>
+                {conversationOptions(c.ed).map((o) => (
+                  <option value={o.id}>💬 {o.name}</option>
+                ))}
+              </select>
+            </SearchSelect>
             {it.conversation && <PickedThumb ed={c.ed} kind="conversation" id={it.conversation} />}
           </label>
         )}

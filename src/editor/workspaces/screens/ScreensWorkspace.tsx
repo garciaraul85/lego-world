@@ -4,6 +4,7 @@ import { type Art, paths, type Screen, type Widget } from '../../../core/schema'
 import { allScreens, isBuiltinScreen } from '../../../engine/ui/screens';
 import type { ActionCtx } from '../../actions/registry';
 import { ScreenThumb } from '../../components/previews';
+import { matches, NoMatch, SearchBox } from '../../components/SearchBox';
 import { ArtEditor } from './art/ArtEditor';
 import { ArtLibrary, ArtStart } from './art/ArtLibrary';
 import { artFont, artUrl } from './art/render';
@@ -30,6 +31,7 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
   }, [screen.id]);
   const [tab, setTab] = useState<'screens' | 'art'>('screens');
   const [artId, setArtId] = useState<string | null>(null);
+  const [q, setQ] = useState('');
   const openArt = artId ? ed.store.get<Art>(paths.art(artId as Art['id'])) : undefined;
   const path = ed.widgetPath.value ?? '';
   const widget = widgetAt(screen.root, path) ?? screen.root;
@@ -130,26 +132,32 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
                 + New
               </button>
             </div>
-            {list.map((s) => (
-              <button
-                type="button"
-                class={`lib-item ${s.id === screen.id ? 'on' : ''}`}
-                onClick={() => {
-                  ed.screenId.value = s.id;
-                  ed.widgetPath.value = '';
-                }}
-              >
-                <ScreenThumb ed={ed} screen={s} width={48} />
-                <span class="asset-name">
-                  {ed.store.manifest.entry.screen === s.id ? '★ ' : ''}
-                  {s.name}
-                </span>
-                <span class="mono small muted">
-                  {KIND_LABEL[s.kind]}
-                  {isBuiltinScreen(s.id) ? (ed.store.has(paths.screen(s.id)) ? ' · edited' : ' · built-in') : ''}
-                </span>
-              </button>
-            ))}
+            <div style={{ padding: '0 8px 6px' }}>
+              <SearchBox label="screens" value={q} onInput={setQ} tour="screens-search" />
+            </div>
+            <NoMatch q={list.some((s) => matches(q, s.name, KIND_LABEL[s.kind])) ? '' : q} what="screens" />
+            {list
+              .filter((s) => matches(q, s.name, KIND_LABEL[s.kind]))
+              .map((s) => (
+                <button
+                  type="button"
+                  class={`lib-item ${s.id === screen.id ? 'on' : ''}`}
+                  onClick={() => {
+                    ed.screenId.value = s.id;
+                    ed.widgetPath.value = '';
+                  }}
+                >
+                  <ScreenThumb ed={ed} screen={s} width={48} />
+                  <span class="asset-name">
+                    {ed.store.manifest.entry.screen === s.id ? '★ ' : ''}
+                    {s.name}
+                  </span>
+                  <span class="mono small muted">
+                    {KIND_LABEL[s.kind]}
+                    {isBuiltinScreen(s.id) ? (ed.store.has(paths.screen(s.id)) ? ' · edited' : ' · built-in') : ''}
+                  </span>
+                </button>
+              ))}
             <div class="sech" style={{ padding: '10px 10px 4px' }}>
               <span>Widgets</span>
             </div>

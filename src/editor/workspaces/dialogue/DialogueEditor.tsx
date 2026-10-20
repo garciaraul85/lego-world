@@ -20,6 +20,7 @@ import { DialogueLayer } from '../../../engine/ui/DialogueLayer';
 import type { ActionCtx } from '../../actions/registry';
 import { ActionListField } from '../../components/ActionListField';
 import { DraftText } from '../../components/fields';
+import { SearchSelect } from '../../components/SearchBox';
 import { actionChoices } from '../../panels/AudioFields';
 import { editorPortrait } from '../character-studio/Face';
 import { characters, freeLabel, layers, moveStep, scriptNames, speakers, withStep } from './model';
@@ -393,16 +394,18 @@ function StepRow({
       return (
         <div class="dlg-step line">
           <SpeakerFace face={face} who={st.who} mood={(st.mood ?? 'neutral') as Mood} />
-          <select
-            class="inp dlg-who"
-            aria-label="Who says it"
-            value={st.who}
-            onChange={(e) => set({ ...st, who: (e.target as HTMLSelectElement).value }, 'Speaker')}
-          >
-            {who.map((w) => (
-              <option value={w.who}>{w.name}</option>
-            ))}
-          </select>
+          <SearchSelect label="speakers">
+            <select
+              class="inp dlg-who"
+              aria-label="Who says it"
+              value={st.who}
+              onChange={(e) => set({ ...st, who: (e.target as HTMLSelectElement).value }, 'Speaker')}
+            >
+              {who.map((w) => (
+                <option value={w.who}>{w.name}</option>
+              ))}
+            </select>
+          </SearchSelect>
           <select
             class="inp dlg-mood"
             aria-label="Mood"

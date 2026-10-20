@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import type { Action } from '../../core/schema';
 import { EventPicker, ListenButton } from './EventPicker';
+import { SearchSelect } from './SearchBox';
 
 export type Choice = { id: string; name: string };
 /** Pickers for sound / music / screen actions (from AudioFields.actionChoices). */
@@ -139,16 +140,20 @@ export function ActionListField({
         <div class="action-row">
           <span class="mono small muted">{i + 1}</span>
           {kinds.some((k) => k.do === a.do) ? (
-            <select
-              class="inp"
-              aria-label="Action"
-              value={a.do}
-              onChange={(e) => set(i, kinds.find((k) => k.do === (e.target as HTMLSelectElement).value)!.make(choices))}
-            >
-              {kinds.map((k) => (
-                <option value={k.do}>{k.label}</option>
-              ))}
-            </select>
+            <SearchSelect label="actions">
+              <select
+                class="inp"
+                aria-label="Action"
+                value={a.do}
+                onChange={(e) =>
+                  set(i, kinds.find((k) => k.do === (e.target as HTMLSelectElement).value)!.make(choices))
+                }
+              >
+                {kinds.map((k) => (
+                  <option value={k.do}>{k.label}</option>
+                ))}
+              </select>
+            </SearchSelect>
           ) : (
             <span class="chip">{a.do}</span>
           )}
@@ -182,17 +187,19 @@ function ActionArgs({
   onChange: (a: Action) => void;
 }) {
   const pick = (v: string | null, label: string, list: Choice[], put: (v: string) => Action, none?: string) => (
-    <select
-      class="inp"
-      aria-label={label}
-      value={v ?? ''}
-      onChange={(e) => onChange(put((e.target as HTMLSelectElement).value))}
-    >
-      {none !== undefined && <option value="">{none}</option>}
-      {[...list, ...(v && !list.some((x) => x.id === v) ? [{ id: v, name: v }] : [])].map((o) => (
-        <option value={o.id}>{o.name}</option>
-      ))}
-    </select>
+    <SearchSelect label="choices">
+      <select
+        class="inp"
+        aria-label={label}
+        value={v ?? ''}
+        onChange={(e) => onChange(put((e.target as HTMLSelectElement).value))}
+      >
+        {none !== undefined && <option value="">{none}</option>}
+        {[...list, ...(v && !list.some((x) => x.id === v) ? [{ id: v, name: v }] : [])].map((o) => (
+          <option value={o.id}>{o.name}</option>
+        ))}
+      </select>
+    </SearchSelect>
   );
   const text = (v: string, label: string, put: (v: string) => Action) => (
     <input

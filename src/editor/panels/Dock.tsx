@@ -10,6 +10,7 @@ import { runPlayCheck } from '../actions/registry';
 import { assetLibrary } from '../assets';
 import { AssetThumb } from '../components/AssetThumb';
 import { EffectThumb, ScreenThumb } from '../components/previews';
+import { matches, NoMatch, SearchBox } from '../components/SearchBox';
 import { shows } from '../genres/view';
 import { endDrag, startDrag } from '../interact/drag';
 import { placeEffectAt } from '../interact/place';
@@ -26,13 +27,13 @@ import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
  * P9c: the game's characters, each with “Place” — it stands on the open map as a neighbour, a few studs in
  * front of the map's first spawn point (an enemy fights the hero there in Play). Looks are made in the studio.
  */
-function CharacterCards({ c, hint }: { c: ActionCtx; hint: string }) {
+function CharacterCards({ c, hint, q }: { c: ActionCtx; hint: string; q: string }) {
   const { ed } = c;
   ed.revision.value;
   const list = ed.store
     .list('characters/')
     .map((p) => ed.store.get<Character>(p)!)
-    .filter((x) => x && x.id !== ed.store.manifest.hero);
+    .filter((x) => x && x.id !== ed.store.manifest.hero && matches(q, x.name, x.role, x.enemy ? 'enemy' : ''));
   const place = (chr: Character) => {
     const map = ed.mapId.value;
     const sp = ed.store.get<MapDoc>(paths.map(map))?.spawns[0];
@@ -53,6 +54,7 @@ function CharacterCards({ c, hint }: { c: ActionCtx; hint: string }) {
       <span class="muted small">
         {hint} Place puts one on this map as a neighbour, in front of the first spawn point.
       </span>
+      <NoMatch q={list.length ? '' : q} what="characters" />
       {list.map((chr) => (
         <div class="row small" style={{ gap: '6px' }}>
           <CharacterThumb profile={chr.profile} size={26} body={bodyOfChr(chr, (p) => ed.store.get(p))} />
@@ -137,6 +139,9 @@ function Assets({ c }: { c: ActionCtx }) {
   const { ed } = c;
   const cat = ed.assetCat.value;
   const cur = CATS.find((x) => x[0] === cat) ?? CATS[0]!;
+  // every category has a search box (Assets keeps its own, beside its kinds)
+  const [q, setQ] = useState('');
+  const what = cur[0] === 'UI screens' ? 'screens' : cur[0].toLowerCase();
   return (
     <div class="assets">
       <div class="cats">
@@ -147,6 +152,7 @@ function Assets({ c }: { c: ActionCtx }) {
             onClick={() => {
               ed.assetCat.value = name;
               ed.persistUi();
+              setQ('');
             }}
           >
             {name}
@@ -157,13 +163,15 @@ function Assets({ c }: { c: ActionCtx }) {
         ))}
       </div>
       <div class="scroll" style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {cur[0] !== 'Assets' && <SearchBox label={what} value={q} onInput={setQ} tour="dock-search" />}
         {cur[0] === 'Assets' ? (
           <AssetCards c={c} />
         ) : cur[0] === 'Characters' ? (
-          <CharacterCards c={c} hint={cur[2]} />
+          <CharacterCards c={c} hint={cur[2]} q={q} />
         ) : cur[0] === 'Cinematics' ? (
           <MediaCards
             c={c}
+            q={q}
             items={cinematicOptions(ed).map((o) => ({ id: o.id, name: o.name, sub: 'scene' }))}
             play={(id) => c.ui.play('engine', { cinematic: id })}
             open={(id) => {
@@ -175,6 +183,7 @@ function Assets({ c }: { c: ActionCtx }) {
         ) : cur[0] === 'UI screens' ? (
           <MediaCards
             c={c}
+            q={q}
             items={allScreens(ed.store).map((s) => ({
               id: s.id,
               name: s.name,
@@ -189,10 +198,11 @@ function Assets({ c }: { c: ActionCtx }) {
             hint={cur[2]}
           />
         ) : cur[0] === 'Effects' ? (
-          <EffectCards c={c} hint={cur[2]} />
+          <EffectCards c={c} hint={cur[2]} q={q} />
         ) : cur[0] === 'Sounds' ? (
           <MediaCards
             c={c}
+            q={q}
             items={soundOptions(ed).map((o) => ({ id: o.id, name: o.name, sub: o.bus }))}
             play={(id) => ed.audio.previewEvent(id)}
             open={(id) => {
@@ -204,6 +214,7 @@ function Assets({ c }: { c: ActionCtx }) {
         ) : cur[0] === 'Music' ? (
           <MediaCards
             c={c}
+            q={q}
             items={musicOptions(ed).map((o) => ({ id: o.id, name: o.name, sub: 'music' }))}
             play={(id) => ed.audio.previewMusic(id)}
             open={(id) => {
@@ -760,7 +771,7 @@ function AssetCards({ c }: { c: ActionCtx }) {
 }
 
 /** P23: the Dock's effects: each one plays while the pointer is over it; Place puts it beside the start. */
-function EffectCards({ c, hint }: { c: ActionCtx; hint: string }) {
+function EffectCards({ c, hint, q }: { c: ActionCtx; hint: string; q: string }) {
   const { ed } = c;
   ed.revision.value;
   const { own, builtin } = allEffects(ed.store);
@@ -772,15 +783,18 @@ function EffectCards({ c, hint }: { c: ActionCtx; hint: string }) {
     <>
       <span class="muted small">{hint}</span>
       <div class="fx-cards" data-tour="dock-effects" data-help="scene.dock.effects">
-        {[...own, ...builtin].map((e) => (
-          <div class="fx-card" data-name={e.name}>
-            <EffectThumb effect={e} size={48} />
-            <span class="small">{e.name}</span>
-            <button type="button" class="btn small" aria-label={`Place ${e.name}`} onClick={() => place(e.id)}>
-              Place
-            </button>
-          </div>
-        ))}
+        <NoMatch q={[...own, ...builtin].some((e) => matches(q, e.name)) ? '' : q} what="effects" />
+        {[...own, ...builtin]
+          .filter((e) => matches(q, e.name))
+          .map((e) => (
+            <div class="fx-card" data-name={e.name}>
+              <EffectThumb effect={e} size={48} />
+              <span class="small">{e.name}</span>
+              <button type="button" class="btn small" aria-label={`Place ${e.name}`} onClick={() => place(e.id)}>
+                Place
+              </button>
+            </div>
+          ))}
       </div>
     </>
   );
@@ -789,12 +803,14 @@ function EffectCards({ c, hint }: { c: ActionCtx; hint: string }) {
 /** Dock cards for screens, sound events and music: ▶ to preview, click to open in its workspace. */
 function MediaCards({
   c,
+  q,
   items,
   play,
   open,
   hint,
 }: {
   c: ActionCtx;
+  q: string;
   items: { id: string; name: string; sub: string; thumb?: ComponentChildren }[];
   play?: (id: string) => void;
   open: (id: string) => void;
@@ -804,21 +820,24 @@ function MediaCards({
   return (
     <>
       <span class="muted small">{hint}</span>
+      <NoMatch q={items.some((it) => matches(q, it.name, it.sub)) ? '' : q} what="things" />
       <div class="media-cards" data-help="scene.dock.sounds">
-        {items.map((it) => (
-          <div class="media-card">
-            {it.thumb}
-            {play && (
-              <button type="button" class="btn icon" aria-label={`Play ${it.name}`} onClick={() => play(it.id)}>
-                ▶
+        {items
+          .filter((it) => matches(q, it.name, it.sub))
+          .map((it) => (
+            <div class="media-card">
+              {it.thumb}
+              {play && (
+                <button type="button" class="btn icon" aria-label={`Play ${it.name}`} onClick={() => play(it.id)}>
+                  ▶
+                </button>
+              )}
+              <button type="button" class="link asset-name" onClick={() => open(it.id)}>
+                {it.name}
               </button>
-            )}
-            <button type="button" class="link asset-name" onClick={() => open(it.id)}>
-              {it.name}
-            </button>
-            <span class="mono small muted">{it.sub}</span>
-          </div>
-        ))}
+              <span class="mono small muted">{it.sub}</span>
+            </div>
+          ))}
       </div>
     </>
   );

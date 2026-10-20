@@ -30,6 +30,8 @@ The Scene workspace has the Hierarchy on the left, the 3D map in the middle, the
 
 Lists and pickers show what each thing is, not only its name: assets, characters and clips as pictures, effects as pictures that play while the pointer is over them, screens drawn small, maps seen from above (in the World graph), the first lines of a conversation, and the speaker's face beside each line. ▶ (Listen to …) plays a sound once; on a music it turns into ■ to stop it.
 
+Every one of those lists can be searched: type part of a name (or a kind such as “combat” or “mine”) in its search box and only the matches stay; several words must all match, in any order. In a pop-up of pictures Enter picks the first match; Esc clears the search. A dropdown with a picture beside it has 🔍, which leaves only the matching choices in the dropdown. In the World graph the search fades the other maps, and Enter selects the first.
+
 Everything you do is one undo step and saves itself to this device a moment later. The status bar shows "All changes saved".
 
 ## What kind of game? (genres)

@@ -11,10 +11,12 @@ import { ENEMY_HELP, EnemyFields } from '../../components/EnemyFields';
 import { DraftText, FieldHelp } from '../../components/fields';
 import { HealthFields } from '../../components/HealthFields';
 import { PreviewPicker } from '../../components/PreviewPicker';
+import { matches, NoMatch, SearchBox } from '../../components/SearchBox';
 import { Timeline } from '../../components/timeline/Timeline';
 import { shows } from '../../genres/view';
 import { actionChoices } from '../../panels/AudioFields';
 import { ConversationList, DialogueMain, TalkSection } from '../dialogue/CharacterTalk';
+import { conversations } from '../dialogue/model';
 import { BodyTab, bodyOfChr } from './Body';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
 import { FaceTab, withMood } from './Face';
@@ -113,6 +115,9 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
   const L = legacyRuntime();
   /** P32: the preset cards are open (+ New character) */
   const [picking, setPicking] = useState(false);
+  // finding a preset, a character or a clip by name
+  const [presetQ, setPresetQ] = useState('');
+  const [libQ, setLibQ] = useState('');
   const own = ed.store.list('characters/').map((p) => ed.store.get<Character>(p)!);
   const ownClips = ed.store.list('clips/').map((p) => ed.store.get<Clip>(p)!);
   const chrId = ed.studioCharacter.value ?? ed.store.manifest.hero ?? own[0]?.id ?? BUILTIN_CHARACTERS[0]!.id;
@@ -307,9 +312,11 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
             ✨ From a picture…
           </button>
           {ed.fromPicture.value && <FromPicture c={c} onClose={() => (ed.fromPicture.value = false)} />}
+          {picking && <SearchBox label="presets" value={presetQ} onInput={setPresetQ} tour="char-preset-search" />}
           {picking && (
             <div class="char-presets" role="listbox" aria-label="New character from a preset">
-              {BUILTIN_CHARACTERS.map((p) => (
+              <NoMatch q={BUILTIN_CHARACTERS.some((p) => matches(presetQ, p.name)) ? '' : presetQ} what="presets" />
+              {BUILTIN_CHARACTERS.filter((p) => matches(presetQ, p.name)).map((p) => (
                 <button
                   type="button"
                   role="option"
@@ -331,27 +338,42 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
             </div>
           )}
         </div>
+        <div style={{ padding: '0 8px 6px' }}>
+          <SearchBox label="characters, conversations and clips" value={libQ} onInput={setLibQ} tour="char-search" />
+        </div>
         <div class="scroll" role="listbox" aria-label="Characters">
+          <NoMatch
+            q={
+              own.some((x) => matches(libQ, x.name, x.role)) ||
+              allClips.some((x) => matches(libQ, x.name, x.group)) ||
+              conversations(ed).some((d) => matches(libQ, d.name))
+                ? ''
+                : libQ
+            }
+            what="characters or clips"
+          />
           {!own.length && (
             <div class="hint" style={{ padding: '6px 10px' }}>
               No characters in this game yet. Press + New character and pick one to start from.
             </div>
           )}
-          {own.map((x) => (
-            <button
-              type="button"
-              role="option"
-              aria-selected={x.id === chr.id}
-              data-name={x.name}
-              class={`lib-item ${x.id === chr.id ? 'on' : ''}`}
-              onClick={() => (ed.studioCharacter.value = x.id)}
-            >
-              <CharacterThumb profile={x.profile} size={30} body={bodyOfChr(x, (p) => ed.store.get(p))} />
-              <span class="asset-name">{x.name}</span>
-              <span class="mono small muted">{ed.store.manifest.hero === x.id ? 'player' : x.role}</span>
-            </button>
-          ))}
-          <ConversationList c={c} chr={chr} inProject={inProject} />
+          {own
+            .filter((x) => matches(libQ, x.name, x.role))
+            .map((x) => (
+              <button
+                type="button"
+                role="option"
+                aria-selected={x.id === chr.id}
+                data-name={x.name}
+                class={`lib-item ${x.id === chr.id ? 'on' : ''}`}
+                onClick={() => (ed.studioCharacter.value = x.id)}
+              >
+                <CharacterThumb profile={x.profile} size={30} body={bodyOfChr(x, (p) => ed.store.get(p))} />
+                <span class="asset-name">{x.name}</span>
+                <span class="mono small muted">{ed.store.manifest.hero === x.id ? 'player' : x.role}</span>
+              </button>
+            ))}
+          <ConversationList c={c} chr={chr} inProject={inProject} q={libQ} />
           <div class="sech" style={{ padding: '10px 10px 4px' }}>
             <span>Clips</span>
             <button
@@ -376,12 +398,19 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           <button type="button" class={`lib-item ${!clip ? 'on' : ''}`} onClick={() => setClipId(null)}>
             <span class="asset-name">Standing (no clip)</span>
           </button>
-          {[...new Set(allClips.map((x) => (ownClips.includes(x) ? 'Mine' : (x.group ?? 'Other'))))].map((g) => (
+          {[
+            ...new Set(
+              allClips
+                .filter((x) => matches(libQ, x.name, x.group, ownClips.includes(x) ? 'mine' : ''))
+                .map((x) => (ownClips.includes(x) ? 'Mine' : (x.group ?? 'Other'))),
+            ),
+          ].map((g) => (
             <>
               <div class="sech" style={{ padding: '6px 10px 2px' }}>
                 <span>{g}</span>
               </div>
               {allClips
+                .filter((x) => matches(libQ, x.name, x.group, ownClips.includes(x) ? 'mine' : ''))
                 .filter((x) => (ownClips.includes(x) ? 'Mine' : (x.group ?? 'Other')) === g)
                 .map((x) => (
                   <button

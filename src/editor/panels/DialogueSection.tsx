@@ -6,6 +6,7 @@ import { DialogueLayer } from '../../engine/ui/DialogueLayer';
 import type { ActionCtx } from '../actions/registry';
 import { ListenButton } from '../components/EventPicker';
 import { FieldHelp } from '../components/fields';
+import { SearchSelect } from '../components/SearchBox';
 import { shows } from '../genres/view';
 import { soundOptions } from './AudioFields';
 
@@ -100,17 +101,19 @@ export function DialogueSection({ c }: { c: ActionCtx }) {
             <FieldHelp label="Voice blip" text={DIALOGUE_HELP.blip} />
           </span>
           <span class="row pv-row">
-            <select
-              class="inp"
-              aria-label="Voice blip"
-              value={look.blip ?? ''}
-              onChange={(e) => set({ blip: (e.target as HTMLSelectElement).value || null })}
-            >
-              <option value="">Silent</option>
-              {soundOptions(ed).map((o) => (
-                <option value={o.id}>{o.name}</option>
-              ))}
-            </select>
+            <SearchSelect label="sounds">
+              <select
+                class="inp"
+                aria-label="Voice blip"
+                value={look.blip ?? ''}
+                onChange={(e) => set({ blip: (e.target as HTMLSelectElement).value || null })}
+              >
+                <option value="">Silent</option>
+                {soundOptions(ed).map((o) => (
+                  <option value={o.id}>{o.name}</option>
+                ))}
+              </select>
+            </SearchSelect>
             {look.blip && (
               <ListenButton
                 name={soundOptions(ed).find((o) => o.id === look.blip)?.name ?? look.blip}

@@ -5,6 +5,7 @@ import type { Character } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
 import { DraftText } from '../../components/fields';
 import { conversationPreview } from '../../components/previews';
+import { matches, SearchSelect } from '../../components/SearchBox';
 import { speakerName } from '../../panels/AudioFields';
 import { DialogueEditor } from './DialogueEditor';
 import { conversations } from './model';
@@ -35,9 +36,27 @@ export function newConversation(c: ActionCtx, chr: Character | null, inProject: 
   return id;
 }
 
-export function ConversationList({ c, chr, inProject }: { c: ActionCtx; chr: Character; inProject: boolean }) {
+export function ConversationList({
+  c,
+  chr,
+  inProject,
+  q = '',
+}: {
+  c: ActionCtx;
+  chr: Character;
+  inProject: boolean;
+  /** the search of the list it is in (by name and by what is said) */
+  q?: string;
+}) {
   const { ed } = c;
-  const list = conversations(ed);
+  const all = conversations(ed);
+  const list = all.filter((d) =>
+    matches(
+      q,
+      d.name,
+      conversationPreview(d, (who) => speakerName(ed, who), 400),
+    ),
+  );
   return (
     <>
       <div class="sech" style={{ padding: '10px 10px 4px' }}>
@@ -67,7 +86,7 @@ export function ConversationList({ c, chr, inProject }: { c: ActionCtx; chr: Cha
           <span class="mono small muted">{d.sections.reduce((n, s) => n + s.steps.length, 0)}</span>
         </button>
       ))}
-      {!list.length && (
+      {!all.length && (
         <div class="hint" style={{ padding: '4px 10px' }}>
           No conversations yet. + New writes one for this character.
         </div>
@@ -181,24 +200,26 @@ export function TalkSection({ c, chr, inProject }: { c: ActionCtx; chr: Characte
         );
       })}
       <div class="row">
-        <select
-          class="inp"
-          aria-label="Add a conversation to Talk"
-          value=""
-          onChange={(e) => {
-            const id = (e.target as HTMLSelectElement).value;
-            if (id === '+') newConversation(c, chr, inProject);
-            else if (id) save({ ...chr, talk: [...talk, { conversation: id }].slice(0, 12) }, 'Add to talk');
-          }}
-        >
-          <option value="">+ Add a conversation…</option>
-          {list
-            .filter((d: Conversation) => !talk.some((t) => t.conversation === d.id))
-            .map((d) => (
-              <option value={d.id}>{d.name}</option>
-            ))}
-          <option value="+">New conversation…</option>
-        </select>
+        <SearchSelect label="conversations">
+          <select
+            class="inp"
+            aria-label="Add a conversation to Talk"
+            value=""
+            onChange={(e) => {
+              const id = (e.target as HTMLSelectElement).value;
+              if (id === '+') newConversation(c, chr, inProject);
+              else if (id) save({ ...chr, talk: [...talk, { conversation: id }].slice(0, 12) }, 'Add to talk');
+            }}
+          >
+            <option value="">+ Add a conversation…</option>
+            {list
+              .filter((d: Conversation) => !talk.some((t) => t.conversation === d.id))
+              .map((d) => (
+                <option value={d.id}>{d.name}</option>
+              ))}
+            <option value="+">New conversation…</option>
+          </select>
+        </SearchSelect>
       </div>
       <div class="sech" style={{ marginTop: '8px' }}>
         <span>Barks</span>

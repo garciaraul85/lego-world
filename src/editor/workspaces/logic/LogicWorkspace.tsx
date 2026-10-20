@@ -10,6 +10,7 @@ import { ChoiceOrText } from '../../components/ChoiceOrText';
 import { EventPicker, ListenButton } from '../../components/EventPicker';
 import { DraftText, FieldHelp } from '../../components/fields';
 import { MapThumb, MusicListen, ScreenThumb } from '../../components/previews';
+import { SearchSelect } from '../../components/SearchBox';
 import { describeUse, eventUses } from '../../events';
 import { controlMenu } from '../../genres/GenrePicker';
 import { noteRecent, prefsOf, shows, viewGenre } from '../../genres/view';
@@ -505,21 +506,23 @@ function NodeInspector({
                           />
                         ) : choices ? (
                           <span class="row" style={{ gap: '4px' }}>
-                            <select
-                              class="inp"
-                              style={{ flex: 1 }}
-                              data-tour={`field-${a.name}`}
-                              value={String(v ?? '')}
-                              onChange={(e) => set({ [a.name]: (e.target as HTMLSelectElement).value || undefined })}
-                            >
-                              <option value="">{a.optional ? 'any' : 'choose…'}</option>
-                              {choices.map((ch) => (
-                                <option value={ch.value}>{ch.label}</option>
-                              ))}
-                              {v && !choices.some((ch) => ch.value === v) && (
-                                <option value={String(v)}>{String(v)}</option>
-                              )}
-                            </select>
+                            <SearchSelect label="choices">
+                              <select
+                                class="inp"
+                                style={{ flex: 1 }}
+                                data-tour={`field-${a.name}`}
+                                value={String(v ?? '')}
+                                onChange={(e) => set({ [a.name]: (e.target as HTMLSelectElement).value || undefined })}
+                              >
+                                <option value="">{a.optional ? 'any' : 'choose…'}</option>
+                                {choices.map((ch) => (
+                                  <option value={ch.value}>{ch.label}</option>
+                                ))}
+                                {v && !choices.some((ch) => ch.value === v) && (
+                                  <option value={String(v)}>{String(v)}</option>
+                                )}
+                              </select>
+                            </SearchSelect>
                             <ArgPreview c={c} kind={a.kind} value={v ? String(v) : ''} />
                           </span>
                         ) : a.kind === 'number' ? (

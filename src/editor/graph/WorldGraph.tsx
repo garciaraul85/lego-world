@@ -4,6 +4,7 @@ import { validateWorld } from '../../core/world/validate';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { ActionListField } from '../components/ActionListField';
 import { drawMap, MapThumb } from '../components/previews';
+import { matches, SearchBox } from '../components/SearchBox';
 import { actionChoices } from '../panels/AudioFields';
 
 type End = { map: string; spawn: string };
@@ -55,6 +56,8 @@ export function WorldGraph({ c }: { c: ActionCtx }) {
   const { pos, W, H } = useMemo(() => layout(maps), [maps]);
   const [selGate, setSelGate] = useState<string | null>(null);
   const [selMap, setSelMap] = useState<string | null>(null);
+  // find a map by name: the others fade, Enter picks the first one found
+  const [mapQ, setMapQ] = useState('');
   const [link, setLink] = useState<{ from: End; x: number; y: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -151,6 +154,26 @@ export function WorldGraph({ c }: { c: ActionCtx }) {
         <button type="button" class="btn" onClick={() => runAction(action('world.addMap'), c)}>
           + Add map
         </button>
+        <SearchBox
+          label="maps"
+          value={mapQ}
+          onInput={setMapQ}
+          tour="graph-search"
+          onEnter={() => {
+            const m = maps.find((x) => matches(mapQ, x.name));
+            if (!m) return;
+            setSelMap(m.id);
+            setSelGate(null);
+            document
+              .querySelector(`[aria-label^="Map ${CSS.escape(m.name)}"]`)
+              ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          }}
+        />
+        {mapQ && (
+          <span class="muted small" aria-live="polite">
+            {maps.filter((x) => matches(mapQ, x.name)).length} found · Enter selects the first
+          </span>
+        )}
         <span class="muted small">
           {maps.length} map{maps.length === 1 ? '' : 's'} · {gates.length} gate{gates.length === 1 ? '' : 's'} ·{' '}
           {issues.length ? `${issues.length} route issue${issues.length === 1 ? '' : 's'}` : 'routes OK'}
@@ -335,7 +358,7 @@ export function WorldGraph({ c }: { c: ActionCtx }) {
                 setSelGate(null);
               };
               return (
-                <g>
+                <g style={{ opacity: mapQ && !matches(mapQ, m.name) ? 0.25 : 1 }}>
                   <g
                     role="button"
                     tabIndex={0}

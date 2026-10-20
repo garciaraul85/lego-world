@@ -4,6 +4,7 @@ import { blankScene, rewardScene } from '../../../core/cinematic/templates';
 import { newId } from '../../../core/ids';
 import { type Cinematic, type Instances, type MapDoc, paths } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
+import { matches, NoMatch, SearchBox } from '../../components/SearchBox';
 import { musicOptions, soundOptions } from '../../panels/AudioFields';
 import { CameraPreview } from './CameraPreview';
 import { CastPanel } from './CastPanel';
@@ -92,6 +93,7 @@ function DirectorFor({
   const [playing, setPlaying] = useState(false);
   const [sel, setSel] = useState<Sel>(null);
   const [role, setRole] = useState<string | null>(cin.cast[0]?.role ?? null);
+  const [sceneQ, setSceneQ] = useState('');
   const [record, setRecord] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const stage = useRef<StageApi | null>(null);
@@ -235,20 +237,26 @@ function DirectorFor({
               </button>
             </span>
           </div>
-          {list.map((x) => (
-            <button
-              type="button"
-              class={`lib-item ${x.id === cin.id ? 'on' : ''}`}
-              onClick={() => {
-                ed.cinematicId.value = x.id;
-                setSel(null);
-                setTime(0);
-              }}
-            >
-              <span class="asset-name">🎬 {x.name}</span>
-              <span class="mono small muted">{x.length}s</span>
-            </button>
-          ))}
+          <div style={{ padding: '0 8px 6px' }}>
+            <SearchBox label="scenes" value={sceneQ} onInput={setSceneQ} tour="cine-search" />
+          </div>
+          <NoMatch q={list.some((x) => matches(sceneQ, x.name)) ? '' : sceneQ} what="scenes" />
+          {list
+            .filter((x) => matches(sceneQ, x.name))
+            .map((x) => (
+              <button
+                type="button"
+                class={`lib-item ${x.id === cin.id ? 'on' : ''}`}
+                onClick={() => {
+                  ed.cinematicId.value = x.id;
+                  setSel(null);
+                  setTime(0);
+                }}
+              >
+                <span class="asset-name">🎬 {x.name}</span>
+                <span class="mono small muted">{x.length}s</span>
+              </button>
+            ))}
           <CastPanel ed={ed} cin={cin} role={role} onRole={setRole} onChange={save} />
           <MarkList cin={cin} sel={sel && 'mark' in sel ? sel.mark : null} onPick={(mark) => setSel({ mark })} />
           <ShotList

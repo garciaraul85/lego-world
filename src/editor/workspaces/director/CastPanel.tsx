@@ -1,6 +1,7 @@
 import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
 import type { Character, Cinematic, Instances } from '../../../core/schema';
 import { paths } from '../../../core/schema';
+import { SearchSelect } from '../../components/SearchBox';
 import type { EditorState } from '../../state';
 import { CharacterThumb } from '../character-studio/thumbs';
 import { roleProfile } from './pictures';
@@ -116,16 +117,18 @@ export function CastPanel({
           </div>
           <span class="row pv-row">
             <CharacterThumb profile={roleProfile(ed, cin, m.role)} size={26} />
-            <select
-              class="inp"
-              aria-label={`${m.role} is played by`}
-              value={m.actor}
-              onChange={(e) => setMember(i, { actor: (e.target as HTMLSelectElement).value as never })}
-            >
-              {choices.map((c) => (
-                <option value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <SearchSelect label="characters">
+              <select
+                class="inp"
+                aria-label={`${m.role} is played by`}
+                value={m.actor}
+                onChange={(e) => setMember(i, { actor: (e.target as HTMLSelectElement).value as never })}
+              >
+                {choices.map((c) => (
+                  <option value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </SearchSelect>
           </span>
           <select
             class="inp"

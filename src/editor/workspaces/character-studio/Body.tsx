@@ -20,6 +20,7 @@ import { newId } from '../../../core/ids';
 import type { Asset, Character } from '../../../core/schema';
 import { AssetThumb } from '../../components/AssetThumb';
 import { FieldHelp } from '../../components/fields';
+import { matches, NoMatch, SearchBox, SearchSelect } from '../../components/SearchBox';
 import { NumField, type Props, SHEET_HELP } from './Sheet';
 import { CharacterThumb } from './thumbs';
 
@@ -80,6 +81,7 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
   const family: BodyFamily = own ? 'minifig' : (body.family ?? 'minifig');
   const isMinifig = !own && family === 'minifig';
   const [custom, setCustom] = useState(false);
+  const [bodyQ, setBodyQ] = useState('');
   const [customFrom, setCustomFrom] = useState<Exclude<BodyFamily, 'minifig'>>(
     family === 'minifig' ? 'fourLegs' : family,
   );
@@ -117,8 +119,18 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
             <FieldHelp label="Body" text={BODY_HELP.body} />
           </span>
         </div>
+        <SearchBox label="bodies" value={bodyQ} onInput={setBodyQ} tour="body-search" />
+        <NoMatch
+          q={
+            BODY_FAMILIES.some((f) => matches(bodyQ, FAMILY_INFO[f].label, FAMILY_INFO[f].about)) ||
+            plans.some((p) => matches(bodyQ, p.name))
+              ? ''
+              : bodyQ
+          }
+          what="bodies"
+        />
         <div class="body-grid" role="radiogroup" aria-label="Body family">
-          {BODY_FAMILIES.map((f) => (
+          {BODY_FAMILIES.filter((f) => matches(bodyQ, FAMILY_INFO[f].label, FAMILY_INFO[f].about)).map((f) => (
             <button
               type="button"
               role="radio"
@@ -133,24 +145,26 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
               {FAMILY_INFO[f].label}
             </button>
           ))}
-          {plans.map((p) => (
-            <button
-              type="button"
-              role="radio"
-              aria-checked={own?.id === p.id}
-              class={`chip body-card ${own?.id === p.id ? 'on' : ''}`}
-              data-tour={`body-plan-${p.id}`}
-              title={`${p.name}: a body plan of this game (${MOVE_INFO[p.move]})`}
-              onClick={() => pickPlan(p)}
-            >
-              <CharacterThumb
-                profile={chr.profile}
-                size={30}
-                body={resolveBody({ plan: p.id }, (x) => ed.store.get(x))}
-              />
-              {p.name}
-            </button>
-          ))}
+          {plans
+            .filter((p) => matches(bodyQ, p.name))
+            .map((p) => (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={own?.id === p.id}
+                class={`chip body-card ${own?.id === p.id ? 'on' : ''}`}
+                data-tour={`body-plan-${p.id}`}
+                title={`${p.name}: a body plan of this game (${MOVE_INFO[p.move]})`}
+                onClick={() => pickPlan(p)}
+              >
+                <CharacterThumb
+                  profile={chr.profile}
+                  size={30}
+                  body={resolveBody({ plan: p.id }, (x) => ed.store.get(x))}
+                />
+                {p.name}
+              </button>
+            ))}
           <button
             type="button"
             class={`chip body-card ${custom ? 'on' : ''}`}
@@ -340,23 +354,25 @@ function BrickBuild({ c, body, resolved, setBody }: Sub & { resolved: ResolvedBo
       </div>
       <label class="field">
         Brick build
-        <select
-          class="inp"
-          aria-label="Brick build"
-          data-tour="body-asset"
-          value={body.asset ?? ''}
-          onChange={(e) => {
-            const v = (e.target as HTMLSelectElement).value;
-            const { asset: _a, attach: _t, ...rest } = body;
-            ed.bodyPaint.value = null;
-            setBody(v ? { ...rest, asset: v } : rest, v ? 'Wear a brick build' : 'Body’s own bricks');
-          }}
-        >
-          <option value="">None: the body’s own bricks</option>
-          {assets.map((a) => (
-            <option value={a.id}>{a.name}</option>
-          ))}
-        </select>
+        <SearchSelect label="builds">
+          <select
+            class="inp"
+            aria-label="Brick build"
+            data-tour="body-asset"
+            value={body.asset ?? ''}
+            onChange={(e) => {
+              const v = (e.target as HTMLSelectElement).value;
+              const { asset: _a, attach: _t, ...rest } = body;
+              ed.bodyPaint.value = null;
+              setBody(v ? { ...rest, asset: v } : rest, v ? 'Wear a brick build' : 'Body’s own bricks');
+            }}
+          >
+            <option value="">None: the body’s own bricks</option>
+            {assets.map((a) => (
+              <option value={a.id}>{a.name}</option>
+            ))}
+          </select>
+        </SearchSelect>
         {body.asset && assets.find((a) => a.id === body.asset) && (
           <AssetThumb def={assets.find((a) => a.id === body.asset)!} size={40} />
         )}
@@ -415,6 +431,7 @@ const coordOk = (v: number) => Math.max(-30, Math.min(30, v));
 
 function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefined }) {
   const ed = c.ed;
+  const [boneQ, setBoneQ] = useState('');
   const put = (plan: BodyPlan, label: string) => {
     const bad = checkPlan(plan);
     if (bad.length) {
@@ -550,24 +567,28 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
           onCommit={(v) => put({ ...own, hover: v }, 'Hover')}
         />
       </div>
+      <SearchBox label="bones" value={boneQ} onInput={setBoneQ} tour="bone-search" />
       <div class="bone-list" role="listbox" aria-label="Bones">
-        {own.bones.map((b) => {
-          let depth = 0;
-          for (let p = b.parent; p && depth < 12; depth++) p = own.bones.find((x) => x.name === p)?.parent;
-          return (
-            <button
-              type="button"
-              role="option"
-              aria-selected={b.name === sel.name}
-              class={`bone-row ${b.name === sel.name ? 'on' : ''}`}
-              style={{ paddingLeft: `${6 + depth * 12}px` }}
-              data-name={b.name}
-              onClick={() => (ed.bodyBone.value = b.name)}
-            >
-              {b.name} <span class="muted small">{b.role}</span>
-            </button>
-          );
-        })}
+        <NoMatch q={own.bones.some((b) => matches(boneQ, b.name, b.role)) ? '' : boneQ} what="bones" />
+        {own.bones
+          .filter((b) => matches(boneQ, b.name, b.role))
+          .map((b) => {
+            let depth = 0;
+            for (let p = b.parent; p && depth < 12; depth++) p = own.bones.find((x) => x.name === p)?.parent;
+            return (
+              <button
+                type="button"
+                role="option"
+                aria-selected={b.name === sel.name}
+                class={`bone-row ${b.name === sel.name ? 'on' : ''}`}
+                style={{ paddingLeft: `${6 + depth * 12}px` }}
+                data-name={b.name}
+                onClick={() => (ed.bodyBone.value = b.name)}
+              >
+                {b.name} <span class="muted small">{b.role}</span>
+              </button>
+            );
+          })}
       </div>
       <div class="row" style={{ gap: '6px' }}>
         <button

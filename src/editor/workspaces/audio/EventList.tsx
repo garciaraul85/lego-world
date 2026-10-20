@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { ListenButton } from '../../components/EventPicker';
 import { MusicListen } from '../../components/previews';
+import { matches } from '../../components/SearchBox';
 import type { EditorState } from '../../state';
 import { data, isBuiltinEventId, isBuiltinMusicId, ownsEvent, ownsMusic } from './model';
 
@@ -22,7 +23,7 @@ export function EventList({
   const pick = (kind: 'event' | 'music' | 'mixer' | 'media', id: string | null = null) =>
     (ed.audioSel.value = { kind, id });
   const events = Object.entries(d.events)
-    .filter(([id, e]) => `${e.name ?? id}`.toLowerCase().includes(q.toLowerCase()))
+    .filter(([id, e]) => matches(q, e.name ?? id, e.bus))
     .sort((a, b) => (a[1].name ?? a[0]).localeCompare(b[1].name ?? b[0]));
   return (
     <section class="panel studio-lib" aria-label="Sounds and music">
@@ -33,7 +34,7 @@ export function EventList({
         <div style={{ padding: '8px' }}>
           <input
             class="inp"
-            placeholder="Search sounds…"
+            placeholder="Search sounds and music…"
             aria-label="Search sounds"
             value={q}
             onInput={(e) => setQ((e.target as HTMLInputElement).value)}
@@ -66,21 +67,23 @@ export function EventList({
             + New
           </button>
         </div>
-        {Object.entries(d.music.states).map(([id, m]) => (
-          <div class="lib-row">
-            <button
-              type="button"
-              class={`lib-item ${sel.kind === 'music' && sel.id === id ? 'on' : ''}`}
-              onClick={() => pick('music', id)}
-            >
-              <span class="asset-name">♪ {m.name ?? id}</span>
-              <span class="mono small muted">
-                {isBuiltinMusicId(id) ? (ownsMusic(ed, id) ? 'edited' : 'built-in') : `${m.layers.length} layer`}
-              </span>
-            </button>
-            <MusicListen ed={ed} id={id} name={m.name ?? id} />
-          </div>
-        ))}
+        {Object.entries(d.music.states)
+          .filter(([id, m]) => matches(q, m.name ?? id, 'music'))
+          .map(([id, m]) => (
+            <div class="lib-row">
+              <button
+                type="button"
+                class={`lib-item ${sel.kind === 'music' && sel.id === id ? 'on' : ''}`}
+                onClick={() => pick('music', id)}
+              >
+                <span class="asset-name">♪ {m.name ?? id}</span>
+                <span class="mono small muted">
+                  {isBuiltinMusicId(id) ? (ownsMusic(ed, id) ? 'edited' : 'built-in') : `${m.layers.length} layer`}
+                </span>
+              </button>
+              <MusicListen ed={ed} id={id} name={m.name ?? id} />
+            </div>
+          ))}
         <div class="sech" style={{ padding: '8px 10px 4px' }}>
           <span>Mix</span>
         </div>

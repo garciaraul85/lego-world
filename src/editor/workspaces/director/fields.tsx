@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { FieldHelp } from '../../components/fields';
+import { SearchSelect } from '../../components/SearchBox';
 
 /** P32: a field's name with its “?” (what it is, where its value comes from) */
 const Head = ({ label, help }: { label: string; help?: string | undefined }) => (
@@ -104,16 +105,18 @@ export function Pick({
   after?: ComponentChildren;
 }) {
   const select = (
-    <select
-      class="inp"
-      aria-label={label}
-      value={value}
-      onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
-    >
-      {options.map((o) => (
-        <option value={o.id}>{o.name}</option>
-      ))}
-    </select>
+    <SearchSelect label="choices">
+      <select
+        class="inp"
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
+      >
+        {options.map((o) => (
+          <option value={o.id}>{o.name}</option>
+        ))}
+      </select>
+    </SearchSelect>
   );
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: the control is the list inside (with a preview beside it)

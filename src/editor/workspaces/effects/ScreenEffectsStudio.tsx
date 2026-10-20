@@ -14,6 +14,7 @@ import { paths } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
 import { FieldHelp } from '../../components/fields';
 import { ScreenEffectThumb } from '../../components/previews';
+import { matches, NoMatch, SearchBox, SearchSelect } from '../../components/SearchBox';
 import { EffectsTabs, Num } from './shared';
 
 /** the screen effects of a game: its own (screenfx/), then the built-in ones */
@@ -38,6 +39,7 @@ export const SCREEN_FX_HELP = {
 
 /** P23 part 2: Effects › Screen — the library, a live preview, the settings, and the game's screen effects. */
 export function ScreenEffectsStudio({ c }: { c: ActionCtx }) {
+  const [q, setQ] = useState('');
   const { ed } = c;
   ed.revision.value;
   const { own, builtin } = allScreenEffects(ed.store);
@@ -68,7 +70,11 @@ export function ScreenEffectsStudio({ c }: { c: ActionCtx }) {
             + New screen effect
           </button>
         </div>
+        <div style={{ padding: '0 8px 6px' }}>
+          <SearchBox label="screen effects" value={q} onInput={setQ} tour="sfx-search" />
+        </div>
         <div class="scroll" role="listbox" aria-label="Screen effects">
+          <NoMatch q={[...own, ...builtin].some((e) => matches(q, e.name)) ? '' : q} what="screen effects" />
           <div class="lib-head">
             Mine
             <FieldHelp label="Screen effects" text={SCREEN_FX_HELP.library} />
@@ -78,13 +84,17 @@ export function ScreenEffectsStudio({ c }: { c: ActionCtx }) {
               None yet: copy a built-in one, or + New screen effect.
             </div>
           )}
-          {own.map((e) => (
-            <Row e={e} on={e.id === effect.id} onPick={() => (ed.screenEffectId.value = e.id)} />
-          ))}
+          {own
+            .filter((e) => matches(q, e.name))
+            .map((e) => (
+              <Row e={e} on={e.id === effect.id} onPick={() => (ed.screenEffectId.value = e.id)} />
+            ))}
           <div class="lib-head">Built-in</div>
-          {builtin.map((e) => (
-            <Row e={e} on={e.id === effect.id} onPick={() => (ed.screenEffectId.value = e.id)} />
-          ))}
+          {builtin
+            .filter((e) => matches(q, e.name))
+            .map((e) => (
+              <Row e={e} on={e.id === effect.id} onPick={() => (ed.screenEffectId.value = e.id)} />
+            ))}
         </div>
       </section>
 
@@ -428,22 +438,24 @@ function GameScreenEffects({ c, own }: { c: ActionCtx; own: ScreenEffect[] }) {
           <label class="field">
             {SCREEN_EVENT_INFO[ev]}
             <span class="row pv-row">
-              <select
-                class="inp"
-                aria-label={`Screen: ${SCREEN_EVENT_INFO[ev]}`}
-                data-tour={`sfx-event-${ev}`}
-                value={v ?? ''}
-                onChange={(x) => setEvent(ev, (x.target as HTMLSelectElement).value)}
-              >
-                <option value="">Built-in: {name(DEFAULT_SCREEN_EVENTS[ev])}</option>
-                <option value="none">None</option>
-                {own.map((e) => (
-                  <option value={e.id}>{e.name}</option>
-                ))}
-                {BUILTIN_SCREEN_EFFECTS.filter((e) => e.id !== DEFAULT_SCREEN_EVENTS[ev]).map((e) => (
-                  <option value={e.id}>{e.name}</option>
-                ))}
-              </select>
+              <SearchSelect label="screen effects">
+                <select
+                  class="inp"
+                  aria-label={`Screen: ${SCREEN_EVENT_INFO[ev]}`}
+                  data-tour={`sfx-event-${ev}`}
+                  value={v ?? ''}
+                  onChange={(x) => setEvent(ev, (x.target as HTMLSelectElement).value)}
+                >
+                  <option value="">Built-in: {name(DEFAULT_SCREEN_EVENTS[ev])}</option>
+                  <option value="none">None</option>
+                  {own.map((e) => (
+                    <option value={e.id}>{e.name}</option>
+                  ))}
+                  {BUILTIN_SCREEN_EFFECTS.filter((e) => e.id !== DEFAULT_SCREEN_EVENTS[ev]).map((e) => (
+                    <option value={e.id}>{e.name}</option>
+                  ))}
+                </select>
+              </SearchSelect>
               {shown && <ScreenEffectThumb effect={shown} width={36} />}
             </span>
           </label>
