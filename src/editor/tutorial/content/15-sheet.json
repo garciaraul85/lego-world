@@ -244,16 +244,29 @@
           "click": "[data-tour=\"sheet-animations\"]"
         },
         {
-          "fn": "sheetAnimation",
-          "args": {
-            "action": "victory",
-            "clip": "clp_emotecheer"
-          }
+          "click": "[data-tour=\"pick-anim-victory\"]"
+        },
+        {
+          "click": "[data-tour=\"pick-anim-victory-list\"] [data-value=\"clp_emotecheer\"]"
         }
       ],
       "how": [
         {
-          "text": "Click Animations, then choose Cheer for Victory (level up).",
+          "text": "Click the sheet tab Animations.",
+          "check": {
+            "kind": "state",
+            "test": "sheetTab",
+            "args": "animations"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sheet-animations\"]",
+              "say": "Animations"
+            }
+          ]
+        },
+        {
+          "text": "In the Victory card, click the clip button (Built-in motion). Every clip shows as a picture that moves while you point at it. Click Cheer: he cheers on a level up.",
           "check": {
             "kind": "state",
             "test": "animationSet",
@@ -261,15 +274,11 @@
           },
           "do": [
             {
-              "click": "[data-tour=\"sheet-animations\"]",
-              "say": "Animations"
+              "click": "[data-tour=\"pick-anim-victory\"]",
+              "say": "The clip pictures"
             },
             {
-              "fn": "sheetAnimation",
-              "args": {
-                "action": "victory",
-                "clip": "clp_emotecheer"
-              },
+              "click": "[data-tour=\"pick-anim-victory-list\"] [data-value=\"clp_emotecheer\"]",
               "say": "He cheers on a level up."
             }
           ]

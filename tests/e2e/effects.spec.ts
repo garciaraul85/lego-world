@@ -151,9 +151,13 @@ test('character previews: clip pictures move, ▶ plays a clip on the figure, He
   // Animations: pick an idle clip, ▶ plays it on the figure, ■ stops
   const sheet = page.getByRole('tablist', { name: 'Character sheet' });
   await sheet.getByRole('tab', { name: 'Animations' }).click();
-  const idle = page.getByLabel(/^Idle .*clip$/);
-  await idle.selectOption({ index: 1 });
-  const clip = await idle.inputValue();
+  // the clip button opens every clip as a picture; the pictures move while the pointer is on them
+  await page.locator('[data-tour="pick-anim-idle"]').click();
+  const pick = page.locator('[data-tour="pick-anim-idle-list"] [role="option"]').nth(1);
+  await pick.locator('.clip-thumb').hover();
+  await expect(pick.locator('.clip-thumb')).toHaveClass(/moving/);
+  const clip = (await pick.getAttribute('data-value'))!;
+  await pick.click();
   await expect.poll(() => get(page, (e) => [e.studioClip.value, e.clipPlaying.value])).toEqual([clip, true]);
   const play = page.getByRole('button', { name: /^Preview the idle/ });
   await play.click();

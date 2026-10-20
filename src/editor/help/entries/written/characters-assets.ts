@@ -406,7 +406,7 @@ export const CHARACTERS: HelpEntry[] = [
     kind: 'area',
     name: 'Animations',
     purpose:
-      'The clip each state of the character plays, its run speed and how long a hit shows. The **States** list is its animation state machine (below). **Victory** plays once on a level up, while it stands. Each row shows the clip moving while the pointer is on it; **▶** plays it on the big figure (**■** stops), and picking a clip plays it too. Make your own clips in Look and clips › Clips (pose by pose in **Poses**).',
+      'The clip each state of the character plays, its run speed and how long a hit shows. The **States** list is its animation state machine (below). **Victory** plays once on a level up, while it stands. The clip button opens every clip as a picture that moves while the pointer is on it, so you see each move before you pick it; **▶** plays the picked clip on the big figure (**■** stops), and picking a clip plays it too. Make your own clips in Look and clips › Clips (pose by pose in **Poses**).',
     commands: ['character.update'],
     match: [{ in: '[data-tour="char-animations"]' }],
     related: ['characters.states', 'characters.states.try', 'clips.poses', 'characters.clip'],

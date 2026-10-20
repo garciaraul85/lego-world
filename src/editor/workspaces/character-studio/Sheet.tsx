@@ -21,6 +21,7 @@ import { mouthAt } from '../../../core/dialogue/lipsync';
 import type { Character, Clip } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
 import { FieldHelp } from '../../components/fields';
+import { PreviewPicker } from '../../components/PreviewPicker';
 import { viewGenre } from '../../genres/view';
 import { soundOptions } from '../../panels/AudioFields';
 import { bodyOfChr } from './body-of';
@@ -480,32 +481,33 @@ function AnimRow({
     <div class="field anim-row" data-tour={`anim-${a}`}>
       <span class="muted small">Clip</span>
       <span class="row" style={{ flexWrap: 'nowrap', gap: '6px' }}>
-        {picked ? (
-          <ClipThumb profile={chr.profile} clip={picked} size={26} play={showing} />
-        ) : (
-          <span class="clip-thumb none" aria-hidden="true" />
-        )}
-        <select
-          class="inp"
-          aria-label={`${ACTION_LABEL[a]} clip`}
+        {/* P23 part 4: every clip as a picture that moves while the pointer is on it */}
+        <PreviewPicker
+          label={`${ACTION_LABEL[a]} clip`}
+          tour={`anim-${a}`}
           value={anims[a] ?? ''}
-          onChange={(e) => {
-            const v = (e.target as HTMLSelectElement).value;
+          options={[
+            {
+              value: '',
+              name: 'Built-in motion',
+              thumb: <span class="clip-thumb none" aria-hidden="true" />,
+              note: 'the engine’s own',
+            },
+            ...clips.map((x) => ({
+              value: x.id,
+              name: x.name ?? x.id,
+              thumb: <ClipThumb profile={chr.profile} clip={x} size={44} />,
+              note: own.includes(x) ? 'mine' : (x.group ?? ''),
+            })),
+          ]}
+          onPick={(v) => {
             const next = { ...anims };
             if (v) next[a] = v as Clip['id'];
             else delete next[a];
             save({ ...chr, animations: next }, `${a} clip`);
             if (v) playOnFigure(c, v);
           }}
-        >
-          <option value="">Built-in motion</option>
-          {clips.map((x) => (
-            <option value={x.id}>
-              {x.name ?? x.id}
-              {own.includes(x) ? ' (mine)' : ''}
-            </option>
-          ))}
-        </select>
+        />
         <button
           type="button"
           class={`btn icon ${showing ? 'on' : ''}`}

@@ -441,7 +441,7 @@
       "id": "posing.idle",
       "title": "Your clip for Idle",
       "body": "Any clip can be a state's clip. With Wave hello for Idle, Pip waves when he has stood still a moment.",
-      "task": "In the Idle state, pick Wave hello (mine).",
+      "task": "In the Idle state, open the clip pictures and pick Wave hello (mine).",
       "target": "[data-tour=\"state-idle\"]",
       "check": {
         "kind": "state",
@@ -453,15 +453,15 @@
           "click": "[data-tour=\"sheet-animations\"]"
         },
         {
-          "fn": "stateOwnClip",
-          "args": {
-            "state": "idle"
-          }
+          "click": "[data-tour=\"pick-anim-idle\"]"
+        },
+        {
+          "click": "[data-tour=\"pick-anim-idle-list\"] [data-name=\"Wave hello\"]"
         }
       ],
       "how": [
         {
-          "text": "In the Idle card, open the clip list and pick Wave hello (mine). It plays on the figure.",
+          "text": "In the Idle card, click the clip button (it says Breathe). Every clip shows as a picture; point at one and it moves, so you see it before you pick it. Click Wave hello (mine), your clip: it plays on the big figure.",
           "check": {
             "kind": "state",
             "test": "animationOwn",
@@ -469,14 +469,11 @@
           },
           "do": [
             {
-              "show": "[data-tour=\"state-idle\"]",
-              "say": "The Idle state"
+              "click": "[data-tour=\"pick-anim-idle\"]",
+              "say": "The clip pictures"
             },
             {
-              "fn": "stateOwnClip",
-              "args": {
-                "state": "idle"
-              },
+              "click": "[data-tour=\"pick-anim-idle-list\"] [data-name=\"Wave hello\"]",
               "say": "Wave hello for Idle"
             }
           ]
