@@ -28,6 +28,8 @@ Across the top are the menus, the workspace tabs and the toolbar. The workspaces
 
 The Scene workspace has the Hierarchy on the left, the 3D map in the middle, the dock below it (Assets, Console, Timeline, Profiler, Problems, Debug, Mixer) and the Inspector on the right. The Inspector has three tabs: Inspector (what is selected), Map (terrain, sky, weather, music) and Project (title, start map, hero, first screen).
 
+Lists and pickers show what each thing is, not only its name: assets, characters and clips as pictures, effects as pictures that play while the pointer is over them, screens drawn small, maps seen from above (in the World graph), the first lines of a conversation, and the speaker's face beside each line. ▶ (Listen to …) plays a sound once; on a music it turns into ■ to stop it.
+
 Everything you do is one undo step and saves itself to this device a moment later. The status bar shows "All changes saved".
 
 ## What kind of game? (genres)

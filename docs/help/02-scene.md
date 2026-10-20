@@ -22,6 +22,8 @@ Hold the pointer over a tool or a card for a moment to see what it does; the ? i
 
 Drag an asset card from the dock straight into the 3D view: a ghost shows where it lands, and letting go places it. Clicking a card and then the ground still works too.
 
+The dock's Effects category has every effect (fire, smoke, sparks, magic…). Point at one to see it play; **Place** puts it on the map beside where the player starts, ready to move.
+
 ## Moving, turning and resizing
 
 Pick what you want to do in the toolbar, like in other 3D tools, and the selection shows handles for it:
