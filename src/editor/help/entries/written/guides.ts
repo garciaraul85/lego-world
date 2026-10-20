@@ -143,8 +143,8 @@ export const GUIDES: ScreenGuide[] = [
       ['Make a new effect', 'effects.new'],
       ['Change how an effect looks', 'effects.settings'],
       ['Pick the effects for hits and level up', 'effects.hooks'],
+      ['Shake or flash the screen', 'effects.screen.library'],
       ['Put an effect on a map', 'scene.item.effect'],
-      ['Play an effect from logic', 'node.effect.play'],
     ],
   },
   {

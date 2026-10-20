@@ -12,6 +12,7 @@ import { makeAssetOfSelection } from '../interact/scene-menus';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
 import { DialogueSection } from './DialogueSection';
+import { MoodSection } from './MoodSection';
 import { ProgressSection } from './ProgressSection';
 import { SavingSection } from './SavingSection';
 import { ScriptSection } from './ScriptSection';
@@ -580,6 +581,7 @@ function MapTab({ c }: { c: ActionCtx }) {
           </div>
         </div>
       </div>
+      <MoodSection c={c} m={m} />
       <div class="sec" style={{ borderBottom: 0 }}>
         <div class="sech">
           <span>Audio &amp; first visit</span>

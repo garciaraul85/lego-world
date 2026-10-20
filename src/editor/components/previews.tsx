@@ -297,10 +297,13 @@ export function ScreenEffectThumb({
   effect,
   width = 48,
   play = false,
+  reduce = false,
 }: {
   effect: ScreenEffect;
   width?: number;
   play?: boolean;
+  /** as the player sees it with Reduce motion on */
+  reduce?: boolean;
 }) {
   const scene = useRef<HTMLSpanElement>(null);
   const ball = useRef<HTMLSpanElement>(null);
@@ -325,6 +328,7 @@ export function ScreenEffectThumb({
       return;
     }
     const fx = new ScreenFx();
+    fx.reduceMotion = reduce;
     let x = 0.1;
     let raf = 0;
     let last = performance.now();
@@ -358,7 +362,7 @@ export function ScreenEffectThumb({
       cancelAnimationFrame(raf);
       reset();
     };
-  }, [effect, on]);
+  }, [effect, on, reduce]);
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: pointing at the picture plays it; it is only a picture (hidden from readers)
     <span

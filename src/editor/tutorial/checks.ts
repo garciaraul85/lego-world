@@ -1,7 +1,9 @@
 import { BUILTIN_EFFECTS } from '../../builtin/effects';
+import { BUILTIN_SCREEN_EFFECTS } from '../../builtin/screen-effects';
 import type { Command } from '../../core/commands';
 import type { Conversation } from '../../core/dialogue/schema';
 import type { Effect } from '../../core/effects/schema';
+import type { ScreenEffect } from '../../core/effects/screen';
 import { wiresOf } from '../../core/logic/wiring';
 import { allSaves } from '../../core/save/save';
 import {
@@ -25,6 +27,11 @@ import { MARK_FACING, MARK_RADIUS, markTarget } from './story';
 
 const effectNamed = (ed: EditorState, id: string | null | undefined): Effect | undefined =>
   id ? (ed.store.get<Effect>(paths.effect(id)) ?? BUILTIN_EFFECTS.find((e) => e.id === id)) : undefined;
+
+const screenEffectNamed = (ed: EditorState, id: string | null | undefined): ScreenEffect | undefined =>
+  id
+    ? (ed.store.get<ScreenEffect>(paths.screenEffect(id)) ?? BUILTIN_SCREEN_EFFECTS.find((e) => e.id === id))
+    : undefined;
 
 /** Named tests for `state` checks (P7.3). They read the editor; none of them changes anything. */
 export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boolean> = {
@@ -305,6 +312,31 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   },
   // P23 part 1: the effects course
   effectOpen: (ed, a) => effectNamed(ed, ed.effectId.value)?.name === a,
+  // P23 part 2: the screen effects course
+  effectsTabIs: (ed, a) => ed.effectsTab.value === a,
+  screenEffectOpen: (ed, a) => screenEffectNamed(ed, ed.screenEffectId.value)?.name === a,
+  ownScreenEffectNamed: (ed, a) => {
+    const id = ed.screenEffectId.value;
+    return !!id && ed.store.has(paths.screenEffect(id)) && screenEffectNamed(ed, id)?.name === a;
+  },
+  screenFlash: (ed, a) => {
+    const e = screenEffectNamed(ed, ed.screenEffectId.value);
+    return !!e && ed.store.has(paths.screenEffect(e.id)) && e.flash?.color.toLowerCase() === String(a).toLowerCase();
+  },
+  screenRumble: (ed) => {
+    const e = screenEffectNamed(ed, ed.screenEffectId.value);
+    return !!e && ed.store.has(paths.screenEffect(e.id)) && !!e.shake?.rumble;
+  },
+  screenHook: (ed, a) => {
+    const { event, name } = a as { event: string; name: string };
+    const id = (ed.store.manifest.screenEffects?.events as Record<string, string> | undefined)?.[event];
+    return !!id && screenEffectNamed(ed, id)?.name === name;
+  },
+  mapMood: (ed, a) => {
+    const want = a as Partial<Record<string, unknown>>;
+    const m = ed.mapDoc.value?.mood as Record<string, unknown> | undefined;
+    return !!m && Object.entries(want).every(([k, v]) => m[k] === v);
+  },
   ownEffectNamed: (ed, a) => {
     const id = ed.effectId.value;
     return !!id && ed.store.has(paths.effect(id)) && effectNamed(ed, id)?.name === a;

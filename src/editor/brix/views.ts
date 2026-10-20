@@ -412,6 +412,12 @@ export function stepsToView(view: string): ShowStep[] {
           return !!own;
         }),
       ];
+    // P23 part 2: screen effects
+    case 'effects-screen':
+      return [
+        ws('Effects'),
+        { say: 'Open the Screen tab.', find: control('body', /^Screen$/, '[role="tab"]'), press: true },
+      ];
     case 'scene-effect':
       return [
         ws('Scene'),

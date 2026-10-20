@@ -20,6 +20,7 @@ import type { Asset, LogicGraph } from '../../core/schema';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
 import { type LineSet, type Marker, type Overlay, type RenderBrick, Renderer } from '../../engine/render/renderer';
+import { ScreenFxOverlay } from '../../engine/ui/ScreenFxOverlay';
 import { placeCommands, resolveAsset } from '../assets';
 import { groupLabel } from '../categories';
 import { dragPayload, endDrag, sceneHover } from '../interact/drag';
@@ -1379,6 +1380,10 @@ export function Viewport({
         data-tour="viewport"
         aria-label="3D map view"
       />
+      {/* P23 part 2: the map's mood, as the game shows it (Map › Screen mood) */}
+      {!studio && ed.moodPreview.value && ed.mapDoc.value?.mood && (
+        <ScreenFxOverlay mood={ed.mapDoc.value.mood} layers={[]} />
+      )}
       <div class="vp-hud mono" ref={hudRef} />
       <div class="gizmo-tag" ref={tagRef} hidden />
       {mode === 'scene' && <ViewControls view={viewRef} studio={!!studio} />}

@@ -131,6 +131,11 @@ export class EditorState {
   /** P23: the effect open in the Effects screen, and whether every setting shows (Advanced) */
   readonly effectId = signal<string | null>(null);
   readonly effectsAdvanced = signal(false);
+  /** P23 part 2: the Effects workspace shows particles or screen effects; the screen effect open there */
+  readonly effectsTab = signal<'particles' | 'screen'>('particles');
+  readonly screenEffectId = signal<string | null>(null);
+  /** P23 part 2: show the map's mood (colour, dark edges, drifting) over the Scene view */
+  readonly moodPreview = signal(true);
   /** P22 part 4: the “A character from a picture” dialog is open */
   readonly fromPicture = signal(false);
   readonly faceMood = signal<'neutral' | 'happy' | 'angry' | 'sad' | 'scared' | 'surprised'>('neutral');

@@ -5914,3 +5914,23 @@ img.bw-portrait {
   inset: 0;
   opacity: 0;
 }
+.sfx-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+}
+.sfx-part {
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 6px 0;
+  opacity: 0.8;
+}
+.sfx-part.on {
+  opacity: 1;
+  border-color: var(--acc);
+}

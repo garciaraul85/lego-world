@@ -417,11 +417,7 @@ export function shaken<C extends CameraFrame>(c: C, [dx, dy, roll]: [number, num
   if (!dx && !dy && !roll) return c;
   const cr = Math.cos(roll);
   const sr = Math.sin(roll);
-  const right: Vec3 = [
-    c.right[0] * cr + c.up[0] * sr,
-    c.right[1] * cr + c.up[1] * sr,
-    c.right[2] * cr + c.up[2] * sr,
-  ];
+  const right: Vec3 = [c.right[0] * cr + c.up[0] * sr, c.right[1] * cr + c.up[1] * sr, c.right[2] * cr + c.up[2] * sr];
   const up: Vec3 = [c.up[0] * cr - c.right[0] * sr, c.up[1] * cr - c.right[1] * sr, c.up[2] * cr - c.right[2] * sr];
   const eye: Vec3 = [
     c.eye[0] + c.right[0] * dx + c.up[0] * dy,

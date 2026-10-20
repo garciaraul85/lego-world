@@ -17,6 +17,8 @@ import { FieldHelp } from '../../components/fields';
 import { EffectThumb } from '../../components/previews';
 import { placeEffectAt } from '../../interact/place';
 import { EffectPreview } from './EffectPreview';
+import { ScreenEffectsStudio } from './ScreenEffectsStudio';
+import { EffectsTabs, Num } from './shared';
 
 /**
  * P23 part 1: the Effects screen — the built-in library and the game's own effects, a live preview, the
@@ -73,13 +75,13 @@ export function EffectsStudio({ c }: { c: ActionCtx }) {
     if (save(next, `Copy effect ${from.name}`)) ed.effectId.value = next.id;
   };
   const set = <K extends keyof Effect>(k: K, v: Effect[K]) => save({ ...effect, [k]: v }, `Effect ${String(k)}`);
+  // P23 part 2: screen effects have their own tab
+  if (ed.effectsTab.value === 'screen') return <ScreenEffectsStudio c={c} />;
 
   return (
     <div class="studio fx-studio">
       <section class="panel studio-lib" aria-label="Effects library">
-        <div class="ptabs">
-          <span class="tab on">Effects</span>
-        </div>
+        <EffectsTabs ed={ed} />
         <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <button
             type="button"
@@ -216,42 +218,6 @@ function EffectRow({ e, on, onPick }: { e: Effect; on: boolean; onPick(): void }
       <span class="asset-name">{e.name}</span>
       <span class="mono small muted">{e.mode}</span>
     </button>
-  );
-}
-
-function Num({
-  label,
-  value,
-  lo,
-  hi,
-  step = 0.1,
-  onSet,
-}: {
-  label: string;
-  value: number;
-  lo: number;
-  hi: number;
-  step?: number;
-  onSet(v: number): void;
-}) {
-  return (
-    <label class="field">
-      {label}
-      <input
-        class="inp mono"
-        type="number"
-        aria-label={label}
-        key={String(value)}
-        defaultValue={String(value)}
-        min={lo}
-        max={hi}
-        step={step}
-        onChange={(e) => {
-          const n = Number((e.target as HTMLInputElement).value);
-          if (Number.isFinite(n)) onSet(r2(clamp(n, lo, hi)));
-        }}
-      />
-    </label>
   );
 }
 

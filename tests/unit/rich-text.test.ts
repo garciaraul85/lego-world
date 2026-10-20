@@ -11,6 +11,7 @@ import {
   COURSES,
   DIALOGUE_CHAPTERS,
   SAVING_CHAPTERS,
+  SCREENFX_CHAPTERS,
 } from '../../src/editor/tutorial';
 
 /**
@@ -41,6 +42,7 @@ describe('formatted text', () => {
       CODING_CHAPTERS,
       COMBAT_CHAPTERS,
       SAVING_CHAPTERS,
+      SCREENFX_CHAPTERS,
       BRIX_CHAPTERS,
       DIALOGUE_CHAPTERS,
       COURSES,

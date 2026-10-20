@@ -3,6 +3,9 @@ import { area, type HelpEntry } from '../types';
 const LIB = area('Effects library');
 const PREV = area('Effect preview');
 const SET = area('Effect settings');
+const SLIB = area('Screen effects library');
+const SPREV = area('Screen effect preview');
+const SSET = area('Screen effect settings');
 
 /** P23 part 1: the Effects screen, and an effect placed on a map. */
 export const EFFECTS: HelpEntry[] = [
@@ -78,5 +81,71 @@ export const EFFECTS: HelpEntry[] = [
     commands: ['item.update', 'item.remove'],
     match: [{ in: '[data-help="scene.item.effect"]' }],
     related: ['effects.screen'],
+  },
+  {
+    id: 'effects.tabs',
+    screen: 'effects',
+    kind: 'view',
+    name: 'Particles and Screen',
+    also: ['screen effects tab', 'particles tab'],
+    purpose:
+      '**Particles** are effects in the world, made of tiny bricks (fire, sparks, smoke). **Screen** effects change the whole view: the camera shakes, the screen flashes or fades, the game freezes for a split second or runs in slow motion.',
+    match: [{ in: area('Kind of effect') }],
+  },
+  {
+    id: 'effects.screen.library',
+    screen: 'effects',
+    kind: 'list',
+    name: 'Screen effects library',
+    also: ['camera shake', 'screen shake', 'flash', 'hit-stop', 'slow motion', 'fade to black', 'earthquake'],
+    purpose:
+      'Every screen effect: **Mine** are this game’s own, **Built-in** come with the editor (Small shake, Big shake, Rumble, Earthquake, White, Red and Gold flash, Hit-stop, Big hit, Slow motion, Finishing blow, Fade to black, Fade from black, Blink, Knocked out, Heavy landing). Each picture plays the effect while the pointer is over it. **+ New screen effect** starts from Big hit.',
+    commands: ['screenEffect.put'],
+    match: [{ sel: SLIB }, { in: SLIB }],
+    related: ['effects.screen.settings', 'effects.screen.hooks', 'node.screen.effect'],
+  },
+  {
+    id: 'effects.screen.preview',
+    screen: 'effects',
+    kind: 'area',
+    name: 'Screen effect preview',
+    purpose:
+      'The selected screen effect plays over and over on a little scene. The ball rolls at the game’s speed: it stops during a hit-stop and slows in slow motion. **As with Reduce motion** shows what players see with that setting on; **▶ Play again** starts it over.',
+    match: [{ sel: SPREV }, { in: SPREV }],
+  },
+  {
+    id: 'effects.screen.settings',
+    screen: 'effects',
+    kind: 'area',
+    name: 'Screen effect settings',
+    also: ['shake strength', 'flash colour', 'fade out', 'freeze frame'],
+    purpose:
+      'Tick what the effect does; one effect can do several at once. **Shake**: how strong (studs) and how long; Slow rumble for earthquakes. **Flash**: a colour, how strong and how long. **Fade**: out to a colour (it stays until a fade in), in from a colour, or out and back in. **Hit-stop**: how long the game freezes. **Slow motion**: how slow and how long. A built-in screen effect shows **Make a copy to change it**.',
+    commands: ['screenEffect.put', 'screenEffect.delete'],
+    match: [{ sel: SSET }, { in: SSET }],
+    related: ['effects.screen.hooks'],
+  },
+  {
+    id: 'effects.screen.hooks',
+    screen: 'effects',
+    kind: 'setting',
+    name: 'Game screen effects',
+    also: ['hurt flash', 'low health', 'red edges', 'big hit shake'],
+    purpose:
+      'Which screen effect plays when the hero is hurt or beaten, lands a charged hit, levels up, beats an enemy, lands from high up, or breaks bricks. **Built-in** uses the editor’s own; **None** plays nothing. **Red edges when the hero is low on health** pulses red at the edges of the screen while the hero has a quarter of its hearts or less.',
+    commands: ['project.update'],
+    match: [{ in: '[data-tour="sfx-hooks"]' }],
+  },
+  {
+    id: 'scene.map.mood',
+    screen: 'scene',
+    kind: 'setting',
+    name: 'Screen mood',
+    also: ['colour grade', 'vignette', 'rain overlay', 'night filter', 'fog', 'atmosphere', 'old film'],
+    purpose:
+      'How this map feels in the game: **Colour** lays a grade over the whole view (warm, cold, night, dream, old film, black and white, toxic), **Dark edges** darkens the corners, and **Drifting** sends rain streaks, snow, fog, dust, embers or leaves across the screen (**How much** sets how many). The HUD is never coloured. While **Show it over the Scene view** is ticked you see the mood as you build. Logic’s **Set screen mood** changes it while the game plays.',
+    commands: ['map.setEnvironment'],
+    match: [{ in: '[data-tour="map-mood"]' }],
+    related: ['node.screen.mood', 'effects.screen.library'],
   },
 ];

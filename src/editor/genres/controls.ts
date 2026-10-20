@@ -123,6 +123,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.bodies': S('characters'),
   'help.faces': S('characters'),
   'help.effects': S('effects'),
+  'help.screenfx': S('effects'),
   'help.brixCourse': S('core'),
   'help.here': S('core'),
   'help.build': S('core'),

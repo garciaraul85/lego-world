@@ -25,6 +25,7 @@ import sheet from './content/15-sheet.json';
 import bodies from './content/16-bodies.json';
 import faces from './content/17-faces.json';
 import effects from './content/18-effects.json';
+import screenfx from './content/19-screen-effects.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -37,6 +38,7 @@ export type Track =
   | 'dialogue'
   | 'sheet'
   | 'bodies'
+  | 'screenfx'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -82,6 +84,9 @@ export const BODIES_STEPS: TrackStep[] = steps([bodies].map((c) => Chapter.parse
 /** P22 part 4: faces for moods, and characters from a picture */
 export const FACES_STEPS: TrackStep[] = steps([faces].map((c) => Chapter.parse(c)));
 export const CODING_STEPS: TrackStep[] = steps(CODING_CHAPTERS);
+/** P23 part 2: screen effects — a thunder of your own, hooked to the hero being hurt; a stormy night mood */
+export const SCREENFX_CHAPTERS: Chapter[] = [screenfx].map((c) => Chapter.parse(c));
+export const SCREENFX_STEPS: TrackStep[] = steps(SCREENFX_CHAPTERS);
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -96,6 +101,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   sheet: { title: 'Character sheet course', steps: SHEET_STEPS },
   bodies: { title: 'Creatures course', steps: BODIES_STEPS },
   faces: { title: 'Faces and pictures course', steps: FACES_STEPS },
+  screenfx: { title: 'Screen effects course', steps: SCREENFX_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

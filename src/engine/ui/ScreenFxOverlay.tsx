@@ -20,9 +20,18 @@ export function ScreenFxOverlay({
 }) {
   const grade = GRADE_INFO[mood.grade]?.filter ?? 'none';
   const pulse = lowHealth ? 0.45 + 0.25 * Math.sin(clock * 5) : 0;
+  const ref = useRef<HTMLDivElement>(null);
+  // the colour grade is a filter on the view's own canvas (the 3D picture only: never the HUD)
+  useEffect(() => {
+    const canvas = ref.current?.parentElement?.querySelector<HTMLCanvasElement>('canvas.viewport-canvas');
+    if (!canvas) return;
+    canvas.style.filter = grade === 'none' ? '' : grade;
+    return () => {
+      canvas.style.filter = '';
+    };
+  }, [grade]);
   return (
-    <div class="bw-screenfx" aria-hidden="true" data-grade={mood.grade} data-layers={layers.length}>
-      {grade !== 'none' && <div class="bw-grade" style={{ backdropFilter: grade, WebkitBackdropFilter: grade }} />}
+    <div ref={ref} class="bw-screenfx" aria-hidden="true" data-grade={mood.grade} data-layers={layers.length}>
       {mood.drift !== 'none' && <DriftLayer drift={mood.drift} amount={mood.amount} />}
       {mood.vignette > 0 && (
         <div
@@ -82,8 +91,10 @@ export function DriftLayer({ drift, amount }: { drift: Drift; amount: number }) 
       raf = requestAnimationFrame(frame);
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      const W = (cv.width = cv.clientWidth || 320);
-      const H = (cv.height = cv.clientHeight || 180);
+      const W = cv.clientWidth || 320;
+      const H = cv.clientHeight || 180;
+      if (cv.width !== W) cv.width = W;
+      if (cv.height !== H) cv.height = H;
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = look.color;
       ctx.strokeStyle = look.color;

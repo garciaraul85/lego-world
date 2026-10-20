@@ -604,6 +604,14 @@ export const HELP_STATES: HelpState[] = [
   // P23 part 1: effects
   { id: 'effects', screen: 'effects', setup: (p) => ws(p, 'Effects') },
   {
+    id: 'effects-screen',
+    screen: 'effects',
+    setup: async (p) => {
+      await ws(p, 'Effects');
+      await p.getByRole('tab', { name: 'Screen', exact: true }).click();
+    },
+  },
+  {
     id: 'effects-own',
     screen: 'effects',
     setup: async (p) => {

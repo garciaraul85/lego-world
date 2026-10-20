@@ -15,18 +15,25 @@
       },
       "doItForMe": [
         {
+          "click": "[data-tour=\"fx-tab-particles\"]"
+        },
+        {
           "click": "[aria-label=\"Effects\"] [data-name=\"Fire\"]"
         }
       ],
       "how": [
         {
-          "text": "In the library on the left, scroll to Built-in and click “Fire”. It starts playing in the preview.",
+          "text": "In the library on the left, click the tab “Particles” (if Screen is open), scroll to Built-in and click “Fire”. It starts playing in the preview.",
           "check": {
             "kind": "state",
             "test": "effectOpen",
             "args": "Fire"
           },
           "do": [
+            {
+              "click": "[data-tour=\"fx-tab-particles\"]",
+              "say": "The Particles tab"
+            },
             {
               "click": "[aria-label=\"Effects\"] [data-name=\"Fire\"]",
               "say": "Fire, in the Built-in list"

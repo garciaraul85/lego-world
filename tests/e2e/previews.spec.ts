@@ -42,7 +42,9 @@ test('lists show previews: effects play on hover, the Dock places effects, scree
   await expect(fire.locator('.fx-thumb canvas')).toBeVisible();
   await fire.locator('.fx-thumb').hover();
   await expect
-    .poll(async () => Number(await fire.locator('.fx-thumb canvas').getAttribute('data-particles')), { timeout: 10_000 })
+    .poll(async () => Number(await fire.locator('.fx-thumb canvas').getAttribute('data-particles')), {
+      timeout: 10_000,
+    })
     .toBeGreaterThan(0);
   // Game effects: each choice shows the effect that plays
   await expect(page.locator('[data-tour="fx-hooks"] .fx-thumb').first()).toBeVisible();
@@ -50,28 +52,39 @@ test('lists show previews: effects play on hover, the Dock places effects, scree
   // the Dock has effects: Place puts one on the map
   await ws(page, 'Scene');
   await page.locator('.dockpanel').getByRole('button', { name: 'Assets', exact: true }).click();
-  await page.locator('.cats').getByRole('button', { name: /^Effects/ }).click();
+  await page
+    .locator('.cats')
+    .getByRole('button', { name: /^Effects/ })
+    .click();
   const cards = page.locator('[data-tour="dock-effects"]');
   await expect(cards.locator('.fx-card').first()).toBeVisible();
-  const before = await get(page, (e) =>
-    ((e.store.get(`maps/${e.mapId.value}/instances.json`) as { items: { kind: string }[] } | undefined)?.items ?? []).filter(
-      (i) => i.kind === 'effect',
-    ).length,
+  const before = await get(
+    page,
+    (e) =>
+      (
+        (e.store.get(`maps/${e.mapId.value}/instances.json`) as { items: { kind: string }[] } | undefined)?.items ?? []
+      ).filter((i) => i.kind === 'effect').length,
   );
   await cards.getByRole('button', { name: 'Place Sparks' }).click();
   await expect
     .poll(() =>
-      get(page, (e) =>
-        ((e.store.get(`maps/${e.mapId.value}/instances.json`) as { items: { kind: string }[] } | undefined)?.items ?? []).filter(
-          (i) => i.kind === 'effect',
-        ).length,
+      get(
+        page,
+        (e) =>
+          (
+            (e.store.get(`maps/${e.mapId.value}/instances.json`) as { items: { kind: string }[] } | undefined)?.items ??
+            []
+          ).filter((i) => i.kind === 'effect').length,
       ),
     )
     .toBe(before + 1);
   // the placed effect's properties show its picture
   await expect(page.locator('[data-help="scene.item.effect"] .fx-thumb')).toBeVisible();
   // characters and screens in the Dock have pictures
-  await page.locator('.cats').getByRole('button', { name: /^UI screens/ }).click();
+  await page
+    .locator('.cats')
+    .getByRole('button', { name: /^UI screens/ })
+    .click();
   await expect(page.locator('.media-card .scr-thumb .bw-screen').first()).toBeAttached();
 
   // Screens: the list draws each screen small (out of the way of readers)
@@ -83,9 +96,17 @@ test('lists show previews: effects play on hover, the Dock places effects, scree
   // Audio: ▶ beside every sound; a music's ▶ turns into ■ and back
   await ws(page, 'Audio');
   await expect(page.getByRole('button', { name: /^Listen to / }).first()).toBeVisible();
-  const music = page.locator('.lib-row').filter({ hasText: '♪' }).first().getByRole('button', { name: /^Listen to / });
+  const music = page
+    .locator('.lib-row')
+    .filter({ hasText: '♪' })
+    .first()
+    .getByRole('button', { name: /^Listen to / });
   await music.click();
-  const stop = page.locator('.lib-row').filter({ hasText: '♪' }).first().getByRole('button', { name: /^Stop / });
+  const stop = page
+    .locator('.lib-row')
+    .filter({ hasText: '♪' })
+    .first()
+    .getByRole('button', { name: /^Stop / });
   await expect(stop).toBeVisible();
   await stop.click();
 
@@ -95,9 +116,7 @@ test('lists show previews: effects play on hover, the Dock places effects, scree
   expect(errors).toEqual([]);
 });
 
-test('conversations preview their first lines and each line shows the speaker’s face', async ({
-  page,
-}) => {
+test('conversations preview their first lines and each line shows the speaker’s face', async ({ page }) => {
   test.setTimeout(420_000);
   const errors: string[] = [];
   await open(page, errors);
@@ -120,7 +139,8 @@ test('conversations preview their first lines and each line shows the speaker’
     ],
   };
   await page.evaluate(
-    (c) => (window as unknown as { __editor: Ed }).__editor.exec({ type: 'dialogue.put', payload: { conversation: c } }),
+    (c) =>
+      (window as unknown as { __editor: Ed }).__editor.exec({ type: 'dialogue.put', payload: { conversation: c } }),
     conv,
   );
   // the list on the left shows the first lines
