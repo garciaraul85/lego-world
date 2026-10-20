@@ -69,29 +69,9 @@ function FamilyPicture({ f, profile }: { f: BodyFamily; profile: Record<string, 
 
 const SLOT_LABEL = { main: 'Main', accent: 'Accent', belly: 'Belly', eye: 'Eyes' } as const;
 
-/** the body of the character as drawn now (or null: the minifig) */
-const resolved = new Map<string, ResolvedBody | null>();
-export function bodyOfChr(chr: Pick<Character, 'body'>, get: (p: string) => unknown): ResolvedBody | null {
-  if (!chr.body) return null;
-  // the same body (and the same plan and build) is the same object, so the preview keeps its camera
-  const b = chr.body;
-  const key = JSON.stringify([
-    b,
-    b.plan ? get(`bodyplans/${b.plan}.json`) : 0,
-    b.asset ? get(`assets/${b.asset}.json`) : 0,
-  ]);
-  if (!resolved.has(key)) {
-    let r: ResolvedBody | null = null;
-    try {
-      r = resolveBody(b, get);
-    } catch {
-      r = null;
-    }
-    if (resolved.size > 60) resolved.delete(resolved.keys().next().value!);
-    resolved.set(key, r);
-  }
-  return resolved.get(key)!;
-}
+import { bodyOfChr } from './body-of';
+
+export { bodyOfChr };
 
 export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolean }) {
   const ed = c.ed;
@@ -301,6 +281,25 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
                 {ed.bodyWalk.value
                   ? '■ Stand'
                   : `▶ ${resolved?.move === 'fly' ? 'Fly' : resolved?.move === 'swim' ? 'Swim' : resolved?.move === 'slither' ? 'Slither' : resolved?.move === 'hop' ? 'Hop' : 'Walk'}`}
+              </button>
+              {/* P23 part 4: the strike and flinch the state machine shows in Play */}
+              <button
+                type="button"
+                class="btn"
+                data-tour="body-strike"
+                data-tip="Show the attack state: the head lunges, the jaw snaps, arms reach"
+                onClick={() => (ed.bodyAct.value = { kind: 'attack', at: performance.now() })}
+              >
+                Strike
+              </button>
+              <button
+                type="button"
+                class="btn"
+                data-tour="body-flinch"
+                data-tip="Show the hurt state: the body rocks back"
+                onClick={() => (ed.bodyAct.value = { kind: 'hurt', at: performance.now() })}
+              >
+                Flinch
               </button>
               <label class="lbl">
                 <input

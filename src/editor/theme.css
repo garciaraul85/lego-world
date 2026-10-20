@@ -5934,3 +5934,106 @@ img.bw-portrait {
   opacity: 1;
   border-color: var(--acc);
 }
+
+/* P23 part 4: the clip editor pose by pose */
+.clip-views {
+  margin-top: 4px;
+}
+.pose-panel {
+  padding: 6px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: auto;
+  max-height: 340px;
+}
+.pose-panel > * {
+  flex-shrink: 0;
+}
+.pose-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.pose-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--bd);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.pose-card.on {
+  border-color: var(--acc);
+  box-shadow: 0 0 0 1px var(--acc);
+}
+.pose-playhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pose-playhead input {
+  flex: 1;
+}
+.joint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 4px 12px;
+}
+.joint {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.joint input {
+  width: 100%;
+}
+
+/* P23 part 4: the animation state machine on the character sheet */
+.state-machine {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0;
+}
+.state-card {
+  position: relative;
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 4px 8px 2px;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.state-card.on {
+  background: var(--accbg);
+  border-color: var(--acc);
+  box-shadow: 0 0 0 1px var(--acc);
+}
+.state-card.once {
+  border-style: dashed;
+  margin-top: 6px;
+}
+.state-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.state-else {
+  display: block;
+  text-align: center;
+  font-size: 11px;
+  opacity: 0.6;
+  margin-bottom: -2px;
+}
+.state-try {
+  margin-top: 8px;
+  border-top: 1px solid var(--bd);
+  padding-top: 6px;
+}

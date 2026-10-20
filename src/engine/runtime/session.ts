@@ -12,6 +12,7 @@ import { brickToPiece, exactColors, type FileSource, mapToLegacyBuild } from '..
 import { moodFace } from '../../core/character/faces';
 import { type ResolvedBody, resolveBody } from '../../core/character/resolve';
 import { levelOf, xpFor } from '../../core/character/sheet';
+import { type AnimState, MOVING_AT } from '../../core/character/states';
 import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
 import type { Enemy } from '../../core/combat/enemy';
 import type { Effect, EffectEvent } from '../../core/effects/schema';
@@ -50,6 +51,7 @@ import {
 import type { AudioPort, Vec3 } from '../audio/port';
 import { RecordingAudio } from '../audio/port';
 import { Animator } from '../character/animator';
+import { StateMachine } from '../character/states';
 import { ParticleSystem, type PlayOptions, type StreamHandle } from '../effects/particles';
 import { ScreenFx } from '../effects/screen';
 import {
@@ -189,6 +191,14 @@ export class PlaySession {
   readonly actions: ActionRunner;
   /** keyframe clips on the hero (emotes, keys 1-4) */
   readonly heroAnim = new Animator();
+  /** P23 part 4: the hero's animation state machine (idle, walk, run, jump, attack, hurt), on heroAnim */
+  readonly heroStates = new StateMachine(this.heroAnim);
+  /** every state the hero has been in this play (the posing course checks the walk) */
+  readonly statesSeen = new Set<AnimState>();
+  /** when the hero was last hurt (the clock) */
+  private heroHurtAt = -Infinity;
+  /** P23 part 4: each neighbour's animation state machine (where it was, for its speed; when it was hurt) */
+  private npcStates = new Map<number, { sm: StateMachine; x: number; z: number; speed: number; hurtAt: number }>();
   /** logic graphs of the project (P4.2) */
   logic!: LogicRuntime;
   /** zones the hero is inside, by zone id */
@@ -579,7 +589,7 @@ export class PlaySession {
     if (!id) return false;
     const clip = (this.snapshot.get(paths.clip(id)) as Clip | undefined) ?? BUILTIN_CLIPS.find((c) => c.id === id);
     if (!clip || !this.heroState.grounded) return false;
-    this.heroAnim.play(clip);
+    this.heroStates.play(clip);
     return true;
   }
 
@@ -677,6 +687,7 @@ export class PlaySession {
       { id: 'checkpoints', fixed: (g) => g.stepCheckpoints() },
       { id: 'progress', fixed: (g) => g.runtime.ticks % 30 === 0 && g.progress.stepBests() },
       { id: 'anim', fixed: (g, dt) => g.stepAnim(dt) },
+      { id: 'npcAnim', fixed: (g, dt) => g.stepNpcStates(dt) },
       { id: 'zones', fixed: (g) => g.stepZones() },
       { id: 'logic', fixed: (g) => g.logic.step(g.clock) },
       { id: 'emitters', fixed: (g) => g.stepEmitters() },
@@ -795,7 +806,8 @@ export class PlaySession {
     this.logic.setVar('hp', hp);
     this.audio.play(this.heroChr?.voice?.grunt ?? SND.hurt);
     this.screenEvent(hp > 0 ? 'hurt' : 'death');
-    if (hp > 0) this.playAction('hurt');
+    // P23 part 4: the hurt state shows the sheet's hurt clip
+    if (hp > 0) this.heroHurtAt = this.clock;
     // P9a: the hero's hearts are its health
     if (hp > 0)
       this.logic.fire({ type: 'event.onDamaged', match: { asset: '' }, payload: { target: 'hero', amount: n, hp } });
@@ -1025,6 +1037,9 @@ export class PlaySession {
         npc.state.z += (dz / d) * push.knock * 0.5;
         this.combat.stunNpc(npc, push.stun);
       }
+      // P23 part 4: its hurt state
+      const rec = this.npcStates.get(npc.id);
+      if (rec) rec.hurtAt = this.clock;
       this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
       this.logic.fire({
         type: 'event.onDamaged',
@@ -1413,6 +1428,7 @@ export class PlaySession {
   /** NPC ids belong to one map: a new map (or a restart) looks bodies up again */
   private forgetBodies() {
     this.bodies?.clear();
+    this.npcStates?.clear();
     this.standing?.clear();
     // P23: a new map starts with no particles; its own effects start again
     this.effects?.clear();
@@ -2666,36 +2682,109 @@ export class PlaySession {
     const clip = this.emotes[n];
     if (!clip) return;
     if (this.heroAnim.clip?.id === clip.id) {
-      this.heroAnim.stop();
+      this.heroStates.stop();
       return;
     }
     const s = this.heroState;
     if (!s.grounded || s.building || this.talking) return;
-    this.heroAnim.play(clip);
+    this.heroStates.play(clip);
     this.emit('info', `Emote: ${clip.name ?? clip.id}`);
   }
 
+  /**
+   * P23 part 4: the hero's animation state machine picks idle, walk, run, jump, attack or hurt from what the hero
+   * does and plays the sheet's clip for it (none: v68's own motion). An emote plays while the hero stands.
+   */
   stepAnim(dt: number) {
-    const a = this.heroAnim;
-    const v = this.inputVector();
     const s = this.heroState;
-    // P22 part 2: standing still a moment plays the sheet's idle clip
-    const still = !v.x && !v.z && s.grounded && !s.building && !this.talks.active && !((s.attack as number) > 0);
-    this.idleFor = still ? this.idleFor + dt : 0;
-    if (!a.clip && this.idleFor > 1.5 && this.heroChr?.animations?.idle) this.playAction('idle');
-    if (!a.clip) {
-      a.step(dt);
+    const sm = this.heroStates;
+    if (s.building) {
+      sm.stop();
+      this.heroAnim.step(dt);
       return;
     }
-    if (v.x || v.z || v.jump || !s.grounded || (s.attack as number) > 0 || s.building) {
-      a.stop();
-      return;
-    }
-    for (const e of a.step(dt)) {
-      if ('emit' in e) this.emit('event', `Event “${e.emit}” · ${a.clip?.name ?? 'clip'}`);
+    const v = this.inputVector();
+    const going = !!(v.x || v.z) && !this.talks.active;
+    const attacking = (s.attack as number) > 0;
+    const events = sm.step(
+      {
+        speed: going ? Math.max(MOVING_AT + 0.01, Number(s.speed) || 0) : 0,
+        grounded: s.grounded && !v.jump,
+        attacking,
+        hurtAgo: this.clock - this.heroHurtAt,
+      },
+      this.heroChr?.states,
+      (st) => (this.bodyOf('hero') ? undefined : this.sheetClip(this.heroChr, st)),
+      dt,
+      1.5,
+    );
+    this.statesSeen.add(sm.state);
+    for (const e of events) {
+      if ('emit' in e) this.emit('event', `Event “${e.emit}” · ${this.heroAnim.clip?.name ?? 'clip'}`);
       else if ('sound' in e) this.audio.play(e.sound, { pos: [s.x, s.y + 1, s.z] });
       else this.cine.play(e.cinematic);
     }
+  }
+
+  /** the clip a character sheet sets for a state (a project clip or a built-in one) */
+  private sheetClip(chr: Character | null | undefined, st: AnimState): Clip | undefined {
+    const id = chr?.animations?.[st];
+    if (!id) return undefined;
+    return (this.snapshot.get(paths.clip(id)) as Clip | undefined) ?? BUILTIN_CLIPS.find((c) => c.id === id);
+  }
+
+  /** P23 part 4: the neighbours' state machines (a character with clips plays them; a body plan shows the state) */
+  stepNpcStates(dt: number) {
+    const seen = new Set<number>();
+    for (const n of this.world.npcs) {
+      const chr = npcCharacter(this.snapshot, this.world.mapId, n);
+      if (!chr) continue;
+      seen.add(n.id);
+      const st = n.state;
+      let rec = this.npcStates.get(n.id);
+      if (!rec) {
+        rec = { sm: new StateMachine(), x: st.x, z: st.z, speed: 0, hurtAt: -Infinity };
+        this.npcStates.set(n.id, rec);
+      }
+      const d = Math.hypot(st.x - rec.x, st.z - rec.z);
+      // a jump across the map (a respawn, a knock back) is not walking
+      const now = dt > 0 && d < 2 ? d / dt : 0;
+      rec.speed += (now - rec.speed) * Math.min(1, dt * 10);
+      rec.x = st.x;
+      rec.z = st.z;
+      const body = !!this.bodyOf(n);
+      rec.sm.step(
+        {
+          speed: rec.speed,
+          grounded: (st as { grounded?: boolean }).grounded !== false,
+          attacking: Number((st as { attack?: number }).attack ?? 0) > 0,
+          hurtAgo: this.clock - rec.hurtAt,
+        },
+        chr.states,
+        (s) => (body ? undefined : this.sheetClip(chr, s)),
+        dt,
+      );
+    }
+    for (const id of this.npcStates.keys()) if (!seen.has(id)) this.npcStates.delete(id);
+  }
+
+  /** P23 part 4: the state a character is in now (the hero, or a neighbour with a character) */
+  animStateOf(who: Npc | 'hero'): AnimState | null {
+    if (who === 'hero') return this.heroStates.state;
+    return this.npcStates.get(who.id)?.sm.state ?? null;
+  }
+
+  /** P23 part 4: how far into its state a character is (seconds) */
+  animSinceOf(who: Npc | 'hero'): number {
+    if (who === 'hero') return this.heroStates.since;
+    return this.npcStates.get(who.id)?.sm.since ?? 0;
+  }
+
+  /** P23 part 4: a neighbour's pose from its state's clip (null: its own motion) */
+  npcPose(n: Npc): { params: ReturnType<Animator['params']>; clip: Clip | null } | null {
+    const a = this.npcStates.get(n.id)?.sm.anim;
+    const params = a?.params();
+    return a && params ? { params, clip: a.clip } : null;
   }
 
   // ---------- asset instances: interactions and states (P3.1) ----------

@@ -35,6 +35,33 @@ Clips are keyframe animations on a timeline: a lane per joint, keys you drag in 
 4. Click the key to select it. Under the lanes, type its time in “at” or its value in “value” and press Enter. The selected lane shows each key's value next to it.
 5. Press Play (top right of the preview) to watch the clip loop. Length (in the timeline tools) sets how long the clip is: type a number of seconds and press Enter.
 
+## Animation by posing
+
+The **Poses** tab under the preview edits a clip pose by pose: you set a few poses and the motion between them is filled in. A pose is where every joint is at one moment.
+
+1. Click **+ New** under Clips, then **Poses** under the preview.
+2. With the **Playhead** at 0 s press **+ Pose here**: the first pose, standing. Drag the Playhead to the end and press **+ Pose here** again.
+3. Put the Playhead in the middle and drag a joint's slider, for example **Right arm out**. A pose appears there with the arm raised; the pictures along the top show every pose.
+4. Press **Play**: the arm rises and falls. **Into the next pose** sets how: **Smooth** slows in and out, **Even** keeps one speed, **Speeding up**, **Slowing down**, or **Hold, then jump** for a snap.
+5. **⇆ Mirror** swaps left and right in the pose; **Copy pose** then **Paste pose** repeats one (the last pose of a loop as its first); **At** moves a pose in time; **Delete pose** takes it out.
+
+**Keys** shows the same clip on the timeline, joint by joint. The built-in **Moves** (Walk, Run, Jump, Swing, Flinch, Breathe) are made this way: open one in Poses to see its few poses. [Posing and states course](action:help.posing)
+
+## The animation state machine
+
+Every character is in one **state** at a time, and the clip set for that state plays. The rules are checked from the top and the first that holds wins:
+
+1. **Hurt** for a moment after a hit (**Hurt shows for**, 0.45 s at first),
+2. **Attack** while it swings or strikes,
+3. **Jump** while its feet are off the ground,
+4. **Run** when it moves at **Runs from** studs a second or faster (the hero walks at 4 and runs at 7.8),
+5. **Walk** when it moves slower,
+6. **Idle** when it stands (the hero waits a moment first).
+
+A state with **Built-in motion** shows the engine's own movement. Clips crossfade into each other; Hurt, Attack and Jump play their clip once each time, the others loop. With **Walk and run clips keep up with the speed** the walk and run clips play faster or slower with the speed, so the feet match the ground. **Use the built-in moves** fills the empty states with Walk, Run, Jump, Swing, Flinch and Breathe. **Try it** pretends a speed, a jump, an attack or a hit and lights the state that wins, playing its clip on the figure.
+
+The hero, neighbours and enemies all use their own character's states. A creature with a body plan has its own movement for each state: it walks when it moves, **strikes** (lunges with its head and jaw) when it attacks and **flinches** when it is hit; **Strike** and **Flinch** on the Body tab show them.
+
 ## The character sheet
 
 The right side of the Characters screen is the character's **sheet**, in tabs:
@@ -45,7 +72,7 @@ The right side of the Characters screen is the character's **sheet**, in tabs:
 - **Outfits**: sets of clothes it can wear, each with stat bonuses. **Wear** one and change the look: the changes go into the outfit, and its own look stays. Logic's **Change outfit** swaps them in Play.
 - **Stats**: hearts (the player character), stamina, speed, jump, strength (hit power), defence (8% less damage a point) and a level with an experience curve. Logic's **Give experience** levels up; **On level up** reacts. The genre's simple view shows the stats its games use.
 - **Moves**: a fighting style (Balanced, Swift, Heavy, Defensive) with hit power and swing speed; a neighbour fights the hero with **Fights the hero**.
-- **Animations**: the clip for idle (standing still), victory (a level up) and hurt; walk, run, jump and attack are kept for the animation state machine (P23). Each row shows the clip's picture, which moves while the pointer is on it; **▶** plays the clip on the big figure (**■** stops it), and picking a clip plays it too. The clip list on the left moves the same way on hover.
+- **Animations**: the clip each state plays (the animation state machine, below), and Victory on a level up. Each row shows the clip's picture, which moves while the pointer is on it; **▶** plays the clip on the big figure (**■** stops it), and picking a clip plays it too. The clip list on the left moves the same way on hover.
 - **Voice**: talk pitch and blip for its lines in dialogue, footsteps and its hurt sound. **▶ Hear it talk** says a sample line letter by letter with the blip at its pitch, as in a conversation, and the figure in the preview says it with its mouth (close up); **▶** beside a sound plays just that sound.
 - **Dialogue**: its Talk list and barks (below).
 - **Behaviour**: what kind of character it is, whether it walks around or stands still where it was put, the role buttons (Knight, Ranger, Wizard, Shopkeeper, Brute, Boss) that fill in a sheet, and the **party**: playable characters the player switches between with H.

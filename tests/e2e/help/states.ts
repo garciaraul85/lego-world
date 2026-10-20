@@ -335,6 +335,48 @@ export const HELP_STATES: HelpState[] = [
         await p.locator('[data-tour="outfit-new"]').click();
     },
   })),
+  {
+    // P23 part 4: a clip of the game's own in the Poses view (pose pictures, the tools and the joint sliders)
+    id: 'characters-poses',
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        const id = 'clp_helppose01';
+        if (!e.store.has(`clips/${id}.json`))
+          e.exec({
+            type: 'clip.create',
+            payload: {
+              clip: {
+                id,
+                name: 'Wave hello',
+                length: 2,
+                loop: true,
+                tracks: [
+                  {
+                    bone: 'rightArm',
+                    prop: 'z',
+                    keys: [
+                      [0, 0.06, 'easeInOut'],
+                      [1, 2.6, 'easeInOut'],
+                      [2, 0.06, 'easeInOut'],
+                    ],
+                  },
+                ],
+                events: [],
+              },
+            },
+          });
+        e.studioClip!.value = id;
+        e.clipPlaying!.value = false;
+        e.clipTime!.value = 1;
+        e.clipView!.value = 'poses';
+      });
+      // the joint sliders are under the pose pictures: scroll the panel to them
+      await p.locator('[data-tour="pose-joints"]').scrollIntoViewIfNeeded();
+    },
+  },
   ...(['body', 'skeleton'] as const).map((v) => ({
     // P22 part 3: a dragon from the family's sliders; the skeleton editor on a body plan of the game's own
     id: `characters-${v}`,

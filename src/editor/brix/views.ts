@@ -327,6 +327,23 @@ export function stepsToView(view: string): ShowStep[] {
           done: (c) => c.ed.fromPicture.value,
         },
       ];
+    case 'characters-poses':
+      // P23 part 4: a clip open in the Poses view
+      return [
+        ws('Characters'),
+        {
+          say: 'Click a clip under Clips on the left, for example Walk.',
+          find: control('[aria-label="Characters and clips"]', /Walk$/, '[role="option"]'),
+          press: true,
+          done: (c) => !!c.ed.studioClip.value,
+        },
+        {
+          say: 'Click the Poses tab under the preview.',
+          find: control('[aria-label="Clip editor"]', /^Poses$/, '[role="tab"]'),
+          press: true,
+          done: (c) => c.ed.clipView.value === 'poses',
+        },
+      ];
     case 'characters-body':
     case 'characters-skeleton':
       // P22 part 3: the Body tab (the skeleton editor is in it, below the shape and colours)

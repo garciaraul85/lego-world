@@ -1,0 +1,590 @@
+{
+  "id": "posing",
+  "title": "Posing and states course",
+  "steps": [
+    {
+      "id": "posing.hero",
+      "title": "Pip, your hero",
+      "body": "Characters move in two ways: clips you make pose by pose, and a state machine that picks which clip plays — walking, running, jumping, attacking, getting hurt or standing. You make Pip, the player character, and give him both.",
+      "task": "Make Pip, the player character.",
+      "target": "[data-tour=\"char-new\"]",
+      "check": {
+        "kind": "state",
+        "test": "isHero"
+      },
+      "doItForMe": [
+        {
+          "fn": "sheetMake",
+          "args": {
+            "name": "Pip"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Press + New character at the top left, click a preset, then press Make player character on the right. The helper names him Pip.",
+          "check": {
+            "kind": "state",
+            "test": "isHero"
+          },
+          "do": [
+            {
+              "show": "[data-tour=\"char-new\"]",
+              "say": "New characters start from a preset."
+            },
+            {
+              "fn": "sheetMake",
+              "args": {
+                "name": "Pip"
+              },
+              "say": "Pip is the player character."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "right"
+    },
+    {
+      "id": "posing.clip",
+      "title": "A clip in Poses",
+      "body": "A clip is a short movement. In Poses you set a few poses — where every joint is at one moment — and the motion between them is filled in. Keys shows the same clip joint by joint on a timeline.",
+      "task": "Under Clips press + New, then click the Poses tab under the preview.",
+      "target": "[data-tour=\"clip-new\"]",
+      "check": {
+        "kind": "state",
+        "test": "clipViewIs",
+        "args": "poses"
+      },
+      "doItForMe": [
+        {
+          "fn": "newClip"
+        },
+        {
+          "click": "[data-tour=\"clip-view-poses\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the list on the left, next to Clips, press + New. A clip called Wave hello opens under the preview.",
+          "check": {
+            "kind": "state",
+            "test": "clipOpen"
+          },
+          "do": [
+            {
+              "fn": "newClip",
+              "say": "A new clip, Wave hello"
+            }
+          ]
+        },
+        {
+          "text": "Under the preview, click the tab Poses (beside Keys).",
+          "check": {
+            "kind": "state",
+            "test": "clipViewIs",
+            "args": "poses"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"clip-view-poses\"]",
+              "say": "Poses"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "right"
+    },
+    {
+      "id": "posing.first",
+      "title": "The first pose",
+      "body": "A pose keys every joint at the playhead, where the figure is then. The new clip is empty, so the first pose is Pip standing. Its picture appears in the row of poses.",
+      "task": "With the Playhead at 0 s, press + Pose here.",
+      "target": "[data-tour=\"pose-add\"]",
+      "check": {
+        "kind": "state",
+        "test": "poseAtTime",
+        "args": 0
+      },
+      "doItForMe": [
+        {
+          "fn": "seekClip",
+          "args": {
+            "t": 0
+          }
+        },
+        {
+          "click": "[data-tour=\"pose-add\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Drag the Playhead slider all the way to the left (0 s).",
+          "check": {
+            "kind": "state",
+            "test": "clipTime",
+            "args": {
+              "t": 0,
+              "within": 0.03
+            }
+          },
+          "do": [
+            {
+              "fn": "seekClip",
+              "args": {
+                "t": 0
+              },
+              "say": "The playhead at 0 s"
+            }
+          ]
+        },
+        {
+          "text": "Press + Pose here.",
+          "check": {
+            "kind": "state",
+            "test": "poseAtTime",
+            "args": 0
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pose-add\"]",
+              "say": "Pose 1: standing"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "top"
+    },
+    {
+      "id": "posing.last",
+      "title": "The last pose",
+      "body": "The clip is 2 seconds long and loops, so it should end the way it starts: standing. A second standing pose at the end does that.",
+      "task": "Drag the Playhead to 2 s and press + Pose here.",
+      "target": "[data-tour=\"pose-playhead\"]",
+      "check": {
+        "kind": "state",
+        "test": "poseAtTime",
+        "args": 2
+      },
+      "doItForMe": [
+        {
+          "fn": "seekClip",
+          "args": {
+            "t": 2
+          }
+        },
+        {
+          "click": "[data-tour=\"pose-add\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Drag the Playhead slider all the way to the right (2 s).",
+          "check": {
+            "kind": "state",
+            "test": "clipTime",
+            "args": {
+              "t": 2,
+              "within": 0.03
+            }
+          },
+          "do": [
+            {
+              "fn": "seekClip",
+              "args": {
+                "t": 2
+              },
+              "say": "The playhead at 2 s"
+            }
+          ]
+        },
+        {
+          "text": "Press + Pose here. Two pictures now show in the row of poses.",
+          "check": {
+            "kind": "state",
+            "test": "poseAtTime",
+            "args": 2
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pose-add\"]",
+              "say": "Pose 2: standing again"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "top"
+    },
+    {
+      "id": "posing.middle",
+      "title": "An arm up in the middle",
+      "body": "Between two poses the figure is on its way from one to the other. Moving a joint there makes a new pose at that moment. The sliders show the joints of the pose under the playhead: forward swings an arm or leg to the front, out raises an arm to the side, a knee bends back.",
+      "task": "Put the Playhead at 1 s and drag Right arm out all the way up.",
+      "target": "[data-tour=\"pose-joints\"]",
+      "check": {
+        "kind": "state",
+        "test": "poseJoint",
+        "args": {
+          "t": 1,
+          "joint": "rightArm.z",
+          "min": 2
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "seekClip",
+          "args": {
+            "t": 1
+          }
+        },
+        {
+          "fill": "[data-tour=\"joint-rightArm.z\"] input",
+          "value": "2.6"
+        }
+      ],
+      "how": [
+        {
+          "text": "Drag the Playhead slider to the middle (1 s). The panel says Between poses.",
+          "check": {
+            "kind": "state",
+            "test": "clipTime",
+            "args": {
+              "t": 1,
+              "within": 0.03
+            }
+          },
+          "do": [
+            {
+              "fn": "seekClip",
+              "args": {
+                "t": 1
+              },
+              "say": "The playhead at 1 s"
+            }
+          ]
+        },
+        {
+          "text": "In the joints below, drag the slider Right arm out all the way to the right. A third picture appears between the other two, with the arm raised.",
+          "check": {
+            "kind": "state",
+            "test": "poseJoint",
+            "args": {
+              "t": 1,
+              "joint": "rightArm.z",
+              "min": 2
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"joint-rightArm.z\"] input",
+              "value": "2.6",
+              "say": "The right arm up: a new pose at 1 s"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "top"
+    },
+    {
+      "id": "posing.play",
+      "title": "Watch it",
+      "body": "Pip raises his arm and lowers it again. Nobody keyed the in-between: the engine fills in the motion between the poses.",
+      "task": "Press Play at the top right of the preview.",
+      "target": "[data-tour=\"clip-play\"]",
+      "check": {
+        "kind": "state",
+        "test": "clipPlaying"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"clip-play\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press Play at the top right of the preview (it turns into Pause).",
+          "check": {
+            "kind": "state",
+            "test": "clipPlaying"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"clip-play\"]",
+              "say": "Play"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "bottom"
+    },
+    {
+      "id": "posing.ease",
+      "title": "Slowing down",
+      "body": "Into the next pose says how the motion fills in after a pose: Smooth slows in and out, Even keeps one speed, Speeding up and Slowing down, or Hold, then jump for a snap. Slowing down after the raised arm makes it drop fast, then settle gently.",
+      "task": "Click the middle pose and set Into the next pose to Slowing down.",
+      "target": "[data-tour=\"pose-2\"]",
+      "check": {
+        "kind": "state",
+        "test": "poseEase",
+        "args": {
+          "t": 1,
+          "ease": "easeOut"
+        }
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"pose-2\"]"
+        },
+        {
+          "choose": "[data-tour=\"pose-ease\"]",
+          "value": "easeOut"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the row of poses, click the middle picture (Pose 2 at 1 s). Play stops at that pose.",
+          "check": {
+            "kind": "state",
+            "test": "clipTime",
+            "args": {
+              "t": 1,
+              "within": 0.03
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pose-2\"]",
+              "say": "Pose 2"
+            }
+          ]
+        },
+        {
+          "text": "Under the row, set Into the next pose to Slowing down.",
+          "check": {
+            "kind": "state",
+            "test": "poseEase",
+            "args": {
+              "t": 1,
+              "ease": "easeOut"
+            }
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"pose-ease\"]",
+              "value": "easeOut",
+              "say": "Slowing down"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "top"
+    },
+    {
+      "id": "posing.states",
+      "title": "States",
+      "body": "On the sheet, Animations lists Pip's states, checked from the top: Hurt just after a hit, Attack while he swings, Jump in the air, Run when fast, Walk when slower, Idle when he stands. The first rule that holds picks the state, and that state's clip plays. A state with Built-in motion shows the engine's own movement.",
+      "task": "Open Animations and press Use the built-in moves.",
+      "target": "[data-tour=\"states-builtin\"]",
+      "check": {
+        "kind": "state",
+        "test": "animationSet",
+        "args": "walk"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"sheet-animations\"]"
+        },
+        {
+          "click": "[data-tour=\"states-builtin\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "On the right, click the sheet tab Animations.",
+          "check": {
+            "kind": "state",
+            "test": "sheetTab",
+            "args": "animations"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sheet-animations\"]",
+              "say": "Animations"
+            }
+          ]
+        },
+        {
+          "text": "Below the states, press Use the built-in moves: Walk, Run, Jump, Swing, Flinch and Breathe fill the empty states. They were made by posing too.",
+          "check": {
+            "kind": "state",
+            "test": "animationSet",
+            "args": "walk"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"states-builtin\"]",
+              "say": "The built-in moves"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "posing.idle",
+      "title": "Your clip for Idle",
+      "body": "Any clip can be a state's clip. With Wave hello for Idle, Pip waves when he has stood still a moment.",
+      "task": "In the Idle state, pick Wave hello (mine).",
+      "target": "[data-tour=\"state-idle\"]",
+      "check": {
+        "kind": "state",
+        "test": "animationOwn",
+        "args": "idle"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"sheet-animations\"]"
+        },
+        {
+          "fn": "stateOwnClip",
+          "args": {
+            "state": "idle"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In the Idle card, open the clip list and pick Wave hello (mine). It plays on the figure.",
+          "check": {
+            "kind": "state",
+            "test": "animationOwn",
+            "args": "idle"
+          },
+          "do": [
+            {
+              "show": "[data-tour=\"state-idle\"]",
+              "say": "The Idle state"
+            },
+            {
+              "fn": "stateOwnClip",
+              "args": {
+                "state": "idle"
+              },
+              "say": "Wave hello for Idle"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "posing.try",
+      "title": "Try the states",
+      "body": "Try it pretends what Pip does and lights the state that wins. Faster than Runs from (6 studs a second) is Run; Get hit shows Hurt for a moment, even while running, because Hurt is checked first.",
+      "task": "In Try it, drag Speed to 8.",
+      "target": "[data-tour=\"states-try\"]",
+      "check": {
+        "kind": "state",
+        "test": "stateShownIs",
+        "args": "run"
+      },
+      "doItForMe": [
+        {
+          "fill": "[data-tour=\"try-speed\"]",
+          "value": "8"
+        }
+      ],
+      "how": [
+        {
+          "text": "In Try it, drag the Speed slider to 8 studs a second. The Run card lights up and Run plays on the figure.",
+          "check": {
+            "kind": "state",
+            "test": "stateShownIs",
+            "args": "run"
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"try-speed\"]",
+              "value": "8",
+              "say": "Speed 8: Run"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "posing.game",
+      "title": "Walk in the game",
+      "body": "In Play the state machine picks Pip's state by itself: walk with W and the Walk clip plays, faster or slower with his speed; stand still and he waves. Neighbours and enemies use their own sheet's states the same way.",
+      "task": "Press Play and walk forward with W.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroStateSeen",
+        "args": "walk"
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        },
+        {
+          "fn": "walkHero"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press ▶ Play at the top (or F5).",
+          "check": {
+            "kind": "play",
+            "event": "running"
+          },
+          "do": [
+            {
+              "ui": "play"
+            }
+          ]
+        },
+        {
+          "text": "Hold W for a moment: Pip walks with the Walk clip. Let go and wait: he waves.",
+          "check": {
+            "kind": "state",
+            "test": "heroStateSeen",
+            "args": "walk"
+          },
+          "do": [
+            {
+              "fn": "walkHero",
+              "say": "Walking"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "bottom"
+    },
+    {
+      "id": "posing.done",
+      "title": "Done!",
+      "body": "You made a clip pose by pose and gave Pip a state for everything he does. More in Help: search for posing or state machine.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "workspace": "Characters",
+      "placement": "bottom"
+    }
+  ]
+}

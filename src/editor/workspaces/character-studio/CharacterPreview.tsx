@@ -3,6 +3,7 @@ import type { ResolvedBody } from '../../../core/character/resolve';
 import type { Clip } from '../../../core/schema';
 import { rigPose } from '../../../engine/character/animator';
 import {
+  ACT_LENGTH,
   advance,
   bodyBounds,
   bodyOverlays,
@@ -35,6 +36,8 @@ export type PreviewInput = {
   closeUp?: boolean;
   /** walk on the spot, to see the generated movement */
   walking?: boolean;
+  /** P23 part 4: a body plan's strike or flinch, from when it started (performance.now) */
+  act?: { kind: 'attack' | 'hurt'; at: number } | null;
   /** painting bricks onto a bone: a click on a brick calls this with its index in the asset */
   paint?: ((brick: number) => void) | null;
 };
@@ -166,6 +169,8 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
         framed = body;
       }
       advance(motion, body, input.current.walking ? body.stride * body.scale * 0.9 * dt : 0, dt);
+      const act = input.current.act;
+      motion.act = act ? { kind: act.kind, u: (performance.now() - act.at) / 1000 / ACT_LENGTH[act.kind] } : null;
       const pose = bodyPose(body, motion);
       const world = bodyWorld(body, { x: 0, y: 0, z: 0, heading }, motion);
       const overlays = bodyOverlays(body, pose, world);

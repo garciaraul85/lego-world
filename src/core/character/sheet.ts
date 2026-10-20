@@ -82,8 +82,8 @@ export type Moves = z.infer<typeof Moves>;
 /** the clip played for each action (missing: the built-in motion) */
 export const ANIM_ACTIONS = ['idle', 'victory', 'hurt', 'walk', 'run', 'jump', 'attack'] as const;
 export type AnimAction = (typeof ANIM_ACTIONS)[number];
-/** actions Play uses now; the others are kept for the animation state machine (P23) */
-export const ANIM_LIVE: readonly AnimAction[] = ['idle', 'victory', 'hurt'];
+/** actions Play uses (P23 part 4: all of them, through the animation state machine) */
+export const ANIM_LIVE: readonly AnimAction[] = ANIM_ACTIONS;
 export const Animations = z.partialRecord(z.enum(ANIM_ACTIONS), id('clip'));
 export type Animations = z.infer<typeof Animations>;
 

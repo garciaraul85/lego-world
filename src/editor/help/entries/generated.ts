@@ -114,6 +114,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Effects course: copy the built-in Fire, name it Blue fire, make it of studs and blue, put it on the map, then make it the level-up effect of the game.',
   'help.screenfx':
     'Starts the Screen effects course: copy Big hit into a Thunder of your own (a pale blue flash and a slow rumble), make it play when the hero is hurt, give the map a stormy night mood, and see it in Play.',
+  'help.posing':
+    'Starts the Posing and states course: make Pip, build a clip pose by pose (standing, an arm raised, standing), ease it, give Pip the built-in moves and your clip for Idle, try the states, then walk in Play.',
   'help.dialogue':
     'Starts the Dialogue course: add a villager, write a conversation with a choice as a script, see it as a list and a graph, preview every branch, pick a style and talk to him in Play.',
   'help.ai': 'Opens the AI builder: describe a change, watch each step, then approve or reject it.',

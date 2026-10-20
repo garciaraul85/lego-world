@@ -738,6 +738,23 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     s.placeAt([n.state.x, n.state.y + 0.2, n.state.z - 2], 0);
     s.talk();
   },
+  // P23 part 4: the posing course
+  stateOwnClip(c, a) {
+    // what picking it in the state's clip list does: the clip you made (the newest of your own) for that state
+    const chr = studioChr(c);
+    const own = c.ed.store.list('clips/').map((p) => c.ed.store.get<Clip>(p)!);
+    const clip = own.find((x) => x.id === c.ed.studioClip.value) ?? own.at(-1);
+    if (!clip) throw new Error('Make a clip first (Clips › + New).');
+    const state = String(a.state ?? 'idle') as keyof NonNullable<Character['animations']>;
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: { character: { ...chr, animations: { ...chr.animations, [state]: clip.id } } },
+      },
+      `${state} clip`,
+    );
+  },
   dialogueStyle(c, a) {
     run(
       c,

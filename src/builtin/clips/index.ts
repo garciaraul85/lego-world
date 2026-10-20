@@ -27,6 +27,7 @@ import jumpingJacks from './jumping-jacks.json';
 import kneeStrike from './knee-strike.json';
 import lunges from './lunges.json';
 import mountain from './mountain.json';
+import { MOVE_CLIPS } from './moves';
 import plank from './plank.json';
 import proneHipRock from './prone-hip-rock.json';
 import pushUp from './push-up.json';
@@ -98,6 +99,7 @@ export const BUILTIN_CLIPS: readonly Clip[] = [
   ...Object.values(RAW).map((raw) => Clip.parse(raw)),
   ...EMOTE_CLIPS.map((c) => Clip.parse(c)),
   ...COMBAT_CLIPS.map((c) => Clip.parse(c)),
+  ...MOVE_CLIPS.map((c) => Clip.parse(c)),
 ];
 
 export const builtinClip = (id: string) => BUILTIN_CLIPS.find((c) => c.id === id) ?? null;

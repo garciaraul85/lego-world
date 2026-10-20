@@ -16,8 +16,20 @@ export type Motion = {
   moving: number;
   /** seconds, for idle motion */
   time: number;
+  /** P23 part 4: a strike or a flinch from the animation state machine, and how far through it (0…1) */
+  act?: { kind: 'attack' | 'hurt'; u: number } | null;
 };
 export const newMotion = (): Motion => ({ gait: 0, moving: 0, time: 0 });
+
+/** seconds a body plan's strike and flinch take */
+export const ACT_LENGTH = { attack: 0.5, hurt: 0.45 } as const;
+
+/** how strong the strike or flinch is now: up quickly, then back (0 when there is none) */
+export function actAmount(m: Pick<Motion, 'act'>, kind: 'attack' | 'hurt'): number {
+  const a = m.act;
+  if (!a || a.kind !== kind || a.u <= 0 || a.u >= 1) return 0;
+  return a.u < 0.3 ? a.u / 0.3 : (1 - a.u) / 0.7;
+}
 
 /** Moves the cycle on by the distance travelled this frame. */
 export function advance(m: Motion, body: Pick<ResolvedBody, 'stride' | 'scale'>, dist: number, dt: number) {
@@ -79,8 +91,33 @@ export function boneOrder(bones: readonly Bone[]): Bone[] {
   return out;
 }
 
-/** The turn of one bone for this moment of its motion. */
+/** The turn of one bone for this moment of its motion (with a strike or flinch on top). */
 export function boneTurn(body: Pick<ResolvedBody, 'move' | 'bones'>, b: Bone, m: Motion): Float32Array {
+  const base = baseTurn(body, b, m);
+  const hit = actAmount(m, 'attack');
+  const ouch = actAmount(m, 'hurt');
+  if (!hit && !ouch) return base;
+  const A = Math.max(15, b.swing) * deg;
+  switch (b.role) {
+    // a strike: the head and neck lunge down and forward, the jaw snaps open, arms reach out
+    case 'head':
+    case 'neck':
+      return multiply(base, rotX(A * (0.7 * hit - 0.5 * ouch)));
+    case 'jaw':
+      return multiply(base, rotX(A * 1.6 * hit));
+    case 'arm':
+      return multiply(base, rotX(-A * 2 * hit + A * 0.8 * ouch));
+    case 'tail':
+    case 'spine':
+      return multiply(base, rotY(A * 0.6 * (hit - ouch) * Math.sin(m.time * 30)));
+    case 'wing':
+      return multiply(base, rotZ((b.side ?? 0) * A * ouch));
+    default:
+      return base;
+  }
+}
+
+function baseTurn(body: Pick<ResolvedBody, 'move' | 'bones'>, b: Bone, m: Motion): Float32Array {
   const A = b.swing * deg;
   const ph = TAU * (b.phase ?? 0);
   const side = b.side ?? 0;
@@ -161,10 +198,21 @@ export function bodyWorld(
   at: { x: number; y: number; z: number; heading: number },
   m: Motion | null,
 ) {
-  return multiply(
-    multiply(translate(at.x, at.y + (m ? lift(body, m) : body.hover) * body.scale, at.z), rotY(at.heading)),
-    scaleM(body.scale),
+  // P23 part 4: a strike lunges the whole body forward; a flinch rocks it back
+  const hit = m ? actAmount(m, 'attack') : 0;
+  const ouch = m ? actAmount(m, 'hurt') : 0;
+  const placed = multiply(
+    translate(at.x, at.y + (m ? lift(body, m) : body.hover) * body.scale, at.z),
+    rotY(at.heading),
   );
+  const acted =
+    hit || ouch
+      ? multiply(
+          placed,
+          multiply(translate(0, 0, (0.5 * hit - 0.3 * ouch) * body.scale), rotX(-0.25 * ouch + 0.1 * hit)),
+        )
+      : placed;
+  return multiply(acted, scaleM(body.scale));
 }
 
 const bricksByBone = new WeakMap<object, Map<string, RenderBrick[]>>();

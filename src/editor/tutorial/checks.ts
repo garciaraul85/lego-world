@@ -18,6 +18,7 @@ import {
   type Screen,
   type Variables,
 } from '../../core/schema';
+import { easeAt, poseAt, poseTimes } from '../../engine/character/posing';
 import { BrowserSaveStore } from '../../platform/saves';
 import { assetLibrary } from '../assets';
 import { savingOf } from '../panels/SavingSection';
@@ -379,6 +380,27 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     return !!s && matches(s.progress.settings, a as Record<string, unknown>);
   },
   screenShown: (ed, a) => !!ed.session.value?.screens.screens().some((x) => x.name === a),
+  // P23 part 4: posing and the animation state machine
+  clipViewIs: (ed, a) => !!openClip(ed) && ed.clipView.value === a,
+  poseCount: (ed, a) => poseTimes(openClip(ed) ?? { tracks: [] }).length >= Number(a),
+  poseAtTime: (ed, a) => poseTimes(openClip(ed) ?? { tracks: [] }).some((t) => Math.abs(t - Number(a)) < 0.05),
+  poseJoint: (ed, a) => {
+    const { t, joint, min } = a as { t: number; joint: string; min: number };
+    const c = openClip(ed);
+    if (!c || !poseTimes(c).some((x) => Math.abs(x - t) < 0.05)) return false;
+    return (poseAt(c, t)[joint] ?? 0) >= min;
+  },
+  poseEase: (ed, a) => {
+    const { t, ease } = a as { t: number; ease: string };
+    const c = openClip(ed);
+    return !!c && easeAt(c, t) === ease;
+  },
+  animationOwn: (ed, a) => {
+    const id = studioCharacter(ed)?.animations?.[a as 'idle'];
+    return !!id && ed.store.has(paths.clip(id));
+  },
+  stateShownIs: (ed, a) => ed.stateShown.value === a,
+  heroStateSeen: (ed, a) => !!ed.session.value?.statesSeen.has(a as never),
   ...CODING_TESTS,
 };
 

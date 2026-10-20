@@ -148,6 +148,20 @@ export class EditorState {
   /** where the clip's playhead is (seconds), and whether the clip plays in the preview (tutorial checks) */
   readonly clipTime = signal(0);
   readonly clipPlaying = signal(false);
+  /** P23 part 4: the clip editor shows poses (pose by pose, with joint sliders) or keys (the timeline) */
+  readonly clipView = signal<'poses' | 'keys'>('keys');
+  /** P23 part 4: a pose copied with Copy pose (joints that differ from standing) */
+  readonly poseClipboard = signal<Record<string, number> | null>(null);
+  /** P23 part 4: the Animations tab's Try it: what the character does, and the state that picks */
+  readonly stateTry = signal<{ speed: number; air: boolean; attack: boolean; hitAt: number }>({
+    speed: 0,
+    air: false,
+    attack: false,
+    hitAt: -1e9,
+  });
+  readonly stateShown = signal<string>('idle');
+  /** P23 part 4: a body plan's strike or flinch on the studio preview (when it started, performance.now) */
+  readonly bodyAct = signal<{ kind: 'attack' | 'hurt'; at: number } | null>(null);
   readonly view = signal<ViewTab>('scene');
   readonly left = signal<LeftTab>('hier');
   readonly right = signal<RightTab>('inspect');

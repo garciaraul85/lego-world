@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { Body } from '../character/body';
 import { Faces } from '../character/faces';
 import { Animations, Behaviour, Moves, Outfit, Stats, Voice } from '../character/sheet';
+import { StateSettings } from '../character/states';
 import { Health } from '../combat/damage';
 import { Enemy } from '../combat/enemy';
 import { Bark, TalkEntry } from '../dialogue/schema';
@@ -42,6 +43,8 @@ export const Character = z.strictObject({
   outfit: z.string().max(40).optional(),
   moves: Moves.optional(),
   animations: Animations.optional(),
+  /** P23 part 4: the numbers of its animation state machine (when it runs, how long a hit shows) */
+  states: StateSettings.optional(),
   voice: Voice.optional(),
   behaviour: Behaviour.optional(),
   /** P22 part 3: a body other than the minifig (a family from sliders or a body plan), its colours and bricks */

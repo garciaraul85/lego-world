@@ -2,7 +2,7 @@ import { freeGroups, partsMoving } from '../../core/assets/free';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { rigPose } from '../character/animator';
-import { advance, bodyOverlays, bodyPose, bodyWorld, type Motion, newMotion } from '../character/body-anim';
+import { ACT_LENGTH, advance, bodyOverlays, bodyPose, bodyWorld, type Motion, newMotion } from '../character/body-anim';
 import type { CharacterRenderer, Controller, HeroState } from '../legacy/runtime-modules';
 import { brickGeometry } from '../render/brick-geometry';
 import type { CameraFrame } from '../render/camera';
@@ -324,7 +324,13 @@ export class PlayRenderer {
           // P22 part 4: a speaker shows the face of its line's mood (P23 part 3: in a cinematic too)
           const face = cast ? s.castFaceOf(n, cast.mood ?? null) : s.moodFaceOf(n);
           const look = cast?.profile ?? n.profile;
-          draw(face ? { ...look, ...face } : look, cast?.state ?? n.state);
+          // P23 part 4: a neighbour's state clip (walk, attack, hurt…) poses it
+          const sp = cast ? null : s.npcPose(n);
+          const st = cast?.state ?? n.state;
+          draw(
+            face ? { ...look, ...face } : look,
+            sp?.params ? { ...st, studioPose: rigPose(sp.params, sp.clip), studioProgress: 0, studioFist: false } : st,
+          );
         }
         for (const x of s.cine.extras()) {
           const face = x.mood && x.name ? s.speakerFace(x.name, x.mood) : null;
@@ -384,6 +390,10 @@ export class PlayRenderer {
       const dist = Math.hypot(st.x - mo.x, st.z - mo.z);
       // a jump across the map (a teleport, a respawn) is not a step
       advance(mo.m, body, dist < 3 ? dist : 0, dt);
+      // P23 part 4: the state machine's strike and flinch
+      const state = s.animStateOf(who);
+      mo.m.act =
+        state === 'attack' || state === 'hurt' ? { kind: state, u: s.animSinceOf(who) / ACT_LENGTH[state] } : null;
       mo.x = st.x;
       mo.z = st.z;
       overlays.push(...bodyOverlays(body, bodyPose(body, mo.m), bodyWorld(body, st, mo.m)));

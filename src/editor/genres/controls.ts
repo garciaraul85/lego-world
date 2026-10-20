@@ -124,6 +124,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.faces': S('characters'),
   'help.effects': S('effects'),
   'help.screenfx': S('effects'),
+  'help.posing': S('characters'),
   'help.brixCourse': S('core'),
   'help.here': S('core'),
   'help.build': S('core'),

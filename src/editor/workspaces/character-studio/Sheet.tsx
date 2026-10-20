@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { BUILTIN_CLIPS } from '../../../builtin/clips';
+import { MOVE_FOR } from '../../../builtin/clips/moves';
 import {
-  ANIM_ACTIONS,
-  ANIM_LIVE,
+  type ANIM_ACTIONS,
   type AnimAction,
   BEHAVIOUR_INFO,
   BEHAVIOURS,
@@ -15,6 +15,7 @@ import {
   type Stats,
   xpFor,
 } from '../../../core/character/sheet';
+import { ANIM_STATES, pickState, STATE_LABEL, settingsOf, stateRule } from '../../../core/character/states';
 import { lookOf } from '../../../core/dialogue/checks';
 import { mouthAt } from '../../../core/dialogue/lipsync';
 import type { Character, Clip } from '../../../core/schema';
@@ -22,6 +23,7 @@ import type { ActionCtx } from '../../actions/registry';
 import { FieldHelp } from '../../components/fields';
 import { viewGenre } from '../../genres/view';
 import { soundOptions } from '../../panels/AudioFields';
+import { bodyOfChr } from './body-of';
 import { ClipThumb } from './thumbs';
 
 /**
@@ -62,7 +64,7 @@ export const SHEET_HELP: Record<Exclude<SheetTab, 'look' | 'dialogue'>, string> 
   moves:
     'How it fights: a style sets hit power and swing speed (fine-tune them below); the held item and the off hand (Look › Gear) decide the weapon. For a neighbour, “Fights the hero” makes it an enemy.',
   animations:
-    'The clip played for each action. Idle plays after standing still a moment, Victory on a level up, Hurt when hit. Walk, run, jump and attack are kept for the animation state machine (P23); until then the built-in motion plays.',
+    'The clip each state plays. A state machine picks the state every moment from what the character does — hurt just now, attacking, in the air, running, walking or standing — checking the rules from the top. A state without a clip shows the built-in motion. Victory plays once at a level up.',
   voice:
     'How it sounds: the voice blip and pitch of its lines in dialogue, its footsteps and the grunt when it is hurt (the player character).',
   behaviour:
@@ -354,6 +356,10 @@ export function AnimationsTab({ c, chr, save }: Props) {
     .filter(Boolean);
   const clips = [...own, ...BUILTIN_CLIPS];
   const anims = chr.animations ?? {};
+  const states = settingsOf(chr.states);
+  const setStates = (next: Partial<NonNullable<Character['states']>>, label: string) =>
+    save({ ...chr, states: { ...chr.states, ...next } }, label);
+  const empty = ANIM_STATES.filter((st) => !anims[st]);
   return (
     <div class="sec" data-tour="char-animations" data-help="characters.animations">
       <div class="sech">
@@ -362,63 +368,249 @@ export function AnimationsTab({ c, chr, save }: Props) {
           <FieldHelp label="Animations" text={SHEET_HELP.animations} />
         </span>
       </div>
-      {ANIM_ACTIONS.map((a) => {
-        const picked = anims[a] ? clips.find((x) => x.id === anims[a]) : undefined;
-        const showing = !!picked && c.ed.studioClip.value === picked.id && c.ed.clipPlaying.value;
-        return (
-          <div class="field anim-row" data-tour={`anim-${a}`}>
-            <span>
-              {ACTION_LABEL[a]}
-              {!ANIM_LIVE.includes(a) && <span class="chip small">P23</span>}
-            </span>
-            <span class="row" style={{ flexWrap: 'nowrap', gap: '6px' }}>
-              {picked ? (
-                <ClipThumb profile={chr.profile} clip={picked} size={26} play={showing} />
-              ) : (
-                <span class="clip-thumb none" aria-hidden="true" />
-              )}
-              <select
-                class="inp"
-                aria-label={`${ACTION_LABEL[a]} clip`}
-                value={anims[a] ?? ''}
-                onChange={(e) => {
-                  const v = (e.target as HTMLSelectElement).value;
-                  const next = { ...anims };
-                  if (v) next[a] = v as Clip['id'];
-                  else delete next[a];
-                  save({ ...chr, animations: next }, `${a} clip`);
-                  if (v) playOnFigure(c, v);
-                }}
-              >
-                <option value="">Built-in motion</option>
-                {clips.map((x) => (
-                  <option value={x.id}>
-                    {x.name ?? x.id}
-                    {own.includes(x) ? ' (mine)' : ''}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                class={`btn icon ${showing ? 'on' : ''}`}
-                aria-label={`Preview the ${ACTION_LABEL[a].toLowerCase()} clip`}
-                data-tip={
-                  picked
-                    ? `Play ${picked.name ?? 'the clip'} on the figure (again to stop)`
-                    : 'The built-in motion plays in the game; pick a clip to preview it here'
-                }
-                disabled={!picked}
-                onClick={() => {
-                  if (showing) c.ed.clipPlaying.value = false;
-                  else playOnFigure(c, picked!.id);
-                }}
-              >
-                {showing ? '■' : '▶'}
-              </button>
-            </span>
+      <div class="state-machine" role="list" aria-label="States" data-tour="char-states" data-help="characters.states">
+        <div class="muted small">The first state whose rule holds plays, checked from the top.</div>
+        {ANIM_STATES.map((st, i) => (
+          <div
+            role="listitem"
+            class={`state-card ${c.ed.stateShown.value === st ? 'on' : ''}`}
+            data-tour={`state-${st}`}
+            data-state={st}
+            aria-current={c.ed.stateShown.value === st ? 'true' : undefined}
+          >
+            <div class="state-head">
+              <strong>{STATE_LABEL[st]}</strong>
+              <span class="muted small">{stateRule(st, chr.states)}</span>
+            </div>
+            <AnimRow c={c} chr={chr} save={save} a={st} clips={clips} own={own} />
+            {i < ANIM_STATES.length - 1 && (
+              <span class="state-else" aria-hidden="true">
+                ↓ else
+              </span>
+            )}
           </div>
-        );
-      })}
+        ))}
+      </div>
+      <div class="state-card once">
+        <div class="state-head">
+          <strong>Victory</strong>
+          <span class="muted small">plays once at a level up, while it stands</span>
+        </div>
+        <AnimRow c={c} chr={chr} save={save} a="victory" clips={clips} own={own} />
+      </div>
+      <div class="row" style={{ gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+        <button
+          type="button"
+          class="btn"
+          data-tour="states-builtin"
+          disabled={!empty.length}
+          data-tip="Walk, Run, Jump, Swing, Flinch and Breathe — made by posing — for the states that have no clip yet"
+          onClick={() => {
+            const next = { ...anims };
+            for (const st of empty) next[st] = MOVE_FOR[st] as Clip['id'];
+            save({ ...chr, animations: next }, 'Use the built-in moves');
+          }}
+        >
+          Use the built-in moves
+        </button>
+      </div>
+      <label class="field">
+        <span>Runs from (studs a second)</span>
+        <input
+          class="inp"
+          type="number"
+          data-tour="states-runAt"
+          aria-label="Runs from (studs a second)"
+          min={0.5}
+          max={30}
+          step={0.5}
+          key={`${chr.id}-runAt-${states.runAt}`}
+          defaultValue={String(states.runAt)}
+          onChange={(e) => {
+            const v = num((e.target as HTMLInputElement).value, 0.5, 30);
+            if (v !== null) setStates({ runAt: v }, 'Run speed');
+          }}
+        />
+      </label>
+      <label class="field">
+        <span>Hurt shows for (seconds)</span>
+        <input
+          class="inp"
+          type="number"
+          data-tour="states-hurtFor"
+          aria-label="Hurt shows for (seconds)"
+          min={0.1}
+          max={2}
+          step={0.05}
+          key={`${chr.id}-hurtFor-${states.hurtFor}`}
+          defaultValue={String(states.hurtFor)}
+          onChange={(e) => {
+            const v = num((e.target as HTMLInputElement).value, 0.1, 2);
+            if (v !== null) setStates({ hurtFor: v }, 'Hurt time');
+          }}
+        />
+      </label>
+      <label class="lbl">
+        <input
+          type="checkbox"
+          data-tour="states-matchSpeed"
+          checked={states.matchSpeed}
+          onChange={(e) => setStates({ matchSpeed: (e.target as HTMLInputElement).checked }, 'Match the feet')}
+        />{' '}
+        Walk and run clips keep up with the speed
+      </label>
+      <StateTry c={c} chr={chr} />
+    </div>
+  );
+}
+
+/** one action's clip: its picture, the clip list and ▶ to play it on the figure */
+function AnimRow({
+  c,
+  chr,
+  save,
+  a,
+  clips,
+  own,
+}: Props & { a: (typeof ANIM_ACTIONS)[number]; clips: Clip[]; own: Clip[] }) {
+  const anims = chr.animations ?? {};
+  const picked = anims[a] ? clips.find((x) => x.id === anims[a]) : undefined;
+  const showing = !!picked && c.ed.studioClip.value === picked.id && c.ed.clipPlaying.value;
+  return (
+    <div class="field anim-row" data-tour={`anim-${a}`}>
+      <span class="muted small">Clip</span>
+      <span class="row" style={{ flexWrap: 'nowrap', gap: '6px' }}>
+        {picked ? (
+          <ClipThumb profile={chr.profile} clip={picked} size={26} play={showing} />
+        ) : (
+          <span class="clip-thumb none" aria-hidden="true" />
+        )}
+        <select
+          class="inp"
+          aria-label={`${ACTION_LABEL[a]} clip`}
+          value={anims[a] ?? ''}
+          onChange={(e) => {
+            const v = (e.target as HTMLSelectElement).value;
+            const next = { ...anims };
+            if (v) next[a] = v as Clip['id'];
+            else delete next[a];
+            save({ ...chr, animations: next }, `${a} clip`);
+            if (v) playOnFigure(c, v);
+          }}
+        >
+          <option value="">Built-in motion</option>
+          {clips.map((x) => (
+            <option value={x.id}>
+              {x.name ?? x.id}
+              {own.includes(x) ? ' (mine)' : ''}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          class={`btn icon ${showing ? 'on' : ''}`}
+          aria-label={`Preview the ${ACTION_LABEL[a].toLowerCase()} clip`}
+          data-tip={
+            picked
+              ? `Play ${picked.name ?? 'the clip'} on the figure (again to stop)`
+              : 'The built-in motion plays in the game; pick a clip to preview it here'
+          }
+          disabled={!picked}
+          onClick={() => {
+            if (showing) c.ed.clipPlaying.value = false;
+            else playOnFigure(c, picked!.id);
+          }}
+        >
+          {showing ? '■' : '▶'}
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Try it: what the character does (its speed, in the air, attacking, a hit) and the state the rules pick, lit
+ * on the list above; that state's clip plays on the figure (a body plan walks, strikes or flinches).
+ */
+function StateTry({ c, chr }: Pick<Props, 'c' | 'chr'>) {
+  const ed = c.ed;
+  const t = ed.stateTry.value;
+  const [, tick] = useState(0);
+  const s = settingsOf(chr.states);
+  const hurtAgo = (performance.now() - t.hitAt) / 1000;
+  const state = pickState({ speed: t.speed, grounded: !t.air, attacking: t.attack, hurtAgo }, chr.states);
+  const body = !!bodyOfChr(chr, (p) => ed.store.get(p));
+  // the hit wears off by itself
+  useEffect(() => {
+    if (hurtAgo >= s.hurtFor) return;
+    const id = setTimeout(() => tick((n) => n + 1), (s.hurtFor - hurtAgo) * 1000 + 20);
+    return () => clearTimeout(id);
+  }, [t.hitAt, s.hurtFor]);
+  useEffect(() => {
+    ed.stateShown.value = state;
+    if (body) {
+      ed.bodyWalk.value = state === 'walk' || state === 'run';
+      ed.bodyAct.value = state === 'attack' || state === 'hurt' ? { kind: state, at: performance.now() } : null;
+      return;
+    }
+    const id = chr.animations?.[state];
+    if (id) playOnFigure(c, id);
+    else if (ed.clipPlaying.peek()) ed.clipPlaying.value = false;
+  }, [state]);
+  const set = (next: Partial<typeof t>) => (ed.stateTry.value = { ...t, ...next });
+  return (
+    <div
+      class="state-try"
+      role="group"
+      aria-label="Try the states"
+      data-tour="states-try"
+      data-help="characters.states.try"
+    >
+      <div class="sech">
+        <span>Try it</span>
+        <span class="chip on" data-tour="states-now" aria-live="polite">
+          {STATE_LABEL[state]}
+        </span>
+      </div>
+      <label class="field">
+        <span>Speed: {t.speed} studs a second</span>
+        <input
+          type="range"
+          aria-label="Try: speed"
+          data-tour="try-speed"
+          min={0}
+          max={12}
+          step={0.5}
+          value={t.speed}
+          onInput={(e) => set({ speed: Number((e.target as HTMLInputElement).value) })}
+        />
+      </label>
+      <div class="row" style={{ gap: '10px', flexWrap: 'wrap' }}>
+        <label class="lbl">
+          <input
+            type="checkbox"
+            data-tour="try-air"
+            checked={t.air}
+            onChange={(e) => set({ air: (e.target as HTMLInputElement).checked })}
+          />{' '}
+          Feet off the ground
+        </label>
+        <label class="lbl">
+          <input
+            type="checkbox"
+            data-tour="try-attack"
+            checked={t.attack}
+            onChange={(e) => set({ attack: (e.target as HTMLInputElement).checked })}
+          />{' '}
+          Attacking
+        </label>
+        <button type="button" class="btn" data-tour="try-hit" onClick={() => set({ hitAt: performance.now() })}>
+          Get hit
+        </button>
+      </div>
+      {!body && !chr.animations?.[state] && (
+        <div class="hint">{STATE_LABEL[state]} has no clip: the built-in motion plays in the game.</div>
+      )}
     </div>
   );
 }

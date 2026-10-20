@@ -491,7 +491,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ character: Character }),
     ['character'],
     'Characters',
-    'Replaces a character: name, look (profile), gear, and its sheet — stats (health, stamina, speed, jump, strength, defence, level, xpCurve), outfits (name, look overrides, stat bonuses) and outfit (worn), moves (style balanced/swift/heavy/defensive, power, speed), animations (idle/victory/hurt… → clip ids), voice (pitch, blip, footsteps, grunt sounds), behaviour (kind: villager, shopkeeper, questGiver, companion, enemy, boss…; routine: wander or stand), talk (conversations by condition) and barks. Send the whole character (read it first).',
+    'Replaces a character: name, look (profile), gear, and its sheet — stats (health, stamina, speed, jump, strength, defence, level, xpCurve), outfits (name, look overrides, stat bonuses) and outfit (worn), moves (style balanced/swift/heavy/defensive, power, speed), animations (a clip id for each state of its animation state machine: idle, walk, run, jump, attack, hurt, plus victory), states (runAt studs a second, hurtFor seconds, matchSpeed), voice (pitch, blip, footsteps, grunt sounds), behaviour (kind: villager, shopkeeper, questGiver, companion, enemy, boss…; routine: wander or stand), talk (conversations by condition) and barks. Send the whole character (read it first).',
     { character: { $read: 'characters/<id>.json' } } as never,
   ),
   def(
@@ -518,7 +518,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ clip: Clip }),
     ['character'],
     'Characters',
-    'Replaces an animation clip.',
+    'Replaces an animation clip. Tracks are (bone, prop) with keys [seconds, value, ease]. To animate by posing, key every track at the same few times (the poses): the motion between is filled in by each key’s ease (easeInOut smooth, linear even, easeIn, easeOut, step holds). Arms and legs: a negative x swings forward; rightArm z up to 2.6 raises it to the side (leftArm z negative); a knee (leftShin bend) bends back up to 1.8.',
     { clip: { $read: 'clips/<id>.json' } } as never,
   ),
   def(

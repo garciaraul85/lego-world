@@ -19,6 +19,7 @@ import { BodyTab, bodyOfChr } from './Body';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
 import { FaceTab, withMood } from './Face';
 import { FromPicture } from './FromPicture';
+import { PosePanel } from './Posing';
 import { AnimationsTab, BehaviourTab, MovesTab, OutfitsTab, SHEET_TABS, StatsTab, VoiceTab } from './Sheet';
 import { CharacterThumb, ClipThumb, peakTime, type ThumbView, trackPose } from './thumbs';
 
@@ -168,6 +169,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     body,
     bones: body && ed.bodyBones.value ? { selected: ed.bodyBone.value } : null,
     walking: !!body && ed.bodyWalk.value,
+    act: body ? ed.bodyAct.value : null,
     paint:
       body?.fromAsset && ed.bodyPaint.value
         ? (src: number) => {
@@ -187,6 +189,8 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
+      // stopped by a seek (a click on a pose or the timeline) before this frame: the playhead stays put
+      if (!ed.clipPlaying.peek()) return;
       raf = requestAnimationFrame(tick);
       const dt = (now - last) / 1000;
       last = now;
@@ -475,29 +479,65 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               <>
                 {builtinClip && (
                   <div class="studio-foot small">
-                    {clip.group === 'Combat' || clip.group === 'Gestures' ? 'Built-in clip' : 'v68 routine'}{' '}
+                    {['Combat', 'Gestures', 'Moves'].includes(clip.group ?? '') ? 'Built-in clip' : 'v68 routine'}{' '}
                     (read-only).{' '}
                     <button type="button" class="link" onClick={() => duplicate(clip)}>
                       Duplicate to edit
                     </button>
                   </div>
                 )}
-                <Timeline
-                  clip={clip}
-                  time={Math.min(time, clip.length)}
-                  readOnly={builtinClip}
-                  choices={{ sounds: actionChoices(ed).sounds, cinematics: actionChoices(ed).cinematics }}
-                  onSeek={(t) => {
-                    setPlaying(false);
-                    setTime(t);
-                  }}
-                  onChange={saveClip}
-                  onTrackSelect={setPart}
-                  trackThumb={(bone, prop) => {
-                    const pose = trackPose(bone, prop);
-                    return <CharacterThumb profile={chr.profile} size={40} {...(pose ? { pose } : {})} />;
-                  }}
-                />
+                {/* P23 part 4: the clip pose by pose, or key by key */}
+                <div class="ptabs clip-views" role="tablist" aria-label="Clip editor">
+                  {(
+                    [
+                      ['poses', 'Poses'],
+                      ['keys', 'Keys'],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={ed.clipView.value === id}
+                      class={`tab ${ed.clipView.value === id ? 'on' : ''}`}
+                      data-tour={`clip-view-${id}`}
+                      data-help="clips.views"
+                      onClick={() => (ed.clipView.value = id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {ed.clipView.value === 'poses' ? (
+                  <PosePanel
+                    ed={ed}
+                    clip={clip}
+                    profile={chr.profile}
+                    time={Math.min(time, clip.length)}
+                    readOnly={builtinClip}
+                    onSeek={(t) => {
+                      setPlaying(false);
+                      setTime(t);
+                    }}
+                    onChange={saveClip}
+                  />
+                ) : (
+                  <Timeline
+                    clip={clip}
+                    time={Math.min(time, clip.length)}
+                    readOnly={builtinClip}
+                    choices={{ sounds: actionChoices(ed).sounds, cinematics: actionChoices(ed).cinematics }}
+                    onSeek={(t) => {
+                      setPlaying(false);
+                      setTime(t);
+                    }}
+                    onChange={saveClip}
+                    onTrackSelect={setPart}
+                    trackThumb={(bone, prop) => {
+                      const pose = trackPose(bone, prop);
+                      return <CharacterThumb profile={chr.profile} size={40} {...(pose ? { pose } : {})} />;
+                    }}
+                  />
+                )}
               </>
             ) : (
               <div class="studio-foot muted small">Pick a clip on the left to preview it here and edit its keys.</div>
