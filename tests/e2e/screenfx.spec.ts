@@ -84,8 +84,20 @@ test('Effects › Screen: a copy of Big hit becomes Thunder and plays when the h
   await expect(page.locator('.bw-screenfx[data-grade="night"]').last()).toBeVisible({ timeout: 20_000 });
   // the colour is laid on the game's picture only (the HUD is never coloured)
   await expect(page.getByLabel('Game view')).toHaveCSS('filter', /brightness\(0\.62\)/);
+  // the flash is short: record what lies over the screen every frame, then hurt the hero
+  await page.evaluate(() => {
+    const w = window as unknown as { __editor: Ed; __colors: string[] };
+    w.__colors = [];
+    const tick = () => {
+      for (const l of w.__editor.session.value?.screenFx.layers() ?? []) w.__colors.push(l.color);
+      if (w.__colors.length < 500) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
   await get(page, (e) => e.session.value!.hurt(1));
-  await expect.poll(() => get(page, (e) => e.session.value!.screenFx.layers()[0]?.color)).toBe('#bfd8ff');
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __colors: string[] }).__colors), { timeout: 20_000 })
+    .toContain('#bfd8ff');
   // a hit-stop holds the game for a moment, then lets go
   await get(page, (e) => e.session.value!.playScreenEffect('sce_hitstop000'));
   await expect.poll(() => get(page, (e) => e.session.value!.runtime.slow), { timeout: 10_000 }).toBe(1);
