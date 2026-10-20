@@ -546,8 +546,12 @@ function StateTry({ c, chr }: Pick<Props, 'c' | 'chr'>) {
     const id = setTimeout(() => tick((n) => n + 1), (s.hurtFor - hurtAgo) * 1000 + 20);
     return () => clearTimeout(id);
   }, [t.hitAt, s.hurtFor]);
+  // the state shown on the figure changes only when Try it changes it (opening the tab leaves the figure alone)
+  const shownBefore = useRef(state);
   useEffect(() => {
     ed.stateShown.value = state;
+    if (shownBefore.current === state) return;
+    shownBefore.current = state;
     if (body) {
       ed.bodyWalk.value = state === 'walk' || state === 'run';
       ed.bodyAct.value = state === 'attack' || state === 'hurt' ? { kind: state, at: performance.now() } : null;
