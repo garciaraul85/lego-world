@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (74 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (78 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -719,3 +719,41 @@ Changes the mood of this map while the game plays: a colour grade over the view,
 Stops every screen effect at once (a fade to black that is holding, a shake, slow motion) and brings back the map’s own mood.
 
 - Code: `screen.clear();`
+
+## Lights
+
+### Light on
+
+`light.on` · action
+
+Switches a light placed on the map on (by its name): it lights the bricks and characters around it again. An asset that gives light (a torch, a lamp) is switched by its name too.
+
+- Settings: Light (string)
+- Code: `lights.on(name);`
+
+### Light off
+
+`light.off` · action
+
+Switches a light placed on the map off (by its name): the place around it goes as dark as the map.
+
+- Settings: Light (string)
+- Code: `lights.off(name);`
+
+### Switch light
+
+`light.toggle` · action
+
+Switches a light placed on the map over: on if it was off, off if it was on (a lever that works both ways).
+
+- Settings: Light (string)
+- Code: `lights.toggle(name);`
+
+### Set darkness
+
+`light.darkness` · action
+
+How dark this map is without its lights, while the game plays: 0 lit by its sky as usual, 1 pitch black (a cave as the torch goes out). Leaving the map puts it back.
+
+- Settings: Darkness (0–1) (number)
+- Code: `lights.darkness(amount);`

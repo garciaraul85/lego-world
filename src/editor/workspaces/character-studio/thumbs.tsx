@@ -7,7 +7,7 @@ import { sampleParams, sampleTrack } from '../../../engine/character/routine';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { OrbitCamera } from '../../../engine/render/camera';
 import { Renderer } from '../../../engine/render/renderer';
-import { FRAGMENT } from '../../../engine/render/shaders';
+import { V68_FRAGMENT } from '../../../engine/render/shaders';
 
 /**
  * P32: small pictures of characters (presets and your own), for the Character studio's pick lists. One hidden
@@ -83,7 +83,7 @@ function setup() {
     const L = legacyRuntime();
     renderer.floor = true;
     renderer.skySample = L.SkyCycle.sample('day', 0, false, false);
-    const chars = L.CharacterModel.create(renderer.gl, FRAGMENT);
+    const chars = L.CharacterModel.create(renderer.gl, V68_FRAGMENT);
     const cam = new OrbitCamera();
     cam.target = [0, 1.75, 0];
     cam.baseDistance = 7;

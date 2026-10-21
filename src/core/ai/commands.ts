@@ -30,6 +30,7 @@ import {
   Clip,
   EmitterInstance,
   id,
+  LightInstance,
   LogicGraph,
   LogicNode,
   Mixer,
@@ -98,7 +99,7 @@ const NewBrick = z.strictObject({
 const BrickIds = z.strictObject({ map, ids: z.array(z.number().int()).min(1) });
 const SpawnInput = { name: z.string().min(1).max(60).optional(), pos: xyz.optional(), yaw: z.number().optional() };
 const ZoneShape = Zone.shape;
-const Item = z.discriminatedUnion('kind', [EmitterInstance, UiInstance]);
+const Item = z.discriminatedUnion('kind', [EmitterInstance, UiInstance, LightInstance]);
 const Edge = z.tuple([z.string(), z.string(), z.string(), z.string()]);
 const VarDef = z.strictObject({
   type: VarType,
@@ -177,10 +178,11 @@ export const AI_COMMANDS: AiCommand[] = [
       snow: z.boolean().optional(),
       snowing: z.boolean().optional(),
       mood: Mood.nullable().optional(),
+      darkness: z.number().min(0).max(1).optional(),
     }),
     ['map'],
     'Scene',
-    'Time of day and weather of a map, and its mood ({grade: none | warm | cold | night | dream | oldFilm | mono | toxic, vignette 0–1, drift: none | rain | snow | fog | dust | embers | leaves, amount 0–1}; null: none).',
+    'Time of day and weather of a map, and its mood ({grade: none | warm | cold | night | dream | oldFilm | mono | toxic, vignette 0–1, drift: none | rain | snow | fog | dust | embers | leaves, amount 0–1}; null: none), and its darkness without lights (0 as its sky lights it … 1 pitch black; lights are item.add {kind:"light"}).',
     { map: M1, time: 'evening', rain: true },
   ),
   def(
@@ -591,7 +593,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ map, item: Item }),
     ['map', 'audio', 'screen'],
     'Scene',
-    'Places a sound emitter (kind emitter) or a world UI sign/label/bar (kind ui) on a map.',
+    'Places a sound emitter (kind emitter), a world UI sign/label/bar (kind ui) or a light (kind light: pos, on, light {color, brightness 0–4, range 2–40 studs, flicker 0–1, shadow}) on a map.',
     {
       map: M1,
       item: {

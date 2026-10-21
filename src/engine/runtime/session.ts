@@ -39,6 +39,7 @@ import {
   type EmitterInstance,
   type Gates,
   type Instances,
+  type LightInstance,
   type LogicGraph,
   type MapDoc,
   type MapState,
@@ -63,8 +64,10 @@ import {
   legacyRuntime,
   type Npc,
 } from '../legacy/runtime-modules';
+import { findLight, gatherLights, type LightSource, pointLights } from '../lighting/lights';
 import { LogicRuntime } from '../logic/interpreter';
 import { portrait } from '../render/portraits';
+import type { PointLight } from '../render/renderer';
 import { CinematicSystem } from '../systems/cinematic';
 import { EmitterSystem } from '../systems/emitters';
 import { formatValue, interpolate } from '../ui/bindings';
@@ -115,6 +118,8 @@ export type MapWorld = {
   emitters: EmitterInstance[];
   /** P23: effects placed on the map */
   effects: EffectInstance[];
+  /** P27: lights placed on this map */
+  lights: LightInstance[];
   worldUi: UiInstance[];
   /** P26: what the map started with (instance id → state, neighbour ids), so a save keeps only what changed */
   start: { instances: Map<string, string>; npcs: number[] };
@@ -216,6 +221,10 @@ export class PlaySession {
   private strikeKind: AttackKind | null = null;
   /** placed effects: a running stream, or when the next burst is due; and which were started by logic */
   private placed = new Map<string, { stream: StreamHandle | null; next: number; on: boolean }>();
+  /** P27: lights switched by logic or actions (instance id → on), and the darkness logic set on this map */
+  private lightSwitch = new Map<string, boolean>();
+  private darknessNow: number | null = null;
+  private smashedCache: { world: MapWorld; rev: number; ids: Set<string> } | null = null;
   /** P9c: neighbours that fight the hero */
   readonly enemies: Enemies = new Enemies(this);
   /** P9b: attacks, guarding, moves and lock-on */
@@ -307,6 +316,7 @@ export class PlaySession {
       effect: (op: 'play' | 'on' | 'off', a: string, at: string | undefined, self: string | undefined) =>
         this.effectOp(op, a, at === 'self' ? self : at),
       screenEffect: (id: string) => this.screenFxOp('play', id),
+      light: (op: 'on' | 'off' | 'toggle', name: string, self: string | undefined) => this.lightOp(op, name, self),
     };
     this.actions = new ActionRunner(host);
     this.uiActions = new ActionRunner(host);
@@ -430,6 +440,7 @@ export class PlaySession {
       rev: 0,
       emitters: (inst?.items ?? []).filter((i): i is EmitterInstance => i.kind === 'emitter'),
       effects: (inst?.items ?? []).filter((i): i is EffectInstance => i.kind === 'effect'),
+      lights: (inst?.items ?? []).filter((i): i is LightInstance => i.kind === 'light'),
       worldUi: (inst?.items ?? []).filter((i): i is UiInstance => i.kind === 'ui'),
       start: { instances: new Map(), npcs: npcs.map((n) => n.id) },
     };
@@ -1355,6 +1366,61 @@ export class PlaySession {
     if (!this.setPlacedEffect(a, op === 'on')) this.emit('info', `No effect called “${a}” on this map.`);
   }
 
+  // ---------- P27: lights ----------
+
+  /** asset copies of this map smashed now (their light goes out) */
+  private smashedIds(): Set<string> {
+    const w = this.world;
+    if (this.smashedCache?.world === w && this.smashedCache.rev === w.rev) return this.smashedCache.ids;
+    const ids = new Set<string>();
+    for (const b of w.broken)
+      for (const p of b.originals) {
+        const i = this.instanceOfPiece(p.id);
+        if (i) ids.add(i.inst.id);
+      }
+    this.smashedCache = { world: w, rev: w.rev, ids };
+    return ids;
+  }
+
+  /** every light of this map now: placed lights, assets that give light, glowing effects, and if each is on */
+  lightSources(): LightSource[] {
+    const w = this.world;
+    const gone = this.smashedIds();
+    return gatherLights({
+      items: [...w.lights, ...w.effects],
+      assets: w.instances.map((i) => ({ inst: i.inst, def: i.def, state: i.state, gone: gone.has(i.inst.id) })),
+      effectDef: (id) => this.effectDef(id),
+      switched: this.lightSwitch,
+      effectOn: (e) => this.placed.get(e.id)?.on ?? e.playing,
+    });
+  }
+
+  /** the lights to draw now (flickering on the game clock) */
+  pointLightsNow(): PointLight[] {
+    return pointLights(this.lightSources(), this.clock);
+  }
+
+  /** how dark this map is without its lights (logic's Set darkness while it plays, else the map's) */
+  get darkness(): number {
+    return this.darknessNow ?? this.world.doc.darkness ?? 0;
+  }
+
+  /** actions and logic: switch a light on, off or over (by name, or 'this'), or set the darkness */
+  lightOp(op: 'on' | 'off' | 'toggle' | 'darkness', name: string, self?: string, value?: number) {
+    if (op === 'darkness') {
+      this.darknessNow = Math.max(0, Math.min(1, Number(value) || 0));
+      return;
+    }
+    const key = (name === 'this' || name === 'self') && self ? self : name;
+    const l = findLight(this.lightSources(), key);
+    if (!l) {
+      this.emit('info', `No light called “${name}” on this map.`);
+      return;
+    }
+    this.lightSwitch.set(l.key, op === 'toggle' ? !l.on : op === 'on');
+    this.emit('event', `Light ${l.name ?? l.key} ${this.lightSwitch.get(l.key) ? 'on' : 'off'}`);
+  }
+
   /** P23: logic's Play effect / Stop effect on an effect placed on the map (by its name) */
   setPlacedEffect(name: string, on: boolean): boolean {
     const it = this.world.effects.find((e) => (e.name ?? e.id) === name);
@@ -1429,6 +1495,8 @@ export class PlaySession {
   private forgetBodies() {
     this.bodies?.clear();
     this.npcStates?.clear();
+    // P27: a new map is as dark as it was made
+    this.darknessNow = null;
     this.standing?.clear();
     // P23: a new map starts with no particles; its own effects start again
     this.effects?.clear();
@@ -1961,6 +2029,7 @@ export class PlaySession {
       talk: (conversation) => void this.startConversation(conversation, null, 'other'),
       effect: (op, a, at) => this.effectOp(op, a, at),
       screen: (op, a) => this.screenFxOp(op, a),
+      light: (op, name, value) => this.lightOp(op, name, undefined, value),
       sheet: (op, value) =>
         op === 'outfit'
           ? this.setOutfit(String(value))

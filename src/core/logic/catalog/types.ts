@@ -106,6 +106,8 @@ export interface ExecCtx {
   effect?(op: 'play' | 'on' | 'off', a: string, at?: string): void;
   /** P23 part 2: play a screen effect (by id), set this map's mood while it plays, or clear the screen */
   screen?(op: 'play' | 'mood' | 'clear', a?: string | Record<string, unknown>): void;
+  /** P27: switch a placed light (by name) on, off or over, or set this map's darkness while it plays */
+  light?(op: 'on' | 'off' | 'toggle' | 'darkness', name: string, value?: number): void;
 }
 
 export type Args = Record<string, unknown>;

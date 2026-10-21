@@ -23,6 +23,10 @@ Each change is one undo step. A game has up to 80 effects of its own.
 
 **Place on the map** (above the preview) puts the effect beside where the player starts and opens the Scene with it selected. In the Scene, right-click the ground and **Add an effect here**. Its properties: which effect, its size, a tint, how often a burst plays again, how far away it still plays, and whether it plays from the start. Effects are in the Outliner under Effects (✦).
 
+## Effects that light the area
+
+**Lights the area** (Effects › Particles, below the settings) makes a placed effect light the bricks and characters around it while it plays. The built-in Fire glows orange, flickers and casts shadows; Portal swirl glows blue. A bigger copy (Size ×) lights further, and Stop effect puts its light out. Copy a built-in effect to change its light.
+
 ## Game effects
 
 Under the settings, **Game effects** picks the effect for each kind of hit (slash, blunt, pierce, fire, explosive, electric) and for level up, healing, picking up treasure, bricks breaking and an enemy beaten. **Built-in** keeps the editor's own; **None** plays nothing.

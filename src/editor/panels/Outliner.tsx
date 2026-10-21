@@ -294,6 +294,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
       { key: 'sounds', name: 'Sounds', color: '#8b74ff', kind: 'emitter' as const },
       { key: 'worldui', name: 'Signs', color: '#f9d84c', kind: 'ui' as const },
       { key: 'effects', name: 'Effects', color: '#ff8a3d', kind: 'effect' as const },
+      { key: 'lights', name: 'Lights', color: '#ffc26b', kind: 'light' as const },
     ];
     for (const g of groups) {
       const items = (inst?.items ?? []).filter((i) => i.kind === g.kind);
@@ -322,7 +323,9 @@ function Hierarchy({ c }: { c: ActionCtx }) {
                 ? `▭ ${it.text.slice(0, 28) || it.widget}`
                 : it.kind === 'effect'
                   ? `✦ ${it.name ?? 'Effect'}`
-                  : it.id,
+                  : it.kind === 'light'
+                    ? `💡 ${it.name ?? 'Light'}${it.on ? '' : ' (off)'}`
+                    : it.id,
           color: g.color,
           sel: ed.selectedItem.value === it.id,
           onClick: () => {

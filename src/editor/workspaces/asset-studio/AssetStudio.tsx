@@ -9,11 +9,13 @@ import { CommandBus, registerAll } from '../../../core/commands';
 import { mapsUsing } from '../../../core/commands/handlers/assets';
 import { newId } from '../../../core/ids';
 import { stableStringify } from '../../../core/json/stable';
+import { flickerAt, LIGHT_PRESET, lightRgb } from '../../../core/lighting/light';
 import { Autosave } from '../../../core/project/autosave';
 import { MemoryBackend } from '../../../core/project/backend';
 import { ProjectStore } from '../../../core/project/store';
 import { type Action, type Asset, BIOMES, paths, type Socket } from '../../../core/schema';
 import type { Marker } from '../../../engine/render/renderer';
+import { brickRgb, type PointLight } from '../../../engine/render/renderer';
 import { ACTIONS, type ActionCtx, keyOf, runAction } from '../../actions/registry';
 import { assetLibrary, newAssetDef, resolveAsset, sameAsset } from '../../assets';
 import { ActionListField } from '../../components/ActionListField';
@@ -25,6 +27,7 @@ import { shows } from '../../genres/view';
 import { endDrag, startDrag } from '../../interact/drag';
 import { actionChoices } from '../../panels/AudioFields';
 import { Swatches } from '../../panels/Inspector';
+import { LightFields } from '../../panels/LightFields';
 import type { StudioPart } from '../../scene';
 import { EditorState, type ToolId } from '../../state';
 import { Viewport, type ViewportApi } from '../../viewport/Viewport';
@@ -297,8 +300,32 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
   const used = ed.store.has(paths.asset(def.id)) ? mapsUsing(ed.store, def.id).length : 0;
   const sock = def.sockets.find((s) => s.id === socket) ?? null;
   const hooks = {
-    markers: (): Marker[] =>
-      def.sockets.map((s) => ({
+    // P27: an asset that gives light glows on the plate too (its bulb is a marker where the light is)
+    lights: (): PointLight[] => {
+      const l = def.light;
+      if (!l) return [];
+      const { at, states: _s, ...ld } = l;
+      return [
+        {
+          pos: at,
+          color: lightRgb(ld, flickerAt(ld.flicker, performance.now() / 1000)),
+          range: ld.range,
+          shadow: ld.shadow,
+        },
+      ];
+    },
+    markers: (): Marker[] => [
+      ...(def.light
+        ? [
+            {
+              pos: def.light.at as [number, number, number],
+              size: [0.35, 0.35, 0.35] as [number, number, number],
+              color: brickRgb(def.light.color),
+              alpha: 0.95,
+            },
+          ]
+        : []),
+      ...def.sockets.map((s) => ({
         pos: [s.pos[0], s.pos[1] + 0.2, s.pos[2]] as [number, number, number],
         size: [0.5, 0.5, 0.5] as [number, number, number],
         color: (s.id === socket ? [1, 0.72, 0.2] : s.kind === 'interact' ? [0.31, 0.82, 0.77] : [0.78, 0.57, 0.92]) as [
@@ -308,6 +335,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
         ],
         alpha: 0.9,
       })),
+    ],
     // P31: bricks turned or sized on the plate become a part of the asset (or update the part they are)
     onPart: (p: { index: number | null; ids: number[]; tilt: Tilt; scale: Scale }) => {
       const cur = resolveAsset(ed, def.id)!;
@@ -1147,6 +1175,88 @@ function Properties({
           </div>
         )}
 
+        {/* P27: it gives light (a torch, a lamp), where on it, in which states */}
+        <div class="sec" data-help="asset.light" data-tour="asset-light-sec">
+          <label class="lbl" data-tour="asset-light">
+            <input
+              type="checkbox"
+              checked={!!def.light}
+              onChange={() => {
+                const { light: _l, ...rest } = def;
+                reset(
+                  (def.light
+                    ? rest
+                    : {
+                        ...def,
+                        light: {
+                          ...LIGHT_PRESET.torch.light,
+                          at: [def.footprint[0] / 2, assetTop(def) + 0.3, def.footprint[1] / 2],
+                        },
+                      }) as Asset,
+                  def.light ? 'No light' : 'Gives light',
+                );
+              }}
+            />{' '}
+            Gives light
+            <FieldHelp
+              label="Gives light"
+              text="Every copy of it lights the bricks and characters around it, in the Scene and in the game: a torch, a lamp, a glowing crystal. Pick the kind of light, move where on the asset it shines from (the small marker on the plate), and tick the states it glows in (a lamp that is on or off). Logic switches a copy's light by the copy's name; a smashed copy's light goes out."
+            />
+          </label>
+          {def.light && (
+            <>
+              <LightFields
+                light={def.light}
+                tour="asset-light"
+                onChange={(light, label) => patch({ light: { ...def.light!, ...light } }, label)}
+              />
+              <div class="grid3">
+                {(['Across', 'Up', 'Deep'] as const).map((k, i) => (
+                  <Num
+                    label={k}
+                    value={def.light!.at[i]!}
+                    onCommit={(v) => {
+                      const at = [...def.light!.at] as [number, number, number];
+                      at[i] = Math.round(v * 10) / 10;
+                      patch({ light: { ...def.light!, at } }, 'Light position');
+                    }}
+                  />
+                ))}
+              </div>
+              {def.states.length > 1 && (
+                <div class="field" role="group" aria-label="Glows in">
+                  <span>Glows in</span>
+                  <span class="row" style={{ gap: '4px', flexWrap: 'wrap' }}>
+                    {def.states.map((st) => {
+                      const on = !def.light!.states?.length || def.light!.states.includes(st);
+                      return (
+                        <label class="lbl">
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => {
+                              const cur = def.light!.states?.length ? def.light!.states : def.states;
+                              const next = on ? cur.filter((x) => x !== st) : [...cur, st];
+                              const { states: _s, ...l } = def.light!;
+                              patch(
+                                {
+                                  light: next.length === def.states.length || !next.length ? l : { ...l, states: next },
+                                },
+                                'Light states',
+                              );
+                            }}
+                          />{' '}
+                          {st}
+                        </label>
+                      );
+                    })}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
         {/* P9a: health — how many hits it takes, what each kind of hit does, what happens at zero */}
         {shows(ed, 'section', 'asset.health') && (
           <div class="sec" data-tour="asset-health-sec">
@@ -1406,4 +1516,11 @@ function MovingPart({
       </div>
     </div>
   );
+}
+
+/** P27: the top of an asset (world units), for where a new light goes */
+function assetTop(def: Asset): number {
+  let top = 0;
+  for (const b of def.bricks) top = Math.max(top, (Number(b[2]) || 0) * 0.4 + 1.2);
+  return Math.round(top * 10) / 10;
 }

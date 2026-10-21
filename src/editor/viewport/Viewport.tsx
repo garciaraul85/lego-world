@@ -17,9 +17,18 @@ import type { Command } from '../../core/commands';
 import { skyCycle } from '../../core/legacy/modules';
 import { wiresOf } from '../../core/logic/wiring';
 import type { Asset, LogicGraph } from '../../core/schema';
+import { pointLights } from '../../engine/lighting/lights';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
-import { type LineSet, type Marker, type Overlay, type RenderBrick, Renderer } from '../../engine/render/renderer';
+import {
+  brickRgb,
+  type LineSet,
+  type Marker,
+  type Overlay,
+  type PointLight,
+  type RenderBrick,
+  Renderer,
+} from '../../engine/render/renderer';
 import { ScreenFxOverlay } from '../../engine/ui/ScreenFxOverlay';
 import { placeCommands, resolveAsset } from '../assets';
 import { groupLabel } from '../categories';
@@ -55,6 +64,7 @@ import {
   ringPoints,
   targetBox,
 } from './gizmo';
+import { editorLights } from './lights';
 import { settleMove } from './settle';
 
 const kindOf = (type: string) =>
@@ -65,6 +75,8 @@ export type { ViewportApi } from './active';
 /** The 3D scene view: renderer + camera + the active tool's pointer handling. */
 export type StudioHooks = {
   markers(): Marker[];
+  /** P27: the lights on the plate (an asset that gives light) */
+  lights?(): PointLight[];
   onPoint(pos: [number, number, number]): void;
   /**
    * P32: another asset dragged onto the plate is built into this one. `def` finds it (the plate's own project
@@ -517,9 +529,11 @@ export function Viewport({
     };
 
     let failed = '';
+    // P27: a flickering light keeps the view drawing
+    let flickering = false;
     const frame = () => {
       raf = requestAnimationFrame(frame);
-      if (!dirty) return;
+      if (!dirty && !flickering) return;
       dirty = false;
       try {
         draw();
@@ -667,16 +681,28 @@ export function Viewport({
           const p = it.pos;
           markers.push({
             pos: [p[0], p[1], p[2]],
-            size: it.kind === 'emitter' ? [0.7, 0.7, 0.7] : it.kind === 'effect' ? [0.6, 0.6, 0.6] : [1.6, 0.8, 0.12],
+            size:
+              it.kind === 'emitter'
+                ? [0.7, 0.7, 0.7]
+                : it.kind === 'effect'
+                  ? [0.6, 0.6, 0.6]
+                  : it.kind === 'light'
+                    ? [0.45, 0.45, 0.45]
+                    : [1.6, 0.8, 0.12],
             color: sel
               ? [1, 0.72, 0.2]
               : it.kind === 'emitter'
                 ? [0.55, 0.45, 1]
                 : it.kind === 'effect'
                   ? [1, 0.54, 0.24]
-                  : [0.98, 0.85, 0.3],
+                  : it.kind === 'light'
+                    ? (brickRgb(it.light.color).map((v) => (it.on ? v : v * 0.3)) as [number, number, number])
+                    : [0.98, 0.85, 0.3],
             alpha: 0.9,
           });
+          // P27: a picked light shows how far it reaches
+          if (it.kind === 'light' && sel)
+            lines.push({ lines: ringLines(p[0], p[1], p[2], it.light.range), color: [1, 0.72, 0.2] });
           if (it.kind === 'emitter')
             lines.push({
               lines: ringLines(p[0], p[1], p[2], it.maxDistance),
@@ -694,6 +720,18 @@ export function Viewport({
           lines.push({ lines: facingLine(sp.pos as Vec3, sp.yaw), color: [0.31, 0.82, 0.77] });
       }
       if (s) drawGizmo(lines, markers);
+      // P27: the map's lights and darkness, as in the game (asset studio: none)
+      if (s && !studio) {
+        const src = editorLights(ed, s.instances);
+        renderer.lights = pointLights(src, performance.now() / 1000);
+        renderer.darkness = ed.mapDoc.value?.darkness ?? 0;
+        flickering = src.some((l) => l.on && l.def.flicker > 0);
+      } else {
+        // the Asset studio: the asset's own light, if it gives light
+        renderer.lights = studioRef.current?.lights?.() ?? [];
+        renderer.darkness = 0;
+        flickering = renderer.lights.length > 0;
+      }
       const cam = camera.frame();
       const t0 = performance.now();
       const st = renderer.render(cam, camera.target, overlays, lines, markers);

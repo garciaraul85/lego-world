@@ -46,6 +46,10 @@ An asset made only of moving parts floats when logic puts it in the world with *
 
 The piece button above the build plate shows the brick you are building with; click it to pick the kind and size from pictures, and pick the color next to it.
 
+## Gives light
+
+Tick **Gives light** in the Asset studio and every copy of the asset lights what is around it: a torch, a lamp, a glowing crystal. Pick the kind of light and change it as you would a placed light; **Across**, **Up** and **Deep** are where on the asset it shines from (the small marker on the plate). **Glows in** picks the states it is lit in: the built-in Lamp post glows when it is **on**. Logic switches a copy's light by the copy's name, and a smashed copy's light goes out.
+
 ## Health: things that take several hits
 
 Without health, one hit smashes an asset (when **Can be smashed** is on). With **Health** (Asset properties, under Smash) it takes several hits first:

@@ -107,6 +107,8 @@ const CATS: Record<string, string> = {
   characters: 'Characters',
   cinematics: 'Cinematics',
   'ui-screens': 'UI screens',
+  effects: 'Effects',
+  lights: 'Lights',
   sounds: 'Sounds',
   music: 'Music',
 };
@@ -443,6 +445,20 @@ export function stepsToView(view: string): ShowStep[] {
             c.ed.store.get<{ items: { id: string; kind: string }[] }>(`maps/${c.ed.mapId.value}/instances.json`)
               ?.items ?? [];
           const it = items.find((x) => x.kind === 'effect');
+          if (it) c.ed.selectedItem.value = it.id;
+          return !!it;
+        }),
+        right('inspect', 'Inspector'),
+      ];
+    case 'scene-light':
+      // P27: a light placed on the map
+      return [
+        ws('Scene'),
+        select('Select a light on the map (right-click the ground: Add a light here, if there is none).', (c) => {
+          const items =
+            c.ed.store.get<{ items: { id: string; kind: string }[] }>(`maps/${c.ed.mapId.value}/instances.json`)
+              ?.items ?? [];
+          const it = items.find((x) => x.kind === 'light');
           if (it) c.ed.selectedItem.value = it.id;
           return !!it;
         }),

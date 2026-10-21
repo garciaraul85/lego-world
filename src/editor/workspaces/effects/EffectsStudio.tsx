@@ -11,12 +11,14 @@ import {
   SPAWN_SHAPES,
 } from '../../../core/effects/schema';
 import { newId } from '../../../core/ids';
+import { LIGHT_PRESET } from '../../../core/lighting/light';
 import { paths } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
 import { FieldHelp } from '../../components/fields';
 import { EffectThumb } from '../../components/previews';
 import { matches, NoMatch, SearchBox, SearchSelect } from '../../components/SearchBox';
 import { placeEffectAt } from '../../interact/place';
+import { LightFields } from '../../panels/LightFields';
 import { EffectPreview } from './EffectPreview';
 import { ScreenEffectsStudio } from './ScreenEffectsStudio';
 import { EffectsTabs, Num } from './shared';
@@ -206,6 +208,40 @@ export function EffectsStudio({ c }: { c: ActionCtx }) {
                 </button>
               </div>
             )}
+          </div>
+          {/* P27: an effect placed on the map can light what is around it */}
+          <div class="sec" data-tour="fx-light-sec" data-help="effects.light">
+            <label class="lbl" data-tour="fx-light">
+              <input
+                type="checkbox"
+                checked={!!effect.light}
+                disabled={!isOwn}
+                onChange={() => {
+                  const { light: _l, ...rest } = effect;
+                  save(
+                    effect.light ? (rest as Effect) : { ...effect, light: { ...LIGHT_PRESET.torch.light } },
+                    effect.light ? 'Effect gives no light' : 'Effect lights the area',
+                  );
+                }}
+              />{' '}
+              Lights the area
+              <FieldHelp
+                label="Lights the area"
+                text="Placed on the map, it lights the bricks and characters around it while it plays: a fire glows orange and flickers, a portal glows blue. A bigger copy (Size ×) lights further. Logic's Stop effect puts its light out too."
+              />
+            </label>
+            {effect.light &&
+              (isOwn ? (
+                <LightFields
+                  light={effect.light}
+                  tour="fx-light"
+                  onChange={(light, label) => save({ ...effect, light }, label)}
+                />
+              ) : (
+                <p class="muted small">
+                  It glows {effect.light.color} up to {effect.light.range} studs. Make a copy to change its light.
+                </p>
+              ))}
           </div>
           <GameEffects c={c} own={own} />
         </div>

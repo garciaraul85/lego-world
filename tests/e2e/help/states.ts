@@ -225,7 +225,7 @@ export const HELP_STATES: HelpState[] = [
       await signals(p, { left: 'hier', dock: d });
     },
   })),
-  ...['Assets', 'Characters', 'Cinematics', 'UI screens', 'Effects', 'Sounds', 'Music'].map((c) => ({
+  ...['Assets', 'Characters', 'Cinematics', 'UI screens', 'Effects', 'Lights', 'Sounds', 'Music'].map((c) => ({
     id: `scene-cat-${c.toLowerCase().replace(/ /g, '-')}`,
     screen: 'scene',
     setup: async (p: Page) => {
@@ -717,6 +717,37 @@ export const HELP_STATES: HelpState[] = [
             },
           },
         });
+        e.selectedItem.value = id;
+        e.right.value = 'inspect';
+      });
+    },
+  },
+  {
+    // P27: a torch placed on a dark map, picked in the Scene
+    id: 'scene-light',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const map = e.mapId.value as string;
+        const id = 'ins_helplight1';
+        e.exec({ type: 'map.setEnvironment', payload: { map, darkness: 0.7 } });
+        if (!(e.store.get(`maps/${map}/instances.json`) as { items: { id: string }[] }).items.some((i) => i.id === id))
+          e.exec({
+            type: 'item.add',
+            payload: {
+              map,
+              item: {
+                id,
+                kind: 'light',
+                name: 'Torch 1',
+                pos: [3, 2.4, 3],
+                on: true,
+                light: { color: '#ff9a3c', brightness: 1.6, range: 11, flicker: 0.5, shadow: true },
+              },
+            },
+          });
         e.selectedItem.value = id;
         e.right.value = 'inspect';
       });

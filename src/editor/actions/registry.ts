@@ -466,6 +466,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('screenfx'),
   },
   {
+    id: 'help.lights',
+    label: 'Lights course (darkness, torches, shadows)',
+    run: ({ ui }) => ui.tutorial('lights'),
+  },
+  {
     id: 'help.posing',
     label: 'Posing and states course (clips pose by pose, walk, run, attack)',
     run: ({ ui }) => ui.tutorial('posing'),
@@ -612,6 +617,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.effects',
     'help.screenfx',
     'help.posing',
+    'help.lights',
     'help.brixCourse',
     'help.build',
     'help.shortcuts',

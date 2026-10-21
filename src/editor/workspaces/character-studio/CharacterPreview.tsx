@@ -17,7 +17,7 @@ import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { OrbitCamera } from '../../../engine/render/camera';
 import { drawCharacter, placement } from '../../../engine/render/place-character';
 import { Renderer } from '../../../engine/render/renderer';
-import { FRAGMENT } from '../../../engine/render/shaders';
+import { V68_FRAGMENT } from '../../../engine/render/shaders';
 import { BONE_NAMES, trackLabel } from '../../components/timeline/Timeline';
 
 export type PreviewInput = {
@@ -93,7 +93,7 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     }
     renderer.floor = true;
     renderer.skySample = L.SkyCycle.sample('day', 0, false, false);
-    const chars = L.CharacterModel.create(renderer.gl, FRAGMENT);
+    const chars = L.CharacterModel.create(renderer.gl, V68_FRAGMENT);
     const cam = new OrbitCamera();
     cam.target = [0, 1.7, 0];
     cam.baseDistance = 7.5;

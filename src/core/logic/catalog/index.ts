@@ -3,6 +3,7 @@ import { EFFECTS } from './effects';
 import { EVENTS } from './events';
 import { FLOW } from './flow';
 import { HEALTH, HEALTH_EVENTS } from './health';
+import { LIGHTS } from './lights';
 import { COMPARE, MATH } from './math';
 import { MEDIA } from './media';
 import { MISC } from './misc';
@@ -37,6 +38,7 @@ export const CATALOG: readonly NodeDef[] = [
   ...SHEET,
   ...SHEET_EVENTS,
   ...EFFECTS,
+  ...LIGHTS,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

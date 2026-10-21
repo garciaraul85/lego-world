@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Mood } from '../effects/screen';
+import { Darkness } from '../lighting/light';
 import { ActionList } from './action';
 import { id, LegacyBlob, Vec3 } from './common';
 
@@ -63,6 +64,8 @@ export const MapDoc = z.strictObject({
   generator: Generator.nullable(),
   /** P23 part 2: the map's mood: colour grade, vignette, what drifts across the screen */
   mood: Mood.optional(),
+  /** P27: how dark it is without its lights (0: lit by its sky as usual … 1: pitch black) */
+  darkness: Darkness.optional(),
   music: id('music').nullable(),
   ambience: id('sound').nullable(),
   spawns: z.array(Spawn).max(32),

@@ -12,6 +12,7 @@ import {
   type Cinematic,
   type Clip,
   type Instances,
+  type LightInstance,
   type LogicGraph,
   type MapDoc,
   paths,
@@ -380,6 +381,16 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     return !!s && matches(s.progress.settings, a as Record<string, unknown>);
   },
   screenShown: (ed, a) => !!ed.session.value?.screens.screens().some((x) => x.name === a),
+  // P27 part 1: the lights course
+  mapDarkness: (ed, a) => (ed.mapDoc.value?.darkness ?? 0) >= Number(a),
+  lightKind: (ed, a) => lightsOf(ed).some((l) => (l.name ?? '').startsWith(String(a))),
+  lightColor: (ed, a) => lightsOf(ed).some((l) => l.light.color.toLowerCase() === String(a).toLowerCase()),
+  lightRange: (ed, a) => lightsOf(ed).some((l) => l.light.range >= Number(a)),
+  lightsAtLeast: (ed, a) => lightsOf(ed).length >= Number(a),
+  lightOff: (ed) => lightsOf(ed).some((l) => !l.on),
+  zoneLightsOn: (ed) => (ed.mapDoc.value?.zones ?? []).some((z) => (z.onEnter ?? []).some((x) => x.do === 'lightOn')),
+  lightOnInPlay: (ed, a) =>
+    !!ed.session.value?.lightSources().some((l) => (l.name ?? '').startsWith(String(a)) && l.on),
   // P23 part 4: posing and the animation state machine
   clipViewIs: (ed, a) => !!openClip(ed) && ed.clipView.value === a,
   poseCount: (ed, a) => poseTimes(openClip(ed) ?? { tracks: [] }).length >= Number(a),
@@ -412,6 +423,11 @@ function openGraph(ed: EditorState): LogicGraph | null {
 function openCine(ed: EditorState): Cinematic | null {
   const id = ed.cinematicId.value ?? ed.store.list('cinematics/')[0]?.slice(11, -5);
   return id ? (ed.store.get<Cinematic>(paths.cinematic(id)) ?? null) : null;
+}
+function lightsOf(ed: EditorState): LightInstance[] {
+  return (ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? []).filter(
+    (i): i is LightInstance => i.kind === 'light',
+  );
 }
 function studioCharacter(ed: EditorState): Character | null {
   const id = ed.studioCharacter.value;

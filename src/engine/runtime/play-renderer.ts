@@ -300,6 +300,9 @@ export class PlayRenderer {
     const creatures = this.creatures();
     // P23: the particles of this frame
     this.renderer.particles = s.effects.batches();
+    // P27: the lights of this moment, and how dark the map is without them
+    this.renderer.lights = s.pointLightsNow();
+    this.renderer.darkness = s.darkness;
     return this.renderer.render(
       cam,
       [s.heroState.x, s.heroState.y, s.heroState.z],
@@ -309,6 +312,8 @@ export class PlayRenderer {
       (mvp, eye) => {
         const c = this.chars;
         c.begin(mvp, eye, sky);
+        // P27: characters are lit by the same lights as the bricks
+        this.renderer.applyLights(this.renderer.gl.getParameter(this.renderer.gl.CURRENT_PROGRAM));
         // a character playing a clip (a cinematic, an emote) is drawn where it stands
         const frame = { mvp, eye: eye as number[], light: sky };
         const draw = (profile: Record<string, unknown>, state: HeroState) =>

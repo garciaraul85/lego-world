@@ -4,14 +4,15 @@ import {
   type EffectInstance,
   type EmitterInstance,
   Instances,
+  type LightInstance,
   type MapDoc,
   paths,
   type UiInstance,
 } from '../../schema';
 import type { CommandHandler } from '../types';
 
-type Item = EmitterInstance | UiInstance | EffectInstance;
-const isItem = (k: string) => k === 'emitter' || k === 'ui' || k === 'effect';
+type Item = EmitterInstance | UiInstance | EffectInstance | LightInstance;
+const isItem = (k: string) => k === 'emitter' || k === 'ui' || k === 'effect' || k === 'light';
 export const MAX_ITEMS_PER_MAP = 256;
 
 const inst = (store: ProjectStore, map: string) =>
@@ -28,7 +29,9 @@ export const addItem: CommandHandler<{ map: string; item: Item }> = {
       ? 'Add sound emitter'
       : p.item.kind === 'effect'
         ? 'Add effect'
-        : `Add world ${p.item.widget}`,
+        : p.item.kind === 'light'
+          ? 'Add light'
+          : `Add world ${p.item.widget}`,
   validate(store, p) {
     if (!store.has(paths.map(p.map))) return `Map ${p.map} does not exist.`;
     if (!isId('instance', p.item.id)) return 'Item ids look like ins_ and 10 letters or digits.';

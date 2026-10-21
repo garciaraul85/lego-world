@@ -14,6 +14,7 @@ import { eventNames } from '../events';
 import type { EditorState } from '../state';
 import { allEffects } from '../workspaces/effects/EffectsStudio';
 import { EffectInspector } from './EffectFields';
+import { LightInspector } from './LightFields';
 
 /** Pickers for ActionListField (sound, music and screen actions). */
 export function actionChoices(ed: EditorState) {
@@ -34,6 +35,19 @@ export function actionChoices(ed: EditorState) {
       .filter((p) => p.endsWith('/instances.json'))
       .flatMap((p) =>
         (ed.store.get<Instances>(p)?.items ?? []).flatMap((i) => (i.kind === 'effect' && i.name ? [i.name] : [])),
+      ),
+    // P27: lights by name: placed lights, and assets that give light (by their copy's name)
+    placedLights: ed.store
+      .list('maps/')
+      .filter((p) => p.endsWith('/instances.json'))
+      .flatMap((p) =>
+        (ed.store.get<Instances>(p)?.items ?? []).flatMap((i) =>
+          i.kind === 'light' && i.name
+            ? [i.name]
+            : i.kind === 'asset' && i.name && ed.store.get<{ light?: unknown }>(`assets/${i.asset}.json`)?.light
+              ? [i.name]
+              : [],
+        ),
       ),
     // P32: Send event picks from the events the project uses; ▶ plays sounds and music
     events: eventNames(ed.store),
@@ -322,6 +336,8 @@ export function ItemInspector({ c, id }: { c: ActionCtx; id: string }) {
   // P23: an effect placed on the map
   const raw = ed.store.get<Instances>(paths.instances(map))?.items.find((i) => i.id === id);
   if (raw?.kind === 'effect') return <EffectInspector c={c} item={raw} />;
+  // P27: a light placed on the map
+  if (raw?.kind === 'light') return <LightInspector c={c} item={raw} />;
   const it = ed.store.get<Instances>(paths.instances(map))?.items.find((i) => i.id === id) as
     | EmitterInstance
     | UiInstance

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DAMAGE_TYPES } from '../combat/damage';
+import { LightDef } from '../lighting/light';
 import { id } from '../schema/common';
 
 /**
@@ -45,6 +46,8 @@ export const Effect = z.strictObject({
   drag: z.number().min(0).max(10),
   /** how much speed they keep when they hit bricks (0: no bouncing, they pass through) */
   bounce: z.number().min(0).max(1),
+  /** P27: it lights what is around it while it plays (fire, magic) */
+  light: LightDef.optional(),
 });
 export type Effect = z.infer<typeof Effect>;
 

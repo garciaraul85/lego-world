@@ -50,6 +50,21 @@ Map tab › Terrain generator: tick environments (forest, city, prairie, mountai
 
 The Map tab also sets the time of day, sky and weather, the map's music and ambience loop.
 
+## Lights and darkness
+
+**Darkness** (Map tab) is how dark the map is without its lights: 0 lit by its sky as usual, 1 pitch black, the sky darkened too. A dark map shows only what its lights reach, so a dungeon or a cave is lit by its torches.
+
+A **light** lights the bricks and characters around it, in the Scene view as in the game. Right-click the ground and pick **Add a light here**, or open the Dock's **Lights** category and press **Place** on a kind: Torch, Candle, Lamp, Crystal, Lava glow or Moonbeam. Pick it to change it in the Inspector:
+
+- **Kind** starts it again from a preset; **Colour** and **Brightness** (0–4) set its glow.
+- **Reaches** is how far it lights, in studs; a picked light shows it as a ring.
+- **Flicker** makes it waver like a flame; 0 is steady.
+- **Bricks cast shadows from it**: the nearest light that casts shadows draws them (a torch on a wall throws the shadows of what stands in front of it).
+- **Height** lifts it; drag it in the view to move it.
+- **On from the start** off: it stays dark until logic's **Light on** or the action **Switch a light on or off** switches it on by its name.
+
+Up to 8 lights are drawn at once: the brightest near where you look. Assets that give light (the Lamp post when it is on) and effects that glow (Fire, Portal swirl) light the map too. [Lights course](action:help.lights)
+
 ## Names, scripts and wires
 
 Select a placed object and look under **Name, script & wires** in the Inspector.

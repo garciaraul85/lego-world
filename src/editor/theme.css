@@ -6068,3 +6068,19 @@ img.bw-portrait {
 .search-toggle {
   flex: none;
 }
+
+/* P27: lights */
+.light-swatch {
+  display: inline-block;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.light-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.light-fields input[type="range"] {
+  width: 100%;
+}

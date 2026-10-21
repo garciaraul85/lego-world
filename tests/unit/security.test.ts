@@ -142,6 +142,7 @@ describe('game scripts are sandboxed', () => {
       'sheet',
       'effect',
       'screen',
+      'light',
     ];
     for (const k of allowed) expect(ctxKeys, k).toContain(k);
   });

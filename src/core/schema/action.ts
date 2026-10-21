@@ -67,6 +67,12 @@ export const Action = z.discriminatedUnion('do', [
   z.strictObject({ do: z.literal('effect'), effect: id('effect'), at: z.string().max(60).optional() }),
   /** P23: start or stop an effect placed on the map (by its name) */
   z.strictObject({ do: z.literal('effectOn'), name: z.string().min(1).max(60), on: z.boolean() }),
+  /** P27: switch a light placed on the map (by its name; an asset that gives light too) on, off or over */
+  z.strictObject({
+    do: z.literal('lightOn'),
+    name: z.string().min(1).max(60),
+    on: z.enum(['on', 'off', 'toggle']),
+  }),
   /** P23 part 2: play a screen effect (shake, flash, fade, hit-stop, slow motion) */
   z.strictObject({ do: z.literal('screenEffect'), effect: id('screenEffect') }),
   /** P22: start a conversation (a sign, an object's interaction, a screen button or logic) */

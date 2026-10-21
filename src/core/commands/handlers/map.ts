@@ -41,6 +41,8 @@ export type SetEnvironment = {
   snowing?: boolean;
   /** P23 part 2: the map's mood (null: none) */
   mood?: Mood | null;
+  /** P27: how dark it is without its lights (0: as its sky lights it) */
+  darkness?: number;
 };
 
 const mapMissing = (store: ProjectStore, map: string) =>
@@ -52,6 +54,7 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
   validate(store, p) {
     if (!store.has(paths.map(p.map))) return `Map ${p.map} does not exist.`;
     if (p.time !== undefined && !TIMES.includes(p.time)) return `Time must be one of ${TIMES.join(', ')}.`;
+    if (p.darkness !== undefined && !(p.darkness >= 0 && p.darkness <= 1)) return 'Darkness goes from 0 to 1.';
     if (p.mood) {
       const r = Mood.safeParse(p.mood);
       if (!r.success) return `Mood: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
@@ -60,13 +63,16 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
   },
   apply(store, p) {
     const m = getMap(store, p.map);
-    const { mood: _old, ...rest } = m;
+    const { mood: _old, darkness: _dark, ...rest } = m;
+    // no darkness is no field (maps made before lights stay as they were)
+    const darkness = p.darkness === undefined ? m.darkness : Math.round(p.darkness * 100) / 100;
     // a mood that does nothing is no mood (the map file stays as it was before moods)
     const some = (x: Mood) => x.grade !== 'none' || x.vignette > 0 || x.drift !== 'none';
     const mood = p.mood === undefined ? m.mood : p.mood && some(p.mood) ? Mood.parse(p.mood) : undefined;
     store.put(paths.map(p.map), {
       ...rest,
       ...(mood ? { mood } : {}),
+      ...(darkness ? { darkness } : {}),
       sky: { time: p.time ?? m.sky.time },
       weather: {
         rain: p.rain ?? m.weather.rain,

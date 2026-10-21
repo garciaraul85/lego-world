@@ -65,6 +65,8 @@ export const BUILTIN_EFFECTS: Effect[] = [
     size: [0.45, 0.08],
     colors: ['#fff2a8', '#ffb21f', '#e8450f', '#5a1d0c'],
     gravity: -1.5,
+    // P27: a fire lights what is around it, flickering, and casts shadows
+    light: { color: '#ff9a3c', brightness: 1.5, range: 10, flicker: 0.5, shadow: true },
   }),
   fx(FX.smoke, 'Smoke', {
     shape: 'brick',
@@ -234,6 +236,7 @@ export const BUILTIN_EFFECTS: Effect[] = [
     life: [0.8, 1.4],
     size: [0.2, 0.05],
     colors: ['#c6f0ff', '#4fd1c5', '#5a3cc9'],
+    light: { color: '#4fd1c5', brightness: 1.2, range: 8, flicker: 0.1, shadow: false },
   }),
   fx(FX.aura, 'Glowing aura', {
     shape: 'plate',

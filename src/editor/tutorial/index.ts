@@ -27,6 +27,7 @@ import faces from './content/17-faces.json';
 import effects from './content/18-effects.json';
 import screenfx from './content/19-screen-effects.json';
 import posing from './content/20-posing.json';
+import lights from './content/21-lights.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -41,6 +42,7 @@ export type Track =
   | 'bodies'
   | 'screenfx'
   | 'posing'
+  | 'lights'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -91,6 +93,8 @@ export const SCREENFX_CHAPTERS: Chapter[] = [screenfx].map((c) => Chapter.parse(
 export const SCREENFX_STEPS: TrackStep[] = steps(SCREENFX_CHAPTERS);
 /** P23 part 4: a clip made pose by pose, and the hero's animation states */
 export const POSING_STEPS: TrackStep[] = steps([posing].map((c) => Chapter.parse(c)));
+/** P27 part 1: a dark map lit by a torch and a crystal switched on by a zone */
+export const LIGHTS_STEPS: TrackStep[] = steps([lights].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -107,6 +111,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   faces: { title: 'Faces and pictures course', steps: FACES_STEPS },
   screenfx: { title: 'Screen effects course', steps: SCREENFX_STEPS },
   posing: { title: 'Posing and states course', steps: POSING_STEPS },
+  lights: { title: 'Lights course', steps: LIGHTS_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

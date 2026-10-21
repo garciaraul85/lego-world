@@ -18,6 +18,8 @@ import {
   type Character,
   type Clip,
   type Gates,
+  type Instances,
+  type LightInstance,
   type LogicGraph,
   type MapDoc,
   type Mixer,
@@ -737,6 +739,45 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     if (!n) throw new Error('Nobody is on this map.');
     s.placeAt([n.state.x, n.state.y + 0.2, n.state.z - 2], 0);
     s.talk();
+  },
+  // P27 part 1: the lights course
+  lightZone(c) {
+    // what drawing a zone around the start and adding the action does: entering it switches the crystal on
+    const m = mapDoc(c);
+    const sp = m.spawns[0]?.pos ?? [0, 0.4, 0];
+    const inst = c.ed.store.get<Instances>(paths.instances(map(c)))?.items ?? [];
+    const crystal = inst.find((i) => i.kind === 'light' && !i.on) as LightInstance | undefined;
+    if (!crystal) throw new Error('Place a light and switch it off first.');
+    let zone = m.zones.find((z) => z.tags.includes('Lights on'));
+    if (!zone) {
+      run(
+        c,
+        {
+          type: 'map.addZone',
+          payload: {
+            map: map(c),
+            zone: { min: [sp[0] - 5, sp[1], sp[2] - 5], max: [sp[0] + 5, sp[1] + 4, sp[2] + 5], tags: ['Lights on'] },
+          },
+        },
+        'Add trigger zone',
+      );
+      zone = mapDoc(c).zones.find((z) => z.tags.includes('Lights on'));
+    }
+    if (!zone) throw new Error('The zone could not be made.');
+    run(
+      c,
+      {
+        type: 'map.updateZone',
+        payload: {
+          map: map(c),
+          zone: zone.id,
+          patch: { onEnter: [{ do: 'lightOn', name: crystal.name ?? crystal.id, on: 'on' }] },
+        },
+      },
+      'Zone switches the light on',
+    );
+    c.ed.selectedZone.value = zone.id;
+    c.ed.right.value = 'inspect';
   },
   // P23 part 4: the posing course
   stateOwnClip(c, a) {

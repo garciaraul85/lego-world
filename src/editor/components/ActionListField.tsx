@@ -17,6 +17,8 @@ export type ActionChoices = {
   /** P23 part 2: screen effects (built-in and the game's own) */
   screenEffects?: Choice[];
   placedEffects?: string[];
+  /** P27: lights by name (placed lights, assets that give light) */
+  placedLights?: string[];
   /** P32: custom event names the project uses (Send event picks from them) */
   events?: string[];
   /** P32: plays a sound or a music state once, for the ▶ next to their pickers */
@@ -96,6 +98,12 @@ const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Act
     do: 'effectOn',
     label: 'Start or stop a placed effect',
     make: (c) => ({ do: 'effectOn', name: c?.placedEffects?.[0] ?? 'Effect 1', on: true }),
+  },
+  // P27
+  {
+    do: 'lightOn',
+    label: 'Switch a light on or off',
+    make: (c) => ({ do: 'lightOn', name: c?.placedLights?.[0] ?? 'Light 1', on: 'on' }),
   },
   // P22
   {
@@ -416,6 +424,35 @@ function ActionArgs({
           />
           <datalist id="placed-effects">
             {(choices?.placedEffects ?? []).map((n) => (
+              <option value={n} />
+            ))}
+          </datalist>
+        </span>
+      );
+    case 'lightOn':
+      return (
+        <span class="row" style={{ gap: '4px' }}>
+          <select
+            class="inp"
+            aria-label="Switch the light"
+            value={a.on}
+            onChange={(e) => onChange({ ...a, on: (e.target as HTMLSelectElement).value as 'on' | 'off' | 'toggle' })}
+          >
+            <option value="on">On</option>
+            <option value="off">Off</option>
+            <option value="toggle">Over (on ⇄ off)</option>
+          </select>
+          <input
+            class="inp"
+            aria-label="Light name"
+            list="placed-lights"
+            value={a.name}
+            onChange={(e) =>
+              onChange({ ...a, name: (e.target as HTMLInputElement).value.trim().slice(0, 60) || a.name })
+            }
+          />
+          <datalist id="placed-lights">
+            {(choices?.placedLights ?? []).map((n) => (
               <option value={n} />
             ))}
           </datalist>

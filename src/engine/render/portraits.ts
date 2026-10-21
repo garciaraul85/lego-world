@@ -3,7 +3,7 @@ import { bodyBounds, bodyOverlays, bodyPose, bodyWorld } from '../character/body
 import { legacyRuntime } from '../legacy/runtime-modules';
 import { OrbitCamera } from './camera';
 import { Renderer } from './renderer';
-import { FRAGMENT } from './shaders';
+import { V68_FRAGMENT } from './shaders';
 
 /**
  * P22 part 4: dialogue portraits — the speaker's own head, with the face of the line's mood, drawn once in a
@@ -40,7 +40,7 @@ function setup() {
     const L = legacyRuntime();
     renderer.floor = false;
     renderer.skySample = L.SkyCycle.sample('day', 0, false, false);
-    const chars = L.CharacterModel.create(renderer.gl, FRAGMENT);
+    const chars = L.CharacterModel.create(renderer.gl, V68_FRAGMENT);
     const cam = new OrbitCamera();
     cam.fov = 0.7;
     shared = { canvas, renderer, chars, cam };

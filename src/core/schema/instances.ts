@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LightDef } from '../lighting/light';
 import { id, Vec3 } from './common';
 
 export const NpcInstance = z.strictObject({
@@ -72,6 +73,18 @@ export const EffectInstance = z.strictObject({
 });
 export type EffectInstance = z.infer<typeof EffectInstance>;
 
+/** P27: a light placed on a map (a torch on a wall, a lamp over a table); logic can switch it on and off */
+export const LightInstance = z.strictObject({
+  id: id('instance'),
+  kind: z.literal('light'),
+  name: z.string().min(1).max(60).optional(),
+  pos: Vec3,
+  light: LightDef,
+  /** off: dark until logic or an action switches it on */
+  on: z.boolean(),
+});
+export type LightInstance = z.infer<typeof LightInstance>;
+
 /** World UI placed in a map (P5.9): a sign, a label or a bar drawn over the 3D view at pos. */
 export const UiInstance = z.strictObject({
   id: id('instance'),
@@ -96,7 +109,14 @@ export const Instances = z.strictObject({
   /** false when the legacy save had no `npcs` key (v68 then spawns default neighbors on load) */
   npcsSaved: z.boolean(),
   items: z.array(
-    z.discriminatedUnion('kind', [NpcInstance, AssetInstance, EmitterInstance, UiInstance, EffectInstance]),
+    z.discriminatedUnion('kind', [
+      NpcInstance,
+      AssetInstance,
+      EmitterInstance,
+      UiInstance,
+      EffectInstance,
+      LightInstance,
+    ]),
   ),
 });
 export type Instances = z.infer<typeof Instances>;
