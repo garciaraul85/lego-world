@@ -4,6 +4,7 @@ import type { Command } from '../../core/commands';
 import type { Conversation } from '../../core/dialogue/schema';
 import type { Effect } from '../../core/effects/schema';
 import type { ScreenEffect } from '../../core/effects/screen';
+import { fogPresetOf } from '../../core/lighting/atmosphere';
 import { wiresOf } from '../../core/logic/wiring';
 import { allSaves } from '../../core/save/save';
 import {
@@ -381,6 +382,16 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     return !!s && matches(s.progress.settings, a as Record<string, unknown>);
   },
   screenShown: (ed, a) => !!ed.session.value?.screens.screens().some((x) => x.name === a),
+  // P27 part 2: the atmosphere course
+  mapFog: (ed, a) => fogPresetOf(ed.mapDoc.value?.fog) === a,
+  fogFarAtMost: (ed, a) => !!ed.mapDoc.value?.fog && ed.mapDoc.value.fog.far <= Number(a),
+  groundFog: (ed) => ed.mapDoc.value?.fog?.height !== undefined,
+  ambientColor: (ed, a) => ed.mapDoc.value?.ambient?.color.toLowerCase() === String(a).toLowerCase(),
+  dayLength: (ed, a) => ed.mapDoc.value?.dayLength === Number(a),
+  startTime: (ed, a) => ed.mapDoc.value?.sky.time === a,
+  skyPreviewAtLeast: (ed, a) => (ed.skyPreview.value ?? 0) >= Number(a),
+  lightAtNight: (ed) => lightsOf(ed).some((l) => !!l.light.atNight),
+  nightInPlay: (ed) => (ed.session.value?.atmosphereNow().sky.night ?? 0) > 0.5,
   // P27 part 1: the lights course
   mapDarkness: (ed, a) => (ed.mapDoc.value?.darkness ?? 0) >= Number(a),
   lightKind: (ed, a) => lightsOf(ed).some((l) => (l.name ?? '').startsWith(String(a))),

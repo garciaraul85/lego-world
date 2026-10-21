@@ -28,6 +28,7 @@ import effects from './content/18-effects.json';
 import screenfx from './content/19-screen-effects.json';
 import posing from './content/20-posing.json';
 import lights from './content/21-lights.json';
+import atmosphere from './content/22-atmosphere.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -43,6 +44,7 @@ export type Track =
   | 'screenfx'
   | 'posing'
   | 'lights'
+  | 'atmosphere'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -95,6 +97,7 @@ export const SCREENFX_STEPS: TrackStep[] = steps(SCREENFX_CHAPTERS);
 export const POSING_STEPS: TrackStep[] = steps([posing].map((c) => Chapter.parse(c)));
 /** P27 part 1: a dark map lit by a torch and a crystal switched on by a zone */
 export const LIGHTS_STEPS: TrackStep[] = steps([lights].map((c) => Chapter.parse(c)));
+export const ATMOSPHERE_STEPS: TrackStep[] = steps([atmosphere].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -112,6 +115,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   screenfx: { title: 'Screen effects course', steps: SCREENFX_STEPS },
   posing: { title: 'Posing and states course', steps: POSING_STEPS },
   lights: { title: 'Lights course', steps: LIGHTS_STEPS },
+  atmosphere: { title: 'Atmosphere course', steps: ATMOSPHERE_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

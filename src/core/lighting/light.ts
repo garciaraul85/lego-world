@@ -17,6 +17,8 @@ export const LightDef = z.strictObject({
   flicker: z.number().min(0).max(1),
   /** bricks block it: shadows (the nearest such light casts them) */
   shadow: z.boolean(),
+  /** P27 part 2: it shines only at night (a street lamp), coming on as the sky gets dark */
+  atNight: z.boolean().optional(),
 });
 export type LightDef = z.infer<typeof LightDef>;
 
@@ -72,7 +74,8 @@ export function presetOf(l: LightDef): LightPreset | null {
       p.brightness === l.brightness &&
       p.range === l.range &&
       p.flicker === l.flicker &&
-      p.shadow === l.shadow
+      p.shadow === l.shadow &&
+      !l.atNight
     )
       return k;
   }

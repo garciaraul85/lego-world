@@ -116,6 +116,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Screen effects course: copy Big hit into a Thunder of your own (a pale blue flash and a slow rumble), make it play when the hero is hurt, give the map a stormy night mood, and see it in Play.',
   'help.lights':
     'Starts the Lights course: make the map dark, place a torch and make it a green magic torch that reaches further, place a crystal that is off, switch it on with a zone, and walk into the dark in Play.',
+  'help.atmosphere':
+    'Starts the Atmosphere course: pick a mist, bring it closer, add ground fog, tint the shadows blue, make a day 2 minutes long, see the map at night, place a lamp that shines only at night, start the game at night and play it.',
   'help.posing':
     'Starts the Posing and states course: make Pip, build a clip pose by pose (standing, an arm raised, standing), ease it, give Pip the built-in moves and your clip for Idle, try the states, then walk in Play.',
   'help.dialogue':

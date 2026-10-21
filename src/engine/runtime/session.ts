@@ -19,6 +19,7 @@ import type { Effect, EffectEvent } from '../../core/effects/schema';
 import { Mood, NO_MOOD, type ScreenEffect, type ScreenEvent } from '../../core/effects/screen';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
+import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosphere';
 import type { ExecCtx } from '../../core/logic/catalog';
 import {
   AUTO_SLOT,
@@ -46,6 +47,7 @@ import {
   type Project,
   paths,
   type Screen,
+  TIMES,
   type UiInstance,
   type Variables,
 } from '../../core/schema';
@@ -64,6 +66,7 @@ import {
   legacyRuntime,
   type Npc,
 } from '../legacy/runtime-modules';
+import { type Atmosphere, atmosphere } from '../lighting/atmosphere';
 import { findLight, gatherLights, type LightSource, pointLights } from '../lighting/lights';
 import { LogicRuntime } from '../logic/interpreter';
 import { portrait } from '../render/portraits';
@@ -224,6 +227,9 @@ export class PlaySession {
   /** P27: lights switched by logic or actions (instance id → on), and the darkness logic set on this map */
   private lightSwitch = new Map<string, boolean>();
   private darknessNow: number | null = null;
+  /** P27 part 2: the time of day logic set (and when), and the fog it set (undefined: the map's; null: none) */
+  private timeSet: { time: MapDoc['sky']['time']; at: number } | null = null;
+  private fogSet: Fog | null | undefined = undefined;
   private smashedCache: { world: MapWorld; rev: number; ids: Set<string> } | null = null;
   /** P9c: neighbours that fight the hero */
   readonly enemies: Enemies = new Enemies(this);
@@ -334,7 +340,8 @@ export class PlaySession {
       inventory: this.inventory,
       run: (actions) => this.actions.run(actions, this.clock),
       text: (t) => interpolate(t, this.lookup),
-      timeOfDay: () => (this.world.doc.sky.time === 'night' ? 'night' : 'day'),
+      // P27 part 2: as the sky is now (the day moves on while the game plays)
+      timeOfDay: () => (this.atmosphereNow().sky.night > 0.5 ? 'night' : 'day'),
       objectState: (name) => this.resolveEntity(name)?.state,
       fire: (type, match) => this.logic.fire({ type, match }),
       log: (msg) => this.emit('talk', msg),
@@ -1395,9 +1402,36 @@ export class PlaySession {
     });
   }
 
-  /** the lights to draw now (flickering on the game clock) */
+  /** the lights to draw now (flickering on the game clock; the night-only ones as dark falls) */
   pointLightsNow(): PointLight[] {
-    return pointLights(this.lightSources(), this.clock);
+    return pointLights(this.lightSources(), this.clock, this.atmosphereNow().sky.night);
+  }
+
+  /** P27 part 2: the sky and fog now: the map's start time moved on by the clock at its day length */
+  atmosphereNow(): Atmosphere {
+    const doc = this.world.doc;
+    const t = this.timeSet;
+    const fog = this.fogSet === undefined ? doc.fog : (this.fogSet ?? undefined);
+    return atmosphere(
+      { ...doc, sky: { time: t?.time ?? doc.sky.time }, fog },
+      this.clock - (t?.at ?? 0),
+      this.L.SkyCycle,
+    );
+  }
+
+  /** logic: move the sun to a time of day, or change the fog (a preset, 'none' or 'map') */
+  skyOp(op: 'time' | 'fog', value: string) {
+    if (op === 'time') {
+      if (!(TIMES as readonly string[]).includes(value)) return this.emit('info', `No time of day “${value}”.`);
+      this.timeSet = { time: value as MapDoc['sky']['time'], at: this.clock };
+      return;
+    }
+    this.fogSet =
+      value === 'map'
+        ? undefined
+        : value === 'none'
+          ? null
+          : (FOG_PRESET[value as FogPreset]?.fog ?? this.world.doc.fog ?? null);
   }
 
   /** how dark this map is without its lights (logic's Set darkness while it plays, else the map's) */
@@ -1495,8 +1529,9 @@ export class PlaySession {
   private forgetBodies() {
     this.bodies?.clear();
     this.npcStates?.clear();
-    // P27: a new map is as dark as it was made
+    // P27: a new map is as dark as it was made, with its own fog
     this.darknessNow = null;
+    this.fogSet = undefined;
     this.standing?.clear();
     // P23: a new map starts with no particles; its own effects start again
     this.effects?.clear();
@@ -2030,6 +2065,7 @@ export class PlaySession {
       effect: (op, a, at) => this.effectOp(op, a, at),
       screen: (op, a) => this.screenFxOp(op, a),
       light: (op, name, value) => this.lightOp(op, name, undefined, value),
+      sky: (op, value) => this.skyOp(op, value),
       sheet: (op, value) =>
         op === 'outfit'
           ? this.setOutfit(String(value))

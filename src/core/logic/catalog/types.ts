@@ -55,7 +55,10 @@ export type ArgKind =
   /** P23 part 2: a screen effect; a colour grade; what drifts across the screen */
   | 'screenEffect'
   | 'grade'
-  | 'drift';
+  | 'drift'
+  /** P27 part 2: a time of day (day, noon, evening, night); a fog (a preset, the map's own, or none) */
+  | 'time'
+  | 'fog';
 export type ArgDef = {
   name: string;
   kind: ArgKind;
@@ -108,6 +111,8 @@ export interface ExecCtx {
   screen?(op: 'play' | 'mood' | 'clear', a?: string | Record<string, unknown>): void;
   /** P27: switch a placed light (by name) on, off or over, or set this map's darkness while it plays */
   light?(op: 'on' | 'off' | 'toggle' | 'darkness', name: string, value?: number): void;
+  /** P27 part 2: set the time of day (the sun jumps there and the day goes on) or the fog, while it plays */
+  sky?(op: 'time' | 'fog', value: string): void;
 }
 
 export type Args = Record<string, unknown>;

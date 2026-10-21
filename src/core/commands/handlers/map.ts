@@ -11,6 +11,7 @@ import { EffectHooks } from '../../effects/schema';
 import { Mood, ScreenHooks } from '../../effects/screen';
 import { hash64 } from '../../hash';
 import { type Id, newId } from '../../ids';
+import { Ambient, DayLength, Fog } from '../../lighting/atmosphere';
 import type { ProjectStore } from '../../project/store';
 import { type Saving, Saving as SavingSchema } from '../../save/save';
 import {
@@ -43,6 +44,10 @@ export type SetEnvironment = {
   mood?: Mood | null;
   /** P27: how dark it is without its lights (0: as its sky lights it) */
   darkness?: number;
+  /** P27 part 2: fog (null: none), the shadows' colour (null: as the sky gives), a day's length (null: 20 min) */
+  fog?: Fog | null;
+  ambient?: Ambient | null;
+  dayLength?: number | null;
 };
 
 const mapMissing = (store: ProjectStore, map: string) =>
@@ -55,6 +60,17 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
     if (!store.has(paths.map(p.map))) return `Map ${p.map} does not exist.`;
     if (p.time !== undefined && !TIMES.includes(p.time)) return `Time must be one of ${TIMES.join(', ')}.`;
     if (p.darkness !== undefined && !(p.darkness >= 0 && p.darkness <= 1)) return 'Darkness goes from 0 to 1.';
+    for (const [k, schema] of [
+      ['fog', Fog],
+      ['ambient', Ambient],
+      ['dayLength', DayLength],
+    ] as const) {
+      const v = p[k];
+      if (v === undefined || v === null) continue;
+      const r = schema.safeParse(v);
+      if (!r.success) return `${k}: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
+    }
+    if (p.fog && p.fog.far <= p.fog.near) return 'Fog: where it is thickest must be further than where it starts.';
     if (p.mood) {
       const r = Mood.safeParse(p.mood);
       if (!r.success) return `Mood: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
@@ -63,7 +79,11 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
   },
   apply(store, p) {
     const m = getMap(store, p.map);
-    const { mood: _old, darkness: _dark, ...rest } = m;
+    const { mood: _old, darkness: _dark, fog: _fog, ambient: _amb, dayLength: _day, ...rest } = m;
+    const keep = <T>(v: T | null | undefined, old: T | undefined) => (v === undefined ? old : (v ?? undefined));
+    const fog = keep(p.fog, m.fog);
+    const ambient = keep(p.ambient, m.ambient);
+    const dayLength = keep(p.dayLength, m.dayLength);
     // no darkness is no field (maps made before lights stay as they were)
     const darkness = p.darkness === undefined ? m.darkness : Math.round(p.darkness * 100) / 100;
     // a mood that does nothing is no mood (the map file stays as it was before moods)
@@ -73,6 +93,9 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
       ...rest,
       ...(mood ? { mood } : {}),
       ...(darkness ? { darkness } : {}),
+      ...(fog ? { fog: Fog.parse(fog) } : {}),
+      ...(ambient ? { ambient: Ambient.parse(ambient) } : {}),
+      ...(dayLength !== undefined ? { dayLength } : {}),
       sky: { time: p.time ?? m.sky.time },
       weather: {
         rain: p.rain ?? m.weather.rain,

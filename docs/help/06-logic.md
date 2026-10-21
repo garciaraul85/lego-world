@@ -71,6 +71,10 @@ on("custom", { event: "scene-takes-sword" }, (e) => {
 
 **Light on**, **Light off** and **Switch light** (Lights) switch a light placed on the map, or an asset that gives light, by its name; **Set darkness** changes how dark the map is while the game plays (0 lit by its sky … 1 pitch black). A lever wired to a logic file with Switch light turns a room's torches on and off. In code: `lights.on("Torch 1");`, `lights.off(…);`, `lights.toggle(…);`, `lights.darkness(0.9);`.
 
+## Sky
+
+**Set time of day** (Sky) moves the sun to day, noon, evening or night, and the day goes on from there at the map's day length; lights that shine only at night come on as it gets dark. **Set fog** changes the fog while the game plays: a kind (haze, mist, thick, ground, swamp, smoke), `none`, or `map` for the map's own. In code: `sky.time("night");`, `sky.fog("mist");`.
+
 ## Debugging
 
 F9 on a node sets a breakpoint that pauses Play there. While playing, the dock's Debug tab shows variables and the Console shows log() output. A graph stops a chain after 1000 steps so a loop can't freeze the game.

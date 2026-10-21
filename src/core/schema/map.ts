@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Mood } from '../effects/screen';
+import { Ambient, DayLength, Fog } from '../lighting/atmosphere';
 import { Darkness } from '../lighting/light';
 import { ActionList } from './action';
 import { id, LegacyBlob, Vec3 } from './common';
@@ -66,6 +67,10 @@ export const MapDoc = z.strictObject({
   mood: Mood.optional(),
   /** P27: how dark it is without its lights (0: lit by its sky as usual … 1: pitch black) */
   darkness: Darkness.optional(),
+  /** P27 part 2: fog by distance (and on the ground), the colour of the shadows, and how long a day lasts */
+  fog: Fog.optional(),
+  ambient: Ambient.optional(),
+  dayLength: DayLength.optional(),
   music: id('music').nullable(),
   ambience: id('sound').nullable(),
   spawns: z.array(Spawn).max(32),

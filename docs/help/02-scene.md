@@ -65,6 +65,18 @@ A **light** lights the bricks and characters around it, in the Scene view as in 
 
 Up to 8 lights are drawn at once: the brightest near where you look. Assets that give light (the Lamp post when it is on) and effects that glow (Fire, Portal swirl) light the map too. [Lights course](action:help.lights)
 
+**Only at night** makes a light a street lamp: it comes on as the sky gets dark and goes out at dawn (the built-in Lamp post does this).
+
+## Fog, shadows and day and night
+
+The Map tab sets a map's atmosphere, one undo step per change:
+
+- **Fog** fades what is far away into its colour. **Kind** starts it from Haze, Mist, Thick fog, Ground fog, Swamp or Smoke, each shown as a picture (None keeps v68's light haze). **Starts at** and **Thickest at** are studs from the eye, **Thickness** is how much it hides at the far end, and **Colour** is its own (none: the sky's horizon). **Ground fog** lies low: thick below **Up to**, thinning above it. Characters fade into it too, and thick fog pulls the sky toward its colour.
+- **Shadows' colour**: tick **Tint the shadows** to colour the light that fills them (green in a cave, warm red at sunset, cold blue in ice); **Strength** makes them brighter or darker (0: black).
+- **Day and night**: while the game plays the sun moves from the **Start time** (Sky) and night falls. **A day lasts** is how many minutes a whole day takes (v68: 20); 0 stops time. **See the map at** shows any hour here in the Scene without changing the map; **Back to the start time** returns.
+
+Logic's **Set time of day** and **Set fog** (Sky) change them while the game plays. [Atmosphere course](action:help.atmosphere)
+
 ## Names, scripts and wires
 
 Select a placed object and look under **Name, script & wires** in the Inspector.

@@ -6084,3 +6084,10 @@ img.bw-portrait {
 .light-fields input[type="range"] {
   width: 100%;
 }
+
+/* P27 part 2: a fog's picture */
+.fog-swatch {
+  display: inline-block;
+  border-radius: 4px;
+  flex: none;
+}

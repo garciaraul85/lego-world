@@ -11,11 +11,17 @@ export const V68_FRAGMENT = `precision mediump float;varying vec3 vNormal;varyin
  */
 export const FRAGMENT = V68_FRAGMENT.replace(
   'uniform vec3 uFocus;void main(){',
-  `uniform vec3 uFocus;uniform vec4 uPL[8];uniform vec4 uPC[8];uniform float uPLN;uniform float uDark;uniform samplerCube uShadow;uniform float uShadowOn;uniform vec4 uShadowAt;float shadowAt(vec3 p,vec3 n){vec3 d=p+n*0.05-uShadowAt.xyz;vec4 e=textureCube(uShadow,d);float stored=(e.r+e.g/255.0)*uShadowAt.w;return length(d)-0.12>stored?0.0:1.0;}vec3 pointLights(vec3 n,vec3 p){vec3 sum=vec3(0.0);for(int i=0;i<8;i++){if(float(i)>=uPLN)break;vec3 L=uPL[i].xyz-p;float dist=max(length(L),0.001);float a=clamp(1.0-dist/uPL[i].w,0.0,1.0);a*=a;if(a<=0.0)continue;float diff=max(dot(n,L/dist),0.0)*0.8+0.2;float sh=1.0;if(i==0&&uShadowOn>0.5)sh=shadowAt(p,n);sum+=uPC[i].rgb*a*diff*sh;}return sum;}void main(){`,
-).replace(
-  'vec3 c=base*(uAmbient+d*mix(0.70,0.24,uNight)+d2*0.15)+vec3(0.9,0.93,1.0)*spec*0.38*(1.0-uPavement)+vec3(0.14,0.20,0.30)*rim*0.12;',
-  'float lit=1.0-uDark*0.94;vec3 c=base*((uAmbient+d*mix(0.70,0.24,uNight)+d2*0.15)*lit+pointLights(n,vPosition))+(vec3(0.9,0.93,1.0)*spec*0.38*(1.0-uPavement)+vec3(0.14,0.20,0.30)*rim*0.12)*lit;',
-);
+  `uniform vec3 uFocus;uniform float uFogMax;uniform vec2 uFogH;uniform vec4 uPL[8];uniform vec4 uPC[8];uniform float uPLN;uniform float uDark;uniform samplerCube uShadow;uniform float uShadowOn;uniform vec4 uShadowAt;float shadowAt(vec3 p,vec3 n){vec3 d=p+n*0.05-uShadowAt.xyz;vec4 e=textureCube(uShadow,d);float stored=(e.r+e.g/255.0)*uShadowAt.w;return length(d)-0.12>stored?0.0:1.0;}vec3 pointLights(vec3 n,vec3 p){vec3 sum=vec3(0.0);for(int i=0;i<8;i++){if(float(i)>=uPLN)break;vec3 L=uPL[i].xyz-p;float dist=max(length(L),0.001);float a=clamp(1.0-dist/uPL[i].w,0.0,1.0);a*=a;if(a<=0.0)continue;float diff=max(dot(n,L/dist),0.0)*0.8+0.2;float sh=1.0;if(i==0&&uShadowOn>0.5)sh=shadowAt(p,n);sum+=uPC[i].rgb*a*diff*sh;}return sum;}void main(){`,
+)
+  .replace(
+    'vec3 c=base*(uAmbient+d*mix(0.70,0.24,uNight)+d2*0.15)+vec3(0.9,0.93,1.0)*spec*0.38*(1.0-uPavement)+vec3(0.14,0.20,0.30)*rim*0.12;',
+    'float lit=1.0-uDark*0.94;vec3 c=base*((uAmbient+d*mix(0.70,0.24,uNight)+d2*0.15)*lit+pointLights(n,vPosition))+(vec3(0.9,0.93,1.0)*spec*0.38*(1.0-uPavement)+vec3(0.14,0.20,0.30)*rim*0.12)*lit;',
+  )
+  .replace(
+    // P27 part 2: how thick the fog gets, and low ground fog by height
+    'float fog=smoothstep(uFogRange.x,uFogRange.y,length(uEye-vPosition))*0.62;',
+    'float fdist=length(uEye-vPosition);float fog=smoothstep(uFogRange.x,uFogRange.y,fdist)*uFogMax;fog=max(fog,uFogH.y*(1.0-smoothstep(uFogH.x-1.5,uFogH.x+0.5,vPosition.y))*smoothstep(1.0,12.0,fdist));',
+  );
 
 export const SKY_VERTEX = `attribute vec2 aSky;varying vec2 vUV;void main(){vUV=aSky*0.5+0.5;gl_Position=vec4(aSky,0.999,1.0);}`;
 

@@ -1,8 +1,9 @@
 import { DRIFT_INFO, DRIFTS, GRADE_INFO, GRADES } from '../../../core/effects/screen';
 import { newId } from '../../../core/ids';
+import { FOG_PRESET, FOG_PRESETS } from '../../../core/lighting/atmosphere';
 import type { ArgKind, NodeDef, PinType } from '../../../core/logic/catalog';
 import { NAME_KINDS, type NameKind, namedThings } from '../../../core/logic/code/names';
-import { type Asset, type LogicGraph, paths, type Variables } from '../../../core/schema';
+import { type Asset, type LogicGraph, paths, TIMES, type Variables } from '../../../core/schema';
 import type { EditorState } from '../../state';
 
 export const NODE_W = 200;
@@ -85,6 +86,14 @@ export function argChoices(ed: EditorState, kind: ArgKind): { value: string; lab
   // P23 part 2: a screen mood's colour grade and what drifts across
   if (kind === 'grade') return GRADES.map((g) => ({ value: g, label: GRADE_INFO[g].label }));
   if (kind === 'drift') return DRIFTS.map((d) => ({ value: d, label: DRIFT_INFO[d] }));
+  // P27 part 2: a time of day, and a fog
+  if (kind === 'time') return TIMES.map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }));
+  if (kind === 'fog')
+    return [
+      { value: 'map', label: 'The map’s own' },
+      { value: 'none', label: 'None' },
+      ...FOG_PRESETS.map((f) => ({ value: f, label: FOG_PRESET[f].name, note: FOG_PRESET[f].about })),
+    ];
   if (!(NAME_KINDS as readonly string[]).includes(kind)) return null;
   const all = namedThings(ed.store)[kind as NameKind];
   const maps = all.length && (kind === 'zone' || kind === 'spawn');

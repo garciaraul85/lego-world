@@ -155,8 +155,11 @@ export class PlayRenderer {
     const s = this.session;
     const w = s.world;
     this.syncBricks();
-    const sky = s.L.SkyCycle.sample(w.doc.sky.time, s.clock, w.doc.weather.rain, w.doc.weather.snowing);
+    // P27 part 2: the sky as the day goes on (at the map's day length), its ambient and fog
+    const air = s.atmosphereNow();
+    const sky = air.sky;
     this.renderer.skySample = sky;
+    this.renderer.fog = air.fog;
     this.renderer.snow = w.doc.weather.snow;
     this.renderer.clock = s.clock;
     // a cinematic owns the camera while it plays (P6.2)

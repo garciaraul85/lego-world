@@ -85,13 +85,16 @@ export function gatherLights(input: LightInput): LightSource[] {
   return out;
 }
 
-/** the lights that are on, as the renderer takes them, flickering at time t */
-export function pointLights(sources: readonly LightSource[], t: number): PointLight[] {
+/**
+ * The lights that are on, as the renderer takes them, flickering at time t. `night` (0 day … 1 night) fades
+ * in the lights that shine only at night.
+ */
+export function pointLights(sources: readonly LightSource[], t: number, night = 1): PointLight[] {
   return sources
-    .filter((s) => s.on && s.def.brightness > 0)
+    .filter((s) => s.on && s.def.brightness > 0 && (!s.def.atNight || night > 0.05))
     .map((s) => ({
       pos: s.pos,
-      color: lightRgb(s.def, flickerAt(s.def.flicker, t, s.seed * 100)),
+      color: lightRgb(s.def, flickerAt(s.def.flicker, t, s.seed * 100) * (s.def.atNight ? night : 1)),
       range: s.def.range,
       shadow: s.def.shadow,
     }));

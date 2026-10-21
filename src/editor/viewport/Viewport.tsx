@@ -17,6 +17,7 @@ import type { Command } from '../../core/commands';
 import { skyCycle } from '../../core/legacy/modules';
 import { wiresOf } from '../../core/logic/wiring';
 import type { Asset, LogicGraph } from '../../core/schema';
+import { atmosphere } from '../../engine/lighting/atmosphere';
 import { pointLights } from '../../engine/lighting/lights';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
@@ -132,6 +133,10 @@ export function Viewport({
     }
     const camera = new OrbitCamera();
     let dirty = true;
+    // P27: a flickering light keeps the view drawing
+    let flickering = false;
+    /** how much night it is in the view (lights that shine only at night) */
+    let nightNow = 0;
     let raf = 0;
     let hover: Brick | null = null;
     let ghost: RenderBrick | null = null;
@@ -432,7 +437,11 @@ export function Viewport({
       effect(() => {
         const m = ed.mapDoc.value;
         if (!m) return;
-        renderer.skySample = skyCycle().sample(m.sky.time, 0, m.weather.rain, m.weather.snowing);
+        // P27 part 2: its sky at the start time (or the hour the Map tab previews), ambient and fog
+        const air = atmosphere(m, 0, skyCycle(), ed.skyPreview.value ?? 0);
+        renderer.skySample = air.sky;
+        renderer.fog = air.fog;
+        nightNow = air.sky.night;
         renderer.snow = m.weather.snow;
         renderer.seed = m.generator?.seed ?? 73521;
         dirty = true;
@@ -529,8 +538,6 @@ export function Viewport({
     };
 
     let failed = '';
-    // P27: a flickering light keeps the view drawing
-    let flickering = false;
     const frame = () => {
       raf = requestAnimationFrame(frame);
       if (!dirty && !flickering) return;
@@ -723,7 +730,7 @@ export function Viewport({
       // P27: the map's lights and darkness, as in the game (asset studio: none)
       if (s && !studio) {
         const src = editorLights(ed, s.instances);
-        renderer.lights = pointLights(src, performance.now() / 1000);
+        renderer.lights = pointLights(src, performance.now() / 1000, nightNow);
         renderer.darkness = ed.mapDoc.value?.darkness ?? 0;
         flickering = src.some((l) => l.on && l.def.flicker > 0);
       } else {

@@ -19,6 +19,7 @@ import { Conversation } from '../dialogue/schema';
 import { Effect, EffectHooks } from '../effects/schema';
 import { Mood, ScreenEffect, ScreenHooks } from '../effects/screen';
 import type { idPattern } from '../ids';
+import { Ambient, Fog } from '../lighting/atmosphere';
 import { ProgressDoc } from '../save/progress';
 import { Saving } from '../save/save';
 import {
@@ -179,10 +180,13 @@ export const AI_COMMANDS: AiCommand[] = [
       snowing: z.boolean().optional(),
       mood: Mood.nullable().optional(),
       darkness: z.number().min(0).max(1).optional(),
+      fog: Fog.nullable().optional(),
+      ambient: Ambient.nullable().optional(),
+      dayLength: z.number().min(0).max(120).nullable().optional(),
     }),
     ['map'],
     'Scene',
-    'Time of day and weather of a map, and its mood ({grade: none | warm | cold | night | dream | oldFilm | mono | toxic, vignette 0–1, drift: none | rain | snow | fog | dust | embers | leaves, amount 0–1}; null: none), and its darkness without lights (0 as its sky lights it … 1 pitch black; lights are item.add {kind:"light"}).',
+    'Time of day and weather of a map, and its mood ({grade: none | warm | cold | night | dream | oldFilm | mono | toxic, vignette 0–1, drift: none | rain | snow | fog | dust | embers | leaves, amount 0–1}; null: none), and its darkness without lights (0 as its sky lights it … 1 pitch black; lights are item.add {kind:"light"}), its fog ({near, far studs, thickness 0–1, color?, height? ground fog below it, groundThickness?}; null none), ambient (the shadows’ colour {color, strength 0–2}; null as the sky gives) and dayLength (minutes a day takes in play, 0 time stands still; null 20).',
     { map: M1, time: 'evening', rain: true },
   ),
   def(

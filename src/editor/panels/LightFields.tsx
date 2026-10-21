@@ -49,7 +49,7 @@ export function LightFields({
   const set = <K extends keyof LightDef>(k: K, v: LightDef[K], label: string) => onChange({ ...light, [k]: v }, label);
   return (
     <div class="light-fields" data-tour={`${tour}-fields`}>
-      <label class="field">
+      <div class="field">
         <span>
           Kind
           <FieldHelp label="Light" text={LIGHT_HELP.light} />
@@ -70,7 +70,7 @@ export function LightFields({
             if (p) onChange({ ...p.light }, `Light: ${p.name}`);
           }}
         />
-      </label>
+      </div>
       <label class="field">
         Colour
         <span class="row" style={{ gap: '6px' }}>
@@ -131,6 +131,21 @@ export function LightFields({
           onChange={() => set('shadow', !light.shadow, light.shadow ? 'No shadows' : 'Casts shadows')}
         />{' '}
         Bricks cast shadows from it
+      </label>
+      <label class="lbl">
+        <input
+          type="checkbox"
+          data-tour={`${tour}-night`}
+          checked={!!light.atNight}
+          onChange={() => {
+            const { atNight: _n, ...rest } = light;
+            onChange(
+              light.atNight ? rest : { ...light, atNight: true },
+              light.atNight ? 'Shines day and night' : 'Only at night',
+            );
+          }}
+        />{' '}
+        Only at night (comes on as it gets dark)
       </label>
     </div>
   );

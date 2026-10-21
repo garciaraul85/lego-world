@@ -9,6 +9,7 @@ export type ParticleBatch = {
   count: number;
 };
 
+import type { FogParams } from '../lighting/atmosphere';
 import type { CameraFrame } from './camera';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from './math';
 import { FRAGMENT, SHADOW_FRAGMENT, SKY_FRAGMENT, SKY_VERTEX, VERTEX } from './shaders';
@@ -125,7 +126,8 @@ function compile(gl: WebGLRenderingContext, vs: string, fs: string) {
   gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
   gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
   // the same attribute slots in every program, so the brick and shadow passes share their buffers
-  ['aPosition', 'aNormal', 'aInstanceOffset', 'aInstanceColor'].forEach((n, i) => gl.bindAttribLocation(p, i, n));
+  for (const [i, n] of ['aPosition', 'aNormal', 'aInstanceOffset', 'aInstanceColor'].entries())
+    gl.bindAttribLocation(p, i, n);
   gl.linkProgram(p);
   if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('Shader linking failed');
   return p;
@@ -161,6 +163,9 @@ export class Renderer {
   /** P27: the lights of this frame (set before render), how dark the map is without them, and shadows on */
   lights: PointLight[] = [];
   darkness = 0;
+  /** P27 part 2: the map's fog (null: v68's haze) */
+  fog: FogParams | null = null;
+  private fogNow = { color: [0.1, 0.12, 0.16], near: 55, far: 120, max: 0.62, height: 0, ground: 0 };
   shadows = true;
   /** the lights drawn in the last frame (the first casts the shadow when `shadowed`) */
   lit: PointLight[] = [];
@@ -214,6 +219,8 @@ export class Renderer {
         'uShadow',
         'uShadowOn',
         'uShadowAt',
+        'uFogMax',
+        'uFogH',
       ].map((n) => [n, U(this.prog, n)]),
     );
     this.shadowProg = compile(gl, VERTEX, SHADOW_FRAGMENT);
@@ -526,13 +533,20 @@ export class Renderer {
     gl.uniform3fv(this.u.uEye!, cam.eye);
     gl.uniform3fv(this.u.uLight!, s?.light ?? [0.5, 1, 0.6]);
     gl.uniform3fv(this.u.uAmbient!, s?.ambient ?? [0.36, 0.39, 0.43]);
+    // the fog of this frame: the map's (P27 part 2), else v68's haze that follows the camera's distance
     const fogDark = 1 - this.darkness * 0.9;
-    const fog = s?.horizon ?? [0.1, 0.12, 0.16];
-    gl.uniform3fv(this.u.uFog!, [fog[0]! * fogDark, fog[1]! * fogDark, fog[2]! * fogDark]);
+    const f = this.fog;
+    const fc = f?.color ?? s?.horizon ?? [0.1, 0.12, 0.16];
+    this.fogNow = {
+      color: [fc[0]! * fogDark, fc[1]! * fogDark, fc[2]! * fogDark],
+      near: f ? f.near : Math.max(55, cam.distance * 0.9),
+      far: f ? f.far : Math.max(120, cam.distance * 2.5),
+      max: f ? f.max : 0.62,
+      height: f?.height ?? 0,
+      ground: f?.ground ?? 0,
+    };
     gl.uniformMatrix4fv(this.u.uModel!, false, IDENTITY);
     this.applyLights(this.prog, this.u);
-    const fogNear = Math.max(55, cam.distance * 0.9);
-    gl.uniform2f(this.u.uFogRange!, fogNear, Math.max(120, cam.distance * 2.5));
     gl.uniform1f(this.u.uSnow!, this.snow ? 1 : 0);
     gl.uniform1f(this.u.uNight!, s?.night ?? 0);
     gl.uniform1f(this.u.uParticle!, 0);
@@ -661,10 +675,19 @@ export class Renderer {
     let u = locs ?? this.lightLocs.get(prog);
     if (!u) {
       u = Object.fromEntries(
-        ['uPL', 'uPC', 'uPLN', 'uDark', 'uShadow', 'uShadowOn', 'uShadowAt'].map((n) => [
-          n,
-          gl.getUniformLocation(prog, n),
-        ]),
+        [
+          'uPL',
+          'uPC',
+          'uPLN',
+          'uDark',
+          'uShadow',
+          'uShadowOn',
+          'uShadowAt',
+          'uFog',
+          'uFogRange',
+          'uFogMax',
+          'uFogH',
+        ].map((n) => [n, gl.getUniformLocation(prog, n)]),
       );
       this.lightLocs.set(prog, u);
     }
@@ -678,6 +701,12 @@ export class Renderer {
     if (u.uPC) gl.uniform4fv(u.uPC, pc);
     if (u.uPLN) gl.uniform1f(u.uPLN, this.lit.length);
     if (u.uDark) gl.uniform1f(u.uDark, this.darkness);
+    // P27 part 2: the frame's fog (characters too, so they fade into it like the bricks)
+    const fg = this.fogNow;
+    if (u.uFog) gl.uniform3fv(u.uFog, fg.color);
+    if (u.uFogRange) gl.uniform2f(u.uFogRange, fg.near, fg.far);
+    if (u.uFogMax) gl.uniform1f(u.uFogMax, fg.max);
+    if (u.uFogH) gl.uniform2f(u.uFogH, fg.height, fg.ground);
     const sh = this.shadowed && this.shadowCube;
     if (u.uShadowOn) gl.uniform1f(u.uShadowOn, sh ? 1 : 0);
     if (u.uShadow) {

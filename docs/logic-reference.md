@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (78 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (80 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -757,3 +757,23 @@ How dark this map is without its lights, while the game plays: 0 lit by its sky 
 
 - Settings: Darkness (0–1) (number)
 - Code: `lights.darkness(amount);`
+
+## Sky
+
+### Set time of day
+
+`sky.time` · action
+
+Moves the sun to a time of day — day, noon, evening or night — and the day goes on from there at the map’s day length. Lights that shine only at night come on as it gets dark.
+
+- Settings: Time of day (time)
+- Code: `sky.time(time);`
+
+### Set fog
+
+`sky.fog` · action
+
+Changes the fog while the game plays: a kind of fog (haze, mist, thick fog, ground fog, swamp, smoke), none, or back to the map’s own. Leaving the map puts it back.
+
+- Settings: Fog (fog)
+- Code: `sky.fog(fog);`

@@ -723,6 +723,27 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // P27 part 2: the Map tab scrolled to Fog, with a mist, ground fog and tinted shadows
+    id: 'scene-atmosphere',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        e.exec({
+          type: 'map.setEnvironment',
+          payload: {
+            map: e.mapId.value,
+            fog: { near: 10, far: 60, thickness: 0.85, color: '#c8d2dc', height: 2.5, groundThickness: 0.8 },
+            ambient: { color: '#7a9cff', strength: 1 },
+          },
+        });
+      });
+      await signals(p, { right: 'map' });
+      await p.locator('[data-tour="map-fog"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     // P27: a torch placed on a dark map, picked in the Scene
     id: 'scene-light',
     screen: 'scene',
@@ -732,7 +753,7 @@ export const HELP_STATES: HelpState[] = [
         const e = (window as unknown as { __editor: Ed }).__editor;
         const map = e.mapId.value as string;
         const id = 'ins_helplight1';
-        e.exec({ type: 'map.setEnvironment', payload: { map, darkness: 0.7 } });
+        e.exec({ type: 'map.setEnvironment', payload: { map, darkness: 0.7, fog: null, ambient: null } });
         if (!(e.store.get(`maps/${map}/instances.json`) as { items: { id: string }[] }).items.some((i) => i.id === id))
           e.exec({
             type: 'item.add',

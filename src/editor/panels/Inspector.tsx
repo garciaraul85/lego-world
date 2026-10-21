@@ -10,6 +10,7 @@ import { ColorPicker } from '../components/ColorPicker';
 import { Header, Num, TextField } from '../components/fields';
 import { makeAssetOfSelection } from '../interact/scene-menus';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
+import { AtmosphereSection } from './AtmosphereSection';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
 import { DialogueSection } from './DialogueSection';
 import { DarknessSection } from './LightFields';
@@ -560,7 +561,13 @@ function MapTab({ c }: { c: ActionCtx }) {
         </div>
         <div class="field">
           Start time
-          <select class="inp" value={m.sky.time} onChange={(e) => env({ time: (e.target as HTMLSelectElement).value })}>
+          <select
+            class="inp"
+            aria-label="Start time"
+            data-tour="sky-time"
+            value={m.sky.time}
+            onChange={(e) => env({ time: (e.target as HTMLSelectElement).value })}
+          >
             {TIMES.map((t) => (
               <option value={t}>{pretty(t)}</option>
             ))}
@@ -583,6 +590,7 @@ function MapTab({ c }: { c: ActionCtx }) {
         </div>
       </div>
       <DarknessSection c={c} m={m} />
+      <AtmosphereSection c={c} m={m} />
       <MoodSection c={c} m={m} />
       <div class="sec" style={{ borderBottom: 0 }}>
         <div class="sech">

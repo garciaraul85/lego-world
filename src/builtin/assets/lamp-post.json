@@ -72,6 +72,7 @@
     "range": 13,
     "flicker": 0,
     "shadow": false,
+    "atNight": true,
     "at": [1, 6, 1],
     "states": ["on"]
   }
