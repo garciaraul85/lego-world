@@ -91,6 +91,24 @@ test('After it breaks: the Wooden crate comes back', async ({ page }) => {
   });
   expect(before.after).toBeLessThan(before.n);
   expect(before.mode).toBe('respawn');
+  await page.waitForTimeout(8000);
+  console.log(
+    'DBG',
+    await page.evaluate(() => {
+      const s = (window as any).__editor.session.value;
+      const e = s.world.broken[0];
+      const b = e && s.damagedBounds(e);
+      return JSON.stringify({
+        clock: s.clock,
+        e: e && { mode: e.mode, at: e.at, after: e.after },
+        b,
+        hero: [s.heroState.x, s.heroState.z],
+        paused: s.screenPaused,
+        lc:
+          e && s.layoutCheck(s.world, [...s.world.pieces, ...e.originals.map((p: any) => ({ ...p }))], e.originals).ok,
+      });
+    }),
+  );
   await expect
     .poll(
       () => page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.session.value!.world.broken.length),
