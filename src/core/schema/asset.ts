@@ -94,6 +94,10 @@ export const Asset = z.strictObject({
     rebuild: z.boolean(),
     sound: id('sound').nullable(),
     studs: z.number().int().min(0),
+    /** P27 part 3d: what becomes of it once broken (none: rebuildable or gone, as rebuild says) */
+    after: z.enum(['rebuild', 'gone', 'respawn', 'rubble']).optional(),
+    /** seconds before it comes back (after: respawn); 0: when the player comes back to the map */
+    respawnAfter: z.number().min(0).max(3600).optional(),
   }),
   /** P9a: hit points, armour, resistances and what happens at zero (no health: one hit smashes it, as before) */
   health: Health.optional(),

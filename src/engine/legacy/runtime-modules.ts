@@ -78,6 +78,8 @@ export type Npc = {
 };
 export type Debris = {
   entryId: number;
+  /** P27 part 3d: rubble: stays on the ground for good */
+  keep?: boolean;
   x: number;
   y: number;
   z: number;

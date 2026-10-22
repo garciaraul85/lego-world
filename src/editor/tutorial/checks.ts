@@ -1,5 +1,6 @@
 import { BUILTIN_EFFECTS } from '../../builtin/effects';
 import { BUILTIN_SCREEN_EFFECTS } from '../../builtin/screen-effects';
+import { cleanupOf } from '../../core/assets/cleanup';
 import type { Command } from '../../core/commands';
 import type { Conversation } from '../../core/dialogue/schema';
 import type { Effect } from '../../core/effects/schema';
@@ -209,6 +210,12 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   assetDoes: (ed, a) => {
     const { name, does } = a as { name: string; does: string };
     return projectAsset(ed, name)?.interactions.some((i) => i.do.some((x) => x.do === does)) ?? false;
+  },
+  // P27 part 3d: what becomes of an asset once broken
+  assetCleanup: (ed, a) => {
+    const { name, after, seconds } = a as { name: string; after: string; seconds?: number };
+    const def = projectAsset(ed, name);
+    return !!def && cleanupOf(def) === after && (seconds === undefined || (def.smash.respawnAfter ?? 0) === seconds);
   },
   // P9c: the combat course
   mapNamed: (ed, a) => ed.mapDoc.value?.name === a,

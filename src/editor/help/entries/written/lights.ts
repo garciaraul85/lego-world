@@ -176,4 +176,26 @@ export const LIGHTS: HelpEntry[] = [
     match: [{ in: '[data-help="scene.map.big"]' }],
     related: ['scene.map.fog', 'scene.map.day'],
   },
+  {
+    id: 'asset.cleanup',
+    also: [
+      'after it breaks',
+      'respawn',
+      'comes back',
+      'rubble',
+      'gone for good',
+      'cleanup',
+      'debris',
+      'broken bricks',
+      'destruction',
+    ],
+    screen: 'assets',
+    kind: 'setting',
+    name: 'After it breaks',
+    purpose:
+      'What becomes of this asset once it breaks in play. **Rebuildable**: its bricks wait until the hero rebuilds it (hold E), as in v68. **Gone for good**: its loose bricks fade after a moment and only a note that it broke is kept (saves stay small). **Comes back**: it is whole again after **Comes back after** seconds, when the hero is not standing there, or (at 0) when the player comes back to the map: crates, pots, rocks. **Leaves rubble**: a few of its bricks stay on the ground as scenery and the rest fade. At most 220 loose bricks fly about at once, and a map remembers at most 2,000 breaks: past that the oldest that need not be rebuilt are cleared. Characters that can be harmed have **Comes back** too (Behaviour › Can be harmed).',
+    commands: ['asset.update'],
+    match: [{ in: '[data-help="asset.cleanup"]' }],
+    related: ['asset.light'],
+  },
 ];

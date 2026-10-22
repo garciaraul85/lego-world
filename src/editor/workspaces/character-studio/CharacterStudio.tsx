@@ -670,6 +670,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
               {chr.harm?.canBeHarmed && (
                 <HealthFields
                   ed={ed}
+                  respawn
                   tour="char-health"
                   health={chr.harm.health}
                   onChange={(health, label) => saveChr({ ...chr, harm: { canBeHarmed: true, health } }, label)}

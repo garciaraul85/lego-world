@@ -18,6 +18,8 @@ export const HEALTH_HELP = {
   breaks: 'At zero it breaks into loose bricks (the hero can rebuild them if “Can be rebuilt” is on).',
   drop: 'What it leaves at zero: an asset (by name) put where it was, or else an inventory item given to the hero (any word: coin, key).',
   emit: 'A custom event sent to logic at zero: On custom event nodes with exactly this name run.',
+  respawn:
+    'P27: at zero it leaves, then comes back healed at its home after this many seconds (out of the hero’s sight), or, at 0, when the player comes back to the map. Off: it is gone for this play.',
 };
 
 const RESIST_CHOICES: [string, number][] = [
@@ -32,11 +34,14 @@ export function HealthFields({
   health,
   onChange,
   tour,
+  respawn = false,
 }: {
   ed: EditorState;
   health: Health;
   onChange: (h: Health, label: string) => void;
   tour: string;
+  /** P27 part 3d: show “Comes back” (characters) */
+  respawn?: boolean;
 }) {
   const set = (patch: Partial<Health>, label = 'Edit health') => onChange({ ...health, ...patch }, label);
   const resist = (t: DamageType) => health.resist?.[t] ?? 1;
@@ -168,6 +173,49 @@ export function HealthFields({
           </button>
         )}
       </div>
+      {respawn && (
+        <div class="health-row" data-tour={`${tour}-respawn`}>
+          <label class="lbl">
+            <input
+              type="checkbox"
+              checked={health.atZero.respawn !== undefined}
+              onChange={() => {
+                const { respawn: _r, ...rest } = health.atZero;
+                set({ atZero: health.atZero.respawn !== undefined ? rest : { ...rest, respawn: 60 } }, 'Comes back');
+              }}
+            />{' '}
+            Comes back
+            <FieldHelp label="Comes back" text={HEALTH_HELP.respawn} />
+          </label>
+          {health.atZero.respawn !== undefined && (
+            <label class="small">
+              after{' '}
+              <input
+                type="number"
+                class="inp mono"
+                style={{ width: '64px' }}
+                aria-label="Comes back after (seconds)"
+                data-tour={`${tour}-respawn-after`}
+                min={0}
+                max={3600}
+                value={health.atZero.respawn}
+                onChange={(e) =>
+                  set(
+                    {
+                      atZero: {
+                        ...health.atZero,
+                        respawn: Math.max(0, Math.min(3600, Number((e.target as HTMLInputElement).value) || 0)),
+                      },
+                    },
+                    'Comes back after',
+                  )
+                }
+              />{' '}
+              s {health.atZero.respawn === 0 ? '(when the player comes back)' : ''}
+            </label>
+          )}
+        </div>
+      )}
     </div>
   );
 }

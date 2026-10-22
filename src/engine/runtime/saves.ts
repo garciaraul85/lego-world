@@ -1,3 +1,4 @@
+import type { Cleanup } from '../../core/assets/cleanup';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { type MapSave, type SaveGame, slotName } from '../../core/save/save';
 import { type Asset, type MapDoc, paths } from '../../core/schema';
@@ -9,8 +10,10 @@ export type SaveWorld = {
   mapId: string;
   doc: MapDoc;
   pieces: LegacyPiece[];
-  broken: { id: number; originals: LegacyPiece[]; progress: number }[];
+  broken: { id: number; originals: LegacyPiece[]; progress: number; mode?: Cleanup; at?: number; after?: number }[];
   brokenSerial: number;
+  /** P27 part 3d: bricks gone for good, no longer remembered as breaks */
+  goneIds?: number[];
   npcs: Npc[];
   instances: {
     inst: { id: string; asset: string; pos: [number, number, number]; rot: number; idBase: number };
@@ -50,6 +53,8 @@ export interface SaveHost {
   /** after pieces changed: collision and neighbours see it */
   piecesChanged(w: SaveWorld): void;
   chunkOf(p: LegacyPiece): string;
+  /** P27 part 3d: what becomes of a broken thing (by one of its bricks) */
+  breakMode?(p: LegacyPiece | undefined): { mode: Cleanup; after: number };
 }
 
 const near = (a: number, b: number) => Math.abs(a - b) < 0.01;
@@ -87,6 +92,7 @@ export function captureMap(w: SaveWorld): MapSave {
     ),
     npcs,
     npcsGone: w.start.npcs.filter((id) => !alive.has(id)),
+    ...(w.goneIds?.length ? { gone: [...w.goneIds] } : {}),
   };
 }
 
@@ -159,32 +165,66 @@ export function restoreMap(h: SaveHost, w: SaveWorld, m: MapSave): number {
     }
     // things that open or rise are already open: no easing on load
     for (const i of w.instances) delete i.anim;
+    // P27 part 3d: bricks by id once (a map with thousands of breaks is not searched brick by brick)
+    const byId = new Map<number, LegacyPiece>();
+    for (const q of w.pieces) if (q.id !== undefined) byId.set(q.id, q);
+    const groups: Set<LegacyPiece>[] = [];
     for (const group of m.broken) {
       const take = new Set<LegacyPiece>();
       for (const [id, x, y, z] of group) {
         // the same brick: same id at the same place; else whatever brick now sits exactly there
+        const q = byId.get(id);
         const p =
-          w.pieces.find((q) => q.id === id && near(q.x, x) && near(q.y, y) && near(q.z, z)) ??
-          w.pieces.find((q) => near(q.x, x) && near(q.y, y) && near(q.z, z));
+          q && near(q.x, x) && near(q.y, y) && near(q.z, z)
+            ? q
+            : w.pieces.find((r) => near(r.x, x) && near(r.y, y) && near(r.z, z));
         if (p) take.add(p);
       }
       if (!take.size) {
         skipped++;
         continue;
       }
-      const remaining = w.pieces.filter((p) => !take.has(p));
-      if (!h.piecesOk(remaining)) {
-        skipped++;
-        continue;
+      groups.push(take);
+    }
+    const gone = new Set<LegacyPiece>();
+    for (const id of m.gone ?? []) {
+      const p = byId.get(id);
+      if (p) gone.add(p);
+    }
+    // all at once when the rest still holds together (one check), else group by group as before
+    const all = new Set<LegacyPiece>([...gone, ...groups.flatMap((g) => [...g])]);
+    const together = all.size ? w.pieces.filter((p) => !all.has(p)) : w.pieces;
+    const ok = all.size > 0 && h.piecesOk(together);
+    if (ok) w.pieces = together;
+    for (const take of groups) {
+      if (!ok) {
+        const remaining = w.pieces.filter((p) => !take.has(p));
+        if (!h.piecesOk(remaining)) {
+          skipped++;
+          continue;
+        }
+        w.pieces = remaining;
       }
       const originals = [...take].map((p) => ({ ...p }));
       for (const p of originals) w.dirtyChunks.add(h.chunkOf(p));
-      w.pieces = remaining;
-      w.broken.push({ id: w.brokenSerial++, originals, progress: 0 });
+      const how = h.breakMode?.(originals[0]);
+      w.broken.push({
+        id: w.brokenSerial++,
+        originals,
+        progress: 0,
+        ...(how ? { mode: how.mode, at: 0, after: how.after } : {}),
+      });
     }
-    if (m.broken.length) h.piecesChanged(w);
-    const gone = new Set(m.npcsGone);
-    w.npcs = w.npcs.filter((n) => !gone.has(n.id));
+    if (gone.size) {
+      if (!ok) w.pieces = w.pieces.filter((p) => !gone.has(p));
+      for (const p of gone) {
+        w.dirtyChunks.add(h.chunkOf(p));
+        if (p.id !== undefined) (w.goneIds ??= []).push(p.id);
+      }
+    }
+    if (m.broken.length || gone.size) h.piecesChanged(w);
+    const beaten = new Set(m.npcsGone);
+    w.npcs = w.npcs.filter((n) => !beaten.has(n.id));
     for (const n of w.npcs) {
       const at = m.npcs[String(n.id)];
       if (at) Object.assign(n.state, at);

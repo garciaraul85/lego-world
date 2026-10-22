@@ -103,6 +103,93 @@
       "setup": [{ "fn": "editAsset", "args": { "name": "Treasure chest" } }]
     },
     {
+      "id": "assets.cleanup",
+      "title": "After it breaks",
+      "body": "A build that can be smashed in Play says what becomes of it once broken: “Rebuildable (hold E)” waits for the hero to build it back; “Gone for good” leaves no trace once its loose bricks fade; “Comes back” returns whole and healed after a number of seconds (0: when the player comes back to the map); “Leaves rubble” keeps a few bricks on the ground. Breaks that need no rebuilding are kept small, so a game where the player smashes thousands of things stays light and its saves stay small.",
+      "task": "Make the Wooden crate come back 30 seconds after it breaks.",
+      "target": "[data-tour=\"asset-after\"]",
+      "placement": "left",
+      "workspace": "Assets",
+      "check": {
+        "kind": "state",
+        "test": "assetCleanup",
+        "args": {
+          "name": "Wooden crate",
+          "after": "respawn",
+          "seconds": 30
+        }
+      },
+      "doItForMe": [],
+      "how": [
+        {
+          "text": "Check that the asset on the build plate is the Wooden crate: its name is the title above the plate. If it is not, click “Wooden crate” in the Asset library (left).",
+          "check": {
+            "kind": "state",
+            "test": "studioAssetIs",
+            "args": "Wooden crate"
+          },
+          "do": [
+            {
+              "fn": "editAsset",
+              "args": {
+                "name": "Wooden crate"
+              },
+              "say": "The Wooden crate is open on the build plate (its name is the title above the plate)."
+            }
+          ]
+        },
+        {
+          "text": "In the Asset properties panel (right), scroll down to the section “Smash”. “Can be smashed in play” is ticked; under it is the drop-down “After it breaks”, set to “Rebuildable (hold E)”.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"asset-after\"] select"
+          },
+          "do": [
+            {
+              "show": "[data-tour=\"asset-after\"]",
+              "say": "Scroll the Asset properties panel (right) down to “Smash”: the drop-down “After it breaks” is there."
+            }
+          ]
+        },
+        {
+          "text": "Open the drop-down “After it breaks” and pick “Comes back”. A slider “Comes back after 30 s” appears under it; 30 seconds is what you want.",
+          "check": {
+            "kind": "state",
+            "test": "assetCleanup",
+            "args": {
+              "name": "Wooden crate",
+              "after": "respawn",
+              "seconds": 30
+            }
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"asset-after\"] select",
+              "value": "respawn",
+              "say": "Open “After it breaks” and pick “Comes back”: the slider under it says 30 s."
+            }
+          ]
+        },
+        {
+          "text": "Optional: drag the slider “Comes back after” to change the time; all the way left (0) means the crate comes back when the player comes back to the map.",
+          "do": [
+            {
+              "show": "[data-tour=\"asset-respawn-after\"]",
+              "say": "This slider sets how long it takes; 0 means when the player comes back to the map."
+            }
+          ]
+        }
+      ],
+      "setup": [
+        {
+          "fn": "editAsset",
+          "args": {
+            "name": "Wooden crate"
+          }
+        }
+      ]
+    },
+    {
       "id": "assets.build",
       "title": "Build on the plate",
       "body": "The build plate is where an asset gets its bricks. Practise on a new asset: the chest is already standing in your world, and a change only saves if every copy still fits where it stands (if not, the change is taken back and the message says why). Bricks come from the Bricks tab of the Asset library; the tools above the plate select, move, turn, paint and erase them.",

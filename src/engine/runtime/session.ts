@@ -5,6 +5,7 @@ import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS } from '../../builtin/effects';
 import { genreById } from '../../builtin/genres';
 import { BUILTIN_SCREEN_EFFECTS, DEFAULT_SCREEN_EVENTS } from '../../builtin/screen-effects';
+import { type Cleanup, cleanupOf, DEBRIS_FADE, MAX_BROKEN, RUBBLE_BRICKS } from '../../core/assets/cleanup';
 import { expandAsset } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances, instanceBricks } from '../../core/assets/instances';
@@ -107,7 +108,18 @@ const ACHIEVEMENTS_SCREEN = 'scr_achieve000';
 const inBox = (z: { min: number[]; max: number[] }, x: number, y: number, zz: number) =>
   x >= z.min[0]! && x <= z.max[0]! && y >= z.min[1]! && y <= z.max[1]! && zz >= z.min[2]! && zz <= z.max[2]!;
 
-export type BrokenEntry = { id: number; originals: LegacyPiece[]; progress: number };
+/**
+ * One smash: the bricks it took, how far a rebuild has got, and (P27 part 3d) what becomes of it — rebuilt,
+ * gone, back after `after` seconds (0: when the player comes back) or rubble — and when it broke (session clock).
+ */
+export type BrokenEntry = {
+  id: number;
+  originals: LegacyPiece[];
+  progress: number;
+  mode?: Cleanup;
+  at?: number;
+  after?: number;
+};
 
 /** Everything that changes while one map is being played. Built from a frozen project snapshot. */
 export type MapWorld = {
@@ -146,6 +158,10 @@ export type MapWorld = {
   windowAt: string | null;
   /** big maps: the whole map's walkable area (the window's own would fence the hero in) */
   fullArea: unknown;
+  /** P27 part 3d: bricks of broken things gone for good that are no longer remembered as breaks (ids) */
+  goneIds: number[];
+  /** P27 part 3d: neighbours beaten that come back (after seconds; 0: when the player comes back) */
+  defeated: { npc: Npc; at: number; after: number }[];
 };
 
 /** P27 part 3: maps with more pieces than this play in a window of chunks around the hero */
@@ -526,6 +542,8 @@ export class PlaySession {
       byChunk,
       windowAt: startKey,
       fullArea,
+      goneIds: [],
+      defeated: [],
       start: { instances: new Map(), npcs: npcs.map((n) => n.id) },
     };
     for (const i of w.instances) w.start.instances.set(i.inst.id, i.state);
@@ -867,6 +885,7 @@ export class PlaySession {
       { id: 'combat', fixed: (g, dt) => g.stepSmash(dt) },
       { id: 'rebuild', fixed: (g, dt) => g.stepRebuild(dt) },
       { id: 'debris', fixed: (g, dt) => g.stepDebris(dt) },
+      { id: 'cleanup', fixed: (g, dt) => g.stepCleanup(dt) },
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
       { id: 'gates', fixed: (g) => g.stepGates() },
       { id: 'interact', fixed: (g) => g.stepInteract() },
@@ -1247,8 +1266,9 @@ export class PlaySession {
       });
       return;
     }
-    // at zero the neighbour leaves this play (puff of bricks where it stood)
+    // at zero the neighbour leaves this play (puff of bricks where it stood); P27 part 3d: some come back
     this.world.npcs = this.world.npcs.filter((n) => n !== npc);
+    if (def.atZero.respawn !== undefined) this.world.defeated.push({ npc, at: this.clock, after: def.atZero.respawn });
     if (this.talking === npc) this.talking = null;
     if (def.atZero.drop) this.drop(def.atZero.drop, { at: pos });
     if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
@@ -1900,7 +1920,16 @@ export class PlaySession {
     }
     const originals = w.pieces.filter((p) => ids.has(p.id!)).map((p) => ({ ...p }));
     if (!originals.length) return 0;
-    const entry: BrokenEntry = { id: w.brokenSerial++, originals, progress: 0 };
+    // P27 part 3d: what becomes of it (loose map bricks: rebuildable, as in v68)
+    const mode = cleanupOf(owner?.def);
+    const entry: BrokenEntry = {
+      id: w.brokenSerial++,
+      originals,
+      progress: 0,
+      mode,
+      at: this.clock,
+      after: owner?.def.smash.respawnAfter ?? 0,
+    };
     for (const p of originals) w.dirtyChunks.add(chunkKeyOf(p));
     // P23: dust where the bricks break
     {
@@ -1919,6 +1948,7 @@ export class PlaySession {
     w.pieces = remaining;
     w.broken.push(entry);
     this.makeDebris(entry, impact);
+    this.capBroken(w);
     this.syncPhysics(w);
     const hb = this.L.GamePhysics.bounds(hit);
     this.audio.play(owner?.def.smash.sound ?? SND.smash, {
@@ -1977,13 +2007,32 @@ export class PlaySession {
       }
       w.debris.push(d);
     }
+    // P27 part 3d: rubble keeps a few of its bricks on the ground for good
+    if (entry.mode === 'rubble') {
+      let n = 0;
+      for (const d of w.debris) if (d.entryId === entry.id && n++ < RUBBLE_BRICKS) d.keep = true;
+    }
     for (const d of w.debris) this.L.GamePhysics.confineDebris(d, w.controller);
-    if (w.debris.length > 220) w.debris.splice(0, w.debris.length - 220);
+    // at most 220 loose bricks fly about (the oldest go), and at most 2,000 lie as rubble
+    const loose = w.debris.filter((d) => !d.keep);
+    const kept = w.debris.length - loose.length;
+    if (loose.length > 220 || kept > 2000) {
+      const drop = new Set(loose.slice(0, Math.max(0, loose.length - 220)));
+      if (kept > 2000) for (const d of w.debris.filter((x) => x.keep).slice(0, kept - 2000)) drop.add(d);
+      w.debris = w.debris.filter((d) => !drop.has(d));
+    }
   }
 
   stepDebris(dt0: number) {
     const dt = dt0 * this.slowmo;
     const w = this.world;
+    // P27 part 3d: the loose bricks of things gone (or coming back) fade a moment after they break
+    if (w.debris.length) {
+      const fade = new Set<number>();
+      for (const e of w.broken)
+        if (e.mode && e.mode !== 'rebuild' && this.clock - (e.at ?? 0) > DEBRIS_FADE) fade.add(e.id);
+      if (fade.size) w.debris = w.debris.filter((d) => d.keep || !fade.has(d.entryId));
+    }
     for (const d of w.debris) {
       if (this.rebuildEntry?.id === d.entryId) {
         const t = this.rebuildEntry.progress;
@@ -1996,6 +2045,77 @@ export class PlaySession {
         continue;
       }
       this.L.GamePhysics.stepDebrisPiece(d, dt, w.controller);
+    }
+  }
+
+  private cleanupClock = 0;
+
+  /** P27 part 3d, twice a second: broken things and beaten neighbours whose time has come come back */
+  stepCleanup(dt: number) {
+    this.cleanupClock += dt;
+    if (this.cleanupClock < 0.5) return;
+    this.cleanupClock = 0;
+    const w = this.world;
+    for (const e of [...w.broken])
+      if (e.mode === 'respawn' && (e.after ?? 0) > 0 && this.clock - (e.at ?? 0) >= e.after!) this.respawnEntry(w, e);
+    for (const d of [...w.defeated]) if (d.after > 0 && this.clock - d.at >= d.after) this.respawnNpc(w, d);
+  }
+
+  /** P27 part 3d: on arriving at a map, what comes back when the player comes back does */
+  private comeBack(w: MapWorld) {
+    for (const e of [...w.broken]) if (e.mode === 'respawn' && !(e.after ?? 0)) this.respawnEntry(w, e, true);
+    for (const d of [...w.defeated]) if (!d.after) this.respawnNpc(w, d, true);
+  }
+
+  /** a broken thing comes back whole (not while the hero stands where it goes) */
+  respawnEntry(w: MapWorld, entry: BrokenEntry, anyway = false): boolean {
+    const b = this.damagedBounds(entry);
+    const s = w === this.world ? this.heroState : null;
+    if (!anyway && s && s.x > b.x0 - 1.5 && s.x < b.x1 + 1.5 && s.z > b.z0 - 1.5 && s.z < b.z1 + 1.5) return false;
+    const back = entry.originals.map((p) => ({ ...p }));
+    const restored = [...w.pieces, ...back];
+    if (!this.layoutCheck(w, restored, back).ok) return false;
+    w.pieces = restored;
+    for (const p of entry.originals) w.dirtyChunks.add(chunkKeyOf(p));
+    w.broken = w.broken.filter((x) => x !== entry);
+    w.debris = w.debris.filter((d) => d.entryId !== entry.id);
+    w.rev++;
+    this.syncPhysics(w);
+    const owner = this.instanceOfPiece(entry.originals[0]?.id);
+    if (owner) this.health.forget(`i:${owner.inst.id}`);
+    this.emit('info', `${owner?.def.name ?? `${entry.originals.length} bricks`} came back`);
+    return true;
+  }
+
+  /** a beaten neighbour comes back at home, healed (out of the hero's sight unless arriving) */
+  respawnNpc(w: MapWorld, d: MapWorld['defeated'][number], anyway = false) {
+    const n = d.npc as Npc & { home?: { x: number; y: number; z: number } };
+    const home = n.home ?? { x: n.state.x, y: n.state.y, z: n.state.z };
+    if (!anyway && w === this.world && Math.hypot(home.x - this.heroState.x, home.z - this.heroState.z) < 12) return;
+    Object.assign(n.state, { x: home.x, y: home.y, z: home.z, vy: 0 });
+    this.health.forget(`n:${n.id}`);
+    w.defeated = w.defeated.filter((x) => x !== d);
+    w.npcs.push(n);
+    this.L.NPCWorld.connect(w.npcs, w.controller);
+    this.emit('info', `${String(n.profile.name ?? 'A neighbour')} is back`);
+  }
+
+  /**
+   * P27 part 3d: a map remembers at most MAX_BROKEN breaks. Past that the oldest that need not be rebuilt go:
+   * things gone for good (or rubble) are kept only as brick ids; things that come back come back now.
+   */
+  private capBroken(w: MapWorld) {
+    while (w.broken.length > MAX_BROKEN) {
+      const i = w.broken.findIndex((e) => e.mode && e.mode !== 'rebuild' && e !== this.rebuildEntry);
+      if (i < 0) return;
+      const e = w.broken[i]!;
+      if (e.mode === 'respawn') {
+        if (!this.respawnEntry(w, e, true)) w.broken.splice(w.broken.indexOf(e), 1);
+        continue;
+      }
+      for (const p of e.originals) if (p.id !== undefined) w.goneIds.push(p.id);
+      w.debris = w.debris.filter((d) => d.keep || d.entryId !== e.id);
+      w.broken.splice(i, 1);
     }
   }
 
@@ -2124,7 +2244,7 @@ export class PlaySession {
     const out: { entry: BrokenEntry; bounds: ReturnType<PlaySession['damagedBounds']>; near: boolean }[] = [];
     for (const e of this.world.broken) {
       const owner = this.instanceOfPiece(e.originals[0]?.id);
-      if (owner && !owner.def.smash.rebuild) continue;
+      if ((e.mode && e.mode !== 'rebuild') || (owner && !owner.def.smash.rebuild)) continue;
       const b = this.damagedBounds(e);
       if (Math.hypot((b.x0 + b.x1) / 2 - s.x, (b.z0 + b.z1) / 2 - s.z) > 30) continue;
       out.push({ entry: e, bounds: b, near: e === near });
@@ -2138,7 +2258,7 @@ export class PlaySession {
     let dist = Infinity;
     for (const e of this.world.broken) {
       const owner = this.instanceOfPiece(e.originals[0]?.id);
-      if (owner && !owner.def.smash.rebuild) continue;
+      if ((e.mode && e.mode !== 'rebuild') || (owner && !owner.def.smash.rebuild)) continue;
       const b = this.damagedBounds(e);
       const d = Math.hypot(Math.max(b.x0 - s.x, 0, s.x - b.x1), Math.max(b.z0 - s.z, 0, s.z - b.z1));
       if (d <= 3.4 && b.y0 < s.y + 4.5 && d < dist) {
@@ -3278,6 +3398,8 @@ export class PlaySession {
     this.camYaw = this.heroState.heading + Math.PI;
     this.audio.play(SND.gate);
     this.applyMapAudio();
+    // P27 part 3d: what comes back when the player comes back
+    this.comeBack(this.world);
     this.emit('travel', `${from.doc.name} → ${this.world.doc.name}${sp ? ` (${sp.name})` : ''}`);
     this.say(`Welcome to ${this.world.doc.name}`, 2);
     // P6.4: a gate's on-arrive actions (e.g. play a cinematic when entering the castle)
@@ -3289,9 +3411,21 @@ export class PlaySession {
     if (this.saving.autosave && !this.cine.active) this.saveGame(AUTO_SLOT, true);
   }
 
+  /** P27 part 3d (saves): what becomes of a broken thing, by one of its bricks */
+  breakMode(p: LegacyPiece | undefined): { mode: Cleanup; after: number } {
+    const owner = this.instanceOfPiece(p?.id);
+    return { mode: cleanupOf(owner?.def), after: owner?.def.smash.respawnAfter ?? 0 };
+  }
+
   /** P26 (saves): the brick rules for a changed list of pieces */
   piecesOk(pieces: LegacyPiece[]): boolean {
-    return inspectPieces(this.solid(pieces)).ok;
+    const w = this.world;
+    if (!w.big) return inspectPieces(this.solid(pieces)).ok;
+    // P27 part 3d: a big map checks only around what came or went
+    const now = new Set(pieces);
+    const was = new Set(w.pieces);
+    const around = [...w.pieces.filter((p) => !now.has(p)), ...pieces.filter((p) => !was.has(p))];
+    return this.layoutCheck(w, pieces, around).ok;
   }
 
   /**

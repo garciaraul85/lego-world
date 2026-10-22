@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { builtinAsset } from '../../../builtin/assets';
+import { CLEANUP, CLEANUP_LABEL, type Cleanup, cleanupOf } from '../../../core/assets/cleanup';
 import { expandAsset } from '../../../core/assets/expand';
 import { partPose } from '../../../core/assets/free';
 import { bricksBox, hasScale, hasTilt, type Scale, type Tilt } from '../../../core/assets/tilt';
@@ -75,6 +76,10 @@ const followed = { inst: '', brush: '' };
  * P32: an asset you select in the Scene (or pick in its dock) is the one the Assets screen opens, so going
  * from a placed chest to the Assets screen shows that chest ready to change.
  */
+/** P27 part 3d */
+export const CLEANUP_HELP =
+  'What becomes of it once broken. Rebuildable: its bricks wait until the hero rebuilds it (hold E). Gone for good: its loose bricks fade and only a note that it broke is kept. Comes back: it is whole again after a while (or, at 0, when the player comes back to the map) — crates, pots, rocks. Leaves rubble: a few of its bricks stay on the ground as scenery, the rest fade. A map remembers at most 2,000 breaks: past that the oldest that need not be rebuilt are cleared.';
+
 export function followScene(ed: EditorState) {
   const s = ed.scene.value;
   const first = ed.selection.value.values().next().value;
@@ -1143,15 +1148,53 @@ function Properties({
             />{' '}
             Can be smashed in play
           </label>
-          <label class="lbl">
-            <input
-              type="checkbox"
-              checked={def.smash.rebuild}
+          {/* P27 part 3d: what becomes of it once broken */}
+          <label class="field" data-tour="asset-after" data-help="asset.cleanup">
+            <span>
+              After it breaks
+              <FieldHelp label="After it breaks" text={CLEANUP_HELP} />
+            </span>
+            <select
+              class="inp"
+              aria-label="After it breaks"
               disabled={!def.smash.enabled}
-              onChange={() => patch({ smash: { ...def.smash, rebuild: !def.smash.rebuild } })}
-            />{' '}
-            Can be rebuilt (hold E)
+              value={cleanupOf(def)}
+              onChange={(e) => {
+                const after = (e.target as HTMLSelectElement).value as Cleanup;
+                patch({
+                  smash: {
+                    ...def.smash,
+                    after,
+                    rebuild: after === 'rebuild',
+                    ...(after === 'respawn' ? { respawnAfter: def.smash.respawnAfter ?? 30 } : {}),
+                  },
+                });
+              }}
+            >
+              {CLEANUP.map((k) => (
+                <option value={k}>{CLEANUP_LABEL[k]}</option>
+              ))}
+            </select>
           </label>
+          {cleanupOf(def) === 'respawn' && (
+            <label class="field">
+              <span>
+                Comes back after {def.smash.respawnAfter ? `${def.smash.respawnAfter} s` : 'the player comes back'}
+              </span>
+              <input
+                type="range"
+                aria-label="Comes back after (seconds)"
+                data-tour="asset-respawn-after"
+                min={0}
+                max={600}
+                step={5}
+                value={def.smash.respawnAfter ?? 30}
+                onChange={(e) =>
+                  patch({ smash: { ...def.smash, respawnAfter: Number((e.target as HTMLInputElement).value) } })
+                }
+              />
+            </label>
+          )}
         </div>
 
         {/* P26: a checkpoint — touching it sets where the hero comes back, and autosaves */}
