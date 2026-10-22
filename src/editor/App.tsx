@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { BUILD } from '../build-info';
 import { toLegacy } from '../core/bridge/legacy-bridge';
+import { brickCount } from '../core/commands/handlers/assets';
+import { LEGACY_MAX_PIECES } from '../core/legacy/constants';
 import { packProject } from '../core/project/archive';
 import type { ProjectMeta } from '../core/project/backend';
 import { type Cinematic, type MediaIndex, paths } from '../core/schema';
@@ -131,6 +133,15 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       play: (mode, opts) => {
         void ed.autosave.flush();
         if (mode !== 'engine') {
+          // P27 part 3: v68 loads at most 12,000 pieces a map; bigger maps play in the engine's own runtime
+          const big = ed.maps.value.find((m) => brickCount(ed.store, m.id) > LEGACY_MAX_PIECES);
+          if (big) {
+            ed.notify(
+              `“${big.name}” has more than ${LEGACY_MAX_PIECES.toLocaleString('en-US')} pieces, which v68 cannot load. Use ▶ Play instead.`,
+              true,
+            );
+            return;
+          }
           setEngine(null);
           setPlay(mode === 'v68' ? 'play' : 'edit');
           return;

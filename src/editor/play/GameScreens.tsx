@@ -121,14 +121,16 @@ function minimapDrawer(s: PlaySession) {
   let cache: { key: string; img: HTMLCanvasElement; x0: number; z0: number; k: number } | null = null;
   return (canvas: HTMLCanvasElement) => {
     const w = s.world;
-    const key = `${w.mapId}:${w.pieces.length}:${w.brokenSerial}`;
+    // P27 part 3: a big map's minimap shows the window around the hero
+    const src = w.big ? w.controller.pieces : w.pieces;
+    const key = `${w.mapId}:${w.pieces.length}:${w.brokenSerial}:${w.windowAt ?? ''}`;
     const W = canvas.width;
     if (!cache || cache.key !== key) {
       let x0 = Infinity;
       let x1 = -Infinity;
       let z0 = Infinity;
       let z1 = -Infinity;
-      for (const p of w.pieces) {
+      for (const p of src) {
         x0 = Math.min(x0, p.x);
         x1 = Math.max(x1, p.x + 2);
         z0 = Math.min(z0, p.z);
@@ -144,7 +146,7 @@ function minimapDrawer(s: PlaySession) {
         g.fillStyle = '#0b1020';
         g.fillRect(0, 0, W, W);
         const top = new Map<string, { y: number; c: number }>();
-        for (const p of w.pieces) {
+        for (const p of src) {
           const kk = `${Math.floor(p.x)},${Math.floor(p.z)}`;
           const cur = top.get(kk);
           if (!cur || p.y >= cur.y) top.set(kk, { y: p.y, c: p.color });

@@ -53,6 +53,8 @@ export type LegacyWorldMeta = {
 export interface Controller {
   state: HeroState;
   pieces: LegacyPiece[];
+  /** where the controller lets characters go (P27 part 3: a big map's window keeps the whole map's) */
+  area?: unknown;
   spawnPoint?: { x: number; y: number; z: number };
   replace(pieces: LegacyPiece[], world?: LegacyWorldMeta): void;
   repairPosition(): void;
@@ -102,6 +104,7 @@ export interface LegacyRuntime {
     overlapsPlayer(p: LegacyPiece, s: HeroState): boolean;
     rebuildTraps(c: Controller, originals: LegacyPiece[], x: number, z: number, y: number): boolean;
     cameraDistance(target: number[], eye: number[], pieces: LegacyPiece[]): number;
+    worldBounds(pieces: LegacyPiece[], world?: LegacyWorldMeta): unknown;
     confineDebris(d: Debris, c: Controller): void;
     stepDebrisPiece(d: Debris, dt: number, c: Controller): void;
   };

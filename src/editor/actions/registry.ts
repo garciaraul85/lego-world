@@ -3,6 +3,7 @@ import type { Brick } from '../../core/bricks/codec';
 import { rotateQuarter } from '../../core/bricks/transform';
 import { checkPlayable } from '../../core/checks/playable';
 import { trainingYard } from '../../core/gamegen/training-yard';
+import { maxOf, minOf } from '../../core/num';
 import { changedBuiltins, newAssetDef } from '../assets';
 import type { EditorState, ToolId } from '../state';
 import type { ViewOp } from '../viewport/active';
@@ -74,8 +75,8 @@ function duplicate(ed: EditorState) {
   const sel = ed.selectedBricks.value;
   if (!sel.length) return;
   // Stack the copy on top of the selection's highest point so it stays stud-connected.
-  const top = Math.max(...sel.map((b) => b.y + (b.type.startsWith('brick') ? 3 : 1)));
-  const base = Math.min(...sel.map((b) => b.y));
+  const top = maxOf(sel, (b) => b.y + (b.type.startsWith('brick') ? 3 : 1));
+  const base = minOf(sel, (b) => b.y);
   const dy = top - base;
   const r = ed.exec(
     {
@@ -476,6 +477,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('atmosphere'),
   },
   {
+    id: 'help.bigworlds',
+    label: 'Big worlds course (a million bricks, how far you see)',
+    run: ({ ui }) => ui.tutorial('bigworlds'),
+  },
+  {
     id: 'help.posing',
     label: 'Posing and states course (clips pose by pose, walk, run, attack)',
     run: ({ ui }) => ui.tutorial('posing'),
@@ -624,6 +630,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.posing',
     'help.lights',
     'help.atmosphere',
+    'help.bigworlds',
     'help.brixCourse',
     'help.build',
     'help.shortcuts',

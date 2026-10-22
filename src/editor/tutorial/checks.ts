@@ -382,6 +382,17 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     return !!s && matches(s.progress.settings, a as Record<string, unknown>);
   },
   screenShown: (ed, a) => !!ed.session.value?.screens.screens().some((x) => x.name === a),
+  // P27 part 3: the big worlds course
+  mapBricksAtLeast: (ed, a) => (ed.scene.value?.count ?? 0) >= Number(a),
+  mapViewDistance: (ed, a) => ed.mapDoc.value?.viewDistance === Number(a),
+  entryIsCurrentMap: (ed) => ed.store.manifest.entry.map === ed.mapId.value,
+  bigInPlay: (ed) => !!ed.session.value?.world.big,
+  heroFarFromStart: (ed, a) => {
+    const s = ed.session.value;
+    if (!s) return false;
+    const sp = s.world.doc.spawns[0]?.pos ?? [0, 0, 0];
+    return Math.hypot(s.heroState.x - sp[0], s.heroState.z - sp[2]) >= Number(a);
+  },
   // P27 part 2: the atmosphere course
   mapFog: (ed, a) => fogPresetOf(ed.mapDoc.value?.fog) === a,
   fogFarAtMost: (ed, a) => !!ed.mapDoc.value?.fog && ed.mapDoc.value.fog.far <= Number(a),

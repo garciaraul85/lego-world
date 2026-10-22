@@ -1,0 +1,247 @@
+{
+  "id": "bigworlds",
+  "title": "Big worlds course",
+  "steps": [
+    {
+      "id": "big.make",
+      "title": "Big land",
+      "body": "A map can hold a million bricks. The Map tab’s Big worlds section shows how big this map is and makes big land to try it on: rolling grass and hills of bricks, with a flat clearing in the middle where the player starts.",
+      "task": "On the Map tab, under Big worlds, pick 512 × 512 studs and press Make.",
+      "target": "[data-tour=\"map-big\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapBricksAtLeast",
+        "args": 40000
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "right",
+          "value": "map"
+        },
+        {
+          "choose": "[data-tour=\"land-size\"]",
+          "value": "512"
+        },
+        {
+          "click": "[data-tour=\"land-make\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Scene” in the workspace tabs at the top.",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Scene"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            }
+          ]
+        },
+        {
+          "text": "On the right, click the Map tab and scroll down to Big worlds.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"map-big\"]"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "map"
+            },
+            {
+              "show": "[data-tour=\"map-big\"]"
+            }
+          ]
+        },
+        {
+          "text": "Under “New big land”, pick 512 × 512 studs and press Make. A new map of about 58,000 bricks opens.",
+          "check": {
+            "kind": "state",
+            "test": "mapBricksAtLeast",
+            "args": 40000
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"land-size\"]",
+              "value": "512",
+              "say": "512 studs"
+            },
+            {
+              "click": "[data-tour=\"land-make\"]",
+              "say": "Make"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "big.view",
+      "title": "How far you see",
+      "body": "A big map is not drawn whole. The view loads the chunks (32 × 32 studs each) around where you look, the nearest first, and the fog closes in where they end. “How far you see” sets that distance: further shows more but costs more to draw. The counter at the top of the view shows how many chunks are loaded.",
+      "task": "Drag “How far you see” to 384 studs.",
+      "target": "[data-tour=\"view-distance\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapViewDistance",
+        "args": 384
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "map"
+        },
+        {
+          "fill": "[data-tour=\"view-distance\"]",
+          "value": "384"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Big worlds, drag “How far you see” to 384. The view loads more chunks around the centre.",
+          "check": {
+            "kind": "state",
+            "test": "mapViewDistance",
+            "args": 384
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "map"
+            },
+            {
+              "fill": "[data-tour=\"view-distance\"]",
+              "value": "384",
+              "say": "384 studs"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "big.start",
+      "title": "Start here",
+      "body": "Play starts the game on the start map. Make this big land the start map, so ▶ Play opens it.",
+      "task": "Make this map the start map.",
+      "target": "[data-tour=\"map-big\"]",
+      "check": {
+        "kind": "state",
+        "test": "entryIsCurrentMap"
+      },
+      "doItForMe": [
+        {
+          "fn": "startOnThisMap"
+        }
+      ],
+      "how": [
+        {
+          "text": "Set the start map to this map (Project tab › Start map; the helper does it in one step).",
+          "check": {
+            "kind": "state",
+            "test": "entryIsCurrentMap"
+          },
+          "do": [
+            {
+              "fn": "startOnThisMap",
+              "say": "This map starts the game"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "big.play",
+      "title": "Play a big map",
+      "body": "In the game a big map plays the area around the hero: the bricks there are solid and the neighbours there walk about; further away they sleep until the hero comes near. Chunks stream in as the hero moves.",
+      "task": "Press Play.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "bigInPlay"
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press ▶ Play at the top (or F5).",
+          "check": {
+            "kind": "state",
+            "test": "bigInPlay"
+          },
+          "do": [
+            {
+              "ui": "play"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "bottom"
+    },
+    {
+      "id": "big.walk",
+      "title": "The world follows you",
+      "body": "Walk out of the clearing into the hills. The solid area moves with the hero and new chunks appear ahead of you; the minimap shows the area around you.",
+      "task": "Walk at least 60 studs from where you started (hold W; Shift runs).",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroFarFromStart",
+        "args": 60
+      },
+      "doItForMe": [
+        {
+          "fn": "walkFar"
+        }
+      ],
+      "how": [
+        {
+          "text": "Hold W to walk (Shift to run) until you are out among the hills. The helper takes the hero there.",
+          "check": {
+            "kind": "state",
+            "test": "heroFarFromStart",
+            "args": 60
+          },
+          "do": [
+            {
+              "fn": "walkFar",
+              "say": "Out into the hills"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "bottom"
+    },
+    {
+      "id": "big.done",
+      "title": "Done!",
+      "body": "You made a big land, chose how far you see and played it while the world followed the hero. A map holds up to 1,000,000 bricks; 2048 × 2048 studs of land is about 950,000. Press Esc or Stop to leave Play.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "workspace": "Scene",
+      "placement": "bottom"
+    }
+  ]
+}

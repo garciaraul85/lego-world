@@ -227,6 +227,7 @@ export function stepsToView(view: string): ShowStep[] {
       ];
     case 'scene-map':
     case 'scene-atmosphere':
+    case 'scene-bigworld':
       return [ws('Scene'), right('map', 'Map')];
     case 'scene-project':
     case 'scene-saving':

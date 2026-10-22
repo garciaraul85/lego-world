@@ -113,7 +113,7 @@ describe('CommandBus', () => {
         { source: 'user' },
       );
     expect(place({ type: 'brick5x5' }).error).toMatch(/Unknown brick type/);
-    expect(place({ x: 300 }).error).toMatch(/outside the build area/);
+    expect(place({ x: 3000 }).error).toMatch(/outside the build area/);
     expect(place({ y: 298 }).error).toMatch(/outside the build area/);
     expect(place({ rot: 4 }).error).toMatch(/Rotation/);
     expect(bus.execute({ type: 'nope', payload: {} }, { source: 'user' }).error).toBe('Unknown command "nope".');

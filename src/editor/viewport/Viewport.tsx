@@ -13,9 +13,11 @@ import {
 } from '../../core/assets/tilt';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
+import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import type { Command } from '../../core/commands';
 import { skyCycle } from '../../core/legacy/modules';
 import { wiresOf } from '../../core/logic/wiring';
+import { maxOf } from '../../core/num';
 import type { Asset, LogicGraph } from '../../core/schema';
 import { atmosphere } from '../../engine/lighting/atmosphere';
 import { pointLights } from '../../engine/lighting/lights';
@@ -30,6 +32,7 @@ import {
   type RenderBrick,
   Renderer,
 } from '../../engine/render/renderer';
+import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../../engine/render/stream';
 import { ScreenFxOverlay } from '../../engine/ui/ScreenFxOverlay';
 import { placeCommands, resolveAsset } from '../assets';
 import { groupLabel } from '../categories';
@@ -301,19 +304,20 @@ export function Viewport({
       dirty = true;
     };
 
+    // P27 part 3: chunks stream in around the view's centre on big maps (small maps build at once, as before)
+    const stream = new ChunkStream(renderer, (k) => {
+      const s = ed.scene.value;
+      const list = s?.chunks.get(k);
+      if (!s || !list) return [];
+      return list.filter((b) => ed.isVisible(b) && !s.freeOf(b.id) && !liveHide.has(b.id)).map((b) => s.toRender(b));
+    });
+    let streaming = false;
     const syncChunks = (keys: string[], all: boolean) => {
       const s = ed.scene.value;
       if (!s) return;
-      if (all) renderer.clearChunks();
-      for (const k of all ? [...s.chunks.keys()] : keys) {
-        const list = s.chunks.get(k);
-        if (!list) renderer.dropChunk(k);
-        else
-          renderer.setChunk(
-            k,
-            list.filter((b) => ed.isVisible(b) && !s.freeOf(b.id) && !liveHide.has(b.id)).map((b) => s.toRender(b)),
-          );
-      }
+      stream.viewDistance = ed.mapDoc.value?.viewDistance ?? DEFAULT_VIEW_DISTANCE;
+      if (all) stream.reset(s.chunks.keys());
+      else stream.changed(keys, (k) => !!s.chunks.get(k)?.length);
       dirty = true;
     };
 
@@ -333,6 +337,13 @@ export function Viewport({
         }
         min[1] = Math.min(min[1]!, 0);
         camera.fit(min, max, aspect);
+      } else if (b && stream.streaming) {
+        // P27 part 3: a big map is framed around its start, as far as the view reaches (not the whole map)
+        const m = ed.mapDoc.value;
+        const sp = m?.spawns.find((x) => x.id === ed.store.manifest.entry.spawn) ?? m?.spawns[0];
+        const [x, , z] = sp?.pos ?? [0, 0, 0];
+        const r = Math.min(48, stream.viewDistance * 0.2);
+        camera.fit([x - r, b.min[1], z - r], [x + r, Math.min(b.max[1], b.min[1] + 40), z + r], aspect);
       } else if (b) camera.fit(b.min, b.max, aspect);
       else {
         camera.target = [0, 1, 0];
@@ -740,6 +751,9 @@ export function Viewport({
         flickering = renderer.lights.length > 0;
       }
       const cam = camera.frame();
+      // more chunks to build near the view's centre: draw again next frame
+      streaming = stream.update(camera.target[0], camera.target[2]);
+      if (streaming) dirty = true;
       const t0 = performance.now();
       const st = renderer.render(cam, camera.target, overlays, lines, markers);
       const ms = performance.now() - t0;
@@ -747,7 +761,7 @@ export function Viewport({
       ed.frameTimes.value = times;
       ed.stats.value = { ...st, fps: Math.round(1000 / Math.max(1, times.reduce((a, b) => a + b, 0) / times.length)) };
       if (hudRef.current && s)
-        hudRef.current.textContent = `${s.count.toLocaleString('en-US')} / 12,000 pieces · ${st.drawCalls} draws · ${st.chunksDrawn}/${st.chunks} chunks`;
+        hudRef.current.textContent = `${s.count.toLocaleString('en-US')} / ${MAX_BRICKS_PER_MAP.toLocaleString('en-US')} pieces · ${st.drawCalls} draws · ${st.chunksDrawn}/${stream.counts.total} chunks${stream.streaming ? ` · ${stream.counts.shown} loaded` : ''}`;
     };
     raf = requestAnimationFrame(frame);
     const ro = new ResizeObserver(() => (dirty = true));
@@ -1616,7 +1630,7 @@ function wireLines(
     b.length
       ? [
           b.reduce((a, x) => a + x.x, 0) / b.length + 0.5,
-          Math.max(...b.map((x) => x.y)) * 0.4 + 1.4,
+          maxOf(b, (x) => x.y) * 0.4 + 1.4,
           b.reduce((a, x) => a + x.z, 0) / b.length + 0.5,
         ]
       : null;

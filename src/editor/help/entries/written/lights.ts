@@ -141,4 +141,33 @@ export const LIGHTS: HelpEntry[] = [
     match: [{ in: '[data-help="scene.map.day"]' }],
     related: ['scene.map.fog', 'scene.item.light'],
   },
+  {
+    id: 'scene.map.big',
+    also: [
+      'big world',
+      'big map',
+      'million bricks',
+      'how far you see',
+      'view distance',
+      'draw distance',
+      'streaming',
+      'chunks',
+      'big land',
+      'open world',
+      'performance',
+    ],
+    screen: 'scene',
+    kind: 'area',
+    name: 'Big worlds',
+    purpose:
+      'How big this map is: its **Bricks** (a map holds up to 1,000,000) and its **Chunks** (32 × 32 studs each). A map of more than 64 chunks is a big map: the Scene view and the game load the chunks around where you look or play, the nearest first, and the fog closes in where they end. **How far you see** sets that distance (studs; further shows more but costs more to draw). In the game a big map plays the area around the hero: bricks there are solid and neighbours there walk about, further away they sleep. **New big land** makes a map of grass and hills of bricks (2048 studs across is about 950,000 bricks) to build on or try. Maps over 12,000 pieces play with ▶ Play, not Play in v68.',
+    steps: [
+      'Scene › Map tab › Big worlds: pick a size under New big land and press **Make**.',
+      'Drag **How far you see**; the counter at the top of the view shows the chunks loaded.',
+      'Press ▶ Play and walk: the world follows the hero.',
+    ],
+    commands: ['map.create', 'map.setEnvironment'],
+    match: [{ in: '[data-help="scene.map.big"]' }],
+    related: ['scene.map.fog', 'scene.map.day'],
+  },
 ];

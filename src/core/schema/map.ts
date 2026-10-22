@@ -55,6 +55,8 @@ export const Generator = z.strictObject({
   locked: z.boolean(),
 });
 
+export const ViewDistance = z.number().int().min(64).max(2048);
+
 export const MapDoc = z.strictObject({
   id: id('map'),
   name: z.string().min(1).max(60),
@@ -71,6 +73,8 @@ export const MapDoc = z.strictObject({
   fog: Fog.optional(),
   ambient: Ambient.optional(),
   dayLength: DayLength.optional(),
+  /** P27 part 3: how far the map is drawn on big maps (studs; the fog closes in before it). Default 256. */
+  viewDistance: ViewDistance.optional(),
   music: id('music').nullable(),
   ambience: id('sound').nullable(),
   spawns: z.array(Spawn).max(32),

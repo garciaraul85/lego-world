@@ -1,5 +1,6 @@
+import { BUILD_HALF } from '../schema/chunk';
 import type { Brick } from './codec';
-import { brickHeight } from './map-bricks';
+import { brickHeight, MAX_BRICKS_PER_MAP } from './map-bricks';
 
 /** [w, d] footprint in studs after rotation (legacy dims()). */
 export function footprint(b: Pick<Brick, 'type' | 'rot'>): [number, number] {
@@ -11,15 +12,21 @@ export function footprint(b: Pick<Brick, 'type' | 'rot'>): [number, number] {
 
 export type LayoutCheck = { ok: true } | { ok: false; reason: string };
 
-// Numeric cell key: x, z in [-300, 400), y in [0, 400).
-const key = (x: number, z: number, y: number) => ((x + 300) * 700 + (z + 300)) * 400 + y;
+// Numeric cell key: x, z in [-SPAN, SPAN), y in [0, 400) (P27 part 3: the build area grew to ±2048 studs).
+const SPAN = BUILD_HALF + 64;
+const key = (x: number, z: number, y: number) => ((x + SPAN) * 2 * SPAN + (z + SPAN)) * 400 + y;
 
 /**
  * v68's inspect(): no two bricks share a cell, and every brick connects to the ground (y = 0)
  * through stud joints (a brick's top studs into the bottom of the brick above; tiles have no studs).
  * Every brick edit must keep this true, or LEGO World v68 would refuse to load the save.
  */
-export function inspectBricks(list: readonly Brick[], max = 12_000): LayoutCheck {
+export function inspectBricks(
+  list: readonly Brick[],
+  max = MAX_BRICKS_PER_MAP,
+  /** P27 part 3, a check of one area of a big map: bricks at its edge count as connected (the map was valid) */
+  anchored?: (b: Brick) => boolean,
+): LayoutCheck {
   if (list.length > max) return { ok: false, reason: `This world has reached ${max.toLocaleString('en-US')} pieces.` };
   const occupied = new Map<number, number>();
   const tops = new Map<number, number>();
@@ -51,7 +58,7 @@ export function inspectBricks(list: readonly Brick[], max = 12_000): LayoutCheck
   const seen = new Uint8Array(list.length);
   const queue: number[] = [];
   for (let i = 0; i < list.length; i++)
-    if (list[i]!.y === 0) {
+    if (list[i]!.y === 0 || anchored?.(list[i]!)) {
       seen[i] = 1;
       queue.push(i);
     }

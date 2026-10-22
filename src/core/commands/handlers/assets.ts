@@ -13,27 +13,82 @@ import type { CommandHandler } from '../types';
 const getInstances = (store: ProjectStore, map: string): Instances =>
   store.get<Instances>(paths.instances(map)) ?? { npcsSaved: false, items: [] };
 
+/** how many bricks a map holds, loose and in asset copies (without decoding the loose ones) */
+export const brickCount = (store: ProjectStore, map: string): number =>
+  new MapBricks(store, map).count() + expandInstances(store, map).reduce((n, e) => n + e.bricks.length, 0);
+
 /** Every brick of a map: chunk bricks plus expanded asset instances. */
 export const allBricks = (store: ProjectStore, map: string): Brick[] => [
   ...new MapBricks(store, map).all(),
   ...instanceBricks(store, map),
 ];
 
+/** P27 part 3: maps with more bricks than this check only the area an edit touched (and a ring around it). */
+export const LOCAL_CHECK_FROM = 50_000;
+
 /**
  * Throws (rolling back) unless the whole map, instances included, is a valid v68 build. Turned or resized
- * assets are free objects and are left out of the grid rules (P31).
+ * assets are free objects and are left out of the grid rules (P31). On big maps only the chunks this
+ * transaction touched are checked, with the chunks around them; bricks in that ring count as connected.
  */
 export function assertMapLayout(store: ProjectStore, map: string) {
+  const exp = expandInstances(store, map);
   // a whole turned or sized asset is a free object; turned parts inside an asset keep their straight
   // cells for the rules, so nothing that was built on them is left floating
-  const free = new Set(
-    expandInstances(store, map)
-      .filter((e) => isFree(e.inst))
-      .flatMap((e) => e.bricks.map((b) => b.id)),
-  );
-  const bricks = allBricks(store, map);
-  const check = inspectBricks(free.size ? bricks.filter((b) => !free.has(b.id)) : bricks);
+  const free = new Set(exp.filter((e) => isFree(e.inst)).flatMap((e) => e.bricks.map((b) => b.id)));
+  const mb = new MapBricks(store, map);
+  const total = mb.count() + exp.reduce((n, e) => n + e.bricks.length, 0);
+  const region = total > LOCAL_CHECK_FROM ? touchedChunks(store, map, exp) : null;
+  if (region && !region.size) return;
+  let bricks: Brick[];
+  let anchored: ((b: Brick) => boolean) | undefined;
+  if (!region) bricks = [...mb.all(), ...exp.flatMap((e) => e.bricks)];
+  else {
+    // the touched chunks and every chunk next to them (bricks reach up to 8 studs into the next chunk)
+    const area = new Set<string>();
+    for (const k of region) {
+      const [cx, cz] = k.split('_').map(Number) as [number, number];
+      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) area.add(`${cx + dx}_${cz + dz}`);
+    }
+    bricks = [...area].flatMap((k) => mb.inChunk(k));
+    for (const e of exp) if (e.bricks.some((b) => area.has(chunkKey(b.x, b.z)))) bricks.push(...e.bricks);
+    anchored = (b) => !region.has(chunkKey(b.x, b.z));
+  }
+  const check = inspectBricks(free.size ? bricks.filter((b) => !free.has(b.id)) : bricks, MAX_BRICKS_PER_MAP, anchored);
   if (!check.ok) throw new Error(check.reason);
+}
+
+/** chunk keys this transaction changed on a map: its chunk files, and the chunks of asset copies added, moved, removed or redefined */
+function touchedChunks(store: ProjectStore, map: string, exp: ReturnType<typeof expandInstances>): Set<string> {
+  const out = new Set<string>();
+  const tx = store.txChanges();
+  if (!tx) return new Set(exp.flatMap((e) => e.bricks.map((b) => chunkKey(b.x, b.z))));
+  const dir = paths.chunkDir(map);
+  const changedAssets = new Set<string>();
+  for (const p of tx.keys()) {
+    if (p.startsWith(dir)) out.add(p.slice(dir.length, -'.json'.length));
+    const m = /^assets\/(ast_[0-9a-z]+)\.json$/.exec(p);
+    if (m) changedAssets.add(m[1]!);
+  }
+  const instPath = paths.instances(map);
+  const now = new Map(exp.map((e) => [e.inst.id, e]));
+  for (const e of exp) if (changedAssets.has(e.inst.asset)) for (const b of e.bricks) out.add(chunkKey(b.x, b.z));
+  if (tx.has(instPath)) {
+    const before = ((tx.get(instPath) as Instances | undefined)?.items ?? []).filter(
+      (i): i is AssetInstance => i.kind === 'asset',
+    );
+    const beforeIds = new Set(before.map((i) => i.id));
+    for (const i of before) {
+      const cur = now.get(i.id);
+      if (cur && JSON.stringify(cur.inst) === JSON.stringify(i)) continue;
+      // where it was
+      const def = store.get<Asset>(paths.asset(i.asset));
+      if (def) for (const b of expandAsset(def, i).bricks) out.add(chunkKey(b.x, b.z));
+      if (cur) for (const b of cur.bricks) out.add(chunkKey(b.x, b.z));
+    }
+    for (const e of exp) if (!beforeIds.has(e.inst.id)) for (const b of e.bricks) out.add(chunkKey(b.x, b.z));
+  }
+  return out;
 }
 
 function instanceError(store: ProjectStore, def: Asset, inst: InstanceLike): string | null {
@@ -73,7 +128,7 @@ export const placeAsset: CommandHandler<PlaceAsset> = {
     if (e) return e;
     const def = store.get<Asset>(paths.asset(p.asset));
     if (!def) return 'That asset does not exist in this project.';
-    if (allBricks(store, p.map).length + def.bricks.length > MAX_BRICKS_PER_MAP)
+    if (brickCount(store, p.map) + def.bricks.length > MAX_BRICKS_PER_MAP)
       return `A map can hold ${MAX_BRICKS_PER_MAP.toLocaleString('en-US')} bricks.`;
     if (p.state && !def.states.includes(p.state)) return `${def.name} has no state "${p.state}".`;
     return instanceError(store, def, { pos: p.pos, rot: p.rot ?? 0, idBase: 1 });

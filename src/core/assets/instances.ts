@@ -1,5 +1,5 @@
 import type { Brick } from '../bricks/codec';
-import { type Asset, type AssetInstance, type Chunk, type Instances, paths } from '../schema';
+import { type Asset, type AssetInstance, BRICK_STRIDE, type Chunk, chunkRows, type Instances, paths } from '../schema';
 import { expandAsset, type WorldSocket } from './expand';
 
 /** Read access to project files (a ProjectStore, a snapshot or a migrate() file map). */
@@ -32,7 +32,10 @@ export function maxBrickId(files: Source, mapId: string): number {
   let max = 0;
   const prefix = paths.chunkDir(mapId);
   const chunkPaths = files.list ? files.list(prefix) : [...(files.keys?.() ?? [])].filter((p) => p.startsWith(prefix));
-  for (const p of chunkPaths) for (const b of (files.get(p) as Chunk).bricks) if (b[7] > max) max = b[7];
+  for (const p of chunkPaths) {
+    const rows = chunkRows(files.get(p) as Chunk);
+    for (let o = 7; o < rows.length; o += BRICK_STRIDE) if (rows[o]! > max) max = rows[o]!;
+  }
   for (const inst of assetInstances(files, mapId)) {
     const def = files.get(paths.asset(inst.asset)) as Asset | undefined;
     max = Math.max(max, inst.idBase + (def?.bricks.length ?? 1) - 1);

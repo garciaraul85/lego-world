@@ -1,4 +1,5 @@
 import type { FileDiff } from '../../core/ai/patch';
+import { type Chunk, chunkCount } from '../../core/schema';
 
 export type DiffLine = { kind: ' ' | '+' | '-' | '…'; text: string };
 
@@ -72,7 +73,7 @@ const pretty = (v: unknown) => (v === undefined ? '' : JSON.stringify(v, null, 2
 /** A one-line description of a file change (chunk files are summarized by brick counts). */
 export function describeDiff(d: FileDiff): string {
   if (/\/chunks\//.test(d.path)) {
-    const n = (v: unknown) => (v as { bricks?: unknown[] } | undefined)?.bricks?.length ?? 0;
+    const n = (v: unknown) => (v ? chunkCount(v as Chunk) : 0);
     return `${n(d.before)} → ${n(d.after)} bricks`;
   }
   return d.kind === 'added' ? 'new file' : d.kind === 'removed' ? 'deleted' : 'changed';

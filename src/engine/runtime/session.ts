@@ -21,6 +21,7 @@ import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosphere';
 import type { ExecCtx } from '../../core/logic/catalog';
+import { maxOf } from '../../core/num';
 import {
   AUTO_SLOT,
   DEFAULT_SAVING,
@@ -80,7 +81,7 @@ import { ActionRunner, type GameOp } from './actions';
 import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
 import { Enemies } from './enemies';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './health';
-import { chunkKeyOf, inspectPieces } from './pieces';
+import { chunkKeyOf, indexByChunk, inspectPieces, piecesAround, WINDOW_RADIUS } from './pieces';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
 import { Runtime, type System } from './runtime';
 import { applySave, captureSave, loadMessage, type SaveHost } from './saves';
@@ -126,7 +127,21 @@ export type MapWorld = {
   worldUi: UiInstance[];
   /** P26: what the map started with (instance id → state, neighbour ids), so a save keeps only what changed */
   start: { instances: Map<string, string>; npcs: number[] };
+  /**
+   * P27 part 3: a big map (more than WINDOW_FROM pieces) plays in a window of chunks around the hero: v68's
+   * physics and the neighbours see only those pieces, and neighbours outside it sleep.
+   */
+  big: boolean;
+  /** big maps: chunk key → its pieces (rebuilt when pieces change) */
+  byChunk: Map<string, LegacyPiece[]> | null;
+  /** big maps: the chunk the window is centred on */
+  windowAt: string | null;
+  /** big maps: the whole map's walkable area (the window's own would fence the hero in) */
+  fullArea: unknown;
 };
+
+/** P27 part 3: maps with more pieces than this play in a window of chunks around the hero */
+export const WINDOW_FROM = 40_000;
 
 /** P32: an item made only of moving parts floats — drawn, but outside the brick rules (a rising sword) */
 const floating = (def: Asset) => {
@@ -352,7 +367,8 @@ export class PlaySession {
     this.cine = new CinematicSystem({
       snapshot,
       mapId: () => this.world.mapId,
-      pieces: () => this.world.pieces,
+      // P27 part 3: a cinematic on a big map walks its actors through the window around the hero
+      pieces: () => (this.world.big ? this.world.controller.pieces : this.world.pieces),
       npcs: () => this.world.npcs,
       bounds: (p) => this.L.GamePhysics.bounds(p),
       heroState: () => this.heroState,
@@ -421,12 +437,22 @@ export class PlaySession {
       p.id !== undefined && exact.has(p.id) ? { ...p, hex: exact.get(p.id)! } : { ...p },
     );
     const state = (this.snapshot.get(paths.state(mapId)) as MapState | undefined) ?? { broken: [], player: null };
-    const controller = new this.L.GamePhysics.Controller(pieces, meta);
+    // P27 part 3: a big map starts with the window around where the hero arrives
+    const big = pieces.length > WINDOW_FROM;
+    const byChunk = big ? indexByChunk(pieces) : null;
+    const fullArea = big ? this.L.GamePhysics.worldBounds(pieces, meta) : null;
+    const [ax, az] = state.player
+      ? [Number(state.player.x) || 0, Number(state.player.z) || 0]
+      : [doc.spawns[0]?.pos[0] ?? 0, doc.spawns[0]?.pos[2] ?? 0];
+    const startKey = big ? `${Math.floor(ax / 32)}_${Math.floor(az / 32)}` : null;
+    const near = byChunk && startKey ? piecesAround(byChunk, startKey) : pieces;
+    const controller = new this.L.GamePhysics.Controller(near, meta);
+    if (big) controller.area = fullArea;
     const inst = this.snapshot.get(paths.instances(mapId)) as Instances | undefined;
     const npcs = build.npcs
-      ? this.L.NPCWorld.restore(build.npcs, pieces, meta)
-      : pieces.length
-        ? this.L.NPCWorld.populate(pieces, meta, controller.state)
+      ? this.L.NPCWorld.restore(build.npcs, near, meta)
+      : near.length
+        ? this.L.NPCWorld.populate(near, meta, controller.state)
         : [];
     this.L.NPCWorld.connect(npcs, controller);
     const w: MapWorld = {
@@ -449,6 +475,10 @@ export class PlaySession {
       effects: (inst?.items ?? []).filter((i): i is EffectInstance => i.kind === 'effect'),
       lights: (inst?.items ?? []).filter((i): i is LightInstance => i.kind === 'light'),
       worldUi: (inst?.items ?? []).filter((i): i is UiInstance => i.kind === 'ui'),
+      big,
+      byChunk,
+      windowAt: startKey,
+      fullArea,
       start: { instances: new Map(), npcs: npcs.map((n) => n.id) },
     };
     for (const i of w.instances) w.start.instances.set(i.inst.id, i.state);
@@ -760,6 +790,8 @@ export class PlaySession {
     const before = this.heroState;
     const wasGrounded = before.grounded;
     const fallSpeed = before.vy;
+    // P27 part 3: a big map's window follows the hero
+    this.moveWindow(this.world);
     // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
     this.world.controller.step(
       {
@@ -1482,19 +1514,20 @@ export class PlaySession {
   }
 
   /** bricks particles bounce off (a set of filled cells, rebuilt when bricks break or come back) */
-  private cells: { world: MapWorld; rev: number; set: Set<number> } | null = null;
+  private cells: { world: MapWorld; rev: number; at: string | null; set: Set<number> } | null = null;
   private solidAt = (x: number, y: number, z: number): boolean => {
     const w = this.world;
     if (y < 0) return true;
-    if (!this.cells || this.cells.world !== w || this.cells.rev !== w.rev) {
+    if (!this.cells || this.cells.world !== w || this.cells.rev !== w.rev || this.cells.at !== w.windowAt) {
       const set = new Set<number>();
-      for (const p of w.pieces) {
+      // P27 part 3: a big map's particles bounce off the window around the hero
+      for (const p of w.big ? w.controller.pieces : w.pieces) {
         const [cw, cd] = p.turn % 2 ? [p.rows, p.cols] : [p.cols, p.rows];
         const h = p.kind === 'brick' ? 3 : 1;
         for (let i = 0; i < cw; i++)
           for (let j = 0; j < cd; j++) for (let k = 0; k < h; k++) set.add(cellKey(p.x + i, p.y + k, p.z + j));
       }
-      this.cells = { world: w, rev: w.rev, set };
+      this.cells = { world: w, rev: w.rev, at: w.windowAt, set };
     }
     return this.cells.set.has(cellKey(Math.floor(x), Math.floor(y / 0.4), Math.floor(z)));
   };
@@ -1696,16 +1729,23 @@ export class PlaySession {
     const ids = new Set(
       w.pieces.filter((p) => p.y > 0 && (p.id === hit.id || (hit.group && p.group === hit.group))).map((p) => p.id!),
     );
-    let remaining = this.solid(w.pieces.filter((p) => !ids.has(p.id!)));
-    let check = inspectPieces(remaining);
+    let check = this.layoutCheck(
+      w,
+      w.pieces.filter((p) => !ids.has(p.id!)),
+      w.pieces.filter((p) => ids.has(p.id!)),
+    );
     if (!check.ok && check.connected) {
-      remaining.forEach((p, i) => {
-        if (!check.connected!.has(i)) ids.add(p.id!);
+      const connected = check.connected;
+      check.list.forEach((p, i) => {
+        if (!connected.has(i)) ids.add(p.id!);
       });
-      remaining = this.solid(w.pieces.filter((p) => !ids.has(p.id!)));
-      check = inspectPieces(remaining);
+      check = this.layoutCheck(
+        w,
+        w.pieces.filter((p) => !ids.has(p.id!)),
+        w.pieces.filter((p) => ids.has(p.id!)),
+      );
     }
-    remaining = w.pieces.filter((p) => !ids.has(p.id!));
+    const remaining = w.pieces.filter((p) => !ids.has(p.id!));
     if (!check.ok) {
       this.say(check.reason ?? 'That can’t break.', 2);
       return 0;
@@ -1731,8 +1771,7 @@ export class PlaySession {
     w.pieces = remaining;
     w.broken.push(entry);
     this.makeDebris(entry, impact);
-    w.controller.replace(w.pieces, w.meta);
-    this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+    this.syncPhysics(w);
     const hb = this.L.GamePhysics.bounds(hit);
     this.audio.play(owner?.def.smash.sound ?? SND.smash, {
       pos: [(hb.x0 + hb.x1) / 2, (hb.y0 + hb.y1) / 2, (hb.z0 + hb.z1) / 2],
@@ -1847,7 +1886,7 @@ export class PlaySession {
       if (g.part === null) continue;
       const box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, z0: Infinity, z1: -Infinity };
       for (const b of g.bricks) {
-        const piece = w.pieces.find((p) => p.id === b.id);
+        const piece = this.pieceById(w, b.id);
         if (!piece) continue;
         const r = this.L.GamePhysics.bounds(piece);
         for (const x of [r.x0, r.x1])
@@ -1999,8 +2038,9 @@ export class PlaySession {
     }
     this.say(`Rebuilding ${entry.originals.length} bricks… ${Math.round(entry.progress * 100)}%`, 0.2);
     if (entry.progress < 1) return;
-    const restored = [...w.pieces, ...entry.originals.map((p) => ({ ...p }))];
-    const check = inspectPieces(this.solid(restored));
+    const back = entry.originals.map((p) => ({ ...p }));
+    const restored = [...w.pieces, ...back];
+    const check = this.layoutCheck(w, restored, back);
     if (!check.ok) {
       this.cancelRebuild();
       this.rebuildHeld = false;
@@ -2012,8 +2052,7 @@ export class PlaySession {
     for (const p of entry.originals) w.dirtyChunks.add(chunkKeyOf(p));
     w.broken = w.broken.filter((x) => x !== entry);
     w.debris = w.debris.filter((d) => d.entryId !== entry.id);
-    w.controller.replace(w.pieces, w.meta);
-    this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+    this.syncPhysics(w);
     this.cancelRebuild();
     this.audio.play(SND.rebuilt, { pos: [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, (b.z0 + b.z1) / 2] });
     const owner = this.instanceOfPiece(entry.originals[0]?.id);
@@ -2721,7 +2760,10 @@ export class PlaySession {
     const w = this.world;
     const idBase =
       as?.idBase ??
-      Math.max(0, ...w.pieces.map((p) => p.id ?? 0), ...w.broken.flatMap((b) => b.originals.map((p) => p.id ?? 0))) + 1;
+      Math.max(
+        maxOf(w.pieces, (p) => p.id ?? 0, 0),
+        maxOf(w.broken, (b) => maxOf(b.originals, (p) => p.id ?? 0, 0), 0),
+      ) + 1;
     // P26: a copy put back by a save keeps its id; new ones count on from the highest
     if (as) this.spawnSerial = Math.max(this.spawnSerial, Number(as.id.slice(8)) || 0);
     if (as && w.instances.some((i) => i.inst.id === as.id)) return null;
@@ -2734,9 +2776,10 @@ export class PlaySession {
       idBase,
     };
     const exp = expandAsset(def, inst);
-    const pieces = [...w.pieces, ...exp.bricks.map((b) => brickToPiece(b, true))];
+    const added = exp.bricks.map((b) => brickToPiece(b, true));
+    const pieces = [...w.pieces, ...added];
     // a floating item (every brick in a moving part) is drawn only: it does not have to fit
-    const check = floating(def) ? { ok: true as const, reason: '' } : inspectPieces(this.solid(pieces));
+    const check = floating(def) ? { ok: true as const, reason: '' } : this.layoutCheck(w, pieces, added);
     if (!check.ok) {
       this.emit('info', `Spawn ${def.name}: ${check.reason}`);
       return null;
@@ -2745,8 +2788,7 @@ export class PlaySession {
     for (const b of exp.bricks) w.dirtyChunks.add(chunkKeyOf(brickToPiece(b)));
     w.instances.push({ inst, def, ...exp, state: def.initialState });
     w.rev++;
-    w.controller.replace(w.pieces, w.meta);
-    this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+    this.syncPhysics(w);
     return inst.id;
   }
 
@@ -2758,7 +2800,11 @@ export class PlaySession {
     const lo = inst.inst.idBase;
     const hi = lo + inst.def.bricks.length;
     const pieces = w.pieces.filter((p) => p.id! < lo || p.id! >= hi);
-    const check = inspectPieces(this.solid(pieces));
+    const check = this.layoutCheck(
+      w,
+      pieces,
+      w.pieces.filter((p) => p.id! >= lo && p.id! < hi),
+    );
     if (!check.ok) {
       this.emit('info', `Remove ${inst.def.name}: ${check.reason}`);
       return;
@@ -2767,8 +2813,7 @@ export class PlaySession {
     w.pieces = pieces;
     w.instances = w.instances.filter((i) => i !== inst);
     w.rev++;
-    w.controller.replace(w.pieces, w.meta);
-    this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+    this.syncPhysics(w);
   }
 
   // ---------- clips (P3.5): emotes on keys 1-4 ----------
@@ -2991,7 +3036,12 @@ export class PlaySession {
       ...w.pieces.filter((p) => p.id! < lo || p.id! >= hi),
       ...next.bricks.map((b) => brickToPiece(b, true)),
     ];
-    const check = floating(inst.def) ? { ok: true as const, reason: '' } : inspectPieces(this.solid(pieces));
+    const check = floating(inst.def)
+      ? { ok: true as const, reason: '' }
+      : this.layoutCheck(w, pieces, [
+          ...w.pieces.filter((p) => p.id! >= lo && p.id! < hi),
+          ...next.bricks.map((b) => brickToPiece(b)),
+        ]);
     if (!check.ok) {
       this.say(`Something is in the way: ${check.reason}`, 2);
       return;
@@ -3003,8 +3053,7 @@ export class PlaySession {
     inst.state = state;
     inst.bricks = next.bricks;
     w.rev++;
-    w.controller.replace(w.pieces, w.meta);
-    this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+    this.syncPhysics(w);
     this.emit('info', `${inst.def.name} is now ${state}`);
   }
 
@@ -3016,7 +3065,8 @@ export class PlaySession {
   stepNpcs(dt: number) {
     const w = this.world;
     if (!w.npcs.length) return;
-    const acting = this.cine.active ? w.npcs.filter((n) => !this.cine.isCast(n)) : w.npcs;
+    const awake = w.big ? w.npcs.filter((n) => this.awake(w, n)) : w.npcs;
+    const acting = this.cine.active ? awake.filter((n) => !this.cine.isCast(n)) : awake;
     // P9c: enemies in a fight move themselves; P9b: stunned neighbours stand still for a moment
     this.enemies.step(acting, dt * this.slowmo);
     const free = acting.filter((n) => !this.combat.isStunned(n) && !this.enemies.engaged(n) && !this.standsStill(n));
@@ -3110,8 +3160,92 @@ export class PlaySession {
   /** P26 (saves): after pieces changed, collision and neighbours see the new bricks */
   piecesChanged(w: MapWorld) {
     w.rev++;
-    w.controller.replace(w.pieces, w.meta);
-    this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+    this.syncPhysics(w);
+  }
+
+  /**
+   * After a map's pieces changed: v68's physics and the neighbours see the new bricks. P27 part 3: on a big map
+   * only the window around the hero (the chunk index is rebuilt first).
+   */
+  syncPhysics(w: MapWorld) {
+    if (!w.big) {
+      w.controller.replace(w.pieces, w.meta);
+      this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+      return;
+    }
+    w.byChunk = indexByChunk(w.pieces);
+    this.moveWindow(w, true);
+  }
+
+  private ids: { pieces: LegacyPiece[]; map: Map<number, LegacyPiece> } | null = null;
+  /** a piece by its id (an index rebuilt when the map's pieces change, not a search per call) */
+  pieceById(w: MapWorld, id: number): LegacyPiece | undefined {
+    if (!this.ids || this.ids.pieces !== w.pieces) {
+      const map = new Map<number, LegacyPiece>();
+      for (const p of w.pieces) if (p.id !== undefined) map.set(p.id, p);
+      this.ids = { pieces: w.pieces, map };
+    }
+    return this.ids.map.get(id);
+  }
+
+  /** P27 part 3: re-centres a big map's window when the hero reaches another chunk */
+  moveWindow(w: MapWorld, force = false) {
+    if (!w.big || !w.byChunk) return;
+    const st = w.controller.state;
+    const key = `${Math.floor(st.x / 32)}_${Math.floor(st.z / 32)}`;
+    if (!force && key === w.windowAt) return;
+    w.windowAt = key;
+    const near = piecesAround(w.byChunk, key);
+    w.controller.replace(near, w.meta);
+    w.controller.area = w.fullArea;
+    this.L.NPCWorld.sync(w.npcs, near, w.meta);
+    for (const n of w.npcs) n.controller.area = w.fullArea;
+  }
+
+  /** P27 part 3: is a neighbour inside the window (outside it, it sleeps) */
+  awake(w: MapWorld, n: Npc): boolean {
+    if (!w.big || !w.windowAt) return true;
+    const [cx, cz] = w.windowAt.split('_').map(Number) as [number, number];
+    return (
+      Math.abs(Math.floor(n.state.x / 32) - cx) < WINDOW_RADIUS &&
+      Math.abs(Math.floor(n.state.z / 32) - cz) < WINDOW_RADIUS
+    );
+  }
+
+  /**
+   * The brick rules for a changed list of pieces. P27 part 3: on a big map only the chunks around `around` (the
+   * pieces that came or went) are checked; pieces in the ring around them count as connected.
+   */
+  layoutCheck(
+    w: MapWorld,
+    next: LegacyPiece[],
+    around: readonly LegacyPiece[],
+  ): { ok: boolean; reason?: string; connected?: Set<number>; list: LegacyPiece[] } {
+    if (!w.big) {
+      const list = this.solid(next);
+      return { ...inspectPieces(list), list };
+    }
+    const keys = new Set(around.map(chunkKeyOf));
+    if (!keys.size) return { ok: true, list: [] };
+    let x0 = Number.POSITIVE_INFINITY;
+    let x1 = Number.NEGATIVE_INFINITY;
+    let z0 = Number.POSITIVE_INFINITY;
+    let z1 = Number.NEGATIVE_INFINITY;
+    for (const k of keys) {
+      const [cx, cz] = k.split('_').map(Number) as [number, number];
+      x0 = Math.min(x0, cx - 1);
+      x1 = Math.max(x1, cx + 1);
+      z0 = Math.min(z0, cz - 1);
+      z1 = Math.max(z1, cz + 1);
+    }
+    const local: LegacyPiece[] = [];
+    for (const p of next) {
+      const cx = Math.floor(p.x / 32);
+      const cz = Math.floor(p.z / 32);
+      if (cx >= x0 && cx <= x1 && cz >= z0 && cz <= z1) local.push(p);
+    }
+    const list = this.solid(local);
+    return { ...inspectPieces(list, (p) => !keys.has(chunkKeyOf(p))), list };
   }
 
   chunkOf(p: LegacyPiece): string {
@@ -3128,13 +3262,14 @@ export class PlaySession {
       if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
     }
     if (kind === 'rebuildAll' && w.broken.length) {
-      const restored = [...w.pieces, ...w.broken.flatMap((e) => e.originals.map((p) => ({ ...p })))];
-      if (inspectPieces(this.solid(restored)).ok) {
+      const back = w.broken.flatMap((e) => e.originals.map((p) => ({ ...p })));
+      const restored = [...w.pieces, ...back];
+      if (this.layoutCheck(w, restored, back).ok) {
         for (const e of w.broken) for (const p of e.originals) w.dirtyChunks.add(chunkKeyOf(p));
         w.pieces = restored;
         w.broken = [];
         w.debris = [];
-        w.controller.replace(w.pieces, w.meta);
+        this.syncPhysics(w);
       }
     }
     if (kind === 'held' && arg)

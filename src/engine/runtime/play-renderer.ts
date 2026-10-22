@@ -10,7 +10,8 @@ import { cross, normalize, type Vec3 } from '../render/math';
 import { drawCharacter } from '../render/place-character';
 import { type LineSet, type Marker, type Mesh, type Overlay, type RenderBrick, Renderer } from '../render/renderer';
 import { FRAGMENT } from '../render/shaders';
-import { chunkKeyOf } from './pieces';
+import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../render/stream';
+import { chunkKeyOf, indexByChunk } from './pieces';
 import type { MapWorld, PlaySession } from './session';
 
 export type DebugDraw = { colliders: boolean; spawns: boolean };
@@ -69,7 +70,10 @@ export class PlayRenderer {
       target[1] + distance * Math.sin(pitch),
       target[2] + distance * Math.cos(s.camYaw) * Math.cos(pitch),
     ];
-    const f = Math.max(0.76, s.L.GamePhysics.cameraDistance(target, eye, s.world.pieces));
+    const f = Math.max(
+      0.76,
+      s.L.GamePhysics.cameraDistance(target, eye, s.world.big ? s.world.controller.pieces : s.world.pieces),
+    );
     eye = eye.map((v, i) => target[i]! + (v - target[i]!) * f) as Vec3;
     const z = normalize(eye.map((v, i) => v - target[i]!));
     const right = normalize(cross([0, 1, 0], z));
@@ -101,9 +105,12 @@ export class PlayRenderer {
       for (const id of set) ids.add(id);
       groups.push({ ids: set, model: g.t.model });
     }
-    // bricks that joined or left a group move between the chunks and the overlays
-    for (const p of w.pieces)
-      if (p.id !== undefined && ids.has(p.id) !== this.tilted.ids.has(p.id)) w.dirtyChunks.add(chunkKeyOf(p));
+    // bricks that joined or left a group move between the chunks and the overlays (P27 part 3: only those)
+    for (const id of new Set([...ids, ...this.tilted.ids]))
+      if (ids.has(id) !== this.tilted.ids.has(id)) {
+        const p = this.session.pieceById(w, id);
+        if (p) w.dirtyChunks.add(chunkKeyOf(p));
+      }
     this.tilted = { ids, groups };
     this.tiltedRev = w.rev;
     this.moving = w.instances.some((i) => partsMoving(i.def, i.state, i.anim ? { ...i.anim, now } : null));
@@ -114,41 +121,56 @@ export class PlayRenderer {
     if (!this.tilted.ids.size) return [];
     const out: Overlay[] = [];
     for (const g of this.tilted.groups) {
-      const pieces = w.pieces.filter((p) => p.id !== undefined && g.ids.has(p.id));
+      const pieces = [...g.ids].flatMap((id) => {
+        const p = this.session.pieceById(w, id);
+        return p ? [p] : [];
+      });
       if (pieces.length) out.push({ bricks: pieces.map(toRender), alpha: 1, flat: false, model: g.model });
     }
     return out;
   }
 
+  /** P27 part 3: chunks stream in around the hero on big maps (small maps load at once, as before) */
+  private stream: ChunkStream | null = null;
+  /** small maps: pieces by chunk (big maps use the session's index) */
+  private smallIndex: Map<string, LegacyPiece[]> | null = null;
+
+  private chunkIndex(): Map<string, LegacyPiece[]> {
+    const w = this.session.world;
+    if (w.big && w.byChunk) return w.byChunk;
+    this.smallIndex ??= indexByChunk(w.pieces);
+    return this.smallIndex;
+  }
+
   private syncBricks() {
     const w = this.session.world;
     const r = this.renderer;
+    this.stream ??= new ChunkStream(r, (k) =>
+      (this.chunkIndex().get(k) ?? []).filter((p) => !(p.id !== undefined && this.tilted.ids.has(p.id))).map(toRender),
+    );
+    const st = this.session.heroState;
     if (this.shown === w && (this.tiltedRev !== w.rev || this.moving)) this.syncTilted();
     if (this.shown !== w) {
       this.tilted = { ids: new Set(), groups: [] };
       this.syncTilted();
       this.shown = w;
-      r.clearChunks();
+      this.smallIndex = null;
       r.setSegments(w.doc.generator ? 12 : 24);
       w.dirtyChunks.clear();
-      const byKey = new Map<string, RenderBrick[]>();
-      for (const p of w.pieces) {
-        if (p.id !== undefined && this.tilted.ids.has(p.id)) continue;
-        const k = chunkKeyOf(p);
-        const list = byKey.get(k) ?? [];
-        if (!byKey.has(k)) byKey.set(k, list);
-        list.push(toRender(p));
-      }
-      for (const [k, list] of byKey) r.setChunk(k, list);
-      return;
+      this.stream.viewDistance = w.doc.viewDistance ?? DEFAULT_VIEW_DISTANCE;
+      this.stream.reset(this.chunkIndex().keys());
+    } else if (w.dirtyChunks.size) {
+      this.smallIndex = null;
+      const idx = this.chunkIndex();
+      this.stream.changed(w.dirtyChunks, (k) => !!idx.get(k)?.length);
+      w.dirtyChunks.clear();
     }
-    if (!w.dirtyChunks.size) return;
-    for (const k of w.dirtyChunks)
-      r.setChunk(
-        k,
-        w.pieces.filter((p) => chunkKeyOf(p) === k && !(p.id !== undefined && this.tilted.ids.has(p.id))).map(toRender),
-      );
-    w.dirtyChunks.clear();
+    this.stream.update(st.x, st.z);
+  }
+
+  /** P27 part 3: chunks drawn / chunks the map has (the Play overlay shows it on big maps) */
+  get chunkCounts(): { shown: number; total: number; streaming: boolean } {
+    return { ...(this.stream?.counts ?? { shown: 0, total: 0 }), streaming: !!this.stream?.streaming };
   }
 
   render() {
@@ -280,7 +302,7 @@ export class PlayRenderer {
     if (this.debug.colliders) {
       const st = s.heroState;
       const near: number[] = [];
-      for (const p of w.pieces) {
+      for (const p of w.controller.pieces) {
         const b = s.L.GamePhysics.bounds(p);
         if (
           b.x1 < st.x - 6 ||

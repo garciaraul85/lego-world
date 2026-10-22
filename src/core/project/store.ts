@@ -1,6 +1,8 @@
 import { upgradeManifest } from '../migrate/v5to6';
 import type { Project } from '../schema';
-import { paths, validateFile } from '../schema';
+import { type Chunk, packChunk, paths, validateFile } from '../schema';
+
+const CHUNK_PATH = /^maps\/map_[0-9a-z]{10}\/chunks\/-?\d+_-?\d+\.json$/;
 
 /** Frozen, structurally shared view of every file at one moment (Play runs on one). */
 export type ProjectSnapshot = ReadonlyMap<string, unknown>;
@@ -43,6 +45,8 @@ export class ProjectStore {
   private dirtySet = new Set<string>();
   private listeners = new Set<{ prefix: string; fn: (changed: string[]) => void }>();
   private pending: Set<string> | null = null;
+  /** P27 part 3: each path's value before its first write in the open transaction */
+  private txBefore: Map<string, unknown> | null = null;
   private muted = 0;
   private hook: WriteHook | null = null;
   private readonly validate: boolean;
@@ -53,7 +57,13 @@ export class ProjectStore {
     this.freeze = opts.freeze ?? true;
     for (const [p, v0] of initial) {
       // P18: an older project.json (schema 5) is upgraded as it opens, and saved upgraded
-      const v = p === paths.project ? upgradeManifest(v0) : v0;
+      // P27 part 3: chunks of one list per brick are packed as they open (5 times smaller in memory and on disk)
+      const v =
+        p === paths.project
+          ? upgradeManifest(v0)
+          : CHUNK_PATH.test(p) && v0 && typeof v0 === 'object' && 'bricks' in v0
+            ? packChunk(v0 as Chunk)
+            : v0;
       if (v !== v0) this.dirtySet.add(p);
       if (opts.validateInitial ?? true) this.check(p, v);
       this.files.set(p, this.freeze ? deepFreeze(v) : v);
@@ -86,6 +96,7 @@ export class ProjectStore {
   put(path: string, data: unknown): void {
     this.check(path, data);
     this.hook?.(path, this.files.get(path));
+    if (this.txBefore && !this.txBefore.has(path)) this.txBefore.set(path, this.files.get(path));
     this.files.set(path, this.freeze ? deepFreeze(data) : data);
     this.touch(path);
   }
@@ -93,6 +104,7 @@ export class ProjectStore {
   remove(path: string): void {
     if (!this.files.has(path)) return;
     this.hook?.(path, this.files.get(path));
+    if (this.txBefore && !this.txBefore.has(path)) this.txBefore.set(path, this.files.get(path));
     this.files.delete(path);
     this.touch(path);
   }
@@ -129,6 +141,7 @@ export class ProjectStore {
   transaction<T>(fn: () => T, hook?: WriteHook): T {
     if (this.pending) throw new Error('nested store transaction');
     this.pending = new Set();
+    this.txBefore = new Map();
     this.hook = hook ?? null;
     let changed: string[] = [];
     try {
@@ -136,9 +149,15 @@ export class ProjectStore {
     } finally {
       changed = [...this.pending];
       this.pending = null;
+      this.txBefore = null;
       this.hook = null;
       this.notify(changed);
     }
+  }
+
+  /** Inside a transaction: the paths written so far, each with its value before (undefined: it was new). */
+  txChanges(): ReadonlyMap<string, unknown> | null {
+    return this.txBefore;
   }
 
   private touch(path: string) {

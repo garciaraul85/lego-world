@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { toLegacy } from '../../src/core/bridge/legacy-bridge';
 import { serializeFile } from '../../src/core/json/stable';
 import { migrate } from '../../src/core/migrate';
+import { type Chunk, chunkCount } from '../../src/core/schema';
 import { canonical } from './helpers/legacy-app';
 
 const NOW = '2026-10-09T00:00:00.000Z';
@@ -45,7 +46,7 @@ describe('v4 layout', () => {
     const expected =
       save.pieces.length +
       save.maps.maps.reduce((n: number, m: { build?: { pieces: unknown[] } }) => n + (m.build?.pieces.length ?? 0), 0);
-    const actual = chunks.reduce((n, p) => n + (files.get(p) as { bricks: unknown[] }).bricks.length, 0);
+    const actual = chunks.reduce((n, p) => n + chunkCount(files.get(p) as Chunk), 0);
     expect(actual).toBe(expected);
   });
 

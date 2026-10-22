@@ -740,6 +740,22 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     s.placeAt([n.state.x, n.state.y + 0.2, n.state.z - 2], 0);
     s.talk();
   },
+  // P27 part 3: the big worlds course
+  startOnThisMap(c) {
+    const m = mapDoc(c);
+    run(
+      c,
+      { type: 'project.update', payload: { entryMap: m.id, entrySpawn: m.spawns[0]?.id ?? null } },
+      'project.update',
+    );
+  },
+  walkFar(c) {
+    // what holding W does: the hero walks out of the clearing (placed on the ground 80 studs north)
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const sp = s.world.doc.spawns[0]?.pos ?? [0, 0, 0];
+    s.placeAt([sp[0] + 0.5, 60, sp[2] - 80.5], Math.PI);
+  },
   // P27 part 1: the lights course
   lightZone(c) {
     // what drawing a zone around the start and adding the action does: entering it switches the crystal on

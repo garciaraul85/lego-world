@@ -5,7 +5,7 @@ import type { Command } from '../commands/types';
 import { nameBook, withIds } from '../logic/code/names';
 import { parseCode } from '../logic/code/parse';
 import type { ProjectSnapshot, ProjectStore } from '../project/store';
-import { type Gates, type LogicGraph, paths } from '../schema';
+import { type Chunk, chunkCount, type Gates, type LogicGraph, paths } from '../schema';
 import { AI_HELPERS, aiCommand, type Scope } from './commands';
 import { knownMedia } from './context';
 
@@ -245,11 +245,11 @@ export function checkPlan(
   let confirm: string | null = null;
   const gates = store.get<Gates>(paths.gates);
   for (const mapId of gates?.mapOrder ?? []) {
-    const before = new MapBricks(store, mapId).all().length;
+    const before = new MapBricks(store, mapId).count();
     if (!before) continue;
     const prefix = paths.chunkDir(mapId);
     let after = 0;
-    for (const [p, v] of dry.preview) if (p.startsWith(prefix)) after += (v as { bricks: unknown[] }).bricks.length;
+    for (const [p, v] of dry.preview) if (p.startsWith(prefix)) after += chunkCount(v as Chunk);
     const removed = before - after;
     if (removed > before * limits.destructiveShare)
       confirm = `This removes ${removed} of ${before} loose bricks (${Math.round((removed / before) * 100)}%) on map ${mapId}.`;

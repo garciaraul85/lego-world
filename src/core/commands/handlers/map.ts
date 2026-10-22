@@ -26,8 +26,10 @@ import {
   paths,
   type Spawn,
   TIMES,
+  ViewDistance,
 } from '../../schema';
 import { type GenerateConfig, generateConfigError, generateMap } from '../../worldgen/generate';
+import { generateLand, LAND_SIZES, type LandConfig } from '../../worldgen/land';
 import type { CommandHandler } from '../types';
 import { allBricks } from './assets';
 
@@ -48,6 +50,8 @@ export type SetEnvironment = {
   fog?: Fog | null;
   ambient?: Ambient | null;
   dayLength?: number | null;
+  /** P27 part 3: how far a big map is drawn (null: 256 studs) */
+  viewDistance?: number | null;
 };
 
 const mapMissing = (store: ProjectStore, map: string) =>
@@ -64,6 +68,7 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
       ['fog', Fog],
       ['ambient', Ambient],
       ['dayLength', DayLength],
+      ['viewDistance', ViewDistance],
     ] as const) {
       const v = p[k];
       if (v === undefined || v === null) continue;
@@ -79,11 +84,12 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
   },
   apply(store, p) {
     const m = getMap(store, p.map);
-    const { mood: _old, darkness: _dark, fog: _fog, ambient: _amb, dayLength: _day, ...rest } = m;
+    const { mood: _old, darkness: _dark, fog: _fog, ambient: _amb, dayLength: _day, viewDistance: _view, ...rest } = m;
     const keep = <T>(v: T | null | undefined, old: T | undefined) => (v === undefined ? old : (v ?? undefined));
     const fog = keep(p.fog, m.fog);
     const ambient = keep(p.ambient, m.ambient);
     const dayLength = keep(p.dayLength, m.dayLength);
+    const viewDistance = keep(p.viewDistance, m.viewDistance);
     // no darkness is no field (maps made before lights stay as they were)
     const darkness = p.darkness === undefined ? m.darkness : Math.round(p.darkness * 100) / 100;
     // a mood that does nothing is no mood (the map file stays as it was before moods)
@@ -96,6 +102,7 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
       ...(fog ? { fog: Fog.parse(fog) } : {}),
       ...(ambient ? { ambient: Ambient.parse(ambient) } : {}),
       ...(dayLength !== undefined ? { dayLength } : {}),
+      ...(viewDistance !== undefined ? { viewDistance } : {}),
       sky: { time: p.time ?? m.sky.time },
       weather: {
         rain: p.rain ?? m.weather.rain,
@@ -161,7 +168,14 @@ export const generateTerrain: CommandHandler<{ map: string; config: GenerateConf
 };
 
 /** `spawnId` names the map's first spawn (the game generator passes it so a seed always gives the same files). */
-export type CreateMap = { id?: string; name: string; generate?: GenerateConfig; spawnId?: string };
+export type CreateMap = {
+  id?: string;
+  name: string;
+  generate?: GenerateConfig;
+  spawnId?: string;
+  /** P27 part 3: big land (studs per side and a seed) instead of v68's generator */
+  land?: LandConfig;
+};
 
 export const createMap: CommandHandler<CreateMap> = {
   label: (p) => `Add map ${p.name}`,
@@ -170,6 +184,12 @@ export const createMap: CommandHandler<CreateMap> = {
     if ((gates?.mapOrder.length ?? 0) >= MAX_MAPS) return `A project can have ${MAX_MAPS} maps.`;
     if (!p.name.trim()) return 'Give the map a name.';
     if (p.id && store.has(paths.map(p.id))) return 'That map already exists.';
+    if (p.land) {
+      if (p.generate) return 'Pick v68’s generator or big land, not both.';
+      if (!LAND_SIZES.includes(p.land.size)) return `Big land is ${LAND_SIZES.join(', ')} studs across.`;
+      if (!Number.isInteger(p.land.seed) || p.land.seed < 0 || p.land.seed > 99_999_999)
+        return 'Seed must be a whole number from 0 to 99,999,999.';
+    }
     return p.generate ? configError(p.generate) : null;
   },
   apply(store, p) {
@@ -192,6 +212,14 @@ export const createMap: CommandHandler<CreateMap> = {
     const gates = store.get<Gates>(paths.gates) ?? { gates: [], mapOrder: [] };
     store.put(paths.gates, { ...gates, mapOrder: [...gates.mapOrder, id] });
     if (p.generate) writeGenerated(store, id, p.generate);
+    if (p.land) {
+      // big land: every brick is a loose brick in the chunk files (built valid, so no rules check of a million)
+      for (const [key, chunk] of encodeChunks(generateLand(p.land))) {
+        const [cx, cz] = key.split('_').map(Number) as [number, number];
+        store.put(paths.chunk(id, cx, cz), chunk);
+      }
+      store.put(paths.map(id), { ...doc, size: { w: p.land.size, d: p.land.size } });
+    }
   },
 };
 

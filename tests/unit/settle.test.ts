@@ -3,6 +3,7 @@ import type { Command } from '../../src/core/commands';
 import { CommandBus, registerAll } from '../../src/core/commands';
 import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
+import { type Chunk, chunkRows } from '../../src/core/schema';
 import { settleMove } from '../../src/editor/viewport/settle';
 
 /** P32: a sideways move lands where it can stand instead of being refused for floating. */
@@ -22,8 +23,11 @@ describe('settleMove', () => {
     // a tower of 4 bricks, then one more brick on top
     for (let i = 0; i < 5; i++) expect(run(at(y + i * 3)).ok, `tower ${i}`).toBe(true);
     // the top brick's id: the last placed brick is the highest id in the map
-    const chunks = s.list(`maps/${map}/chunks/`).map((p) => s.get<{ bricks: number[][] }>(p)!);
-    const all = chunks.flatMap((c) => c.bricks);
+    const chunks = s.list(`maps/${map}/chunks/`).map((p) => s.get<Chunk>(p)!);
+    const all = chunks.flatMap((c) => {
+      const r = chunkRows(c);
+      return Array.from({ length: r.length / 9 }, (_, i) => [...r.slice(i * 9, i * 9 + 9)]);
+    });
     const topBrick = all.reduce((a, b) => (b[7]! > a[7]! ? b : a));
     const move: Command = { type: 'bricks.move', payload: { map, ids: [topBrick[7]], dx: 6, dy: 0, dz: 0 } };
     // straight across it would float

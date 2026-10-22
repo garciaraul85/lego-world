@@ -744,6 +744,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // P27 part 3: the Map tab scrolled to Big worlds
+    id: 'scene-bigworld',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'map' });
+      await p.locator('[data-tour="map-big"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     // P27: a torch placed on a dark map, picked in the Scene
     id: 'scene-light',
     screen: 'scene',

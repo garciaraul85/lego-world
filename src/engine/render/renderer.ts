@@ -28,7 +28,16 @@ export type RenderBrick = {
 };
 
 export type Mesh = { p: WebGLBuffer; n: WebGLBuffer; count: number };
-type Batch = { w: number; d: number; kind: RenderBrick['kind']; paved: boolean; buffer: WebGLBuffer; count: number };
+type Batch = {
+  w: number;
+  d: number;
+  kind: RenderBrick['kind'];
+  paved: boolean;
+  /** P27 part 3: every stud is under another brick, so it draws as a plain box */
+  covered: boolean;
+  buffer: WebGLBuffer;
+  count: number;
+};
 type ChunkGpu = { batches: Batch[]; min: Vec3; max: Vec3; bricks: number };
 
 /** Beyond this distance (studs) a chunk draws plain boxes without studs (plan: Performance › stud LOD). */
@@ -153,6 +162,8 @@ export class Renderer {
   /** 12 matches v68's world detail; free-build maps use smoother studs. */
   segments = 12;
   lodDistance = LOD_DISTANCE;
+  /** P27 part 3: how far chunks are drawn (studs; a streamed big map sets it, and the fog closes in before it) */
+  viewDistance = Number.POSITIVE_INFINITY;
   floor = true;
   skySample: SkySample | null = null;
   snow = false;
@@ -357,14 +368,27 @@ export class Renderer {
     const gl = this.gl;
     const groups = new Map<
       string,
-      { w: number; d: number; kind: RenderBrick['kind']; paved: boolean; values: number[] }
+      { w: number; d: number; kind: RenderBrick['kind']; paved: boolean; covered: boolean; values: number[] }
     >();
     const min: Vec3 = [Infinity, Infinity, Infinity];
     const max: Vec3 = [-Infinity, -Infinity, -Infinity];
+    // P27 part 3: bricks whose studs are all under other bricks of the chunk draw without studs
+    const cell = (x: number, z: number, y: number) => ((x + 4096) * 8192 + (z + 4096)) * 512 + y;
+    const bottoms = new Set<number>();
+    for (const b of bricks)
+      for (let i = 0; i < b.w; i++) for (let j = 0; j < b.d; j++) bottoms.add(cell(b.x + i, b.z + j, b.y));
+    const isCovered = (b: RenderBrick) => {
+      if (b.kind === 'tile') return false;
+      const top = b.y + (b.kind === 'brick' ? 3 : 1);
+      for (let i = 0; i < b.w; i++)
+        for (let j = 0; j < b.d; j++) if (!bottoms.has(cell(b.x + i, b.z + j, top))) return false;
+      return true;
+    };
     for (const b of bricks) {
       const paved = !!b.paved;
-      const k = `${b.w},${b.d},${b.kind},${paved}`;
-      const g = groups.get(k) ?? { w: b.w, d: b.d, kind: b.kind, paved, values: [] };
+      const covered = !paved && isCovered(b);
+      const k = `${b.w},${b.d},${b.kind},${paved},${covered}`;
+      const g = groups.get(k) ?? { w: b.w, d: b.d, kind: b.kind, paved, covered, values: [] };
       if (!groups.has(k)) groups.set(k, g);
       const c = brickCenter(b);
       g.values.push(c[0], c[1], c[2], ...brickRgb(b.color));
@@ -380,7 +404,15 @@ export class Renderer {
       const buffer = gl.createBuffer()!;
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(g.values), gl.STATIC_DRAW);
-      batches.push({ w: g.w, d: g.d, kind: g.kind, paved: g.paved, buffer, count: g.values.length / 6 });
+      batches.push({
+        w: g.w,
+        d: g.d,
+        kind: g.kind,
+        paved: g.paved,
+        covered: g.covered,
+        buffer,
+        count: g.values.length / 6,
+      });
     }
     this.chunks.set(key, { batches, min, max, bricks: bricks.length });
     this.chunkRev++;
@@ -545,6 +577,17 @@ export class Renderer {
       height: f?.height ?? 0,
       ground: f?.ground ?? 0,
     };
+    // P27 part 3: where a streamed map's chunks end, the fog is whole (no visible edge)
+    if (Number.isFinite(this.viewDistance)) {
+      const fn = this.fogNow;
+      // measured from the eye: the view distance around what the camera looks at, plus the camera's own distance
+      const edge = this.viewDistance + (cam.distance ?? 0);
+      if (fn.far > edge || fn.max < 1) {
+        fn.far = Math.min(fn.far, edge);
+        fn.near = Math.min(fn.near, edge * 0.55);
+        fn.max = 1;
+      }
+    }
     gl.uniformMatrix4fv(this.u.uModel!, false, IDENTITY);
     this.applyLights(this.prog, this.u);
     gl.uniform1f(this.u.uSnow!, this.snow ? 1 : 0);
@@ -577,15 +620,18 @@ export class Renderer {
     if (this.inst) gl.uniform1f(this.u.uInstances!, 1);
     for (const c of this.chunks.values()) {
       if (!boxVisible(planes, c.min, c.max)) continue;
-      this.stats.chunksDrawn++;
       // distance from the eye to the nearest point of the chunk box
       const dx = Math.max(c.min[0] - cam.eye[0], 0, cam.eye[0] - c.max[0]);
       const dy = Math.max(c.min[1] - cam.eye[1], 0, cam.eye[1] - c.max[1]);
       const dz = Math.max(c.min[2] - cam.eye[2], 0, cam.eye[2] - c.max[2]);
-      const far = Math.hypot(dx, dy, dz) > this.lodDistance;
+      const dist = Math.hypot(dx, dy, dz);
+      if (dist > this.viewDistance + (cam.distance ?? 0)) continue;
+      this.stats.chunksDrawn++;
+      const far = dist > this.lodDistance;
       for (const b of c.batches) {
         gl.uniform1f(this.u.uPavement!, b.paved ? 1 : 0);
-        const mesh = far && !b.paved ? this.lodShape(b.w, b.d, b.kind) : this.shape(b.w, b.d, b.kind, b.paved);
+        const mesh =
+          (far || b.covered) && !b.paved ? this.lodShape(b.w, b.d, b.kind) : this.shape(b.w, b.d, b.kind, b.paved);
         if (this.inst) this.drawInstanced(mesh, b.buffer, b.count);
       }
     }

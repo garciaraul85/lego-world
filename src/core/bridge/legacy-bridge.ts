@@ -4,7 +4,7 @@ import { LEGACY_COLORS } from '../legacy/constants';
 import type { LegacyBuild, LegacyLink, LegacyMapEntry, LegacyPiece, LegacySave } from '../legacy/types';
 import { type IdResolver, ids, rebuildConfig } from '../migrate/v4to5';
 import type { Character, Chunk, Gates, Instances, MapDoc, MapState, Project, Settings } from '../schema';
-import { paths } from '../schema';
+import { BRICK_STRIDE, chunkRows, paths } from '../schema';
 
 export type FileSource = { get(path: string): unknown; keys(): Iterable<string> };
 
@@ -45,11 +45,23 @@ export function chunksToPieces(files: FileSource, mapId: string): LegacyPiece[] 
   for (const path of files.keys()) {
     if (!path.startsWith(prefix)) continue;
     const c = files.get(path) as Chunk;
-    for (const b of c.bricks) {
-      const { kind, rows, cols } = parseType(c.palette.types[b[0]]!);
-      const color = legacyColorIndex(c.palette.colors[b[5]]);
-      const p: LegacyPiece = { id: b[7], rows, cols, turn: b[4], x: b[1], y: b[2], z: b[3], kind, color };
-      if (b[8] >= 0) p.group = c.palette.groups[b[8]]!;
+    const types = c.palette.types.map(parseType);
+    const colors = c.palette.colors.map(legacyColorIndex);
+    const r = chunkRows(c);
+    for (let o = 0; o < r.length; o += BRICK_STRIDE) {
+      const { kind, rows, cols } = types[r[o]!]!;
+      const p: LegacyPiece = {
+        id: r[o + 7]!,
+        rows,
+        cols,
+        turn: r[o + 4]!,
+        x: r[o + 1]!,
+        y: r[o + 2]!,
+        z: r[o + 3]!,
+        kind,
+        color: colors[r[o + 5]!]!,
+      };
+      if (r[o + 8]! >= 0) p.group = c.palette.groups[r[o + 8]!]!;
       pieces.push(p);
     }
   }
@@ -80,9 +92,12 @@ export function exactColors(files: FileSource, mapId: string): Map<number, strin
   for (const path of files.keys()) {
     if (!path.startsWith(prefix)) continue;
     const c = files.get(path) as Chunk;
-    for (const b of c.bricks) {
-      const hex = c.palette.colors[b[5]]!.toLowerCase();
-      if (!COLOR_INDEX.has(hex)) out.set(b[7], hex);
+    const odd = c.palette.colors.map((h) => (COLOR_INDEX.has(h.toLowerCase()) ? null : h.toLowerCase()));
+    if (!odd.some((h) => h)) continue;
+    const r = chunkRows(c);
+    for (let o = 0; o < r.length; o += BRICK_STRIDE) {
+      const hex = odd[r[o + 5]!];
+      if (hex) out.set(r[o + 7]!, hex);
     }
   }
   for (const b of instanceBricks(files, mapId))

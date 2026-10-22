@@ -131,10 +131,16 @@ export const AI_COMMANDS: AiCommand[] = [
       name: z.string().min(1).max(60),
       generate: Generate.optional(),
       spawnId: ids('spawn').optional(),
+      land: z
+        .strictObject({
+          size: z.union([z.literal(256), z.literal(512), z.literal(1024), z.literal(2048)]),
+          seed: z.number().int().min(0).max(99_999_999),
+        })
+        .optional(),
     }),
     ['map'],
     'World graph',
-    'Adds a map, optionally generating its terrain. Give an id when later steps refer to it.',
+    'Adds a map, optionally generating its terrain (generate: v68’s generator), or big land of grass and hills (land: {size 256 | 512 | 1024 | 2048 studs across, seed}; 2048 is about a million bricks). Give an id when later steps refer to it.',
     {
       id: 'map_bbbbbbbbbb',
       name: 'Forest Edge',
@@ -183,10 +189,11 @@ export const AI_COMMANDS: AiCommand[] = [
       fog: Fog.nullable().optional(),
       ambient: Ambient.nullable().optional(),
       dayLength: z.number().min(0).max(120).nullable().optional(),
+      viewDistance: z.number().int().min(64).max(2048).nullable().optional(),
     }),
     ['map'],
     'Scene',
-    'Time of day and weather of a map, and its mood ({grade: none | warm | cold | night | dream | oldFilm | mono | toxic, vignette 0–1, drift: none | rain | snow | fog | dust | embers | leaves, amount 0–1}; null: none), and its darkness without lights (0 as its sky lights it … 1 pitch black; lights are item.add {kind:"light"}), its fog ({near, far studs, thickness 0–1, color?, height? ground fog below it, groundThickness?}; null none), ambient (the shadows’ colour {color, strength 0–2}; null as the sky gives) and dayLength (minutes a day takes in play, 0 time stands still; null 20).',
+    'Time of day and weather of a map, and its mood ({grade: none | warm | cold | night | dream | oldFilm | mono | toxic, vignette 0–1, drift: none | rain | snow | fog | dust | embers | leaves, amount 0–1}; null: none), and its darkness without lights (0 as its sky lights it … 1 pitch black; lights are item.add {kind:"light"}), its fog ({near, far studs, thickness 0–1, color?, height? ground fog below it, groundThickness?}; null none), ambient (the shadows’ colour {color, strength 0–2}; null as the sky gives) and dayLength (minutes a day takes in play, 0 time stands still; null 20), and viewDistance (studs a big map is drawn to, 64–2048; null 256).',
     { map: M1, time: 'evening', rain: true },
   ),
   def(

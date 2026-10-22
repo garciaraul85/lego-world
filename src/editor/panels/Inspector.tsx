@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
+import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import { worldGenerator } from '../../core/legacy/modules';
+import { minOf } from '../../core/num';
 import { BIOMES, TIMES } from '../../core/schema';
 import type { GenerateConfig } from '../../core/worldgen/generate';
 import { type ActionCtx, action, runAction } from '../actions/registry';
@@ -12,6 +14,7 @@ import { makeAssetOfSelection } from '../interact/scene-menus';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { AtmosphereSection } from './AtmosphereSection';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
+import { BigWorldSection } from './BigWorldSection';
 import { DialogueSection } from './DialogueSection';
 import { DarknessSection } from './LightFields';
 import { MoodSection } from './MoodSection';
@@ -212,9 +215,9 @@ function InspectorTab({ c }: { c: ActionCtx }) {
       : one
         ? pretty(one.type.replace(/(\d)x/, '$1×'))
         : `${sel.length} bricks`;
-  const minX = Math.min(...sel.map((b) => b.x));
-  const minZ = Math.min(...sel.map((b) => b.z));
-  const minY = Math.min(...sel.map((b) => b.y));
+  const minX = minOf(sel, (b) => b.x);
+  const minZ = minOf(sel, (b) => b.z);
+  const minY = minOf(sel, (b) => b.y);
   const move = (dx: number, dy: number, dz: number) =>
     ed.exec({ type: 'bricks.move', payload: { map, ids: sel.map((b) => b.id), dx, dy, dz } });
   const colors = new Set(sel.map((b) => b.color));
@@ -450,7 +453,10 @@ function MapTab({ c }: { c: ActionCtx }) {
           Size<span class="mono">{m.size ? `${m.size.w} × ${m.size.d} studs` : 'free build'}</span>
         </div>
         <div class="field">
-          Pieces<span class="mono">{(ed.scene.value?.count ?? 0).toLocaleString('en-US')} / 12,000</span>
+          Pieces
+          <span class="mono">
+            {(ed.scene.value?.count ?? 0).toLocaleString('en-US')} / {MAX_BRICKS_PER_MAP.toLocaleString('en-US')}
+          </span>
         </div>
       </div>
       <div class="sec" data-tour="generate">
@@ -591,6 +597,7 @@ function MapTab({ c }: { c: ActionCtx }) {
       </div>
       <DarknessSection c={c} m={m} />
       <AtmosphereSection c={c} m={m} />
+      <BigWorldSection c={c} m={m} />
       <MoodSection c={c} m={m} />
       <div class="sec" style={{ borderBottom: 0 }}>
         <div class="sech">
@@ -672,7 +679,7 @@ function ProjectTab({ c }: { c: ActionCtx }) {
           Maps<span class="mono">{ed.maps.value.length} / 16</span>
         </div>
         <div class="field">
-          Pieces / map<span class="mono">12,000</span>
+          Pieces / map<span class="mono">{MAX_BRICKS_PER_MAP.toLocaleString('en-US')}</span>
         </div>
         <div class="field">
           Undo history<span class="mono">{ed.bus.history().length} / 200 steps</span>

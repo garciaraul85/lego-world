@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
 import { usesOf } from '../../core/audio/usage';
+import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import { LIGHT_PRESET, LIGHT_PRESETS, type LightPreset } from '../../core/lighting/light';
 import type { Cinematic, LightInstance } from '../../core/schema';
 import { type Character, type MapDoc, paths } from '../../core/schema';
@@ -343,7 +344,9 @@ function Profiler({ ed }: { ed: EditorState }) {
         <span>
           Chunks drawn {st.chunksDrawn} / {st.chunks}
         </span>
-        <span>Pieces {(ed.scene.value?.count ?? 0).toLocaleString('en-US')} / 12,000</span>
+        <span>
+          Pieces {(ed.scene.value?.count ?? 0).toLocaleString('en-US')} / {MAX_BRICKS_PER_MAP.toLocaleString('en-US')}
+        </span>
         <span>Undo steps {ed.bus.history().length}</span>
         <span>Files {[...ed.store.keys()].length}</span>
       </div>
