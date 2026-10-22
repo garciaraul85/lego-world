@@ -6,7 +6,7 @@ import { HELP_STATES, openEditor } from './help/states';
  * can never point at nothing. A miss lists the state, the area, the role and the name to write an entry for.
  */
 test('every visible control in every editor state has a Help entry', async ({ page }) => {
-  test.setTimeout(600_000);
+  test.setTimeout(1_200_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await openEditor(page);

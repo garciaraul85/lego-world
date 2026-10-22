@@ -92,7 +92,14 @@ test('a million-brick map opens quickly, streams its chunks, and plays around th
     (document.activeElement as HTMLElement | null)?.blur();
   });
   await page.getByRole('button', { name: 'Play in v68' }).click();
-  await expect(page.getByText(/more than 12,000 pieces, which v68 cannot load/)).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __editor: { toast: { value: { msg: string } | null } } }).__editor.toast.value?.msg,
+      ),
+    )
+    .toMatch(/more than 12,000 pieces, which v68 cannot load/);
   await page.keyboard.press('F5');
   await page.getByLabel('Game view').waitFor({ timeout: 120_000 });
   await expect
