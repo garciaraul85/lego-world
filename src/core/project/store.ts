@@ -24,7 +24,10 @@ export class StoreValidationError extends Error {
     readonly path: string,
     readonly issues: { at: string; message: string }[],
   ) {
-    super(`${path}: ${issues.map((i) => `${i.at || '(root)'} ${i.message}`).join('; ')}`);
+    // a long list (thousands of items) shows its first few and how many more
+    const shown = issues.slice(0, 3).map((i) => `${i.at || '(root)'} ${i.message}`);
+    const more = issues.length > 3 ? ` (and ${(issues.length - 3).toLocaleString('en-US')} more)` : '';
+    super(`${path}: ${shown.join('; ')}${more}`);
   }
 }
 

@@ -58,7 +58,19 @@ export function BigWorldSection({ c, m }: { c: ActionCtx; m: MapDoc }) {
       },
     });
     const r = ed.exec(cmds, { label: `Scatter ${pick.name}` });
-    if (r.ok) ed.notify(`${(assetCount(ed, m.id) - before).toLocaleString('en-US')} × ${pick.name} placed.`);
+    if (!r.ok) return;
+    const placed = assetCount(ed, m.id) - before;
+    // fewer than asked: no more flat, free ground there, or no more room on the map (1,000,000 bricks)
+    const full = brickCount(ed.store, m.id) + pick.bricks.length > MAX_BRICKS_PER_MAP;
+    ed.notify(
+      `${placed.toLocaleString('en-US')} × ${pick.name} placed.${
+        placed < count
+          ? full
+            ? ` The map is now full (${MAX_BRICKS_PER_MAP.toLocaleString('en-US')} bricks).`
+            : ' The rest found no flat, free ground there.'
+          : ''
+      }`,
+    );
   };
   const chunks = ed.store.list(paths.chunkDir(m.id)).length;
   const bricks = brickCount(ed.store, m.id);

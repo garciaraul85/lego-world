@@ -6,7 +6,7 @@ import { decodeChunk, encodeChunks } from '../../src/core/bricks/codec';
 import { inspectBricks } from '../../src/core/bricks/inspect';
 import { MAX_BRICKS_PER_MAP, MapBricks } from '../../src/core/bricks/map-bricks';
 import { CommandBus, registerAll } from '../../src/core/commands';
-import { allBricks, LOCAL_CHECK_FROM } from '../../src/core/commands/handlers/assets';
+import { allBricks, brickCount, LOCAL_CHECK_FROM } from '../../src/core/commands/handlers/assets';
 import { MAX_ITEMS_PER_MAP } from '../../src/core/commands/handlers/items';
 import { MAX_MAPS } from '../../src/core/commands/handlers/map';
 import { MAX_SCATTER } from '../../src/core/commands/handlers/scatter';
@@ -199,7 +199,7 @@ describe('a million bricks', () => {
 });
 
 describe('many objects (P27 part 3b)', () => {
-  const setup = (size: 256 | 512 | 1024 = 256) => {
+  const setup = (size: 256 | 512 | 1024 | 2048 = 256) => {
     const store = new ProjectStore(newProjectFiles({ name: 'Forest', random: () => 0.3 }));
     const bus = registerAll(new CommandBus(store));
     const run = (c: unknown) => bus.execute(c as Parameters<typeof bus.execute>[0], { source: 'user' });
@@ -237,6 +237,27 @@ describe('many objects (P27 part 3b)', () => {
       run({ type: 'asset.scatter', payload: { map, asset: tree.id, area: [-10, -10, 10, 10], count: 6000 } }).error,
     ).toMatch(/1 to 5,000/);
     expect(MAX_SCATTER).toBe(5000);
+  });
+  it('a full big land: scatter stops at the map’s brick budget (ids past 1,000,000 are fine) and then says the map is full', () => {
+    const { store, run, map, tree, items } = setup(2048);
+    const room = MAX_BRICKS_PER_MAP - brickCount(store, map);
+    expect(room).toBeGreaterThan(40_000);
+    const r = run({
+      type: 'asset.scatter',
+      payload: { map, asset: tree.id, area: [-1024, -1024, 1023, 1023], count: 5000, seed: 1 },
+    });
+    expect(r.ok, r.error).toBe(true);
+    expect(items().length).toBe(Math.floor(room / tree.bricks.length));
+    expect(brickCount(store, map)).toBeLessThanOrEqual(MAX_BRICKS_PER_MAP);
+    // brick ids keep growing as a map is edited: an id past 1,000,000 is fine
+    const cur = store.get<Instances>(paths.instances(map))!;
+    expect(validateFile(paths.instances(map), { ...cur, items: [{ ...items()[0]!, idBase: 1_500_000 }] })).toEqual([]);
+    expect(
+      run({
+        type: 'asset.scatter',
+        payload: { map, asset: tree.id, area: [-1024, -1024, 1023, 1023], count: 10, seed: 2 },
+      }).error,
+    ).toMatch(/map is full/);
   });
   it('10,000 placed copies: edits stay quick and expansions are reused', () => {
     const { store, run, map, tree, items } = setup(1024);

@@ -91,3 +91,50 @@ export function piecesAround(
     }
   return out;
 }
+
+/** studs around the changed pieces that are checked; pieces reaching no closer count as connected */
+export const LOCAL_MARGIN = 8;
+
+/**
+ * P27 part 3d: the part of a big map a change can affect. `around` are the pieces that came or went; the pieces of
+ * `next` (the map after the change) within LOCAL_MARGIN studs of them are checked, and those in a further ring as
+ * wide as the widest piece (8 studs) hold them up (count as connected). A small break checks a few hundred pieces,
+ * not whole chunks.
+ */
+export function localArea(
+  next: readonly LegacyPiece[],
+  around: readonly LegacyPiece[],
+): { list: LegacyPiece[]; anchored: (p: LegacyPiece) => boolean } {
+  let x0 = Number.POSITIVE_INFINITY;
+  let x1 = Number.NEGATIVE_INFINITY;
+  let z0 = Number.POSITIVE_INFINITY;
+  let z1 = Number.NEGATIVE_INFINITY;
+  for (const p of around) {
+    const [w, d] = dims(p);
+    x0 = Math.min(x0, p.x);
+    x1 = Math.max(x1, p.x + w);
+    z0 = Math.min(z0, p.z);
+    z1 = Math.max(z1, p.z + d);
+  }
+  const ix0 = x0 - LOCAL_MARGIN;
+  const ix1 = x1 + LOCAL_MARGIN;
+  const iz0 = z0 - LOCAL_MARGIN;
+  const iz1 = z1 + LOCAL_MARGIN;
+  const meets = (p: LegacyPiece, a0: number, a1: number, b0: number, b1: number) => {
+    const turned = p.turn % 2 === 1;
+    return p.x < a1 && p.x + (turned ? p.rows : p.cols) > a0 && p.z < b1 && p.z + (turned ? p.cols : p.rows) > b0;
+  };
+  const list: LegacyPiece[] = [];
+  // pieces reaching the inner area, and those up to 8 studs further that may hold them up (a quick test first:
+  // no piece is wider than 8 studs)
+  const ox0 = ix0 - 16;
+  const ox1 = ix1 + 8;
+  const oz0 = iz0 - 16;
+  const oz1 = iz1 + 8;
+  for (let i = 0; i < next.length; i++) {
+    const p = next[i]!;
+    if (p.x < ox0 || p.x >= ox1 || p.z < oz0 || p.z >= oz1) continue;
+    if (meets(p, ix0 - 8, ix1 + 8, iz0 - 8, iz1 + 8)) list.push(p);
+  }
+  return { list, anchored: (p) => !meets(p, ix0, ix1, iz0, iz1) };
+}

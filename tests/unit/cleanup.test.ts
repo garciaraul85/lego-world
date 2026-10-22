@@ -150,3 +150,49 @@ describe('after it breaks', () => {
     expect(w.defeated).toHaveLength(0);
   });
 });
+
+describe('many breaks (stress)', () => {
+  it('500 crates smashed on a big land: each break stays quick, debris stays capped, the save stays small', () => {
+    const store = new ProjectStore(newProjectFiles({ name: 'Smash', random: () => 0.3 }));
+    const bus = registerAll(new CommandBus(store));
+    const map = 'map_smashland1';
+    const made = bus.execute(
+      { type: 'map.create', payload: { id: map, name: 'Smash land', land: { size: 512, seed: 3 } } },
+      { source: 'user' },
+    );
+    expect(made.ok, made.error).toBe(true);
+    const def: Asset = { ...crate, smash: { ...crate.smash, enabled: true, after: 'gone', rebuild: false } };
+    expect(bus.execute({ type: 'asset.create', payload: { asset: def } }, { source: 'user' }).ok).toBe(true);
+    const r = bus.execute(
+      { type: 'asset.scatter', payload: { map, asset: def.id, area: [-200, -200, 200, 200], count: 5000, seed: 7 } },
+      { source: 'user' },
+    );
+    expect(r.ok, r.error).toBe(true);
+    const p = new PlaySession(store.snapshot());
+    p.travel(map, '');
+    p.placeAt([0, 0.4, 0], 0);
+    expect(p.world.big).toBe(true);
+    const crates = p.world.instances.filter((i) => i.def.id === def.id).slice(0, 500);
+    const pieces0 = p.world.pieces.length;
+    const t0 = performance.now();
+    for (const c of crates) {
+      const piece = p.pieceById(p.world, c.inst.idBase);
+      if (piece) p.breakHit(piece, undefined, true);
+    }
+    const breakMs = (performance.now() - t0) / crates.length;
+    const w = p.world;
+    expect(w.broken.length).toBe(crates.length);
+    expect(w.pieces.length).toBe(pieces0 - crates.length * def.bricks.length);
+    expect(w.debris.length).toBeLessThanOrEqual(220);
+    const save = JSON.stringify(captureMap(w as unknown as SaveWorld));
+    const t1 = performance.now();
+    steps(p, 1);
+    const stepMs = (performance.now() - t1) / 60;
+    // ${pieces0} pieces: about 20 ms a break here (it was 60 before the local check and partial re-index)
+    expect(breakMs).toBeLessThan(60);
+    expect(stepMs).toBeLessThan(16);
+    expect(save.length / crates.length).toBeLessThan(2_000);
+    // the neighbours caught up with the breaks
+    expect(w.npcsStale).toBeFalsy();
+  }, 240_000);
+});

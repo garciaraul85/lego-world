@@ -90,7 +90,7 @@ import { ActionRunner, type GameOp } from './actions';
 import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
 import { Enemies } from './enemies';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './health';
-import { chunkKeyOf, indexByChunk, inspectPieces, piecesAround, WINDOW_RADIUS } from './pieces';
+import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
 import { Runtime, type System } from './runtime';
 import { applySave, captureMap, captureSave, loadMessage, restoreMap, type SaveHost, type SaveWorld } from './saves';
@@ -154,6 +154,8 @@ export type MapWorld = {
   big: boolean;
   /** big maps: chunk key → its pieces (rebuilt when pieces change) */
   byChunk: Map<string, LegacyPiece[]> | null;
+  /** P27 part 3d: the neighbours have not seen the latest small changes yet (synced twice a second) */
+  npcsStale?: boolean;
   /** big maps: the chunk the window is centred on */
   windowAt: string | null;
   /** big maps: the whole map's walkable area (the window's own would fence the hero in) */
@@ -1894,31 +1896,25 @@ export class PlaySession {
       this.say(`The ${owner.def.name.toLowerCase()} can’t be smashed.`, 1.5);
       return 0;
     }
-    const ids = new Set(
-      w.pieces.filter((p) => p.y > 0 && (p.id === hit.id || (hit.group && p.group === hit.group))).map((p) => p.id!),
-    );
-    let check = this.layoutCheck(
-      w,
-      w.pieces.filter((p) => !ids.has(p.id!)),
-      w.pieces.filter((p) => ids.has(p.id!)),
-    );
+    const ids = new Set<number>();
+    for (const p of w.pieces) if (p.y > 0 && (p.id === hit.id || (hit.group && p.group === hit.group))) ids.add(p.id!);
+    let remaining = w.pieces.filter((p) => !ids.has(p.id!));
+    let gone = w.pieces.filter((p) => ids.has(p.id!));
+    let check = this.layoutCheck(w, remaining, gone);
     if (!check.ok && check.connected) {
       const connected = check.connected;
       check.list.forEach((p, i) => {
         if (!connected.has(i)) ids.add(p.id!);
       });
-      check = this.layoutCheck(
-        w,
-        w.pieces.filter((p) => !ids.has(p.id!)),
-        w.pieces.filter((p) => ids.has(p.id!)),
-      );
+      remaining = w.pieces.filter((p) => !ids.has(p.id!));
+      gone = w.pieces.filter((p) => ids.has(p.id!));
+      check = this.layoutCheck(w, remaining, gone);
     }
-    const remaining = w.pieces.filter((p) => !ids.has(p.id!));
     if (!check.ok) {
       this.say(check.reason ?? 'That can’t break.', 2);
       return 0;
     }
-    const originals = w.pieces.filter((p) => ids.has(p.id!)).map((p) => ({ ...p }));
+    const originals = gone.map((p) => ({ ...p }));
     if (!originals.length) return 0;
     // P27 part 3d: what becomes of it (loose map bricks: rebuildable, as in v68)
     const mode = cleanupOf(owner?.def);
@@ -1949,7 +1945,7 @@ export class PlaySession {
     w.broken.push(entry);
     this.makeDebris(entry, impact);
     this.capBroken(w);
-    this.syncPhysics(w);
+    this.syncPhysics(w, { gone });
     const hb = this.L.GamePhysics.bounds(hit);
     this.audio.play(owner?.def.smash.sound ?? SND.smash, {
       pos: [(hb.x0 + hb.x1) / 2, (hb.y0 + hb.y1) / 2, (hb.z0 + hb.z1) / 2],
@@ -2056,6 +2052,12 @@ export class PlaySession {
     if (this.cleanupClock < 0.5) return;
     this.cleanupClock = 0;
     const w = this.world;
+    if (w.npcsStale && w.byChunk && w.windowAt) {
+      w.npcsStale = false;
+      const near = piecesAround(w.byChunk, w.windowAt);
+      this.L.NPCWorld.sync(w.npcs, near, w.meta);
+      for (const n of w.npcs) n.controller.area = w.fullArea;
+    }
     for (const e of [...w.broken])
       if (e.mode === 'respawn' && (e.after ?? 0) > 0 && this.clock - (e.at ?? 0) >= e.after!) this.respawnEntry(w, e);
     for (const d of [...w.defeated]) if (d.after > 0 && this.clock - d.at >= d.after) this.respawnNpc(w, d);
@@ -2080,7 +2082,7 @@ export class PlaySession {
     w.broken = w.broken.filter((x) => x !== entry);
     w.debris = w.debris.filter((d) => d.entryId !== entry.id);
     w.rev++;
-    this.syncPhysics(w);
+    this.syncPhysics(w, { added: back });
     const owner = this.instanceOfPiece(entry.originals[0]?.id);
     if (owner) this.health.forget(`i:${owner.inst.id}`);
     this.emit('info', `${owner?.def.name ?? `${entry.originals.length} bricks`} came back`);
@@ -3432,10 +3434,18 @@ export class PlaySession {
    * The bricks the brick rules look at: all but floating items (a sword risen out of a chest is drawn
    * only). Without this, one floating item would make every later change fail the rules.
    */
+  private floatRanges: { of: unknown; ranges: (readonly [number, number])[] } | null = null;
   private solid(pieces: LegacyPiece[]): LegacyPiece[] {
-    const ranges = this.world.instances
-      .filter((i) => floating(i.def))
-      .map((i) => [i.inst.idBase, i.inst.idBase + i.def.bricks.length] as const);
+    // the id ranges of floating assets, worked out once per list of instances (thousands on a big map)
+    const inst = this.world.instances;
+    if (this.floatRanges?.of !== inst)
+      this.floatRanges = {
+        of: inst,
+        ranges: inst
+          .filter((i) => floating(i.def))
+          .map((i) => [i.inst.idBase, i.inst.idBase + i.def.bricks.length] as const),
+      };
+    const ranges = this.floatRanges.ranges;
     if (!ranges.length) return pieces;
     return pieces.filter((p) => !ranges.some(([lo, hi]) => p.id! >= lo && p.id! < hi));
   }
@@ -3450,10 +3460,29 @@ export class PlaySession {
    * After a map's pieces changed: v68's physics and the neighbours see the new bricks. P27 part 3: on a big map
    * only the window around the hero (the chunk index is rebuilt first).
    */
-  syncPhysics(w: MapWorld) {
+  syncPhysics(w: MapWorld, change?: { gone?: readonly LegacyPiece[]; added?: readonly LegacyPiece[] }) {
     if (!w.big) {
       w.controller.replace(w.pieces, w.meta);
       this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+      return;
+    }
+    // P27 part 3d: a small change updates only its chunks of the index, and the neighbours catch up twice a second
+    if (change && w.byChunk) {
+      if (change.gone?.length) {
+        const ids = new Set(change.gone.map((p) => p.id));
+        for (const k of new Set(change.gone.map(chunkKeyOf))) {
+          const list = w.byChunk.get(k);
+          if (list) w.byChunk.set(k, list.filter((p) => !ids.has(p.id)));
+        }
+      }
+      for (const p of change.added ?? []) {
+        const k = chunkKeyOf(p);
+        const list = w.byChunk.get(k);
+        if (list) list.push(p);
+        else w.byChunk.set(k, [p]);
+      }
+      w.npcsStale = true;
+      this.moveWindow(w, true, true);
       return;
     }
     w.byChunk = indexByChunk(w.pieces);
@@ -3472,7 +3501,7 @@ export class PlaySession {
   }
 
   /** P27 part 3: re-centres a big map's window when the hero reaches another chunk */
-  moveWindow(w: MapWorld, force = false) {
+  moveWindow(w: MapWorld, force = false, heroOnly = false) {
     if (!w.big || !w.byChunk) return;
     const st = w.controller.state;
     const key = `${Math.floor(st.x / 32)}_${Math.floor(st.z / 32)}`;
@@ -3481,6 +3510,8 @@ export class PlaySession {
     const near = piecesAround(w.byChunk, key);
     w.controller.replace(near, w.meta);
     w.controller.area = w.fullArea;
+    if (heroOnly) return;
+    w.npcsStale = false;
     this.L.NPCWorld.sync(w.npcs, near, w.meta);
     for (const n of w.npcs) n.controller.area = w.fullArea;
   }
@@ -3508,27 +3539,11 @@ export class PlaySession {
       const list = this.solid(next);
       return { ...inspectPieces(list), list };
     }
-    const keys = new Set(around.map(chunkKeyOf));
-    if (!keys.size) return { ok: true, list: [] };
-    let x0 = Number.POSITIVE_INFINITY;
-    let x1 = Number.NEGATIVE_INFINITY;
-    let z0 = Number.POSITIVE_INFINITY;
-    let z1 = Number.NEGATIVE_INFINITY;
-    for (const k of keys) {
-      const [cx, cz] = k.split('_').map(Number) as [number, number];
-      x0 = Math.min(x0, cx - 1);
-      x1 = Math.max(x1, cx + 1);
-      z0 = Math.min(z0, cz - 1);
-      z1 = Math.max(z1, cz + 1);
-    }
-    const local: LegacyPiece[] = [];
-    for (const p of next) {
-      const cx = Math.floor(p.x / 32);
-      const cz = Math.floor(p.z / 32);
-      if (cx >= x0 && cx <= x1 && cz >= z0 && cz <= z1) local.push(p);
-    }
-    const list = this.solid(local);
-    return { ...inspectPieces(list, (p) => !keys.has(chunkKeyOf(p))), list };
+    if (!around.length) return { ok: true, list: [] };
+    // P27 part 3d: only the pieces near the change (a crate's break checks a few hundred pieces, not 3 × 3 chunks)
+    const area = localArea(next, around);
+    const list = this.solid(area.list);
+    return { ...inspectPieces(list, area.anchored), list };
   }
 
   chunkOf(p: LegacyPiece): string {

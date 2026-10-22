@@ -2,11 +2,12 @@ import { expandAsset } from '../../assets/expand';
 import { expandInstances, maxBrickId } from '../../assets/instances';
 import { type Brick, chunkKey } from '../../bricks/codec';
 import { footprint } from '../../bricks/inspect';
-import { brickHeight, MapBricks } from '../../bricks/map-bricks';
+import { brickHeight, MAX_BRICKS_PER_MAP, MapBricks } from '../../bricks/map-bricks';
 import { type Id, newId } from '../../ids';
 import type { ProjectStore } from '../../project/store';
 import { type Asset, type AssetInstance, BUILD_HALF, type Instances, paths } from '../../schema';
 import type { CommandHandler } from '../types';
+import { brickCount } from './assets';
 import { MAX_ITEMS_PER_MAP } from './items';
 
 /** P27 part 3b: most copies one scatter places */
@@ -70,8 +71,10 @@ export function scatterPlan(store: ProjectStore, p: Scatter, def: Asset): AssetI
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
   let next = maxBrickId(store, p.map) + 1;
+  // no more copies than the map has room for (a map holds MAX_BRICKS_PER_MAP bricks, placed assets included)
+  const count = Math.min(p.count, scatterRoom(store, p.map, def));
   const out: AssetInstance[] = [];
-  for (let tries = 0; tries < p.count * 20 && out.length < p.count; tries++) {
+  for (let tries = 0; tries < count * 20 && out.length < count; tries++) {
     const rot = p.turn === false ? 0 : Math.floor(random() * 4);
     const [w, d] = rot % 2 ? [def.footprint[1], def.footprint[0]] : def.footprint;
     const x = Math.floor(x0 + random() * Math.max(1, x1 - x0 + 1 - w));
@@ -97,6 +100,10 @@ export function scatterPlan(store: ProjectStore, p: Scatter, def: Asset): AssetI
   }
   return out;
 }
+
+/** how many more copies of an asset fit on a map's brick budget */
+export const scatterRoom = (store: ProjectStore, map: string, def: Asset): number =>
+  Math.max(0, Math.floor((MAX_BRICKS_PER_MAP - brickCount(store, map)) / Math.max(1, def.bricks.length)));
 
 /** an asset stands on the ground: some of its bricks are at its bottom, inside its footprint */
 function stands(def: Asset): boolean {
@@ -126,6 +133,8 @@ export const scatterAsset: CommandHandler<Scatter> = {
     const items = store.get<Instances>(paths.instances(p.map))?.items ?? [];
     if (items.filter((i) => i.kind === 'asset').length + p.count > MAX_ITEMS_PER_MAP)
       return `A map holds at most ${MAX_ITEMS_PER_MAP.toLocaleString('en-US')} placed assets.`;
+    if (scatterRoom(store, p.map, def) < 1)
+      return `The map is full: it holds ${MAX_BRICKS_PER_MAP.toLocaleString('en-US')} bricks, and ${def.name} would go over.`;
     return null;
   },
   apply(store, p) {

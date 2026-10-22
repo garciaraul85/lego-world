@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LightDef } from '../lighting/light';
+import { MAX_BRICK_ID } from './chunk';
 import { id, Vec3 } from './common';
 
 export const NpcInstance = z.strictObject({
@@ -21,7 +22,7 @@ export const AssetInstance = z.strictObject({
   rot: z.number().int().min(0).max(3),
   state: z.string().optional(),
   /** brick i of the asset gets map brick id idBase + i (ids stay stable for smash state and v68) */
-  idBase: z.number().int().min(1).max(1_000_000),
+  idBase: z.number().int().min(1).max(MAX_BRICK_ID),
   /** free rotation in degrees about X, Y, Z on top of rot (P31); a tilted asset is a free object, see core/assets/tilt */
   tilt: z
     .tuple([z.number().min(-180).max(180), z.number().min(-180).max(180), z.number().min(-180).max(180)])
