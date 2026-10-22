@@ -157,12 +157,15 @@ export const LIGHTS: HelpEntry[] = [
       'performance',
       'scatter',
       'forest',
+      'loading screen',
+      'many maps',
+      '1000 maps',
     ],
     screen: 'scene',
     kind: 'area',
     name: 'Big worlds',
     purpose:
-      'How big this map is: its **Bricks** (a map holds up to 1,000,000) and its **Chunks** (32 × 32 studs each). A map of more than 64 chunks is a big map: the Scene view and the game load the chunks around where you look or play, the nearest first, and the fog closes in where they end. **How far you see** sets that distance (studs; further shows more but costs more to draw). In the game a big map plays the area around the hero: bricks there are solid and neighbours there walk about, further away they sleep. **Scatter** sets down many copies of one build at once around where the view looks (a forest of trees, a field of flowers), each on flat studded ground and clear of everything else; copies that do not fit are left out, and one undo takes them all away (up to 5,000 at a time; a map holds 10,000 placed assets). **New big land** makes a map of grass and hills of bricks (2048 studs across is about 950,000 bricks) to build on or try. Maps over 12,000 pieces play with ▶ Play, not Play in v68.',
+      'How big this map is: its **Bricks** (a map holds up to 1,000,000) and its **Chunks** (32 × 32 studs each). A map of more than 64 chunks is a big map: the Scene view and the game load the chunks around where you look or play, the nearest first, and the fog closes in where they end. **How far you see** sets that distance (studs; further shows more but costs more to draw). In the game a big map plays the area around the hero: bricks there are solid and neighbours there walk about, further away they sleep. **Scatter** sets down many copies of one build at once around where the view looks (a forest of trees, a field of flowers), each on flat studded ground and clear of everything else; copies that do not fit are left out, and one undo takes them all away (up to 5,000 at a time; a map holds 10,000 placed assets). **New big land** makes a map of grass and hills of bricks (2048 studs across is about 950,000 bricks) to build on or try. Maps over 12,000 pieces play with ▶ Play, not Play in v68. A project holds up to 1,000 maps (the Map list at the top finds one as you type). In the game only a few maps stay loaded: a map that is not loaded yet loads in steps behind a **loading screen** (its name, its picture, a tip, how far along it is), the maps the current one’s gates lead to load ahead, and a map you left comes back as you left it.',
     steps: [
       'Scene › Map tab › Big worlds: pick a size under New big land and press **Make**.',
       'Drag **How far you see**; the counter at the top of the view shows the chunks loaded.',

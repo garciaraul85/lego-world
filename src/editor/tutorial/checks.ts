@@ -12,6 +12,7 @@ import {
   type Character,
   type Cinematic,
   type Clip,
+  type Gates,
   type Instances,
   type LightInstance,
   type LogicGraph,
@@ -390,6 +391,10 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     Number(a),
   entryIsCurrentMap: (ed) => ed.store.manifest.entry.map === ed.mapId.value,
   bigInPlay: (ed) => !!ed.session.value?.world.big,
+  playOnFirstMap: (ed) =>
+    !!ed.session.value &&
+    !ed.session.value.loading &&
+    ed.session.value.world.mapId === ed.store.get<Gates>(paths.gates)?.mapOrder[0],
   heroFarFromStart: (ed, a) => {
     const s = ed.session.value;
     if (!s) return false;

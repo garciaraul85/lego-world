@@ -33,7 +33,8 @@ import { generateLand, LAND_SIZES, type LandConfig } from '../../worldgen/land';
 import type { CommandHandler } from '../types';
 import { allBricks } from './assets';
 
-export const MAX_MAPS = 16;
+/** P27 part 3c: was 16 */
+export const MAX_MAPS = 1000;
 export const MAX_SPAWNS = 32;
 
 export type SetEnvironment = {

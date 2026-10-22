@@ -34,6 +34,9 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 const pos = (p: readonly number[]) => `[${p.map(r1).join(', ')}]`;
 
 /** Built-in files the AI can read like project files (they are not stored in the project until edited). */
+/** P27 part 3c: maps described in full in the AI's view of the project (the others by name) */
+export const MAPS_IN_FULL = 12;
+
 export function builtinFile(path: string): unknown | undefined {
   const m = /^builtin\/(assets|characters|clips|screens)\/([a-z]+_[0-9a-z]{10})\.json$/.exec(path);
   if (m) {
@@ -113,10 +116,14 @@ export function projectSummary(store: ProjectStore, opts: { budget?: number; cur
     .map((p) => store.get<Asset>(p)!)
     .filter(Boolean);
   for (const a of projectAssets) assetName.set(a.id, a.name);
+  // P27 part 3c: a project of many maps lists the start map and the first ones in full, the rest by name
+  const full = new Set([man.entry.map, ...gates.mapOrder.slice(0, MAPS_IN_FULL)]);
+  const short = gates.mapOrder.filter((id) => !full.has(id));
   for (const mapId of gates.mapOrder) {
+    if (!full.has(mapId)) continue;
     const m = store.get<MapDoc>(paths.map(mapId));
     if (!m) continue;
-    const bricks = new MapBricks(store, mapId).all().length;
+    const bricks = new MapBricks(store, mapId).count();
     const inst = store.get<Instances>(paths.instances(mapId))?.items ?? [];
     L.push(
       `### ${m.name} (${m.id})${m.id === man.entry.map ? ' — start map' : ''}`,
@@ -172,6 +179,11 @@ export function projectSummary(store: ProjectStore, opts: { budget?: number; cur
         ),
       );
   }
+  if (short.length)
+    L.push(
+      `### ${short.length} more maps (read_file maps/<id>/map.json for one):`,
+      ...list(short, 60, (id) => `  ${id} "${store.get<MapDoc>(paths.map(id))?.name ?? '?'}"`, 'list_files maps/'),
+    );
   if (gates.gates.length)
     L.push(
       '',

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
+import { MAX_MAPS } from '../../core/commands/handlers/map';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import { worldGenerator } from '../../core/legacy/modules';
 import { minOf } from '../../core/num';
@@ -10,6 +11,7 @@ import { groupLabel } from '../categories';
 import { ActionListField } from '../components/ActionListField';
 import { ColorPicker } from '../components/ColorPicker';
 import { Header, Num, TextField } from '../components/fields';
+import { SearchSelect } from '../components/SearchBox';
 import { makeAssetOfSelection } from '../interact/scene-menus';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { AtmosphereSection } from './AtmosphereSection';
@@ -631,17 +633,19 @@ function ProjectTab({ c }: { c: ActionCtx }) {
         </div>
         <div class="field">
           Start map
-          <select
-            class="inp"
-            value={p.entry.map}
-            onChange={(e) =>
-              ed.exec({ type: 'project.update', payload: { entryMap: (e.target as HTMLSelectElement).value } })
-            }
-          >
-            {ed.maps.value.map((m) => (
-              <option value={m.id}>{m.name}</option>
-            ))}
-          </select>
+          <SearchSelect label="maps">
+            <select
+              class="inp"
+              value={p.entry.map}
+              onChange={(e) =>
+                ed.exec({ type: 'project.update', payload: { entryMap: (e.target as HTMLSelectElement).value } })
+              }
+            >
+              {ed.maps.value.map((m) => (
+                <option value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </SearchSelect>
         </div>
         <div class="field">
           Start spawn
@@ -676,7 +680,10 @@ function ProjectTab({ c }: { c: ActionCtx }) {
           <span>Limits</span>
         </div>
         <div class="field">
-          Maps<span class="mono">{ed.maps.value.length} / 16</span>
+          Maps
+          <span class="mono">
+            {ed.maps.value.length} / {MAX_MAPS.toLocaleString('en-US')}
+          </span>
         </div>
         <div class="field">
           Pieces / map<span class="mono">{MAX_BRICKS_PER_MAP.toLocaleString('en-US')}</span>

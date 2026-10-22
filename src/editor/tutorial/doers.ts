@@ -749,6 +749,13 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       'project.update',
     );
   },
+  tripToFirstMap(c) {
+    // what walking through a gate does: the hero goes to the map (behind a loading screen if it is not loaded)
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const first = c.ed.store.get<Gates>(paths.gates)?.mapOrder[0];
+    if (first) s.goTo(first, '');
+  },
   walkFar(c) {
     // what holding W does: the hero walks out of the clearing (placed on the ground 80 studs north)
     const s = c.ed.session.value;

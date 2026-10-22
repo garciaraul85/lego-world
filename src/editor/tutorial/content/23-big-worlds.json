@@ -305,9 +305,42 @@
       "placement": "bottom"
     },
     {
+      "id": "big.trip",
+      "title": "Off to another map",
+      "body": "A gate (or logic’s Go to map) takes the hero to another map. A map that is not loaded yet loads in small steps behind a loading screen: its name, its picture, a tip and how far along it is, so the game never freezes. The maps the current one’s gates lead to load ahead a little each frame, so going there is usually instant. A project holds up to 1,000 maps; only a few stay loaded, and a map you left comes back as you left it.",
+      "task": "Go back to the first map (the helper does what walking through a gate does).",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playOnFirstMap"
+      },
+      "doItForMe": [
+        {
+          "fn": "tripToFirstMap"
+        }
+      ],
+      "how": [
+        {
+          "text": "Walk through a gate to the first map; the helper takes the hero there through the loading screen.",
+          "check": {
+            "kind": "state",
+            "test": "playOnFirstMap"
+          },
+          "do": [
+            {
+              "fn": "tripToFirstMap",
+              "say": "Off to the first map"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "bottom"
+    },
+    {
       "id": "big.done",
       "title": "Done!",
-      "body": "You made a big land, chose how far you see, scattered a forest and played it while the world followed the hero. A map holds up to 1,000,000 bricks; 2048 × 2048 studs of land is about 950,000. Press Esc or Stop to leave Play.",
+      "body": "You made a big land, chose how far you see, scattered a forest played it while the world followed the hero, and went to another map through a loading screen. A map holds up to 1,000,000 bricks; 2048 × 2048 studs of land is about 950,000. Press Esc or Stop to leave Play.",
       "task": "Press Finish.",
       "target": "[data-tour=\"menu-help\"]",
       "check": {

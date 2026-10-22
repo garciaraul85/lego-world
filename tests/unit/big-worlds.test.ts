@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_ASSETS } from '../../src/builtin/assets';
+import { MAPS_IN_FULL, projectSummary } from '../../src/core/ai/context';
 import { expandInstances } from '../../src/core/assets/instances';
 import { decodeChunk, encodeChunks } from '../../src/core/bricks/codec';
 import { inspectBricks } from '../../src/core/bricks/inspect';
@@ -7,6 +8,7 @@ import { MAX_BRICKS_PER_MAP, MapBricks } from '../../src/core/bricks/map-bricks'
 import { CommandBus, registerAll } from '../../src/core/commands';
 import { allBricks, LOCAL_CHECK_FROM } from '../../src/core/commands/handlers/assets';
 import { MAX_ITEMS_PER_MAP } from '../../src/core/commands/handlers/items';
+import { MAX_MAPS } from '../../src/core/commands/handlers/map';
 import { MAX_SCATTER } from '../../src/core/commands/handlers/scatter';
 import { maxOf, minOf } from '../../src/core/num';
 import { newProjectFiles } from '../../src/core/project/new-project';
@@ -26,7 +28,8 @@ import {
 import { generateLand, hillAt, LAND_ROOM } from '../../src/core/worldgen/land';
 import { ChunkStream } from '../../src/engine/render/stream';
 import { piecesAround, WINDOW_RADIUS } from '../../src/engine/runtime/pieces';
-import { PlaySession, WINDOW_FROM } from '../../src/engine/runtime/session';
+import { captureSave, type SaveHost } from '../../src/engine/runtime/saves';
+import { MAX_LOADED, PlaySession, WINDOW_FROM } from '../../src/engine/runtime/session';
 
 /** P27 part 3: big maps — packed chunks, a million bricks, local checks, the play window and streaming. */
 const brick = (id: number, x: number, y: number, z: number, type = 'brick2x2', color = '#4b9f4a') => ({
@@ -255,5 +258,98 @@ describe('many objects (P27 part 3b)', () => {
     expect(validateFile(paths.instances(map), bad).length).toBeGreaterThan(0);
     expect(validateFile(paths.instances(map), cur)).toEqual([]);
     expect(MAX_ITEMS_PER_MAP).toBe(10_000);
+  });
+});
+
+describe('many maps and loading (P27 part 3c)', () => {
+  const project = (maps: number) => {
+    const store = new ProjectStore(newProjectFiles({ name: 'Many', random: () => 0.3 }));
+    const bus = registerAll(new CommandBus(store));
+    const ids: string[] = [store.manifest.entry.map];
+    const cmds = [];
+    for (let i = 1; i < maps; i++) {
+      const id = `map_m${String(i).padStart(9, '0')}`;
+      ids.push(id);
+      cmds.push({ type: 'map.create', payload: { id, name: `Map ${i}` } });
+    }
+    const r = bus.execute(cmds as Parameters<typeof bus.execute>[0], { source: 'user' });
+    expect(r.ok, r.error).toBe(true);
+    return { store, bus, ids };
+  };
+  it('a project holds 1,000 maps (no more), and the AI sees the first ones in full and the rest by name', () => {
+    const { store, bus, ids } = project(MAX_MAPS);
+    expect(ids).toHaveLength(1000);
+    expect(store.get<{ mapOrder: string[] }>(paths.gates)!.mapOrder).toHaveLength(1000);
+    expect(bus.execute({ type: 'map.create', payload: { name: 'One too many' } }, { source: 'user' }).error).toMatch(
+      /1000 maps/,
+    );
+    const ctx = projectSummary(store, { budget: 1_000_000 });
+    expect(ctx).toContain(`${1000 - MAPS_IN_FULL} more maps`);
+    expect(ctx.length).toBeLessThan(60_000);
+  });
+  it('only a few maps stay loaded while playing; a map left behind comes back as the player left it, and saves keep it', () => {
+    const { store, bus, ids } = project(7);
+    // something breakable on the first map: two bricks stacked on the start map's ground
+    const start = ids[0]!;
+    const placed = bus.execute(
+      {
+        type: 'bricks.place',
+        payload: {
+          map: start,
+          bricks: [
+            { type: 'brick2x2', x: 6, y: 0, z: 6, rot: 0, color: '#d20c20' },
+            { type: 'brick2x2', x: 6, y: 3, z: 6, rot: 0, color: '#d20c20' },
+          ],
+        },
+      },
+      { source: 'user' },
+    );
+    expect(placed.ok, placed.error).toBe(true);
+    const p = new PlaySession(store.snapshot());
+    const first = p.world.mapId;
+    const hit = p.world.pieces.find((x) => x.y > 0)!;
+    expect(p.breakHit(hit, undefined, true)).toBeGreaterThan(0);
+    const broken = p.world.broken.length;
+    expect(broken).toBeGreaterThan(0);
+    for (const id of ids.slice(1)) p.travel(id, '');
+    expect(p.worlds.size).toBeLessThanOrEqual(MAX_LOADED);
+    expect(p.worlds.has(first)).toBe(false);
+    expect(p.parked.has(first)).toBe(true);
+    // a save holds the parked map too
+    const save = captureSave(p as unknown as SaveHost, 1);
+    expect(save.maps[first]?.broken.length).toBe(broken);
+    p.travel(first, '');
+    expect(p.world.broken.length).toBe(broken);
+    expect(p.parked.has(first)).toBe(false);
+  });
+  it('a map loads in steps behind a loading screen (Play), at once elsewhere', () => {
+    const store = new ProjectStore(newProjectFiles({ name: 'Trip', random: () => 0.3 }));
+    const bus = registerAll(new CommandBus(store));
+    bus.execute(
+      { type: 'map.create', payload: { id: 'map_bigbigbig1', name: 'Big land', land: { size: 512, seed: 2 } } },
+      { source: 'user' },
+    );
+    const p = new PlaySession(store.snapshot());
+    const steps = [...p.loadSteps('map_bigbigbig1')];
+    expect(steps.length).toBeGreaterThan(5);
+    expect(steps.every((v, i) => i === 0 || v >= steps[i - 1]!)).toBe(true);
+    const q = new PlaySession(store.snapshot());
+    q.asyncLoads = true;
+    q.goTo('map_bigbigbig1', '');
+    expect(q.loading?.name).toBe('Big land');
+    expect(q.screenPaused).toBe(true);
+    let frames = 0;
+    while (q.loading && frames < 500) {
+      q.stepLoading(1);
+      frames++;
+    }
+    expect(frames).toBeGreaterThan(1);
+    expect(q.loading).toBeNull();
+    expect(q.world.mapId).toBe('map_bigbigbig1');
+    // without stepped loading (tests, the AI's checks) a trip is at once
+    const r = new PlaySession(store.snapshot());
+    r.goTo('map_bigbigbig1', '');
+    expect(r.loading).toBeNull();
+    expect(r.world.mapId).toBe('map_bigbigbig1');
   });
 });

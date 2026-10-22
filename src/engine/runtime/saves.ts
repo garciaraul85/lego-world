@@ -29,6 +29,8 @@ export interface SaveHost {
   readonly snapshot: { get(path: string): unknown };
   readonly project: { id: string; entry: { map: string; spawn: string | null } };
   readonly worlds: Map<string, SaveWorld>;
+  /** P27 part 3c: maps left in this play and no longer loaded (what changed on them) */
+  readonly parked?: Map<string, MapSave>;
   world: SaveWorld;
   loadWorld(mapId: string): SaveWorld;
   readonly heroState: { x: number; y: number; z: number; heading: number };
@@ -91,6 +93,7 @@ export function captureMap(w: SaveWorld): MapSave {
 /** The whole game as it stands now, ready to keep in a slot. */
 export function captureSave(h: SaveHost, slot: number): SaveGame {
   const maps: Record<string, MapSave> = {};
+  for (const [id, m] of h.parked ?? []) maps[id] = m;
   for (const [id, w] of h.worlds) maps[id] = captureMap(w);
   const s = h.heroState;
   const health: Record<string, number> = {};
@@ -202,14 +205,17 @@ export type LoadResult = { map: string; skipped: number };
 export function applySave(h: SaveHost, save: SaveGame): LoadResult {
   let skipped = 0;
   h.worlds.clear();
+  h.parked?.clear();
+  const map = h.snapshot.get(paths.map(save.map)) ? save.map : h.project.entry.map;
   for (const [id, m] of Object.entries(save.maps)) {
     if (!h.snapshot.get(paths.map(id))) {
       skipped++;
       continue;
     }
-    skipped += restoreMap(h, h.loadWorld(id), m);
+    // P27 part 3c: only the map the save is on loads now; the others come back when the player goes there
+    if (id !== map && h.parked) h.parked.set(id, m);
+    else skipped += restoreMap(h, h.loadWorld(id), m);
   }
-  const map = h.snapshot.get(paths.map(save.map)) ? save.map : h.project.entry.map;
   h.world = h.loadWorld(map);
   h.inventory.clear();
   for (const [k, v] of Object.entries(save.inventory)) h.inventory.set(k, v);

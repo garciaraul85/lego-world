@@ -87,6 +87,7 @@ A map holds up to **1,000,000 bricks** across a build area of ±2048 studs. The 
 - **New big land** makes a map of rolling grass and hills of bricks with a flat clearing at the start: 256, 512, 1024 or 2048 studs across (2048 is about 950,000 bricks, leaving room for 50,000 more). One undo step removes it.
 - In the game a big map plays the area around the hero (7 × 7 chunks): its bricks are solid and its neighbours walk about; further away they sleep until the hero comes near. Edits on a big map check the brick rules only around what changed, so placing a brick stays quick.
 - Maps of more than 12,000 pieces play with ▶ Play; Play in v68 can't load them.
+- A project holds up to **1,000 maps**; the Map list at the top and the Project tab's Start map find one as you type. In the game only a few maps stay loaded at once. A map that isn't loaded yet loads in small steps behind a **loading screen** (its name, its picture, a tip and real progress), so the game never freezes; the maps the current one's gates lead to load ahead a little each frame, so going there is usually instant; and a map you left comes back exactly as you left it (saves keep it too).
 - The Dock shows a big asset library 120 cards at a time (**Show more** adds the next ones; searching narrows it), and asset pictures are drawn as they scroll into view.
 
 [Big worlds course](action:help.bigworlds)

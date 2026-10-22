@@ -9,6 +9,7 @@ import { DialogueLayer } from '../../engine/ui/DialogueLayer';
 import { ScreenFxOverlay } from '../../engine/ui/ScreenFxOverlay';
 import { type ScreenHost, ScreenLayer } from '../../engine/ui/ScreenRenderer';
 import { projectPoint, WorldUI } from '../../engine/ui/WorldUI';
+import { MapThumb } from '../components/previews';
 import type { EditorState } from '../state';
 
 /**
@@ -112,6 +113,7 @@ export function GameScreens({
           portrait={(who, mood) => s.portraitOf(who, mood, s.talks.mouth()) ?? s.portraitOf(who, mood)}
         />
       )}
+      {s.loading && <LoadingScreen ed={ed} s={s} />}
     </>
   );
 }
@@ -180,3 +182,37 @@ function minimapDrawer(s: PlaySession) {
     g.stroke();
   };
 }
+
+/** P27 part 3c: tips shown while a map loads (P21 lets makers write their own) */
+export const LOADING_TIPS = [
+  'Hold E near broken bricks to build them back.',
+  'Q guards; tap it just before a hit lands to parry.',
+  'C rolls out of the way; Z locks on to the nearest foe.',
+  'Shift runs. Space jumps.',
+  'Talk to people with T: they may have something for you.',
+  'The minimap shows the area around you.',
+];
+
+/** P27 part 3c: the built-in loading screen: where you are going, a tip, its picture and real progress */
+function LoadingScreen({ ed, s }: { ed: EditorState; s: PlaySession }) {
+  const l = s.loading!;
+  const tip = LOADING_TIPS[Math.abs(hashString(l.mapId)) % LOADING_TIPS.length]!;
+  const pct = Math.round(l.progress * 100);
+  return (
+    <div class="bw-loading" role="status" aria-label="Loading" data-tour="loading-screen">
+      <MapThumb store={ed.store} mapId={l.mapId} size={160} />
+      <strong class="bw-loading-name">{l.name}</strong>
+      <div class="bw-loading-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+        <span style={{ width: `${pct}%` }} />
+      </div>
+      <span class="small">Loading… {pct}%</span>
+      <span class="muted small">{tip}</span>
+    </div>
+  );
+}
+
+const hashString = (t: string) => {
+  let h = 0;
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0;
+  return h;
+};

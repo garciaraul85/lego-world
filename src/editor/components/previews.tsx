@@ -1,12 +1,13 @@
 import { signal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { expandInstances } from '../../core/assets/instances';
 import { footprint } from '../../core/bricks/inspect';
-import { allBricks } from '../../core/commands/handlers/assets';
 import type { Conversation } from '../../core/dialogue/schema';
 import type { Effect } from '../../core/effects/schema';
 import type { ScreenEffect } from '../../core/effects/screen';
 import type { ProjectStore } from '../../core/project/store';
 import type { Screen } from '../../core/schema';
+import { BRICK_STRIDE, type Chunk, chunkRows, paths } from '../../core/schema';
 import { ParticleSystem } from '../../engine/effects/particles';
 import { ScreenFx, screenEffectLength } from '../../engine/effects/screen';
 import { screenScale } from '../../engine/ui/layout';
@@ -167,7 +168,7 @@ export function ScreenThumb({ ed, screen, width = 64 }: { ed: EditorState; scree
 
 // ---------- maps ----------
 
-const mapCache = new Map<string, string>();
+const mapCache = new Map<string, { files: unknown[]; url: string }>();
 const shadeHex = (hex: string, f: number) => {
   const n = Number.parseInt(hex.slice(1), 16);
   const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.max(0, Math.min(255, Math.round(v * f))));
@@ -175,11 +176,16 @@ const shadeHex = (hex: string, f: number) => {
 };
 
 /** A map seen from above: the colour of the top brick on every stud, higher ground lighter. Cached per change. */
-export function drawMap(store: ProjectStore, mapId: string, size: number, rev: number): string {
-  const key = `${mapId}|${size}|${rev}`;
+/**
+ * A map seen from above: each pixel shows the colour of the highest brick in it, lighter when higher.
+ * P27 part 3c: drawn straight from the packed chunks into a pixel grid (a million bricks in tens of ms), and
+ * kept until one of the map's own files changes (not every edit anywhere in the project).
+ */
+export function drawMap(store: ProjectStore, mapId: string, size: number, _rev?: number): string {
+  const files = mapFiles(store, mapId);
+  const key = `${mapId}|${size}`;
   const hit = mapCache.get(key);
-  if (hit !== undefined) return hit;
-  const bricks = allBricks(store, mapId);
+  if (hit && hit.files.length === files.length && hit.files.every((f, i) => f === files[i])) return hit.url;
   const cv = document.createElement('canvas');
   cv.width = size;
   cv.height = size;
@@ -187,41 +193,88 @@ export function drawMap(store: ProjectStore, mapId: string, size: number, rev: n
   if (!ctx) return '';
   ctx.fillStyle = '#2b3a2f';
   ctx.fillRect(0, 0, size, size);
-  if (bricks.length) {
-    const top = new Map<string, { y: number; c: string }>();
-    let x0 = Infinity;
-    let x1 = -Infinity;
-    let z0 = Infinity;
-    let z1 = -Infinity;
-    let ymax = 1;
-    for (const b of bricks) {
-      const [w, d] = footprint(b);
-      const y = b.y + (b.type.startsWith('brick') ? 3 : 1);
-      ymax = Math.max(ymax, y);
-      for (let i = 0; i < w; i++)
-        for (let j = 0; j < d; j++) {
-          const k = `${b.x + i},${b.z + j}`;
-          const cur = top.get(k);
-          if (!cur || cur.y < y) top.set(k, { y, c: b.color });
-        }
-      x0 = Math.min(x0, b.x);
-      x1 = Math.max(x1, b.x + w);
-      z0 = Math.min(z0, b.z);
-      z1 = Math.max(z1, b.z + d);
-    }
+  // the area the bricks cover, from the chunk keys (whole chunks) and the placed copies
+  const chunks = store.list(paths.chunkDir(mapId));
+  const extra = expandInstances(store, mapId).flatMap((e) => e.bricks);
+  let x0 = Number.POSITIVE_INFINITY;
+  let x1 = Number.NEGATIVE_INFINITY;
+  let z0 = Number.POSITIVE_INFINITY;
+  let z1 = Number.NEGATIVE_INFINITY;
+  for (const p of chunks) {
+    const c = store.get<Chunk>(p)!;
+    x0 = Math.min(x0, c.cx * 32);
+    x1 = Math.max(x1, c.cx * 32 + 32);
+    z0 = Math.min(z0, c.cz * 32);
+    z1 = Math.max(z1, c.cz * 32 + 32);
+  }
+  for (const b of extra) {
+    x0 = Math.min(x0, b.x);
+    x1 = Math.max(x1, b.x + 8);
+    z0 = Math.min(z0, b.z);
+    z1 = Math.max(z1, b.z + 8);
+  }
+  if (Number.isFinite(x0)) {
     const span = Math.max(x1 - x0, z1 - z0, 8);
     const k = size / span;
-    const ox = (size - (x1 - x0) * k) / 2;
-    const oz = (size - (z1 - z0) * k) / 2;
-    for (const [p, v] of top) {
-      const [x, z] = p.split(',').map(Number) as [number, number];
-      ctx.fillStyle = shadeHex(v.c, 0.7 + (0.45 * v.y) / ymax);
-      ctx.fillRect(ox + (x - x0) * k, oz + (z - z0) * k, Math.ceil(k), Math.ceil(k));
+    const top = new Int16Array(size * size).fill(-1);
+    const col = new Int32Array(size * size);
+    let ymax = 1;
+    const put = (x: number, z: number, w: number, d: number, y: number, rgb: number) => {
+      const px0 = Math.floor((x - x0) * k);
+      const pz0 = Math.floor((z - z0) * k);
+      const px1 = Math.max(px0 + 1, Math.ceil((x + w - x0) * k));
+      const pz1 = Math.max(pz0 + 1, Math.ceil((z + d - z0) * k));
+      for (let px = px0; px < px1 && px < size; px++)
+        for (let pz = pz0; pz < pz1 && pz < size; pz++) {
+          const i = pz * size + px;
+          if (y >= top[i]!) {
+            top[i] = y;
+            col[i] = rgb;
+          }
+        }
+      if (y > ymax) ymax = y;
+    };
+    const hexRgb = (h: string) => Number.parseInt(h.slice(1), 16);
+    for (const p of chunks) {
+      const c = store.get<Chunk>(p)!;
+      const r = chunkRows(c);
+      const dims = c.palette.types.map((t) => {
+        const m = /(\d+)x(\d+)$/.exec(t)!;
+        return [Number(m[1]), Number(m[2]), t.startsWith('brick') ? 3 : 1] as const;
+      });
+      const colors = c.palette.colors.map(hexRgb);
+      for (let o = 0; o < r.length; o += BRICK_STRIDE) {
+        const [rows, cols, h] = dims[r[o]!]!;
+        const turned = r[o + 4]! % 2 === 1;
+        put(r[o + 1]!, r[o + 3]!, turned ? rows : cols, turned ? cols : rows, r[o + 2]! + h, colors[r[o + 5]!]!);
+      }
     }
+    for (const b of extra) {
+      const [w, d] = footprint(b);
+      put(b.x, b.z, w, d, b.y + (b.type.startsWith('brick') ? 3 : 1), hexRgb(b.color));
+    }
+    const img = ctx.getImageData(0, 0, size, size);
+    for (let i = 0; i < size * size; i++) {
+      if (top[i]! < 0) continue;
+      const f = 0.7 + (0.45 * top[i]!) / ymax;
+      const c = col[i]!;
+      img.data[i * 4] = Math.min(255, ((c >> 16) & 255) * f);
+      img.data[i * 4 + 1] = Math.min(255, ((c >> 8) & 255) * f);
+      img.data[i * 4 + 2] = Math.min(255, (c & 255) * f);
+      img.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
   }
   const url = cv.toDataURL();
-  mapCache.set(key, url);
+  mapCache.set(key, { files, url });
   return url;
+}
+
+/** the files a map's picture depends on (the same objects: unchanged, since files change by replacement) */
+function mapFiles(store: ProjectStore, mapId: string): unknown[] {
+  const out: unknown[] = [store.get(paths.instances(mapId))];
+  for (const p of store.list(paths.chunkDir(mapId))) out.push(store.get(p));
+  return out;
 }
 
 export function MapThumb({

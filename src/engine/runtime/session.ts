@@ -7,8 +7,14 @@ import { genreById } from '../../builtin/genres';
 import { BUILTIN_SCREEN_EFFECTS, DEFAULT_SCREEN_EVENTS } from '../../builtin/screen-effects';
 import { expandAsset } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
-import { type ExpandedInstance, expandInstances } from '../../core/assets/instances';
-import { brickToPiece, exactColors, type FileSource, mapToLegacyBuild } from '../../core/bridge/legacy-bridge';
+import { type ExpandedInstance, expandInstances, instanceBricks } from '../../core/assets/instances';
+import {
+  brickToPiece,
+  chunkExactColors,
+  chunkPieces,
+  type FileSource,
+  mapToLegacyBuild,
+} from '../../core/bridge/legacy-bridge';
 import { moodFace } from '../../core/character/faces';
 import { type ResolvedBody, resolveBody } from '../../core/character/resolve';
 import { levelOf, xpFor } from '../../core/character/sheet';
@@ -22,6 +28,7 @@ import type { LegacyPiece } from '../../core/legacy/types';
 import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosphere';
 import type { ExecCtx } from '../../core/logic/catalog';
 import { maxOf } from '../../core/num';
+import type { MapSave } from '../../core/save/save';
 import {
   AUTO_SLOT,
   DEFAULT_SAVING,
@@ -36,6 +43,7 @@ import {
 import {
   type Asset,
   type Character,
+  type Chunk,
   type Clip,
   type EffectInstance,
   type EmitterInstance,
@@ -84,7 +92,7 @@ import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './h
 import { chunkKeyOf, indexByChunk, inspectPieces, piecesAround, WINDOW_RADIUS } from './pieces';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
 import { Runtime, type System } from './runtime';
-import { applySave, captureSave, loadMessage, type SaveHost } from './saves';
+import { applySave, captureMap, captureSave, loadMessage, restoreMap, type SaveHost, type SaveWorld } from './saves';
 import { afterDefence, movesOf, statsOf, wornProfile } from './sheet';
 import { TalkSystem } from './talk';
 
@@ -161,6 +169,7 @@ export type GameEvent = {
 };
 
 const COLOR_OF = (i: number) => LEGACY_COLORS[i]?.[1] ?? '#ff00ff';
+const LEGACY_HEX = new Set(LEGACY_COLORS.map(([, hex]) => hex.toLowerCase()));
 const rgb = (i: number) => [1, 3, 5].map((k) => (parseInt(COLOR_OF(i).slice(k, k + 2), 16) / 255) ** 1.5);
 
 /**
@@ -172,6 +181,10 @@ export class PlaySession {
   readonly L: LegacyRuntime;
   readonly runtime: Runtime<PlaySession>;
   readonly worlds = new Map<string, MapWorld>();
+  /** P27 part 3c: maps left in this play that are no longer loaded: what changed on them (as a save keeps it) */
+  readonly parked = new Map<string, MapSave>();
+  /** loaded maps, least recently used first */
+  private readonly lru = new Set<string>();
   world!: MapWorld;
   hero!: Record<string, unknown>;
   input: InputState = { keys: new Set(), jump: false, touch: new Set() };
@@ -308,7 +321,7 @@ export class PlaySession {
         const sp = this.world.doc.spawns.find((x) => x.id === spawn);
         if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
       },
-      travel: (map: string, spawn: string) => this.travel(map, spawn),
+      travel: (map: string, spawn: string) => this.goTo(map, spawn),
       log: (kind: 'event' | 'info', msg: string) => this.emit(kind === 'event' ? 'event' : 'info', msg),
       custom: (event: string) => this.logic.fire({ type: 'event.onCustom', match: { event } }),
       get vars() {
@@ -374,7 +387,7 @@ export class PlaySession {
       heroState: () => this.heroState,
       heroProfile: () => this.hero,
       validateProfile: (p) => this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...p }),
-      travel: (map) => this.travel(map, ''),
+      travel: (map) => this.goTo(map, ''),
       audio: this.audio,
       emit: (kind, msg) => this.emit(kind, msg),
       logicEvent: (event) => this.logic.fire({ type: 'event.onCustom', match: { event } }),
@@ -425,17 +438,51 @@ export class PlaySession {
 
   // ---------- worlds ----------
 
+  /** a map, loaded now (all at once) if it is not loaded yet */
   loadWorld(mapId: string): MapWorld {
+    const steps = this.loadSteps(mapId);
+    let r = steps.next();
+    while (!r.done) r = steps.next();
+    return r.value;
+  }
+
+  /**
+   * P27 part 3c: loads a map in small steps (yielding how far along it is, 0–1), so the game can draw a
+   * loading screen instead of freezing: the chunks a few at a time, then the copies, the physics and the
+   * neighbours. A map left earlier in this play comes back as the player left it (see park).
+   */
+  *loadSteps(mapId: string): Generator<number, MapWorld> {
     const cached = this.worlds.get(mapId);
-    if (cached) return cached;
+    if (cached) {
+      this.lru.delete(mapId);
+      this.lru.add(mapId);
+      return cached;
+    }
     const doc = this.snapshot.get(paths.map(mapId)) as MapDoc;
-    const build = mapToLegacyBuild(this.snapshot, mapId);
-    const meta = (build.world ?? null) as LegacyWorldMeta;
+    const prefix = paths.chunkDir(mapId);
+    const chunkPaths = [...this.snapshot.keys()].filter((p) => p.startsWith(prefix));
+    const decoded: LegacyPiece[] = [];
     // any-colour bricks keep their exact colour in Play (v68 saves keep the nearest v68 colour)
-    const exact = exactColors(this.snapshot, mapId);
+    const exact = new Map<number, string>();
+    for (let i = 0; i < chunkPaths.length; i++) {
+      const c = this.snapshot.get(chunkPaths[i]!) as Chunk;
+      chunkPieces(c, decoded);
+      chunkExactColors(c, exact);
+      if (i % 8 === 7) yield (0.7 * (i + 1)) / chunkPaths.length;
+    }
+    for (const b of instanceBricks(this.snapshot, mapId)) {
+      decoded.push(brickToPiece(b));
+      if (!LEGACY_HEX.has(b.color.toLowerCase())) exact.set(b.id, b.color.toLowerCase());
+    }
+    yield 0.75;
+    decoded.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+    yield 0.8;
+    const build = mapToLegacyBuild(this.snapshot, mapId, { pieces: decoded });
+    const meta = (build.world ?? null) as LegacyWorldMeta;
     const pieces = build.pieces.map((p) =>
       p.id !== undefined && exact.has(p.id) ? { ...p, hex: exact.get(p.id)! } : { ...p },
     );
+    yield 0.85;
     const state = (this.snapshot.get(paths.state(mapId)) as MapState | undefined) ?? { broken: [], player: null };
     // P27 part 3: a big map starts with the window around where the hero arrives
     const big = pieces.length > WINDOW_FROM;
@@ -483,7 +530,108 @@ export class PlaySession {
     };
     for (const i of w.instances) w.start.instances.set(i.inst.id, i.state);
     this.worlds.set(mapId, w);
+    this.lru.add(mapId);
+    // a map left earlier in this play: back as the player left it
+    const parked = this.parked.get(mapId);
+    if (parked) {
+      this.parked.delete(mapId);
+      yield 0.95;
+      restoreMap(this as unknown as SaveHost, w, parked);
+    }
+    this.evict();
     return w;
+  }
+
+  /**
+   * P27 part 3c: at most MAX_LOADED maps stay loaded (the one played and the latest ones, with the maps its
+   * gates lead to loaded ahead). A map that goes is parked: what changed on it is kept small (as a save keeps
+   * it) and put back when the player comes back.
+   */
+  private evict() {
+    for (const id of this.lru) {
+      if (this.worlds.size <= MAX_LOADED) break;
+      if (id === this.world?.mapId) continue;
+      const w = this.worlds.get(id);
+      if (!w) {
+        this.lru.delete(id);
+        continue;
+      }
+      this.parked.set(id, captureMap(w as unknown as SaveWorld));
+      this.worlds.delete(id);
+      this.lru.delete(id);
+    }
+  }
+
+  /** the map being loaded for a trip (the game holds and shows a loading screen meanwhile) */
+  loading: {
+    mapId: string;
+    name: string;
+    spawnId: string;
+    gateId?: string | undefined;
+    progress: number;
+    steps: Generator<number, MapWorld>;
+  } | null = null;
+  /** P27 part 3c: Play loads maps in steps with a loading screen (the editor's Play sets it; tests load at once) */
+  asyncLoads = false;
+  private prefetch: { mapId: string; steps: Generator<number, MapWorld> } | null = null;
+
+  /** go to another map: at once when it is loaded (or loading is not stepped), else through a loading screen */
+  goTo(mapId: string, spawnId: string, gateId?: string) {
+    if (!this.asyncLoads || this.worlds.has(mapId)) return this.travel(mapId, spawnId, gateId);
+    if (this.prefetch?.mapId === mapId) {
+      this.loading = {
+        mapId,
+        name: (this.snapshot.get(paths.map(mapId)) as MapDoc).name,
+        spawnId,
+        gateId,
+        progress: 0,
+        steps: this.prefetch.steps,
+      };
+      this.prefetch = null;
+    } else
+      this.loading = {
+        mapId,
+        name: (this.snapshot.get(paths.map(mapId)) as MapDoc).name,
+        spawnId,
+        gateId,
+        progress: 0,
+        steps: this.loadSteps(mapId),
+      };
+    this.input.keys.clear();
+  }
+
+  /**
+   * P27 part 3c, once a frame: works on the map being loaded for `budgetMs` (then arrives when it is done);
+   * otherwise loads the maps the current one's gates lead to, a little at a time, so going there is instant.
+   */
+  stepLoading(budgetMs = 10) {
+    const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const l = this.loading;
+    if (l) {
+      let r = l.steps.next();
+      while (!r.done && now() - t0 < budgetMs) {
+        l.progress = r.value;
+        r = l.steps.next();
+      }
+      if (r.done) {
+        this.loading = null;
+        this.travel(l.mapId, l.spawnId, l.gateId);
+      } else l.progress = r.value;
+      return;
+    }
+    if (!this.asyncLoads) return;
+    if (!this.prefetch) {
+      const next = this.outbound()
+        .map((o) => o.toMap)
+        .find((m) => !this.worlds.has(m) && this.snapshot.get(paths.map(m)));
+      if (!next) return;
+      this.prefetch = { mapId: next, steps: this.loadSteps(next) };
+    }
+    const pf = this.prefetch;
+    let r = pf.steps.next();
+    while (!r.done && now() - t0 < Math.min(2, budgetMs)) r = pf.steps.next();
+    if (r.done) this.prefetch = null;
   }
 
   /** Put the hero at a spawn (v68 arrival: keep clear of scenery, fall back to the map's safe spawn). */
@@ -2089,7 +2237,7 @@ export class PlaySession {
         if (sp) this.placeAt(sp.pos as [number, number, number], sp.yaw);
       },
       travel: (map, spawn) => {
-        if (this.snapshot.get(paths.map(map))) this.travel(map, spawn);
+        if (this.snapshot.get(paths.map(map))) this.goTo(map, spawn);
       },
       give: (item, count) => this.give(item, count),
       damage: (target, amount, type, from) => this.damage(target, amount, type, from),
@@ -2254,7 +2402,8 @@ export class PlaySession {
 
   /** true while a screen (title, pause, game over) holds the game */
   get screenPaused(): boolean {
-    return this.screens.pausesGame;
+    // P27 part 3c: the game holds while a map loads
+    return this.screens.pausesGame || !!this.loading;
   }
 
   private screensChanged() {
@@ -3106,7 +3255,7 @@ export class PlaySession {
     }
     const scale = this.L.GamePhysics.scaleOf(s);
     const hit = this.outbound().find((o) => near(o.from, 1.2 + 0.4 * scale));
-    if (hit) this.travel(hit.toMap, hit.toSpawn, hit.gate);
+    if (hit) this.goTo(hit.toMap, hit.toSpawn, hit.gate);
   }
 
   /** Switch to another map (each map keeps its own damage while playing, as in v68). */
@@ -3282,3 +3431,6 @@ export class PlaySession {
 function cellKey(x: number, y: number, z: number) {
   return ((x + 1024) * 2048 + (z + 1024)) * 1024 + (y + 64);
 }
+
+/** P27 part 3c: maps kept loaded at once while playing (the one played, the latest ones and the ones ahead) */
+export const MAX_LOADED = 4;

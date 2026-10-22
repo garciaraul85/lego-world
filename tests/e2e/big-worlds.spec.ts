@@ -195,6 +195,76 @@ test('many objects: Scatter places a forest as one undo step; a big asset librar
   expect(errors).toEqual([]);
 });
 
+test('many maps: 300 maps in a project, found by typing; a trip in Play goes through the loading screen', async ({
+  page,
+}) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  const made = await page.evaluate(() => {
+    const e = (window as unknown as { __editor: Ed }).__editor;
+    const a = performance.now();
+    const cmds = Array.from({ length: 299 }, (_, i) => ({
+      type: 'map.create',
+      payload: { id: `map_m${String(i + 1).padStart(9, '0')}`, name: `Island ${i + 1}` },
+    }));
+    const r = e.exec(cmds);
+    const r2 = e.exec({
+      type: 'map.create',
+      payload: { id: 'map_bigbigbig1', name: 'Big land', land: { size: 512, seed: 3 } },
+    });
+    return { ok: r.ok && r2.ok, ms: performance.now() - a };
+  });
+  expect(made.ok).toBe(true);
+  // the Map list finds one by typing
+  const mapSel = page.locator('[data-tour="map-select"]');
+  await mapSel.getByRole('button', { name: /Search maps/ }).click();
+  await mapSel.getByRole('searchbox').fill('Island 250');
+  await mapSel.getByRole('searchbox').press('Enter');
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.mapId.value))
+    .toBe('map_m000000250');
+  // the World graph draws them all
+  const t0 = Date.now();
+  await page.getByRole('button', { name: 'World graph', exact: true }).first().click();
+  await expect(page.getByRole('button', { name: /Map Island 299/ })).toBeVisible({ timeout: 120_000 });
+  expect(Date.now() - t0).toBeLessThan(60_000);
+  // Play, then a trip to the big land: the loading screen shows its name and progress, then the hero arrives
+  await page.evaluate(() => {
+    const e = (window as unknown as { __editor: Ed }).__editor;
+    e.openMap(
+      e.store.get('project.json') ? (e.store.get('world/gates.json') as { mapOrder: string[] }).mapOrder[0]! : '',
+    );
+    (document.activeElement as HTMLElement | null)?.blur();
+  });
+  await page.getByRole('button', { name: 'Scene', exact: true }).first().click();
+  await page.keyboard.press('F5');
+  await page.getByLabel('Game view').waitFor({ timeout: 120_000 });
+  await page.evaluate(() =>
+    (
+      window as unknown as { __editor: { session: { value: { goTo(m: string, s: string): void } } } }
+    ).__editor.session.value.goTo('map_bigbigbig1', ''),
+  );
+  const loading = page.locator('[data-tour="loading-screen"]');
+  await expect(loading).toBeVisible({ timeout: 30_000 });
+  // name and progress are drawn together (the load can finish soon after)
+  const shown = await loading.innerHTML().catch(() => '');
+  if (shown) {
+    expect(shown).toContain('Big land');
+    expect(shown).toContain('role="progressbar"');
+  }
+  await expect(loading).toBeHidden({ timeout: 120_000 });
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { __editor: { session: { value: { world: { mapId: string } } } } }).__editor.session.value
+          .world.mapId,
+    ),
+  ).toBe('map_bigbigbig1');
+  await page.keyboard.press('F5');
+  expect(errors).toEqual([]);
+});
+
 test('Big worlds course: Do it for me makes big land, sets how far you see and plays it', async ({ page }) => {
   test.setTimeout(1_200_000);
   const errors: string[] = [];
@@ -204,7 +274,7 @@ test('Big worlds course: Do it for me makes big land, sets how far you see and p
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });
   const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
-  expect(total).toBe(7);
+  expect(total).toBe(8);
   for (let i = 0; i < total; i++) {
     const pos = await card.locator('header .mono').innerText();
     const title = await card.getByRole('heading').first().innerText();

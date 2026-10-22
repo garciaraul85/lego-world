@@ -3,7 +3,8 @@ import type { ProjectStore } from '../../project/store';
 import { type Action, ActionList, type Gates, type MapDoc, paths } from '../../schema';
 import type { CommandHandler } from '../types';
 
-export const MAX_GATES = 256;
+/** P27 part 3c: was 256 */
+export const MAX_GATES = 4000;
 
 const gatesOf = (store: ProjectStore): Gates => store.get<Gates>(paths.gates) ?? { gates: [], mapOrder: [] };
 const spawnOn = (store: ProjectStore, map: string, spawn: string) =>

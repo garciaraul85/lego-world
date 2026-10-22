@@ -47,6 +47,8 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       ed.audio.init();
       void ed.audio.ctx?.resume().catch(() => {});
       s = new PlaySession(ed.store.snapshot(), { ...start, audio: ed.audio, saves: new BrowserSaveStore() });
+      // P27 part 3c: maps load in steps behind a loading screen; the maps ahead load a little each frame
+      s.asyncLoads = true;
       pr = new PlayRenderer(canvas, s);
       prRef.current = pr;
     } catch (e) {
@@ -87,6 +89,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
       last = now;
       // a title, pause or game-over screen holds the game; the UI clock keeps running (P5.8)
+      s.stepLoading(s.loading ? 12 : 2);
       s.runtime.paused = ed.paused.value || s.screenPaused;
       pollGamepad(s);
       s.runtime.timeScale = ed.timeScale.value;
