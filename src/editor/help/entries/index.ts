@@ -30,6 +30,7 @@ export const COMMAND_TYPES = [
   'gate.update',
   'gate.delete',
   'asset.place',
+  'asset.scatter',
   'asset.make',
   'asset.create',
   'asset.update',

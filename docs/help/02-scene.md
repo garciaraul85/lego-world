@@ -83,9 +83,11 @@ A map holds up to **1,000,000 bricks** across a build area of ±2048 studs. The 
 
 - A map of more than 64 chunks is a **big map**. The Scene view loads the chunks around where you look, the nearest first, and the fog closes in where they end; the counter at the top of the view shows how many are loaded. Bricks whose studs are all under other bricks are drawn as plain boxes.
 - **How far you see** (64–1024 studs, default 256) sets how far a big map is drawn, in the Scene and in the game.
+- **Scatter** sets down many copies of one build at once around where the view looks: pick it from the pictures, set **How many** (up to 5,000) and how far **Around the view**, and press **Scatter**. Each copy stands on flat studded ground, clear of everything else, turned at random; copies that don't fit are left out, and one undo takes them all away. **Placed assets** counts them (a map holds 10,000).
 - **New big land** makes a map of rolling grass and hills of bricks with a flat clearing at the start: 256, 512, 1024 or 2048 studs across (2048 is about 950,000 bricks, leaving room for 50,000 more). One undo step removes it.
 - In the game a big map plays the area around the hero (7 × 7 chunks): its bricks are solid and its neighbours walk about; further away they sleep until the hero comes near. Edits on a big map check the brick rules only around what changed, so placing a brick stays quick.
 - Maps of more than 12,000 pieces play with ▶ Play; Play in v68 can't load them.
+- The Dock shows a big asset library 120 cards at a time (**Show more** adds the next ones; searching narrows it), and asset pictures are drawn as they scroll into view.
 
 [Big worlds course](action:help.bigworlds)
 

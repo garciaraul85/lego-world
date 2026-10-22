@@ -13,13 +13,32 @@ export const assetInstances = (files: Pick<FileSource, 'get'>, mapId: string): A
 
 export type ExpandedInstance = { inst: AssetInstance; def: Asset; bricks: Brick[]; sockets: WorldSocket[] };
 
+/**
+ * P27 part 3b: expansions kept per placed copy. Project files never change in place (a change is a new
+ * object), so a copy whose instance and asset objects are the same as last time expands to the same bricks.
+ */
+const expanded = new WeakMap<AssetInstance, { def: Asset; bricks: Brick[]; sockets: WorldSocket[] }>();
+
+function expandCached(def: Asset, inst: AssetInstance): { bricks: Brick[]; sockets: WorldSocket[] } {
+  const hit = expanded.get(inst);
+  if (hit && hit.def === def) return hit;
+  const e = expandAsset(def, inst);
+  // shared between callers: nothing may change them
+  for (const b of e.bricks) Object.freeze(b);
+  Object.freeze(e.bricks);
+  const entry = { def, ...e };
+  if (Object.isFrozen(inst)) expanded.set(inst, entry);
+  return entry;
+}
+
 /** Every asset instance of a map expanded into world bricks (instances whose asset is missing are skipped). */
 export function expandInstances(files: Pick<FileSource, 'get'>, mapId: string): ExpandedInstance[] {
   const out: ExpandedInstance[] = [];
   for (const inst of assetInstances(files, mapId)) {
     const def = files.get(paths.asset(inst.asset)) as Asset | undefined;
     if (!def) continue;
-    out.push({ inst, def, ...expandAsset(def, inst) });
+    const e = expandCached(def, inst);
+    out.push({ inst, def, bricks: e.bricks, sockets: e.sockets });
   }
   return out;
 }

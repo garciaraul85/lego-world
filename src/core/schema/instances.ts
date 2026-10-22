@@ -105,18 +105,19 @@ export const UiInstance = z.strictObject({
 export type UiInstance = z.infer<typeof UiInstance>;
 
 /** maps/<mapId>/instances.json: everything placed on the map that is not a plain brick. */
+/** one thing placed on a map */
+export const InstanceItem = z.discriminatedUnion('kind', [
+  NpcInstance,
+  AssetInstance,
+  EmitterInstance,
+  UiInstance,
+  EffectInstance,
+  LightInstance,
+]);
+
 export const Instances = z.strictObject({
   /** false when the legacy save had no `npcs` key (v68 then spawns default neighbors on load) */
   npcsSaved: z.boolean(),
-  items: z.array(
-    z.discriminatedUnion('kind', [
-      NpcInstance,
-      AssetInstance,
-      EmitterInstance,
-      UiInstance,
-      EffectInstance,
-      LightInstance,
-    ]),
-  ),
+  items: z.array(InstanceItem),
 });
 export type Instances = z.infer<typeof Instances>;

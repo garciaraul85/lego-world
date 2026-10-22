@@ -82,10 +82,27 @@ export function drawAsset(def: Asset, state?: string, size = 96): string {
   return url;
 }
 
+/**
+ * P27 part 3b: a picture is drawn when it scrolls into view (a library of thousands of assets draws only the
+ * ones you can see).
+ */
 export function AssetThumb({ def, state, size = 96 }: { def: Asset; state?: string; size?: number }) {
   const ref = useRef<HTMLImageElement>(null);
   useEffect(() => {
-    if (ref.current) ref.current.src = drawAsset(def, state, size * 2);
+    const img = ref.current;
+    if (!img) return;
+    const draw = () => {
+      img.src = drawAsset(def, state, size * 2);
+    };
+    if (typeof IntersectionObserver === 'undefined') return draw();
+    const io = new IntersectionObserver((seen) => {
+      if (seen.some((e) => e.isIntersecting)) {
+        io.disconnect();
+        draw();
+      }
+    });
+    io.observe(img);
+    return () => io.disconnect();
   }, [def, state, size]);
   return <img ref={ref} alt="" width={size} height={size} style={{ objectFit: 'contain' }} />;
 }

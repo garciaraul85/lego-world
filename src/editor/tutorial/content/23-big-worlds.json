@@ -130,6 +130,81 @@
       "placement": "left"
     },
     {
+      "id": "big.scatter",
+      "title": "A forest at once",
+      "body": "Scatter places many copies of an asset at once around where the Scene view looks: each on flat ground with studs, clear of everything else, turned at random. Copies that don’t fit are left out, and one undo takes them all away. A map holds 10,000 placed assets; the Dock shows a big library a page at a time and draws the pictures you scroll to.",
+      "task": "Under Scatter, pick the Birch tree, set How many to 300 and press Scatter.",
+      "target": "[data-tour=\"scatter\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMapAtLeast",
+        "args": 10
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "map"
+        },
+        {
+          "click": "[data-tour=\"pick-scatter-asset\"]"
+        },
+        {
+          "click": "[data-tour=\"pick-scatter-asset-list\"] [data-name=\"Birch tree\"]"
+        },
+        {
+          "fill": "[data-tour=\"scatter-count\"]",
+          "value": "300"
+        },
+        {
+          "click": "[data-tour=\"scatter-go\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Big worlds › Scatter, click “Pick an asset…” and pick the Birch tree from the pictures.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"scatter-go\"]:not([disabled])"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "map"
+            },
+            {
+              "click": "[data-tour=\"pick-scatter-asset\"]",
+              "say": "The assets"
+            },
+            {
+              "click": "[data-tour=\"pick-scatter-asset-list\"] [data-name=\"Birch tree\"]",
+              "say": "Birch tree"
+            }
+          ]
+        },
+        {
+          "text": "Drag How many to 300 and press Scatter. Trees appear around the view; the count of placed assets goes up.",
+          "check": {
+            "kind": "state",
+            "test": "assetsOnMapAtLeast",
+            "args": 10
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"scatter-count\"]",
+              "value": "300",
+              "say": "300"
+            },
+            {
+              "click": "[data-tour=\"scatter-go\"]",
+              "say": "Scatter"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
       "id": "big.start",
       "title": "Start here",
       "body": "Play starts the game on the start map. Make this big land the start map, so ▶ Play opens it.",
@@ -232,7 +307,7 @@
     {
       "id": "big.done",
       "title": "Done!",
-      "body": "You made a big land, chose how far you see and played it while the world followed the hero. A map holds up to 1,000,000 bricks; 2048 × 2048 studs of land is about 950,000. Press Esc or Stop to leave Play.",
+      "body": "You made a big land, chose how far you see, scattered a forest and played it while the world followed the hero. A map holds up to 1,000,000 bricks; 2048 × 2048 studs of land is about 950,000. Press Esc or Stop to leave Play.",
       "task": "Press Finish.",
       "target": "[data-tour=\"menu-help\"]",
       "check": {

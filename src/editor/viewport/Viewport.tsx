@@ -753,6 +753,7 @@ export function Viewport({
       const cam = camera.frame();
       // more chunks to build near the view's centre: draw again next frame
       streaming = stream.update(camera.target[0], camera.target[2]);
+      if (!studio) ed.viewCentre = [camera.target[0], camera.target[2]];
       if (streaming) dirty = true;
       const t0 = performance.now();
       const st = renderer.render(cam, camera.target, overlays, lines, markers);

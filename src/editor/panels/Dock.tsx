@@ -696,6 +696,9 @@ export const ASSET_FILTERS: [string, string][] = [
   ['generated', 'From maps'],
 ];
 
+/** P27 part 3b: asset cards shown at a time in the Dock */
+export const DOCK_PAGE = 120;
+
 function AssetCards({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
@@ -712,6 +715,8 @@ function AssetCards({ c }: { c: ActionCtx }) {
       words.every((w) => `${a.name} ${a.category ?? ''}`.toLowerCase().includes(w)),
   );
   const brush = ed.assetBrush.value;
+  // P27 part 3b: a big library shows its first cards and more on request (search narrows it)
+  const [shown, setShown] = useState(DOCK_PAGE);
   return (
     <>
       <div class="row" style={{ gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -721,7 +726,10 @@ function AssetCards({ c }: { c: ActionCtx }) {
           aria-label="Search assets"
           placeholder="Search assets…"
           value={q}
-          onInput={(e) => setQ((e.target as HTMLInputElement).value)}
+          onInput={(e) => {
+            setQ((e.target as HTMLInputElement).value);
+            setShown(DOCK_PAGE);
+          }}
           onKeyDown={(e) => e.key === 'Escape' && setQ('')}
         />
         <div class="row" role="radiogroup" aria-label="Asset kind">
@@ -743,7 +751,7 @@ function AssetCards({ c }: { c: ActionCtx }) {
         {!lib.length && (
           <span class="muted small">{q ? `No assets match “${q}”.` : 'No assets of this kind yet.'}</span>
         )}
-        {lib.map(({ asset: a, inProject }) => {
+        {lib.slice(0, shown).map(({ asset: a, inProject }) => {
           const on = brush.asset === a.id && ed.tool.value === 'asset';
           return (
             <button
@@ -779,6 +787,22 @@ function AssetCards({ c }: { c: ActionCtx }) {
             </button>
           );
         })}
+        {lib.length > shown && (
+          <button
+            type="button"
+            class="card more-cards"
+            data-tour="dock-more"
+            onClick={() => setShown((n) => n + DOCK_PAGE)}
+          >
+            <span class="small">
+              Show {Math.min(DOCK_PAGE, lib.length - shown)} more
+              <br />
+              <span class="muted">
+                {shown} of {lib.length.toLocaleString('en-US')}
+              </span>
+            </span>
+          </button>
+        )}
       </div>
     </>
   );

@@ -163,6 +163,8 @@ export class EditorState {
   /** P23 part 4: a body plan's strike or flinch on the studio preview (when it started, performance.now) */
   /** P27 part 2: the hour the Scene view shows (seconds into v68's day from the map's start time; null: the start) */
   readonly skyPreview = signal<number | null>(null);
+  /** P27 part 3b: where the Scene view looks (x, z studs), kept by the view as it draws; not a signal */
+  viewCentre: [number, number] = [0, 0];
   readonly bodyAct = signal<{ kind: 'attack' | 'hurt'; at: number } | null>(null);
   readonly view = signal<ViewTab>('scene');
   readonly left = signal<LeftTab>('hier');

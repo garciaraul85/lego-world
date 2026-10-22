@@ -14,6 +14,7 @@ import * as L from '../commands/handlers/logic';
 import * as M from '../commands/handlers/map';
 import * as Np from '../commands/handlers/npcs';
 import * as Pr from '../commands/handlers/progress';
+import * as Sc from '../commands/handlers/scatter';
 import type { CommandHandler } from '../commands/types';
 import { Conversation } from '../dialogue/schema';
 import { Effect, EffectHooks } from '../effects/schema';
@@ -339,6 +340,22 @@ export const AI_COMMANDS: AiCommand[] = [
     'Scene',
     'Places a copy (instance) of an asset at pos [x, y plates, z] studs.',
     { map: M1, asset: 'ast_chest00001', pos: [6, 0, 2], rot: 1, id: 'ins_ffffffffff' },
+  ),
+  def(
+    'asset.scatter',
+    Sc.scatterAsset,
+    z.strictObject({
+      map,
+      asset: ids('asset'),
+      area: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+      count: z.number().int().min(1).max(5000),
+      seed: z.number().int().min(0).optional(),
+      turn: z.boolean().optional(),
+    }),
+    ['map', 'asset'],
+    'Scene',
+    'Places many copies of an asset at once in an area [x0, z0, x1, z1] studs (a forest, a field of flowers): each on flat studded ground, clear of everything, turned at random unless turn is false. Copies that do not fit are left out. Up to 5,000 at a time.',
+    { map: M1, asset: 'ast_chest00001', area: [-40, -40, 40, 40], count: 50, seed: 7 },
   ),
   def(
     'instance.move',

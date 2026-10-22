@@ -80,7 +80,8 @@ function touchedChunks(store: ProjectStore, map: string, exp: ReturnType<typeof 
     const beforeIds = new Set(before.map((i) => i.id));
     for (const i of before) {
       const cur = now.get(i.id);
-      if (cur && JSON.stringify(cur.inst) === JSON.stringify(i)) continue;
+      // unchanged copies are the very same object (files change by replacement)
+      if (cur && (cur.inst === i || JSON.stringify(cur.inst) === JSON.stringify(i))) continue;
       // where it was
       const def = store.get<Asset>(paths.asset(i.asset));
       if (def) for (const b of expandAsset(def, i).bricks) out.add(chunkKey(b.x, b.z));

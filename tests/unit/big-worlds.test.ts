@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { BUILTIN_ASSETS } from '../../src/builtin/assets';
+import { expandInstances } from '../../src/core/assets/instances';
 import { decodeChunk, encodeChunks } from '../../src/core/bricks/codec';
 import { inspectBricks } from '../../src/core/bricks/inspect';
 import { MAX_BRICKS_PER_MAP, MapBricks } from '../../src/core/bricks/map-bricks';
 import { CommandBus, registerAll } from '../../src/core/commands';
-import { LOCAL_CHECK_FROM } from '../../src/core/commands/handlers/assets';
+import { allBricks, LOCAL_CHECK_FROM } from '../../src/core/commands/handlers/assets';
+import { MAX_ITEMS_PER_MAP } from '../../src/core/commands/handlers/items';
+import { MAX_SCATTER } from '../../src/core/commands/handlers/scatter';
 import { maxOf, minOf } from '../../src/core/num';
 import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
@@ -12,6 +16,7 @@ import {
   type Chunk,
   chunkCount,
   chunkRows,
+  type Instances,
   packChunk,
   packInts,
   paths,
@@ -187,5 +192,68 @@ describe('a million bricks', () => {
     expect(renderer.viewDistance).toBe(128);
     s.update(32 * 15, 0);
     expect(dropped).toContain('-4_0');
+  });
+});
+
+describe('many objects (P27 part 3b)', () => {
+  const setup = (size: 256 | 512 | 1024 = 256) => {
+    const store = new ProjectStore(newProjectFiles({ name: 'Forest', random: () => 0.3 }));
+    const bus = registerAll(new CommandBus(store));
+    const run = (c: unknown) => bus.execute(c as Parameters<typeof bus.execute>[0], { source: 'user' });
+    const map = 'map_bigbigbig1';
+    run({ type: 'map.create', payload: { id: map, name: 'Forest', land: { size, seed: 7 } } });
+    const tree = BUILTIN_ASSETS.find((a) => a.name === 'Birch tree')!;
+    if (!store.has(paths.asset(tree.id))) run({ type: 'asset.create', payload: { asset: tree } });
+    const items = () => store.get<Instances>(paths.instances(map))!.items.filter((i) => i.kind === 'asset');
+    return { store, bus, run, map, tree, items };
+  };
+  it('scatter places many copies on flat ground, all within the brick rules, as one undo step', () => {
+    const { store, bus, run, map, tree, items } = setup();
+    const r = run({
+      type: 'asset.scatter',
+      payload: { map, asset: tree.id, area: [-100, -100, 100, 100], count: 60, seed: 3 },
+    });
+    expect(r.ok, r.error).toBe(true);
+    expect(items().length).toBeGreaterThan(20);
+    expect(items().length).toBeLessThanOrEqual(60);
+    for (const i of items()) {
+      expect(i.pos[0]).toBeGreaterThanOrEqual(-100);
+      expect(i.pos[2]).toBeLessThanOrEqual(100);
+    }
+    // the whole map, copies included, follows v68's rules
+    expect(inspectBricks(allBricks(store, map)).ok).toBe(true);
+    // the same seed again finds the same ground taken: fewer or none fit there now
+    const before = items().length;
+    run({ type: 'asset.scatter', payload: { map, asset: tree.id, area: [-100, -100, 100, 100], count: 60, seed: 3 } });
+    expect(inspectBricks(allBricks(store, map)).ok).toBe(true);
+    expect(items().length).toBeGreaterThanOrEqual(before);
+    bus.undo();
+    bus.undo();
+    expect(items()).toHaveLength(0);
+    expect(
+      run({ type: 'asset.scatter', payload: { map, asset: tree.id, area: [-10, -10, 10, 10], count: 6000 } }).error,
+    ).toMatch(/1 to 5,000/);
+    expect(MAX_SCATTER).toBe(5000);
+  });
+  it('10,000 placed copies: edits stay quick and expansions are reused', () => {
+    const { store, run, map, tree, items } = setup(1024);
+    for (const seed of [1, 2, 3])
+      run({ type: 'asset.scatter', payload: { map, asset: tree.id, area: [-500, -500, 500, 500], count: 5000, seed } });
+    expect(items().length).toBeGreaterThan(5000);
+    const a = expandInstances(store, map);
+    const b = expandInstances(store, map);
+    expect(a[0]!.bricks).toBe(b[0]!.bricks);
+    expect(Object.isFrozen(a[0]!.bricks[0])).toBe(true);
+    const t0 = performance.now();
+    expect(
+      run({ type: 'instance.move', payload: { map, instance: items()[10]!.id, dx: 0, dz: 0, rot: 1 } }).ok,
+    ).toBeDefined();
+    expect(performance.now() - t0).toBeLessThan(2000);
+    // a changed copy is checked again: a bad one in 10,000 is still caught
+    const cur = store.get<Instances>(paths.instances(map))!;
+    const bad = { ...cur, items: [...cur.items.slice(0, -1), { ...cur.items.at(-1)!, rot: 9 }] };
+    expect(validateFile(paths.instances(map), bad).length).toBeGreaterThan(0);
+    expect(validateFile(paths.instances(map), cur)).toEqual([]);
+    expect(MAX_ITEMS_PER_MAP).toBe(10_000);
   });
 });

@@ -127,6 +127,69 @@ test('a million-brick map opens quickly, streams its chunks, and plays around th
   expect(errors).toEqual([]);
 });
 
+test('many objects: Scatter places a forest as one undo step; a big asset library shows a page at a time', async ({
+  page,
+}) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.evaluate(() => {
+    const e = (window as unknown as { __editor: Ed }).__editor;
+    e.exec({
+      type: 'map.create',
+      payload: { id: 'map_forestland', name: 'Forest land', land: { size: 256, seed: 5 } },
+    });
+    e.openMap('map_forestland');
+    e.right.value = 'map';
+  });
+  const count = () =>
+    page.evaluate(
+      () =>
+        (
+          (window as unknown as { __editor: Ed }).__editor.store.get('maps/map_forestland/instances.json') as {
+            items: { kind: string }[];
+          }
+        ).items.filter((i) => i.kind === 'asset').length,
+    );
+  const sec = page.locator('[data-tour="map-big"]');
+  await sec.scrollIntoViewIfNeeded();
+  await expect(page.locator('[data-tour="scatter-go"]')).toBeDisabled();
+  await page.locator('[data-tour="pick-scatter-asset"]').click();
+  await page.locator('[data-tour="pick-scatter-asset-list"] [data-name="Birch tree"]').click();
+  await page.locator('[data-tour="scatter-count"]').fill('100');
+  await page.locator('[data-tour="scatter-go"]').click();
+  await expect.poll(count, { timeout: 60_000 }).toBeGreaterThan(10);
+  const n = await count();
+  expect(n).toBeLessThanOrEqual(100);
+  await expect(page.locator('[data-tour="map-assets"]')).toContainText(`${n} / 10,000`);
+  // one undo takes the forest away (the Birch tree stays in the project)
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Control+z');
+  await expect.poll(count).toBe(0);
+  // a library of 200 more assets: the Dock shows 120 and more on request
+  await page.evaluate(() => {
+    const e = (window as unknown as { __editor: Ed & { store: { list(p: string): string[] } } }).__editor;
+    const tree = e.store.list('assets/').map((p) => e.store.get(p) as { id: string; name: string })[0]!;
+    const cmds = Array.from({ length: 200 }, (_, i) => ({
+      type: 'asset.create',
+      payload: { asset: { ...tree, id: `ast_many${String(i).padStart(6, '0')}`, name: `Copy ${i}`, origin: 'user' } },
+    }));
+    e.exec(cmds);
+  });
+  const cards = page.getByRole('listbox', { name: 'Assets' }).getByRole('option');
+  await expect(cards).toHaveCount(120);
+  const more = page.locator('[data-tour="dock-more"]');
+  await expect(more).toContainText(/Show \d+ more\s*120 of \d+/);
+  const total = Number(/of (\d+)/.exec(await more.innerText())![1]);
+  expect(total).toBeGreaterThan(200);
+  await more.click();
+  await expect(cards).toHaveCount(Math.min(240, total));
+  // searching narrows it
+  await page.getByRole('searchbox', { name: 'Search assets' }).fill('Copy 199');
+  await expect(cards).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
 test('Big worlds course: Do it for me makes big land, sets how far you see and plays it', async ({ page }) => {
   test.setTimeout(1_200_000);
   const errors: string[] = [];
@@ -136,7 +199,7 @@ test('Big worlds course: Do it for me makes big land, sets how far you see and p
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });
   const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
-  expect(total).toBe(6);
+  expect(total).toBe(7);
   for (let i = 0; i < total; i++) {
     const pos = await card.locator('header .mono').innerText();
     const title = await card.getByRole('heading').first().innerText();

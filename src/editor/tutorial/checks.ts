@@ -385,6 +385,9 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   // P27 part 3: the big worlds course
   mapBricksAtLeast: (ed, a) => (ed.scene.value?.count ?? 0) >= Number(a),
   mapViewDistance: (ed, a) => ed.mapDoc.value?.viewDistance === Number(a),
+  assetsOnMapAtLeast: (ed, a) =>
+    (ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? []).filter((i) => i.kind === 'asset').length >=
+    Number(a),
   entryIsCurrentMap: (ed) => ed.store.manifest.entry.map === ed.mapId.value,
   bigInPlay: (ed) => !!ed.session.value?.world.big,
   heroFarFromStart: (ed, a) => {

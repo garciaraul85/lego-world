@@ -66,6 +66,7 @@ import {
 } from './handlers/map';
 import { placeNpc, removeNpc } from './handlers/npcs';
 import { putProgress } from './handlers/progress';
+import { scatterAsset } from './handlers/scatter';
 
 /** Every command type the engine knows. Append-only: add new handlers at the end. */
 export function registerAll(bus: CommandBus): CommandBus {
@@ -89,6 +90,7 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('gate.delete', deleteGate);
   bus.register('map.delete', deleteMap);
   bus.register('asset.place', placeAsset);
+  bus.register('asset.scatter', scatterAsset);
   bus.register('instance.move', moveInstance);
   bus.register('instance.remove', removeInstance);
   bus.register('instance.setState', setInstanceState);

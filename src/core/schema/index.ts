@@ -12,7 +12,7 @@ import { Chunk } from './chunk';
 import { Cinematic } from './cinematic';
 import { Clip } from './clip';
 import { Gates } from './gates';
-import { Instances } from './instances';
+import { InstanceItem, Instances } from './instances';
 import { LogicGraph, Variables } from './logic';
 import { MapDoc } from './map';
 import { Project, Settings } from './project';
@@ -86,9 +86,35 @@ export function schemaFor(kind: FileKind): z.ZodType | null {
 export type ValidationIssue = { path: string; at: string; message: string };
 
 /** Validates one file's parsed JSON against its kind. Returns [] when valid. */
+/** P27 part 3b: placed things already found valid (files never change in place, so they stay valid) */
+const validItems = new WeakSet<object>();
+
+/** instances.json: each placed thing is checked once, so a change to one of 10,000 does not re-check them all */
+function validateInstances(path: string, value: unknown): ValidationIssue[] {
+  const v = value as { items?: unknown } | null;
+  if (!v || typeof v !== 'object' || !Array.isArray(v.items)) {
+    const r = Instances.safeParse(value);
+    return r.success ? [] : r.error.issues.map((i) => ({ path, at: i.path.join('.'), message: i.message }));
+  }
+  const issues: ValidationIssue[] = [];
+  const { items: _items, ...rest } = v as Record<string, unknown>;
+  const head = Instances.omit({ items: true }).safeParse(rest);
+  if (!head.success) issues.push(...head.error.issues.map((i) => ({ path, at: i.path.join('.'), message: i.message })));
+  v.items.forEach((item, n) => {
+    if (item && typeof item === 'object' && validItems.has(item)) return;
+    const r = InstanceItem.safeParse(item);
+    if (r.success) {
+      if (item && typeof item === 'object' && Object.isFrozen(item)) validItems.add(item);
+    } else
+      issues.push(...r.error.issues.map((i) => ({ path, at: ['items', n, ...i.path].join('.'), message: i.message })));
+  });
+  return issues;
+}
+
 export function validateFile(path: string, value: unknown): ValidationIssue[] {
   const kind = fileKindOf(path);
   if (!kind) return [{ path, at: '', message: 'path is not part of the project layout' }];
+  if (kind === 'instances') return validateInstances(path, value);
   const schema = schemaFor(kind);
   if (!schema) return [];
   const r = schema.safeParse(value);
