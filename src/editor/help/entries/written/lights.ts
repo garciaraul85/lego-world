@@ -198,4 +198,48 @@ export const LIGHTS: HelpEntry[] = [
     match: [{ in: '[data-help="asset.cleanup"]' }],
     related: ['asset.light'],
   },
+  {
+    id: 'project.quality',
+    also: [
+      'quality',
+      'graphics',
+      'graphics quality',
+      'low quality',
+      'high quality',
+      'performance',
+      'slow game',
+      'phone',
+      'old computer',
+      'frame rate',
+      'fps',
+    ],
+    screen: 'scene',
+    kind: 'setting',
+    name: 'Graphics quality',
+    purpose:
+      'How good the game looks, and how hard it works the computer. **Low**: 2 lights, no shadows, half the view distance, 600 particles, plain studs close by: for phones and old computers. **Medium**: 4 lights with shadows, three quarters of the view distance, 1,200 particles. **High**: 8 lights, sharper shadows, the full view distance, 2,000 particles. **Auto** picks one from the device (phones Low, strong computers High) and steps down a level while the game runs slowly. This is what players start with; they can change it in the game’s **Settings** (Graphics).',
+    steps: [
+      'Open the **Project** tab of the Inspector.',
+      'Pick **Graphics quality**: Auto, Low, Medium or High. The line under it says what that level draws.',
+      'Try it: pick a level in **Quality** beside ▶ Play and play.',
+    ],
+    tips: [
+      'A big map’s **How far you see** is for High; Medium draws three quarters of it and Low half.',
+      'The levels are estimates for a mid-range PC at High until they are measured on real phones, laptops and desktops.',
+    ],
+    commands: ['project.update'],
+    match: [{ in: '[data-help="project.quality"]' }],
+    related: ['play.quality', 'scene.map.big', 'scene.item.light'],
+  },
+  {
+    id: 'play.quality',
+    also: ['preview quality', 'test on low', 'play at low', 'quality preview'],
+    screen: 'shell',
+    kind: 'setting',
+    name: 'Play at quality',
+    purpose:
+      'Plays the game at a quality level to see how it looks and runs there: **Low**, **Medium** or **High**. **Quality: game’s** plays at the game’s own setting (Project › Graphics quality, or the player’s choice in Settings). It can change while playing; the Debug tab shows the level, its lights and particles.',
+    match: [{ in: '[data-help="play.quality"]' }],
+    related: ['project.quality', 'shell.play'],
+  },
 ];

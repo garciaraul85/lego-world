@@ -756,6 +756,10 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const first = c.ed.store.get<Gates>(paths.gates)?.mapOrder[0];
     if (first) s.goTo(first, '');
   },
+  playIfStopped(c) {
+    // P27 part 4: what pressing ▶ Play does, unless the game is already playing
+    if (!c.ed.session.value) c.ui.play('engine');
+  },
   walkFar(c) {
     // what holding W does: the hero walks out of the clearing (placed on the ground 80 studs north)
     const s = c.ed.session.value;

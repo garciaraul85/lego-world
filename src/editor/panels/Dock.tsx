@@ -3,6 +3,7 @@ import { useMemo, useState } from 'preact/hooks';
 import { usesOf } from '../../core/audio/usage';
 import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import { LIGHT_PRESET, LIGHT_PRESETS, type LightPreset } from '../../core/lighting/light';
+import { QUALITY } from '../../core/render/quality';
 import type { Cinematic, LightInstance } from '../../core/schema';
 import { type Character, type MapDoc, paths } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
@@ -528,6 +529,12 @@ function Debug({ c }: { c: ActionCtx }) {
         <dd>{String(s.hero.held)}</dd>
         <dt>pieces</dt>
         <dd>{w.pieces.length.toLocaleString('en-US')}</dd>
+        <dt>quality</dt>
+        <dd data-tour="watch-quality">
+          {QUALITY[s.quality].label}
+          {s.qualityAuto ? ' (auto)' : ed.previewQuality.value ? ' (preview)' : ''} · {QUALITY[s.quality].lights} lights
+          {QUALITY[s.quality].shadows ? ' · shadows' : ''} · {QUALITY[s.quality].particles} particles
+        </dd>
         <dt>broken</dt>
         <dd>
           {w.broken.length} objects · {w.debris.length} debris

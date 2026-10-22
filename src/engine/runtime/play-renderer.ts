@@ -1,6 +1,7 @@
 import { freeGroups, partsMoving } from '../../core/assets/free';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
+import { QUALITY } from '../../core/render/quality';
 import { rigPose } from '../character/animator';
 import { ACT_LENGTH, advance, bodyOverlays, bodyPose, bodyWorld, type Motion, newMotion } from '../character/body-anim';
 import type { CharacterRenderer, Controller, HeroState } from '../legacy/runtime-modules';
@@ -157,7 +158,6 @@ export class PlayRenderer {
       this.smallIndex = null;
       r.setSegments(w.doc.generator ? 12 : 24);
       w.dirtyChunks.clear();
-      this.stream.viewDistance = w.doc.viewDistance ?? DEFAULT_VIEW_DISTANCE;
       this.stream.reset(this.chunkIndex().keys());
     } else if (w.dirtyChunks.size) {
       this.smallIndex = null;
@@ -165,6 +165,11 @@ export class PlayRenderer {
       this.stream.changed(w.dirtyChunks, (k) => !!idx.get(k)?.length);
       w.dirtyChunks.clear();
     }
+    // P27 part 4: the quality level scales how far a big map is drawn (the maker's distance is for High)
+    this.stream.viewDistance = Math.max(
+      64,
+      Math.round((w.doc.viewDistance ?? DEFAULT_VIEW_DISTANCE) * QUALITY[this.session.quality].viewScale),
+    );
     this.stream.update(st.x, st.z);
   }
 
@@ -327,6 +332,14 @@ export class PlayRenderer {
     this.renderer.particles = s.effects.batches();
     // P27: the lights of this moment, and how dark the map is without them
     this.renderer.lights = s.pointLightsNow();
+    // P27 part 4: what this quality level draws
+    const q = QUALITY[s.quality];
+    this.renderer.maxLights = q.lights;
+    this.renderer.shadows = q.shadows;
+    this.renderer.shadowSize = q.shadowSize;
+    this.renderer.detailScale = q.detailScale;
+    this.renderer.pixelRatio = q.pixelRatio;
+    this.renderer.groundFog = q.groundFog;
     this.renderer.darkness = s.darkness;
     return this.renderer.render(
       cam,

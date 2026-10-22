@@ -21,6 +21,7 @@ import { Effect, EffectHooks } from '../effects/schema';
 import { Mood, ScreenEffect, ScreenHooks } from '../effects/screen';
 import type { idPattern } from '../ids';
 import { Ambient, Fog } from '../lighting/atmosphere';
+import { QUALITY_CHOICES } from '../render/quality';
 import { ProgressDoc } from '../save/progress';
 import { Saving } from '../save/save';
 import {
@@ -573,10 +574,11 @@ export const AI_COMMANDS: AiCommand[] = [
       saving: Saving.nullable().optional(),
       effects: EffectHooks.nullable().optional(),
       screenEffects: ScreenHooks.nullable().optional(),
+      quality: z.enum(QUALITY_CHOICES).optional(),
     }),
     ['map', 'character', 'screen'],
     'Scene',
-    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}), effects ({hits: {slash: fx_…}, events: {levelUp: fx_…}}; "none" plays nothing), screenEffects ({events: {hurt | bigHit | levelUp | defeat | death | land | smash: sce_… or "none"}, lowHealth: true/false}).',
+    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}), effects ({hits: {slash: fx_…}, events: {levelUp: fx_…}}; "none" plays nothing), screenEffects ({events: {hurt | bigHit | levelUp | defeat | death | land | smash: sce_… or "none"}, lowHealth: true/false}), quality (graphics the game starts at: auto | low | medium | high; players can change it in Settings).',
     { name: 'Coin Quest', hero: 'chr_hhhhhhhhhh' },
   ),
   def(

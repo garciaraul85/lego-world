@@ -113,6 +113,17 @@
           },
           {
             "type": "button",
+            "id": "quality",
+            "label": "{settings.quality}",
+            "onPress": [
+              {
+                "do": "setting",
+                "key": "quality"
+              }
+            ]
+          },
+          {
+            "type": "button",
             "id": "back",
             "label": "Back",
             "onPress": [

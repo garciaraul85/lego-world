@@ -102,7 +102,17 @@ export function pickLights(all: readonly PointLight[], focus: Vec3, max = MAX_LI
   return picked;
 }
 
-export type FrameStats = { drawCalls: number; instances: number; chunksDrawn: number; chunks: number; ms: number };
+export type FrameStats = {
+  drawCalls: number;
+  instances: number;
+  chunksDrawn: number;
+  chunks: number;
+  ms: number;
+  /** P27 part 4: lights drawn, the most allowed, and whether a shadow was drawn this frame */
+  lights?: number;
+  maxLights?: number;
+  shadowed?: boolean;
+};
 
 const rgbCache = new Map<string, [number, number, number]>();
 /** v68 color: sRGB hex -> pow(c, 1.5). */
@@ -178,6 +188,14 @@ export class Renderer {
   fog: FogParams | null = null;
   private fogNow = { color: [0.1, 0.12, 0.16], near: 55, far: 120, max: 0.62, height: 0, ground: 0 };
   shadows = true;
+  /** P27 part 4 (quality levels): lights drawn at once (up to MAX_LIGHTS), the shadow map's size, how far studs are
+   *  drawn (× lodDistance), the most screen pixels per CSS pixel, and the ground fog layer */
+  maxLights = MAX_LIGHTS;
+  shadowSize = SHADOW_SIZE;
+  detailScale = 1;
+  pixelRatio = 2;
+  groundFog = true;
+  private shadowAlloc = 0;
   /** the lights drawn in the last frame (the first casts the shadow when `shadowed`) */
   lit: PointLight[] = [];
   shadowed = false;
@@ -542,10 +560,13 @@ export class Renderer {
     const gl = this.gl;
     this.stats = { drawCalls: 0, instances: 0, chunksDrawn: 0, chunks: this.chunks.size, ms: 0 };
     // P27: the lights near the focus; the first that casts shadows draws its shadow map first
-    this.lit = pickLights(this.lights, focus, MAX_LIGHTS, this.shadows && !!this.inst);
+    this.lit = pickLights(this.lights, focus, Math.min(MAX_LIGHTS, this.maxLights), this.shadows && !!this.inst);
     this.shadowed = !!this.lit[0]?.shadow && this.shadows && !!this.inst;
     if (this.shadowed) this.drawShadowCube(this.lit[0]!);
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.stats.lights = this.lit.length;
+    this.stats.maxLights = Math.min(MAX_LIGHTS, this.maxLights);
+    this.stats.shadowed = this.shadowed;
+    const dpr = Math.min(window.devicePixelRatio || 1, this.pixelRatio);
     const w = Math.max(1, Math.round(this.canvas.clientWidth * dpr));
     const h = Math.max(1, Math.round(this.canvas.clientHeight * dpr));
     if (this.canvas.width !== w || this.canvas.height !== h) {
@@ -575,7 +596,7 @@ export class Renderer {
       far: f ? f.far : Math.max(120, cam.distance * 2.5),
       max: f ? f.max : 0.62,
       height: f?.height ?? 0,
-      ground: f?.ground ?? 0,
+      ground: this.groundFog ? (f?.ground ?? 0) : 0,
     };
     // P27 part 3: where a streamed map's chunks end, the fog is whole (no visible edge)
     if (Number.isFinite(this.viewDistance)) {
@@ -627,7 +648,7 @@ export class Renderer {
       const dist = Math.hypot(dx, dy, dz);
       if (dist > this.viewDistance + (cam.distance ?? 0)) continue;
       this.stats.chunksDrawn++;
-      const far = dist > this.lodDistance;
+      const far = dist > this.lodDistance * this.detailScale;
       for (const b of c.batches) {
         gl.uniform1f(this.u.uPavement!, b.paved ? 1 : 0);
         const mesh =
@@ -771,23 +792,22 @@ export class Renderer {
   private drawShadowCube(light: PointLight) {
     const gl = this.gl;
     const key = `${light.pos.map((v) => v.toFixed(2)).join(',')}|${light.range}|${this.chunkRev}`;
-    if (key === this.shadowKey && this.shadowCube) return;
+    const size = this.shadowSize;
+    if (key === this.shadowKey && this.shadowCube && size === this.shadowAlloc) return;
     this.shadowKey = key;
+    // a quality change asks for another size: make the map again
+    if (this.shadowCube && size !== this.shadowAlloc) {
+      gl.deleteTexture(this.shadowCube);
+      gl.deleteFramebuffer(this.shadowFbo);
+      gl.deleteRenderbuffer(this.shadowDepth);
+      this.shadowCube = null;
+    }
     if (!this.shadowCube) {
+      this.shadowAlloc = size;
       this.shadowCube = gl.createTexture()!;
       gl.bindTexture(gl.TEXTURE_CUBE_MAP, this.shadowCube);
       for (let f = 0; f < 6; f++)
-        gl.texImage2D(
-          gl.TEXTURE_CUBE_MAP_POSITIVE_X + f,
-          0,
-          gl.RGBA,
-          SHADOW_SIZE,
-          SHADOW_SIZE,
-          0,
-          gl.RGBA,
-          gl.UNSIGNED_BYTE,
-          null,
-        );
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
       gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -795,12 +815,12 @@ export class Renderer {
       this.shadowFbo = gl.createFramebuffer()!;
       this.shadowDepth = gl.createRenderbuffer()!;
       gl.bindRenderbuffer(gl.RENDERBUFFER, this.shadowDepth);
-      gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, SHADOW_SIZE, SHADOW_SIZE);
+      gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, size, size);
     }
     gl.useProgram(this.shadowProg);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFbo);
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.shadowDepth);
-    gl.viewport(0, 0, SHADOW_SIZE, SHADOW_SIZE);
+    gl.viewport(0, 0, size, size);
     gl.enable(gl.DEPTH_TEST);
     gl.disable(gl.BLEND);
     gl.depthMask(true);

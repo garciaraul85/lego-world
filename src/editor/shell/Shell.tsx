@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { QUALITY, QUALITY_LEVELS, type QualityLevel } from '../../core/render/quality';
 import { ACTIONS, type ActionCtx, action, type EditorAction, MENUS, runAction } from '../actions/registry';
 import { resolveAsset } from '../assets';
 import { Rich } from '../components/Rich';
@@ -274,6 +275,24 @@ export function Toolbar({ c }: { c: ActionCtx }) {
           </svg>
           {ed.session.value ? 'Stop' : 'Play'}
         </button>
+        {/* P27 part 4: play at a quality level to see how the game looks and runs there */}
+        <select
+          class="inp opt"
+          aria-label="Play at quality"
+          data-tour="play-quality"
+          data-help="play.quality"
+          title="Play at a quality level to see how the game looks there. The game’s setting: what players get (Project › Graphics quality, or their own choice in Settings)."
+          value={ed.previewQuality.value ?? ''}
+          onChange={(e) => {
+            const v = (e.target as HTMLSelectElement).value;
+            ed.previewQuality.value = v ? (v as QualityLevel) : null;
+          }}
+        >
+          <option value="">Quality: game’s</option>
+          {QUALITY_LEVELS.map((l) => (
+            <option value={l}>Quality: {QUALITY[l].label}</option>
+          ))}
+        </select>
         {shows(ed, 'action', 'play.v68') && (
           <button
             type="button"

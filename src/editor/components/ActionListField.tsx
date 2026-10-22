@@ -509,6 +509,7 @@ function ActionArgs({
           <option value="textSize">Text size (normal/large)</option>
           <option value="difficulty">Difficulty (story/normal/hard)</option>
           <option value="reduceMotion">Reduce motion (on/off)</option>
+          <option value="quality">Graphics quality (auto/low/medium/high)</option>
         </select>
       );
     default:

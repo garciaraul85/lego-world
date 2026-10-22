@@ -398,6 +398,10 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     Number(a),
   entryIsCurrentMap: (ed) => ed.store.manifest.entry.map === ed.mapId.value,
   bigInPlay: (ed) => !!ed.session.value?.world.big,
+  // P27 part 4: quality levels
+  projectQuality: (ed, a) => (ed.store.get<{ quality?: string }>(paths.settings)?.quality ?? 'auto') === a,
+  previewQuality: (ed, a) => ed.previewQuality.value === a,
+  playingAtQuality: (ed, a) => ed.session.value?.quality === a,
   playOnFirstMap: (ed) =>
     !!ed.session.value &&
     !ed.session.value.loading &&

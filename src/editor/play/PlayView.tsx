@@ -4,6 +4,7 @@ import { nodeDef } from '../../core/logic/catalog';
 import { nameBook, withNames } from '../../core/logic/code/names';
 import { printGraph } from '../../core/logic/code/print';
 import type { LogicGraph } from '../../core/schema';
+import { browserDevice } from '../../engine/runtime/device';
 import { PlayRenderer } from '../../engine/runtime/play-renderer';
 import { PlaySession } from '../../engine/runtime/session';
 import { moveFocus } from '../../engine/ui/ScreenRenderer';
@@ -46,7 +47,14 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     try {
       ed.audio.init();
       void ed.audio.ctx?.resume().catch(() => {});
-      s = new PlaySession(ed.store.snapshot(), { ...start, audio: ed.audio, saves: new BrowserSaveStore() });
+      s = new PlaySession(ed.store.snapshot(), {
+        ...start,
+        audio: ed.audio,
+        saves: new BrowserSaveStore(),
+        // P27 part 4: the quality the maker previews, and the device for Auto
+        ...(ed.previewQuality.value ? { quality: ed.previewQuality.value } : {}),
+        device: browserDevice(),
+      });
       // P27 part 3c: maps load in steps behind a loading screen; the maps ahead load a little each frame
       s.asyncLoads = true;
       pr = new PlayRenderer(canvas, s);
@@ -78,6 +86,8 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     if (start.cinematic) s.cine.play(start.cinematic);
     if (start.at) s.placeAt(start.at, s.heroState.heading);
 
+    const adaptive = !(navigator as Navigator & { webdriver?: boolean }).webdriver;
+    const unQ = ed.previewQuality.subscribe((q) => s.setQualityPreview(q));
     let raf = 0;
     let last = performance.now();
     let lastTick = 0;
@@ -102,6 +112,9 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       const st = !held || ++heldFrames % 15 === 0 ? pr.render() : null;
       if (!held) heldFrames = 0;
       frameMs.push(dt * 1000);
+      // P27 part 4: Auto quality steps down while frames stay slow (not in automated test browsers, whose software
+      // drawing is always slow, nor while a menu, a pause or a loading screen holds the game)
+      if (adaptive && !held && !ed.paused.value && !s.loading) s.frameTime(dt * 1000);
       if (frameMs.length > 30) frameMs.shift();
       uiTick.value++;
       if (now - lastTick > 100) {
@@ -225,6 +238,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       pr.dispose();
       prRef.current = null;
       unBp();
+      unQ();
       ed.logicBreak.value = null;
       ed.session.value = null;
       ed.playing.value = false;

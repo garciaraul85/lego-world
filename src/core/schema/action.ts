@@ -53,7 +53,7 @@ export const Action = z.discriminatedUnion('do', [
   /** P26 part 2: a player setting steps to its next value (Settings screen), or is set */
   z.strictObject({
     do: z.literal('setting'),
-    key: z.enum(['music', 'sounds', 'invertY', 'cameraSpeed', 'textSize', 'difficulty', 'reduceMotion']),
+    key: z.enum(['music', 'sounds', 'invertY', 'cameraSpeed', 'textSize', 'difficulty', 'reduceMotion', 'quality']),
     value: z.union([z.number(), z.boolean(), z.string()]).optional(),
   }),
   /** P22 part 2: the hero puts on an outfit from its sheet ('' : its own look) */

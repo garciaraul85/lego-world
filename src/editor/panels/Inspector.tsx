@@ -4,13 +4,21 @@ import { MAX_MAPS } from '../../core/commands/handlers/map';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import { worldGenerator } from '../../core/legacy/modules';
 import { minOf } from '../../core/num';
-import { BIOMES, TIMES } from '../../core/schema';
+import {
+  autoQuality,
+  QUALITY,
+  QUALITY_CHOICE_LABEL,
+  QUALITY_CHOICES,
+  type QualityChoice,
+} from '../../core/render/quality';
+import { BIOMES, paths, type Settings, TIMES } from '../../core/schema';
 import type { GenerateConfig } from '../../core/worldgen/generate';
+import { browserDevice } from '../../engine/runtime/device';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { groupLabel } from '../categories';
 import { ActionListField } from '../components/ActionListField';
 import { ColorPicker } from '../components/ColorPicker';
-import { Header, Num, TextField } from '../components/fields';
+import { FieldHelp, Header, Num, TextField } from '../components/fields';
 import { SearchSelect } from '../components/SearchBox';
 import { makeAssetOfSelection } from '../interact/scene-menus';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
@@ -612,6 +620,47 @@ function MapTab({ c }: { c: ActionCtx }) {
   );
 }
 
+export const QUALITY_HELP =
+  'How good the game looks, and how hard it works the computer. Low: 2 lights, no shadows, half the view distance and fewer particles, for phones and old computers. Medium: 4 lights with shadows. High: 8 lights, sharper shadows, the full view distance. Auto picks one from the device and steps down while the game runs slowly. Players can change it in the game’s Settings; this is what they start with.';
+
+/** P27 part 4: the game's graphics quality before the player picks one */
+function QualityField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = ed.store.get<Settings>(paths.settings)?.quality ?? 'auto';
+  const here = autoQuality(browserDevice());
+  const q = QUALITY[cur === 'auto' ? here : cur];
+  return (
+    <div class="field" data-tour="project-quality" data-help="project.quality">
+      <span>
+        Graphics quality
+        <FieldHelp label="Graphics quality" text={QUALITY_HELP} />
+      </span>
+      <select
+        class="inp"
+        aria-label="Graphics quality"
+        value={cur}
+        onChange={(e) =>
+          ed.exec(
+            { type: 'project.update', payload: { quality: (e.target as HTMLSelectElement).value as QualityChoice } },
+            { label: 'Graphics quality' },
+          )
+        }
+      >
+        {QUALITY_CHOICES.map((k) => (
+          <option value={k}>
+            {QUALITY_CHOICE_LABEL[k]}
+            {k === 'auto' ? ` (here: ${QUALITY[here].label})` : ''}
+          </option>
+        ))}
+      </select>
+      <span class="muted small" data-tour="project-quality-note">
+        {q.lights} lights{q.shadows ? ', shadows' : ', no shadows'}, {Math.round(q.viewScale * 100)}% view distance,{' '}
+        {q.particles.toLocaleString('en-US')} particles
+      </span>
+    </div>
+  );
+}
+
 function ProjectTab({ c }: { c: ActionCtx }) {
   const { ed, ui } = c;
   ed.revision.value;
@@ -671,6 +720,7 @@ function ProjectTab({ c }: { c: ActionCtx }) {
             onPick={(entryScreen) => ed.exec({ type: 'project.update', payload: { entryScreen } })}
           />
         </div>
+        <QualityField c={c} />
       </div>
       <SavingSection c={c} />
       <ProgressSection c={c} />

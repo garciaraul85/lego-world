@@ -29,6 +29,15 @@ import type { LegacyPiece } from '../../core/legacy/types';
 import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosphere';
 import type { ExecCtx } from '../../core/logic/catalog';
 import { maxOf } from '../../core/num';
+import {
+  AutoQuality,
+  type DeviceInfo,
+  lowerQuality,
+  QUALITY,
+  type QualityChoice,
+  type QualityLevel,
+  resolveQuality,
+} from '../../core/render/quality';
 import type { MapSave } from '../../core/save/save';
 import {
   AUTO_SLOT,
@@ -326,6 +335,10 @@ export class PlaySession {
       boot?: 'game' | 'entry';
       /** P26: where saves are kept (default: this session only) */
       saves?: SaveStore;
+      /** P27 part 4: play at this quality whatever the settings say (the editor's preview) */
+      quality?: QualityLevel;
+      /** P27 part 4: the device, for Auto quality (none: a mid-range one) */
+      device?: DeviceInfo;
     } = {},
   ) {
     this.L = legacyRuntime();
@@ -421,9 +434,8 @@ export class PlaySession {
     });
     const heroChr = project.hero ? (snapshot.get(paths.character(project.hero)) as Character | undefined) : undefined;
     this.setHero(heroChr);
-    // P23: the quality setting caps the particles
-    const quality = (snapshot.get(paths.settings) as { quality?: string } | undefined)?.quality;
-    this.effects.cap = quality === 'low' ? 600 : quality === 'medium' ? 1200 : 2000;
+    this.qualityPreview = opts.quality ?? null;
+    this.device = opts.device ?? {};
     const mapId = opts.mapId ?? project.entry.map;
     this.world = this.loadWorld(mapId);
     this.forgetBodies();
@@ -2791,6 +2803,49 @@ export class PlaySession {
     const s = this.progress.settings;
     this.audio.playerVolume?.(s.music / 100, s.sounds / 100);
     this.screenFx.reduceMotion = !!s.reduceMotion;
+    this.applyQuality();
+  }
+
+  // ---------- P27 part 4: quality levels ----------
+
+  /** the quality the game plays at now (the renderer reads it every frame) */
+  quality: QualityLevel = 'medium';
+  /** the editor's preview level (null: the game's settings decide) */
+  private qualityPreview: QualityLevel | null = null;
+  private device: DeviceInfo = {};
+  private autoQ = new AutoQuality();
+
+  /** the player's choice, else the maker's default */
+  get qualityChoice(): QualityChoice {
+    const player = this.progress.settings.quality;
+    if (player && player !== 'auto') return player;
+    return (this.snapshot.get(paths.settings) as { quality?: QualityChoice } | undefined)?.quality ?? 'auto';
+  }
+
+  /** Auto is on: the level steps down while frames are slow */
+  get qualityAuto(): boolean {
+    return !this.qualityPreview && this.qualityChoice === 'auto';
+  }
+
+  private applyQuality() {
+    this.quality =
+      this.qualityPreview ?? resolveQuality(this.progress.settings.quality, this.qualityChoice, this.device);
+    this.autoQ = new AutoQuality();
+    this.effects.cap = QUALITY[this.quality].particles;
+  }
+
+  /** the editor's preview: play at this level (null: the game's settings), now */
+  setQualityPreview(level: QualityLevel | null) {
+    this.qualityPreview = level;
+    this.applyQuality();
+  }
+
+  /** a frame took `ms` (drawing included); Auto steps down a level when frames stay slow */
+  frameTime(ms: number) {
+    if (!this.qualityAuto || this.quality === 'low' || !this.autoQ.frame(ms)) return;
+    this.quality = lowerQuality(this.quality);
+    this.effects.cap = QUALITY[this.quality].particles;
+    this.emit('info', `Graphics lowered to ${QUALITY[this.quality].label} to keep the game smooth`);
   }
 
   private entryPos(): [number, number, number] {

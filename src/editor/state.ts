@@ -7,6 +7,7 @@ import type { Autosave, SaveStatus } from '../core/project/autosave';
 import type { FileBackend } from '../core/project/backend';
 import type { MediaStore } from '../core/project/media';
 import type { ProjectStore } from '../core/project/store';
+import type { QualityLevel } from '../core/render/quality';
 import { type Gates, type MapDoc, paths } from '../core/schema';
 import { AudioEngine } from '../engine/audio/AudioEngine';
 import { audioData } from '../engine/audio/data';
@@ -200,6 +201,8 @@ export class EditorState {
   readonly paused = signal(false);
   readonly timeScale = signal(1);
   readonly debugDraw = signal<DebugDraw>({ colliders: false, spawns: true });
+  /** P27 part 4: Play at this quality to see how the game looks there (null: the game's own settings) */
+  readonly previewQuality = signal<QualityLevel | null>(null);
   /**
    * P32: true for the Asset studio's build plate, where bricks are placed, painted and erased one by one. The
    * Scene places whole assets, characters and events, so its Place tool puts down assets.
