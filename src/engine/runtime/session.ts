@@ -3472,7 +3472,11 @@ export class PlaySession {
         const ids = new Set(change.gone.map((p) => p.id));
         for (const k of new Set(change.gone.map(chunkKeyOf))) {
           const list = w.byChunk.get(k);
-          if (list) w.byChunk.set(k, list.filter((p) => !ids.has(p.id)));
+          if (list)
+            w.byChunk.set(
+              k,
+              list.filter((p) => !ids.has(p.id)),
+            );
         }
       }
       for (const p of change.added ?? []) {

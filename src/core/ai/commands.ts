@@ -354,7 +354,7 @@ export const AI_COMMANDS: AiCommand[] = [
     }),
     ['map', 'asset'],
     'Scene',
-    'Places many copies of an asset at once in an area [x0, z0, x1, z1] studs (a forest, a field of flowers): each on flat studded ground, clear of everything, turned at random unless turn is false. Copies that do not fit are left out. Up to 5,000 at a time.',
+    'Places many copies of an asset at once in an area [x0, z0, x1, z1] studs (a forest, a field of flowers): each on flat studded ground, clear of everything, turned at random unless turn is false. Copies that do not fit are left out, and none past the map’s 1,000,000 bricks. Up to 5,000 at a time.',
     { map: M1, asset: 'ast_chest00001', area: [-40, -40, 40, 40], count: 50, seed: 7 },
   ),
   def(

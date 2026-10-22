@@ -12,9 +12,8 @@ export function footprint(b: Pick<Brick, 'type' | 'rot'>): [number, number] {
 
 export type LayoutCheck = { ok: true } | { ok: false; reason: string };
 
-// Numeric cell key: x, z in [-SPAN, SPAN), y in [0, 400) (P27 part 3: the build area grew to ±2048 studs).
+// x, z in [-SPAN, SPAN) (P27 part 3: the build area grew to ±2048 studs); heights below 512.
 const SPAN = BUILD_HALF + 64;
-const key = (x: number, z: number, y: number) => ((x + SPAN) * 2 * SPAN + (z + SPAN)) * 400 + y;
 
 /**
  * v68's inspect(): no two bricks share a cell, and every brick connects to the ground (y = 0)
@@ -31,6 +30,18 @@ export function inspectBricks(
   const occupied = new Map<number, number>();
   const tops = new Map<number, number>();
   const bottoms = new Map<number, number>();
+  // keys stay small integers, which maps look up many times faster than big ones: each column of studs the
+  // list covers gets a number, and a cell is that number with its height
+  const columns = new Map<number, number>();
+  const key = (x: number, z: number, y: number) => {
+    const ck = (x + SPAN) * 2 * SPAN + (z + SPAN);
+    let c = columns.get(ck);
+    if (c === undefined) {
+      c = columns.size;
+      columns.set(ck, c);
+    }
+    return c * 512 + y;
+  };
   for (let i = 0; i < list.length; i++) {
     const b = list[i]!;
     const [w, d] = footprint(b);

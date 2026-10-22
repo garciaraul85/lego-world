@@ -297,3 +297,116 @@ test('Big worlds course: Do it for me makes big land, sets how far you see and p
   }
   expect(errors).toEqual([]);
 });
+
+test('a full big land: Scatter fills it to the brick budget with no errors, says so, and it all survives a reload and Play', async ({
+  page,
+}) => {
+  test.setTimeout(1_500_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  type Full = Ed & {
+    toast: {
+      value: { msg: string; error: boolean } | null;
+      subscribe(f: (v: { msg: string; error: boolean } | null) => void): () => void;
+    };
+    problems: { value: { message: string }[] };
+    autosave: { flush(): Promise<void>; status: { state: string; error?: string } };
+    maps: { value: { id: string; name: string }[] };
+  };
+  // New big land, 2048 × 2048, from the Big worlds section
+  await page.evaluate(() => {
+    (window as unknown as { __editor: Ed }).__editor.right.value = 'map';
+  });
+  const sec = page.locator('[data-tour="map-big"]');
+  await sec.scrollIntoViewIfNeeded();
+  await page.locator('[data-tour="land-size"]').selectOption('2048');
+  await page.locator('[data-tour="land-make"]').click();
+  await expect(page.locator('[data-tour="map-bricks"]')).toContainText(/9\d\d,\d{3} \/ 1,000,000/, {
+    timeout: 300_000,
+  });
+  const mapId = await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.mapId.value);
+  const assets = () =>
+    page.evaluate(
+      (m) =>
+        (
+          (
+            (window as unknown as { __editor: Ed }).__editor.store.get(`maps/${m}/instances.json`) as {
+              items: { kind: string }[];
+            } | null
+          )?.items ?? []
+        ).filter((i) => i.kind === 'asset').length,
+      mapId,
+    );
+  // every message the editor shows, kept (a message hides after a few seconds)
+  await page.evaluate(() => {
+    const w = window as unknown as { __editor: Full; __toasts: { msg: string; error: boolean }[] };
+    w.__toasts = [];
+    w.__editor.toast.subscribe((v) => {
+      if (v) w.__toasts.push(v);
+    });
+  });
+  // Scatter 5,000 Birch trees over the whole map (what the user did): it fills the map, then says so
+  await page.locator('[data-tour="pick-scatter-asset"]').click();
+  await page.locator('[data-tour="pick-scatter-asset-list"] [data-name="Birch tree"]').click();
+  await page.locator('[data-tour="scatter-count"]').fill('5000');
+  await page.locator('[data-tour="scatter-radius"]').fill('1024');
+  await page.locator('[data-tour="scatter-go"]').click();
+  await expect.poll(assets, { timeout: 300_000 }).toBeGreaterThan(1000);
+  const toast = () =>
+    page.evaluate(() => (window as unknown as { __toasts: { msg: string; error: boolean }[] }).__toasts.at(-1) ?? null);
+  await expect
+    .poll(async () => (await toast())?.msg ?? '', { timeout: 60_000 })
+    .toMatch(/placed\. The map is now full/);
+  expect((await toast())?.error).toBe(false);
+  await expect(page.locator('[data-tour="map-bricks"]')).toContainText(/ \/ 1,000,000/);
+  const bricks = Number(
+    (await page.locator('[data-tour="map-bricks"]').innerText()).split('/')[0]!.replace(/[^\d]/g, ''),
+  );
+  expect(bricks).toBeLessThanOrEqual(1_000_000);
+  expect(bricks).toBeGreaterThan(990_000);
+  const placed = await assets();
+  await page.screenshot({ path: 'test-results/big-full-land.png' });
+  // again: a short, plain refusal
+  await page.locator('[data-tour="scatter-go"]').click();
+  await expect.poll(async () => (await toast())?.msg ?? '').toMatch(/^The map is full/);
+  expect((await toast())!.msg.length).toBeLessThan(200);
+  expect(await assets()).toBe(placed);
+  // nothing in the project is invalid, and it saves
+  expect(await page.evaluate(() => (window as unknown as { __editor: Full }).__editor.problems.value.length)).toBe(0);
+  await page.evaluate(() => (window as unknown as { __editor: Full }).__editor.autosave.flush());
+  expect(await page.evaluate(() => (window as unknown as { __editor: Full }).__editor.autosave.status.state)).toBe(
+    'saved',
+  );
+  // a reload opens it again: every copy is there, nothing reported
+  await page.reload();
+  await page.waitForFunction(
+    () => ((window as unknown as { __editor?: Ed }).__editor?.scene.value?.count ?? 0) > 0,
+    undefined,
+    {
+      timeout: 300_000,
+    },
+  );
+  expect(await assets()).toBe(placed);
+  expect(await page.evaluate(() => (window as unknown as { __editor: Full }).__editor.problems.value.length)).toBe(0);
+  // play it from there
+  // the game starts on the big land (Project › Start map)
+  await page.evaluate((m) => {
+    const e = (window as unknown as { __editor: Ed }).__editor;
+    e.openMap(m);
+    const r = e.exec({ type: 'project.update', payload: { entryMap: m } });
+    if (!r.ok) throw new Error(r.error);
+  }, mapId);
+  await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Play', exact: true }).click();
+  await page.waitForFunction(
+    () =>
+      ((window as unknown as { __editor: Ed & { session: { value: { runtime: { ticks: number } } | null } } }).__editor
+        .session.value?.runtime.ticks ?? 0) > 5,
+    undefined,
+    { timeout: 300_000 },
+  );
+  expect(await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.session.value!.world.big)).toBe(
+    true,
+  );
+  await page.keyboard.press('F5');
+  expect(errors).toEqual([]);
+});
