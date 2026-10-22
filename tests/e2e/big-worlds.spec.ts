@@ -92,14 +92,19 @@ test('a million-brick map opens quickly, streams its chunks, and plays around th
     (document.activeElement as HTMLElement | null)?.blur();
   });
   await page.getByRole('button', { name: 'Play in v68' }).click();
+  // the refusal is told (a toast, and the Console keeps it: a later message can replace the toast)
   await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          (window as unknown as { __editor: { toast: { value: { msg: string } | null } } }).__editor.toast.value?.msg,
-      ),
+    .poll(
+      () =>
+        page.evaluate(() =>
+          (window as unknown as { __editor: { logs: { value: { msg: string }[] } } }).__editor.logs.value
+            .map((l) => l.msg)
+            .join('\n'),
+        ),
+      { timeout: 60_000 },
     )
     .toMatch(/more than 12,000 pieces, which v68 cannot load/);
+  await expect(page.locator('iframe[title="LEGO World v68"]')).toHaveCount(0);
   await page.keyboard.press('F5');
   await page.getByLabel('Game view').waitFor({ timeout: 120_000 });
   await expect
