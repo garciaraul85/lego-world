@@ -91,32 +91,16 @@ test('After it breaks: the Wooden crate comes back', async ({ page }) => {
   });
   expect(before.after).toBeLessThan(before.n);
   expect(before.mode).toBe('respawn');
-  await page.waitForTimeout(8000);
-  console.log(
-    'DBG',
-    await page.evaluate(() => {
-      const s = (window as any).__editor.session.value;
-      const e = s.world.broken[0];
-      const b = e && s.damagedBounds(e);
-      return JSON.stringify({
-        clock: s.clock,
-        e: e && { mode: e.mode, at: e.at, after: e.after },
-        b,
-        hero: [s.heroState.x, s.heroState.z],
-        paused: s.screenPaused,
-        lc:
-          e && s.layoutCheck(s.world, [...s.world.pieces, ...e.originals.map((p: any) => ({ ...p }))], e.originals).ok,
-      });
-    }),
-  );
-  await expect
-    .poll(
-      () => page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.session.value!.world.broken.length),
-      {
-        timeout: 120_000,
-      },
-    )
-    .toBe(0);
+  // play time runs slowly on software drawing: step the game 6 seconds ahead (as the frame loop would)
+  const left = await page.evaluate(() => {
+    const s = (window as unknown as { __editor: Ed }).__editor.session.value! as unknown as {
+      runtime: { stepOnce(): void };
+      world: { broken: unknown[] };
+    };
+    for (let i = 0; i < 6 * 60; i++) s.runtime.stepOnce();
+    return s.world.broken.length;
+  });
+  expect(left).toBe(0);
   expect(
     await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.session.value!.world.pieces.length),
   ).toBe(before.n);
