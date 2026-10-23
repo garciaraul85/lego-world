@@ -53,7 +53,7 @@ test('the dock places water, the Inspector changes it, right-click adds it', asy
   // it is listed in the dock and the Hierarchy
   await expect(dock.getByRole('button', { name: /Pool 1/ })).toBeVisible();
   // right-click the ground: Add water here
-  const view = page.locator('[data-tour="viewport"] canvas').first();
+  const view = page.getByLabel('3D map view');
   const box = (await view.boundingBox())!;
   await view.click({ button: 'right', position: { x: box.width / 2, y: box.height * 0.75 } });
   const add = page.getByRole('menuitem', { name: 'Add water here' });

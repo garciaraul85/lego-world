@@ -109,6 +109,7 @@ const CATS: Record<string, string> = {
   'ui-screens': 'UI screens',
   effects: 'Effects',
   lights: 'Lights',
+  water: 'Water',
   sounds: 'Sounds',
   music: 'Music',
 };
@@ -461,6 +462,20 @@ export function stepsToView(view: string): ShowStep[] {
             c.ed.store.get<{ items: { id: string; kind: string }[] }>(`maps/${c.ed.mapId.value}/instances.json`)
               ?.items ?? [];
           const it = items.find((x) => x.kind === 'light');
+          if (it) c.ed.selectedItem.value = it.id;
+          return !!it;
+        }),
+        right('inspect', 'Inspector'),
+      ];
+    case 'scene-water':
+      // Milestone 2b: water placed on the map
+      return [
+        ws('Scene'),
+        select('Select water on the map (Dock › Water › Place, or right-click the ground: Add water here).', (c) => {
+          const items =
+            c.ed.store.get<{ items: { id: string; kind: string }[] }>(`maps/${c.ed.mapId.value}/instances.json`)
+              ?.items ?? [];
+          const it = items.find((x) => x.kind === 'water');
           if (it) c.ed.selectedItem.value = it.id;
           return !!it;
         }),
