@@ -18,7 +18,7 @@ import type { Command } from '../../core/commands';
 import { skyCycle } from '../../core/legacy/modules';
 import { wiresOf } from '../../core/logic/wiring';
 import { maxOf } from '../../core/num';
-import type { Asset, LogicGraph } from '../../core/schema';
+import type { Asset, LogicGraph, WaterInstance } from '../../core/schema';
 import { atmosphere } from '../../engine/lighting/atmosphere';
 import { pointLights } from '../../engine/lighting/lights';
 import { OrbitCamera } from '../../engine/render/camera';
@@ -33,6 +33,7 @@ import {
   Renderer,
 } from '../../engine/render/renderer';
 import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../../engine/render/stream';
+import { waterMarker } from '../../engine/render/water';
 import { ScreenFxOverlay } from '../../engine/ui/ScreenFxOverlay';
 import { placeCommands, resolveAsset } from '../assets';
 import { groupLabel } from '../categories';
@@ -45,6 +46,7 @@ import {
   placeSpawnAt,
   type SceneTarget,
   selectOnly,
+  waterItems,
 } from '../interact/place';
 import { rayBox } from '../scene';
 import type { EditorState } from '../state';
@@ -727,6 +729,12 @@ export function Viewport({
               color: sel ? [1, 0.72, 0.2] : [0.55, 0.45, 1],
             });
         }
+        // Milestone 2b: water (a picked one outlined)
+        for (const wt of studio ? [] : waterItems(ed)) {
+          markers.push(waterMarker(wt));
+          if (wt.id === ed.selectedItem.value)
+            lines.push({ lines: boxLines(...(wt.pos as Vec3), ...waterTop(wt)), color: [1, 0.72, 0.2], onTop: true });
+        }
         for (const sp of studio ? [] : s.map.spawns)
           markers.push({
             pos: [sp.pos[0], sp.pos[1] + 0.9, sp.pos[2]],
@@ -948,8 +956,10 @@ export function Viewport({
       // emitters and world UI are selectable with any other tool
       const item = studio
         ? null
-        : mapItems(ed)
-            .map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) }))
+        : [
+            ...mapItems(ed).map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) })),
+            ...waterItems(ed).map((it) => ({ it, t: rayBox(r, it.pos as Vec3, waterTop(it)) })),
+          ]
             .filter((x) => x.t !== null)
             .sort((a, b) => a.t! - b.t!)[0];
       if (item) {
@@ -1030,8 +1040,10 @@ export function Viewport({
       if (!s) return null;
       const r = rayAt(e);
       const hit = s.pick(r, pickable);
-      const item = mapItems(ed)
-        .map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) }))
+      const item = [
+        ...mapItems(ed).map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) })),
+        ...waterItems(ed).map((it) => ({ it, t: rayBox(r, it.pos as Vec3, waterTop(it)) })),
+      ]
         .filter((x) => x.t !== null)
         .sort((a, b) => a.t! - b.t!)[0];
       if (item && (!hit || item.t! < hit.t)) return { kind: 'item', id: item.it.id };
@@ -1452,6 +1464,9 @@ export function Viewport({
 }
 
 export { mapItems };
+
+/** Milestone 2b: the far top corner of a body of water */
+const waterTop = (w: WaterInstance): Vec3 => [w.pos[0] + w.size[0], w.pos[1] + w.size[1], w.pos[2] + w.size[2]];
 
 const editorKeys = new WeakMap<EditorState, number>();
 let editorCount = 0;

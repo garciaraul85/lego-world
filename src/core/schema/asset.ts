@@ -106,6 +106,8 @@ export const Asset = z.strictObject({
   /** P26: a checkpoint: touching it sets where the hero comes back (Retry, a fall) and autosaves; it shows its
    * second state once touched (a flag goes up) */
   checkpoint: z.boolean().optional(),
+  /** Milestone 2b: a loose object: in play it falls, tumbles, gets pushed about and floats in water */
+  loose: z.boolean().optional(),
   /** P27: it gives light (a torch, a lamp): where on it, and in which of its states */
   light: AssetLight.optional(),
   generator: z

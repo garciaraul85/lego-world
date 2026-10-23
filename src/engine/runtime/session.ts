@@ -9,6 +9,8 @@ import { type Cleanup, cleanupOf, DEBRIS_FADE, MAX_BROKEN, RUBBLE_BRICKS } from 
 import { expandAsset } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances, instanceBricks } from '../../core/assets/instances';
+import { footprint } from '../../core/bricks/inspect';
+import { brickHeight } from '../../core/bricks/map-bricks';
 import {
   brickToPiece,
   chunkExactColors,
@@ -69,6 +71,7 @@ import {
   TIMES,
   type UiInstance,
   type Variables,
+  type WaterInstance,
 } from '../../core/schema';
 import type { AudioPort, Vec3 } from '../audio/port';
 import { RecordingAudio } from '../audio/port';
@@ -177,6 +180,12 @@ export type MapWorld = {
   objects: ObjectIndex<PlayInstance>;
   /** Milestone 2b: the physics core for this map (null until the engine has loaded: v68's debris then) */
   physics: PhysicsWorld | null;
+  /** Milestone 2b: bodies of water */
+  water: WaterInstance[];
+  /** Milestone 2b: loose objects (assets marked loose): their copy, and the middle of their bricks as placed */
+  looseObjects: { inst: PlayInstance; origin: [number, number, number]; pieces: LegacyPiece[] }[];
+  /** Milestone 2b: the bricks of loose objects, by id (not among the map's solid pieces) */
+  loosePieces: Map<number, LegacyPiece>;
   /** P27 part 3d: neighbours beaten that come back (after seconds; 0: when the player comes back) */
   defeated: { npc: Npc; at: number; after: number }[];
 };
@@ -519,6 +528,17 @@ export class PlaySession {
       p.id !== undefined && exact.has(p.id) ? { ...p, hex: exact.get(p.id)! } : { ...p },
     );
     yield 0.85;
+    // Milestone 2b: loose objects are bodies in the physics core, not solid bricks of the map
+    const expanded = expandInstances(this.snapshot, mapId);
+    const looseIds = new Set<number>();
+    if (physicsReady()) for (const e of expanded) if (e.def.loose) for (const b of e.bricks) looseIds.add(b.id);
+    const loosePieces = new Map<number, LegacyPiece>();
+    if (looseIds.size) {
+      for (const p of pieces) if (p.id !== undefined && looseIds.has(p.id)) loosePieces.set(p.id, p);
+      const kept = pieces.filter((p) => p.id === undefined || !looseIds.has(p.id));
+      pieces.length = 0;
+      pieces.push(...kept);
+    }
     const state = (this.snapshot.get(paths.state(mapId)) as MapState | undefined) ?? { broken: [], player: null };
     // P27 part 3: a big map starts with the window around where the hero arrives
     const big = pieces.length > WINDOW_FROM;
@@ -549,7 +569,7 @@ export class PlaySession {
       controller,
       dirtyChunks: new Set(),
       brokenSerial: Math.max(0, ...state.broken.map((b) => b.id)) + 1,
-      instances: expandInstances(this.snapshot, mapId).map((e) => ({
+      instances: expanded.map((e) => ({
         ...e,
         state: e.inst.state ?? e.def.initialState,
       })),
@@ -557,6 +577,9 @@ export class PlaySession {
       emitters: (inst?.items ?? []).filter((i): i is EmitterInstance => i.kind === 'emitter'),
       effects: (inst?.items ?? []).filter((i): i is EffectInstance => i.kind === 'effect'),
       lights: (inst?.items ?? []).filter((i): i is LightInstance => i.kind === 'light'),
+      water: (inst?.items ?? []).filter((i): i is WaterInstance => i.kind === 'water'),
+      looseObjects: [],
+      loosePieces,
       worldUi: (inst?.items ?? []).filter((i): i is UiInstance => i.kind === 'ui'),
       big,
       byChunk,
@@ -570,6 +593,7 @@ export class PlaySession {
     };
     for (const i of w.instances) w.start.instances.set(i.inst.id, i.state);
     this.physicsBricks(w, null);
+    this.physicsLoose(w);
     this.worlds.set(mapId, w);
     this.lru.add(mapId);
     // a map left earlier in this play: back as the player left it
@@ -2062,7 +2086,8 @@ export class PlaySession {
     if (ph) {
       const rebuilding = this.rebuildEntry?.id;
       ph.syncLoose(w.debris, (d) => (d as Debris).entryId === rebuilding);
-      if (w.debris.length) {
+      // loose objects keep the simulation going even with no loose bricks about
+      if (w.debris.length || ph.objectCount) {
         const s = this.heroState;
         const k = this.L.GamePhysics.scaleOf(s);
         ph.moveHero(s.x, s.y, s.z, 0.8 * k, 4.4 * k);
@@ -3605,6 +3630,36 @@ export class PlaySession {
     w.byChunk = indexByChunk(w.pieces);
     this.moveWindow(w, true);
     this.physicsBricks(w, null);
+  }
+
+  /** Milestone 2b: the map's water and its loose objects go into the physics core */
+  private physicsLoose(w: MapWorld) {
+    const ph = w.physics;
+    if (!ph) return;
+    ph.setWater(
+      w.water.map((it) => ({
+        x0: it.pos[0],
+        y0: it.pos[1],
+        z0: it.pos[2],
+        x1: it.pos[0] + it.size[0],
+        y1: it.pos[1] + it.size[1],
+        z1: it.pos[2] + it.size[2],
+        current: it.current ?? [0, 0],
+      })),
+    );
+    for (const i of w.instances) {
+      if (!i.def.loose || !i.bricks.length) continue;
+      const boxes = i.bricks.map((b) => {
+        const [bw, bd] = footprint(b);
+        return { x0: b.x, x1: b.x + bw, y0: b.y * 0.4, y1: (b.y + brickHeight(b.type)) * 0.4, z0: b.z, z1: b.z + bd };
+      });
+      const { origin } = ph.addObject(i.inst.id, boxes);
+      const pieces = i.bricks.flatMap((b) => {
+        const p = w.loosePieces.get(b.id);
+        return p ? [p] : [];
+      });
+      w.looseObjects.push({ inst: i, origin, pieces });
+    }
   }
 
   private smallChunks: { pieces: unknown; index: Map<string, LegacyPiece[]> } | null = null;

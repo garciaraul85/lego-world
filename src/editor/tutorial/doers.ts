@@ -30,6 +30,7 @@ import {
 import { BrowserSaveStore } from '../../platform/saves';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { assetLibrary } from '../assets';
+import { looseCopies, placeWaterAt } from '../interact/place';
 import { savingOf } from '../panels/SavingSection';
 import { settleMove } from '../viewport/settle';
 import { buildInto } from '../workspaces/asset-studio/scratch';
@@ -755,6 +756,21 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     if (!s) throw new Error('Press Play first.');
     const first = c.ed.store.get<Gates>(paths.gates)?.mapOrder[0];
     if (first) s.goTo(first, '');
+  },
+  // Milestone 2b: the water and physics course
+  looseAsset(c, a) {
+    // what ticking Loose in the asset studio does
+    const def = assetByName(c, String(a.name));
+    const own = def ? c.ed.store.get<Asset>(paths.asset(def.id)) : null;
+    if (!own) throw new Error(`Place a ${a.name} on the map first.`);
+    if (!own.loose) run(c, { type: 'asset.update', payload: { asset: { ...own, loose: true } } }, 'Loose');
+  },
+  waterAroundLoose(c) {
+    // what right-clicking the ground beside the crate and picking Add water here does
+    const copy = looseCopies(c.ed)[0];
+    if (!copy) throw new Error('Make an asset loose and place it on the map first.');
+    if (!placeWaterAt(c.ed, { x: copy.x, y: copy.y, z: copy.z }, 'pool'))
+      throw new Error('The water could not be added.');
   },
   playIfStopped(c) {
     // P27 part 4: what pressing ▶ Play does, unless the game is already playing

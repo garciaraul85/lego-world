@@ -38,6 +38,12 @@ export type LooseBrick = {
   sleeping?: boolean;
 };
 
+/** a body of water: a box whose top is the surface, and how it flows (studs a second, across and deep) */
+export type WaterBox = Box & { current: [number, number] };
+
+/** how strongly water lifts a loose thing, against its weight (above 1: it floats, partly under) */
+export const BUOYANCY = 1.7;
+
 /** half sizes of the debris brick (v68's 1 × 1 brick drawn at d.scale: 0.975 wide, 1.2 high) */
 const DEBRIS_HALF = { x: 0.4875, y: 0.6, z: 0.4875 };
 export const GRAVITY = 18;
@@ -50,6 +56,9 @@ export class PhysicsWorld {
   private heroCollider: RAPIER.Collider | null = null;
   /** colliders came or went since the last step: rays must wait for the engine to see them */
   private queriesStale = true;
+  private water: WaterBox[] = [];
+  /** loose objects (whole assets) by their key, and how tall they are (for how deep they sit in water) */
+  private objects = new Map<string, { body: RAPIER.RigidBody; half: number }>();
 
   constructor() {
     if (!ready) throw new Error('The physics engine is not loaded yet.');
@@ -147,9 +156,109 @@ export class PhysicsWorld {
     this.hero.setNextKinematicTranslation({ x, y, z });
   }
 
+  /** the map's water (loose things float in it, and its current carries them) */
+  setWater(list: readonly WaterBox[]) {
+    this.water = [...list];
+  }
+
+  /** a whole asset as one rigid body: its bricks (world boxes) are its shape; returns its key */
+  addObject(key: string, boxes: readonly Box[]) {
+    this.removeObject(key);
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let z0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    let z1 = -Infinity;
+    for (const b of boxes) {
+      x0 = Math.min(x0, b.x0);
+      y0 = Math.min(y0, b.y0);
+      z0 = Math.min(z0, b.z0);
+      x1 = Math.max(x1, b.x1);
+      y1 = Math.max(y1, b.y1);
+      z1 = Math.max(z1, b.z1);
+    }
+    // the body's origin is the middle of its bricks; each brick is a box around it
+    const cx = (x0 + x1) / 2;
+    const cy = (y0 + y1) / 2;
+    const cz = (z0 + z1) / 2;
+    const body = this.world.createRigidBody(
+      RAPIER.RigidBodyDesc.dynamic()
+        .setTranslation(cx, cy, cz)
+        .setLinearDamping(0.1)
+        .setAngularDamping(0.6)
+        .setCcdEnabled(true),
+    );
+    for (const b of boxes) {
+      const hx = (b.x1 - b.x0) / 2;
+      const hy = (b.y1 - b.y0) / 2;
+      const hz = (b.z1 - b.z0) / 2;
+      this.world.createCollider(
+        RAPIER.ColliderDesc.cuboid(hx * 0.98, hy * 0.98, hz * 0.98)
+          .setTranslation(b.x0 + hx - cx, b.y0 + hy - cy, b.z0 + hz - cz)
+          .setDensity(0.6)
+          .setFriction(0.8)
+          .setRestitution(0.15),
+        body,
+      );
+    }
+    this.objects.set(key, { body, half: (y1 - y0) / 2 });
+    return { origin: [cx, cy, cz] as [number, number, number] };
+  }
+
+  removeObject(key: string) {
+    const o = this.objects.get(key);
+    if (!o) return;
+    this.world.removeRigidBody(o.body);
+    this.objects.delete(key);
+  }
+
+  /** where a loose object is and how it is turned (null: no such object) */
+  objectPose(
+    key: string,
+  ): { pos: [number, number, number]; rot: { x: number; y: number; z: number; w: number } } | null {
+    const o = this.objects.get(key);
+    if (!o) return null;
+    const t = o.body.translation();
+    return { pos: [t.x, t.y, t.z], rot: o.body.rotation() };
+  }
+
+  get objectCount() {
+    return this.objects.size;
+  }
+
+  /** buoyancy, drag and current on everything loose that is in water (before each step) */
+  private applyWater(dt: number) {
+    if (!this.water.length) return;
+    const each = (body: RAPIER.RigidBody, half: number) => {
+      const t = body.translation();
+      for (const w of this.water) {
+        if (t.x < w.x0 || t.x > w.x1 || t.z < w.z0 || t.z > w.z1 || t.y - half > w.y1 || t.y + half < w.y0) continue;
+        // how much of it is under the surface (0 to 1)
+        const under = Math.max(0, Math.min(1, (w.y1 - (t.y - half)) / (2 * half)));
+        if (under <= 0) continue;
+        const m = body.mass();
+        const v = body.linvel();
+        const lift = m * GRAVITY * BUOYANCY * under * dt;
+        // water slows it, and the current pulls it along
+        const k = Math.min(1, 2.5 * under * dt);
+        body.applyImpulse(
+          { x: m * (w.current[0] - v.x) * k, y: lift - m * v.y * k, z: m * (w.current[1] - v.z) * k },
+          true,
+        );
+        const a = body.angvel();
+        body.setAngvel({ x: a.x * (1 - k), y: a.y * (1 - k), z: a.z * (1 - k) }, true);
+        break;
+      }
+    };
+    for (const [d, body] of this.loose) each(body, DEBRIS_HALF.y * d.scale);
+    for (const o of this.objects.values()) each(o.body, o.half);
+  }
+
   /** one step of the simulation */
   step(dt: number) {
     if (dt <= 0) return;
+    this.applyWater(Math.min(dt, 1 / 30));
     this.world.timestep = Math.min(dt, 1 / 30);
     this.world.step();
     this.queriesStale = false;
@@ -222,6 +331,7 @@ export class PhysicsWorld {
     this.world.free();
     this.chunks.clear();
     this.loose.clear();
+    this.objects.clear();
     this.hero = null;
     this.heroCollider = null;
   }

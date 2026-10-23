@@ -128,6 +128,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.lights': S('core'),
   'help.atmosphere': S('core'),
   'help.bigworlds': S('core'),
+  'help.water': S('core'),
   'help.brixCourse': S('core'),
   'help.here': S('core'),
   'help.build': S('core'),

@@ -5,7 +5,7 @@ import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import { LIGHT_PRESET, LIGHT_PRESETS, type LightPreset } from '../../core/lighting/light';
 import { QUALITY } from '../../core/render/quality';
 import type { Cinematic, LightInstance } from '../../core/schema';
-import { type Character, type MapDoc, paths } from '../../core/schema';
+import { type Character, type MapDoc, paths, WATER_KINDS } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
 import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
@@ -16,7 +16,15 @@ import { EffectThumb, ScreenThumb } from '../components/previews';
 import { matches, NoMatch, SearchBox } from '../components/SearchBox';
 import { shows } from '../genres/view';
 import { endDrag, startDrag } from '../interact/drag';
-import { mapItems, placeEffectAt, placeLightAt, selectOnly } from '../interact/place';
+import {
+  mapItems,
+  placeEffectAt,
+  placeLightAt,
+  placeWaterAt,
+  selectOnly,
+  WATER_PRESET,
+  waterItems,
+} from '../interact/place';
 import { keysFor } from '../platform';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
@@ -92,6 +100,11 @@ const CATS: [string, string | null, string][] = [
     'Lights',
     null,
     'Torches, lamps and glows that light the bricks and characters around them: Place puts one beside the start (or right-click the ground: Add a light here). Map › Darkness makes the map dark, so only its lights show it.',
+  ],
+  [
+    'Water',
+    null,
+    'Pools, rivers, lakes and seas: Place puts one beside the start (or right-click the ground: Add water here). Loose objects and smashed bricks float in it in Play.',
   ],
   ['Sounds', null, 'Sound events: ▶ to listen; place one in the map as an emitter (Sound emitter tool, S).'],
   ['Music', null, 'Music states: ▶ to audition; pick one as the map music or a zone’s music.'],
@@ -210,6 +223,8 @@ function Assets({ c }: { c: ActionCtx }) {
           <EffectCards c={c} hint={cur[2]} q={q} />
         ) : cur[0] === 'Lights' ? (
           <LightCards c={c} hint={cur[2]} q={q} />
+        ) : cur[0] === 'Water' ? (
+          <WaterCards c={c} hint={cur[2]} q={q} />
         ) : cur[0] === 'Sounds' ? (
           <MediaCards
             c={c}
@@ -265,6 +280,8 @@ function catCount(ed: EditorState, cat: string): number {
     }
     case 'Lights':
       return mapItems(ed).filter((i) => i.kind === 'light').length;
+    case 'Water':
+      return waterItems(ed).length;
     case 'Sounds':
       return soundOptions(ed).length;
     default:
@@ -886,6 +903,58 @@ function LightCards({ c, hint, q }: { c: ActionCtx; hint: string; q: string }) {
                 <LightSwatch light={l.light} size={20} />
                 <span class="asset-name">{l.name ?? l.id}</span>
                 <span class="mono small muted">{l.on ? 'on' : 'off'}</span>
+              </button>
+            ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Milestone 2b: kinds of water to place, and the water on this map (click one to pick it) */
+function WaterCards({ c, hint, q }: { c: ActionCtx; hint: string; q: string }) {
+  const { ed } = c;
+  ed.revision.value;
+  const placed = waterItems(ed);
+  const kinds = WATER_KINDS.filter((k) => matches(q, WATER_PRESET[k].name));
+  const place = (k: (typeof WATER_KINDS)[number]) => {
+    const sp = ed.mapDoc.value?.spawns[0]?.pos ?? [0, 0, 0];
+    const [w, , d] = WATER_PRESET[k].size;
+    placeWaterAt(ed, { x: sp[0]! + 3 + w / 2, y: Math.round(sp[1]! / 0.4), z: sp[2]! + 3 + d / 2 }, k);
+  };
+  return (
+    <>
+      <span class="muted small">{hint}</span>
+      <NoMatch q={kinds.length || placed.some((l) => matches(q, l.name)) ? '' : q} what="water" />
+      <div class="fx-cards" data-tour="dock-water" data-help="scene.dock.water">
+        {kinds.map((k) => (
+          <div class="fx-card" data-name={WATER_PRESET[k].name}>
+            <span class="water-swatch" aria-hidden="true" data-body={k} />
+            <span class="small">{WATER_PRESET[k].name}</span>
+            <button
+              type="button"
+              class="btn small"
+              data-tour={`dock-water-${k}`}
+              aria-label={`Place ${WATER_PRESET[k].name}`}
+              onClick={() => place(k)}
+            >
+              Place
+            </button>
+          </div>
+        ))}
+      </div>
+      {placed.length > 0 && (
+        <div class="col" style={{ gap: '4px' }}>
+          <span class="muted small">On this map</span>
+          {placed
+            .filter((l) => matches(q, l.name))
+            .map((l) => (
+              <button type="button" class="lib-item" onClick={() => selectOnly(ed, 'item', l.id)}>
+                <span class="water-swatch small" aria-hidden="true" data-body={l.body} />
+                <span class="asset-name">{l.name ?? l.id}</span>
+                <span class="mono small muted">
+                  {l.size[0]}×{l.size[2]}
+                </span>
               </button>
             ))}
         </div>

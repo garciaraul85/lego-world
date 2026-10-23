@@ -13,8 +13,10 @@ import {
   placeItemAt,
   placeLightAt,
   placeSpawnAt,
+  placeWaterAt,
   placeZoneAt,
   type SceneTarget,
+  waterItems,
 } from './place';
 
 /**
@@ -180,6 +182,13 @@ export function zoneMenu(c: ActionCtx, id: string): MenuSpec {
 export function itemMenu(c: ActionCtx, id: string): MenuSpec {
   const { ed } = c;
   const it = mapItems(ed).find((x) => x.id === id);
+  const water = waterItems(ed).find((x) => x.id === id);
+  if (water)
+    return {
+      title: water.name ?? 'Water',
+      help: { page: 'e/scene.item.water', label: 'Help about water' },
+      entries: [item('item.edit', 'Change the water…', () => (ed.right.value = 'inspect')), act('edit.delete')],
+    };
   const sound = it?.kind === 'emitter';
   return {
     title: sound ? (it.name ?? 'Sound') : 'Sign',
@@ -215,6 +224,8 @@ export function groundMenu(c: ActionCtx, at: GroundPoint, brick?: number): MenuS
       item('ground.effect', 'Add an effect here', () => placeEffectAt(ed, at)),
       // P27
       item('ground.light', 'Add a light here', () => placeLightAt(ed, at)),
+      // Milestone 2b
+      item('ground.water', 'Add water here', () => placeWaterAt(ed, at)),
       // P28: test from any spot
       item('ground.playHere', 'Play from here (test)', () =>
         c.ui.play('engine', { map: ed.mapId.value, at: [at.x, at.y * 0.4, at.z] }),

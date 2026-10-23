@@ -25,6 +25,7 @@ import {
 import { easeAt, poseAt, poseTimes } from '../../engine/character/posing';
 import { BrowserSaveStore } from '../../platform/saves';
 import { assetLibrary } from '../assets';
+import { inWater, looseCopies, waterItems } from '../interact/place';
 import { savingOf } from '../panels/SavingSection';
 import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
@@ -315,6 +316,24 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   inConversation: (ed) => !!ed.session.value?.talks.active,
   // P26: the saving course
   savingIs: (ed, a) => matches(savingOf(ed.store.manifest), a as Record<string, unknown>),
+  // Milestone 2b: the water and physics course
+  assetLoose: (ed, a) =>
+    assetLibrary(ed).some((x) => x.asset.name === a && !!ed.store.get<Asset>(paths.asset(x.asset.id))?.loose),
+  looseInWater: (ed) => {
+    const water = waterItems(ed);
+    return looseCopies(ed).some((c) => water.some((w) => inWater(w, c.x, c.y * 0.4 + 0.2, c.z)));
+  },
+  waterKind: (ed, a) => waterItems(ed).some((w) => w.body === a),
+  waterFlows: (ed) => waterItems(ed).some((w) => !!w.current && Math.hypot(w.current[0], w.current[1]) > 0),
+  looseMovedInPlay: (ed, a) => {
+    const w = ed.session.value?.world;
+    const ph = w?.physics;
+    if (!w || !ph) return false;
+    return w.looseObjects.some((o) => {
+      const p = ph.objectPose(o.inst.inst.id);
+      return !!p && Math.hypot(p.pos[0] - o.origin[0], p.pos[2] - o.origin[2]) >= Number(a ?? 1);
+    });
+  },
   placedAsset: (ed, a) => {
     const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
     return items.some(

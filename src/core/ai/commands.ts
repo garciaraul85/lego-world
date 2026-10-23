@@ -43,6 +43,7 @@ import {
   TIMES,
   UiInstance,
   VarType,
+  WaterInstance,
   Zone,
 } from '../schema';
 
@@ -102,7 +103,7 @@ const NewBrick = z.strictObject({
 const BrickIds = z.strictObject({ map, ids: z.array(z.number().int()).min(1) });
 const SpawnInput = { name: z.string().min(1).max(60).optional(), pos: xyz.optional(), yaw: z.number().optional() };
 const ZoneShape = Zone.shape;
-const Item = z.discriminatedUnion('kind', [EmitterInstance, UiInstance, LightInstance]);
+const Item = z.discriminatedUnion('kind', [EmitterInstance, UiInstance, LightInstance, WaterInstance]);
 const Edge = z.tuple([z.string(), z.string(), z.string(), z.string()]);
 const VarDef = z.strictObject({
   type: VarType,
@@ -495,7 +496,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ asset: Asset }),
     ['asset'],
     'Assets',
-    'Replaces an asset definition: states, sockets, interactions, smash, generator rules. Send the whole asset.',
+    'Replaces an asset definition: states, sockets, interactions, smash, generator rules, loose (true: copies fall, tip over and float in play). Send the whole asset.',
     { asset: { $read: 'assets/<id>.json' } } as never,
   ),
   def(
@@ -623,7 +624,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ map, item: Item }),
     ['map', 'audio', 'screen'],
     'Scene',
-    'Places a sound emitter (kind emitter), a world UI sign/label/bar (kind ui) or a light (kind light: pos, on, light {color, brightness 0–4, range 2–40 studs, flicker 0–1, shadow}) on a map.',
+    'Places a sound emitter (kind emitter), a world UI sign/label/bar (kind ui) or a light (kind light: pos, on, light {color, brightness 0–4, range 2–40 studs, flicker 0–1, shadow}) or water (kind water: pos its lowest corner, size [width, depth to the surface, length] studs, body pool | river | lake | sea, current? [across, deep] studs a second; loose assets float in it) on a map.',
     {
       map: M1,
       item: {

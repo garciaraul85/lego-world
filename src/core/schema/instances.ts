@@ -86,6 +86,30 @@ export const LightInstance = z.strictObject({
 });
 export type LightInstance = z.infer<typeof LightInstance>;
 
+/** Milestone 2b: the kinds of water (they look and behave the same; a river has a current, the sea waves) */
+export const WATER_KINDS = ['pool', 'river', 'lake', 'sea'] as const;
+
+/**
+ * Milestone 2b: a body of water on a map: a box from `pos` (its lower corner: studs across, world height, studs
+ * deep) `size` big (studs, world units high, studs). Its surface is the top. Loose things float in it and a
+ * current carries them; P13 adds swimming.
+ */
+export const WaterInstance = z.strictObject({
+  id: id('instance'),
+  kind: z.literal('water'),
+  name: z.string().min(1).max(60).optional(),
+  pos: Vec3,
+  size: z.tuple([z.number().min(1).max(2048), z.number().min(0.4).max(120), z.number().min(1).max(2048)]),
+  body: z.enum(WATER_KINDS),
+  /** which way and how fast it flows (studs a second, across and deep) */
+  current: z.tuple([z.number().min(-20).max(20), z.number().min(-20).max(20)]).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
+});
+export type WaterInstance = z.infer<typeof WaterInstance>;
+
 /** World UI placed in a map (P5.9): a sign, a label or a bar drawn over the 3D view at pos. */
 export const UiInstance = z.strictObject({
   id: id('instance'),
@@ -114,6 +138,7 @@ export const InstanceItem = z.discriminatedUnion('kind', [
   UiInstance,
   EffectInstance,
   LightInstance,
+  WaterInstance,
 ]);
 
 export const Instances = z.strictObject({

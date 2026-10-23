@@ -12,6 +12,7 @@ import { drawCharacter } from '../render/place-character';
 import { type LineSet, type Marker, type Mesh, type Overlay, type RenderBrick, Renderer } from '../render/renderer';
 import { FRAGMENT } from '../render/shaders';
 import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../render/stream';
+import { waterMarker } from '../render/water';
 import { chunkKeyOf, indexByChunk } from './pieces';
 import type { MapWorld, PlaySession } from './session';
 
@@ -30,6 +31,39 @@ const toRender = (p: LegacyPiece): RenderBrick => {
     color: p.hex ?? LEGACY_COLORS[p.color]?.[1] ?? '#ff00ff',
   };
 };
+
+/** column-major T(pos)·R(rot)·T(-origin): bricks placed around `origin` drawn where a body now is */
+export function poseMatrix(
+  pose: { pos: [number, number, number]; rot: { x: number; y: number; z: number; w: number } },
+  origin: readonly [number, number, number],
+): Float32Array {
+  const { x, y, z, w } = pose.rot;
+  const r = [
+    1 - 2 * (y * y + z * z),
+    2 * (x * y + z * w),
+    2 * (x * z - y * w),
+    2 * (x * y - z * w),
+    1 - 2 * (x * x + z * z),
+    2 * (y * z + x * w),
+    2 * (x * z + y * w),
+    2 * (y * z - x * w),
+    1 - 2 * (x * x + y * y),
+  ] as const;
+  const m = new Float32Array(16);
+  m[0] = r[0];
+  m[1] = r[1];
+  m[2] = r[2];
+  m[4] = r[3];
+  m[5] = r[4];
+  m[6] = r[5];
+  m[8] = r[6];
+  m[9] = r[7];
+  m[10] = r[8];
+  m[15] = 1;
+  for (let i = 0; i < 3; i++)
+    m[12 + i] = pose.pos[i]! - (r[i]! * origin[0] + r[3 + i]! * origin[1] + r[6 + i]! * origin[2]);
+  return m;
+}
 
 /** Draws a PlaySession: bricks (chunked), v68 characters and debris, play camera, debug overlays. */
 export class PlayRenderer {
@@ -141,6 +175,20 @@ export class PlayRenderer {
     return out;
   }
 
+  /** Milestone 2b: loose objects drawn where the physics core has them (turned and moved from where they were placed) */
+  private looseOverlays(): Overlay[] {
+    const w = this.session.world;
+    const ph = w.physics;
+    if (!ph || !w.looseObjects.length) return [];
+    const out: Overlay[] = [];
+    for (const o of w.looseObjects) {
+      const pose = ph.objectPose(o.inst.inst.id);
+      if (!pose || !o.pieces.length) continue;
+      out.push({ bricks: o.pieces.map(toRender), alpha: 1, flat: false, model: poseMatrix(pose, o.origin) });
+    }
+    return out;
+  }
+
   /** P27 part 3: chunks stream in around the hero on big maps (small maps load at once, as before) */
   private stream: ChunkStream | null = null;
   /** small maps: pieces by chunk (big maps use the session's index) */
@@ -216,6 +264,8 @@ export class PlayRenderer {
           alpha: 0.7,
         });
     }
+    // Milestone 2b: water — a see-through blue box up to its surface
+    for (const it of w.water) markers.push(waterMarker(it));
     if (this.extra) {
       lines.push(...this.extra.lines);
       markers.push(...this.extra.markers);
@@ -354,7 +404,7 @@ export class PlayRenderer {
     return this.renderer.render(
       cam,
       [s.heroState.x, s.heroState.y, s.heroState.z],
-      [...this.tiltedOverlays(), ...creatures.overlays],
+      [...this.tiltedOverlays(), ...this.looseOverlays(), ...creatures.overlays],
       lines,
       markers,
       (mvp, eye) => {

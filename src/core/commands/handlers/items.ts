@@ -8,11 +8,14 @@ import {
   type MapDoc,
   paths,
   type UiInstance,
+  type WaterInstance,
 } from '../../schema';
 import type { CommandHandler } from '../types';
 
-type Item = EmitterInstance | UiInstance | EffectInstance | LightInstance;
-const isItem = (k: string) => k === 'emitter' || k === 'ui' || k === 'effect' || k === 'light';
+type Item = EmitterInstance | UiInstance | EffectInstance | LightInstance | WaterInstance;
+const isItem = (k: string) => k === 'emitter' || k === 'ui' || k === 'effect' || k === 'light' || k === 'water';
+/** Milestone 2b: bodies of water a map holds */
+export const MAX_WATER_PER_MAP = 64;
 /** P27 part 3: was 256 */
 export const MAX_ITEMS_PER_MAP = 10_000;
 /** Milestone 2b: placed asset copies a map holds (the object core keeps the game quick at this many) */
@@ -34,14 +37,18 @@ export const addItem: CommandHandler<{ map: string; item: Item }> = {
         ? 'Add effect'
         : p.item.kind === 'light'
           ? 'Add light'
-          : `Add world ${p.item.widget}`,
+          : p.item.kind === 'water'
+            ? 'Add water'
+            : `Add world ${p.item.widget}`,
   validate(store, p) {
     if (!store.has(paths.map(p.map))) return `Map ${p.map} does not exist.`;
     if (!isId('instance', p.item.id)) return 'Item ids look like ins_ and 10 letters or digits.';
     const cur = inst(store, p.map);
     if (cur.items.some((i) => i.id === p.item.id)) return 'That item already exists.';
-    if (cur.items.filter((i) => i.kind === p.item.kind).length >= MAX_ITEMS_PER_MAP)
-      return `A map holds at most ${MAX_ITEMS_PER_MAP} of these.`;
+    const same = cur.items.filter((i) => i.kind === p.item.kind).length;
+    if (p.item.kind === 'water' && same >= MAX_WATER_PER_MAP)
+      return `A map holds at most ${MAX_WATER_PER_MAP} bodies of water.`;
+    if (same >= MAX_ITEMS_PER_MAP) return `A map holds at most ${MAX_ITEMS_PER_MAP} of these.`;
     return check({ ...cur, items: [...cur.items, p.item] });
   },
   apply(store, p) {

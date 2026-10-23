@@ -120,6 +120,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Atmosphere course: pick a mist, bring it closer, add ground fog, tint the shadows blue, make a day 2 minutes long, see the map at night, place a lamp that shines only at night, start the game at night and play it.',
   'help.bigworlds':
     'Starts the Big worlds course: make a big land of hills, choose how far you see, scatter a forest, make it the start map, play it, walk out into the hills while the world follows the hero, and go to another map through the loading screen.',
+  'help.water':
+    'Starts the Water and physics course: place a Wooden crate, make it loose, put a pool of water around it, make the pool a river, make it flow, and watch the crate float away in Play.',
   'help.posing':
     'Starts the Posing and states course: make Pip, build a clip pose by pose (standing, an arm raised, standing), ease it, give Pip the built-in moves and your clip for Idle, try the states, then walk in Play.',
   'help.dialogue':

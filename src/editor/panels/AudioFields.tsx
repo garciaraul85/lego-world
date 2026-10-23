@@ -15,6 +15,7 @@ import type { EditorState } from '../state';
 import { allEffects } from '../workspaces/effects/EffectsStudio';
 import { EffectInspector } from './EffectFields';
 import { LightInspector } from './LightFields';
+import { WaterInspector } from './WaterFields';
 
 /** Pickers for ActionListField (sound, music and screen actions). */
 export function actionChoices(ed: EditorState) {
@@ -338,6 +339,8 @@ export function ItemInspector({ c, id }: { c: ActionCtx; id: string }) {
   if (raw?.kind === 'effect') return <EffectInspector c={c} item={raw} />;
   // P27: a light placed on the map
   if (raw?.kind === 'light') return <LightInspector c={c} item={raw} />;
+  // Milestone 2b: water
+  if (raw?.kind === 'water') return <WaterInspector c={c} item={raw} />;
   const it = ed.store.get<Instances>(paths.instances(map))?.items.find((i) => i.id === id) as
     | EmitterInstance
     | UiInstance

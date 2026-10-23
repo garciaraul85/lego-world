@@ -118,6 +118,9 @@ export function reuseBricks(
   return { bricks, parts };
 }
 
+export const LOOSE_HELP =
+  'A loose object is not fixed to the map: in Play it falls if nothing holds it up, tips over when the hero pushes it, floats in water and drifts with a river’s current. Leave it off for buildings, trees and anything that should stay put.';
+
 export function AssetStudio({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
@@ -1217,6 +1220,22 @@ function Properties({
             </label>
           </div>
         )}
+
+        {/* Milestone 2b: a loose object — the physics core moves it: it falls, tips over, is pushed, floats */}
+        <div class="sec" data-help="asset.loose">
+          <label class="lbl" data-tour="asset-loose">
+            <input
+              type="checkbox"
+              checked={!!def.loose}
+              onChange={() => {
+                const { loose: _l, ...rest } = def;
+                reset((def.loose ? rest : { ...def, loose: true }) as Asset, def.loose ? 'Not loose' : 'Loose');
+              }}
+            />{' '}
+            Loose (falls, tips over and floats in play)
+            <FieldHelp label="Loose" text={LOOSE_HELP} />
+          </label>
+        </div>
 
         {/* P27: it gives light (a torch, a lamp), where on it, in which states */}
         <div class="sec" data-help="asset.light" data-tour="asset-light-sec">

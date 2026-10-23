@@ -77,6 +77,17 @@ The Map tab sets a map's atmosphere, one undo step per change:
 
 Logic's **Set time of day** and **Set fog** (Sky) change them while the game plays. [Atmosphere course](action:help.atmosphere)
 
+## Water and loose things
+
+Water fills a box on the map up to its surface; it is see-through blue in the Scene and in the game. Add it with **right-click › Add water here** or **Dock › Water › Place** (Pool, River, Lake, Sea). Pick it to change it in the Inspector:
+
+- **Kind** — Pool, River, Lake or Sea: its colour and starting size.
+- **Corner** and **Size** — where its lowest corner is and how wide, deep (up to the surface) and long it is, in studs.
+- **Current** — which way it flows and how fast (studs a second, across and deep). 0, 0 is still water.
+- **Colour** — a tint of your own.
+
+An asset ticked **Loose** in the asset studio is not fixed to the map: in Play each copy falls if nothing holds it up, tips over when the hero walks into it, floats in water and drifts with the current. Smashed bricks float too. The **Water and physics course** (Help menu) walks through it.
+
 ## Big worlds
 
 A map holds up to **1,000,000 bricks** across a build area of ±2048 studs. The Map tab's **Big worlds** section shows the map's bricks and chunks (32 × 32 studs each):
