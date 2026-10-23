@@ -334,6 +334,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
         {/* P27 part 4: play at a quality level to see how the game looks and runs there */}
         <select
           class="inp"
+          style={{ width: 'auto', flex: '0 0 auto' }}
           aria-label="Play at quality"
           data-tour="play-quality"
           data-help="play.quality"

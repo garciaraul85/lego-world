@@ -327,7 +327,7 @@ export const ACTIONS: EditorAction[] = [
       if (r.ok) {
         ed.openMap(y.map);
         ed.notify(
-          'The Training yard: dummies, a hill, a cracked wall, a target that opens a gate and a sparring knight. Play › Play this map tries it.',
+          'The Training yard: dummies, a hill, a cracked wall, a target that opens a gate, a sparring knight, the Yard master to talk to (T) and stairs down to a dark cellar lit by torches. Play › Play this map tries it.',
         );
       }
     },
