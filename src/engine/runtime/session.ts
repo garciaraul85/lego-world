@@ -88,6 +88,7 @@ import {
 import { type Atmosphere, atmosphere } from '../lighting/atmosphere';
 import { findLight, gatherLights, type LightSource, pointLights } from '../lighting/lights';
 import { LogicRuntime } from '../logic/interpreter';
+import { PhysicsWorld, physicsReady } from '../physics/physics';
 import { portrait } from '../render/portraits';
 import type { PointLight } from '../render/renderer';
 import { CinematicSystem } from '../systems/cinematic';
@@ -174,6 +175,8 @@ export type MapWorld = {
   goneIds: number[];
   /** Milestone 2b: the placed objects' indexes (by id, name, brick and place) */
   objects: ObjectIndex<PlayInstance>;
+  /** Milestone 2b: the physics core for this map (null until the engine has loaded: v68's debris then) */
+  physics: PhysicsWorld | null;
   /** P27 part 3d: neighbours beaten that come back (after seconds; 0: when the player comes back) */
   defeated: { npc: Npc; at: number; after: number }[];
 };
@@ -561,10 +564,12 @@ export class PlaySession {
       fullArea,
       goneIds: [],
       objects: new ObjectIndex<PlayInstance>(),
+      physics: physicsReady() ? new PhysicsWorld() : null,
       defeated: [],
       start: { instances: new Map(), npcs: npcs.map((n) => n.id) },
     };
     for (const i of w.instances) w.start.instances.set(i.inst.id, i.state);
+    this.physicsBricks(w, null);
     this.worlds.set(mapId, w);
     this.lru.add(mapId);
     // a map left earlier in this play: back as the player left it
@@ -593,6 +598,8 @@ export class PlaySession {
         continue;
       }
       this.parked.set(id, captureMap(w as unknown as SaveWorld));
+      w.physics?.free();
+      w.physics = null;
       this.worlds.delete(id);
       this.lru.delete(id);
     }
@@ -2049,7 +2056,34 @@ export class PlaySession {
         if (e.mode && e.mode !== 'rebuild' && this.clock - (e.at ?? 0) > DEBRIS_FADE) fade.add(e.id);
       if (fade.size) w.debris = w.debris.filter((d) => d.keep || !fade.has(d.entryId));
     }
+    // Milestone 2b: loose bricks are rigid bodies in the physics core: they tumble, stack and come to rest on the
+    // bricks, and the hero pushes them (a brick being rebuilt flies back to its place by hand, as before)
+    const ph = w.physics;
+    if (ph) {
+      const rebuilding = this.rebuildEntry?.id;
+      ph.syncLoose(w.debris, (d) => (d as Debris).entryId === rebuilding);
+      if (w.debris.length) {
+        const s = this.heroState;
+        const k = this.L.GamePhysics.scaleOf(s);
+        ph.moveHero(s.x, s.y, s.z, 0.8 * k, 4.4 * k);
+        ph.step(dt);
+        ph.readLoose();
+        for (const d of w.debris) {
+          if (d.entryId === rebuilding) continue;
+          d.age += dt;
+          // kept inside the map, as v68 keeps them
+          const x = d.x;
+          const z = d.z;
+          this.L.GamePhysics.confineDebris(d, w.controller);
+          if (d.x !== x || d.z !== z) ph.place(d, d.x, d.y, d.z, d.vx, d.vz);
+          // fell through the world's floor: it is gone
+          if (d.y < -20) d.keep = false;
+        }
+        w.debris = w.debris.filter((d) => d.y >= -20);
+      }
+    }
     for (const d of w.debris) {
+      if (ph && this.rebuildEntry?.id !== d.entryId) continue;
       if (this.rebuildEntry?.id === d.entryId) {
         const t = this.rebuildEntry.progress;
         d.age += dt;
@@ -2988,6 +3022,11 @@ export class PlaySession {
 
   /** Stop: silence everything this session started. */
   dispose() {
+    // Milestone 2b: the physics worlds' memory goes back
+    for (const w of this.worlds.values()) {
+      w.physics?.free();
+      w.physics = null;
+    }
     // the editor's own sounds go back to full volume
     this.audio.playerVolume?.(1, 1);
     this.emitterSystem.reset(this.audio);
@@ -3531,9 +3570,12 @@ export class PlaySession {
    * only the window around the hero (the chunk index is rebuilt first).
    */
   syncPhysics(w: MapWorld, change?: { gone?: readonly LegacyPiece[]; added?: readonly LegacyPiece[] }) {
+    // Milestone 2b: the chunks the change touched become solid again in the physics core (all of them without one)
+    const touched = change ? new Set([...(change.gone ?? []), ...(change.added ?? [])].map(chunkKeyOf)) : null;
     if (!w.big) {
       w.controller.replace(w.pieces, w.meta);
       this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+      this.physicsBricks(w, touched);
       return;
     }
     // P27 part 3d: a small change updates only its chunks of the index, and the neighbours catch up twice a second
@@ -3557,10 +3599,45 @@ export class PlaySession {
       }
       w.npcsStale = true;
       this.moveWindow(w, true, true);
+      this.physicsBricks(w, touched);
       return;
     }
     w.byChunk = indexByChunk(w.pieces);
     this.moveWindow(w, true);
+    this.physicsBricks(w, null);
+  }
+
+  private smallChunks: { pieces: unknown; index: Map<string, LegacyPiece[]> } | null = null;
+  /**
+   * Milestone 2b: the bricks the physics core treats as solid: a big map's window around the hero, a small map
+   * whole. `changed` names chunks to build again (null: every chunk in the window).
+   */
+  physicsBricks(w: MapWorld, changed: Set<string> | null) {
+    const ph = w.physics;
+    if (!ph) return;
+    let index: Map<string, LegacyPiece[]>;
+    const want = new Set<string>();
+    if (w.big && w.byChunk) {
+      index = w.byChunk;
+      const at = w.windowAt;
+      if (at) {
+        const [cx, cz] = at.split('_').map(Number) as [number, number];
+        for (let dx = -WINDOW_RADIUS; dx <= WINDOW_RADIUS; dx++)
+          for (let dz = -WINDOW_RADIUS; dz <= WINDOW_RADIUS; dz++) {
+            const k = `${cx + dx}_${cz + dz}`;
+            if (index.has(k)) want.add(k);
+          }
+      }
+    } else {
+      if (this.smallChunks?.pieces !== w.pieces) this.smallChunks = { pieces: w.pieces, index: indexByChunk(w.pieces) };
+      index = this.smallChunks.index;
+      for (const k of index.keys()) want.add(k);
+    }
+    const have = ph.chunkKeys();
+    const bounds = (p: LegacyPiece) => this.L.GamePhysics.bounds(p);
+    for (const k of have) if (!want.has(k) || (changed?.has(k) && !index.has(k))) ph.dropChunk(k);
+    for (const k of want)
+      if (!have.has(k) || changed === null || changed.has(k)) ph.setChunk(k, index.get(k) ?? [], bounds);
   }
 
   private ids: { pieces: LegacyPiece[]; map: Map<number, LegacyPiece> } | null = null;
@@ -3584,6 +3661,7 @@ export class PlaySession {
     const near = piecesAround(w.byChunk, key);
     w.controller.replace(near, w.meta);
     w.controller.area = w.fullArea;
+    this.physicsBricks(w, new Set());
     if (heroOnly) return;
     w.npcsStale = false;
     this.L.NPCWorld.sync(w.npcs, near, w.meta);

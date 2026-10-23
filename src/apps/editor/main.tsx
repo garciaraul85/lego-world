@@ -30,6 +30,7 @@ import { App, type AppHost } from '../../editor/App';
 import { placeCommands } from '../../editor/assets';
 import { hubAtStartup, readIntent, writeIntent } from '../../editor/start/intent';
 import { EditorState } from '../../editor/state';
+import { initPhysics } from '../../engine/physics/physics';
 import '../../editor/theme.css';
 import { saveFile } from '../../platform/downloads';
 import { IdbBackend } from '../../platform/idb-backend';
@@ -56,6 +57,8 @@ const DEFAULT_WORLD = { environments: ['forest', 'city', 'mountains'], size: 24 
 
 async function boot() {
   const root = document.getElementById('app')!;
+  // Milestone 2b: the physics core (WebAssembly) loads while the project opens; Play uses it once it is ready
+  const physics = initPhysics().catch((e) => console.warn('Physics engine did not load; v68 debris is used.', e));
   const backend = new IdbBackend();
   let store: ProjectStore | null = null;
   let problems: Problem[] = [];
@@ -224,6 +227,7 @@ async function boot() {
     id: e.id,
     screen: e.screen,
   }));
+  await physics;
   render(<App ed={ed} host={host} />, root);
 }
 
