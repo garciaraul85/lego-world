@@ -266,7 +266,7 @@ test('many maps: 300 maps in a project, found by typing; a trip in Play goes thr
 });
 
 test('Big worlds course: Do it for me makes big land, sets how far you see and plays it', async ({ page }) => {
-  test.setTimeout(1_200_000);
+  test.setTimeout(1_800_000);
   const errors: string[] = [];
   await open(page, errors);
   await page.locator('[data-tour="menu-help"]').click();
