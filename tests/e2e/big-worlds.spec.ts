@@ -279,7 +279,7 @@ test('Big worlds course: Do it for me makes big land, sets how far you see and p
     const pos = await card.locator('header .mono').innerText();
     const title = await card.getByRole('heading').first().innerText();
     const doIt = card.getByRole('button', { name: 'Do it for me' });
-    if (await doIt.isVisible()) {
+    if ((await doIt.isVisible()) && (await doIt.isEnabled())) {
       await doIt.click();
       const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
       const done = card.getByText(/✓ Done!/);

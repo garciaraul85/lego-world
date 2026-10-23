@@ -401,7 +401,8 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   // P27 part 4: quality levels
   projectQuality: (ed, a) => (ed.store.get<{ quality?: string }>(paths.settings)?.quality ?? 'auto') === a,
   previewQuality: (ed, a) => ed.previewQuality.value === a,
-  playingAtQuality: (ed, a) => ed.session.value?.quality === a,
+  // picked on the Play bar (a game whose own level is already Low still waits for the pick)
+  playingAtQuality: (ed, a) => ed.previewQuality.value === a && ed.session.value?.quality === a,
   playOnFirstMap: (ed) =>
     !!ed.session.value &&
     !ed.session.value.loading &&
