@@ -166,7 +166,7 @@ test('many objects: Scatter places a forest as one undo step; a big asset librar
   await expect.poll(count, { timeout: 60_000 }).toBeGreaterThan(10);
   const n = await count();
   expect(n).toBeLessThanOrEqual(100);
-  await expect(page.locator('[data-tour="map-assets"]')).toContainText(`${n} / 10,000`);
+  await expect(page.locator('[data-tour="map-assets"]')).toContainText(`${n} / 100,000`);
   // one undo takes the forest away (the Birch tree stays in the project)
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('Control+z');
