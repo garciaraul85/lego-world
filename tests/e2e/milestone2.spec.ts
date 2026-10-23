@@ -83,7 +83,11 @@ test('Milestone 2 gate: in the Training yard the cast talks, hits spark, and a d
   await expect
     .poll(
       async () => {
+        // the answer's line, else T shows the next one (never pressed past it)
+        const text = await ses(page, (s) => s.talks.view?.text ?? '');
+        if (/It is dark down there/.test(text)) return text;
         await page.keyboard.press('t');
+        await page.waitForTimeout(300);
         return ses(page, (s) => s.talks.view?.text ?? '');
       },
       { timeout: 30_000 },
