@@ -398,8 +398,8 @@
     {
       "id": "big.preview",
       "title": "See it at Low",
-      "body": "Beside ▶ Play, Quality plays the game at a level to see how it looks and runs there, without changing the game: Low draws half as far, with 2 lights and no shadows. It changes at once while playing, and the Debug tab shows the level. Quality: game’s plays at the game’s own setting again.",
-      "task": "Beside ▶ Play, pick Quality: Low while the game plays.",
+      "body": "While playing, Quality on the Play bar plays the game at a level to see how it looks and runs there, without changing the game: Low draws half as far, with 2 lights and no shadows. It changes at once, and the Debug tab shows the level. Quality: game’s plays at the game’s own setting again.",
+      "task": "Play, and pick Quality: Low on the Play bar.",
       "target": "[data-tour=\"play-quality\"]",
       "placement": "bottom",
       "workspace": "Scene",
@@ -410,31 +410,29 @@
       },
       "doItForMe": [
         {
-          "choose": "[data-tour=\"play-quality\"]",
-          "value": "low"
+          "fn": "playIfStopped"
         },
         {
-          "fn": "playIfStopped"
+          "choose": "[data-tour=\"play-quality\"]",
+          "value": "low"
         }
       ],
       "how": [
         {
-          "text": "In the bar at the top, beside ▶ Play, open the drop-down “Quality: game’s” and pick “Quality: Low”.",
+          "text": "If the game is not playing, press ▶ Play. The Play bar appears above the game.",
           "check": {
-            "kind": "state",
-            "test": "previewQuality",
-            "args": "low"
+            "kind": "dom",
+            "selector": "[data-tour=\"play-quality\"]"
           },
           "do": [
             {
-              "choose": "[data-tour=\"play-quality\"]",
-              "value": "low",
-              "say": "Open the drop-down beside ▶ Play and pick “Quality: Low”."
+              "fn": "playIfStopped",
+              "say": "Press ▶ Play: the Play bar is above the game."
             }
           ]
         },
         {
-          "text": "If the game is not playing, press ▶ Play. The far hills now end sooner in the fog, and the Debug tab says Low.",
+          "text": "On the Play bar, open the drop-down “Quality: game’s” and pick “Quality: Low”. The far hills now end sooner in the fog, and the Debug tab says Low.",
           "check": {
             "kind": "state",
             "test": "playingAtQuality",
@@ -442,8 +440,9 @@
           },
           "do": [
             {
-              "fn": "playIfStopped",
-              "say": "Play at Low: the hills end sooner in the fog."
+              "choose": "[data-tour=\"play-quality\"]",
+              "value": "low",
+              "say": "On the Play bar, pick “Quality: Low”: the hills end sooner in the fog."
             }
           ]
         }

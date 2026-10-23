@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { nodeDef } from '../../core/logic/catalog';
 import { nameBook, withNames } from '../../core/logic/code/names';
 import { printGraph } from '../../core/logic/code/print';
+import { QUALITY, QUALITY_LEVELS, type QualityLevel } from '../../core/render/quality';
 import type { LogicGraph } from '../../core/schema';
 import { browserDevice } from '../../engine/runtime/device';
 import { PlayRenderer } from '../../engine/runtime/play-renderer';
@@ -330,6 +331,24 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
             </button>
           ))}
         </span>
+        {/* P27 part 4: play at a quality level to see how the game looks and runs there */}
+        <select
+          class="inp"
+          aria-label="Play at quality"
+          data-tour="play-quality"
+          data-help="play.quality"
+          title="Play at a quality level to see how the game looks and runs there. Quality: game’s plays at the game’s own setting (Project › Graphics quality, or the player’s choice in Settings)."
+          value={ed.previewQuality.value ?? ''}
+          onChange={(e) => {
+            const v = (e.target as HTMLSelectElement).value;
+            ed.previewQuality.value = v ? (v as QualityLevel) : null;
+          }}
+        >
+          <option value="">Quality: game’s</option>
+          {QUALITY_LEVELS.map((l) => (
+            <option value={l}>Quality: {QUALITY[l].label}</option>
+          ))}
+        </select>
         <span class="muted small opt play-hint">
           {keysFor(
             'WASD move · Space jump · F smash · E use · hold E rebuild · T talk · 1-4 emotes · Esc pause · F5 stop',

@@ -221,7 +221,7 @@ export const LIGHTS: HelpEntry[] = [
     steps: [
       'Open the **Project** tab of the Inspector.',
       'Pick **Graphics quality**: Auto, Low, Medium or High. The line under it says what that level draws.',
-      'Try it: pick a level in **Quality** beside ▶ Play and play.',
+      'Try it: press ▶ Play and pick a level in **Quality** on the Play bar.',
     ],
     tips: [
       'A big map’s **How far you see** is for High; Medium draws three quarters of it and Low half.',
@@ -234,12 +234,12 @@ export const LIGHTS: HelpEntry[] = [
   {
     id: 'play.quality',
     also: ['preview quality', 'test on low', 'play at low', 'quality preview'],
-    screen: 'shell',
+    screen: 'play',
     kind: 'setting',
     name: 'Play at quality',
     purpose:
       'Plays the game at a quality level to see how it looks and runs there: **Low**, **Medium** or **High**. **Quality: game’s** plays at the game’s own setting (Project › Graphics quality, or the player’s choice in Settings). It can change while playing; the Debug tab shows the level, its lights and particles.',
     match: [{ in: '[data-help="play.quality"]' }],
-    related: ['project.quality', 'shell.play'],
+    related: ['project.quality', 'play.bar'],
   },
 ];
