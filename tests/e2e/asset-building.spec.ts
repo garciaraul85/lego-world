@@ -310,7 +310,7 @@ test.describe('on a Retina Mac screen', () => {
       await page.mouse.up();
     }
     await expect.poll(() => pieces(page)).toBe(4);
-    await expect(plate.locator('.vp-hud')).toContainText('4 / 12,000');
+    await expect(plate.locator('.vp-hud')).toContainText('4 / 1,000,000');
     expect(
       await page.evaluate(
         () =>

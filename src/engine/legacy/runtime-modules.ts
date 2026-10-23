@@ -53,6 +53,8 @@ export type LegacyWorldMeta = {
 export interface Controller {
   state: HeroState;
   pieces: LegacyPiece[];
+  /** where the controller lets characters go (P27 part 3: a big map's window keeps the whole map's) */
+  area?: unknown;
   spawnPoint?: { x: number; y: number; z: number };
   replace(pieces: LegacyPiece[], world?: LegacyWorldMeta): void;
   repairPosition(): void;
@@ -76,6 +78,8 @@ export type Npc = {
 };
 export type Debris = {
   entryId: number;
+  /** P27 part 3d: rubble: stays on the ground for good */
+  keep?: boolean;
   x: number;
   y: number;
   z: number;
@@ -102,6 +106,7 @@ export interface LegacyRuntime {
     overlapsPlayer(p: LegacyPiece, s: HeroState): boolean;
     rebuildTraps(c: Controller, originals: LegacyPiece[], x: number, z: number, y: number): boolean;
     cameraDistance(target: number[], eye: number[], pieces: LegacyPiece[]): number;
+    worldBounds(pieces: LegacyPiece[], world?: LegacyWorldMeta): unknown;
     confineDebris(d: Debris, c: Controller): void;
     stepDebrisPiece(d: Debris, dt: number, c: Controller): void;
   };
@@ -194,8 +199,8 @@ const ORDER = [
   studioAnimations,
   characterCatalog,
   rigCollision,
-  gamePhysics,
-  withOffHand(characterModel),
+  withRoomToWalk(gamePhysics),
+  withTalkingMouth(withOffHand(characterModel)),
   characterArt,
   npcWorld,
 ];
@@ -213,6 +218,36 @@ function withOffHand(src: string): string {
     "box(sx,sy,sz,.14,1.05,.80);part('leftForearm',accent);box(sx-.075,sy,sz,.01,.66,.09);" +
     'box(sx-.075,sy+.08,sz,.01,.09,.50);}';
   return src.replace(at, shield + at);
+}
+
+/**
+ * P23: on a map with no terrain yet, v68 lets characters walk only within the bricks standing on the ground,
+ * so one chest on a bare map shrinks the walkable room to that chest (the hero and every neighbour land on
+ * top of it). The new engine's copy keeps the bare ground's ±16 studs while the ground is that small.
+ */
+function withRoomToWalk(src: string): string {
+  const at = "for(const k of ['x1','z1'])area[k]=Math.max(area[k],b[k]);}return area;";
+  if (!src.includes(at)) throw new Error('game physics: worldBounds moved; update withRoomToWalk');
+  return src.replace(
+    at,
+    "for(const k of ['x1','z1'])area[k]=Math.max(area[k],b[k]);}" +
+      'if(area.x1-area.x0<32&&area.z1-area.z0<32){area.x0=Math.min(area.x0,-16);area.x1=Math.max(area.x1,16);' +
+      'area.z0=Math.min(area.z0,-16);area.z1=Math.max(area.z1,16);}return area;',
+  );
+}
+
+/**
+ * P23 part 3: a talking mouth. While a character speaks, its profile carries `mouthOpen` (0.5 half, 1 wide)
+ * and the face prints an open mouth (with a tongue) instead of the expression's mouth; the brows and eyes
+ * keep the mood. Each shape is a different profile, so the model caches each one once.
+ */
+function withTalkingMouth(src: string): string {
+  const at = "part('root',ink);const mouth=[];if(['Smile',";
+  if (!src.includes(at)) throw new Error('character model: the mouth block moved; update withTalkingMouth');
+  const open =
+    "part('root',ink);const mouth=[];if(p.mouthOpen>0){const o=p.mouthOpen;disc(0,3.47,.10+.05*o,.035+.085*o);" +
+    "part('root','#b94352');disc(0,3.43,.05+.03*o,.015+.035*o,.031);part('root',ink);}else if(['Smile',";
+  return src.replace(at, open);
 }
 
 let runtime: LegacyRuntime | null = null;

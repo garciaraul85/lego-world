@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { QUALITY_CHOICES } from '../render/quality';
 
 /**
  * P26 part 2: progress — what a game counts toward finishing it, and what each player keeps between plays.
@@ -70,6 +71,10 @@ export const PlayerSettings = z.strictObject({
   textSize: z.enum(['normal', 'large']),
   /** story: half damage; hard: double */
   difficulty: z.enum(['story', 'normal', 'hard']),
+  /** P23 part 2: gentler screen effects: small shakes, faint flashes, short hit-stops and slow motion */
+  reduceMotion: z.boolean().optional(),
+  /** P27 part 4: graphics quality (auto: the game's default, else picked from the device) */
+  quality: z.enum(QUALITY_CHOICES).optional(),
 });
 export type PlayerSettings = z.infer<typeof PlayerSettings>;
 
@@ -80,6 +85,8 @@ export const DEFAULT_PLAYER_SETTINGS: PlayerSettings = {
   cameraSpeed: 100,
   textSize: 'normal',
   difficulty: 'normal',
+  reduceMotion: false,
+  quality: 'auto',
 };
 
 export const DIFFICULTY_DAMAGE: Record<PlayerSettings['difficulty'], number> = { story: 0.5, normal: 1, hard: 2 };

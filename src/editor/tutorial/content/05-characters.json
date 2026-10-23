@@ -109,7 +109,7 @@
           ]
         },
         {
-          "text": "In the panel on the right, section “Clip”, click the box “Clip name”, type Open chest and press Enter. The list on the left shows “Open chest” under “Mine”.",
+          "text": "In the panel on the right (it switched to the tab “Animations” when the clip opened), section “Clip”, click the box “Clip name”, type Open chest and press Enter. The list on the left shows “Open chest” under “Mine”.",
           "check": { "kind": "state", "test": "clipNamed", "args": "Open chest" },
           "do": [
             {
@@ -262,7 +262,7 @@
           "do": [{ "click": "[data-tour=\"clip-new\"]", "say": "Click “+ New” next to “Clips”." }]
         },
         {
-          "text": "In “Clip name” (right, section “Clip”), type Hold it up and press Enter.",
+          "text": "In “Clip name” (right, tab “Animations”, section “Clip”), type Hold it up and press Enter.",
           "check": { "kind": "state", "test": "clipNamed", "args": "Hold it up" },
           "do": [
             {

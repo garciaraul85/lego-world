@@ -15,6 +15,13 @@ export const ID_PREFIX = {
   spawn: 'sp',
   gate: 'gt',
   art: 'art',
+  /** P22: a conversation */
+  dialogue: 'dlg',
+  bodyplan: 'bpl',
+  /** P23: an effect (particles) */
+  effect: 'fx',
+  /** P23 part 2: a screen effect (shake, flash, fade, hit-stop, slow motion) */
+  screenEffect: 'sce',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

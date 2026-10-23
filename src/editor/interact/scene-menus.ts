@@ -9,7 +9,9 @@ import {
   type GroundPoint,
   mapItems,
   placeAssetAt,
+  placeEffectAt,
   placeItemAt,
+  placeLightAt,
   placeSpawnAt,
   placeZoneAt,
   type SceneTarget,
@@ -209,6 +211,10 @@ export function groundMenu(c: ActionCtx, at: GroundPoint, brick?: number): MenuS
       item('ground.spawn', 'Add a spawn point here', () => placeSpawnAt(ed, at)),
       item('ground.sound', 'Add a sound here', () => placeItemAt(ed, 'sound', at)),
       item('ground.sign', 'Add a sign here', () => placeItemAt(ed, 'sign', at)),
+      // P23
+      item('ground.effect', 'Add an effect here', () => placeEffectAt(ed, at)),
+      // P27
+      item('ground.light', 'Add a light here', () => placeLightAt(ed, at)),
       // P28: test from any spot
       item('ground.playHere', 'Play from here (test)', () =>
         c.ui.play('engine', { map: ed.mapId.value, at: [at.x, at.y * 0.4, at.z] }),

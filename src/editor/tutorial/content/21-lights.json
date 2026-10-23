@@ -1,0 +1,377 @@
+{
+  "id": "lights",
+  "title": "Lights course",
+  "steps": [
+    {
+      "id": "lights.dark",
+      "title": "A dark map",
+      "body": "Lights matter where it is dark. Darkness, on the Map tab, is how dark this map is without its lights: 0 lit by its sky as usual, 1 pitch black. The sky goes dark too.",
+      "task": "Open the Map tab on the right and move Darkness to about 85%.",
+      "target": "[data-tour=\"map-darkness\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapDarkness",
+        "args": 0.8
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "right",
+          "value": "map"
+        },
+        {
+          "fill": "[data-tour=\"darkness\"]",
+          "value": "0.85"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Scene” in the workspace tabs at the top.",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Scene"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            }
+          ]
+        },
+        {
+          "text": "On the right, click the Map tab.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"map-darkness\"]"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "map"
+            }
+          ]
+        },
+        {
+          "text": "Drag the Darkness slider to about 85%. The map and its sky go dark.",
+          "check": {
+            "kind": "state",
+            "test": "mapDarkness",
+            "args": 0.8
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"darkness\"]",
+              "value": "0.85",
+              "say": "85% dark"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "lights.torch",
+      "title": "A torch",
+      "body": "The Dock's Lights category holds kinds of light: Torch, Candle, Lamp, Crystal, Lava glow and Moonbeam. A torch is warm orange, flickers like a flame and casts shadows. Place puts one beside where the player starts; right-click the ground and Add a light here puts one where you click.",
+      "task": "In the Dock, open Lights and press Place on the Torch.",
+      "target": "[data-tour=\"dock-light-torch\"]",
+      "check": {
+        "kind": "state",
+        "test": "lightKind",
+        "args": "Torch"
+      },
+      "doItForMe": [
+        {
+          "ui": "dock",
+          "value": "assets"
+        },
+        {
+          "ui": "assetCat",
+          "value": "Lights"
+        },
+        {
+          "click": "[data-tour=\"dock-light-torch\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the Dock at the bottom, click the Lights category (on the left of the Dock).",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"dock-lights\"]"
+          },
+          "do": [
+            {
+              "ui": "dock",
+              "value": "assets"
+            },
+            {
+              "ui": "assetCat",
+              "value": "Lights"
+            }
+          ]
+        },
+        {
+          "text": "Press Place under the Torch. A torch appears beside the start, lighting the bricks around it, and is picked in the Inspector.",
+          "check": {
+            "kind": "state",
+            "test": "lightKind",
+            "args": "Torch"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"dock-light-torch\"]",
+              "say": "A torch"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "top"
+    },
+    {
+      "id": "lights.color",
+      "title": "A magic green torch",
+      "body": "The Inspector shows the picked light: its kind, colour, brightness, how far it reaches, its flicker and whether bricks cast shadows from it. The view changes as you change them.",
+      "task": "In the Inspector, set the light's Colour to bright green (#5cff7a).",
+      "target": "[data-tour=\"light-color\"]",
+      "check": {
+        "kind": "state",
+        "test": "lightColor",
+        "args": "#5cff7a"
+      },
+      "doItForMe": [
+        {
+          "fill": "[data-tour=\"light-color\"]",
+          "value": "#5cff7a"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click the Colour box in the Inspector and pick a bright green (#5cff7a). The torch glows green.",
+          "check": {
+            "kind": "state",
+            "test": "lightColor",
+            "args": "#5cff7a"
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"light-color\"]",
+              "value": "#5cff7a",
+              "say": "Green"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "lights.reach",
+      "title": "Further",
+      "body": "Reaches is how far the light goes, in studs. The ring around the picked light shows it; past the ring it is as dark as the map.",
+      "task": "Drag Reaches to 16 studs.",
+      "target": "[data-tour=\"light-range\"]",
+      "check": {
+        "kind": "state",
+        "test": "lightRange",
+        "args": 16
+      },
+      "doItForMe": [
+        {
+          "fill": "[data-tour=\"light-range\"]",
+          "value": "16"
+        }
+      ],
+      "how": [
+        {
+          "text": "Drag the Reaches slider to 16. The ring grows and more of the ground is lit.",
+          "check": {
+            "kind": "state",
+            "test": "lightRange",
+            "args": 16
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"light-range\"]",
+              "value": "16",
+              "say": "16 studs"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "lights.crystal",
+      "title": "A second light",
+      "body": "Up to 8 lights are drawn at once: the brightest near where you look. Each light is on its own; the nearest one that casts shadows draws them.",
+      "task": "In the Dock, press Place on the Crystal.",
+      "target": "[data-tour=\"dock-light-crystal\"]",
+      "check": {
+        "kind": "state",
+        "test": "lightsAtLeast",
+        "args": 2
+      },
+      "doItForMe": [
+        {
+          "ui": "dock",
+          "value": "assets"
+        },
+        {
+          "ui": "assetCat",
+          "value": "Lights"
+        },
+        {
+          "click": "[data-tour=\"dock-light-crystal\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the Dock's Lights, press Place under the Crystal. A cold blue light appears and is picked.",
+          "check": {
+            "kind": "state",
+            "test": "lightsAtLeast",
+            "args": 2
+          },
+          "do": [
+            {
+              "ui": "dock",
+              "value": "assets"
+            },
+            {
+              "ui": "assetCat",
+              "value": "Lights"
+            },
+            {
+              "click": "[data-tour=\"dock-light-crystal\"]",
+              "say": "A crystal"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "top"
+    },
+    {
+      "id": "lights.off",
+      "title": "Dark until switched on",
+      "body": "A light that is not on from the start stays dark until logic or an action switches it on by its name: a room lit when you walk in, a lamp lit by a lever.",
+      "task": "In the Inspector, untick “On from the start” for the crystal.",
+      "target": "[data-tour=\"light-on\"]",
+      "check": {
+        "kind": "state",
+        "test": "lightOff"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"light-on\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "With the crystal picked, untick “On from the start” in the Inspector. Its glow goes out.",
+          "check": {
+            "kind": "state",
+            "test": "lightOff"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"light-on\"]",
+              "say": "Off at the start"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "lights.zone",
+      "title": "Lit when you arrive",
+      "body": "A trigger zone runs actions when the hero walks in. The action “Switch a light on or off” switches a light by its name: here the crystal comes on as the hero arrives.",
+      "task": "Draw a zone around the start whose On enter switches the crystal on.",
+      "target": "[data-tour=\"map-darkness\"]",
+      "check": {
+        "kind": "state",
+        "test": "zoneLightsOn"
+      },
+      "doItForMe": [
+        {
+          "fn": "lightZone"
+        }
+      ],
+      "how": [
+        {
+          "text": "Draw a trigger zone around the start (Zone tool), then in its On enter actions add “Switch a light on or off”: On, and the crystal's name. The helper does it all in one step.",
+          "check": {
+            "kind": "state",
+            "test": "zoneLightsOn"
+          },
+          "do": [
+            {
+              "fn": "lightZone",
+              "say": "The zone switches the crystal on"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "lights.play",
+      "title": "Into the dark",
+      "body": "In the game the map is dark, the green torch flickers and throws shadows, and the hero is lit by the lights around them. The hero starts inside the zone, so the crystal comes on.",
+      "task": "Press Play.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "lightOnInPlay",
+        "args": "Crystal"
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press ▶ Play at the top (or F5). The crystal lights up as the hero arrives in the zone.",
+          "check": {
+            "kind": "state",
+            "test": "lightOnInPlay",
+            "args": "Crystal"
+          },
+          "do": [
+            {
+              "ui": "play"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "bottom"
+    },
+    {
+      "id": "lights.done",
+      "title": "Done!",
+      "body": "You made a dark map and lit it: a torch that casts shadows, and a crystal switched on by a zone. Assets can give light too (Gives light, in the Asset studio) and effects can glow (Lights the area). Press Esc or Stop to leave Play.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "workspace": "Scene",
+      "placement": "bottom"
+    }
+  ]
+}

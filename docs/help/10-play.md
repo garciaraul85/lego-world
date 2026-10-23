@@ -52,6 +52,18 @@ Smashed things that can be rebuilt show where they go back: their bricks float t
 
 Pause (F6) freezes the game, Step (Shift F6) advances one frame, and 0.25× to 2× change the speed.
 
+## Graphics quality
+
+How good the game looks, and how hard it works the computer, comes in three levels:
+
+- **Low**: 2 lights, no shadows, half of a big map's view distance, 600 particles, plain studs close by. For phones and old computers.
+- **Medium**: 4 lights with shadows, three quarters of the view distance, 1,200 particles.
+- **High**: 8 lights, sharper shadows, the full view distance, 2,000 particles.
+
+**Project › Graphics quality** sets what players start with. **Auto** picks a level from the device (phones Low, strong computers High) and steps down a level while the game runs slowly; the line under it says what Auto picks on this computer. Players change it in the game's **Settings** (Graphics: auto, low, medium, high), and a screen button can do the same with the **Change a player setting** action.
+
+To see a level while building, press ▶ Play and pick it in **Quality** on the Play bar (**Quality: game's** plays at the game's own setting). It changes at once, and the **Debug** tab shows the level, its lights and particles. The levels are estimates for a mid-range PC at High until they are measured on real devices.
+
 ## Debug
 
 The dock's Debug tab shows live values (position, variables, items, screens, audio) and cheats like Respawn and Rebuild all. The Profiler tab shows frame times.

@@ -1,0 +1,466 @@
+{
+  "id": "bigworlds",
+  "title": "Big worlds course",
+  "steps": [
+    {
+      "id": "big.make",
+      "title": "Big land",
+      "body": "A map can hold a million bricks. The Map tab’s Big worlds section shows how big this map is and makes big land to try it on: rolling grass and hills of bricks, with a flat clearing in the middle where the player starts.",
+      "task": "On the Map tab, under Big worlds, pick 512 × 512 studs and press Make.",
+      "target": "[data-tour=\"map-big\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapBricksAtLeast",
+        "args": 40000
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "right",
+          "value": "map"
+        },
+        {
+          "choose": "[data-tour=\"land-size\"]",
+          "value": "512"
+        },
+        {
+          "click": "[data-tour=\"land-make\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Scene” in the workspace tabs at the top.",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Scene"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            }
+          ]
+        },
+        {
+          "text": "On the right, click the Map tab and scroll down to Big worlds.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"map-big\"]"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "map"
+            },
+            {
+              "show": "[data-tour=\"map-big\"]"
+            }
+          ]
+        },
+        {
+          "text": "Under “New big land”, pick 512 × 512 studs and press Make. A new map of about 58,000 bricks opens.",
+          "check": {
+            "kind": "state",
+            "test": "mapBricksAtLeast",
+            "args": 40000
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"land-size\"]",
+              "value": "512",
+              "say": "512 studs"
+            },
+            {
+              "click": "[data-tour=\"land-make\"]",
+              "say": "Make"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "big.view",
+      "title": "How far you see",
+      "body": "A big map is not drawn whole. The view loads the chunks (32 × 32 studs each) around where you look, the nearest first, and the fog closes in where they end. “How far you see” sets that distance: further shows more but costs more to draw. The counter at the top of the view shows how many chunks are loaded.",
+      "task": "Drag “How far you see” to 384 studs.",
+      "target": "[data-tour=\"view-distance\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapViewDistance",
+        "args": 384
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "map"
+        },
+        {
+          "fill": "[data-tour=\"view-distance\"]",
+          "value": "384"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Big worlds, drag “How far you see” to 384. The view loads more chunks around the centre.",
+          "check": {
+            "kind": "state",
+            "test": "mapViewDistance",
+            "args": 384
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "map"
+            },
+            {
+              "fill": "[data-tour=\"view-distance\"]",
+              "value": "384",
+              "say": "384 studs"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "big.scatter",
+      "title": "A forest at once",
+      "body": "Scatter places many copies of an asset at once around where the Scene view looks: each on flat ground with studs, clear of everything else, turned at random. Copies that don’t fit are left out, and one undo takes them all away. A map holds 10,000 placed assets; the Dock shows a big library a page at a time and draws the pictures you scroll to.",
+      "task": "Under Scatter, pick the Birch tree, set How many to 300 and press Scatter.",
+      "target": "[data-tour=\"scatter\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMapAtLeast",
+        "args": 10
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "map"
+        },
+        {
+          "click": "[data-tour=\"pick-scatter-asset\"]"
+        },
+        {
+          "click": "[data-tour=\"pick-scatter-asset-list\"] [data-name=\"Birch tree\"]"
+        },
+        {
+          "fill": "[data-tour=\"scatter-count\"]",
+          "value": "300"
+        },
+        {
+          "click": "[data-tour=\"scatter-go\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Big worlds › Scatter, click “Pick an asset…” and pick the Birch tree from the pictures.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"scatter-go\"]:not([disabled])"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "map"
+            },
+            {
+              "click": "[data-tour=\"pick-scatter-asset\"]",
+              "say": "The assets"
+            },
+            {
+              "click": "[data-tour=\"pick-scatter-asset-list\"] [data-name=\"Birch tree\"]",
+              "say": "Birch tree"
+            }
+          ]
+        },
+        {
+          "text": "Drag How many to 300 and press Scatter. Trees appear around the view; the count of placed assets goes up.",
+          "check": {
+            "kind": "state",
+            "test": "assetsOnMapAtLeast",
+            "args": 10
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"scatter-count\"]",
+              "value": "300",
+              "say": "300"
+            },
+            {
+              "click": "[data-tour=\"scatter-go\"]",
+              "say": "Scatter"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "big.start",
+      "title": "Start here",
+      "body": "Play starts the game on the start map. Make this big land the start map, so ▶ Play opens it.",
+      "task": "Make this map the start map.",
+      "target": "[data-tour=\"map-big\"]",
+      "check": {
+        "kind": "state",
+        "test": "entryIsCurrentMap"
+      },
+      "doItForMe": [
+        {
+          "fn": "startOnThisMap"
+        }
+      ],
+      "how": [
+        {
+          "text": "Set the start map to this map (Project tab › Start map; the helper does it in one step).",
+          "check": {
+            "kind": "state",
+            "test": "entryIsCurrentMap"
+          },
+          "do": [
+            {
+              "fn": "startOnThisMap",
+              "say": "This map starts the game"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "big.play",
+      "title": "Play a big map",
+      "body": "In the game a big map plays the area around the hero: the bricks there are solid and the neighbours there walk about; further away they sleep until the hero comes near. Chunks stream in as the hero moves.",
+      "task": "Press Play.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "bigInPlay"
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press ▶ Play at the top (or F5).",
+          "check": {
+            "kind": "state",
+            "test": "bigInPlay"
+          },
+          "do": [
+            {
+              "ui": "play"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "bottom"
+    },
+    {
+      "id": "big.walk",
+      "title": "The world follows you",
+      "body": "Walk out of the clearing into the hills. The solid area moves with the hero and new chunks appear ahead of you; the minimap shows the area around you.",
+      "task": "Walk at least 60 studs from where you started (hold W; Shift runs).",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroFarFromStart",
+        "args": 60
+      },
+      "doItForMe": [
+        {
+          "fn": "walkFar"
+        }
+      ],
+      "how": [
+        {
+          "text": "Hold W to walk (Shift to run) until you are out among the hills. The helper takes the hero there.",
+          "check": {
+            "kind": "state",
+            "test": "heroFarFromStart",
+            "args": 60
+          },
+          "do": [
+            {
+              "fn": "walkFar",
+              "say": "Out into the hills"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "bottom"
+    },
+    {
+      "id": "big.trip",
+      "title": "Off to another map",
+      "body": "A gate (or logic’s Go to map) takes the hero to another map. A map that is not loaded yet loads in small steps behind a loading screen: its name, its picture, a tip and how far along it is, so the game never freezes. The maps the current one’s gates lead to load ahead a little each frame, so going there is usually instant. A project holds up to 1,000 maps; only a few stay loaded, and a map you left comes back as you left it.",
+      "task": "Go back to the first map (the helper does what walking through a gate does).",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playOnFirstMap"
+      },
+      "doItForMe": [
+        {
+          "fn": "tripToFirstMap"
+        }
+      ],
+      "how": [
+        {
+          "text": "Walk through a gate to the first map; the helper takes the hero there through the loading screen.",
+          "check": {
+            "kind": "state",
+            "test": "playOnFirstMap"
+          },
+          "do": [
+            {
+              "fn": "tripToFirstMap",
+              "say": "Off to the first map"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "bottom"
+    },
+    {
+      "id": "big.quality",
+      "title": "Graphics quality",
+      "body": "A game runs on strong computers and on phones. Graphics quality says how much it draws: Low (2 lights, no shadows, half the view distance, fewer particles), Medium (4 lights with shadows) or High (8 lights, the full view distance). Auto picks one from the device and steps down while the game runs slowly. Players can change it in the game’s Settings; this is what they start with.",
+      "task": "On the Project tab, set Graphics quality to Medium.",
+      "target": "[data-tour=\"project-quality\"]",
+      "placement": "left",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "projectQuality",
+        "args": "medium"
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "project"
+        },
+        {
+          "choose": "[data-tour=\"project-quality\"] select",
+          "value": "medium"
+        }
+      ],
+      "how": [
+        {
+          "text": "On the right, click the Project tab of the Inspector.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"project-quality\"]"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "project"
+            },
+            {
+              "show": "[data-tour=\"project-quality\"]",
+              "say": "The Project tab: Graphics quality is under First screen."
+            }
+          ]
+        },
+        {
+          "text": "Open the drop-down “Graphics quality” and pick Medium. The line under it now says 4 lights, shadows, 75% view distance and 1,200 particles.",
+          "check": {
+            "kind": "state",
+            "test": "projectQuality",
+            "args": "medium"
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"project-quality\"] select",
+              "value": "medium",
+              "say": "Open “Graphics quality” and pick Medium: the line under it says what Medium draws."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "big.preview",
+      "title": "See it at Low",
+      "body": "While playing, Quality on the Play bar plays the game at a level to see how it looks and runs there, without changing the game: Low draws half as far, with 2 lights and no shadows. It changes at once, and the Debug tab shows the level. Quality: game’s plays at the game’s own setting again.",
+      "task": "Play, and pick Quality: Low on the Play bar.",
+      "target": "[data-tour=\"play-quality\"]",
+      "placement": "bottom",
+      "workspace": "Scene",
+      "check": {
+        "kind": "state",
+        "test": "playingAtQuality",
+        "args": "low"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "choose": "[data-tour=\"play-quality\"]",
+          "value": "low"
+        }
+      ],
+      "how": [
+        {
+          "text": "If the game is not playing, press ▶ Play. The Play bar appears above the game.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"play-quality\"]"
+          },
+          "do": [
+            {
+              "fn": "playIfStopped",
+              "say": "Press ▶ Play: the Play bar is above the game."
+            }
+          ]
+        },
+        {
+          "text": "On the Play bar, open the drop-down “Quality: game’s” and pick “Quality: Low”. The far hills now end sooner in the fog, and the Debug tab says Low.",
+          "check": {
+            "kind": "state",
+            "test": "playingAtQuality",
+            "args": "low"
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"play-quality\"]",
+              "value": "low",
+              "say": "On the Play bar, pick “Quality: Low”: the hills end sooner in the fog."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "big.done",
+      "title": "Done!",
+      "body": "You made a big land, chose how far you see, scattered a forest, played it while the world followed the hero, went to another map through a loading screen, and chose how good the game looks: Medium for players, previewed at Low. A map holds up to 1,000,000 bricks; 2048 × 2048 studs of land is about 950,000. Press Esc or Stop to leave Play.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "workspace": "Scene",
+      "placement": "bottom"
+    }
+  ]
+}

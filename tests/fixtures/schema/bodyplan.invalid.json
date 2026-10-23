@@ -1,0 +1,13 @@
+{
+  "path": "bodyplans/bpl_crabby0001.json",
+  "value": {
+    "id": "bpl_crabby0001",
+    "name": "Crab",
+    "family": "custom",
+    "move": "crawl",
+    "stride": 1.5,
+    "hover": 0,
+    "bones": [{ "name": "body", "at": [0, 1.2, 0], "role": "root", "swing": 3 }],
+    "bricks": []
+  }
+}

@@ -4,7 +4,7 @@ import { LEGACY_COLORS } from '../legacy/constants';
 import type { LegacyBuild, LegacyLink, LegacyMapEntry, LegacyPiece, LegacySave } from '../legacy/types';
 import { type IdResolver, ids, rebuildConfig } from '../migrate/v4to5';
 import type { Character, Chunk, Gates, Instances, MapDoc, MapState, Project, Settings } from '../schema';
-import { paths } from '../schema';
+import { BRICK_STRIDE, chunkRows, paths } from '../schema';
 
 export type FileSource = { get(path: string): unknown; keys(): Iterable<string> };
 
@@ -38,20 +38,47 @@ export function parseType(type: string): Pick<LegacyPiece, 'kind' | 'rows' | 'co
   return { kind: m[1] as LegacyPiece['kind'], rows: Number(m[2]), cols: Number(m[3]) };
 }
 
+/** P27 part 3c: one chunk's bricks as legacy pieces, added to `out` (a map loads chunk by chunk) */
+export function chunkPieces(c: Chunk, out: LegacyPiece[]): void {
+  const types = c.palette.types.map(parseType);
+  const colors = c.palette.colors.map(legacyColorIndex);
+  const r = chunkRows(c);
+  for (let o = 0; o < r.length; o += BRICK_STRIDE) {
+    const { kind, rows, cols } = types[r[o]!]!;
+    const p: LegacyPiece = {
+      id: r[o + 7]!,
+      rows,
+      cols,
+      turn: r[o + 4]!,
+      x: r[o + 1]!,
+      y: r[o + 2]!,
+      z: r[o + 3]!,
+      kind,
+      color: colors[r[o + 5]!]!,
+    };
+    if (r[o + 8]! >= 0) p.group = c.palette.groups[r[o + 8]!]!;
+    out.push(p);
+  }
+}
+
+/** P27 part 3c: one chunk's bricks whose colour is not one of v68's, added to `out` (id → exact colour) */
+export function chunkExactColors(c: Chunk, out: Map<number, string>): void {
+  const odd = c.palette.colors.map((h) => (COLOR_INDEX.has(h.toLowerCase()) ? null : h.toLowerCase()));
+  if (!odd.some((h) => h)) return;
+  const r = chunkRows(c);
+  for (let o = 0; o < r.length; o += BRICK_STRIDE) {
+    const hex = odd[r[o + 5]!];
+    if (hex) out.set(r[o + 7]!, hex);
+  }
+}
+
 /** Chunk files of one map -> legacy pieces in id order (v68 keeps pieces in id order). */
 export function chunksToPieces(files: FileSource, mapId: string): LegacyPiece[] {
   const prefix = paths.chunkDir(mapId);
   const pieces: LegacyPiece[] = [];
   for (const path of files.keys()) {
     if (!path.startsWith(prefix)) continue;
-    const c = files.get(path) as Chunk;
-    for (const b of c.bricks) {
-      const { kind, rows, cols } = parseType(c.palette.types[b[0]]!);
-      const color = legacyColorIndex(c.palette.colors[b[5]]);
-      const p: LegacyPiece = { id: b[7], rows, cols, turn: b[4], x: b[1], y: b[2], z: b[3], kind, color };
-      if (b[8] >= 0) p.group = c.palette.groups[b[8]]!;
-      pieces.push(p);
-    }
+    chunkPieces(files.get(path) as Chunk, pieces);
   }
   return pieces.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
 }
@@ -79,19 +106,18 @@ export function exactColors(files: FileSource, mapId: string): Map<number, strin
   const prefix = paths.chunkDir(mapId);
   for (const path of files.keys()) {
     if (!path.startsWith(prefix)) continue;
-    const c = files.get(path) as Chunk;
-    for (const b of c.bricks) {
-      const hex = c.palette.colors[b[5]]!.toLowerCase();
-      if (!COLOR_INDEX.has(hex)) out.set(b[7], hex);
-    }
+    chunkExactColors(files.get(path) as Chunk, out);
   }
   for (const b of instanceBricks(files, mapId))
     if (!COLOR_INDEX.has(b.color.toLowerCase())) out.set(b.id, b.color.toLowerCase());
   return out;
 }
 
-/** One map's v5 files -> the legacy build object v68 expects for a map. */
-export function mapToLegacyBuild(files: FileSource, mapId: string): LegacyBuild {
+/**
+ * One map's v5 files -> the legacy build object v68 expects for a map. `pieces`: P27 part 3c, the map's pieces when they
+ * were already decoded (chunk by chunk, while loading).
+ */
+export function mapToLegacyBuild(files: FileSource, mapId: string, opts: { pieces?: LegacyPiece[] } = {}): LegacyBuild {
   const map = files.get(paths.map(mapId)) as MapDoc;
   const state = (files.get(paths.state(mapId)) as MapState | undefined) ?? { broken: [], player: null };
   const instances = (files.get(paths.instances(mapId)) as Instances | undefined) ?? { npcsSaved: false, items: [] };
@@ -107,7 +133,7 @@ export function mapToLegacyBuild(files: FileSource, mapId: string): LegacyBuild 
     };
   }
   const build: LegacyBuild = {
-    pieces: mapPieces(files, mapId),
+    pieces: opts.pieces ?? mapPieces(files, mapId),
     world,
     environment: env,
     broken: state.broken,

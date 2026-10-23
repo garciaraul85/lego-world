@@ -31,6 +31,16 @@ export interface ActionHost {
   despawn?(target: string): void;
   /** P9c: a message in the HUD's message line */
   message?(text: string, seconds: number): void;
+  /** P22: start a conversation */
+  talk?(conversation: string, self: string | undefined): void;
+  /** P22 part 2: an outfit, experience */
+  sheet?(op: 'outfit' | 'xp', value: string | number): void;
+  /** P23: play an effect at a place, or start / stop an effect placed on the map */
+  effect?(op: 'play' | 'on' | 'off', a: string, at: string | undefined, self: string | undefined): void;
+  /** P27: switch a placed light on, off or over (by its name, or 'this')... */
+  light?(op: 'on' | 'off' | 'toggle', name: string, self: string | undefined): void;
+  /** P23 part 2: play a screen effect (by id) */
+  screenEffect?(id: string): void;
 }
 
 type Pending = { actions: Action[]; at: number; self: string | undefined };
@@ -153,6 +163,31 @@ export class ActionRunner {
         case 'despawn':
           if (h.despawn) h.despawn(a.target);
           else h.log('info', `despawn ${a.target}`);
+          break;
+        case 'outfit':
+        case 'xp':
+          if (h.sheet) h.sheet(a.do, a.do === 'outfit' ? a.name : a.amount);
+          else h.log('info', `${a.do} ${a.do === 'outfit' ? a.name : a.amount}`);
+          break;
+        case 'effect':
+          if (h.effect) h.effect('play', a.effect, a.at, self);
+          else h.log('info', `effect ${a.effect}`);
+          break;
+        case 'effectOn':
+          if (h.effect) h.effect(a.on ? 'on' : 'off', a.name, undefined, self);
+          else h.log('info', `effect ${a.name} ${a.on ? 'on' : 'off'}`);
+          break;
+        case 'lightOn':
+          if (h.light) h.light(a.on, a.name, self);
+          else h.log('info', `light ${a.name} ${a.on}`);
+          break;
+        case 'screenEffect':
+          if (h.screenEffect) h.screenEffect(a.effect);
+          else h.log('info', `screen effect ${a.effect}`);
+          break;
+        case 'talk':
+          if (h.talk) h.talk(a.conversation, self);
+          else h.log('info', `talk ${a.conversation}`);
           break;
       }
     }

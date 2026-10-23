@@ -1,10 +1,11 @@
-import { useRef } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { encodePixels, GLYPH_SET } from '../../../../core/art/render';
 import { starterGlyphs } from '../../../../core/art/ttf';
 import type { Command } from '../../../../core/commands';
 import { newId } from '../../../../core/ids';
 import { ACCEPT_OF, importMedia } from '../../../../core/media/import';
 import { type Art, type MediaIndex, paths } from '../../../../core/schema';
+import { matches, NoMatch, SearchBox } from '../../../components/SearchBox';
 import type { EditorState } from '../../../state';
 import { artFont, artUrl } from './render';
 
@@ -148,9 +149,14 @@ export function ArtLibrary({
   ed.revision.value;
   const list = allArt(ed);
   const { create, startImport, input } = useArtActions(ed, onOpen);
+  const [q, setQ] = useState('');
   return (
     <div class="art-lib" data-tour="art-library">
       {input}
+      <div style={{ padding: '8px 10px 0' }}>
+        <SearchBox label="art" value={q} onInput={setQ} tour="art-search" />
+      </div>
+      <NoMatch q={list.some((a) => matches(q, a.name, a.kind)) ? '' : q} what="pictures or fonts" />
       {KINDS.map((k) => (
         <section class="art-group" aria-label={k.title}>
           <div class="sech" style={{ padding: '8px 10px 4px' }}>
@@ -175,7 +181,7 @@ export function ArtLibrary({
           </div>
           <div class="art-cards">
             {list
-              .filter((a) => a.kind === k.kind)
+              .filter((a) => a.kind === k.kind && matches(q, a.name, a.kind))
               .map((a) => (
                 <button
                   type="button"

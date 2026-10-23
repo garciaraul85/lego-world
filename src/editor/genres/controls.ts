@@ -19,6 +19,7 @@ export const TAB_TAGS: Record<string, ControlTags> = {
   Screens: S('screens'),
   Cinematics: S('cinematics'),
   Audio: S('audio'),
+  Effects: S('effects'),
 };
 
 /** Scene tools (toolbar). */
@@ -108,6 +109,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'window.6': S('screens'),
   'window.7': S('cinematics'),
   'window.8': S('audio'),
+  'window.9': S('effects'),
   'help.shortcuts': S('core'),
   'help.about': S('core'),
   'help.tutorial': S('core'),
@@ -115,10 +117,23 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.combat': S('combat'),
   'help.saving': S('core'),
   'help.guide': S('core'),
+  'help.brix': S('core'),
+  'help.dialogue': S('dialogue'),
+  'help.sheet': S('characters'),
+  'help.bodies': S('characters'),
+  'help.faces': S('characters'),
+  'help.effects': S('effects'),
+  'help.screenfx': S('effects'),
+  'help.posing': S('characters'),
+  'help.lights': S('core'),
+  'help.atmosphere': S('core'),
+  'help.bigworlds': S('core'),
+  'help.brixCourse': S('core'),
   'help.here': S('core'),
   'help.build': S('core'),
   'help.ai': S('ai'),
   'assets.open': S('assets'),
+  'characters.fromPicture': S('characters'),
   'assets.new': S('assets'),
   'assets.resetBuiltins': A('assets'),
   // P18: the genre picker and Show everything
@@ -215,6 +230,26 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   'game.unlockAchievement': S('logic'),
   'game.finish': S('logic'),
   'event.onAchievement': S('logic'),
+  // P22
+  'dialogue.start': S('dialogue', 'logic'),
+  'effect.play': S('effects', 'logic'),
+  'effect.start': S('effects', 'logic'),
+  'effect.stop': S('effects', 'logic'),
+  'screen.effect': S('effects', 'logic'),
+  'screen.mood': S('effects', 'logic'),
+  'screen.clear': S('effects', 'logic'),
+  'light.on': S('logic'),
+  'light.off': S('logic'),
+  'light.toggle': S('logic'),
+  'light.darkness': S('logic'),
+  'sky.time': S('logic'),
+  'sky.fog': S('logic'),
+  'event.onChoice': S('dialogue', 'logic'),
+  'event.onConversationEnd': S('dialogue', 'logic'),
+  'character.giveXp': S('characters', 'logic'),
+  'character.setOutfit': S('characters', 'logic'),
+  'character.switchHero': A('characters', 'logic'),
+  'event.onLevelUp': S('characters', 'logic'),
 };
 
 /** P9a: sections of the studios that belong to a feature */
@@ -226,6 +261,10 @@ export const SECTION_TAGS: Record<string, ControlTags> = {
   'game.saving': S('core'),
   'game.progress': S('core'),
   'asset.checkpoint': S('build'),
+  // P22
+  'character.talk': S('dialogue'),
+  'character.dialogue': S('dialogue'),
+  'game.dialogue': S('dialogue'),
 };
 
 export type ControlKind = 'tab' | 'tool' | 'action' | 'dock' | 'assetFilter' | 'node' | 'section';

@@ -34,7 +34,10 @@ export type AiRunRequest = {
   maxTokens: number;
   signal: AbortSignal;
   onText?(text: string): void;
+  /** P22 part 4: pictures sent with the first user turn (a character from a picture) */
+  images?: AiImage[];
 };
+export type AiImage = { blob: Blob; mediaType: string; base64: string };
 
 export type AiRunResult = { text: string; usage: AiUsage | null; truncated: boolean; model?: string };
 

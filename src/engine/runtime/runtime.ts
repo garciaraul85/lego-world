@@ -17,6 +17,8 @@ export class Runtime<W> {
   private acc = 0;
   paused = false;
   timeScale = 1;
+  /** P23 part 2: screen effects slow the game (0 during a hit-stop), on top of timeScale */
+  slow = 1;
   ticks = 0;
   /** seconds of simulated time */
   time = 0;
@@ -28,7 +30,7 @@ export class Runtime<W> {
 
   /** Advance by real seconds; returns the number of fixed steps run. */
   advance(realDt: number): number {
-    if (!this.paused) this.acc = Math.min(MAX_ACCUMULATED, this.acc + Math.max(0, realDt) * this.timeScale);
+    if (!this.paused) this.acc = Math.min(MAX_ACCUMULATED, this.acc + Math.max(0, realDt) * this.timeScale * this.slow);
     let n = 0;
     while (!this.paused && this.acc >= STEP && n < MAX_STEPS) {
       this.fixedStep();

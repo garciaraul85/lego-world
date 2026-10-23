@@ -32,6 +32,8 @@ export const SETTING_STEPS: { [K in keyof PlayerSettings]: readonly PlayerSettin
   cameraSpeed: [50, 75, 100, 150, 200],
   textSize: ['normal', 'large'],
   difficulty: ['story', 'normal', 'hard'],
+  reduceMotion: [false, true],
+  quality: ['auto', 'low', 'medium', 'high'],
 };
 
 const SETTING_LABEL: Record<keyof PlayerSettings, (v: never) => string> = {
@@ -42,6 +44,9 @@ const SETTING_LABEL: Record<keyof PlayerSettings, (v: never) => string> = {
   textSize: (v: string) => `Text size: ${v === 'large' ? 'large' : 'normal'}`,
   difficulty: (v: string) =>
     `Difficulty: ${v === 'story' ? 'story (half damage)' : v === 'hard' ? 'hard (double damage)' : 'normal'}`,
+  reduceMotion: (v: boolean) => `Reduce motion: ${v ? 'on' : 'off'}`,
+  quality: (v: string) =>
+    `Graphics: ${v === 'low' ? 'low' : v === 'medium' ? 'medium' : v === 'high' ? 'high' : 'auto'}`,
 } as never;
 
 export const isSettingKey = (k: string): k is keyof PlayerSettings => k in SETTING_STEPS;

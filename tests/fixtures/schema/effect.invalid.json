@@ -1,0 +1,32 @@
+{
+  "path": "effects/fx_testfire01.json",
+  "value": {
+    "id": "fx_bad",
+    "name": "Test fire",
+    "shape": "sphere",
+    "mode": "stream",
+    "count": 1,
+    "rate": 30,
+    "duration": 0,
+    "spawn": "sphere",
+    "radius": 0.3,
+    "direction": "up",
+    "spread": 20,
+    "speed": [
+      1,
+      2
+    ],
+    "life": [
+      0.4,
+      0.8
+    ],
+    "size": [
+      0.3,
+      0.05
+    ],
+    "colors": [],
+    "gravity": -3,
+    "drag": 0.5,
+    "bounce": 0
+  }
+}

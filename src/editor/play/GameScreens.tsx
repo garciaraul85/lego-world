@@ -5,8 +5,11 @@ import type { PlayRenderer } from '../../engine/runtime/play-renderer';
 import type { PlaySession } from '../../engine/runtime/session';
 import { artUrl, fontCss } from '../../engine/ui/art';
 import { CinematicOverlay } from '../../engine/ui/CinematicOverlay';
+import { DialogueLayer } from '../../engine/ui/DialogueLayer';
+import { ScreenFxOverlay } from '../../engine/ui/ScreenFxOverlay';
 import { type ScreenHost, ScreenLayer } from '../../engine/ui/ScreenRenderer';
-import { WorldUI } from '../../engine/ui/WorldUI';
+import { projectPoint, WorldUI } from '../../engine/ui/WorldUI';
+import { MapThumb } from '../components/previews';
 import type { EditorState } from '../state';
 
 /**
@@ -64,9 +67,29 @@ export function GameScreens({
     );
   });
   const cine = s.cine.player;
-  const screens = s.screens.screens().filter((x) => !(cine?.cin.hideHud && x.kind === 'hud'));
+  // P22: a conversation hides the old dialogue box (its own layer shows the line)
+  const talk = s.talks.view;
+  const screens = s.screens
+    .screens()
+    .filter((x) => !(cine?.cin.hideHud && x.kind === 'hud') && !(talk && x.kind === 'dialogue'));
+  let anchor: { x: number; y: number } | null = null;
+  if (talk?.look.style === 'bubble') {
+    const pr = renderer();
+    const npc = s.talking;
+    const cam = pr?.lastCamera;
+    const el = worldRef.current;
+    if (cam && el) {
+      const at = npc
+        ? [npc.state.x, npc.state.y + 2.6, npc.state.z]
+        : [s.heroState.x, s.heroState.y + 2.6, s.heroState.z];
+      const pt = projectPoint(cam, (el.clientWidth || 1) / (el.clientHeight || 1), at);
+      if (pt) anchor = { x: pt.x, y: pt.y };
+    }
+  }
   return (
     <>
+      {/* P23 part 2: the map's mood and screen effects, under the world UI and screens */}
+      <ScreenFxOverlay mood={s.mood} layers={s.screenFx.layers()} lowHealth={s.lowHealth()} clock={s.clock} />
       <div ref={worldRef} class="bw-world-layer" aria-hidden="true" hidden={!!cine?.cin.hideHud} />
       {cine && s.cine.frame && (
         <CinematicOverlay post={s.cine.frame.post} skippable={cine.cin.skippable} onSkip={() => s.cine.skip()} />
@@ -77,6 +100,20 @@ export function GameScreens({
         tick={t}
         textScale={s.progress.settings.textSize === 'large' ? 1.25 : 1}
       />
+      {talk && (
+        <DialogueLayer
+          view={talk}
+          shown={s.talks.revealed()}
+          focus={s.talks.focus}
+          anchor={anchor}
+          onNext={() => s.dialogueNext()}
+          onChoose={(i) => s.dialogueChoose(i)}
+          blip={(ev, pitch) => s.audio.play(ev, { pitch })}
+          // P23 part 3: the portrait talks too (its closed face while a mouth shape is first drawn)
+          portrait={(who, mood) => s.portraitOf(who, mood, s.talks.mouth()) ?? s.portraitOf(who, mood)}
+        />
+      )}
+      {s.loading && <LoadingScreen ed={ed} s={s} />}
     </>
   );
 }
@@ -86,14 +123,16 @@ function minimapDrawer(s: PlaySession) {
   let cache: { key: string; img: HTMLCanvasElement; x0: number; z0: number; k: number } | null = null;
   return (canvas: HTMLCanvasElement) => {
     const w = s.world;
-    const key = `${w.mapId}:${w.pieces.length}:${w.brokenSerial}`;
+    // P27 part 3: a big map's minimap shows the window around the hero
+    const src = w.big ? w.controller.pieces : w.pieces;
+    const key = `${w.mapId}:${w.pieces.length}:${w.brokenSerial}:${w.windowAt ?? ''}`;
     const W = canvas.width;
     if (!cache || cache.key !== key) {
       let x0 = Infinity;
       let x1 = -Infinity;
       let z0 = Infinity;
       let z1 = -Infinity;
-      for (const p of w.pieces) {
+      for (const p of src) {
         x0 = Math.min(x0, p.x);
         x1 = Math.max(x1, p.x + 2);
         z0 = Math.min(z0, p.z);
@@ -109,7 +148,7 @@ function minimapDrawer(s: PlaySession) {
         g.fillStyle = '#0b1020';
         g.fillRect(0, 0, W, W);
         const top = new Map<string, { y: number; c: number }>();
-        for (const p of w.pieces) {
+        for (const p of src) {
           const kk = `${Math.floor(p.x)},${Math.floor(p.z)}`;
           const cur = top.get(kk);
           if (!cur || p.y >= cur.y) top.set(kk, { y: p.y, c: p.color });
@@ -143,3 +182,37 @@ function minimapDrawer(s: PlaySession) {
     g.stroke();
   };
 }
+
+/** P27 part 3c: tips shown while a map loads (P21 lets makers write their own) */
+export const LOADING_TIPS = [
+  'Hold E near broken bricks to build them back.',
+  'Q guards; tap it just before a hit lands to parry.',
+  'C rolls out of the way; Z locks on to the nearest foe.',
+  'Shift runs. Space jumps.',
+  'Talk to people with T: they may have something for you.',
+  'The minimap shows the area around you.',
+];
+
+/** P27 part 3c: the built-in loading screen: where you are going, a tip, its picture and real progress */
+function LoadingScreen({ ed, s }: { ed: EditorState; s: PlaySession }) {
+  const l = s.loading!;
+  const tip = LOADING_TIPS[Math.abs(hashString(l.mapId)) % LOADING_TIPS.length]!;
+  const pct = Math.round(l.progress * 100);
+  return (
+    <div class="bw-loading" role="status" aria-label="Loading" data-tour="loading-screen">
+      <MapThumb store={ed.store} mapId={l.mapId} size={160} />
+      <strong class="bw-loading-name">{l.name}</strong>
+      <div class="bw-loading-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+        <span style={{ width: `${pct}%` }} />
+      </div>
+      <span class="small">Loading… {pct}%</span>
+      <span class="muted small">{tip}</span>
+    </div>
+  );
+}
+
+const hashString = (t: string) => {
+  let h = 0;
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0;
+  return h;
+};

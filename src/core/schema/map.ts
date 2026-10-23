@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { Mood } from '../effects/screen';
+import { Ambient, DayLength, Fog } from '../lighting/atmosphere';
+import { Darkness } from '../lighting/light';
 import { ActionList } from './action';
 import { id, LegacyBlob, Vec3 } from './common';
 
@@ -52,6 +55,8 @@ export const Generator = z.strictObject({
   locked: z.boolean(),
 });
 
+export const ViewDistance = z.number().int().min(64).max(2048);
+
 export const MapDoc = z.strictObject({
   id: id('map'),
   name: z.string().min(1).max(60),
@@ -60,6 +65,16 @@ export const MapDoc = z.strictObject({
   sky: z.strictObject({ time: z.enum(TIMES) }),
   weather: z.strictObject({ rain: z.boolean(), snow: z.boolean(), snowing: z.boolean() }),
   generator: Generator.nullable(),
+  /** P23 part 2: the map's mood: colour grade, vignette, what drifts across the screen */
+  mood: Mood.optional(),
+  /** P27: how dark it is without its lights (0: lit by its sky as usual … 1: pitch black) */
+  darkness: Darkness.optional(),
+  /** P27 part 2: fog by distance (and on the ground), the colour of the shadows, and how long a day lasts */
+  fog: Fog.optional(),
+  ambient: Ambient.optional(),
+  dayLength: DayLength.optional(),
+  /** P27 part 3: how far the map is drawn on big maps (studs; the fog closes in before it). Default 256. */
+  viewDistance: ViewDistance.optional(),
   music: id('music').nullable(),
   ambience: id('sound').nullable(),
   spawns: z.array(Spawn).max(32),

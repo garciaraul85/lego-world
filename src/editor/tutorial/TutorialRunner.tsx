@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { ActionCtx } from '../actions/registry';
+import { Rich } from '../components/Rich';
 import { keysFor } from '../platform';
 import { commandMatches, STATE_TESTS } from './checks';
 import { courseTokens, fillCode } from './coding';
@@ -359,7 +360,9 @@ export function TutorialRunner({
         {!min && (
           <>
             <h3>{keysFor(step.title)}</h3>
-            <p>{keysFor(storyText(ed, step.body))}</p>
+            <p>
+              <Rich text={keysFor(storyText(ed, step.body))} />
+            </p>
             <p class={`tut-task ${phase}`}>
               {phase === 'done'
                 ? last
@@ -368,7 +371,7 @@ export function TutorialRunner({
                 : phase === 'demo' || phase === 'shown'
                   ? '👀 Watch:'
                   : '👉 Your turn:'}{' '}
-              {phase === 'done' ? '' : keysFor(storyText(ed, step.task))}
+              {phase === 'done' ? '' : <Rich text={keysFor(storyText(ed, step.task))} />}
             </p>
             {lines.length > 0 && phase !== 'done' && (
               <ol class="tut-how" aria-label="Click by click">
@@ -393,7 +396,11 @@ export function TutorialRunner({
               </figure>
             )}
             {step.tip && <p class="muted small">Tip: {keysFor(step.tip)}</p>}
-            {note && phase !== 'done' && <p class="tut-note">{keysFor(note)}</p>}
+            {note && phase !== 'done' && (
+              <p class="tut-note">
+                <Rich text={keysFor(note)} />
+              </p>
+            )}
             <div class="tut-actions">
               <button
                 type="button"

@@ -1,17 +1,27 @@
 import { z } from 'zod';
+import { BodyPlan } from '../character/body';
 import * as A from '../commands/handlers/assets';
 import * as Au from '../commands/handlers/audio';
+import * as Bp from '../commands/handlers/bodyplans';
 import * as B from '../commands/handlers/bricks';
 import * as Ch from '../commands/handlers/characters';
 import * as Ci from '../commands/handlers/cinematics';
+import * as Dl from '../commands/handlers/dialogue';
+import * as Fx from '../commands/handlers/effects';
 import * as G from '../commands/handlers/gates';
 import * as I from '../commands/handlers/items';
 import * as L from '../commands/handlers/logic';
 import * as M from '../commands/handlers/map';
 import * as Np from '../commands/handlers/npcs';
 import * as Pr from '../commands/handlers/progress';
+import * as Sc from '../commands/handlers/scatter';
 import type { CommandHandler } from '../commands/types';
+import { Conversation } from '../dialogue/schema';
+import { Effect, EffectHooks } from '../effects/schema';
+import { Mood, ScreenEffect, ScreenHooks } from '../effects/screen';
 import type { idPattern } from '../ids';
+import { Ambient, Fog } from '../lighting/atmosphere';
+import { QUALITY_CHOICES } from '../render/quality';
 import { ProgressDoc } from '../save/progress';
 import { Saving } from '../save/save';
 import {
@@ -23,6 +33,7 @@ import {
   Clip,
   EmitterInstance,
   id,
+  LightInstance,
   LogicGraph,
   LogicNode,
   Mixer,
@@ -46,7 +57,7 @@ export const SCOPES: { id: Scope; label: string; hint: string }[] = [
   { id: 'game', label: 'Whole game', hint: 'anything: maps, assets, characters, logic, screens, scenes, audio' },
   { id: 'map', label: 'Map', hint: 'bricks, terrain, spawns, zones, placed assets, signs, sound emitters, gates' },
   { id: 'asset', label: 'Assets', hint: 'asset definitions and their placed copies' },
-  { id: 'character', label: 'Characters', hint: 'characters, clips and the hero' },
+  { id: 'character', label: 'Characters', hint: 'characters, clips, conversations and the hero' },
   { id: 'logic', label: 'Logic', hint: 'logic graphs (as code) and variables' },
   { id: 'screen', label: 'Screens', hint: 'screens, HUD widgets and the first screen' },
   { id: 'cinematic', label: 'Cinematics', hint: 'cinematic scenes and what triggers them' },
@@ -91,7 +102,7 @@ const NewBrick = z.strictObject({
 const BrickIds = z.strictObject({ map, ids: z.array(z.number().int()).min(1) });
 const SpawnInput = { name: z.string().min(1).max(60).optional(), pos: xyz.optional(), yaw: z.number().optional() };
 const ZoneShape = Zone.shape;
-const Item = z.discriminatedUnion('kind', [EmitterInstance, UiInstance]);
+const Item = z.discriminatedUnion('kind', [EmitterInstance, UiInstance, LightInstance]);
 const Edge = z.tuple([z.string(), z.string(), z.string(), z.string()]);
 const VarDef = z.strictObject({
   type: VarType,
@@ -122,10 +133,16 @@ export const AI_COMMANDS: AiCommand[] = [
       name: z.string().min(1).max(60),
       generate: Generate.optional(),
       spawnId: ids('spawn').optional(),
+      land: z
+        .strictObject({
+          size: z.union([z.literal(256), z.literal(512), z.literal(1024), z.literal(2048)]),
+          seed: z.number().int().min(0).max(99_999_999),
+        })
+        .optional(),
     }),
     ['map'],
     'World graph',
-    'Adds a map, optionally generating its terrain. Give an id when later steps refer to it.',
+    'Adds a map, optionally generating its terrain (generate: v68’s generator), or big land of grass and hills (land: {size 256 | 512 | 1024 | 2048 studs across, seed}; 2048 is about a million bricks). Give an id when later steps refer to it.',
     {
       id: 'map_bbbbbbbbbb',
       name: 'Forest Edge',
@@ -169,10 +186,16 @@ export const AI_COMMANDS: AiCommand[] = [
       rain: z.boolean().optional(),
       snow: z.boolean().optional(),
       snowing: z.boolean().optional(),
+      mood: Mood.nullable().optional(),
+      darkness: z.number().min(0).max(1).optional(),
+      fog: Fog.nullable().optional(),
+      ambient: Ambient.nullable().optional(),
+      dayLength: z.number().min(0).max(120).nullable().optional(),
+      viewDistance: z.number().int().min(64).max(2048).nullable().optional(),
     }),
     ['map'],
     'Scene',
-    'Time of day and weather of a map.',
+    'Time of day and weather of a map, and its mood ({grade: none | warm | cold | night | dream | oldFilm | mono | toxic, vignette 0–1, drift: none | rain | snow | fog | dust | embers | leaves, amount 0–1}; null: none), and its darkness without lights (0 as its sky lights it … 1 pitch black; lights are item.add {kind:"light"}), its fog ({near, far studs, thickness 0–1, color?, height? ground fog below it, groundThickness?}; null none), ambient (the shadows’ colour {color, strength 0–2}; null as the sky gives) and dayLength (minutes a day takes in play, 0 time stands still; null 20), and viewDistance (studs a big map is drawn to, 64–2048; null 256).',
     { map: M1, time: 'evening', rain: true },
   ),
   def(
@@ -318,6 +341,22 @@ export const AI_COMMANDS: AiCommand[] = [
     'Scene',
     'Places a copy (instance) of an asset at pos [x, y plates, z] studs.',
     { map: M1, asset: 'ast_chest00001', pos: [6, 0, 2], rot: 1, id: 'ins_ffffffffff' },
+  ),
+  def(
+    'asset.scatter',
+    Sc.scatterAsset,
+    z.strictObject({
+      map,
+      asset: ids('asset'),
+      area: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+      count: z.number().int().min(1).max(5000),
+      seed: z.number().int().min(0).optional(),
+      turn: z.boolean().optional(),
+    }),
+    ['map', 'asset'],
+    'Scene',
+    'Places many copies of an asset at once in an area [x0, z0, x1, z1] studs (a forest, a field of flowers): each on flat studded ground, clear of everything, turned at random unless turn is false. Copies that do not fit are left out, and none past the map’s 1,000,000 bricks. Up to 5,000 at a time.',
+    { map: M1, asset: 'ast_chest00001', area: [-40, -40, 40, 40], count: 50, seed: 7 },
   ),
   def(
     'instance.move',
@@ -483,7 +522,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ character: Character }),
     ['character'],
     'Characters',
-    'Replaces a character (look, gear, name). Send the whole character.',
+    'Replaces a character: name, look (profile), gear, and its sheet — stats (health, stamina, speed, jump, strength, defence, level, xpCurve), outfits (name, look overrides, stat bonuses) and outfit (worn), moves (style balanced/swift/heavy/defensive, power, speed), animations (a clip id for each state of its animation state machine: idle, walk, run, jump, attack, hurt, plus victory), states (runAt studs a second, hurtFor seconds, matchSpeed), voice (pitch, blip, footsteps, grunt sounds), behaviour (kind: villager, shopkeeper, questGiver, companion, enemy, boss…; routine: wander or stand), talk (conversations by condition) and barks. Send the whole character (read it first).',
     { character: { $read: 'characters/<id>.json' } } as never,
   ),
   def(
@@ -510,7 +549,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ clip: Clip }),
     ['character'],
     'Characters',
-    'Replaces an animation clip.',
+    'Replaces an animation clip. Tracks are (bone, prop) with keys [seconds, value, ease]. To animate by posing, key every track at the same few times (the poses): the motion between is filled in by each key’s ease (easeInOut smooth, linear even, easeIn, easeOut, step holds). Arms and legs: a negative x swings forward; rightArm z up to 2.6 raises it to the side (leftArm z negative); a knee (leftShin bend) bends back up to 1.8.',
     { clip: { $read: 'clips/<id>.json' } } as never,
   ),
   def(
@@ -533,10 +572,13 @@ export const AI_COMMANDS: AiCommand[] = [
       entryScreen: ids('screen').nullable().optional(),
       genre: z.string().optional(),
       saving: Saving.nullable().optional(),
+      effects: EffectHooks.nullable().optional(),
+      screenEffects: ScreenHooks.nullable().optional(),
+      quality: z.enum(QUALITY_CHOICES).optional(),
     }),
     ['map', 'character', 'screen'],
     'Scene',
-    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}).',
+    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}), effects ({hits: {slash: fx_…}, events: {levelUp: fx_…}}; "none" plays nothing), screenEffects ({events: {hurt | bigHit | levelUp | defeat | death | land | smash: sce_… or "none"}, lowHealth: true/false}), quality (graphics the game starts at: auto | low | medium | high; players can change it in Settings).',
     { name: 'Coin Quest', hero: 'chr_hhhhhhhhhh' },
   ),
   def(
@@ -581,7 +623,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ map, item: Item }),
     ['map', 'audio', 'screen'],
     'Scene',
-    'Places a sound emitter (kind emitter) or a world UI sign/label/bar (kind ui) on a map.',
+    'Places a sound emitter (kind emitter), a world UI sign/label/bar (kind ui) or a light (kind light: pos, on, light {color, brightness 0–4, range 2–40 studs, flicker 0–1, shadow}) on a map.',
     {
       map: M1,
       item: {
@@ -747,6 +789,145 @@ export const AI_COMMANDS: AiCommand[] = [
     'Cinematics',
     'Adds or replaces a cinematic scene (read docs via describe_command and an existing scene first).',
     { cinematic: { $read: 'cinematics/<id>.json' } } as never,
+  ),
+  def(
+    'dialogue.put',
+    Dl.putDialogue,
+    z.strictObject({ conversation: Conversation }),
+    ['character'],
+    'Characters',
+    'Adds or replaces a conversation: sections of steps — a line (who: a character id or a name, text, mood), a choice (options with text, optional if, to: a section or end), do (actions such as setVar, addVar, give, cinematic, achieve), like (by), goto. Conditions are words like “gems >= 50 and talks > 0”. Then add it to a character’s talk list with character.update so talking to them plays it.',
+    {
+      conversation: {
+        id: 'dlg_aaaaaaaaaa',
+        name: 'Baker hint',
+        sections: [
+          {
+            label: 'start',
+            steps: [
+              { k: 'line', who: 'chr_aaaaaaaaaa', text: 'Fresh bread today!' },
+              {
+                k: 'line',
+                who: 'chr_aaaaaaaaaa',
+                text: 'The key? Try under the mayor’s doormat.',
+                if: 'talked.mayor is true',
+              },
+              { k: 'choice', options: [{ text: 'Thanks!', to: 'end' }] },
+            ],
+          },
+        ],
+      },
+    },
+  ),
+  def(
+    'dialogue.delete',
+    Dl.deleteDialogue,
+    z.strictObject({ id: ids('dialogue') }),
+    ['character'],
+    'Characters',
+    'Deletes a conversation nothing starts any more (take it out of talk lists, signs and interactions first).',
+    { id: 'dlg_aaaaaaaaaa' },
+  ),
+  def(
+    'bodyplan.put',
+    Bp.putBodyPlan,
+    z.strictObject({ plan: BodyPlan }),
+    ['character'],
+    'Characters',
+    'Adds or replaces a body plan: a skeleton of bones (name, parent, at: joint offset from the parent in world units, role: root/spine/neck/head/jaw/leg/arm/wing/tail/fin/wheel/turret/other, swing in degrees, phase 0-1 for legs that step together, side -1/1 for wings and fins), bricks that follow each bone (w, d, kind, x/z in studs and y in plates from the joint, colour: main/accent/belly/eye/dark or #hex), move (walk/fly/swim/slither/hop), stride and hover. Movement is generated from the roles. Exactly one bone has no parent. Then give a character body: { plan: id } with character.update. For an animal, a character body: { family: fourLegs/bird/fish/serpent/spider/insect/slime/dragon/robot, params: { size, legs, neck, tail, wings, head, build } } needs no body plan.',
+    {
+      plan: {
+        id: 'bpl_aaaaaaaaaa',
+        name: 'Tiny crab',
+        family: 'custom',
+        move: 'walk',
+        stride: 1.5,
+        hover: 0,
+        bones: [
+          { name: 'body', at: [0, 1.2, 0], role: 'root', swing: 3 },
+          { name: 'left leg', parent: 'body', at: [-1, 0, 0], role: 'leg', swing: 25, phase: 0, side: -1 },
+          { name: 'right leg', parent: 'body', at: [1, 0, 0], role: 'leg', swing: 25, phase: 0.5, side: 1 },
+        ],
+        bricks: [
+          { bone: 'body', w: 2, d: 2, kind: 'brick', x: -1, y: 0, z: -1, color: 'main' },
+          { bone: 'left leg', w: 1, d: 1, kind: 'brick', x: -1, y: -3, z: -0.5, color: 'accent' },
+          { bone: 'right leg', w: 1, d: 1, kind: 'brick', x: 0, y: -3, z: -0.5, color: 'accent' },
+        ],
+      },
+    },
+  ),
+  def(
+    'effect.put',
+    Fx.putEffect,
+    z.strictObject({ effect: Effect }),
+    ['map'],
+    'Effects',
+    'Adds or replaces a game effect: particles that are tiny bricks, plates, tiles or studs. mode burst (count at once) or stream (rate a second, for duration seconds, 0: while it plays); spawn point/sphere/ring/box/line with radius; direction up/out/down/forward with spread degrees; speed, life and size as [from, to]; colors (1-4, birth to death); gravity (negative rises), drag, bounce off bricks 0-1. Built-in effects (fx_fire000001, fx_sparks0001, fx_boom000001…) cannot be changed: copy one under a new id. Place one with item.add (kind effect), hook it to hits and events with project.update effects, or play it with the effect action.',
+    {
+      effect: {
+        id: 'fx_aaaaaaaaaa',
+        name: 'Green sparks',
+        shape: 'stud',
+        mode: 'burst',
+        count: 24,
+        rate: 20,
+        duration: 0,
+        spawn: 'point',
+        radius: 0,
+        direction: 'out',
+        spread: 180,
+        speed: [4, 9],
+        life: [0.3, 0.6],
+        size: [0.18, 0.04],
+        colors: ['#e8ffe0', '#4b9f4a'],
+        gravity: 10,
+        drag: 0,
+        bounce: 0.4,
+      },
+    },
+  ),
+  def(
+    'effect.delete',
+    Fx.deleteEffect,
+    z.strictObject({ id: ids('effect') }),
+    ['map'],
+    'Effects',
+    'Deletes a game effect that nothing uses (take it off maps and out of the game effects first).',
+    { id: 'fx_aaaaaaaaaa' },
+  ),
+  def(
+    'screenEffect.put',
+    Fx.putScreenEffect,
+    z.strictObject({ effect: ScreenEffect }),
+    ['map'],
+    'Effects',
+    'Adds or replaces a game screen effect: what happens to the whole view. Any of: shake {strength 0.02–3 studs, seconds, rumble (slow and heavy)}, flash {color, alpha 0.05–1, seconds}, fade {color, mode out | in | outIn, seconds}, hitStop (seconds the game freezes, 0.02–0.5), slowMo {speed 0.1–0.9, seconds}. Built-in ones (sce_bigshake00, sce_whiteflash, sce_bighit0000…) cannot be changed: copy one under a new id. Play one with the screenEffect action, a cinematic post item {t, screen}, or hook it to things that happen with project.update screenEffects.',
+    {
+      effect: {
+        id: 'sce_aaaaaaaaaa',
+        name: 'Thunder',
+        shake: { strength: 0.3, seconds: 0.6, rumble: true },
+        flash: { color: '#e8f0ff', alpha: 0.8, seconds: 0.4 },
+      },
+    },
+  ),
+  def(
+    'screenEffect.delete',
+    Fx.deleteScreenEffect,
+    z.strictObject({ id: ids('screenEffect') }),
+    ['map'],
+    'Effects',
+    'Deletes a game screen effect that nothing uses (take it out of the game screen effects and cinematics first).',
+    { id: 'sce_aaaaaaaaaa' },
+  ),
+  def(
+    'bodyplan.delete',
+    Bp.deleteBodyPlan,
+    z.strictObject({ id: ids('bodyplan') }),
+    ['character'],
+    'Characters',
+    'Deletes a body plan no character wears.',
+    { id: 'bpl_aaaaaaaaaa' },
   ),
   def(
     'cinematic.delete',

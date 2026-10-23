@@ -127,7 +127,7 @@ export class AudioEngine implements AudioPort {
 
   // ---------- sound events ----------
 
-  play(event: string, opts: { pos?: Vec3; volume?: number } = {}) {
+  play(event: string, opts: { pos?: Vec3; volume?: number; pitch?: number } = {}) {
     const ev = this.o.data().events[event];
     if (!ev) {
       this.stats.skipped++;
@@ -145,7 +145,11 @@ export class AudioEngine implements AudioPort {
     if (!this.ctx) return;
     void this.buffer(plan.clip).then((buf) => {
       if (!buf) return;
-      this.startVoice(event, ev, buf, { rate: plan.rate, volume: plan.gainDb + (opts.volume ?? 0), pos: opts.pos });
+      this.startVoice(event, ev, buf, {
+        rate: plan.rate * (opts.pitch ?? 1),
+        volume: plan.gainDb + (opts.volume ?? 0),
+        pos: opts.pos,
+      });
     });
   }
 
@@ -376,11 +380,11 @@ export class AudioEngine implements AudioPort {
     });
   }
 
-  previewEvent(event: string) {
+  previewEvent(event: string, pitch?: number) {
     if (!this.init()) return;
     void this.ctx!.resume().catch(() => {});
     this.picker.reset();
-    this.play(event);
+    this.play(event, pitch ? { pitch } : {});
   }
 
   /** Audition a music state (or null to stop the audition). */

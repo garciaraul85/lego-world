@@ -12,6 +12,86 @@ const MENU_TEXT: Record<string, string> = {
 
 export const SHELL: HelpEntry[] = [
   {
+    id: 'shell.previews',
+    also: ['preview', 'listen', 'hear', 'thumbnail', 'picture', 'see what it looks like'],
+    screen: 'shell',
+    kind: 'button',
+    name: 'Previews in lists',
+    purpose:
+      'Lists and pickers show what each thing is, not just its name: assets, characters and clips as pictures, effects as pictures that play while the pointer is over them, screens drawn small, maps seen from above, a conversation’s first lines, and the speaker’s face next to each line. **▶** (Listen to …) plays a sound or a music once.',
+    match: [{ name: /^Listen to / }],
+  },
+  {
+    id: 'shell.search',
+    also: ['search', 'find', 'filter', 'search a list', 'find a clip', 'find an effect', 'find a sound', 'look for'],
+    screen: 'shell',
+    kind: 'field',
+    name: 'Search a list',
+    purpose:
+      'Every list with pictures or previews has a search box: the Dock’s categories, the characters, conversations and clips of the Character studio, presets, bodies and bones, effects and screen effects, screens and art, scenes, maps in the World graph, piece sizes, sounds and music, and every pop-up of pictures. Type part of a name (or its kind, like “combat” or “mine”): only the matches stay. Several words must all match, in any order (“fire blue” finds Blue fire). **Enter** picks the first match in a pop-up; **Esc** clears the search. A dropdown with a picture beside it has **🔍**: it opens a box that leaves only the matching choices in the dropdown.',
+    steps: [
+      'Click the search box above a list (or 🔍 next to a dropdown).',
+      'Type part of a name: the list shows only what matches.',
+      'Click the one you want, or press Enter to pick the first match. Esc clears the search.',
+    ],
+    match: [{ sel: '.list-search' }, { sel: '.search-toggle' }],
+    related: ['shell.previews'],
+  },
+  {
+    id: 'shell.brix',
+    also: ['mascot', 'helper', 'assistant', 'ask', 'how do i', 'show me', 'where is'],
+    screen: 'shell',
+    kind: 'button',
+    name: 'Brix, the helper',
+    purpose:
+      'The little brick in the bottom corner. Ask it how to do something (“how do I add a checkpoint?”): Brix answers from Help, links the pages it used, and **Show me** walks you to the control. Brix only reads Help and moves around the editor; it never changes your project.',
+    steps: [
+      'Click the brick in the bottom-right corner (or Help › Ask Brix, Shift F1).',
+      'Type a question in **Ask Brix…** and press Enter, or pick one of the suggested questions.',
+      'Press **Show me** to watch Brix open the right workspace and tab and ring the control.',
+      'Press a 📖 link to read the Help page the answer came from.',
+    ],
+    tips: [
+      'No API key needed: Brix searches Help itself. With the AI builder set up, Claude answers instead, still only from Help.',
+      'To change your game with AI, use the AI builder: it plans each step and waits for your approval.',
+    ],
+    key: 'Shift F1',
+    related: ['shell.brix.panel', 'shell.brix.show', 'action.help.ai'],
+    match: [{ sel: '.brix-button' }],
+  },
+  {
+    id: 'shell.brix.panel',
+    also: ['explain', 'what is this', 'ask brix'],
+    screen: 'shell',
+    kind: 'area',
+    name: 'Brix panel',
+    purpose:
+      'Where you talk to Brix: your questions, its answers with steps, **Show me** buttons and 📖 Help links. The 📍 line under the title is where Brix thinks you are: the screen and tab, and what is selected or open. “This”, “it” and “here” in a question mean that, and the screen you are on is answered first. **Explain**: press it, then click any part of the editor, and Brix tells you what that part is (the click does nothing else).',
+    steps: [
+      'Ask a question in the box at the bottom. “What can I do here?” lists what people do most on the screen you are on, each with Show me.',
+      'Asking to make or change something (“add a door here”)? Brix shows how, and **✦ Ask the AI builder to do this** types the request into the AI builder, with what “this” and “here” were, for you to send and approve.',
+      'Press **Explain**, then click a button, tab or panel to hear what it does. Esc cancels.',
+      'Tick **Ask Claude** to have Claude answer (it uses your AI builder settings and spending caps); untick it to search Help only.',
+      'Press × or Esc to close the panel.',
+    ],
+    tips: ['A new project shows the checklist for its kind of game under the suggested questions.'],
+    related: ['shell.brix', 'shell.brix.show'],
+    match: [{ sel: '[aria-label="Brix"]' }],
+  },
+  {
+    id: 'shell.brix.show',
+    screen: 'shell',
+    kind: 'area',
+    name: 'Show me',
+    purpose:
+      'Brix walks you to a control: a pointer glides to each workspace button, tab or menu and presses it (just as you would), then a ring marks the control and the callout says what it does. Stop ends it; Read more opens its Help page.',
+    tips: [
+      'Show me only opens workspaces, tabs, menus and selections. It never adds or changes anything in your game.',
+    ],
+    related: ['shell.brix', 'shell.brix.panel'],
+    match: [{ sel: '[aria-label="Brix shows you"]' }],
+  },
+  {
     id: 'ai.lock',
     also: ['passphrase', 'lock the key', 'spending cap', 'cap per game', 'secret'],
     screen: 'shell',

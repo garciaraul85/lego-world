@@ -19,6 +19,7 @@ const PRACTICE: Record<ScreenId, string[]> = {
   art: [],
   cinematics: ['cinematics'],
   audio: ['audio'],
+  effects: ['effects'],
   play: ['play'],
 };
 

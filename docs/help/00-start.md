@@ -10,18 +10,27 @@ Every screen has a **screen guide** (left, under Screen guides): a picture of th
 
 ## Ways to learn
 
+- **Ask Brix**: the yellow brick in the bottom-right corner (**Shift F1**). Ask "how do I add a checkpoint?" and Brix answers from this guide, links the pages it used, and **Show me** walks you there: it opens the workspace, tab or menu on the way and rings the control. Brix knows the screen you are on and what is selected, so “how do I make this open with a key?” is about your selection, and “What can I do here?” is about this screen. **Explain**: press it, then click anything to hear what it is. Brix never changes your game; for a change it hands your request to the AI builder. [Open Brix](action:help.brix) · [Meet Brix course](action:help.brixCourse)
 - **Guided tutorial**: walks through every workspace and tool on a sandbox project. You set the pace: read a step, press **Show me** to watch it done (it waits until you press **My turn**, then puts everything back), do it yourself, and press **Next** when you are ready. [Start the tutorial](action:help.tutorial)
 - **Watch a game being built**: the Start hub generates a complete game and replays it stage by stage: name, terrain, maps, gates, hero, props, logic, screens, cinematic, audio. Each stage says what it did and how you would do it yourself. [Open the Start hub](action:help.build)
 - **Coding course**: the logic language line by line, in the Code view — events, variables, if/else, wait, once, gates, world actions, sound, screens, scenes and debugging, ending with a whole game written in code. [Start the coding course](action:help.coding)
-- **Combat course**: adds the Training yard (dummies, a cracked wall, a target that opens a gate, a sparring knight), makes an enemy hit harder, wires a dummy to a chest, then you fight. [Start the combat course](action:help.combat)
+- **Combat course**: adds the Training yard (dummies, a cracked wall, a target that opens a gate, a sparring knight, the Yard master to talk to, and stairs down to a dark cellar lit by torches), makes an enemy hit harder, wires a dummy to a chest, then you fight. [Start the combat course](action:help.combat)
+- **Character sheet course**: makes the player character and gives him an outfit, stats, a fighting style, a victory clip and a voice, then levels him up in Play. [Start the character sheet course](action:help.sheet)
+- **Creatures course**: turns a neighbour into a brick dog, shapes and colours him, makes his skeleton your own with a horn and a wagging tail, and meets him in Play. [Start the creatures course](action:help.bodies)
+- **Faces and pictures course**: gives Tom an angry and a happy face, writes lines with moods and talks to him in Play, then makes an owl from a few words with ✨ From a picture. [Start the faces and pictures course](action:help.faces)
+- **Dialogue course**: adds a villager, writes his conversation as a script with a choice, a condition and actions, shows it as a list and a graph, previews every branch, picks a dialogue style, then you talk to him in Play. [Start the dialogue course](action:help.dialogue)
 - **AI builder**: ask for a change in plain words and watch it being made, step by step, before you accept it. [About the AI builder](help:ai-builder)
 - **This guide**: one page per workspace, a [12-step recipe](help:build-a-game), the [logic reference](help:logic-reference), every [shortcut](help:keys) and the [limits](help:limits). Type in the search box to find anything, for example "music zone".
 
 ## The editor at a glance
 
-Across the top are the menus, the workspace tabs and the toolbar. The workspaces are Scene, World graph, Logic, Characters, Assets, Screens, Cinematics and Audio. The number keys 1 to 8 (or the Window menu) switch between them.
+Across the top are the menus, the workspace tabs and the toolbar. The workspaces are Scene, World graph, Logic, Characters, Assets, Screens, Cinematics, Audio and Effects. The number keys 1 to 9 (or the Window menu) switch between them.
 
 The Scene workspace has the Hierarchy on the left, the 3D map in the middle, the dock below it (Assets, Console, Timeline, Profiler, Problems, Debug, Mixer) and the Inspector on the right. The Inspector has three tabs: Inspector (what is selected), Map (terrain, sky, weather, music) and Project (title, start map, hero, first screen).
+
+Lists and pickers show what each thing is, not only its name: assets, characters and clips as pictures, effects as pictures that play while the pointer is over them, screens drawn small, maps seen from above (in the World graph), the first lines of a conversation, and the speaker's face beside each line. ▶ (Listen to …) plays a sound once; on a music it turns into ■ to stop it.
+
+Every one of those lists can be searched: type part of a name (or a kind such as “combat” or “mine”) in its search box and only the matches stay; several words must all match, in any order. In a pop-up of pictures Enter picks the first match; Esc clears the search. A dropdown with a picture beside it has 🔍, which leaves only the matching choices in the dropdown. In the World graph the search fades the other maps, and Enter selects the first.
 
 Everything you do is one undo step and saves itself to this device a moment later. The status bar shows "All changes saved".
 

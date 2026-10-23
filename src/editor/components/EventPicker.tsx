@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import { describeUse, type EventUse } from '../events';
+import { SearchSelect } from './SearchBox';
 
 const NEW = '__new__';
 
@@ -53,30 +54,32 @@ export function EventPicker({
       />
     );
   return (
-    <select
-      class="inp"
-      aria-label={label}
-      value={value}
-      onChange={(e) => {
-        const v = (e.target as HTMLSelectElement).value;
-        if (v === NEW) {
-          setDraft('');
-          setTyping(true);
-        } else if (v) onChange(v);
-      }}
-    >
-      {!value && <option value="">choose…</option>}
-      {list.map((ev) => {
-        const u = uses?.get(ev);
-        const note = u ? describeUse(u) : '';
-        return (
-          <option value={ev} title={note}>
-            {note ? `${ev} — ${note.length > 70 ? `${note.slice(0, 69)}…` : note}` : ev}
-          </option>
-        );
-      })}
-      <option value={NEW}>＋ New event…</option>
-    </select>
+    <SearchSelect label="events">
+      <select
+        class="inp"
+        aria-label={label}
+        value={value}
+        onChange={(e) => {
+          const v = (e.target as HTMLSelectElement).value;
+          if (v === NEW) {
+            setDraft('');
+            setTyping(true);
+          } else if (v) onChange(v);
+        }}
+      >
+        {!value && <option value="">choose…</option>}
+        {list.map((ev) => {
+          const u = uses?.get(ev);
+          const note = u ? describeUse(u) : '';
+          return (
+            <option value={ev} title={note}>
+              {note ? `${ev} — ${note.length > 70 ? `${note.slice(0, 69)}…` : note}` : ev}
+            </option>
+          );
+        })}
+        <option value={NEW}>＋ New event…</option>
+      </select>
+    </SearchSelect>
   );
 }
 

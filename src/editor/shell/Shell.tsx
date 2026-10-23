@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIONS, type ActionCtx, action, type EditorAction, MENUS, runAction } from '../actions/registry';
 import { resolveAsset } from '../assets';
+import { Rich } from '../components/Rich';
+import { SearchSelect } from '../components/SearchBox';
 import { controlMenu, GenrePicker } from '../genres/GenrePicker';
 import { shows, tabsInView } from '../genres/view';
 import { keysFor } from '../platform';
@@ -121,6 +123,7 @@ export const WORKSPACES = [
   ['Screens', null],
   ['Cinematics', null],
   ['Audio', null],
+  ['Effects', null],
 ] as const;
 
 export function WorkspaceTabs({ c, current, onPick }: { c: ActionCtx; current: string; onPick: (w: string) => void }) {
@@ -192,7 +195,7 @@ export function WorkspaceTabs({ c, current, onPick }: { c: ActionCtx; current: s
   );
 }
 
-const STUDIO_WORKSPACES = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics']);
+const STUDIO_WORKSPACES = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics', 'Effects']);
 const STUDIO_HINT: Record<string, string> = {
   Assets:
     'Asset studio: build the asset from bricks (Bricks tab) and other assets (drag them onto the plate). Every placed copy updates.',
@@ -294,19 +297,22 @@ export function Toolbar({ c }: { c: ActionCtx }) {
       </div>
       <label class="group lbl" data-tour="map-select">
         Map
-        <select
-          class="inp"
-          style={{ width: '180px' }}
-          value={ed.mapId.value}
-          onChange={(e) => ed.openMap((e.target as HTMLSelectElement).value)}
-        >
-          {ed.maps.value.map((m) => (
-            <option value={m.id}>
-              {m.name}
-              {m.generator ? ` · ${m.generator.environments.join(' + ')}` : ' · free build'}
-            </option>
-          ))}
-        </select>
+        {/* P27 part 3c: a project of many maps finds one by typing */}
+        <SearchSelect label="maps">
+          <select
+            class="inp"
+            style={{ width: '180px' }}
+            value={ed.mapId.value}
+            onChange={(e) => ed.openMap((e.target as HTMLSelectElement).value)}
+          >
+            {ed.maps.value.map((m) => (
+              <option value={m.id}>
+                {m.name}
+                {m.generator ? ` · ${m.generator.environments.join(' + ')}` : ' · free build'}
+              </option>
+            ))}
+          </select>
+        </SearchSelect>
       </label>
       <div class="group">
         <button type="button" class="btn" disabled={!ed.bus.canUndo()} onClick={() => ed.undo()} title="Undo (Ctrl Z)">
@@ -375,7 +381,7 @@ export function Toast({ ed }: { ed: EditorState }) {
   if (!t) return null;
   return (
     <div class={`toast ${t.error ? 'error' : ''}`} role={t.error ? 'alert' : 'status'}>
-      {t.msg}
+      <Rich text={t.msg} />
     </div>
   );
 }

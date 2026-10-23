@@ -1,0 +1,127 @@
+{
+  "id": "brix",
+  "title": "Meet Brix",
+  "steps": [
+    {
+      "id": "brix.open",
+      "title": "Brix, the helper",
+      "body": "Brix is the little yellow brick at the bottom-right corner, in the status line. It answers “how do I…?” questions from Help, links the Help pages it used, and shows you where each control is. Brix only reads Help and moves around the editor: it never changes your game.",
+      "task": "Click the brick in the bottom-right corner.",
+      "target": ".brix-button",
+      "placement": "left",
+      "check": { "kind": "dom", "selector": "[aria-label=\"Brix\"]" },
+      "doItForMe": [{ "action": "help.brix" }],
+      "how": [
+        {
+          "text": "Click “Ask Brix” with the yellow brick face, at the right end of the status line along the very bottom. (Help › Ask Brix, or Shift F1, opens it too.) The Brix panel opens.",
+          "check": { "kind": "dom", "selector": "[aria-label=\"Brix\"]" },
+          "do": [{ "click": ".brix-button", "say": "Brix lives here, in the corner." }]
+        }
+      ],
+      "tip": "Shift F1 opens Brix from anywhere."
+    },
+    {
+      "id": "brix.ask",
+      "title": "Ask a question",
+      "body": "Type a question the way you would ask a friend. Without an API key Brix searches Help itself; with the AI builder set up, Claude answers, still only from Help. The answer has the steps to follow, Show me buttons and 📖 links to the Help pages.",
+      "task": "Ask Brix: how do I add a checkpoint?",
+      "target": "[aria-label=\"Brix\"] .brix-ask",
+      "placement": "left",
+      "check": { "kind": "dom", "selector": ".brix-answer" },
+      "doItForMe": [{ "fill": "[aria-label=\"Brix\"] .brix-ask input", "value": "how do I add a checkpoint?" }],
+      "how": [
+        {
+          "text": "Click the box “Ask Brix…” at the bottom of the panel, type how do I add a checkpoint? and press Enter. Brix’s answer appears above the box.",
+          "check": { "kind": "dom", "selector": ".brix-answer" },
+          "do": [
+            {
+              "fill": "[aria-label=\"Brix\"] .brix-ask input",
+              "value": "how do I add a checkpoint?",
+              "say": "Type the question here and press Enter."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "brix.show",
+      "title": "Show me",
+      "body": "Show me walks you to the control: a pointer goes to each workspace button, tab or menu on the way and presses it (just as you would), then a ring marks the control and the callout says what it does. The Brix panel steps aside while it points.",
+      "task": "In the answer, press “Show me: Checkpoint”.",
+      "target": ".brix-answer",
+      "placement": "left",
+      "check": { "kind": "dom", "selector": "[aria-label=\"Brix shows you\"]" },
+      "doItForMe": [{ "click": ".brix-answer .brix-acts button.on" }],
+      "how": [
+        {
+          "text": "Press the yellow button “Show me: Checkpoint” under the answer. Watch: Brix opens the Assets workspace, opens an asset, and rings its Checkpoint setting.",
+          "check": { "kind": "dom", "selector": "[aria-label=\"Brix shows you\"]" },
+          "do": [{ "click": ".brix-answer .brix-acts button.on", "say": "Show me takes you there step by step." }]
+        }
+      ]
+    },
+    {
+      "id": "brix.done",
+      "title": "Back to Brix",
+      "body": "When the ring is on the control, the callout tells you what it does and the first thing to do with it. Read more opens its Help page. Done (or Esc) ends the walk-through and brings the Brix panel back.",
+      "task": "Press Done in Brix’s callout.",
+      "target": "[aria-label=\"Brix shows you\"]",
+      "placement": "left",
+      "check": { "kind": "dom", "selector": "[aria-label=\"Brix\"]" },
+      "doItForMe": [{ "click": "[aria-label=\"Brix shows you\"] button.on" }],
+      "how": [
+        {
+          "text": "Press Done (yellow) at the bottom of the callout next to the ring. The Brix panel comes back.",
+          "check": { "kind": "dom", "selector": "[aria-label=\"Brix\"]" },
+          "do": [{ "click": "[aria-label=\"Brix shows you\"] button.on", "say": "Done ends the walk-through." }]
+        }
+      ]
+    },
+    {
+      "id": "brix.explain",
+      "title": "Explain",
+      "body": "Explain answers “what is this?”. Turn it on and the next click anywhere in the editor is explained instead of pressed: Brix names the control, says what it does and links its Help page. Esc cancels.",
+      "task": "Press Explain at the top of the Brix panel.",
+      "target": "[aria-label=\"Brix\"] header",
+      "placement": "left",
+      "check": { "kind": "dom", "selector": "[aria-label=\"Brix\"] [aria-pressed=\"true\"]" },
+      "doItForMe": [{ "click": "[aria-label=\"Brix\"] header [aria-pressed]" }],
+      "how": [
+        {
+          "text": "Press Explain in the panel’s top bar. It changes to “Click something…” and the pointer becomes a question mark.",
+          "check": { "kind": "dom", "selector": "[aria-label=\"Brix\"] [aria-pressed=\"true\"]" },
+          "do": [
+            { "click": "[aria-label=\"Brix\"] header [aria-pressed]", "say": "Explain: the next click is explained." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "brix.what",
+      "title": "What is this?",
+      "body": "While Explain waits, clicking a control only explains it: the Play button does not start the game. Explain turns itself off after one click; press it again for the next control.",
+      "task": "Click the Play button at the top.",
+      "target": "[data-tour=\"play\"]",
+      "placement": "bottom",
+      "check": { "kind": "dom", "selector": "[data-explained]" },
+      "doItForMe": [{ "click": "[data-tour=\"play\"] button" }],
+      "how": [
+        {
+          "text": "Click ▶ Play in the bar at the top. The game does not start: Brix explains Play instead, with its steps and a 📖 Play link.",
+          "check": { "kind": "dom", "selector": "[data-explained]" },
+          "do": [{ "click": "[data-tour=\"play\"] button", "say": "Click Play: Brix explains it instead." }]
+        }
+      ]
+    },
+    {
+      "id": "brix.end",
+      "title": "Brix is always there",
+      "body": "Ask Brix whenever you are stuck: “where is undo?”, “how do I make an enemy?”, “how do I add music?”. To change your game with AI, use the AI builder: it plans each step and waits for your approval. Brix itself only shows.",
+      "task": "Press Finish.",
+      "target": ".brix-panel",
+      "placement": "left",
+      "check": { "kind": "manual" },
+      "doItForMe": []
+    }
+  ]
+}

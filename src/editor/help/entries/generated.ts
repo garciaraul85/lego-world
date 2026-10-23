@@ -34,6 +34,8 @@ export const ACTION_HELP: Record<string, string> = {
   'edit.back': 'Moves the selection one stud along +Z.',
   'edit.up': 'Raises the selection by one plate.',
   'edit.down': 'Lowers the selection by one plate.',
+  'characters.fromPicture':
+    'Opens “A character from a picture” on the Characters screen: a photo, a drawing or a few words become three characters made of editor settings to pick from.',
   'assets.open': 'Opens the Assets screen, where assets are built from bricks and from other assets.',
   'assets.new': 'Starts a new asset with one brick and opens it on the build plate in the Assets screen.',
   'assets.resetBuiltins':
@@ -98,6 +100,30 @@ export const ACTION_HELP: Record<string, string> = {
   'help.here':
     'Opens the Help page of the control under the pointer: the same as F1, for keyboards (like a Mac’s) where F1 changes the screen brightness.',
   'help.build': 'Watch a whole game being built step by step, with each stage explained.',
+  'help.brix':
+    'Opens Brix, the helper in the corner: ask how to do something and Brix answers from Help, links the pages and shows you where the control is. Explain tells you what any part of the editor is.',
+  'help.brixCourse':
+    'Starts the Meet Brix course: ask a question, follow Show me to the control, and use Explain on a button.',
+  'help.sheet':
+    'Starts the Character sheet course: make the player character, give him an outfit, stats, a fighting style, a victory clip and a voice, then level him up in Play.',
+  'help.bodies':
+    'Starts the Creatures course: turn a neighbour into a brick dog, shape him with sliders and colours, watch him walk, make his skeleton your own, add a horn and a wagging tail, then meet him in Play.',
+  'help.faces':
+    'Starts the Faces and pictures course: give Tom an angry and a happy face, hear him talk, write lines with moods, see him glare and laugh in Play, then make an owl from a few words with From a picture.',
+  'help.effects':
+    'Starts the Effects course: copy the built-in Fire, name it Blue fire, make it of studs and blue, put it on the map, then make it the level-up effect of the game.',
+  'help.screenfx':
+    'Starts the Screen effects course: copy Big hit into a Thunder of your own (a pale blue flash and a slow rumble), make it play when the hero is hurt, give the map a stormy night mood, and see it in Play.',
+  'help.lights':
+    'Starts the Lights course: make the map dark, place a torch and make it a green magic torch that reaches further, place a crystal that is off, switch it on with a zone, and walk into the dark in Play.',
+  'help.atmosphere':
+    'Starts the Atmosphere course: pick a mist, bring it closer, add ground fog, tint the shadows blue, make a day 2 minutes long, see the map at night, place a lamp that shines only at night, start the game at night and play it.',
+  'help.bigworlds':
+    'Starts the Big worlds course: make a big land of hills, choose how far you see, scatter a forest, make it the start map, play it, walk out into the hills while the world follows the hero, and go to another map through the loading screen.',
+  'help.posing':
+    'Starts the Posing and states course: make Pip, build a clip pose by pose (standing, an arm raised, standing), ease it, give Pip the built-in moves and your clip for Idle, try the states, then walk in Play.',
+  'help.dialogue':
+    'Starts the Dialogue course: add a villager, write a conversation with a choice as a script, see it as a list and a graph, preview every branch, pick a style and talk to him in Play.',
   'help.ai': 'Opens the AI builder: describe a change, watch each step, then approve or reject it.',
 };
 
@@ -134,7 +160,7 @@ function actionEntries(): HelpEntry[] {
   });
 }
 
-const WS = ['Scene', 'World graph', 'Logic', 'Characters', 'Assets', 'Screens', 'Cinematics', 'Audio'];
+const WS = ['Scene', 'World graph', 'Logic', 'Characters', 'Assets', 'Screens', 'Cinematics', 'Audio', 'Effects'];
 
 function toolEntries(): HelpEntry[] {
   return TOOLS.filter((t) => !t.hidden).map((t) => ({

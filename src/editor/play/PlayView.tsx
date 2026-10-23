@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { nodeDef } from '../../core/logic/catalog';
 import { nameBook, withNames } from '../../core/logic/code/names';
 import { printGraph } from '../../core/logic/code/print';
+import { QUALITY, QUALITY_LEVELS, type QualityLevel } from '../../core/render/quality';
 import type { LogicGraph } from '../../core/schema';
+import { browserDevice } from '../../engine/runtime/device';
 import { PlayRenderer } from '../../engine/runtime/play-renderer';
 import { PlaySession } from '../../engine/runtime/session';
 import { moveFocus } from '../../engine/ui/ScreenRenderer';
@@ -46,7 +48,16 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     try {
       ed.audio.init();
       void ed.audio.ctx?.resume().catch(() => {});
-      s = new PlaySession(ed.store.snapshot(), { ...start, audio: ed.audio, saves: new BrowserSaveStore() });
+      s = new PlaySession(ed.store.snapshot(), {
+        ...start,
+        audio: ed.audio,
+        saves: new BrowserSaveStore(),
+        // P27 part 4: the quality the maker previews, and the device for Auto
+        ...(ed.previewQuality.value ? { quality: ed.previewQuality.value } : {}),
+        device: browserDevice(),
+      });
+      // P27 part 3c: maps load in steps behind a loading screen; the maps ahead load a little each frame
+      s.asyncLoads = true;
       pr = new PlayRenderer(canvas, s);
       prRef.current = pr;
     } catch (e) {
@@ -76,6 +87,8 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     if (start.cinematic) s.cine.play(start.cinematic);
     if (start.at) s.placeAt(start.at, s.heroState.heading);
 
+    const adaptive = !(navigator as Navigator & { webdriver?: boolean }).webdriver;
+    const unQ = ed.previewQuality.subscribe((q) => s.setQualityPreview(q));
     let raf = 0;
     let last = performance.now();
     let lastTick = 0;
@@ -87,6 +100,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
       last = now;
       // a title, pause or game-over screen holds the game; the UI clock keeps running (P5.8)
+      s.stepLoading(s.loading ? 12 : 2);
       s.runtime.paused = ed.paused.value || s.screenPaused;
       pollGamepad(s);
       s.runtime.timeScale = ed.timeScale.value;
@@ -99,6 +113,9 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       const st = !held || ++heldFrames % 15 === 0 ? pr.render() : null;
       if (!held) heldFrames = 0;
       frameMs.push(dt * 1000);
+      // P27 part 4: Auto quality steps down while frames stay slow (not in automated test browsers, whose software
+      // drawing is always slow, nor while a menu, a pause or a loading screen holds the game)
+      if (adaptive && !held && !ed.paused.value && !s.loading) s.frameTime(dt * 1000);
       if (frameMs.length > 30) frameMs.shift();
       uiTick.value++;
       if (now - lastTick > 100) {
@@ -135,6 +152,18 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       }
       // while a menu screen is up the keyboard drives its buttons (Tab, arrows, Enter)
       if (s.screenPaused) return;
+      // P22: in a conversation: Enter, Space, E or T move on; arrows (or W/S) pick; 1–6 choose
+      if (s.talks.active) {
+        const ch = s.talks.view?.choices;
+        if (!e.repeat && (k === 'enter' || k === ' ' || k === 'e' || k === 't')) s.dialogueNext();
+        else if (ch && (k === 'arrowup' || k === 'w')) s.talks.move(-1);
+        else if (ch && (k === 'arrowdown' || k === 's')) s.talks.move(1);
+        else if (ch && /^[1-6]$/.test(k) && !e.repeat) s.dialogueChoose(Number(k) - 1);
+        else return;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       if (k === 'e' && !e.repeat && s.interact()) {
         /* used the prompted interaction */
       } else if (MOVE_KEYS.has(k)) s.input.keys.add(k);
@@ -147,6 +176,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       else if (k === 'z' && !e.repeat) s.combat.toggleLock();
       else if (k === 'tab' && !e.repeat) s.combat.cycleLock();
       else if (k === 't' && !e.repeat) s.talk();
+      else if (k === 'h' && !e.repeat) s.switchHero();
       else if (k === 'p' && !e.repeat) ed.paused.value = !ed.paused.value;
       else if (/^[1-4]$/.test(k) && !e.repeat) s.emote(Number(k) - 1);
       else if (k === 'n' && ed.paused.value) s.runtime.stepOnce();
@@ -209,6 +239,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       pr.dispose();
       prRef.current = null;
       unBp();
+      unQ();
       ed.logicBreak.value = null;
       ed.session.value = null;
       ed.playing.value = false;
@@ -300,6 +331,25 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
             </button>
           ))}
         </span>
+        {/* P27 part 4: play at a quality level to see how the game looks and runs there */}
+        <select
+          class="inp"
+          style={{ width: 'auto', flex: '0 0 auto' }}
+          aria-label="Play at quality"
+          data-tour="play-quality"
+          data-help="play.quality"
+          title="Play at a quality level to see how the game looks and runs there. Quality: game’s plays at the game’s own setting (Project › Graphics quality, or the player’s choice in Settings)."
+          value={ed.previewQuality.value ?? ''}
+          onChange={(e) => {
+            const v = (e.target as HTMLSelectElement).value;
+            ed.previewQuality.value = v ? (v as QualityLevel) : null;
+          }}
+        >
+          <option value="">Quality: game’s</option>
+          {QUALITY_LEVELS.map((l) => (
+            <option value={l}>Quality: {QUALITY[l].label}</option>
+          ))}
+        </select>
         <span class="muted small opt play-hint">
           {keysFor(
             'WASD move · Space jump · F smash · E use · hold E rebuild · T talk · 1-4 emotes · Esc pause · F5 stop',

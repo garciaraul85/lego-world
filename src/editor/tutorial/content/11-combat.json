@@ -36,7 +36,12 @@
           ]
         },
         {
-          "text": "In the panel on the right, find the section “Fights the hero”. Click the box “Hits for”, type 2 and press Enter: each swing now takes two hearts.",
+          "text": "Above the panel on the right, in the tabs “Character sheet”, click “Moves”. The section “Fights the hero” shows under the moves.",
+          "check": { "kind": "state", "test": "sheetTab", "args": "moves" },
+          "do": [{ "click": "[data-tour=\"sheet-moves\"]", "say": "Click the tab “Moves” of the character sheet." }]
+        },
+        {
+          "text": "In the tab “Moves”, find the section “Fights the hero”. Click the box “Hits for”, type 2 and press Enter: each swing now takes two hearts.",
           "check": { "kind": "state", "test": "enemyStat", "args": { "stat": "power", "value": 2 } },
           "do": [
             {
@@ -131,7 +136,7 @@
     {
       "id": "combat.done",
       "title": "You can make fights",
-      "body": "Stop with F5 when you are done. Everything you used is in the editor: Make breakable and Can be locked on in the Asset studio, Fights the hero in the Character studio, Name, script & wires in the Scene, and On damaged, On defeated and On locked on in Logic. Help › Help guide › Play has every control.",
+      "body": "Stop with F5 when you are done. Everything you used is in the editor: Make breakable and Can be locked on in the Asset studio, Fights the hero in the Character studio (sheet tab “Moves”), Name, script & wires in the Scene, and On damaged, On defeated and On locked on in Logic. Help › Help guide › Play has every control.",
       "task": "Press Finish.",
       "target": "[data-tour=\"workspaces\"]",
       "placement": "bottom",

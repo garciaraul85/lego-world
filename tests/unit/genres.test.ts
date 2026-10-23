@@ -102,6 +102,9 @@ describe('every control is tagged (P18: views can only hide what is tagged)', ()
         'game.saving',
         'asset.checkpoint',
         'game.progress',
+        'character.talk',
+        'character.dialogue',
+        'game.dialogue',
       ],
     };
     for (const [kind, ids] of Object.entries(have)) {
@@ -153,7 +156,7 @@ describe('the view', () => {
       ed,
       WORKSPACES.map(([w]) => w),
     );
-    expect(main).toEqual(['Scene', 'Assets', 'Characters', 'Logic', 'Cinematics', 'Screens', 'Audio']);
+    expect(main).toEqual(['Scene', 'Assets', 'Characters', 'Logic', 'Cinematics', 'Screens', 'Audio', 'Effects']);
     expect(more).toEqual(['World graph']);
     expect(shows(ed, 'action', 'play.v68')).toBe(false);
     expect(shows(ed, 'node', 'world.give')).toBe(true);

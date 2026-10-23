@@ -47,7 +47,18 @@ export type ArgKind =
   | 'sound'
   | 'music'
   | 'screen'
-  | 'cinematic';
+  | 'cinematic'
+  /** P22: a conversation */
+  | 'dialogue'
+  /** P23: an effect (built-in or the game's own) */
+  | 'effect'
+  /** P23 part 2: a screen effect; a colour grade; what drifts across the screen */
+  | 'screenEffect'
+  | 'grade'
+  | 'drift'
+  /** P27 part 2: a time of day (day, noon, evening, night); a fog (a preset, the map's own, or none) */
+  | 'time'
+  | 'fog';
 export type ArgDef = {
   name: string;
   kind: ArgKind;
@@ -90,6 +101,18 @@ export interface ExecCtx {
   saving?(op: 'save' | 'load' | 'checkpoint', slot: number | undefined): void;
   /** P26 part 2: unlock an achievement (by id), or finish the game */
   progress?(op: 'achieve' | 'finish', id: string): void;
+  /** P22: start a conversation (by id) */
+  talk?(conversation: string): void;
+  /** P22 part 2: the hero's outfit, experience, or the next hero of the party */
+  sheet?(op: 'outfit' | 'xp' | 'switch', value: string | number): void;
+  /** P23: play an effect (by id) at a place (empty: the hero), or start / stop an effect placed on the map */
+  effect?(op: 'play' | 'on' | 'off', a: string, at?: string): void;
+  /** P23 part 2: play a screen effect (by id), set this map's mood while it plays, or clear the screen */
+  screen?(op: 'play' | 'mood' | 'clear', a?: string | Record<string, unknown>): void;
+  /** P27: switch a placed light (by name) on, off or over, or set this map's darkness while it plays */
+  light?(op: 'on' | 'off' | 'toggle' | 'darkness', name: string, value?: number): void;
+  /** P27 part 2: set the time of day (the sun jumps there and the day goes on) or the fog, while it plays */
+  sky?(op: 'time' | 'fog', value: string): void;
 }
 
 export type Args = Record<string, unknown>;

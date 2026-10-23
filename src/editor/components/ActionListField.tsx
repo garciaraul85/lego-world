@@ -1,5 +1,7 @@
+import type { ComponentChildren } from 'preact';
 import type { Action } from '../../core/schema';
 import { EventPicker, ListenButton } from './EventPicker';
+import { SearchSelect } from './SearchBox';
 
 export type Choice = { id: string; name: string };
 /** Pickers for sound / music / screen actions (from AudioFields.actionChoices). */
@@ -8,10 +10,21 @@ export type ActionChoices = {
   music: Choice[];
   screens: Choice[];
   cinematics: Choice[];
+  /** P22: the game's conversations (Start conversation) */
+  conversations?: Choice[];
+  /** P23: effects (built-in and the game's own), and the effects placed on maps (by name) */
+  effects?: Choice[];
+  /** P23 part 2: screen effects (built-in and the game's own) */
+  screenEffects?: Choice[];
+  placedEffects?: string[];
+  /** P27: lights by name (placed lights, assets that give light) */
+  placedLights?: string[];
   /** P32: custom event names the project uses (Send event picks from them) */
   events?: string[];
   /** P32: plays a sound or a music state once, for the ▶ next to their pickers */
   preview?: { sound(id: string): void; music(id: string | null): void };
+  /** P23: a small picture of the picked effect, screen or conversation, next to its picker */
+  thumb?: (kind: 'effect' | 'screen' | 'conversation' | 'screenEffect', id: string) => ComponentChildren;
 };
 
 /** The action kinds a designer can pick, with what each needs. Shared by assets, zones, screens and logic. */
@@ -64,6 +77,41 @@ const KINDS: { do: Action['do']; label: string; make: (c?: ActionChoices) => Act
     needs: 'cinematics',
     make: (c) => ({ do: 'cinematic', cinematic: (c?.cinematics[0]?.id ?? 'cin_none000000') as never, once: true }),
   },
+  // P22 part 2
+  { do: 'xp', label: 'Give experience', make: () => ({ do: 'xp', amount: 10 }) },
+  { do: 'outfit', label: 'Change outfit', make: () => ({ do: 'outfit', name: '' }) },
+  // P23
+  {
+    do: 'effect',
+    label: 'Play effect',
+    needs: 'effects',
+    make: (c) => ({ do: 'effect', effect: (c?.effects?.[0]?.id ?? 'fx_sparks0001') as never }),
+  },
+  // P23 part 2
+  {
+    do: 'screenEffect',
+    label: 'Screen effect (shake, flash…)',
+    needs: 'screenEffects',
+    make: (c) => ({ do: 'screenEffect', effect: (c?.screenEffects?.[0]?.id ?? 'sce_bigshake00') as never }),
+  },
+  {
+    do: 'effectOn',
+    label: 'Start or stop a placed effect',
+    make: (c) => ({ do: 'effectOn', name: c?.placedEffects?.[0] ?? 'Effect 1', on: true }),
+  },
+  // P27
+  {
+    do: 'lightOn',
+    label: 'Switch a light on or off',
+    make: (c) => ({ do: 'lightOn', name: c?.placedLights?.[0] ?? 'Light 1', on: 'on' }),
+  },
+  // P22
+  {
+    do: 'talk',
+    label: 'Start conversation',
+    needs: 'conversations',
+    make: (c) => ({ do: 'talk', conversation: (c?.conversations?.[0]?.id ?? 'dlg_none000000') as never }),
+  },
 ];
 
 /**
@@ -81,7 +129,18 @@ export function ActionListField({
   states: string[];
   choices?: ActionChoices;
 }) {
-  const kinds = KINDS.filter((k) => !k.needs || (choices && (k.needs !== 'cinematics' || choices.cinematics.length)));
+  const kinds = KINDS.filter(
+    (k) =>
+      !k.needs ||
+      (choices &&
+        (k.needs === 'cinematics'
+          ? choices.cinematics.length
+          : k.needs === 'conversations'
+            ? choices.conversations?.length
+            : k.needs === 'effects'
+              ? choices.effects?.length
+              : true)),
+  );
   const set = (i: number, a: Action) => onChange(value.map((x, j) => (j === i ? a : x)));
   return (
     <div class="actions-field">
@@ -89,16 +148,20 @@ export function ActionListField({
         <div class="action-row">
           <span class="mono small muted">{i + 1}</span>
           {kinds.some((k) => k.do === a.do) ? (
-            <select
-              class="inp"
-              aria-label="Action"
-              value={a.do}
-              onChange={(e) => set(i, kinds.find((k) => k.do === (e.target as HTMLSelectElement).value)!.make(choices))}
-            >
-              {kinds.map((k) => (
-                <option value={k.do}>{k.label}</option>
-              ))}
-            </select>
+            <SearchSelect label="actions">
+              <select
+                class="inp"
+                aria-label="Action"
+                value={a.do}
+                onChange={(e) =>
+                  set(i, kinds.find((k) => k.do === (e.target as HTMLSelectElement).value)!.make(choices))
+                }
+              >
+                {kinds.map((k) => (
+                  <option value={k.do}>{k.label}</option>
+                ))}
+              </select>
+            </SearchSelect>
           ) : (
             <span class="chip">{a.do}</span>
           )}
@@ -132,17 +195,19 @@ function ActionArgs({
   onChange: (a: Action) => void;
 }) {
   const pick = (v: string | null, label: string, list: Choice[], put: (v: string) => Action, none?: string) => (
-    <select
-      class="inp"
-      aria-label={label}
-      value={v ?? ''}
-      onChange={(e) => onChange(put((e.target as HTMLSelectElement).value))}
-    >
-      {none !== undefined && <option value="">{none}</option>}
-      {[...list, ...(v && !list.some((x) => x.id === v) ? [{ id: v, name: v }] : [])].map((o) => (
-        <option value={o.id}>{o.name}</option>
-      ))}
-    </select>
+    <SearchSelect label="choices">
+      <select
+        class="inp"
+        aria-label={label}
+        value={v ?? ''}
+        onChange={(e) => onChange(put((e.target as HTMLSelectElement).value))}
+      >
+        {none !== undefined && <option value="">{none}</option>}
+        {[...list, ...(v && !list.some((x) => x.id === v) ? [{ id: v, name: v }] : [])].map((o) => (
+          <option value={o.id}>{o.name}</option>
+        ))}
+      </select>
+    </SearchSelect>
   );
   const text = (v: string, label: string, put: (v: string) => Action) => (
     <input
@@ -253,9 +318,12 @@ function ActionArgs({
       return text(a.stinger, 'Stinger', (stinger) => ({ ...a, stinger }));
     case 'showScreen':
     case 'hideScreen':
-      return choices
-        ? pick(a.screen, 'Screen', choices.screens, (screen) => ({ ...a, screen: screen as never }))
-        : null;
+      return choices ? (
+        <span class="row pv-row">
+          {pick(a.screen, 'Screen', choices.screens, (screen) => ({ ...a, screen: screen as never }))}
+          {choices.thumb?.('screen', a.screen)}
+        </span>
+      ) : null;
     case 'cinematic':
       return choices ? (
         <span class="row" style={{ flexWrap: 'nowrap' }}>
@@ -291,6 +359,114 @@ function ActionArgs({
           <option value="settingsMenu">Open Settings</option>
           <option value="achievementsMenu">Open Achievements</option>
         </select>
+      );
+    case 'xp':
+      return num(a.amount, 'Experience', (amount) => ({ ...a, amount: Math.round(amount) }));
+    case 'outfit':
+      return (
+        <input
+          class="inp"
+          aria-label="Outfit name"
+          placeholder="own clothes"
+          value={a.name}
+          onChange={(e) => onChange({ ...a, name: (e.target as HTMLInputElement).value.trim().slice(0, 40) })}
+        />
+      );
+    case 'effect':
+      return (
+        <span class="row" style={{ gap: '4px', flexWrap: 'wrap' }}>
+          {pick(a.effect, 'Effect', choices?.effects ?? [], (effect) => ({ ...a, effect: effect as never }))}
+          {choices?.thumb?.('effect', a.effect)}
+          <input
+            class="inp"
+            aria-label="Where"
+            placeholder="at the hero"
+            title="Empty: at the hero; self: at this object; or the name of an object, neighbour or placed effect"
+            value={a.at ?? ''}
+            onChange={(e) => {
+              const at = (e.target as HTMLInputElement).value.trim().slice(0, 60);
+              const { at: _x, ...rest } = a;
+              onChange(at ? { ...rest, at } : rest);
+            }}
+          />
+        </span>
+      );
+    case 'screenEffect':
+      return (
+        <span class="row pv-row">
+          {pick(a.effect, 'Screen effect', choices?.screenEffects ?? [], (effect) => ({
+            ...a,
+            effect: effect as never,
+          }))}
+          {choices?.thumb?.('screenEffect', a.effect)}
+        </span>
+      );
+    case 'effectOn':
+      return (
+        <span class="row" style={{ gap: '4px' }}>
+          <select
+            class="inp"
+            aria-label="Start or stop"
+            value={a.on ? 'on' : 'off'}
+            onChange={(e) => onChange({ ...a, on: (e.target as HTMLSelectElement).value === 'on' })}
+          >
+            <option value="on">Start</option>
+            <option value="off">Stop</option>
+          </select>
+          <input
+            class="inp"
+            aria-label="Placed effect"
+            list="placed-effects"
+            value={a.name}
+            onChange={(e) =>
+              onChange({ ...a, name: (e.target as HTMLInputElement).value.trim().slice(0, 60) || a.name })
+            }
+          />
+          <datalist id="placed-effects">
+            {(choices?.placedEffects ?? []).map((n) => (
+              <option value={n} />
+            ))}
+          </datalist>
+        </span>
+      );
+    case 'lightOn':
+      return (
+        <span class="row" style={{ gap: '4px' }}>
+          <select
+            class="inp"
+            aria-label="Switch the light"
+            value={a.on}
+            onChange={(e) => onChange({ ...a, on: (e.target as HTMLSelectElement).value as 'on' | 'off' | 'toggle' })}
+          >
+            <option value="on">On</option>
+            <option value="off">Off</option>
+            <option value="toggle">Over (on ⇄ off)</option>
+          </select>
+          <input
+            class="inp"
+            aria-label="Light name"
+            list="placed-lights"
+            value={a.name}
+            onChange={(e) =>
+              onChange({ ...a, name: (e.target as HTMLInputElement).value.trim().slice(0, 60) || a.name })
+            }
+          />
+          <datalist id="placed-lights">
+            {(choices?.placedLights ?? []).map((n) => (
+              <option value={n} />
+            ))}
+          </datalist>
+        </span>
+      );
+    case 'talk':
+      return (
+        <span class="col pv-col">
+          {pick(a.conversation, 'Conversation', choices?.conversations ?? [], (conversation) => ({
+            ...a,
+            conversation: conversation as never,
+          }))}
+          {choices?.thumb?.('conversation', a.conversation)}
+        </span>
       );
     case 'save':
     case 'load':
@@ -332,6 +508,8 @@ function ActionArgs({
           <option value="invertY">Invert camera (on/off)</option>
           <option value="textSize">Text size (normal/large)</option>
           <option value="difficulty">Difficulty (story/normal/hard)</option>
+          <option value="reduceMotion">Reduce motion (on/off)</option>
+          <option value="quality">Graphics quality (auto/low/medium/high)</option>
         </select>
       );
     default:

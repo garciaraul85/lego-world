@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { FieldHelp } from '../../components/fields';
+import { SearchSelect } from '../../components/SearchBox';
 
 /** P32: a field's name with its “?” (what it is, where its value comes from) */
 const Head = ({ label, help }: { label: string; help?: string | undefined }) => (
@@ -92,6 +93,7 @@ export function Pick({
   options,
   onChange,
   help,
+  after,
 }: {
   label: string;
   value: string;
@@ -99,10 +101,11 @@ export function Pick({
   onChange: (v: string) => void;
   /** P32: the “?” text */
   help?: string;
+  /** P23: a preview next to the list (▶ Listen, a picture) */
+  after?: ComponentChildren;
 }) {
-  return (
-    <label class="dr-f">
-      <Head label={label} help={help} />
+  const select = (
+    <SearchSelect label="choices">
       <select
         class="inp"
         aria-label={label}
@@ -113,6 +116,20 @@ export function Pick({
           <option value={o.id}>{o.name}</option>
         ))}
       </select>
+    </SearchSelect>
+  );
+  return (
+    // biome-ignore lint/a11y/noLabelWithoutControl: the control is the list inside (with a preview beside it)
+    <label class="dr-f">
+      <Head label={label} help={help} />
+      {after ? (
+        <span class="row pv-row">
+          {select}
+          {after}
+        </span>
+      ) : (
+        select
+      )}
     </label>
   );
 }

@@ -1,10 +1,20 @@
 import { isId } from '../../ids';
 import type { ProjectStore } from '../../project/store';
-import { type EmitterInstance, Instances, type MapDoc, paths, type UiInstance } from '../../schema';
+import {
+  type EffectInstance,
+  type EmitterInstance,
+  Instances,
+  type LightInstance,
+  type MapDoc,
+  paths,
+  type UiInstance,
+} from '../../schema';
 import type { CommandHandler } from '../types';
 
-type Item = EmitterInstance | UiInstance;
-export const MAX_ITEMS_PER_MAP = 256;
+type Item = EmitterInstance | UiInstance | EffectInstance | LightInstance;
+const isItem = (k: string) => k === 'emitter' || k === 'ui' || k === 'effect' || k === 'light';
+/** P27 part 3: was 256 */
+export const MAX_ITEMS_PER_MAP = 10_000;
 
 const inst = (store: ProjectStore, map: string) =>
   store.get<Instances>(paths.instances(map)) ?? { npcsSaved: false, items: [] };
@@ -15,7 +25,14 @@ const check = (v: Instances) => {
 
 /** item.add: a sound emitter (P5.5) or a world UI element (P5.9) on a map. */
 export const addItem: CommandHandler<{ map: string; item: Item }> = {
-  label: (p) => (p.item.kind === 'emitter' ? 'Add sound emitter' : `Add world ${p.item.widget}`),
+  label: (p) =>
+    p.item.kind === 'emitter'
+      ? 'Add sound emitter'
+      : p.item.kind === 'effect'
+        ? 'Add effect'
+        : p.item.kind === 'light'
+          ? 'Add light'
+          : `Add world ${p.item.widget}`,
   validate(store, p) {
     if (!store.has(paths.map(p.map))) return `Map ${p.map} does not exist.`;
     if (!isId('instance', p.item.id)) return 'Item ids look like ins_ and 10 letters or digits.';
@@ -36,7 +53,7 @@ export const updateItem: CommandHandler<{ map: string; id: string; patch: Partia
   validate(store, p) {
     const cur = inst(store, p.map);
     const it = cur.items.find((i) => i.id === p.id);
-    if (!it || (it.kind !== 'emitter' && it.kind !== 'ui')) return 'That item is not on this map.';
+    if (!it || !isItem(it.kind)) return 'That item is not on this map.';
     return check({
       ...cur,
       items: cur.items.map((i) => (i.id === p.id ? ({ ...i, ...p.patch, id: i.id, kind: i.kind } as Item) : i)),
@@ -54,9 +71,7 @@ export const updateItem: CommandHandler<{ map: string; id: string; patch: Partia
 export const removeItem: CommandHandler<{ map: string; id: string }> = {
   label: () => 'Remove map item',
   validate: (store, p) =>
-    inst(store, p.map).items.some((i) => i.id === p.id && (i.kind === 'emitter' || i.kind === 'ui'))
-      ? null
-      : 'That item is not on this map.',
+    inst(store, p.map).items.some((i) => i.id === p.id && isItem(i.kind)) ? null : 'That item is not on this map.',
   apply(store, p) {
     const cur = inst(store, p.map);
     store.put(paths.instances(p.map), { ...cur, items: cur.items.filter((i) => i.id !== p.id) });

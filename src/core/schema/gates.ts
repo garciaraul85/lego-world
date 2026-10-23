@@ -15,7 +15,7 @@ export const Gate = z.strictObject({
 
 /** world/gates.json */
 export const Gates = z.strictObject({
-  gates: z.array(Gate).max(256),
+  gates: z.array(Gate).max(4000),
   /** order maps appear in the World graph (legacy maps[] order) */
   mapOrder: z.array(id('map')),
 });

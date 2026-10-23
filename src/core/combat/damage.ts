@@ -19,6 +19,8 @@ export const AtZero = z.strictObject({
   drop: z.strictObject({ item: z.string().min(1).max(60), count: z.number().int().min(1).max(99) }).optional(),
   /** a custom event sent to logic (On custom event) */
   emit: z.string().min(1).max(60).optional(),
+  /** P27 part 3d (characters): comes back after this many seconds, or when the player comes back to the map (0) */
+  respawn: z.number().min(0).max(3600).optional(),
 });
 
 /** Health on an asset or a character. */

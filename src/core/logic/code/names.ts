@@ -1,5 +1,7 @@
 import { BUILTIN_ASSETS } from '../../../builtin/assets';
 import { DEFAULT_EVENTS, DEFAULT_MUSIC } from '../../../builtin/audio/pack';
+import { BUILTIN_EFFECTS } from '../../../builtin/effects';
+import { BUILTIN_SCREEN_EFFECTS } from '../../../builtin/screen-effects';
 import { BUILTIN_SCREENS } from '../../../builtin/screens';
 import type { LogicGraph, MapDoc } from '../../schema';
 import { nodeDef } from '../catalog';
@@ -13,7 +15,17 @@ import type { ArgKind } from '../catalog/types';
  */
 export type NameKind = Extract<
   ArgKind,
-  'zone' | 'spawn' | 'map' | 'asset' | 'sound' | 'music' | 'screen' | 'cinematic'
+  | 'zone'
+  | 'spawn'
+  | 'map'
+  | 'asset'
+  | 'sound'
+  | 'music'
+  | 'screen'
+  | 'cinematic'
+  | 'dialogue'
+  | 'effect'
+  | 'screenEffect'
 >;
 export const NAME_KINDS: readonly NameKind[] = [
   'zone',
@@ -24,6 +36,9 @@ export const NAME_KINDS: readonly NameKind[] = [
   'music',
   'screen',
   'cinematic',
+  'dialogue',
+  'effect',
+  'screenEffect',
 ];
 
 export type NamedThing = { id: string; name: string; kind: NameKind /** where it is, what it is */; note: string };
@@ -50,6 +65,9 @@ export function namedThings(s: Source): Record<NameKind, NamedThing[]> {
     music: [],
     screen: [],
     cinematic: [],
+    dialogue: [],
+    effect: [],
+    screenEffect: [],
   };
   const order = read<{ mapOrder: string[] }>(s, 'world/gates.json')?.mapOrder ?? [];
   const mapPaths = s.list('maps/').filter((p) => p.endsWith('/map.json'));
@@ -111,6 +129,32 @@ export function namedThings(s: Source): Record<NameKind, NamedThing[]> {
     const on = maps.find((m) => m.id === c?.map)?.name;
     if (c?.id) out.cinematic.push({ id: c.id, name: c.name, kind: 'cinematic', note: on ? `scene on ${on}` : 'scene' });
   }
+  for (const p of s.list('dialogue/')) {
+    const d = read<{ id: string; name: string; sections?: unknown[] }>(s, p);
+    if (d?.id)
+      out.dialogue.push({
+        id: d.id,
+        name: d.name,
+        kind: 'dialogue',
+        note: `conversation · ${d.sections?.length ?? 0} sections`,
+      });
+  }
+  // P23: the game's own effects, then the built-in ones it has no copy of by that name
+  const own = s
+    .list('effects/')
+    .map((p) => read<{ id: string; name: string; mode?: string }>(s, p))
+    .filter((e): e is { id: string; name: string; mode?: string } => !!e?.id);
+  for (const e of own)
+    out.effect.push({ id: e.id, name: e.name, kind: 'effect', note: `effect · ${e.mode ?? 'burst'}` });
+  for (const e of BUILTIN_EFFECTS)
+    out.effect.push({ id: e.id, name: e.name, kind: 'effect', note: `built-in effect · ${e.mode}` });
+  // P23 part 2: screen effects, the game's own first
+  for (const p of s.list('screenfx/')) {
+    const e = read<{ id: string; name: string }>(s, p);
+    if (e?.id) out.screenEffect.push({ id: e.id, name: e.name, kind: 'screenEffect', note: 'screen effect' });
+  }
+  for (const e of BUILTIN_SCREEN_EFFECTS)
+    out.screenEffect.push({ id: e.id, name: e.name, kind: 'screenEffect', note: 'built-in screen effect' });
   return out;
 }
 

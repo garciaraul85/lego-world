@@ -1,9 +1,12 @@
 import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
 import { EMOTE_CLIPS } from '../../../builtin/clips/emotes';
+import { MOOD_LABEL } from '../../../core/character/faces';
+import { MOODS } from '../../../core/dialogue/schema';
 import { type Character, type Cinematic, type Clip, paths } from '../../../core/schema';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { PreviewPicker } from '../../components/PreviewPicker';
 import type { EditorState } from '../../state';
+import { withMood } from '../character-studio/Face';
 import { CharacterThumb, peakTime } from '../character-studio/thumbs';
 
 /**
@@ -117,6 +120,50 @@ export function HeldPicker({
           name: o,
           thumb: <CharacterThumb profile={{ ...profile, held: o }} size={40} view="torso" />,
         }))}
+        onPick={onPick}
+      />
+    </Field>
+  );
+}
+
+/** P23 part 3: the faces a role's character has (its Face tab), for the mood pictures */
+export function roleFaces(ed: EditorState, cin: Cinematic, role: string): Character['faces'] {
+  const m = cin.cast.find((x) => x.role === role);
+  const id = !m || m.actor === '$hero' ? ed.store.manifest.hero : m.actor;
+  return id ? ed.store.get<Character>(paths.character(id))?.faces : undefined;
+}
+
+/** P23 part 3: “Mood”: each mood shown as the actor's own face for it (its Face tab, or the default). */
+export function MoodPicker({
+  profile,
+  faces,
+  value,
+  onPick,
+  none,
+}: {
+  profile: Record<string, unknown>;
+  faces: Character['faces'];
+  value: string;
+  onPick: (mood: string) => void;
+  /** a first choice that keeps the actor's own face */
+  none?: string;
+}) {
+  return (
+    <Field label="Mood">
+      <PreviewPicker
+        label="Mood"
+        tour="cine-mood"
+        value={value}
+        options={[
+          ...(none !== undefined
+            ? [{ value: '', name: none, thumb: <CharacterThumb profile={profile} size={40} view="head" /> }]
+            : []),
+          ...MOODS.filter((m) => none === undefined || m !== 'neutral').map((m) => ({
+            value: m,
+            name: MOOD_LABEL[m],
+            thumb: <CharacterThumb profile={withMood(profile, faces, m)} size={40} view="head" />,
+          })),
+        ]}
         onPick={onPick}
       />
     </Field>

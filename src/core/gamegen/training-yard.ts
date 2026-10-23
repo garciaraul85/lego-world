@@ -2,7 +2,10 @@ import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { ENEMY_PRESETS } from '../combat/enemy';
 import type { Command } from '../commands';
+import { blankConversation } from '../dialogue/schema';
+import { parseScript } from '../dialogue/script';
 import { newId } from '../ids';
+import { LIGHT_PRESET } from '../lighting/light';
 import { addWire } from '../logic/wiring';
 import type { Asset, Character } from '../schema';
 
@@ -11,6 +14,8 @@ import type { Asset, Character } from '../schema';
  * undoes in one step and the AI builder could make the same): a floor, training dummies (lock on with Z, hit
  * with F), a cracked wall that blunt hits break faster, a target that opens a gate when you lock on to it
  * (wired, no code), a chest behind the gate, a sparring knight who fights back, and tips that show in the HUD as you walk up to each spot.
+ * Milestone 2 adds its cast and look: the Yard master talks (a conversation with choices), hits spark, and stairs
+ * lead down to a dark cellar lit by torches.
  */
 export type TrainingYard = { map: string; spawn: string; commands: Command[] };
 
@@ -37,9 +42,45 @@ const floorBricks: Bricks = SIDE.flatMap((i) =>
   SIDE.map((j) => [0, i * 8, 0, j * 8, 0, (i + j) % 2, 0] as Bricks[number]),
 );
 
+/** what the Yard master says (a conversation script: P22) */
+const MASTER_SCRIPT = `== start
+[if talks > 0] Yard master (happy): Back for more, {hero.name}?
+Yard master: Welcome to the Training yard!
+Yard master: Hit the dummies with F. The sparks show a hit landed.
+* How do I beat the knight? -> knight
+* What is down the cellar stairs? -> cellar
+* Thanks! -> end
+
+== knight
+Yard master: Hold Q to guard, and raise it just as his red ! strikes to parry. C rolls away.
+
+== cellar
+Yard master (scared): It is dark down there. Torches light the way, and a chest waits at the end.`;
+
 export function trainingYard(opts: { name?: string } = {}): TrainingYard {
   const map = newId('map');
   const spawn = newId('spawn');
+  // Milestone 2: the cellar (a dark map lit by torches) and the stairs down to it
+  const cellar = newId('map');
+  const cellarSpawn = newId('spawn');
+  const stairs = newId('spawn');
+  const masterLook = BUILTIN_CHARACTERS.find((c) => c.name === 'Wizard') ?? BUILTIN_CHARACTERS[0]!;
+  const masterId = newId('character') as Character['id'];
+  const talkId = newId('dialogue');
+  const talk = parseScript(MASTER_SCRIPT, blankConversation(talkId, 'Yard master', masterId), {
+    nameOf: (w) => (w === masterId ? 'Yard master' : w),
+    whoOf: (n) => (n.toLowerCase() === 'yard master' ? masterId : n),
+  });
+  if (talk.errors.length)
+    throw new Error(`Yard master script, line ${talk.errors[0]!.line}: ${talk.errors[0]!.message}`);
+  const master: Character = {
+    ...masterLook,
+    id: masterId,
+    name: 'Yard master',
+    role: 'npc',
+    profile: { ...masterLook.profile, name: 'Yard master' },
+    talk: [{ conversation: talkId as NonNullable<Character['talk']>[number]['conversation'] }],
+  };
   const floor = asset('Yard floor', {
     palette: { types: ['plate8x8'], colors: ['#6aa84f', '#5a9443'] },
     footprint: [48, 48],
@@ -291,6 +332,61 @@ export function trainingYard(opts: { name?: string } = {}): TrainingYard {
         },
       },
     },
+    // Milestone 2: the Yard master talks (T) by the entrance
+    { type: 'character.create', payload: { character: master } },
+    { type: 'dialogue.put', payload: { conversation: talk.conversation } },
+    { type: 'npc.place', payload: { map, character: masterId, pos: [5, 0.4, -12], heading: Math.PI } },
+    tip(
+      [4, -16],
+      [9, -9],
+      'Yard master tip',
+      'Yard master: press T to talk. Pick an answer with the arrows and Enter.',
+    ),
+    // the cellar stairs (a gate) in the south-west corner, and the dark cellar below lit by torches
+    { type: 'map.addSpawn', payload: { map, id: stairs, name: 'Cellar stairs', pos: [-18, 0.4, -16], yaw: 0 } },
+    { type: 'map.create', payload: { id: cellar, name: 'Yard cellar', spawnId: cellarSpawn } },
+    {
+      type: 'map.updateSpawn',
+      payload: { map: cellar, spawn: cellarSpawn, pos: [0, 0.4, -12], yaw: Math.PI, name: 'Cellar stairs' },
+    },
+    { type: 'map.setEnvironment', payload: { map: cellar, time: 'night', darkness: 0.9 } },
+    { type: 'asset.place', payload: { map: cellar, asset: floor.id, pos: [-24, 0, -24] } },
+    ...[-24, -20, -16, -12, -8, -4, 0, 4, 8, 12, 16, 20].flatMap((x) => [
+      { type: 'asset.place', payload: { map: cellar, asset: fence.id, pos: [x, 1, -24] } },
+      { type: 'asset.place', payload: { map: cellar, asset: fence.id, pos: [x, 1, 23] } },
+    ]),
+    ...[-23, -19, -15, -11, -7, -3, 1, 5, 9, 13, 17].flatMap((z) => [
+      { type: 'asset.place', payload: { map: cellar, asset: fence.id, pos: [-24, 1, z], rot: 1 } },
+      { type: 'asset.place', payload: { map: cellar, asset: fence.id, pos: [23, 1, z], rot: 1 } },
+    ]),
+    { type: 'asset.place', payload: { map: cellar, asset: boulder.id, pos: [-10, 1, 0] } },
+    { type: 'asset.place', payload: { map: cellar, asset: boulder.id, pos: [8, 1, 4] } },
+    { type: 'asset.place', payload: { map: cellar, asset: chest.id, pos: [0, 1, 16] } },
+    ...(
+      [
+        [-4, -8],
+        [4, 2],
+        [-4, 12],
+      ] as const
+    ).map(([x, z], i) => ({
+      type: 'item.add',
+      payload: {
+        map: cellar,
+        item: {
+          id: newId('instance'),
+          kind: 'light',
+          name: `Torch ${i + 1}`,
+          pos: [x, 3, z],
+          on: true,
+          light: { ...LIGHT_PRESET.torch.light },
+        },
+      },
+    })),
+    {
+      type: 'gate.connect',
+      payload: { from: { map, spawn: stairs }, to: { map: cellar, spawn: cellarSpawn }, twoWay: true },
+    },
+    tip([-21, -19], [-16, -13], 'Stairs tip', 'Cellar stairs: step on them to go down to the dark cellar.'),
     // a third dummy at the foot of the hill: jump down from the top and press F while falling (plunge)
     { type: 'asset.place', payload: { map, asset: dummy.id, pos: [-5, 1, 18] } },
     tip(

@@ -1,8 +1,19 @@
 import type { ProjectStore } from '../project/store';
-import { BRICK_KINDS, BRICK_SIZES, type Chunk, paths } from '../schema';
+import {
+  BRICK_KINDS,
+  BRICK_SIZES,
+  BRICK_STRIDE,
+  BUILD_HALF,
+  BUILD_HEIGHT,
+  type Chunk,
+  chunkCount,
+  chunkRows,
+  paths,
+} from '../schema';
 import { type Brick, chunkKey, decodeChunk, encodeChunks } from './codec';
 
-export const MAX_BRICKS_PER_MAP = 12_000;
+/** P27 part 3: was 12,000 (v68's cap, which Play in v68 still has) */
+export const MAX_BRICKS_PER_MAP = 1_000_000;
 
 /** Plates tall: brick 3, plate and tile 1 (legacy height()). */
 export const brickHeight = (type: string) => (type.startsWith('brick') ? 3 : 1);
@@ -20,7 +31,7 @@ export function brickError(b: Omit<Brick, 'id'>): string | null {
   if (!validBrickType(b.type)) return `Unknown brick type "${b.type}".`;
   if (![b.x, b.y, b.z, b.rot].every(Number.isInteger)) return 'Brick positions must be whole studs and plates.';
   if (b.rot < 0 || b.rot > 3) return 'Rotation must be 0-3 quarter turns.';
-  if (Math.abs(b.x) > 256 || Math.abs(b.z) > 256 || b.y < 0 || b.y + brickHeight(b.type) > 300)
+  if (Math.abs(b.x) > BUILD_HALF || Math.abs(b.z) > BUILD_HALF || b.y < 0 || b.y + brickHeight(b.type) > BUILD_HEIGHT)
     return 'Position is outside the build area.';
   if (!/^#[0-9a-f]{6}$/i.test(b.color)) return 'Color must be #rrggbb.';
   return null;
@@ -51,12 +62,15 @@ export class MapBricks {
   }
 
   count(): number {
-    return this.chunkPaths().reduce((n, p) => n + this.store.get<Chunk>(p)!.bricks.length, 0);
+    return this.chunkPaths().reduce((n, p) => n + chunkCount(this.store.get<Chunk>(p)!), 0);
   }
 
   maxId(): number {
     let max = 0;
-    for (const p of this.chunkPaths()) for (const b of this.store.get<Chunk>(p)!.bricks) if (b[7] > max) max = b[7];
+    for (const p of this.chunkPaths()) {
+      const rows = chunkRows(this.store.get<Chunk>(p)!);
+      for (let o = 7; o < rows.length; o += BRICK_STRIDE) if (rows[o]! > max) max = rows[o]!;
+    }
     return max;
   }
 
@@ -66,7 +80,8 @@ export class MapBricks {
     const out = new Map<number, string>();
     for (const p of this.chunkPaths()) {
       const key = p.slice(this.prefix.length, -'.json'.length);
-      for (const b of this.store.get<Chunk>(p)!.bricks) if (want.has(b[7])) out.set(b[7], key);
+      const rows = chunkRows(this.store.get<Chunk>(p)!);
+      for (let o = 7; o < rows.length; o += BRICK_STRIDE) if (want.has(rows[o]!)) out.set(rows[o]!, key);
     }
     return out;
   }

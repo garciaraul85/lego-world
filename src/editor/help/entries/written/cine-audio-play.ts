@@ -102,7 +102,7 @@ export const CINEMATICS: HelpEntry[] = [
     kind: 'area',
     name: 'Scene and block properties',
     purpose:
-      'The selected block’s settings, or the scene’s: name, length, map, whether players can skip it, letterbox bars and hiding the HUD. Each field has a “?” that says what it is and where its value comes from. Clip, Gesture and Item (Hold an item) show a picture of the actor for each choice; Event name lists the names your project uses, with who sends and who hears each (an On custom event node with exactly that name runs when the scene sends it); ▶ Listen plays a sound or music.',
+      'The selected block’s settings, or the scene’s: name, length, map, whether players can skip it, letterbox bars and hiding the HUD. Each field has a “?” that says what it is and where its value comes from. Clip, Gesture, Item (Hold an item) and Mood show a picture of the actor for each choice; **Say a line** has a Mood (the actor shows that face while its mouth moves with the words) and **Show a mood (face)** changes the face without words; Event name lists the names your project uses, with who sends and who hears each (an On custom event node with exactly that name runs when the scene sends it); ▶ Listen plays a sound or music.',
     match: [{ in: ITEM }, { sel: ITEM }],
   },
 ];

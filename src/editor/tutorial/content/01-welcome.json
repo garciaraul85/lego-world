@@ -5,7 +5,7 @@
     {
       "id": "welcome.layout",
       "title": "Your editor",
-      "body": "Brick Worlds is a game engine made of bricks. Across the top are the menus, the workspace tabs (Scene, World graph, Logic, Characters, Assets, Screens, Cinematics, Audio) and the toolbar. The Scene workspace has the Hierarchy on the left, the 3D map in the middle, the dock below it and the Inspector on the right. This tutorial uses its own sandbox project, so nothing you do here touches your games.",
+      "body": "Brick Worlds is a game engine made of bricks. Across the top are the menus, the workspace tabs (Scene, World graph, Logic, Characters, Assets, Screens, Cinematics, Audio, Effects) and the toolbar. The Scene workspace has the Hierarchy on the left, the 3D map in the middle, the dock below it and the Inspector on the right. This tutorial uses its own sandbox project, so nothing you do here touches your games.",
       "task": "Look around, then press Next.",
       "target": "[data-tour=\"workspaces\"]",
       "placement": "bottom",

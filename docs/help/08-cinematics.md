@@ -10,7 +10,7 @@ New reward scene makes a complete example: a fade in, a title, a character walks
 
 The cast panel lists the roles (the hero or any character). Marks are spots to walk to and look at; the Marks list (left) selects one, and the panel on the right shows its Position (X across, Y up, Z along, in studs) and Facing (° — 0 looks toward +Z, 180 toward −Z), to type exact numbers. Drag a mark on the stage to move it in half studs. Record (●) makes the selected role walk where you click on the stage.
 
-Instructions are walk, face, say, gesture, play a clip and hold an item. Clip, Gesture and Item show a picture of the actor for each choice; Event name lists the names the project uses, with who sends and who hears each. Every field has a **?** that says what it is and where its value comes from.
+Instructions are walk, face, say, show a mood, gesture, play a clip and hold an item. **Say a line** has a **Mood**: the actor shows that face (its own faces from Characters › Face) while its mouth moves with the words; **Show a mood (face)** changes its face for a while without words. Clip, Gesture and Item show a picture of the actor for each choice; Event name lists the names the project uses, with who sends and who hears each. Every field has a **?** that says what it is and where its value comes from.
 
 ## Cameras
 

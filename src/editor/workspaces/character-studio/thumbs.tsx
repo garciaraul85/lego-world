@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import type { ResolvedBody } from '../../../core/character/resolve';
 import type { Clip } from '../../../core/schema';
 import { rigPose } from '../../../engine/character/animator';
+import { bodyBounds, bodyOverlays, bodyPose, bodyWorld } from '../../../engine/character/body-anim';
 import { sampleParams, sampleTrack } from '../../../engine/character/routine';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { OrbitCamera } from '../../../engine/render/camera';
 import { Renderer } from '../../../engine/render/renderer';
-import { FRAGMENT } from '../../../engine/render/shaders';
+import { V68_FRAGMENT } from '../../../engine/render/shaders';
 
 /**
  * P32: small pictures of characters (presets and your own), for the Character studio's pick lists. One hidden
@@ -17,7 +19,13 @@ const H = 120;
 const cache = new Map<string, string>();
 const waiting = new Map<
   string,
-  { profile: Record<string, unknown>; view: ThumbView; pose?: ThumbPose; done: ((url: string) => void)[] }
+  {
+    profile: Record<string, unknown>;
+    view: ThumbView;
+    pose?: ThumbPose;
+    body?: ResolvedBody | null;
+    done: ((url: string) => void)[];
+  }
 >();
 
 /** Which part of the character a picture shows: the whole figure, or a close-up of where a choice is worn. */
@@ -75,7 +83,7 @@ function setup() {
     const L = legacyRuntime();
     renderer.floor = true;
     renderer.skySample = L.SkyCycle.sample('day', 0, false, false);
-    const chars = L.CharacterModel.create(renderer.gl, FRAGMENT);
+    const chars = L.CharacterModel.create(renderer.gl, V68_FRAGMENT);
     const cam = new OrbitCamera();
     cam.target = [0, 1.75, 0];
     cam.baseDistance = 7;
@@ -89,9 +97,21 @@ function setup() {
   return shared;
 }
 
-function draw(profile: Record<string, unknown>, view: ThumbView, pose?: ThumbPose): string {
+function draw(profile: Record<string, unknown>, view: ThumbView, pose?: ThumbPose, body?: ResolvedBody | null): string {
   const s = setup();
   if (!s) return '';
+  if (body) {
+    // P22 part 3: a body plan, framed on its bricks
+    const { min, max } = bodyBounds(body);
+    const size = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
+    s.cam.target = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+    s.cam.baseDistance = Math.max(4, size * 1.9);
+    s.cam.yaw = 0.7;
+    s.cam.pitch = 0.25;
+    const overlays = bodyOverlays(body, bodyPose(body, null), bodyWorld(body, { x: 0, y: 0, z: 0, heading: 0 }, null));
+    s.renderer.render(s.cam.frame(), s.cam.target, overlays, [], []);
+    return s.canvas.toDataURL('image/png');
+  }
   const v = VIEWS[view];
   s.cam.target = [...v.target];
   s.cam.baseDistance = v.distance;
@@ -129,7 +149,7 @@ function pump() {
     waiting.delete(key);
     let url = '';
     try {
-      url = draw(job.profile, job.view, job.pose);
+      url = draw(job.profile, job.view, job.pose, job.body);
     } catch {
       /* a look the model cannot draw gets no picture */
     }
@@ -144,8 +164,11 @@ export function useCharacterThumb(
   profile: Record<string, unknown>,
   view: ThumbView = 'full',
   pose?: ThumbPose,
+  body?: ResolvedBody | null,
 ): string {
-  const key = `${view}|${JSON.stringify(profile)}${pose ? `|${pose.time}|${JSON.stringify(pose.clip.tracks)}` : ''}`;
+  const key = body
+    ? `body|${JSON.stringify(body)}`
+    : `${view}|${JSON.stringify(profile)}${pose ? `|${pose.time}|${JSON.stringify(pose.clip.tracks)}` : ''}`;
   const [url, setUrl] = useState(() => cache.get(key) ?? '');
   useEffect(() => {
     const hit = cache.get(key);
@@ -154,7 +177,7 @@ export function useCharacterThumb(
       return;
     }
     let live = true;
-    const job = waiting.get(key) ?? { profile, view, ...(pose ? { pose } : {}), done: [] };
+    const job = waiting.get(key) ?? { profile, view, ...(pose ? { pose } : {}), body: body ?? null, done: [] };
     job.done.push((u) => live && setUrl(u));
     waiting.set(key, job);
     pump();
@@ -170,13 +193,20 @@ export function CharacterThumb({
   size = 40,
   view = 'full',
   pose,
+  body,
 }: {
   profile: Record<string, unknown>;
   size?: number;
   view?: ThumbView;
   pose?: ThumbPose;
+  /** P22 part 3: draw this body plan instead of the minifig */
+  body?: ResolvedBody | null;
 }) {
-  const url = useCharacterThumb(profile, view, pose);
+  const fresh = useCharacterThumb(profile, view, pose, body);
+  // while a new picture is drawn, the last one stays (an animated clip picture does not blink)
+  const last = useRef('');
+  if (fresh) last.current = fresh;
+  const url = fresh || last.current;
   return (
     <span
       class="char-thumb"
@@ -221,4 +251,62 @@ export function trackPose(bone: string, prop: string): ThumbPose | null {
   // sideways turns (y, z) go the other way on the left, like ⇆ Mirror
   const value = side < 0 && (prop === 'y' || prop === 'z') ? -v : v;
   return { clip: { length: 1, tracks: [{ bone, prop, keys: [[0, value, 'linear']] }] }, time: 0 };
+}
+
+/** P23: how many pictures an animated clip picture cycles through, and how long each shows (ms) */
+const FRAMES = 8;
+const FRAME_MS = 110;
+
+/**
+ * P23: a clip's picture that moves. It shows the clip's strongest pose; while the pointer is over it (or
+ * `play` is set) it plays the clip as a little flip book of FRAMES pictures, drawn once and kept.
+ */
+export function ClipThumb({
+  profile,
+  clip,
+  size = 22,
+  play = false,
+}: {
+  profile: Record<string, unknown>;
+  clip: Pick<Clip, 'tracks' | 'length'> & Partial<Pick<Clip, 'id' | 'name'>>;
+  size?: number;
+  play?: boolean;
+}) {
+  const [hover, setHover] = useState(false);
+  const [i, setI] = useState(-1);
+  const on = hover || play;
+  useEffect(() => {
+    if (!on) {
+      setI(-1);
+      return;
+    }
+    setI(0);
+    const t = setInterval(() => setI((n) => (n + 1) % FRAMES), FRAME_MS);
+    return () => clearInterval(t);
+  }, [on]);
+  const times = Array.from({ length: FRAMES }, (_, k) => (clip.length * k) / FRAMES);
+  const time = i < 0 ? peakTime(clip) : times[i]!;
+  return (
+    <span
+      class={`clip-thumb ${on ? 'moving' : ''}`}
+      data-frame={i}
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={() => setHover(false)}
+    >
+      <CharacterThumb profile={profile} size={size} pose={{ clip, time }} />
+      {on && (
+        <span class="clip-thumb-load" aria-hidden="true">
+          {times.map((t) => (
+            <FrameLoader profile={profile} pose={{ clip, time: t }} />
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** draws one frame of a flip book ahead of time (nothing shown) */
+function FrameLoader({ profile, pose }: { profile: Record<string, unknown>; pose: ThumbPose }) {
+  useCharacterThumb(profile, 'full', pose);
+  return null;
 }

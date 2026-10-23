@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Health } from '../combat/damage';
+import { AssetLight } from '../lighting/light';
 import { ActionList } from './action';
 import { BrickType } from './chunk';
 import { Color, id, Vec2, Vec3 } from './common';
@@ -93,6 +94,10 @@ export const Asset = z.strictObject({
     rebuild: z.boolean(),
     sound: id('sound').nullable(),
     studs: z.number().int().min(0),
+    /** P27 part 3d: what becomes of it once broken (none: rebuildable or gone, as rebuild says) */
+    after: z.enum(['rebuild', 'gone', 'respawn', 'rubble']).optional(),
+    /** seconds before it comes back (after: respawn); 0: when the player comes back to the map */
+    respawnAfter: z.number().min(0).max(3600).optional(),
   }),
   /** P9a: hit points, armour, resistances and what happens at zero (no health: one hit smashes it, as before) */
   health: Health.optional(),
@@ -101,6 +106,8 @@ export const Asset = z.strictObject({
   /** P26: a checkpoint: touching it sets where the hero comes back (Retry, a fall) and autosaves; it shows its
    * second state once touched (a flag goes up) */
   checkpoint: z.boolean().optional(),
+  /** P27: it gives light (a torch, a lamp): where on it, and in which of its states */
+  light: AssetLight.optional(),
   generator: z
     .strictObject({ environments: z.array(z.enum(BIOMES)), weight: z.number().min(0).max(1), placeOn: z.string() })
     .nullable(),

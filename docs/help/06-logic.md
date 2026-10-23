@@ -67,6 +67,14 @@ on("custom", { event: "scene-takes-sword" }, (e) => {
 
 **On damaged** runs when something with health is hurt and still has some left; **On defeated** when it reaches zero. Both give the target (the hero, an object or a neighbour's name), and On damaged gives the amount and the health left; pick an asset to react only to its copies. **Damage** hurts the hero, an object or a neighbour like a hit of that power and type would (armour and resistances count), **Heal** gives health back (never above its maximum), and **Set invulnerable** stops all damage until it is switched off. **On locked on** runs when the hero locks on (Z) to something: a neighbour, an object with health, or an asset with **Can be locked on** (a switch in a puzzle). In code: `on("damaged", { asset: "Wooden crate" }, (e) => { ... })`, `on("lockedOn", { asset: "Switch" }, (e) => { ... })`, `health.damage("hero", 1, "fire")`.
 
+## Lights
+
+**Light on**, **Light off** and **Switch light** (Lights) switch a light placed on the map, or an asset that gives light, by its name; **Set darkness** changes how dark the map is while the game plays (0 lit by its sky … 1 pitch black). A lever wired to a logic file with Switch light turns a room's torches on and off. In code: `lights.on("Torch 1");`, `lights.off(…);`, `lights.toggle(…);`, `lights.darkness(0.9);`.
+
+## Sky
+
+**Set time of day** (Sky) moves the sun to day, noon, evening or night, and the day goes on from there at the map's day length; lights that shine only at night come on as it gets dark. **Set fog** changes the fog while the game plays: a kind (haze, mist, thick, ground, swamp, smoke), `none`, or `map` for the map's own. In code: `sky.time("night");`, `sky.fog("mist");`.
+
 ## Debugging
 
 F9 on a node sets a breakpoint that pauses Play there. While playing, the dock's Debug tab shows variables and the Console shows log() output. A graph stops a chain after 1000 steps so a loop can't freeze the game.

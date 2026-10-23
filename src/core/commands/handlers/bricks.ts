@@ -1,11 +1,11 @@
 import { expandAsset } from '../../assets/expand';
-import { type ExpandedInstance, expandInstances, maxBrickId } from '../../assets/instances';
+import { type ExpandedInstance, expandInstances, instanceBricks, maxBrickId } from '../../assets/instances';
 import { type Brick, chunkKey } from '../../bricks/codec';
 import { brickError, MAX_BRICKS_PER_MAP, MapBricks } from '../../bricks/map-bricks';
 import type { ProjectStore } from '../../project/store';
 import { type AssetInstance, type Instances, paths } from '../../schema';
 import type { CommandHandler } from '../types';
-import { allBricks, assertMapLayout } from './assets';
+import { assertMapLayout, brickCount } from './assets';
 
 export type NewBrick = Omit<Brick, 'id' | 'flags'> & { flags?: number; id?: number };
 export type PlaceBricks = { map: string; bricks: NewBrick[] };
@@ -62,9 +62,21 @@ const mapMissing = (store: ProjectStore, map: string) =>
 function missingIds(store: ProjectStore, map: string, ids: number[]): string | null {
   if (!ids.length) return 'No bricks given.';
   if (new Set(ids).size !== ids.length) return 'A brick id is listed twice.';
-  const all = new Set(allBricks(store, map).map((b) => b.id));
-  const missing = ids.filter((id) => !all.has(id));
+  const found = new MapBricks(store, map).locate(ids);
+  const inAssets = new Set(instanceBricks(store, map).map((b) => b.id));
+  const missing = ids.filter((id) => !found.has(id) && !inAssets.has(id));
   return missing.length ? `Brick ${missing.slice(0, 5).join(', ')} not found.` : null;
+}
+
+/** the listed bricks (loose or in asset copies), decoding only the chunks they are in */
+function bricksById(store: ProjectStore, map: string, ids: number[]): Map<number, Brick> {
+  const want = new Set(ids);
+  const out = new Map<number, Brick>();
+  const mb = new MapBricks(store, map);
+  for (const key of new Set(mb.locate(ids).values()))
+    for (const b of mb.inChunk(key)) if (want.has(b.id)) out.set(b.id, b);
+  if (out.size < want.size) for (const b of instanceBricks(store, map)) if (want.has(b.id)) out.set(b.id, b);
+  return out;
 }
 
 /** Applies fn to the listed bricks, rewriting only the chunks they leave or enter. */
@@ -105,11 +117,11 @@ export const placeBricks: CommandHandler<PlaceBricks> = {
       if (err) return err;
     }
     const mb = new MapBricks(store, p.map);
-    if (allBricks(store, p.map).length + p.bricks.length > MAX_BRICKS_PER_MAP)
+    if (brickCount(store, p.map) + p.bricks.length > MAX_BRICKS_PER_MAP)
       return `A map can hold ${MAX_BRICKS_PER_MAP.toLocaleString('en-US')} bricks.`;
     const given = p.bricks.flatMap((b) => (b.id === undefined ? [] : [b.id]));
     if (new Set(given).size !== given.length) return 'A brick id is listed twice.';
-    if (given.length && allBricks(store, p.map).some((b) => given.includes(b.id)))
+    if (given.length && (mb.locate(given).size > 0 || instanceBricks(store, p.map).some((b) => given.includes(b.id))))
       return 'A brick with that id already exists.';
     return null;
   },
@@ -143,9 +155,7 @@ export const moveBricks: CommandHandler<MoveBricks> = {
     const e = mapMissing(store, p.map) ?? missingIds(store, p.map, p.ids) ?? classify(store, p.map, p.ids).error;
     if (e) return e;
     if (![p.dx, p.dy, p.dz, p.drot ?? 0].every(Number.isInteger)) return 'Moves are whole studs and plates.';
-    const want = new Set(p.ids);
-    for (const b of allBricks(store, p.map)) {
-      if (!want.has(b.id)) continue;
+    for (const b of bricksById(store, p.map, p.ids).values()) {
       const err = brickError({
         ...b,
         x: b.x + p.dx,
@@ -202,7 +212,7 @@ export const updateBricks: CommandHandler<UpdateBricks> = {
     const ids = p.bricks.map((b) => b.id);
     const e = mapMissing(store, p.map) ?? missingIds(store, p.map, ids) ?? classify(store, p.map, ids).error;
     if (e) return e;
-    const byId = new Map(allBricks(store, p.map).map((b) => [b.id, b]));
+    const byId = bricksById(store, p.map, ids);
     for (const u of p.bricks) {
       const err = brickError({ ...byId.get(u.id)!, ...u });
       if (err) return err;

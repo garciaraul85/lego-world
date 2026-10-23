@@ -1,11 +1,20 @@
 import { SND } from '../../builtin/audio';
+import { BUILTIN_SCREEN_EFFECTS } from '../../builtin/screen-effects';
+import type { Conversation } from '../../core/dialogue/schema';
+import type { ScreenEffect } from '../../core/effects/screen';
 import { type Cinematic, type EmitterInstance, type Instances, paths, type UiInstance } from '../../core/schema';
 import { audioData } from '../../engine/audio/data';
-import { allScreens } from '../../engine/ui/screens';
+import { allScreens, resolveScreen } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
+import { ListenButton } from '../components/EventPicker';
 import { Header, Num, TextField } from '../components/fields';
+import { conversationPreview, EffectThumb, MusicListen, ScreenEffectThumb, ScreenThumb } from '../components/previews';
+import { SearchSelect } from '../components/SearchBox';
 import { eventNames } from '../events';
 import type { EditorState } from '../state';
+import { allEffects } from '../workspaces/effects/EffectsStudio';
+import { EffectInspector } from './EffectFields';
+import { LightInspector } from './LightFields';
 
 /** Pickers for ActionListField (sound, music and screen actions). */
 export function actionChoices(ed: EditorState) {
@@ -14,13 +23,100 @@ export function actionChoices(ed: EditorState) {
     music: musicOptions(ed),
     screens: allScreens(ed.store).map((s) => ({ id: s.id, name: `${s.name} · ${s.kind}` })),
     cinematics: cinematicOptions(ed),
+    conversations: conversationOptions(ed),
+    // P23
+    screenEffects: screenEffectChoices(ed),
+    effects: (() => {
+      const { own, builtin } = allEffects(ed.store);
+      return [...own, ...builtin].map((e) => ({ id: e.id, name: e.name }));
+    })(),
+    placedEffects: ed.store
+      .list('maps/')
+      .filter((p) => p.endsWith('/instances.json'))
+      .flatMap((p) =>
+        (ed.store.get<Instances>(p)?.items ?? []).flatMap((i) => (i.kind === 'effect' && i.name ? [i.name] : [])),
+      ),
+    // P27: lights by name: placed lights, and assets that give light (by their copy's name)
+    placedLights: ed.store
+      .list('maps/')
+      .filter((p) => p.endsWith('/instances.json'))
+      .flatMap((p) =>
+        (ed.store.get<Instances>(p)?.items ?? []).flatMap((i) =>
+          i.kind === 'light' && i.name
+            ? [i.name]
+            : i.kind === 'asset' && i.name && ed.store.get<{ light?: unknown }>(`assets/${i.asset}.json`)?.light
+              ? [i.name]
+              : [],
+        ),
+      ),
     // P32: Send event picks from the events the project uses; ▶ plays sounds and music
     events: eventNames(ed.store),
     preview: {
       sound: (id: string) => ed.audio.previewEvent(id),
       music: (id: string | null) => ed.audio.previewMusic(id),
     },
+    thumb: (kind: 'effect' | 'screen' | 'conversation' | 'screenEffect', id: string) => (
+      <PickedThumb ed={ed} kind={kind} id={id} />
+    ),
   };
+}
+
+/** P23: the picture next to an effect, screen or conversation picker (a conversation shows its first lines). */
+export function PickedThumb({
+  ed,
+  kind,
+  id,
+}: {
+  ed: EditorState;
+  kind: 'effect' | 'screen' | 'conversation' | 'screenEffect';
+  id: string;
+}) {
+  if (!id) return null;
+  if (kind === 'screenEffect') {
+    const e = ed.store.get<ScreenEffect>(paths.screenEffect(id)) ?? BUILTIN_SCREEN_EFFECTS.find((x) => x.id === id);
+    return e ? <ScreenEffectThumb effect={e} width={44} /> : null;
+  }
+  if (kind === 'effect') {
+    const { own, builtin } = allEffects(ed.store);
+    const e = [...own, ...builtin].find((x) => x.id === id);
+    return e ? <EffectThumb effect={e} size={26} /> : null;
+  }
+  if (kind === 'screen') {
+    const s = resolveScreen(ed.store, id);
+    return s ? <ScreenThumb ed={ed} screen={s} width={48} /> : null;
+  }
+  const text = conversationPreview(ed.store.get<Conversation>(paths.dialogue(id)), (who) => speakerName(ed, who));
+  return text ? (
+    <span class="pv-lines small muted" data-preview="conversation">
+      💬 {text}
+    </span>
+  ) : null;
+}
+
+/** who says a line: a character id or a name, shown as the character's name */
+export function speakerName(ed: EditorState, who: string): string {
+  const c = ed.store.get<{ name: string }>(paths.character(who));
+  return c?.name ?? who;
+}
+
+/** P23 part 2: screen effects (the game's own, then the built-in ones), by name */
+export function screenEffectChoices(ed: EditorState) {
+  ed.revision.value;
+  const own = ed.store
+    .list(paths.screenEffectDir)
+    .map((p) => ed.store.get<{ id: string; name: string }>(p)!)
+    .filter(Boolean);
+  return [...own, ...BUILTIN_SCREEN_EFFECTS].map((e) => ({ id: e.id, name: e.name }));
+}
+
+/** P22: the game's conversations, by name. */
+export function conversationOptions(ed: EditorState) {
+  ed.revision.value;
+  return ed.store
+    .list(paths.dialogueDir)
+    .map((p) => ed.store.get<{ id: string; name: string }>(p)!)
+    .filter(Boolean)
+    .map((c) => ({ id: c.id, name: c.name }));
 }
 
 /** The project's cinematics, by name. */
@@ -59,20 +155,31 @@ export function SoundSelect({
   label: string;
   none?: string;
 }) {
+  const opts = soundOptions(ed);
   return (
-    <select
-      class="inp"
-      aria-label={label}
-      value={value ?? ''}
-      onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
-    >
-      {none !== undefined && <option value="">{none}</option>}
-      {soundOptions(ed).map((o) => (
-        <option value={o.id}>
-          {o.name} · {o.bus}
-        </option>
-      ))}
-    </select>
+    <span class="row pv-row">
+      <SearchSelect label="sounds">
+        <select
+          class="inp"
+          aria-label={label}
+          value={value ?? ''}
+          onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
+        >
+          {none !== undefined && <option value="">{none}</option>}
+          {opts.map((o) => (
+            <option value={o.id}>
+              {o.name} · {o.bus}
+            </option>
+          ))}
+        </select>
+      </SearchSelect>
+      {value && (
+        <ListenButton
+          name={opts.find((o) => o.id === value)?.name ?? value}
+          onPlay={() => ed.audio.previewEvent(value)}
+        />
+      )}
+    </span>
   );
 }
 
@@ -91,22 +198,28 @@ export function MusicSelect({
   inherit?: string;
 }) {
   const v = value === undefined ? '~' : value === null ? '' : value;
+  const opts = musicOptions(ed);
   return (
-    <select
-      class="inp"
-      aria-label={label}
-      value={v}
-      onChange={(e) => {
-        const x = (e.target as HTMLSelectElement).value;
-        onPick(x === '~' ? undefined : x === '' ? null : x);
-      }}
-    >
-      {inherit && <option value="~">{inherit}</option>}
-      <option value="">Silence</option>
-      {musicOptions(ed).map((o) => (
-        <option value={o.id}>{o.name}</option>
-      ))}
-    </select>
+    <span class="row pv-row">
+      <SearchSelect label="music">
+        <select
+          class="inp"
+          aria-label={label}
+          value={v}
+          onChange={(e) => {
+            const x = (e.target as HTMLSelectElement).value;
+            onPick(x === '~' ? undefined : x === '' ? null : x);
+          }}
+        >
+          {inherit && <option value="~">{inherit}</option>}
+          <option value="">Silence</option>
+          {opts.map((o) => (
+            <option value={o.id}>{o.name}</option>
+          ))}
+        </select>
+      </SearchSelect>
+      {value && <MusicListen ed={ed} id={value} name={opts.find((o) => o.id === value)?.name ?? value} />}
+    </span>
   );
 }
 
@@ -124,20 +237,26 @@ export function ScreenSelect({
   none: string;
 }) {
   ed.revision.value;
+  const shown = value ? resolveScreen(ed.store, value) : undefined;
   return (
-    <select
-      class="inp"
-      aria-label={label}
-      value={value ?? ''}
-      onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
-    >
-      <option value="">{none}</option>
-      {allScreens(ed.store).map((s) => (
-        <option value={s.id}>
-          {s.name} · {s.kind}
-        </option>
-      ))}
-    </select>
+    <span class="row pv-row">
+      <SearchSelect label="screens">
+        <select
+          class="inp"
+          aria-label={label}
+          value={value ?? ''}
+          onChange={(e) => onPick((e.target as HTMLSelectElement).value || null)}
+        >
+          <option value="">{none}</option>
+          {allScreens(ed.store).map((s) => (
+            <option value={s.id}>
+              {s.name} · {s.kind}
+            </option>
+          ))}
+        </select>
+      </SearchSelect>
+      {shown && <ScreenThumb ed={ed} screen={shown} width={48} />}
+    </span>
   );
 }
 
@@ -214,6 +333,11 @@ export function ItemInspector({ c, id }: { c: ActionCtx; id: string }) {
   const { ed } = c;
   const map = ed.mapId.value;
   ed.revision.value;
+  // P23: an effect placed on the map
+  const raw = ed.store.get<Instances>(paths.instances(map))?.items.find((i) => i.id === id);
+  if (raw?.kind === 'effect') return <EffectInspector c={c} item={raw} />;
+  // P27: a light placed on the map
+  if (raw?.kind === 'light') return <LightInspector c={c} item={raw} />;
   const it = ed.store.get<Instances>(paths.instances(map))?.items.find((i) => i.id === id) as
     | EmitterInstance
     | UiInstance
@@ -377,6 +501,28 @@ export function ItemInspector({ c, id }: { c: ActionCtx; id: string }) {
             onCommit={(v) => patch({ maxDistance: Math.max(1, Math.min(200, v)) })}
           />
         </div>
+        {it.widget === 'sign' && (
+          <label class="field" data-tour="sign-conversation" data-help="scene.item.talk">
+            Read with E
+            <SearchSelect label="conversations">
+              <select
+                class="inp"
+                aria-label="Sign conversation"
+                value={it.conversation ?? ''}
+                onChange={(e) => {
+                  const v = (e.target as HTMLSelectElement).value;
+                  patch({ conversation: (v || undefined) as UiInstance['conversation'] });
+                }}
+              >
+                <option value="">Nothing (the sign just shows its text)</option>
+                {conversationOptions(c.ed).map((o) => (
+                  <option value={o.id}>💬 {o.name}</option>
+                ))}
+              </select>
+            </SearchSelect>
+            {it.conversation && <PickedThumb ed={c.ed} kind="conversation" id={it.conversation} />}
+          </label>
+        )}
         {pos}
         <p class="hint">
           Write {'{variable}'} to show a value, e.g. {'{inventory.coin}'}, {'{hp}'}, {'{map.name}'}.

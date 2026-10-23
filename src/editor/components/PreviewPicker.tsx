@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { matches, NoMatch, SEARCH_FROM, SearchBox } from './SearchBox';
 
 export type PreviewOption = { value: string; name: string; thumb: ComponentChildren; note?: string };
 
@@ -28,6 +29,10 @@ export function PreviewPicker({
   placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
+  // a long list of pictures has a search box at the top (typing goes straight into it)
+  const [q, setQ] = useState('');
+  const searchable = options.length >= SEARCH_FROM;
+  const shown = q ? options.filter((o) => matches(q, o.name, o.note, o.value)) : options;
   const ref = useRef<HTMLSpanElement>(null);
   const pop = useRef<HTMLDivElement>(null);
   const cur = options.find((o) => o.value === value) ?? {
@@ -48,7 +53,8 @@ export function PreviewPicker({
     };
     window.addEventListener('pointerdown', down, true);
     window.addEventListener('keydown', key, true);
-    pop.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus();
+    if (!searchable) pop.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus();
+    else pop.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
     return () => {
       window.removeEventListener('pointerdown', down, true);
       window.removeEventListener('keydown', key, true);
@@ -75,7 +81,10 @@ export function PreviewPicker({
         aria-haspopup="listbox"
         data-tour={tour ? `pick-${tour}` : undefined}
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          setQ('');
+          setOpen(!open);
+        }}
       >
         <span class="pv-btn-thumb" aria-hidden="true">
           {cur.thumb}
@@ -85,8 +94,24 @@ export function PreviewPicker({
       </button>
       {open && (
         <div ref={pop} class="pv-pop" role="dialog" aria-label={`${label} choices`}>
+          {searchable && (
+            <SearchBox
+              label={label.toLowerCase()}
+              value={q}
+              autoFocus
+              tour={tour ? `pick-${tour}-search` : undefined}
+              onInput={setQ}
+              onEnter={() => {
+                const o = shown[0];
+                if (!o) return;
+                onPick(o.value);
+                setOpen(false);
+              }}
+            />
+          )}
+          <NoMatch q={shown.length ? '' : q} what="choices" />
           <div class="pv-grid" role="listbox" aria-label={label} data-tour={tour ? `pick-${tour}-list` : undefined}>
-            {options.map((o) => (
+            {shown.map((o) => (
               <button
                 type="button"
                 role="option"

@@ -1,0 +1,59 @@
+{
+  "path": "dialogue/dlg_smith00001.json",
+  "value": {
+    "id": "dlg_smith00001",
+    "name": "Blacksmith",
+    "style": "rpg",
+    "sections": [
+      {
+        "label": "start",
+        "steps": [
+          {
+            "k": "line",
+            "who": "chr_smith00001",
+            "text": "A fine sword, only 50 gems.",
+            "mood": "happy"
+          },
+          {
+            "k": "choice",
+            "options": [
+              {
+                "text": "Buy it",
+                "to": "buy",
+                "if": "gems >= 50",
+                "failed": "grey"
+              },
+              {
+                "text": "Not now",
+                "to": "end"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "label": "buy",
+        "steps": [
+          {
+            "k": "do",
+            "actions": [
+              {
+                "do": "addVar",
+                "var": "gems",
+                "value": -50
+              }
+            ]
+          },
+          {
+            "k": "like",
+            "by": 10
+          },
+          {
+            "k": "goto",
+            "to": "end"
+          }
+        ]
+      }
+    ]
+  }
+}

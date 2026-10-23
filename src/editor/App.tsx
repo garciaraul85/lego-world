@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { BUILD } from '../build-info';
 import { toLegacy } from '../core/bridge/legacy-bridge';
+import { brickCount } from '../core/commands/handlers/assets';
+import { LEGACY_MAX_PIECES } from '../core/legacy/constants';
 import { packProject } from '../core/project/archive';
 import type { ProjectMeta } from '../core/project/backend';
 import { type Cinematic, type MediaIndex, paths } from '../core/schema';
 import { scanFiles } from '../core/security/secrets';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { AiPanel } from './ai/AiPanel';
+import { Brix } from './brix/Brix';
 import { GenreChoice } from './genres/GenreCards';
 import { WorldGraph } from './graph/WorldGraph';
 import { contextHelpPage } from './help/context';
@@ -45,10 +48,11 @@ import { AssetStudio } from './workspaces/asset-studio/AssetStudio';
 import { AudioWorkspace } from './workspaces/audio/AudioWorkspace';
 import { CharacterStudio } from './workspaces/character-studio/CharacterStudio';
 import { Director } from './workspaces/director/Director';
+import { EffectsStudio } from './workspaces/effects/EffectsStudio';
 import { LogicWorkspace } from './workspaces/logic/LogicWorkspace';
 import { ScreensWorkspace } from './workspaces/screens/ScreensWorkspace';
 
-const STUDIOS = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics']);
+const STUDIOS = new Set(['Assets', 'Characters', 'Logic', 'Screens', 'Audio', 'Cinematics', 'Effects']);
 
 export type AppHost = HubHost & {
   /** show the Start hub when the editor opens */
@@ -70,6 +74,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const [intent, setIntent] = useState(() => readIntent(ed.store.manifest.id));
   const [help, setHelp] = useState<string | null>(null);
   const [ai, setAi] = useState(false);
+  const [brix, setBrix] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState<{ text: string; key: number } | null>(null);
   // Generate & play: straight into Play from the first screen (P7.2)
   useEffect(() => {
     if (intent?.kind !== 'play') return;
@@ -127,6 +133,15 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       play: (mode, opts) => {
         void ed.autosave.flush();
         if (mode !== 'engine') {
+          // P27 part 3: v68 loads at most 12,000 pieces a map; bigger maps play in the engine's own runtime
+          const big = ed.maps.value.find((m) => brickCount(ed.store, m.id) > LEGACY_MAX_PIECES);
+          if (big) {
+            ed.notify(
+              `“${big.name}” has more than ${LEGACY_MAX_PIECES.toLocaleString('en-US')} pieces, which v68 cannot load. Use ▶ Play instead.`,
+              true,
+            );
+            return;
+          }
           setEngine(null);
           setPlay(mode === 'v68' ? 'play' : 'edit');
           return;
@@ -177,7 +192,11 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         void ed.autosave.flush().then(() => host.startTutorial('show', track as Track));
       },
       help: (page) => setHelp(page ?? contextHelpPage(ed.workspace.value) ?? 'start'),
-      aiBuilder: () => setAi(true),
+      aiBuilder: (prompt) => {
+        if (prompt) setAiPrompt({ text: prompt, key: Date.now() });
+        setAi(true);
+      },
+      brix: () => setBrix(true),
       about: () => setModal('about'),
     }),
     [ed],
@@ -256,6 +275,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
             <ScreensWorkspace c={c} />
           ) : workspace === 'Audio' ? (
             <AudioWorkspace c={c} />
+          ) : workspace === 'Effects' ? (
+            <EffectsStudio c={c} />
           ) : workspace === 'Cinematics' ? (
             <Director c={c} />
           ) : (
@@ -367,7 +388,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
           }}
         />
       )}
-      {ai && <AiPanel c={c} onClose={() => setAi(false)} />}
+      {ai && <AiPanel c={c} prompt={aiPrompt} onClose={() => setAi(false)} />}
+      {!hub && <Brix c={c} open={brix} onOpen={() => setBrix(true)} onClose={() => setBrix(false)} />}
       {help && <HelpView c={c} page={help} onClose={() => setHelp(null)} />}
       {hub && (
         <StartHub

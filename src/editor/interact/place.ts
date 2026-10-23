@@ -1,7 +1,16 @@
 import { SND } from '../../builtin/audio';
+import { FX } from '../../builtin/effects';
 import { rotatedFootprint } from '../../core/assets/expand';
 import { newId } from '../../core/ids';
-import { type EmitterInstance, type Instances, paths, type UiInstance } from '../../core/schema';
+import { LIGHT_PRESET, type LightPreset } from '../../core/lighting/light';
+import {
+  type EffectInstance,
+  type EmitterInstance,
+  type Instances,
+  type LightInstance,
+  paths,
+  type UiInstance,
+} from '../../core/schema';
 import { placeCommands, resolveAsset } from '../assets';
 import type { EditorState } from '../state';
 
@@ -12,10 +21,50 @@ import type { EditorState } from '../state';
  */
 export type GroundPoint = { x: number; y: number; z: number };
 
-/** the open map's sound emitters and world UI items */
-export function mapItems(ed: EditorState): Array<EmitterInstance | UiInstance> {
+/** the open map's sound emitters, world UI items and (P23) effects */
+export type MapItem = EmitterInstance | UiInstance | EffectInstance | LightInstance;
+export function mapItems(ed: EditorState): MapItem[] {
   const inst = ed.store.get<Instances>(paths.instances(ed.mapId.value));
-  return (inst?.items ?? []).filter((i): i is EmitterInstance | UiInstance => i.kind === 'emitter' || i.kind === 'ui');
+  return (inst?.items ?? []).filter(
+    (i): i is MapItem => i.kind === 'emitter' || i.kind === 'ui' || i.kind === 'effect' || i.kind === 'light',
+  );
+}
+
+/** P27: a light placed over the ground at the point (a torch at head height), from a preset */
+export function placeLightAt(ed: EditorState, p: GroundPoint, preset: LightPreset = 'torch'): string | null {
+  const id = newId('instance');
+  const n = mapItems(ed).filter((i) => i.kind === 'light').length + 1;
+  const item: LightInstance = {
+    id,
+    kind: 'light',
+    name: `${LIGHT_PRESET[preset].name} ${n}`,
+    pos: [Math.round(p.x * 2) / 2, p.y * 0.4 + 2.4, Math.round(p.z * 2) / 2],
+    light: { ...LIGHT_PRESET[preset].light },
+    on: true,
+  };
+  if (!ed.exec({ type: 'item.add', payload: { map: ed.mapId.value, item } }, { label: 'Add light' }).ok) return null;
+  selectOnly(ed, 'item', id);
+  return id;
+}
+
+/** P23: an effect placed on the ground at the point (a stream keeps going; a burst every few seconds) */
+export function placeEffectAt(ed: EditorState, p: GroundPoint, effect: string = FX.fire): string | null {
+  const id = newId('instance');
+  const n = mapItems(ed).filter((i) => i.kind === 'effect').length + 1;
+  const item: EffectInstance = {
+    id,
+    kind: 'effect',
+    name: `Effect ${n}`,
+    effect,
+    pos: [Math.round(p.x * 2) / 2, p.y * 0.4 + 0.6, Math.round(p.z * 2) / 2],
+    scale: 1,
+    interval: [2, 4],
+    maxDistance: 40,
+    playing: true,
+  };
+  if (!ed.exec({ type: 'item.add', payload: { map: ed.mapId.value, item } }, { label: 'Add effect' }).ok) return null;
+  selectOnly(ed, 'item', id);
+  return id;
 }
 
 export const selectOnly = (ed: EditorState, kind: 'spawn' | 'zone' | 'item', id: string | null) => {

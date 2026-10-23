@@ -60,6 +60,8 @@ export const MapSave = z.strictObject({
   /** neighbours: where they stand, and the ones beaten (gone for this play) */
   npcs: z.record(z.string(), z.strictObject({ x: z.number(), y: z.number(), z: z.number(), heading: z.number() })),
   npcsGone: z.array(z.number().int()),
+  /** P27 part 3d: bricks of broken things gone for good, beyond those still remembered as breaks (ids only) */
+  gone: z.array(z.number().int()).optional(),
 });
 export type MapSave = z.infer<typeof MapSave>;
 

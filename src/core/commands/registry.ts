@@ -23,6 +23,7 @@ import {
   setMusicState,
   setSoundEvent,
 } from './handlers/audio';
+import { deleteBodyPlan, putBodyPlan } from './handlers/bodyplans';
 import { moveBricks, paintBricks, placeBricks, removeBricks, updateBricks } from './handlers/bricks';
 import {
   createCharacter,
@@ -33,6 +34,8 @@ import {
   updateClip,
 } from './handlers/characters';
 import { deleteCinematic, putCinematic } from './handlers/cinematics';
+import { deleteDialogue, putDialogue } from './handlers/dialogue';
+import { deleteEffect, deleteScreenEffect, putEffect, putScreenEffect } from './handlers/effects';
 import { deleteFile, putFile } from './handlers/file';
 import { connectGate, deleteGate, deleteMap, updateGate } from './handlers/gates';
 import { addItem, removeItem, setMapAudio, updateItem } from './handlers/items';
@@ -63,6 +66,7 @@ import {
 } from './handlers/map';
 import { placeNpc, removeNpc } from './handlers/npcs';
 import { putProgress } from './handlers/progress';
+import { scatterAsset } from './handlers/scatter';
 
 /** Every command type the engine knows. Append-only: add new handlers at the end. */
 export function registerAll(bus: CommandBus): CommandBus {
@@ -86,12 +90,21 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('gate.delete', deleteGate);
   bus.register('map.delete', deleteMap);
   bus.register('asset.place', placeAsset);
+  bus.register('asset.scatter', scatterAsset);
   bus.register('instance.move', moveInstance);
   bus.register('instance.remove', removeInstance);
   bus.register('instance.setState', setInstanceState);
   bus.register('instance.rename', renameInstance);
   bus.register('npc.place', placeNpc);
   bus.register('progress.put', putProgress);
+  bus.register('dialogue.put', putDialogue);
+  bus.register('dialogue.delete', deleteDialogue);
+  bus.register('bodyplan.put', putBodyPlan);
+  bus.register('bodyplan.delete', deleteBodyPlan);
+  bus.register('effect.put', putEffect);
+  bus.register('effect.delete', deleteEffect);
+  bus.register('screenEffect.put', putScreenEffect);
+  bus.register('screenEffect.delete', deleteScreenEffect);
   bus.register('npc.remove', removeNpc);
   bus.register('instance.unpack', unpackInstance);
   bus.register('instance.transform', transformInstance);

@@ -22,6 +22,8 @@ Hold the pointer over a tool or a card for a moment to see what it does; the ? i
 
 Drag an asset card from the dock straight into the 3D view: a ghost shows where it lands, and letting go places it. Clicking a card and then the ground still works too.
 
+The dock's Effects category has every effect (fire, smoke, sparks, magic…). Point at one to see it play; **Place** puts it on the map beside where the player starts, ready to move.
+
 ## Moving, turning and resizing
 
 Pick what you want to do in the toolbar, like in other 3D tools, and the selection shows handles for it:
@@ -47,6 +49,48 @@ Map tab › Terrain generator: tick environments (forest, city, prairie, mountai
 ## Sky, weather and lighting
 
 The Map tab also sets the time of day, sky and weather, the map's music and ambience loop.
+
+## Lights and darkness
+
+**Darkness** (Map tab) is how dark the map is without its lights: 0 lit by its sky as usual, 1 pitch black, the sky darkened too. A dark map shows only what its lights reach, so a dungeon or a cave is lit by its torches.
+
+A **light** lights the bricks and characters around it, in the Scene view as in the game. Right-click the ground and pick **Add a light here**, or open the Dock's **Lights** category and press **Place** on a kind: Torch, Candle, Lamp, Crystal, Lava glow or Moonbeam. Pick it to change it in the Inspector:
+
+- **Kind** starts it again from a preset; **Colour** and **Brightness** (0–4) set its glow.
+- **Reaches** is how far it lights, in studs; a picked light shows it as a ring.
+- **Flicker** makes it waver like a flame; 0 is steady.
+- **Bricks cast shadows from it**: the nearest light that casts shadows draws them (a torch on a wall throws the shadows of what stands in front of it).
+- **Height** lifts it; drag it in the view to move it.
+- **On from the start** off: it stays dark until logic's **Light on** or the action **Switch a light on or off** switches it on by its name.
+
+Up to 8 lights are drawn at once: the brightest near where you look. Assets that give light (the Lamp post when it is on) and effects that glow (Fire, Portal swirl) light the map too. [Lights course](action:help.lights)
+
+**Only at night** makes a light a street lamp: it comes on as the sky gets dark and goes out at dawn (the built-in Lamp post does this).
+
+## Fog, shadows and day and night
+
+The Map tab sets a map's atmosphere, one undo step per change:
+
+- **Fog** fades what is far away into its colour. **Kind** starts it from Haze, Mist, Thick fog, Ground fog, Swamp or Smoke, each shown as a picture (None keeps v68's light haze). **Starts at** and **Thickest at** are studs from the eye, **Thickness** is how much it hides at the far end, and **Colour** is its own (none: the sky's horizon). **Ground fog** lies low: thick below **Up to**, thinning above it. Characters fade into it too, and thick fog pulls the sky toward its colour.
+- **Shadows' colour**: tick **Tint the shadows** to colour the light that fills them (green in a cave, warm red at sunset, cold blue in ice); **Strength** makes them brighter or darker (0: black).
+- **Day and night**: while the game plays the sun moves from the **Start time** (Sky) and night falls. **A day lasts** is how many minutes a whole day takes (v68: 20); 0 stops time. **See the map at** shows any hour here in the Scene without changing the map; **Back to the start time** returns.
+
+Logic's **Set time of day** and **Set fog** (Sky) change them while the game plays. [Atmosphere course](action:help.atmosphere)
+
+## Big worlds
+
+A map holds up to **1,000,000 bricks** across a build area of ±2048 studs. The Map tab's **Big worlds** section shows the map's bricks and chunks (32 × 32 studs each):
+
+- A map of more than 64 chunks is a **big map**. The Scene view loads the chunks around where you look, the nearest first, and the fog closes in where they end; the counter at the top of the view shows how many are loaded. Bricks whose studs are all under other bricks are drawn as plain boxes.
+- **How far you see** (64–1024 studs, default 256) sets how far a big map is drawn, in the Scene and in the game.
+- **Scatter** sets down many copies of one build at once around where the view looks: pick it from the pictures, set **How many** (up to 5,000) and how far **Around the view**, and press **Scatter**. Each copy stands on flat studded ground, clear of everything else, turned at random; copies that don't fit are left out, and one undo takes them all away. **Placed assets** counts them (a map holds 10,000). Copies count toward the map's 1,000,000 bricks: on a full big land Scatter sets down as many as there is room for and says the map is now full.
+- **New big land** makes a map of rolling grass and hills of bricks with a flat clearing at the start: 256, 512, 1024 or 2048 studs across (2048 is about 950,000 bricks, leaving room for 50,000 more). One undo step removes it.
+- In the game a big map plays the area around the hero (7 × 7 chunks): its bricks are solid and its neighbours walk about; further away they sleep until the hero comes near. Edits on a big map check the brick rules only around what changed, so placing a brick stays quick.
+- Maps of more than 12,000 pieces play with ▶ Play; Play in v68 can't load them.
+- A project holds up to **1,000 maps**; the Map list at the top and the Project tab's Start map find one as you type. In the game only a few maps stay loaded at once. A map that isn't loaded yet loads in small steps behind a **loading screen** (its name, its picture, a tip and real progress), so the game never freezes; the maps the current one's gates lead to load ahead a little each frame, so going there is usually instant; and a map you left comes back exactly as you left it (saves keep it too).
+- The Dock shows a big asset library 120 cards at a time (**Show more** adds the next ones; searching narrows it), and asset pictures are drawn as they scroll into view.
+
+[Big worlds course](action:help.bigworlds)
 
 ## Names, scripts and wires
 

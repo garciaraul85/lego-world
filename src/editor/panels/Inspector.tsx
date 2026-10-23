@@ -1,16 +1,33 @@
 import { useEffect, useState } from 'preact/hooks';
+import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
+import { MAX_MAPS } from '../../core/commands/handlers/map';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import { worldGenerator } from '../../core/legacy/modules';
-import { BIOMES, TIMES } from '../../core/schema';
+import { minOf } from '../../core/num';
+import {
+  autoQuality,
+  QUALITY,
+  QUALITY_CHOICE_LABEL,
+  QUALITY_CHOICES,
+  type QualityChoice,
+} from '../../core/render/quality';
+import { BIOMES, paths, type Settings, TIMES } from '../../core/schema';
 import type { GenerateConfig } from '../../core/worldgen/generate';
+import { browserDevice } from '../../engine/runtime/device';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { groupLabel } from '../categories';
 import { ActionListField } from '../components/ActionListField';
 import { ColorPicker } from '../components/ColorPicker';
-import { Header, Num, TextField } from '../components/fields';
+import { FieldHelp, Header, Num, TextField } from '../components/fields';
+import { SearchSelect } from '../components/SearchBox';
 import { makeAssetOfSelection } from '../interact/scene-menus';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
+import { AtmosphereSection } from './AtmosphereSection';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
+import { BigWorldSection } from './BigWorldSection';
+import { DialogueSection } from './DialogueSection';
+import { DarknessSection } from './LightFields';
+import { MoodSection } from './MoodSection';
 import { ProgressSection } from './ProgressSection';
 import { SavingSection } from './SavingSection';
 import { ScriptSection } from './ScriptSection';
@@ -208,9 +225,9 @@ function InspectorTab({ c }: { c: ActionCtx }) {
       : one
         ? pretty(one.type.replace(/(\d)x/, '$1×'))
         : `${sel.length} bricks`;
-  const minX = Math.min(...sel.map((b) => b.x));
-  const minZ = Math.min(...sel.map((b) => b.z));
-  const minY = Math.min(...sel.map((b) => b.y));
+  const minX = minOf(sel, (b) => b.x);
+  const minZ = minOf(sel, (b) => b.z);
+  const minY = minOf(sel, (b) => b.y);
   const move = (dx: number, dy: number, dz: number) =>
     ed.exec({ type: 'bricks.move', payload: { map, ids: sel.map((b) => b.id), dx, dy, dz } });
   const colors = new Set(sel.map((b) => b.color));
@@ -446,7 +463,10 @@ function MapTab({ c }: { c: ActionCtx }) {
           Size<span class="mono">{m.size ? `${m.size.w} × ${m.size.d} studs` : 'free build'}</span>
         </div>
         <div class="field">
-          Pieces<span class="mono">{(ed.scene.value?.count ?? 0).toLocaleString('en-US')} / 12,000</span>
+          Pieces
+          <span class="mono">
+            {(ed.scene.value?.count ?? 0).toLocaleString('en-US')} / {MAX_BRICKS_PER_MAP.toLocaleString('en-US')}
+          </span>
         </div>
       </div>
       <div class="sec" data-tour="generate">
@@ -557,7 +577,13 @@ function MapTab({ c }: { c: ActionCtx }) {
         </div>
         <div class="field">
           Start time
-          <select class="inp" value={m.sky.time} onChange={(e) => env({ time: (e.target as HTMLSelectElement).value })}>
+          <select
+            class="inp"
+            aria-label="Start time"
+            data-tour="sky-time"
+            value={m.sky.time}
+            onChange={(e) => env({ time: (e.target as HTMLSelectElement).value })}
+          >
             {TIMES.map((t) => (
               <option value={t}>{pretty(t)}</option>
             ))}
@@ -579,6 +605,10 @@ function MapTab({ c }: { c: ActionCtx }) {
           </div>
         </div>
       </div>
+      <DarknessSection c={c} m={m} />
+      <AtmosphereSection c={c} m={m} />
+      <BigWorldSection c={c} m={m} />
+      <MoodSection c={c} m={m} />
       <div class="sec" style={{ borderBottom: 0 }}>
         <div class="sech">
           <span>Audio &amp; first visit</span>
@@ -587,6 +617,47 @@ function MapTab({ c }: { c: ActionCtx }) {
         <MapCinematics c={c} />
       </div>
     </>
+  );
+}
+
+export const QUALITY_HELP =
+  'How good the game looks, and how hard it works the computer. Low: 2 lights, no shadows, half the view distance and fewer particles, for phones and old computers. Medium: 4 lights with shadows. High: 8 lights, sharper shadows, the full view distance. Auto picks one from the device and steps down while the game runs slowly. Players can change it in the game’s Settings; this is what they start with.';
+
+/** P27 part 4: the game's graphics quality before the player picks one */
+function QualityField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = ed.store.get<Settings>(paths.settings)?.quality ?? 'auto';
+  const here = autoQuality(browserDevice());
+  const q = QUALITY[cur === 'auto' ? here : cur];
+  return (
+    <div class="field" data-tour="project-quality" data-help="project.quality">
+      <span>
+        Graphics quality
+        <FieldHelp label="Graphics quality" text={QUALITY_HELP} />
+      </span>
+      <select
+        class="inp"
+        aria-label="Graphics quality"
+        value={cur}
+        onChange={(e) =>
+          ed.exec(
+            { type: 'project.update', payload: { quality: (e.target as HTMLSelectElement).value as QualityChoice } },
+            { label: 'Graphics quality' },
+          )
+        }
+      >
+        {QUALITY_CHOICES.map((k) => (
+          <option value={k}>
+            {QUALITY_CHOICE_LABEL[k]}
+            {k === 'auto' ? ` (here: ${QUALITY[here].label})` : ''}
+          </option>
+        ))}
+      </select>
+      <span class="muted small" data-tour="project-quality-note">
+        {q.lights} lights{q.shadows ? ', shadows' : ', no shadows'}, {Math.round(q.viewScale * 100)}% view distance,{' '}
+        {q.particles.toLocaleString('en-US')} particles
+      </span>
+    </div>
   );
 }
 
@@ -611,17 +682,19 @@ function ProjectTab({ c }: { c: ActionCtx }) {
         </div>
         <div class="field">
           Start map
-          <select
-            class="inp"
-            value={p.entry.map}
-            onChange={(e) =>
-              ed.exec({ type: 'project.update', payload: { entryMap: (e.target as HTMLSelectElement).value } })
-            }
-          >
-            {ed.maps.value.map((m) => (
-              <option value={m.id}>{m.name}</option>
-            ))}
-          </select>
+          <SearchSelect label="maps">
+            <select
+              class="inp"
+              value={p.entry.map}
+              onChange={(e) =>
+                ed.exec({ type: 'project.update', payload: { entryMap: (e.target as HTMLSelectElement).value } })
+              }
+            >
+              {ed.maps.value.map((m) => (
+                <option value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </SearchSelect>
         </div>
         <div class="field">
           Start spawn
@@ -647,18 +720,23 @@ function ProjectTab({ c }: { c: ActionCtx }) {
             onPick={(entryScreen) => ed.exec({ type: 'project.update', payload: { entryScreen } })}
           />
         </div>
+        <QualityField c={c} />
       </div>
       <SavingSection c={c} />
       <ProgressSection c={c} />
+      <DialogueSection c={c} />
       <div class="sec">
         <div class="sech">
           <span>Limits</span>
         </div>
         <div class="field">
-          Maps<span class="mono">{ed.maps.value.length} / 16</span>
+          Maps
+          <span class="mono">
+            {ed.maps.value.length} / {MAX_MAPS.toLocaleString('en-US')}
+          </span>
         </div>
         <div class="field">
-          Pieces / map<span class="mono">12,000</span>
+          Pieces / map<span class="mono">{MAX_BRICKS_PER_MAP.toLocaleString('en-US')}</span>
         </div>
         <div class="field">
           Undo history<span class="mono">{ed.bus.history().length} / 200 steps</span>

@@ -1,6 +1,10 @@
+import type { ComponentChildren } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
 import { usesOf } from '../../core/audio/usage';
-import type { Cinematic } from '../../core/schema';
+import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
+import { LIGHT_PRESET, LIGHT_PRESETS, type LightPreset } from '../../core/lighting/light';
+import { QUALITY } from '../../core/render/quality';
+import type { Cinematic, LightInstance } from '../../core/schema';
 import { type Character, type MapDoc, paths } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
 import { allScreens } from '../../engine/ui/screens';
@@ -8,25 +12,32 @@ import type { ActionCtx } from '../actions/registry';
 import { runPlayCheck } from '../actions/registry';
 import { assetLibrary } from '../assets';
 import { AssetThumb } from '../components/AssetThumb';
+import { EffectThumb, ScreenThumb } from '../components/previews';
+import { matches, NoMatch, SearchBox } from '../components/SearchBox';
 import { shows } from '../genres/view';
 import { endDrag, startDrag } from '../interact/drag';
+import { mapItems, placeEffectAt, placeLightAt, selectOnly } from '../interact/place';
 import { keysFor } from '../platform';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
 import { MixerView } from '../workspaces/audio/MixerView';
+import { bodyOfChr } from '../workspaces/character-studio/Body';
+import { CharacterThumb } from '../workspaces/character-studio/thumbs';
+import { allEffects } from '../workspaces/effects/EffectsStudio';
 import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
+import { LightSwatch } from './LightFields';
 
 /**
  * P9c: the game's characters, each with “Place” — it stands on the open map as a neighbour, a few studs in
  * front of the map's first spawn point (an enemy fights the hero there in Play). Looks are made in the studio.
  */
-function CharacterCards({ c, hint }: { c: ActionCtx; hint: string }) {
+function CharacterCards({ c, hint, q }: { c: ActionCtx; hint: string; q: string }) {
   const { ed } = c;
   ed.revision.value;
   const list = ed.store
     .list('characters/')
     .map((p) => ed.store.get<Character>(p)!)
-    .filter((x) => x && x.id !== ed.store.manifest.hero);
+    .filter((x) => x && x.id !== ed.store.manifest.hero && matches(q, x.name, x.role, x.enemy ? 'enemy' : ''));
   const place = (chr: Character) => {
     const map = ed.mapId.value;
     const sp = ed.store.get<MapDoc>(paths.map(map))?.spawns[0];
@@ -47,8 +58,10 @@ function CharacterCards({ c, hint }: { c: ActionCtx; hint: string }) {
       <span class="muted small">
         {hint} Place puts one on this map as a neighbour, in front of the first spawn point.
       </span>
+      <NoMatch q={list.length ? '' : q} what="characters" />
       {list.map((chr) => (
         <div class="row small" style={{ gap: '6px' }}>
+          <CharacterThumb profile={chr.profile} size={26} body={bodyOfChr(chr, (p) => ed.store.get(p))} />
           <span style={{ flex: 1 }}>
             {chr.name}
             {chr.enemy ? ' · enemy' : ''}
@@ -74,6 +87,12 @@ const CATS: [string, string | null, string][] = [
   ['Characters', null, 'Characters, their looks and their clips (emotes) are made in the Character studio.'],
   ['Cinematics', null, 'Directed scenes: click one to open it in the Director; ▶ plays it in the game.'],
   ['UI screens', null, 'Splash, title, HUD, pause, dialogue, game over and your own screens.'],
+  ['Effects', null, 'Fire, smoke, sparks, magic: point at one to see it play; Place puts it beside the start.'],
+  [
+    'Lights',
+    null,
+    'Torches, lamps and glows that light the bricks and characters around them: Place puts one beside the start (or right-click the ground: Add a light here). Map › Darkness makes the map dark, so only its lights show it.',
+  ],
   ['Sounds', null, 'Sound events: ▶ to listen; place one in the map as an emitter (Sound emitter tool, S).'],
   ['Music', null, 'Music states: ▶ to audition; pick one as the map music or a zone’s music.'],
 ];
@@ -81,7 +100,7 @@ const CATS: [string, string | null, string][] = [
 export function Dock({ c }: { c: ActionCtx }) {
   const { ed } = c;
   const tab = ed.dock.value;
-  const problems = useProblems(ed);
+  const problems = useProblems(ed, (w) => c.ui.workspace(w));
   const tabs: [DockTab, string][] = [
     ['assets', 'Assets'],
     ['console', 'Console'],
@@ -129,6 +148,9 @@ function Assets({ c }: { c: ActionCtx }) {
   const { ed } = c;
   const cat = ed.assetCat.value;
   const cur = CATS.find((x) => x[0] === cat) ?? CATS[0]!;
+  // every category has a search box (Assets keeps its own, beside its kinds)
+  const [q, setQ] = useState('');
+  const what = cur[0] === 'UI screens' ? 'screens' : cur[0].toLowerCase();
   return (
     <div class="assets">
       <div class="cats">
@@ -139,6 +161,7 @@ function Assets({ c }: { c: ActionCtx }) {
             onClick={() => {
               ed.assetCat.value = name;
               ed.persistUi();
+              setQ('');
             }}
           >
             {name}
@@ -149,13 +172,15 @@ function Assets({ c }: { c: ActionCtx }) {
         ))}
       </div>
       <div class="scroll" style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {cur[0] !== 'Assets' && <SearchBox label={what} value={q} onInput={setQ} tour="dock-search" />}
         {cur[0] === 'Assets' ? (
           <AssetCards c={c} />
         ) : cur[0] === 'Characters' ? (
-          <CharacterCards c={c} hint={cur[2]} />
+          <CharacterCards c={c} hint={cur[2]} q={q} />
         ) : cur[0] === 'Cinematics' ? (
           <MediaCards
             c={c}
+            q={q}
             items={cinematicOptions(ed).map((o) => ({ id: o.id, name: o.name, sub: 'scene' }))}
             play={(id) => c.ui.play('engine', { cinematic: id })}
             open={(id) => {
@@ -167,7 +192,13 @@ function Assets({ c }: { c: ActionCtx }) {
         ) : cur[0] === 'UI screens' ? (
           <MediaCards
             c={c}
-            items={allScreens(ed.store).map((s) => ({ id: s.id, name: s.name, sub: s.kind }))}
+            q={q}
+            items={allScreens(ed.store).map((s) => ({
+              id: s.id,
+              name: s.name,
+              sub: s.kind,
+              thumb: <ScreenThumb ed={ed} screen={s} width={56} />,
+            }))}
             open={(id) => {
               ed.screenId.value = id;
               ed.widgetPath.value = '';
@@ -175,9 +206,14 @@ function Assets({ c }: { c: ActionCtx }) {
             }}
             hint={cur[2]}
           />
+        ) : cur[0] === 'Effects' ? (
+          <EffectCards c={c} hint={cur[2]} q={q} />
+        ) : cur[0] === 'Lights' ? (
+          <LightCards c={c} hint={cur[2]} q={q} />
         ) : cur[0] === 'Sounds' ? (
           <MediaCards
             c={c}
+            q={q}
             items={soundOptions(ed).map((o) => ({ id: o.id, name: o.name, sub: o.bus }))}
             play={(id) => ed.audio.previewEvent(id)}
             open={(id) => {
@@ -189,6 +225,7 @@ function Assets({ c }: { c: ActionCtx }) {
         ) : cur[0] === 'Music' ? (
           <MediaCards
             c={c}
+            q={q}
             items={musicOptions(ed).map((o) => ({ id: o.id, name: o.name, sub: 'music' }))}
             play={(id) => ed.audio.previewMusic(id)}
             open={(id) => {
@@ -222,6 +259,12 @@ function catCount(ed: EditorState, cat: string): number {
       return cinematicOptions(ed).length;
     case 'UI screens':
       return allScreens(ed.store).length;
+    case 'Effects': {
+      const { own, builtin } = allEffects(ed.store);
+      return own.length + builtin.length;
+    }
+    case 'Lights':
+      return mapItems(ed).filter((i) => i.kind === 'light').length;
     case 'Sounds':
       return soundOptions(ed).length;
     default:
@@ -302,7 +345,9 @@ function Profiler({ ed }: { ed: EditorState }) {
         <span>
           Chunks drawn {st.chunksDrawn} / {st.chunks}
         </span>
-        <span>Pieces {(ed.scene.value?.count ?? 0).toLocaleString('en-US')} / 12,000</span>
+        <span>
+          Pieces {(ed.scene.value?.count ?? 0).toLocaleString('en-US')} / {MAX_BRICKS_PER_MAP.toLocaleString('en-US')}
+        </span>
         <span>Undo steps {ed.bus.history().length}</span>
         <span>Files {[...ed.store.keys()].length}</span>
       </div>
@@ -318,7 +363,7 @@ type LiveProblem = {
 };
 
 /** Problems from import plus live checks of the project. */
-function useProblems(ed: EditorState): LiveProblem[] {
+function useProblems(ed: EditorState, openWorkspace: (w: string) => void): LiveProblem[] {
   const rev = ed.revision.value;
   return useMemo(() => {
     const out: LiveProblem[] = ed.problems.value
@@ -346,7 +391,19 @@ function useProblems(ed: EditorState): LiveProblem[] {
       out.push({
         level: i.level,
         msg: i.message,
-        where: map ? name(map) : 'Project › Progress',
+        where: map ? name(map) : i.conversation ? 'Characters › Dialogue' : 'Project › Progress',
+        ...(i.conversation
+          ? {
+              fix: {
+                label: 'Open',
+                run: () => {
+                  ed.dialogueId.value = i.conversation!;
+                  ed.charTab.value = 'dialogue';
+                  openWorkspace('Characters');
+                },
+              },
+            }
+          : {}),
         ...(map
           ? {
               fix: {
@@ -472,6 +529,12 @@ function Debug({ c }: { c: ActionCtx }) {
         <dd>{String(s.hero.held)}</dd>
         <dt>pieces</dt>
         <dd>{w.pieces.length.toLocaleString('en-US')}</dd>
+        <dt>quality</dt>
+        <dd data-tour="watch-quality">
+          {QUALITY[s.quality].label}
+          {s.qualityAuto ? ' (auto)' : ed.previewQuality.value ? ' (preview)' : ''} · {QUALITY[s.quality].lights} lights
+          {QUALITY[s.quality].shadows ? ' · shadows' : ''} · {QUALITY[s.quality].particles} particles
+        </dd>
         <dt>broken</dt>
         <dd>
           {w.broken.length} objects · {w.debris.length} debris
@@ -640,6 +703,9 @@ export const ASSET_FILTERS: [string, string][] = [
   ['generated', 'From maps'],
 ];
 
+/** P27 part 3b: asset cards shown at a time in the Dock */
+export const DOCK_PAGE = 120;
+
 function AssetCards({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
@@ -656,6 +722,8 @@ function AssetCards({ c }: { c: ActionCtx }) {
       words.every((w) => `${a.name} ${a.category ?? ''}`.toLowerCase().includes(w)),
   );
   const brush = ed.assetBrush.value;
+  // P27 part 3b: a big library shows its first cards and more on request (search narrows it)
+  const [shown, setShown] = useState(DOCK_PAGE);
   return (
     <>
       <div class="row" style={{ gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -665,7 +733,10 @@ function AssetCards({ c }: { c: ActionCtx }) {
           aria-label="Search assets"
           placeholder="Search assets…"
           value={q}
-          onInput={(e) => setQ((e.target as HTMLInputElement).value)}
+          onInput={(e) => {
+            setQ((e.target as HTMLInputElement).value);
+            setShown(DOCK_PAGE);
+          }}
           onKeyDown={(e) => e.key === 'Escape' && setQ('')}
         />
         <div class="row" role="radiogroup" aria-label="Asset kind">
@@ -687,7 +758,7 @@ function AssetCards({ c }: { c: ActionCtx }) {
         {!lib.length && (
           <span class="muted small">{q ? `No assets match “${q}”.` : 'No assets of this kind yet.'}</span>
         )}
-        {lib.map(({ asset: a, inProject }) => {
+        {lib.slice(0, shown).map(({ asset: a, inProject }) => {
           const on = brush.asset === a.id && ed.tool.value === 'asset';
           return (
             <button
@@ -723,7 +794,102 @@ function AssetCards({ c }: { c: ActionCtx }) {
             </button>
           );
         })}
+        {lib.length > shown && (
+          <button
+            type="button"
+            class="card more-cards"
+            data-tour="dock-more"
+            onClick={() => setShown((n) => n + DOCK_PAGE)}
+          >
+            <span class="small">
+              Show {Math.min(DOCK_PAGE, lib.length - shown)} more
+              <br />
+              <span class="muted">
+                {shown} of {lib.length.toLocaleString('en-US')}
+              </span>
+            </span>
+          </button>
+        )}
       </div>
+    </>
+  );
+}
+
+/** P23: the Dock's effects: each one plays while the pointer is over it; Place puts it beside the start. */
+function EffectCards({ c, hint, q }: { c: ActionCtx; hint: string; q: string }) {
+  const { ed } = c;
+  ed.revision.value;
+  const { own, builtin } = allEffects(ed.store);
+  const place = (id: string) => {
+    const sp = ed.mapDoc.value?.spawns[0]?.pos ?? [0, 0, 0];
+    placeEffectAt(ed, { x: sp[0]! + 3, y: Math.round(sp[1]! / 0.4), z: sp[2]! + 3 }, id);
+  };
+  return (
+    <>
+      <span class="muted small">{hint}</span>
+      <div class="fx-cards" data-tour="dock-effects" data-help="scene.dock.effects">
+        <NoMatch q={[...own, ...builtin].some((e) => matches(q, e.name)) ? '' : q} what="effects" />
+        {[...own, ...builtin]
+          .filter((e) => matches(q, e.name))
+          .map((e) => (
+            <div class="fx-card" data-name={e.name}>
+              <EffectThumb effect={e} size={48} />
+              <span class="small">{e.name}</span>
+              <button type="button" class="btn small" aria-label={`Place ${e.name}`} onClick={() => place(e.id)}>
+                Place
+              </button>
+            </div>
+          ))}
+      </div>
+    </>
+  );
+}
+
+/** P27: kinds of light to place, and the lights on this map (click one to pick it) */
+function LightCards({ c, hint, q }: { c: ActionCtx; hint: string; q: string }) {
+  const { ed } = c;
+  ed.revision.value;
+  const placed = mapItems(ed).filter((i): i is LightInstance => i.kind === 'light');
+  const kinds = LIGHT_PRESETS.filter((k) => matches(q, LIGHT_PRESET[k].name, LIGHT_PRESET[k].about));
+  const place = (k: LightPreset) => {
+    const sp = ed.mapDoc.value?.spawns[0]?.pos ?? [0, 0, 0];
+    placeLightAt(ed, { x: sp[0]! + 3, y: Math.round(sp[1]! / 0.4), z: sp[2]! + 3 }, k);
+  };
+  return (
+    <>
+      <span class="muted small">{hint}</span>
+      <NoMatch q={kinds.length || placed.some((l) => matches(q, l.name)) ? '' : q} what="lights" />
+      <div class="fx-cards" data-tour="dock-lights" data-help="scene.dock.lights">
+        {kinds.map((k) => (
+          <div class="fx-card" data-name={LIGHT_PRESET[k].name} title={LIGHT_PRESET[k].about}>
+            <LightSwatch light={LIGHT_PRESET[k].light} size={48} />
+            <span class="small">{LIGHT_PRESET[k].name}</span>
+            <button
+              type="button"
+              class="btn small"
+              data-tour={`dock-light-${k}`}
+              aria-label={`Place ${LIGHT_PRESET[k].name}`}
+              onClick={() => place(k)}
+            >
+              Place
+            </button>
+          </div>
+        ))}
+      </div>
+      {placed.length > 0 && (
+        <div class="col" style={{ gap: '4px' }}>
+          <span class="muted small">On this map</span>
+          {placed
+            .filter((l) => matches(q, l.name))
+            .map((l) => (
+              <button type="button" class="lib-item" onClick={() => selectOnly(ed, 'item', l.id)}>
+                <LightSwatch light={l.light} size={20} />
+                <span class="asset-name">{l.name ?? l.id}</span>
+                <span class="mono small muted">{l.on ? 'on' : 'off'}</span>
+              </button>
+            ))}
+        </div>
+      )}
     </>
   );
 }
@@ -731,13 +897,15 @@ function AssetCards({ c }: { c: ActionCtx }) {
 /** Dock cards for screens, sound events and music: ▶ to preview, click to open in its workspace. */
 function MediaCards({
   c,
+  q,
   items,
   play,
   open,
   hint,
 }: {
   c: ActionCtx;
-  items: { id: string; name: string; sub: string }[];
+  q: string;
+  items: { id: string; name: string; sub: string; thumb?: ComponentChildren }[];
   play?: (id: string) => void;
   open: (id: string) => void;
   hint: string;
@@ -746,20 +914,24 @@ function MediaCards({
   return (
     <>
       <span class="muted small">{hint}</span>
+      <NoMatch q={items.some((it) => matches(q, it.name, it.sub)) ? '' : q} what="things" />
       <div class="media-cards" data-help="scene.dock.sounds">
-        {items.map((it) => (
-          <div class="media-card">
-            {play && (
-              <button type="button" class="btn icon" aria-label={`Play ${it.name}`} onClick={() => play(it.id)}>
-                ▶
+        {items
+          .filter((it) => matches(q, it.name, it.sub))
+          .map((it) => (
+            <div class="media-card">
+              {it.thumb}
+              {play && (
+                <button type="button" class="btn icon" aria-label={`Play ${it.name}`} onClick={() => play(it.id)}>
+                  ▶
+                </button>
+              )}
+              <button type="button" class="link asset-name" onClick={() => open(it.id)}>
+                {it.name}
               </button>
-            )}
-            <button type="button" class="link asset-name" onClick={() => open(it.id)}>
-              {it.name}
-            </button>
-            <span class="mono small muted">{it.sub}</span>
-          </div>
-        ))}
+              <span class="mono small muted">{it.sub}</span>
+            </div>
+          ))}
       </div>
     </>
   );

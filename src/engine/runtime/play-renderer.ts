@@ -1,7 +1,9 @@
 import { freeGroups, partsMoving } from '../../core/assets/free';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
+import { QUALITY } from '../../core/render/quality';
 import { rigPose } from '../character/animator';
+import { ACT_LENGTH, advance, bodyOverlays, bodyPose, bodyWorld, type Motion, newMotion } from '../character/body-anim';
 import type { CharacterRenderer, Controller, HeroState } from '../legacy/runtime-modules';
 import { brickGeometry } from '../render/brick-geometry';
 import type { CameraFrame } from '../render/camera';
@@ -9,7 +11,8 @@ import { cross, normalize, type Vec3 } from '../render/math';
 import { drawCharacter } from '../render/place-character';
 import { type LineSet, type Marker, type Mesh, type Overlay, type RenderBrick, Renderer } from '../render/renderer';
 import { FRAGMENT } from '../render/shaders';
-import { chunkKeyOf } from './pieces';
+import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../render/stream';
+import { chunkKeyOf, indexByChunk } from './pieces';
 import type { MapWorld, PlaySession } from './session';
 
 export type DebugDraw = { colliders: boolean; spawns: boolean };
@@ -41,6 +44,9 @@ export class PlayRenderer {
   /** the Director's stage view: its own orbit camera and markers instead of the game's (P6.3) */
   cameraOverride: CameraFrame | null = null;
   extra: { lines: LineSet[]; markers: Marker[] } | null = null;
+  /** P22 part 3: the motion of each creature (by NPC id, 'hero'): its step cycle and where it was last frame */
+  private motions = new Map<number | 'hero', { m: Motion; x: number; z: number }>();
+  private lastFrame = 0;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -65,7 +71,10 @@ export class PlayRenderer {
       target[1] + distance * Math.sin(pitch),
       target[2] + distance * Math.cos(s.camYaw) * Math.cos(pitch),
     ];
-    const f = Math.max(0.76, s.L.GamePhysics.cameraDistance(target, eye, s.world.pieces));
+    const f = Math.max(
+      0.76,
+      s.L.GamePhysics.cameraDistance(target, eye, s.world.big ? s.world.controller.pieces : s.world.pieces),
+    );
     eye = eye.map((v, i) => target[i]! + (v - target[i]!) * f) as Vec3;
     const z = normalize(eye.map((v, i) => v - target[i]!));
     const right = normalize(cross([0, 1, 0], z));
@@ -97,9 +106,12 @@ export class PlayRenderer {
       for (const id of set) ids.add(id);
       groups.push({ ids: set, model: g.t.model });
     }
-    // bricks that joined or left a group move between the chunks and the overlays
-    for (const p of w.pieces)
-      if (p.id !== undefined && ids.has(p.id) !== this.tilted.ids.has(p.id)) w.dirtyChunks.add(chunkKeyOf(p));
+    // bricks that joined or left a group move between the chunks and the overlays (P27 part 3: only those)
+    for (const id of new Set([...ids, ...this.tilted.ids]))
+      if (ids.has(id) !== this.tilted.ids.has(id)) {
+        const p = this.session.pieceById(w, id);
+        if (p) w.dirtyChunks.add(chunkKeyOf(p));
+      }
     this.tilted = { ids, groups };
     this.tiltedRev = w.rev;
     this.moving = w.instances.some((i) => partsMoving(i.def, i.state, i.anim ? { ...i.anim, now } : null));
@@ -110,53 +122,77 @@ export class PlayRenderer {
     if (!this.tilted.ids.size) return [];
     const out: Overlay[] = [];
     for (const g of this.tilted.groups) {
-      const pieces = w.pieces.filter((p) => p.id !== undefined && g.ids.has(p.id));
+      const pieces = [...g.ids].flatMap((id) => {
+        const p = this.session.pieceById(w, id);
+        return p ? [p] : [];
+      });
       if (pieces.length) out.push({ bricks: pieces.map(toRender), alpha: 1, flat: false, model: g.model });
     }
     return out;
   }
 
+  /** P27 part 3: chunks stream in around the hero on big maps (small maps load at once, as before) */
+  private stream: ChunkStream | null = null;
+  /** small maps: pieces by chunk (big maps use the session's index) */
+  private smallIndex: Map<string, LegacyPiece[]> | null = null;
+
+  private chunkIndex(): Map<string, LegacyPiece[]> {
+    const w = this.session.world;
+    if (w.big && w.byChunk) return w.byChunk;
+    this.smallIndex ??= indexByChunk(w.pieces);
+    return this.smallIndex;
+  }
+
   private syncBricks() {
     const w = this.session.world;
     const r = this.renderer;
+    this.stream ??= new ChunkStream(r, (k) =>
+      (this.chunkIndex().get(k) ?? []).filter((p) => !(p.id !== undefined && this.tilted.ids.has(p.id))).map(toRender),
+    );
+    const st = this.session.heroState;
     if (this.shown === w && (this.tiltedRev !== w.rev || this.moving)) this.syncTilted();
     if (this.shown !== w) {
       this.tilted = { ids: new Set(), groups: [] };
       this.syncTilted();
       this.shown = w;
-      r.clearChunks();
+      this.smallIndex = null;
       r.setSegments(w.doc.generator ? 12 : 24);
       w.dirtyChunks.clear();
-      const byKey = new Map<string, RenderBrick[]>();
-      for (const p of w.pieces) {
-        if (p.id !== undefined && this.tilted.ids.has(p.id)) continue;
-        const k = chunkKeyOf(p);
-        const list = byKey.get(k) ?? [];
-        if (!byKey.has(k)) byKey.set(k, list);
-        list.push(toRender(p));
-      }
-      for (const [k, list] of byKey) r.setChunk(k, list);
-      return;
+      this.stream.reset(this.chunkIndex().keys());
+    } else if (w.dirtyChunks.size) {
+      this.smallIndex = null;
+      const idx = this.chunkIndex();
+      this.stream.changed(w.dirtyChunks, (k) => !!idx.get(k)?.length);
+      w.dirtyChunks.clear();
     }
-    if (!w.dirtyChunks.size) return;
-    for (const k of w.dirtyChunks)
-      r.setChunk(
-        k,
-        w.pieces.filter((p) => chunkKeyOf(p) === k && !(p.id !== undefined && this.tilted.ids.has(p.id))).map(toRender),
-      );
-    w.dirtyChunks.clear();
+    // P27 part 4: the quality level scales how far a big map is drawn (the maker's distance is for High)
+    this.stream.viewDistance = Math.max(
+      64,
+      Math.round((w.doc.viewDistance ?? DEFAULT_VIEW_DISTANCE) * QUALITY[this.session.quality].viewScale),
+    );
+    this.stream.update(st.x, st.z);
+  }
+
+  /** P27 part 3: chunks drawn / chunks the map has (the Play overlay shows it on big maps) */
+  get chunkCounts(): { shown: number; total: number; streaming: boolean } {
+    return { ...(this.stream?.counts ?? { shown: 0, total: 0 }), streaming: !!this.stream?.streaming };
   }
 
   render() {
     const s = this.session;
     const w = s.world;
     this.syncBricks();
-    const sky = s.L.SkyCycle.sample(w.doc.sky.time, s.clock, w.doc.weather.rain, w.doc.weather.snowing);
+    // P27 part 2: the sky as the day goes on (at the map's day length), its ambient and fog
+    const air = s.atmosphereNow();
+    const sky = air.sky;
     this.renderer.skySample = sky;
+    this.renderer.fog = air.fog;
     this.renderer.snow = w.doc.weather.snow;
     this.renderer.clock = s.clock;
     // a cinematic owns the camera while it plays (P6.2)
-    const cam = this.cameraOverride ?? s.cine.frame?.camera ?? this.camera();
+    const base = this.cameraOverride ?? s.cine.frame?.camera ?? this.camera();
+    // P23 part 2: screen effects shake the game's camera (never the Director's stage view)
+    const cam = this.cameraOverride ? base : shaken(base, s.screenFx.shake());
     this.lastCamera = cam;
     const lines: LineSet[] = [];
     const markers: Marker[] = [];
@@ -271,7 +307,7 @@ export class PlayRenderer {
     if (this.debug.colliders) {
       const st = s.heroState;
       const near: number[] = [];
-      for (const p of w.pieces) {
+      for (const p of w.controller.pieces) {
         const b = s.L.GamePhysics.bounds(p);
         if (
           b.x1 < st.x - 6 ||
@@ -291,15 +327,31 @@ export class PlayRenderer {
         color: [0.4, 1, 0.5],
       });
     }
+    const creatures = this.creatures();
+    // P23: the particles of this frame
+    this.renderer.particles = s.effects.batches();
+    // P27: the lights of this moment, and how dark the map is without them
+    this.renderer.lights = s.pointLightsNow();
+    // P27 part 4: what this quality level draws
+    const q = QUALITY[s.quality];
+    this.renderer.maxLights = q.lights;
+    this.renderer.shadows = q.shadows;
+    this.renderer.shadowSize = q.shadowSize;
+    this.renderer.detailScale = q.detailScale;
+    this.renderer.pixelRatio = q.pixelRatio;
+    this.renderer.groundFog = q.groundFog;
+    this.renderer.darkness = s.darkness;
     return this.renderer.render(
       cam,
       [s.heroState.x, s.heroState.y, s.heroState.z],
-      this.tiltedOverlays(),
+      [...this.tiltedOverlays(), ...creatures.overlays],
       lines,
       markers,
       (mvp, eye) => {
         const c = this.chars;
         c.begin(mvp, eye, sky);
+        // P27: characters are lit by the same lights as the bricks
+        this.renderer.applyLights(this.renderer.gl.getParameter(this.renderer.gl.CURRENT_PROGRAM));
         // a character playing a clip (a cinematic, an emote) is drawn where it stands
         const frame = { mvp, eye: eye as number[], light: sky };
         const draw = (profile: Record<string, unknown>, state: HeroState) =>
@@ -309,11 +361,24 @@ export class PlayRenderer {
             c.bindCollision(n.profile, n.controller);
             this.bound.add(n.controller);
           }
+          if (creatures.drawn.has(n.id)) continue;
           const cast = s.cine.drawFor(n, n.profile, n.state);
           if (cast?.state.hidden) continue;
-          draw(cast?.profile ?? n.profile, cast?.state ?? n.state);
+          // P22 part 4: a speaker shows the face of its line's mood (P23 part 3: in a cinematic too)
+          const face = cast ? s.castFaceOf(n, cast.mood ?? null) : s.moodFaceOf(n);
+          const look = cast?.profile ?? n.profile;
+          // P23 part 4: a neighbour's state clip (walk, attack, hurt…) poses it
+          const sp = cast ? null : s.npcPose(n);
+          const st = cast?.state ?? n.state;
+          draw(
+            face ? { ...look, ...face } : look,
+            sp?.params ? { ...st, studioPose: rigPose(sp.params, sp.clip), studioProgress: 0, studioFist: false } : st,
+          );
         }
-        for (const x of s.cine.extras()) draw(x.profile, x.state);
+        for (const x of s.cine.extras()) {
+          const face = x.mood && x.name ? s.speakerFace(x.name, x.mood) : null;
+          draw(face ? { ...x.profile, ...face } : x.profile, x.state);
+        }
         if (!this.bound.has(w.controller)) {
           c.bindCollision(s.hero, w.controller);
           this.bound.add(w.controller);
@@ -323,11 +388,14 @@ export class PlayRenderer {
         const pose = fight ?? s.heroAnim.params();
         const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;
         const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
-        if (heroCast) {
-          if (!heroCast.state.hidden) draw(heroCast.profile, heroCast.state);
+        if (creatures.drawn.has('hero')) {
+          /* drawn as a body plan (overlays) */
+        } else if (heroCast) {
+          const face = s.castFaceOf('hero', heroCast.mood ?? null);
+          if (!heroCast.state.hidden) draw(face ? { ...heroCast.profile, ...face } : heroCast.profile, heroCast.state);
         } else
           draw(
-            s.hero,
+            s.moodFaceOf('hero') ? { ...s.hero, ...s.moodFaceOf('hero') } : s.hero,
             pose
               ? { ...s.heroState, studioPose: rigPose(pose, poseClip), studioProgress: 0, studioFist: false }
               : s.heroState,
@@ -335,6 +403,51 @@ export class PlayRenderer {
         for (const d of w.debris) c.debris(this.debrisMesh, d);
       },
     );
+  }
+
+  /**
+   * P22 part 3: characters with a body plan are drawn as bricks on their bones, moved by their generated
+   * motion (the step cycle follows the distance they walked this frame).
+   */
+  private creatures(): { overlays: Overlay[]; drawn: Set<number | 'hero'> } {
+    const s = this.session;
+    const now = performance.now();
+    const dt = this.lastFrame ? Math.min(0.1, (now - this.lastFrame) / 1000) : 0;
+    this.lastFrame = now;
+    const overlays: Overlay[] = [];
+    const drawn = new Set<number | 'hero'>();
+    const one = (
+      key: number | 'hero',
+      who: Parameters<PlaySession['bodyOf']>[0],
+      st: { x: number; y: number; z: number; heading: number; hidden?: boolean },
+    ) => {
+      const body = s.bodyOf(who);
+      if (!body) return;
+      drawn.add(key);
+      if (st.hidden) return;
+      let mo = this.motions.get(key);
+      if (!mo) {
+        mo = { m: newMotion(), x: st.x, z: st.z };
+        this.motions.set(key, mo);
+      }
+      const dist = Math.hypot(st.x - mo.x, st.z - mo.z);
+      // a jump across the map (a teleport, a respawn) is not a step
+      advance(mo.m, body, dist < 3 ? dist : 0, dt);
+      // P23 part 4: the state machine's strike and flinch
+      const state = s.animStateOf(who);
+      mo.m.act =
+        state === 'attack' || state === 'hurt' ? { kind: state, u: s.animSinceOf(who) / ACT_LENGTH[state] } : null;
+      mo.x = st.x;
+      mo.z = st.z;
+      overlays.push(...bodyOverlays(body, bodyPose(body, mo.m), bodyWorld(body, st, mo.m)));
+    };
+    for (const n of s.world.npcs) {
+      const cast = s.cine.drawFor(n, n.profile, n.state);
+      one(n.id, n, (cast?.state ?? n.state) as never);
+    }
+    const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
+    one('hero', 'hero', (heroCast?.state ?? s.heroState) as never);
+    return { overlays, drawn };
   }
 
   dispose() {
@@ -354,4 +467,19 @@ function boxLines(x0: number, y0: number, z0: number, x1: number, y1: number, z1
     [x0, y1, z1],
   ];
   return [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7].flatMap((i) => c[i]!);
+}
+
+/** a camera moved sideways and up (studs) and rolled (radians) by a screen shake */
+export function shaken<C extends CameraFrame>(c: C, [dx, dy, roll]: [number, number, number]): C {
+  if (!dx && !dy && !roll) return c;
+  const cr = Math.cos(roll);
+  const sr = Math.sin(roll);
+  const right: Vec3 = [c.right[0] * cr + c.up[0] * sr, c.right[1] * cr + c.up[1] * sr, c.right[2] * cr + c.up[2] * sr];
+  const up: Vec3 = [c.up[0] * cr - c.right[0] * sr, c.up[1] * cr - c.right[1] * sr, c.up[2] * cr - c.right[2] * sr];
+  const eye: Vec3 = [
+    c.eye[0] + c.right[0] * dx + c.up[0] * dy,
+    c.eye[1] + c.right[1] * dx + c.up[1] * dy,
+    c.eye[2] + c.right[2] * dx + c.up[2] * dy,
+  ];
+  return { ...c, eye, right, up };
 }

@@ -1,0 +1,19 @@
+{
+  "path": "dialogue/dlg_smith00001.json",
+  "value": {
+    "id": "dlg_smith00001",
+    "name": "Blacksmith",
+    "sections": [
+      {
+        "label": "Start Here",
+        "steps": [
+          {
+            "k": "line",
+            "who": "Smith",
+            "text": ""
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,15 +1,17 @@
+import { SND } from '../../../builtin/audio';
 import { BUILTIN_CLIPS } from '../../../builtin/clips';
 import { EMOTE_KINDS } from '../../../builtin/clips/emotes';
+import { SFX } from '../../../builtin/screen-effects';
 import { usesOf } from '../../../core/audio/usage';
 import type { ActorItem, CameraItem, Cinematic, Clip, PostItem } from '../../../core/schema';
-import { EventPicker } from '../../components/EventPicker';
+import { EventPicker, ListenButton } from '../../components/EventPicker';
 import { FieldHelp } from '../../components/fields';
 import { describeUse, eventUses } from '../../events';
-import { musicOptions, soundOptions } from '../../panels/AudioFields';
+import { musicOptions, screenEffectChoices, soundOptions } from '../../panels/AudioFields';
 import type { EditorState } from '../../state';
 import { Check, NumIn, Pick, Sec, TextIn, Vec } from './fields';
 import { type Item, itemAt, type Sel, setItem } from './model';
-import { ClipPicker, GesturePicker, HeldPicker, roleProfile } from './pictures';
+import { ClipPicker, GesturePicker, HeldPicker, MoodPicker, roleFaces, roleProfile } from './pictures';
 
 /** P32: what the Director's fields are and where their values come from (the “?” beside each) */
 const HELP = {
@@ -23,6 +25,7 @@ const HELP = {
     'A logic event name. When the scene reaches this item it sends the name, and every “On custom event” node with exactly this name runs (Logic). The list shows who already sends and who listens to each name.',
   sound: 'A sound event from the Audio workspace. ▶ Listen plays it.',
   music: 'A music state from the Audio workspace. ▶ Listen plays it.',
+  talk: 'While the line plays the actor’s mouth moves with the words, and it shows the face of the mood you pick (its own faces from Characters › Face, or the usual ones).',
 };
 
 type Change = (c: Cinematic, label: string) => void;
@@ -94,6 +97,8 @@ export function ItemInspector({
           return { t, do: 'emote', kind: 'wave' };
         case 'equip':
           return { t, do: 'equip', item: 'Hammer' };
+        case 'mood':
+          return { t, do: 'mood', mood: 'happy', dur: 2 };
         default:
           return { t, do: d } as ActorItem;
       }
@@ -108,6 +113,7 @@ export function ItemInspector({
             { id: 'moveTo', name: 'Walk / run to a mark' },
             { id: 'face', name: 'Face' },
             { id: 'say', name: 'Say a line' },
+            { id: 'mood', name: 'Show a mood (face)' },
             { id: 'emote', name: 'Gesture' },
             { id: 'play', name: 'Play a clip' },
             { id: 'equip', name: 'Hold an item' },
@@ -155,6 +161,19 @@ export function ItemInspector({
               onChange={(text) => text.trim() && put({ ...a, text: text.slice(0, 400) })}
             />
             <NumIn label="Shown for (s)" value={a.dur} min={0.2} onChange={(dur) => put({ ...a, dur })} />
+            <MoodPicker
+              profile={profile}
+              faces={roleFaces(ed, cin, tr.role)}
+              value={a.mood ?? ''}
+              none="Its own face"
+              onPick={(m) => {
+                const n = { ...a } as typeof a;
+                if (m) n.mood = m as never;
+                else delete n.mood;
+                put(n);
+              }}
+            />
+            <p class="hint">{HELP.talk}</p>
             <Pick
               label="Voice"
               value={a.voice ?? ''}
@@ -162,6 +181,14 @@ export function ItemInspector({
                 { id: '', name: 'Default blips' },
                 ...soundOptions(ed).map((o) => ({ id: o.id, name: o.name })),
               ]}
+              after={
+                <ListenButton
+                  name={
+                    a.voice ? (soundOptions(ed).find((o) => o.id === a.voice)?.name ?? a.voice) : 'the default blips'
+                  }
+                  onPlay={() => ed.audio.previewEvent(a.voice ?? SND.talk)}
+                />
+              }
               onChange={(v) => {
                 const n = { ...a } as typeof a;
                 if (v) n.voice = v as never;
@@ -169,6 +196,17 @@ export function ItemInspector({
                 put(n);
               }}
             />
+          </>
+        )}
+        {a.do === 'mood' && (
+          <>
+            <MoodPicker
+              profile={profile}
+              faces={roleFaces(ed, cin, tr.role)}
+              value={a.mood}
+              onPick={(m) => put({ ...a, mood: m as never })}
+            />
+            <NumIn label="For (s)" value={a.dur} min={0.2} onChange={(dur) => put({ ...a, dur })} />
           </>
         )}
         {a.do === 'emote' && (
@@ -325,6 +363,12 @@ export function ItemInspector({
           help={HELP.sound}
           value={s.event}
           options={soundOptions(ed).map((o) => ({ id: o.id, name: o.name }))}
+          after={
+            <ListenButton
+              name={soundOptions(ed).find((o) => o.id === s.event)?.name ?? s.event}
+              onPlay={() => ed.audio.previewEvent(s.event)}
+            />
+          }
           onChange={(event) => put({ ...s, event } as Item)}
         />
         <Pick
@@ -347,7 +391,16 @@ export function ItemInspector({
   }
   if (tr.kind === 'post') {
     const p = it as PostItem;
-    const kind = 'fade' in p ? 'fade' : 'letterbox' in p ? 'letterbox' : 'title' in p ? 'title' : 'slowmo';
+    const kind =
+      'fade' in p
+        ? 'fade'
+        : 'letterbox' in p
+          ? 'letterbox'
+          : 'title' in p
+            ? 'title'
+            : 'screen' in p
+              ? 'screen'
+              : 'slowmo';
     return (
       <Sec title="Post effect">
         <Pick
@@ -358,6 +411,7 @@ export function ItemInspector({
             { id: 'letterbox', name: 'Letterbox' },
             { id: 'title', name: 'Title card' },
             { id: 'slowmo', name: 'Slow motion' },
+            { id: 'screen', name: 'Screen effect (shake, flash…)' },
           ]}
           onChange={(k) =>
             put(
@@ -367,7 +421,9 @@ export function ItemInspector({
                   ? { t: p.t, letterbox: true }
                   : k === 'title'
                     ? { t: p.t, title: cin.name, dur: 2.5 }
-                    : { t: p.t, slowmo: 0.4, dur: 1.5 }) as Item,
+                    : k === 'screen'
+                      ? { t: p.t, screen: SFX.bigShake }
+                      : { t: p.t, slowmo: 0.4, dur: 1.5 }) as Item,
             )
           }
         />
@@ -404,6 +460,15 @@ export function ItemInspector({
             <TextIn label="Subtitle" value={p.sub ?? ''} onChange={(sub) => put({ ...p, sub: sub.slice(0, 120) })} />
             <NumIn label="Shown for (s)" value={p.dur} min={0.2} onChange={(dur) => put({ ...p, dur })} />
           </>
+        )}
+        {'screen' in p && (
+          <Pick
+            label="Screen effect"
+            help="What happens to the whole view at this moment: a shake, a flash, an earthquake (Effects › Screen makes your own)."
+            value={p.screen}
+            options={screenEffectChoices(ed)}
+            onChange={(v) => put({ ...p, screen: v as never })}
+          />
         )}
         {'slowmo' in p && (
           <>

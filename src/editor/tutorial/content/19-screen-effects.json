@@ -1,0 +1,409 @@
+{
+  "id": "screenfx",
+  "title": "Screen effects course",
+  "steps": [
+    {
+      "id": "screenfx.tab",
+      "title": "Effects for the whole screen",
+      "body": "Particle effects happen in the world. Screen effects happen to the whole view: the camera shakes, the screen flashes a colour or fades to black, the game freezes for a split second when a heavy hit lands (hit-stop), or runs in slow motion. They live in the Effects workspace, on the Screen tab.",
+      "task": "Open the Effects workspace and click the Screen tab.",
+      "target": "[data-tour=\"fx-tab-screen\"]",
+      "check": {
+        "kind": "state",
+        "test": "effectsTabIs",
+        "args": "screen"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Effects"
+        },
+        {
+          "click": "[data-tour=\"fx-tab-screen\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Effects” in the workspace tabs at the top (or press 9).",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Effects"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Effects"
+            }
+          ]
+        },
+        {
+          "text": "At the top of the library on the left, click the tab “Screen”.",
+          "check": {
+            "kind": "state",
+            "test": "effectsTabIs",
+            "args": "screen"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"fx-tab-screen\"]",
+              "say": "The Screen tab"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "right"
+    },
+    {
+      "id": "screenfx.pick",
+      "title": "Big hit, built in",
+      "body": "Big hit does three things at once: a short shake, a white flash and a hit-stop of 0.09 seconds. Watch the ball in the preview: it stops for a moment, so the hit feels heavy. Every picture in the library plays its effect while the pointer is over it.",
+      "task": "In the library, under Built-in, click “Big hit”.",
+      "target": "[aria-label=\"Screen effects\"] [data-name=\"Big hit\"]",
+      "check": {
+        "kind": "state",
+        "test": "screenEffectOpen",
+        "args": "Big hit"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"fx-tab-screen\"]"
+        },
+        {
+          "click": "[aria-label=\"Screen effects\"] [data-name=\"Big hit\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the library on the left, under Built-in, click “Big hit”. It plays over and over in the middle.",
+          "check": {
+            "kind": "state",
+            "test": "screenEffectOpen",
+            "args": "Big hit"
+          },
+          "do": [
+            {
+              "click": "[aria-label=\"Screen effects\"] [data-name=\"Big hit\"]",
+              "say": "Big hit, in the Built-in list"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "right"
+    },
+    {
+      "id": "screenfx.copy",
+      "title": "Your own copy",
+      "body": "A built-in screen effect cannot be changed, so every game can count on it. A copy belongs to this game, shows under Mine, and has every setting on the right.",
+      "task": "On the right, click “Make a copy to change it”.",
+      "target": "[data-tour=\"sfx-copy\"]",
+      "check": {
+        "kind": "state",
+        "test": "ownScreenEffectNamed",
+        "args": "Big hit copy"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"sfx-copy\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In Screen effect settings on the right, click “Make a copy to change it”. “Big hit copy” appears under Mine and is selected.",
+          "check": {
+            "kind": "state",
+            "test": "ownScreenEffectNamed",
+            "args": "Big hit copy"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sfx-copy\"]",
+              "say": "Make a copy to change it"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "left"
+    },
+    {
+      "id": "screenfx.name",
+      "title": "Thunder",
+      "body": "You will turn the copy into thunder: a pale blue flash with a slow rumble. First give it its name; logic, actions and cinematics list it by name.",
+      "task": "Name it “Thunder”.",
+      "target": "[aria-label=\"Screen effect name\"]",
+      "check": {
+        "kind": "state",
+        "test": "ownScreenEffectNamed",
+        "args": "Thunder"
+      },
+      "doItForMe": [
+        {
+          "fill": "[aria-label=\"Screen effect name\"]",
+          "value": "Thunder"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the Name box at the top of the settings, replace “Big hit copy” with Thunder and press Enter.",
+          "check": {
+            "kind": "state",
+            "test": "ownScreenEffectNamed",
+            "args": "Thunder"
+          },
+          "do": [
+            {
+              "fill": "[aria-label=\"Screen effect name\"]",
+              "value": "Thunder",
+              "say": "The name box"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "left"
+    },
+    {
+      "id": "screenfx.flash",
+      "title": "A pale blue flash",
+      "body": "Flash lays a colour over the whole screen for a moment and fades it back. Strength is how much of the colour shows (1: all of it), and “Flash for” how long it takes to fade.",
+      "task": "Make the flash pale blue (#bfd8ff).",
+      "target": "[aria-label=\"Flash colour\"]",
+      "check": {
+        "kind": "state",
+        "test": "screenFlash",
+        "args": "#bfd8ff"
+      },
+      "doItForMe": [
+        {
+          "fill": "[aria-label=\"Flash colour\"]",
+          "value": "#bfd8ff"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Flash, click the Colour square and pick a pale blue (or type #bfd8ff). The preview flashes blue.",
+          "check": {
+            "kind": "state",
+            "test": "screenFlash",
+            "args": "#bfd8ff"
+          },
+          "do": [
+            {
+              "fill": "[aria-label=\"Flash colour\"]",
+              "value": "#bfd8ff",
+              "say": "The flash colour"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "left"
+    },
+    {
+      "id": "screenfx.rumble",
+      "title": "A slow rumble",
+      "body": "A shake is quick, like a hit. A rumble is slow and heavy, like thunder rolling or an earthquake. Strength is how far the camera moves, in studs.",
+      "task": "Under Shake, tick “Slow rumble”.",
+      "target": "[aria-label=\"Slow rumble\"]",
+      "check": {
+        "kind": "state",
+        "test": "screenRumble"
+      },
+      "doItForMe": [
+        {
+          "click": "[aria-label=\"Slow rumble\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Shake, tick “Slow rumble”. The preview now rolls slowly instead of jolting.",
+          "check": {
+            "kind": "state",
+            "test": "screenRumble"
+          },
+          "do": [
+            {
+              "click": "[aria-label=\"Slow rumble\"]",
+              "say": "Slow rumble"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "left"
+    },
+    {
+      "id": "screenfx.hook",
+      "title": "Thunder when the hero is hurt",
+      "body": "Game screen effects pick what plays by itself when things happen: the hero is hurt or beaten, lands a charged hit, levels up, beats an enemy, lands from high up, or breaks bricks. Each list shows the built-in one until you pick another; None plays nothing.",
+      "task": "In Game screen effects, pick “Thunder” for “The hero is hurt”.",
+      "target": "[data-tour=\"sfx-event-hurt\"]",
+      "check": {
+        "kind": "state",
+        "test": "screenHook",
+        "args": {
+          "event": "hurt",
+          "name": "Thunder"
+        }
+      },
+      "doItForMe": [
+        {
+          "choose": "[data-tour=\"sfx-event-hurt\"]",
+          "value": "Thunder"
+        }
+      ],
+      "how": [
+        {
+          "text": "Scroll down the settings to Game screen effects. Open the list “The hero is hurt” and pick “Thunder”.",
+          "check": {
+            "kind": "state",
+            "test": "screenHook",
+            "args": {
+              "event": "hurt",
+              "name": "Thunder"
+            }
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"sfx-event-hurt\"]",
+              "value": "Thunder",
+              "say": "The hero is hurt"
+            }
+          ]
+        }
+      ],
+      "workspace": "Effects",
+      "placement": "left"
+    },
+    {
+      "id": "screenfx.mood",
+      "title": "A stormy night on this map",
+      "body": "Each map has a screen mood: a colour over the whole view, dark edges, and something drifting across the screen. The HUD is never coloured. Ticked “Show it over the Scene view” shows the mood while you build.",
+      "task": "In Scene › Map › Screen mood, pick the colour Night and Drifting: Rain streaks.",
+      "target": "[data-tour=\"map-mood\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapMood",
+        "args": {
+          "grade": "night",
+          "drift": "rain"
+        }
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "right",
+          "value": "map"
+        },
+        {
+          "choose": "[data-tour=\"mood-grade\"]",
+          "value": "night"
+        },
+        {
+          "choose": "[data-tour=\"mood-drift\"]",
+          "value": "rain"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Scene” in the workspace tabs, then the Map tab at the top of the right panel.",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Scene"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            },
+            {
+              "ui": "right",
+              "value": "map"
+            }
+          ]
+        },
+        {
+          "text": "Scroll to Screen mood. Open Colour and pick “Night”.",
+          "check": {
+            "kind": "state",
+            "test": "mapMood",
+            "args": {
+              "grade": "night"
+            }
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"mood-grade\"]",
+              "value": "night",
+              "say": "Colour: Night"
+            }
+          ]
+        },
+        {
+          "text": "Open Drifting and pick “Rain streaks”. The Scene view goes dark blue with rain.",
+          "check": {
+            "kind": "state",
+            "test": "mapMood",
+            "args": {
+              "grade": "night",
+              "drift": "rain"
+            }
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"mood-drift\"]",
+              "value": "rain",
+              "say": "Drifting: Rain streaks"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left",
+      "setup": [
+        {
+          "ui": "right",
+          "value": "map"
+        }
+      ]
+    },
+    {
+      "id": "screenfx.play",
+      "title": "Try it in Play",
+      "body": "In Play the map is dark and rainy. When the hero is hurt (a fall, an enemy), Thunder flashes and rumbles. Players who find shaking hard can turn on Reduce motion in the game’s Settings screen: shakes get small and flashes faint.",
+      "task": "Press ▶ Play (F5) to see the mood in the game.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "play",
+        "event": "running"
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press ▶ Play at the top (or F5). Press F5 again to stop.",
+          "check": {
+            "kind": "play",
+            "event": "running"
+          },
+          "do": [
+            {
+              "ui": "play"
+            }
+          ]
+        }
+      ],
+      "placement": "bottom"
+    }
+  ]
+}

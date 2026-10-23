@@ -8,16 +8,18 @@
     "world",
     "assets",
     "characters",
+    "dialogue",
     "logic",
     "collect",
     "screens",
     "cinematics",
     "audio",
+    "effects",
     "debug",
     "ai"
   ],
   "level": "simple",
-  "tabs": ["Scene", "Assets", "Characters", "Logic", "Cinematics", "Screens", "Audio"],
+  "tabs": ["Scene", "Assets", "Characters", "Logic", "Cinematics", "Screens", "Audio", "Effects"],
   "nodesFirst": [
     "event.onInteract",
     "event.onEnterZone",
@@ -57,5 +59,8 @@
     "A goal: find them all to win",
     "Music and sounds for finding things"
   ],
-  "readyAfter": "P8"
+  "readyAfter": "P8",
+  "dialogue": {
+    "style": "adventure"
+  }
 }

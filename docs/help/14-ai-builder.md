@@ -22,6 +22,10 @@ Untick steps you don't want. **Accept** keeps the chosen steps as one undo step 
 
 Inside a Claude artifact, Claude answers on your own Claude plan — no key needed; you are asked once to allow it. Elsewhere, add your own Anthropic API key in ⚙ settings: it is stored only in this browser, never in your project, exports or logs, and sent only to api.anthropic.com. Each request shows its token use, and a daily soft cap (settings) asks before going over.
 
+## Brix or the AI builder?
+
+**Brix** (the brick in the bottom-right corner) answers questions about the editor and shows you where things are; it only reads Help and never changes your game. Without an API key it searches this guide itself; with the AI builder set up, Claude answers from this guide, using the same key, model and spending caps. The **AI builder** changes your game: it plans each step and waits for you to approve it.
+
 ## Limits
 
 At most 12 steps and 2,000 commands per plan, and 5 MB of changed files.

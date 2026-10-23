@@ -1,8 +1,18 @@
 import type { SkySample } from '../../core/legacy/modules';
 import { brickGeometry, coneGeometry, downTriangle, type Geometry, PLATE, plainBox, turnedY } from './brick-geometry';
+
+/** P23: particles to draw this frame: tiny bricks, plates, tiles or studs of one size, centre and colour each (6 floats) */
+export type ParticleBatch = {
+  shape: 'brick' | 'plate' | 'tile' | 'stud';
+  size: number;
+  data: Float32Array;
+  count: number;
+};
+
+import type { FogParams } from '../lighting/atmosphere';
 import type { CameraFrame } from './camera';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from './math';
-import { FRAGMENT, SKY_FRAGMENT, SKY_VERTEX, VERTEX } from './shaders';
+import { FRAGMENT, SHADOW_FRAGMENT, SKY_FRAGMENT, SKY_VERTEX, VERTEX } from './shaders';
 
 /** A brick as the renderer needs it. `paved` = road/pavement slab shading. */
 export type RenderBrick = {
@@ -18,7 +28,16 @@ export type RenderBrick = {
 };
 
 export type Mesh = { p: WebGLBuffer; n: WebGLBuffer; count: number };
-type Batch = { w: number; d: number; kind: RenderBrick['kind']; paved: boolean; buffer: WebGLBuffer; count: number };
+type Batch = {
+  w: number;
+  d: number;
+  kind: RenderBrick['kind'];
+  paved: boolean;
+  /** P27 part 3: every stud is under another brick, so it draws as a plain box */
+  covered: boolean;
+  buffer: WebGLBuffer;
+  count: number;
+};
 type ChunkGpu = { batches: Batch[]; min: Vec3; max: Vec3; bricks: number };
 
 /** Beyond this distance (studs) a chunk draws plain boxes without studs (plan: Performance › stud LOD). */
@@ -49,7 +68,51 @@ export type Marker = {
   facing?: number;
 };
 
-export type FrameStats = { drawCalls: number; instances: number; chunksDrawn: number; chunks: number; ms: number };
+/**
+ * P27: a light that lights the bricks and characters around it: where it is, its colour (linear, already times
+ * its brightness), how far it reaches (studs) and whether it casts shadows.
+ */
+export type PointLight = { pos: Vec3; color: [number, number, number]; range: number; shadow?: boolean };
+/** lights drawn at once (the nearest and brightest); the first that casts shadows gets the shadow map */
+export const MAX_LIGHTS = 8;
+const SHADOW_SIZE = 256;
+const IDENTITY = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+/** the six faces of a cube map as cameras: [face target offset, forward, right, up] (GL's cube map layout) */
+const CUBE_FACES: [number, Vec3, Vec3, Vec3][] = [
+  [0, [1, 0, 0], [0, 0, -1], [0, -1, 0]],
+  [1, [-1, 0, 0], [0, 0, 1], [0, -1, 0]],
+  [2, [0, 1, 0], [1, 0, 0], [0, 0, 1]],
+  [3, [0, -1, 0], [1, 0, 0], [0, 0, -1]],
+  [4, [0, 0, 1], [1, 0, 0], [0, -1, 0]],
+  [5, [0, 0, -1], [-1, 0, 0], [0, -1, 0]],
+];
+
+/** The lights to draw this frame: the brightest near the focus first; one that casts shadows goes first. */
+export function pickLights(all: readonly PointLight[], focus: Vec3, max = MAX_LIGHTS, shadows = true): PointLight[] {
+  const score = (l: PointLight) => {
+    const d = Math.hypot(l.pos[0] - focus[0], l.pos[1] - focus[1], l.pos[2] - focus[2]);
+    const bright = Math.max(l.color[0], l.color[1], l.color[2]);
+    return (bright * l.range) / (1 + Math.max(0, d - l.range));
+  };
+  const near = all.filter((l) => l.range > 0 && Math.max(...l.color) > 0.001);
+  near.sort((a, b) => score(b) - score(a));
+  const picked = near.slice(0, max);
+  const s = shadows ? picked.findIndex((l) => l.shadow) : -1;
+  if (s > 0) picked.unshift(picked.splice(s, 1)[0]!);
+  return picked;
+}
+
+export type FrameStats = {
+  drawCalls: number;
+  instances: number;
+  chunksDrawn: number;
+  chunks: number;
+  ms: number;
+  /** P27 part 4: lights drawn, the most allowed, and whether a shadow was drawn this frame */
+  lights?: number;
+  maxLights?: number;
+  shadowed?: boolean;
+};
 
 const rgbCache = new Map<string, [number, number, number]>();
 /** v68 color: sRGB hex -> pow(c, 1.5). */
@@ -81,6 +144,9 @@ function compile(gl: WebGLRenderingContext, vs: string, fs: string) {
   const p = gl.createProgram()!;
   gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
   gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+  // the same attribute slots in every program, so the brick and shadow passes share their buffers
+  for (const [i, n] of ['aPosition', 'aNormal', 'aInstanceOffset', 'aInstanceColor'].entries())
+    gl.bindAttribLocation(p, i, n);
   gl.linkProgram(p);
   if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('Shader linking failed');
   return p;
@@ -106,11 +172,43 @@ export class Renderer {
   /** 12 matches v68's world detail; free-build maps use smoother studs. */
   segments = 12;
   lodDistance = LOD_DISTANCE;
+  /** P27 part 3: how far chunks are drawn (studs; a streamed big map sets it, and the fog closes in before it) */
+  viewDistance = Number.POSITIVE_INFINITY;
   floor = true;
   skySample: SkySample | null = null;
   snow = false;
+  /** P23: the particles of this frame (set before render) */
+  particles: ParticleBatch[] = [];
   seed = 73521;
   clock = 0;
+  /** P27: the lights of this frame (set before render), how dark the map is without them, and shadows on */
+  lights: PointLight[] = [];
+  darkness = 0;
+  /** P27 part 2: the map's fog (null: v68's haze) */
+  fog: FogParams | null = null;
+  private fogNow = { color: [0.1, 0.12, 0.16], near: 55, far: 120, max: 0.62, height: 0, ground: 0 };
+  shadows = true;
+  /** P27 part 4 (quality levels): lights drawn at once (up to MAX_LIGHTS), the shadow map's size, how far studs are
+   *  drawn (× lodDistance), the most screen pixels per CSS pixel, and the ground fog layer */
+  maxLights = MAX_LIGHTS;
+  shadowSize = SHADOW_SIZE;
+  detailScale = 1;
+  pixelRatio = 2;
+  groundFog = true;
+  private shadowAlloc = 0;
+  /** the lights drawn in the last frame (the first casts the shadow when `shadowed`) */
+  lit: PointLight[] = [];
+  shadowed = false;
+  private readonly shadowProg: WebGLProgram;
+  private readonly shu: Record<string, WebGLUniformLocation | null>;
+  private shadowCube: WebGLTexture | null = null;
+  private shadowFbo: WebGLFramebuffer | null = null;
+  private shadowDepth: WebGLRenderbuffer | null = null;
+  private shadowKey = '';
+  /** changes whenever a chunk's bricks change (the shadow map is drawn again) */
+  private chunkRev = 0;
+  /** uniform locations of other programs that share the brick fragment shader (characters) */
+  private lightLocs = new WeakMap<WebGLProgram, Record<string, WebGLUniformLocation | null>>();
   stats: FrameStats = { drawCalls: 0, instances: 0, chunksDrawn: 0, chunks: 0, ms: 0 };
 
   constructor(readonly canvas: HTMLCanvasElement) {
@@ -142,7 +240,21 @@ export class Renderer {
         'uExplore',
         'uFocus',
         'uPavement',
+        'uModel',
+        'uPL',
+        'uPC',
+        'uPLN',
+        'uDark',
+        'uShadow',
+        'uShadowOn',
+        'uShadowAt',
+        'uFogMax',
+        'uFogH',
       ].map((n) => [n, U(this.prog, n)]),
+    );
+    this.shadowProg = compile(gl, VERTEX, SHADOW_FRAGMENT);
+    this.shu = Object.fromEntries(
+      ['uMVP', 'uModel', 'uOffset', 'uInstances', 'uShadowAt', 'uPointSize'].map((n) => [n, U(this.shadowProg, n)]),
     );
     this.su = Object.fromEntries(
       [
@@ -160,6 +272,7 @@ export class Renderer {
         'uAspect',
         'uSeed',
         'uStudio',
+        'uDark',
       ].map((n) => [n, U(this.sky, n)]),
     );
     this.a = {
@@ -209,6 +322,18 @@ export class Renderer {
   }
 
   /** the mesh a marker draws: a down-pointing triangle, a cone or a box */
+  /** P23: one particle's mesh, centred on its point */
+  private particleMesh(shape: ParticleBatch['shape'], size: number): Mesh {
+    const key = `particle:${shape}:${size}`;
+    let m = this.meshes.get(key);
+    if (!m) {
+      const h = shape === 'brick' ? size * 1.2 : shape === 'stud' ? size * 0.7 : size * 0.4;
+      m = this.upload(plainBox(size, h, size, shape === 'stud' ? size * 0.3 : Math.min(0.04, size * 0.15)));
+      this.meshes.set(key, m);
+    }
+    return m;
+  }
+
   private markerMesh(m: Marker): Mesh {
     if (m.tri !== undefined) {
       // the facing is kept to 64 steps so a handful of meshes are cached
@@ -261,14 +386,27 @@ export class Renderer {
     const gl = this.gl;
     const groups = new Map<
       string,
-      { w: number; d: number; kind: RenderBrick['kind']; paved: boolean; values: number[] }
+      { w: number; d: number; kind: RenderBrick['kind']; paved: boolean; covered: boolean; values: number[] }
     >();
     const min: Vec3 = [Infinity, Infinity, Infinity];
     const max: Vec3 = [-Infinity, -Infinity, -Infinity];
+    // P27 part 3: bricks whose studs are all under other bricks of the chunk draw without studs
+    const cell = (x: number, z: number, y: number) => ((x + 4096) * 8192 + (z + 4096)) * 512 + y;
+    const bottoms = new Set<number>();
+    for (const b of bricks)
+      for (let i = 0; i < b.w; i++) for (let j = 0; j < b.d; j++) bottoms.add(cell(b.x + i, b.z + j, b.y));
+    const isCovered = (b: RenderBrick) => {
+      if (b.kind === 'tile') return false;
+      const top = b.y + (b.kind === 'brick' ? 3 : 1);
+      for (let i = 0; i < b.w; i++)
+        for (let j = 0; j < b.d; j++) if (!bottoms.has(cell(b.x + i, b.z + j, top))) return false;
+      return true;
+    };
     for (const b of bricks) {
       const paved = !!b.paved;
-      const k = `${b.w},${b.d},${b.kind},${paved}`;
-      const g = groups.get(k) ?? { w: b.w, d: b.d, kind: b.kind, paved, values: [] };
+      const covered = !paved && isCovered(b);
+      const k = `${b.w},${b.d},${b.kind},${paved},${covered}`;
+      const g = groups.get(k) ?? { w: b.w, d: b.d, kind: b.kind, paved, covered, values: [] };
       if (!groups.has(k)) groups.set(k, g);
       const c = brickCenter(b);
       g.values.push(c[0], c[1], c[2], ...brickRgb(b.color));
@@ -284,9 +422,18 @@ export class Renderer {
       const buffer = gl.createBuffer()!;
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(g.values), gl.STATIC_DRAW);
-      batches.push({ w: g.w, d: g.d, kind: g.kind, paved: g.paved, buffer, count: g.values.length / 6 });
+      batches.push({
+        w: g.w,
+        d: g.d,
+        kind: g.kind,
+        paved: g.paved,
+        covered: g.covered,
+        buffer,
+        count: g.values.length / 6,
+      });
     }
     this.chunks.set(key, { batches, min, max, bricks: bricks.length });
+    this.chunkRev++;
   }
 
   dropChunk(key: string) {
@@ -294,6 +441,7 @@ export class Renderer {
     if (!c) return;
     for (const b of c.batches) this.gl.deleteBuffer(b.buffer);
     this.chunks.delete(key);
+    this.chunkRev++;
   }
 
   clearChunks() {
@@ -411,7 +559,14 @@ export class Renderer {
     const t0 = performance.now();
     const gl = this.gl;
     this.stats = { drawCalls: 0, instances: 0, chunksDrawn: 0, chunks: this.chunks.size, ms: 0 };
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // P27: the lights near the focus; the first that casts shadows draws its shadow map first
+    this.lit = pickLights(this.lights, focus, Math.min(MAX_LIGHTS, this.maxLights), this.shadows && !!this.inst);
+    this.shadowed = !!this.lit[0]?.shadow && this.shadows && !!this.inst;
+    if (this.shadowed) this.drawShadowCube(this.lit[0]!);
+    this.stats.lights = this.lit.length;
+    this.stats.maxLights = Math.min(MAX_LIGHTS, this.maxLights);
+    this.stats.shadowed = this.shadowed;
+    const dpr = Math.min(window.devicePixelRatio || 1, this.pixelRatio);
     const w = Math.max(1, Math.round(this.canvas.clientWidth * dpr));
     const h = Math.max(1, Math.round(this.canvas.clientHeight * dpr));
     if (this.canvas.width !== w || this.canvas.height !== h) {
@@ -431,9 +586,31 @@ export class Renderer {
     gl.uniform3fv(this.u.uEye!, cam.eye);
     gl.uniform3fv(this.u.uLight!, s?.light ?? [0.5, 1, 0.6]);
     gl.uniform3fv(this.u.uAmbient!, s?.ambient ?? [0.36, 0.39, 0.43]);
-    gl.uniform3fv(this.u.uFog!, s?.horizon ?? [0.1, 0.12, 0.16]);
-    const fogNear = Math.max(55, cam.distance * 0.9);
-    gl.uniform2f(this.u.uFogRange!, fogNear, Math.max(120, cam.distance * 2.5));
+    // the fog of this frame: the map's (P27 part 2), else v68's haze that follows the camera's distance
+    const fogDark = 1 - this.darkness * 0.9;
+    const f = this.fog;
+    const fc = f?.color ?? s?.horizon ?? [0.1, 0.12, 0.16];
+    this.fogNow = {
+      color: [fc[0]! * fogDark, fc[1]! * fogDark, fc[2]! * fogDark],
+      near: f ? f.near : Math.max(55, cam.distance * 0.9),
+      far: f ? f.far : Math.max(120, cam.distance * 2.5),
+      max: f ? f.max : 0.62,
+      height: f?.height ?? 0,
+      ground: this.groundFog ? (f?.ground ?? 0) : 0,
+    };
+    // P27 part 3: where a streamed map's chunks end, the fog is whole (no visible edge)
+    if (Number.isFinite(this.viewDistance)) {
+      const fn = this.fogNow;
+      // measured from the eye: the view distance around what the camera looks at, plus the camera's own distance
+      const edge = this.viewDistance + (cam.distance ?? 0);
+      if (fn.far > edge || fn.max < 1) {
+        fn.far = Math.min(fn.far, edge);
+        fn.near = Math.min(fn.near, edge * 0.55);
+        fn.max = 1;
+      }
+    }
+    gl.uniformMatrix4fv(this.u.uModel!, false, IDENTITY);
+    this.applyLights(this.prog, this.u);
     gl.uniform1f(this.u.uSnow!, this.snow ? 1 : 0);
     gl.uniform1f(this.u.uNight!, s?.night ?? 0);
     gl.uniform1f(this.u.uParticle!, 0);
@@ -464,20 +641,35 @@ export class Renderer {
     if (this.inst) gl.uniform1f(this.u.uInstances!, 1);
     for (const c of this.chunks.values()) {
       if (!boxVisible(planes, c.min, c.max)) continue;
-      this.stats.chunksDrawn++;
       // distance from the eye to the nearest point of the chunk box
       const dx = Math.max(c.min[0] - cam.eye[0], 0, cam.eye[0] - c.max[0]);
       const dy = Math.max(c.min[1] - cam.eye[1], 0, cam.eye[1] - c.max[1]);
       const dz = Math.max(c.min[2] - cam.eye[2], 0, cam.eye[2] - c.max[2]);
-      const far = Math.hypot(dx, dy, dz) > this.lodDistance;
+      const dist = Math.hypot(dx, dy, dz);
+      if (dist > this.viewDistance + (cam.distance ?? 0)) continue;
+      this.stats.chunksDrawn++;
+      const far = dist > this.lodDistance * this.detailScale;
       for (const b of c.batches) {
         gl.uniform1f(this.u.uPavement!, b.paved ? 1 : 0);
-        const mesh = far && !b.paved ? this.lodShape(b.w, b.d, b.kind) : this.shape(b.w, b.d, b.kind, b.paved);
+        const mesh =
+          (far || b.covered) && !b.paved ? this.lodShape(b.w, b.d, b.kind) : this.shape(b.w, b.d, b.kind, b.paved);
         if (this.inst) this.drawInstanced(mesh, b.buffer, b.count);
       }
     }
     gl.uniform1f(this.u.uPavement!, 0);
     gl.uniform1f(this.u.uInstances!, 0);
+
+    // P23: particles, instanced by shape and size
+    if (this.particles.length && this.inst) {
+      gl.uniform1f(this.u.uInstances!, 1);
+      for (const b of this.particles) {
+        if (!b.count) continue;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.overlayBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, b.data, gl.DYNAMIC_DRAW);
+        this.drawInstanced(this.particleMesh(b.shape, b.size), this.overlayBuf, b.count);
+      }
+      gl.uniform1f(this.u.uInstances!, 0);
+    }
 
     for (const m of markers) {
       if (m.onTop) continue;
@@ -494,7 +686,7 @@ export class Renderer {
     }
 
     for (const o of overlays) {
-      if (o.model) gl.uniformMatrix4fv(this.u.uMVP!, false, multiply(mvp, o.model));
+      if (o.model) gl.uniformMatrix4fv(this.u.uModel!, false, o.model);
       if (o.alpha < 1) {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -503,7 +695,7 @@ export class Renderer {
       this.drawBrickList(o.bricks, o.alpha, o.flat, o.color);
       gl.disable(gl.BLEND);
       gl.depthFunc(gl.LESS);
-      if (o.model) gl.uniformMatrix4fv(this.u.uMVP!, false, mvp);
+      if (o.model) gl.uniformMatrix4fv(this.u.uModel!, false, IDENTITY);
     }
 
     if (lines.length) {
@@ -541,6 +733,135 @@ export class Renderer {
     return this.stats;
   }
 
+  /**
+   * P27: sets this frame's lights, darkness and shadow map on a program that uses the brick fragment shader (the
+   * bricks', or the characters' when drawn after begin()).
+   */
+  applyLights(prog: WebGLProgram, locs?: Record<string, WebGLUniformLocation | null>) {
+    const gl = this.gl;
+    let u = locs ?? this.lightLocs.get(prog);
+    if (!u) {
+      u = Object.fromEntries(
+        [
+          'uPL',
+          'uPC',
+          'uPLN',
+          'uDark',
+          'uShadow',
+          'uShadowOn',
+          'uShadowAt',
+          'uFog',
+          'uFogRange',
+          'uFogMax',
+          'uFogH',
+        ].map((n) => [n, gl.getUniformLocation(prog, n)]),
+      );
+      this.lightLocs.set(prog, u);
+    }
+    const pl = new Float32Array(MAX_LIGHTS * 4);
+    const pc = new Float32Array(MAX_LIGHTS * 4);
+    this.lit.forEach((l, i) => {
+      pl.set([l.pos[0], l.pos[1], l.pos[2], l.range], i * 4);
+      pc.set([l.color[0], l.color[1], l.color[2], 0], i * 4);
+    });
+    if (u.uPL) gl.uniform4fv(u.uPL, pl);
+    if (u.uPC) gl.uniform4fv(u.uPC, pc);
+    if (u.uPLN) gl.uniform1f(u.uPLN, this.lit.length);
+    if (u.uDark) gl.uniform1f(u.uDark, this.darkness);
+    // P27 part 2: the frame's fog (characters too, so they fade into it like the bricks)
+    const fg = this.fogNow;
+    if (u.uFog) gl.uniform3fv(u.uFog, fg.color);
+    if (u.uFogRange) gl.uniform2f(u.uFogRange, fg.near, fg.far);
+    if (u.uFogMax) gl.uniform1f(u.uFogMax, fg.max);
+    if (u.uFogH) gl.uniform2f(u.uFogH, fg.height, fg.ground);
+    const sh = this.shadowed && this.shadowCube;
+    if (u.uShadowOn) gl.uniform1f(u.uShadowOn, sh ? 1 : 0);
+    if (u.uShadow) {
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, sh ? this.shadowCube : null);
+      gl.uniform1i(u.uShadow, 1);
+      gl.activeTexture(gl.TEXTURE0);
+    }
+    if (u.uShadowAt && sh) {
+      const l = this.lit[0]!;
+      gl.uniform4f(u.uShadowAt, l.pos[0], l.pos[1], l.pos[2], l.range);
+    }
+  }
+
+  /** P27: the distance from the light to the nearest brick in every direction, drawn again when it or the bricks change */
+  private drawShadowCube(light: PointLight) {
+    const gl = this.gl;
+    const key = `${light.pos.map((v) => v.toFixed(2)).join(',')}|${light.range}|${this.chunkRev}`;
+    const size = this.shadowSize;
+    if (key === this.shadowKey && this.shadowCube && size === this.shadowAlloc) return;
+    this.shadowKey = key;
+    // a quality change asks for another size: make the map again
+    if (this.shadowCube && size !== this.shadowAlloc) {
+      gl.deleteTexture(this.shadowCube);
+      gl.deleteFramebuffer(this.shadowFbo);
+      gl.deleteRenderbuffer(this.shadowDepth);
+      this.shadowCube = null;
+    }
+    if (!this.shadowCube) {
+      this.shadowAlloc = size;
+      this.shadowCube = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, this.shadowCube);
+      for (let f = 0; f < 6; f++)
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      this.shadowFbo = gl.createFramebuffer()!;
+      this.shadowDepth = gl.createRenderbuffer()!;
+      gl.bindRenderbuffer(gl.RENDERBUFFER, this.shadowDepth);
+      gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, size, size);
+    }
+    gl.useProgram(this.shadowProg);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFbo);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.shadowDepth);
+    gl.viewport(0, 0, size, size);
+    gl.enable(gl.DEPTH_TEST);
+    gl.disable(gl.BLEND);
+    gl.depthMask(true);
+    const u = this.shu;
+    gl.uniformMatrix4fv(u.uModel!, false, IDENTITY);
+    gl.uniform3fv(u.uOffset!, [0, 0, 0]);
+    gl.uniform1f(u.uInstances!, 1);
+    gl.uniform4f(u.uShadowAt!, light.pos[0], light.pos[1], light.pos[2], light.range);
+    const proj = perspective(Math.PI / 2, 1, 0.05, light.range + 1);
+    const r = light.range;
+    const near = [...this.chunks.values()].filter(
+      (c) =>
+        light.pos[0] > c.min[0] - r &&
+        light.pos[0] < c.max[0] + r &&
+        light.pos[1] > c.min[1] - r &&
+        light.pos[1] < c.max[1] + r &&
+        light.pos[2] > c.min[2] - r &&
+        light.pos[2] < c.max[2] + r,
+    );
+    for (const [face, fwd, right, up] of CUBE_FACES) {
+      gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT0,
+        gl.TEXTURE_CUBE_MAP_POSITIVE_X + face,
+        this.shadowCube,
+        0,
+      );
+      // nothing in a direction: as far as the light reaches
+      gl.clearColor(1, 1, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      const mvp = multiply(proj, viewMatrix(light.pos, right, up, fwd));
+      gl.uniformMatrix4fv(u.uMVP!, false, mvp);
+      const planes = frustumPlanes(mvp);
+      for (const c of near) {
+        if (!boxVisible(planes, c.min, c.max)) continue;
+        for (const b of c.batches) this.drawInstanced(this.shape(b.w, b.d, b.kind, b.paved), b.buffer, b.count);
+      }
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
   /** Uploads a geometry as a mesh other renderers can draw (v68 debris uses a 1x1 brick). */
   meshOf(g: Geometry): Mesh {
     return this.upload(g);
@@ -569,6 +890,7 @@ export class Renderer {
     gl.uniform1f(u.uAspect!, aspect);
     gl.uniform1f(u.uSeed!, this.seed % 4096);
     gl.uniform1f(u.uStudio!, 0);
+    gl.uniform1f(u.uDark!, this.darkness);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.disableVertexAttribArray(this.a.sky);
     gl.depthMask(true);

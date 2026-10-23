@@ -1,0 +1,478 @@
+{
+  "id": "faces",
+  "title": "Faces and pictures course",
+  "steps": [
+    {
+      "id": "faces.make",
+      "title": "Grumpy Tom",
+      "body": "A minifig has a resting face and a face for each mood: Happy, Angry, Sad, Scared and Surprised. A dialogue line has a mood, and in Play its speaker shows that face, on the figure and in the dialogue box's portrait. You make Tom, a gate keeper, and give him his faces.",
+      "task": "Make Tom, a neighbour on the map.",
+      "target": "[data-tour=\"char-new\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterExists",
+        "args": "Tom"
+      },
+      "doItForMe": [
+        {
+          "fn": "dialogueVillager",
+          "args": {
+            "name": "Tom"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Make a character called Tom and put him on the map beside where the player starts (Brix's helper does both).",
+          "check": {
+            "kind": "state",
+            "test": "characterExists",
+            "args": "Tom"
+          },
+          "do": [
+            {
+              "fn": "dialogueVillager",
+              "args": {
+                "name": "Tom"
+              },
+              "say": "Tom, a neighbour on the map."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "right"
+    },
+    {
+      "id": "faces.tab",
+      "title": "The Face tab",
+      "body": "The Face tab shows a picture of each mood's face, and the preview looks at the head. Resting is the face he has when nothing is said; it is the same as the face in the Look tab.",
+      "task": "In the character sheet, click the tab “Face”.",
+      "target": "[data-tour=\"sheet-face\"]",
+      "check": {
+        "kind": "state",
+        "test": "sheetTab",
+        "args": "face"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"sheet-face\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the character sheet on the right, click the tab “Face”. Six pictures show his faces.",
+          "check": {
+            "kind": "state",
+            "test": "sheetTab",
+            "args": "face"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sheet-face\"]",
+              "say": "The Face tab"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "faces.angry",
+      "title": "His angry face",
+      "body": "Each mood starts from a sensible face (Angry frowns, Scared opens the eyes wide). Change the parts that make it his: the expression and the eyes. Everything else stays his resting face.",
+      "task": "Pick Angry and give it Wide eyes.",
+      "target": "[data-tour=\"face-mood-angry\"]",
+      "check": {
+        "kind": "state",
+        "test": "faceSet",
+        "args": {
+          "mood": "angry",
+          "key": "eyes",
+          "value": "Wide"
+        }
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"face-mood-angry\"]"
+        },
+        {
+          "click": "[data-tour=\"pick-face-angry-eyes\"]"
+        },
+        {
+          "click": "[data-tour=\"pick-face-angry-eyes-list\"] [data-value=\"Wide\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under “Face”, click the picture “Angry”. The preview shows his angry face.",
+          "do": [
+            {
+              "click": "[data-tour=\"face-mood-angry\"]",
+              "say": "Angry"
+            }
+          ]
+        },
+        {
+          "text": "Under “Angry face”, click the button beside “Eyes”, then click “Wide”.",
+          "check": {
+            "kind": "state",
+            "test": "faceSet",
+            "args": {
+              "mood": "angry",
+              "key": "eyes",
+              "value": "Wide"
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-face-angry-eyes\"]",
+              "say": "His angry eyes"
+            },
+            {
+              "click": "[data-tour=\"pick-face-angry-eyes-list\"] [data-value=\"Wide\"]",
+              "say": "Wide: glaring."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "faces.happy",
+      "title": "His happy face",
+      "body": "Happy grins by default. Tom laughs when he is happy.",
+      "task": "Pick Happy and give it the expression Laughing.",
+      "target": "[data-tour=\"face-mood-happy\"]",
+      "check": {
+        "kind": "state",
+        "test": "faceSet",
+        "args": {
+          "mood": "happy",
+          "key": "expression",
+          "value": "Laughing"
+        }
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"face-mood-happy\"]"
+        },
+        {
+          "click": "[data-tour=\"pick-face-happy-expression\"]"
+        },
+        {
+          "click": "[data-tour=\"pick-face-happy-expression-list\"] [data-value=\"Laughing\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click the picture “Happy”.",
+          "do": [
+            {
+              "click": "[data-tour=\"face-mood-happy\"]",
+              "say": "Happy"
+            }
+          ]
+        },
+        {
+          "text": "Click the button beside “Expression”, then click “Laughing”.",
+          "check": {
+            "kind": "state",
+            "test": "faceSet",
+            "args": {
+              "mood": "happy",
+              "key": "expression",
+              "value": "Laughing"
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-face-happy-expression\"]",
+              "say": "His happy expression"
+            },
+            {
+              "click": "[data-tour=\"pick-face-happy-expression-list\"] [data-value=\"Laughing\"]",
+              "say": "Laughing"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "faces.talk",
+      "title": "Hear him talk",
+      "body": "When a character says a line its mouth moves with the words: closed for m, b and p and between words, wide open for a and o, half open for the rest, and closed again when the line has appeared. It talks like this on its figure in Play, in the dialogue box's portrait and in cinematics, with the face of the line's mood.",
+      "task": "On the Face tab, with Happy picked, click “▶ Hear it talk” and watch Tom's mouth in the preview.",
+      "target": "[data-tour=\"voice-hear\"]",
+      "check": {
+        "kind": "state",
+        "test": "talkHeard"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"face-mood-happy\"]"
+        },
+        {
+          "click": "[data-tour=\"voice-hear\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the moods at the top of the Face tab, click “Happy”.",
+          "check": {
+            "kind": "state",
+            "test": "faceMoodIs",
+            "args": "happy"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"face-mood-happy\"]",
+              "say": "Happy"
+            }
+          ]
+        },
+        {
+          "text": "Under the moods, click “▶ Hear it talk”. A sample line appears letter by letter and Tom says it in the preview, close up, his mouth moving with the words.",
+          "check": {
+            "kind": "state",
+            "test": "talkHeard"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"voice-hear\"]",
+              "say": "▶ Hear it talk"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "faces.lines",
+      "title": "Lines with moods",
+      "body": "In a conversation's script a mood goes in brackets after the speaker: “Tom (angry): Who left the gate open?”. The list view shows it as the line's mood.",
+      "task": "Give Tom a conversation: an angry line, then a happy one.",
+      "target": "[data-tour=\"char-tab-dialogue\"]",
+      "check": {
+        "kind": "state",
+        "test": "talksWith",
+        "args": "Tom"
+      },
+      "doItForMe": [
+        {
+          "fn": "dialogueConversation",
+          "args": {
+            "character": "Tom"
+          }
+        },
+        {
+          "fn": "dialogueScript",
+          "args": {
+            "script": "== start\nTom (angry): Who left the gate open?\nTom (happy): Oh, it was you closing it! Thank you!\n-> end"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Brix's helper makes Tom a conversation and opens it in the Dialogue view.",
+          "do": [
+            {
+              "fn": "dialogueConversation",
+              "args": {
+                "character": "Tom"
+              },
+              "say": "Tom's conversation"
+            }
+          ]
+        },
+        {
+          "text": "In the Script view, write: == start, then Tom (angry): Who left the gate open?, then Tom (happy): Oh, it was you closing it! Thank you!, then -> end.",
+          "check": {
+            "kind": "state",
+            "test": "talksWith",
+            "args": "Tom"
+          },
+          "do": [
+            {
+              "fn": "dialogueScript",
+              "args": {
+                "script": "== start\nTom (angry): Who left the gate open?\nTom (happy): Oh, it was you closing it! Thank you!\n-> end"
+              },
+              "say": "An angry line, then a happy one."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "faces.play",
+      "title": "Talk to Tom",
+      "body": "In Play, Tom glares with wide eyes while he says his angry line, and his portrait in the box shows the same face; then he laughs.",
+      "task": "Play this map and talk to Tom (walk up to him and press T).",
+      "target": "[data-tour=\"menu-play\"]",
+      "check": {
+        "kind": "state",
+        "test": "talkMood",
+        "args": "angry"
+      },
+      "doItForMe": [
+        {
+          "action": "play.map"
+        },
+        {
+          "fn": "dialogueTalkTo",
+          "args": {
+            "name": "Tom"
+          }
+        }
+      ],
+      "placement": "bottom"
+    },
+    {
+      "id": "faces.picture",
+      "title": "A character from a picture",
+      "body": "Stop with F5. A photo, a drawing or a few words become three characters to pick from, made only of editor settings, so everything stays editable. With the AI builder set up Claude looks at the picture; without it the editor reads the words and takes the picture's main colours.",
+      "task": "On the Characters screen, press ✨ From a picture….",
+      "target": "[data-tour=\"char-from-picture\"]",
+      "check": {
+        "kind": "dom",
+        "selector": "[aria-label=\"Character from a picture\"]"
+      },
+      "doItForMe": [
+        {
+          "ui": "stop"
+        },
+        {
+          "ui": "workspace",
+          "value": "Characters"
+        },
+        {
+          "click": "[data-tour=\"char-from-picture\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Stop Play (F5), open the Characters screen, and under + New character press “✨ From a picture…”.",
+          "check": {
+            "kind": "dom",
+            "selector": "[aria-label=\"Character from a picture\"]"
+          },
+          "do": [
+            {
+              "ui": "stop"
+            },
+            {
+              "ui": "workspace",
+              "value": "Characters"
+            },
+            {
+              "click": "[data-tour=\"char-from-picture\"]",
+              "say": "From a picture"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "right"
+    },
+    {
+      "id": "faces.describe",
+      "title": "Describe it",
+      "body": "Drop a picture in the box, or describe the character. Create shows three matches, closest first, with what each part matched.",
+      "task": "In “Or describe it”, type a green owl with orange wings and press Create.",
+      "target": "[data-tour=\"fp-words\"]",
+      "check": {
+        "kind": "dom",
+        "selector": "[data-tour=\"fp-match-0\"]"
+      },
+      "doItForMe": [
+        {
+          "fill": "[data-tour=\"fp-words\"]",
+          "value": "a green owl with orange wings"
+        },
+        {
+          "click": "[data-tour=\"fp-create\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click the box “Or describe it” and type: a green owl with orange wings.",
+          "do": [
+            {
+              "fill": "[data-tour=\"fp-words\"]",
+              "value": "a green owl with orange wings",
+              "say": "A green owl with orange wings"
+            }
+          ]
+        },
+        {
+          "text": "Press “Create”. Three owls show on the right.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"fp-match-0\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"fp-create\"]",
+              "say": "Create"
+            }
+          ]
+        }
+      ],
+      "placement": "left"
+    },
+    {
+      "id": "faces.use",
+      "title": "Pick one",
+      "body": "The match you pick becomes a character of the game, opened in the studio: change anything you like. Undo takes it away again.",
+      "task": "Press Use this one on the closest match.",
+      "target": "[data-tour=\"fp-use-0\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterExists",
+        "args": "Green Owl"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"fp-use-0\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "On the first match (“Closest · Green Owl”), press “Use this one”. The owl opens in the Body tab.",
+          "check": {
+            "kind": "state",
+            "test": "characterExists",
+            "args": "Green Owl"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"fp-use-0\"]",
+              "say": "Use this one"
+            }
+          ]
+        }
+      ],
+      "placement": "left"
+    },
+    {
+      "id": "faces.done",
+      "title": "You can make faces and characters from pictures",
+      "body": "The Face tab has the resting face and one for each mood; lines with a mood show it in Play. ✨ From a picture is also in the Assets menu. Help › Help guide › Characters has every part.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "placement": "bottom"
+    }
+  ]
+}

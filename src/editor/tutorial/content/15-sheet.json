@@ -1,0 +1,407 @@
+{
+  "id": "sheet",
+  "title": "Character sheet course",
+  "steps": [
+    {
+      "id": "sheet.hero",
+      "title": "Your hero's sheet",
+      "body": "A character is one sheet: Look, Outfits, Stats, Moves, Animations, Voice, Dialogue and Behaviour, in tabs on the right of the Characters screen. You make Sir Brick, the player character, and fill in his sheet.",
+      "task": "Make Sir Brick, the player character.",
+      "target": "[data-tour=\"char-new\"]",
+      "check": {
+        "kind": "state",
+        "test": "isHero"
+      },
+      "doItForMe": [
+        {
+          "fn": "sheetMake",
+          "args": {
+            "name": "Sir Brick"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Press + New character, pick a preset, and press Make player character (right). Brix's helper names him Sir Brick.",
+          "check": {
+            "kind": "state",
+            "test": "isHero"
+          },
+          "do": [
+            {
+              "show": "[data-tour=\"char-new\"]",
+              "say": "New characters start from a preset."
+            },
+            {
+              "fn": "sheetMake",
+              "args": {
+                "name": "Sir Brick"
+              },
+              "say": "Sir Brick becomes the player character."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "right"
+    },
+    {
+      "id": "sheet.outfit",
+      "title": "An outfit",
+      "body": "Outfits are sets of clothes: each keeps only the parts that differ from the character's own look, and can change his stats. Wear one and change the look: the changes go into the outfit.",
+      "task": "Open Outfits, add an outfit called Armour with a knight helmet, and wear it.",
+      "target": "[data-tour=\"sheet-outfits\"]",
+      "check": {
+        "kind": "state",
+        "test": "outfitWorn",
+        "args": 1
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"sheet-outfits\"]"
+        },
+        {
+          "fn": "sheetOutfit",
+          "args": {
+            "name": "Armour",
+            "look": {
+              "hat": "Knight helmet",
+              "hatColor": "#89929a",
+              "shirtColor": "#8a949e"
+            },
+            "stats": {
+              "speed": -0.1,
+              "defence": 2
+            }
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Click the Outfits tab at the top of the sheet.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"sheet-outfits\"][aria-selected=\"true\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sheet-outfits\"]",
+              "say": "Outfits"
+            }
+          ]
+        },
+        {
+          "text": "Press + New outfit, name it Armour and press Wear; then in Look pick the Knight helmet: it goes into the outfit. Give it defence ± 2 and speed ± -0.1.",
+          "check": {
+            "kind": "state",
+            "test": "outfitWorn",
+            "args": 1
+          },
+          "do": [
+            {
+              "show": "[data-tour=\"outfit-new\"]",
+              "say": "+ New outfit"
+            },
+            {
+              "fn": "sheetOutfit",
+              "args": {
+                "name": "Armour",
+                "look": {
+                  "hat": "Knight helmet",
+                  "hatColor": "#89929a",
+                  "shirtColor": "#8a949e"
+                },
+                "stats": {
+                  "speed": -0.1,
+                  "defence": 2
+                }
+              },
+              "say": "Armour: a helmet and grey mail, a bit slower, harder to hurt."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "sheet.stats",
+      "title": "Stats",
+      "body": "Stats make the hero strong, fast and tough: hearts, stamina, speed, jump, strength (hit power), defence (8% less damage a point) and a level with an experience curve.",
+      "task": "In Stats, give Sir Brick 5 hearts and speed 1.2.",
+      "target": "[data-tour=\"sheet-stats\"]",
+      "check": {
+        "kind": "state",
+        "test": "statAtLeast",
+        "args": {
+          "stat": "health",
+          "value": 5
+        }
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"sheet-stats\"]"
+        },
+        {
+          "fn": "sheetStats",
+          "args": {
+            "health": 5,
+            "speed": 1.2
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Click Stats, then type 5 in Hearts and 1.2 in Speed.",
+          "check": {
+            "kind": "state",
+            "test": "statAtLeast",
+            "args": {
+              "stat": "health",
+              "value": 5
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sheet-stats\"]",
+              "say": "Stats"
+            },
+            {
+              "fn": "sheetStats",
+              "args": {
+                "health": 5,
+                "speed": 1.2
+              },
+              "say": "5 hearts, 20% faster."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "sheet.moves",
+      "title": "Fighting style",
+      "body": "Moves set how he fights: Balanced, Swift, Heavy or Defensive, fine-tuned with hit power and swing speed. The weapon is what he holds (Look › Gear & powers).",
+      "task": "In Moves, pick Heavy.",
+      "target": "[data-tour=\"sheet-moves\"]",
+      "check": {
+        "kind": "state",
+        "test": "moveStyle",
+        "args": "heavy"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"sheet-moves\"]"
+        },
+        {
+          "fn": "sheetMoves",
+          "args": {
+            "style": "heavy"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Click Moves, then Heavy: big hits, slower swings.",
+          "check": {
+            "kind": "state",
+            "test": "moveStyle",
+            "args": "heavy"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sheet-moves\"]",
+              "say": "Moves"
+            },
+            {
+              "fn": "sheetMoves",
+              "args": {
+                "style": "heavy"
+              },
+              "say": "Heavy: big hits."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "sheet.anim",
+      "title": "A victory dance",
+      "body": "Animations pick the clip for each action: idle (standing still), victory (a level up) and hurt now; walk, run, jump and attack with the animation state machine (P23).",
+      "task": "In Animations, set Victory to Cheer.",
+      "target": "[data-tour=\"sheet-animations\"]",
+      "check": {
+        "kind": "state",
+        "test": "animationSet",
+        "args": "victory"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"sheet-animations\"]"
+        },
+        {
+          "click": "[data-tour=\"pick-anim-victory\"]"
+        },
+        {
+          "click": "[data-tour=\"pick-anim-victory-list\"] [data-value=\"clp_emotecheer\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click the sheet tab Animations.",
+          "check": {
+            "kind": "state",
+            "test": "sheetTab",
+            "args": "animations"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sheet-animations\"]",
+              "say": "Animations"
+            }
+          ]
+        },
+        {
+          "text": "In the Victory card, click the clip button (Built-in motion). Every clip shows as a picture that moves while you point at it. Click Cheer: he cheers on a level up.",
+          "check": {
+            "kind": "state",
+            "test": "animationSet",
+            "args": "victory"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-anim-victory\"]",
+              "say": "The clip pictures"
+            },
+            {
+              "click": "[data-tour=\"pick-anim-victory-list\"] [data-value=\"clp_emotecheer\"]",
+              "say": "He cheers on a level up."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "sheet.voice",
+      "title": "A deep voice",
+      "body": "Voice sets how his lines sound in dialogue (pitch and blip), his footsteps and his hurt sound.",
+      "task": "In Voice, move Talk pitch down to 0.6.",
+      "target": "[data-tour=\"sheet-voice\"]",
+      "check": {
+        "kind": "state",
+        "test": "pitchBelow",
+        "args": 0.8
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"sheet-voice\"]"
+        },
+        {
+          "fn": "sheetVoice",
+          "args": {
+            "pitch": 0.6
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Click Voice and drag Talk pitch to 0.6 (deep).",
+          "check": {
+            "kind": "state",
+            "test": "pitchBelow",
+            "args": 0.8
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sheet-voice\"]",
+              "say": "Voice"
+            },
+            {
+              "fn": "sheetVoice",
+              "args": {
+                "pitch": 0.6
+              },
+              "say": "A deep voice."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "sheet.play",
+      "title": "Level up in Play",
+      "body": "In Play, Sir Brick has 5 hearts, wears his armour and walks faster. Logic's Give experience levels him up: “Level up!”, and he cheers.",
+      "task": "Press Play and give him 100 experience.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "levelAtLeast",
+        "args": 2
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        },
+        {
+          "fn": "sheetXp",
+          "args": {
+            "amount": 100
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Press ▶ Play (F5).",
+          "check": {
+            "kind": "play",
+            "event": "running"
+          },
+          "do": [
+            {
+              "ui": "play"
+            }
+          ]
+        },
+        {
+          "text": "Logic's Give experience (category Characters) gives him 100: level 2.",
+          "check": {
+            "kind": "state",
+            "test": "levelAtLeast",
+            "args": 2
+          },
+          "do": [
+            {
+              "fn": "sheetXp",
+              "args": {
+                "amount": 100
+              },
+              "say": "Level up!"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "bottom"
+    },
+    {
+      "id": "sheet.done",
+      "title": "A full character",
+      "body": "Sir Brick has an outfit, his own stats, a fighting style, a victory clip and a voice. Behaviour sets what other characters do on their own (walk around or stand still) and which heroes join the party (H switches in Play).",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "placement": "bottom",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": []
+    }
+  ]
+}

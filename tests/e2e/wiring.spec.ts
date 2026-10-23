@@ -100,6 +100,8 @@ test('wire a crate to a chest: hit the crate in Play and the chest opens; Make e
     .getByRole('option', { name: 'Knight' })
     .click();
   const props = page.getByRole('region', { name: 'Character properties' });
+  // Fights the hero lives in the sheet's Moves tab
+  await page.getByRole('tablist', { name: 'Character sheet' }).getByRole('tab', { name: 'Moves' }).click();
   // a new character is the hero when the game has none: make another so this one is a neighbour
   const enemy = props.locator('[data-tour="char-enemy"]');
   if (!(await enemy.count())) {

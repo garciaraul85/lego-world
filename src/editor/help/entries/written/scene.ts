@@ -6,6 +6,35 @@ const INS = area('Inspector');
 const VIEW = `${area('Viewport')} ${area('View')}`;
 
 export const SCENE: HelpEntry[] = [
+  {
+    id: 'scene.dialogue',
+    also: ['dialogue style', 'dialogue box', 'text speed', 'voice blip', 'speech bubbles', 'visual novel', 'subtitles'],
+    screen: 'scene',
+    kind: 'area',
+    name: 'Dialogue style',
+    purpose:
+      'How conversations look in this game: pick a style in the gallery — **Adventure** (a box at the bottom with a name tag), **Classic RPG** (a framed window with a portrait), **Visual novel** (big portraits), **Speech bubbles** (above the speaker), **Cinematic** (subtitles under letterbox bars), **Chat** (a phone), **Sign** (a plaque) or **Narrator** (a caption). Then how lines appear: letters per second, the voice blip and its pitch, lines that move on by themselves, portraits, colours and how choices are laid out.',
+    steps: [
+      'Open the **Project** tab and scroll to **Dialogue**.',
+      'Click a style card. Each conversation can still pick its own style (Characters › Dialogue), and signs read as a Sign.',
+      'Set **Text speed** (0: the whole line at once) and the **Voice blip**.',
+    ],
+    commands: ['project.update'],
+    match: [{ in: '[data-tour="game-dialogue"]' }],
+    related: ['characters.dialogue'],
+  },
+  {
+    id: 'scene.item.talk',
+    also: ['readable sign', 'book', 'read with e', 'sign conversation'],
+    screen: 'scene',
+    kind: 'field',
+    name: 'Read with E',
+    purpose:
+      'A sign that tells more: pick a conversation and the hero can read the sign with E in Play (“E · Read”). It shows in the Sign style unless the conversation picks its own, so a sign can hold a long text, a riddle with choices, or a book.',
+    commands: ['item.update'],
+    match: [{ in: '[data-tour="sign-conversation"]' }],
+    related: ['characters.dialogue'],
+  },
   // ---------- areas ----------
   {
     id: 'scene.tools',
@@ -233,8 +262,10 @@ export const SCENE: HelpEntry[] = [
     kind: 'view',
     name: 'Library categories',
     purpose:
-      'Assets, Characters, Cinematics, UI screens, Sounds and Music: pick what the library shows. (Bricks are in the Assets screen, where assets are built.)',
-    match: [{ in: DOCK, role: 'button', name: /^(Assets|Characters|Cinematics|UI screens|Sounds|Music) \d+$/ }],
+      'Assets, Characters, Cinematics, UI screens, Effects, Lights, Sounds and Music: pick what the library shows. (Bricks are in the Assets screen, where assets are built.)',
+    match: [
+      { in: DOCK, role: 'button', name: /^(Assets|Characters|Cinematics|UI screens|Effects|Lights|Sounds|Music) \d+$/ },
+    ],
   },
   {
     id: 'scene.assets.kind',
@@ -626,6 +657,18 @@ export const SCENE: HelpEntry[] = [
     commands: ['npc.place'],
     match: [{ sel: '[data-tour="dock-characters"]' }, { in: '[data-tour="dock-characters"]', name: /^Place / }],
     related: ['characters.enemy'],
+  },
+  {
+    id: 'scene.dock.effects',
+    also: ['place fire', 'place smoke', 'particle library', 'effects in the dock'],
+    screen: 'scene',
+    kind: 'list',
+    name: 'Effects in the dock',
+    purpose:
+      'Every effect, built-in and the game’s own, each with a picture that plays while the pointer is over it. **Place** puts one on the open map beside where the player starts; then move it like anything else, and change it on the right. The Effects workspace makes new ones.',
+    commands: ['item.add'],
+    match: [{ sel: '[data-tour="dock-effects"]' }, { in: '[data-tour="dock-effects"]', name: /^Place / }],
+    related: ['scene.item.effect', 'effects.screen'],
   },
   {
     id: 'scene.script',

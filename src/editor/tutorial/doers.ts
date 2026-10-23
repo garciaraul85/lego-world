@@ -2,9 +2,14 @@ import { BUILTIN_ASSETS, builtinAsset } from '../../builtin/assets';
 import { DEFAULT_EVENTS, DEFAULT_MIXER } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
+import type { BodyPlan, Bone } from '../../core/character/body';
+import { makeFamily } from '../../core/character/families';
+import { DEFAULT_STATS } from '../../core/character/sheet';
 import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
 import { progressOf } from '../../core/commands/handlers/progress';
+import { blankConversation, type Conversation } from '../../core/dialogue/schema';
+import { parseScript } from '../../core/dialogue/script';
 import { arrivalSpot, assetSpot, reachable } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
 import { allSaves, type Saving } from '../../core/save/save';
@@ -13,6 +18,8 @@ import {
   type Character,
   type Clip,
   type Gates,
+  type Instances,
+  type LightInstance,
   type LogicGraph,
   type MapDoc,
   type Mixer,
@@ -26,6 +33,7 @@ import { assetLibrary } from '../assets';
 import { savingOf } from '../panels/SavingSection';
 import { settleMove } from '../viewport/settle';
 import { buildInto } from '../workspaces/asset-studio/scratch';
+import { scriptNames } from '../workspaces/dialogue/model';
 import { newGraph } from '../workspaces/logic/model';
 import { CODING_DOERS } from './coding';
 import type { Do } from './schema';
@@ -37,6 +45,12 @@ const run = (c: Ctx, cmds: Command | Command[], label: string) => {
   if (!r.ok) throw new Error(r.error ?? label);
 };
 const map = (c: Ctx) => c.ed.mapId.value;
+const studioChr = (c: Ctx) => {
+  const id = c.ed.studioCharacter.value;
+  const chr = id ? c.ed.store.get<Character>(paths.character(id)) : null;
+  if (!chr) throw new Error('Pick a character of the game first.');
+  return chr;
+};
 const mapDoc = (c: Ctx, m = map(c)) => c.ed.store.get<MapDoc>(paths.map(m))!;
 const assetByName = (c: Ctx, name: string): Asset | null =>
   assetLibrary(c.ed).find((x) => x.asset.name === name)?.asset ?? BUILTIN_ASSETS.find((a) => a.name === name) ?? null;
@@ -251,6 +265,22 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     run(c, { type: 'asset.update', payload: { asset: { ...def, interactions } } }, 'Edit chest');
     c.ed.studioAsset.value = def.id;
   },
+  chestGivesGems(c, a) {
+    // P22 dialogue course: opening the chest adds gems (one more action on its first interaction)
+    const def = c.ed.store
+      .list('assets/')
+      .map((p) => c.ed.store.get<Asset>(p)!)
+      .find((x) => x.name === 'Treasure chest');
+    if (!def) throw new Error('Place the chest first.');
+    const amount = Number(a.amount ?? 5);
+    const interactions = def.interactions.map((it, i) =>
+      i === 0 && !it.do.some((x) => x.do === 'addVar' && x.var === 'gems')
+        ? { ...it, do: [...it.do, { do: 'addVar' as const, var: 'gems', value: amount }] }
+        : it,
+    );
+    run(c, { type: 'asset.update', payload: { asset: { ...def, interactions } } }, 'Chest gives gems');
+    c.ed.studioAsset.value = def.id;
+  },
   newCharacter(c, a) {
     const p = BUILTIN_CHARACTERS.find((x) => x.name === a.preset) ?? BUILTIN_CHARACTERS[0]!;
     const id = newId('character');
@@ -409,6 +439,396 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     );
     c.ed.selectedZone.value = z.id;
     c.ed.right.value = 'inspect';
+  },
+  // P22: the dialogue course
+  dialogueVillager(c, a) {
+    const name = String(a.name ?? 'Old Tom');
+    const has = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === name);
+    if (has) {
+      c.ed.studioCharacter.value = has.id;
+      return;
+    }
+    const look = BUILTIN_CHARACTERS.find((x) => /chef/i.test(x.name)) ?? BUILTIN_CHARACTERS[0]!;
+    const id = newId('character');
+    const sp = mapDoc(c).spawns[0];
+    const at = arrivalSpot(c.ed.store, map(c)) ?? (sp?.pos as [number, number, number] | undefined) ?? [0, 0.4, 0];
+    run(
+      c,
+      [
+        {
+          type: 'character.create',
+          payload: { character: { ...look, id, name, role: 'npc', profile: { ...look.profile, name } } },
+        },
+        {
+          type: 'npc.place',
+          payload: { map: map(c), character: id, pos: [at[0] + 3, at[1], at[2] + 3], heading: Math.PI },
+        },
+      ],
+      `Add ${name}`,
+    );
+    c.ed.studioCharacter.value = id;
+  },
+  dialogueConversation(c, a) {
+    const name = String(a.character ?? 'Old Tom');
+    const chr = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === name);
+    if (!chr) throw new Error(`Make ${name} first.`);
+    const open = chr.talk?.[0]?.conversation;
+    if (open && c.ed.store.has(paths.dialogue(open))) {
+      c.ed.dialogueId.value = open;
+      c.ed.charTab.value = 'dialogue';
+      return;
+    }
+    const id = newId('dialogue');
+    run(
+      c,
+      [
+        { type: 'dialogue.put', payload: { conversation: blankConversation(id, `${name} talk`, chr.id) } },
+        {
+          type: 'character.update',
+          payload: { character: { ...chr, talk: [...(chr.talk ?? []), { conversation: id }] } },
+        },
+      ],
+      'New conversation',
+    );
+    c.ed.studioCharacter.value = chr.id;
+    c.ed.dialogueId.value = id;
+    c.ed.charTab.value = 'dialogue';
+  },
+  dialogueScript(c, a) {
+    const id = c.ed.dialogueId.value;
+    const cur = id ? c.ed.store.get<Conversation>(paths.dialogue(id)) : null;
+    if (!cur) throw new Error('Open a conversation first.');
+    const r = parseScript(String(a.script), cur, scriptNames(c.ed));
+    if (r.errors.length) throw new Error(`Line ${r.errors[0]!.line}: ${r.errors[0]!.message}`);
+    run(c, { type: 'dialogue.put', payload: { conversation: r.conversation } }, 'Edit script');
+  },
+  // P22 part 2: the character sheet course
+  sheetMake(c, a) {
+    const name = String(a.name ?? 'Sir Brick');
+    const has = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === name);
+    if (has) {
+      c.ed.studioCharacter.value = has.id;
+      return;
+    }
+    const look = BUILTIN_CHARACTERS.find((x) => x.name === 'Explorer') ?? BUILTIN_CHARACTERS[0]!;
+    const id = newId('character');
+    run(
+      c,
+      [{ type: 'character.create', payload: { character: { ...look, id, name, profile: { ...look.profile, name } } } }],
+      `Add ${name}`,
+    );
+    run(c, { type: 'project.update', payload: { hero: id } }, 'Choose player character');
+    c.ed.studioCharacter.value = id;
+    c.ed.charTab.value = 'look';
+  },
+  sheetOutfit(c, a) {
+    const chr = studioChr(c);
+    const name = String(a.name ?? 'Armour');
+    const look = (a.look ?? {}) as Record<string, unknown>;
+    const others = (chr.outfits ?? []).filter((o) => o.name !== name);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: {
+          character: { ...chr, outfits: [...others, { name, look, stats: (a.stats ?? {}) as never }], outfit: name },
+        },
+      },
+      `Outfit ${name}`,
+    );
+    c.ed.sheetTab.value = 'outfits';
+  },
+  sheetStats(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: { character: { ...chr, stats: { ...DEFAULT_STATS, ...(chr.stats ?? {}), ...(a as object) } } },
+      },
+      'Stats',
+    );
+    c.ed.sheetTab.value = 'stats';
+  },
+  sheetMoves(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      { type: 'character.update', payload: { character: { ...chr, moves: { style: a.style, power: 1, speed: 1 } } } },
+      'Fighting style',
+    );
+    c.ed.sheetTab.value = 'moves';
+  },
+  sheetVoice(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: { character: { ...chr, voice: { ...(chr.voice ?? {}), pitch: Number(a.pitch) } } },
+      },
+      'Talk pitch',
+    );
+    c.ed.sheetTab.value = 'voice';
+  },
+  sheetAnimation(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: { character: { ...chr, animations: { ...(chr.animations ?? {}), [String(a.action)]: a.clip } } },
+      },
+      'Animation',
+    );
+    c.ed.sheetTab.value = 'animations';
+  },
+  sheetXp(c, a) {
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    s.giveXp(Number(a.amount ?? 100));
+  },
+  // P22 part 3: the creatures course
+  bodyMake(c, a) {
+    const name = String(a.name ?? 'Rex');
+    const family = String(a.family ?? 'fourLegs') as NonNullable<Character['body']>['family'];
+    const has = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === name);
+    if (has) {
+      c.ed.studioCharacter.value = has.id;
+      if (has.body?.family !== family && !has.body?.plan)
+        run(
+          c,
+          { type: 'character.update', payload: { character: { ...has, body: { ...(has.body ?? {}), family } } } },
+          `Body: ${family}`,
+        );
+    } else {
+      const id = newId('character');
+      const sp = mapDoc(c).spawns[0];
+      const at = arrivalSpot(c.ed.store, map(c)) ?? (sp?.pos as [number, number, number] | undefined) ?? [0, 0.4, 0];
+      run(
+        c,
+        [
+          {
+            type: 'character.create',
+            payload: { character: { id, name, role: 'npc', profile: { name }, body: { family } } },
+          },
+          {
+            type: 'npc.place',
+            payload: { map: map(c), character: id, pos: [at[0] + 3, at[1], at[2] + 3], heading: Math.PI },
+          },
+        ],
+        `Add ${name}`,
+      );
+      c.ed.studioCharacter.value = id;
+    }
+    c.ed.charTab.value = 'look';
+    c.ed.sheetTab.value = 'body';
+  },
+  bodyParams(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: {
+          character: {
+            ...chr,
+            body: { ...(chr.body ?? {}), params: { ...(chr.body?.params ?? {}), ...(a as object) } },
+          },
+        },
+      },
+      'Body sliders',
+    );
+  },
+  bodyColors(c, a) {
+    const chr = studioChr(c);
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: {
+          character: {
+            ...chr,
+            body: { ...(chr.body ?? {}), colors: { ...(chr.body?.colors ?? {}), ...(a as object) } },
+          },
+        },
+      },
+      'Body colours',
+    );
+  },
+  bodyEditSkeleton(c) {
+    const chr = studioChr(c);
+    if (chr.body?.plan) return;
+    const family = chr.body?.family ?? 'fourLegs';
+    const made = makeFamily(family, chr.body?.params);
+    if (!made) throw new Error('Pick a family first.');
+    const plan = { id: newId('bodyplan'), name: `${chr.name} body`.slice(0, 40), family, ...made };
+    const { family: _f, ...keep } = chr.body ?? {};
+    run(
+      c,
+      [
+        { type: 'bodyplan.put', payload: { plan } },
+        { type: 'character.update', payload: { character: { ...chr, body: { ...keep, plan: plan.id } } } },
+      ],
+      'Edit the skeleton',
+    );
+    c.ed.bodyBones.value = true;
+  },
+  bodyBone(c, a) {
+    const chr = studioChr(c);
+    const plan = chr.body?.plan ? c.ed.store.get<BodyPlan>(paths.bodyplan(chr.body.plan)) : null;
+    if (!plan) throw new Error('Edit the skeleton first.');
+    const name = String(a.name ?? 'horn');
+    const bone = {
+      name,
+      parent: String(a.parent ?? 'head'),
+      at: (a.at ?? [0, 1.6, 0]) as Bone['at'],
+      role: (a.role ?? 'other') as Bone['role'],
+      swing: Number(a.swing ?? 0),
+    };
+    const bricks = a.brick ? [{ bone: name, ...(a.brick as object) } as BodyPlan['bricks'][number]] : [];
+    const has = plan.bones.some((b) => b.name === name);
+    run(
+      c,
+      {
+        type: 'bodyplan.put',
+        payload: {
+          plan: {
+            ...plan,
+            bones: has ? plan.bones.map((b) => (b.name === name ? bone : b)) : [...plan.bones, bone],
+            bricks: [...plan.bricks.filter((k) => k.bone !== name), ...bricks],
+          },
+        },
+      },
+      `Add ${name}`,
+    );
+    c.ed.bodyBone.value = name;
+  },
+  bodyBoneSet(c, a) {
+    const chr = studioChr(c);
+    const plan = chr.body?.plan ? c.ed.store.get<BodyPlan>(paths.bodyplan(chr.body.plan)) : null;
+    if (!plan) throw new Error('Edit the skeleton first.');
+    const name = String(a.bone);
+    const { bone: _b, ...set } = a as Record<string, unknown>;
+    run(
+      c,
+      {
+        type: 'bodyplan.put',
+        payload: { plan: { ...plan, bones: plan.bones.map((b) => (b.name === name ? { ...b, ...set } : b)) } },
+      },
+      `Bone ${name}`,
+    );
+    c.ed.bodyBone.value = name;
+  },
+  dialogueTalkTo(c, a) {
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const n = s.world.npcs.find((x) => String(x.profile.name ?? '') === String(a.name)) ?? s.world.npcs[0];
+    if (!n) throw new Error('Nobody is on this map.');
+    s.placeAt([n.state.x, n.state.y + 0.2, n.state.z - 2], 0);
+    s.talk();
+  },
+  // P27 part 3: the big worlds course
+  startOnThisMap(c) {
+    const m = mapDoc(c);
+    run(
+      c,
+      { type: 'project.update', payload: { entryMap: m.id, entrySpawn: m.spawns[0]?.id ?? null } },
+      'project.update',
+    );
+  },
+  tripToFirstMap(c) {
+    // what walking through a gate does: the hero goes to the map (behind a loading screen if it is not loaded)
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const first = c.ed.store.get<Gates>(paths.gates)?.mapOrder[0];
+    if (first) s.goTo(first, '');
+  },
+  playIfStopped(c) {
+    // P27 part 4: what pressing ▶ Play does, unless the game is already playing
+    if (!c.ed.session.value) c.ui.play('engine');
+  },
+  walkFar(c) {
+    // what holding W does: the hero walks out of the clearing (placed on the ground 80 studs north)
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const sp = s.world.doc.spawns[0]?.pos ?? [0, 0, 0];
+    s.placeAt([sp[0] + 0.5, 60, sp[2] - 80.5], Math.PI);
+  },
+  // P27 part 1: the lights course
+  lightZone(c) {
+    // what drawing a zone around the start and adding the action does: entering it switches the crystal on
+    const m = mapDoc(c);
+    const sp = m.spawns[0]?.pos ?? [0, 0.4, 0];
+    const inst = c.ed.store.get<Instances>(paths.instances(map(c)))?.items ?? [];
+    const crystal = inst.find((i) => i.kind === 'light' && !i.on) as LightInstance | undefined;
+    if (!crystal) throw new Error('Place a light and switch it off first.');
+    let zone = m.zones.find((z) => z.tags.includes('Lights on'));
+    if (!zone) {
+      run(
+        c,
+        {
+          type: 'map.addZone',
+          payload: {
+            map: map(c),
+            zone: { min: [sp[0] - 5, sp[1], sp[2] - 5], max: [sp[0] + 5, sp[1] + 4, sp[2] + 5], tags: ['Lights on'] },
+          },
+        },
+        'Add trigger zone',
+      );
+      zone = mapDoc(c).zones.find((z) => z.tags.includes('Lights on'));
+    }
+    if (!zone) throw new Error('The zone could not be made.');
+    run(
+      c,
+      {
+        type: 'map.updateZone',
+        payload: {
+          map: map(c),
+          zone: zone.id,
+          patch: { onEnter: [{ do: 'lightOn', name: crystal.name ?? crystal.id, on: 'on' }] },
+        },
+      },
+      'Zone switches the light on',
+    );
+    c.ed.selectedZone.value = zone.id;
+    c.ed.right.value = 'inspect';
+  },
+  // P23 part 4: the posing course
+  stateOwnClip(c, a) {
+    // what picking it in the state's clip list does: the clip you made (the newest of your own) for that state
+    const chr = studioChr(c);
+    const own = c.ed.store.list('clips/').map((p) => c.ed.store.get<Clip>(p)!);
+    const clip = own.find((x) => x.id === c.ed.studioClip.value) ?? own.at(-1);
+    if (!clip) throw new Error('Make a clip first (Clips › + New).');
+    const state = String(a.state ?? 'idle') as keyof NonNullable<Character['animations']>;
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: { character: { ...chr, animations: { ...chr.animations, [state]: clip.id } } },
+      },
+      `${state} clip`,
+    );
+  },
+  dialogueStyle(c, a) {
+    run(
+      c,
+      { type: 'project.update', payload: { dialogue: { ...(c.ed.store.manifest.dialogue ?? {}), style: a.style } } },
+      'Dialogue style',
+    );
   },
   // P26: the saving course
   setSaving(c, a) {

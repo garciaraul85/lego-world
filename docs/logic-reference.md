@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (61 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (80 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -148,6 +148,33 @@ Runs when the player unlocks an achievement (empty: any of them).
 
 - Settings: Achievement id (string, optional)
 - Code: `on("achievement", { achievement: … }, (e) => { … });`
+
+### On choice made
+
+`event.onChoice` · event
+
+Runs when the player picks an option in a conversation (empty: any conversation; option: only when the option has this text).
+
+- Settings: Conversation (dialogue, optional), Option text (string, optional)
+- Code: `on("choice", { conversation: …, option: … }, (e) => { … });`
+
+### On conversation end
+
+`event.onConversationEnd` · event
+
+Runs when a conversation ends (empty: any conversation): the last line was read, a choice led to the end, or the hero walked away.
+
+- Settings: Conversation (dialogue, optional)
+- Code: `on("conversationEnd", { conversation: … }, (e) => { … });`
+
+### On level up
+
+`event.onLevelUp` · event
+
+Runs when the hero reaches a new level (Give experience).
+
+- Outputs: level (number)
+- Code: `on("levelUp", (e) => { … });`
 
 ## Flow
 
@@ -598,3 +625,155 @@ The player finished the game: it counts as finished (best scores are kept, new g
 From now on, Retry (after game over) and falling off the world bring the hero back to where they stand now.
 
 - Code: `game.setCheckpoint();`
+
+## Dialogue
+
+### Start conversation
+
+`dialogue.start` · action
+
+Starts a conversation, as if the hero had talked to someone: its lines, choices and actions play in the game’s dialogue style. The hero stands still until it ends.
+
+- Settings: Conversation (dialogue)
+- Code: `dialogue.start(conversation);`
+
+## Characters
+
+### Give experience
+
+`character.giveXp` · action
+
+Gives the hero experience points. Reaching the next level (its sheet’s experience curve) says “Level up!”, plays its victory clip and fires On level up. Read them as the variables xp and level.
+
+- Inputs: amount (number)
+- Code: `hero.giveXp(amount);`
+
+### Change outfit
+
+`character.setOutfit` · action
+
+The hero puts on one of the outfits on its sheet (Characters › Outfits): its look and the outfit’s stat bonuses change. Empty: its own clothes.
+
+- Settings: Outfit name (string, optional)
+- Code: `hero.setOutfit(outfit);`
+
+### Switch hero
+
+`character.switchHero` · action
+
+Plays as the next hero of the party (Project › Party), as pressing H does.
+
+- Code: `hero.switch();`
+
+## Effects
+
+### Play effect
+
+`effect.play` · action
+
+Plays an effect (sparks, fire, a level-up burst…) at the hero, or at an object, a neighbour or an effect placed on the map, by its name. A stream effect (fire, smoke) keeps going for its own length; for one that keeps going, place it on the map and use Start effect.
+
+- Settings: Effect (effect), Where (string, optional)
+- Code: `effects.play(effect, at);`
+
+### Start effect
+
+`effect.start` · action
+
+Starts an effect placed on the map (by its name), as if it had been switched on: a stream keeps going, a burst plays on its interval, while the hero is near.
+
+- Settings: Placed effect (string)
+- Code: `effects.start(name);`
+
+### Stop effect
+
+`effect.stop` · action
+
+Stops an effect placed on the map (by its name): no new particles; the ones flying finish their life.
+
+- Settings: Placed effect (string)
+- Code: `effects.stop(name);`
+
+### Screen effect
+
+`screen.effect` · action
+
+Plays a screen effect: the camera shakes, the screen flashes or fades, the game freezes for a moment (hit-stop) or runs in slow motion. Use Fade to black, then Teleport, then Fade from black to move the hero out of sight.
+
+- Settings: Screen effect (screenEffect)
+- Code: `screen.effect(effect);`
+
+### Set screen mood
+
+`screen.mood` · action
+
+Changes the mood of this map while the game plays: a colour grade over the view, dark edges (vignette), and something drifting across the screen. Going to another map brings back that map’s own mood.
+
+- Settings: Colour (grade), Dark edges (0–1) (number), Drifting (drift), How much (0–1) (number)
+- Code: `screen.mood(grade, vignette, drift, amount);`
+
+### Clear the screen
+
+`screen.clear` · action
+
+Stops every screen effect at once (a fade to black that is holding, a shake, slow motion) and brings back the map’s own mood.
+
+- Code: `screen.clear();`
+
+## Lights
+
+### Light on
+
+`light.on` · action
+
+Switches a light placed on the map on (by its name): it lights the bricks and characters around it again. An asset that gives light (a torch, a lamp) is switched by its name too.
+
+- Settings: Light (string)
+- Code: `lights.on(name);`
+
+### Light off
+
+`light.off` · action
+
+Switches a light placed on the map off (by its name): the place around it goes as dark as the map.
+
+- Settings: Light (string)
+- Code: `lights.off(name);`
+
+### Switch light
+
+`light.toggle` · action
+
+Switches a light placed on the map over: on if it was off, off if it was on (a lever that works both ways).
+
+- Settings: Light (string)
+- Code: `lights.toggle(name);`
+
+### Set darkness
+
+`light.darkness` · action
+
+How dark this map is without its lights, while the game plays: 0 lit by its sky as usual, 1 pitch black (a cave as the torch goes out). Leaving the map puts it back.
+
+- Settings: Darkness (0–1) (number)
+- Code: `lights.darkness(amount);`
+
+## Sky
+
+### Set time of day
+
+`sky.time` · action
+
+Moves the sun to a time of day — day, noon, evening or night — and the day goes on from there at the map’s day length. Lights that shine only at night come on as it gets dark.
+
+- Settings: Time of day (time)
+- Code: `sky.time(time);`
+
+### Set fog
+
+`sky.fog` · action
+
+Changes the fog while the game plays: a kind of fog (haze, mist, thick fog, ground fog, swamp, smoke), none, or back to the map’s own. Leaving the map puts it back.
+
+- Settings: Fog (fog)
+- Code: `sky.fog(fog);`

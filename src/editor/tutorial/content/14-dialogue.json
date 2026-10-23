@@ -1,0 +1,532 @@
+{
+  "id": "dialogue",
+  "title": "Dialogue course",
+  "steps": [
+    {
+      "id": "dialogue.villager",
+      "title": "Someone to talk to",
+      "body": "Conversations belong to characters. A character placed on a map is a neighbour the hero can walk up to and talk to (T). You add Old Tom, a villager, next to where the hero arrives; then you write what he says.",
+      "task": "Add Old Tom to the map.",
+      "target": "[data-tour=\"char-new\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterExists",
+        "args": "Old Tom"
+      },
+      "doItForMe": [
+        {
+          "fn": "dialogueVillager",
+          "args": {
+            "name": "Old Tom"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In Characters a new character starts from a preset (+ New character). Here Brix's helper makes Old Tom from the Chef preset and places him near the arrival spot.",
+          "check": {
+            "kind": "state",
+            "test": "characterExists",
+            "args": "Old Tom"
+          },
+          "do": [
+            {
+              "show": "[data-tour=\"char-new\"]",
+              "say": "New characters start here."
+            },
+            {
+              "fn": "dialogueVillager",
+              "args": {
+                "name": "Old Tom"
+              },
+              "say": "Old Tom joins the game, next to the arrival."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "right"
+    },
+    {
+      "id": "dialogue.new",
+      "title": "A new conversation",
+      "body": "The Dialogue tab shows the game's conversations. + New (under Conversations, on the left) writes one for the open character and puts it in his Talk list, so talking to him plays it.",
+      "task": "Open the Dialogue tab, then press + New under Conversations.",
+      "target": "[data-tour=\"dialogue-new\"]",
+      "check": {
+        "kind": "state",
+        "test": "talksWith",
+        "args": "Old Tom"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"char-tab-dialogue\"]"
+        },
+        {
+          "fn": "dialogueConversation",
+          "args": {
+            "character": "Old Tom"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Click the Dialogue tab at the top of the middle area.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"char-tab-dialogue\"][aria-selected=\"true\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"char-tab-dialogue\"]",
+              "say": "The Dialogue view of the Character studio."
+            }
+          ]
+        },
+        {
+          "text": "Under Conversations on the left, press + New. A conversation called “Old Tom talk” opens with one line.",
+          "check": {
+            "kind": "state",
+            "test": "talksWith",
+            "args": "Old Tom"
+          },
+          "do": [
+            {
+              "show": "[data-tour=\"dialogue-new\"]",
+              "say": "+ New writes a conversation for Old Tom."
+            },
+            {
+              "fn": "dialogueConversation",
+              "args": {
+                "character": "Old Tom"
+              }
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "right"
+    },
+    {
+      "id": "dialogue.script",
+      "title": "Write it as a script",
+      "body": "Script shows the conversation as plain text for writers: == starts a section, “Old Tom (happy): …” is a line, * lines are the options of a choice (-> where each goes), > lines are actions (add, give, like), and [if …] makes anything conditional. Apply puts it back.",
+      "task": "Open Script, write Old Tom's conversation, press Apply.",
+      "target": "[data-tour=\"dialogue-script\"]",
+      "check": {
+        "kind": "state",
+        "test": "conversationHas",
+        "args": {
+          "choice": true,
+          "condition": true,
+          "action": true
+        }
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"dialogue-view-script\"]"
+        },
+        {
+          "fn": "dialogueScript",
+          "args": {
+            "script": "== start\n[if talks > 0] Old Tom (happy): Back again, {hero.name}?\nOld Tom: Welcome, traveller! Mind the bridge, it wobbles.\n* What bridge? -> bridge\n* Buy a map (5 gems) [if gems >= 5] [grey] -> map\n* Bye! -> end\n\n== bridge\n> like +5\nOld Tom: The old one to the east. Cross it slowly.\n\n== map\n> add gems -5\n> give map\nOld Tom (happy): Here you go. Don't get lost!"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Click Script in the bar above the conversation.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"dialogue-view-script\"][aria-checked=\"true\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"dialogue-view-script\"]",
+              "say": "The same conversation as text."
+            }
+          ]
+        },
+        {
+          "text": "Replace the text with Old Tom's script: a greeting that changes the second time (talks > 0), a choice of three, and two sections the options lead to. Press Apply (or Ctrl Enter).",
+          "check": {
+            "kind": "state",
+            "test": "conversationHas",
+            "args": {
+              "choice": true,
+              "condition": true,
+              "action": true
+            }
+          },
+          "do": [
+            {
+              "show": "[data-tour=\"dialogue-script\"]",
+              "say": "Type the script here, then Apply."
+            },
+            {
+              "fn": "dialogueScript",
+              "args": {
+                "script": "== start\n[if talks > 0] Old Tom (happy): Back again, {hero.name}?\nOld Tom: Welcome, traveller! Mind the bridge, it wobbles.\n* What bridge? -> bridge\n* Buy a map (5 gems) [if gems >= 5] [grey] -> map\n* Bye! -> end\n\n== bridge\n> like +5\nOld Tom: The old one to the east. Cross it slowly.\n\n== map\n> add gems -5\n> give map\nOld Tom (happy): Here you go. Don't get lost!"
+              }
+            }
+          ]
+        }
+      ],
+      "code": "== start\n[if talks > 0] Old Tom (happy): Back again, {hero.name}?\nOld Tom: Welcome, traveller! Mind the bridge, it wobbles.\n* What bridge? -> bridge\n* Buy a map (5 gems) [if gems >= 5] [grey] -> map\n* Bye! -> end\n\n== bridge\n> like +5\nOld Tom: The old one to the east. Cross it slowly.\n\n== map\n> add gems -5\n> give map\nOld Tom (happy): Here you go. Don't get lost!",
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "dialogue.list",
+      "title": "The same, as a list",
+      "body": "List shows each step as a row: who says it and their mood, the text, and an “if” chip; choices show their options with where each goes. Graph shows sections as boxes with arrows. All three views edit the same conversation.",
+      "task": "Click List, then Graph, to see the same conversation two other ways.",
+      "target": "[data-tour=\"dialogue-view-list\"]",
+      "check": {
+        "kind": "dom",
+        "selector": "[data-tour=\"dialogue-view-graph\"][aria-checked=\"true\"]"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"dialogue-view-list\"]"
+        },
+        {
+          "click": "[data-tour=\"dialogue-view-graph\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click List: the script became rows you can edit one by one.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"dialogue-view-list\"][aria-checked=\"true\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"dialogue-view-list\"]",
+              "say": "Each line, choice and action is a row."
+            }
+          ]
+        },
+        {
+          "text": "Click Graph: start, bridge and map are boxes, the options are arrows.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"dialogue-view-graph\"][aria-checked=\"true\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"dialogue-view-graph\"]",
+              "say": "Sections as boxes, choices as arrows."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "dialogue.preview",
+      "title": "Try every branch",
+      "body": "Preview plays the conversation here. Under “Try it with…” set the values its conditions read: talks (how often the hero talked to Old Tom before) and gems. With 0 gems “Buy a map” is greyed out; with 5 it works.",
+      "task": "Press ▶ Preview and play the conversation.",
+      "target": "[data-tour=\"dialogue-preview-btn\"]",
+      "check": {
+        "kind": "dom",
+        "selector": "[data-tour=\"dialogue-preview\"]"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"dialogue-preview-btn\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press ▶ Preview at the top right of the conversation. Click the box to move on, click an option to pick it.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"dialogue-preview\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"dialogue-preview-btn\"]",
+              "say": "The conversation plays beside the editor."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "dialogue.style",
+      "title": "How it looks",
+      "body": "Project › Dialogue sets the look for the whole game: eight styles, text speed, the voice blip and its pitch, lines that move on by themselves, portraits and colours. A conversation can still pick its own style.",
+      "task": "In Project › Dialogue, pick Speech bubbles.",
+      "target": "[data-tour=\"game-dialogue\"]",
+      "check": {
+        "kind": "state",
+        "test": "dialogueStyleIs",
+        "args": "bubble"
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "project"
+        },
+        {
+          "fn": "dialogueStyle",
+          "args": {
+            "style": "bubble"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Open the Project tab (right) and scroll to Dialogue.",
+          "do": [
+            {
+              "ui": "right",
+              "value": "project"
+            },
+            {
+              "show": "[data-tour=\"game-dialogue\"]",
+              "say": "The style gallery."
+            }
+          ]
+        },
+        {
+          "text": "Click the Speech bubbles card.",
+          "check": {
+            "kind": "state",
+            "test": "dialogueStyleIs",
+            "args": "bubble"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"dialogue-style-bubble\"]",
+              "say": "Bubbles above the speaker's head."
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left",
+      "setup": [
+        {
+          "ui": "right",
+          "value": "project"
+        }
+      ]
+    },
+    {
+      "id": "dialogue.gems",
+      "title": "Gems to buy a map",
+      "body": "Buying the map needs 5 gems, and nothing in this world gives any yet: gems is just a number the game keeps (a variable). You place a Treasure chest and make opening it add 5 to gems, so in Play the hero can open the chest, then buy the map from Old Tom.",
+      "task": "Place a Treasure chest and make opening it add 5 to “gems”.",
+      "target": "[data-tour=\"asset-interactions\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetAdds",
+        "args": {
+          "name": "Treasure chest",
+          "var": "gems",
+          "value": 5
+        }
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "tool",
+          "value": "asset"
+        },
+        {
+          "fn": "placeAsset",
+          "args": {
+            "name": "Treasure chest"
+          }
+        },
+        {
+          "fn": "chestGivesGems",
+          "args": {
+            "amount": 5
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In the Scene, press Place (B), pick “Treasure chest” in the dock's Assets tab and click the ground near Old Tom.",
+          "check": {
+            "kind": "state",
+            "test": "placedAsset",
+            "args": "Treasure chest"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            },
+            {
+              "ui": "tool",
+              "value": "asset"
+            },
+            {
+              "fn": "placeAsset",
+              "args": {
+                "name": "Treasure chest"
+              },
+              "say": "A Treasure chest on the map, near the start."
+            }
+          ]
+        },
+        {
+          "text": "Double-click the chest (or right-click it › Edit asset). The Assets workspace opens with the Treasure chest on the build plate.",
+          "check": {
+            "kind": "state",
+            "test": "studioAssetIs",
+            "args": "Treasure chest"
+          },
+          "do": [
+            {
+              "fn": "editAsset",
+              "args": {
+                "name": "Treasure chest"
+              },
+              "say": "The Treasure chest, open in the Assets workspace."
+            }
+          ]
+        },
+        {
+          "text": "In the Asset properties panel on the right, scroll down to “Interactions”. In its first box (“lid · when closed”), click “+ Action”. A new row appears at the bottom of that box.",
+          "check": {
+            "kind": "state",
+            "test": "assetActions",
+            "args": {
+              "name": "Treasure chest",
+              "atLeast": 4
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"asset-interactions\"] .interaction .actions-field > button.btn",
+              "say": "“+ Action” in the first box of Interactions."
+            }
+          ]
+        },
+        {
+          "text": "In the new row, open the drop-down “Action” and pick “Add to variable”. The row shows a Variable box (score) and an Amount (1).",
+          "check": {
+            "kind": "state",
+            "test": "assetDoes",
+            "args": {
+              "name": "Treasure chest",
+              "does": "addVar"
+            }
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type select[aria-label=\"Action\"]",
+              "value": "addVar",
+              "say": "Action: Add to variable."
+            }
+          ]
+        },
+        {
+          "text": "Click the Variable box, replace “score” with “gems” and press Enter. Then click Amount, type 5 and press Enter.",
+          "check": {
+            "kind": "state",
+            "test": "assetAdds",
+            "args": {
+              "name": "Treasure chest",
+              "var": "gems",
+              "value": 5
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type input[aria-label=\"Variable\"]",
+              "value": "gems",
+              "say": "Variable: gems."
+            },
+            {
+              "fill": "[data-tour=\"asset-interactions\"] .interaction .action-row:last-of-type input[aria-label=\"Amount\"]",
+              "value": "5",
+              "say": "Amount: 5."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "left"
+    },
+    {
+      "id": "dialogue.play",
+      "title": "Talk to Old Tom",
+      "body": "In Play, open the Treasure chest first (walk to it and press E): it adds 5 gems. Then walk up to Old Tom and press T (or E). Enter, Space or a click moves on; 1–3 or the arrows and Enter pick an option, and with 5 gems “Buy a map” works. Esc, or walking away, ends it. Logic can react with On choice made and On conversation end.",
+      "task": "Press Play, walk to Old Tom and press T.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "inConversation"
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        },
+        {
+          "fn": "dialogueTalkTo",
+          "args": {
+            "name": "Old Tom"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Press ▶ Play (F5).",
+          "check": {
+            "kind": "play",
+            "event": "running"
+          },
+          "do": [
+            {
+              "ui": "play"
+            }
+          ]
+        },
+        {
+          "text": "Walk to Old Tom (he stands near the arrival) and press T.",
+          "check": {
+            "kind": "state",
+            "test": "inConversation"
+          },
+          "do": [
+            {
+              "fn": "dialogueTalkTo",
+              "args": {
+                "name": "Old Tom"
+              },
+              "say": "The hero walks over and talks."
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "bottom"
+    },
+    {
+      "id": "dialogue.done",
+      "title": "Your characters talk",
+      "body": "Old Tom has a conversation with a choice, a condition and actions, in the game's dialogue style. Signs can hold a conversation too (select a sign, “Read with E”), objects can start one from an interaction (Start conversation), and logic can start one (Start conversation, category Dialogue).",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "placement": "bottom",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": []
+    }
+  ]
+}

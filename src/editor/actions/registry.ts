@@ -3,6 +3,7 @@ import type { Brick } from '../../core/bricks/codec';
 import { rotateQuarter } from '../../core/bricks/transform';
 import { checkPlayable } from '../../core/checks/playable';
 import { trainingYard } from '../../core/gamegen/training-yard';
+import { maxOf, minOf } from '../../core/num';
 import { changedBuiltins, newAssetDef } from '../assets';
 import type { EditorState, ToolId } from '../state';
 import type { ViewOp } from '../viewport/active';
@@ -46,8 +47,10 @@ export interface EditorUi {
   /** editor, coding, or a screen course: course.<screen> (P32) */
   tutorial(track?: string): void;
   help(page?: string): void;
-  /** opens the AI builder panel (P8.3) */
-  aiBuilder(): void;
+  /** opens the AI builder panel (P8.3); P19: with a request typed in (from Brix), for you to send */
+  aiBuilder(prompt?: string): void;
+  /** P19: opens Brix, the helper (answers from Help, Show me, Explain) */
+  brix?(): void;
 }
 
 export type EditorAction = {
@@ -72,8 +75,8 @@ function duplicate(ed: EditorState) {
   const sel = ed.selectedBricks.value;
   if (!sel.length) return;
   // Stack the copy on top of the selection's highest point so it stays stud-connected.
-  const top = Math.max(...sel.map((b) => b.y + (b.type.startsWith('brick') ? 3 : 1)));
-  const base = Math.min(...sel.map((b) => b.y));
+  const top = maxOf(sel, (b) => b.y + (b.type.startsWith('brick') ? 3 : 1));
+  const base = minOf(sel, (b) => b.y);
   const dy = top - base;
   const r = ed.exec(
     {
@@ -324,7 +327,7 @@ export const ACTIONS: EditorAction[] = [
       if (r.ok) {
         ed.openMap(y.map);
         ed.notify(
-          'The Training yard: dummies, a hill, a cracked wall, a target that opens a gate and a sparring knight. Play › Play this map tries it.',
+          'The Training yard: dummies, a hill, a cracked wall, a target that opens a gate, a sparring knight, the Yard master to talk to (T) and stairs down to a dark cellar lit by torches. Play › Play this map tries it.',
         );
       }
     },
@@ -404,12 +407,14 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.play('edit'),
   },
   // Window
-  ...['Scene', 'World graph', 'Logic', 'Characters', 'Assets', 'Screens', 'Cinematics', 'Audio'].map((name, i) => ({
-    id: `window.${i + 1}`,
-    label: name,
-    key: String(i + 1),
-    run: ({ ui }: ActionCtx) => ui.workspace(name),
-  })),
+  ...['Scene', 'World graph', 'Logic', 'Characters', 'Assets', 'Screens', 'Cinematics', 'Audio', 'Effects'].map(
+    (name, i) => ({
+      id: `window.${i + 1}`,
+      label: name,
+      key: String(i + 1),
+      run: ({ ui }: ActionCtx) => ui.workspace(name),
+    }),
+  ),
   // Help
   { id: 'help.shortcuts', label: 'Keyboard shortcuts', key: '?', run: ({ ui }) => ui.showShortcuts() },
   { id: 'help.about', label: 'About Brick Worlds Engine', run: ({ ui }) => ui.about() },
@@ -430,6 +435,63 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('saving'),
   },
   { id: 'help.guide', label: 'Help guide', key: 'F1', run: ({ ui }) => ui.help() },
+  {
+    id: 'help.brix',
+    label: 'Ask Brix (how do I…? Show me where, Explain a control)',
+    key: 'Shift F1',
+    run: ({ ui }) => ui.brix?.(),
+  },
+  {
+    id: 'help.sheet',
+    label: 'Character sheet course (outfits, stats, moves, voice)',
+    run: ({ ui }) => ui.tutorial('sheet'),
+  },
+  {
+    id: 'help.bodies',
+    label: 'Creatures course (body plans, skeletons)',
+    run: ({ ui }) => ui.tutorial('bodies'),
+  },
+  {
+    id: 'help.faces',
+    label: 'Faces and pictures course (moods, from a picture)',
+    run: ({ ui }) => ui.tutorial('faces'),
+  },
+  {
+    id: 'help.effects',
+    label: 'Effects course (fire, colours, game effects)',
+    run: ({ ui }) => ui.tutorial('course.effects'),
+  },
+  {
+    id: 'help.screenfx',
+    label: 'Screen effects course (shake, flash, moods)',
+    run: ({ ui }) => ui.tutorial('screenfx'),
+  },
+  {
+    id: 'help.lights',
+    label: 'Lights course (darkness, torches, shadows)',
+    run: ({ ui }) => ui.tutorial('lights'),
+  },
+  {
+    id: 'help.atmosphere',
+    label: 'Atmosphere course (fog, shadows’ colour, day and night)',
+    run: ({ ui }) => ui.tutorial('atmosphere'),
+  },
+  {
+    id: 'help.bigworlds',
+    label: 'Big worlds course (a million bricks, how far you see)',
+    run: ({ ui }) => ui.tutorial('bigworlds'),
+  },
+  {
+    id: 'help.posing',
+    label: 'Posing and states course (clips pose by pose, walk, run, attack)',
+    run: ({ ui }) => ui.tutorial('posing'),
+  },
+  {
+    id: 'help.dialogue',
+    label: 'Dialogue course (conversations, choices, styles)',
+    run: ({ ui }) => ui.tutorial('dialogue'),
+  },
+  { id: 'help.brixCourse', label: 'Meet Brix course (ask, Show me, Explain)', run: ({ ui }) => ui.tutorial('brix') },
   // P32: Macs send F1 to the screen brightness unless fn is held; ⌘/ (Ctrl / elsewhere) works everywhere
   { id: 'help.here', label: 'Help on what the pointer is on', key: 'Ctrl /', run: ({ ui }) => ui.help() },
   { id: 'help.build', label: 'Watch a game being built…', run: ({ ui }) => ui.startHub() },
@@ -444,6 +506,15 @@ export const ACTIONS: EditorAction[] = [
 // P32: the Assets menu
 ACTIONS.push(
   { id: 'assets.open', label: 'Open the Assets screen', run: ({ ui }) => ui.workspace('Assets') },
+  {
+    // P22 part 4
+    id: 'characters.fromPicture',
+    label: 'New character from a picture…',
+    run: ({ ed, ui }) => {
+      ui.workspace('Characters');
+      ed.fromPicture.value = true;
+    },
+  },
   {
     id: 'assets.new',
     label: 'New asset',
@@ -502,7 +573,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     '-',
     'view.palette',
   ],
-  Assets: ['assets.open', 'assets.new', '-', 'assets.resetBuiltins'],
+  Assets: ['assets.open', 'assets.new', 'characters.fromPicture', '-', 'assets.resetBuiltins'],
   World: [
     'world.addMap',
     'world.trainingYard',
@@ -545,10 +616,22 @@ export const MENUS: Record<string, (string | '-')[]> = {
   ],
   Help: [
     'help.guide',
+    'help.brix',
     'help.tutorial',
     'help.coding',
     'help.combat',
     'help.saving',
+    'help.dialogue',
+    'help.sheet',
+    'help.bodies',
+    'help.faces',
+    'help.effects',
+    'help.screenfx',
+    'help.posing',
+    'help.lights',
+    'help.atmosphere',
+    'help.bigworlds',
+    'help.brixCourse',
     'help.build',
     'help.shortcuts',
     'help.ai',

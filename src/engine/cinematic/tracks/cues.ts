@@ -6,7 +6,9 @@ export type Cue =
   | { t: number; kind: 'sfx'; event: string; role?: string; pos?: [number, number, number] }
   | { t: number; kind: 'emit'; event: string }
   | { t: number; kind: 'setVar'; name: string; value: number | boolean | string }
-  | { t: number; kind: 'voice'; event: string; role: string };
+  | { t: number; kind: 'voice'; event: string; role: string }
+  /** P23 part 2: a screen effect plays */
+  | { t: number; kind: 'screen'; effect: string };
 
 export const BLIP = 0.14;
 export const DEFAULT_VOICE = 'snd_talk000000';
@@ -37,6 +39,9 @@ export function cuesOf(c: Cinematic): Cue[] {
               ? { t: it.t, kind: 'emit', event: it.emit }
               : { t: it.t, kind: 'setVar', name: it.setVar, value: it.value },
           );
+        break;
+      case 'post':
+        for (const it of tr.items) if ('screen' in it) out.push({ t: it.t, kind: 'screen', effect: it.screen });
         break;
       case 'actor':
         for (const it of tr.items)

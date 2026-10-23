@@ -1,4 +1,4 @@
-import { type BrickTuple, CHUNK, type Chunk } from '../schema/chunk';
+import { BRICK_STRIDE, CHUNK, type Chunk, chunkRows, packInts } from '../schema/chunk';
 
 /** One brick, decoded from a chunk tuple. Positions: x/z studs, y plates; color is a hex string. */
 export type Brick = {
@@ -17,20 +17,24 @@ export const chunkKey = (x: number, z: number) => `${Math.floor(x / CHUNK)}_${Ma
 export const chunkCoords = (key: string) => key.split('_').map(Number) as [number, number];
 
 export function decodeChunk(c: Chunk): Brick[] {
-  return c.bricks.map((b) => {
+  const rows = chunkRows(c);
+  const out: Brick[] = [];
+  for (let o = 0; o < rows.length; o += BRICK_STRIDE) {
     const brick: Brick = {
-      id: b[7],
-      type: c.palette.types[b[0]]!,
-      x: b[1],
-      y: b[2],
-      z: b[3],
-      rot: b[4],
-      color: c.palette.colors[b[5]]!,
-      flags: b[6],
+      id: rows[o + 7]!,
+      type: c.palette.types[rows[o]!]!,
+      x: rows[o + 1]!,
+      y: rows[o + 2]!,
+      z: rows[o + 3]!,
+      rot: rows[o + 4]!,
+      color: c.palette.colors[rows[o + 5]!]!,
+      flags: rows[o + 6]!,
     };
-    if (b[8] >= 0) brick.group = c.palette.groups[b[8]]!;
-    return brick;
-  });
+    const g = rows[o + 8]!;
+    if (g >= 0) brick.group = c.palette.groups[g]!;
+    out.push(brick);
+  }
+  return out;
 }
 
 /**
@@ -55,20 +59,24 @@ export function encodeChunks(bricks: Iterable<Brick>): Map<string, Chunk> {
       const i = arr.indexOf(v);
       return i >= 0 ? i : arr.push(v) - 1;
     };
-    const tuples = list.map(
-      (b): BrickTuple => [
-        index(types, b.type),
-        b.x,
-        b.y,
-        b.z,
-        b.rot,
-        index(colors, b.color),
-        b.flags,
-        b.id,
-        b.group === undefined ? -1 : index(groups, b.group),
-      ],
-    );
-    out.set(key, { cx, cz, palette: { types, colors, groups }, bricks: tuples });
+    const rows = new Int32Array(list.length * BRICK_STRIDE);
+    list.forEach((b, n) => {
+      rows.set(
+        [
+          index(types, b.type),
+          b.x,
+          b.y,
+          b.z,
+          b.rot,
+          index(colors, b.color),
+          b.flags,
+          b.id,
+          b.group === undefined ? -1 : index(groups, b.group),
+        ],
+        n * BRICK_STRIDE,
+      );
+    });
+    out.set(key, { cx, cz, palette: { types, colors, groups }, count: list.length, data: packInts(rows) });
   }
   return out;
 }

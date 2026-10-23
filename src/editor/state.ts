@@ -7,6 +7,7 @@ import type { Autosave, SaveStatus } from '../core/project/autosave';
 import type { FileBackend } from '../core/project/backend';
 import type { MediaStore } from '../core/project/media';
 import type { ProjectStore } from '../core/project/store';
+import type { QualityLevel } from '../core/render/quality';
 import { type Gates, type MapDoc, paths } from '../core/schema';
 import { AudioEngine } from '../engine/audio/AudioEngine';
 import { audioData } from '../engine/audio/data';
@@ -114,9 +115,58 @@ export class EditorState {
   readonly studioCharacter = signal<string | null>(null);
   /** the clip open on the Character studio's timeline (P32: the tutorial opens the clip it made) */
   readonly studioClip = signal<string | null>(null);
+  /** P22: the Character studio's view (look and clips, or dialogue) and the conversation open in it */
+  readonly charTab = signal<'look' | 'dialogue'>('look');
+  readonly dialogueId = signal<string | null>(null);
+  /** P22 part 2: the character sheet's open tab */
+  readonly sheetTab = signal<
+    'look' | 'body' | 'face' | 'outfits' | 'stats' | 'moves' | 'animations' | 'voice' | 'dialogue' | 'behaviour'
+  >('look');
+  /** P22 part 3: the Body tab — the bone picked in the skeleton, the bone bricks are painted onto (none: off),
+   * walking on the spot in the preview, and the skeleton drawn over the bricks */
+  readonly bodyBone = signal<string | null>(null);
+  readonly bodyPaint = signal<string | null>(null);
+  readonly bodyWalk = signal(false);
+  readonly bodyBones = signal(false);
+  /** P22 part 4: the mood picked in the Face tab (the preview shows its face) */
+  /** P23: the effect open in the Effects screen, and whether every setting shows (Advanced) */
+  readonly effectId = signal<string | null>(null);
+  readonly effectsAdvanced = signal(false);
+  /** P23 part 2: the Effects workspace shows particles or screen effects; the screen effect open there */
+  readonly effectsTab = signal<'particles' | 'screen'>('particles');
+  readonly screenEffectId = signal<string | null>(null);
+  /** P23 part 2: show the map's mood (colour, dark edges, drifting) over the Scene view */
+  readonly moodPreview = signal(true);
+  /** P23 part 3: the studio preview's mouth while a line is heard (0 closed, 0.5 half, 1 wide) */
+  readonly talkMouth = signal(0);
+  /** how many times a line was heard in the studio (the Faces course checks it) */
+  readonly talkHeard = signal(0);
+  /** P22 part 4: the “A character from a picture” dialog is open */
+  readonly fromPicture = signal(false);
+  readonly faceMood = signal<'neutral' | 'happy' | 'angry' | 'sad' | 'scared' | 'surprised'>('neutral');
+  /** P22: how the open conversation is shown (a list, a graph or a script) */
+  readonly dialogueView = signal<'list' | 'graph' | 'script'>('list');
   /** where the clip's playhead is (seconds), and whether the clip plays in the preview (tutorial checks) */
   readonly clipTime = signal(0);
   readonly clipPlaying = signal(false);
+  /** P23 part 4: the clip editor shows poses (pose by pose, with joint sliders) or keys (the timeline) */
+  readonly clipView = signal<'poses' | 'keys'>('keys');
+  /** P23 part 4: a pose copied with Copy pose (joints that differ from standing) */
+  readonly poseClipboard = signal<Record<string, number> | null>(null);
+  /** P23 part 4: the Animations tab's Try it: what the character does, and the state that picks */
+  readonly stateTry = signal<{ speed: number; air: boolean; attack: boolean; hitAt: number }>({
+    speed: 0,
+    air: false,
+    attack: false,
+    hitAt: -1e9,
+  });
+  readonly stateShown = signal<string>('idle');
+  /** P23 part 4: a body plan's strike or flinch on the studio preview (when it started, performance.now) */
+  /** P27 part 2: the hour the Scene view shows (seconds into v68's day from the map's start time; null: the start) */
+  readonly skyPreview = signal<number | null>(null);
+  /** P27 part 3b: where the Scene view looks (x, z studs), kept by the view as it draws; not a signal */
+  viewCentre: [number, number] = [0, 0];
+  readonly bodyAct = signal<{ kind: 'attack' | 'hurt'; at: number } | null>(null);
   readonly view = signal<ViewTab>('scene');
   readonly left = signal<LeftTab>('hier');
   readonly right = signal<RightTab>('inspect');
@@ -151,6 +201,8 @@ export class EditorState {
   readonly paused = signal(false);
   readonly timeScale = signal(1);
   readonly debugDraw = signal<DebugDraw>({ colliders: false, spawns: true });
+  /** P27 part 4: Play at this quality to see how the game looks there (null: the game's own settings) */
+  readonly previewQuality = signal<QualityLevel | null>(null);
   /**
    * P32: true for the Asset studio's build plate, where bricks are placed, painted and erased one by one. The
    * Scene places whole assets, characters and events, so its Place tool puts down assets.

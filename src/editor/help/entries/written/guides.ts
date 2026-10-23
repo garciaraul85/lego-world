@@ -135,6 +135,19 @@ export const GUIDES: ScreenGuide[] = [
     ],
   },
   {
+    screen: 'effects',
+    intro:
+      'Effects are clouds of tiny bricks: the library on the left, the selected effect playing in the middle, and its settings on the right, with which effects this game plays for hits and events below them.',
+    areas: ['effects.library', 'effects.preview', 'effects.settings'],
+    top: [
+      ['Make a new effect', 'effects.new'],
+      ['Change how an effect looks', 'effects.settings'],
+      ['Pick the effects for hits and level up', 'effects.hooks'],
+      ['Shake or flash the screen', 'effects.screen.library'],
+      ['Put an effect on a map', 'scene.item.effect'],
+    ],
+  },
+  {
     screen: 'play',
     intro:
       'Play runs the game inside the editor. The Play bar pauses, steps and changes speed; the dock has the console, profiler and cheats; Stop goes back exactly to where you were.',

@@ -1,4 +1,11 @@
+import { BUILTIN_EFFECTS } from '../../builtin/effects';
+import { BUILTIN_SCREEN_EFFECTS } from '../../builtin/screen-effects';
+import { cleanupOf } from '../../core/assets/cleanup';
 import type { Command } from '../../core/commands';
+import type { Conversation } from '../../core/dialogue/schema';
+import type { Effect } from '../../core/effects/schema';
+import type { ScreenEffect } from '../../core/effects/screen';
+import { fogPresetOf } from '../../core/lighting/atmosphere';
 import { wiresOf } from '../../core/logic/wiring';
 import { allSaves } from '../../core/save/save';
 import {
@@ -6,19 +13,30 @@ import {
   type Character,
   type Cinematic,
   type Clip,
+  type Gates,
   type Instances,
+  type LightInstance,
   type LogicGraph,
   type MapDoc,
   paths,
   type Screen,
   type Variables,
 } from '../../core/schema';
+import { easeAt, poseAt, poseTimes } from '../../engine/character/posing';
 import { BrowserSaveStore } from '../../platform/saves';
 import { assetLibrary } from '../assets';
 import { savingOf } from '../panels/SavingSection';
 import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
 import { MARK_FACING, MARK_RADIUS, markTarget } from './story';
+
+const effectNamed = (ed: EditorState, id: string | null | undefined): Effect | undefined =>
+  id ? (ed.store.get<Effect>(paths.effect(id)) ?? BUILTIN_EFFECTS.find((e) => e.id === id)) : undefined;
+
+const screenEffectNamed = (ed: EditorState, id: string | null | undefined): ScreenEffect | undefined =>
+  id
+    ? (ed.store.get<ScreenEffect>(paths.screenEffect(id)) ?? BUILTIN_SCREEN_EFFECTS.find((e) => e.id === id))
+    : undefined;
 
 /** Named tests for `state` checks (P7.3). They read the editor; none of them changes anything. */
 export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boolean> = {
@@ -181,9 +199,23 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     const { name, atLeast } = a as { name: string; atLeast: number };
     return projectAsset(ed, name)?.interactions.some((i) => i.do.length >= atLeast) ?? false;
   },
+  assetAdds: (ed, a) => {
+    const { name, var: v, value } = a as { name: string; var: string; value: number };
+    return (
+      projectAsset(ed, name)?.interactions.some((i) =>
+        i.do.some((x) => x.do === 'addVar' && x.var === v && x.value === value),
+      ) ?? false
+    );
+  },
   assetDoes: (ed, a) => {
     const { name, does } = a as { name: string; does: string };
     return projectAsset(ed, name)?.interactions.some((i) => i.do.some((x) => x.do === does)) ?? false;
+  },
+  // P27 part 3d: what becomes of an asset once broken
+  assetCleanup: (ed, a) => {
+    const { name, after, seconds } = a as { name: string; after: string; seconds?: number };
+    const def = projectAsset(ed, name);
+    return !!def && cleanupOf(def) === after && (seconds === undefined || (def.smash.respawnAfter ?? 0) === seconds);
   },
   // P9c: the combat course
   mapNamed: (ed, a) => ed.mapDoc.value?.name === a,
@@ -204,6 +236,83 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
       return def?.name === asset && wiresOf(g).some((w) => w.when === when);
     });
   },
+  // P22 part 2: the character sheet course
+  sheetTab: (ed, a) => ed.sheetTab.value === a,
+  isHero: (ed) => !!ed.studioCharacter.value && ed.store.manifest.hero === ed.studioCharacter.value,
+  outfitWorn: (ed, a) => {
+    const c = studioCharacter(ed);
+    const o = c?.outfits?.find((x) => x.name === c.outfit);
+    return !!o && Object.keys(o.look).length >= Number(a ?? 1);
+  },
+  statAtLeast: (ed, a) => {
+    const { stat, value } = a as { stat: string; value: number };
+    return Number((studioCharacter(ed)?.stats as Record<string, unknown> | undefined)?.[stat] ?? 0) >= value;
+  },
+  moveStyle: (ed, a) => studioCharacter(ed)?.moves?.style === a,
+  pitchBelow: (ed, a) => (studioCharacter(ed)?.voice?.pitch ?? 1) < Number(a),
+  animationSet: (ed, a) => !!studioCharacter(ed)?.animations?.[a as 'idle'],
+  // P22 part 4: the faces course
+  faceSet: (ed, a) => {
+    const { mood, key, value } = a as { mood: string; key: string; value: string };
+    return (studioCharacter(ed)?.faces as Record<string, Record<string, string>> | undefined)?.[mood]?.[key] === value;
+  },
+  talkMood: (ed, a) => {
+    const s = ed.session.value as { talks?: { active: boolean; view: { mood: string } | null } } | null;
+    return !!s?.talks?.active && s.talks.view?.mood === a;
+  },
+  // P22 part 3: the creatures course
+  bodyFamily: (ed, a) => studioCharacter(ed)?.body?.family === a,
+  bodyParam: (ed, a) => {
+    const { key, atLeast } = a as { key: string; atLeast: number };
+    return Number((studioCharacter(ed)?.body?.params as Record<string, number> | undefined)?.[key] ?? 0) >= atLeast;
+  },
+  bodyColor: (ed, a) => {
+    const { slot, value } = a as { slot: string; value: string };
+    return (
+      (studioCharacter(ed)?.body?.colors as Record<string, string> | undefined)?.[slot]?.toLowerCase() ===
+      value.toLowerCase()
+    );
+  },
+  bodyWalking: (ed) => ed.bodyWalk.value,
+  bodyBonesShown: (ed) => ed.bodyBones.value,
+  ownPlan: (ed) => {
+    const p = studioCharacter(ed)?.body?.plan;
+    return !!p && !!ed.store.get(`bodyplans/${p}.json`);
+  },
+  planHasBone: (ed, a) => {
+    const p = studioCharacter(ed)?.body?.plan;
+    const plan = p
+      ? ed.store.get<{ bones: { name: string }[]; bricks: { bone: string }[] }>(`bodyplans/${p}.json`)
+      : null;
+    return !!plan?.bones.some((b) => b.name === a) && plan.bricks.some((k) => k.bone === a);
+  },
+  boneSwing: (ed, a) => {
+    const { bone, atLeast } = a as { bone: string; atLeast: number };
+    const p = studioCharacter(ed)?.body?.plan;
+    const plan = p ? ed.store.get<{ bones: { name: string; swing: number }[] }>(`bodyplans/${p}.json`) : null;
+    return (plan?.bones.find((b) => b.name === bone)?.swing ?? 0) >= atLeast;
+  },
+  levelAtLeast: (ed, a) => Number(ed.session.value?.logic.vars.get('level') ?? 0) >= Number(a),
+  // P22: the dialogue course
+  characterExists: (ed, a) => ed.store.list('characters/').some((p) => ed.store.get<{ name: string }>(p)?.name === a),
+  talksWith: (ed, a) =>
+    ed.store
+      .list('characters/')
+      .map((p) => ed.store.get<{ name: string; talk?: unknown[] }>(p))
+      .some((x) => x?.name === a && (x?.talk?.length ?? 0) > 0),
+  conversationHas: (ed, a) => {
+    const { choice, condition, action } = a as { choice?: boolean; condition?: boolean; action?: boolean };
+    const id = ed.dialogueId.value;
+    const conv = id ? ed.store.get<Conversation>(paths.dialogue(id)) : null;
+    if (!conv) return false;
+    const steps = conv.sections.flatMap((s) => s.steps);
+    if (choice && !steps.some((s) => s.k === 'choice' && s.options.length >= 2)) return false;
+    if (condition && !steps.some((s) => !!s.if || (s.k === 'choice' && s.options.some((o) => !!o.if)))) return false;
+    if (action && !steps.some((s) => s.k === 'do' || s.k === 'like')) return false;
+    return true;
+  },
+  dialogueStyleIs: (ed, a) => (ed.store.manifest.dialogue?.style ?? 'adventure') === a,
+  inConversation: (ed) => !!ed.session.value?.talks.active,
   // P26: the saving course
   savingIs: (ed, a) => matches(savingOf(ed.store.manifest), a as Record<string, unknown>),
   placedAsset: (ed, a) => {
@@ -211,6 +320,58 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     return items.some(
       (i) => i.kind === 'asset' && (ed.store.get<Asset>(paths.asset(i.asset))?.name ?? '') === String(a),
     );
+  },
+  // P23 part 1: the effects course
+  effectOpen: (ed, a) => effectNamed(ed, ed.effectId.value)?.name === a,
+  // P23 part 3: the Faces course hears Tom talk
+  talkHeard: (ed) => ed.talkHeard.value > 0,
+  faceMoodIs: (ed, a) => ed.faceMood.value === a,
+  // P23 part 2: the screen effects course
+  effectsTabIs: (ed, a) => ed.effectsTab.value === a,
+  screenEffectOpen: (ed, a) => screenEffectNamed(ed, ed.screenEffectId.value)?.name === a,
+  ownScreenEffectNamed: (ed, a) => {
+    const id = ed.screenEffectId.value;
+    return !!id && ed.store.has(paths.screenEffect(id)) && screenEffectNamed(ed, id)?.name === a;
+  },
+  screenFlash: (ed, a) => {
+    const e = screenEffectNamed(ed, ed.screenEffectId.value);
+    return !!e && ed.store.has(paths.screenEffect(e.id)) && e.flash?.color.toLowerCase() === String(a).toLowerCase();
+  },
+  screenRumble: (ed) => {
+    const e = screenEffectNamed(ed, ed.screenEffectId.value);
+    return !!e && ed.store.has(paths.screenEffect(e.id)) && !!e.shake?.rumble;
+  },
+  screenHook: (ed, a) => {
+    const { event, name } = a as { event: string; name: string };
+    const id = (ed.store.manifest.screenEffects?.events as Record<string, string> | undefined)?.[event];
+    return !!id && screenEffectNamed(ed, id)?.name === name;
+  },
+  mapMood: (ed, a) => {
+    const want = a as Partial<Record<string, unknown>>;
+    const m = ed.mapDoc.value?.mood as Record<string, unknown> | undefined;
+    return !!m && Object.entries(want).every(([k, v]) => m[k] === v);
+  },
+  ownEffectNamed: (ed, a) => {
+    const id = ed.effectId.value;
+    return !!id && ed.store.has(paths.effect(id)) && effectNamed(ed, id)?.name === a;
+  },
+  effectColor: (ed, a) => {
+    const { i, value } = a as { i: number; value: string };
+    const e = effectNamed(ed, ed.effectId.value);
+    return !!e && ed.store.has(paths.effect(e.id)) && e.colors[i]?.toLowerCase() === value.toLowerCase();
+  },
+  effectShape: (ed, a) => {
+    const e = effectNamed(ed, ed.effectId.value);
+    return !!e && ed.store.has(paths.effect(e.id)) && e.shape === a;
+  },
+  placedEffect: (ed, a) => {
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return items.some((i) => i.kind === 'effect' && effectNamed(ed, i.effect)?.name === String(a));
+  },
+  effectHook: (ed, a) => {
+    const { event, name } = a as { event: string; name: string };
+    const id = (ed.store.manifest.effects?.events as Record<string, string> | undefined)?.[event];
+    return !!id && effectNamed(ed, id)?.name === name;
   },
   titleShown: (ed) => {
     const s = ed.session.value;
@@ -229,6 +390,69 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     return !!s && matches(s.progress.settings, a as Record<string, unknown>);
   },
   screenShown: (ed, a) => !!ed.session.value?.screens.screens().some((x) => x.name === a),
+  // P27 part 3: the big worlds course
+  mapBricksAtLeast: (ed, a) => (ed.scene.value?.count ?? 0) >= Number(a),
+  mapViewDistance: (ed, a) => ed.mapDoc.value?.viewDistance === Number(a),
+  assetsOnMapAtLeast: (ed, a) =>
+    (ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? []).filter((i) => i.kind === 'asset').length >=
+    Number(a),
+  entryIsCurrentMap: (ed) => ed.store.manifest.entry.map === ed.mapId.value,
+  bigInPlay: (ed) => !!ed.session.value?.world.big,
+  // P27 part 4: quality levels
+  projectQuality: (ed, a) => (ed.store.get<{ quality?: string }>(paths.settings)?.quality ?? 'auto') === a,
+  previewQuality: (ed, a) => ed.previewQuality.value === a,
+  playingAtQuality: (ed, a) => ed.session.value?.quality === a,
+  playOnFirstMap: (ed) =>
+    !!ed.session.value &&
+    !ed.session.value.loading &&
+    ed.session.value.world.mapId === ed.store.get<Gates>(paths.gates)?.mapOrder[0],
+  heroFarFromStart: (ed, a) => {
+    const s = ed.session.value;
+    if (!s) return false;
+    const sp = s.world.doc.spawns[0]?.pos ?? [0, 0, 0];
+    return Math.hypot(s.heroState.x - sp[0], s.heroState.z - sp[2]) >= Number(a);
+  },
+  // P27 part 2: the atmosphere course
+  mapFog: (ed, a) => fogPresetOf(ed.mapDoc.value?.fog) === a,
+  fogFarAtMost: (ed, a) => !!ed.mapDoc.value?.fog && ed.mapDoc.value.fog.far <= Number(a),
+  groundFog: (ed) => ed.mapDoc.value?.fog?.height !== undefined,
+  ambientColor: (ed, a) => ed.mapDoc.value?.ambient?.color.toLowerCase() === String(a).toLowerCase(),
+  dayLength: (ed, a) => ed.mapDoc.value?.dayLength === Number(a),
+  startTime: (ed, a) => ed.mapDoc.value?.sky.time === a,
+  skyPreviewAtLeast: (ed, a) => (ed.skyPreview.value ?? 0) >= Number(a),
+  lightAtNight: (ed) => lightsOf(ed).some((l) => !!l.light.atNight),
+  nightInPlay: (ed) => (ed.session.value?.atmosphereNow().sky.night ?? 0) > 0.5,
+  // P27 part 1: the lights course
+  mapDarkness: (ed, a) => (ed.mapDoc.value?.darkness ?? 0) >= Number(a),
+  lightKind: (ed, a) => lightsOf(ed).some((l) => (l.name ?? '').startsWith(String(a))),
+  lightColor: (ed, a) => lightsOf(ed).some((l) => l.light.color.toLowerCase() === String(a).toLowerCase()),
+  lightRange: (ed, a) => lightsOf(ed).some((l) => l.light.range >= Number(a)),
+  lightsAtLeast: (ed, a) => lightsOf(ed).length >= Number(a),
+  lightOff: (ed) => lightsOf(ed).some((l) => !l.on),
+  zoneLightsOn: (ed) => (ed.mapDoc.value?.zones ?? []).some((z) => (z.onEnter ?? []).some((x) => x.do === 'lightOn')),
+  lightOnInPlay: (ed, a) =>
+    !!ed.session.value?.lightSources().some((l) => (l.name ?? '').startsWith(String(a)) && l.on),
+  // P23 part 4: posing and the animation state machine
+  clipViewIs: (ed, a) => !!openClip(ed) && ed.clipView.value === a,
+  poseCount: (ed, a) => poseTimes(openClip(ed) ?? { tracks: [] }).length >= Number(a),
+  poseAtTime: (ed, a) => poseTimes(openClip(ed) ?? { tracks: [] }).some((t) => Math.abs(t - Number(a)) < 0.05),
+  poseJoint: (ed, a) => {
+    const { t, joint, min } = a as { t: number; joint: string; min: number };
+    const c = openClip(ed);
+    if (!c || !poseTimes(c).some((x) => Math.abs(x - t) < 0.05)) return false;
+    return (poseAt(c, t)[joint] ?? 0) >= min;
+  },
+  poseEase: (ed, a) => {
+    const { t, ease } = a as { t: number; ease: string };
+    const c = openClip(ed);
+    return !!c && easeAt(c, t) === ease;
+  },
+  animationOwn: (ed, a) => {
+    const id = studioCharacter(ed)?.animations?.[a as 'idle'];
+    return !!id && ed.store.has(paths.clip(id));
+  },
+  stateShownIs: (ed, a) => ed.stateShown.value === a,
+  heroStateSeen: (ed, a) => !!ed.session.value?.statesSeen.has(a as never),
   ...CODING_TESTS,
 };
 
@@ -240,6 +464,11 @@ function openGraph(ed: EditorState): LogicGraph | null {
 function openCine(ed: EditorState): Cinematic | null {
   const id = ed.cinematicId.value ?? ed.store.list('cinematics/')[0]?.slice(11, -5);
   return id ? (ed.store.get<Cinematic>(paths.cinematic(id)) ?? null) : null;
+}
+function lightsOf(ed: EditorState): LightInstance[] {
+  return (ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? []).filter(
+    (i): i is LightInstance => i.kind === 'light',
+  );
 }
 function studioCharacter(ed: EditorState): Character | null {
   const id = ed.studioCharacter.value;

@@ -2,7 +2,8 @@
 export type Vec3 = [number, number, number];
 export interface AudioPort {
   /** a named sound event; `pos` makes spatial events quieter with distance */
-  play(event: string, opts?: { pos?: Vec3; volume?: number }): void;
+  /** pitch: a playback-rate multiplier on top of the event's own (P22 voice blips) */
+  play(event: string, opts?: { pos?: Vec3; volume?: number; pitch?: number }): void;
   /** start (or move) a looping sound under `key`; same key again only updates position/volume */
   loop(key: string, event: string, opts?: { pos?: Vec3; volume?: number; maxDistance?: number }): void;
   stopLoop(key: string): void;

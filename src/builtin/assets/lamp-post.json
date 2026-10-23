@@ -65,5 +65,15 @@
   "onlyIn": {
     "on": [6],
     "off": [7]
+  },
+  "light": {
+    "color": "#ffd27a",
+    "brightness": 1.3,
+    "range": 13,
+    "flicker": 0,
+    "shadow": false,
+    "atNight": true,
+    "at": [1, 6, 1],
+    "states": ["on"]
   }
 }

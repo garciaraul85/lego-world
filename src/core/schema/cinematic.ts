@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MOODS } from '../dialogue/schema';
 import { id, Vec3 } from './common';
 
 /**
@@ -22,7 +23,11 @@ export const ActorItem = z.discriminatedUnion('do', [
     text: z.string().min(1).max(400),
     dur: z.number().positive(),
     voice: id('sound').optional(),
+    /** P23 part 3: the face the speaker shows while saying it (its mouth moves with the words) */
+    mood: z.enum(MOODS).optional(),
   }),
+  /** P23 part 3: the actor shows a mood's face for dur seconds (no words) */
+  z.strictObject({ t: T, do: z.literal('mood'), mood: z.enum(MOODS), dur: z.number().positive() }),
   /** a built-in gesture: wave, cheer, nod, bow, shrug, point */
   z.strictObject({ t: T, do: z.literal('emote'), kind: z.string() }),
   z.strictObject({ t: T, do: z.literal('equip'), item: z.string() }),
@@ -63,6 +68,8 @@ export const PostItem = z.union([
     dur: z.number().positive(),
   }),
   z.strictObject({ t: T, slowmo: z.number().min(0.1).max(1), dur: z.number().positive() }),
+  /** P23 part 2: a screen effect (a flash, a shake, an earthquake…) */
+  z.strictObject({ t: T, screen: id('screenEffect') }),
 ]);
 export type PostItem = z.infer<typeof PostItem>;
 

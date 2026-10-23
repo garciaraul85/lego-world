@@ -13,13 +13,27 @@ import {
 } from '../../core/assets/tilt';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
+import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import type { Command } from '../../core/commands';
 import { skyCycle } from '../../core/legacy/modules';
 import { wiresOf } from '../../core/logic/wiring';
+import { maxOf } from '../../core/num';
 import type { Asset, LogicGraph } from '../../core/schema';
+import { atmosphere } from '../../engine/lighting/atmosphere';
+import { pointLights } from '../../engine/lighting/lights';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
-import { type LineSet, type Marker, type Overlay, type RenderBrick, Renderer } from '../../engine/render/renderer';
+import {
+  brickRgb,
+  type LineSet,
+  type Marker,
+  type Overlay,
+  type PointLight,
+  type RenderBrick,
+  Renderer,
+} from '../../engine/render/renderer';
+import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../../engine/render/stream';
+import { ScreenFxOverlay } from '../../engine/ui/ScreenFxOverlay';
 import { placeCommands, resolveAsset } from '../assets';
 import { groupLabel } from '../categories';
 import { dragPayload, endDrag, sceneHover } from '../interact/drag';
@@ -54,6 +68,7 @@ import {
   ringPoints,
   targetBox,
 } from './gizmo';
+import { editorLights } from './lights';
 import { settleMove } from './settle';
 
 const kindOf = (type: string) =>
@@ -64,6 +79,8 @@ export type { ViewportApi } from './active';
 /** The 3D scene view: renderer + camera + the active tool's pointer handling. */
 export type StudioHooks = {
   markers(): Marker[];
+  /** P27: the lights on the plate (an asset that gives light) */
+  lights?(): PointLight[];
   onPoint(pos: [number, number, number]): void;
   /**
    * P32: another asset dragged onto the plate is built into this one. `def` finds it (the plate's own project
@@ -119,6 +136,10 @@ export function Viewport({
     }
     const camera = new OrbitCamera();
     let dirty = true;
+    // P27: a flickering light keeps the view drawing
+    let flickering = false;
+    /** how much night it is in the view (lights that shine only at night) */
+    let nightNow = 0;
     let raf = 0;
     let hover: Brick | null = null;
     let ghost: RenderBrick | null = null;
@@ -283,19 +304,20 @@ export function Viewport({
       dirty = true;
     };
 
+    // P27 part 3: chunks stream in around the view's centre on big maps (small maps build at once, as before)
+    const stream = new ChunkStream(renderer, (k) => {
+      const s = ed.scene.value;
+      const list = s?.chunks.get(k);
+      if (!s || !list) return [];
+      return list.filter((b) => ed.isVisible(b) && !s.freeOf(b.id) && !liveHide.has(b.id)).map((b) => s.toRender(b));
+    });
+    let streaming = false;
     const syncChunks = (keys: string[], all: boolean) => {
       const s = ed.scene.value;
       if (!s) return;
-      if (all) renderer.clearChunks();
-      for (const k of all ? [...s.chunks.keys()] : keys) {
-        const list = s.chunks.get(k);
-        if (!list) renderer.dropChunk(k);
-        else
-          renderer.setChunk(
-            k,
-            list.filter((b) => ed.isVisible(b) && !s.freeOf(b.id) && !liveHide.has(b.id)).map((b) => s.toRender(b)),
-          );
-      }
+      stream.viewDistance = ed.mapDoc.value?.viewDistance ?? DEFAULT_VIEW_DISTANCE;
+      if (all) stream.reset(s.chunks.keys());
+      else stream.changed(keys, (k) => !!s.chunks.get(k)?.length);
       dirty = true;
     };
 
@@ -315,6 +337,13 @@ export function Viewport({
         }
         min[1] = Math.min(min[1]!, 0);
         camera.fit(min, max, aspect);
+      } else if (b && stream.streaming) {
+        // P27 part 3: a big map is framed around its start, as far as the view reaches (not the whole map)
+        const m = ed.mapDoc.value;
+        const sp = m?.spawns.find((x) => x.id === ed.store.manifest.entry.spawn) ?? m?.spawns[0];
+        const [x, , z] = sp?.pos ?? [0, 0, 0];
+        const r = Math.min(48, stream.viewDistance * 0.2);
+        camera.fit([x - r, b.min[1], z - r], [x + r, Math.min(b.max[1], b.min[1] + 40), z + r], aspect);
       } else if (b) camera.fit(b.min, b.max, aspect);
       else {
         camera.target = [0, 1, 0];
@@ -419,7 +448,11 @@ export function Viewport({
       effect(() => {
         const m = ed.mapDoc.value;
         if (!m) return;
-        renderer.skySample = skyCycle().sample(m.sky.time, 0, m.weather.rain, m.weather.snowing);
+        // P27 part 2: its sky at the start time (or the hour the Map tab previews), ambient and fog
+        const air = atmosphere(m, 0, skyCycle(), ed.skyPreview.value ?? 0);
+        renderer.skySample = air.sky;
+        renderer.fog = air.fog;
+        nightNow = air.sky.night;
         renderer.snow = m.weather.snow;
         renderer.seed = m.generator?.seed ?? 73521;
         dirty = true;
@@ -518,7 +551,7 @@ export function Viewport({
     let failed = '';
     const frame = () => {
       raf = requestAnimationFrame(frame);
-      if (!dirty) return;
+      if (!dirty && !flickering) return;
       dirty = false;
       try {
         draw();
@@ -666,10 +699,28 @@ export function Viewport({
           const p = it.pos;
           markers.push({
             pos: [p[0], p[1], p[2]],
-            size: it.kind === 'emitter' ? [0.7, 0.7, 0.7] : [1.6, 0.8, 0.12],
-            color: sel ? [1, 0.72, 0.2] : it.kind === 'emitter' ? [0.55, 0.45, 1] : [0.98, 0.85, 0.3],
+            size:
+              it.kind === 'emitter'
+                ? [0.7, 0.7, 0.7]
+                : it.kind === 'effect'
+                  ? [0.6, 0.6, 0.6]
+                  : it.kind === 'light'
+                    ? [0.45, 0.45, 0.45]
+                    : [1.6, 0.8, 0.12],
+            color: sel
+              ? [1, 0.72, 0.2]
+              : it.kind === 'emitter'
+                ? [0.55, 0.45, 1]
+                : it.kind === 'effect'
+                  ? [1, 0.54, 0.24]
+                  : it.kind === 'light'
+                    ? (brickRgb(it.light.color).map((v) => (it.on ? v : v * 0.3)) as [number, number, number])
+                    : [0.98, 0.85, 0.3],
             alpha: 0.9,
           });
+          // P27: a picked light shows how far it reaches
+          if (it.kind === 'light' && sel)
+            lines.push({ lines: ringLines(p[0], p[1], p[2], it.light.range), color: [1, 0.72, 0.2] });
           if (it.kind === 'emitter')
             lines.push({
               lines: ringLines(p[0], p[1], p[2], it.maxDistance),
@@ -687,7 +738,23 @@ export function Viewport({
           lines.push({ lines: facingLine(sp.pos as Vec3, sp.yaw), color: [0.31, 0.82, 0.77] });
       }
       if (s) drawGizmo(lines, markers);
+      // P27: the map's lights and darkness, as in the game (asset studio: none)
+      if (s && !studio) {
+        const src = editorLights(ed, s.instances);
+        renderer.lights = pointLights(src, performance.now() / 1000, nightNow);
+        renderer.darkness = ed.mapDoc.value?.darkness ?? 0;
+        flickering = src.some((l) => l.on && l.def.flicker > 0);
+      } else {
+        // the Asset studio: the asset's own light, if it gives light
+        renderer.lights = studioRef.current?.lights?.() ?? [];
+        renderer.darkness = 0;
+        flickering = renderer.lights.length > 0;
+      }
       const cam = camera.frame();
+      // more chunks to build near the view's centre: draw again next frame
+      streaming = stream.update(camera.target[0], camera.target[2]);
+      if (!studio) ed.viewCentre = [camera.target[0], camera.target[2]];
+      if (streaming) dirty = true;
       const t0 = performance.now();
       const st = renderer.render(cam, camera.target, overlays, lines, markers);
       const ms = performance.now() - t0;
@@ -695,7 +762,7 @@ export function Viewport({
       ed.frameTimes.value = times;
       ed.stats.value = { ...st, fps: Math.round(1000 / Math.max(1, times.reduce((a, b) => a + b, 0) / times.length)) };
       if (hudRef.current && s)
-        hudRef.current.textContent = `${s.count.toLocaleString('en-US')} / 12,000 pieces · ${st.drawCalls} draws · ${st.chunksDrawn}/${st.chunks} chunks`;
+        hudRef.current.textContent = `${s.count.toLocaleString('en-US')} / ${MAX_BRICKS_PER_MAP.toLocaleString('en-US')} pieces · ${st.drawCalls} draws · ${st.chunksDrawn}/${stream.counts.total} chunks${stream.streaming ? ` · ${stream.counts.shown} loaded` : ''}`;
     };
     raf = requestAnimationFrame(frame);
     const ro = new ResizeObserver(() => (dirty = true));
@@ -1373,6 +1440,10 @@ export function Viewport({
         data-tour="viewport"
         aria-label="3D map view"
       />
+      {/* P23 part 2: the map's mood, as the game shows it (Map › Screen mood) */}
+      {!studio && ed.moodPreview.value && ed.mapDoc.value?.mood && (
+        <ScreenFxOverlay mood={ed.mapDoc.value.mood} layers={[]} />
+      )}
       <div class="vp-hud mono" ref={hudRef} />
       <div class="gizmo-tag" ref={tagRef} hidden />
       {mode === 'scene' && <ViewControls view={viewRef} studio={!!studio} />}
@@ -1560,7 +1631,7 @@ function wireLines(
     b.length
       ? [
           b.reduce((a, x) => a + x.x, 0) / b.length + 0.5,
-          Math.max(...b.map((x) => x.y)) * 0.4 + 1.4,
+          maxOf(b, (x) => x.y) * 0.4 + 1.4,
           b.reduce((a, x) => a + x.z, 0) / b.length + 0.5,
         ]
       : null;

@@ -1,0 +1,449 @@
+{
+  "id": "atmosphere",
+  "title": "Atmosphere course",
+  "steps": [
+    {
+      "id": "atmo.mist",
+      "title": "Mist",
+      "body": "Fog fades what is far away into its colour. The Map tab’s Fog section has kinds of fog to start from — Haze, Mist, Thick fog, Ground fog, Swamp and Smoke — each shown as a small picture. With no fog the map keeps v68’s light haze.",
+      "task": "On the Map tab, open Fog’s Kind and pick Mist.",
+      "target": "[data-tour=\"map-fog\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapFog",
+        "args": "mist"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "right",
+          "value": "map"
+        },
+        {
+          "click": "[data-tour=\"pick-fog-kind\"]"
+        },
+        {
+          "click": "[data-tour=\"pick-fog-kind-list\"] [data-name=\"Mist\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Scene” in the workspace tabs at the top.",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Scene"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            }
+          ]
+        },
+        {
+          "text": "On the right, click the Map tab and scroll down to Fog.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"map-fog\"]"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "map"
+            },
+            {
+              "show": "[data-tour=\"map-fog\"]"
+            }
+          ]
+        },
+        {
+          "text": "Click the Kind box under Fog: the kinds of fog open as pictures. Click Mist. The far side of the map fades into pale mist.",
+          "check": {
+            "kind": "state",
+            "test": "mapFog",
+            "args": "mist"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-fog-kind\"]",
+              "say": "The kinds of fog"
+            },
+            {
+              "click": "[data-tour=\"pick-fog-kind-list\"] [data-name=\"Mist\"]",
+              "say": "Mist"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "atmo.closer",
+      "title": "Closer in",
+      "body": "“Starts at” is where fog begins, in studs from the eye; “Thickest at” is where it is as thick as it gets. Bring the thick end closer and the world feels smaller and more mysterious.",
+      "task": "Drag “Thickest at” to 40 studs.",
+      "target": "[data-tour=\"fog-far\"]",
+      "check": {
+        "kind": "state",
+        "test": "fogFarAtMost",
+        "args": 40
+      },
+      "doItForMe": [
+        {
+          "fill": "[data-tour=\"fog-far\"]",
+          "value": "40"
+        }
+      ],
+      "how": [
+        {
+          "text": "Drag the “Thickest at” slider to 40. The mist closes in.",
+          "check": {
+            "kind": "state",
+            "test": "fogFarAtMost",
+            "args": 40
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"fog-far\"]",
+              "value": "40",
+              "say": "40 studs"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "atmo.ground",
+      "title": "Ground fog",
+      "body": "Ground fog lies low: thick below its height, thinning above it, like mist over a marsh at dawn. Hills rise out of it.",
+      "task": "Tick “Ground fog (lies low)”.",
+      "target": "[data-tour=\"fog-ground\"]",
+      "check": {
+        "kind": "state",
+        "test": "groundFog"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"fog-ground\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Tick “Ground fog (lies low)” under the fog sliders. Two sliders appear: how high it reaches and how thick it is.",
+          "check": {
+            "kind": "state",
+            "test": "groundFog"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"fog-ground\"]",
+              "say": "Ground fog"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "atmo.ambient",
+      "title": "The shadows’ colour",
+      "body": "The light that fills the shadows comes from the sky. Tinting it gives a place its feel: green in a cave, warm red at sunset, cold blue in ice.",
+      "task": "Tick “Tint the shadows” and set its Colour to cold blue (#7a9cff).",
+      "target": "[data-tour=\"map-ambient\"]",
+      "check": {
+        "kind": "state",
+        "test": "ambientColor",
+        "args": "#7a9cff"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"ambient-on\"]"
+        },
+        {
+          "fill": "[data-tour=\"ambient-color\"]",
+          "value": "#7a9cff"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under “Shadows’ colour”, tick “Tint the shadows”.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"ambient-color\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"ambient-on\"]",
+              "say": "Tint the shadows"
+            }
+          ]
+        },
+        {
+          "text": "Click the Colour box and pick a cold blue (#7a9cff). The shaded sides of the bricks turn blue.",
+          "check": {
+            "kind": "state",
+            "test": "ambientColor",
+            "args": "#7a9cff"
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"ambient-color\"]",
+              "value": "#7a9cff",
+              "say": "Cold blue"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "atmo.day",
+      "title": "A short day",
+      "body": "While the game plays the sun moves and night falls. “A day lasts” is how many minutes a whole day takes (v68: 20); 0 stops time at the start time.",
+      "task": "Drag “A day lasts” to 2 minutes.",
+      "target": "[data-tour=\"day-length\"]",
+      "check": {
+        "kind": "state",
+        "test": "dayLength",
+        "args": 2
+      },
+      "doItForMe": [
+        {
+          "fill": "[data-tour=\"day-length\"]",
+          "value": "2"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under “Day and night”, drag “A day lasts” to 2 minutes.",
+          "check": {
+            "kind": "state",
+            "test": "dayLength",
+            "args": 2
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"day-length\"]",
+              "value": "2",
+              "say": "2 minutes"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "atmo.preview",
+      "title": "See it at night",
+      "body": "“See the map at” shows any hour here in the Scene, without changing the map: the sky, the sun and the dark move as you drag.",
+      "task": "Drag “See the map at” until it says Night.",
+      "target": "[data-tour=\"sky-preview\"]",
+      "check": {
+        "kind": "state",
+        "test": "skyPreviewAtLeast",
+        "args": 700
+      },
+      "doItForMe": [
+        {
+          "fill": "[data-tour=\"sky-preview\"]",
+          "value": "720"
+        }
+      ],
+      "how": [
+        {
+          "text": "Drag the “See the map at” slider to the right until it says Night. The sky goes dark.",
+          "check": {
+            "kind": "state",
+            "test": "skyPreviewAtLeast",
+            "args": 700
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"sky-preview\"]",
+              "value": "720",
+              "say": "Night"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "atmo.lamp",
+      "title": "A lamp for the night",
+      "body": "A light can shine only at night, like a street lamp: it comes on as the sky gets dark and goes out at dawn.",
+      "task": "In the Dock’s Lights, press Place on the Lamp, then tick “Only at night” in the Inspector.",
+      "target": "[data-tour=\"dock-light-lamp\"]",
+      "check": {
+        "kind": "state",
+        "test": "lightAtNight"
+      },
+      "doItForMe": [
+        {
+          "ui": "dock",
+          "value": "assets"
+        },
+        {
+          "ui": "assetCat",
+          "value": "Lights"
+        },
+        {
+          "click": "[data-tour=\"dock-light-lamp\"]"
+        },
+        {
+          "click": "[data-tour=\"light-night\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the Dock at the bottom, click Lights and press Place under the Lamp. The lamp is picked in the Inspector.",
+          "check": {
+            "kind": "state",
+            "test": "lightKind",
+            "args": "Lamp"
+          },
+          "do": [
+            {
+              "ui": "dock",
+              "value": "assets"
+            },
+            {
+              "ui": "assetCat",
+              "value": "Lights"
+            },
+            {
+              "click": "[data-tour=\"dock-light-lamp\"]",
+              "say": "A lamp"
+            }
+          ]
+        },
+        {
+          "text": "In the Inspector, tick “Only at night”. At the hour you are looking at (night) it shines.",
+          "check": {
+            "kind": "state",
+            "test": "lightAtNight"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"light-night\"]",
+              "say": "Only at night"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "top"
+    },
+    {
+      "id": "atmo.start",
+      "title": "Start at night",
+      "body": "Start time, on the Map tab’s Sky, is the hour the game begins at. The preview only changes what you see here; the start time changes the game.",
+      "task": "On the Map tab, set Start time to Night.",
+      "target": "[data-tour=\"sky-time\"]",
+      "check": {
+        "kind": "state",
+        "test": "startTime",
+        "args": "night"
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "map"
+        },
+        {
+          "choose": "[data-tour=\"sky-time\"]",
+          "value": "night"
+        }
+      ],
+      "how": [
+        {
+          "text": "On the right, click the Map tab.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"sky-time\"]"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "map"
+            }
+          ]
+        },
+        {
+          "text": "Set Start time (under Sky) to Night.",
+          "check": {
+            "kind": "state",
+            "test": "startTime",
+            "args": "night"
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"sky-time\"]",
+              "value": "night",
+              "say": "Night"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "left"
+    },
+    {
+      "id": "atmo.play",
+      "title": "Into the night",
+      "body": "In the game it starts at night: the lamp is lit, the mist closes in, the shadows are blue. With a 2-minute day, dawn comes about a minute later and the lamp goes out.",
+      "task": "Press Play.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "nightInPlay"
+      },
+      "doItForMe": [
+        {
+          "ui": "play"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press ▶ Play at the top (or F5). Wait a minute to see the sun rise.",
+          "check": {
+            "kind": "state",
+            "test": "nightInPlay"
+          },
+          "do": [
+            {
+              "ui": "play"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "bottom"
+    },
+    {
+      "id": "atmo.done",
+      "title": "Done!",
+      "body": "You gave the map its weather and light: a mist with ground fog, blue shadows, a short day and a lamp that shines only at night. Logic’s Sky nodes, Set time of day and Set fog, change them while the game plays. Press Esc or Stop to leave Play.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "workspace": "Scene",
+      "placement": "bottom"
+    }
+  ]
+}

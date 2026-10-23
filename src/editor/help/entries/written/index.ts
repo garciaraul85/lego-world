@@ -1,7 +1,9 @@
 import type { HelpEntry } from '../types';
 import { ASSETS, CHARACTERS } from './characters-assets';
 import { AUDIO, CINEMATICS, PLAY } from './cine-audio-play';
+import { EFFECTS } from './effects';
 import { GUIDES } from './guides';
+import { LIGHTS } from './lights';
 import { SCENE } from './scene';
 import { ART, SCREENS } from './screens-art';
 import { SHELL } from './shell';
@@ -19,6 +21,8 @@ export const WRITTEN: HelpEntry[] = [
   ...ART,
   ...CINEMATICS,
   ...AUDIO,
+  ...EFFECTS,
+  ...LIGHTS,
   ...PLAY,
 ];
 

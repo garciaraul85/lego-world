@@ -31,6 +31,11 @@ export const updateCharacter: CommandHandler<{ character: Character }> = {
     const e = invalid(Character.safeParse(p.character));
     if (e) return e;
     for (const c of p.character.emotes ?? []) if (!store.has(paths.clip(c))) return 'An emote clip is missing.';
+    for (const t of p.character.talk ?? [])
+      if (!store.has(paths.dialogue(t.conversation))) return 'A conversation in its Talk list does not exist.';
+    const body = p.character.body;
+    if (body?.plan && !store.has(paths.bodyplan(body.plan))) return 'Its body plan does not exist.';
+    if (body?.asset && !store.has(paths.asset(body.asset))) return 'The brick build it wears does not exist.';
     return null;
   },
   apply: (store, p) => store.put(paths.character(p.character.id), p.character),

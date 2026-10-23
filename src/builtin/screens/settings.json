@@ -102,6 +102,28 @@
           },
           {
             "type": "button",
+            "id": "reduceMotion",
+            "label": "{settings.reduceMotion}",
+            "onPress": [
+              {
+                "do": "setting",
+                "key": "reduceMotion"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "quality",
+            "label": "{settings.quality}",
+            "onPress": [
+              {
+                "do": "setting",
+                "key": "quality"
+              }
+            ]
+          },
+          {
+            "type": "button",
             "id": "back",
             "label": "Back",
             "onPress": [

@@ -67,6 +67,9 @@ export interface CombatHost {
   lockedOn(t: LockTarget): void;
   instanceCenter(i: HostInstance): [number, number, number] | null;
   instanceTop(i: HostInstance): number | null;
+  /** P22 part 2: the hero's sheet — hit power, stamina cap, how much a guard costs */
+  heroMoves?(): { power: number; guard: number };
+  readonly staminaMax?: number;
 }
 
 export class Combat {
@@ -118,7 +121,8 @@ export class Combat {
   /** the hit an attack of this kind does with what the hero holds */
   hitOf(kind: AttackKind): AttackHit {
     const base = heldAttack(this.s.hero.held);
-    return { power: base.power * ATTACKS[kind].mult, type: kind === 'bash' ? 'blunt' : base.type };
+    const m = this.s.heroMoves?.().power ?? 1;
+    return { power: base.power * ATTACKS[kind].mult * m, type: kind === 'bash' ? 'blunt' : base.type };
   }
 
   // ---------- moves ----------
@@ -244,7 +248,8 @@ export class Combat {
       if (!this.move) this.anim.stop();
     }
     this.staminaWait = Math.max(0, this.staminaWait - dt);
-    if (!this.guard && this.staminaWait <= 0) this.stamina = Math.min(MAX_STAMINA, this.stamina + 30 * dt);
+    if (!this.guard && this.staminaWait <= 0)
+      this.stamina = Math.min(this.s.staminaMax ?? MAX_STAMINA, this.stamina + 30 * dt);
     this.stagger = Math.max(0, this.stagger - dt);
     this.iframes = Math.max(0, this.iframes - dt);
     if (this.charge !== null) {
@@ -293,7 +298,7 @@ export class Combat {
     if (off > 1.2) return { taken: full, how: 'hit' };
     if (this.s.clock - this.guardSince <= PARRY_WINDOW) return { taken: 0, how: 'parry' };
     const shield = hasShield(this.s.hero);
-    this.stamina -= (shield ? 15 : 25) * hit.power;
+    this.stamina -= (shield ? 15 : 25) * hit.power * (this.s.heroMoves?.().guard ?? 1);
     this.staminaWait = 0.8;
     if (this.stamina <= 0) {
       this.stamina = 0;

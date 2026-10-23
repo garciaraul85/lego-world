@@ -21,8 +21,10 @@ type Ed = {
   selectedItem: Sig;
   logicGraph: Sig;
   exec: (c: unknown, o?: unknown) => { ok: boolean };
-  store: { list(p: string): string[]; get(p: string): unknown };
+  store: { list(p: string): string[]; get(p: string): unknown; has(p: string): boolean };
   select: (ids: number[]) => void;
+  effectId: Sig;
+  right: Sig;
 };
 
 export const ed = <T>(page: Page, f: (e: Ed) => T) => page.evaluate(`(${f.toString()})(window.__editor)`) as Promise<T>;
@@ -41,6 +43,11 @@ export async function openEditor(page: Page) {
 
 const ws = async (page: Page, name: string) => {
   await page.keyboard.press('Escape');
+  // P19: Brix's walk-through and panel close first (they would cover the screen)
+  const done = page.getByRole('dialog', { name: 'Brix shows you' }).getByRole('button', { name: /^(Done|Stop)$/ });
+  if (await done.isVisible()) await done.click();
+  const close = page.getByRole('button', { name: 'Close Brix' });
+  if (await close.isVisible()) await close.click();
   await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name, exact: true }).click();
   await page.waitForTimeout(250);
 };
@@ -186,6 +193,15 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    id: 'scene-dialogue',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'project' });
+      await p.locator('[data-tour="game-dialogue"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     id: 'scene-layers',
     screen: 'scene',
     setup: async (p) => {
@@ -209,7 +225,7 @@ export const HELP_STATES: HelpState[] = [
       await signals(p, { left: 'hier', dock: d });
     },
   })),
-  ...['Assets', 'Characters', 'Cinematics', 'UI screens', 'Sounds', 'Music'].map((c) => ({
+  ...['Assets', 'Characters', 'Cinematics', 'UI screens', 'Effects', 'Lights', 'Sounds', 'Music'].map((c) => ({
     id: `scene-cat-${c.toLowerCase().replace(/ /g, '-')}`,
     screen: 'scene',
     setup: async (p: Page) => {
@@ -299,6 +315,261 @@ export const HELP_STATES: HelpState[] = [
       await ws(p, 'Characters');
     },
   },
+  ...(['outfits', 'stats', 'moves', 'animations', 'voice', 'behaviour'] as const).map((t) => ({
+    id: `characters-${t}`,
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      await signals(p, { charTab: 'look', sheetTab: t });
+      // a character of the game, so every tab shows its fields
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        if (!e.store.list('characters/').length)
+          e.exec({
+            type: 'character.create',
+            payload: { character: { id: 'chr_helpsheet1', name: 'Sam', role: 'npc', profile: { name: 'Sam' } } },
+          });
+        e.studioCharacter!.value = e.store.list('characters/')[0]!.replace(/^characters\/|\.json$/g, '');
+      });
+      if (t === 'outfits' && !(await p.locator('.outfit-row').count()))
+        await p.locator('[data-tour="outfit-new"]').click();
+    },
+  })),
+  {
+    // P23 part 4: a clip of the game's own in the Poses view (pose pictures, the tools and the joint sliders)
+    id: 'characters-poses',
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        const id = 'clp_helppose01';
+        if (!e.store.has(`clips/${id}.json`))
+          e.exec({
+            type: 'clip.create',
+            payload: {
+              clip: {
+                id,
+                name: 'Wave hello',
+                length: 2,
+                loop: true,
+                tracks: [
+                  {
+                    bone: 'rightArm',
+                    prop: 'z',
+                    keys: [
+                      [0, 0.06, 'easeInOut'],
+                      [1, 2.6, 'easeInOut'],
+                      [2, 0.06, 'easeInOut'],
+                    ],
+                  },
+                ],
+                events: [],
+              },
+            },
+          });
+        e.studioClip!.value = id;
+        e.clipPlaying!.value = false;
+        e.clipTime!.value = 1;
+        e.clipView!.value = 'poses';
+      });
+      // the joint sliders are under the pose pictures: scroll the panel to them
+      await p.locator('[data-tour="pose-joints"]').scrollIntoViewIfNeeded();
+    },
+  },
+  ...(['body', 'skeleton'] as const).map((v) => ({
+    // P22 part 3: a dragon from the family's sliders; the skeleton editor on a body plan of the game's own
+    id: `characters-${v}`,
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      await signals(p, { charTab: 'look', sheetTab: 'body' });
+      await p.evaluate((v) => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        const id = v === 'body' ? 'chr_helpdragon' : 'chr_helpcrab01';
+        if (!e.store.get(`characters/${id}.json`)) {
+          if (v === 'skeleton')
+            e.exec({
+              type: 'bodyplan.put',
+              payload: {
+                plan: {
+                  id: 'bpl_helpcrab01',
+                  name: 'Crab',
+                  family: 'custom',
+                  move: 'walk',
+                  stride: 1.5,
+                  hover: 0,
+                  bones: [
+                    { name: 'body', at: [0, 1.2, 0], role: 'root', swing: 3 },
+                    { name: 'left claw', parent: 'body', at: [-1.5, 0.4, 1], role: 'arm', swing: 20, side: -1 },
+                    { name: 'right claw', parent: 'body', at: [1.5, 0.4, 1], role: 'arm', swing: 20, side: 1 },
+                    {
+                      name: 'left leg',
+                      parent: 'body',
+                      at: [-1.5, 0, -0.5],
+                      role: 'leg',
+                      swing: 25,
+                      phase: 0,
+                      side: -1,
+                    },
+                    {
+                      name: 'right leg',
+                      parent: 'body',
+                      at: [1.5, 0, -0.5],
+                      role: 'leg',
+                      swing: 25,
+                      phase: 0.5,
+                      side: 1,
+                    },
+                  ],
+                  bricks: [
+                    { bone: 'body', w: 3, d: 3, kind: 'brick', x: -1.5, y: 0, z: -1.5, color: 'main' },
+                    { bone: 'body', w: 3, d: 2, kind: 'plate', x: -1.5, y: 3, z: -1, color: 'accent' },
+                    { bone: 'left claw', w: 2, d: 2, kind: 'brick', x: -2, y: 0, z: 0, color: 'accent' },
+                    { bone: 'right claw', w: 2, d: 2, kind: 'brick', x: 0, y: 0, z: 0, color: 'accent' },
+                    { bone: 'left leg', w: 1, d: 1, kind: 'brick', x: -1, y: -3, z: -0.5, color: 'main' },
+                    { bone: 'right leg', w: 1, d: 1, kind: 'brick', x: 0, y: -3, z: -0.5, color: 'main' },
+                  ],
+                },
+              },
+            });
+          e.exec({
+            type: 'character.create',
+            payload: {
+              character: {
+                id,
+                name: v === 'body' ? 'Ember' : 'Pinch',
+                role: 'npc',
+                profile: { name: v === 'body' ? 'Ember' : 'Pinch' },
+                body: v === 'body' ? { family: 'dragon' } : { plan: 'bpl_helpcrab01', colors: { main: '#c91a09' } },
+              },
+            },
+          });
+        }
+        e.studioCharacter!.value = id;
+        e.bodyBones!.value = v === 'skeleton';
+        e.bodyBone!.value = v === 'skeleton' ? 'left claw' : null;
+        e.bodyWalk!.value = false;
+      }, v);
+      if (v === 'skeleton') await p.locator('[data-tour="char-skeleton"]').scrollIntoViewIfNeeded();
+    },
+  })),
+  {
+    // P22 part 4: the Face tab, an angry face picked
+    id: 'characters-face',
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      const has = await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        return e.store.list('characters/').some((k) => (e.store.get(k) as { name?: string })?.name === 'Tom');
+      });
+      if (!has) {
+        await p.locator('[data-tour="char-new"]').click();
+        await p.getByRole('listbox', { name: 'New character from a preset' }).getByRole('option').first().click();
+      }
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        type C = { id: string; name: string; profile: Record<string, unknown> };
+        const all = e.store.list('characters/').map((k) => e.store.get(k) as C);
+        const tom = all.find((c) => c.name === 'Tom') ?? all.find((c) => c.id === e.studioCharacter!.value)!;
+        if (tom.name !== 'Tom')
+          e.exec({
+            type: 'character.update',
+            payload: {
+              character: {
+                ...tom,
+                name: 'Tom',
+                profile: { ...tom.profile, name: 'Tom' },
+                faces: { angry: { expression: 'Angry', eyes: 'Wide' } },
+              },
+            },
+          });
+        e.studioCharacter!.value = tom.id;
+        e.sheetTab!.value = 'face';
+        e.faceMood!.value = 'angry';
+      });
+    },
+  },
+  {
+    // P22 part 4: A character from a picture, with three matches from words
+    id: 'characters-from-picture',
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      await signals(p, { fromPicture: true });
+      const words = p.locator('[data-tour="fp-words"]');
+      await words.fill('a green owl with orange wings');
+      await p.locator('[data-tour="fp-create"]').click();
+      await p.locator('[data-tour="fp-match-2"]').waitFor({ timeout: 30_000 });
+    },
+  },
+  {
+    // the sheet's Dialogue tab: a neighbour's conversations and barks
+    id: 'characters-talk',
+    screen: 'characters',
+    setup: async (p) => {
+      await ws(p, 'Characters');
+      await signals(p, { charTab: 'look', sheetTab: 'dialogue' });
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        if (!e.store.get('characters/chr_helpsheet1.json'))
+          e.exec({
+            type: 'character.create',
+            payload: { character: { id: 'chr_helpsheet1', name: 'Sam', role: 'npc', profile: { name: 'Sam' } } },
+          });
+        e.studioCharacter!.value = 'chr_helpsheet1';
+      });
+    },
+  },
+  {
+    id: 'characters-dialogue',
+    screen: 'characters',
+    setup: async (p) => {
+      await ws(p, 'Characters');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        const id = 'dlg_helpsample';
+        if (!e.store.get(`dialogue/${id}.json`))
+          e.exec({
+            type: 'dialogue.put',
+            payload: {
+              conversation: {
+                id,
+                name: 'Old Tom',
+                sections: [
+                  {
+                    label: 'start',
+                    steps: [
+                      { k: 'line', who: 'Old Tom', text: 'Welcome, traveller! Mind the bridge.', mood: 'happy' },
+                      {
+                        k: 'choice',
+                        options: [
+                          { text: 'What bridge?', to: 'bridge' },
+                          { text: 'Buy a map', to: 'end', if: 'gems >= 5', failed: 'grey' },
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    label: 'bridge',
+                    steps: [
+                      { k: 'like', by: 5 },
+                      { k: 'line', who: 'Old Tom', text: 'The one to the east. It wobbles.' },
+                    ],
+                  },
+                ],
+              },
+            },
+          });
+        e.dialogueId!.value = id;
+        e.dialogueView!.value = 'list';
+        e.charTab!.value = 'dialogue';
+      });
+      const prev = p.getByRole('button', { name: '▶ Preview' });
+      if ((await prev.getAttribute('aria-pressed')) !== 'true') await prev.click();
+    },
+  },
   { id: 'assets', screen: 'assets', setup: (p) => ws(p, 'Assets') },
   {
     id: 'assets-open',
@@ -372,6 +643,147 @@ export const HELP_STATES: HelpState[] = [
       if (await ex.isVisible()) await ex.click();
     },
   },
+  // P23 part 1: effects
+  { id: 'effects', screen: 'effects', setup: (p) => ws(p, 'Effects') },
+  {
+    id: 'effects-screen',
+    screen: 'effects',
+    setup: async (p) => {
+      await ws(p, 'Effects');
+      await p.getByRole('tab', { name: 'Screen', exact: true }).click();
+    },
+  },
+  {
+    id: 'effects-own',
+    screen: 'effects',
+    setup: async (p) => {
+      await ws(p, 'Effects');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const id = 'fx_helpfire01';
+        if (!e.store.has(`effects/${id}.json`))
+          e.exec({
+            type: 'effect.put',
+            payload: {
+              effect: {
+                id,
+                name: 'Blue fire',
+                shape: 'stud',
+                mode: 'stream',
+                count: 1,
+                rate: 40,
+                duration: 0,
+                spawn: 'sphere',
+                radius: 0.35,
+                direction: 'up',
+                spread: 18,
+                speed: [1.2, 2.6],
+                life: [0.45, 0.9],
+                size: [0.45, 0.08],
+                colors: ['#fff2a8', '#3a7bff', '#1f3fbf', '#5a1d0c'],
+                gravity: -1.5,
+                drag: 0,
+                bounce: 0,
+              },
+            },
+          });
+        e.effectId.value = id;
+      });
+    },
+  },
+  {
+    id: 'scene-effect',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const map = e.mapId.value as string;
+        const id = 'ins_helpfire01';
+        e.exec({
+          type: 'item.add',
+          payload: {
+            map,
+            item: {
+              id,
+              kind: 'effect',
+              name: 'Campfire',
+              effect: 'fx_fire000001',
+              pos: [3, 1, 3],
+              scale: 1,
+              interval: [2, 4],
+              maxDistance: 40,
+              playing: true,
+            },
+          },
+        });
+        e.selectedItem.value = id;
+        e.right.value = 'inspect';
+      });
+    },
+  },
+  {
+    // P27 part 2: the Map tab scrolled to Fog, with a mist, ground fog and tinted shadows
+    id: 'scene-atmosphere',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        e.exec({
+          type: 'map.setEnvironment',
+          payload: {
+            map: e.mapId.value,
+            fog: { near: 10, far: 60, thickness: 0.85, color: '#c8d2dc', height: 2.5, groundThickness: 0.8 },
+            ambient: { color: '#7a9cff', strength: 1 },
+          },
+        });
+      });
+      await signals(p, { right: 'map' });
+      await p.locator('[data-tour="map-fog"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    // P27 part 3: the Map tab scrolled to Big worlds
+    id: 'scene-bigworld',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'map' });
+      await p.locator('[data-tour="map-big"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    // P27: a torch placed on a dark map, picked in the Scene
+    id: 'scene-light',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const map = e.mapId.value as string;
+        const id = 'ins_helplight1';
+        e.exec({ type: 'map.setEnvironment', payload: { map, darkness: 0.7, fog: null, ambient: null } });
+        if (!(e.store.get(`maps/${map}/instances.json`) as { items: { id: string }[] }).items.some((i) => i.id === id))
+          e.exec({
+            type: 'item.add',
+            payload: {
+              map,
+              item: {
+                id,
+                kind: 'light',
+                name: 'Torch 1',
+                pos: [3, 2.4, 3],
+                on: true,
+                light: { color: '#ff9a3c', brightness: 1.6, range: 11, flicker: 0.5, shadow: true },
+              },
+            },
+          });
+        e.selectedItem.value = id;
+        e.right.value = 'inspect';
+      });
+    },
+  },
   { id: 'audio', screen: 'audio', setup: (p) => ws(p, 'Audio') },
   {
     id: 'audio-music',
@@ -418,6 +830,30 @@ export const HELP_STATES: HelpState[] = [
       await p.getByRole('navigation', { name: 'Menu' }).getByRole('button', { name: 'File', exact: true }).click();
       await p.getByRole('menuitem', { name: /^New project/ }).click();
       await p.getByRole('radiogroup', { name: 'What are you making?' }).waitFor();
+    },
+  },
+  // P19: Brix with an answer, then Show me pointing at the Project tab's Saving section
+  {
+    id: 'brix',
+    screen: 'shell',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await p.getByRole('button', { name: 'Ask Brix' }).click();
+      const box = p.getByRole('complementary', { name: 'Brix' }).getByRole('textbox', { name: 'Ask Brix' });
+      await box.fill('how do I add a checkpoint?');
+      await box.press('Enter');
+      await p.locator('.brix-answer').first().waitFor();
+    },
+  },
+  {
+    id: 'brix-show',
+    screen: 'shell',
+    setup: async (p) => {
+      await p.locator('.brix-answer .brix-acts button.on').first().click();
+      await p
+        .getByRole('dialog', { name: 'Brix shows you' })
+        .getByRole('button', { name: 'Done' })
+        .waitFor({ timeout: 30_000 });
     },
   },
   // P18: a genre view (last: it changes which tabs show), with More open and a hidden feature in use

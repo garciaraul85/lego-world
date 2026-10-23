@@ -7,7 +7,17 @@ import { parseInline, parseMarkdown } from '../../src/editor/help/markdown';
 import { helpPages } from '../../src/editor/help/pages';
 import { HelpIndex, tokens } from '../../src/editor/help/search';
 
-const WORKSPACES = ['Scene', 'World graph', 'Logic', 'Characters', 'Assets', 'Screens', 'Cinematics', 'Audio'];
+const WORKSPACES = [
+  'Scene',
+  'World graph',
+  'Logic',
+  'Characters',
+  'Assets',
+  'Screens',
+  'Cinematics',
+  'Audio',
+  'Effects',
+];
 
 describe('help markdown (P7.5)', () => {
   it('parses headings, lists, tables and inline marks', () => {
