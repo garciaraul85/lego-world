@@ -47,6 +47,10 @@ export const BUOYANCY = 1.7;
 /** half sizes of the debris brick (v68's 1 × 1 brick drawn at d.scale: 0.975 wide, 1.2 high) */
 const DEBRIS_HALF = { x: 0.4875, y: 0.6, z: 0.4875 };
 export const GRAVITY = 18;
+/** the ground under every map: tiles this many studs across, out to this far each way */
+const GROUND_TILE = 64;
+/** the character controller keeps this gap to what it touches; the hero's feet are this far below its body */
+const SKIN = 0.02;
 
 export class PhysicsWorld {
   readonly world: RAPIER.World;
@@ -64,9 +68,33 @@ export class PhysicsWorld {
     if (!ready) throw new Error('The physics engine is not loaded yet.');
     this.world = new RAPIER.World({ x: 0, y: -GRAVITY, z: 0 });
     // v68's ground: nothing falls below height 0 (the floor under every map)
-    this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(4096, 1, 4096).setTranslation(0, -1, 0).setFriction(0.9).setRestitution(0.1),
-    );
+    // (in tiles laid as things come near: one huge box lets a character sink slowly into it, from rounding)
+    this.groundAt(0, 0);
+  }
+
+  private groundTiles = new Set<string>();
+  private groundCentres = new Set<string>();
+
+  /** v68's ground under a place and around it (tiles of 64 studs, laid once) */
+  groundAt(x: number, z: number) {
+    const tx = Math.floor(x / GROUND_TILE);
+    const tz = Math.floor(z / GROUND_TILE);
+    const centre = `${tx},${tz}`;
+    if (this.groundCentres.has(centre)) return;
+    this.groundCentres.add(centre);
+    for (let i = tx - 1; i <= tx + 1; i++)
+      for (let j = tz - 1; j <= tz + 1; j++) {
+        const k = `${i},${j}`;
+        if (this.groundTiles.has(k)) continue;
+        this.groundTiles.add(k);
+        this.world.createCollider(
+          RAPIER.ColliderDesc.cuboid(GROUND_TILE / 2, 1, GROUND_TILE / 2)
+            .setTranslation((i + 0.5) * GROUND_TILE, -1, (j + 0.5) * GROUND_TILE)
+            .setFriction(0.9)
+            .setRestitution(0.1),
+        );
+        this.queriesStale = true;
+      }
   }
 
   /** the chunks whose bricks are solid now */
@@ -74,22 +102,24 @@ export class PhysicsWorld {
     return new Set(this.chunks.keys());
   }
 
-  /** a chunk's bricks become solid boxes (any it had before are replaced) */
+  /**
+   * a chunk's bricks become solid (any it had before are replaced): one triangle mesh per chunk, the faces two
+   * bricks share left out. (One box per brick made every step of the engine slow on big maps, where thousands of
+   * bricks are near the hero.)
+   */
   setChunk(key: string, pieces: readonly LegacyPiece[], bounds: (p: LegacyPiece) => Box) {
     this.dropChunk(key);
+    if (pieces[0]) this.groundAt(pieces[0].x, pieces[0].z);
+    const mesh = boxMesh(pieces.map(bounds));
     const list: RAPIER.Collider[] = [];
-    for (const p of pieces) {
-      const b = bounds(p);
-      const hx = (b.x1 - b.x0) / 2;
-      const hy = (b.y1 - b.y0) / 2;
-      const hz = (b.z1 - b.z0) / 2;
-      if (hx <= 0 || hy <= 0 || hz <= 0) continue;
-      const desc = RAPIER.ColliderDesc.cuboid(hx, hy, hz)
-        .setTranslation(b.x0 + hx, b.y0 + hy, b.z0 + hz)
-        .setFriction(0.9)
-        .setRestitution(0.15);
-      list.push(this.world.createCollider(desc));
-    }
+    if (mesh.indices.length)
+      list.push(
+        this.world.createCollider(
+          RAPIER.ColliderDesc.trimesh(mesh.vertices, mesh.indices, RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES)
+            .setFriction(0.9)
+            .setRestitution(0.15),
+        ),
+      );
     this.chunks.set(key, list);
     this.queriesStale = true;
   }
@@ -105,6 +135,7 @@ export class PhysicsWorld {
   /** a loose brick starts to fall and tumble from where it is, at its speed */
   addLoose(d: LooseBrick) {
     if (this.loose.has(d)) return;
+    this.groundAt(d.x, d.z);
     const q = quatFromYXZ(d.ry, d.rx, d.rz);
     const body = this.world.createRigidBody(
       RAPIER.RigidBodyDesc.dynamic()
@@ -146,6 +177,8 @@ export class PhysicsWorld {
 
   /** the hero as a solid capsule that pushes loose things (moved to where the game put it) */
   moveHero(x: number, y: number, z: number, radius: number, height: number) {
+    // a hero walked by the physics engine already is its own solid capsule
+    if (this.walker) return;
     if (!this.hero) {
       this.hero = this.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(x, y, z));
       this.heroCollider = this.world.createCollider(
@@ -154,6 +187,126 @@ export class PhysicsWorld {
       );
     }
     this.hero.setNextKinematicTranslation({ x, y, z });
+  }
+
+  // ---- Milestone 2b, 10b part 3: the hero walked by the physics engine (a character controller) ----
+  private kcc: RAPIER.KinematicCharacterController | null = null;
+  private walker: { collider: RAPIER.Collider; radius: number; height: number } | null = null;
+  private actorBodies = new Map<object, { collider: RAPIER.Collider; radius: number; height: number }>();
+  /** what the hero stood on last step, when it moves (a floating crate): the hero rides along */
+  private standingOn: RAPIER.RigidBody | null = null;
+
+  /**
+   * Moves the hero (feet at `from`) by `delta` through the world: bricks block it, it steps up a plate (0.45), it
+   * stays on the ground walking down plates, it pushes loose things and rides what it stands on.
+   */
+  walk(
+    from: { x: number; y: number; z: number },
+    delta: { x: number; y: number; z: number },
+    radius: number,
+    height: number,
+  ): { x: number; y: number; z: number; grounded: boolean; blockedUp: boolean; riding: boolean } {
+    if (!this.kcc) {
+      const k = this.world.createCharacterController(SKIN);
+      k.setUp({ x: 0, y: 1, z: 0 });
+      k.enableAutostep(0.45, 0.15, true);
+      k.enableSnapToGround(0.45);
+      k.setMaxSlopeClimbAngle((50 * Math.PI) / 180);
+      k.setMinSlopeSlideAngle((60 * Math.PI) / 180);
+      k.setApplyImpulsesToDynamicBodies(true);
+      k.setCharacterMass(6);
+      k.setSlideEnabled(true);
+      this.kcc = k;
+    }
+    // the hero is one capsule (rebuilt when it grows or shrinks); the pushing body of classic movement goes
+    if (this.hero) {
+      this.world.removeRigidBody(this.hero);
+      this.hero = null;
+    }
+    if (!this.walker || Math.abs(this.walker.radius - radius) > 1e-6 || Math.abs(this.walker.height - height) > 1e-6) {
+      if (this.walker) this.world.removeCollider(this.walker.collider, false);
+      const collider = this.world.createCollider(
+        RAPIER.ColliderDesc.capsule(Math.max(0.05, height / 2 - radius), radius)
+          .setTranslation(from.x, from.y + SKIN + height / 2, from.z)
+          .setFriction(0),
+      );
+      this.walker = { collider, radius, height };
+      this.heroCollider = collider;
+      this.queriesStale = true;
+    }
+    this.groundAt(from.x, from.z);
+    this.refreshQueries();
+    const c = this.walker.collider;
+    // the game may have moved the hero (a teleport, a respawn): start from where the game says it is (the body a
+    // skin above the feet, so it never starts inside what it stands on)
+    c.setTranslation({ x: from.x, y: from.y + SKIN + height / 2, z: from.z });
+    // standing on something that moves: carried along with it
+    let d = delta;
+    let riding = false;
+    const on = this.standingOn;
+    if (on?.isValid() && on.isDynamic()) {
+      const v = on.linvel();
+      const dt = this.world.timestep || 1 / 60;
+      d = { x: d.x + v.x * dt, y: d.y + Math.max(0, v.y) * dt, z: d.z + v.z * dt };
+      riding = Math.hypot(v.x, v.z) > 0.05;
+    }
+    this.kcc.computeColliderMovement(c, d);
+    const m = this.kcc.computedMovement();
+    const grounded = this.kcc.computedGrounded();
+    // what is under the feet now
+    this.standingOn = null;
+    for (let i = 0; i < this.kcc.numComputedCollisions(); i++) {
+      const hit = this.kcc.computedCollision(i);
+      const body = hit?.collider?.parent();
+      if (!hit || !body || !body.isDynamic()) continue;
+      if (body.translation().y < from.y + 0.5) this.standingOn = body;
+    }
+    if (!grounded) this.standingOn = null;
+    const x = from.x + m.x;
+    const y = from.y + m.y;
+    const z = from.z + m.z;
+    c.setTranslation({ x, y: y + SKIN + height / 2, z });
+    return { x, y, z, grounded, blockedUp: d.y > 1e-4 && m.y < d.y - 1e-3, riding };
+  }
+
+  /** other characters are solid capsules to the hero (feet positions; any not listed are gone) */
+  setActors(list: readonly { key: object; x: number; y: number; z: number; radius: number; height: number }[]) {
+    const keep = new Set<object>();
+    for (const a of list) {
+      keep.add(a.key);
+      let e = this.actorBodies.get(a.key);
+      if (e && (Math.abs(e.radius - a.radius) > 1e-6 || Math.abs(e.height - a.height) > 1e-6)) {
+        this.world.removeCollider(e.collider, false);
+        e = undefined;
+      }
+      if (!e) {
+        e = {
+          collider: this.world.createCollider(
+            RAPIER.ColliderDesc.capsule(Math.max(0.05, a.height / 2 - a.radius), a.radius),
+          ),
+          radius: a.radius,
+          height: a.height,
+        };
+        this.actorBodies.set(a.key, e);
+        this.queriesStale = true;
+      }
+      e.collider.setTranslation({ x: a.x, y: a.y + a.height / 2, z: a.z });
+    }
+    for (const [k, e] of this.actorBodies)
+      if (!keep.has(k)) {
+        this.world.removeCollider(e.collider, false);
+        this.actorBodies.delete(k);
+      }
+  }
+
+  /** the hero stands on a loose thing (a crate, a raft) */
+  get standingOnLoose() {
+    return !!this.standingOn;
+  }
+
+  /** whether the hero is walked by the physics engine in this world */
+  get walking() {
+    return !!this.walker;
   }
 
   /** the map's water (loose things float in it, and its current carries them) */
@@ -182,6 +335,7 @@ export class PhysicsWorld {
     const cx = (x0 + x1) / 2;
     const cy = (y0 + y1) / 2;
     const cz = (z0 + z1) / 2;
+    this.groundAt(cx, cz);
     const body = this.world.createRigidBody(
       RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(cx, cy, cz)
@@ -258,6 +412,10 @@ export class PhysicsWorld {
   /** one step of the simulation */
   step(dt: number) {
     if (dt <= 0) return;
+    // the ground reaches wherever something is moving
+    for (const b of this.loose.values()) if (!b.isSleeping()) this.groundAt(b.translation().x, b.translation().z);
+    for (const o of this.objects.values())
+      if (!o.body.isSleeping()) this.groundAt(o.body.translation().x, o.body.translation().z);
     this.applyWater(Math.min(dt, 1 / 30));
     this.world.timestep = Math.min(dt, 1 / 30);
     this.world.step();
@@ -328,13 +486,61 @@ export class PhysicsWorld {
   }
 
   free() {
+    if (this.kcc) this.world.removeCharacterController(this.kcc);
     this.world.free();
     this.chunks.clear();
     this.loose.clear();
     this.objects.clear();
     this.hero = null;
     this.heroCollider = null;
+    this.walker = null;
+    this.kcc = null;
+    this.actorBodies.clear();
+    this.standingOn = null;
   }
+}
+
+/**
+ * The outside of a set of boxes as triangles (facing out): a face that another box's face covers exactly (two
+ * bricks stacked or side by side) is left out.
+ */
+export function boxMesh(boxes: readonly Box[]): { vertices: Float32Array; indices: Uint32Array } {
+  const ok = boxes.filter((b) => b.x1 > b.x0 && b.y1 > b.y0 && b.z1 > b.z0);
+  // a face by where it lies, whichever side it faces: two boxes sharing one cancel out
+  const r = (v: number) => Math.round(v * 1000);
+  const faceKey = (axis: number, at: number, a0: number, a1: number, b0: number, b1: number) =>
+    `${axis}|${r(at)}|${r(a0)}|${r(a1)}|${r(b0)}|${r(b1)}`;
+  const faces = (b: Box) =>
+    [
+      [0, b.x0, b.y0, b.y1, b.z0, b.z1, -1],
+      [0, b.x1, b.y0, b.y1, b.z0, b.z1, 1],
+      [1, b.y0, b.x0, b.x1, b.z0, b.z1, -1],
+      [1, b.y1, b.x0, b.x1, b.z0, b.z1, 1],
+      [2, b.z0, b.x0, b.x1, b.y0, b.y1, -1],
+      [2, b.z1, b.x0, b.x1, b.y0, b.y1, 1],
+    ] as const;
+  const count = new Map<string, number>();
+  for (const b of ok)
+    for (const f of faces(b)) {
+      const k = faceKey(f[0], f[1], f[2], f[3], f[4], f[5]);
+      count.set(k, (count.get(k) ?? 0) + 1);
+    }
+  const v: number[] = [];
+  const idx: number[] = [];
+  for (const b of ok)
+    for (const [axis, at, a0, a1, b0, b1, dir] of faces(b)) {
+      if ((count.get(faceKey(axis, at, a0, a1, b0, b1)) ?? 0) > 1) continue;
+      const base = v.length / 3;
+      // the face's corners (a, b are the other two axes in order)
+      const corner = (a: number, c: number): [number, number, number] =>
+        axis === 0 ? [at, a, c] : axis === 1 ? [a, at, c] : [a, c, at];
+      v.push(...corner(a0, b0), ...corner(a1, b0), ...corner(a1, b1), ...corner(a0, b1));
+      // wound to face out (axis 1 has its two axes the other way round)
+      const out = axis === 1 ? -dir : dir;
+      if (out > 0) idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      else idx.push(base, base + 2, base + 1, base, base + 3, base + 2);
+    }
+  return { vertices: new Float32Array(v), indices: new Uint32Array(idx) };
 }
 
 /** v68 turns bricks Y, then X, then Z (its matrix(…, ry, rx, rz)); these convert to and from quaternions */

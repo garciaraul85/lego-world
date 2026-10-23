@@ -256,6 +256,61 @@
       "how": []
     },
     {
+      "id": "water.movement",
+      "title": "Physics movement",
+      "body": "Classic movement is v68's original walking: it stops dead at bricks and can't stand on loose things. Physics movement walks the hero with the physics engine: the same speeds and jump, but it slides along walls, pushes loose things and rides them.",
+      "task": "On the Project tab, set Movement to Physics.",
+      "target": "[data-tour=\"project-movement\"]",
+      "check": {
+        "kind": "state",
+        "test": "projectMovement",
+        "args": "physics"
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "project"
+        },
+        {
+          "choose": "[data-tour=\"project-movement\"] select",
+          "value": "physics"
+        }
+      ],
+      "how": [
+        {
+          "text": "On the right, click the Project tab.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"project-movement\"]"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "project"
+            },
+            {
+              "show": "[data-tour=\"project-movement\"]"
+            }
+          ]
+        },
+        {
+          "text": "Pick Physics in Movement.",
+          "check": {
+            "kind": "state",
+            "test": "projectMovement",
+            "args": "physics"
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"project-movement\"] select",
+              "value": "physics",
+              "say": "Physics"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "water.play",
       "title": "Watch it float",
       "body": "Press Play: the crate rises to the surface and drifts with the current. Walk into it to push it.",
@@ -274,9 +329,29 @@
       "how": []
     },
     {
+      "id": "water.ride",
+      "title": "Ride it",
+      "body": "With physics movement the hero can stand on loose things. Jump onto the crate as it floats: it carries the hero down the river.",
+      "task": "Walk up to the crate and jump on it (Space).",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroOnLoose"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "standOnLoose"
+        }
+      ],
+      "how": []
+    },
+    {
       "id": "water.done",
       "title": "Done!",
-      "body": "You made a loose crate float down a river. Loose things also fall when nothing holds them up and tip over when the hero walks into them, and smashed bricks float too. Help › Water properties and Help › Loose say more. Press Esc or Stop to leave Play.",
+      "body": "You made a loose crate float down a river, set the hero to physics movement and rode the crate. Loose things also fall when nothing holds them up and tip over when the hero walks into them, and smashed bricks float too. Help › Water properties, Loose and Movement say more. Press Esc or Stop to leave Play.",
       "check": {
         "kind": "manual"
       },

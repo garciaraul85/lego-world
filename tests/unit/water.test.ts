@@ -49,7 +49,8 @@ describe('water in the physics core', () => {
     // a quarter turn about Y: the origin still lands on pos
     const s = Math.SQRT1_2;
     const q = poseMatrix({ pos: [5, 2, 1], rot: { x: 0, y: s, z: 0, w: s } }, origin);
-    const at = (v: readonly number[]) => [0, 1, 2].map((i) => q[i]! * v[0]! + q[4 + i]! * v[1]! + q[8 + i]! * v[2]! + q[12 + i]!);
+    const at = (v: readonly number[]) =>
+      [0, 1, 2].map((i) => q[i]! * v[0]! + q[4 + i]! * v[1]! + q[8 + i]! * v[2]! + q[12 + i]!);
     expect(at(origin).map((v) => Math.round(v * 1000) / 1000)).toEqual([5, 2, 1]);
   });
 });

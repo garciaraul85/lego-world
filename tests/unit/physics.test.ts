@@ -95,7 +95,7 @@ describe('physics in play', () => {
     const piece0 = p.pieceById(w, inst.inst.idBase)!;
     expect(p.breakHit(piece0, undefined, true)).toBeGreaterThan(0);
     expect(w.debris.length).toBeGreaterThan(5);
-    for (let i = 0; i < 60 * 4; i++) p.runtime.stepOnce();
+    for (let i = 0; i < 60 * 6; i++) p.runtime.stepOnce();
     expect(w.physics!.looseCount).toBe(w.debris.length);
     // every loose brick lies on what is under it (never below the ground the crate stood on)
     for (const d of w.debris) expect(d.y).toBeGreaterThan(ground - 0.1);

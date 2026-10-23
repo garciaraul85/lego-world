@@ -46,6 +46,34 @@ export const PHYSICS: HelpEntry[] = [
     related: ['scene.item.water'],
   },
   {
+    id: 'project.movement',
+    also: [
+      'movement',
+      'hero movement',
+      'physics movement',
+      'classic movement',
+      'character controller',
+      'ride',
+      'stand on a crate',
+      'snag',
+      'stuck on walls',
+      'push',
+    ],
+    screen: 'scene',
+    kind: 'setting',
+    name: 'Movement',
+    purpose:
+      'How the hero moves. **Classic (v68)** is the original walking: it stops dead at bricks in the way. **Physics** walks the hero with the physics engine: the same speeds and the same jump, but it slides along walls and corners instead of snagging, steps up a plate, pushes **loose** things, stands on them and rides them (a crate floating down a river carries the hero). Characters other than the hero still walk the classic way.',
+    steps: [
+      'Open the **Project** tab of the Inspector.',
+      'Pick **Movement**: Classic (v68) or Physics.',
+      'Press ▶ Play and walk into a loose crate, jump on it, or ride one down a river.',
+    ],
+    commands: ['project.update'],
+    match: [{ in: '[data-help="project.movement"]' }],
+    related: ['asset.loose', 'scene.item.water', 'project.quality'],
+  },
+  {
     id: 'asset.loose',
     also: ['loose', 'physics', 'push', 'tip over', 'falls', 'fall over', 'rigid body', 'movable object', 'crate'],
     screen: 'assets',
@@ -55,6 +83,6 @@ export const PHYSICS: HelpEntry[] = [
       'A loose asset is not fixed to the map: in Play every copy is a body the physics engine moves. It falls if nothing holds it up, tips over and slides when the hero walks into it, floats in water and drifts with a river’s current. Leave it off for buildings, trees and anything that should stay put. Loose copies still break when smashed.',
     commands: ['asset.update'],
     match: [{ in: '[data-help="asset.loose"]' }],
-    related: ['scene.item.water'],
+    related: ['scene.item.water', 'project.movement'],
   },
 ];

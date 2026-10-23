@@ -322,6 +322,8 @@ export type UpdateProject = {
   screenEffects?: ScreenHooks | null;
   /** P27 part 4: the game's graphics quality before the player picks one (auto: from the device) */
   quality?: QualityChoice;
+  /** Milestone 2b: how the hero moves (classic: v68's own code; physics: walked by the physics engine) */
+  movement?: 'classic' | 'physics';
 };
 
 export const updateProject: CommandHandler<UpdateProject> = {
@@ -338,7 +340,9 @@ export const updateProject: CommandHandler<UpdateProject> = {
               ? 'Game screen effects'
               : p.quality !== undefined && Object.keys(p).length === 1
                 ? 'Graphics quality'
-                : 'Edit project settings',
+                : p.movement !== undefined && Object.keys(p).length === 1
+                  ? `Movement: ${p.movement}`
+                  : 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.saving && !SavingSchema.safeParse(p.saving).success)
@@ -373,6 +377,8 @@ export const updateProject: CommandHandler<UpdateProject> = {
       if (missing) return `There is no screen effect ${missing}.`;
     }
     if (p.quality !== undefined && !QUALITY_CHOICES.includes(p.quality)) return 'Quality is auto, low, medium or high.';
+    if (p.movement !== undefined && p.movement !== 'classic' && p.movement !== 'physics')
+      return 'Movement is classic or physics.';
     if (p.hero && !store.has(paths.character(p.hero))) return 'That character does not exist.';
     if (p.entryMap !== undefined && !store.has(paths.map(p.entryMap))) return 'Start map not found.';
     if (p.entryScreen && !/^scr_[0-9a-z]{10}$/.test(p.entryScreen)) return 'Pick a screen.';
@@ -388,6 +394,10 @@ export const updateProject: CommandHandler<UpdateProject> = {
     if (p.quality !== undefined) {
       const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
       store.put(paths.settings, { ...settings, quality: p.quality });
+    }
+    if (p.movement !== undefined) {
+      const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
+      store.put(paths.settings, { ...settings, movement: p.movement });
     }
     const cur = store.manifest;
     const entryMap = (p.entryMap ?? cur.entry.map) as Project['entry']['map'];

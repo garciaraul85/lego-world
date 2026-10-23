@@ -797,7 +797,10 @@ export const HELP_STATES: HelpState[] = [
         if (!(e.store.get(`maps/${map}/instances.json`) as { items: { id: string }[] }).items.some((i) => i.id === id))
           e.exec({
             type: 'item.add',
-            payload: { map, item: { id, kind: 'water', name: 'Pool 1', pos: [2, 0, 2], size: [8, 2, 8], body: 'pool' } },
+            payload: {
+              map,
+              item: { id, kind: 'water', name: 'Pool 1', pos: [2, 0, 2], size: [8, 2, 8], body: 'pool' },
+            },
           });
         e.selectedItem.value = id;
         e.right.value = 'inspect';

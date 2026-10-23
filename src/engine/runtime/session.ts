@@ -86,11 +86,13 @@ import {
   type LegacyRuntime,
   type LegacyWorldMeta,
   legacyRuntime,
+  type MoveInput,
   type Npc,
 } from '../legacy/runtime-modules';
 import { type Atmosphere, atmosphere } from '../lighting/atmosphere';
 import { findLight, gatherLights, type LightSource, pointLights } from '../lighting/lights';
 import { LogicRuntime } from '../logic/interpreter';
+import { walkHero } from '../physics/hero';
 import { PhysicsWorld, physicsReady } from '../physics/physics';
 import { portrait } from '../render/portraits';
 import type { PointLight } from '../render/renderer';
@@ -1008,18 +1010,15 @@ export class PlaySession {
     const fallSpeed = before.vy;
     // P27 part 3: a big map's window follows the hero
     this.moveWindow(this.world);
+    const move = {
+      ...input,
+      // P22 part 2: the sheet's speed and jump
+      speedScale: (input.speedScale ?? 1) * this.heroStats.speed,
+      jumpSpeed: (input.jumpSpeed ?? (this.hero.power === 'Super jumping' ? 19 : 9.5)) * Math.sqrt(this.heroStats.jump),
+    };
+    if (this.physicsMovement) this.walkWithPhysics(move, dt);
     // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
-    this.world.controller.step(
-      {
-        ...input,
-        // P22 part 2: the sheet's speed and jump
-        speedScale: (input.speedScale ?? 1) * this.heroStats.speed,
-        jumpSpeed:
-          (input.jumpSpeed ?? (this.hero.power === 'Super jumping' ? 19 : 9.5)) * Math.sqrt(this.heroStats.jump),
-      },
-      dt,
-      this.camYaw,
-    );
+    else this.world.controller.step(move, dt, this.camYaw);
     c.stepMove(dt);
     if (this.god) c.stamina = MAX_STAMINA;
     this.keepOutOfParts();
@@ -1032,6 +1031,40 @@ export class PlaySession {
     }
     this.movementSounds(dt, wasGrounded, fallSpeed);
     if (this.heroState.y < -14) this.fellOff();
+  }
+
+  /** Milestone 2b, 10b part 3: the project's movement (Project › Movement), when the physics engine is loaded */
+  get movementChoice(): 'classic' | 'physics' {
+    return (
+      (this.snapshot.get(paths.settings) as { movement?: 'classic' | 'physics' } | undefined)?.movement ?? 'classic'
+    );
+  }
+
+  /** the hero is walked by the physics engine now (else by v68's controller) */
+  get physicsMovement(): boolean {
+    return this.movementChoice === 'physics' && !!this.world.physics;
+  }
+
+  /** Milestone 2b, 10b part 3: the hero walked by the physics engine, the other characters solid to it */
+  private walkWithPhysics(move: MoveInput & { speedScale?: number; jumpSpeed?: number }, dt: number) {
+    const w = this.world;
+    const ph = w.physics!;
+    const c = w.controller;
+    const s = c.state;
+    const G = this.L.GamePhysics;
+    const k = G.scaleOf(s);
+    ph.setActors(
+      w.npcs.map((n) => {
+        const ks = G.scaleOf(n.state);
+        return { key: n, x: n.state.x, y: n.state.y, z: n.state.z, radius: 0.8 * ks, height: 4.4 * ks };
+      }),
+    );
+    const weapon = s.attack > 0 ? (this.L.GameWeapons.get(String(s.attackWeapon ?? '')) as never) : null;
+    walkHero(ph, s, move, dt, this.camYaw, { scale: k, weapon });
+    // kept inside the map, as v68 keeps it
+    const p = G.containPoint(c.area, s.x, s.z, G.characterMargin * k);
+    s.x = p.x;
+    s.z = p.z;
   }
 
   /** back on solid ground after a fall: at the checkpoint touched on this map, else the map's safe spot */
@@ -2087,7 +2120,8 @@ export class PlaySession {
       const rebuilding = this.rebuildEntry?.id;
       ph.syncLoose(w.debris, (d) => (d as Debris).entryId === rebuilding);
       // loose objects keep the simulation going even with no loose bricks about
-      if (w.debris.length || ph.objectCount) {
+      // (and the hero walked by it: what it pushes and stands on moves every step)
+      if (w.debris.length || ph.objectCount || ph.walking) {
         const s = this.heroState;
         const k = this.L.GamePhysics.scaleOf(s);
         ph.moveHero(s.x, s.y, s.z, 0.8 * k, 4.4 * k);

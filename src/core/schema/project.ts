@@ -39,6 +39,8 @@ export type Project = z.infer<typeof Project>;
 
 export const Settings = z.strictObject({
   quality: z.enum(['auto', 'low', 'medium', 'high']),
+  /** Milestone 2b: how the hero moves — v68's own code (classic), or walked by the physics engine */
+  movement: z.enum(['classic', 'physics']).optional(),
   /** legacy activeCharacterId etc. that has no v5 home yet */
   legacy: z.record(z.string(), z.unknown()).optional(),
 });

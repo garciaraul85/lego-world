@@ -483,7 +483,7 @@ export const ACTIONS: EditorAction[] = [
   },
   {
     id: 'help.water',
-    label: 'Water and physics course (loose things, pools, rivers)',
+    label: 'Water and physics course (loose things, rivers, physics movement)',
     run: ({ ui }) => ui.tutorial('water'),
   },
   {

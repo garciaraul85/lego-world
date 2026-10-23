@@ -103,6 +103,9 @@ export interface LegacyRuntime {
     Controller: new (pieces: LegacyPiece[], world?: LegacyWorldMeta) => Controller;
     bounds(p: LegacyPiece): Bounds;
     scaleOf(s: HeroState): number;
+    /** v68: a point kept inside an area (margin r from its edges) */
+    containPoint(area: unknown, x: number, z: number, r?: number): { x: number; z: number };
+    characterMargin: number;
     overlapsPlayer(p: LegacyPiece, s: HeroState): boolean;
     rebuildTraps(c: Controller, originals: LegacyPiece[], x: number, z: number, y: number): boolean;
     cameraDistance(target: number[], eye: number[], pieces: LegacyPiece[]): number;

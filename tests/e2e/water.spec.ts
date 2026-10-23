@@ -74,7 +74,7 @@ test('Water and physics course: Do it for me floats a loose crate down a river i
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });
   const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
-  expect(total).toBe(7);
+  expect(total).toBe(9);
   for (let i = 0; i < total; i++) {
     const pos = await card.locator('header .mono').innerText();
     const title = await card.getByRole('heading').first().innerText();

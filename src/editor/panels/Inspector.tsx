@@ -661,6 +661,40 @@ function QualityField({ c }: { c: ActionCtx }) {
   );
 }
 
+export const MOVEMENT_HELP =
+  'How the hero moves. Classic is v68’s original walking: it stops dead at bricks in the way. Physics walks the hero with the physics engine: the same speeds and jump, but it slides along walls instead of snagging, steps up plates, pushes loose things and stands on them, riding a crate as it floats down a river. Try both in Play.';
+
+/** Milestone 2b, 10b part 3: how the hero moves (classic v68, or walked by the physics engine) */
+function MovementField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = ed.store.get<Settings>(paths.settings)?.movement ?? 'classic';
+  return (
+    <div class="field" data-tour="project-movement" data-help="project.movement">
+      <span>
+        Movement
+        <FieldHelp label="Movement" text={MOVEMENT_HELP} />
+      </span>
+      <select
+        class="inp"
+        aria-label="Movement"
+        value={cur}
+        onChange={(e) =>
+          ed.exec(
+            {
+              type: 'project.update',
+              payload: { movement: (e.target as HTMLSelectElement).value as 'classic' | 'physics' },
+            },
+            { label: 'Movement' },
+          )
+        }
+      >
+        <option value="classic">Classic (v68)</option>
+        <option value="physics">Physics (pushes and rides loose things)</option>
+      </select>
+    </div>
+  );
+}
+
 function ProjectTab({ c }: { c: ActionCtx }) {
   const { ed, ui } = c;
   ed.revision.value;
@@ -721,6 +755,7 @@ function ProjectTab({ c }: { c: ActionCtx }) {
           />
         </div>
         <QualityField c={c} />
+        <MovementField c={c} />
       </div>
       <SavingSection c={c} />
       <ProgressSection c={c} />

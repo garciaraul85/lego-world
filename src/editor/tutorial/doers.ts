@@ -772,6 +772,16 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     if (!placeWaterAt(c.ed, { x: copy.x, y: copy.y, z: copy.z }, 'pool'))
       throw new Error('The water could not be added.');
   },
+  standOnLoose(c) {
+    // what jumping onto the floating crate does: the hero lands on its top
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    if (!s.physicsMovement) throw new Error('Set Project › Movement to Physics first, then play again.');
+    const o = s.world.looseObjects[0];
+    const pose = o && s.world.physics?.objectPose(o.inst.inst.id);
+    if (!pose) throw new Error('There is no loose thing on this map.');
+    s.placeAt([pose.pos[0], pose.pos[1] + 2.5, pose.pos[2]], s.heroState.heading);
+  },
   playIfStopped(c) {
     // P27 part 4: what pressing ▶ Play does, unless the game is already playing
     if (!c.ed.session.value) c.ui.play('engine');
