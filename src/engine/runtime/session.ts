@@ -98,7 +98,8 @@ import { resolveScreen, screenOfKind } from '../ui/screens';
 import { ActionRunner, type GameOp } from './actions';
 import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
 import { Enemies } from './enemies';
-import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './health';
+import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem } from './health';
+import { ObjectIndex } from './objects';
 import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
 import { Runtime, type System } from './runtime';
@@ -171,6 +172,8 @@ export type MapWorld = {
   fullArea: unknown;
   /** P27 part 3d: bricks of broken things gone for good that are no longer remembered as breaks (ids) */
   goneIds: number[];
+  /** Milestone 2b: the placed objects' indexes (by id, name, brick and place) */
+  objects: ObjectIndex<PlayInstance>;
   /** P27 part 3d: neighbours beaten that come back (after seconds; 0: when the player comes back) */
   defeated: { npc: Npc; at: number; after: number }[];
 };
@@ -285,7 +288,7 @@ export class PlaySession {
   /** P27 part 2: the time of day logic set (and when), and the fog it set (undefined: the map's; null: none) */
   private timeSet: { time: MapDoc['sky']['time']; at: number } | null = null;
   private fogSet: Fog | null | undefined = undefined;
-  private smashedCache: { world: MapWorld; rev: number; ids: Set<string> } | null = null;
+  private smashedCache: { world: MapWorld; rev: number; key: string; ids: Set<string> } | null = null;
   /** P9c: neighbours that fight the hero */
   readonly enemies: Enemies = new Enemies(this);
   /** P9b: attacks, guarding, moves and lock-on */
@@ -557,6 +560,7 @@ export class PlaySession {
       windowAt: startKey,
       fullArea,
       goneIds: [],
+      objects: new ObjectIndex<PlayInstance>(),
       defeated: [],
       start: { instances: new Map(), npcs: npcs.map((n) => n.id) },
     };
@@ -1107,7 +1111,8 @@ export class PlaySession {
           this.hitNpc(n, attack, push);
           any = true;
         }
-      for (const i of [...this.world.instances]) {
+      // Milestone 2b: the objects within reach of the swing (the widest objects are 48 studs), not every object
+      for (const i of this.objs().near(h.x, h.z, r + 26)) {
         if (!i.def.health) continue;
         const c = this.instanceCenter(i);
         if (c && Math.hypot(c[0] - h.x, c[2] - h.z) <= r + Math.max(i.def.footprint[0], i.def.footprint[1]) / 2) {
@@ -1329,7 +1334,8 @@ export class PlaySession {
     const h = this.heroState;
     const out: { pos: Vec3; k: number }[] = [];
     const near = (x: number, z: number) => Math.hypot(x - h.x, z - h.z) <= 25;
-    for (const i of this.world.instances) {
+    // Milestone 2b: the objects near the hero only
+    for (const i of this.objs().near(h.x, h.z, 26)) {
       const w = this.health.peek(`i:${i.inst.id}`);
       if (!w || w.hp <= 0 || w.hp >= w.max) continue;
       const c = this.instanceCenter(i);
@@ -1592,14 +1598,17 @@ export class PlaySession {
   /** asset copies of this map smashed now (their light goes out) */
   private smashedIds(): Set<string> {
     const w = this.world;
-    if (this.smashedCache?.world === w && this.smashedCache.rev === w.rev) return this.smashedCache.ids;
+    // a break or a rebuild changes the list of breaks, not always the map's revision
+    const key = `${w.brokenSerial}:${w.broken.length}`;
+    const c = this.smashedCache;
+    if (c?.world === w && c.rev === w.rev && c.key === key) return c.ids;
     const ids = new Set<string>();
     for (const b of w.broken)
       for (const p of b.originals) {
         const i = this.instanceOfPiece(p.id);
         if (i) ids.add(i.inst.id);
       }
-    this.smashedCache = { world: w, rev: w.rev, ids };
+    this.smashedCache = { world: w, rev: w.rev, key, ids };
     return ids;
   }
 
@@ -1799,8 +1808,7 @@ export class PlaySession {
 
   /** P9c: the instance id of a neighbour (what a script on it is owned by) */
   npcSelf(n: Npc): { self?: string } {
-    const inst = this.snapshot.get(paths.instances(this.world.mapId)) as Instances | undefined;
-    const item = inst?.items.find((i) => i.kind === 'npc' && i.legacyId === n.id);
+    const item = npcItem(this.snapshot, this.world.mapId, n.id);
     return item ? { self: item.id } : {};
   }
 
@@ -1853,7 +1861,7 @@ export class PlaySession {
       });
       return;
     }
-    const i = this.world.instances.find((x) => x.inst.id === t.id);
+    const i = this.objs().byId(t.id);
     if (!i) return;
     this.logic.fire({
       type: 'event.onLockedOn',
@@ -2433,7 +2441,8 @@ export class PlaySession {
         const out: string[] = [];
         const s = this.heroState;
         if (inBox(z, s.x, s.y + 1, s.z)) out.push('hero');
-        for (const i of this.world.instances) {
+        // Milestone 2b: objects whose centre is in or near the zone's ground plan, then the exact test
+        for (const i of this.objs().inBox(z.min[0] - 8, z.min[2] - 8, z.max[0] + 8, z.max[2] + 8)) {
           let cx = 0;
           let cy = 0;
           let cz = 0;
@@ -2513,7 +2522,7 @@ export class PlaySession {
 
   /** a sound event at the hero, or at the instance an asset action belongs to */
   playSound(event: string, self: string | undefined) {
-    const inst = self ? this.world.instances.find((i) => i.inst.id === self) : undefined;
+    const inst = self ? this.objs().byId(self) : undefined;
     const so = inst?.sockets[0];
     const s = this.heroState;
     this.audio.play(event, { pos: so ? (so.world as Vec3) : [s.x, s.y + 1, s.z] });
@@ -2865,8 +2874,8 @@ export class PlaySession {
   stepCheckpoints() {
     if (this.cine.active || this.over) return;
     const s = this.heroState;
-    for (const i of this.world.instances) {
-      if (!i.def.checkpoint) continue;
+    // Milestone 2b: the map's checkpoints only (a short list), not every object
+    for (const i of this.objs().checkpoints) {
       const c = this.instanceCenter(i);
       if (!c || Math.hypot(c[0] - s.x, c[2] - s.z) > 2.6 || Math.abs(c[1] - s.y) > 4) continue;
       const cp = this.checkpoint;
@@ -2874,9 +2883,8 @@ export class PlaySession {
       if (here) continue;
       this.checkpoint = { map: this.world.mapId, spawn: null, pos: [s.x, s.y, s.z], heading: s.heading };
       // its last state means “touched” (a flag up); every other checkpoint here goes back to its first state
-      for (const o of this.world.instances)
-        if (o.def.checkpoint && o !== i && o.state !== o.def.initialState)
-          this.setInstanceState(o.inst.id, o.def.initialState);
+      for (const o of this.objs().checkpoints)
+        if (o !== i && o.state !== o.def.initialState) this.setInstanceState(o.inst.id, o.def.initialState);
       const up = i.def.states[i.def.states.length - 1]!;
       if (i.state !== up) this.setInstanceState(i.inst.id, up);
       this.emit('info', `Checkpoint: ${i.inst.name ?? i.def.name}`);
@@ -3007,11 +3015,11 @@ export class PlaySession {
   resolveEntity(ref: string | null | undefined): PlayInstance | null {
     if (!ref) return null;
     const w = this.world;
-    const exact = w.instances.find((i) => i.inst.id === ref);
+    const exact = this.objs(w).byId(ref);
     if (exact) return exact;
     const low = ref.trim().toLowerCase();
     // P9c: a copy's own name (“Gate switch”)
-    const named = w.instances.find((i) => i.inst.name?.toLowerCase() === low);
+    const named = this.objs(w).byName(low);
     if (named) return named;
     const h = this.heroState;
     let best: PlayInstance | null = null;
@@ -3121,7 +3129,7 @@ export class PlaySession {
   /** world.despawn: removes a placed asset for this play (refused if others stand on it). */
   despawn(target: string) {
     const w = this.world;
-    const inst = w.instances.find((i) => i.inst.id === target);
+    const inst = this.objs(w).byId(target);
     if (!inst) return;
     const lo = inst.inst.idBase;
     const hi = lo + inst.def.bricks.length;
@@ -3265,9 +3273,14 @@ export class PlaySession {
 
   // ---------- asset instances: interactions and states (P3.1) ----------
 
+  /** Milestone 2b: a map's placed objects, indexed (kept in step with its list) */
+  objs(w: MapWorld = this.world): ObjectIndex<PlayInstance> {
+    return w.objects.sync(w.instances);
+  }
+
   instanceOfPiece(id: number | undefined): PlayInstance | null {
     if (id === undefined) return null;
-    return this.world.instances.find((i) => id >= i.inst.idBase && id < i.inst.idBase + i.def.bricks.length) ?? null;
+    return this.objs().byPiece(id);
   }
 
   /** Nearest interact/sign socket within 2 studs of the hero (plus a little for big heroes). */
@@ -3275,10 +3288,12 @@ export class PlaySession {
     const s = this.heroState;
     let best: Prompt | null = null;
     let bestD = 2 + 0.4 * this.L.GamePhysics.scaleOf(s);
-    for (const inst of this.world.instances) {
+    // Milestone 2b: only the objects with interactions near the hero, not every object on the map
+    const objs = this.objs();
+    const smashed = this.smashedIds();
+    for (const inst of objs.near(s.x, s.z, bestD + objs.interactiveReach + 1)) {
       if (!inst.def.interactions.length) continue;
-      const smashed = this.world.broken.some((b) => b.originals.some((p) => this.instanceOfPiece(p.id) === inst));
-      if (smashed) continue;
+      if (smashed.has(inst.inst.id)) continue;
       for (const so of inst.sockets) {
         if (so.kind !== 'interact' && so.kind !== 'sign') continue;
         if (!inst.def.interactions.some((i) => i.socket === so.id && (!i.when || i.when.state === inst.state)))
@@ -3353,7 +3368,7 @@ export class PlaySession {
   /** Changes an instance's state in play: its state-only bricks swap (refused if they would not fit). */
   setInstanceState(instanceId: string | undefined, state: string) {
     const w = this.world;
-    const inst = w.instances.find((i) => i.inst.id === instanceId);
+    const inst = instanceId ? this.objs(w).byId(instanceId) : undefined;
     if (!inst || !inst.def.states.includes(state) || inst.state === state) return;
     const lo = inst.inst.idBase;
     const hi = lo + inst.def.bricks.length;

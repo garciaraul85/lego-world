@@ -7,7 +7,7 @@ import { inspectBricks } from '../../src/core/bricks/inspect';
 import { MAX_BRICKS_PER_MAP, MapBricks } from '../../src/core/bricks/map-bricks';
 import { CommandBus, registerAll } from '../../src/core/commands';
 import { allBricks, brickCount, LOCAL_CHECK_FROM } from '../../src/core/commands/handlers/assets';
-import { MAX_ITEMS_PER_MAP } from '../../src/core/commands/handlers/items';
+import { MAX_ASSETS_PER_MAP } from '../../src/core/commands/handlers/items';
 import { MAX_MAPS } from '../../src/core/commands/handlers/map';
 import { MAX_SCATTER } from '../../src/core/commands/handlers/scatter';
 import { maxOf, minOf } from '../../src/core/num';
@@ -278,7 +278,7 @@ describe('many objects (P27 part 3b)', () => {
     const bad = { ...cur, items: [...cur.items.slice(0, -1), { ...cur.items.at(-1)!, rot: 9 }] };
     expect(validateFile(paths.instances(map), bad).length).toBeGreaterThan(0);
     expect(validateFile(paths.instances(map), cur)).toEqual([]);
-    expect(MAX_ITEMS_PER_MAP).toBe(10_000);
+    expect(MAX_ASSETS_PER_MAP).toBe(100_000);
   });
 });
 

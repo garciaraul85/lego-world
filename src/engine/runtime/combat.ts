@@ -66,6 +66,8 @@ export interface CombatHost {
   /** the hero locked on to something (logic's On locked on) */
   lockedOn(t: LockTarget): void;
   instanceCenter(i: HostInstance): [number, number, number] | null;
+  /** Milestone 2b: the map's objects, indexed (near the hero, by id) */
+  objs(): { near(x: number, z: number, r: number): HostInstance[]; byId(id: string): HostInstance | undefined };
   instanceTop(i: HostInstance): number | null;
   /** P22 part 2: the hero's sheet — hit power, stamina cap, how much a guard costs */
   heroMoves?(): { power: number; guard: number };
@@ -366,7 +368,8 @@ export class Combat {
       out.push({ t, score: d + off * 4 });
     };
     for (const n of this.s.world.npcs) consider({ kind: 'npc', id: n.id }, n.state.x, n.state.z);
-    for (const i of this.s.world.instances) {
+    // Milestone 2b: only the objects within reach, from the map's object index
+    for (const i of this.s.objs().near(h.x, h.z, LOCK_RANGE + 1)) {
       if (!i.def.health && !i.def.lockOn) continue;
       const c = this.s.instanceCenter(i);
       if (c) consider({ kind: 'inst', id: i.inst.id }, c[0], c[2]);
@@ -381,7 +384,7 @@ export class Combat {
       const n = this.s.world.npcs.find((x) => x.id === t.id);
       return n ? [n.state.x, n.state.y + 1.2, n.state.z] : null;
     }
-    const i = this.s.world.instances.find((x) => x.inst.id === t.id);
+    const i = this.s.objs().byId(t.id);
     if (!i || (this.s.health.peek(`i:${i.inst.id}`)?.hp ?? 1) <= 0) return null;
     return this.s.instanceCenter(i);
   }
@@ -395,7 +398,7 @@ export class Combat {
       const n = this.s.world.npcs.find((x) => x.id === t.id);
       return n ? [n.state.x, n.state.y + 4.6, n.state.z] : null;
     }
-    const i = this.s.world.instances.find((x) => x.inst.id === t.id);
+    const i = this.s.objs().byId(t.id);
     const top = i ? this.s.instanceTop(i) : null;
     return [p[0], (top ?? p[1]) + 0.5, p[2]];
   }

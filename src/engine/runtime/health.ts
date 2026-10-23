@@ -22,10 +22,23 @@ export function assetHealth(def: Asset): Health | null {
 }
 
 /** A neighbour's character, by its legacy id (instances of kind npc on the map). */
-export function npcCharacter(host: HealthHost, mapId: string, npc: Npc): Character | null {
+/** Milestone 2b: a map's neighbours by their v68 id, worked out once per instances file (not a walk per call) */
+const npcItems = new WeakMap<object, Map<number, { id: string; character: string }>>();
+export function npcItem(host: HealthHost, mapId: string, npcId: number): { id: string; character: string } | undefined {
   const inst = host.get(paths.instances(mapId)) as Instances | undefined;
-  const item = inst?.items.find((i) => i.kind === 'npc' && i.legacyId === npc.id) as { character: string } | undefined;
-  const id = item?.character;
+  if (!inst) return undefined;
+  let m = npcItems.get(inst);
+  if (!m) {
+    m = new Map();
+    for (const i of inst.items)
+      if (i.kind === 'npc' && i.legacyId !== undefined) m.set(i.legacyId, { id: i.id, character: i.character });
+    npcItems.set(inst, m);
+  }
+  return m.get(npcId);
+}
+
+export function npcCharacter(host: HealthHost, mapId: string, npc: Npc): Character | null {
+  const id = npcItem(host, mapId, npc.id)?.character;
   if (!id) return null;
   return (
     (host.get(paths.character(id)) as Character | undefined) ?? BUILTIN_CHARACTERS.find((c) => c.id === id) ?? null

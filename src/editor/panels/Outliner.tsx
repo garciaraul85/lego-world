@@ -219,7 +219,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
         name: cat.name,
         color: cat.color,
         caret: isOpen ? '▾' : '▸',
-        meta: String(groups.length),
+        meta: groups.length.toLocaleString('en-US'),
         onClick: () => setOpen({ ...open, [cat.id]: !isOpen }),
       });
       if (isOpen)
@@ -229,7 +229,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
             depth: 2,
             name: groupLabel(g.group),
             color: s.get(g.ids[0]!)?.color,
-            meta: String(g.ids.length),
+            meta: g.ids.length.toLocaleString('en-US'),
             sel: g.ids.every((id) => sel.has(id)),
             menu: true,
             onClick: (e) => ed.select(g.ids, e.shiftKey),

@@ -3,10 +3,16 @@ import type { Brick } from './codec';
 import { brickHeight, MAX_BRICKS_PER_MAP } from './map-bricks';
 
 /** [w, d] footprint in studs after rotation (legacy dims()). */
+const sizes = new Map<string, [number, number]>();
 export function footprint(b: Pick<Brick, 'type' | 'rot'>): [number, number] {
-  const m = /(\d+)x(\d+)$/.exec(b.type)!;
-  const rows = Number(m[1]);
-  const cols = Number(m[2]);
+  // Milestone 2b: a type's size read once (a regular expression per brick adds up at a million bricks)
+  let s = sizes.get(b.type);
+  if (!s) {
+    const m = /(\d+)x(\d+)$/.exec(b.type)!;
+    s = [Number(m[1]), Number(m[2])];
+    sizes.set(b.type, s);
+  }
+  const [rows, cols] = s;
   return b.rot % 2 ? [rows, cols] : [cols, rows];
 }
 

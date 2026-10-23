@@ -1,4 +1,4 @@
-import { freeGroups, partsMoving } from '../../core/assets/free';
+import { freeGroups, hasFree, partsMoving } from '../../core/assets/free';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { QUALITY } from '../../core/render/quality';
@@ -90,6 +90,15 @@ export class PlayRenderer {
 
   private tiltedRev = -1;
   private moving = false;
+  /** Milestone 2b: the objects drawn turned or with moving parts (a short list, kept per object list) */
+  private freeCache: { list: unknown; n: number; free: MapWorld['instances'] } | null = null;
+  private freeObjects(w: MapWorld): MapWorld['instances'] {
+    const c = this.freeCache;
+    if (c && c.list === w.instances && c.n === w.instances.length) return c.free;
+    const free = w.instances.filter((i) => hasFree(i.inst, i.def) || !!i.def.parts?.length);
+    this.freeCache = { list: w.instances, n: w.instances.length, free };
+    return free;
+  }
 
   private syncTilted() {
     const w = this.session.world;
@@ -98,10 +107,11 @@ export class PlayRenderer {
     const now = this.session.clock;
     // P32: moving parts ease to their state's pose after a state change
     const anim = (id: string) => {
-      const i = w.instances.find((x) => x.inst.id === id);
+      const i = this.session.objs(w).byId(id);
       return i?.anim ? { ...i.anim, now } : null;
     };
-    for (const g of freeGroups(w.instances, anim)) {
+    const free = this.freeObjects(w);
+    for (const g of freeGroups(free, anim)) {
       const set = new Set(g.bricks.map((b) => b.id));
       for (const id of set) ids.add(id);
       groups.push({ ids: set, model: g.t.model });
@@ -114,7 +124,7 @@ export class PlayRenderer {
       }
     this.tilted = { ids, groups };
     this.tiltedRev = w.rev;
-    this.moving = w.instances.some((i) => partsMoving(i.def, i.state, i.anim ? { ...i.anim, now } : null));
+    this.moving = free.some((i) => partsMoving(i.def, i.state, i.anim ? { ...i.anim, now } : null));
   }
 
   private tiltedOverlays(): Overlay[] {

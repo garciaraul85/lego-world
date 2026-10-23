@@ -15,6 +15,8 @@ type Item = EmitterInstance | UiInstance | EffectInstance | LightInstance;
 const isItem = (k: string) => k === 'emitter' || k === 'ui' || k === 'effect' || k === 'light';
 /** P27 part 3: was 256 */
 export const MAX_ITEMS_PER_MAP = 10_000;
+/** Milestone 2b: placed asset copies a map holds (the object core keeps the game quick at this many) */
+export const MAX_ASSETS_PER_MAP = 100_000;
 
 const inst = (store: ProjectStore, map: string) =>
   store.get<Instances>(paths.instances(map)) ?? { npcsSaved: false, items: [] };
