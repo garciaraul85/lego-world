@@ -102,9 +102,10 @@ export const SCENE: HelpEntry[] = [
     screen: 'scene',
     kind: 'area',
     name: 'View controls',
-    purpose: 'Buttons that move the camera: focus on the selection, zoom, turn, fit everything, full screen.',
+    purpose:
+      'Buttons that move the camera: focus on the selection, zoom, turn, fit everything, full screen; and what draws the views (WebGPU or WebGL).',
     match: [{ sel: area('View') }],
-    related: ['scene.view.focus', 'scene.view.fullscreen'],
+    related: ['scene.view.focus', 'scene.view.fullscreen', 'scene.view.drawWith'],
   },
   {
     id: 'scene.view.focus',
@@ -159,6 +160,18 @@ export const SCENE: HelpEntry[] = [
     purpose: 'Fills the window with the 3D view to concentrate on building; the tools stay at hand. Esc goes back.',
     key: 'Ctrl Shift F',
     match: [{ in: area('View'), name: /^(Full screen|Leave full screen|Exit full screen)/ }],
+  },
+  {
+    id: 'scene.view.drawWith',
+    also: ['webgpu', 'webgl', 'renderer', 'graphics card', 'gpu', 'draw with', 'drawing', 'faster drawing'],
+    screen: 'scene',
+    kind: 'field',
+    name: 'Draw with (WebGPU or WebGL)',
+    purpose:
+      'What draws the 3D views on this computer. **WebGL** is the long-standing way and works everywhere. **WebGPU** is the newer way to use the graphics card: the same picture, and later more lights with shadows, reflecting water and faster big maps. **Auto** uses WebGL for now (Play still draws characters with WebGL). The choice is kept in this browser, not in the project. If WebGPU cannot show the view here, WebGL draws it and a message says so; the option then reads *not working in this browser*.',
+    steps: ['In the corner of the 3D view, open **Draw with**.', 'Pick **WebGPU** to try it, or **WebGL** to go back.'],
+    match: [{ in: area('View'), name: 'Draw with' }, { sel: '[data-help="scene.view.drawWith"]' }],
+    related: ['scene.view', 'project.quality'],
   },
   // ---------- outliner ----------
   {

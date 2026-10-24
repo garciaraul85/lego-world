@@ -119,7 +119,7 @@ export const ACTION_HELP: Record<string, string> = {
   'help.atmosphere':
     'Starts the Atmosphere course: pick a mist, bring it closer, add ground fog, tint the shadows blue, make a day 2 minutes long, see the map at night, place a lamp that shines only at night, start the game at night and play it.',
   'help.bigworlds':
-    'Starts the Big worlds course: make a big land of hills, choose how far you see, scatter a forest, make it the start map, play it, walk out into the hills while the world follows the hero, and go to another map through the loading screen.',
+    'Starts the Big worlds course: make a big land of hills, choose how far you see, scatter a forest, make it the start map, play it, walk out into the hills while the world follows the hero, go to another map through the loading screen, set the graphics quality, and draw the Scene with WebGPU.',
   'help.water':
     'Starts the Water and physics course: place a Wooden crate, make it loose, put a pool of water around it, make the pool a river, make it flow, switch the hero to physics movement, watch the crate float away in Play and ride it.',
   'help.posing':

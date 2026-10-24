@@ -32,25 +32,19 @@ const view = (page: Page) =>
     return v?.renderer ? { kind: v.renderer.kind, chunks: v.renderer.stats.chunksDrawn } : null;
   });
 
-test('the Scene drawn with WebGPU matches WebGL, and the choice is kept', async ({ page }) => {
-  test.setTimeout(300_000);
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await open(page, '/editor.html?nohub&gpu=offscreen');
+/** the view drawn with WebGL (a screenshot, the view's labels hidden) against WebGPU (read back), pixel by pixel */
+async function compare(page: Page, name: string) {
   const pick = page.getByLabel('Draw with');
-  await expect(pick).toHaveValue('auto');
-  await expect.poll(async () => (await view(page))?.kind).toBe('webgl');
-  const canvas = page.getByLabel('3D map view');
-  // the view's own labels and buttons sit over the picture: hidden, to compare the pictures alone
+  await pick.selectOption('webgl');
+  await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgl');
   const hide = await page.addStyleTag({ content: '.vp-hud, .vp-controls { visibility: hidden !important; }' });
   await page.waitForTimeout(1500);
-  const gl = await canvas.screenshot({ path: 'test-results/scene-webgl.png' });
+  const gl = await page.getByLabel('3D map view').screenshot({ path: `test-results/${name}-webgl.png` });
   await hide.evaluate((t) => (t as Element).remove());
   await pick.selectOption('webgpu');
   await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgpu');
   await expect.poll(async () => (await view(page))?.chunks ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
   await page.waitForTimeout(1500);
-  // the WebGPU picture against the WebGL one, pixel by pixel
   const d = await page.evaluate(async (png64) => {
     const v = (window as unknown as { __view: () => View | null }).__view()!;
     const shot = await v.renderer!.snapshot!();
@@ -59,16 +53,18 @@ test('the Scene drawn with WebGPU matches WebGL, and the choice is kept', async 
     const g = c.getContext('2d')!;
     g.drawImage(img, 0, 0);
     const A = g.getImageData(0, 0, img.width, img.height).data;
-    // keep the WebGPU picture to look at
     const out = new OffscreenCanvas(shot.width, shot.height);
     out.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(shot.rgba), shot.width, shot.height), 0, 0);
-    const blob = await out.convertToBlob({ type: 'image/png' });
-    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const bytes = new Uint8Array(await (await out.convertToBlob({ type: 'image/png' })).arrayBuffer());
     let bin = '';
     for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
-    const gpuPng = btoa(bin);
     if (img.width !== shot.width || img.height !== shot.height)
-      return { size: `${img.width}×${img.height} / ${shot.width}×${shot.height}`, mean: 999, bigShare: 1, gpuPng };
+      return {
+        size: `${img.width}×${img.height} / ${shot.width}×${shot.height}`,
+        mean: 999,
+        bigShare: 1,
+        png: btoa(bin),
+      };
     let sum = 0;
     let big = 0;
     const n = img.width * img.height;
@@ -81,20 +77,82 @@ test('the Scene drawn with WebGPU matches WebGL, and the choice is kept', async 
       }
       if (m > 40) big++;
     }
-    return { size: `${img.width}×${img.height}`, mean: sum / (n * 3), bigShare: big / n, gpuPng };
+    return { size: `${img.width}×${img.height}`, mean: sum / (n * 3), bigShare: big / n, png: btoa(bin) };
   }, gl.toString('base64'));
-  const { gpuPng, ...result } = d;
-  writeFileSync('test-results/scene-webgpu.png', Buffer.from(gpuPng, 'base64'));
+  const { png, ...result } = d;
+  writeFileSync(`test-results/${name}-webgpu.png`, Buffer.from(png, 'base64'));
   // the same picture: small differences only (edges, rounding)
-  expect(result.mean, JSON.stringify(result)).toBeLessThan(4);
-  expect(result.bigShare, JSON.stringify(result)).toBeLessThan(0.03);
-  // kept for the next time the editor opens
+  expect(result.mean, `${name} ${JSON.stringify(result)}`).toBeLessThan(4);
+  expect(result.bigShare, `${name} ${JSON.stringify(result)}`).toBeLessThan(0.03);
+}
+
+test('the Scene drawn with WebGPU matches WebGL (daylight; dark with a torch, fog, water and a selection)', async ({
+  page,
+}) => {
+  test.setTimeout(400_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await open(page, '/editor.html?nohub&gpu=offscreen');
+  await expect(page.getByLabel('Draw with')).toHaveValue('auto');
+  await expect.poll(async () => (await view(page))?.kind).toBe('webgl');
+  await compare(page, 'scene-day');
+  // a dark map lit by a torch, in mist, with a pool and a picked brick (lines and an overlay)
+  await page.evaluate(() => {
+    const e = (
+      window as unknown as {
+        __editor: {
+          mapId: { value: string };
+          exec(c: unknown): { ok: boolean; error?: string };
+          scene: { value: { bricks: { id: number }[] } | null };
+          select(ids: number[]): void;
+        };
+      }
+    ).__editor;
+    const map = e.mapId.value;
+    const ok = (c: unknown) => {
+      const r = e.exec(c);
+      if (!r.ok) throw new Error(r.error);
+    };
+    ok({
+      type: 'map.setEnvironment',
+      payload: { map, darkness: 0.7, fog: { near: 10, far: 60, thickness: 0.85, color: '#c8d2dc' } },
+    });
+    ok({
+      type: 'item.add',
+      payload: {
+        map,
+        item: {
+          id: 'ins_gputorch01',
+          kind: 'light',
+          name: 'Torch 1',
+          pos: [2, 2.4, 2],
+          on: true,
+          light: { color: '#ff9a3c', brightness: 1.6, range: 14, flicker: 0, shadow: false },
+        },
+      },
+    });
+    ok({
+      type: 'item.add',
+      payload: {
+        map,
+        item: { id: 'ins_gpupool001', kind: 'water', name: 'Pool 1', pos: [-6, 0, -6], size: [8, 2, 8], body: 'pool' },
+      },
+    });
+  });
+  await compare(page, 'scene-dark');
+  expect(errors).toEqual([]);
+});
+
+test('the choice of WebGPU is kept for the next time', async ({ page }) => {
+  test.setTimeout(300_000);
+  await open(page, '/editor.html?nohub&gpu=offscreen');
+  await page.getByLabel('Draw with').selectOption('webgpu');
+  await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgpu');
   await open(page, '/editor.html?nohub&gpu=offscreen');
   await expect(page.getByLabel('Draw with')).toHaveValue('webgpu');
   await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgpu');
   await page.getByLabel('Draw with').selectOption('webgl');
   await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgl');
-  expect(errors).toEqual([]);
 });
 
 test('a browser that cannot show WebGPU falls back to WebGL with a message', async ({ page }) => {

@@ -325,6 +325,7 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   },
   waterKind: (ed, a) => waterItems(ed).some((w) => w.body === a),
   waterFlows: (ed) => waterItems(ed).some((w) => !!w.current && Math.hypot(w.current[0], w.current[1]) > 0),
+  drawWithIs: (ed, a) => ed.drawWith.value === a,
   projectMovement: (ed, a) => (ed.store.get<{ movement?: string }>(paths.settings)?.movement ?? 'classic') === a,
   heroOnLoose: (ed) => !!ed.session.value?.world.physics?.standingOnLoose,
   looseMovedInPlay: (ed, a) => {

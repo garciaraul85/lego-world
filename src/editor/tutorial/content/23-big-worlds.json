@@ -449,6 +449,60 @@
       ]
     },
     {
+      "id": "big.drawwith",
+      "title": "Draw with WebGPU",
+      "body": "WebGPU is the newer way to use the graphics card: the same picture, and later more lights with shadows, reflecting water and faster big maps. The Scene can draw with it already (Play keeps WebGL until characters move over). The choice is kept in this browser.",
+      "task": "In the corner of the 3D view, set Draw with to WebGPU. (If your browser can't show it, WebGL draws and a message says so.)",
+      "target": "[data-tour=\"draw-with\"]",
+      "check": {
+        "kind": "state",
+        "test": "drawWithIs",
+        "args": "webgpu"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "choose": "[data-tour=\"draw-with\"]",
+          "value": "webgpu"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Scene” in the workspace tabs at the top.",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Scene"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            }
+          ]
+        },
+        {
+          "text": "In the 3D view's corner, open Draw with and pick WebGPU.",
+          "check": {
+            "kind": "state",
+            "test": "drawWithIs",
+            "args": "webgpu"
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"draw-with\"]",
+              "value": "webgpu",
+              "say": "WebGPU"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene"
+    },
+    {
       "id": "big.done",
       "title": "Done!",
       "body": "You made a big land, chose how far you see, scattered a forest, played it while the world followed the hero, went to another map through a loading screen, and chose how good the game looks: Medium for players, previewed at Low. A map holds up to 1,000,000 bricks; 2048 × 2048 studs of land is about 950,000. Press Esc or Stop to leave Play.",

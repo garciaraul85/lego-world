@@ -10,6 +10,16 @@ Drag to orbit, right-drag or Shift-drag to pan, wheel to zoom. On touch: one fin
 
 The buttons in the top-right corner of the 3D view: ◎ focuses on the selection (F), then + and − zoom (or the + and − keys) and ⟲ ⟳ turn the view around it (Alt and the arrow keys). ⤢ shows everything (Home). ⛶ makes the scene full screen (Ctrl Shift F): the menus and side panels hide so you can concentrate on building, ▤ opens the assets as a drawer to drag things in, and Esc comes back. The same buttons are in the Asset studio.
 
+## Drawing with WebGPU or WebGL
+
+**Draw with**, in the corner of the 3D view, picks what draws the views on this computer:
+
+- **WebGL** — the long-standing way. It works in every browser.
+- **WebGPU** — the newer way to use the graphics card. The picture is the same, and later it brings more lights with shadows, reflecting water and faster big maps.
+- **Auto** — uses WebGL for now, because Play still draws characters with WebGL.
+
+The choice is kept in this browser, not in the project. If WebGPU can't show the view on this computer, WebGL draws it instead and a message says so.
+
 ## Selecting
 
 With the Select tool (V), click an object to select all of it (a house, a tree). Shift-click adds to the selection, G selects the whole group, Esc deselects. The Hierarchy lists every object by type (terrain, buildings, nature, spawn points, zones, sounds, signs) with a filter box; Layers and Find are next to it.
