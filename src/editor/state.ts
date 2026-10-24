@@ -216,6 +216,8 @@ export class EditorState {
   readonly previewQuality = signal<QualityLevel | null>(null);
   /** Milestone 2b, 10c: what draws the 3D views on this computer (kept in this browser, not in the project) */
   readonly drawWith = signal<RendererChoice>(readDrawWith());
+  /** WebGPU can draw the views in this browser (false: none, or it could not show a picture here) */
+  readonly gpuWorks = signal(false);
   setDrawWith(c: RendererChoice) {
     this.drawWith.value = c;
     try {

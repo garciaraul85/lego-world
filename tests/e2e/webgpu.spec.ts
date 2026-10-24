@@ -41,8 +41,11 @@ test('the Scene drawn with WebGPU matches WebGL, and the choice is kept', async 
   await expect(pick).toHaveValue('auto');
   await expect.poll(async () => (await view(page))?.kind).toBe('webgl');
   const canvas = page.getByLabel('3D map view');
+  // the view's own labels and buttons sit over the picture: hidden, to compare the pictures alone
+  const hide = await page.addStyleTag({ content: '.vp-hud, .vp-controls { visibility: hidden !important; }' });
   await page.waitForTimeout(1500);
   const gl = await canvas.screenshot({ path: 'test-results/scene-webgl.png' });
+  await hide.evaluate((t) => (t as Element).remove());
   await pick.selectOption('webgpu');
   await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgpu');
   await expect.poll(async () => (await view(page))?.chunks ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
@@ -82,9 +85,9 @@ test('the Scene drawn with WebGPU matches WebGL, and the choice is kept', async 
   }, gl.toString('base64'));
   const { gpuPng, ...result } = d;
   writeFileSync('test-results/scene-webgpu.png', Buffer.from(gpuPng, 'base64'));
-  // the same picture: small differences only (edges, rounding); the corner buttons are only on the screenshot
-  expect(result.mean, JSON.stringify(result)).toBeLessThan(8);
-  expect(result.bigShare, JSON.stringify(result)).toBeLessThan(0.08);
+  // the same picture: small differences only (edges, rounding)
+  expect(result.mean, JSON.stringify(result)).toBeLessThan(4);
+  expect(result.bigShare, JSON.stringify(result)).toBeLessThan(0.03);
   // kept for the next time the editor opens
   await open(page, '/editor.html?nohub&gpu=offscreen');
   await expect(page.getByLabel('Draw with')).toHaveValue('webgpu');
@@ -107,5 +110,7 @@ test('a browser that cannot show WebGPU falls back to WebGL with a message', asy
   // this machine's browser cannot show it: WebGL draws, and says so
   await expect.poll(async () => (await view(page))?.kind, { timeout: 60_000 }).toBe('webgl');
   await expect.poll(() => toasts.join(' '), { timeout: 30_000 }).toContain('WebGPU could not show');
-  await expect(page.getByRole('option', { name: /not working in this browser/ })).toHaveCount(1);
+  await expect(page.locator('[data-tour="draw-with"] option[value="webgpu"]')).toHaveText(
+    /not working in this browser/,
+  );
 });

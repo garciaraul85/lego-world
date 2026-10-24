@@ -32,7 +32,7 @@ import { hubAtStartup, readIntent, writeIntent } from '../../editor/start/intent
 import { EditorState } from '../../editor/state';
 import { activeView } from '../../editor/viewport/active';
 import { initPhysics } from '../../engine/physics/physics';
-import { initGpu, setGpuOffscreen } from '../../engine/render/gpu/gpu-renderer';
+import { gpuReady, initGpu, setGpuOffscreen } from '../../engine/render/gpu/gpu-renderer';
 import '../../editor/theme.css';
 import { saveFile } from '../../platform/downloads';
 import { IdbBackend } from '../../platform/idb-backend';
@@ -237,6 +237,7 @@ async function boot() {
   }));
   await physics;
   await gpu;
+  ed.gpuWorks.value = gpuReady();
   render(<App ed={ed} host={host} />, root);
 }
 

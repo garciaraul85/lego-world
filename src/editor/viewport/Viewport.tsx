@@ -22,7 +22,6 @@ import type { Asset, LogicGraph, WaterInstance } from '../../core/schema';
 import { atmosphere } from '../../engine/lighting/atmosphere';
 import { pointLights } from '../../engine/lighting/lights';
 import { OrbitCamera } from '../../engine/render/camera';
-import { gpuReady } from '../../engine/render/gpu/gpu-renderer';
 import type { Vec3 } from '../../engine/render/math';
 import {
   brickRgb,
@@ -145,6 +144,7 @@ export function Viewport({
         renderer.onFail = (why) => {
           console.warn('WebGPU could not show the view:', why);
           ed.notify('WebGPU could not show the 3D view in this browser, so WebGL draws it.', true);
+          ed.gpuWorks.value = false;
           setGen((g) => g + 1);
         };
     } catch (e) {
@@ -1639,8 +1639,8 @@ function ViewControls({
           onChange={(e) => ed.setDrawWith((e.target as HTMLSelectElement).value as RendererChoice)}
         >
           <option value="auto">Auto (WebGL)</option>
-          <option value="webgpu" disabled={!gpuReady()}>
-            {gpuReady() ? 'WebGPU' : 'WebGPU (not working in this browser)'}
+          <option value="webgpu" disabled={!ed.gpuWorks.value}>
+            {ed.gpuWorks.value ? 'WebGPU' : 'WebGPU (not working in this browser)'}
           </option>
           <option value="webgl">WebGL</option>
         </select>
