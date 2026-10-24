@@ -225,7 +225,18 @@ export const HELP_STATES: HelpState[] = [
       await signals(p, { left: 'hier', dock: d });
     },
   })),
-  ...['Assets', 'Characters', 'Cinematics', 'UI screens', 'Effects', 'Lights', 'Water', 'Sounds', 'Music'].map((c) => ({
+  ...[
+    'Assets',
+    'Characters',
+    'Cinematics',
+    'UI screens',
+    'Effects',
+    'Lights',
+    'Water',
+    '3D models',
+    'Sounds',
+    'Music',
+  ].map((c) => ({
     id: `scene-cat-${c.toLowerCase().replace(/ /g, '-')}`,
     screen: 'scene',
     setup: async (p: Page) => {
@@ -800,6 +811,29 @@ export const HELP_STATES: HelpState[] = [
             payload: {
               map,
               item: { id, kind: 'water', name: 'Pool 1', pos: [2, 0, 2], size: [8, 2, 8], body: 'pool' },
+            },
+          });
+        e.selectedItem.value = id;
+        e.right.value = 'inspect';
+      });
+    },
+  },
+  {
+    // Milestone 2b, 10c part 5: a 3D model beside the start, picked in the Scene
+    id: 'scene-model',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const map = e.mapId.value as string;
+        const id = 'ins_helpmodel1';
+        if (!(e.store.get(`maps/${map}/instances.json`) as { items: { id: string }[] }).items.some((i) => i.id === id))
+          e.exec({
+            type: 'item.add',
+            payload: {
+              map,
+              item: { id, kind: 'model', name: 'Round tree 1', model: 'builtin:round-tree', pos: [4, 0.4, 4] },
             },
           });
         e.selectedItem.value = id;

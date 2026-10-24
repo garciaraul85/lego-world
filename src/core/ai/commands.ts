@@ -37,6 +37,7 @@ import {
   LogicGraph,
   LogicNode,
   Mixer,
+  ModelInstance,
   Music,
   Screen,
   SoundEvents,
@@ -103,7 +104,7 @@ const NewBrick = z.strictObject({
 const BrickIds = z.strictObject({ map, ids: z.array(z.number().int()).min(1) });
 const SpawnInput = { name: z.string().min(1).max(60).optional(), pos: xyz.optional(), yaw: z.number().optional() };
 const ZoneShape = Zone.shape;
-const Item = z.discriminatedUnion('kind', [EmitterInstance, UiInstance, LightInstance, WaterInstance]);
+const Item = z.discriminatedUnion('kind', [EmitterInstance, UiInstance, LightInstance, WaterInstance, ModelInstance]);
 const Edge = z.tuple([z.string(), z.string(), z.string(), z.string()]);
 const VarDef = z.strictObject({
   type: VarType,
@@ -625,7 +626,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ map, item: Item }),
     ['map', 'audio', 'screen'],
     'Scene',
-    'Places a sound emitter (kind emitter), a world UI sign/label/bar (kind ui) or a light (kind light: pos, on, light {color, brightness 0–4, range 2–40 studs, flicker 0–1, shadow}) or water (kind water: pos its lowest corner, size [width, depth to the surface, length] studs, body pool | river | lake | sea, current? [across, deep] studs a second; loose assets float in it) on a map.',
+    'Places a sound emitter (kind emitter), a world UI sign/label/bar (kind ui) or a light (kind light: pos, on, light {color, brightness 0–4, range 2–40 studs, flicker 0–1, shadow}) or water (kind water: pos its lowest corner, size [width, depth to the surface, length] studs, body pool | river | lake | sea, current? [across, deep] studs a second; loose assets float in it) or a 3D model (kind model: model builtin:lantern-post | builtin:barrel | builtin:round-tree | builtin:boulder | builtin:crystal | builtin:toadstool | builtin:stone-ring | builtin:vase, or the sha256 ref of a .glb the project imported; pos the middle of its base in studs, turn? degrees about the upright axis, size? 1 = as made (the hero is about 4 studs tall), solid? false to walk through) on a map.',
     {
       map: M1,
       item: {
@@ -648,7 +649,7 @@ export const AI_COMMANDS: AiCommand[] = [
     }),
     ['map', 'audio', 'screen'],
     'Scene',
-    'Changes fields of an emitter or sign.',
+    'Changes fields of a placed item: an emitter, sign, light, water or 3D model (for a model: model, pos, turn, size, solid).',
     { map: M1, id: 'ins_kkkkkkkkkk', patch: { text: 'Gems: {gems}' } },
   ),
   def(
@@ -657,7 +658,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ map, id: ids('instance') }),
     ['map', 'audio', 'screen'],
     'Scene',
-    'Removes an emitter or sign.',
+    'Removes a placed item (emitter, sign, light, water or 3D model).',
     { map: M1, id: 'ins_kkkkkkkkkk' },
   ),
   def(

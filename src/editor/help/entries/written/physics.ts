@@ -85,4 +85,56 @@ export const PHYSICS: HelpEntry[] = [
     match: [{ in: '[data-help="asset.loose"]' }],
     related: ['scene.item.water', 'project.movement'],
   },
+  // Milestone 2b, 10c part 5: 3D models
+  {
+    id: 'scene.item.model',
+    also: [
+      '3d model',
+      'model',
+      'mesh',
+      'gltf',
+      'glb',
+      'blender',
+      'import a model',
+      'smooth',
+      'round shapes',
+      'lantern',
+      'barrel',
+      'boulder',
+      'crystal',
+    ],
+    screen: 'scene',
+    kind: 'area',
+    name: '3D model properties',
+    purpose:
+      'A 3D model is a smooth shape — a round lantern, a barrel, a leafy tree — made in a modelling tool such as Blender and saved as glTF (.glb, or .gltf with its data inside it), or one of the built-in ones. It stands on the map beside the bricks and is lit by the same sun, lights, fog and shadows, in WebGPU and WebGL; water reflects it. **Model** is which one; **Position** is the middle of its base, in studs; **Turn** is how far it is turned about its upright axis (degrees); **Size** is how big (1 is the size it was made at, and the hero is about 4 studs tall); **Solid in Play** makes it stop the hero (with Physics movement), who can stand on it. The line underneath says how many triangles and parts it has and how tall it is. Models that animate stand still in their rest pose for now.',
+    steps: [
+      'Open **Dock › 3D models** and press **Place** on one (or right-click the ground: **Add a 3D model here**).',
+      'In the Inspector, set its **Size** and **Turn**, and move it with **Position**.',
+      'Untick **Solid in Play** for things the hero walks through, such as tall grass.',
+    ],
+    commands: ['item.add', 'item.update', 'item.remove'],
+    match: [{ in: '[data-help="scene.item.model"]' }],
+    related: ['scene.dock.models', 'project.movement', 'scene.item.light'],
+  },
+  {
+    id: 'scene.dock.models',
+    also: ['3d models in the dock', 'import a model', 'import gltf', 'import glb', 'built-in models', 'place a model'],
+    screen: 'scene',
+    kind: 'list',
+    name: '3D models in the dock',
+    purpose:
+      'The built-in 3D models — Lantern post, Barrel, Round tree, Boulder, Crystal, Toadstool, Stone ring, Vase — and the ones imported into the project, each with a small picture. **Place** puts one on the open map beside where the player starts. **Import a model…** adds .glb or .gltf files (up to 20 MB and 200,000 triangles each); a file that can’t be used says why — for example one that keeps its data in other files or is compressed (export it again as one .glb file). Below, the models on this map: click one to pick it.',
+    steps: [
+      'Press **Import a model…** and pick a .glb file exported from your modelling tool.',
+      'It appears first in the list: press **Place**.',
+    ],
+    commands: ['media.register', 'item.add'],
+    match: [
+      { sel: '[data-tour="dock-models"]' },
+      { sel: '[data-tour="dock-model-import"]' },
+      { in: '[data-tour="dock-models"]', name: /^Place / },
+    ],
+    related: ['scene.item.model'],
+  },
 ];

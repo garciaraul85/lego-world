@@ -1,6 +1,7 @@
 import { BUILTIN_ASSETS, builtinAsset } from '../../builtin/assets';
 import { DEFAULT_EVENTS, DEFAULT_MIXER } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
+import { BUILTIN_MODEL_FILES } from '../../builtin/models/data';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
 import type { BodyPlan, Bone } from '../../core/character/body';
 import { makeFamily } from '../../core/character/families';
@@ -27,10 +28,13 @@ import {
   type Screen,
   type Widget,
 } from '../../core/schema';
+import { fromBase64, modelMatrix, prepareModel } from '../../engine/model/prepare';
+import { drawBox } from '../../engine/render/model-draw';
 import { BrowserSaveStore } from '../../platform/saves';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { assetLibrary } from '../assets';
-import { looseCopies, placeWaterAt } from '../interact/place';
+import { looseCopies, modelItems, placeModelAt, placeWaterAt } from '../interact/place';
+import { importModelFiles, modelChoices } from '../panels/ModelFields';
 import { savingOf } from '../panels/SavingSection';
 import { settleMove } from '../viewport/settle';
 import { buildInto } from '../workspaces/asset-studio/scratch';
@@ -781,6 +785,36 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const pose = o && s.world.physics?.objectPose(o.inst.inst.id);
     if (!pose) throw new Error('There is no loose thing on this map.');
     s.placeAt([pose.pos[0], pose.pos[1] + 2.5, pose.pos[2]], s.heroState.heading);
+  },
+  // Milestone 2b, 10c part 5: the 3D models course
+  placeModel(c, a) {
+    // what pressing Place on a model in the dock does: it stands beside the start
+    const ref = String((a as { ref?: string } | undefined)?.ref ?? 'builtin:lantern-post');
+    const m =
+      ref === 'own'
+        ? modelChoices(c.ed).find((x) => x.ref.startsWith('sha256:'))
+        : modelChoices(c.ed).find((x) => x.ref === ref);
+    if (!m) throw new Error(ref === 'own' ? 'Import a model first.' : 'That model is not in the list.');
+    const sp = c.ed.mapDoc.value?.spawns[0]?.pos ?? [0, 0, 0];
+    if (!placeModelAt(c.ed, { x: sp[0]! + 5 + 4 * (modelItems(c.ed).length % 6), y: Math.round(sp[1]! / 0.4), z: sp[2]! + 5 }, m.ref, m.name))
+      throw new Error('The model could not be placed.');
+  },
+  async importSampleModel(c) {
+    // what picking a .glb file in Import a model… does (here: the lantern post, as a file from a modelling tool)
+    const bytes = fromBase64(BUILTIN_MODEL_FILES['lantern-post']!.glb);
+    const file = new File([bytes as Uint8Array<ArrayBuffer>], 'my-lantern.glb', { type: 'model/gltf-binary' });
+    if (!(await importModelFiles(c.ed, [file]))) throw new Error('The model could not be imported.');
+  },
+  async standOnModel(c) {
+    // what jumping onto the model does: the hero lands on top of it
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    if (!s.physicsMovement) throw new Error('Set Project › Movement to Physics first, then play again.');
+    const m = [...modelItems(c.ed)].reverse().find((x) => x.solid !== false);
+    if (!m) throw new Error('Place a solid 3D model first.');
+    const up = await prepareModel(m.model, c.ed.media ? (r) => c.ed.media!.get(r) : null);
+    const b = drawBox(modelMatrix(m), up.data.min, up.data.max);
+    s.placeAt([(b.min[0] + b.max[0]) / 2, b.max[1] + 1.5, (b.min[2] + b.max[2]) / 2], s.heroState.heading);
   },
   playIfStopped(c) {
     // P27 part 4: what pressing ▶ Play does, unless the game is already playing

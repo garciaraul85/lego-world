@@ -481,6 +481,20 @@ export function stepsToView(view: string): ShowStep[] {
         }),
         right('inspect', 'Inspector'),
       ];
+    case 'scene-model':
+      // Milestone 2b, 10c part 5: a 3D model placed on the map
+      return [
+        ws('Scene'),
+        select('Select a 3D model on the map (Dock › 3D models › Place, if there is none).', (c) => {
+          const items =
+            c.ed.store.get<{ items: { id: string; kind: string }[] }>(`maps/${c.ed.mapId.value}/instances.json`)
+              ?.items ?? [];
+          const it = items.find((x) => x.kind === 'model');
+          if (it) c.ed.selectedItem.value = it.id;
+          return !!it;
+        }),
+        right('inspect', 'Inspector'),
+      ];
     case 'audio-music':
       return [
         ws('Audio'),

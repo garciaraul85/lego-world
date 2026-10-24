@@ -168,3 +168,46 @@ test('a placed model is solid in Play (physics movement): the hero stands on a b
   expect(await above()).toBeGreaterThan(2.5);
   expect(errors).toEqual([]);
 });
+
+test('3D models course: Do it for me places, sizes, imports and stands on a model', async ({ page }) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: /3D models course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(8);
+  let stood = false;
+  for (let i = 0; i < total; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    if ((await doIt.isVisible()) && (await doIt.isEnabled())) {
+      await doIt.click();
+      const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+      const done = card.getByText(/✓ Done!/);
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 240_000 });
+      if (await rest.isVisible()) await rest.click();
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 240_000 });
+      if (title === 'Stand on it') stood = true;
+    }
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await page.screenshot({ path: 'test-results/models-course.png' });
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  expect(stood).toBe(true);
+  const placed = (await items(page)).filter((i) => i.kind === 'model');
+  expect(placed.map((m) => (m.model!.startsWith('sha256:') ? 'own' : m.model))).toEqual([
+    'builtin:lantern-post',
+    'own',
+  ]);
+  expect(placed[0]!.size).toBe(2);
+  expect(errors).toEqual([]);
+});

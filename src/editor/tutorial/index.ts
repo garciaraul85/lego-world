@@ -31,6 +31,7 @@ import lights from './content/21-lights.json';
 import atmosphere from './content/22-atmosphere.json';
 import bigworlds from './content/23-big-worlds.json';
 import water from './content/24-water.json';
+import models from './content/25-models.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -49,6 +50,7 @@ export type Track =
   | 'atmosphere'
   | 'bigworlds'
   | 'water'
+  | 'models'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -105,6 +107,7 @@ export const ATMOSPHERE_STEPS: TrackStep[] = steps([atmosphere].map((c) => Chapt
 export const BIGWORLDS_STEPS: TrackStep[] = steps([bigworlds].map((c) => Chapter.parse(c)));
 /** Milestone 2b: a loose crate floating down a river */
 export const WATER_STEPS: TrackStep[] = steps([water].map((c) => Chapter.parse(c)));
+export const MODELS_STEPS: TrackStep[] = steps([models].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -125,6 +128,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   atmosphere: { title: 'Atmosphere course', steps: ATMOSPHERE_STEPS },
   bigworlds: { title: 'Big worlds course', steps: BIGWORLDS_STEPS },
   water: { title: 'Water and physics course', steps: WATER_STEPS },
+  models: { title: '3D models course', steps: MODELS_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

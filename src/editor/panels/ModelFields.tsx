@@ -84,7 +84,7 @@ export function ModelCards({ c, hint, q }: { c: ActionCtx; hint: string; q: stri
   const media = ed.media ? (ref: string) => ed.media!.get(ref) : null;
   const place = (ref: string, name: string) => {
     const sp = ed.mapDoc.value?.spawns[0]?.pos ?? [0, 0, 0];
-    placeModelAt(ed, { x: sp[0]! + 5, y: Math.round(sp[1]! / 0.4), z: sp[2]! + 5 }, ref, name);
+    placeModelAt(ed, { x: sp[0]! + 5 + 4 * (placed.length % 6), y: Math.round(sp[1]! / 0.4), z: sp[2]! + 5 }, ref, name);
   };
   return (
     <>

@@ -1,0 +1,297 @@
+{
+  "id": "models",
+  "title": "3D models course",
+  "steps": [
+    {
+      "id": "models.dock",
+      "title": "3D models",
+      "body": "Bricks make blocky things; 3D models are smooth ones — a round lantern, a barrel, a leafy tree — made in a modelling tool such as Blender and saved as glTF. They stand beside the bricks and are lit by the same sun, lights, fog and shadows.",
+      "task": "In the dock at the bottom, open Assets › 3D models.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "modelsShown"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "assets"
+        },
+        {
+          "ui": "assetCat",
+          "value": "3D models"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Scene” in the workspace tabs at the top.",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Scene"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            }
+          ]
+        },
+        {
+          "text": "In the dock at the bottom, click Assets, then 3D models on the left of it.",
+          "check": {
+            "kind": "state",
+            "test": "modelsShown"
+          },
+          "do": [
+            {
+              "ui": "dock",
+              "value": "assets"
+            },
+            {
+              "ui": "assetCat",
+              "value": "3D models"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene"
+    },
+    {
+      "id": "models.place",
+      "title": "Place one",
+      "body": "Each built-in model has a small picture of it. Place puts one beside where the player starts, and the Inspector shows it.",
+      "task": "Press Place on the Lantern post.",
+      "target": "[data-tour=\"dock-model-lantern-post\"]",
+      "check": {
+        "kind": "state",
+        "test": "modelPlaced",
+        "args": "builtin:lantern-post"
+      },
+      "doItForMe": [
+        {
+          "ui": "dock",
+          "value": "assets"
+        },
+        {
+          "ui": "assetCat",
+          "value": "3D models"
+        },
+        {
+          "fn": "placeModel",
+          "args": {
+            "ref": "builtin:lantern-post"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In Assets › 3D models, press Place on the Lantern post.",
+          "check": {
+            "kind": "state",
+            "test": "modelPlaced",
+            "args": "builtin:lantern-post"
+          },
+          "do": [
+            {
+              "show": "[data-tour=\"dock-model-lantern-post\"]"
+            },
+            {
+              "fn": "placeModel",
+              "args": {
+                "ref": "builtin:lantern-post"
+              },
+              "say": "Place"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene"
+    },
+    {
+      "id": "models.size",
+      "title": "Make it bigger",
+      "body": "Size 1 is the size the model was made at, in studs: the lantern post is about as tall as the hero. Turn sets how far it is turned.",
+      "task": "In the Inspector, set Size to 2.",
+      "target": "[data-tour=\"model-turn-size\"]",
+      "check": {
+        "kind": "state",
+        "test": "modelSizeAtLeast",
+        "args": 2
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "inspect"
+        },
+        {
+          "fill": "[aria-label=\"Size\"]",
+          "value": "2"
+        }
+      ],
+      "how": [],
+      "workspace": "Scene"
+    },
+    {
+      "id": "models.import",
+      "title": "Your own model",
+      "body": "Models from a modelling tool come in as glTF files: a .glb, or a .gltf with its data inside it, up to 20 MB. A file that can't be used says why — export it again as one .glb file.",
+      "task": "Press Import a model… and pick a .glb file. (No file to hand? Do it for me imports a sample lantern.)",
+      "target": "[data-tour=\"dock-model-import\"]",
+      "check": {
+        "kind": "state",
+        "test": "modelsImported",
+        "args": 1
+      },
+      "doItForMe": [
+        {
+          "ui": "dock",
+          "value": "assets"
+        },
+        {
+          "ui": "assetCat",
+          "value": "3D models"
+        },
+        {
+          "fn": "importSampleModel"
+        }
+      ],
+      "how": [
+        {
+          "text": "In Assets › 3D models, press Import a model… and pick your .glb file.",
+          "check": {
+            "kind": "state",
+            "test": "modelsImported",
+            "args": 1
+          },
+          "do": [
+            {
+              "show": "[data-tour=\"dock-model-import\"]"
+            },
+            {
+              "fn": "importSampleModel",
+              "say": "Import a model…"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene"
+    },
+    {
+      "id": "models.placeOwn",
+      "title": "Place yours",
+      "body": "Imported models join the list, first, with their own pictures, and place like the built-in ones.",
+      "task": "Press Place on the model you imported.",
+      "target": "[data-tour=\"dock-models\"]",
+      "check": {
+        "kind": "state",
+        "test": "modelPlaced",
+        "args": "own"
+      },
+      "doItForMe": [
+        {
+          "fn": "placeModel",
+          "args": {
+            "ref": "own"
+          }
+        }
+      ],
+      "how": [],
+      "workspace": "Scene"
+    },
+    {
+      "id": "models.movement",
+      "title": "Physics movement",
+      "body": "A solid model stops the hero, who can stand on it, when the hero is walked by the physics engine.",
+      "task": "On the Project tab, check that Movement is Physics (new projects start with it).",
+      "target": "[data-tour=\"project-movement\"]",
+      "check": {
+        "kind": "state",
+        "test": "projectMovement",
+        "args": "physics"
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "project"
+        },
+        {
+          "choose": "[data-tour=\"project-movement\"] select",
+          "value": "physics"
+        }
+      ],
+      "how": [
+        {
+          "text": "On the right, click the Project tab.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"project-movement\"]"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "project"
+            },
+            {
+              "show": "[data-tour=\"project-movement\"]"
+            }
+          ]
+        },
+        {
+          "text": "Pick Physics in Movement.",
+          "check": {
+            "kind": "state",
+            "test": "projectMovement",
+            "args": "physics"
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"project-movement\"] select",
+              "value": "physics",
+              "say": "Physics"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene"
+    },
+    {
+      "id": "models.stand",
+      "title": "Stand on it",
+      "body": "Press Play and climb onto your model: it is solid, so the hero stands on top of it. (Untick Solid in Play for things to walk through, such as tall grass.)",
+      "task": "Press Play, walk to your model and jump onto it (Space).",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroOnModel"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "standOnModel"
+        }
+      ],
+      "how": []
+    },
+    {
+      "id": "models.done",
+      "title": "Done!",
+      "body": "You placed a built-in 3D model, sized it, imported your own glTF model and stood on it. Models are lit by lights and fog, cast shadows and show in water's reflection. Help › 3D model properties says more. Press Esc or Stop to leave Play.",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "workspace": "Scene",
+      "placement": "bottom"
+    }
+  ]
+}

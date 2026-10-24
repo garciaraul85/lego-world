@@ -487,6 +487,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('water'),
   },
   {
+    id: 'help.models',
+    label: '3D models course (place, import a glTF model, stand on it)',
+    run: ({ ui }) => ui.tutorial('models'),
+  },
+  {
     id: 'help.posing',
     label: 'Posing and states course (clips pose by pose, walk, run, attack)',
     run: ({ ui }) => ui.tutorial('posing'),
@@ -637,6 +642,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.atmosphere',
     'help.bigworlds',
     'help.water',
+    'help.models',
     'help.brixCourse',
     'help.build',
     'help.shortcuts',

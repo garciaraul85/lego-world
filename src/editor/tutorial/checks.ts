@@ -18,14 +18,17 @@ import {
   type LightInstance,
   type LogicGraph,
   type MapDoc,
+  type MediaIndex,
   paths,
   type Screen,
   type Variables,
 } from '../../core/schema';
 import { easeAt, poseAt, poseTimes } from '../../engine/character/posing';
+import { modelMatrix, readyModel } from '../../engine/model/prepare';
+import { drawBox } from '../../engine/render/model-draw';
 import { BrowserSaveStore } from '../../platform/saves';
 import { assetLibrary } from '../assets';
-import { inWater, looseCopies, waterItems } from '../interact/place';
+import { inWater, looseCopies, modelItems, waterItems } from '../interact/place';
 import { savingOf } from '../panels/SavingSection';
 import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
@@ -328,6 +331,26 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   drawWithIs: (ed, a) => ed.drawWith.value === a,
   projectMovement: (ed, a) => (ed.store.get<{ movement?: string }>(paths.settings)?.movement ?? 'classic') === a,
   heroOnLoose: (ed) => !!ed.session.value?.world.physics?.standingOnLoose,
+  // Milestone 2b, 10c part 5: 3D models
+  modelsShown: (ed) => ed.dock.value === 'assets' && ed.assetCat.value === '3D models',
+  modelPlaced: (ed, a) =>
+    modelItems(ed).some((m) => (a === 'own' ? m.model.startsWith('sha256:') : !a || m.model === a)),
+  modelSizeAtLeast: (ed, a) => modelItems(ed).some((m) => (m.size ?? 1) >= Number(a)),
+  modelsImported: (ed, a) =>
+    Object.values(ed.store.get<MediaIndex>(paths.media)?.items ?? {}).filter((e) => e.kind === 'model').length >=
+    Number(a ?? 1),
+  heroOnModel: (ed) => {
+    const s = ed.session.value;
+    if (!s) return false;
+    const h = s.heroState;
+    return s.world.models.some((m) => {
+      const up = m.solid !== false && readyModel(m.model);
+      if (!up) return false;
+      const b = drawBox(modelMatrix(m), up.data.min, up.data.max);
+      const over = h.x > b.min[0] && h.x < b.max[0] && h.z > b.min[2] && h.z < b.max[2];
+      return over && h.y > b.min[1] + (b.max[1] - b.min[1]) * 0.4 && h.y < b.max[1] + 0.8;
+    });
+  },
   looseMovedInPlay: (ed, a) => {
     const w = ed.session.value?.world;
     const ph = w?.physics;

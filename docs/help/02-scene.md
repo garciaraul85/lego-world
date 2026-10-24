@@ -15,7 +15,7 @@ The buttons in the top-right corner of the 3D view: ◎ focuses on the selection
 **Draw with**, in the corner of the 3D view, picks what draws the views on this computer:
 
 - **WebGL** — the long-standing way. It works in every browser.
-- **WebGPU** — the newer way to use the graphics card. The picture is the same, and later it brings more lights with shadows, reflecting water and faster big maps.
+- **WebGPU** — the newer way to use the graphics card. The picture is the same, except that water truly mirrors the bricks, characters and sky above it (WebGL mirrors only the sky's colours). Later it brings faster big maps.
 - **Auto** — uses WebGL for now, until WebGPU has been tried on more computers.
 
 WebGPU draws the Scene and Play, characters included. The Director's previews and the studios still use WebGL for now.
@@ -91,7 +91,7 @@ Logic's **Set time of day** and **Set fog** (Sky) change them while the game pla
 
 ## Water and loose things
 
-Water fills a box on the map up to its surface; it is see-through blue in the Scene and in the game. Add it with **right-click › Add water here** or **Dock › Water › Place** (Pool, River, Lake, Sea). Pick it to change it in the Inspector:
+Water fills a box on the map up to its surface; it is see-through in the Scene and in the game. Its surface ripples (a river's ripples move with its current) and mirrors what is above it: with WebGPU at Graphics quality Medium or High it is a true reflection of the bricks, characters and sky; otherwise it mirrors the sky's colours. Add it with **right-click › Add water here** or **Dock › Water › Place** (Pool, River, Lake, Sea). Pick it to change it in the Inspector:
 
 - **Kind** — Pool, River, Lake or Sea: its colour and starting size.
 - **Corner** and **Size** — where its lowest corner is and how wide, deep (up to the surface) and long it is, in studs.
@@ -99,6 +99,17 @@ Water fills a box on the map up to its surface; it is see-through blue in the Sc
 - **Colour** — a tint of your own.
 
 An asset ticked **Loose** in the asset studio is not fixed to the map: in Play each copy falls if nothing holds it up, tips over when the hero walks into it, floats in water and drifts with the current. Smashed bricks float too. The **Water and physics course** (Help menu) walks through it.
+
+## 3D models
+
+Bricks make blocky things; **3D models** are smooth ones — a round lantern, a barrel, a leafy tree, a stone ring — made in a modelling tool such as Blender and saved as **glTF** (a `.glb` file, or a `.gltf` file with its data inside it). They stand on the map beside the bricks and are lit by the same sun, lights, fog and shadows, in WebGPU and WebGL.
+
+- **Dock › 3D models** lists the built-in models (Lantern post, Barrel, Round tree, Boulder, Crystal, Toadstool, Stone ring, Vase) and the ones you imported, each with a small picture. **Place** puts one beside where the player starts; **right-click the ground › Add a 3D model here** puts the last one you placed where you clicked.
+- **Import a model…** adds `.glb` or `.gltf` files to the project (up to 20 MB and 200,000 triangles each). A file that can't be used says why: one that keeps its data in other files, one compressed with Draco or meshopt, or one that isn't glTF 2.0 — export it again as one `.glb` file.
+- Pick a placed model to change it in the Inspector: **Model** (which one), **Position** (the middle of its base, in studs), **Turn** (degrees about its upright axis), **Size** (1 is the size it was made at; the hero is about 4 studs tall) and **Solid in Play**.
+- With **Physics** movement (Project tab), a solid model stops the hero, who can stand on it. Untick **Solid** for things to walk through, such as tall grass.
+
+Models that animate (characters with skeletons) stand still in their rest pose for now; moving models, FBX files, and painting and sculpting come in a later milestone. The **3D models course** (Help menu) walks through it.
 
 ## Big worlds
 
