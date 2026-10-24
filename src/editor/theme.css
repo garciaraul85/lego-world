@@ -6153,7 +6153,7 @@ img.bw-portrait {
 
 /* Milestone 2b, 10c: what draws the views (WebGL or WebGPU) */
 .vc.vc-draw {
-  width: auto;
+  width: 86px;
   padding: 0 4px;
   font: 600 11px var(--mono);
   background: transparent;

@@ -1640,7 +1640,7 @@ function ViewControls({
         >
           <option value="auto">Auto (WebGL)</option>
           <option value="webgpu" disabled={!ed.gpuWorks.value}>
-            {ed.gpuWorks.value ? 'WebGPU' : 'WebGPU (not working in this browser)'}
+            {ed.gpuWorks.value ? 'WebGPU' : 'WebGPU (unavailable)'}
           </option>
           <option value="webgl">WebGL</option>
         </select>

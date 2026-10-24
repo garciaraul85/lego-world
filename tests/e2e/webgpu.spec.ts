@@ -159,9 +159,7 @@ test('a browser that cannot show WebGPU draws with WebGL, and Draw with says so'
   test.setTimeout(300_000);
   // this machine's browser draws WebGPU but cannot show it: found out at start-up with a tiny try
   await open(page, '/editor.html?nohub');
-  await expect(page.locator('[data-tour="draw-with"] option[value="webgpu"]')).toHaveText(
-    /not working in this browser/,
-  );
+  await expect(page.locator('[data-tour="draw-with"] option[value="webgpu"]')).toHaveText(/unavailable/);
   await expect(page.locator('[data-tour="draw-with"] option[value="webgpu"]')).toBeDisabled();
   await expect.poll(async () => (await view(page))?.kind).toBe('webgl');
   // a choice of WebGPU kept from another computer still draws with WebGL here
