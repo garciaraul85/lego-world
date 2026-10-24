@@ -58,8 +58,23 @@ export function initGpu(): Promise<boolean> {
   return gpuLoading;
 }
 
-/** WebGPU is ready to draw with in this browser */
-export const gpuReady = () => !!gpu;
+/** WebGPU is ready to draw with in this browser (and has not failed to show a picture here) */
+export const gpuReady = () => !!gpu && !gpuBroken;
+
+let gpuBroken = false;
+/** a view could not show what WebGPU drew (the browser lost it): WebGL draws from now on */
+export function markGpuBroken() {
+  gpuBroken = true;
+}
+
+let offscreen = false;
+/**
+ * tests: draw into a picture of its own instead of the page (a browser that cannot show WebGPU on the page, as
+ * the test machine's, still draws; snapshot() reads the picture)
+ */
+export function setGpuOffscreen(on: boolean) {
+  offscreen = on;
+}
 
 const SAMPLES = 4;
 const DRAW_SIZE = 256;
@@ -111,6 +126,13 @@ export class GpuRenderer {
   private color: GPUTexture | null = null;
   private depth: GPUTexture | null = null;
   private size = [0, 0];
+  /** offscreen: the picture drawn into (tests), else the page's canvas */
+  private readonly offscreen = offscreen;
+  private picture: GPUTexture | null = null;
+  private last: [CameraFrame, Vec3, Overlay[], LineSet[], Marker[]] | null = null;
+  private watched = false;
+  /** called once if what WebGPU draws cannot be shown (the view starts again with WebGL) */
+  onFail: ((why: string) => void) | null = null;
   private meshes = new Map<string, GpuMesh>();
   private chunks = new Map<string, GpuChunk>();
 
@@ -145,7 +167,7 @@ export class GpuRenderer {
     const ctx = canvas.getContext('webgpu');
     if (!ctx) throw new Error('This canvas cannot draw with WebGPU.');
     this.ctx = ctx;
-    ctx.configure({ device: this.device, format: this.format, alphaMode: 'opaque' });
+    if (!offscreen) ctx.configure({ device: this.device, format: this.format, alphaMode: 'opaque' });
     const d = this.device;
     this.frameBuf = d.createBuffer({ size: 512, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     this.skyBuf = d.createBuffer({ size: 144, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
@@ -366,6 +388,12 @@ export class GpuRenderer {
       format: 'depth24plus',
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
     });
+    this.picture?.destroy();
+    this.picture = this.device.createTexture({
+      size: [w, h],
+      format: this.format,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+    });
   }
 
   render(
@@ -377,6 +405,18 @@ export class GpuRenderer {
     extra?: (mvp: Float32Array, eye: Vec3) => void,
   ): FrameStats {
     void extra; // characters are drawn by WebGL only until part 2
+    this.last = [cam, focus, overlays, lines, markers];
+    return this.draw(cam, focus, overlays, lines, markers, this.offscreen);
+  }
+
+  private draw(
+    cam: CameraFrame,
+    focus: Vec3,
+    overlays: Overlay[],
+    lines: LineSet[],
+    markers: Marker[],
+    toPicture: boolean,
+  ): FrameStats {
     const t0 = performance.now();
     this.stats = { drawCalls: 0, instances: 0, chunksDrawn: 0, chunks: this.chunks.size, ms: 0 };
     this.lit = pickLights(this.lights, focus, Math.min(MAX_LIGHTS, this.maxLights), false);
@@ -536,7 +576,7 @@ export class GpuRenderer {
     if (s) this.writeSky(s, cam, aspect);
 
     const enc = this.device.createCommandEncoder();
-    const view = this.ctx.getCurrentTexture().createView();
+    const view = (toPicture ? this.picture! : this.ctx.getCurrentTexture()).createView();
     const pass = (clear: boolean, list: DrawCall[], sky: boolean) => {
       const p = enc.beginRenderPass({
         colorAttachments: [
@@ -587,8 +627,50 @@ export class GpuRenderer {
     const top = calls.filter((c) => c.top);
     if (top.length) pass(false, top, false);
     this.device.queue.submit([enc.finish()]);
+    // the first frame shown on the page: if the browser cannot show it, WebGL takes over
+    if (!toPicture && !this.watched) {
+      this.watched = true;
+      this.device.queue.onSubmittedWorkDone().catch((e) => this.fail(String(e)));
+      this.device.lost.then((info) => this.fail(info.message || 'the GPU was reset'));
+    }
     this.stats.ms = performance.now() - t0;
     return this.stats;
+  }
+
+  private failed = false;
+  private fail(why: string) {
+    if (this.failed) return;
+    this.failed = true;
+    markGpuBroken();
+    this.onFail?.(why);
+  }
+
+  /** the last frame as a picture (RGBA, top row first): drawn again off the page and read back */
+  async snapshot(): Promise<{ width: number; height: number; rgba: Uint8Array }> {
+    if (!this.last) throw new Error('Nothing has been drawn yet.');
+    this.draw(...this.last, true);
+    const [w, h] = this.size as [number, number];
+    const row = Math.ceil((w * 4) / 256) * 256;
+    const buf = this.device.createBuffer({ size: row * h, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+    const enc = this.device.createCommandEncoder();
+    enc.copyTextureToBuffer({ texture: this.picture! }, { buffer: buf, bytesPerRow: row }, [w, h]);
+    this.device.queue.submit([enc.finish()]);
+    await buf.mapAsync(GPUMapMode.READ);
+    const src = new Uint8Array(buf.getMappedRange());
+    const rgba = new Uint8Array(w * h * 4);
+    const bgra = this.format === 'bgra8unorm';
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const i = y * row + x * 4;
+        const o = (y * w + x) * 4;
+        rgba[o] = src[i + (bgra ? 2 : 0)]!;
+        rgba[o + 1] = src[i + 1]!;
+        rgba[o + 2] = src[i + (bgra ? 0 : 2)]!;
+        rgba[o + 3] = 255;
+      }
+    buf.unmap();
+    buf.destroy();
+    return { width: w, height: h, rgba };
   }
 
   private grow(buf: GPUBuffer | null, cap: number, bytes: number, set: (c: number) => void): GPUBuffer | null {
@@ -628,6 +710,8 @@ export class GpuRenderer {
     this.instBuf?.destroy();
     this.lineBuf?.destroy();
     this.drawBuf.destroy();
-    this.ctx.unconfigure();
+    this.picture?.destroy();
+    this.failed = true;
+    if (!this.offscreen) this.ctx.unconfigure();
   }
 }

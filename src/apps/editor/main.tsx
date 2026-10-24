@@ -32,7 +32,7 @@ import { hubAtStartup, readIntent, writeIntent } from '../../editor/start/intent
 import { EditorState } from '../../editor/state';
 import { activeView } from '../../editor/viewport/active';
 import { initPhysics } from '../../engine/physics/physics';
-import { initGpu } from '../../engine/render/gpu/gpu-renderer';
+import { initGpu, setGpuOffscreen } from '../../engine/render/gpu/gpu-renderer';
 import '../../editor/theme.css';
 import { saveFile } from '../../platform/downloads';
 import { IdbBackend } from '../../platform/idb-backend';
@@ -62,6 +62,8 @@ async function boot() {
   // Milestone 2b: the physics core (WebAssembly) loads while the project opens; Play uses it once it is ready
   const physics = initPhysics().catch((e) => console.warn('Physics engine did not load; v68 debris is used.', e));
   // Milestone 2b, 10c: a WebGPU device, if this browser has one (WebGL draws otherwise)
+  // (tests: ?gpu=offscreen draws WebGPU into a picture of its own, where a browser cannot show it on the page)
+  if (new URLSearchParams(location.search).get('gpu') === 'offscreen') setGpuOffscreen(true);
   const gpu = initGpu();
   const backend = new IdbBackend();
   let store: ProjectStore | null = null;

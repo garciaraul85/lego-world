@@ -141,6 +141,12 @@ export function Viewport({
     try {
       // Milestone 2b, 10c: WebGPU or WebGL, as picked in the view's corner (WebGL where WebGPU is missing)
       renderer = createSceneRenderer(canvas, ed.drawWith.value);
+      if (renderer.kind === 'webgpu')
+        renderer.onFail = (why) => {
+          console.warn('WebGPU could not show the view:', why);
+          ed.notify('WebGPU could not show the 3D view in this browser, so WebGL draws it.', true);
+          setGen((g) => g + 1);
+        };
     } catch (e) {
       ed.notify(e instanceof Error ? e.message : String(e), true);
       return;
@@ -1634,7 +1640,7 @@ function ViewControls({
         >
           <option value="auto">Auto (WebGL)</option>
           <option value="webgpu" disabled={!gpuReady()}>
-            {gpuReady() ? 'WebGPU' : 'WebGPU (not in this browser)'}
+            {gpuReady() ? 'WebGPU' : 'WebGPU (not working in this browser)'}
           </option>
           <option value="webgl">WebGL</option>
         </select>
