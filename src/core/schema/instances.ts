@@ -110,6 +110,27 @@ export const WaterInstance = z.strictObject({
 });
 export type WaterInstance = z.infer<typeof WaterInstance>;
 
+/**
+ * Milestone 2b, 10c part 5: a 3D model placed on a map — a built-in one (`builtin:<id>`) or one imported into the
+ * project (its media ref, a .glb or .gltf file). It stands on `pos` (the middle of its base), turned about its
+ * upright axis and sized; solid ones stop the hero in Play.
+ */
+export const MODEL_REF = /^(builtin:[a-z0-9-]{1,40}|sha256:[0-9a-f]{64})$/;
+export const ModelInstance = z.strictObject({
+  id: id('instance'),
+  kind: z.literal('model'),
+  name: z.string().min(1).max(60).optional(),
+  model: z.string().regex(MODEL_REF, 'expected builtin:<id> or sha256:<hex>'),
+  pos: Vec3,
+  /** degrees about the upright axis */
+  turn: z.number().min(-180).max(180).optional(),
+  /** how big: 1 is the size it was made at (studs) */
+  size: z.number().min(0.05).max(50).optional(),
+  /** false: the hero and loose things go through it (decoration) */
+  solid: z.boolean().optional(),
+});
+export type ModelInstance = z.infer<typeof ModelInstance>;
+
 /** World UI placed in a map (P5.9): a sign, a label or a bar drawn over the 3D view at pos. */
 export const UiInstance = z.strictObject({
   id: id('instance'),
@@ -139,6 +160,7 @@ export const InstanceItem = z.discriminatedUnion('kind', [
   EffectInstance,
   LightInstance,
   WaterInstance,
+  ModelInstance,
 ]);
 
 export const Instances = z.strictObject({

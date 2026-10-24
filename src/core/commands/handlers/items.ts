@@ -6,20 +6,27 @@ import {
   Instances,
   type LightInstance,
   type MapDoc,
+  type MediaIndex,
+  type ModelInstance,
   paths,
   type UiInstance,
   type WaterInstance,
 } from '../../schema';
 import type { CommandHandler } from '../types';
 
-type Item = EmitterInstance | UiInstance | EffectInstance | LightInstance | WaterInstance;
-const isItem = (k: string) => k === 'emitter' || k === 'ui' || k === 'effect' || k === 'light' || k === 'water';
+type Item = EmitterInstance | UiInstance | EffectInstance | LightInstance | WaterInstance | ModelInstance;
+const isItem = (k: string) =>
+  k === 'emitter' || k === 'ui' || k === 'effect' || k === 'light' || k === 'water' || k === 'model';
 /** Milestone 2b: bodies of water a map holds */
 export const MAX_WATER_PER_MAP = 64;
 /** P27 part 3: was 256 */
 export const MAX_ITEMS_PER_MAP = 10_000;
 /** Milestone 2b: placed asset copies a map holds (the object core keeps the game quick at this many) */
 export const MAX_ASSETS_PER_MAP = 100_000;
+
+/** part 5: an imported model file the project holds */
+const hasModelFile = (store: ProjectStore, ref: string) =>
+  store.get<MediaIndex>(paths.media)?.items[ref]?.kind === 'model';
 
 const inst = (store: ProjectStore, map: string) =>
   store.get<Instances>(paths.instances(map)) ?? { npcsSaved: false, items: [] };
@@ -39,7 +46,9 @@ export const addItem: CommandHandler<{ map: string; item: Item }> = {
           ? 'Add light'
           : p.item.kind === 'water'
             ? 'Add water'
-            : `Add world ${p.item.widget}`,
+            : p.item.kind === 'model'
+              ? 'Add model'
+              : `Add world ${p.item.widget}`,
   validate(store, p) {
     if (!store.has(paths.map(p.map))) return `Map ${p.map} does not exist.`;
     if (!isId('instance', p.item.id)) return 'Item ids look like ins_ and 10 letters or digits.';
@@ -49,6 +58,8 @@ export const addItem: CommandHandler<{ map: string; item: Item }> = {
     if (p.item.kind === 'water' && same >= MAX_WATER_PER_MAP)
       return `A map holds at most ${MAX_WATER_PER_MAP} bodies of water.`;
     if (same >= MAX_ITEMS_PER_MAP) return `A map holds at most ${MAX_ITEMS_PER_MAP} of these.`;
+    if (p.item.kind === 'model' && p.item.model.startsWith('sha256:') && !hasModelFile(store, p.item.model))
+      return 'That model file is not in the project: import it first.';
     return check({ ...cur, items: [...cur.items, p.item] });
   },
   apply(store, p) {

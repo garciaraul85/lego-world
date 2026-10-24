@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ModelError, readModel } from '../../src/engine/model/gltf';
+import { ModelError, readModel } from '../../src/core/media/gltf';
 
 /** Milestone 2b, 10c part 5: reading glTF models (the sample lamp post, made by scripts/make-sample-model.mjs) */
 const file = (name: string) => new Uint8Array(readFileSync(`tests/fixtures/models/${name}`));

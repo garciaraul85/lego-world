@@ -109,6 +109,10 @@ export const removeMedia: CommandHandler<{ ref: string }> = {
       if (JSON.stringify(store.get(path) ?? {}).includes(p.ref)) return 'A sound event or music still plays that file.';
     for (const path of store.list('screens/'))
       if (JSON.stringify(store.get(path)).includes(p.ref)) return 'A screen still shows that image.';
+    // Milestone 2b, 10c part 5: a model placed on a map
+    for (const path of store.list('maps/'))
+      if (path.endsWith('/instances.json') && JSON.stringify(store.get(path)).includes(p.ref))
+        return 'A map still has that model placed on it.';
     return null;
   },
   apply(store, p) {

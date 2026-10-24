@@ -1,11 +1,15 @@
 import type { MediaIndex } from '../schema';
+import { ModelError, readModel } from './gltf';
 import { sha256 } from './hash';
 import { type Decoder, probeAudio } from './probe';
 
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 export const MAX_PROJECT_BYTES = 200 * 1024 * 1024;
 
-const TYPES: Record<string, { kind: 'audio' | 'image' | 'font'; mime: string }> = {
+const TYPES: Record<string, { kind: 'audio' | 'image' | 'font' | 'model'; mime: string }> = {
+  // Milestone 2b, 10c part 5: 3D models
+  glb: { kind: 'model', mime: 'model/gltf-binary' },
+  gltf: { kind: 'model', mime: 'model/gltf+json' },
   wav: { kind: 'audio', mime: 'audio/wav' },
   mp3: { kind: 'audio', mime: 'audio/mpeg' },
   ogg: { kind: 'audio', mime: 'audio/ogg' },
@@ -23,7 +27,7 @@ const TYPES: Record<string, { kind: 'audio' | 'image' | 'font'; mime: string }> 
 };
 
 /** File extensions by kind, for file pickers. */
-export const ACCEPT_OF = (kind: 'audio' | 'image' | 'font') =>
+export const ACCEPT_OF = (kind: 'audio' | 'image' | 'font' | 'model') =>
   Object.entries(TYPES)
     .filter(([, t]) => t.kind === kind)
     .map(([e]) => `.${e}`)
@@ -60,6 +64,16 @@ export async function importMedia(
     return { ok: false, error: 'The project already holds 200 MB of media.' };
   const warnings: string[] = [];
   const entry: MediaEntry = { name: name.slice(0, 120), kind: t.kind, mime: t.mime, bytes: bytes.length };
+  if (t.kind === 'model') {
+    try {
+      entry.triangles = readModel(bytes).triangles;
+    } catch (e) {
+      return {
+        ok: false,
+        error: `${name}: ${e instanceof ModelError ? e.message : 'it could not be read as a 3D model.'}`,
+      };
+    }
+  }
   if (t.kind === 'audio') {
     if (extOf(name) === 'ogg')
       warnings.push(`${name}: .ogg does not play on older iPhones and iPads; prefer .m4a or .mp3.`);

@@ -296,6 +296,7 @@ function Hierarchy({ c }: { c: ActionCtx }) {
       { key: 'effects', name: 'Effects', color: '#ff8a3d', kind: 'effect' as const },
       { key: 'lights', name: 'Lights', color: '#ffc26b', kind: 'light' as const },
       { key: 'water', name: 'Water', color: '#4fa3d9', kind: 'water' as const },
+      { key: 'models', name: '3D models', color: '#9ad08a', kind: 'model' as const },
     ];
     for (const g of groups) {
       const items = (inst?.items ?? []).filter((i) => i.kind === g.kind);
@@ -328,7 +329,9 @@ function Hierarchy({ c }: { c: ActionCtx }) {
                     ? `💡 ${it.name ?? 'Light'}${it.on ? '' : ' (off)'}`
                     : it.kind === 'water'
                       ? `≈ ${it.name ?? 'Water'}`
-                      : it.id,
+                      : it.kind === 'model'
+                        ? `◆ ${it.name ?? '3D model'}`
+                        : it.id,
           color: g.color,
           sel: ed.selectedItem.value === it.id,
           onClick: () => {

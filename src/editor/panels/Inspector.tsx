@@ -655,8 +655,8 @@ function QualityField({ c }: { c: ActionCtx }) {
       </select>
       <span class="muted small" data-tour="project-quality-note">
         {q.lights} lights{q.shadows ? `, ${q.shadowLights} with shadows` : ', no shadows'},{' '}
-        {q.reflections ? 'mirroring water' : 'water mirrors the sky'},{' '}
-        {Math.round(q.viewScale * 100)}% view distance, {q.particles.toLocaleString('en-US')} particles
+        {q.reflections ? 'mirroring water' : 'water mirrors the sky'}, {Math.round(q.viewScale * 100)}% view distance,{' '}
+        {q.particles.toLocaleString('en-US')} particles
       </span>
     </div>
   );

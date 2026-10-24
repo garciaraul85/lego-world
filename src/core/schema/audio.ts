@@ -57,12 +57,14 @@ export const MediaIndex = z.strictObject({
     MediaRef,
     z.strictObject({
       name: z.string().min(1).max(120),
-      kind: z.enum(['audio', 'image', 'font']),
+      kind: z.enum(['audio', 'image', 'font', 'model']),
       mime: z.string().min(1).max(60),
       bytes: z.number().int().min(0),
       duration: z.number().min(0).optional(),
       channels: z.number().int().min(1).max(8).optional(),
       sampleRate: z.number().int().positive().optional(),
+      /** Milestone 2b, 10c part 5: a 3D model's triangles */
+      triangles: z.number().int().min(0).optional(),
     }),
   ),
 });

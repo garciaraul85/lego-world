@@ -34,6 +34,7 @@ import { CharacterThumb } from '../workspaces/character-studio/thumbs';
 import { allEffects } from '../workspaces/effects/EffectsStudio';
 import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
 import { LightSwatch } from './LightFields';
+import { ModelCards, modelChoices } from './ModelFields';
 
 /**
  * P9c: the game's characters, each with “Place” — it stands on the open map as a neighbour, a few studs in
@@ -105,6 +106,11 @@ const CATS: [string, string | null, string][] = [
     'Water',
     null,
     'Pools, rivers, lakes and seas: Place puts one beside the start (or right-click the ground: Add water here). Loose objects and smashed bricks float in it in Play.',
+  ],
+  [
+    '3D models',
+    null,
+    'Smooth shapes made in a modelling tool (glTF: .glb or .gltf), and built-in ones: Place puts one beside the start (or right-click the ground: Add a 3D model here). They are lit like the bricks.',
   ],
   ['Sounds', null, 'Sound events: ▶ to listen; place one in the map as an emitter (Sound emitter tool, S).'],
   ['Music', null, 'Music states: ▶ to audition; pick one as the map music or a zone’s music.'],
@@ -225,6 +231,8 @@ function Assets({ c }: { c: ActionCtx }) {
           <LightCards c={c} hint={cur[2]} q={q} />
         ) : cur[0] === 'Water' ? (
           <WaterCards c={c} hint={cur[2]} q={q} />
+        ) : cur[0] === '3D models' ? (
+          <ModelCards c={c} hint={cur[2]} q={q} />
         ) : cur[0] === 'Sounds' ? (
           <MediaCards
             c={c}
@@ -282,6 +290,8 @@ function catCount(ed: EditorState, cat: string): number {
       return mapItems(ed).filter((i) => i.kind === 'light').length;
     case 'Water':
       return waterItems(ed).length;
+    case '3D models':
+      return modelChoices(ed).length;
     case 'Sounds':
       return soundOptions(ed).length;
     default:

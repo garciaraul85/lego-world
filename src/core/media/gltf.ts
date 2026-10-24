@@ -106,7 +106,8 @@ export function readModel(file: Uint8Array): ModelData {
   const view = new DataView(file.buffer, file.byteOffset, file.byteLength);
   if (file.byteLength >= 12 && view.getUint32(0, true) === 0x46546c67) {
     // a .glb: a header, then a JSON chunk and a binary chunk
-    if (view.getUint32(4, true) !== 2) throw new ModelError('This .glb is an old glTF version (1.0); export it as glTF 2.0.');
+    if (view.getUint32(4, true) !== 2)
+      throw new ModelError('This .glb is an old glTF version (1.0); export it as glTF 2.0.');
     let at = 12;
     let jsonText = '';
     while (at + 8 <= file.byteLength) {
@@ -134,7 +135,8 @@ export function readModel(file: Uint8Array): ModelData {
   const unsupported = (json.extensionsRequired ?? []).filter((e) => e !== 'KHR_materials_unlit');
   if (unsupported.includes('KHR_draco_mesh_compression') || unsupported.includes('EXT_meshopt_compression'))
     throw new ModelError('This model is compressed (Draco or meshopt); export it without compression.');
-  if (unsupported.length) throw new ModelError(`This model needs ${unsupported.join(', ')}, which isn't supported yet.`);
+  if (unsupported.length)
+    throw new ModelError(`This model needs ${unsupported.join(', ')}, which isn't supported yet.`);
 
   // the binary data
   const buffers = (json.buffers ?? []).map((b, i) => {
@@ -195,9 +197,7 @@ export function readModel(file: Uint8Array): ModelData {
     if (img.uri) {
       const d = dataUri(img.uri);
       if (!d)
-        throw new ModelError(
-          `This .gltf keeps a picture in another file (${img.uri}); export it as one .glb file.`,
-        );
+        throw new ModelError(`This .gltf keeps a picture in another file (${img.uri}); export it as one .glb file.`);
       return d;
     }
     return null;

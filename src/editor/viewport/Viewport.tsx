@@ -18,11 +18,13 @@ import type { Command } from '../../core/commands';
 import { skyCycle } from '../../core/legacy/modules';
 import { wiresOf } from '../../core/logic/wiring';
 import { maxOf } from '../../core/num';
-import type { Asset, LogicGraph, WaterInstance } from '../../core/schema';
+import type { Asset, LogicGraph, ModelInstance, WaterInstance } from '../../core/schema';
 import { atmosphere } from '../../engine/lighting/atmosphere';
 import { pointLights } from '../../engine/lighting/lights';
+import { feedModels, modelMatrix, readyModel } from '../../engine/model/prepare';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
+import { drawBox } from '../../engine/render/model-draw';
 import {
   brickRgb,
   type LineSet,
@@ -46,6 +48,7 @@ import { dragPayload, endDrag, sceneHover } from '../interact/drag';
 import {
   assetCorner,
   mapItems,
+  modelItems,
   placeAssetAt,
   placeItemAt,
   placeSpawnAt,
@@ -747,6 +750,14 @@ export function Viewport({
         // Milestone 2b: water (a picked one outlined)
         const waters = studio ? [] : waterItems(ed);
         renderer.water = waters.map(waterSurface);
+        // Milestone 2b, 10c part 5: placed 3D models (each read once; the view draws again when one is ready)
+        const models = studio ? [] : modelItems(ed);
+        feedModels(renderer, models, ed.media ? (ref) => ed.media!.get(ref) : null, redraw);
+        for (const m of models) {
+          if (m.id !== ed.selectedItem.value) continue;
+          const box = modelBox(m);
+          if (box) lines.push({ lines: boxLines(...box.min, ...box.max), color: [1, 0.72, 0.2], onTop: true });
+        }
         for (const wt of waters) {
           if (wt.id === ed.selectedItem.value)
             lines.push({ lines: boxLines(...(wt.pos as Vec3), ...waterTop(wt)), color: [1, 0.72, 0.2], onTop: true });
@@ -975,6 +986,7 @@ export function Viewport({
         : [
             ...mapItems(ed).map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) })),
             ...waterItems(ed).map((it) => ({ it, t: rayBox(r, it.pos as Vec3, waterTop(it)) })),
+            ...modelHits(ed, r),
           ]
             .filter((x) => x.t !== null)
             .sort((a, b) => a.t! - b.t!)[0];
@@ -1059,6 +1071,7 @@ export function Viewport({
       const item = [
         ...mapItems(ed).map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) })),
         ...waterItems(ed).map((it) => ({ it, t: rayBox(r, it.pos as Vec3, waterTop(it)) })),
+        ...modelHits(ed, r),
       ]
         .filter((x) => x.t !== null)
         .sort((a, b) => a.t! - b.t!)[0];
@@ -1484,6 +1497,22 @@ export { mapItems };
 
 /** Milestone 2b: the far top corner of a body of water */
 const waterTop = (w: WaterInstance): Vec3 => [w.pos[0] + w.size[0], w.pos[1] + w.size[1], w.pos[2] + w.size[2]];
+
+/** Milestone 2b, 10c part 5: the box a placed model fills (once it has been read) */
+function modelBox(m: ModelInstance) {
+  const up = readyModel(m.model);
+  if (!up) return null;
+  const b = drawBox(modelMatrix(m), up.data.min, up.data.max);
+  return { min: b.min as Vec3, max: b.max as Vec3 };
+}
+
+/** the placed models a ray goes through, by distance */
+function modelHits(ed: EditorState, r: { o: Vec3; d: Vec3 }) {
+  return modelItems(ed).flatMap((it) => {
+    const b = modelBox(it);
+    return b ? [{ it, t: rayBox(r, b.min, b.max) }] : [];
+  });
+}
 
 const editorKeys = new WeakMap<EditorState, number>();
 let editorCount = 0;

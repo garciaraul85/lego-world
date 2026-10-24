@@ -65,6 +65,7 @@ import {
   type LogicGraph,
   type MapDoc,
   type MapState,
+  type ModelInstance,
   type Project,
   paths,
   type Screen,
@@ -92,8 +93,10 @@ import {
 import { type Atmosphere, atmosphere } from '../lighting/atmosphere';
 import { findLight, gatherLights, type LightSource, pointLights } from '../lighting/lights';
 import { LogicRuntime } from '../logic/interpreter';
+import { type MediaSource, modelMatrix, prepareModel, readyModel } from '../model/prepare';
 import { walkHero } from '../physics/hero';
 import { PhysicsWorld, physicsReady } from '../physics/physics';
+import { type ModelUpload, placedTriangles } from '../render/model-draw';
 import { portrait } from '../render/portraits';
 import type { PointLight } from '../render/renderer';
 import { CinematicSystem } from '../systems/cinematic';
@@ -184,6 +187,8 @@ export type MapWorld = {
   physics: PhysicsWorld | null;
   /** Milestone 2b: bodies of water */
   water: WaterInstance[];
+  /** Milestone 2b, 10c part 5: the 3D models placed on the map */
+  models: ModelInstance[];
   /** Milestone 2b: loose objects (assets marked loose): their copy, and the middle of their bricks as placed */
   looseObjects: { inst: PlayInstance; origin: [number, number, number]; pieces: LegacyPiece[] }[];
   /** Milestone 2b: the bricks of loose objects, by id (not among the map's solid pieces) */
@@ -225,6 +230,8 @@ export class PlaySession {
   readonly L: LegacyRuntime;
   readonly runtime: Runtime<PlaySession>;
   readonly worlds = new Map<string, MapWorld>();
+  /** Milestone 2b, 10c part 5: where imported model files come from (the editor's media) */
+  mediaSource: MediaSource | null = null;
   /** P27 part 3c: maps left in this play that are no longer loaded: what changed on them (as a save keeps it) */
   readonly parked = new Map<string, MapSave>();
   /** loaded maps, least recently used first */
@@ -356,9 +363,12 @@ export class PlaySession {
       quality?: QualityLevel;
       /** P27 part 4: the device, for Auto quality (none: a mid-range one) */
       device?: DeviceInfo;
+      /** Milestone 2b, 10c part 5: where imported model files come from */
+      media?: MediaSource;
     } = {},
   ) {
     this.L = legacyRuntime();
+    this.mediaSource = opts.media ?? null;
     this.saves = opts.saves ?? new MemorySaveStore();
     this.audio = opts.audio ?? new RecordingAudio();
     const self = this;
@@ -580,6 +590,7 @@ export class PlaySession {
       effects: (inst?.items ?? []).filter((i): i is EffectInstance => i.kind === 'effect'),
       lights: (inst?.items ?? []).filter((i): i is LightInstance => i.kind === 'light'),
       water: (inst?.items ?? []).filter((i): i is WaterInstance => i.kind === 'water'),
+      models: (inst?.items ?? []).filter((i): i is ModelInstance => i.kind === 'model'),
       looseObjects: [],
       loosePieces,
       worldUi: (inst?.items ?? []).filter((i): i is UiInstance => i.kind === 'ui'),
@@ -3673,6 +3684,16 @@ export class PlaySession {
   private physicsLoose(w: MapWorld) {
     const ph = w.physics;
     if (!ph) return;
+    // 10c part 5: solid placed models (each as soon as its file has been read)
+    for (const it of w.models) {
+      if (it.solid === false) continue;
+      const solid = (up: ModelUpload) => {
+        if (w.physics === ph) ph.setSolidMesh(`model:${it.id}`, placedTriangles(up.data, modelMatrix(it)));
+      };
+      const up = readyModel(it.model);
+      if (up) solid(up);
+      else void prepareModel(it.model, this.mediaSource).then(solid, () => {});
+    }
     ph.setWater(
       w.water.map((it) => ({
         x0: it.pos[0],

@@ -6162,3 +6162,17 @@ img.bw-portrait {
 .vc.vc-draw option {
   color: #111;
 }
+
+/* Milestone 2b, 10c part 5: 3D model pictures in the dock */
+.model-thumb {
+  display: inline-block;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: radial-gradient(circle at 50% 35%, #3a4656 0%, #232b36 75%);
+}
+.model-thumb.small {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}

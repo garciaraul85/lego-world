@@ -3,6 +3,7 @@ import type { FogParams } from '../../lighting/atmosphere';
 import { brickGeometry, coneGeometry, downTriangle, type Geometry, plainBox, turnedY } from '../brick-geometry';
 import type { CameraFrame } from '../camera';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from '../math';
+import { drawBox, type ModelDraw, type ModelUpload } from '../model-draw';
 import {
   brickCenter,
   brickHeightUnits,
@@ -25,7 +26,6 @@ import {
 } from '../renderer';
 import { mirrorAt, reflectedWater, type WaterSurface, waterBody } from '../water';
 import { GlShim, type ShimBuffer, type ShimDraw } from './gl-shim';
-import { drawBox, type ModelDraw, type ModelUpload } from '../model-draw';
 import { BRICK_WGSL, CHAR_WGSL, MESH_WGSL, SHADOW_WGSL, SKY_WGSL, WATER_WGSL } from './shaders.wgsl';
 
 /**

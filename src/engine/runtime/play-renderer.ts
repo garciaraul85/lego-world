@@ -5,6 +5,7 @@ import { QUALITY } from '../../core/render/quality';
 import { rigPose } from '../character/animator';
 import { ACT_LENGTH, advance, bodyOverlays, bodyPose, bodyWorld, type Motion, newMotion } from '../character/body-anim';
 import type { CharacterRenderer, Controller, HeroState } from '../legacy/runtime-modules';
+import { feedModels } from '../model/prepare';
 import { brickGeometry } from '../render/brick-geometry';
 import type { CameraFrame } from '../render/camera';
 import { cross, normalize, type Vec3 } from '../render/math';
@@ -274,6 +275,8 @@ export class PlayRenderer {
     }
     // Milestone 2b: water — a see-through box up to its rippling, mirroring surface (10c part 4)
     this.renderer.water = w.water.map(waterSurface);
+    // 10c part 5: the 3D models placed on the map
+    feedModels(this.renderer, w.models, s.mediaSource, () => {});
     if (this.extra) {
       lines.push(...this.extra.lines);
       markers.push(...this.extra.markers);

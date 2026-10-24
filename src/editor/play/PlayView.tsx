@@ -55,6 +55,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
         // P27 part 4: the quality the maker previews, and the device for Auto
         ...(ed.previewQuality.value ? { quality: ed.previewQuality.value } : {}),
         device: browserDevice(),
+        ...(ed.media ? { media: (ref: string) => ed.media!.get(ref) } : {}),
       });
       // P27 part 3c: maps load in steps behind a loading screen; the maps ahead load a little each frame
       s.asyncLoads = true;

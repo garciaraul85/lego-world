@@ -8,6 +8,7 @@ import {
   type EmitterInstance,
   type Instances,
   type LightInstance,
+  type ModelInstance,
   paths,
   type UiInstance,
   type WaterInstance,
@@ -195,6 +196,33 @@ export function placeWaterAt(ed: EditorState, p: GroundPoint, body: WaterInstanc
     ...(body === 'river' ? { current: [3, 0] as [number, number] } : {}),
   };
   if (!ed.exec({ type: 'item.add', payload: { map: ed.mapId.value, item } }, { label: 'Add water' }).ok) return null;
+  selectOnly(ed, 'item', id);
+  return id;
+}
+
+/** Milestone 2b, 10c part 5: the open map's placed 3D models */
+export function modelItems(ed: EditorState): ModelInstance[] {
+  const inst = ed.store.get<Instances>(paths.instances(ed.mapId.value));
+  return (inst?.items ?? []).filter((i): i is ModelInstance => i.kind === 'model');
+}
+
+/** part 5: the 3D model placed last (right-clicking the ground places it again) */
+export const lastModel = { ref: 'builtin:lantern-post', name: 'Lantern post' };
+
+/** part 5: a 3D model (a built-in one, or an imported file's ref) set down on the ground where you clicked */
+export function placeModelAt(ed: EditorState, p: GroundPoint, model: string, name: string): string | null {
+  lastModel.ref = model;
+  lastModel.name = name;
+  const id = newId('instance');
+  const n = modelItems(ed).filter((m) => m.model === model).length + 1;
+  const item: ModelInstance = {
+    id,
+    kind: 'model',
+    name: `${name.replace(/\.(glb|gltf)$/i, '').slice(0, 52)} ${n}`,
+    model,
+    pos: [Math.round(p.x * 10) / 10, Math.round(p.y * 0.4 * 10) / 10, Math.round(p.z * 10) / 10],
+  };
+  if (!ed.exec({ type: 'item.add', payload: { map: ed.mapId.value, item } }, { label: 'Add model' }).ok) return null;
   selectOnly(ed, 'item', id);
   return id;
 }

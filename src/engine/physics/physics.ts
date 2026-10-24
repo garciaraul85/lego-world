@@ -64,6 +64,8 @@ export class PhysicsWorld {
   /** loose objects (whole assets) by their key, and how tall they are (for how deep they sit in water) */
   private objects = new Map<string, { body: RAPIER.RigidBody; half: number }>();
 
+  private solids = new Map<string, RAPIER.Collider>();
+
   constructor() {
     if (!ready) throw new Error('The physics engine is not loaded yet.');
     this.world = new RAPIER.World({ x: 0, y: -GRAVITY, z: 0 });
@@ -122,6 +124,47 @@ export class PhysicsWorld {
       );
     this.chunks.set(key, list);
     this.queriesStale = true;
+  }
+
+  /**
+   * Milestone 2b, 10c part 5: a placed model becomes solid: its triangles (world positions, three corners each) as
+   * one triangle mesh, under its own key (apart from the chunks, which come and go with the hero)
+   */
+  setSolidMesh(key: string, triangles: Float32Array) {
+    this.dropSolidMesh(key);
+    const n = triangles.length / 3;
+    if (n < 3) return;
+    const indices = new Uint32Array(n - (n % 3));
+    for (let i = 0; i < indices.length; i++) indices[i] = i;
+    let mx = 0;
+    let mz = 0;
+    for (let i = 0; i < triangles.length; i += 3) {
+      mx += triangles[i]!;
+      mz += triangles[i + 2]!;
+    }
+    this.groundAt(mx / n, mz / n);
+    this.solids.set(
+      key,
+      this.world.createCollider(
+        RAPIER.ColliderDesc.trimesh(triangles, indices, RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES)
+          .setFriction(0.9)
+          .setRestitution(0.15),
+      ),
+    );
+    this.queriesStale = true;
+  }
+
+  dropSolidMesh(key: string) {
+    const c = this.solids.get(key);
+    if (!c) return;
+    this.world.removeCollider(c, false);
+    this.solids.delete(key);
+    this.queriesStale = true;
+  }
+
+  /** the placed models that are solid now (keys) */
+  solidKeys(): string[] {
+    return [...this.solids.keys()];
   }
 
   dropChunk(key: string) {

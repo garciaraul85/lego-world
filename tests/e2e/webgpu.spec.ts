@@ -86,7 +86,7 @@ async function compare(page: Page, name: string) {
   expect(result.bigShare, `${name} ${JSON.stringify(result)}`).toBeLessThan(0.03);
 }
 
-test('the Scene drawn with WebGPU matches WebGL (daylight; dark with a torch, fog and a selection)', async ({
+test('the Scene drawn with WebGPU matches WebGL (daylight; 3D models; dark with a torch, fog and a selection; two shadowed lights)', async ({
   page,
 }) => {
   test.setTimeout(900_000);
@@ -96,6 +96,32 @@ test('the Scene drawn with WebGPU matches WebGL (daylight; dark with a torch, fo
   await expect(page.getByLabel('Draw with')).toHaveValue('auto');
   await expect.poll(async () => (await view(page))?.kind).toBe('webgl');
   await compare(page, 'scene-day');
+  // 10c part 5: the built-in 3D models, big, beside the bricks
+  await page.evaluate(() => {
+    const e = (
+      window as unknown as { __editor: { mapId: { value: string }; exec(c: unknown): { ok: boolean; error?: string } } }
+    ).__editor;
+    ['lantern-post', 'barrel', 'round-tree', 'boulder', 'crystal', 'toadstool', 'stone-ring', 'vase'].forEach(
+      (m, i) => {
+        const r = e.exec({
+          type: 'item.add',
+          payload: {
+            map: e.mapId.value,
+            item: {
+              id: `ins_gpumodel0${i}`,
+              kind: 'model',
+              model: `builtin:${m}`,
+              pos: [-50 + i * 14, 10, 25],
+              size: 4,
+              turn: 30,
+            },
+          },
+        });
+        if (!r.ok) throw new Error(r.error);
+      },
+    );
+  });
+  await compare(page, 'scene-models');
   // a dark map lit by a torch, in mist, with a picked brick (water is checked in webgpu-water: WebGPU mirrors the world) (lines and an overlay)
   await page.evaluate(() => {
     const e = (

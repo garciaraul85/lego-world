@@ -7,11 +7,13 @@ import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { type MenuEntry, type MenuSpec, openMenu } from './menu';
 import {
   type GroundPoint,
+  lastModel,
   mapItems,
   placeAssetAt,
   placeEffectAt,
   placeItemAt,
   placeLightAt,
+  placeModelAt,
   placeSpawnAt,
   placeWaterAt,
   placeZoneAt,
@@ -226,6 +228,10 @@ export function groundMenu(c: ActionCtx, at: GroundPoint, brick?: number): MenuS
       item('ground.light', 'Add a light here', () => placeLightAt(ed, at)),
       // Milestone 2b
       item('ground.water', 'Add water here', () => placeWaterAt(ed, at)),
+      // 10c part 5: the 3D model placed last (at first the lantern post)
+      item('ground.model', `Add a 3D model here (${lastModel.name})`, () =>
+        placeModelAt(ed, at, lastModel.ref, lastModel.name),
+      ),
       // P28: test from any spot
       item('ground.playHere', 'Play from here (test)', () =>
         c.ui.play('engine', { map: ed.mapId.value, at: [at.x, at.y * 0.4, at.z] }),
