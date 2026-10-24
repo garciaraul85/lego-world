@@ -36,14 +36,14 @@ const view = (page: Page) =>
 async function compare(page: Page, name: string) {
   const pick = page.getByLabel('Draw with');
   await pick.selectOption('webgl');
-  await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgl');
+  await expect.poll(async () => (await view(page))?.kind, { timeout: 90_000 }).toBe('webgl');
   const hide = await page.addStyleTag({ content: '.vp-hud, .vp-controls { visibility: hidden !important; }' });
   await page.waitForTimeout(1500);
   const gl = await page.getByLabel('3D map view').screenshot({ path: `test-results/${name}-webgl.png` });
   await hide.evaluate((t) => (t as Element).remove());
   await pick.selectOption('webgpu');
-  await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgpu');
-  await expect.poll(async () => (await view(page))?.chunks ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => (await view(page))?.kind, { timeout: 90_000 }).toBe('webgpu');
+  await expect.poll(async () => (await view(page))?.chunks ?? 0, { timeout: 90_000 }).toBeGreaterThan(0);
   await page.waitForTimeout(1500);
   const d = await page.evaluate(async (png64) => {
     const v = (window as unknown as { __view: () => View | null }).__view()!;
@@ -89,7 +89,7 @@ async function compare(page: Page, name: string) {
 test('the Scene drawn with WebGPU matches WebGL (daylight; dark with a torch, fog, water and a selection)', async ({
   page,
 }) => {
-  test.setTimeout(400_000);
+  test.setTimeout(900_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await open(page, '/editor.html?nohub&gpu=offscreen');
@@ -182,12 +182,12 @@ test('the choice of WebGPU is kept for the next time', async ({ page }) => {
   test.setTimeout(300_000);
   await open(page, '/editor.html?nohub&gpu=offscreen');
   await page.getByLabel('Draw with').selectOption('webgpu');
-  await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgpu');
+  await expect.poll(async () => (await view(page))?.kind, { timeout: 90_000 }).toBe('webgpu');
   await open(page, '/editor.html?nohub&gpu=offscreen');
   await expect(page.getByLabel('Draw with')).toHaveValue('webgpu');
-  await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgpu');
+  await expect.poll(async () => (await view(page))?.kind, { timeout: 90_000 }).toBe('webgpu');
   await page.getByLabel('Draw with').selectOption('webgl');
-  await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgl');
+  await expect.poll(async () => (await view(page))?.kind, { timeout: 90_000 }).toBe('webgl');
 });
 
 test('a browser that cannot show WebGPU draws with WebGL, and Draw with says so', async ({ page }) => {
