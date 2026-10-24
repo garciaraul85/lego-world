@@ -833,7 +833,7 @@ export const HELP_STATES: HelpState[] = [
             type: 'item.add',
             payload: {
               map,
-              item: { id, kind: 'model', name: 'Round tree 1', model: 'builtin:round-tree', pos: [4, 0.4, 4] },
+              item: { id, kind: 'model', name: 'Round tree 1', model: 'builtin:round-tree', pos: [4, 0.4, 4], size: 2 },
             },
           });
         e.selectedItem.value = id;

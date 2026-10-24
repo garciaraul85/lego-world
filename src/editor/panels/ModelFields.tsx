@@ -84,7 +84,12 @@ export function ModelCards({ c, hint, q }: { c: ActionCtx; hint: string; q: stri
   const media = ed.media ? (ref: string) => ed.media!.get(ref) : null;
   const place = (ref: string, name: string) => {
     const sp = ed.mapDoc.value?.spawns[0]?.pos ?? [0, 0, 0];
-    placeModelAt(ed, { x: sp[0]! + 5 + 4 * (placed.length % 6), y: Math.round(sp[1]! / 0.4), z: sp[2]! + 5 }, ref, name);
+    placeModelAt(
+      ed,
+      { x: sp[0]! + 5 + 4 * (placed.length % 6), y: Math.round(sp[1]! / 0.4), z: sp[2]! + 5 },
+      ref,
+      name,
+    );
   };
   return (
     <>
@@ -204,31 +209,26 @@ export function ModelInspector({ c, item: it }: { c: ActionCtx; item: ModelInsta
             />
           ))}
         </div>
+        <div class="sech">
+          <span>
+            Turn (degrees) and size
+            <FieldHelp label="Turn" text={MODEL_HELP.turn} />
+            <FieldHelp label="Size" text={MODEL_HELP.size} />
+          </span>
+        </div>
         <div class="grid2" data-tour="model-turn-size">
-          <div class="field">
-            <span>
-              Turn
-              <FieldHelp label="Turn" text={MODEL_HELP.turn} />
-            </span>
-            <Num
-              label="Turn (degrees)"
-              step={15}
-              value={it.turn ?? 0}
-              onCommit={(x) => patch({ turn: ((((x + 180) % 360) + 360) % 360) - 180 }, 'Turn model')}
-            />
-          </div>
-          <div class="field">
-            <span>
-              Size
-              <FieldHelp label="Size" text={MODEL_HELP.size} />
-            </span>
-            <Num
-              label="Size"
-              step={0.25}
-              value={it.size ?? 1}
-              onCommit={(x) => patch({ size: Math.max(0.05, Math.min(50, x)) }, 'Model size')}
-            />
-          </div>
+          <Num
+            label="Turn"
+            step={15}
+            value={it.turn ?? 0}
+            onCommit={(x) => patch({ turn: ((((x + 180) % 360) + 360) % 360) - 180 }, 'Turn model')}
+          />
+          <Num
+            label="Size"
+            step={0.25}
+            value={it.size ?? 1}
+            onCommit={(x) => patch({ size: Math.max(0.05, Math.min(50, x)) }, 'Model size')}
+          />
         </div>
         <label class="field row" style={{ gap: '6px' }}>
           <input

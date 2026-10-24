@@ -66,8 +66,8 @@ test('the dock places built-in and imported 3D models; the Inspector turns, size
   await expect(page.locator('[data-tour="model-info"]')).toContainText(/triangles/);
   await expect.poll(() => drawn(page)).toEqual(['builtin:barrel']);
   // turn it, make it bigger, make it a boulder
-  await page.getByLabel('Turn (degrees)').fill('90');
-  await page.getByLabel('Turn (degrees)').press('Enter');
+  await page.getByLabel('Turn', { exact: true }).fill('90');
+  await page.getByLabel('Turn', { exact: true }).press('Enter');
   await page.getByLabel('Size', { exact: true }).fill('2');
   await page.getByLabel('Size', { exact: true }).press('Enter');
   await page.locator('[data-tour="model-which"]').selectOption('builtin:boulder');
