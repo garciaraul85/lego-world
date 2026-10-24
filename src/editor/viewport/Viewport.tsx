@@ -1452,9 +1452,10 @@ export function Viewport({
       ro.disconnect();
       unsubScene?.();
       for (const d of disposers) d();
-      // a build plate is closed for good when another asset opens: give its drawing context back at once
-      // (browsers keep only about 16, and a plate opened many times would use them up)
-      renderer.dispose(!!studioRef.current);
+      // the view's canvas goes with it (a build plate when another asset opens; the Scene when it is drawn with
+      // something else or starts again): give its drawing context back at once (browsers keep only about 16, and
+      // views opened many times would use them up)
+      renderer.dispose(true);
     };
   }, [ed, mode, gen, drawWith]);
 
