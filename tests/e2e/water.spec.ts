@@ -74,7 +74,8 @@ test('Water and physics course: Do it for me floats a loose crate down a river i
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });
   const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
-  expect(total).toBe(9);
+  expect(total).toBe(10);
+  let moved = -1;
   for (let i = 0; i < total; i++) {
     const pos = await card.locator('header .mono').innerText();
     const title = await card.getByRole('heading').first().innerText();
@@ -87,17 +88,27 @@ test('Water and physics course: Do it for me floats a loose crate down a river i
       if (await rest.isVisible()) await rest.click();
       await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 240_000 });
     }
+    // the crate is a body in the physics engine, and the river carries it off (checked while the game plays: the
+    // last step, seeing the water shine, stops it)
+    const now = await page.evaluate(() => {
+      const w = (window as unknown as { __editor: Ed }).__editor.session.value?.world;
+      const o = w?.looseObjects[0];
+      const p = o && w.physics?.objectPose(o.inst.inst.id);
+      return p && o ? Math.hypot(p.pos[0]! - o.origin[0]!, p.pos[2]! - o.origin[2]!) : -1;
+    });
+    if (now > moved) {
+      moved = now;
+      await page.screenshot({ path: 'test-results/water-play.png' });
+    }
     const finish = card.getByRole('button', { name: 'Finish ✓' });
     if (await finish.isVisible()) {
-      // the crate is a body in the physics engine, and the river has carried it off
-      const moved = await page.evaluate(() => {
-        const w = (window as unknown as { __editor: Ed }).__editor.session.value?.world;
-        const o = w?.looseObjects[0];
-        const p = o && w.physics?.objectPose(o.inst.inst.id);
-        return p && o ? Math.hypot(p.pos[0]! - o.origin[0]!, p.pos[2]! - o.origin[2]!) : -1;
-      });
       expect(moved).toBeGreaterThan(1);
-      await page.screenshot({ path: 'test-results/water-play.png' });
+      // the mirror step left Draw with on WebGPU (here WebGL draws: it can't be shown in this browser)
+      expect(
+        await page.evaluate(
+          () => (window as unknown as { __editor: { drawWith: { value: string } } }).__editor.drawWith.value,
+        ),
+      ).toBe('webgpu');
       await finish.click();
       break;
     }
