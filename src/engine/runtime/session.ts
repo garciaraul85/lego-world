@@ -1048,6 +1048,7 @@ export class PlaySession {
   /** Milestone 2b, 10b part 3: the hero walked by the physics engine, the other characters solid to it */
   private walkWithPhysics(move: MoveInput & { speedScale?: number; jumpSpeed?: number }, dt: number) {
     const w = this.world;
+    this.physicsFlush(w);
     const ph = w.physics!;
     const c = w.controller;
     const s = c.state;
@@ -2117,6 +2118,7 @@ export class PlaySession {
     // bricks, and the hero pushes them (a brick being rebuilt flies back to its place by hand, as before)
     const ph = w.physics;
     if (ph) {
+      this.physicsFlush(w);
       const rebuilding = this.rebuildEntry?.id;
       ph.syncLoose(w.debris, (d) => (d as Debris).entryId === rebuilding);
       // loose objects keep the simulation going even with no loose bricks about
@@ -3634,7 +3636,8 @@ export class PlaySession {
     if (!w.big) {
       w.controller.replace(w.pieces, w.meta);
       this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
-      this.physicsBricks(w, touched);
+      if (touched) this.physicsLater(w, touched);
+      else this.physicsBricks(w, null);
       return;
     }
     // P27 part 3d: a small change updates only its chunks of the index, and the neighbours catch up twice a second
@@ -3658,7 +3661,7 @@ export class PlaySession {
       }
       w.npcsStale = true;
       this.moveWindow(w, true, true);
-      this.physicsBricks(w, touched);
+      this.physicsLater(w, touched!);
       return;
     }
     w.byChunk = indexByChunk(w.pieces);
@@ -3701,6 +3704,24 @@ export class PlaySession {
    * Milestone 2b: the bricks the physics core treats as solid: a big map's window around the hero, a small map
    * whole. `changed` names chunks to build again (null: every chunk in the window).
    */
+  /** chunks whose solid bricks must be built again, at the next physics step (many breaks in a row: once) */
+  private physicsDirty = new WeakMap<MapWorld, Set<string>>();
+
+  private physicsLater(w: MapWorld, touched: Set<string>) {
+    if (!w.physics) return;
+    const set = this.physicsDirty.get(w) ?? new Set<string>();
+    for (const k of touched) set.add(k);
+    this.physicsDirty.set(w, set);
+  }
+
+  /** builds again the chunks changed since the last physics step */
+  private physicsFlush(w: MapWorld) {
+    const set = this.physicsDirty.get(w);
+    if (!set?.size) return;
+    this.physicsDirty.delete(w);
+    this.physicsBricks(w, set);
+  }
+
   physicsBricks(w: MapWorld, changed: Set<string> | null) {
     const ph = w.physics;
     if (!ph) return;
