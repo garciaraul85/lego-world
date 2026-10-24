@@ -16,6 +16,7 @@ struct Frame {
   pl: array<vec4f, 8>,
   pc: array<vec4f, 8>,
   // part 3: the shadow-casting lights (the first of pl): where and how far; misc2.x how many
+  // part 4: misc2.y 1 while drawing the reflection under water (misc2.z the water's surface: nothing below it)
   shadowAt: array<vec4f, 4>,
   misc2: vec4f,
 };
@@ -103,6 +104,8 @@ fn pointLights(n: vec3f, p: vec3f) -> vec3f {
 }
 
 @fragment fn fs(in: VOut) -> @location(0) vec4f {
+  // part 4: the reflection shows only what is above the water
+  if (F.misc2.y > 0.5 && in.world.y < F.misc2.z - 0.02) { discard; }
   let alpha = D.flags.x;
   if (D.flags.y > 0.5) { return vec4f(in.color, alpha); }
   let snow = F.misc.x;
@@ -216,6 +219,7 @@ struct Frame {
   pl: array<vec4f, 8>,
   pc: array<vec4f, 8>,
   // part 3: the shadow-casting lights (the first of pl): where and how far; misc2.x how many
+  // part 4: misc2.y 1 while drawing the reflection under water (misc2.z the water's surface: nothing below it)
   shadowAt: array<vec4f, 4>,
   misc2: vec4f,
 };
@@ -293,6 +297,7 @@ fn pointLights(n: vec3f, p: vec3f) -> vec3f {
 }
 
 @fragment fn fs(in: VOut) -> @location(0) vec4f {
+  if (F.misc2.y > 0.5 && in.world.y < F.misc2.z - 0.02) { discard; }
   let alpha = D.flags.x;
   let color = D.color.rgb;
   if (D.flags.y > 0.5) { return vec4f(color, alpha); }
@@ -349,5 +354,70 @@ fn place(world: vec3f) -> VOut {
 @fragment fn fs(in: VOut) -> @location(0) vec4f {
   let t = clamp(length(in.world - S.at.xyz) / S.at.w, 0.0, 1.0) * 255.0;
   return vec4f(floor(t) / 255.0, fract(t), 0.0, 1.0);
+}
+`;
+
+/**
+ * part 4: a water surface. Ripples move with the water's current; the surface mirrors what is above it (WebGPU
+ * draws the world upside down under the water first; without that, the sky's colours), more so seen flat on,
+ * with the sun glinting on it.
+ */
+export const WATER_WGSL = /* wgsl */ `${BRICK_WGSL}
+struct Water {
+  // rgb: the water's colour; a: how see-through
+  color: vec4f,
+  // xy: current (across, deep); z: time; w: 1 when the reflection picture is for this surface
+  flow: vec4f,
+  // xy: the picture's size in pixels
+  view: vec4f,
+  zenith: vec4f,
+  horizon: vec4f,
+};
+@group(2) @binding(0) var<uniform> W: Water;
+@group(2) @binding(1) var refl: texture_2d<f32>;
+@group(2) @binding(2) var reflSamp: sampler;
+
+struct WOut { @builtin(position) pos: vec4f, @location(0) world: vec3f };
+@vertex fn vsWater(@location(0) pos: vec3f) -> WOut {
+  var o: WOut;
+  o.world = pos;
+  o.pos = clip(pos);
+  return o;
+}
+
+fn ripple(p: vec2f, t: f32, c: vec2f) -> vec3f {
+  let q = p - c * t * 0.6;
+  let dx = 0.07 * cos(q.x * 1.3 + t * 1.1) + 0.04 * cos((q.x + q.y) * 2.1 + t * 1.7) + 0.02 * cos(q.x * 4.3 - t * 2.3);
+  let dz = 0.07 * cos(q.y * 1.5 - t * 0.9) + 0.04 * cos((q.x - q.y) * 1.9 - t * 1.3) + 0.02 * cos(q.y * 3.7 + t * 2.1);
+  return normalize(vec3f(-dx, 1.0, -dz));
+}
+
+@fragment fn fsWater(in: WOut) -> @location(0) vec4f {
+  let p = in.world;
+  let t = W.flow.z;
+  let n = ripple(p.xz, t, W.flow.xy);
+  let v = normalize(F.eye.xyz - p);
+  let l = normalize(F.light.xyz);
+  let night = F.misc.y;
+  let dark = F.misc.z;
+  let lit = 1.0 - dark * 0.94;
+  let fres = 0.02 + 0.98 * pow(1.0 - max(dot(n, v), 0.0), 5.0);
+  var mirror: vec3f;
+  if (W.flow.w > 0.5) {
+    let uv = in.pos.xy / W.view.xy + n.xz * 0.03;
+    mirror = textureSampleLevel(refl, reflSamp, clamp(uv, vec2f(0.001), vec2f(0.999)), 0.0).rgb;
+  } else {
+    let r = reflect(-v, n);
+    mirror = mix(W.horizon.rgb, W.zenith.rgb, smoothstep(0.0, 0.85, r.y)) * (1.0 - dark * 0.9);
+  }
+  let d = max(dot(n, l), 0.0);
+  let base = W.color.rgb * ((F.ambient.rgb + d * mix(0.6, 0.2, night)) * lit + pointLights(n, p));
+  let spec = pow(max(dot(n, normalize(l + v)), 0.0), 120.0) * 0.8 * (1.0 - night) * lit;
+  var c = mix(base, mirror, clamp(0.25 + fres * 0.75, 0.0, 1.0)) + vec3f(spec);
+  let fdist = length(F.eye.xyz - p);
+  var fog = smoothstep(F.fogRange.x, F.fogRange.y, fdist) * F.fog.w;
+  fog = max(fog, F.fogRange.w * (1.0 - smoothstep(F.fogRange.z - 1.5, F.fogRange.z + 0.5, p.y)) * smoothstep(1.0, 12.0, fdist));
+  c = mix(c, F.fog.rgb, fog);
+  return vec4f(c, W.color.a);
 }
 `;

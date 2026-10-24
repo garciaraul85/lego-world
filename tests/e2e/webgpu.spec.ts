@@ -86,7 +86,7 @@ async function compare(page: Page, name: string) {
   expect(result.bigShare, `${name} ${JSON.stringify(result)}`).toBeLessThan(0.03);
 }
 
-test('the Scene drawn with WebGPU matches WebGL (daylight; dark with a torch, fog, water and a selection)', async ({
+test('the Scene drawn with WebGPU matches WebGL (daylight; dark with a torch, fog and a selection)', async ({
   page,
 }) => {
   test.setTimeout(900_000);
@@ -96,7 +96,7 @@ test('the Scene drawn with WebGPU matches WebGL (daylight; dark with a torch, fo
   await expect(page.getByLabel('Draw with')).toHaveValue('auto');
   await expect.poll(async () => (await view(page))?.kind).toBe('webgl');
   await compare(page, 'scene-day');
-  // a dark map lit by a torch, in mist, with a pool and a picked brick (lines and an overlay)
+  // a dark map lit by a torch, in mist, with a picked brick (water is checked in webgpu-water: WebGPU mirrors the world) (lines and an overlay)
   await page.evaluate(() => {
     const e = (
       window as unknown as {
@@ -129,13 +129,6 @@ test('the Scene drawn with WebGPU matches WebGL (daylight; dark with a torch, fo
           on: true,
           light: { color: '#ff9a3c', brightness: 1.6, range: 14, flicker: 0, shadow: false },
         },
-      },
-    });
-    ok({
-      type: 'item.add',
-      payload: {
-        map,
-        item: { id: 'ins_gpupool001', kind: 'water', name: 'Pool 1', pos: [-6, 0, -6], size: [8, 2, 8], body: 'pool' },
       },
     });
   });

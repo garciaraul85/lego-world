@@ -12,7 +12,8 @@ export type ParticleBatch = {
 import type { FogParams } from '../lighting/atmosphere';
 import type { CameraFrame } from './camera';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from './math';
-import { FRAGMENT, SHADOW_FRAGMENT, SKY_FRAGMENT, SKY_VERTEX, VERTEX } from './shaders';
+import { FRAGMENT, SHADOW_FRAGMENT, SKY_FRAGMENT, SKY_VERTEX, VERTEX, WATER_FRAGMENT, WATER_VERTEX } from './shaders';
+import { type WaterSurface, waterBody } from './water';
 
 /** A brick as the renderer needs it. `paved` = road/pavement slab shading. */
 export type RenderBrick = {
@@ -382,6 +383,13 @@ export class Renderer {
   }
   /** how many lights may cast shadows at once (the quality level's) */
   maxShadows = MAX_SHADOWS;
+  /** Milestone 2b, 10c part 4: the bodies of water (WebGL mirrors the sky's colours; `reflections` is WebGPU's) */
+  water: WaterSurface[] = [];
+  reflections = true;
+  private waterProg: WebGLProgram | null = null;
+  private wu: Record<string, WebGLUniformLocation | null> = {};
+  private waterBuf: WebGLBuffer | null = null;
+  private waterPos = 0;
   /** changes whenever a chunk's bricks change (the shadow map is drawn again) */
   private chunkRev = 0;
   /** uniform locations of other programs that share the brick fragment shader (characters) */
@@ -707,6 +715,8 @@ export class Renderer {
     const t0 = performance.now();
     const gl = this.gl;
     this.stats = { drawCalls: 0, instances: 0, chunksDrawn: 0, chunks: this.chunks.size, ms: 0 };
+    // part 4: the water's bodies, see-through boxes under their surfaces (drawn after the characters)
+    if (this.water.length) markers = [...markers, ...this.water.map(waterBody)];
     // P27: the lights near the focus; the first that casts shadows draws its shadow map first
     this.casters = this.castersNext;
     this.castersNext = [];
@@ -854,6 +864,7 @@ export class Renderer {
       extra(mvp, cam.eye);
       gl.useProgram(this.prog);
     }
+    if (this.water.length) this.drawWater(mvp, cam.eye, s);
     // gizmo handles: over the scene, but in depth order among themselves
     const top = markers.filter((m) => m.onTop);
     if (top.length) {
@@ -1024,6 +1035,69 @@ export class Renderer {
       }
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  /** part 4: the water's surfaces: rippling, mirroring the sky's colours */
+  private drawWater(mvp: Float32Array, eye: Vec3, s: SkySample | null) {
+    const gl = this.gl;
+    if (!this.waterProg) {
+      this.waterProg = compile(gl, WATER_VERTEX, WATER_FRAGMENT);
+      const names =
+        'uMVP uEye uLight uAmbient uNight uDark uTime uColor uCurrent uZenith uHorizon uFog uFogRange uFogMax uFogH uPL uPC uPLN';
+      this.wu = Object.fromEntries(names.split(' ').map((n) => [n, gl.getUniformLocation(this.waterProg!, n)]));
+      this.waterBuf = gl.createBuffer();
+      this.waterPos = gl.getAttribLocation(this.waterProg, 'aPosition');
+    }
+    const u = this.wu;
+    gl.useProgram(this.waterProg);
+    gl.uniformMatrix4fv(u.uMVP!, false, mvp);
+    gl.uniform3fv(u.uEye!, eye);
+    gl.uniform3fv(u.uLight!, s?.light ?? [0.5, 1, 0.6]);
+    gl.uniform3fv(u.uAmbient!, s?.ambient ?? [0.36, 0.39, 0.43]);
+    gl.uniform1f(u.uNight!, s?.night ?? 0);
+    gl.uniform1f(u.uDark!, this.darkness);
+    gl.uniform1f(u.uTime!, this.clock);
+    gl.uniform3fv(u.uZenith!, s?.zenith ?? [0.35, 0.55, 0.85]);
+    gl.uniform3fv(u.uHorizon!, s?.horizon ?? [0.75, 0.82, 0.9]);
+    const fg = this.fogNow;
+    gl.uniform3fv(u.uFog!, fg.color);
+    gl.uniform2f(u.uFogRange!, fg.near, fg.far);
+    gl.uniform1f(u.uFogMax!, fg.max);
+    gl.uniform2f(u.uFogH!, fg.height, fg.ground);
+    const pl = new Float32Array(MAX_LIGHTS * 4);
+    const pc = new Float32Array(MAX_LIGHTS * 4);
+    this.lit.forEach((l, i) => {
+      pl.set([l.pos[0], l.pos[1], l.pos[2], l.range], i * 4);
+      pc.set([l.color[0], l.color[1], l.color[2], 0], i * 4);
+    });
+    gl.uniform4fv(u.uPL!, pl);
+    gl.uniform4fv(u.uPC!, pc);
+    gl.uniform1f(u.uPLN!, this.lit.length);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.depthMask(false);
+    gl.depthFunc(gl.LEQUAL);
+    gl.disableVertexAttribArray(this.a.n);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.waterBuf);
+    gl.enableVertexAttribArray(this.waterPos);
+    for (const w of this.water) {
+      const [x0, , z0] = w.min;
+      const [x1, y, z1] = w.max;
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z0, x1, y, z1, x0, y, z1]),
+        gl.DYNAMIC_DRAW,
+      );
+      gl.vertexAttribPointer(this.waterPos, 3, gl.FLOAT, false, 0, 0);
+      gl.uniform4f(u.uColor!, w.color[0], w.color[1], w.color[2], 0.78);
+      gl.uniform2f(u.uCurrent!, w.current[0], w.current[1]);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      this.stats.drawCalls++;
+    }
+    gl.disable(gl.BLEND);
+    gl.depthMask(true);
+    gl.depthFunc(gl.LESS);
+    gl.useProgram(this.prog);
   }
 
   /** Uploads a geometry as a mesh other renderers can draw (v68 debris uses a 1x1 brick). */

@@ -23,8 +23,9 @@ import {
   type RenderBrick,
   shadowCount,
 } from '../renderer';
+import { mirrorAt, reflectedWater, type WaterSurface, waterBody } from '../water';
 import { GlShim, type ShimBuffer, type ShimDraw } from './gl-shim';
-import { BRICK_WGSL, CHAR_WGSL, SHADOW_WGSL, SKY_WGSL } from './shaders.wgsl';
+import { BRICK_WGSL, CHAR_WGSL, SHADOW_WGSL, SKY_WGSL, WATER_WGSL } from './shaders.wgsl';
 
 /**
  * Milestone 2b, 10c part 1: the WebGPU renderer. It draws what the WebGL renderer draws for a scene — the sky,
@@ -140,6 +141,13 @@ type DrawCall = {
   top?: boolean;
   /** part 2: a draw of v68's character model */
   char?: ShimDraw;
+  /** part 4: the water's surfaces (how many) */
+  water?: number;
+};
+
+const sameMatrix = (a: ArrayLike<number>, b: ArrayLike<number>) => {
+  for (let i = 0; i < 16; i++) if (Math.abs(a[i]! - b[i]!) > 1e-5) return false;
+  return true;
 };
 
 export class GpuRenderer {
@@ -162,6 +170,23 @@ export class GpuRenderer {
   private shadowLayout!: GPUBindGroupLayout;
   private shadowPipes!: { bricks: GPURenderPipeline; chars: GPURenderPipeline };
   private chunkRev = 0;
+  /** part 4: the bodies of water to draw, and whether their surfaces mirror the world (the quality level's) */
+  water: WaterSurface[] = [];
+  reflections = true;
+  private waterPipe!: GPURenderPipeline;
+  private waterLayout!: GPUBindGroupLayout;
+  private waterUni: GPUBuffer | null = null;
+  private waterUniCap = 0;
+  private waterVerts: GPUBuffer | null = null;
+  private waterVertCap = 0;
+  private reflectTex: GPUTexture | null = null;
+  private frameBufR!: GPUBuffer;
+  private frameGroupR!: GPUBindGroup;
+  private skyBufR!: GPUBuffer;
+  private skyGroupR!: GPUBindGroup;
+  private reflSampler!: GPUSampler;
+  /** the water the last frame mirrored (tests) */
+  reflected: WaterSurface | null = null;
   /** how many lights cast shadows this frame, and how many may (the quality level's) */
   shadowCount = 0;
   maxShadows = MAX_SHADOWS;
@@ -421,14 +446,59 @@ export class GpuRenderer {
         depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
       });
     this.shadowPipes = { bricks: shadowPipe(false), chars: shadowPipe(true) };
+    // part 4: water surfaces, and what the reflection is drawn with
+    this.waterLayout = d.createBindGroupLayout({
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: { hasDynamicOffset: true, minBindingSize: 80 },
+        },
+        { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+        { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+      ],
+    });
+    const waterModule = d.createShaderModule({ code: WATER_WGSL });
+    this.waterPipe = d.createRenderPipeline({
+      layout: d.createPipelineLayout({ bindGroupLayouts: [this.frameLayout, this.drawLayout, this.waterLayout] }),
+      vertex: {
+        module: waterModule,
+        entryPoint: 'vsWater',
+        buffers: [{ arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] }],
+      },
+      fragment: {
+        module: waterModule,
+        entryPoint: 'fsWater',
+        targets: [
+          {
+            format: this.format,
+            blend: {
+              color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+              alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+            },
+          },
+        ],
+      },
+      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      depthStencil: { format: 'depth24plus', depthWriteEnabled: false, depthCompare: 'less-equal' },
+      multisample: { count: SAMPLES },
+    });
+    this.frameBufR = d.createBuffer({ size: 512, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    this.skyBufR = d.createBuffer({ size: 144, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    this.skyGroupR = d.createBindGroup({
+      layout: skyLayout,
+      entries: [{ binding: 0, resource: { buffer: this.skyBufR } }],
+    });
+    this.frameGroupR = this.makeFrameGroup(this.frameBufR);
+    this.reflSampler = d.createSampler({ magFilter: 'linear', minFilter: 'linear' });
   }
 
-  private makeFrameGroup() {
+  private makeFrameGroup(buffer: GPUBuffer = this.frameBuf) {
     const view = (i: number) => (this.shadowMaps[i]?.tex ?? this.noShadow).createView({ dimension: 'cube' });
     return this.device.createBindGroup({
       layout: this.frameLayout,
       entries: [
-        { binding: 0, resource: { buffer: this.frameBuf } },
+        { binding: 0, resource: { buffer } },
         { binding: 1, resource: view(0) },
         { binding: 2, resource: view(1) },
         { binding: 3, resource: view(2) },
@@ -500,7 +570,10 @@ export class GpuRenderer {
       map.key = key;
       jobs.push({ slot: i, light, near, casters });
     }
-    if (remade) this.frameGroup = this.makeFrameGroup();
+    if (remade) {
+      this.frameGroup = this.makeFrameGroup();
+      this.frameGroupR = this.makeFrameGroup(this.frameBufR);
+    }
     if (!jobs.length) return;
     // every face's settings, and every caster's on every face, in one buffer
     const FACE = 64;
@@ -745,6 +818,12 @@ export class GpuRenderer {
       format: 'depth24plus',
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
     });
+    this.reflectTex?.destroy();
+    this.reflectTex = this.device.createTexture({
+      size: [w, h],
+      format: this.format,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    });
     this.picture?.destroy();
     this.picture = this.device.createTexture({
       size: [w, h],
@@ -799,6 +878,10 @@ export class GpuRenderer {
     // part 2: what v68's character model draws this frame (written down; drawn in the pass, and part 3: in shadows)
     this.gl.frame();
     if (extra) extra(mvp, cam.eye);
+    // part 4: the water's bodies (see-through boxes), its surfaces drawn after the characters; one mirrors the world
+    markers = [...markers, ...this.water.map(waterBody)];
+    const mirrored = this.reflections && s ? reflectedWater(this.water, focus) : null;
+    this.reflected = mirrored;
 
     // the frame's settings
     const fr = new Float32Array(128);
@@ -816,6 +899,16 @@ export class GpuRenderer {
     });
     fr.set([this.shadowCount, 0, 0, 0], 120);
     this.device.queue.writeBuffer(this.frameBuf, 0, fr);
+    const hW = mirrored ? mirrored.max[1] : 0;
+    const mvpR = mirrored ? multiply(mvp, mirrorAt(hW)) : mvp;
+    const eyeR: Vec3 = [cam.eye[0], 2 * hW - cam.eye[1], cam.eye[2]];
+    if (mirrored) {
+      const fr2 = new Float32Array(fr);
+      fr2.set(mvpR, 0);
+      fr2.set([...eyeR, 0], 16);
+      fr2.set([this.shadowCount, 1, hW, 0], 120);
+      this.device.queue.writeBuffer(this.frameBufR, 0, fr2);
+    }
 
     // every draw's settings (one 256-byte slot each) and instances, gathered then uploaded at once
     const slots: number[] = [];
@@ -950,6 +1043,86 @@ export class GpuRenderer {
           ]),
         });
     }
+    // part 4: what the water mirrors: the world above its surface, drawn upside down about it
+    const rcalls: DrawCall[] = [];
+    if (mirrored) {
+      const planesR = frustumPlanes(mvpR);
+      for (const c of this.chunks.values()) {
+        if (c.max[1] < hW - 0.05 || !boxVisible(planesR, c.min, c.max)) continue;
+        const dist = Math.hypot(
+          Math.max(c.min[0] - cam.eye[0], 0, cam.eye[0] - c.max[0]),
+          Math.max(c.min[2] - cam.eye[2], 0, cam.eye[2] - c.max[2]),
+        );
+        if (dist > this.viewDistance + (cam.distance ?? 0)) continue;
+        for (const b of c.batches)
+          rcalls.push({
+            pipe: this.pipes.opaque,
+            mesh: b.paved ? this.shape(b.w, b.d, b.kind, true) : this.lodShape(b.w, b.d, b.kind),
+            inst: { buffer: b.buffer, offset: 0, count: b.count },
+            slot: b.paved ? paved : plain,
+          });
+      }
+      for (const c of calls) if (c.pipe === this.pipes.opaque && c.inst && !c.inst.buffer) rcalls.push(c);
+      if (extra)
+        for (const d of this.gl.draws) {
+          if (d.blend !== 'none' || !sameMatrix(d.mvp, mvp)) continue;
+          rcalls.push({
+            pipe: this.charPipes.none,
+            char: d,
+            slot: rawSlot([
+              ...d.model,
+              d.alpha,
+              d.flat,
+              d.paint,
+              d.night,
+              ...d.color,
+              1,
+              ...mvpR,
+              ...eyeR,
+              0,
+              ...d.light,
+              0,
+              ...d.ambient,
+              0,
+            ]),
+          });
+        }
+    }
+    // part 4: the water's surfaces, each with its own settings
+    const surfaces = this.water;
+    if (surfaces.length) {
+      const verts = new Float32Array(surfaces.length * 18);
+      const uni = new Float32Array(surfaces.length * 64);
+      surfaces.forEach((ws, i) => {
+        const [x0, , z0] = ws.min;
+        const [x1, y, z1] = ws.max;
+        verts.set([x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z0, x1, y, z1, x0, y, z1], i * 18);
+        uni.set([...ws.color, 0.78], i * 64);
+        uni.set([ws.current[0], ws.current[1], this.clock, ws === mirrored ? 1 : 0], i * 64 + 4);
+        uni.set([w, h], i * 64 + 8);
+        uni.set([...(s?.zenith ?? [0.35, 0.55, 0.85]), 0], i * 64 + 12);
+        uni.set([...(s?.horizon ?? [0.75, 0.82, 0.9]), 0], i * 64 + 16);
+      });
+      if (verts.byteLength > this.waterVertCap || !this.waterVerts) {
+        this.waterVerts?.destroy();
+        this.waterVertCap = Math.max(4096, verts.byteLength * 2);
+        this.waterVerts = this.device.createBuffer({
+          size: this.waterVertCap,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+      }
+      if (uni.byteLength > this.waterUniCap || !this.waterUni) {
+        this.waterUni?.destroy();
+        this.waterUniCap = Math.max(1024, uni.byteLength * 2);
+        this.waterUni = this.device.createBuffer({
+          size: this.waterUniCap,
+          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+      }
+      this.device.queue.writeBuffer(this.waterVerts, 0, verts);
+      this.device.queue.writeBuffer(this.waterUni, 0, uni);
+      calls.push({ pipe: this.waterPipe, water: surfaces.length, slot: plain });
+    }
     for (const m of markers)
       if (m.onTop)
         calls.push({
@@ -978,16 +1151,35 @@ export class GpuRenderer {
     this.lineBuf = this.grow(this.lineBuf, this.lineCap, lineData.length * 4, (c) => (this.lineCap = c));
     if (lineData.length) this.device.queue.writeBuffer(this.lineBuf!, 0, new Float32Array(lineData));
     if (s) this.writeSky(s, cam, aspect);
+    if (s && mirrored) {
+      const flip = (v: Vec3): Vec3 => [v[0], -v[1], v[2]];
+      this.writeSky(
+        s,
+        { ...cam, right: flip(cam.right), up: flip(cam.up), forward: flip(cam.forward) },
+        aspect,
+        this.skyBufR,
+      );
+    }
 
     const enc = this.device.createCommandEncoder();
     if (this.shadowCount) this.drawShadows(enc, this.gl.draws);
     const view = (toPicture ? this.picture! : this.ctx.getCurrentTexture()).createView();
-    const pass = (clear: boolean, list: DrawCall[], sky: boolean) => {
+    const waterGroup = surfaces.length
+      ? this.device.createBindGroup({
+          layout: this.waterLayout,
+          entries: [
+            { binding: 0, resource: { buffer: this.waterUni!, size: 80 } },
+            { binding: 1, resource: this.reflectTex!.createView() },
+            { binding: 2, resource: this.reflSampler },
+          ],
+        })
+      : null;
+    const pass = (clear: boolean, list: DrawCall[], sky: boolean, into = view, mirror = false) => {
       const p = enc.beginRenderPass({
         colorAttachments: [
           {
             view: this.color!.createView(),
-            resolveTarget: view,
+            resolveTarget: into,
             clearValue: { r: 0.06, g: 0.07, b: 0.09, a: 1 },
             loadOp: clear ? 'clear' : 'load',
             storeOp: 'store',
@@ -1002,13 +1194,23 @@ export class GpuRenderer {
       });
       if (sky) {
         p.setPipeline(this.pipes.sky);
-        p.setBindGroup(0, this.skyGroup);
+        p.setBindGroup(0, mirror ? this.skyGroupR : this.skyGroup);
         p.draw(6);
         this.stats.drawCalls++;
       }
-      p.setBindGroup(0, this.frameGroup);
+      p.setBindGroup(0, mirror ? this.frameGroupR : this.frameGroup);
       for (const c of list) {
         p.setPipeline(c.pipe);
+        if (c.water) {
+          p.setBindGroup(1, this.drawGroup, [c.slot * DRAW_SIZE]);
+          p.setVertexBuffer(0, this.waterVerts!);
+          for (let i = 0; i < c.water; i++) {
+            p.setBindGroup(2, waterGroup!, [i * 256]);
+            p.draw(6, 1, i * 6);
+            this.stats.drawCalls++;
+          }
+          continue;
+        }
         if (c.char) {
           const d = c.char;
           p.setBindGroup(1, this.charGroup, [c.slot * DRAW_SIZE]);
@@ -1035,6 +1237,7 @@ export class GpuRenderer {
       }
       p.end();
     };
+    if (mirrored) pass(true, rcalls, true, this.reflectTex!.createView(), true);
     pass(
       true,
       calls.filter((c) => !c.top),
@@ -1099,7 +1302,7 @@ export class GpuRenderer {
     return this.device.createBuffer({ size: c, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
   }
 
-  private writeSky(s: SkySample, cam: CameraFrame, aspect: number) {
+  private writeSky(s: SkySample, cam: CameraFrame, aspect: number, buf: GPUBuffer = this.skyBuf) {
     const a = new Float32Array(36);
     a.set([...s.zenith, 0], 0);
     a.set([...s.horizon, 0], 4);
@@ -1110,7 +1313,7 @@ export class GpuRenderer {
     a.set([...(s.moon ?? [0, -1, 0]), 0], 24);
     a.set([s.night, s.overcast, this.clock, aspect], 28);
     a.set([Math.tan(cam.fov / 2), this.seed % 4096, 0, this.darkness], 32);
-    this.device.queue.writeBuffer(this.skyBuf, 0, a);
+    this.device.queue.writeBuffer(buf, 0, a);
   }
 
   /** frees what it holds on the GPU (`release` as the WebGL renderer's: the canvas is not drawn on again) */
@@ -1129,6 +1332,11 @@ export class GpuRenderer {
     this.drawBuf.destroy();
     this.zeroUv?.destroy();
     this.picture?.destroy();
+    this.reflectTex?.destroy();
+    this.waterVerts?.destroy();
+    this.waterUni?.destroy();
+    this.frameBufR.destroy();
+    this.skyBufR.destroy();
     for (const m of this.shadowMaps) {
       m.tex.destroy();
       m.depth.destroy();

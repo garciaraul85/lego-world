@@ -349,9 +349,68 @@
       "how": []
     },
     {
+      "id": "water.mirror",
+      "title": "See it shine",
+      "body": "Water's surface ripples — a river's ripples move with its current — and mirrors what is above it, more so seen flat on, with the sun glinting on it. Drawn with WebGPU it is a true reflection of the bricks, the characters and the sky (at Graphics quality Medium or High); WebGL mirrors the sky's colours.",
+      "task": "Stop the game, then in the corner of the 3D view set Draw with to WebGPU and look at the river. (If your browser can't show WebGPU, WebGL draws and a message says so.)",
+      "target": "[data-tour=\"draw-with\"]",
+      "check": {
+        "kind": "state",
+        "test": "drawWithIs",
+        "args": "webgpu"
+      },
+      "doItForMe": [
+        {
+          "ui": "stop"
+        },
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "choose": "[data-tour=\"draw-with\"]",
+          "value": "webgpu"
+        }
+      ],
+      "how": [
+        {
+          "text": "Stop the game (Esc), then click “Scene” in the workspace tabs at the top.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"draw-with\"]"
+          },
+          "do": [
+            {
+              "ui": "stop"
+            },
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            }
+          ]
+        },
+        {
+          "text": "In the 3D view's corner, open Draw with and pick WebGPU.",
+          "check": {
+            "kind": "state",
+            "test": "drawWithIs",
+            "args": "webgpu"
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"draw-with\"]",
+              "value": "webgpu",
+              "say": "WebGPU"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene"
+    },
+    {
       "id": "water.done",
       "title": "Done!",
-      "body": "You made a loose crate float down a river, set the hero to physics movement and rode the crate. Loose things also fall when nothing holds them up and tip over when the hero walks into them, and smashed bricks float too. Help › Water properties, Loose and Movement say more. Press Esc or Stop to leave Play.",
+      "body": "You made a loose crate float down a river, set the hero to physics movement, rode the crate and saw the water mirror the world. Loose things also fall when nothing holds them up and tip over when the hero walks into them, and smashed bricks float too. Help › Water properties, Loose and Movement say more.",
       "check": {
         "kind": "manual"
       },

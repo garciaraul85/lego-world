@@ -28,6 +28,8 @@ export type QualitySpec = {
   pixelRatio: number;
   /** ground fog layer (the fog itself stays: it hides where the map ends) */
   groundFog: boolean;
+  /** Milestone 2b, 10c part 4: water mirrors the world (WebGPU; otherwise only the sky's colours) */
+  reflections: boolean;
 };
 
 export const QUALITY: Record<QualityLevel, QualitySpec> = {
@@ -42,6 +44,7 @@ export const QUALITY: Record<QualityLevel, QualitySpec> = {
     detailScale: 0.5,
     pixelRatio: 1,
     groundFog: false,
+    reflections: false,
   },
   medium: {
     label: 'Medium',
@@ -54,6 +57,7 @@ export const QUALITY: Record<QualityLevel, QualitySpec> = {
     detailScale: 0.75,
     pixelRatio: 1.5,
     groundFog: true,
+    reflections: true,
   },
   high: {
     label: 'High',
@@ -66,6 +70,7 @@ export const QUALITY: Record<QualityLevel, QualitySpec> = {
     detailScale: 1,
     pixelRatio: 2,
     groundFog: true,
+    reflections: true,
   },
 };
 

@@ -38,7 +38,7 @@ import {
   type SceneRenderer,
 } from '../../engine/render/scene-renderer';
 import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../../engine/render/stream';
-import { waterMarker } from '../../engine/render/water';
+import { waterSurface } from '../../engine/render/water';
 import { ScreenFxOverlay } from '../../engine/ui/ScreenFxOverlay';
 import { placeCommands, resolveAsset } from '../assets';
 import { groupLabel } from '../categories';
@@ -745,8 +745,9 @@ export function Viewport({
             });
         }
         // Milestone 2b: water (a picked one outlined)
-        for (const wt of studio ? [] : waterItems(ed)) {
-          markers.push(waterMarker(wt));
+        const waters = studio ? [] : waterItems(ed);
+        renderer.water = waters.map(waterSurface);
+        for (const wt of waters) {
           if (wt.id === ed.selectedItem.value)
             lines.push({ lines: boxLines(...(wt.pos as Vec3), ...waterTop(wt)), color: [1, 0.72, 0.2], onTop: true });
         }

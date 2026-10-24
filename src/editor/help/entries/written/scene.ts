@@ -168,7 +168,7 @@ export const SCENE: HelpEntry[] = [
     kind: 'field',
     name: 'Draw with (WebGPU or WebGL)',
     purpose:
-      'What draws the 3D views on this computer. **WebGL** is the long-standing way and works everywhere. **WebGPU** is the newer way to use the graphics card: the same picture, and later more lights with shadows, reflecting water and faster big maps. It draws the Scene and Play, characters included (the Director’s previews and the studios stay on WebGL for now). **Auto** uses WebGL for now, until WebGPU has been tried on more computers. The choice is kept in this browser, not in the project. If WebGPU cannot show the view here, WebGL draws it and a message says so; the option then reads *WebGPU (unavailable)*.',
+      'What draws the 3D views on this computer. **WebGL** is the long-standing way and works everywhere. **WebGPU** is the newer way to use the graphics card: the same picture, except that water truly mirrors the bricks, characters and sky above it (WebGL mirrors only the sky’s colours); later, faster big maps. It draws the Scene and Play, characters included (the Director’s previews and the studios stay on WebGL for now). **Auto** uses WebGL for now, until WebGPU has been tried on more computers. The choice is kept in this browser, not in the project. If WebGPU cannot show the view here, WebGL draws it and a message says so; the option then reads *WebGPU (unavailable)*.',
     steps: ['In the corner of the 3D view, open **Draw with**.', 'Pick **WebGPU** to try it, or **WebGL** to go back.'],
     match: [{ in: area('View'), name: 'Draw with' }, { sel: '[data-help="scene.view.drawWith"]' }],
     related: ['scene.view', 'project.quality'],

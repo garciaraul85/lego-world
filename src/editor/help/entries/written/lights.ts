@@ -217,7 +217,7 @@ export const LIGHTS: HelpEntry[] = [
     kind: 'setting',
     name: 'Graphics quality',
     purpose:
-      'How good the game looks, and how hard it works the computer. **Low**: 2 lights, no shadows, half the view distance, 600 particles, plain studs close by: for phones and old computers. **Medium**: 4 lights, 2 of them casting shadows, three quarters of the view distance, 1,200 particles. **High**: 8 lights, 4 of them casting sharper shadows, the full view distance, 2,000 particles. **Auto** picks one from the device (phones Low, strong computers High) and steps down a level while the game runs slowly. This is what players start with; they can change it in the game’s **Settings** (Graphics).',
+      'How good the game looks, and how hard it works the computer. **Low**: 2 lights, no shadows, water mirrors only the sky, half the view distance, 600 particles, plain studs close by: for phones and old computers. **Medium**: 4 lights, 2 of them casting shadows, water mirroring the world (with WebGPU), three quarters of the view distance, 1,200 particles. **High**: 8 lights, 4 of them casting sharper shadows, water mirroring the world (with WebGPU), the full view distance, 2,000 particles. **Auto** picks one from the device (phones Low, strong computers High) and steps down a level while the game runs slowly. This is what players start with; they can change it in the game’s **Settings** (Graphics).',
     steps: [
       'Open the **Project** tab of the Inspector.',
       'Pick **Graphics quality**: Auto, Low, Medium or High. The line under it says what that level draws.',

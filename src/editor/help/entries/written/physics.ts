@@ -22,7 +22,7 @@ export const PHYSICS: HelpEntry[] = [
     kind: 'area',
     name: 'Water properties',
     purpose:
-      'Water fills a box on the map up to its surface, drawn as see-through blue in the Scene and in the game. In Play, **loose objects** and smashed bricks float in it, slow down in it and drift with its **Current**. **Kind** (Pool, River, Lake, Sea) sets its colour; **Corner** is its lowest corner and **Size** its width, depth up to the surface and length, in studs; **Current** is which way it flows and how fast (studs a second, across and deep; 0, 0 is still); **Colour** tints it.',
+      'Water fills a box on the map up to its surface, drawn as see-through water in the Scene and in the game. Its surface ripples (a river’s ripples move with its **Current**) and mirrors what is above it: drawn with WebGPU at Graphics quality Medium or High, a true reflection of the bricks, characters and sky; otherwise the sky’s colours. In Play, **loose objects** and smashed bricks float in it, slow down in it and drift with its **Current**. **Kind** (Pool, River, Lake, Sea) sets its colour; **Corner** is its lowest corner and **Size** its width, depth up to the surface and length, in studs; **Current** is which way it flows and how fast (studs a second, across and deep; 0, 0 is still); **Colour** tints it.',
     steps: [
       'Right-click the ground and pick **Add water here** (or Dock › Water › Place): a pool appears.',
       'In the Inspector, pick a **Kind** and change its **Size** so it fills the hole or the river bed.',

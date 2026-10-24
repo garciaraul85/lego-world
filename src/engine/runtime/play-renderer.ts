@@ -13,7 +13,7 @@ import type { LineSet, Marker, Mesh, Overlay, RenderBrick } from '../render/rend
 import { createSceneRenderer, type RendererChoice, type SceneRenderer } from '../render/scene-renderer';
 import { FRAGMENT } from '../render/shaders';
 import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../render/stream';
-import { waterMarker } from '../render/water';
+import { waterSurface } from '../render/water';
 import { chunkKeyOf, indexByChunk } from './pieces';
 import type { MapWorld, PlaySession } from './session';
 
@@ -272,8 +272,8 @@ export class PlayRenderer {
           alpha: 0.7,
         });
     }
-    // Milestone 2b: water — a see-through blue box up to its surface
-    for (const it of w.water) markers.push(waterMarker(it));
+    // Milestone 2b: water — a see-through box up to its rippling, mirroring surface (10c part 4)
+    this.renderer.water = w.water.map(waterSurface);
     if (this.extra) {
       lines.push(...this.extra.lines);
       markers.push(...this.extra.markers);
@@ -405,6 +405,7 @@ export class PlayRenderer {
     this.renderer.maxLights = q.lights;
     this.renderer.shadows = q.shadows;
     this.renderer.maxShadows = q.shadowLights;
+    this.renderer.reflections = q.reflections;
     this.renderer.shadowSize = q.shadowSize;
     this.renderer.detailScale = q.detailScale;
     this.renderer.pixelRatio = q.pixelRatio;
