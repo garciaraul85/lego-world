@@ -451,6 +451,7 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   lightColor: (ed, a) => lightsOf(ed).some((l) => l.light.color.toLowerCase() === String(a).toLowerCase()),
   lightRange: (ed, a) => lightsOf(ed).some((l) => l.light.range >= Number(a)),
   lightsAtLeast: (ed, a) => lightsOf(ed).length >= Number(a),
+  shadowLightsAtLeast: (ed, a) => lightsOf(ed).filter((l) => l.light.shadow).length >= Number(a),
   lightOff: (ed) => lightsOf(ed).some((l) => !l.on),
   zoneLightsOn: (ed) => (ed.mapDoc.value?.zones ?? []).some((z) => (z.onEnter ?? []).some((x) => x.do === 'lightOn')),
   lightOnInPlay: (ed, a) =>

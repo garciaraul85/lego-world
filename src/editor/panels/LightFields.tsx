@@ -7,7 +7,7 @@ import { mapItems } from '../interact/place';
 
 export const LIGHT_HELP = {
   light:
-    'A light lights the bricks and characters around it, as in the game. Pick a kind (Torch, Candle, Lamp, Crystal, Lava glow, Moonbeam) and change it: its colour, how bright it is, how far it reaches (studs), how much it flickers like a flame, and whether bricks cast shadows from it (the nearest light that casts shadows draws them).',
+    'A light lights the bricks and characters around it, as in the game. Pick a kind (Torch, Candle, Lamp, Crystal, Lava glow, Moonbeam) and change it: its colour, how bright it is, how far it reaches (studs), how much it flickers like a flame, and whether bricks cast shadows from it (the nearest lights that cast shadows draw them: up to 4 at once on High graphics, 2 on Medium, none on Low; characters cast shadows too).',
   darkness:
     'How dark this map is without its lights: 0 lit by its sky as usual, 1 pitch black. A dark map shows only what its lights reach (torches, lamps, glowing effects and assets that give light).',
 };

@@ -97,7 +97,7 @@ describe('lights', () => {
   it('the lit shader is v68’s with lights added (the character model’s own changes still find their place)', () => {
     expect(FRAGMENT).not.toBe(V68_FRAGMENT);
     expect(FRAGMENT).toContain('pointLights(n,vPosition)');
-    expect(FRAGMENT).toContain('uniform samplerCube uShadow;');
+    expect(FRAGMENT).toContain('uniform samplerCube uShadow3;');
     for (const anchor of ['void main(){', 'vec3 base=mix(vColor,']) expect(FRAGMENT).toContain(anchor);
   });
 });

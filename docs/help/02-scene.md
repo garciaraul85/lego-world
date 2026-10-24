@@ -71,7 +71,7 @@ A **light** lights the bricks and characters around it, in the Scene view as in 
 - **Kind** starts it again from a preset; **Colour** and **Brightness** (0–4) set its glow.
 - **Reaches** is how far it lights, in studs; a picked light shows it as a ring.
 - **Flicker** makes it waver like a flame; 0 is steady.
-- **Bricks cast shadows from it**: the nearest light that casts shadows draws them (a torch on a wall throws the shadows of what stands in front of it).
+- **Bricks cast shadows from it**: the nearest lights that cast shadows draw them: up to 4 at once on High graphics, 2 on Medium, none on Low; characters cast shadows too (a torch on a wall throws the shadows of what stands in front of it).
 - **Height** lifts it; drag it in the view to move it.
 - **On from the start** off: it stays dark until logic's **Light on** or the action **Switch a light on or off** switches it on by its name.
 

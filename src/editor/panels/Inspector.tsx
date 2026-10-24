@@ -621,7 +621,7 @@ function MapTab({ c }: { c: ActionCtx }) {
 }
 
 export const QUALITY_HELP =
-  'How good the game looks, and how hard it works the computer. Low: 2 lights, no shadows, half the view distance and fewer particles, for phones and old computers. Medium: 4 lights with shadows. High: 8 lights, sharper shadows, the full view distance. Auto picks one from the device and steps down while the game runs slowly. Players can change it in the game’s Settings; this is what they start with.';
+  'How good the game looks, and how hard it works the computer. Low: 2 lights, no shadows, half the view distance and fewer particles, for phones and old computers. Medium: 4 lights, 2 of them casting shadows. High: 8 lights, 4 of them casting sharper shadows, the full view distance. Auto picks one from the device and steps down while the game runs slowly. Players can change it in the game’s Settings; this is what they start with.';
 
 /** P27 part 4: the game's graphics quality before the player picks one */
 function QualityField({ c }: { c: ActionCtx }) {
@@ -654,8 +654,8 @@ function QualityField({ c }: { c: ActionCtx }) {
         ))}
       </select>
       <span class="muted small" data-tour="project-quality-note">
-        {q.lights} lights{q.shadows ? ', shadows' : ', no shadows'}, {Math.round(q.viewScale * 100)}% view distance,{' '}
-        {q.particles.toLocaleString('en-US')} particles
+        {q.lights} lights{q.shadows ? `, ${q.shadowLights} with shadows` : ', no shadows'},{' '}
+        {Math.round(q.viewScale * 100)}% view distance, {q.particles.toLocaleString('en-US')} particles
       </span>
     </div>
   );

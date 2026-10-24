@@ -550,7 +550,8 @@ function Debug({ c }: { c: ActionCtx }) {
         <dd data-tour="watch-quality">
           {QUALITY[s.quality].label}
           {s.qualityAuto ? ' (auto)' : ed.previewQuality.value ? ' (preview)' : ''} · {QUALITY[s.quality].lights} lights
-          {QUALITY[s.quality].shadows ? ' · shadows' : ''} · {QUALITY[s.quality].particles} particles
+          {QUALITY[s.quality].shadows ? ` · ${QUALITY[s.quality].shadowLights} shadows` : ''} ·{' '}
+          {QUALITY[s.quality].particles} particles
         </dd>
         <dt>broken</dt>
         <dd>

@@ -68,8 +68,8 @@ Pause (F6) freezes the game, Step (Shift F6) advances one frame, and 0.25× to 2
 How good the game looks, and how hard it works the computer, comes in three levels:
 
 - **Low**: 2 lights, no shadows, half of a big map's view distance, 600 particles, plain studs close by. For phones and old computers.
-- **Medium**: 4 lights with shadows, three quarters of the view distance, 1,200 particles.
-- **High**: 8 lights, sharper shadows, the full view distance, 2,000 particles.
+- **Medium**: 4 lights, 2 of them casting shadows, three quarters of the view distance, 1,200 particles.
+- **High**: 8 lights, 4 of them casting sharper shadows, the full view distance, 2,000 particles.
 
 **Project › Graphics quality** sets what players start with. **Auto** picks a level from the device (phones Low, strong computers High) and steps down a level while the game runs slowly; the line under it says what Auto picks on this computer. Players change it in the game's **Settings** (Graphics: auto, low, medium, high), and a screen button can do the same with the **Change a player setting** action.
 

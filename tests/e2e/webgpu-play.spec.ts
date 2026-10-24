@@ -29,6 +29,43 @@ test('Play drawn with WebGPU matches WebGL: bricks, the hero, neighbours and deb
     undefined,
     { timeout: 60_000 },
   );
+  // part 3: a dusky map with two torches near the start that cast shadows (bricks' and the hero's)
+  await page.evaluate(() => {
+    const e = (
+      window as unknown as {
+        __editor: {
+          mapId: { value: string };
+          store: { get(p: string): unknown };
+          exec(c: unknown): { ok: boolean; error?: string };
+        };
+      }
+    ).__editor;
+    const map = e.mapId.value;
+    const sp = (e.store.get(`maps/${map}/map.json`) as { spawns: { pos: number[] }[] }).spawns[0]!.pos;
+    e.exec({ type: 'map.setEnvironment', payload: { map, darkness: 0.6 } });
+    // High graphics: up to four lights cast shadows
+    e.exec({ type: 'project.update', payload: { quality: 'high' } });
+    for (const [id, dx, dz] of [
+      ['ins_playshado1', 3, -3],
+      ['ins_playshado2', -3, 3],
+    ] as const) {
+      const r = e.exec({
+        type: 'item.add',
+        payload: {
+          map,
+          item: {
+            id,
+            kind: 'light',
+            name: id,
+            pos: [sp[0]! + dx, sp[1]! + 4, sp[2]! + dz],
+            on: true,
+            light: { color: '#ffb070', brightness: 2, range: 16, flicker: 0, shadow: true },
+          },
+        },
+      });
+      if (!r.ok) throw new Error(r.error);
+    }
+  });
   await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Play', exact: true }).click();
   await page.waitForFunction(
     () => ((window as unknown as { __editor: Ed }).__editor.session.value?.runtime.ticks ?? 0) > 30,
@@ -68,12 +105,15 @@ test('Play drawn with WebGPU matches WebGL: bricks, the hero, neighbours and deb
       return c;
     };
     const frames = (pr: { render(): unknown }) => {
+      // (three frames: WebGL's characters cast shadows from what they drew the frame before)
       for (let i = 0; i < 3; i++) pr.render();
     };
     // WebGL: read right after drawing
     const glPr = new w.__PlayRenderer(canvas(), s, 'webgl');
     frames(glPr);
     const gl = glPr.renderer.gl;
+    // nothing WebGL was asked to draw was refused (a character missing would only be a few pixels)
+    const glError = gl.getError();
     const W = gl.drawingBufferWidth;
     const H = gl.drawingBufferHeight;
     const raw = new Uint8Array(W * H * 4);
@@ -107,7 +147,12 @@ test('Play drawn with WebGPU matches WebGL: bricks, the hero, neighbours and deb
         if (m > 40) big++;
       }
     const res = {
+      glError,
       kind,
+      shadows: [
+        glPr.renderer as unknown as { stats: { shadows?: number } },
+        gpuPr.renderer as unknown as { stats: { shadows?: number } },
+      ].map((r) => r.stats.shadows ?? 0),
       size: `${W}×${H} / ${shot.width}×${shot.height}`,
       mean: shot.width === W ? sum / (n * 3) : 999,
       bigShare: shot.width === W ? big / n : 1,
@@ -121,7 +166,10 @@ test('Play drawn with WebGPU matches WebGL: bricks, the hero, neighbours and deb
   const { gl, gpu, ...d } = result;
   writeFileSync('test-results/play-webgl.png', Buffer.from(gl, 'base64'));
   writeFileSync('test-results/play-webgpu.png', Buffer.from(gpu, 'base64'));
+  expect(d.glError).toBe(0);
   expect(d.kind).toBe('webgpu');
+  // two lights cast shadows, both ways
+  expect(d.shadows).toEqual([2, 2]);
   expect(d.mean, JSON.stringify(d)).toBeLessThan(4);
   expect(d.bigShare, JSON.stringify(d)).toBeLessThan(0.03);
   expect(errors).toEqual([]);

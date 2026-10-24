@@ -21,7 +21,7 @@ export const LIGHTS: HelpEntry[] = [
     kind: 'area',
     name: 'Light properties',
     purpose:
-      'A light placed on the map lights the bricks and characters around it, in the Scene view and in the game. **Kind** starts it from a Torch, Candle, Lamp, Crystal, Lava glow or Moonbeam; then change its **Colour**, **Brightness**, how far it **Reaches** (studs; the ring around a picked light), its **Flicker** (a flame wavers) and whether **bricks cast shadows** from it (the nearest light that casts shadows draws them). **Only at night** makes it a street lamp: it comes on as the sky gets dark and goes out at dawn. **Height** lifts it off the ground. **On from the start** off: it stays dark until logic’s **Light on** (or the action **Switch a light on or off**) switches it on by its name.',
+      'A light placed on the map lights the bricks and characters around it, in the Scene view and in the game. **Kind** starts it from a Torch, Candle, Lamp, Crystal, Lava glow or Moonbeam; then change its **Colour**, **Brightness**, how far it **Reaches** (studs; the ring around a picked light), its **Flicker** (a flame wavers) and whether **bricks cast shadows** from it (the nearest lights that cast shadows draw them: up to 4 at once on High graphics, 2 on Medium, none on Low; characters cast shadows too). **Only at night** makes it a street lamp: it comes on as the sky gets dark and goes out at dawn. **Height** lifts it off the ground. **On from the start** off: it stays dark until logic’s **Light on** (or the action **Switch a light on or off**) switches it on by its name.',
     steps: [
       'Right-click the ground and pick **Add a light here** (or Dock › Lights › Place).',
       'In the Inspector, pick a **Kind**, then move the sliders: the view shows the light as it changes.',
@@ -217,7 +217,7 @@ export const LIGHTS: HelpEntry[] = [
     kind: 'setting',
     name: 'Graphics quality',
     purpose:
-      'How good the game looks, and how hard it works the computer. **Low**: 2 lights, no shadows, half the view distance, 600 particles, plain studs close by: for phones and old computers. **Medium**: 4 lights with shadows, three quarters of the view distance, 1,200 particles. **High**: 8 lights, sharper shadows, the full view distance, 2,000 particles. **Auto** picks one from the device (phones Low, strong computers High) and steps down a level while the game runs slowly. This is what players start with; they can change it in the game’s **Settings** (Graphics).',
+      'How good the game looks, and how hard it works the computer. **Low**: 2 lights, no shadows, half the view distance, 600 particles, plain studs close by: for phones and old computers. **Medium**: 4 lights, 2 of them casting shadows, three quarters of the view distance, 1,200 particles. **High**: 8 lights, 4 of them casting sharper shadows, the full view distance, 2,000 particles. **Auto** picks one from the device (phones Low, strong computers High) and steps down a level while the game runs slowly. This is what players start with; they can change it in the game’s **Settings** (Graphics).',
     steps: [
       'Open the **Project** tab of the Inspector.',
       'Pick **Graphics quality**: Auto, Low, Medium or High. The line under it says what that level draws.',

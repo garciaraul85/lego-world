@@ -12,8 +12,10 @@ export type QualitySpec = {
   label: string;
   /** point lights drawn at once (the nearest and brightest) */
   lights: number;
-  /** the first shadow-casting light draws shadows */
+  /** shadow-casting lights draw shadows */
   shadows: boolean;
+  /** Milestone 2b, 10c part 3: how many lights cast shadows at once */
+  shadowLights: number;
   /** shadow map size (pixels per side) */
   shadowSize: number;
   /** particles alive at once */
@@ -33,6 +35,7 @@ export const QUALITY: Record<QualityLevel, QualitySpec> = {
     label: 'Low',
     lights: 2,
     shadows: false,
+    shadowLights: 0,
     shadowSize: 128,
     particles: 600,
     viewScale: 0.5,
@@ -44,6 +47,7 @@ export const QUALITY: Record<QualityLevel, QualitySpec> = {
     label: 'Medium',
     lights: 4,
     shadows: true,
+    shadowLights: 2,
     shadowSize: 256,
     particles: 1200,
     viewScale: 0.75,
@@ -55,6 +59,7 @@ export const QUALITY: Record<QualityLevel, QualitySpec> = {
     label: 'High',
     lights: 8,
     shadows: true,
+    shadowLights: 4,
     shadowSize: 512,
     particles: 2000,
     viewScale: 1,

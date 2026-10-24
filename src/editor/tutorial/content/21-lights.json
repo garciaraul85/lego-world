@@ -211,7 +211,7 @@
     {
       "id": "lights.crystal",
       "title": "A second light",
-      "body": "Up to 8 lights are drawn at once: the brightest near where you look. Each light is on its own; the nearest one that casts shadows draws them.",
+      "body": "Up to 8 lights are drawn at once: the brightest near where you look. Each light is on its own; the nearest ones that cast shadows draw them: up to 4 at once on High graphics, 2 on Medium, none on Low; characters cast shadows too.",
       "task": "In the Dock, press Place on the Crystal.",
       "target": "[data-tour=\"dock-light-crystal\"]",
       "check": {
@@ -256,6 +256,30 @@
           ]
         }
       ],
+      "workspace": "Scene",
+      "placement": "top"
+    },
+    {
+      "id": "lights.shadows",
+      "title": "Two lights with shadows",
+      "body": "Several lights can cast shadows at once: up to 4 on High graphics, 2 on Medium (none on Low). Each throws the shadows of the bricks and the characters in front of it.",
+      "task": "With the crystal picked, tick “Bricks cast shadows from it”.",
+      "target": "[data-tour=\"light-shadow\"]",
+      "check": {
+        "kind": "state",
+        "test": "shadowLightsAtLeast",
+        "args": 2
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "inspect"
+        },
+        {
+          "click": "[data-tour=\"light-shadow\"]"
+        }
+      ],
+      "how": [],
       "workspace": "Scene",
       "placement": "top"
     },

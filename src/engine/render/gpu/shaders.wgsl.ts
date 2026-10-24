@@ -15,7 +15,32 @@ struct Frame {
   misc: vec4f,
   pl: array<vec4f, 8>,
   pc: array<vec4f, 8>,
+  // part 3: the shadow-casting lights (the first of pl): where and how far; misc2.x how many
+  shadowAt: array<vec4f, 4>,
+  misc2: vec4f,
 };
+@group(0) @binding(1) var shadow0: texture_cube<f32>;
+@group(0) @binding(2) var shadow1: texture_cube<f32>;
+@group(0) @binding(3) var shadow2: texture_cube<f32>;
+@group(0) @binding(4) var shadow3: texture_cube<f32>;
+@group(0) @binding(5) var shadowSamp: sampler;
+fn shadowIn(e: vec4f, d: vec3f, at: vec4f) -> f32 {
+  let stored = (e.r + e.g / 255.0) * at.w;
+  return select(1.0, 0.0, length(d) - 0.12 > stored);
+}
+// a point's shadow from light i (1: lit, 0: in shadow), as the WebGL shader works it out
+fn shadowAt(i: i32, p: vec3f, n: vec3f) -> f32 {
+  let q = p + n * 0.05;
+  let at = F.shadowAt[i];
+  let d = q - at.xyz;
+  switch i {
+    case 0: { return shadowIn(textureSampleLevel(shadow0, shadowSamp, d, 0.0), d, at); }
+    case 1: { return shadowIn(textureSampleLevel(shadow1, shadowSamp, d, 0.0), d, at); }
+    case 2: { return shadowIn(textureSampleLevel(shadow2, shadowSamp, d, 0.0), d, at); }
+    case 3: { return shadowIn(textureSampleLevel(shadow3, shadowSamp, d, 0.0), d, at); }
+    default: { return 1.0; }
+  }
+}
 struct Draw {
   model: mat4x4f,
   flags: vec4f,
@@ -70,7 +95,9 @@ fn pointLights(n: vec3f, p: vec3f) -> vec3f {
     a = a * a;
     if (a <= 0.0) { continue; }
     let diff = max(dot(n, L / dist), 0.0) * 0.8 + 0.2;
-    sum += F.pc[i].rgb * a * diff;
+    var sh = 1.0;
+    if (i < i32(F.misc2.x)) { sh = shadowAt(i, p, n); }
+    sum += F.pc[i].rgb * a * diff * sh;
   }
   return sum;
 }
@@ -188,7 +215,32 @@ struct Frame {
   misc: vec4f,
   pl: array<vec4f, 8>,
   pc: array<vec4f, 8>,
+  // part 3: the shadow-casting lights (the first of pl): where and how far; misc2.x how many
+  shadowAt: array<vec4f, 4>,
+  misc2: vec4f,
 };
+@group(0) @binding(1) var shadow0: texture_cube<f32>;
+@group(0) @binding(2) var shadow1: texture_cube<f32>;
+@group(0) @binding(3) var shadow2: texture_cube<f32>;
+@group(0) @binding(4) var shadow3: texture_cube<f32>;
+@group(0) @binding(5) var shadowSamp: sampler;
+fn shadowIn(e: vec4f, d: vec3f, at: vec4f) -> f32 {
+  let stored = (e.r + e.g / 255.0) * at.w;
+  return select(1.0, 0.0, length(d) - 0.12 > stored);
+}
+// a point's shadow from light i (1: lit, 0: in shadow), as the WebGL shader works it out
+fn shadowAt(i: i32, p: vec3f, n: vec3f) -> f32 {
+  let q = p + n * 0.05;
+  let at = F.shadowAt[i];
+  let d = q - at.xyz;
+  switch i {
+    case 0: { return shadowIn(textureSampleLevel(shadow0, shadowSamp, d, 0.0), d, at); }
+    case 1: { return shadowIn(textureSampleLevel(shadow1, shadowSamp, d, 0.0), d, at); }
+    case 2: { return shadowIn(textureSampleLevel(shadow2, shadowSamp, d, 0.0), d, at); }
+    case 3: { return shadowIn(textureSampleLevel(shadow3, shadowSamp, d, 0.0), d, at); }
+    default: { return 1.0; }
+  }
+}
 struct CharDraw {
   model: mat4x4f,
   // alpha, flat, paint, night
@@ -233,7 +285,9 @@ fn pointLights(n: vec3f, p: vec3f) -> vec3f {
     a = a * a;
     if (a <= 0.0) { continue; }
     let diff = max(dot(n, L / dist), 0.0) * 0.8 + 0.2;
-    sum += F.pc[i].rgb * a * diff;
+    var sh = 1.0;
+    if (i < i32(F.misc2.x)) { sh = shadowAt(i, p, n); }
+    sum += F.pc[i].rgb * a * diff * sh;
   }
   return sum;
 }
@@ -268,5 +322,32 @@ fn pointLights(n: vec3f, p: vec3f) -> vec3f {
   fog = max(fog, F.fogRange.w * (1.0 - smoothstep(F.fogRange.z - 1.5, F.fogRange.z + 0.5, p.y)) * smoothstep(1.0, 12.0, fdist));
   c = mix(pow(max(c, vec3f(0.0)), vec3f(0.8)), F.fog.rgb, fog);
   return vec4f(c, alpha);
+}
+`;
+
+/** part 3: a shadow map face: each brick's (and character's) distance from the light, in two bytes as WebGL keeps it */
+export const SHADOW_WGSL = /* wgsl */ `
+struct Face { mvp: mat4x4f, at: vec4f, model: mat4x4f };
+@group(0) @binding(0) var<uniform> S: Face;
+struct VOut { @builtin(position) pos: vec4f, @location(0) world: vec3f };
+fn place(world: vec3f) -> VOut {
+  var o: VOut;
+  o.world = world;
+  var c = S.mvp * vec4f(world, 1.0);
+  c.z = (c.z + c.w) * 0.5;
+  // a texture's first row is its top here (WebGL's is its bottom): drawn upside down, so the map reads the same
+  c.y = -c.y;
+  o.pos = c;
+  return o;
+}
+@vertex fn vs(@location(0) pos: vec3f, @location(1) normal: vec3f, @location(2) offset: vec3f, @location(3) color: vec3f) -> VOut {
+  return place(pos + offset);
+}
+@vertex fn vsChar(@location(0) pos: vec3f, @location(1) normal: vec3f) -> VOut {
+  return place((S.model * vec4f(pos, 1.0)).xyz);
+}
+@fragment fn fs(in: VOut) -> @location(0) vec4f {
+  let t = clamp(length(in.world - S.at.xyz) / S.at.w, 0.0, 1.0) * 255.0;
+  return vec4f(floor(t) / 255.0, fract(t), 0.0, 1.0);
 }
 `;

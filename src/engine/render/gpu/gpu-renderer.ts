@@ -7,21 +7,24 @@ import {
   brickCenter,
   brickHeightUnits,
   brickRgb,
+  CUBE_FACES,
   chunkGroups,
   type FrameStats,
   frameFog,
   type LineSet,
   LOD_DISTANCE,
   MAX_LIGHTS,
+  MAX_SHADOWS,
   type Marker,
   type Overlay,
   type ParticleBatch,
   type PointLight,
   pickLights,
   type RenderBrick,
+  shadowCount,
 } from '../renderer';
 import { GlShim, type ShimBuffer, type ShimDraw } from './gl-shim';
-import { BRICK_WGSL, CHAR_WGSL, SKY_WGSL } from './shaders.wgsl';
+import { BRICK_WGSL, CHAR_WGSL, SHADOW_WGSL, SKY_WGSL } from './shaders.wgsl';
 
 /**
  * Milestone 2b, 10c part 1: the WebGPU renderer. It draws what the WebGL renderer draws for a scene — the sky,
@@ -148,7 +151,20 @@ export class GpuRenderer {
   private readonly skyBuf: GPUBuffer;
   private drawBuf: GPUBuffer;
   private drawCap = 256;
-  private readonly frameGroup: GPUBindGroup;
+  private frameGroup: GPUBindGroup;
+  private readonly frameLayout: GPUBindGroupLayout;
+  private readonly shadowSampler: GPUSampler;
+  private readonly noShadow: GPUTexture;
+  /** part 3: one shadow map per shadow-casting light: a cube of distances, drawn again when what it sees changes */
+  private shadowMaps: { tex: GPUTexture; depth: GPUTexture; key: string; size: number }[] = [];
+  private shadowFaceBuf: GPUBuffer | null = null;
+  private shadowFaceCap = 0;
+  private shadowLayout!: GPUBindGroupLayout;
+  private shadowPipes!: { bricks: GPURenderPipeline; chars: GPURenderPipeline };
+  private chunkRev = 0;
+  /** how many lights cast shadows this frame, and how many may (the quality level's) */
+  shadowCount = 0;
+  maxShadows = MAX_SHADOWS;
   private readonly skyGroup: GPUBindGroup;
   private drawGroup: GPUBindGroup;
   private readonly drawLayout: GPUBindGroupLayout;
@@ -201,7 +217,6 @@ export class GpuRenderer {
   pixelRatio = 2;
   groundFog = true;
   lit: PointLight[] = [];
-  /** shadows come in part 3: none are drawn yet */
   shadowed = false;
   stats: FrameStats = { drawCalls: 0, instances: 0, chunksDrawn: 0, chunks: 0, ms: 0 };
 
@@ -221,7 +236,23 @@ export class GpuRenderer {
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     const frameLayout = d.createBindGroupLayout({
-      entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: {} }],
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: {} },
+        // part 3: the shadow maps of up to four lights
+        ...[1, 2, 3, 4].map((binding) => ({
+          binding,
+          visibility: GPUShaderStage.FRAGMENT,
+          texture: { viewDimension: 'cube' as const },
+        })),
+        { binding: 5, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+      ],
+    });
+    this.frameLayout = frameLayout;
+    this.shadowSampler = d.createSampler({ magFilter: 'nearest', minFilter: 'nearest' });
+    this.noShadow = d.createTexture({
+      size: [1, 1, 6],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     });
     this.drawLayout = d.createBindGroupLayout({
       entries: [
@@ -235,10 +266,7 @@ export class GpuRenderer {
     const skyLayout = d.createBindGroupLayout({
       entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: {} }],
     });
-    this.frameGroup = d.createBindGroup({
-      layout: frameLayout,
-      entries: [{ binding: 0, resource: { buffer: this.frameBuf } }],
-    });
+    this.frameGroup = this.makeFrameGroup();
     this.skyGroup = d.createBindGroup({
       layout: skyLayout,
       entries: [{ binding: 0, resource: { buffer: this.skyBuf } }],
@@ -368,6 +396,194 @@ export class GpuRenderer {
         multisample: { count: SAMPLES },
       });
     this.charPipes = { none: charPipe('none'), alpha: charPipe('alpha'), add: charPipe('add') };
+    // part 3: the shadow pass
+    this.shadowLayout = d.createBindGroupLayout({
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: { hasDynamicOffset: true, minBindingSize: 144 },
+        },
+      ],
+    });
+    const shadowModule = d.createShaderModule({ code: SHADOW_WGSL });
+    const shadowLayoutP = d.createPipelineLayout({ bindGroupLayouts: [this.shadowLayout] });
+    const shadowPipe = (chars: boolean) =>
+      d.createRenderPipeline({
+        layout: shadowLayoutP,
+        vertex: {
+          module: shadowModule,
+          entryPoint: chars ? 'vsChar' : 'vs',
+          buffers: chars ? meshBuffers.slice(0, 2) : meshBuffers,
+        },
+        fragment: { module: shadowModule, entryPoint: 'fs', targets: [{ format: 'rgba8unorm' }] },
+        primitive: { topology: 'triangle-list', cullMode: 'none' },
+        depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
+      });
+    this.shadowPipes = { bricks: shadowPipe(false), chars: shadowPipe(true) };
+  }
+
+  private makeFrameGroup() {
+    const view = (i: number) => (this.shadowMaps[i]?.tex ?? this.noShadow).createView({ dimension: 'cube' });
+    return this.device.createBindGroup({
+      layout: this.frameLayout,
+      entries: [
+        { binding: 0, resource: { buffer: this.frameBuf } },
+        { binding: 1, resource: view(0) },
+        { binding: 2, resource: view(1) },
+        { binding: 3, resource: view(2) },
+        { binding: 4, resource: view(3) },
+        { binding: 5, resource: this.shadowSampler },
+      ],
+    });
+  }
+
+  /**
+   * part 3: draws the shadow maps of this frame's shadow-casting lights — what they see in every direction, bricks
+   * and characters — again only where the light, the bricks near it or a character near it changed
+   */
+  private drawShadows(enc: GPUCommandEncoder, chars: readonly ShimDraw[]) {
+    const d = this.device;
+    const size = this.shadowSize;
+    const n = this.shadowCount;
+    // what each light must draw: its key says whether its map is still right
+    const jobs: { slot: number; light: PointLight; near: GpuChunk[]; casters: ShimDraw[] }[] = [];
+    let remade = false;
+    for (let i = 0; i < n; i++) {
+      const light = this.lit[i]!;
+      const r = light.range;
+      const near = [...this.chunks.values()].filter(
+        (c) =>
+          light.pos[0] > c.min[0] - r &&
+          light.pos[0] < c.max[0] + r &&
+          light.pos[1] > c.min[1] - r &&
+          light.pos[1] < c.max[1] + r &&
+          light.pos[2] > c.min[2] - r &&
+          light.pos[2] < c.max[2] + r,
+      );
+      const casters = chars.filter(
+        (c) =>
+          c.blend === 'none' &&
+          Math.hypot(c.model[12]! - light.pos[0], c.model[13]! - light.pos[1], c.model[14]! - light.pos[2]) < r + 3,
+      );
+      const key = `${light.pos.map((v) => v.toFixed(2)).join(',')}|${r}|${this.chunkRev}|${casters
+        .map(
+          (c) =>
+            `${c.model[12]!.toFixed(2)},${c.model[13]!.toFixed(2)},${c.model[14]!.toFixed(2)},${c.model[0]!.toFixed(2)}`,
+        )
+        .join(';')}`;
+      let map = this.shadowMaps[i];
+      if (map && map.key === key && map.size === size) continue;
+      if (map && map.size !== size) {
+        map.tex.destroy();
+        map.depth.destroy();
+        map = undefined;
+      }
+      if (!map) {
+        map = {
+          tex: d.createTexture({
+            size: [size, size, 6],
+            format: 'rgba8unorm',
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+          }),
+          depth: d.createTexture({
+            size: [size, size],
+            format: 'depth24plus',
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+          }),
+          key: '',
+          size,
+        };
+        this.shadowMaps[i] = map;
+        remade = true;
+      }
+      map.key = key;
+      jobs.push({ slot: i, light, near, casters });
+    }
+    if (remade) this.frameGroup = this.makeFrameGroup();
+    if (!jobs.length) return;
+    // every face's settings, and every caster's on every face, in one buffer
+    const FACE = 64;
+    const data: number[] = [];
+    const faceSlot = (mvp: Float32Array, light: PointLight, model: Float32Array) => {
+      const at = data.length / FACE;
+      data.push(...mvp, light.pos[0], light.pos[1], light.pos[2], light.range, ...model);
+      while (data.length % FACE) data.push(0);
+      return at;
+    };
+    const plan: { job: (typeof jobs)[0]; face: number; mvp: Float32Array; slot: number; chars: number[] }[] = [];
+    for (const job of jobs) {
+      const proj = perspective(Math.PI / 2, 1, 0.05, job.light.range + 1);
+      for (const [face, fwd, right, up] of CUBE_FACES) {
+        const mvp = multiply(proj, viewMatrix(job.light.pos, right, up, fwd));
+        plan.push({
+          job,
+          face,
+          mvp,
+          slot: faceSlot(mvp, job.light, IDENTITY),
+          chars: job.casters.map((c) => faceSlot(mvp, job.light, c.model)),
+        });
+      }
+    }
+    const bytes = data.length * 4;
+    if (!this.shadowFaceBuf || this.shadowFaceCap < bytes) {
+      this.shadowFaceBuf?.destroy();
+      this.shadowFaceCap = Math.max(bytes, 64 * 1024);
+      this.shadowFaceBuf = d.createBuffer({
+        size: this.shadowFaceCap,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      });
+    }
+    d.queue.writeBuffer(this.shadowFaceBuf, 0, new Float32Array(data));
+    const group = d.createBindGroup({
+      layout: this.shadowLayout,
+      entries: [{ binding: 0, resource: { buffer: this.shadowFaceBuf, size: 144 } }],
+    });
+    for (const f of plan) {
+      const map = this.shadowMaps[f.job.slot]!;
+      const p = enc.beginRenderPass({
+        colorAttachments: [
+          {
+            view: map.tex.createView({ dimension: '2d', baseArrayLayer: f.face, arrayLayerCount: 1 }),
+            // nothing in a direction: as far as the light reaches
+            clearValue: { r: 1, g: 1, b: 0, a: 1 },
+            loadOp: 'clear',
+            storeOp: 'store',
+          },
+        ],
+        depthStencilAttachment: {
+          view: map.depth.createView(),
+          depthClearValue: 1,
+          depthLoadOp: 'clear',
+          depthStoreOp: 'discard',
+        },
+      });
+      const planes = frustumPlanes(f.mvp);
+      p.setPipeline(this.shadowPipes.bricks);
+      p.setBindGroup(0, group, [f.slot * FACE * 4]);
+      for (const c of f.job.near) {
+        if (!boxVisible(planes, c.min, c.max)) continue;
+        for (const b of c.batches) {
+          const mesh = this.shape(b.w, b.d, b.kind, b.paved);
+          p.setVertexBuffer(0, mesh.p);
+          p.setVertexBuffer(1, mesh.n);
+          p.setVertexBuffer(2, b.buffer);
+          p.draw(mesh.count, b.count);
+          this.stats.drawCalls++;
+        }
+      }
+      if (f.chars.length) {
+        p.setPipeline(this.shadowPipes.chars);
+        f.job.casters.forEach((c, k) => {
+          p.setBindGroup(0, group, [f.chars[k]! * FACE * 4]);
+          p.setVertexBuffer(0, c.p.gpu!);
+          p.setVertexBuffer(1, c.n.gpu!);
+          p.draw(c.count);
+          this.stats.drawCalls++;
+        });
+      }
+      p.end();
+    }
   }
 
   private makeCharGroup() {
@@ -486,6 +702,7 @@ export class GpuRenderer {
       return { w: g.w, d: g.d, kind: g.kind, paved: g.paved, covered: g.covered, buffer, count: g.values.length / 6 };
     });
     this.chunks.set(key, { batches, min, max, bricks: bricks.length });
+    this.chunkRev++;
   }
 
   dropChunk(key: string) {
@@ -493,6 +710,7 @@ export class GpuRenderer {
     if (!c) return;
     for (const b of c.batches) b.buffer.destroy();
     this.chunks.delete(key);
+    this.chunkRev++;
   }
 
   clearChunks() {
@@ -558,10 +776,14 @@ export class GpuRenderer {
   ): FrameStats {
     const t0 = performance.now();
     this.stats = { drawCalls: 0, instances: 0, chunksDrawn: 0, chunks: this.chunks.size, ms: 0 };
-    this.lit = pickLights(this.lights, focus, Math.min(MAX_LIGHTS, this.maxLights), false);
+    const shadowSlots = this.shadows ? Math.min(MAX_SHADOWS, this.maxShadows) : 0;
+    this.lit = pickLights(this.lights, focus, Math.min(MAX_LIGHTS, this.maxLights), shadowSlots);
+    this.shadowCount = shadowCount(this.lit, shadowSlots);
+    this.shadowed = this.shadowCount > 0;
     this.stats.lights = this.lit.length;
     this.stats.maxLights = Math.min(MAX_LIGHTS, this.maxLights);
-    this.stats.shadowed = false;
+    this.stats.shadowed = this.shadowed;
+    this.stats.shadows = this.shadowCount;
     const dpr = Math.min(window.devicePixelRatio || 1, this.pixelRatio);
     const w = Math.max(1, Math.round(this.canvas.clientWidth * dpr));
     const h = Math.max(1, Math.round(this.canvas.clientHeight * dpr));
@@ -574,6 +796,9 @@ export class GpuRenderer {
     const s = this.skySample;
     const mvp = multiply(perspective(cam.fov, aspect), viewMatrix(cam.eye, cam.right, cam.up, cam.forward));
     const fog = frameFog(this.fog, s, this.darkness, cam, this.groundFog, this.viewDistance);
+    // part 2: what v68's character model draws this frame (written down; drawn in the pass, and part 3: in shadows)
+    this.gl.frame();
+    if (extra) extra(mvp, cam.eye);
 
     // the frame's settings
     const fr = new Float32Array(128);
@@ -587,7 +812,9 @@ export class GpuRenderer {
     this.lit.forEach((l, i) => {
       fr.set([l.pos[0], l.pos[1], l.pos[2], l.range], 40 + i * 4);
       fr.set([l.color[0], l.color[1], l.color[2], 0], 72 + i * 4);
+      if (i < this.shadowCount) fr.set([l.pos[0], l.pos[1], l.pos[2], l.range], 104 + i * 4);
     });
+    fr.set([this.shadowCount, 0, 0, 0], 120);
     this.device.queue.writeBuffer(this.frameBuf, 0, fr);
 
     // every draw's settings (one 256-byte slot each) and instances, gathered then uploaded at once
@@ -694,8 +921,6 @@ export class GpuRenderer {
     }
     // part 2: the characters (and debris) drawn by v68's character model, as written down by the stand-in context
     if (extra) {
-      this.gl.frame();
-      extra(mvp, cam.eye);
       let uvBytes = 0;
       for (const d of this.gl.draws) if (!d.uv) uvBytes = Math.max(uvBytes, d.count * 8);
       if (uvBytes > this.zeroUvBytes) {
@@ -755,6 +980,7 @@ export class GpuRenderer {
     if (s) this.writeSky(s, cam, aspect);
 
     const enc = this.device.createCommandEncoder();
+    if (this.shadowCount) this.drawShadows(enc, this.gl.draws);
     const view = (toPicture ? this.picture! : this.ctx.getCurrentTexture()).createView();
     const pass = (clear: boolean, list: DrawCall[], sky: boolean) => {
       const p = enc.beginRenderPass({
@@ -903,6 +1129,12 @@ export class GpuRenderer {
     this.drawBuf.destroy();
     this.zeroUv?.destroy();
     this.picture?.destroy();
+    for (const m of this.shadowMaps) {
+      m.tex.destroy();
+      m.depth.destroy();
+    }
+    this.shadowFaceBuf?.destroy();
+    this.noShadow.destroy();
     this.failed = true;
     if (!this.offscreen) this.ctx.unconfigure();
   }

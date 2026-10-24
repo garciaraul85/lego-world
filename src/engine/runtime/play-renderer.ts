@@ -92,7 +92,11 @@ export class PlayRenderer {
     this.renderer = createSceneRenderer(canvas, drawWith);
     this.renderer.floor = false;
     // v68's character model draws through the renderer's context (WebGPU: a stand-in that writes its draws down)
-    this.chars = session.L.CharacterModel.create(this.renderer.gl as WebGLRenderingContext, FRAGMENT);
+    // (WebGL: a context that also notes what characters draw, so they cast shadows; part 3)
+    this.chars = session.L.CharacterModel.create(
+      this.renderer.kind === 'webgl' ? this.renderer.castingGl : (this.renderer.gl as unknown as WebGLRenderingContext),
+      FRAGMENT,
+    );
     this.debrisMesh = this.renderer.meshOf(brickGeometry(1, 1, 'brick', 8)) as Mesh;
   }
 
@@ -400,6 +404,7 @@ export class PlayRenderer {
     const q = QUALITY[s.quality];
     this.renderer.maxLights = q.lights;
     this.renderer.shadows = q.shadows;
+    this.renderer.maxShadows = q.shadowLights;
     this.renderer.shadowSize = q.shadowSize;
     this.renderer.detailScale = q.detailScale;
     this.renderer.pixelRatio = q.pixelRatio;

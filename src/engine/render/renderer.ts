@@ -75,10 +75,12 @@ export type Marker = {
 export type PointLight = { pos: Vec3; color: [number, number, number]; range: number; shadow?: boolean };
 /** lights drawn at once (the nearest and brightest); the first that casts shadows gets the shadow map */
 export const MAX_LIGHTS = 8;
+/** Milestone 2b, 10c part 3: lights that cast shadows at once (each has a shadow map) */
+export const MAX_SHADOWS = 4;
 const SHADOW_SIZE = 256;
 const IDENTITY = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 /** the six faces of a cube map as cameras: [face target offset, forward, right, up] (GL's cube map layout) */
-const CUBE_FACES: [number, Vec3, Vec3, Vec3][] = [
+export const CUBE_FACES: [number, Vec3, Vec3, Vec3][] = [
   [0, [1, 0, 0], [0, 0, -1], [0, -1, 0]],
   [1, [-1, 0, 0], [0, 0, 1], [0, -1, 0]],
   [2, [0, 1, 0], [1, 0, 0], [0, 0, 1]],
@@ -87,8 +89,16 @@ const CUBE_FACES: [number, Vec3, Vec3, Vec3][] = [
   [5, [0, 0, -1], [-1, 0, 0], [0, -1, 0]],
 ];
 
-/** The lights to draw this frame: the brightest near the focus first; one that casts shadows goes first. */
-export function pickLights(all: readonly PointLight[], focus: Vec3, max = MAX_LIGHTS, shadows = true): PointLight[] {
+/**
+ * The lights to draw this frame: the brightest near the focus first; the ones that cast shadows go first (up to
+ * `shadows` of them: Milestone 2b, 10c part 3 lets several cast shadows at once; true is one).
+ */
+export function pickLights(
+  all: readonly PointLight[],
+  focus: Vec3,
+  max = MAX_LIGHTS,
+  shadows: number | boolean = 1,
+): PointLight[] {
   const score = (l: PointLight) => {
     const d = Math.hypot(l.pos[0] - focus[0], l.pos[1] - focus[1], l.pos[2] - focus[2]);
     const bright = Math.max(l.color[0], l.color[1], l.color[2]);
@@ -97,9 +107,16 @@ export function pickLights(all: readonly PointLight[], focus: Vec3, max = MAX_LI
   const near = all.filter((l) => l.range > 0 && Math.max(...l.color) > 0.001);
   near.sort((a, b) => score(b) - score(a));
   const picked = near.slice(0, max);
-  const s = shadows ? picked.findIndex((l) => l.shadow) : -1;
-  if (s > 0) picked.unshift(picked.splice(s, 1)[0]!);
-  return picked;
+  const slots = shadows === true ? 1 : shadows === false ? 0 : Math.min(MAX_SHADOWS, shadows);
+  const casting = picked.filter((l) => l.shadow).slice(0, slots);
+  return [...casting, ...picked.filter((l) => !casting.includes(l))];
+}
+
+/** how many of the picked lights (at the front) cast shadows */
+export function shadowCount(lit: readonly PointLight[], slots: number): number {
+  let n = 0;
+  while (n < Math.min(slots, MAX_SHADOWS, lit.length) && lit[n]!.shadow) n++;
+  return n;
 }
 
 export type FrameStats = {
@@ -112,6 +129,8 @@ export type FrameStats = {
   lights?: number;
   maxLights?: number;
   shadowed?: boolean;
+  /** Milestone 2b, 10c part 3: how many lights cast shadows this frame */
+  shadows?: number;
 };
 
 const rgbCache = new Map<string, [number, number, number]>();
@@ -273,16 +292,96 @@ export class Renderer {
   detailScale = 1;
   pixelRatio = 2;
   groundFog = true;
-  private shadowAlloc = 0;
   /** the lights drawn in the last frame (the first casts the shadow when `shadowed`) */
   lit: PointLight[] = [];
   shadowed = false;
   private readonly shadowProg: WebGLProgram;
   private readonly shu: Record<string, WebGLUniformLocation | null>;
-  private shadowCube: WebGLTexture | null = null;
-  private shadowFbo: WebGLFramebuffer | null = null;
-  private shadowDepth: WebGLRenderbuffer | null = null;
-  private shadowKey = '';
+  /** Milestone 2b, 10c part 3: one shadow map per light that casts shadows (up to MAX_SHADOWS) */
+  private shadowMaps: {
+    cube: WebGLTexture;
+    fbo: WebGLFramebuffer;
+    depth: WebGLRenderbuffer;
+    key: string;
+    size: number;
+  }[] = [];
+  /** how many lights cast shadows this frame (the first of `lit`) */
+  shadowCount = 0;
+  /** part 3: what v68's character model drew last frame (they cast shadows), and what it draws this frame */
+  private casters: { p: WebGLBuffer; count: number; model: Float32Array }[] = [];
+  private castersNext: { p: WebGLBuffer; count: number; model: Float32Array }[] = [];
+  private recording: WebGLRenderingContext | null = null;
+
+  /**
+   * part 3: the drawing context to give v68's character model: the real one, also noting each opaque thing it
+   * draws (its shape and where), so characters cast shadows from the lights near them
+   */
+  get castingGl(): WebGLRenderingContext {
+    if (this.recording) return this.recording;
+    const gl = this.gl;
+    let buffer: WebGLBuffer | null = null;
+    let position: WebGLBuffer | null = null;
+    let posLoc = -1;
+    let modelLoc: WebGLUniformLocation | null = null;
+    let model = IDENTITY;
+    let blending = false;
+    const next = () => this.castersNext;
+    this.recording = new Proxy(gl, {
+      get(target, key) {
+        const v = Reflect.get(target, key, target);
+        if (typeof v !== 'function') return v;
+        switch (key) {
+          case 'getAttribLocation':
+            return (p: WebGLProgram, name: string) => {
+              const loc = target.getAttribLocation(p, name);
+              if (name === 'aPosition') posLoc = loc;
+              return loc;
+            };
+          case 'getUniformLocation':
+            return (p: WebGLProgram, name: string) => {
+              const loc = target.getUniformLocation(p, name);
+              if (name === 'uModel') modelLoc = loc;
+              return loc;
+            };
+          case 'bindBuffer':
+            return (t: number, b: WebGLBuffer | null) => {
+              if (t === target.ARRAY_BUFFER) buffer = b;
+              target.bindBuffer(t, b);
+            };
+          case 'vertexAttribPointer':
+            return (loc: number, ...rest: [number, number, boolean, number, number]) => {
+              if (loc === posLoc) position = buffer;
+              target.vertexAttribPointer(loc, ...rest);
+            };
+          case 'uniformMatrix4fv':
+            return (loc: WebGLUniformLocation | null, t: boolean, m: Float32Array) => {
+              if (loc && loc === modelLoc) model = new Float32Array(m);
+              target.uniformMatrix4fv(loc, t, m);
+            };
+          case 'enable':
+            return (cap: number) => {
+              if (cap === target.BLEND) blending = true;
+              target.enable(cap);
+            };
+          case 'disable':
+            return (cap: number) => {
+              if (cap === target.BLEND) blending = false;
+              target.disable(cap);
+            };
+          case 'drawArrays':
+            return (mode: number, first: number, count: number) => {
+              if (!blending && position && mode === target.TRIANGLES) next().push({ p: position, count, model });
+              target.drawArrays(mode, first, count);
+            };
+          default:
+            return v.bind(target);
+        }
+      },
+    });
+    return this.recording;
+  }
+  /** how many lights may cast shadows at once (the quality level's) */
+  maxShadows = MAX_SHADOWS;
   /** changes whenever a chunk's bricks change (the shadow map is drawn again) */
   private chunkRev = 0;
   /** uniform locations of other programs that share the brick fragment shader (characters) */
@@ -323,8 +422,11 @@ export class Renderer {
         'uPC',
         'uPLN',
         'uDark',
-        'uShadow',
-        'uShadowOn',
+        'uShadow0',
+        'uShadow1',
+        'uShadow2',
+        'uShadow3',
+        'uShadowN',
         'uShadowAt',
         'uFogMax',
         'uFogH',
@@ -606,12 +708,17 @@ export class Renderer {
     const gl = this.gl;
     this.stats = { drawCalls: 0, instances: 0, chunksDrawn: 0, chunks: this.chunks.size, ms: 0 };
     // P27: the lights near the focus; the first that casts shadows draws its shadow map first
-    this.lit = pickLights(this.lights, focus, Math.min(MAX_LIGHTS, this.maxLights), this.shadows && !!this.inst);
-    this.shadowed = !!this.lit[0]?.shadow && this.shadows && !!this.inst;
-    if (this.shadowed) this.drawShadowCube(this.lit[0]!);
+    this.casters = this.castersNext;
+    this.castersNext = [];
+    const slots = this.shadows && this.inst ? Math.min(MAX_SHADOWS, this.maxShadows) : 0;
+    this.lit = pickLights(this.lights, focus, Math.min(MAX_LIGHTS, this.maxLights), slots);
+    this.shadowCount = shadowCount(this.lit, slots);
+    this.shadowed = this.shadowCount > 0;
+    for (let i = 0; i < this.shadowCount; i++) this.drawShadowCube(this.lit[i]!, i);
     this.stats.lights = this.lit.length;
     this.stats.maxLights = Math.min(MAX_LIGHTS, this.maxLights);
     this.stats.shadowed = this.shadowed;
+    this.stats.shadows = this.shadowCount;
     const dpr = Math.min(window.devicePixelRatio || 1, this.pixelRatio);
     const w = Math.max(1, Math.round(this.canvas.clientWidth * dpr));
     const h = Math.max(1, Math.round(this.canvas.clientHeight * dpr));
@@ -771,8 +878,11 @@ export class Renderer {
           'uPC',
           'uPLN',
           'uDark',
-          'uShadow',
-          'uShadowOn',
+          'uShadow0',
+          'uShadow1',
+          'uShadow2',
+          'uShadow3',
+          'uShadowN',
           'uShadowAt',
           'uFog',
           'uFogRange',
@@ -798,52 +908,74 @@ export class Renderer {
     if (u.uFogRange) gl.uniform2f(u.uFogRange, fg.near, fg.far);
     if (u.uFogMax) gl.uniform1f(u.uFogMax, fg.max);
     if (u.uFogH) gl.uniform2f(u.uFogH, fg.height, fg.ground);
-    const sh = this.shadowed && this.shadowCube;
-    if (u.uShadowOn) gl.uniform1f(u.uShadowOn, sh ? 1 : 0);
-    if (u.uShadow) {
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_CUBE_MAP, sh ? this.shadowCube : null);
-      gl.uniform1i(u.uShadow, 1);
-      gl.activeTexture(gl.TEXTURE0);
+    const n = this.shadowed ? this.shadowCount : 0;
+    if (u.uShadowN) gl.uniform1f(u.uShadowN, n);
+    // shadow maps on texture units 1 to 4 (unit 0 is the characters' printed clothes)
+    for (let i = 0; i < MAX_SHADOWS; i++) {
+      const loc = u[`uShadow${i}`];
+      if (!loc) continue;
+      gl.activeTexture(gl.TEXTURE1 + i);
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, i < n ? this.shadowMaps[i]!.cube : null);
+      gl.uniform1i(loc, 1 + i);
     }
-    if (u.uShadowAt && sh) {
-      const l = this.lit[0]!;
-      gl.uniform4f(u.uShadowAt, l.pos[0], l.pos[1], l.pos[2], l.range);
+    gl.activeTexture(gl.TEXTURE0);
+    if (u.uShadowAt) {
+      const at = new Float32Array(MAX_SHADOWS * 4);
+      for (let i = 0; i < n; i++) {
+        const l = this.lit[i]!;
+        at.set([l.pos[0], l.pos[1], l.pos[2], l.range], i * 4);
+      }
+      gl.uniform4fv(u.uShadowAt, at);
     }
   }
 
-  /** P27: the distance from the light to the nearest brick in every direction, drawn again when it or the bricks change */
-  private drawShadowCube(light: PointLight) {
+  /**
+   * P27: the distance from a light to the nearest brick in every direction, drawn again when it or the bricks
+   * change (Milestone 2b, 10c part 3: one map per shadow-casting light, in slot `slot`)
+   */
+  private drawShadowCube(light: PointLight, slot: number) {
     const gl = this.gl;
-    const key = `${light.pos.map((v) => v.toFixed(2)).join(',')}|${light.range}|${this.chunkRev}`;
+    // part 3: characters near the light cast shadows too (as drawn last frame)
+    const casters = this.casters.filter(
+      (c) =>
+        Math.hypot(c.model[12]! - light.pos[0], c.model[13]! - light.pos[1], c.model[14]! - light.pos[2]) <
+        light.range + 3,
+    );
+    const key = `${light.pos.map((v) => v.toFixed(2)).join(',')}|${light.range}|${this.chunkRev}|${casters
+      .map(
+        (c) =>
+          `${c.model[12]!.toFixed(2)},${c.model[13]!.toFixed(2)},${c.model[14]!.toFixed(2)},${c.model[0]!.toFixed(2)}`,
+      )
+      .join(';')}`;
     const size = this.shadowSize;
-    if (key === this.shadowKey && this.shadowCube && size === this.shadowAlloc) return;
-    this.shadowKey = key;
+    let map = this.shadowMaps[slot];
+    if (map && key === map.key && size === map.size) return;
     // a quality change asks for another size: make the map again
-    if (this.shadowCube && size !== this.shadowAlloc) {
-      gl.deleteTexture(this.shadowCube);
-      gl.deleteFramebuffer(this.shadowFbo);
-      gl.deleteRenderbuffer(this.shadowDepth);
-      this.shadowCube = null;
+    if (map && size !== map.size) {
+      gl.deleteTexture(map.cube);
+      gl.deleteFramebuffer(map.fbo);
+      gl.deleteRenderbuffer(map.depth);
+      map = undefined;
     }
-    if (!this.shadowCube) {
-      this.shadowAlloc = size;
-      this.shadowCube = gl.createTexture()!;
-      gl.bindTexture(gl.TEXTURE_CUBE_MAP, this.shadowCube);
+    if (!map) {
+      const cube = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, cube);
       for (let f = 0; f < 6; f++)
         gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
       gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      this.shadowFbo = gl.createFramebuffer()!;
-      this.shadowDepth = gl.createRenderbuffer()!;
-      gl.bindRenderbuffer(gl.RENDERBUFFER, this.shadowDepth);
+      const depth = gl.createRenderbuffer()!;
+      gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
       gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, size, size);
+      map = { cube, fbo: gl.createFramebuffer()!, depth, key: '', size };
+      this.shadowMaps[slot] = map;
     }
+    map.key = key;
     gl.useProgram(this.shadowProg);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFbo);
-    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.shadowDepth);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, map.fbo);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, map.depth);
     gl.viewport(0, 0, size, size);
     gl.enable(gl.DEPTH_TEST);
     gl.disable(gl.BLEND);
@@ -865,13 +997,7 @@ export class Renderer {
         light.pos[2] < c.max[2] + r,
     );
     for (const [face, fwd, right, up] of CUBE_FACES) {
-      gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_CUBE_MAP_POSITIVE_X + face,
-        this.shadowCube,
-        0,
-      );
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + face, map.cube, 0);
       // nothing in a direction: as far as the light reaches
       gl.clearColor(1, 1, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -881,6 +1007,20 @@ export class Renderer {
       for (const c of near) {
         if (!boxVisible(planes, c.min, c.max)) continue;
         for (const b of c.batches) this.drawInstanced(this.shape(b.w, b.d, b.kind, b.paved), b.buffer, b.count);
+      }
+      if (casters.length) {
+        gl.uniform1f(u.uInstances!, 0);
+        gl.disableVertexAttribArray(this.a.n);
+        for (const c of casters) {
+          gl.uniformMatrix4fv(u.uModel!, false, c.model);
+          gl.bindBuffer(gl.ARRAY_BUFFER, c.p);
+          gl.enableVertexAttribArray(this.a.p);
+          gl.vertexAttribPointer(this.a.p, 3, gl.FLOAT, false, 0, 0);
+          gl.drawArrays(gl.TRIANGLES, 0, c.count);
+          this.stats.drawCalls++;
+        }
+        gl.uniformMatrix4fv(u.uModel!, false, IDENTITY);
+        gl.uniform1f(u.uInstances!, 1);
       }
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);

@@ -140,6 +140,41 @@ test('the Scene drawn with WebGPU matches WebGL (daylight; dark with a torch, fo
     });
   });
   await compare(page, 'scene-dark');
+  // part 3: two lights casting shadows at once, the same both ways
+  await page.evaluate(() => {
+    const e = (
+      window as unknown as {
+        __editor: { mapId: { value: string }; exec(c: unknown): { ok: boolean; error?: string } };
+      }
+    ).__editor;
+    const map = e.mapId.value;
+    e.exec({ type: 'map.setEnvironment', payload: { map, darkness: 0.85, fog: null } });
+    for (const [id, pos, color] of [
+      ['ins_gpushadow1', [6, 9, -6], '#ffd08a'],
+      ['ins_gpushadow2', [-6, 9, 6], '#9ad0ff'],
+    ] as const)
+      e.exec({
+        type: 'item.add',
+        payload: {
+          map,
+          item: {
+            id,
+            kind: 'light',
+            name: id,
+            pos,
+            on: true,
+            light: { color, brightness: 2.4, range: 40, flicker: 0, shadow: true },
+          },
+        },
+      });
+  });
+  await compare(page, 'scene-shadows');
+  const shadows = await page.evaluate(
+    () =>
+      (window as unknown as { __view: () => { renderer: { stats: { shadows?: number } } } | null }).__view()!.renderer
+        .stats.shadows,
+  );
+  expect(shadows).toBe(2);
   expect(errors).toEqual([]);
 });
 
