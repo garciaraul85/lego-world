@@ -275,12 +275,12 @@ export const SCENE: HelpEntry[] = [
     kind: 'view',
     name: 'Library categories',
     purpose:
-      'Assets, Characters, Cinematics, UI screens, Effects, Lights, Water, Sounds and Music: pick what the library shows. (Bricks are in the Assets screen, where assets are built.)',
+      'Assets, Characters, Cinematics, UI screens, Effects, Lights, Water, 3D models, Sounds and Music: pick what the library shows. (Bricks are in the Assets screen, where assets are built.)',
     match: [
       {
         in: DOCK,
         role: 'button',
-        name: /^(Assets|Characters|Cinematics|UI screens|Effects|Lights|Water|Sounds|Music) \d+$/,
+        name: /^(Assets|Characters|Cinematics|UI screens|Effects|Lights|Water|3D models|Sounds|Music) \d+$/,
       },
     ],
   },
