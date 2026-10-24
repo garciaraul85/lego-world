@@ -662,7 +662,7 @@ function QualityField({ c }: { c: ActionCtx }) {
 }
 
 export const MOVEMENT_HELP =
-  'How the hero moves. Classic is v68’s original walking: it stops dead at bricks in the way. Physics walks the hero with the physics engine: the same speeds and jump, but it slides along walls instead of snagging, steps up plates, pushes loose things and stands on them, riding a crate as it floats down a river. Try both in Play.';
+  'How the hero moves. Classic is v68’s original walking: it stops dead at bricks in the way. Physics walks the hero with the physics engine: the same speeds and jump, but it slides along walls instead of snagging, steps up plates, pushes loose things and stands on them, riding a crate as it floats down a river. New projects start with Physics; projects made before keep Classic. Try both in Play.';
 
 /** Milestone 2b, 10b part 3: how the hero moves (classic v68, or walked by the physics engine) */
 function MovementField({ c }: { c: ActionCtx }) {

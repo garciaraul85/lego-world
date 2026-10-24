@@ -13,7 +13,9 @@ type Ed = {
   };
 };
 
-test('Project › Movement: Physics walks and jumps the hero in Play; Classic is still there', async ({ page }) => {
+test('Project › Movement: new projects walk with Physics (walks and jumps the hero in Play); Classic is still there', async ({
+  page,
+}) => {
   test.setTimeout(600_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -25,6 +27,9 @@ test('Project › Movement: Physics walks and jumps the hero in Play; Classic is
   );
   await page.locator('[data-tour="tab-project"]').click();
   const field = page.locator('[data-tour="project-movement"] select');
+  // new projects walk with physics; Classic is still there
+  await expect(field).toHaveValue('physics');
+  await field.selectOption('classic');
   await expect(field).toHaveValue('classic');
   await field.selectOption('physics');
   await expect

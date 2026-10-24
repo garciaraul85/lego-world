@@ -63,7 +63,7 @@ export const PHYSICS: HelpEntry[] = [
     kind: 'setting',
     name: 'Movement',
     purpose:
-      'How the hero moves. **Classic (v68)** is the original walking: it stops dead at bricks in the way. **Physics** walks the hero with the physics engine: the same speeds and the same jump, but it slides along walls and corners instead of snagging, steps up a plate, pushes **loose** things, stands on them and rides them (a crate floating down a river carries the hero). Characters other than the hero still walk the classic way.',
+      'How the hero moves. **Classic (v68)** is the original walking: it stops dead at bricks in the way. **Physics** walks the hero with the physics engine: the same speeds and the same jump, but it slides along walls and corners instead of snagging, steps up a plate, pushes **loose** things, stands on them and rides them (a crate floating down a river carries the hero). New projects start with Physics; projects made before it (and imported v68 builds) keep Classic. Characters other than the hero still walk the classic way.',
     steps: [
       'Open the **Project** tab of the Inspector.',
       'Pick **Movement**: Classic (v68) or Physics.',

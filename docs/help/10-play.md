@@ -57,7 +57,7 @@ Smashed things that can be rebuilt show where they go back: their bricks float t
 - **Classic (v68)** — the original walking. The hero stops dead at bricks in the way and can't stand on loose things.
 - **Physics** — the physics engine walks the hero, with the same speeds and the same jump. The hero slides along walls and corners instead of snagging, steps up a plate, and pushes loose things over. It can also stand on them and ride them: jump onto a crate floating down a river and it carries the hero along.
 
-Other characters still walk the classic way. The **Water and physics course** (Help menu) tries both.
+New projects start with **Physics**; projects made before it, and imported v68 builds, keep **Classic**. Other characters still walk the classic way. The **Water and physics course** (Help menu) tries both.
 
 ## The play bar
 

@@ -55,7 +55,8 @@ export function newProjectFiles(o: NewProjectOptions): Map<string, unknown> {
   files.set(paths.state(mapId), { broken: [], player: null } satisfies MapState);
   files.set(paths.instances(mapId), { npcsSaved: false, items } satisfies Instances);
   files.set(paths.gates, { gates: [], mapOrder: [mapId] } satisfies Gates);
-  files.set(paths.settings, { quality: 'auto', legacy: { characters: false } } satisfies Settings);
+  // Milestone 2b: new projects walk the hero with the physics engine (projects made before keep v68's walking)
+  files.set(paths.settings, { quality: 'auto', movement: 'physics', legacy: { characters: false } } satisfies Settings);
   const project: Project = {
     format: 'brickworlds-project',
     schema: 6,

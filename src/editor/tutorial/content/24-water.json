@@ -259,7 +259,7 @@
       "id": "water.movement",
       "title": "Physics movement",
       "body": "Classic movement is v68's original walking: it stops dead at bricks and can't stand on loose things. Physics movement walks the hero with the physics engine: the same speeds and jump, but it slides along walls, pushes loose things and rides them.",
-      "task": "On the Project tab, set Movement to Physics.",
+      "task": "On the Project tab, check that Movement is Physics (new projects start with it).",
       "target": "[data-tour=\"project-movement\"]",
       "check": {
         "kind": "state",
