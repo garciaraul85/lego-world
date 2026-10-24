@@ -58,7 +58,14 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       });
       // P27 part 3c: maps load in steps behind a loading screen; the maps ahead load a little each frame
       s.asyncLoads = true;
-      pr = new PlayRenderer(canvas, s);
+      // Milestone 2b, 10c: drawn with what the 3D views are drawn with (Draw with)
+      pr = new PlayRenderer(canvas, s, ed.drawWith.value);
+      if (pr.renderer.kind === 'webgpu')
+        pr.renderer.onFail = (why) => {
+          console.warn('WebGPU could not show the game:', why);
+          ed.gpuWorks.value = false;
+          ed.notify('WebGPU could not show the game in this browser: stop and play again to draw it with WebGL.', true);
+        };
       prRef.current = pr;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

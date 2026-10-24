@@ -9,7 +9,8 @@ import { brickGeometry } from '../render/brick-geometry';
 import type { CameraFrame } from '../render/camera';
 import { cross, normalize, type Vec3 } from '../render/math';
 import { drawCharacter } from '../render/place-character';
-import { type LineSet, type Marker, type Mesh, type Overlay, type RenderBrick, Renderer } from '../render/renderer';
+import type { LineSet, Marker, Mesh, Overlay, RenderBrick } from '../render/renderer';
+import { createSceneRenderer, type RendererChoice, type SceneRenderer } from '../render/scene-renderer';
 import { FRAGMENT } from '../render/shaders';
 import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../render/stream';
 import { waterMarker } from '../render/water';
@@ -67,7 +68,7 @@ export function poseMatrix(
 
 /** Draws a PlaySession: bricks (chunked), v68 characters and debris, play camera, debug overlays. */
 export class PlayRenderer {
-  readonly renderer: Renderer;
+  readonly renderer: SceneRenderer;
   private chars: CharacterRenderer;
   private debrisMesh: Mesh;
   private shown: MapWorld | null = null;
@@ -85,11 +86,14 @@ export class PlayRenderer {
   constructor(
     canvas: HTMLCanvasElement,
     private readonly session: PlaySession,
+    /** Milestone 2b, 10c: WebGPU or WebGL (WebGL where WebGPU is missing) */
+    drawWith: RendererChoice = 'auto',
   ) {
-    this.renderer = new Renderer(canvas);
+    this.renderer = createSceneRenderer(canvas, drawWith);
     this.renderer.floor = false;
-    this.chars = session.L.CharacterModel.create(this.renderer.gl, FRAGMENT);
-    this.debrisMesh = this.renderer.meshOf(brickGeometry(1, 1, 'brick', 8));
+    // v68's character model draws through the renderer's context (WebGPU: a stand-in that writes its draws down)
+    this.chars = session.L.CharacterModel.create(this.renderer.gl as WebGLRenderingContext, FRAGMENT);
+    this.debrisMesh = this.renderer.meshOf(brickGeometry(1, 1, 'brick', 8)) as Mesh;
   }
 
   /** v68's play camera: behind the hero, pulled in when a wall is in the way. */
@@ -411,7 +415,8 @@ export class PlayRenderer {
         const c = this.chars;
         c.begin(mvp, eye, sky);
         // P27: characters are lit by the same lights as the bricks
-        this.renderer.applyLights(this.renderer.gl.getParameter(this.renderer.gl.CURRENT_PROGRAM));
+        if (this.renderer.kind === 'webgl')
+          this.renderer.applyLights(this.renderer.gl.getParameter(this.renderer.gl.CURRENT_PROGRAM));
         // a character playing a clip (a cinematic, an emote) is drawn where it stands
         const frame = { mvp, eye: eye as number[], light: sky };
         const draw = (profile: Record<string, unknown>, state: HeroState) =>

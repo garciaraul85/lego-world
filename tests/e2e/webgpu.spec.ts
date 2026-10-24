@@ -155,20 +155,19 @@ test('the choice of WebGPU is kept for the next time', async ({ page }) => {
   await expect.poll(async () => (await view(page))?.kind, { timeout: 30_000 }).toBe('webgl');
 });
 
-test('a browser that cannot show WebGPU falls back to WebGL with a message', async ({ page }) => {
+test('a browser that cannot show WebGPU draws with WebGL, and Draw with says so', async ({ page }) => {
   test.setTimeout(300_000);
+  // this machine's browser draws WebGPU but cannot show it: found out at start-up with a tiny try
   await open(page, '/editor.html?nohub');
-  const toasts: string[] = [];
-  await page.exposeFunction('__toast', (t: string) => toasts.push(t));
-  await page.evaluate(() => {
-    const e = (window as unknown as { __editor: { toast: { subscribe(f: (v: unknown) => void): void } } }).__editor;
-    e.toast.subscribe((v) => v && (window as unknown as { __toast(t: string): void }).__toast(JSON.stringify(v)));
-  });
-  await page.getByLabel('Draw with').selectOption('webgpu');
-  // this machine's browser cannot show it: WebGL draws, and says so
-  await expect.poll(async () => (await view(page))?.kind, { timeout: 60_000 }).toBe('webgl');
-  await expect.poll(() => toasts.join(' '), { timeout: 30_000 }).toContain('WebGPU could not show');
   await expect(page.locator('[data-tour="draw-with"] option[value="webgpu"]')).toHaveText(
     /not working in this browser/,
   );
+  await expect(page.locator('[data-tour="draw-with"] option[value="webgpu"]')).toBeDisabled();
+  await expect.poll(async () => (await view(page))?.kind).toBe('webgl');
+  // a choice of WebGPU kept from another computer still draws with WebGL here
+  await page.evaluate(() =>
+    (window as unknown as { __editor: { setDrawWith(c: string): void } }).__editor.setDrawWith('webgpu'),
+  );
+  await page.waitForTimeout(1000);
+  await expect.poll(async () => (await view(page))?.kind).toBe('webgl');
 });

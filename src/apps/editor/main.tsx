@@ -33,6 +33,7 @@ import { EditorState } from '../../editor/state';
 import { activeView } from '../../editor/viewport/active';
 import { initPhysics } from '../../engine/physics/physics';
 import { gpuReady, initGpu, setGpuOffscreen } from '../../engine/render/gpu/gpu-renderer';
+import { PlayRenderer } from '../../engine/runtime/play-renderer';
 import '../../editor/theme.css';
 import { saveFile } from '../../platform/downloads';
 import { IdbBackend } from '../../platform/idb-backend';
@@ -216,6 +217,8 @@ async function boot() {
   (window as unknown as { __editor: EditorState }).__editor = ed;
   // e2e: the 3D view last worked in (its camera and what draws it)
   (window as unknown as { __view: typeof activeView }).__view = activeView;
+  // e2e: draw a game in a canvas of the test's own (WebGL against WebGPU)
+  (window as unknown as { __PlayRenderer: typeof PlayRenderer }).__PlayRenderer = PlayRenderer;
   // the built-in asset library, for e2e tests that place a built-in asset by name
   (window as unknown as { __builtinAssets: typeof BUILTIN_ASSETS }).__builtinAssets = BUILTIN_ASSETS;
   // e2e helpers: place a built-in asset the way the dock does

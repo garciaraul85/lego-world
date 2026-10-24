@@ -16,7 +16,9 @@ The buttons in the top-right corner of the 3D view: ◎ focuses on the selection
 
 - **WebGL** — the long-standing way. It works in every browser.
 - **WebGPU** — the newer way to use the graphics card. The picture is the same, and later it brings more lights with shadows, reflecting water and faster big maps.
-- **Auto** — uses WebGL for now, because Play still draws characters with WebGL.
+- **Auto** — uses WebGL for now, until WebGPU has been tried on more computers.
+
+WebGPU draws the Scene and Play, characters included. The Director's previews and the studios still use WebGL for now.
 
 The choice is kept in this browser, not in the project. If WebGPU can't show the view on this computer, WebGL draws it instead and a message says so.
 

@@ -171,3 +171,102 @@ fn hash(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(127.1, 311.7)) + S.b.y)
   return vec4f(c * (1.0 - S.b.w * 0.9), 1.0);
 }
 `;
+
+/**
+ * part 2: v68's characters, from the model's own shader (the brick one with printed clothes and faces): each draw
+ * brings its own view (a clip pose is placed by its matrix), eye, sky light and ambient; the frame brings the fog,
+ * the point lights and the darkness.
+ */
+export const CHAR_WGSL = /* wgsl */ `
+struct Frame {
+  mvp: mat4x4f,
+  eye: vec4f,
+  light: vec4f,
+  ambient: vec4f,
+  fog: vec4f,
+  fogRange: vec4f,
+  misc: vec4f,
+  pl: array<vec4f, 8>,
+  pc: array<vec4f, 8>,
+};
+struct CharDraw {
+  model: mat4x4f,
+  // alpha, flat, paint, night
+  flags: vec4f,
+  color: vec4f,
+  mvp: mat4x4f,
+  eye: vec4f,
+  light: vec4f,
+  ambient: vec4f,
+};
+@group(0) @binding(0) var<uniform> F: Frame;
+@group(1) @binding(0) var<uniform> D: CharDraw;
+@group(2) @binding(0) var tex: texture_2d<f32>;
+@group(2) @binding(1) var samp: sampler;
+
+struct VOut {
+  @builtin(position) pos: vec4f,
+  @location(0) normal: vec3f,
+  @location(1) world: vec3f,
+  @location(2) uv: vec2f,
+};
+
+@vertex fn vs(@location(0) pos: vec3f, @location(1) normal: vec3f, @location(2) uv: vec2f) -> VOut {
+  var o: VOut;
+  o.world = (D.model * vec4f(pos, 1.0)).xyz;
+  o.normal = mat3x3f(D.model[0].xyz, D.model[1].xyz, D.model[2].xyz) * normal;
+  o.uv = uv;
+  var c = D.mvp * vec4f(o.world, 1.0);
+  c.z = (c.z + c.w) * 0.5;
+  o.pos = c;
+  return o;
+}
+
+fn pointLights(n: vec3f, p: vec3f) -> vec3f {
+  var sum = vec3f(0.0);
+  let count = i32(F.misc.w);
+  for (var i = 0; i < 8; i++) {
+    if (i >= count) { break; }
+    let L = F.pl[i].xyz - p;
+    let dist = max(length(L), 0.001);
+    var a = clamp(1.0 - dist / F.pl[i].w, 0.0, 1.0);
+    a = a * a;
+    if (a <= 0.0) { continue; }
+    let diff = max(dot(n, L / dist), 0.0) * 0.8 + 0.2;
+    sum += F.pc[i].rgb * a * diff;
+  }
+  return sum;
+}
+
+@fragment fn fs(in: VOut) -> @location(0) vec4f {
+  let alpha = D.flags.x;
+  let color = D.color.rgb;
+  if (D.flags.y > 0.5) { return vec4f(color, alpha); }
+  let paint = D.flags.z;
+  let night = D.flags.w;
+  let snow = F.misc.x;
+  let dark = F.misc.z;
+  let n = normalize(in.normal);
+  let p = in.world;
+  let v = normalize(D.eye.xyz - p);
+  let l = normalize(D.light.xyz);
+  let l2 = normalize(vec3f(5.0, 2.0, -4.0));
+  let d = max(dot(n, l), 0.0);
+  let d2 = max(dot(n, l2), 0.0);
+  let spec = pow(max(dot(n, normalize(l + v)), 0.0), 48.0);
+  let rim = pow(1.0 - max(dot(n, v), 0.0), 3.0);
+  let decal = textureSample(tex, samp, in.uv);
+  let material = mix(color, pow(decal.rgb, vec3f(1.5)), decal.a * paint);
+  let base = mix(material, vec3f(0.93, 0.97, 1.0), snow * smoothstep(0.55, 0.97, n.y) * 0.95);
+  let lit = 1.0 - dark * 0.94;
+  var c = base * ((D.ambient.rgb + d * mix(0.70, 0.24, night) + d2 * 0.20) * lit + pointLights(n, p))
+    + (vec3f(0.9, 0.93, 1.0) * spec * 0.23 * (1.0 - decal.a * paint * 0.55) + vec3f(0.14, 0.20, 0.30) * rim * 0.12) * lit;
+  let lamp = step(0.7, color.r) * step(0.5, color.g) * (1.0 - step(0.25, color.b));
+  c += color * lamp * night * 0.6;
+  let fdist = length(D.eye.xyz - p);
+  var fog = smoothstep(F.fogRange.x, F.fogRange.y, fdist) * F.fog.w;
+  fog = max(fog, F.fogRange.w * (1.0 - smoothstep(F.fogRange.z - 1.5, F.fogRange.z + 0.5, p.y)) * smoothstep(1.0, 12.0, fdist));
+  c = mix(pow(max(c, vec3f(0.0)), vec3f(0.8)), F.fog.rgb, fog);
+  return vec4f(c, alpha);
+}
+`;

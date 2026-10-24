@@ -20,7 +20,8 @@ import {
   pickLights,
   type RenderBrick,
 } from '../renderer';
-import { BRICK_WGSL, SKY_WGSL } from './shaders.wgsl';
+import { GlShim, type ShimBuffer, type ShimDraw } from './gl-shim';
+import { BRICK_WGSL, CHAR_WGSL, SKY_WGSL } from './shaders.wgsl';
 
 /**
  * Milestone 2b, 10c part 1: the WebGPU renderer. It draws what the WebGL renderer draws for a scene — the sky,
@@ -46,6 +47,11 @@ export function initGpu(): Promise<boolean> {
       if (!adapter) return false;
       const device = await adapter.requestDevice();
       gpu = { adapter, device, format: navigator.gpu.getPreferredCanvasFormat() };
+      // can this browser show what WebGPU draws on a page? (some draw it but cannot show it): a tiny try first
+      if (!offscreen && !(await canShow(device, gpu.format))) {
+        gpuBroken = true;
+        return false;
+      }
       device.lost.then(() => {
         gpu = null;
         gpuLoading = null;
@@ -56,6 +62,32 @@ export function initGpu(): Promise<boolean> {
     }
   })();
   return gpuLoading;
+}
+
+async function canShow(device: GPUDevice, format: GPUTextureFormat): Promise<boolean> {
+  try {
+    const c = document.createElement('canvas');
+    c.width = 4;
+    c.height = 4;
+    const ctx = c.getContext('webgpu');
+    if (!ctx) return false;
+    ctx.configure({ device, format, alphaMode: 'opaque' });
+    const enc = device.createCommandEncoder();
+    enc
+      .beginRenderPass({
+        colorAttachments: [{ view: ctx.getCurrentTexture().createView(), loadOp: 'clear', storeOp: 'store' }],
+      })
+      .end();
+    device.queue.submit([enc.finish()]);
+    await Promise.race([
+      device.queue.onSubmittedWorkDone(),
+      new Promise((_, no) => setTimeout(() => no(new Error('no answer')), 3000)),
+    ]);
+    ctx.unconfigure();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** WebGPU is ready to draw with in this browser (and has not failed to show a picture here) */
@@ -103,6 +135,8 @@ type DrawCall = {
   slot: number;
   /** drawn after the depth is cleared (gizmo handles) */
   top?: boolean;
+  /** part 2: a draw of v68's character model */
+  char?: ShimDraw;
 };
 
 export class GpuRenderer {
@@ -129,11 +163,22 @@ export class GpuRenderer {
   /** offscreen: the picture drawn into (tests), else the page's canvas */
   private readonly offscreen = offscreen;
   private picture: GPUTexture | null = null;
-  private last: [CameraFrame, Vec3, Overlay[], LineSet[], Marker[]] | null = null;
+  private last: [CameraFrame, Vec3, Overlay[], LineSet[], Marker[], ((mvp: Float32Array, eye: Vec3) => void)?] | null =
+    null;
   private watched = false;
   /** called once if what WebGPU draws cannot be shown (the view starts again with WebGL) */
   onFail: ((why: string) => void) | null = null;
   private meshes = new Map<string, GpuMesh>();
+  /** part 2: what v68's character model draws with (it thinks it is a WebGL context) */
+  readonly gl: GlShim;
+  private readonly charLayout: GPUBindGroupLayout;
+  private readonly texLayout: GPUBindGroupLayout;
+  private readonly sampler: GPUSampler;
+  private charGroup: GPUBindGroup;
+  private readonly charPipes: Record<'none' | 'alpha' | 'add', GPURenderPipeline>;
+  private readonly blankTexture: GPUBindGroup;
+  private zeroUv: GPUBuffer | null = null;
+  private zeroUvBytes = 0;
   private chunks = new Map<string, GpuChunk>();
 
   // the same settings as the WebGL renderer
@@ -199,6 +244,32 @@ export class GpuRenderer {
       entries: [{ binding: 0, resource: { buffer: this.skyBuf } }],
     });
     this.drawGroup = this.makeDrawGroup();
+    // part 2: characters
+    this.charLayout = d.createBindGroupLayout({
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+          buffer: { hasDynamicOffset: true, minBindingSize: 208 },
+        },
+      ],
+    });
+    this.texLayout = d.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+        { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+      ],
+    });
+    this.sampler = d.createSampler({ magFilter: 'nearest', minFilter: 'nearest' });
+    this.charGroup = this.makeCharGroup();
+    const blank = d.createTexture({
+      size: [1, 1],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    });
+    d.queue.writeTexture({ texture: blank }, new Uint8Array([255, 255, 255, 0]), { bytesPerRow: 4 }, [1, 1]);
+    this.blankTexture = this.textureGroup(blank);
+    this.gl = new GlShim(d, (t) => this.textureGroup(t));
     const brick = d.createShaderModule({ code: BRICK_WGSL });
     const sky = d.createShaderModule({ code: SKY_WGSL });
     const layout = d.createPipelineLayout({ bindGroupLayouts: [frameLayout, this.drawLayout] });
@@ -261,7 +332,75 @@ export class GpuRenderer {
         multisample: { count: SAMPLES },
       }),
     };
+    const charModule = d.createShaderModule({ code: CHAR_WGSL });
+    const charLayoutP = d.createPipelineLayout({ bindGroupLayouts: [frameLayout, this.charLayout, this.texLayout] });
+    const charPipe = (mode: 'none' | 'alpha' | 'add') =>
+      d.createRenderPipeline({
+        layout: charLayoutP,
+        vertex: {
+          module: charModule,
+          entryPoint: 'vs',
+          buffers: [
+            { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] },
+            { arrayStride: 12, attributes: [{ shaderLocation: 1, offset: 0, format: 'float32x3' }] },
+            { arrayStride: 8, attributes: [{ shaderLocation: 2, offset: 0, format: 'float32x2' }] },
+          ],
+        },
+        fragment: {
+          module: charModule,
+          entryPoint: 'fs',
+          targets: [
+            {
+              format: this.format,
+              ...(mode === 'none'
+                ? {}
+                : {
+                    blend: {
+                      color: { srcFactor: 'src-alpha', dstFactor: mode === 'add' ? 'one' : 'one-minus-src-alpha' },
+                      alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+                    },
+                  }),
+            },
+          ],
+        },
+        primitive: { topology: 'triangle-list', cullMode: 'none' },
+        depthStencil: { format: 'depth24plus', depthWriteEnabled: mode === 'none', depthCompare: 'less' },
+        multisample: { count: SAMPLES },
+      });
+    this.charPipes = { none: charPipe('none'), alpha: charPipe('alpha'), add: charPipe('add') };
   }
+
+  private makeCharGroup() {
+    return this.device.createBindGroup({
+      layout: this.charLayout,
+      entries: [{ binding: 0, resource: { buffer: this.drawBuf, size: 208 } }],
+    });
+  }
+
+  private textureGroup(t: GPUTexture): GPUBindGroup {
+    return this.device.createBindGroup({
+      layout: this.texLayout,
+      entries: [
+        { binding: 0, resource: t.createView() },
+        { binding: 1, resource: this.sampler },
+      ],
+    });
+  }
+
+  /** a mesh v68's character model can draw (debris): its buffers, as the model's WebGL buffers */
+  meshOf(g: Geometry): { p: ShimBuffer; n: ShimBuffer; count: number } {
+    const gl = this.gl;
+    const p = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, p);
+    gl.bufferData(gl.ARRAY_BUFFER, g.positions);
+    const n = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, n);
+    gl.bufferData(gl.ARRAY_BUFFER, g.normals);
+    return { p, n, count: g.positions.length / 3 };
+  }
+
+  /** the frame's lights reach the characters through the frame's settings (nothing to set per program) */
+  applyLights(_prog?: unknown) {}
 
   get instanced(): boolean {
     return true;
@@ -404,9 +543,8 @@ export class GpuRenderer {
     markers: Marker[] = [],
     extra?: (mvp: Float32Array, eye: Vec3) => void,
   ): FrameStats {
-    void extra; // characters are drawn by WebGL only until part 2
-    this.last = [cam, focus, overlays, lines, markers];
-    return this.draw(cam, focus, overlays, lines, markers, this.offscreen);
+    this.last = [cam, focus, overlays, lines, markers, extra];
+    return this.draw(cam, focus, overlays, lines, markers, this.offscreen, extra);
   }
 
   private draw(
@@ -416,6 +554,7 @@ export class GpuRenderer {
     lines: LineSet[],
     markers: Marker[],
     toPicture: boolean,
+    extra?: (mvp: Float32Array, eye: Vec3) => void,
   ): FrameStats {
     const t0 = performance.now();
     this.stats = { drawCalls: 0, instances: 0, chunksDrawn: 0, chunks: this.chunks.size, ms: 0 };
@@ -456,6 +595,12 @@ export class GpuRenderer {
     const slot = (model: Float32Array, alpha: number, flat: boolean, floor: boolean, pav: boolean, color?: Vec3) => {
       const base = slots.length;
       slots.push(...model, alpha, flat ? 1 : 0, floor ? 1 : 0, pav ? 1 : 0, ...(color ?? [0, 0, 0]), 1);
+      for (let i = slots.length - base; i < DRAW_SIZE / 4; i++) slots.push(0);
+      return base / (DRAW_SIZE / 4);
+    };
+    const rawSlot = (values: number[]) => {
+      const base = slots.length;
+      slots.push(...values);
       for (let i = slots.length - base; i < DRAW_SIZE / 4; i++) slots.push(0);
       return base / (DRAW_SIZE / 4);
     };
@@ -547,6 +692,39 @@ export class GpuRenderer {
         slot: slot(IDENTITY, 1, true, false, false, set.color),
       });
     }
+    // part 2: the characters (and debris) drawn by v68's character model, as written down by the stand-in context
+    if (extra) {
+      this.gl.frame();
+      extra(mvp, cam.eye);
+      let uvBytes = 0;
+      for (const d of this.gl.draws) if (!d.uv) uvBytes = Math.max(uvBytes, d.count * 8);
+      if (uvBytes > this.zeroUvBytes) {
+        this.zeroUv?.destroy();
+        this.zeroUvBytes = Math.max(uvBytes, 4096);
+        this.zeroUv = this.device.createBuffer({ size: this.zeroUvBytes, usage: GPUBufferUsage.VERTEX });
+      }
+      for (const d of this.gl.draws)
+        calls.push({
+          pipe: this.charPipes[d.blend],
+          char: d,
+          slot: rawSlot([
+            ...d.model,
+            d.alpha,
+            d.flat,
+            d.paint,
+            d.night,
+            ...d.color,
+            1,
+            ...d.mvp,
+            ...d.eye,
+            0,
+            ...d.light,
+            0,
+            ...d.ambient,
+            0,
+          ]),
+        });
+    }
     for (const m of markers)
       if (m.onTop)
         calls.push({
@@ -567,6 +745,7 @@ export class GpuRenderer {
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       });
       this.drawGroup = this.makeDrawGroup();
+      this.charGroup = this.makeCharGroup();
     }
     if (slots.length) this.device.queue.writeBuffer(this.drawBuf, 0, new Float32Array(slots));
     this.instBuf = this.grow(this.instBuf, this.instCap, inst.length * 4, (c) => (this.instCap = c));
@@ -604,6 +783,17 @@ export class GpuRenderer {
       p.setBindGroup(0, this.frameGroup);
       for (const c of list) {
         p.setPipeline(c.pipe);
+        if (c.char) {
+          const d = c.char;
+          p.setBindGroup(1, this.charGroup, [c.slot * DRAW_SIZE]);
+          p.setBindGroup(2, d.texture?.group ?? this.blankTexture);
+          p.setVertexBuffer(0, d.p.gpu!);
+          p.setVertexBuffer(1, d.n.gpu!);
+          p.setVertexBuffer(2, d.uv?.gpu ?? this.zeroUv!);
+          p.draw(d.count);
+          this.stats.drawCalls++;
+          continue;
+        }
         p.setBindGroup(1, this.drawGroup, [c.slot * DRAW_SIZE]);
         if (c.line) {
           p.setVertexBuffer(0, this.lineBuf!, c.line.offset);
@@ -648,7 +838,8 @@ export class GpuRenderer {
   /** the last frame as a picture (RGBA, top row first): drawn again off the page and read back */
   async snapshot(): Promise<{ width: number; height: number; rgba: Uint8Array }> {
     if (!this.last) throw new Error('Nothing has been drawn yet.');
-    this.draw(...this.last, true);
+    const [c, f, o, l, m, x] = this.last;
+    this.draw(c, f, o, l, m, true, x);
     const [w, h] = this.size as [number, number];
     const row = Math.ceil((w * 4) / 256) * 256;
     const buf = this.device.createBuffer({ size: row * h, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
@@ -710,6 +901,7 @@ export class GpuRenderer {
     this.instBuf?.destroy();
     this.lineBuf?.destroy();
     this.drawBuf.destroy();
+    this.zeroUv?.destroy();
     this.picture?.destroy();
     this.failed = true;
     if (!this.offscreen) this.ctx.unconfigure();

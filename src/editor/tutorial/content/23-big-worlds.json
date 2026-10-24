@@ -451,7 +451,7 @@
     {
       "id": "big.drawwith",
       "title": "Draw with WebGPU",
-      "body": "WebGPU is the newer way to use the graphics card: the same picture, and later more lights with shadows, reflecting water and faster big maps. The Scene can draw with it already (Play keeps WebGL until characters move over). The choice is kept in this browser.",
+      "body": "WebGPU is the newer way to use the graphics card: the same picture, and later more lights with shadows, reflecting water and faster big maps. The Scene and Play can draw with it, characters included. The choice is kept in this browser.",
       "task": "In the corner of the 3D view, set Draw with to WebGPU. (If your browser can't show it, WebGL draws and a message says so.)",
       "target": "[data-tour=\"draw-with\"]",
       "check": {
