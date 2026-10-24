@@ -1004,14 +1004,14 @@ export async function perform(c: Ctx, d: Do): Promise<void> {
   }
   if ('action' in d) return runAction(action(d.action), c);
   if ('click' in d) {
-    const el = document.querySelector(d.click) as HTMLElement | null;
+    const el = (await appears(d.click)) as HTMLElement | null;
     if (!el) throw new Error(`Could not find ${d.say ?? 'the control to click'} (${d.click}).`);
     el.scrollIntoView({ block: 'nearest' });
     pressAndClick(el);
     return;
   }
   if ('fill' in d) {
-    const el = document.querySelector(d.fill) as HTMLInputElement | null;
+    const el = (await appears(d.fill)) as HTMLInputElement | null;
     if (!el) throw new Error(`Could not find ${d.say ?? 'the box to type in'} (${d.fill}).`);
     el.scrollIntoView({ block: 'nearest' });
     el.focus();
@@ -1022,13 +1022,13 @@ export async function perform(c: Ctx, d: Do): Promise<void> {
     return;
   }
   if ('show' in d) {
-    const el = document.querySelector(d.show) as HTMLElement | null;
+    const el = (await appears(d.show)) as HTMLElement | null;
     if (!el) throw new Error(`Could not find ${d.say ?? 'that part of the screen'} (${d.show}).`);
     el.scrollIntoView({ block: 'nearest' });
     return;
   }
   if ('choose' in d) {
-    const el = document.querySelector(d.choose) as HTMLSelectElement | null;
+    const el = (await appears(d.choose)) as HTMLSelectElement | null;
     if (!el) throw new Error(`Could not find ${d.say ?? 'the list to pick from'} (${d.choose}).`);
     el.scrollIntoView({ block: 'nearest' });
     const want = storyText(c.ed, d.value);
@@ -1042,6 +1042,16 @@ export async function perform(c: Ctx, d: Do): Promise<void> {
   const fn = DOERS[d.fn];
   if (!fn) throw new Error(`Unknown tutorial action ${d.fn}`);
   await fn(c, (fill(c, d.args ?? {}) as Record<string, unknown>) ?? {});
+}
+
+/** the element, waiting a moment for it to appear (a view that is still opening) */
+async function appears(sel: string, ms = 3000): Promise<Element | null> {
+  const end = performance.now() + ms;
+  for (;;) {
+    const el = document.querySelector(sel);
+    if (el || performance.now() > end) return el;
+    await new Promise((r) => setTimeout(r, 100));
+  }
 }
 
 /**

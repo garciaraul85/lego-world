@@ -461,6 +461,9 @@
       },
       "doItForMe": [
         {
+          "ui": "stop"
+        },
+        {
           "ui": "workspace",
           "value": "Scene"
         },
@@ -471,13 +474,15 @@
       ],
       "how": [
         {
-          "text": "Click “Scene” in the workspace tabs at the top.",
+          "text": "Stop the game (Esc), then click “Scene” in the workspace tabs at the top.",
           "check": {
-            "kind": "state",
-            "test": "workspace",
-            "args": "Scene"
+            "kind": "dom",
+            "selector": "[data-tour=\"draw-with\"]"
           },
           "do": [
+            {
+              "ui": "stop"
+            },
             {
               "ui": "workspace",
               "value": "Scene"

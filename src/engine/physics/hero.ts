@@ -78,8 +78,11 @@ export function walkHero(
     HERO_RADIUS * opt.scale,
     HERO_HEIGHT * opt.scale,
   );
-  s.x = r.x;
-  s.z = r.z;
+  // standing still: the engine's tiny nudges (from resting against a wall) do not move the hero
+  if (dx || dz || r.riding || Math.hypot(r.x - s.x, r.z - s.z) > 0.01) {
+    s.x = r.x;
+    s.z = r.z;
+  }
   s.y = Math.min(320, r.y);
   if (r.blockedUp && s.vy > 0) s.vy = 0;
   if (r.grounded && s.vy <= 0) {
