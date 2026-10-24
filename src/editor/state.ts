@@ -12,10 +12,21 @@ import { type Gates, type MapDoc, paths } from '../core/schema';
 import { AudioEngine } from '../engine/audio/AudioEngine';
 import { audioData } from '../engine/audio/data';
 import type { FrameStats } from '../engine/render/renderer';
+import { RENDERER_CHOICES, type RendererChoice } from '../engine/render/scene-renderer';
 import type { DebugDraw } from '../engine/runtime/play-renderer';
 import type { PlaySession } from '../engine/runtime/session';
 import { CATEGORIES, type CategoryId } from './categories';
 import { SceneModel } from './scene';
+
+const DRAW_KEY = 'brickworlds.editor.drawWith';
+function readDrawWith(): RendererChoice {
+  try {
+    const v = localStorage.getItem(DRAW_KEY);
+    return (RENDERER_CHOICES as readonly string[]).includes(v ?? '') ? (v as RendererChoice) : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
 
 export type ToolId =
   | 'select'
@@ -203,6 +214,16 @@ export class EditorState {
   readonly debugDraw = signal<DebugDraw>({ colliders: false, spawns: true });
   /** P27 part 4: Play at this quality to see how the game looks there (null: the game's own settings) */
   readonly previewQuality = signal<QualityLevel | null>(null);
+  /** Milestone 2b, 10c: what draws the 3D views on this computer (kept in this browser, not in the project) */
+  readonly drawWith = signal<RendererChoice>(readDrawWith());
+  setDrawWith(c: RendererChoice) {
+    this.drawWith.value = c;
+    try {
+      localStorage.setItem(DRAW_KEY, c);
+    } catch {
+      /* storage unavailable */
+    }
+  }
   /**
    * P32: true for the Asset studio's build plate, where bricks are placed, painted and erased one by one. The
    * Scene places whole assets, characters and events, so its Place tool puts down assets.

@@ -22,6 +22,7 @@ import type { Asset, LogicGraph, WaterInstance } from '../../core/schema';
 import { atmosphere } from '../../engine/lighting/atmosphere';
 import { pointLights } from '../../engine/lighting/lights';
 import { OrbitCamera } from '../../engine/render/camera';
+import { gpuReady } from '../../engine/render/gpu/gpu-renderer';
 import type { Vec3 } from '../../engine/render/math';
 import {
   brickRgb,
@@ -30,8 +31,13 @@ import {
   type Overlay,
   type PointLight,
   type RenderBrick,
-  Renderer,
 } from '../../engine/render/renderer';
+import {
+  createSceneRenderer,
+  type RendererChoice,
+  rendererFor,
+  type SceneRenderer,
+} from '../../engine/render/scene-renderer';
 import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../../engine/render/stream';
 import { waterMarker } from '../../engine/render/water';
 import { ScreenFxOverlay } from '../../engine/ui/ScreenFxOverlay';
@@ -126,12 +132,15 @@ export function Viewport({
   studioRef.current = studio;
   /** bumps when the browser takes the 3D drawing away (too many views, the GPU reset): the view starts again */
   const [gen, setGen] = useState(0);
+  // Milestone 2b, 10c: a new canvas when the view is drawn with something else (a canvas keeps its first kind)
+  const drawWith = ed.drawWith.value;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
-    let renderer: Renderer;
+    let renderer: SceneRenderer;
     try {
-      renderer = new Renderer(canvas);
+      // Milestone 2b, 10c: WebGPU or WebGL, as picked in the view's corner (WebGL where WebGPU is missing)
+      renderer = createSceneRenderer(canvas, ed.drawWith.value);
     } catch (e) {
       ed.notify(e instanceof Error ? e.message : String(e), true);
       return;
@@ -1441,12 +1450,12 @@ export function Viewport({
       // (browsers keep only about 16, and a plate opened many times would use them up)
       renderer.dispose(!!studioRef.current);
     };
-  }, [ed, mode, gen]);
+  }, [ed, mode, gen, drawWith]);
 
   return (
     <div class="viewport-wrap">
       <canvas
-        key={`${mode}|${editorKey(ed)}|${gen}`}
+        key={`${mode}|${editorKey(ed)}|${gen}|${drawWith}`}
         ref={canvasRef}
         class="viewport-canvas"
         data-tour="viewport"
@@ -1458,7 +1467,7 @@ export function Viewport({
       )}
       <div class="vp-hud mono" ref={hudRef} />
       <div class="gizmo-tag" ref={tagRef} hidden />
-      {mode === 'scene' && <ViewControls view={viewRef} studio={!!studio} />}
+      {mode === 'scene' && <ViewControls ed={ed} view={viewRef} studio={!!studio} />}
     </div>
   );
 }
@@ -1569,7 +1578,15 @@ function boxLines(x0: number, y0: number, z0: number, x1: number, y1: number, z1
  * P31 view buttons in the corner of the 3D view: focus on the selection, zoom, turn the view, fit, and
  * full screen. Each has a key, shown in its tip.
  */
-function ViewControls({ view, studio }: { view: { current: ViewportApi | null }; studio: boolean }) {
+function ViewControls({
+  ed,
+  view,
+  studio,
+}: {
+  ed: EditorState;
+  view: { current: ViewportApi | null };
+  studio: boolean;
+}) {
   const op = (o: ViewOp) => () => viewOp(o, view.current);
   const full = sceneFullscreen.value;
   const btn = (label: string, tip: string, glyph: string, run: () => void, extra = '') => (
@@ -1604,6 +1621,24 @@ function ViewControls({ view, studio }: { view: { current: ViewportApi | null };
           () => window.dispatchEvent(new CustomEvent('bw:fullscreen')),
           full ? 'on' : '',
         )}
+      {/* Milestone 2b, 10c: what draws the views on this computer */}
+      {!studio && (
+        <select
+          class="vc vc-draw"
+          aria-label="Draw with"
+          data-tour="draw-with"
+          data-help="scene.view.drawWith"
+          data-tip={`Draws the 3D views with ${rendererFor(ed.drawWith.value) === 'webgpu' ? 'WebGPU' : 'WebGL'} now`}
+          value={ed.drawWith.value}
+          onChange={(e) => ed.setDrawWith((e.target as HTMLSelectElement).value as RendererChoice)}
+        >
+          <option value="auto">Auto (WebGL)</option>
+          <option value="webgpu" disabled={!gpuReady()}>
+            {gpuReady() ? 'WebGPU' : 'WebGPU (not in this browser)'}
+          </option>
+          <option value="webgl">WebGL</option>
+        </select>
+      )}
     </div>
   );
 }

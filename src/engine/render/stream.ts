@@ -26,7 +26,10 @@ export class ChunkStream {
   viewDistance = DEFAULT_VIEW_DISTANCE;
 
   constructor(
-    private readonly renderer: Renderer,
+    private readonly renderer: Pick<
+      Renderer,
+      'setChunk' | 'dropChunk' | 'clearChunks' | 'viewDistance' | 'lodDistance' | 'setSegments'
+    >,
     /** a chunk's bricks to draw now */
     private readonly source: (key: string) => readonly RenderBrick[],
   ) {}

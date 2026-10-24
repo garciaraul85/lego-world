@@ -30,7 +30,9 @@ import { App, type AppHost } from '../../editor/App';
 import { placeCommands } from '../../editor/assets';
 import { hubAtStartup, readIntent, writeIntent } from '../../editor/start/intent';
 import { EditorState } from '../../editor/state';
+import { activeView } from '../../editor/viewport/active';
 import { initPhysics } from '../../engine/physics/physics';
+import { initGpu } from '../../engine/render/gpu/gpu-renderer';
 import '../../editor/theme.css';
 import { saveFile } from '../../platform/downloads';
 import { IdbBackend } from '../../platform/idb-backend';
@@ -59,6 +61,8 @@ async function boot() {
   const root = document.getElementById('app')!;
   // Milestone 2b: the physics core (WebAssembly) loads while the project opens; Play uses it once it is ready
   const physics = initPhysics().catch((e) => console.warn('Physics engine did not load; v68 debris is used.', e));
+  // Milestone 2b, 10c: a WebGPU device, if this browser has one (WebGL draws otherwise)
+  const gpu = initGpu();
   const backend = new IdbBackend();
   let store: ProjectStore | null = null;
   let problems: Problem[] = [];
@@ -208,6 +212,8 @@ async function boot() {
     },
   };
   (window as unknown as { __editor: EditorState }).__editor = ed;
+  // e2e: the 3D view last worked in (its camera and what draws it)
+  (window as unknown as { __view: typeof activeView }).__view = activeView;
   // the built-in asset library, for e2e tests that place a built-in asset by name
   (window as unknown as { __builtinAssets: typeof BUILTIN_ASSETS }).__builtinAssets = BUILTIN_ASSETS;
   // e2e helpers: place a built-in asset the way the dock does
@@ -228,6 +234,7 @@ async function boot() {
     screen: e.screen,
   }));
   await physics;
+  await gpu;
   render(<App ed={ed} host={host} />, root);
 }
 

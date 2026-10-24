@@ -133,6 +133,83 @@ export const brickCenter = (b: RenderBrick): Vec3 => [
   b.z + b.d / 2,
 ];
 
+/** a chunk's bricks grouped by shape for instanced drawing (centre and colour each), and the chunk's box */
+export type ChunkGroup = {
+  w: number;
+  d: number;
+  kind: RenderBrick['kind'];
+  paved: boolean;
+  covered: boolean;
+  values: Float32Array;
+};
+export function chunkGroups(bricks: readonly RenderBrick[]): { groups: ChunkGroup[]; min: Vec3; max: Vec3 } {
+  const groups = new Map<
+    string,
+    { w: number; d: number; kind: RenderBrick['kind']; paved: boolean; covered: boolean; values: number[] }
+  >();
+  const min: Vec3 = [Infinity, Infinity, Infinity];
+  const max: Vec3 = [-Infinity, -Infinity, -Infinity];
+  // P27 part 3: bricks whose studs are all under other bricks of the chunk draw without studs
+  const cell = (x: number, z: number, y: number) => ((x + 4096) * 8192 + (z + 4096)) * 512 + y;
+  const bottoms = new Set<number>();
+  for (const b of bricks)
+    for (let i = 0; i < b.w; i++) for (let j = 0; j < b.d; j++) bottoms.add(cell(b.x + i, b.z + j, b.y));
+  const isCovered = (b: RenderBrick) => {
+    if (b.kind === 'tile') return false;
+    const top = b.y + (b.kind === 'brick' ? 3 : 1);
+    for (let i = 0; i < b.w; i++)
+      for (let j = 0; j < b.d; j++) if (!bottoms.has(cell(b.x + i, b.z + j, top))) return false;
+    return true;
+  };
+  for (const b of bricks) {
+    const paved = !!b.paved;
+    const covered = !paved && isCovered(b);
+    const k = `${b.w},${b.d},${b.kind},${paved},${covered}`;
+    const g = groups.get(k) ?? { w: b.w, d: b.d, kind: b.kind, paved, covered, values: [] };
+    if (!groups.has(k)) groups.set(k, g);
+    const c = brickCenter(b);
+    g.values.push(c[0], c[1], c[2], ...brickRgb(b.color));
+    min[0] = Math.min(min[0], b.x);
+    min[1] = Math.min(min[1], b.y * PLATE);
+    min[2] = Math.min(min[2], b.z);
+    max[0] = Math.max(max[0], b.x + b.w);
+    max[1] = Math.max(max[1], b.y * PLATE + brickHeightUnits(b.kind) + 0.25);
+    max[2] = Math.max(max[2], b.z + b.d);
+  }
+  return { groups: [...groups.values()].map((g) => ({ ...g, values: new Float32Array(g.values) })), min, max };
+}
+
+/** the fog of a frame: the map's (P27 part 2), else v68's haze that follows the camera's distance */
+export function frameFog(
+  fog: FogParams | null,
+  sky: SkySample | null,
+  darkness: number,
+  cam: CameraFrame,
+  groundFog: boolean,
+  viewDistance: number,
+) {
+  const fogDark = 1 - darkness * 0.9;
+  const fc = fog?.color ?? sky?.horizon ?? [0.1, 0.12, 0.16];
+  const fn = {
+    color: [fc[0]! * fogDark, fc[1]! * fogDark, fc[2]! * fogDark] as [number, number, number],
+    near: fog ? fog.near : Math.max(55, cam.distance * 0.9),
+    far: fog ? fog.far : Math.max(120, cam.distance * 2.5),
+    max: fog ? fog.max : 0.62,
+    height: fog?.height ?? 0,
+    ground: groundFog ? (fog?.ground ?? 0) : 0,
+  };
+  // P27 part 3: where a streamed map's chunks end, the fog is whole (no visible edge)
+  if (Number.isFinite(viewDistance)) {
+    const edge = viewDistance + (cam.distance ?? 0);
+    if (fn.far > edge || fn.max < 1) {
+      fn.far = Math.min(fn.far, edge);
+      fn.near = Math.min(fn.near, edge * 0.55);
+      fn.max = 1;
+    }
+  }
+  return fn;
+}
+
 function compile(gl: WebGLRenderingContext, vs: string, fs: string) {
   const sh = (type: number, src: string) => {
     const s = gl.createShader(type)!;
@@ -157,6 +234,7 @@ function compile(gl: WebGLRenderingContext, vs: string, fs: string) {
  * per 32x32 chunk and per shape (instanced), so an edit re-uploads only the chunks it touched.
  */
 export class Renderer {
+  readonly kind = 'webgl' as const;
   readonly gl: WebGLRenderingContext;
   private readonly inst: ANGLE_instanced_arrays | null;
   private readonly prog: WebGLProgram;
@@ -384,44 +462,12 @@ export class Renderer {
     this.dropChunk(key);
     if (!bricks.length) return;
     const gl = this.gl;
-    const groups = new Map<
-      string,
-      { w: number; d: number; kind: RenderBrick['kind']; paved: boolean; covered: boolean; values: number[] }
-    >();
-    const min: Vec3 = [Infinity, Infinity, Infinity];
-    const max: Vec3 = [-Infinity, -Infinity, -Infinity];
-    // P27 part 3: bricks whose studs are all under other bricks of the chunk draw without studs
-    const cell = (x: number, z: number, y: number) => ((x + 4096) * 8192 + (z + 4096)) * 512 + y;
-    const bottoms = new Set<number>();
-    for (const b of bricks)
-      for (let i = 0; i < b.w; i++) for (let j = 0; j < b.d; j++) bottoms.add(cell(b.x + i, b.z + j, b.y));
-    const isCovered = (b: RenderBrick) => {
-      if (b.kind === 'tile') return false;
-      const top = b.y + (b.kind === 'brick' ? 3 : 1);
-      for (let i = 0; i < b.w; i++)
-        for (let j = 0; j < b.d; j++) if (!bottoms.has(cell(b.x + i, b.z + j, top))) return false;
-      return true;
-    };
-    for (const b of bricks) {
-      const paved = !!b.paved;
-      const covered = !paved && isCovered(b);
-      const k = `${b.w},${b.d},${b.kind},${paved},${covered}`;
-      const g = groups.get(k) ?? { w: b.w, d: b.d, kind: b.kind, paved, covered, values: [] };
-      if (!groups.has(k)) groups.set(k, g);
-      const c = brickCenter(b);
-      g.values.push(c[0], c[1], c[2], ...brickRgb(b.color));
-      min[0] = Math.min(min[0], b.x);
-      min[1] = Math.min(min[1], b.y * PLATE);
-      min[2] = Math.min(min[2], b.z);
-      max[0] = Math.max(max[0], b.x + b.w);
-      max[1] = Math.max(max[1], b.y * PLATE + brickHeightUnits(b.kind) + 0.25);
-      max[2] = Math.max(max[2], b.z + b.d);
-    }
+    const { groups, min, max } = chunkGroups(bricks);
     const batches: Batch[] = [];
-    for (const g of groups.values()) {
+    for (const g of groups) {
       const buffer = gl.createBuffer()!;
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(g.values), gl.STATIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, g.values, gl.STATIC_DRAW);
       batches.push({
         w: g.w,
         d: g.d,
@@ -586,29 +632,7 @@ export class Renderer {
     gl.uniform3fv(this.u.uEye!, cam.eye);
     gl.uniform3fv(this.u.uLight!, s?.light ?? [0.5, 1, 0.6]);
     gl.uniform3fv(this.u.uAmbient!, s?.ambient ?? [0.36, 0.39, 0.43]);
-    // the fog of this frame: the map's (P27 part 2), else v68's haze that follows the camera's distance
-    const fogDark = 1 - this.darkness * 0.9;
-    const f = this.fog;
-    const fc = f?.color ?? s?.horizon ?? [0.1, 0.12, 0.16];
-    this.fogNow = {
-      color: [fc[0]! * fogDark, fc[1]! * fogDark, fc[2]! * fogDark],
-      near: f ? f.near : Math.max(55, cam.distance * 0.9),
-      far: f ? f.far : Math.max(120, cam.distance * 2.5),
-      max: f ? f.max : 0.62,
-      height: f?.height ?? 0,
-      ground: this.groundFog ? (f?.ground ?? 0) : 0,
-    };
-    // P27 part 3: where a streamed map's chunks end, the fog is whole (no visible edge)
-    if (Number.isFinite(this.viewDistance)) {
-      const fn = this.fogNow;
-      // measured from the eye: the view distance around what the camera looks at, plus the camera's own distance
-      const edge = this.viewDistance + (cam.distance ?? 0);
-      if (fn.far > edge || fn.max < 1) {
-        fn.far = Math.min(fn.far, edge);
-        fn.near = Math.min(fn.near, edge * 0.55);
-        fn.max = 1;
-      }
-    }
+    this.fogNow = frameFog(this.fog, s, this.darkness, cam, this.groundFog, this.viewDistance);
     gl.uniformMatrix4fv(this.u.uModel!, false, IDENTITY);
     this.applyLights(this.prog, this.u);
     gl.uniform1f(this.u.uSnow!, this.snow ? 1 : 0);

@@ -6150,3 +6150,15 @@ img.bw-portrait {
 .water-swatch[data-body="sea"] {
   background: linear-gradient(180deg, #3b7fb8 0%, #1f4f86 60%, #173a66 100%);
 }
+
+/* Milestone 2b, 10c: what draws the views (WebGL or WebGPU) */
+.vc.vc-draw {
+  width: auto;
+  padding: 0 4px;
+  font: 600 11px var(--mono);
+  background: transparent;
+  color: #d6dce5;
+}
+.vc.vc-draw option {
+  color: #111;
+}
