@@ -12,7 +12,18 @@ export type ParticleBatch = {
 import type { FogParams } from '../lighting/atmosphere';
 import type { CameraFrame } from './camera';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from './math';
-import { FRAGMENT, SHADOW_FRAGMENT, SKY_FRAGMENT, SKY_VERTEX, VERTEX, WATER_FRAGMENT, WATER_VERTEX } from './shaders';
+import { drawBox, type ModelDraw, type ModelUpload } from './model-draw';
+import {
+  FRAGMENT,
+  MESH_FRAGMENT,
+  MESH_VERTEX,
+  SHADOW_FRAGMENT,
+  SKY_FRAGMENT,
+  SKY_VERTEX,
+  VERTEX,
+  WATER_FRAGMENT,
+  WATER_VERTEX,
+} from './shaders';
 import { type WaterSurface, waterBody } from './water';
 
 /** A brick as the renderer needs it. `paved` = road/pavement slab shading. */
@@ -311,6 +322,26 @@ export class Renderer {
   /** part 3: what v68's character model drew last frame (they cast shadows), and what it draws this frame */
   private casters: { p: WebGLBuffer; count: number; model: Float32Array }[] = [];
   private castersNext: { p: WebGLBuffer; count: number; model: Float32Array }[] = [];
+  /** Milestone 2b, 10c part 5: imported models, uploaded once; and where copies stand this frame */
+  private models = new Map<
+    string,
+    {
+      parts: {
+        p: WebGLBuffer;
+        n: WebGLBuffer;
+        uv: WebGLBuffer;
+        count: number;
+        color: [number, number, number, number];
+        texture: WebGLTexture | null;
+      }[];
+      min: [number, number, number];
+      max: [number, number, number];
+    }
+  >();
+  modelDraws: ModelDraw[] = [];
+  private meshProg: WebGLProgram | null = null;
+  private mu: Record<string, WebGLUniformLocation | null> = {};
+  private ma = { p: -1, n: -1, uv: -1 };
   private recording: WebGLRenderingContext | null = null;
 
   /**
@@ -720,6 +751,12 @@ export class Renderer {
     // P27: the lights near the focus; the first that casts shadows draws its shadow map first
     this.casters = this.castersNext;
     this.castersNext = [];
+    // part 5: the models' solid parts cast shadows too
+    for (const md of this.modelDraws) {
+      if ((md.alpha ?? 1) < 1) continue;
+      for (const part of this.models.get(md.key)?.parts ?? [])
+        if (part.color[3] >= 1) this.casters.push({ p: part.p, count: part.count, model: md.matrix });
+    }
     const slots = this.shadows && this.inst ? Math.min(MAX_SHADOWS, this.maxShadows) : 0;
     this.lit = pickLights(this.lights, focus, Math.min(MAX_LIGHTS, this.maxLights), slots);
     this.shadowCount = shadowCount(this.lit, slots);
@@ -800,6 +837,9 @@ export class Renderer {
     gl.uniform1f(this.u.uPavement!, 0);
     gl.uniform1f(this.u.uInstances!, 0);
 
+    // part 5: the imported models' solid parts (see-through ones after the characters)
+    if (this.modelDraws.length) this.drawModels(mvp, cam.eye, planes, false);
+
     // P23: particles, instanced by shape and size
     if (this.particles.length && this.inst) {
       gl.uniform1f(this.u.uInstances!, 1);
@@ -864,6 +904,7 @@ export class Renderer {
       extra(mvp, cam.eye);
       gl.useProgram(this.prog);
     }
+    if (this.modelDraws.length) this.drawModels(mvp, cam.eye, planes, true);
     if (this.water.length) this.drawWater(mvp, cam.eye, s);
     // gizmo handles: over the scene, but in depth order among themselves
     const top = markers.filter((m) => m.onTop);
@@ -1037,6 +1078,135 @@ export class Renderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
+  /** part 5: puts a model on the GPU under `key` (again replaces it) */
+  setModel(key: string, m: ModelUpload) {
+    this.dropModel(key);
+    const gl = this.gl;
+    const buf = (a: Float32Array) => {
+      const b = gl.createBuffer()!;
+      gl.bindBuffer(gl.ARRAY_BUFFER, b);
+      gl.bufferData(gl.ARRAY_BUFFER, a, gl.STATIC_DRAW);
+      return b;
+    };
+    const parts = m.data.parts.map((part, i) => {
+      const count = part.positions.length / 3;
+      const pic = m.pictures[i];
+      let texture: WebGLTexture | null = null;
+      if (pic && part.uvs) {
+        texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        if (pic instanceof ImageData)
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, pic.width, pic.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, pic.data);
+        else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pic);
+        // pictures of any size (WebGL 1 repeats and mipmaps only powers of two)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+      }
+      return {
+        p: buf(part.positions),
+        n: buf(part.normals),
+        uv: buf(part.uvs ?? new Float32Array(count * 2)),
+        count,
+        color: part.color,
+        texture,
+      };
+    });
+    this.models.set(key, { parts, min: m.data.min, max: m.data.max });
+    this.chunkRev++;
+  }
+
+  hasModel(key: string) {
+    return this.models.has(key);
+  }
+
+  dropModel(key: string) {
+    const m = this.models.get(key);
+    if (!m) return;
+    const gl = this.gl;
+    for (const p of m.parts) {
+      gl.deleteBuffer(p.p);
+      gl.deleteBuffer(p.n);
+      gl.deleteBuffer(p.uv);
+      if (p.texture) gl.deleteTexture(p.texture);
+    }
+    this.models.delete(key);
+    this.chunkRev++;
+  }
+
+  /** part 5: the models' copies in view, their solid parts or their see-through ones */
+  private drawModels(mvp: Float32Array, eye: Vec3, planes: ReturnType<typeof frustumPlanes>, seeThrough: boolean) {
+    const gl = this.gl;
+    if (!this.meshProg) {
+      this.meshProg = compile(gl, MESH_VERTEX, MESH_FRAGMENT);
+      const names =
+        'uMVP uModel uColor uEye uAlpha uFloor uFlat uLight uAmbient uSnow uNight uParticle uExplore uPavement uFocus uTex uTextured';
+      this.mu = Object.fromEntries(names.split(' ').map((n) => [n, gl.getUniformLocation(this.meshProg!, n)]));
+      this.ma = {
+        p: gl.getAttribLocation(this.meshProg, 'aPosition'),
+        n: gl.getAttribLocation(this.meshProg, 'aNormal'),
+        uv: gl.getAttribLocation(this.meshProg, 'aUV'),
+      };
+    }
+    const u = this.mu;
+    const s = this.skySample;
+    let started = false;
+    for (const md of this.modelDraws) {
+      const model = this.models.get(md.key);
+      if (!model) continue;
+      const box = drawBox(md.matrix, model.min, model.max);
+      if (!boxVisible(planes, box.min, box.max)) continue;
+      for (const part of model.parts) {
+        const alpha = part.color[3] * (md.alpha ?? 1);
+        if (alpha < 1 !== seeThrough) continue;
+        if (!started) {
+          started = true;
+          gl.useProgram(this.meshProg);
+          gl.uniformMatrix4fv(u.uMVP!, false, mvp);
+          gl.uniform3fv(u.uEye!, eye);
+          gl.uniform3fv(u.uLight!, s?.light ?? [0.5, 1, 0.6]);
+          gl.uniform3fv(u.uAmbient!, s?.ambient ?? [0.36, 0.39, 0.43]);
+          gl.uniform1f(u.uSnow!, this.snow ? 1 : 0);
+          gl.uniform1f(u.uNight!, s?.night ?? 0);
+          for (const k of ['uFloor', 'uFlat', 'uParticle', 'uExplore', 'uPavement']) gl.uniform1f(u[k]!, 0);
+          gl.uniform3fv(u.uFocus!, [0, 0, 0]);
+          this.applyLights(this.meshProg!);
+          gl.uniform1i(u.uTex!, 0);
+          gl.activeTexture(gl.TEXTURE0);
+          if (seeThrough) {
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            gl.depthMask(false);
+          }
+        }
+        gl.uniformMatrix4fv(u.uModel!, false, md.matrix);
+        gl.uniform3f(u.uColor!, part.color[0], part.color[1], part.color[2]);
+        gl.uniform1f(u.uAlpha!, alpha);
+        gl.uniform1f(u.uTextured!, part.texture ? 1 : 0);
+        gl.bindTexture(gl.TEXTURE_2D, part.texture);
+        const attr = (loc: number, b: WebGLBuffer, size: number) => {
+          if (loc < 0) return;
+          gl.bindBuffer(gl.ARRAY_BUFFER, b);
+          gl.enableVertexAttribArray(loc);
+          gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+        };
+        attr(this.ma.p, part.p, 3);
+        attr(this.ma.n, part.n, 3);
+        attr(this.ma.uv, part.uv, 2);
+        gl.drawArrays(gl.TRIANGLES, 0, part.count);
+        this.stats.drawCalls++;
+      }
+    }
+    if (!started) return;
+    if (this.ma.uv >= 0) gl.disableVertexAttribArray(this.ma.uv);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.disable(gl.BLEND);
+    gl.depthMask(true);
+    gl.useProgram(this.prog);
+  }
+
   /** part 4: the water's surfaces: rippling, mirroring the sky's colours */
   private drawWater(mvp: Float32Array, eye: Vec3, s: SkySample | null) {
     const gl = this.gl;
@@ -1140,6 +1310,7 @@ export class Renderer {
   /** Frees the GPU buffers; `release` also gives the drawing context back (the canvas is not drawn on again). */
   dispose(release = false) {
     this.clearChunks();
+    for (const k of [...this.models.keys()]) this.dropModel(k);
     for (const m of this.meshes.values()) {
       this.gl.deleteBuffer(m.p);
       this.gl.deleteBuffer(m.n);

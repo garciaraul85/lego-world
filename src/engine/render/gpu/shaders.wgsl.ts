@@ -106,6 +106,11 @@ fn pointLights(n: vec3f, p: vec3f) -> vec3f {
 @fragment fn fs(in: VOut) -> @location(0) vec4f {
   // part 4: the reflection shows only what is above the water
   if (F.misc2.y > 0.5 && in.world.y < F.misc2.z - 0.02) { discard; }
+  return shade(in);
+}
+
+// how a brick (part 5: or a model's part) looks in this frame's light
+fn shade(in: VOut) -> vec4f {
   let alpha = D.flags.x;
   if (D.flags.y > 0.5) { return vec4f(in.color, alpha); }
   let snow = F.misc.x;
@@ -141,6 +146,35 @@ fn pointLights(n: vec3f, p: vec3f) -> vec3f {
   fog = max(fog, F.fogRange.w * (1.0 - smoothstep(F.fogRange.z - 1.5, F.fogRange.z + 0.5, p.y)) * smoothstep(1.0, 12.0, fdist));
   c = mix(pow(max(c, vec3f(0.0)), vec3f(0.8)), F.fog.rgb, fog);
   return vec4f(c, alpha);
+}
+`;
+
+/**
+ * part 5: a model's part (an imported glTF mesh), lit as the bricks are: its colour (D.color, w 1 when it has a
+ * picture) times its picture
+ */
+export const MESH_WGSL = /* wgsl */ `${BRICK_WGSL}
+@group(2) @binding(0) var tex: texture_2d<f32>;
+@group(2) @binding(1) var samp: sampler;
+struct MOut { @builtin(position) pos: vec4f, @location(0) normal: vec3f, @location(1) world: vec3f, @location(2) uv: vec2f };
+@vertex fn vsMesh(@location(0) pos: vec3f, @location(1) normal: vec3f, @location(2) uv: vec2f) -> MOut {
+  var o: MOut;
+  let m = mat3x3f(D.model[0].xyz, D.model[1].xyz, D.model[2].xyz);
+  o.normal = m * normal;
+  o.world = (D.model * vec4f(pos, 1.0)).xyz;
+  o.uv = uv;
+  o.pos = clip(o.world);
+  return o;
+}
+@fragment fn fsMesh(in: MOut) -> @location(0) vec4f {
+  let t = textureSample(tex, samp, in.uv);
+  if (F.misc2.y > 0.5 && in.world.y < F.misc2.z - 0.02) { discard; }
+  var v: VOut;
+  v.pos = in.pos;
+  v.normal = in.normal;
+  v.world = in.world;
+  v.color = D.color.rgb * mix(vec3f(1.0), t.rgb, D.color.w);
+  return shade(v);
 }
 `;
 

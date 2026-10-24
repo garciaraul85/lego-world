@@ -25,7 +25,8 @@ import {
 } from '../renderer';
 import { mirrorAt, reflectedWater, type WaterSurface, waterBody } from '../water';
 import { GlShim, type ShimBuffer, type ShimDraw } from './gl-shim';
-import { BRICK_WGSL, CHAR_WGSL, SHADOW_WGSL, SKY_WGSL, WATER_WGSL } from './shaders.wgsl';
+import { drawBox, type ModelDraw, type ModelUpload } from '../model-draw';
+import { BRICK_WGSL, CHAR_WGSL, MESH_WGSL, SHADOW_WGSL, SKY_WGSL, WATER_WGSL } from './shaders.wgsl';
 
 /**
  * Milestone 2b, 10c part 1: the WebGPU renderer. It draws what the WebGL renderer draws for a scene — the sky,
@@ -143,6 +144,29 @@ type DrawCall = {
   char?: ShimDraw;
   /** part 4: the water's surfaces (how many) */
   water?: number;
+  /** part 5: a part of an imported model */
+  part?: GpuModelPart;
+};
+
+/** part 5: a model's part on the GPU */
+type GpuModelPart = {
+  p: GPUBuffer;
+  n: GPUBuffer;
+  uv: GPUBuffer;
+  count: number;
+  color: [number, number, number, number];
+  texture: GPUTexture | null;
+  group: GPUBindGroup | null;
+};
+type GpuModel = { parts: GpuModelPart[]; min: [number, number, number]; max: [number, number, number] };
+
+/** what casts a shadow besides bricks: a character's draw or a model's part */
+type Caster = {
+  p: { gpu: GPUBuffer | null };
+  n: { gpu: GPUBuffer | null };
+  count: number;
+  model: Float32Array;
+  blend: string;
 };
 
 const sameMatrix = (a: ArrayLike<number>, b: ArrayLike<number>) => {
@@ -185,6 +209,10 @@ export class GpuRenderer {
   private skyBufR!: GPUBuffer;
   private skyGroupR!: GPUBindGroup;
   private reflSampler!: GPUSampler;
+  /** part 5: imported models, uploaded once; and where copies stand this frame */
+  private models = new Map<string, GpuModel>();
+  modelDraws: ModelDraw[] = [];
+  private meshPipes!: { opaque: GPURenderPipeline; blend: GPURenderPipeline };
   /** the water the last frame mirrored (tests) */
   reflected: WaterSurface | null = null;
   /** how many lights cast shadows this frame, and how many may (the quality level's) */
@@ -491,6 +519,102 @@ export class GpuRenderer {
     });
     this.frameGroupR = this.makeFrameGroup(this.frameBufR);
     this.reflSampler = d.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+    // part 5: imported models' parts
+    const meshModule = d.createShaderModule({ code: MESH_WGSL });
+    const meshLayoutP = d.createPipelineLayout({
+      bindGroupLayouts: [this.frameLayout, this.drawLayout, this.texLayout],
+    });
+    const meshPipe = (see: boolean) =>
+      d.createRenderPipeline({
+        layout: meshLayoutP,
+        vertex: {
+          module: meshModule,
+          entryPoint: 'vsMesh',
+          buffers: [
+            { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] },
+            { arrayStride: 12, attributes: [{ shaderLocation: 1, offset: 0, format: 'float32x3' }] },
+            { arrayStride: 8, attributes: [{ shaderLocation: 2, offset: 0, format: 'float32x2' }] },
+          ],
+        },
+        fragment: {
+          module: meshModule,
+          entryPoint: 'fsMesh',
+          targets: [
+            {
+              format: this.format,
+              ...(see
+                ? {
+                    blend: {
+                      color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+                      alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+                    },
+                  }
+                : {}),
+            },
+          ],
+        },
+        primitive: { topology: 'triangle-list', cullMode: 'none' },
+        depthStencil: { format: 'depth24plus', depthWriteEnabled: !see, depthCompare: 'less' },
+        multisample: { count: SAMPLES },
+      });
+    this.meshPipes = { opaque: meshPipe(false), blend: meshPipe(true) };
+  }
+
+  /** part 5: puts a model on the GPU under `key` (again replaces it) */
+  setModel(key: string, m: ModelUpload) {
+    this.dropModel(key);
+    const d = this.device;
+    const buf = (a: Float32Array) => {
+      const b = d.createBuffer({
+        size: Math.max(16, a.byteLength),
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+      });
+      d.queue.writeBuffer(b, 0, a);
+      return b;
+    };
+    const parts = m.data.parts.map((part, i): GpuModelPart => {
+      const count = part.positions.length / 3;
+      const pic = m.pictures[i];
+      let texture: GPUTexture | null = null;
+      if (pic && part.uvs) {
+        texture = d.createTexture({
+          size: [pic.width, pic.height],
+          format: 'rgba8unorm',
+          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+        if (pic instanceof ImageData)
+          d.queue.writeTexture({ texture }, pic.data, { bytesPerRow: pic.width * 4 }, [pic.width, pic.height]);
+        else d.queue.copyExternalImageToTexture({ source: pic }, { texture }, [pic.width, pic.height]);
+      }
+      return {
+        p: buf(part.positions),
+        n: buf(part.normals),
+        uv: buf(part.uvs ?? new Float32Array(count * 2)),
+        count,
+        color: part.color,
+        texture,
+        group: texture ? this.textureGroup(texture) : null,
+      };
+    });
+    this.models.set(key, { parts, min: m.data.min, max: m.data.max });
+    this.chunkRev++;
+  }
+
+  hasModel(key: string) {
+    return this.models.has(key);
+  }
+
+  dropModel(key: string) {
+    const m = this.models.get(key);
+    if (!m) return;
+    for (const p of m.parts) {
+      p.p.destroy();
+      p.n.destroy();
+      p.uv.destroy();
+      p.texture?.destroy();
+    }
+    this.models.delete(key);
+    this.chunkRev++;
   }
 
   private makeFrameGroup(buffer: GPUBuffer = this.frameBuf) {
@@ -512,12 +636,12 @@ export class GpuRenderer {
    * part 3: draws the shadow maps of this frame's shadow-casting lights — what they see in every direction, bricks
    * and characters — again only where the light, the bricks near it or a character near it changed
    */
-  private drawShadows(enc: GPUCommandEncoder, chars: readonly ShimDraw[]) {
+  private drawShadows(enc: GPUCommandEncoder, chars: readonly Caster[]) {
     const d = this.device;
     const size = this.shadowSize;
     const n = this.shadowCount;
     // what each light must draw: its key says whether its map is still right
-    const jobs: { slot: number; light: PointLight; near: GpuChunk[]; casters: ShimDraw[] }[] = [];
+    const jobs: { slot: number; light: PointLight; near: GpuChunk[]; casters: Caster[] }[] = [];
     let remade = false;
     for (let i = 0; i < n; i++) {
       const light = this.lit[i]!;
@@ -965,6 +1089,44 @@ export class GpuRenderer {
         });
       }
     }
+    // part 5: the imported models' copies in view (see-through parts after the characters)
+    const seeThrough: DrawCall[] = [];
+    const modelCasters: Caster[] = [];
+    for (const md of this.modelDraws) {
+      const model = this.models.get(md.key);
+      if (!model) continue;
+      const box = drawBox(md.matrix, model.min, model.max);
+      for (const part of model.parts)
+        if (part.color[3] >= 1 && (md.alpha ?? 1) >= 1)
+          modelCasters.push({
+            p: { gpu: part.p },
+            n: { gpu: part.n },
+            count: part.count,
+            model: md.matrix,
+            blend: 'none',
+          });
+      if (!boxVisible(planes, box.min, box.max)) continue;
+      for (const part of model.parts) {
+        const alpha = part.color[3] * (md.alpha ?? 1);
+        const call: DrawCall = {
+          pipe: alpha < 1 ? this.meshPipes.blend : this.meshPipes.opaque,
+          part,
+          slot: rawSlot([
+            ...md.matrix,
+            alpha,
+            0,
+            0,
+            0,
+            part.color[0],
+            part.color[1],
+            part.color[2],
+            part.group ? 1 : 0,
+          ]),
+        };
+        if (alpha < 1) seeThrough.push(call);
+        else calls.push(call);
+      }
+    }
     for (const b of this.particles) {
       if (!b.count) continue;
       calls.push({
@@ -1043,6 +1205,7 @@ export class GpuRenderer {
           ]),
         });
     }
+    calls.push(...seeThrough);
     // part 4: what the water mirrors: the world above its surface, drawn upside down about it
     const rcalls: DrawCall[] = [];
     if (mirrored) {
@@ -1062,7 +1225,9 @@ export class GpuRenderer {
             slot: b.paved ? paved : plain,
           });
       }
-      for (const c of calls) if (c.pipe === this.pipes.opaque && c.inst && !c.inst.buffer) rcalls.push(c);
+      for (const c of calls)
+        if ((c.pipe === this.pipes.opaque && c.inst && !c.inst.buffer) || c.pipe === this.meshPipes.opaque)
+          rcalls.push(c);
       if (extra)
         for (const d of this.gl.draws) {
           if (d.blend !== 'none' || !sameMatrix(d.mvp, mvp)) continue;
@@ -1162,7 +1327,7 @@ export class GpuRenderer {
     }
 
     const enc = this.device.createCommandEncoder();
-    if (this.shadowCount) this.drawShadows(enc, this.gl.draws);
+    if (this.shadowCount) this.drawShadows(enc, [...this.gl.draws, ...modelCasters]);
     const view = (toPicture ? this.picture! : this.ctx.getCurrentTexture()).createView();
     const waterGroup = surfaces.length
       ? this.device.createBindGroup({
@@ -1201,6 +1366,17 @@ export class GpuRenderer {
       p.setBindGroup(0, mirror ? this.frameGroupR : this.frameGroup);
       for (const c of list) {
         p.setPipeline(c.pipe);
+        if (c.part) {
+          const part = c.part;
+          p.setBindGroup(1, this.drawGroup, [c.slot * DRAW_SIZE]);
+          p.setBindGroup(2, part.group ?? this.blankTexture);
+          p.setVertexBuffer(0, part.p);
+          p.setVertexBuffer(1, part.n);
+          p.setVertexBuffer(2, part.uv);
+          p.draw(part.count);
+          this.stats.drawCalls++;
+          continue;
+        }
         if (c.water) {
           p.setBindGroup(1, this.drawGroup, [c.slot * DRAW_SIZE]);
           p.setVertexBuffer(0, this.waterVerts!);
@@ -1333,6 +1509,7 @@ export class GpuRenderer {
     this.zeroUv?.destroy();
     this.picture?.destroy();
     this.reflectTex?.destroy();
+    for (const k of [...this.models.keys()]) this.dropModel(k);
     this.waterVerts?.destroy();
     this.waterUni?.destroy();
     this.frameBufR.destroy();

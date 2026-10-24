@@ -64,3 +64,14 @@ varying vec3 vPosition;uniform vec3 uEye;uniform vec3 uLight;uniform vec3 uAmbie
 vec3 ripple(vec2 p,float t,vec2 c){vec2 q=p-c*t*0.6;float dx=0.07*cos(q.x*1.3+t*1.1)+0.04*cos((q.x+q.y)*2.1+t*1.7)+0.02*cos(q.x*4.3-t*2.3);float dz=0.07*cos(q.y*1.5-t*0.9)+0.04*cos((q.x-q.y)*1.9-t*1.3)+0.02*cos(q.y*3.7+t*2.1);return normalize(vec3(-dx,1.0,-dz));}
 vec3 pointLights(vec3 n,vec3 p){vec3 sum=vec3(0.0);for(int i=0;i<8;i++){if(float(i)>=uPLN)break;vec3 L=uPL[i].xyz-p;float dist=max(length(L),0.001);float a=clamp(1.0-dist/uPL[i].w,0.0,1.0);a*=a;if(a<=0.0)continue;float diff=max(dot(n,L/dist),0.0)*0.8+0.2;sum+=uPC[i].rgb*a*diff;}return sum;}
 void main(){vec3 p=vPosition;vec3 n=ripple(p.xz,uTime,uCurrent);vec3 v=normalize(uEye-p);vec3 l=normalize(uLight);float lit=1.0-uDark*0.94;float fres=0.02+0.98*pow(1.0-max(dot(n,v),0.0),5.0);vec3 r=reflect(-v,n);vec3 mirror=mix(uHorizon,uZenith,smoothstep(0.0,0.85,r.y))*(1.0-uDark*0.9);float d=max(dot(n,l),0.0);vec3 base=uColor.rgb*((uAmbient+d*mix(0.6,0.2,uNight))*lit+pointLights(n,p));float spec=pow(max(dot(n,normalize(l+v)),0.0),120.0)*0.8*(1.0-uNight)*lit;vec3 c=mix(base,mirror,clamp(0.25+fres*0.75,0.0,1.0))+vec3(spec);float fdist=length(uEye-p);float fog=smoothstep(uFogRange.x,uFogRange.y,fdist)*uFogMax;fog=max(fog,uFogH.y*(1.0-smoothstep(uFogH.x-1.5,uFogH.x+0.5,p.y))*smoothstep(1.0,12.0,fdist));c=mix(c,uFog,fog);gl_FragColor=vec4(c,uColor.a);}`;
+
+/**
+ * Milestone 2b, 10c part 5: an imported model's part, lit as the bricks are (the same fragment shader, its colour
+ * times the part's picture)
+ */
+export const MESH_VERTEX = `attribute vec3 aPosition;attribute vec3 aNormal;attribute vec2 aUV;uniform mat4 uMVP;uniform mat4 uModel;uniform vec3 uColor;varying vec3 vNormal;varying vec3 vPosition;varying vec3 vColorIn;varying vec2 vUV;void main(){vNormal=mat3(uModel)*aNormal;vPosition=(uModel*vec4(aPosition,1.0)).xyz;vColorIn=uColor;vUV=aUV;gl_Position=uMVP*vec4(vPosition,1.0);}`;
+
+export const MESH_FRAGMENT = FRAGMENT.replace(
+  'varying vec3 vColor;',
+  'varying vec3 vColorIn;varying vec2 vUV;uniform sampler2D uTex;uniform float uTextured;',
+).replace('void main(){', 'void main(){vec3 vColor=vColorIn*mix(vec3(1.0),texture2D(uTex,vUV).rgb,uTextured);');

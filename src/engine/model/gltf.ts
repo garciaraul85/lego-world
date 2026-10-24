@@ -327,7 +327,7 @@ const det3 = (m: number[]) =>
 /** the inverse transpose of the upper 3×3 (normals stay at right angles under uneven scaling), as rows */
 function normalMatrix(m: number[]): number[][] {
   const M = [0, 1, 2].map((r) => [0, 1, 2].map((c) => m[c * 4 + r]!));
-  const at = (r: number, c: number) => M[(r + 3) % 3]![(c + 3) % 3]!;
+  const at = (r: number, c: number) => M[r % 3]![c % 3]!;
   // cofactors: the inverse transpose times the determinant (the length is normalised afterwards)
   return [0, 1, 2].map((r) =>
     [0, 1, 2].map((c) => at(r + 1, c + 1) * at(r + 2, c + 2) - at(r + 1, c + 2) * at(r + 2, c + 1)),
