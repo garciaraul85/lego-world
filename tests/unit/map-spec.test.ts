@@ -50,3 +50,11 @@ describe('maps from words', () => {
     expect(describeMap(s)[0]![1]).toMatch(/forest, beach, city/);
   });
 });
+
+describe('what is said about each one stays with it', () => {
+  it('a blacksmith with a long beard keeps the beard; a house with a red roof keeps the roof', () => {
+    const s = mapSpecFromWords('a village with a blacksmith with a long beard and a house with a red roof');
+    expect(s.people[0]!.words).toBe('a blacksmith with a long beard');
+    expect(s.buildings[0]!.spec.colors.roof).toBe('#c91a09');
+  });
+});

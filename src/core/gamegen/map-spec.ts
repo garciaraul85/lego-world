@@ -157,21 +157,26 @@ export function mapSpecFromWords(text: string): MapSpec {
   const kinds = new RegExp(
     `\\b(${ASSET_KINDS.join('|')})(e?s)?\\b|\\b(houses|cottages|shops|towers|trees|ships|boats|cars|tents|huts|lamps|statues|fountains|bridges|wells|barrels|crates|benches|stalls|windmills|barns)\\b`,
   );
-  for (const raw of text.split(/,|;|\band\b|\bwith\b|\bwhere\b|\bnear\b|\bby\b/i)) {
+  // clauses: a clause that names no building and no people says more about the one before it (“a blacksmith with a
+  // long beard”, “a house with a red roof”)
+  const items: { kind: 'building' | 'person'; words: string; count: number }[] = [];
+  for (const raw of text.split(/(,|;|\band\b|\bwith\b|\bwhere\b|\bnear\b|\bby\b)/i)) {
     const clause = raw.trim();
-    if (!clause) continue;
+    if (!clause || /^(,|;|and|with|where|near|by)$/i.test(clause)) continue;
     const c = ` ${clause.toLowerCase()} `;
     const m = /\b(a|an|one|two|three|four|five|six|some|several|many|\d)\b/.exec(c);
     const count = m ? (/^\d$/.test(m[1]!) ? Number(m[1]) : (NUM[m[1]!] ?? 1)) : /s\b/.test(c.trim()) ? 2 : 1;
-    if (PEOPLE.test(c) && !kinds.test(c.replace(PEOPLE, ''))) {
-      if (people.length < MAX_PEOPLE) people.push({ words: oneOf(clause, count > 1), count: Math.min(4, count) });
-      continue;
-    }
-    if (kinds.test(c) && buildings.length < MAX_BUILDINGS) {
-      // the town or village itself is the land, not a building
-      const spec = assetSpecFromWords(oneOf(clause, true));
-      buildings.push({ spec, count: Math.min(6, count) });
-    }
+    const person = PEOPLE.test(c) && !kinds.test(c.replace(PEOPLE, ''));
+    if (person) items.push({ kind: 'person', words: clause, count });
+    else if (kinds.test(c)) items.push({ kind: 'building', words: clause, count });
+    else if (items.length && !BIOME_WORDS.some(([re]) => re.test(c)) && !/\b(night|evening|sunset|dusk|noon|rain|snow|fog|mist)\b/.test(c))
+      items[items.length - 1]!.words += ` with ${clause}`;
+  }
+  for (const it of items) {
+    if (it.kind === 'person' && people.length < MAX_PEOPLE)
+      people.push({ words: oneOf(it.words, it.count > 1), count: Math.min(4, it.count) });
+    if (it.kind === 'building' && buildings.length < MAX_BUILDINGS)
+      buildings.push({ spec: assetSpecFromWords(oneOf(it.words, true)), count: Math.min(6, it.count) });
   }
   // a town or village with no buildings named gets a few houses; a city a few buildings of each
   if (!buildings.length && /\b(town|village|city|street)\b/.test(t))

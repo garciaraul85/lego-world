@@ -310,7 +310,14 @@ export class EditorState {
     if (ui.layers && typeof ui.layers === 'object')
       this.layers.value = { ...this.layers.value, ...(ui.layers as object) };
     if (ui.brush && typeof ui.brush === 'object') this.brush.value = { ...this.brush.value, ...(ui.brush as object) };
-    this.store.subscribe('', () => this.revision.value++);
+    this.store.subscribe('', () => {
+      this.revision.value++;
+      // Milestone 3, 10d: the open map was taken away (an Undo of a map just made): open another one
+      if (!this.store.has(paths.map(this.mapId.peek())) && this.maps.peek().length)
+        queueMicrotask(() => {
+          if (!this.store.has(paths.map(this.mapId.peek()))) this.openMap(this.store.manifest.entry.map);
+        });
+    });
     this.bus.onChange(() => this.revision.value++);
     this.autosave.onStatus((s) => {
       this.save.value = s;

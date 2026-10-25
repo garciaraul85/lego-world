@@ -159,8 +159,9 @@ function Hierarchy({ c }: { c: ActionCtx }) {
   const rev = ed.revision.value;
   const selKey = [...ed.selection.value].slice(0, 3).join(',') + ed.selection.value.size;
   const rows = useMemo((): Row[] => {
-    if (!s) return [];
-    const m = ed.mapDoc.value!;
+    // the open map can be gone for a moment (an Undo of a map just made), until the editor opens another
+    const m = ed.mapDoc.value;
+    if (!s || !m) return [];
     const f = filter.toLowerCase();
     const sel = ed.selection.value;
     const byCat = new Map<CategoryId, { group: string; ids: number[] }[]>();
