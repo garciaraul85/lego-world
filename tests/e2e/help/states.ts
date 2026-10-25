@@ -388,16 +388,17 @@ export const HELP_STATES: HelpState[] = [
       await p.locator('[data-tour="pose-joints"]').scrollIntoViewIfNeeded();
     },
   },
-  ...(['body', 'skeleton'] as const).map((v) => ({
+  ...(['body', 'moves', 'skeleton'] as const).map((v) => ({
     // P22 part 3: a dragon from the family's sliders; the skeleton editor on a body plan of the game's own
-    id: `characters-${v}`,
+    // Milestone 3, 10d part 2: and the dragon's moves (the Body tab scrolled to them)
+    id: v === 'moves' ? 'characters-body-moves' : `characters-${v}`,
     screen: 'characters',
     setup: async (p: Page) => {
       await ws(p, 'Characters');
       await signals(p, { charTab: 'look', sheetTab: 'body' });
       await p.evaluate((v) => {
         const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
-        const id = v === 'body' ? 'chr_helpdragon' : 'chr_helpcrab01';
+        const id = v !== 'skeleton' ? 'chr_helpdragon' : 'chr_helpcrab01';
         if (!e.store.get(`characters/${id}.json`)) {
           if (v === 'skeleton')
             e.exec({
@@ -449,10 +450,10 @@ export const HELP_STATES: HelpState[] = [
             payload: {
               character: {
                 id,
-                name: v === 'body' ? 'Ember' : 'Pinch',
+                name: v !== 'skeleton' ? 'Ember' : 'Pinch',
                 role: 'npc',
-                profile: { name: v === 'body' ? 'Ember' : 'Pinch' },
-                body: v === 'body' ? { family: 'dragon' } : { plan: 'bpl_helpcrab01', colors: { main: '#c91a09' } },
+                profile: { name: v !== 'skeleton' ? 'Ember' : 'Pinch' },
+                body: v !== 'skeleton' ? { family: 'dragon' } : { plan: 'bpl_helpcrab01', colors: { main: '#c91a09' } },
               },
             },
           });
@@ -463,6 +464,7 @@ export const HELP_STATES: HelpState[] = [
         e.bodyWalk!.value = false;
       }, v);
       if (v === 'skeleton') await p.locator('[data-tour="char-skeleton"]').scrollIntoViewIfNeeded();
+      if (v === 'moves') await p.locator('[data-tour="body-moves"]').scrollIntoViewIfNeeded();
     },
   })),
   {
