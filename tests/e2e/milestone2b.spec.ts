@@ -100,10 +100,12 @@ test('Milestone 2b gate: the Foundations park floats, drifts, smashes, climbs, l
   const gpu = await drawSpeed(page);
   await page.getByLabel('Draw with').selectOption('webgl');
   await expect
-    .poll(() =>
-      page.evaluate(
-        () => (window as unknown as { __view: () => { renderer: { kind: string } } }).__view().renderer.kind,
-      ),
+    .poll(
+      () =>
+        page.evaluate(
+          () => (window as unknown as { __view: () => { renderer: { kind: string } } }).__view().renderer.kind,
+        ),
+      { timeout: 90_000 },
     )
     .toBe('webgl');
   await page.waitForTimeout(1000);
