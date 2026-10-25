@@ -139,6 +139,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'assets.open': S('assets'),
   'characters.fromPicture': S('characters'),
   'assets.fromPicture': S('core'),
+  'world.fromPicture': S('core'),
   'assets.new': S('assets'),
   'assets.resetBuiltins': A('assets'),
   // P18: the genre picker and Show everything

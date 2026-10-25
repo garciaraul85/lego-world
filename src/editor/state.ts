@@ -168,7 +168,7 @@ export class EditorState {
   /** P22 part 4: the “A character from a picture” dialog is open */
   readonly fromPicture = signal(false);
   /** Milestone 3, 10d part 4: what From a picture makes */
-  readonly makeKind = signal<'character' | 'asset'>('character');
+  readonly makeKind = signal<'character' | 'asset' | 'map'>('character');
   readonly faceMood = signal<'neutral' | 'happy' | 'angry' | 'sad' | 'scared' | 'surprised'>('neutral');
   /** P22: how the open conversation is shown (a list, a graph or a script) */
   readonly dialogueView = signal<'list' | 'graph' | 'script'>('list');

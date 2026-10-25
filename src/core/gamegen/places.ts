@@ -1,3 +1,5 @@
+import { footprint } from '../bricks/inspect';
+import { brickHeight } from '../bricks/map-bricks';
 import type { Command, CommandBus } from '../commands';
 import { allBricks } from '../commands/handlers/assets';
 import type { ProjectStore } from '../project/store';
@@ -43,7 +45,7 @@ export function assetSpot(
   bus: CommandBus,
   map: string,
   def: Pick<Asset, 'id' | 'footprint'>,
-  opts: { minSteps?: number; maxSteps?: number; id?: string; before?: Command[] } = {},
+  opts: { minSteps?: number; maxSteps?: number; id?: string; before?: Command[]; rough?: number } = {},
 ): Command | null {
   // Milestone 3, 10d: commands that come first (the new asset's asset.create), tried together
   const pre = opts.before ?? [];
@@ -62,6 +64,18 @@ export function assetSpot(
     };
     if (bus.dryRun([...pre, cmd]).ok) return cmd;
   }
+  // Milestone 3, 10d part 5: hilly or snowy land has no flat spot as big: then ground that rises at most `rough`
+  // plates under it (the asset stands on the highest point, a little above the low side)
+  if (opts.rough)
+    for (const c of pool.slice(0, 400)) {
+      const r = s.roughRect(c[0], c[2], def.footprint[0], def.footprint[1]);
+      if (!r || r.top - r.lo > opts.rough) continue;
+      const cmd: Command = {
+        type: 'asset.place',
+        payload: { map, asset: def.id, pos: [c[0], r.top, c[2]], rot: 0, ...(opts.id ? { id: opts.id } : {}) },
+      };
+      if (bus.dryRun([...pre, cmd]).ok) return cmd;
+    }
   if (cells.length) return null;
   // a map with no bricks yet (a new map, the tutorial's practice map): the bare ground near the spawn, west
   // and south first (the tutorial puts its villager north-east of the arrival)
@@ -105,4 +119,51 @@ export function brickSpot(
     if (bus.dryRun([cmd]).ok) return cmd;
   }
   return null;
+}
+
+/**
+ * Milestone 3, 10d part 5: snowy or paved land is mostly smooth tiles, which nothing can be built on (no studs).
+ * A spot is still good when the ground under it is near enough level and at least one cell at its highest point
+ * is a studded brick: the asset stands there, held by those studs, over the tiles around.
+ */
+export function clearedSpot(
+  store: ProjectStore,
+  bus: CommandBus,
+  map: string,
+  def: Pick<Asset, 'id' | 'footprint'>,
+  minSteps: number,
+): Command[] {
+  const { cells } = reachable(store, map);
+  const bricks = allBricks(store, map);
+  const [w, d] = def.footprint;
+  const pool = cells.filter(([, , , st]) => st >= minSteps && st <= 80).sort((a, b) => a[3] - b[3]);
+  for (const [x, , z] of pool.slice(0, 300)) {
+    const under = bricks.filter((b) => {
+      const [bw, bd] = footprint(b);
+      return b.x < x + w && b.x + bw > x && b.z < z + d && b.z + bd > z;
+    });
+    // each cell's top, and whether its top brick has studs (the bare ground counts: it is the baseplate)
+    const tops: [number, boolean][] = [];
+    for (let i = 0; i < w; i++)
+      for (let j = 0; j < d; j++) {
+        let top = 0;
+        let studs = true;
+        for (const b of under) {
+          const [bw, bd] = footprint(b);
+          if (!(b.x <= x + i && b.x + bw > x + i && b.z <= z + j && b.z + bd > z + j)) continue;
+          const t = b.y + brickHeight(b.type);
+          if (t > top || (t === top && !studs)) {
+            top = t;
+            studs = !b.type.startsWith('tile');
+          }
+        }
+        tops.push([top, studs]);
+      }
+    const top = Math.max(...tops.map((t) => t[0]));
+    if (top - Math.min(...tops.map((t) => t[0])) > 6) continue;
+    if (!tops.some(([t, studs]) => t === top && studs)) continue;
+    const cmd: Command = { type: 'asset.place', payload: { map, asset: def.id, pos: [x, top, z], rot: 0 } };
+    if (bus.dryRun([cmd]).ok) return [cmd];
+  }
+  return [];
 }

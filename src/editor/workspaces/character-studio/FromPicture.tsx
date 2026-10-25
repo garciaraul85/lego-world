@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { composeAsset } from '../../../core/assets/compose';
 import { creaturePlan } from '../../../core/character/compose';
 import { type ResolvedBody, resolveBody } from '../../../core/character/resolve';
+import { describeMap, type MapSpec, mapSpecFromWords } from '../../../core/gamegen/map-spec';
 import { assetSpot } from '../../../core/gamegen/places';
 import { newId } from '../../../core/ids';
 import { type Character, type MapDoc, paths } from '../../../core/schema';
@@ -13,6 +14,7 @@ import { pickProvider } from '../../ai/providers';
 import { paintWithMarks } from '../../character/draw-marks';
 import { AssetThumb } from '../../components/AssetThumb';
 import { type AssetCandidate, assetPrompt, localAssetCandidates, parseAssetCandidates } from '../../maker/asset-match';
+import { mapCommands, mapPrompt, mapVariants, parseMapCandidates } from '../../maker/map-maker';
 import { type LookPicture, lookColors, lookPrints } from './bring-look';
 import { aiPrompt, type Candidate, type Catalog, localCandidates, mainColors, parseCandidates } from './picture-match';
 import { CharacterThumb } from './thumbs';
@@ -79,9 +81,13 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
   // Milestone 3, 10d part 4: what to make — a character, or an asset (a house, a castle, a ship, a tree…)
   const kind = ed.makeKind.value;
   const [things, setThings] = useState<AssetCandidate[] | null>(null);
+  // Milestone 3, 10d part 5: maps — the land, its buildings and its people
+  const [maps, setMaps] = useState<{ spec: MapSpec; seed: number; matched: [string, string][] }[] | null>(null);
+  const [building, setBuilding] = useState<number | null>(null);
   useEffect(() => {
     setFound(null);
     setThings(null);
+    setMaps(null);
     setStatus('');
   }, [kind]);
   const [aiReady, setAiReady] = useState(false);
@@ -209,8 +215,51 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
     }
   };
 
+  const createMap = async () => {
+    const colors = pic?.colors ?? [];
+    const r = await askClaude(mapPrompt(text, !!pic, colors), 'a game map (its land, buildings and people)');
+    const list = r.text ? parseMapCandidates(r.text) : [];
+    const seed = () => Math.floor(Math.random() * 99_999_999);
+    if (list.length) {
+      setMaps(list.map((m) => ({ ...m, seed: seed() })));
+      setStatus('Claude chose these; the editor builds the land, buildings and people when you make one.');
+      return;
+    }
+    const spec = mapSpecFromWords(text.trim() ? text : landFromColours(colors));
+    setMaps(
+      mapVariants(spec).map((v) => ({
+        spec: v.spec,
+        seed: v.seed,
+        matched: [...describeMap(v.spec), ['Version', v.note] as [string, string]],
+      })),
+    );
+    setStatus(r.text ? 'Claude’s answer could not be used, so the editor made these on its own.' : r.note);
+  };
+
+  /** builds the map (on a copy first), then makes it in the project as one step and opens it */
+  const makeMap = async (i: number) => {
+    const m = maps?.[i];
+    if (!m) return;
+    setBuilding(i);
+    setStatus('Building the land, the buildings and the people…');
+    try {
+      const out = await mapCommands(ed, m.spec, m.seed);
+      if (ed.exec(out.commands, { label: `New map ${m.spec.name} (from a picture)` }).ok) {
+        ed.openMap(out.map);
+        c.ui.workspace('Scene');
+        if (out.notes.length) ed.notify(out.notes.join(' '));
+        onClose();
+      } else setStatus('The map could not be made.');
+    } catch (e) {
+      setStatus(`The map could not be made: ${e instanceof Error ? e.message : 'unknown'}`);
+    } finally {
+      setBuilding(null);
+    }
+  };
+
   const create = async () => {
     if (kind === 'asset') return createThing();
+    if (kind === 'map') return createMap();
     const cat = catalog();
     const colors = pic?.colors ?? [];
     const local = () => localCandidates(text, colors, cat, { personFromPhoto: !!pic && partColors });
@@ -335,8 +384,12 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
       class="fp-back"
       role="dialog"
       aria-modal="true"
-      aria-label={kind === 'asset' ? 'Asset from a picture' : 'Character from a picture'}
-      data-help={kind === 'asset' ? 'assets.fromPicture' : 'characters.fromPicture'}
+      aria-label={
+        kind === 'asset' ? 'Asset from a picture' : kind === 'map' ? 'Map from a picture' : 'Character from a picture'
+      }
+      data-help={
+        kind === 'asset' ? 'assets.fromPicture' : kind === 'map' ? 'world.fromPicture' : 'characters.fromPicture'
+      }
     >
       <div class="fp" ref={box}>
         <header class="fp-head">
@@ -346,6 +399,7 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
               [
                 ['character', '🧑 Character'],
                 ['asset', '🏠 Asset or building'],
+                ['map', '🗺 Map'],
               ] as const
             ).map(([k, label]) => (
               <button
@@ -428,9 +482,11 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
                 aria-label="Describe it"
                 data-tour="fp-words"
                 placeholder={
-                  kind === 'asset'
-                    ? 'a red brick house with a blue door and a chimney · a pirate ship with black sails · a stone castle · a lighthouse'
-                    : 'a blue fox wizard with a long red scarf · a curvy pirate with a red star on her cheek · a walking teapot'
+                  kind === 'map'
+                    ? 'a snowy mountain village at night with a lighthouse, three red houses, a blacksmith and two guards · a pirate island at sunset with a ship and palm trees'
+                    : kind === 'asset'
+                      ? 'a red brick house with a blue door and a chimney · a pirate ship with black sails · a stone castle · a lighthouse'
+                      : 'a blue fox wizard with a long red scarf · a curvy pirate with a red star on her cheek · a walking teapot'
                 }
                 value={text}
                 onInput={(e) => setText((e.target as HTMLTextAreaElement).value)}
@@ -463,7 +519,44 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
             </p>
           </div>
           <div class="fp-out" role="list" aria-label="Matches">
-            {!(kind === 'asset' ? things : found) && <p class="muted small">Three matches show here, closest first.</p>}
+            {!(kind === 'asset' ? things : kind === 'map' ? maps : found) && (
+              <p class="muted small">Three matches show here, closest first.</p>
+            )}
+            {kind === 'map' &&
+              maps?.map((m, i) => (
+                <div
+                  class="fp-card"
+                  role="listitem"
+                  aria-label={`Match ${i + 1}: ${m.spec.name}`}
+                  data-tour={`fp-match-${i}`}
+                >
+                  <div class="fp-map-icon" aria-hidden="true">
+                    🗺
+                  </div>
+                  <div class="fp-info">
+                    <b>
+                      {i === 0 ? 'Closest · ' : ''}
+                      {m.spec.name}
+                    </b>
+                    <ul class="fp-matched">
+                      {m.matched.map(([part, what]) => (
+                        <li>
+                          <span class="fp-part">{part}</span> ← {what}
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      class="btn"
+                      data-tour={`fp-use-${i}`}
+                      disabled={building !== null}
+                      onClick={() => void makeMap(i)}
+                    >
+                      {building === i ? 'Building…' : 'Make this map'}
+                    </button>
+                  </div>
+                </div>
+              ))}
             {kind === 'asset' &&
               things?.map((k, i) => (
                 <ThingCard k={k} i={i} onUse={() => useThing(k)} onPlace={() => useThing(k, true)} />
@@ -573,4 +666,19 @@ function ThingCard({ k, i, onUse, onPlace }: { k: AssetCandidate; i: number; onU
       </div>
     </div>
   );
+}
+
+/** Milestone 3, 10d part 5: with a picture and no words, its main colours say the land (blue sea, white snow…) */
+export function landFromColours(colors: string[]): string {
+  const words: string[] = [];
+  for (const c of colors.slice(0, 3)) {
+    const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(c.slice(i, i + 2), 16)) as [number, number, number];
+    if (r > 200 && g > 200 && b > 200) words.push('snowy mountains');
+    else if (b > r + 30 && b > g) words.push('beach');
+    else if (g > r + 20 && g > b) words.push('forest');
+    else if (r > 150 && g > 120 && b < 120) words.push('desert');
+    else if (r > 150 && g < 90 && b < 70) words.push('volcano');
+    else if (Math.abs(r - g) < 20 && Math.abs(g - b) < 20) words.push('city');
+  }
+  return words.length ? `a place with ${[...new Set(words)].join(' and ')}` : 'a prairie';
 }

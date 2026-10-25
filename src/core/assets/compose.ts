@@ -417,9 +417,19 @@ type Cell = { color: string; h: 1 | 3; kind: 'brick' | 'plate' | 'tile' };
 /** 1-stud cells, by x, y (plates) and z */
 class Cells {
   readonly map = new Map<string, Cell & { x: number; y: number; z: number }>();
-  set(x: number, y: number, z: number, color: string, h: 1 | 3 = 3, kind: Cell['kind'] = h === 3 ? 'brick' : 'plate') {
+  set(
+    x: number,
+    y: number,
+    z: number,
+    color: string,
+    h: 1 | 3 = 3,
+    kind: Cell['kind'] = h === 3 ? 'brick' : 'plate',
+    soft = false,
+  ) {
     // things in front of a wall (sails, awnings, wheels) go below 0: the asset is moved to start at 0 after
     if (x < -16 || z < -16 || y < 0 || x >= 80 || z >= 80 || y > 270) return;
+    // a soft cell (a roof, a floor) does not cut into what is already built
+    if (soft) for (let k = 0; k < h; k++) if (this.map.has(`${x},${y + k},${z}`)) return;
     // a taller cell clears the plates it covers; one cell per spot
     for (let k = 0; k < h; k++) {
       const key = `${x},${y + k},${z}`;
@@ -454,8 +464,23 @@ class Shaper {
       for (let i = 0; i < w; i++) for (let j = 0; j < d; j++) this.c.set(x + i, y + l * 3, z + j, color);
   }
   /** a layer of plates (or tiles, smooth on top) */
-  plate(x: number, y: number, z: number, w: number, d: number, color: string, kind: 'plate' | 'tile' = 'plate') {
-    for (let i = 0; i < w; i++) for (let j = 0; j < d; j++) this.c.set(x + i, y, z + j, color, 1, kind);
+  plate(
+    x: number,
+    y: number,
+    z: number,
+    w: number,
+    d: number,
+    color: string,
+    kind: 'plate' | 'tile' = 'plate',
+    soft = false,
+  ) {
+    for (let i = 0; i < w; i++) for (let j = 0; j < d; j++) this.c.set(x + i, y, z + j, color, 1, kind, soft);
+  }
+  /** a ring of plates one stud wide (a floor on the walls; the inside is not seen) */
+  ring(x: number, y: number, z: number, w: number, d: number, color: string) {
+    for (let i = 0; i < w; i++)
+      for (let j = 0; j < d; j++)
+        if (i === 0 || j === 0 || i === w - 1 || j === d - 1) this.c.set(x + i, y, z + j, color, 1, 'plate', true);
   }
   /** four walls one stud thick */
   walls(x: number, y: number, z: number, w: number, d: number, layers: number, color: string) {
@@ -486,13 +511,28 @@ class Shaper {
             this.c.set(Math.floor(cx + i), y + l * 3, Math.floor(cz + j), color);
     }
   }
+  /** the top of what is built in a column (0: the ground) — where something stood there rests */
+  topOf(x: number, z: number) {
+    let top = 0;
+    for (const c of this.c.cells()) if (c.x === x && c.z === z && c.kind !== 'tile') top = Math.max(top, c.y + c.h);
+    return top;
+  }
+  /** a pole of bricks standing on whatever is below (x, z), `layers` tall */
+  post(x: number, z: number, layers: number, color: string, from?: number) {
+    const y = from ?? this.topOf(x, z);
+    for (let l = 0; l < layers; l++) this.c.set(x, y + l * 3, z, color);
+    return y + layers * 3;
+  }
   hole(x: number, y: number, z: number, w: number, d: number, layers: number) {
     for (let l = 0; l < layers * 3; l++)
       for (let i = 0; i < w; i++) for (let j = 0; j < d; j++) this.c.clear(x + i, y + l, z + j);
   }
 }
 
-/** a roof over x..x+w, z..z+d at height y */
+/**
+ * a roof over x..x+w, z..z+d resting at height y; returns the top. Every step overlaps the one below (studs hold
+ * it): a gable rises in shrinking plates from the front and back to a ridge, a pyramid from every side.
+ */
 function roof(
   s: Shaper,
   x: number,
@@ -506,48 +546,47 @@ function roof(
 ) {
   if (style === 'none') return y;
   if (style === 'flat') {
-    s.plate(x, y, z, w, d, color, 'tile');
+    // plates on the walls, smooth tiles on them
+    s.plate(x, y, z, w, d, trim, 'plate', true);
+    s.plate(x + 1, y + 1, z + 1, Math.max(1, w - 2), Math.max(1, d - 2), color, 'tile', true);
     return y + 1;
   }
   if (style === 'battlements') {
-    s.plate(x, y, z, w, d, trim);
+    s.ring(x, y, z, w, d, trim);
     for (let i = 0; i < w; i++)
       for (let j = 0; j < d; j++)
         if ((i === 0 || j === 0 || i === w - 1 || j === d - 1) && (i + j) % 2 === 0)
-          s.c.set(x + i, y + 1, z + j, color);
-    return y + 4;
+          s.c.set(x + i, y + 1, z + j, color, 3, 'brick', true);
+    return y + 1;
   }
   if (style === 'gable') {
-    // steps rising from front and back to a ridge along x
-    const steps = Math.ceil(d / 2);
-    for (let k = 0; k < steps; k++) {
-      s.plate(x - (k === 0 ? 1 : 0), y + k, z + k, w + (k === 0 ? 2 : 0), 1, color);
-      s.plate(x - (k === 0 ? 1 : 0), y + k, z + d - 1 - k, w + (k === 0 ? 2 : 0), 1, color);
-      // the gable ends
-      if (k > 0)
-        for (let j = z + k; j < z + d - k; j++) for (const xi of [x, x + w - 1]) s.c.set(xi, y + k - 1, j, trim, 1);
-    }
-    return y + steps;
+    let k = 0;
+    for (; 2 * k < d; k++) s.plate(x, y + k, z + k, w, d - 2 * k, color, 'plate', true);
+    return y + k;
   }
   if (style === 'pyramid') {
     let k = 0;
-    for (; 2 * k < Math.min(w, d); k++) s.plate(x + k, y + k, z + k, w - 2 * k, d - 2 * k, color);
+    for (; 2 * k < Math.min(w, d); k++) s.plate(x + k, y + k, z + k, w - 2 * k, d - 2 * k, color, 'plate', true);
     return y + k;
   }
-  // dome: shrinking rings of bricks
+  // dome: shrinking discs of bricks, each on the one below
   const r = Math.min(w, d) / 2;
-  let k = 0;
-  for (; k < 3; k++)
-    s.disc(x + w / 2 - 0.5, y + k * 3, z + d / 2 - 0.5, r * Math.cos((k / 3) * (Math.PI / 2)) + 0.3, 1, color);
-  s.c.set(Math.floor(x + w / 2 - 0.5), y + 9, Math.floor(z + d / 2 - 0.5), trim);
-  return y + 12;
+  for (let k = 0; k < 3; k++)
+    s.disc(
+      x + w / 2 - 0.5,
+      y + k * 3,
+      z + d / 2 - 0.5,
+      Math.max(0.6, r * Math.cos((k / 3) * (Math.PI / 2)) + 0.3),
+      1,
+      color,
+    );
+  return y + 9;
 }
 
 /** windows along the walls of a floor (every few studs, one brick tall), and the door in front */
 function openings(s: Shaper, spec: AssetSpec, x: number, y: number, z: number, w: number, d: number, floor: number) {
   const { colors } = spec;
-  const wants = spec.features.includes('windows');
-  if (wants)
+  if (spec.features.includes('windows'))
     for (const [len, at] of [
       [w, (i: number) => [x + i, z] as const],
       [w, (i: number) => [x + i, z + d - 1] as const],
@@ -566,15 +605,16 @@ function openings(s: Shaper, spec: AssetSpec, x: number, y: number, z: number, w
   }
 }
 
-/** Builds a spec into cells: each kind its own recipe from boxes, walls, discs, blobs and roofs. */
+/** Builds a spec into cells: each kind its own recipe, every brick resting on studs. */
 function shape(spec: AssetSpec): Shaper {
   const s = new Shaper();
   const { width: w, depth: d, floors: f, colors: col, features: F } = spec;
   const has = (x: (typeof ASSET_FEATURES)[number]) => F.includes(x);
-  const flag = (x: number, y: number, z: number) => {
-    for (let l = 0; l < 3; l++) s.c.set(x, y + l * 3, z, '#1b1b1b');
-    s.c.set(x + 1, y + 6, z, col.accent);
-    s.c.set(x + 2, y + 6, z, col.accent);
+  /** a flag on a pole standing on whatever is at (x, z) */
+  const flag = (x: number, z: number) => {
+    const top = s.post(x, z, 3, '#1b1b1b');
+    // the cloth: a plate on the pole's top, reaching out
+    s.plate(x, top, z, 3, 1, col.accent);
   };
   switch (spec.kind) {
     case 'house':
@@ -582,69 +622,82 @@ function shape(spec: AssetSpec): Shaper {
     case 'shop':
     case 'barn':
     case 'skyscraper':
-    case 'temple':
     case 'castle':
-    case 'stall':
     case 'hut':
     case 'tent': {
       s.plate(0, 0, 0, w, d, spec.kind === 'castle' ? col.trim : '#6c6e68');
       let y = 1;
       const floorLayers = spec.kind === 'skyscraper' ? 2 : 3;
-      if (spec.kind === 'temple') {
-        // steps, columns, a beam
-        s.plate(0, 0, 0, w, d, col.main);
-        s.plate(1, 1, 1, w - 2, d - 2, col.main);
-        y = 2;
-        for (let i = 1; i < w - 1; i += 3) for (const zz of [1, d - 2]) s.box(i, y, zz, 1, 1, 4, col.main);
-        s.plate(0, y + 12, 0, w, d, col.trim);
-        roof(s, 0, y + 13, 0, w, d, spec.roof, col.roof, col.trim);
-        break;
-      }
-      if (spec.kind === 'stall') {
-        s.plate(0, 0, 0, w, d, col.main);
-        for (const [cx, cz] of [
-          [0, 0],
-          [w - 1, 0],
-          [0, d - 1],
-          [w - 1, d - 1],
-        ] as const)
-          s.box(cx, 1, cz, 1, 1, 3, col.main);
-        s.box(1, 1, 0, w - 2, 1, 1, col.accent);
-        s.plate(0, 10, 0, w, d, col.roof);
-        roof(s, 0, 11, 0, w, d, 'gable', col.roof, col.accent);
-        break;
-      }
       for (let fl = 0; fl < f; fl++) {
         s.walls(0, y, 0, w, d, floorLayers, col.main);
         openings(s, spec, 0, y, 0, w, d, fl);
+        if (fl === 0 && has('clock')) s.c.set(Math.floor(w / 2), y + floorLayers * 3 - 3, 0, '#f4f4f4');
         y += floorLayers * 3;
+        // a floor plate on the walls (the balcony is the floor reaching out at the front)
         if (fl < f - 1) {
-          s.plate(0, y, 0, w, d, col.trim);
+          s.ring(0, y, 0, w, d, col.trim);
+          if (has('balcony') && fl === 0) s.plate(1, y, -2, Math.min(8, w - 2), 3, col.trim);
           y += 1;
         }
       }
       if (spec.kind === 'castle') {
-        // corner towers taller than the walls
+        // corner towers taller than the walls, flags on them
+        const th = f * 3 + 2;
         for (const [cx, cz] of [
           [0, 0],
           [w - 3, 0],
           [0, d - 3],
           [w - 3, d - 3],
         ] as const) {
-          s.box(cx, 1, cz, 3, 3, f * 3 + 2, col.main);
-          roof(s, cx, 1 + (f * 3 + 2) * 3, cz, 3, 3, 'battlements', col.main, col.trim);
+          s.box(cx, 1, cz, 3, 3, th, col.main);
+          roof(s, cx, 1 + th * 3, cz, 3, 3, 'battlements', col.main, col.trim);
         }
-        if (has('flag')) flag(1, 1 + (f * 3 + 2) * 3 + 4, 1);
+        if (has('flag')) flag(1, 1);
       }
-      if (has('awning')) for (let i = 0; i < w; i++) s.c.set(i, 7, -1, i % 2 ? col.accent : '#f4f4f4', 1);
-      if (has('sign')) s.box(Math.floor(w / 2) - 2, y - 3, -1, 4, 1, 1, col.accent);
-      if (has('balcony') && f > 1) s.plate(1, 1 + floorLayers * 3, -2, w - 2, 2, col.trim);
+      if (has('garden'))
+        for (let i = 0; i < w; i += 2) {
+          s.plate(i, 0, -3, 2, 2, '#237841');
+          s.c.set(i, 1, -3, i % 4 ? '#c91a09' : '#f2cd37', 1);
+        }
+      // a sign on a post in front
+      if (has('sign')) {
+        const sx = Math.max(0, Math.floor(w / 2) - 4);
+        const top = s.post(sx, -4, 2, col.trim, 0);
+        s.box(sx - 1, top, -4, 4, 1, 1, col.accent);
+      }
       const top = roof(s, 0, y, 0, w, d, spec.roof, col.roof, col.trim);
-      if (has('chimney'))
-        s.box(w - 3, y, Math.max(1, Math.floor(d / 4)), 1, 1, Math.max(2, Math.ceil((top - y) / 3) + 1), col.trim);
-      if (has('flag') && spec.kind !== 'castle') flag(1, top, 1);
-      if (has('clock')) s.c.set(Math.floor(w / 2), y - 3, -1, '#f4f4f4');
-      if (has('garden')) for (let i = 0; i < w; i += 2) s.c.set(i, 0, -2, i % 4 ? '#c91a09' : '#237841', 1);
+      // a shop's awning: striped plates on the roof's front edge, reaching out over the door
+      if (has('awning'))
+        for (let i = 0; i < w; i++) {
+          const ay = s.topOf(i, 0);
+          for (let j = -2; j <= 0; j++) s.c.set(i, ay, j, i % 2 ? col.accent : '#f4f4f4', 1, 'plate', true);
+        }
+      // a chimney on the back wall, up through the roof
+      if (has('chimney')) s.post(w - 2, d - 1, Math.max(2, Math.ceil((top - y) / 3) + 1), col.trim, y);
+      if (has('flag') && spec.kind !== 'castle') flag(Math.floor(w / 2), Math.floor(d / 2));
+      break;
+    }
+    case 'temple': {
+      // steps, a floor, columns, a beam on them, a roof
+      s.plate(0, 0, 0, w, d, col.main);
+      s.plate(1, 1, 1, w - 2, d - 2, col.main);
+      for (let i = 1; i < w - 1; i += 3) for (const zz of [1, d - 2]) s.box(i, 2, zz, 1, 1, 4, col.main);
+      s.plate(0, 14, 0, w, d, col.trim);
+      roof(s, 0, 15, 0, w, d, spec.roof === 'none' ? 'gable' : spec.roof, col.roof, col.trim);
+      break;
+    }
+    case 'stall': {
+      s.plate(0, 0, 0, w, d, col.main);
+      for (const [cx, cz] of [
+        [0, 0],
+        [w - 1, 0],
+        [0, d - 1],
+        [w - 1, d - 1],
+      ] as const)
+        s.box(cx, 1, cz, 1, 1, 3, col.main);
+      s.box(1, 1, 0, w - 2, 1, 1, col.accent);
+      s.plate(0, 10, 0, w, d, col.roof);
+      roof(s, 0, 11, 0, w, d, 'gable', col.roof, col.accent);
       break;
     }
     case 'tower':
@@ -660,58 +713,54 @@ function shape(spec: AssetSpec): Shaper {
         }
         if (has('windows') && fl > 0) s.c.set(Math.floor(r), y - 6, 0, col.window, 3);
       }
-      if (has('door')) {
-        s.c.set(Math.floor(r) - 1, 0, 0, col.door);
-        s.c.set(Math.floor(r), 0, 0, col.door);
-        s.c.set(Math.floor(r) - 1, 3, 0, col.door);
-        s.c.set(Math.floor(r), 3, 0, col.door);
-      }
-      if (spec.kind === 'lighthouse' || has('lamp')) {
-        s.disc(r - 0.5, y, r - 0.5, r - 1, 1, '#f2cd37');
+      if (has('door'))
+        for (const dx of [Math.floor(r) - 1, Math.floor(r)]) for (const l of [0, 3]) s.c.set(dx, l, 0, col.door);
+      // a floor across the top, then the lamp room
+      s.plate(0, y, 0, w, d, col.trim);
+      y += 1;
+      const lamp = spec.kind === 'lighthouse' || has('lamp');
+      if (lamp) {
+        s.disc(r - 0.5, y, r - 0.5, Math.max(1, r - 1), 1, '#f2cd37');
         y += 3;
       }
-      const top = roof(s, 0, y, 0, w, d, spec.roof, col.roof, col.trim);
+      // the roof on the lamp room is as wide as the lamp
+      const top = lamp
+        ? roof(s, 1, y, 1, Math.max(1, w - 2), Math.max(1, d - 2), spec.roof, col.roof, col.trim)
+        : roof(s, 0, y, 0, w, d, spec.roof, col.roof, col.trim);
       if (spec.kind === 'windmill' || has('sail')) {
-        // four sails on the front: a cross of bricks, each arm as long as the mill is wide
-        const hub = y - 6;
-        const arm = Math.max(4, Math.round(r) + 3);
-        s.c.set(Math.floor(r), hub, -1, col.trim);
-        for (let k = 1; k <= arm; k++) {
-          s.c.set(Math.floor(r) + k, hub, -1, col.accent);
-          s.c.set(Math.floor(r) - k, hub, -1, col.accent);
-          if (hub + k * 3 < 270) s.c.set(Math.floor(r), hub + k * 3, -1, col.accent);
-          if (hub - k * 3 >= 0) s.c.set(Math.floor(r), hub - k * 3, -1, col.accent);
-        }
+        // four sails in front: the lower one a post from the ground, across it one 8-stud plate, the upper on it
+        const ax = Math.floor(r);
+        const hub = s.post(ax, -2, Math.max(2, Math.floor((y - 6) / 3)), col.accent, 0);
+        s.plate(ax - 4, hub, -2, 8, 1, col.accent);
+        s.post(ax, -2, 4, col.accent, hub + 1);
       }
-      if (has('flag')) flag(Math.floor(r), top, Math.floor(r));
+      if (has('flag')) flag(Math.floor(r), Math.floor(r));
+      void top;
       break;
     }
     case 'pyramid': {
       roof(s, 0, 0, 0, w, d, 'pyramid', col.main, col.trim);
-      s.c.set(Math.floor(w / 2), Math.floor(Math.min(w, d) / 2), Math.floor(d / 2), col.trim, 1);
       break;
     }
     case 'bridge': {
-      const span = w;
-      for (let i = 0; i < span; i++) {
-        const lift = Math.round(Math.sin((i / (span - 1)) * Math.PI) * 3);
-        s.plate(i, 6 + lift, 0, 1, d, col.main);
-        s.c.set(i, 7 + lift, 0, col.trim, 3);
-        s.c.set(i, 7 + lift, d - 1, col.trim, 3);
-      }
-      for (const px of [0, span - 1]) for (const pz of [0, d - 1]) s.box(px, 0, pz, 1, 1, 2, col.accent);
+      // a deck on piers every few studs, railings on it
+      for (let i = 0; i < w; i += 4) for (const pz of [0, d - 1]) s.box(Math.min(i, w - 1), 0, pz, 1, 1, 2, col.accent);
+      s.box(w - 1, 0, 0, 1, 1, 2, col.accent);
+      s.box(w - 1, 0, d - 1, 1, 1, 2, col.accent);
+      s.plate(0, 6, 0, w, d, col.main);
+      for (let i = 0; i < w; i++) for (const zz of [0, d - 1]) s.c.set(i, 7, zz, col.trim, 3);
+      break;
+    }
+    case 'fence': {
+      for (let i = 0; i < w; i += 3) s.box(i, 0, 0, 1, 1, 2, col.main);
+      s.box(w - 1, 0, 0, 1, 1, 2, col.main);
+      s.plate(0, 6, 0, w, 1, col.main);
       break;
     }
     case 'wall':
-    case 'fence':
     case 'gate':
     case 'arch': {
-      const layers = spec.kind === 'fence' ? 1 : f;
-      if (spec.kind === 'fence') {
-        for (let i = 0; i < w; i += 3) s.box(i, 0, 0, 1, 1, 2, col.main);
-        s.plate(0, 4, 0, w, 1, col.main);
-        break;
-      }
+      const layers = Math.max(2, f);
       s.box(0, 0, 0, w, d, layers, col.main);
       if (spec.kind !== 'wall') {
         const dw = Math.max(2, Math.floor(w / 3));
@@ -725,13 +774,14 @@ function shape(spec: AssetSpec): Shaper {
     case 'fountain': {
       const r = Math.min(w, d) / 2;
       s.disc(r - 0.5, 0, r - 0.5, r, 1, col.main, true);
-      s.disc(r - 0.5, 0, r - 0.5, r - 1.2, 1, col.accent);
+      s.disc(r - 0.5, 0, r - 0.5, Math.max(0.6, r - 1.2), 1, col.accent);
       if (spec.kind === 'fountain') {
         s.box(Math.floor(r) - 1, 3, Math.floor(r) - 1, 2, 2, 2, col.main);
-        s.disc(r - 0.5, 9, r - 0.5, 1.6, 1, col.accent);
+        s.plate(Math.floor(r) - 2, 9, Math.floor(r) - 2, 4, 4, col.accent);
       } else {
         for (const px of [0, w - 1]) s.box(px, 3, Math.floor(r), 1, 1, 2, col.trim);
-        roof(s, 0, 9, 0, w, d, 'gable', col.roof, col.trim);
+        s.plate(0, 9, 0, w, d, col.trim);
+        roof(s, 0, 10, 0, w, d, 'gable', col.roof, col.trim);
       }
       break;
     }
@@ -745,8 +795,8 @@ function shape(spec: AssetSpec): Shaper {
         break;
       }
       // a figure on a plinth: legs, body, head
-      const cx = Math.floor(w / 2) - 1;
-      const cz = Math.floor(d / 2) - 1;
+      const cx = Math.max(0, Math.floor(w / 2) - 1);
+      const cz = Math.max(0, Math.floor(d / 2) - 1);
       s.box(cx, 3, cz, 2, 1, f + 1, col.main);
       s.box(cx - 1, 3 + (f + 1) * 3, cz, 4, 1, 2, col.main);
       s.box(cx, 3 + (f + 3) * 3, cz, 2, 1, 1, col.main);
@@ -756,13 +806,24 @@ function shape(spec: AssetSpec): Shaper {
     case 'bush':
     case 'rock': {
       if (spec.kind === 'tree') {
-        const cx = Math.floor(w / 2);
-        s.box(cx - 1, 0, Math.floor(d / 2) - 1, 2, 2, f + 1, col.trim);
-        s.blob(w / 2, (f + 1) * 3, d / 2, w / 2, f + 1, d / 2, col.main);
-      } else if (spec.kind === 'bush') s.blob(w / 2, 0, d / 2, w / 2, 2, d / 2, col.main);
-      else {
-        s.blob(w / 2, 0, d / 2, w / 2, 2, d / 2, col.main);
-        s.blob(w / 2 + 0.5, 3, d / 2, w / 3, 1, d / 3, col.trim);
+        const cx = Math.max(0, Math.floor(w / 2) - 1);
+        const cz = Math.max(0, Math.floor(d / 2) - 1);
+        s.box(cx, 0, cz, 2, 2, f + 1, col.trim);
+        // the leaves: layers of plates and bricks, each wider in the middle, all over the trunk
+        const base = (f + 1) * 3;
+        const layers = f + 1;
+        for (let l = 0; l < layers; l++) {
+          const k = Math.sin(((l + 0.5) / layers) * Math.PI) * 0.55 + 0.45;
+          const rw = Math.max(1, Math.round((w / 2) * k));
+          const rd = Math.max(1, Math.round((d / 2) * k));
+          s.box(cx + 1 - rw, base + l * 3, cz + 1 - rd, rw * 2, rd * 2, 1, col.main);
+        }
+      } else if (spec.kind === 'bush') {
+        s.box(0, 0, 0, w, d, 1, col.main);
+        if (w > 2 && d > 2) s.box(1, 3, 1, w - 2, d - 2, 1, col.main);
+      } else {
+        s.box(0, 0, 0, w, d, 1, col.main);
+        if (w > 2 && d > 2) s.box(1, 3, 1, w - 2, d - 2, 1, col.trim);
       }
       break;
     }
@@ -771,66 +832,75 @@ function shape(spec: AssetSpec): Shaper {
     case 'bus':
     case 'train':
     case 'cart': {
-      s.plate(0, 2, 0, w, d, col.trim);
-      const cab = spec.kind === 'truck' ? 4 : spec.kind === 'car' ? Math.ceil(w / 2) : w;
-      if (spec.kind === 'cart') s.walls(0, 3, 0, w, d, 1, col.main);
+      // wheels under the corners, a chassis on them, the body on the chassis
+      const step = Math.max(2, Math.floor((w - 2) / 2));
+      for (let i = 1; i < w - 1; i += step) for (const zz of [0, d - 1]) s.box(i, 0, zz, 1, 1, 1, '#1b1b1b');
+      s.plate(0, 3, 0, w, d, col.trim);
+      if (spec.kind === 'cart') s.walls(0, 4, 0, w, d, 1, col.main);
       else {
-        s.box(0, 3, 0, w, d, 1, col.main);
+        s.box(0, 4, 0, w, d, 1, col.main);
+        const cab = spec.kind === 'truck' ? Math.min(4, w) : spec.kind === 'car' ? Math.ceil(w / 2) : w;
         const cx = spec.kind === 'car' ? Math.floor((w - cab) / 2) : 0;
-        s.box(cx, 6, 0, cab, d, 1, col.main);
+        s.box(cx, 7, 0, cab, d, 1, col.main);
         if (has('windows'))
-          for (let i = cx; i < cx + cab; i += 2) for (const zz of [0, d - 1]) s.c.set(i, 6, zz, col.window);
-        s.plate(cx, 9, 0, cab, d, col.main, 'tile');
-        if (spec.kind === 'truck') s.walls(cab, 6, 0, w - cab, d, 1, col.accent);
-        if (spec.kind === 'train' && has('chimney')) s.box(1, 9, Math.floor(d / 2), 1, 1, 2, col.trim);
+          for (let i = cx; i < cx + cab; i += 2) for (const zz of [0, d - 1]) s.c.set(i, 7, zz, col.window);
+        s.plate(cx, 10, 0, cab, d, col.main);
+        if (spec.kind === 'truck' && w > cab) s.walls(cab, 7, 0, w - cab, d, 1, col.accent);
+        if (spec.kind === 'train' && has('chimney')) s.post(1, Math.floor(d / 2), 2, col.trim, 11);
       }
-      // wheels on both sides
-      for (let i = 1; i < w - 1; i += Math.max(2, Math.floor((w - 2) / 2)))
-        for (const zz of [-1, d]) s.box(i, 0, zz, 1, 1, 1, '#1b1b1b');
       break;
     }
     case 'boat':
     case 'ship': {
-      // a hull: narrower at the keel and at the bow (x high), its sides rising above the deck
+      // a hull: each layer wider than the one under it, narrower at the bow (x high)
       const deep = spec.kind === 'ship' ? f + 1 : 1;
       for (let l = 0; l < deep; l++)
         for (let i = 0; i < w; i++) {
           const narrow = Math.max(0, i - (w - Math.ceil(d / 2) - 1));
-          const shrink = Math.min(Math.floor(d / 2) - 1, Math.max(0, deep - 1 - l) + narrow);
+          const shrink = Math.min(
+            Math.floor(d / 2) - 1,
+            Math.max(0, deep - 1 - l) + Math.max(0, narrow - (deep - 1 - l)),
+          );
           for (let j = shrink; j < d - shrink; j++) s.c.set(i, l * 3, j, l === deep - 1 ? col.main : col.trim);
         }
       const deck = deep * 3;
-      s.plate(0, deck, 1, w - Math.ceil(d / 2), d - 2, col.trim, 'tile');
-      // the sides above the deck
+      s.plate(0, deck, 1, w - Math.ceil(d / 2), Math.max(1, d - 2), col.trim);
       for (let i = 0; i < w - Math.ceil(d / 2); i++) for (const zz of [0, d - 1]) s.c.set(i, deck, zz, col.main);
       if (spec.kind === 'ship') {
-        // a cabin at the stern
-        s.box(0, deck + 1, 1, 3, d - 2, 1, col.main);
-        s.plate(0, deck + 4, 0, 4, d, col.trim);
+        s.box(0, deck + 1, 1, 3, Math.max(1, d - 2), 1, col.main);
+        s.plate(0, deck + 4, 1, 3, Math.max(1, d - 2), col.trim);
       }
       if (spec.kind === 'ship' || has('sail')) {
-        const mx = Math.floor(w / 2);
+        const mx = Math.floor(w / 2) - 1;
         const mz = Math.floor(d / 2);
-        const tall = spec.kind === 'ship' ? 9 : 5;
-        s.box(mx, deck + 1, mz, 1, 1, tall, col.trim);
-        // a square sail across the ship, in front of the mast
-        const half = Math.max(2, Math.floor(d / 2) + 1);
-        for (let l = 2; l < tall - 1; l++)
-          for (let j = -half; j <= half; j++) s.c.set(mx + 1, deck + 1 + l * 3, mz + j, col.accent, 3);
-        if (has('flag')) flag(mx, deck + 1 + tall * 3, mz);
+        const tall = spec.kind === 'ship' ? 8 : 4;
+        const top = s.post(mx, mz, tall, col.trim, deck + 1);
+        // a yard across the mast's top (one plate), the sail hanging from it
+        // the yard is one 2×4 or 2×6 plate, so the whole sail hangs from the mast
+        const span = d >= 6 ? 6 : 4;
+        const z0 = mz - span / 2;
+        s.plate(mx, top, z0, 2, span, col.trim);
+        for (let l = 1; l < tall - 1; l++)
+          for (let j = 0; j < span; j++) s.c.set(mx + 1, top - l * 3, z0 + j, col.accent, 3);
+        if (has('flag')) flag(mx, mz);
       }
       if (has('cannons'))
-        for (let i = 4; i < w - 5; i += 3) for (const zz of [-1, d]) s.c.set(i, deck - 3, zz, '#1b1b1b');
+        for (let i = 4; i < w - Math.ceil(d / 2) - 1; i += 3)
+          for (const zz of [1, d - 2]) s.c.set(i, deck + 1, zz, '#1b1b1b');
       break;
     }
     case 'plane': {
-      const cz = Math.floor(d / 2) - 1;
+      const cz = Math.max(3, Math.floor(d / 2) - 1);
+      // wheels under the body, the body, wings across it (one plate a side of the body), a tail
+      // wheels at the front, middle and back; a solid lower body on them; windows in the upper body
+      for (const wx of [1, Math.floor(w / 2), w - 2]) s.box(wx, 0, cz, 1, 2, 1, '#1b1b1b');
       s.box(0, 3, cz, w, 2, 1, col.main);
-      s.plate(Math.floor(w / 2) - 2, 6, 0, 4, d, col.main);
-      s.plate(0, 6, cz - 2, 2, 6, col.accent);
-      s.box(0, 6, cz, 1, 2, 1, col.accent);
-      if (has('windows')) for (let i = 3; i < w - 2; i += 2) s.c.set(i, 3, cz, col.window);
-      for (const zz of [cz - 1, cz + 2]) s.box(Math.floor(w / 2), 0, zz, 1, 1, 1, '#1b1b1b');
+      s.box(0, 6, cz, w, 2, 1, col.main);
+      if (has('windows')) for (let i = 3; i < w - 2; i += 2) s.c.set(i, 6, cz, col.window);
+      const mid = Math.floor(w / 2) - 2;
+      s.plate(mid, 9, cz - 3, 4, 8, col.main);
+      s.plate(0, 9, cz - 1, 2, 4, col.accent);
+      s.box(0, 10, cz, 1, 2, 1, col.accent);
       break;
     }
     case 'bench':
@@ -846,8 +916,8 @@ function shape(spec: AssetSpec): Shaper {
       s.plate(0, 3, 0, w, d, col.main, spec.kind === 'table' ? 'tile' : 'plate');
       if (spec.kind === 'bench') s.box(0, 4, d - 1, w, 1, 1, col.main);
       if (spec.kind === 'bed') {
-        s.plate(0, 4, 0, w, d, col.accent, 'tile');
-        s.plate(0, 5, 0, w, Math.max(1, Math.floor(d / 4)), col.roof, 'tile');
+        s.plate(0, 4, 1, w, d - 1, col.accent);
+        s.plate(0, 5, 1, w, Math.max(1, Math.floor(d / 4)), col.roof, 'tile');
         s.box(0, 4, 0, w, 1, 1, col.main);
       }
       break;
@@ -858,7 +928,7 @@ function shape(spec: AssetSpec): Shaper {
       if (spec.kind === 'barrel') {
         const r = Math.min(w, d) / 2;
         s.disc(r - 0.5, 0, r - 0.5, r, f + 1, col.main);
-        s.disc(r - 0.5, 3, r - 0.5, r, 1, col.trim, true);
+        s.disc(r - 0.5, 3, r - 0.5, r, 1, col.trim);
         break;
       }
       s.box(0, 0, 0, w, d, f, col.main);
@@ -873,8 +943,9 @@ function shape(spec: AssetSpec): Shaper {
         s.c.set(0, (f + 1) * 3, 0, col.accent);
         s.plate(0, (f + 2) * 3, 0, 1, 1, col.main, 'tile');
       } else {
-        s.box(Math.floor(w / 2), 0, 0, 1, 1, 2, col.main);
-        s.box(0, 6, 0, w, 1, 1, col.accent);
+        const px = Math.floor(w / 2);
+        const top = s.post(px, 0, 2, col.main, 0);
+        s.box(Math.max(0, px - 2), top, 0, Math.min(4, w), 1, 1, col.accent);
       }
       break;
     }
@@ -921,9 +992,119 @@ function mesh(cells: Cells): { type: string; x: number; y: number; z: number; ro
   return out;
 }
 
+/**
+ * Only the bricks held by studs to the ground (y 0) through one another — v68's rule for every build; a brick
+ * a recipe left touching only at its side is dropped rather than make the asset impossible to place.
+ */
+export function heldBricks<T extends { type: string; x: number; y: number; z: number; rot: number }>(list: T[]): T[] {
+  const tops = new Map<string, number[]>();
+  const bottoms = new Map<string, number[]>();
+  const add = (m: Map<string, number[]>, k: string, i: number) => {
+    const l = m.get(k);
+    if (l) l.push(i);
+    else m.set(k, [i]);
+  };
+  list.forEach((b, i) => {
+    const m = /(\d+)x(\d+)$/.exec(b.type)!;
+    const [rows, cols] = [Number(m[1]), Number(m[2])];
+    const [w, d] = b.rot % 2 ? [rows, cols] : [cols, rows];
+    const h = b.type.startsWith('brick') ? 3 : 1;
+    for (let x = 0; x < w; x++)
+      for (let z = 0; z < d; z++) {
+        add(bottoms, `${b.x + x},${b.y},${b.z + z}`, i);
+        if (!b.type.startsWith('tile')) add(tops, `${b.x + x},${b.y + h},${b.z + z}`, i);
+      }
+  });
+  const adj: number[][] = list.map(() => []);
+  for (const [k, under] of tops)
+    for (const over of bottoms.get(k) ?? [])
+      for (const u of under)
+        if (u !== over) {
+          adj[u]!.push(over);
+          adj[over]!.push(u);
+        }
+  const y0 = Math.min(...list.map((b) => b.y));
+  const seen = new Uint8Array(list.length);
+  const queue: number[] = [];
+  list.forEach((b, i) => {
+    if (b.y === y0) {
+      seen[i] = 1;
+      queue.push(i);
+    }
+  });
+  for (let j = 0; j < queue.length; j++)
+    for (const n of adj[queue[j]!]!)
+      if (!seen[n]) {
+        seen[n] = 1;
+        queue.push(n);
+      }
+  return list.filter((_, i) => seen[i]);
+}
+
+type Placed = { type: string; x: number; y: number; z: number; rot: number; color: string };
+const dims = (b: Placed) => {
+  const m = /(\d+)x(\d+)$/.exec(b.type)!;
+  const [rows, cols] = [Number(m[1]), Number(m[2])];
+  return { w: b.rot % 2 ? rows : cols, d: b.rot % 2 ? cols : rows, h: b.type.startsWith('brick') ? 3 : 1 };
+};
+/**
+ * A brick nothing holds (the middle of a long table, a wide chassis, a big roof) gets a thin support column of
+ * 1×1 bricks and plates down to the ground under it, where that column is free — an extra leg or post.
+ */
+function underpin(list: Placed[], color: string): Placed[] {
+  let out = list;
+  for (let round = 0; round < 4; round++) {
+    const held = new Set(heldBricks(out));
+    const loose = out.filter((b) => !held.has(b));
+    if (!loose.length) break;
+    const filled = new Set<string>();
+    for (const b of out) {
+      const { w, d, h } = dims(b);
+      for (let i = 0; i < w; i++)
+        for (let j = 0; j < d; j++) for (let k = 0; k < h; k++) filled.add(`${b.x + i},${b.y + k},${b.z + j}`);
+    }
+    const y0 = Math.min(...out.map((b) => b.y));
+    const added: Placed[] = [];
+    for (const b of loose) {
+      const { w, d } = dims(b);
+      // the middle first, then the corners
+      const spots = [
+        [Math.floor(w / 2), Math.floor(d / 2)],
+        [0, 0],
+        [w - 1, d - 1],
+        [w - 1, 0],
+        [0, d - 1],
+      ];
+      for (const [i, j] of spots) {
+        const x = b.x + i!;
+        const z = b.z + j!;
+        // it stands on whatever is highest below (or the ground)
+        let base = y0;
+        for (let y = b.y - 1; y >= y0; y--)
+          if (filled.has(`${x},${y},${z}`)) {
+            base = y + 1;
+            break;
+          }
+        if (base >= b.y) continue;
+        let y = base;
+        while (y < b.y) {
+          const tall = b.y - y >= 3;
+          added.push({ type: tall ? 'brick1x1' : 'plate1x1', x, y, z, rot: 0, color });
+          for (let k = 0; k < (tall ? 3 : 1); k++) filled.add(`${x},${y + k},${z}`);
+          y += tall ? 3 : 1;
+        }
+        break;
+      }
+    }
+    if (!added.length) break;
+    out = [...out, ...added];
+  }
+  return out;
+}
+
 /** An asset (bricks, palette, footprint) built from a spec, ready for asset.create. */
 export function composeAsset(spec: AssetSpec, id: string): Asset {
-  const bricks = mesh(shape(spec).c);
+  const bricks = heldBricks(underpin(mesh(shape(spec).c), spec.colors.trim));
   // to the origin, ground at 0
   const x0 = Math.min(...bricks.map((b) => b.x));
   const z0 = Math.min(...bricks.map((b) => b.z));
@@ -973,3 +1154,6 @@ export function describeSpec(s: AssetSpec): [string, string][] {
   if (s.features.length) out.push(['Has', s.features.join(', ')]);
   return out;
 }
+
+/** for tests: the bricks a spec meshes into before the stud rule */
+export const __mesh = (spec: AssetSpec) => underpin(mesh(shape(spec).c), spec.colors.trim);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ASSET_KINDS, assetSpecFromWords, cleanAssetSpec, composeAsset } from '../../src/core/assets/compose';
+import { inspectBricks } from '../../src/core/bricks/inspect';
 import { validBrickType } from '../../src/core/bricks/map-bricks';
 import { Asset } from '../../src/core/schema';
 
@@ -51,6 +52,20 @@ describe('every kind of asset', () => {
         expect(a.bricks.length).toBeLessThan(6000);
         for (const t of a.palette.types) expect(validBrickType(t), t).toBe(true);
         expect(overlaps(a)).toBeNull();
+        // v68's rule: every brick held by studs to the ground through others (so it can be placed on a map)
+        const bricks = a.bricks.map(([t, x, y, z, rot, c], i) => ({
+          id: i + 1,
+          type: a.palette.types[t]!,
+          x,
+          y,
+          z,
+          rot,
+          color: a.palette.colors[c]!,
+          flags: 0,
+          group: -1,
+        }));
+        const r2 = inspectBricks(bricks as never);
+        expect(r2.ok, `${kind} ${JSON.stringify(extra)}: ${(r2 as { reason?: string }).reason}`).toBe(true);
         expect(Math.min(...a.bricks.map((b) => b[2]))).toBe(0);
         expect(Math.min(...a.bricks.map((b) => b[1]))).toBe(0);
         expect(Math.min(...a.bricks.map((b) => b[3]))).toBe(0);
@@ -110,5 +125,35 @@ describe('things built in front of a wall', () => {
     const car = composeAsset(cleanAssetSpec({ kind: 'car' }), 'ast_test000004');
     const wheels = car.bricks.filter((b) => car.palette.colors[b[5]] === '#1b1b1b' && b[2] === 0);
     expect(new Set(wheels.map((b) => b[3])).size).toBe(2);
+  });
+});
+
+describe('nothing is lost to the stud rule', () => {
+  it('every kind keeps (nearly) all its bricks: recipes hold every part by studs', async () => {
+    const { heldBricks, __mesh } = await import('../../src/core/assets/compose');
+    for (const kind of ASSET_KINDS)
+      for (const extra of [{}, { width: 32, depth: 32, floors: 12 }, { width: 3, depth: 3, floors: 1 }]) {
+        const spec = cleanAssetSpec({
+          kind,
+          ...extra,
+          features: [
+            'chimney',
+            'flag',
+            'door',
+            'windows',
+            'sail',
+            'wheels',
+            'awning',
+            'sign',
+            'clock',
+            'garden',
+            'balcony',
+            'cannons',
+            'lamp',
+          ],
+        });
+        const all = __mesh(spec);
+        expect(heldBricks(all).length, `${kind} ${JSON.stringify(extra)}`).toBe(all.length);
+      }
   });
 });

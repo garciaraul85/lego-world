@@ -73,6 +73,20 @@ export class Surface {
     return { top, flat: top === lo };
   }
 
+  /** Milestone 3, 10d part 5: the ground's highest and lowest top under a rectangle (smooth tiles count too) */
+  roughRect(x: number, z: number, w: number, d: number): { top: number; lo: number } | null {
+    let top = -1;
+    let lo = Infinity;
+    for (let i = 0; i < w; i++)
+      for (let j = 0; j < d; j++) {
+        const t = this.top.get(`${x + i},${z + j}`);
+        if (t === undefined) return null;
+        top = Math.max(top, t);
+        lo = Math.min(lo, t);
+      }
+    return { top, lo };
+  }
+
   /** cells reachable on foot from (x, z), with their distance in steps */
   reach(x: number, z: number, maxSteps = 4000): Map<string, number> {
     const start = `${x},${z}`;

@@ -548,6 +548,15 @@ ACTIONS.push(
     },
   },
   {
+    // Milestone 3, 10d part 5
+    id: 'world.fromPicture',
+    label: 'New map from a picture or words…',
+    run: ({ ed }) => {
+      ed.makeKind.value = 'map';
+      ed.fromPicture.value = true;
+    },
+  },
+  {
     // Milestone 3, 10d part 4
     id: 'assets.fromPicture',
     label: 'New asset from a picture or words…',
@@ -617,6 +626,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
   Assets: ['assets.open', 'assets.new', 'assets.fromPicture', 'characters.fromPicture', '-', 'assets.resetBuiltins'],
   World: [
     'world.addMap',
+    'world.fromPicture',
     'world.trainingYard',
     'world.foundationsPark',
     'world.generate',
