@@ -43,8 +43,10 @@ export function assetSpot(
   bus: CommandBus,
   map: string,
   def: Pick<Asset, 'id' | 'footprint'>,
-  opts: { minSteps?: number; maxSteps?: number; id?: string } = {},
+  opts: { minSteps?: number; maxSteps?: number; id?: string; before?: Command[] } = {},
 ): Command | null {
+  // Milestone 3, 10d: commands that come first (the new asset's asset.create), tried together
+  const pre = opts.before ?? [];
   const { s, cells } = reachable(store, map);
   const spawns = store.get<MapDoc>(paths.map(map))?.spawns.map((x) => x.pos) ?? [];
   const pool = cells
@@ -58,7 +60,7 @@ export function assetSpot(
       type: 'asset.place',
       payload: { map, asset: def.id, pos: [c[0], rect.top, c[2]], rot: 0, ...(opts.id ? { id: opts.id } : {}) },
     };
-    if (bus.dryRun([cmd]).ok) return cmd;
+    if (bus.dryRun([...pre, cmd]).ok) return cmd;
   }
   if (cells.length) return null;
   // a map with no bricks yet (a new map, the tutorial's practice map): the bare ground near the spawn, west
@@ -79,7 +81,7 @@ export function assetSpot(
         type: 'asset.place',
         payload: { map, asset: def.id, pos: [cx + dx, 0, cz + dz], rot: 0, ...(opts.id ? { id: opts.id } : {}) },
       };
-      if (bus.dryRun([cmd]).ok) return cmd;
+      if (bus.dryRun([...pre, cmd]).ok) return cmd;
     }
   return null;
 }

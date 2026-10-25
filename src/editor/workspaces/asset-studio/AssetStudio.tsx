@@ -638,6 +638,19 @@ function Library({
         <button type="button" class="btn on" onClick={newAsset}>
           + New asset
         </button>
+        {/* Milestone 3, 10d part 4: an asset from a picture or words */}
+        <button
+          type="button"
+          class="btn"
+          data-tour="asset-from-picture"
+          data-help="assets.fromPicture"
+          onClick={() => {
+            ed.makeKind.value = 'asset';
+            ed.fromPicture.value = true;
+          }}
+        >
+          ✨ From a picture…
+        </button>
         <input
           class="inp"
           placeholder="Find an asset"

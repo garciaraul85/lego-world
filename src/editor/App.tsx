@@ -47,6 +47,7 @@ import { ViewportPanel } from './viewport/Views';
 import { AssetStudio } from './workspaces/asset-studio/AssetStudio';
 import { AudioWorkspace } from './workspaces/audio/AudioWorkspace';
 import { CharacterStudio } from './workspaces/character-studio/CharacterStudio';
+import { FromPicture } from './workspaces/character-studio/FromPicture';
 import { Director } from './workspaces/director/Director';
 import { EffectsStudio } from './workspaces/effects/EffectsStudio';
 import { LogicWorkspace } from './workspaces/logic/LogicWorkspace';
@@ -389,6 +390,8 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         />
       )}
       {ai && <AiPanel c={c} prompt={aiPrompt} onClose={() => setAi(false)} />}
+      {/* Milestone 3, 10d: From a picture makes characters and assets, from any workspace */}
+      {ed.fromPicture.value && <FromPicture c={c} onClose={() => (ed.fromPicture.value = false)} />}
       {!hub && <Brix c={c} open={brix} onOpen={() => setBrix(true)} onClose={() => setBrix(false)} />}
       {help && <HelpView c={c} page={help} onClose={() => setHelp(null)} />}
       {hub && (

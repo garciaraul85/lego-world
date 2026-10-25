@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { composeAsset } from '../../../core/assets/compose';
 import { creaturePlan } from '../../../core/character/compose';
 import { type ResolvedBody, resolveBody } from '../../../core/character/resolve';
+import { assetSpot } from '../../../core/gamegen/places';
 import { newId } from '../../../core/ids';
 import { type Character, type MapDoc, paths } from '../../../core/schema';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
@@ -9,6 +11,8 @@ import { type AiSettings, gameSpent, loadAi, recordSpend, saveAi } from '../../.
 import type { ActionCtx } from '../../actions/registry';
 import { pickProvider } from '../../ai/providers';
 import { paintWithMarks } from '../../character/draw-marks';
+import { AssetThumb } from '../../components/AssetThumb';
+import { type AssetCandidate, assetPrompt, localAssetCandidates, parseAssetCandidates } from '../../maker/asset-match';
 import { type LookPicture, lookColors, lookPrints } from './bring-look';
 import { aiPrompt, type Candidate, type Catalog, localCandidates, mainColors, parseCandidates } from './picture-match';
 import { CharacterThumb } from './thumbs';
@@ -72,6 +76,14 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
   const [busy, setBusy] = useState<AbortController | null>(null);
   const [status, setStatus] = useState('');
   const [found, setFound] = useState<Candidate[] | null>(null);
+  // Milestone 3, 10d part 4: what to make — a character, or an asset (a house, a castle, a ship, a tree…)
+  const kind = ed.makeKind.value;
+  const [things, setThings] = useState<AssetCandidate[] | null>(null);
+  useEffect(() => {
+    setFound(null);
+    setThings(null);
+    setStatus('');
+  }, [kind]);
   const [aiReady, setAiReady] = useState(false);
   const [reading, setReading] = useState(false);
   // Milestone 3, 10d: v68's Bring your look for a person in the picture
@@ -138,7 +150,67 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
     }
   };
 
+  /** asks Claude (or, without it, the words) for one kind of answer; null when Claude was not asked or failed */
+  const askClaude = async (prompt: string, what: string): Promise<{ text: string | null; note: string }> => {
+    const s = withKey(loadAi());
+    const capped =
+      (s.dailyCap > 0 && s.spent.tokens >= s.dailyCap) ||
+      (s.gameCap > 0 && gameSpent(s, ed.store.manifest.id) >= s.gameCap);
+    const provider = capped ? null : await pickProvider(() => s);
+    if (!provider)
+      return {
+        text: null,
+        note: capped
+          ? 'Made by the editor on its own (today’s AI spending cap is reached).'
+          : `Made by the editor on its own: the words pick what it is, the picture gives the colours. Set up the AI builder for Claude to look at the picture too.`,
+      };
+    const ctl = new AbortController();
+    setBusy(ctl);
+    setStatus('Claude is looking…');
+    try {
+      const r = await provider.run({
+        instructions: `You choose settings for ${what} in a brick game editor. Answer with JSON only.`,
+        turns: [{ role: 'user', content: prompt }],
+        tools: [],
+        maxRounds: 1,
+        maxTokens: 3000,
+        signal: ctl.signal,
+        ...(pic ? { images: [{ blob: pic.blob, mediaType: pic.mediaType, base64: pic.base64 }] } : {}),
+      });
+      if (r.usage)
+        saveAi(
+          recordSpend(loadAi(), r.usage.inputTokens + r.usage.outputTokens, r.usage.requests, ed.store.manifest.id),
+        );
+      return { text: r.text, note: '' };
+    } catch (e) {
+      return {
+        text: null,
+        note:
+          (e as { code?: string }).code === 'cancelled'
+            ? 'Stopped. The editor made these on its own.'
+            : `Claude could not answer (${e instanceof Error ? e.message : 'unknown'}), so the editor made these on its own.`,
+      };
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const createThing = async () => {
+    const colors = pic?.colors ?? [];
+    const local = () => localAssetCandidates(text, colors);
+    const r = await askClaude(assetPrompt(text, !!pic, colors), 'an object (a building, vehicle, prop or plant)');
+    const list = r.text ? parseAssetCandidates(r.text) : [];
+    if (list.length) {
+      setThings(list);
+      setStatus('Claude chose these; the editor built them from bricks. Pick one; you can change every brick after.');
+    } else {
+      setThings(local());
+      setStatus(r.text ? 'Claude’s answer could not be used, so the editor made these on its own.' : r.note);
+    }
+  };
+
   const create = async () => {
+    if (kind === 'asset') return createThing();
     const cat = catalog();
     const colors = pic?.colors ?? [];
     const local = () => localCandidates(text, colors, cat, { personFromPhoto: !!pic && partColors });
@@ -190,6 +262,23 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
       );
     } finally {
       setBusy(null);
+    }
+  };
+
+  /** Milestone 3, 10d part 4: the asset built into the project, and if asked, placed on a flat free spot near the start */
+  const useThing = (k: AssetCandidate, placeIt = false) => {
+    const id = newId('asset');
+    const def = composeAsset(k.spec, id);
+    const create = { type: 'asset.create', payload: { asset: def } };
+    const place = placeIt ? assetSpot(ed.store, ed.bus, ed.mapId.value, def, { before: [create], minSteps: 4 }) : null;
+    if (placeIt && !place) {
+      setStatus('There is no flat free spot near the start for it: use it, then place it from the Assets dock.');
+      return;
+    }
+    if (ed.exec([create, ...(place ? [place] : [])], { label: `New asset ${def.name} (from a picture)` }).ok) {
+      ed.studioAsset.value = id;
+      if (!placeIt) c.ui.workspace('Assets');
+      onClose();
     }
   };
 
@@ -246,12 +335,31 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
       class="fp-back"
       role="dialog"
       aria-modal="true"
-      aria-label="Character from a picture"
-      data-help="characters.fromPicture"
+      aria-label={kind === 'asset' ? 'Asset from a picture' : 'Character from a picture'}
+      data-help={kind === 'asset' ? 'assets.fromPicture' : 'characters.fromPicture'}
     >
       <div class="fp" ref={box}>
         <header class="fp-head">
-          <b>✨ A character from a picture</b>
+          <b>✨ Make from a picture</b>
+          <span class="row" role="radiogroup" aria-label="What to make" data-tour="fp-kind" style={{ gap: '4px' }}>
+            {(
+              [
+                ['character', '🧑 Character'],
+                ['asset', '🏠 Asset or building'],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={kind === k}
+                class={`btn small ${kind === k ? 'on' : ''}`}
+                data-tour={`fp-kind-${k}`}
+                onClick={() => (ed.makeKind.value = k)}
+              >
+                {label}
+              </button>
+            ))}
+          </span>
           <button type="button" class="link" aria-label="Close" onClick={onClose}>
             ✕
           </button>
@@ -279,7 +387,7 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
                 onChange={(e) => void choose((e.target as HTMLInputElement).files?.[0])}
               />
             </label>
-            {pic && (
+            {pic && kind === 'character' && (
               <div class="col small" style={{ gap: '4px' }} data-tour="fp-look">
                 <label class="row" style={{ gap: '6px' }}>
                   <input
@@ -319,7 +427,11 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
                 rows={3}
                 aria-label="Describe it"
                 data-tour="fp-words"
-                placeholder="a blue fox wizard with a long red scarf · a walking teapot · a three-headed robot snake"
+                placeholder={
+                  kind === 'asset'
+                    ? 'a red brick house with a blue door and a chimney · a pirate ship with black sails · a stone castle · a lighthouse'
+                    : 'a blue fox wizard with a long red scarf · a curvy pirate with a red star on her cheek · a walking teapot'
+                }
                 value={text}
                 onInput={(e) => setText((e.target as HTMLTextAreaElement).value)}
               />
@@ -351,10 +463,15 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
             </p>
           </div>
           <div class="fp-out" role="list" aria-label="Matches">
-            {!found && <p class="muted small">Three matches show here, closest first.</p>}
-            {found?.map((k, i) => (
-              <MatchCard c={c} k={k} i={i} look={lookOf(k)} onUse={() => use(k)} onPlace={() => use(k, true)} />
-            ))}
+            {!(kind === 'asset' ? things : found) && <p class="muted small">Three matches show here, closest first.</p>}
+            {kind === 'asset' &&
+              things?.map((k, i) => (
+                <ThingCard k={k} i={i} onUse={() => useThing(k)} onPlace={() => useThing(k, true)} />
+              ))}
+            {kind === 'character' &&
+              found?.map((k, i) => (
+                <MatchCard c={c} k={k} i={i} look={lookOf(k)} onUse={() => use(k)} onPlace={() => use(k, true)} />
+              ))}
           </div>
         </div>
       </div>
@@ -410,6 +527,36 @@ function MatchCard({
           {i === 0 ? 'Closest · ' : ''}
           {k.name}
         </b>
+        <ul class="fp-matched">
+          {k.matched.map(([part, what]) => (
+            <li>
+              <span class="fp-part">{part}</span> ← {what}
+            </li>
+          ))}
+        </ul>
+        <button type="button" class="btn" data-tour={`fp-use-${i}`} onClick={onUse}>
+          Use this one
+        </button>
+        <button type="button" class="btn" data-tour={`fp-place-${i}`} onClick={onPlace}>
+          Use and place on the map
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Milestone 3, 10d part 4: an asset match — a picture of the bricks it is built from, and what it matched */
+function ThingCard({ k, i, onUse, onPlace }: { k: AssetCandidate; i: number; onUse(): void; onPlace(): void }) {
+  const def = composeAsset(k.spec, 'ast_preview000');
+  return (
+    <div class="fp-card" role="listitem" aria-label={`Match ${i + 1}: ${k.name}`} data-tour={`fp-match-${i}`}>
+      <AssetThumb def={def} size={84} />
+      <div class="fp-info">
+        <b>
+          {i === 0 ? 'Closest · ' : ''}
+          {k.name}
+        </b>
+        <span class="muted small">{def.bricks.length} bricks</span>
         <ul class="fp-matched">
           {k.matched.map(([part, what]) => (
             <li>

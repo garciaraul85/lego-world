@@ -21,7 +21,6 @@ import { BodyTab, bodyOfChr } from './Body';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
 import { DrawTab } from './Draw';
 import { FaceTab, withMood } from './Face';
-import { FromPicture } from './FromPicture';
 import { PosePanel } from './Posing';
 import { AnimationsTab, BehaviourTab, MovesTab, OutfitsTab, SHEET_TABS, StatsTab, VoiceTab } from './Sheet';
 import { CharacterThumb, ClipThumb, peakTime, type ThumbView, trackPose } from './thumbs';
@@ -358,11 +357,13 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
             class="btn"
             data-tour="char-from-picture"
             data-help="characters.fromPicture"
-            onClick={() => (ed.fromPicture.value = true)}
+            onClick={() => {
+              ed.makeKind.value = 'character';
+              ed.fromPicture.value = true;
+            }}
           >
             ✨ From a picture…
           </button>
-          {ed.fromPicture.value && <FromPicture c={c} onClose={() => (ed.fromPicture.value = false)} />}
           {picking && <SearchBox label="presets" value={presetQ} onInput={setPresetQ} tour="char-preset-search" />}
           {picking && (
             <div class="char-presets" role="listbox" aria-label="New character from a preset">

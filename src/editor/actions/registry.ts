@@ -543,6 +543,16 @@ ACTIONS.push(
     label: 'New character from a picture…',
     run: ({ ed, ui }) => {
       ui.workspace('Characters');
+      ed.makeKind.value = 'character';
+      ed.fromPicture.value = true;
+    },
+  },
+  {
+    // Milestone 3, 10d part 4
+    id: 'assets.fromPicture',
+    label: 'New asset from a picture or words…',
+    run: ({ ed }) => {
+      ed.makeKind.value = 'asset';
       ed.fromPicture.value = true;
     },
   },
@@ -604,7 +614,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     '-',
     'view.palette',
   ],
-  Assets: ['assets.open', 'assets.new', 'characters.fromPicture', '-', 'assets.resetBuiltins'],
+  Assets: ['assets.open', 'assets.new', 'assets.fromPicture', 'characters.fromPicture', '-', 'assets.resetBuiltins'],
   World: [
     'world.addMap',
     'world.trainingYard',
