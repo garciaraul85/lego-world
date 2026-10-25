@@ -252,7 +252,7 @@ export const CHARACTERS: HelpEntry[] = [
     related: ['characters.skeleton', 'characters.bodyBricks', 'characters.sheet'],
   },
   {
-    id: 'characters.moves',
+    id: 'characters.bodyMoves',
     also: [
       'moves',
       'move',
@@ -301,7 +301,7 @@ export const CHARACTERS: HelpEntry[] = [
     ],
     commands: ['character.update'],
     match: [{ in: '[data-tour="body-moves"]' }],
-    related: ['characters.body', 'characters.fromPicture', 'characters.states'],
+    related: ['characters.body', 'characters.fromPicture', 'characters.states', 'characters.moves'],
   },
   {
     id: 'characters.face',

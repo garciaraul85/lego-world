@@ -235,6 +235,7 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   'event.onAchievement': S('logic'),
   // P22
   'dialogue.start': S('dialogue', 'logic'),
+  'character.doMove': S('characters', 'logic'),
   'effect.play': S('effects', 'logic'),
   'effect.start': S('effects', 'logic'),
   'effect.stop': S('effects', 'logic'),

@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (80 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (81 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -664,6 +664,15 @@ The hero puts on one of the outfits on its sheet (Characters › Outfits): its l
 Plays as the next hero of the party (Project › Party), as pressing H does.
 
 - Code: `hero.switch();`
+
+### Do a move
+
+`character.doMove` · action
+
+A character with a body (an animal, a dragon, a dinosaur, a figure made from words) does one of the moves its parts can do: roar, charge, swipe its tail, stomp, flap or glide its wings, wave, grab, spin, dance or sleep (and strike or flinch). Moves its body can’t do are skipped. The Body tab shows its moves.
+
+- Settings: Character (string), Move (move)
+- Code: `character.doMove(who, move);`
 
 ## Effects
 

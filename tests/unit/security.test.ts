@@ -139,6 +139,7 @@ describe('game scripts are sandboxed', () => {
       'saving',
       'progress',
       'talk',
+      'move',
       'sheet',
       'effect',
       'screen',
