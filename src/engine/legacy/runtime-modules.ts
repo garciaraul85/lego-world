@@ -226,7 +226,7 @@ const ORDER = [
   characterCatalog,
   rigCollision,
   withRoomToWalk(gamePhysics),
-  withTalkingMouth(withOffHand(characterModel)),
+  withOutwardPaint(withTalkingMouth(withOffHand(characterModel))),
   characterArt,
   npcWorld,
 ];
@@ -267,6 +267,24 @@ function withRoomToWalk(src: string): string {
  * and the face prints an open mouth (with a tongue) instead of the expression's mouth; the brows and eyes
  * keep the mood. Each shape is a different profile, so the model caches each one once.
  */
+/**
+ * Milestone 3, 10d: v68 picks the side of a part's drawing (front, back, left…) from each triangle's winding. Round
+ * parts (the head, the neck, hands — v68's lathes) are wound inward, so the front of the head took the Back side's
+ * drawing and the back of the head the Front's: a face drawn on the Front showed only on the eyes and mouth. Here
+ * a triangle whose winding disagrees with its own shading normals is turned round, so each side's drawing lands on
+ * that side. Flat parts (boxes) already agree and are unchanged; no built-in character has drawings.
+ */
+function withOutwardPaint(src: string): string {
+  const at =
+    'current.uvNormals.push(norm([ru[1]*rv[2]-ru[2]*rv[1],ru[2]*rv[0]-ru[0]*rv[2],ru[0]*rv[1]-ru[1]*rv[0]]));';
+  if (!src.includes(at)) throw new Error('character model: the paint side block moved; update withOutwardPaint');
+  const outward =
+    '{const q=norm([ru[1]*rv[2]-ru[2]*rv[1],ru[2]*rv[0]-ru[0]*rv[2],ru[0]*rv[1]-ru[1]*rv[0]]);' +
+    'const s=na&&nb&&nc?q[0]*(na[0]+nb[0]+nc[0])+q[1]*(na[1]+nb[1]+nc[1])+q[2]*(na[2]+nb[2]+nc[2]):1;' +
+    'current.uvNormals.push(s<0?q.map(x=>-x):q);}';
+  return src.replace(at, outward);
+}
+
 function withTalkingMouth(src: string): string {
   const at = "part('root',ink);const mouth=[];if(['Smile',";
   if (!src.includes(at)) throw new Error('character model: the mouth block moved; update withTalkingMouth');

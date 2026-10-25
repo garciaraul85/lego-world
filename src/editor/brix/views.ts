@@ -312,6 +312,27 @@ export function stepsToView(view: string): ShowStep[] {
         },
       ];
     }
+    case 'characters-shape':
+      // Milestone 3, 10d: body shaping is in the Look tab
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Look tab of the sheet; Body shape is under Body.',
+          find: control('[aria-label="Character sheet"]', /^Look$/),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === 'look',
+        },
+      ];
+    case 'characters-draw':
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Draw tab of the sheet.',
+          find: control('[aria-label="Character sheet"]', /^Draw$/),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === 'draw',
+        },
+      ];
     case 'characters-face':
       return [
         ws('Characters'),

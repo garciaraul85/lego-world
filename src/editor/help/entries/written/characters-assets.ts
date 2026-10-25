@@ -10,8 +10,12 @@ const APROPS = area('Asset properties');
 /** P9a */
 const HARM = '[data-tour="char-harm"]';
 const LOOK =
-  /^(Height|Gender|Head|Hair|Face|Eyes|Expression|Facial Hair|Glasses|Hat|Costume|Outfit|Shirt|Pants|Dress|Hero Cut|Swimwear|Underwear|Lingerie|Pattern|Shoes|Gloves|Back|Cape|Scarf|Neck|Ears|Wrist|Belt): /;
-const COLOURS = /^(Skin|Hair|Eye|Glasses|Hat|Shirt|Pants|Dress|Shoe|Accent|Glove|Accessory) color$/;
+  /^(Height|Gender|Head|Hair|Face|Eyes|Expression|Facial hair|Glasses|Hat|Costume|Outfit|Shirt|Pants|Dress|Hero cut|Neckline|Swimwear|Underwear|Lingerie|Pattern|Shoes|Gloves|Back|Cape|Scarf|Neck|Ears|Wrist|Belt): /;
+const COLOURS = /^(Skin|Hair|Eye|Glasses|Hat|Shirt|Pants|Dress|Shoe|Accent|Glove|Accessory|Nipple) color$/;
+/** Milestone 3, 10d: v68's body shaping in Look */
+const SHAPE = /^(Breast mode|Breast shape|Nipple style|Butt shape): /;
+const SIZES = /^(Breast size|Nipple size|Butt size|Neckline depth|Neckline width)\b/;
+const DRAW = '[data-tour="char-draw"]';
 
 export const CHARACTERS: HelpEntry[] = [
   {
@@ -668,6 +672,87 @@ export const CHARACTERS: HelpEntry[] = [
       { in: CPROPS, role: 'button', name: LOOK },
       { in: CPROPS, role: 'option' },
     ],
+  },
+  {
+    id: 'characters.bodyShape',
+    screen: 'characters',
+    kind: 'field',
+    name: 'Body shape',
+    also: [
+      'body shape',
+      'sculpt',
+      'sculpted',
+      'chest',
+      'breasts',
+      'bust',
+      'butt',
+      'hips',
+      'curves',
+      'figure',
+      'neckline',
+      'v-neck',
+      'comic',
+      'printed',
+    ],
+    purpose:
+      'How the figure is shaped (the old studio’s body shaping). For a Female body: the chest — **Sculpted** (shaped in 3D), **Printed** (drawn on the torso) or **Comic** — its shape (Rounded, Natural, Angular, Teardrop, Wide, Compact, Perky, Pointy) and **Breast size** (0–150). For any body: nipple style, size and colour, the **Butt shape** (Rounded, Athletic, Wide, Compact, Pear) and **Butt size** (0–100). Under Outfit, the **Neckline** (Closed, V-neck, Scoop, Sweetheart, Keyhole, Asymmetric) with its depth and width. Drag a slider and the preview follows at once; letting go keeps it (one undo step).',
+    steps: [
+      'Open the **Look** tab and find **Body shape** (set Gender to Female for the chest).',
+      'Pick a mode and shape from the pictures, then drag the size sliders.',
+      'The neckline is under **Outfit**.',
+    ],
+    commands: ['character.update'],
+    match: [
+      { in: CPROPS, role: 'button', name: SHAPE },
+      { in: CPROPS, role: 'slider', name: SIZES },
+    ],
+    related: ['characters.look', 'characters.draw'],
+  },
+  {
+    id: 'characters.draw',
+    screen: 'characters',
+    kind: 'area',
+    name: 'Draw',
+    also: [
+      'draw',
+      'paint',
+      'painting',
+      'drawing',
+      'draw a face',
+      'face paint',
+      'tattoo',
+      'logo',
+      'print',
+      'decal',
+      'custom shirt',
+      'pen',
+      'eraser',
+      'fill',
+      'bucket',
+      'colour picker',
+      'eyedropper',
+    ],
+    purpose:
+      'Draw on the figure, as in the old studio: faces, tattoos, logos, patterns, a printed shirt. Pick a **Part** (head, hair, hat, torso, dress, an arm, a hand, a leg, a foot, glasses, back gear, cape, scarf, held item) and a **Side** (Front, Back, Left, Right, Top, Bottom — left and right as you look at its front); the preview turns to it. Draw with the **Pen**, rub out with the **Eraser** (the part’s own look shows again), **Fill** an area of one colour, or **Pick** a colour off the figure. **Put a picture on this side** stretches a picture over it. Each stroke is one undo step; a part that isn’t worn (a hat, a cape…) is put on when you draw on it.',
+    steps: [
+      'Open the **Draw** tab of the character sheet.',
+      'Pick the **Part** and the **Side**.',
+      'Choose a colour and a size, then draw on the square. The figure shows it as you draw.',
+      '**Undo stroke** takes back the last stroke; **Clear this side** removes everything on that side.',
+    ],
+    options: [
+      ['Pen · Eraser', 'draw lines, or rub them out'],
+      ['Fill', 'the joined area of one colour you click'],
+      ['Pick', 'take a colour off the side (the drawing over the part’s own look)'],
+      ['Put a picture on this side', 'a PNG, JPEG or WebP picture, stretched over the side'],
+    ],
+    tips: [
+      '“Bring your look” (From a picture) makes its prints here too: open Draw to touch them up.',
+      'A part marked ✎ in the list has a drawing. Drawings stay with outfits: wearing an outfit, they go into it.',
+    ],
+    commands: ['character.update'],
+    match: [{ sel: DRAW }, { in: DRAW }],
+    related: ['characters.face', 'characters.bodyShape', 'characters.fromPicture'],
   },
   {
     id: 'characters.colors',

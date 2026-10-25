@@ -10,6 +10,14 @@ Start from one of v68's presets (New character from a preset). The copy is yours
 
 Change hair, face, outfit, colors and gear in the properties; the preview updates at once and each change is one undo step. Each choice (Hat, Hair, Shirt…) is a button with a small picture of what the character wears now: click it and a panel of pictures opens, showing your character wearing each option (a close-up of the head for hats and hair, of the legs for pants and shoes). Click a picture to wear it. Colors are color boxes.
 
+## Body shape
+
+The old studio's body shaping is in **Look**, in the section **Body shape**. For a **Female** body, the chest: **Breast mode** (**Sculpted**, shaped in 3D; **Printed**, drawn on the torso; or **Comic**), **Breast shape** (Rounded, Natural, Angular, Teardrop, Wide, Compact, Perky, Pointy) and **Breast size** (0 to 150). For any body: **Nipple style**, size and colour, **Butt shape** (Rounded, Athletic, Wide, Compact, Pear) and **Butt size** (0 to 100). The **Neckline** (Closed, V-neck, Scoop, Sweetheart, Keyhole, Asymmetric), its depth and width are under **Outfit**. Drag a slider and the preview follows at once; letting go keeps it, one undo step. [Shape and draw course](action:help.shape)
+
+## Drawing on the figure
+
+The **Draw** tab draws on the figure, as the old studio's paint did: faces, freckles, tattoos, logos, patterns, a printed shirt. Pick a **Part** (head, hair, hat, torso, dress, arms, hands, legs, feet, glasses, back gear, cape, scarf, held item) and a **Side** (Front, Back, Left, Right, Top, Bottom — left and right as you look at its front); the preview turns to that side. On round parts like the head, the Front's drawing covers the whole face, skin and all. The square shows the side with the part's own look under the drawing. Draw with the **Pen**, rub out with the **Eraser** (the part's own look shows again), **Fill** a joined area of one colour, or **Pick** a colour off the figure; choose the **Colour** and **Size**. **Put a picture on this side** stretches a PNG, JPEG or WebP over it. Every stroke shows on the figure as you draw and is one undo step (**Undo stroke** or Ctrl+Z); **Clear this side** wipes the side. Drawing on a part the figure doesn't wear (a hat, a cape, glasses…) puts one on. Parts with a drawing are marked ✎. Wearing an outfit, drawings go into the outfit. The prints that **Bring your look** makes from a photo are drawings too: touch them up here.
+
 ## The player character
 
 One character is the hero the player controls. Make player character (or Project tab › Hero) picks it. Other characters are neighbours the hero can talk to (T).

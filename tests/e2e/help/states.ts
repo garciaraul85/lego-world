@@ -504,6 +504,78 @@ export const HELP_STATES: HelpState[] = [
       });
     },
   },
+  ...(['shape', 'draw'] as const).map((v) => ({
+    // Milestone 3, 10d: the old body shaping in Look (a sculpted figure), and the Draw tab with a face drawn on
+    id: `characters-${v}`,
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      const has = await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        return e.store.list('characters/').some((k) => (e.store.get(k) as { name?: string })?.name === 'Nova');
+      });
+      if (!has) {
+        await p.locator('[data-tour="char-new"]').click();
+        await p.getByRole('listbox', { name: 'New character from a preset' }).getByRole('option').first().click();
+      }
+      await p.evaluate((v) => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        type C = { id: string; name: string; profile: Record<string, unknown> };
+        const all = e.store.list('characters/').map((k) => e.store.get(k) as C);
+        const nova = all.find((c) => c.name === 'Nova') ?? all.find((c) => c.id === e.studioCharacter!.value)!;
+        // a star and freckles on the cheek, drawn on the head's front (v68 part paint: six 128-pixel sides)
+        const cv = document.createElement('canvas');
+        cv.width = 384;
+        cv.height = 256;
+        const g = cv.getContext('2d')!;
+        g.fillStyle = '#c91a09';
+        g.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const r = i % 2 ? 7 : 16;
+          const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+          g.lineTo(38 + r * Math.cos(a), 62 + r * Math.sin(a));
+        }
+        g.fill();
+        g.fillStyle = '#8a4b26';
+        for (const [x, y] of [
+          [82, 66],
+          [90, 70],
+          [86, 74],
+          [96, 66],
+        ])
+          g.fillRect(x!, y!, 3, 3);
+        if (nova.name !== 'Nova' || !(nova.profile.paint as Record<string, string> | undefined)?.head)
+          e.exec({
+            type: 'character.update',
+            payload: {
+              character: {
+                ...nova,
+                name: 'Nova',
+                profile: {
+                  ...nova.profile,
+                  name: 'Nova',
+                  gender: 'Female',
+                  breastMode: 'Sculpted',
+                  breastShape: 'Natural',
+                  breastSize: 70,
+                  buttShape: 'Athletic',
+                  buttSize: 45,
+                  neckline: 'V-neck',
+                  paint: { ...((nova.profile.paint as object) ?? {}), head: cv.toDataURL('image/png') },
+                },
+              },
+            },
+          });
+        e.studioCharacter!.value = nova.id;
+        e.sheetTab!.value = v === 'shape' ? 'look' : 'draw';
+        e.drawPart!.value = 'head';
+        e.drawSide!.value = 0;
+      }, v);
+      if (v === 'shape') await p.locator('[data-tour="breastSize"]').scrollIntoViewIfNeeded();
+      else await p.locator('[data-tour="draw-canvas"]').scrollIntoViewIfNeeded();
+      await p.waitForTimeout(800);
+    },
+  })),
   {
     // P22 part 4: A character from a picture, with three matches from words
     id: 'characters-from-picture',

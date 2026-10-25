@@ -602,6 +602,109 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     if (!s) throw new Error('Press Play first.');
     s.giveXp(Number(a.amount ?? 100));
   },
+  // Milestone 3, 10d: the shape and draw course — a minifig from the first preset, on the map
+  lookMake(c, a) {
+    const name = String(a.name ?? 'Nova');
+    const has = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === name);
+    if (has) c.ed.studioCharacter.value = has.id;
+    else {
+      const id = newId('character');
+      const sp = mapDoc(c).spawns[0];
+      const at = arrivalSpot(c.ed.store, map(c)) ?? (sp?.pos as [number, number, number] | undefined) ?? [0, 0.4, 0];
+      const base = BUILTIN_CHARACTERS[0]!;
+      run(
+        c,
+        [
+          {
+            type: 'character.create',
+            payload: {
+              character: {
+                ...base,
+                id,
+                name,
+                role: 'npc',
+                profile: { ...base.profile, name, ...((a.profile as object) ?? {}) },
+              },
+            },
+          },
+          {
+            type: 'npc.place',
+            payload: { map: map(c), character: id, pos: [at[0] + 3, at[1], at[2] + 3], heading: Math.PI },
+          },
+        ],
+        `Add ${name}`,
+      );
+      c.ed.studioCharacter.value = id;
+    }
+    c.ed.sheetTab.value = 'look';
+  },
+  /** sets look fields of the open character as one undo step */
+  lookSet(c, a) {
+    const id = c.ed.studioCharacter.value;
+    const chr = id ? c.ed.store.get<Character>(paths.character(id)) : undefined;
+    if (!chr) throw new Error('Open a character first.');
+    c.ed.sheetTab.value = 'look';
+    run(
+      c,
+      { type: 'character.update', payload: { character: { ...chr, profile: { ...chr.profile, ...a } } } },
+      'Body shape',
+    );
+  },
+  /** draws a mark (a star, or a filled side) on a part's side of the open character, as one undo step */
+  drawMark(c, a) {
+    const id = c.ed.studioCharacter.value;
+    const chr = id ? c.ed.store.get<Character>(paths.character(id)) : undefined;
+    if (!chr) throw new Error('Open a character first.');
+    const part = String(a.part ?? 'head');
+    const side = Number(a.side ?? 0);
+    c.ed.sheetTab.value = 'draw';
+    c.ed.drawPart.value = part;
+    c.ed.drawSide.value = side;
+    const cv = document.createElement('canvas');
+    cv.width = 384;
+    cv.height = 256;
+    const g = cv.getContext('2d')!;
+    const paint = { ...((chr.profile.paint as Record<string, string> | undefined) ?? {}) };
+    const old = paint[part];
+    const draw = () => {
+      const x = (side % 3) * 128;
+      const y = Math.floor(side / 3) * 128;
+      g.fillStyle = String(a.color ?? '#c91a09');
+      if (a.mark === 'fill') g.fillRect(x, y, 128, 128);
+      else {
+        g.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const r = i % 2 ? 7 : 16;
+          const t = (i / 10) * Math.PI * 2 - Math.PI / 2;
+          g.lineTo(x + 38 + r * Math.cos(t), y + 62 + r * Math.sin(t));
+        }
+        g.fill();
+      }
+      paint[part] = cv.toDataURL('image/png');
+      run(
+        c,
+        { type: 'character.update', payload: { character: { ...chr, profile: { ...chr.profile, paint } } } },
+        `Draw on the ${part}`,
+      );
+    };
+    if (!old) return draw();
+    return new Promise<void>((ok) => {
+      const img = new Image();
+      img.onload = () => {
+        g.drawImage(img, 0, 0);
+        draw();
+        ok();
+      };
+      img.onerror = () => {
+        draw();
+        ok();
+      };
+      img.src = old;
+    });
+  },
   // P22 part 3: the creatures course
   bodyMake(c, a) {
     const name = String(a.name ?? 'Rex');

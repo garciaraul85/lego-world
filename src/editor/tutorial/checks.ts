@@ -109,6 +109,16 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     const { field, value } = a as { field: string; value: string };
     return studioCharacter(ed)?.profile[field] === value;
   },
+  // Milestone 3, 10d: a body shape size at least so big; a part drawn on; the Draw tab at a part and side
+  lookAtLeast: (ed, a) => {
+    const { field, atLeast } = a as { field: string; atLeast: number };
+    return Number(studioCharacter(ed)?.profile[field] ?? 0) >= atLeast;
+  },
+  drawnOn: (ed, a) => !!(studioCharacter(ed)?.profile.paint as Record<string, string> | undefined)?.[String(a)],
+  drawAt: (ed, a) => {
+    const { part, side } = a as { part: string; side: number };
+    return ed.sheetTab.value === 'draw' && ed.drawPart.value === part && ed.drawSide.value === side;
+  },
   // P32: the treasure-chest story — logic
   graphNamed: (ed, a) => openGraph(ed)?.name === a,
   hasVar: (ed, a) => {
