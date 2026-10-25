@@ -323,6 +323,17 @@ export function stepsToView(view: string): ShowStep[] {
           done: (c) => c.ed.sheetTab.value === 'look',
         },
       ];
+    case 'characters-sculpt':
+      // 10d part 3: Paint and sculpt is in the Body tab of a creature
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Body tab of the sheet; Paint and sculpt is below the body’s settings (a creature, not a minifig).',
+          find: control('[aria-label="Character sheet"]', /^Body$/),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === 'body',
+        },
+      ];
     case 'characters-hair':
       // Milestone 3, 10d part 3: custom hair is in the Look tab, under Hair color
       return [

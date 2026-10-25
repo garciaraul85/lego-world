@@ -480,6 +480,59 @@
       "placement": "left"
     },
     {
+      "id": "bodies.sculpt",
+      "title": "Paint the horn",
+      "body": "Paint and sculpt, in the Body tab, works on the creature itself: 🎨 Paint colours the brick you click, ➕ Add puts a brick against the side you click (a green outline shows where), ➖ Remove takes one away. Drag to turn the view. Each click is one undo step.",
+      "task": "Paint Rex's horn red.",
+      "target": "[data-tour=\"body-sculpt\"]",
+      "check": {
+        "kind": "state",
+        "test": "boneColor",
+        "args": {
+          "bone": "horn",
+          "color": "#c91a09"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "bodyPaintBone",
+          "args": {
+            "bone": "horn",
+            "color": "#c91a09"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Paint and sculpt, click “🎨 Paint”, pick red beside Colour, then click the horn in the preview.",
+          "check": {
+            "kind": "state",
+            "test": "boneColor",
+            "args": {
+              "bone": "horn",
+              "color": "#c91a09"
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sculpt-paint\"]",
+              "say": "🎨 Paint."
+            },
+            {
+              "fn": "bodyPaintBone",
+              "args": {
+                "bone": "horn",
+                "color": "#c91a09"
+              },
+              "say": "The horn, painted red."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
       "id": "bodies.play",
       "title": "Rex on the map",
       "body": "Rex stands beside where the player starts. In Play he wanders like any neighbour, and his legs step as he goes; a bird or a dragon flaps and hovers, a fish swims above the ground, a slime hops.",

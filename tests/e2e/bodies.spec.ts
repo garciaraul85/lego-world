@@ -225,7 +225,7 @@ test('Creatures course: Do it for me makes Rex a dog with a horn and a wagging t
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });
   const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
-  expect(total).toBe(10);
+  expect(total).toBe(11);
   const titles: string[] = [];
   for (let i = 0; i < total + 1; i++) {
     const pos = await card.locator('header .mono').innerText();

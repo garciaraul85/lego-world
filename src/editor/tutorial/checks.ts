@@ -324,6 +324,14 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     const p = studioCharacter(ed)?.body?.plan;
     return !!p && !!ed.store.get(`bodyplans/${p}.json`);
   },
+  // 10d part 3: every brick on a bone of the creature's own plan is that colour
+  boneColor: (ed, a) => {
+    const { bone, color } = a as { bone: string; color: string };
+    const p = studioCharacter(ed)?.body?.plan;
+    const plan = p ? ed.store.get<{ bricks: { bone: string; color: string }[] }>(`bodyplans/${p}.json`) : null;
+    const on = plan?.bricks.filter((k) => k.bone === bone) ?? [];
+    return on.length > 0 && on.every((k) => k.color.toLowerCase() === color);
+  },
   planHasBone: (ed, a) => {
     const p = studioCharacter(ed)?.body?.plan;
     const plan = p

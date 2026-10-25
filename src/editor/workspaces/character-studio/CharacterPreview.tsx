@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'preact/hooks';
+import type { BodyPlan } from '../../../core/character/body';
 import type { ResolvedBody } from '../../../core/character/resolve';
 import type { Clip } from '../../../core/schema';
 import { rigPose } from '../../../engine/character/animator';
@@ -19,6 +20,7 @@ import { drawCharacter, placement } from '../../../engine/render/place-character
 import { Renderer } from '../../../engine/render/renderer';
 import { V68_FRAGMENT } from '../../../engine/render/shaders';
 import { BONE_NAMES, trackLabel } from '../../components/timeline/Timeline';
+import { type BrickHit, brickAgainst, brickHeight, mul4, pickBrick, type SculptTool } from './sculpt';
 
 export type PreviewInput = {
   profile: Record<string, unknown>;
@@ -42,6 +44,8 @@ export type PreviewInput = {
   paint?: ((brick: number) => void) | null;
   /** Milestone 3, 10d: the Draw tab's part and side: the preview stops turning and looks at that side */
   draw?: { part: string; side: number } | null;
+  /** 10d part 3: painting and brick-sculpting a body plan: the brick under the pointer is outlined, a click is a hit */
+  sculpt?: { tool: SculptTool; plan: BodyPlan; onHit(hit: BrickHit): void } | null;
 };
 
 /** Milestone 3, 10d: the open preview's figure renderer, which the Draw tab draws through (live paint, a part's own look) */
@@ -193,6 +197,17 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     const motion = newMotion();
     let framed: ResolvedBody | null = null;
     let lastPicks: { src: number; x: number; y: number }[] = [];
+    // 10d part 3: the last frame's camera and pose, for finding the brick under the pointer
+    let lastFrame: { mvp: Float32Array; world: Float32Array; pose: Map<string, Float32Array> } | null = null;
+    let hover: BrickHit | null = null;
+    const hitAt = (e: { clientX: number; clientY: number }): BrickHit | null => {
+      const sc = input.current.sculpt;
+      if (!sc || !lastFrame) return null;
+      const r = canvas.getBoundingClientRect();
+      const nx = ((e.clientX - r.left) / r.width) * 2 - 1;
+      const ny = 1 - ((e.clientY - r.top) / r.height) * 2;
+      return pickBrick(nx, ny, lastFrame.mvp, lastFrame.world, lastFrame.pose, sc.plan.bricks);
+    };
     const drawBody = (body: ResolvedBody, dt: number, heading: number) => {
       if (framed !== body) {
         // frame the camera on the body when it changes size or family
@@ -244,6 +259,43 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
           lines.push({ lines: [...cross, ...to], color: [0.2, 1, 1], onTop: true });
         }
       }
+      // 10d part 3: outline the brick under the pointer (Add: where the new brick goes)
+      const sc = input.current.sculpt;
+      if (sc && hover && sc.plan.bricks[hover.index]) {
+        const of = sc.plan.bricks[hover.index]!;
+        const k = sc.tool.mode === 'add' ? brickAgainst(of, hover, sc.tool) : of;
+        const bm = pose.get(k.bone);
+        if (bm) {
+          const m = mul4(world, bm);
+          const h = brickHeight(k.kind);
+          const c = (x: number, y: number, z: number) =>
+            [0, 1, 2].map((i) => m[i]! * x + m[4 + i]! * y + m[8 + i]! * z + m[12 + i]!);
+          const x0 = k.x;
+          const x1 = k.x + k.w;
+          const y0 = k.y * 0.4;
+          const y1 = y0 + h;
+          const z0 = k.z;
+          const z1 = k.z + k.d;
+          const corners = [
+            [x0, y0, z0],
+            [x1, y0, z0],
+            [x1, y0, z1],
+            [x0, y0, z1],
+            [x0, y1, z0],
+            [x1, y1, z0],
+            [x1, y1, z1],
+            [x0, y1, z1],
+          ].map(([x, y, z]) => c(x!, y!, z!));
+          const edges = [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7];
+          const seg: number[] = [];
+          for (const i of edges) seg.push(...corners[i]!);
+          lines.push({
+            lines: seg,
+            color: sc.tool.mode === 'remove' ? [1, 0.3, 0.3] : sc.tool.mode === 'add' ? [0.3, 1, 0.4] : [1, 1, 1],
+            onTop: true,
+          });
+        }
+      }
       let mvp: Float32Array | null = null;
       try {
         renderer.render(cam.frame(), cam.target, overlays, lines, [], (m) => {
@@ -252,6 +304,7 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
       } catch {
         /* a body mid-edit can be invalid for one frame */
       }
+      lastFrame = mvp ? { mvp: mvp as Float32Array, world, pose } : null;
       // where each brick of a worn build is on screen, for painting
       lastPicks = [];
       if (input.current.paint && mvp) {
@@ -277,6 +330,13 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     };
     /** a click (not a drag) while painting: the brick nearest the pointer goes to the painted bone */
     const pick = (e: PointerEvent) => {
+      const sc = input.current.sculpt;
+      if (sc) {
+        const hit = hitAt(e);
+        if (hit) sc.onHit(hit);
+        hover = null;
+        return;
+      }
       const paint = input.current.paint;
       if (!paint || !lastPicks.length) return;
       const r = canvas.getBoundingClientRect();
@@ -336,7 +396,10 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
       canvas.setPointerCapture(e.pointerId);
     };
     const move = (e: PointerEvent) => {
-      if (!drag) return;
+      if (!drag) {
+        hover = hitAt(e);
+        return;
+      }
       cam.orbit(e.clientX - drag.x, e.clientY - drag.y);
       drag = { x: e.clientX, y: e.clientY };
     };

@@ -23,6 +23,7 @@ import { AssetThumb } from '../../components/AssetThumb';
 import { FieldHelp } from '../../components/fields';
 import { matches, NoMatch, SearchBox, SearchSelect } from '../../components/SearchBox';
 import { NumField, type Props, SHEET_HELP } from './Sheet';
+import { DEFAULT_SCULPT, type SculptMode, type SculptTool } from './sculpt';
 import { CharacterThumb } from './thumbs';
 
 /**
@@ -340,6 +341,7 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
         )}
       </div>
       {!isMinifig && <BrickBuild c={c} chr={chr} save={save} body={body} resolved={resolved} setBody={setBody} />}
+      {!isMinifig && !body.asset && <SculptPaint c={c} chr={chr} own={own} family={family} />}
       {!isMinifig && <Skeleton c={c} chr={chr} save={save} body={body} own={own} setBody={setBody} />}
     </>
   );
@@ -871,6 +873,155 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
           Use the {FAMILY_INFO[own.family as BodyFamily]?.label ?? 'Four legs'} sliders again
         </button>
       </div>
+    </div>
+  );
+}
+
+const SCULPT_SIZES: [number, number][] = [
+  [1, 1],
+  [1, 2],
+  [2, 1],
+  [2, 2],
+  [1, 4],
+  [2, 4],
+  [4, 4],
+];
+const SCULPT_SLOTS = ['main', 'accent', 'belly', 'eye', 'dark'] as const;
+
+/**
+ * Milestone 3, 10d part 3: paint and sculpt a creature on the preview — Paint gives the clicked brick a colour (a
+ * colour slot follows the body's colours), Add puts a brick against the clicked face, Remove takes one away. A body
+ * that follows the sliders becomes a body plan of its own first. Each click is one undo step.
+ */
+function SculptPaint({
+  c,
+  chr,
+  own,
+  family,
+}: {
+  c: Props['c'];
+  chr: Character;
+  own: BodyPlan | undefined;
+  family: BodyFamily;
+}) {
+  const ed = c.ed;
+  const tool = ed.bodySculpt.value;
+  const set = (patch: Partial<SculptTool> | null) => {
+    if (patch === null) {
+      ed.bodySculpt.value = null;
+      return;
+    }
+    if (!own && family !== 'minifig') {
+      // a family body follows its sliders: it becomes a body plan of its own to sculpt
+      if (!makeOwnPlan(ed, chr, family as Exclude<BodyFamily, 'minifig'>, 'Sculpt the body')) return;
+      ed.notify('The body is now a body plan of its own: the sliders no longer change it.');
+    }
+    ed.bodySculpt.value = { ...(tool ?? DEFAULT_SCULPT), ...patch };
+  };
+  const modes: [SculptMode | null, string][] = [
+    [null, 'Off'],
+    ['paint', '🎨 Paint'],
+    ['add', '➕ Add'],
+    ['remove', '➖ Remove'],
+  ];
+  return (
+    <div class="sec" data-tour="body-sculpt" data-help="characters.sculpt">
+      <div class="sech">
+        <span>
+          Paint and sculpt
+          <FieldHelp
+            label="Paint and sculpt"
+            text="Click the creature in the preview. Paint colours a brick, Add puts a brick against the face you click, Remove takes one away. Drag to turn the view. Each click is one undo step."
+          />
+        </span>
+      </div>
+      <div role="radiogroup" aria-label="Sculpt" class="row" style={{ flexWrap: 'wrap', gap: '4px' }}>
+        {modes.map(([m, label]) => (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={(tool?.mode ?? null) === m}
+            class={`btn small ${(tool?.mode ?? null) === m ? 'on' : ''}`}
+            data-tour={`sculpt-${m ?? 'off'}`}
+            onClick={() => set(m ? { mode: m } : null)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tool && tool.mode !== 'remove' && (
+        <div class="field">
+          Colour
+          <span class="row" role="group" aria-label="Colour" style={{ gap: '4px', flexWrap: 'wrap' }}>
+            {SCULPT_SLOTS.map((k) => (
+              <button
+                type="button"
+                class={`btn small ${tool.color === k ? 'on' : ''}`}
+                data-tour={`sculpt-slot-${k}`}
+                title={`The body's ${k} colour (changes with it)`}
+                onClick={() => set({ color: k })}
+              >
+                {k}
+              </button>
+            ))}
+            <input
+              type="color"
+              class="inp"
+              aria-label="Brick colour"
+              data-tour="sculpt-color"
+              value={tool.color.startsWith('#') ? tool.color : '#888888'}
+              onChange={(e) => set({ color: (e.target as HTMLInputElement).value })}
+            />
+          </span>
+        </div>
+      )}
+      {tool?.mode === 'add' && (
+        <div class="row" style={{ gap: '6px' }}>
+          <label class="field">
+            Kind
+            <select
+              class="inp"
+              aria-label="New brick kind"
+              data-tour="sculpt-kind"
+              value={tool.kind}
+              onChange={(e) => set({ kind: (e.target as HTMLSelectElement).value as SculptTool['kind'] })}
+            >
+              <option value="brick">Brick</option>
+              <option value="plate">Plate</option>
+              <option value="tile">Tile</option>
+            </select>
+          </label>
+          <label class="field">
+            Size
+            <select
+              class="inp"
+              aria-label="New brick size"
+              data-tour="sculpt-size"
+              value={`${tool.w}x${tool.d}`}
+              onChange={(e) => {
+                const [w, d] = (e.target as HTMLSelectElement).value.split('x').map(Number);
+                set({ w: w!, d: d! });
+              }}
+            >
+              {SCULPT_SIZES.map(([w, d]) => (
+                <option value={`${w}x${d}`}>
+                  {w}×{d}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+      <p class="muted small" role="status">
+        {!tool
+          ? 'Pick Paint, Add or Remove, then click the creature in the preview.'
+          : tool.mode === 'paint'
+            ? 'Click a brick to paint it.'
+            : tool.mode === 'add'
+              ? 'Click the side of a brick to put a new brick there (the green outline shows where).'
+              : 'Click a brick to take it away.'}
+        {own && ` ${own.bricks.length} bricks.`}
+      </p>
     </div>
   );
 }

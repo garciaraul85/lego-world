@@ -790,6 +790,33 @@ export const CHARACTERS: HelpEntry[] = [
     related: ['characters.look', 'characters.draw'],
   },
   {
+    id: 'characters.sculpt',
+    screen: 'characters',
+    kind: 'area',
+    name: 'Paint and sculpt',
+    also: [
+      'paint a creature',
+      'paint bricks',
+      'sculpt',
+      'brick sculpt',
+      'sculpt a creature',
+      'add a brick',
+      'remove a brick',
+      'paint the creature',
+      'build on the creature',
+    ],
+    purpose:
+      'Work on a creature itself, in the preview. In the **Body** tab, under **Paint and sculpt**: **🎨 Paint** gives the piece you click a new look (any shade, or one of the body’s own — main, accent, belly, eye, dark — which then follows them); **➕ Add** sticks a new piece against the side you click, of the kind and size you pick, on the same bone, so it moves with it (a green outline shows where); **➖ Remove** takes the piece you click away. The piece under the pointer is outlined; drag to turn the view. Each click is one undo step. A body that follows the sliders becomes a body plan of its own the first time (the sliders then no longer change it). A body wearing a build from the Asset studio is changed there.',
+    steps: [
+      'Open the **Body** tab of a creature (not a minifig).',
+      'Under **Paint and sculpt**, pick **🎨 Paint**, **➕ Add** or **➖ Remove**.',
+      'Click the creature in the preview.',
+    ],
+    commands: ['bodyplan.put'],
+    match: [{ in: '[data-tour="body-sculpt"]' }],
+    related: ['characters.body', 'characters.skeleton', 'characters.bodyBricks'],
+  },
+  {
     id: 'characters.hair',
     screen: 'characters',
     kind: 'area',
@@ -1059,7 +1086,7 @@ export const ASSETS: HelpEntry[] = [
   },
   {
     id: 'assets.bricks',
-    also: ['place a brick', 'add bricks', 'pieces', 'brick'],
+    also: ['place a brick', 'add bricks', 'pieces', 'brick', 'colour of a brick', 'brick colour'],
     screen: 'assets',
     kind: 'list',
     name: 'Bricks to build with',

@@ -152,6 +152,8 @@ export class EditorState {
   readonly bodyPaint = signal<string | null>(null);
   readonly bodyWalk = signal(false);
   readonly bodyBones = signal(false);
+  /** 10d part 3: painting and brick-sculpting a body plan on the preview (null: off) */
+  readonly bodySculpt = signal<import('./workspaces/character-studio/sculpt').SculptTool | null>(null);
   /** P22 part 4: the mood picked in the Face tab (the preview shows its face) */
   /** P23: the effect open in the Effects screen, and whether every setting shows (Advanced) */
   readonly effectId = signal<string | null>(null);

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../../builtin/clips';
+import type { BodyPlan } from '../../../core/character/body';
 import type { CustomHair } from '../../../core/character/hair';
 import type { Command } from '../../../core/commands';
 import { newId } from '../../../core/ids';
@@ -25,6 +26,7 @@ import { FaceTab, withMood } from './Face';
 import { HairEditor } from './Hair';
 import { PosePanel } from './Posing';
 import { AnimationsTab, BehaviourTab, MovesTab, OutfitsTab, SHEET_TABS, StatsTab, VoiceTab } from './Sheet';
+import { type BrickHit, sculptPlan } from './sculpt';
 import { CharacterThumb, ClipThumb, peakTime, type ThumbView, trackPose } from './thumbs';
 
 /** Look fields grouped the way v68's character builder groups them. */
@@ -215,6 +217,28 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     walking: !!body && ed.bodyWalk.value,
     act: body ? ed.bodyAct.value : null,
     draw: !body && ed.sheetTab.value === 'draw' ? { part: ed.drawPart.value, side: ed.drawSide.value } : null,
+    // 10d part 3: painting and sculpting a body plan on the preview, in the Body tab
+    sculpt: (() => {
+      const tool = ed.bodySculpt.value;
+      const planId = chr.body?.plan;
+      const plan = planId ? ed.store.get<BodyPlan>(paths.bodyplan(planId)) : undefined;
+      if (!tool || !plan || !body || body.fromAsset || ed.sheetTab.value !== 'body') return null;
+      return {
+        tool,
+        plan,
+        onHit: (hit: BrickHit) => {
+          const next = sculptPlan(plan, hit, tool);
+          if (typeof next === 'string') {
+            if (tool.mode !== 'paint') ed.notify(next, true);
+            return;
+          }
+          ed.exec(
+            { type: 'bodyplan.put', payload: { plan: next } },
+            { label: tool.mode === 'paint' ? 'Paint a brick' : tool.mode === 'add' ? 'Add a brick' : 'Remove a brick' },
+          );
+        },
+      };
+    })(),
     paint:
       body?.fromAsset && ed.bodyPaint.value
         ? (src: number) => {

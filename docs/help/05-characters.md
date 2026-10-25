@@ -116,6 +116,10 @@ The sliders (Size, Leg length, Neck, Tail length, Wing span, Head size, Build) c
 
 **Moves.** Every body — a family's, one of your own, or a figure made from words or a picture — gets the moves its parts can do, listed under the preview: anything with a head **Roars** (or **Shouts**) and **Charges**; its strike is a **Bite** with a jaw, a **Punch** with arms, a **Headbutt** with only a head; a tail **swipes**, legs **stomp**, wings **flap** and **glide**, arms **wave**, tentacles and arms **grab**, and everything can **spin**, **dance** and **sleep**. Press one to see it. In Play the strike and the **flinch** come by themselves when it fights; logic starts the rest with **Do a move** (Characters: who and which move; a body that can't do that move skips it).
 
+### Paint and sculpt a creature
+
+In the **Body** tab of a creature, **Paint and sculpt** works on the creature itself, in the preview. **🎨 Paint** gives the piece you click a new look: pick any shade, or one of the body's own (main, accent, belly, eye, dark), which then follows them. **➕ Add** sticks a new piece against the side you click — a brick, plate or tile, from 1×1 to 4×4 — on the same bone, so it moves with it; a green outline shows where it goes. **➖ Remove** takes the piece you click away. The piece under the pointer is outlined; drag to turn the view. Each click is one undo step. A body that follows the sliders becomes a body plan of its own the first time (the sliders no longer change it). A body wearing a build from the Asset studio is changed there. [Creatures course](action:help.bodies)
+
 ## Faces for moods
 
 The **Face** tab shows a minifig's resting face (head shape, eyes and their colour, expression, face marks, facial hair and glasses) and a picture of its face for each mood: **Happy**, **Angry**, **Sad**, **Scared** and **Surprised**. Click a mood to see it on the preview and change its **Expression** and **Eyes**; **Default** puts it back. Dialogue lines have a mood (in a script: Tom (angry): Who left the gate open?): in Play the speaker shows that face on its figure and in the dialogue box's portrait, which is now the speaker's own head.

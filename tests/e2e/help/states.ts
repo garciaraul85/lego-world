@@ -577,6 +577,38 @@ export const HELP_STATES: HelpState[] = [
     },
   })),
   {
+    // Milestone 3, 10d part 3: painting and sculpting a creature (a dog with a painted brick, Add on)
+    id: 'characters-sculpt',
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await signals(p, { fromPicture: false });
+      await ws(p, 'Characters');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        if (!e.store.get('characters/chr_helpsculpt1.json'))
+          e.exec({
+            type: 'character.create',
+            payload: {
+              character: {
+                id: 'chr_helpsculpt1',
+                name: 'Patch',
+                role: 'npc',
+                profile: { name: 'Patch' },
+                body: { family: 'fourLegs', params: { size: 1.3 }, colors: { main: '#f4f4f4', accent: '#1b1b1b' } },
+              },
+            },
+          });
+        e.studioCharacter!.value = 'chr_helpsculpt1';
+        e.sheetTab!.value = 'body';
+      });
+      await p.locator('[data-tour="sculpt-add"]').click();
+      await p.locator('[data-tour="body-sculpt"]').scrollIntoViewIfNeeded();
+      const c = (await p.getByLabel('Character preview').first().boundingBox())!;
+      await p.mouse.move(c.x + c.width * 0.5, c.y + c.height * 0.45);
+      await p.waitForTimeout(900);
+    },
+  },
+  {
     // Milestone 3, 10d part 3: the Hair editor in Look, a character with space buns and pink tips
     id: 'characters-hair',
     screen: 'characters',

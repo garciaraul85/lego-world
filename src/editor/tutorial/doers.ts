@@ -903,6 +903,23 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     );
     c.ed.bodyBone.value = name;
   },
+  /** 10d part 3: paints every brick on a bone (Paint and sculpt on the preview, done for you) */
+  bodyPaintBone(c, a) {
+    const chr = studioChr(c);
+    const plan = chr.body?.plan ? c.ed.store.get<BodyPlan>(paths.bodyplan(chr.body.plan)) : null;
+    if (!plan) throw new Error('Edit the skeleton first.');
+    const bone = String(a.bone);
+    const color = String(a.color);
+    c.ed.bodySculpt.value = { mode: 'paint', color, kind: 'plate', w: 1, d: 1 };
+    run(
+      c,
+      {
+        type: 'bodyplan.put',
+        payload: { plan: { ...plan, bricks: plan.bricks.map((k) => (k.bone === bone ? { ...k, color } : k)) } },
+      },
+      'Paint a brick',
+    );
+  },
   bodyBoneSet(c, a) {
     const chr = studioChr(c);
     const plan = chr.body?.plan ? c.ed.store.get<BodyPlan>(paths.bodyplan(chr.body.plan)) : null;

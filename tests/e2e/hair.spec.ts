@@ -78,7 +78,12 @@ test('Hair editor: custom hair from a preset, a slider is one undo step, tips; s
   await pick(page, 'hair-library', style!.id);
   const other = await current(page);
   expect(other.profile.hair).toBe('Custom');
-  expect(other.profile.customHair).toMatchObject({ tie: 'Two buns', beard: 'Braided', tips: '#1e5aa8', from: style!.id });
+  expect(other.profile.customHair).toMatchObject({
+    tie: 'Two buns',
+    beard: 'Braided',
+    tips: '#1e5aa8',
+    from: style!.id,
+  });
   expect(other.profile.hairColor).toBe(style!.color);
   await page.screenshot({ path: 'test-results/hair-editor.png' });
   expect(errors).toEqual([]);
