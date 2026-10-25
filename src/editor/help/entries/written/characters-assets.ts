@@ -300,7 +300,7 @@ export const CHARACTERS: HelpEntry[] = [
       'Do a move skips moves the body can’t do (a teapot has no wings to glide with). A minifig has no moves of these yet: its clips are in States.',
     ],
     commands: ['character.update'],
-    match: [{ in: '[data-tour="body-moves"]' }],
+    match: [{ sel: '[data-tour="body-moves"]' }, { in: '[data-tour="body-moves"]' }],
     related: ['characters.body', 'characters.fromPicture', 'characters.states', 'characters.moves'],
   },
   {
