@@ -131,8 +131,21 @@ export class EditorState {
   readonly dialogueId = signal<string | null>(null);
   /** P22 part 2: the character sheet's open tab */
   readonly sheetTab = signal<
-    'look' | 'body' | 'face' | 'outfits' | 'stats' | 'moves' | 'animations' | 'voice' | 'dialogue' | 'behaviour'
+    | 'look'
+    | 'body'
+    | 'face'
+    | 'draw'
+    | 'outfits'
+    | 'stats'
+    | 'moves'
+    | 'animations'
+    | 'voice'
+    | 'dialogue'
+    | 'behaviour'
   >('look');
+  /** Milestone 3, 10d: the Draw tab's part (v68 paint part) and side (0 front, 1 back, 2 left, 3 right, 4 top, 5 bottom) */
+  readonly drawPart = signal('torso');
+  readonly drawSide = signal(0);
   /** P22 part 3: the Body tab — the bone picked in the skeleton, the bone bricks are painted onto (none: off),
    * walking on the spot in the preview, and the skeleton drawn over the bricks */
   readonly bodyBone = signal<string | null>(null);

@@ -118,6 +118,9 @@ export interface LegacyRuntime {
     choices: Record<string, string[]>;
     colorFields: string[];
     rangeFields: Record<string, { max: number }>;
+    /** v68 part paint: the parts that can be drawn on (id → label), and the check of a profile's drawings */
+    paintParts: Record<string, string>;
+    validatePaint(paint: Record<string, string>): Record<string, string>;
     presets: Record<string, Record<string, unknown>>;
     preset(name: string): Record<string, unknown>;
     validate(p: Record<string, unknown>): Record<string, unknown>;
@@ -200,6 +203,15 @@ export interface CharacterRenderer {
   draw(profile: Record<string, unknown>, state: HeroState, preview?: boolean, animated?: boolean): void;
   debris(mesh: { p: WebGLBuffer; n: WebGLBuffer; count: number }, d: Debris): void;
   bindCollision(profile: Record<string, unknown>, c: Controller): void;
+  /** v68 paint: a part's own look as a 384×256 atlas (six 128-pixel sides) to draw over */
+  appearanceAtlas(
+    profile: Record<string, unknown>,
+    part: string,
+  ): { width: number; height: number; data: Uint8ClampedArray };
+  /** v68 paint: show a drawing on a part as it is drawn (null: stop) */
+  setLivePaint(part: string | null, canvas?: HTMLCanvasElement | null): void;
+  /** v68 paint: the texture for a saved drawing, from the canvas it was drawn on */
+  cachePaint(data: string, canvas: HTMLCanvasElement): void;
 }
 
 const ORDER = [

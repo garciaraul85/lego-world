@@ -13,7 +13,7 @@ import {
   newMotion,
 } from '../../../engine/character/body-anim';
 import { sampleParams } from '../../../engine/character/routine';
-import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
+import { type CharacterRenderer, legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { OrbitCamera } from '../../../engine/render/camera';
 import { drawCharacter, placement } from '../../../engine/render/place-character';
 import { Renderer } from '../../../engine/render/renderer';
@@ -40,7 +40,31 @@ export type PreviewInput = {
   act?: { kind: import('../../../core/character/moves').BodyMove; at: number } | null;
   /** painting bricks onto a bone: a click on a brick calls this with its index in the asset */
   paint?: ((brick: number) => void) | null;
+  /** Milestone 3, 10d: the Draw tab's part and side: the preview stops turning and looks at that side */
+  draw?: { part: string; side: number } | null;
 };
+
+/** Milestone 3, 10d: the open preview's figure renderer, which the Draw tab draws through (live paint, a part's own look) */
+export const previewArt: { current: CharacterRenderer | null } = { current: null };
+
+/** where to look from for each side drawn on: [yaw, pitch] (yaw 0 looks at the front) */
+const SIDE_VIEW: [number, number][] = [
+  [0, 0.1],
+  [Math.PI, 0.1],
+  [-Math.PI / 2, 0.1],
+  [Math.PI / 2, 0.1],
+  [0, 1.45],
+  [0, -1.25],
+];
+/** what to look at for a part: [target height, distance] */
+const partFrame = (part: string): [number, number] =>
+  /^(head|hair|hat|glasses)$/.test(part)
+    ? [3.75, 4.8]
+    : /Leg$|Foot$/.test(part)
+      ? [0.9, 5.5]
+      : /Hand$|Arm$/.test(part)
+        ? [2.2, 5.5]
+        : [1.7, 7.5];
 
 const SIDE: Record<string, number> = { left: -1, right: 1 };
 /**
@@ -94,6 +118,7 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     renderer.floor = true;
     renderer.skySample = L.SkyCycle.sample('day', 0, false, false);
     const chars = L.CharacterModel.create(renderer.gl, V68_FRAGMENT);
+    previewArt.current = chars;
     const cam = new OrbitCamera();
     cam.target = [0, 1.7, 0];
     cam.baseDistance = 7.5;
@@ -102,6 +127,7 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     cam.fov = 0.8;
     let heading = 0;
     let wasClose = false;
+    let wasDraw = '';
     let raf = 0;
     let last = performance.now();
     const frame = (now: number) => {
@@ -111,12 +137,21 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
       const { profile, clip, time, turntable } = input.current;
       // the Face tab looks at the head; leaving it goes back to the whole figure
       const close = !!input.current.closeUp && !input.current.body;
-      if (close !== wasClose) {
+      // Milestone 3, 10d: drawing, the figure faces front and the camera turns to the part and side drawn on
+      const draw = input.current.body ? null : (input.current.draw ?? null);
+      const drawKey = draw ? `${draw.part}/${draw.side}` : '';
+      if (close !== wasClose || drawKey !== wasDraw) {
         wasClose = close;
-        cam.target = close ? [0, 3.75, 0] : [0, 1.7, 0];
-        cam.baseDistance = close ? 4.8 : 7.5;
+        const [h, d] = draw ? partFrame(draw.part) : close ? [3.75, 4.8] : [1.7, 7.5];
+        cam.target = [0, h, 0];
+        cam.baseDistance = d;
+        if (draw) [cam.yaw, cam.pitch] = SIDE_VIEW[draw.side] ?? [0, 0.1];
+        else if (wasDraw) [cam.yaw, cam.pitch] = [0.5, 0.22];
+        wasDraw = drawKey;
       }
-      if (turntable) heading += dt * 0.6;
+      renderer.floor = draw?.side !== 5;
+      if (draw) heading = 0;
+      else if (turntable) heading += dt * 0.6;
       const base = L.StudioAnimations.sample('still', 0, profile).state;
       const state = clip
         ? {
@@ -320,6 +355,7 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     canvas.addEventListener('wheel', wheel, { passive: false });
     return () => {
       cancelAnimationFrame(raf);
+      if (previewArt.current === chars) previewArt.current = null;
       renderer.dispose();
     };
   }, []);

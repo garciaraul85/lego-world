@@ -35,6 +35,7 @@ export type SheetTab =
   | 'look'
   | 'body'
   | 'face'
+  | 'draw'
   | 'outfits'
   | 'stats'
   | 'moves'
@@ -46,6 +47,7 @@ export const SHEET_TABS: [SheetTab, string][] = [
   ['look', 'Look'],
   ['body', 'Body'],
   ['face', 'Face'],
+  ['draw', 'Draw'],
   ['outfits', 'Outfits'],
   ['stats', 'Stats'],
   ['moves', 'Moves'],
@@ -56,6 +58,7 @@ export const SHEET_TABS: [SheetTab, string][] = [
 ];
 
 export const SHEET_HELP: Record<Exclude<SheetTab, 'look' | 'dialogue'>, string> = {
+  draw: 'Draw on the figure: a face, tattoos, a logo, a pattern, a printed shirt. Pick a part and a side, then draw with the pen, eraser, fill or colour picker; it shows on the figure as you draw.',
   face: 'The resting face and a face for each mood. A dialogue line’s mood shows that face on the speaker in Play and in its portrait.',
   body: 'What the character is made of: the minifig, or a body family (four legs, bird, fish, serpent, spider, insect, slime, dragon, robot walker) shaped with sliders, or a skeleton of your own (Custom…: start from any family’s skeleton, then add, move and remove bones). Bodies move by themselves: legs step, wings flap, spines snake. A brick build from the Asset studio can be worn on the skeleton.',
   outfits:
