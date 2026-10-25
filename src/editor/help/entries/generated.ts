@@ -70,6 +70,8 @@ export const ACTION_HELP: Record<string, string> = {
   'world.addMap': 'Adds a new map to the project. Connect maps with gates in the World graph.',
   'world.trainingYard':
     'Adds the Training yard, a sample map to practise fighting: dummies to lock on to and hit, a cracked wall that blunt hits break faster, a target that opens a gate when you lock on to it (a wire, no code), a chest behind the gate and a sparring knight who fights back. One undo takes it all away.',
+  'world.foundationsPark':
+    'Adds the Foundations park, a sample map of everything the engine’s foundations do: a river that carries a loose crate (ride it), a still pond with another, an old brick wall whose bricks tumble and come to rest when smashed, the built-in 3D models lit beside the bricks (a stone ring, lantern posts, round trees, a boulder to climb, crystals, toadstools, barrels, a vase), and the lanterns’ lights casting shadows at dusk, mirrored in the water. One undo takes it all away.',
   'world.generate': 'Opens map generation: choose districts, mountains and a seed, then generate the terrain.',
   'world.graph': 'Opens the World graph: every map, its spawn points and the gates between them.',
   'world.validate': 'Checks every gate leads somewhere the hero can reach and lists problems.',

@@ -86,6 +86,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'view.palette': S('core'),
   'world.addMap': S('world'),
   'world.trainingYard': S('combat'),
+  'world.foundationsPark': S('core'),
   'world.generate': S('build'),
   'world.graph': S('world'),
   'world.validate': S('world'),

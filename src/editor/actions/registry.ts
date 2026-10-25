@@ -2,6 +2,7 @@ import { builtinAsset } from '../../builtin/assets';
 import type { Brick } from '../../core/bricks/codec';
 import { rotateQuarter } from '../../core/bricks/transform';
 import { checkPlayable } from '../../core/checks/playable';
+import { foundationsPark } from '../../core/gamegen/foundations-park';
 import { trainingYard } from '../../core/gamegen/training-yard';
 import { maxOf, minOf } from '../../core/num';
 import { changedBuiltins, newAssetDef } from '../assets';
@@ -332,6 +333,21 @@ export const ACTIONS: EditorAction[] = [
       }
     },
   },
+  {
+    // Milestone 2b gate: a sample map with water, loose crates, smashable bricks, 3D models and shadowed lights
+    id: 'world.foundationsPark',
+    label: 'Add the Foundations park',
+    run: ({ ed }) => {
+      const p = foundationsPark();
+      const r = ed.exec(p.commands, { label: 'Add the Foundations park' });
+      if (r.ok) {
+        ed.openMap(p.map);
+        ed.notify(
+          'The Foundations park: a river that carries a crate, a pond, a brick wall to smash, 3D models (a stone ring, lantern posts, trees, a boulder to climb) and lanterns casting shadows at dusk. Play › Play this map tries it; Project › Movement: Physics lets the hero ride the crate and climb the boulder.',
+        );
+      }
+    },
+  },
   { id: 'world.generate', label: 'Generate terrain…', run: ({ ed }) => (ed.right.value = 'map') },
   { id: 'world.graph', label: 'World graph', run: ({ ui }) => ui.workspace('World graph') },
   {
@@ -587,6 +603,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
   World: [
     'world.addMap',
     'world.trainingYard',
+    'world.foundationsPark',
     'world.generate',
     'world.graph',
     'world.validate',
