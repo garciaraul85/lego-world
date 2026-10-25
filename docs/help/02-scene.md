@@ -111,6 +111,10 @@ Bricks make blocky things; **3D models** are smooth ones — a round lantern, a 
 
 Models that animate (characters with skeletons) stand still in their rest pose for now; moving models, FBX files, and painting and sculpting come in a later milestone. The **3D models course** (Help menu) walks through it.
 
+## The Foundations park
+
+**World › Add the Foundations park** adds a sample map of everything the engine's foundations do, to look at and play: a river that carries a loose crate along (with Physics movement, jump on and ride it), a still pond with another crate floating in it, an old brick wall whose bricks tumble and come to rest when you smash it, the built-in 3D models (a stone ring, lantern posts, round trees, a boulder to climb, crystals, toadstools, barrels and a vase) and, at dusk, the lanterns' lights casting shadows, all mirrored in the water. Tips show in the HUD as you walk up to each spot. Play › Play this map tries it; one undo takes it away.
+
 ## Big worlds
 
 A map holds up to **1,000,000 bricks** across a build area of ±2048 studs. The Map tab's **Big worlds** section shows the map's bricks and chunks (32 × 32 studs each):
