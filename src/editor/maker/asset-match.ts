@@ -34,7 +34,9 @@ export function localAssetCandidates(text: string, picture: string[]): AssetCand
     }
   }
   const first = { ...spec, colors };
-  const swapped = { ...first, colors: { ...colors, main: colors.roof, roof: colors.main } };
+  // the walls take the roof's colour and the other way round (or the trim's, when the roof is the walls' colour)
+  const other = colors.roof !== colors.main ? 'roof' : 'trim';
+  const swapped = { ...first, colors: { ...colors, main: colors[other], [other]: colors.main } };
   const bigger = cleanAssetSpec({
     ...first,
     width: Math.round(first.width * 1.4),
