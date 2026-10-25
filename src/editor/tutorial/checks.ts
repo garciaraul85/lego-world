@@ -119,6 +119,30 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     const { part, side } = a as { part: string; side: number };
     return ed.sheetTab.value === 'draw' && ed.drawPart.value === part && ed.drawSide.value === side;
   },
+  // Milestone 3, 10d part 3: custom hair — settings worn, a size at least so big, a hairstyle in My library and worn
+  hairIs: (ed, a) => {
+    const c = studioCharacter(ed);
+    const h = c?.profile.customHair as Record<string, unknown> | undefined;
+    return (
+      c?.profile.hair === 'Custom' &&
+      !!h &&
+      Object.entries(a as Record<string, unknown>).every(([k, v]) => (v === '*' ? h[k] !== undefined : h[k] === v))
+    );
+  },
+  hairAtLeast: (ed, a) => {
+    const { field, atLeast } = a as { field: string; atLeast: number };
+    return (
+      Number((studioCharacter(ed)?.profile.customHair as Record<string, unknown> | undefined)?.[field] ?? 0) >= atLeast
+    );
+  },
+  libraryHair: (ed, a) => ed.store.list(paths.hairstyleDir).some((p) => ed.store.get<{ name: string }>(p)?.name === a),
+  wearsLibraryHair: (ed, a) => {
+    const { style, character } = (typeof a === 'string' ? { style: a } : a) as { style: string; character?: string };
+    const c = studioCharacter(ed);
+    if (character && c?.name !== character) return false;
+    const from = (c?.profile.customHair as { from?: string } | undefined)?.from;
+    return !!from && ed.store.get<{ name: string }>(paths.hairstyle(from))?.name === style;
+  },
   // P32: the treasure-chest story — logic
   graphNamed: (ed, a) => openGraph(ed)?.name === a,
   hasVar: (ed, a) => {

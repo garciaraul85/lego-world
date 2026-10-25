@@ -577,6 +577,64 @@ export const HELP_STATES: HelpState[] = [
     },
   })),
   {
+    // Milestone 3, 10d part 3: the Hair editor in Look, a character with space buns and pink tips
+    id: 'characters-hair',
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await signals(p, { fromPicture: false });
+      await ws(p, 'Characters');
+      const has = await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        return e.store.list('characters/').some((k) => (e.store.get(k) as { name?: string })?.name === 'Mira');
+      });
+      if (!has) {
+        await p.locator('[data-tour="char-new"]').click();
+        await p.getByRole('listbox', { name: 'New character from a preset' }).getByRole('option').first().click();
+      }
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
+        type C = { id: string; name: string; profile: Record<string, unknown> };
+        const all = e.store.list('characters/').map((k) => e.store.get(k) as C);
+        const mira = all.find((c) => c.name === 'Mira') ?? all.find((c) => c.id === e.studioCharacter!.value)!;
+        if (mira.name !== 'Mira')
+          e.exec({
+            type: 'character.update',
+            payload: {
+              character: {
+                ...mira,
+                name: 'Mira',
+                profile: {
+                  ...mira.profile,
+                  name: 'Mira',
+                  gender: 'Female',
+                  hat: 'None',
+                  hairColor: '#8a4fbf',
+                  hair: 'Custom',
+                  customHair: {
+                    top: 'Smooth',
+                    length: 30,
+                    volume: 45,
+                    parting: 'Middle',
+                    fringe: 'Straight',
+                    tie: 'Two buns',
+                    tieLength: 55,
+                    beard: 'None',
+                    beardLength: 40,
+                    tips: '#e4adc8',
+                    name: 'Space buns',
+                  },
+                },
+              },
+            },
+          });
+        e.studioCharacter!.value = mira.id;
+        e.sheetTab!.value = 'look';
+      });
+      await p.locator('[data-tour="hair-editor"]').scrollIntoViewIfNeeded();
+      await p.waitForTimeout(1200);
+    },
+  },
+  {
     // P22 part 4: A character from a picture, with three matches from words
     id: 'characters-from-picture',
     screen: 'characters',

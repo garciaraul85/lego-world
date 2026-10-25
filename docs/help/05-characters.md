@@ -14,6 +14,19 @@ Change hair, face, outfit, colors and gear in the properties; the preview update
 
 The old studio's body shaping is in **Look**, in the section **Body shape**. For a **Female** body, the chest: **Breast mode** (**Sculpted**, shaped in 3D; **Printed**, drawn on the torso; or **Comic**), **Breast shape** (Rounded, Natural, Angular, Teardrop, Wide, Compact, Perky, Pointy) and **Breast size** (0 to 150). For any body: **Nipple style**, size and colour, **Butt shape** (Rounded, Athletic, Wide, Compact, Pear) and **Butt size** (0 to 100). The **Neckline** (Closed, V-neck, Scoop, Sweetheart, Keyhole, Asymmetric), its depth and width are under **Outfit**. Drag a slider and the preview follows at once; letting go keeps it, one undo step. [Shape and draw course](action:help.shape)
 
+## Custom hair
+
+When the **Hair** list has nothing right, make hair of your own. In **Look**, under **Hair color**, press **✂ Make custom hair**: it starts from the hair the character has, and its Hair choice then says **Custom**. Take any hat off to see it (**Take the hat off**).
+
+- **Start from**: 16 hairstyles to begin with (long waves, curtain bangs, a blunt bob, a high ponytail, space buns, a top knot, two braids, a viking, big curls, an afro puff, punk, spiky, a pompadour, a wizard beard, a lumberjack, buzz and chops).
+- **Top** (Smooth, Spiky, Curly, Afro, Mohawk, Quiff, Slicked back, Shaved), **Fringe** (Straight, Swept, Curtain), **Tied** (Ponytail, High ponytail, Pigtails, Bun, Top knot, Two buns, Braid, Two braids) and **Beard** (Short, Full, Long, Braided, Mutton chops): each a picture of this character wearing it.
+- **Parting** (None, Left, Middle, Right), and the sliders **Length** (from the ears to the waist; long hair falls over the shoulders), **Volume**, **Tie length** and **Beard length**. Drag one and the preview follows; letting go keeps it, one undo step.
+- The **tips** (ombré, dyed ends), the **band** and the **beard** can have colours of their own; the hair's main colour is **Hair color**.
+
+**💾 Save to My library** keeps the hairstyle in the game, with its colour and a name. On any character, pick it under **My library** (shown above ✂ Make custom hair too): each character gets its own copy, so changing one never changes another. **Update** changes the library's hairstyle; **Remove from library** takes it out (characters wearing it keep theirs).
+
+Custom hair takes drawings (the **Draw** tab's Hair part) and squashes under a hat like the built-in hair. **Play in v68** shows the nearest v68 hairstyle. From a picture makes custom hair too ("space buns", "a high ponytail with red ribbons", "a braided beard", "long hair with blue tips"). [Custom hair course](action:help.hair)
+
 ## Drawing on the figure
 
 The **Draw** tab draws on the figure, as the old studio's paint did: faces, freckles, tattoos, logos, patterns, a printed shirt. Pick a **Part** (head, hair, hat, torso, dress, arms, hands, legs, feet, glasses, back gear, cape, scarf, held item) and a **Side** (Front, Back, Left, Right, Top, Bottom — left and right as you look at its front); the preview turns to that side. On round parts like the head, the Front's drawing covers the whole face, skin and all. The square shows the side with the part's own look under the drawing. Draw with the **Pen**, rub out with the **Eraser** (the part's own look shows again), **Fill** a joined area of one colour, or **Pick** a colour off the figure; choose the **Colour** and **Size**. **Put a picture on this side** stretches a PNG, JPEG or WebP over it. Every stroke shows on the figure as you draw and is one undo step (**Undo stroke** or Ctrl+Z); **Clear this side** wipes the side. Drawing on a part the figure doesn't wear (a hat, a cape, glasses…) puts one on. Parts with a drawing are marked ✎. Wearing an outfit, drawings go into the outfit. The prints that **Bring your look** makes from a photo are drawings too: touch them up here.

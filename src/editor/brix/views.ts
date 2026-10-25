@@ -323,6 +323,17 @@ export function stepsToView(view: string): ShowStep[] {
           done: (c) => c.ed.sheetTab.value === 'look',
         },
       ];
+    case 'characters-hair':
+      // Milestone 3, 10d part 3: custom hair is in the Look tab, under Hair color
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Look tab of the sheet; custom hair is under Hair color in Face & hair.',
+          find: control('[aria-label="Character sheet"]', /^Look$/),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === 'look',
+        },
+      ];
     case 'characters-draw':
       return [
         ws('Characters'),

@@ -1,0 +1,341 @@
+{
+  "id": "hair",
+  "title": "Custom hair course",
+  "steps": [
+    {
+      "id": "hair.make",
+      "title": "Meet Mira",
+      "body": "The Hair list has 18 hairstyles. When none is right, make hair of your own: the top, length, fringe, how it is tied, a beard and the colours — and keep it in My library for any character. This course gives Mira space buns and shares them with Leo.",
+      "task": "Make Mira, a neighbour on the map, with no hat.",
+      "target": "[data-tour=\"char-new\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterNamed",
+        "args": "Mira"
+      },
+      "doItForMe": [
+        {
+          "fn": "lookMake",
+          "args": {
+            "name": "Mira",
+            "profile": {
+              "gender": "Female",
+              "hat": "None"
+            }
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Make a character called Mira and put her on the map, beside where the player starts (Brix's helper does both).",
+          "check": {
+            "kind": "state",
+            "test": "characterNamed",
+            "args": "Mira"
+          },
+          "do": [
+            {
+              "fn": "lookMake",
+              "args": {
+                "name": "Mira",
+                "profile": {
+                  "gender": "Female",
+                  "hat": "None"
+                }
+              },
+              "say": "Mira, a neighbour on the map."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "hair.custom",
+      "title": "Hair of her own",
+      "body": "Custom hair is in the Look tab, under Hair color. ✂ Make custom hair starts from the hair she has; from then on her Hair choice says Custom.",
+      "task": "Press ✂ Make custom hair.",
+      "target": "[data-tour=\"hair-make-custom\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterWears",
+        "args": {
+          "field": "hair",
+          "value": "Custom"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "hairSet",
+          "args": {}
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Hair color, click the button “✂ Make custom hair”.",
+          "check": {
+            "kind": "state",
+            "test": "characterWears",
+            "args": {
+              "field": "hair",
+              "value": "Custom"
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"hair-make-custom\"]",
+              "say": "✂ Make custom hair."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "hair.buns",
+      "title": "Space buns",
+      "body": "Start from has 16 hairstyles to begin with. Each picture is Mira wearing it. The Top, Fringe, Tied and Beard pictures change one thing at a time.",
+      "task": "Start from Space buns.",
+      "target": "[data-tour=\"pick-hair-preset\"]",
+      "check": {
+        "kind": "state",
+        "test": "hairIs",
+        "args": {
+          "tie": "Two buns"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "hairSet",
+          "args": {
+            "top": "Smooth",
+            "length": 30,
+            "volume": 40,
+            "parting": "Middle",
+            "fringe": "None",
+            "tie": "Two buns",
+            "tieLength": 45,
+            "beard": "None",
+            "beardLength": 40,
+            "name": "Space buns"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Click the button “Start from” (it says Presets…), then the picture “Space buns”.",
+          "check": {
+            "kind": "state",
+            "test": "hairIs",
+            "args": {
+              "tie": "Two buns"
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-hair-preset\"]",
+              "say": "Start from."
+            },
+            {
+              "click": "[data-tour=\"pick-hair-preset-list\"] [data-value=\"Space buns\"]",
+              "say": "Space buns."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "hair.dye",
+      "title": "Bigger, with dyed tips",
+      "body": "Length, Volume and Tie length are sliders: drag one and the preview follows, letting go keeps it (one undo step). The tips, the band and a beard can have colours of their own.",
+      "task": "Make the buns bigger (Tie length 70) and give the tips a colour.",
+      "target": "[data-tour=\"hair-tieLength\"]",
+      "check": {
+        "kind": "state",
+        "test": "hairIs",
+        "args": {
+          "tips": "*"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "hairSet",
+          "args": {
+            "tieLength": 70,
+            "tips": "#e4adc8"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Drag the slider “Tie length” to 70.",
+          "check": {
+            "kind": "state",
+            "test": "hairAtLeast",
+            "args": {
+              "field": "tieLength",
+              "atLeast": 65
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"hair-tieLength\"]",
+              "value": "70",
+              "say": "Tie length 70: bigger buns."
+            }
+          ]
+        },
+        {
+          "text": "Tick “Tips colour”, then pick any colour beside it.",
+          "check": {
+            "kind": "state",
+            "test": "hairIs",
+            "args": {
+              "tips": "*"
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"hair-tips-on\"]",
+              "say": "Tips colour on."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "hair.save",
+      "title": "My library",
+      "body": "A hairstyle saved to My library stays in the game with its colour. Any character can wear it; each one gets its own copy, so changing one never changes another.",
+      "task": "Name it Space buns and save it to My library.",
+      "target": "[data-tour=\"hair-save\"]",
+      "check": {
+        "kind": "state",
+        "test": "libraryHair",
+        "args": "Space buns"
+      },
+      "doItForMe": [
+        {
+          "fn": "hairSave",
+          "args": {
+            "name": "Space buns"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Type Space buns in the name box beside “💾 Save to My library”.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"hair-name\"]"
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"hair-name\"]",
+              "value": "Space buns",
+              "say": "The name."
+            }
+          ]
+        },
+        {
+          "text": "Click “💾 Save to My library”.",
+          "check": {
+            "kind": "state",
+            "test": "libraryHair",
+            "args": "Space buns"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"hair-save\"]",
+              "say": "Saved."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "hair.share",
+      "title": "On anyone",
+      "body": "My library shows on every character, above ✂ Make custom hair. From a picture makes custom hair too: try “a monk with a top knot” or “a viking with a braided beard”.",
+      "task": "Make Leo and give him Space buns from My library.",
+      "target": "[data-tour=\"pick-hair-library\"]",
+      "check": {
+        "kind": "state",
+        "test": "wearsLibraryHair",
+        "args": {
+          "style": "Space buns",
+          "character": "Leo"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "lookMake",
+          "args": {
+            "name": "Leo",
+            "profile": {
+              "hat": "None"
+            }
+          }
+        },
+        {
+          "fn": "hairFromLibrary",
+          "args": {
+            "name": "Space buns"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Make a character called Leo (Brix's helper puts him on the map).",
+          "check": {
+            "kind": "state",
+            "test": "characterNamed",
+            "args": "Leo"
+          },
+          "do": [
+            {
+              "fn": "lookMake",
+              "args": {
+                "name": "Leo",
+                "profile": {
+                  "hat": "None"
+                }
+              },
+              "say": "Leo."
+            }
+          ]
+        },
+        {
+          "text": "Click the button “My library”, then the picture “Space buns”.",
+          "check": {
+            "kind": "state",
+            "test": "wearsLibraryHair",
+            "args": {
+              "style": "Space buns",
+              "character": "Leo"
+            }
+          },
+          "do": [
+            {
+              "fn": "hairFromLibrary",
+              "args": {
+                "name": "Space buns"
+              },
+              "say": "Space buns from My library."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    }
+  ]
+}

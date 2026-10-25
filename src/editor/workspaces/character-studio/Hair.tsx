@@ -76,19 +76,41 @@ export function HairEditor(p: {
     />
   );
 
+  const library = (
+    <div class="field">
+      My library
+      <PreviewPicker
+        label="My library"
+        tour="hair-library"
+        value={hair.from ?? ''}
+        placeholder={lib.length ? 'Pick one…' : 'Empty: save one below'}
+        options={lib.map((s) => ({ value: s.id, name: s.name, thumb: thumb(wornFrom(s), 'head', s.color) }))}
+        onPick={(v) => {
+          const s = lib.find((x) => x.id === v);
+          if (s) p.setFields({ hair: 'Custom', customHair: wornFrom(s), hairColor: s.color }, `Hairstyle: ${s.name}`);
+        }}
+      />
+    </div>
+  );
+
   if (!custom)
     return (
-      <div class="field" data-help="characters.hair">
-        <span class="muted small">Want a hairstyle the list doesn't have?</span>
-        <button
-          type="button"
-          class="btn small"
-          data-tour="hair-make-custom"
-          onClick={() => p.setFields({ hair: 'Custom', customHair: hairFromV68(String(profile.hair)) }, 'Custom hair')}
-        >
-          ✂ Make custom hair
-        </button>
-      </div>
+      <>
+        {lib.length > 0 && library}
+        <div class="field" data-help="characters.hair">
+          <span class="muted small">Want a hairstyle the list doesn't have?</span>
+          <button
+            type="button"
+            class="btn small"
+            data-tour="hair-make-custom"
+            onClick={() =>
+              p.setFields({ hair: 'Custom', customHair: hairFromV68(String(profile.hair)) }, 'Custom hair')
+            }
+          >
+            ✂ Make custom hair
+          </button>
+        </div>
+      </>
     );
 
   const saveToLibrary = () => {
@@ -131,20 +153,7 @@ export function HairEditor(p: {
           onPick={(v) => put({ ...presetHair(v)!, name: v, from: undefined }, `Hairstyle: ${v}`)}
         />
       </div>
-      <div class="field">
-        My library
-        <PreviewPicker
-          label="My library"
-          tour="hair-library"
-          value={hair.from ?? ''}
-          placeholder={lib.length ? 'Pick one…' : 'Empty: save one below'}
-          options={lib.map((s) => ({ value: s.id, name: s.name, thumb: thumb(wornFrom(s), 'head', s.color) }))}
-          onPick={(v) => {
-            const s = lib.find((x) => x.id === v);
-            if (s) p.setFields({ hair: 'Custom', customHair: wornFrom(s), hairColor: s.color }, `Hairstyle: ${s.name}`);
-          }}
-        />
-      </div>
+      {library}
       {(
         [
           ['top', 'Top', HAIR_TOPS, 'head'],

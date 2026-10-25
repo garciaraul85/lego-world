@@ -5,6 +5,7 @@ import { BUILTIN_MODEL_FILES } from '../../builtin/models/data';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
 import type { BodyPlan, Bone } from '../../core/character/body';
 import { makeFamily } from '../../core/character/families';
+import { cleanHair, type HairStyle } from '../../core/character/hair';
 import { DEFAULT_STATS } from '../../core/character/sheet';
 import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
@@ -651,6 +652,84 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       c,
       { type: 'character.update', payload: { character: { ...chr, profile: { ...chr.profile, ...a } } } },
       'Body shape',
+    );
+  },
+  /** Milestone 3, 10d part 3: custom hair settings on the open character, as one undo step */
+  hairSet(c, a) {
+    const id = c.ed.studioCharacter.value;
+    const chr = id ? c.ed.store.get<Character>(paths.character(id)) : undefined;
+    if (!chr) throw new Error('Open a character first.');
+    c.ed.sheetTab.value = 'look';
+    const before = chr.profile.hair === 'Custom' ? (chr.profile.customHair as object) : {};
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: {
+          character: {
+            ...chr,
+            profile: { ...chr.profile, hat: 'None', hair: 'Custom', customHair: cleanHair({ ...before, ...a }) },
+          },
+        },
+      },
+      'Custom hair',
+    );
+  },
+  /** saves the open character's custom hair to My library under a name, and wears it from there */
+  hairSave(c, a) {
+    const id = c.ed.studioCharacter.value;
+    const chr = id ? c.ed.store.get<Character>(paths.character(id)) : undefined;
+    if (!chr || chr.profile.hair !== 'Custom') throw new Error('Give the character custom hair first.');
+    const name = String(a.name ?? 'My hairstyle');
+    const { name: _n, from: _f, ...settings } = cleanHair(chr.profile.customHair);
+    const sid = newId('hairstyle') as HairStyle['id'];
+    run(
+      c,
+      [
+        {
+          type: 'hairstyle.put',
+          payload: { style: { ...settings, id: sid, name, color: String(chr.profile.hairColor) } },
+        },
+        {
+          type: 'character.update',
+          payload: {
+            character: { ...chr, profile: { ...chr.profile, customHair: { ...settings, name, from: sid } } },
+          },
+        },
+      ],
+      `Save hairstyle ${name}`,
+    );
+  },
+  /** puts a hairstyle from My library on the open character */
+  hairFromLibrary(c, a) {
+    const id = c.ed.studioCharacter.value;
+    const chr = id ? c.ed.store.get<Character>(paths.character(id)) : undefined;
+    if (!chr) throw new Error('Open a character first.');
+    const style = c.ed.store
+      .list(paths.hairstyleDir)
+      .map((p) => c.ed.store.get<HairStyle>(p)!)
+      .find((s) => s?.name === a.name);
+    if (!style) throw new Error(`“${String(a.name)}” is not in My library.`);
+    const { id: sid, color, name, ...settings } = style;
+    c.ed.sheetTab.value = 'look';
+    run(
+      c,
+      {
+        type: 'character.update',
+        payload: {
+          character: {
+            ...chr,
+            profile: {
+              ...chr.profile,
+              hat: 'None',
+              hair: 'Custom',
+              hairColor: color,
+              customHair: { ...settings, name, from: sid },
+            },
+          },
+        },
+      },
+      `Hairstyle: ${name}`,
     );
   },
   /** draws a mark (a star, or a filled side) on a part's side of the open character, as one undo step */
