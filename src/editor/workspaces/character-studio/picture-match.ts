@@ -1,4 +1,11 @@
 import { BODY_FAMILIES, type Body, type BodyFamily, PARAM_INFO, PARAM_KEYS } from '../../../core/character/body';
+import {
+  CREATURE_EXTRAS,
+  CREATURE_SHAPES,
+  type CreatureSpec,
+  cleanSpec,
+  specFromWords,
+} from '../../../core/character/compose';
 import { FAMILY_INFO, FAMILY_PRESETS } from '../../../core/character/families';
 
 /**
@@ -12,6 +19,8 @@ export type Candidate = {
   profile?: Record<string, unknown>;
   /** a creature: its body */
   body?: Body;
+  /** Milestone 3, 10d: a figure of its own (any kind, however wild): its parts, built into a body plan */
+  creature?: CreatureSpec;
   /** what each part was matched to: [part, what it came from] */
   matched: [string, string][];
 };
@@ -191,7 +200,71 @@ export function nameOf(text: string): string {
  * (or the minifig's parts), colours said in words go where they were said, the picture's colours fill
  * the rest. The second swaps the colours round; the third tries another preset or other parts.
  */
-export function localCandidates(text: string, picture: string[], cat: Catalog): Candidate[] {
+export function localCandidates(
+  text: string,
+  picture: string[],
+  cat: Catalog,
+  opts: { personFromPhoto?: boolean } = {},
+): Candidate[] {
+  const base = familyOrPerson(text, picture, cat, opts.personFromPhoto ?? false);
+  const wild = creatureOf(text, picture);
+  // something no family or minifig is (a teapot on legs, a three-headed snake): its own figure, three ways
+  if (!wild?.creature) return base;
+  const w = wild.creature;
+  const swapped = { ...w, colors: { ...w.colors, main: w.colors.accent, accent: w.colors.main } };
+  const bigger = { ...w, size: Math.min(10, w.size * 1.6) };
+  return [
+    wild,
+    { ...wild, creature: swapped, matched: [...wild.matched.slice(0, 1), ['Colours', 'the other way round']] },
+    { ...wild, creature: bigger, matched: [...wild.matched.slice(0, 1), ['Size', 'bigger']] },
+  ];
+}
+
+/** a figure of its own from the words (and the picture's colours), when the words ask for one */
+export function creatureOf(text: string, picture: string[]): Candidate | null {
+  const t = text.toLowerCase();
+  if (!t.trim()) return null;
+  const spec = specFromWords(text);
+  const counted =
+    /\b(\d+|two|three|four|five|six|seven|eight|many)[\s-]+(heads?|headed|eyes?|eyed|legs?|legged|arms?|armed|tentacles?|wings?|winged|horns?|wheels?)\b/.test(
+      t,
+    );
+  const thing = spec.shape !== 'blob' || spec.tentacles > 0 || spec.wheels > 0 || spec.extras.length > 0;
+  const fam = familyOf(t);
+  // a plain dog, bird or knight is better as a family or a minifig; a cyclops dog or a walking teapot is not
+  if (!counted && (!thing || (fam && !/\b(t-?rex|dinosaur|dino|raptor|sauropod|triceratops|stegosaur)/.test(t))))
+    return null;
+  if (!counted && PERSON.test(t) && spec.shape === 'blob') return null;
+  const colors = { ...spec.colors };
+  const said = colorWords(t).filter((c) => !c.part);
+  const free = [...picture];
+  if (!said[0] && free[0]) colors.main = free.shift()!;
+  if (!said[1] && free[0]) colors.accent = free.shift()!;
+  const s = { ...spec, colors, name: nameOf(text) };
+  const parts = (
+    [
+      ['Heads', s.heads],
+      ['Eyes', s.eyes],
+      ['Legs', s.legs],
+      ['Arms', s.arms],
+      ['Tentacles', s.tentacles],
+      ['Wings', s.wings],
+      ['Wheels', s.wheels],
+      ['Horns', s.horns],
+    ] as [string, number][]
+  ).filter(([, n]) => n > 0);
+  return {
+    name: s.name,
+    creature: s,
+    matched: [
+      ['Body', `a figure of its own: a ${s.shape} body${s.extras.length ? ` with ${s.extras.join(', ')}` : ''}`],
+      ...parts.map(([p, n]) => [p, String(n)] as [string, string]),
+      ['Moves', s.move ?? 'from its parts'],
+    ].slice(0, 7) as [string, string][],
+  };
+}
+
+function familyOrPerson(text: string, picture: string[], cat: Catalog, personFromPhoto: boolean): Candidate[] {
   const t = text.toLowerCase();
   const fam = familyOf(t);
   const said = colorWords(t);
@@ -266,7 +339,8 @@ export function localCandidates(text: string, picture: string[], cat: Catalog): 
         notes.push([title(s.part.replace('Color', ' colour')), `“${s.word}” in the words`]);
       }
     const plain = said.filter((s) => !s.part).map((s) => s.color);
-    const fill = [...plain, ...picture];
+    // with v68's Bring your look, the photo colours each part where it is (not the picture's main colours)
+    const fill = [...plain, ...(personFromPhoto ? [] : picture)];
     const order = swap
       ? ['pantsColor', 'shirtColor', 'hatColor', 'hairColor']
       : ['shirtColor', 'pantsColor', 'hatColor', 'hairColor'];
@@ -323,7 +397,7 @@ export function aiPrompt(text: string, hasPicture: boolean, cat: Catalog, pictur
   return `You make a character for a brick-built video game editor from ${hasPicture ? 'the attached picture' : 'a description'}${hasPicture && text ? ' and a description' : ''}. You do not draw: you only choose settings the editor already has. Make an ORIGINAL character in brick style: if the picture or words are a famous character or a real person, take only general traits (colours, kind of clothes, species), never a copy, a logo or a name of theirs.
 
 ${text ? `Description: ${text}\n` : ''}${picture.length ? `The picture's main colours, most first: ${picture.join(', ')}\n` : ''}
-A character is EITHER a minifig (a person, or a person with an animal theme) OR a creature body.
+A character is a minifig (a person, or a person with an animal theme), OR a creature body from a family, OR — for anything else, however wild (a walking teapot, a three-headed snake, an octopus chef, a living cloud, a dinosaur) — a figure of its own made from parts.
 
 Minifig: "profile" with any of these fields (exact option names), and colours as "#rrggbb" for: ${cat.colorFields.filter((f) => !/nipple/i.test(f)).join(', ')}.
 ${minifig}
@@ -331,8 +405,10 @@ ${minifig}
 Creature: "body": { "family": one of the families below, "params": { ${params} }, "colors": { "main", "accent", "belly", "eye" as "#rrggbb" } }.
 ${fams}
 
+Figure of its own: "creature": { "shape": ${CREATURE_SHAPES.join(' | ')}, "size": 2-10 (studs; a dog 3, a horse 5, a giant 9), "heads": 0-5 (0: the face is on the body), "eyes": 0-8 per head, "legs": 0-8, "arms": 0-6, "tentacles": 0-8, "wings": 0 | 2 | 4, "tail": 0-8 (pieces), "wheels": 0-6, "horns": 0-6, "neck": 0-12 (plates), "extras": [${CREATURE_EXTRAS.join(', ')}], "move": walk | fly | swim | slither | hop, "colors": { "main", "accent", "belly", "eye" as "#rrggbb" } }.
+
 Answer with JSON only, no other words, exactly this shape with 3 different candidates, the closest first:
-{"candidates":[{"name":"a short name (max 32 letters)","profile":{...} OR "body":{...},"matched":[["part","what in the picture or words it matches"], ...]}]}
+{"candidates":[{"name":"a short name (max 32 letters)","profile":{...} OR "body":{...} OR "creature":{...},"matched":[["part","what in the picture or words it matches"], ...]}]}
 "matched" lists 3 to 6 parts (Hair, Hat, Shirt colour, Body, Main colour...) and what each one matches.`;
 }
 
@@ -351,6 +427,8 @@ export function sanitize(raw: unknown, cat: Catalog): Candidate | null {
         .map((m) => [String(m[0]).slice(0, 30), String(m[1]).slice(0, 120)] as [string, string])
         .slice(0, 8)
     : [];
+  if (r.creature && typeof r.creature === 'object')
+    return { name, creature: cleanSpec({ ...(r.creature as Record<string, unknown>), name }), matched };
   const b = r.body as Record<string, unknown> | undefined;
   if (b && typeof b === 'object' && BODY_FAMILIES.includes(b.family as BodyFamily) && b.family !== 'minifig') {
     const params: Record<string, number> = {};

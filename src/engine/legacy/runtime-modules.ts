@@ -123,6 +123,17 @@ export interface LegacyRuntime {
     validate(p: Record<string, unknown>): Record<string, unknown>;
     heightScale(p: Record<string, unknown>): number;
   };
+  /** v68's “Bring your look”: colours read from a photo by part, and a picture turned into a print */
+  CharacterArt: {
+    regions: Record<string, [number, number, number, number]>;
+    analyze(
+      pixels: Uint8ClampedArray,
+      width: number,
+      height: number,
+      crop: { x: number; y: number; w: number; h: number },
+    ): { palette: Record<string, string>; rects: Record<string, { x: number; y: number; w: number; h: number }> };
+    stylize(pixels: Uint8ClampedArray, steps?: number): Uint8ClampedArray;
+  };
   CharacterModel: {
     create(gl: WebGLRenderingContext, fragment: string, onDirty?: () => void): CharacterRenderer;
     /** v68 rig: each joint's world matrix for a pose state (16 numbers, column-major) */

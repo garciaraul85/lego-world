@@ -45,6 +45,7 @@ export const COMMAND_TYPES = [
   'dialogue.put',
   'dialogue.delete',
   'bodyplan.put',
+  'figure.make',
   'bodyplan.delete',
   'effect.put',
   'effect.delete',

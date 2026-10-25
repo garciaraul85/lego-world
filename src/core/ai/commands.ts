@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BodyPlan } from '../character/body';
+import { CREATURE_EXTRAS, CREATURE_SHAPES } from '../character/compose';
 import * as A from '../commands/handlers/assets';
 import * as Au from '../commands/handlers/audio';
 import * as Bp from '../commands/handlers/bodyplans';
@@ -830,6 +831,34 @@ export const AI_COMMANDS: AiCommand[] = [
     'Characters',
     'Deletes a conversation nothing starts any more (take it out of talk lists, signs and interactions first).',
     { id: 'dlg_aaaaaaaaaa' },
+  ),
+  def(
+    'figure.make',
+    Bp.makeFigure,
+    z.strictObject({
+      character: ids('character'),
+      plan: ids('bodyplan'),
+      name: z.string().min(1).max(40),
+      spec: z.record(z.string(), z.unknown()),
+    }),
+    ['character'],
+    'Characters',
+    `Makes ANY figure, however wild (a walking teapot, a three-headed robot snake, an octopus chef, a living cloud, a T-rex), from a short description of its parts: the engine builds a body plan and a character wearing it. spec: { shape: ${CREATURE_SHAPES.join('/')}, size 2-10 studs (a dog 3, a horse 5, a giant 9), heads 0-5 (0: the face is on the body), eyes 0-8 per head, legs 0-8, arms 0-6, tentacles 0-8, wings 0/2/4, tail 0-8 pieces, wheels 0-6, horns 0-6, neck 0-12 plates, extras [${CREATURE_EXTRAS.join(', ')}], move walk/fly/swim/slither/hop, colors { main, accent, belly, eye } as #hex }. Place it with npc.place. For a person use character.create with a v68 profile instead.`,
+    {
+      character: 'chr_aaaaaaaaaa',
+      plan: 'bpl_aaaaaaaaaa',
+      name: 'Teapot Tom',
+      spec: {
+        shape: 'teapot',
+        size: 4,
+        heads: 0,
+        eyes: 2,
+        legs: 2,
+        arms: 0,
+        extras: ['spout', 'handle', 'lid'],
+        colors: { main: '#f4f4f4', accent: '#0055bf', belly: '#9fc3e9', eye: '#1b1b1b' },
+      },
+    },
   ),
   def(
     'bodyplan.put',

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { creaturePlan } from '../../../core/character/compose';
 import { type ResolvedBody, resolveBody } from '../../../core/character/resolve';
 import { newId } from '../../../core/ids';
-import type { Character } from '../../../core/schema';
+import { type Character, type MapDoc, paths } from '../../../core/schema';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { sessionKey } from '../../../platform/ai/keys';
 import { type AiSettings, gameSpent, loadAi, recordSpend, saveAi } from '../../../platform/ai/settings';
 import type { ActionCtx } from '../../actions/registry';
 import { pickProvider } from '../../ai/providers';
+import { type LookPicture, lookColors, lookPrints } from './bring-look';
 import { aiPrompt, type Candidate, type Catalog, localCandidates, mainColors, parseCandidates } from './picture-match';
 import { CharacterThumb } from './thumbs';
 
@@ -25,9 +27,14 @@ export function catalog(): Catalog {
   };
 }
 
-async function readPicture(
-  file: File,
-): Promise<{ url: string; colors: string[]; blob: Blob; base64: string; mediaType: string }> {
+async function readPicture(file: File): Promise<{
+  url: string;
+  colors: string[];
+  blob: Blob;
+  base64: string;
+  mediaType: string;
+  look: LookPicture;
+}> {
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.src = url;
@@ -41,10 +48,18 @@ async function readPicture(
   cv.height = h;
   const g = cv.getContext('2d')!;
   g.drawImage(img, 0, 0, w, h);
-  const colors = mainColors(g.getImageData(0, 0, w, h).data, w, h, 4);
+  const pixels = g.getImageData(0, 0, w, h).data;
+  const colors = mainColors(pixels, w, h, 4);
   const blob = await new Promise<Blob>((res) => cv.toBlob((b) => res(b!), 'image/jpeg', 0.85));
   const dataUrl = cv.toDataURL('image/jpeg', 0.85);
-  return { url, colors, blob, base64: dataUrl.slice(dataUrl.indexOf(',') + 1), mediaType: 'image/jpeg' };
+  return {
+    url,
+    colors,
+    blob,
+    base64: dataUrl.slice(dataUrl.indexOf(',') + 1),
+    mediaType: 'image/jpeg',
+    look: { image: cv, width: w, height: h, pixels },
+  };
 }
 
 type Picture = Awaited<ReturnType<typeof readPicture>>;
@@ -58,6 +73,21 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
   const [found, setFound] = useState<Candidate[] | null>(null);
   const [aiReady, setAiReady] = useState(false);
   const [reading, setReading] = useState(false);
+  // Milestone 3, 10d: v68's Bring your look for a person in the picture
+  const [partColors, setPartColors] = useState(true);
+  const [prints, setPrints] = useState(false);
+  /** what v68's tools add to a person's look from the picture: colours by part, and prints if asked */
+  const lookFor = (k: Candidate): Record<string, unknown> => {
+    if (!pic || k.body || k.creature) return {};
+    const out: Record<string, unknown> = {};
+    try {
+      if (partColors) Object.assign(out, lookColors(pic.look));
+      if (prints) out.paint = lookPrints(pic.look);
+    } catch {
+      /* the picture could not be read by part: words and colours only */
+    }
+    return out;
+  };
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     void pickProvider(() => withKey(loadAi())).then((p) => setAiReady(!!p));
@@ -87,7 +117,7 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
   const create = async () => {
     const cat = catalog();
     const colors = pic?.colors ?? [];
-    const local = () => localCandidates(text, colors, cat);
+    const local = () => localCandidates(text, colors, cat, { personFromPhoto: !!pic && partColors });
     const s = withKey(loadAi());
     const capped =
       (s.dailyCap > 0 && s.spent.tokens >= s.dailyCap) ||
@@ -139,25 +169,50 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
     }
   };
 
-  const use = (k: Candidate) => {
+  /** the command that stands a new character on the open map, a few studs in front of its first spawn point */
+  const placeCommand = (character: string) => {
+    const map = ed.mapId.value;
+    const sp = ed.store.get<MapDoc>(paths.map(map))?.spawns[0];
+    const yaw = sp?.yaw ?? 0;
+    const at = sp?.pos ?? [0, 0.4, 0];
+    const pos: [number, number, number] = [at[0] - Math.sin(yaw) * 5, at[1], at[2] - Math.cos(yaw) * 5];
+    return { type: 'npc.place', payload: { map, character, pos, heading: yaw } };
+  };
+  const use = (k: Candidate, placeIt = false) => {
     const L = legacyRuntime();
     const id = newId('character');
     const name = k.name;
     let profile: Record<string, unknown> = { name };
     try {
-      profile = L.CharacterCatalog.validate({ ...L.CharacterCatalog.defaults, ...(k.profile ?? {}), name });
+      const look = lookFor(k);
+      profile = L.CharacterCatalog.validate({
+        ...L.CharacterCatalog.defaults,
+        ...look,
+        ...(k.profile ?? {}),
+        ...(look.paint ? { paint: look.paint } : {}),
+        name,
+      });
     } catch {
       profile = { name };
     }
-    const chr: Character = { id, name, role: 'npc', profile, ...(k.body ? { body: k.body } : {}) };
-    if (
-      ed.exec(
-        { type: 'character.create', payload: { character: chr } },
-        { label: `New character ${name} (from a picture)` },
-      ).ok
-    ) {
+    // Milestone 3, 10d: a figure of its own becomes a body plan of the project's, and the character wears it
+    const planId = k.creature ? newId('bodyplan') : null;
+    const body =
+      k.creature && planId
+        ? { plan: planId as NonNullable<Character['body']>['plan'], colors: k.creature.colors }
+        : k.body;
+    const chr: Character = { id, name, role: 'npc', profile, ...(body ? { body } : {}) };
+    const cmds = [
+      ...(k.creature && planId
+        ? [{ type: 'bodyplan.put', payload: { plan: creaturePlan({ ...k.creature, name }, planId) } }]
+        : []),
+      { type: 'character.create', payload: { character: chr } },
+      // and, if asked, it stands on the open map as a neighbour, in front of the first spawn point
+      ...(placeIt ? [placeCommand(id)] : []),
+    ];
+    if (ed.exec(cmds, { label: `New character ${name} (from a picture)` }).ok) {
       ed.studioCharacter.value = id;
-      ed.sheetTab.value = k.body ? 'body' : 'look';
+      ed.sheetTab.value = body ? 'body' : 'look';
       onClose();
     }
   };
@@ -201,6 +256,29 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
               />
             </label>
             {pic && (
+              <div class="col small" style={{ gap: '4px' }} data-tour="fp-look">
+                <label class="row" style={{ gap: '6px' }}>
+                  <input
+                    type="checkbox"
+                    aria-label="Colour each part from the picture"
+                    checked={partColors}
+                    onChange={(e) => setPartColors((e.target as HTMLInputElement).checked)}
+                  />
+                  A person: colour each part (skin, hair, shirt, trousers, shoes) from where it is in the picture
+                </label>
+                <label class="row" style={{ gap: '6px' }}>
+                  <input
+                    type="checkbox"
+                    aria-label="Print the face and clothes from the picture"
+                    data-tour="fp-prints"
+                    checked={prints}
+                    onChange={(e) => setPrints((e.target as HTMLInputElement).checked)}
+                  />
+                  Print the face and clothes from the picture on the figure (the prints are saved in the game)
+                </label>
+              </div>
+            )}
+            {pic && (
               <div class="fp-swatches" role="group" aria-label="Main colours of the picture">
                 {pic.colors.map((col) => (
                   <span class="fp-sw" style={{ background: col }} title={col} />
@@ -217,7 +295,7 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
                 rows={3}
                 aria-label="Describe it"
                 data-tour="fp-words"
-                placeholder="a blue fox wizard with a long red scarf"
+                placeholder="a blue fox wizard with a long red scarf · a walking teapot · a three-headed robot snake"
                 value={text}
                 onInput={(e) => setText((e.target as HTMLTextAreaElement).value)}
               />
@@ -225,8 +303,8 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
             <p class="muted small fp-privacy">
               🔒 The picture stays on this device: it goes to Claude only when you press Create
               {aiReady ? '' : ' (the AI builder is not set up, so it is not sent at all)'}, and it is never saved in the
-              game. Only use photos of yourself or of people who agreed. A famous character becomes an original
-              character in brick style, not a copy.
+              game unless you tick Print. Only use photos of yourself or of people who agreed. A famous character
+              becomes an original character in brick style, not a copy.
             </p>
             <div class="row" style={{ gap: '6px' }}>
               <button
@@ -251,7 +329,7 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
           <div class="fp-out" role="list" aria-label="Matches">
             {!found && <p class="muted small">Three matches show here, closest first.</p>}
             {found?.map((k, i) => (
-              <MatchCard c={c} k={k} i={i} onUse={() => use(k)} />
+              <MatchCard c={c} k={k} i={i} look={lookFor(k)} onUse={() => use(k)} onPlace={() => use(k, true)} />
             ))}
           </div>
         </div>
@@ -260,17 +338,43 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
   );
 }
 
-function MatchCard({ c, k, i, onUse }: { c: ActionCtx; k: Candidate; i: number; onUse(): void }) {
+function MatchCard({
+  c,
+  k,
+  i,
+  look,
+  onUse,
+  onPlace,
+}: {
+  c: ActionCtx;
+  k: Candidate;
+  i: number;
+  look: Record<string, unknown>;
+  onUse(): void;
+  onPlace(): void;
+}) {
   let body: ResolvedBody | null = null;
   try {
-    body = k.body ? resolveBody(k.body, (p) => c.ed.store.get(p)) : null;
+    if (k.creature) {
+      // a figure of its own is drawn from a body plan made for the preview (saved only when used)
+      const plan = creaturePlan(k.creature, 'bpl_preview000');
+      body = resolveBody({ plan: plan.id, colors: k.creature.colors }, (p) =>
+        p === `bodyplans/${plan.id}.json` ? plan : c.ed.store.get(p),
+      );
+    } else body = k.body ? resolveBody(k.body, (p) => c.ed.store.get(p)) : null;
   } catch {
     body = null;
   }
   const L = legacyRuntime();
   let profile: Record<string, unknown> = {};
   try {
-    profile = L.CharacterCatalog.validate({ ...L.CharacterCatalog.defaults, ...(k.profile ?? {}), name: k.name });
+    profile = L.CharacterCatalog.validate({
+      ...L.CharacterCatalog.defaults,
+      ...look,
+      ...(k.profile ?? {}),
+      ...(look.paint ? { paint: look.paint } : {}),
+      name: k.name,
+    });
   } catch {
     profile = { ...L.CharacterCatalog.defaults };
   }
@@ -291,6 +395,9 @@ function MatchCard({ c, k, i, onUse }: { c: ActionCtx; k: Candidate; i: number; 
         </ul>
         <button type="button" class="btn" data-tour={`fp-use-${i}`} onClick={onUse}>
           Use this one
+        </button>
+        <button type="button" class="btn" data-tour={`fp-place-${i}`} onClick={onPlace}>
+          Use and place on the map
         </button>
       </div>
     </div>

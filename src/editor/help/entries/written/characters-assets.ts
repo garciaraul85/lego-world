@@ -297,17 +297,18 @@ export const CHARACTERS: HelpEntry[] = [
     kind: 'button',
     name: 'From a picture',
     purpose:
-      'Makes a character from a photo, a drawing or a few words (“a blue fox wizard with a long red scarf”). **Create** shows three matches, closest first, each with what its parts matched; **Use this one** adds it to the game, ready to change. With the AI builder set up, Claude looks at the picture and chooses from the editor’s own settings (a body family, or the minifig’s parts and colours); without it, the words pick the kind and the parts and the picture gives the main colours.',
+      'Makes any character from a photo, a drawing or a few words — a person (“a blue fox wizard with a long red scarf”), an animal, or anything at all, however wild (“a walking teapot”, “a three-headed robot snake”, “an octopus chef”, “a giant red T-rex”). **Create** shows three matches, closest first, each with what its parts matched; **Use this one** adds it to the game, ready to change, and **Use and place on the map** also stands it in front of the start. A person is made with v68’s own body and outfit choices (hair, hat, clothes, colours…): with a picture, v68’s Bring your look colours each part from where it is in the photo, and can print the face and clothes on the figure. Anything else that isn’t a person or a built-in animal becomes a figure of its own — a body plan with its own bones and bricks (heads, eyes, legs, arms, tentacles, wings, tail, wheels, horns…) that walks, flies, swims, slithers or hops, to change in the skeleton editor. With the AI builder set up, Claude looks at the picture and chooses; without it, the words pick the kind and the parts.',
     steps: [
       'Press **✨ From a picture…** under + New character (or Assets › New character from a picture…).',
       'Drop a picture in the box or click it to choose one, and/or describe the character.',
       'Press **Create**, then **Use this one** on the match you like.',
     ],
     tips: [
-      'The picture stays on this device: it goes to Claude only when you press Create, and it is never saved in the game.',
+      'Count things in the words: “six-legged”, “three heads”, “four eyes”, “eight tentacles”; colours and size words (giant, tiny) count too.',
+      'The picture stays on this device: it goes to Claude only when you press Create, and it is never saved in the game unless you tick Print.',
       'Only use photos of yourself or of people who agreed. A famous character becomes an original character in brick style, not a copy.',
     ],
-    commands: ['character.create'],
+    commands: ['character.create', 'bodyplan.put', 'npc.place', 'figure.make'],
     match: [{ sel: '[data-tour="char-from-picture"]' }, { in: '[aria-label="Character from a picture"]' }],
     related: ['characters.body', 'characters.sheet', 'shell.ai'],
   },
