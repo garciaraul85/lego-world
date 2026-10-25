@@ -119,7 +119,11 @@ When a minifig says a line its mouth moves with the words: closed for m, b and p
 - **An animal** ("a little orange fox", "a green owl") is a body family with its sliders and colours.
 - **Anything else, however wild** ("a walking teapot", "a three-headed robot snake", "an octopus chef", "a giant red T-rex", "a long-neck sauropod") becomes a **figure of its own**: a body plan with its own bones and bricks — heads, eyes, legs, arms, tentacles, wings, a tail, wheels, horns, a long neck, a spout or a crown — that walks, flies, swims, slithers or hops. Count things in the words (three-headed, six legs, four eyes, eight tentacles) and say colours and sizes (giant, tiny). It opens in the Body tab; change it bone by bone in the skeleton editor.
 
+- **Body shape and drawings**: a person's build comes from the words or picture too ("curvy", "athletic", "slim", "a deep V-neck"), and so do drawings on the figure: "a red star on her left cheek", "freckles", "a scar on his chin", "number 7 on his back", "a shirt that says BOSS", "a heart tattoo on both arms". They are drawn into the **Draw** tab, where you can change them. Left and right are the figure's own.
+
 With the AI builder set up, Claude looks at the picture and chooses; it only chooses the editor's own settings and parts. Without it, the words pick the kind and the parts, and the picture gives the colours.
+
+The same box makes **assets** and whole **maps**: choose 🏠 Asset or building or 🗺 Map at its top (see the Assets and World pages).
 
 The picture stays on this device: it goes to Claude only when you press Create, and it is never saved in the game unless you tick **Print**. Only use photos of yourself or of people who agreed; a famous character becomes an original one in brick style. [Faces and pictures course](action:help.faces) — it makes an owl and a walking teapot.
 

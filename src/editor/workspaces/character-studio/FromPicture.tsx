@@ -244,12 +244,13 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
     setStatus('Building the land, the buildings and the people…');
     try {
       const out = await mapCommands(ed, m.spec, m.seed);
-      if (ed.exec(out.commands, { label: `New map ${m.spec.name} (from a picture)` }).ok) {
+      const r = ed.exec(out.commands, { label: `New map ${m.spec.name} (from a picture)` });
+      if (r.ok) {
         ed.openMap(out.map);
         c.ui.workspace('Scene');
         if (out.notes.length) ed.notify(out.notes.join(' '));
         onClose();
-      } else setStatus('The map could not be made.');
+      } else setStatus(`The map could not be made: ${r.error ?? 'unknown'}`);
     } catch (e) {
       setStatus(`The map could not be made: ${e instanceof Error ? e.message : 'unknown'}`);
     } finally {

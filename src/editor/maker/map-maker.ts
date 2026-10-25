@@ -2,7 +2,7 @@ import { ASSET_FEATURES, ASSET_KINDS, composeAsset, ROOFS } from '../../core/ass
 import { creaturePlan } from '../../core/character/compose';
 import { type Command, CommandBus, registerAll } from '../../core/commands';
 import { cleanMapSpec, MAP_SIZES, MAX_BUILDINGS, MAX_PEOPLE, type MapSpec } from '../../core/gamegen/map-spec';
-import { assetSpot, clearedSpot, reachable } from '../../core/gamegen/places';
+import { arrivalSpot, placeKeepingReach, reachable } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
 import { FOG_PRESET, FOG_PRESETS } from '../../core/lighting/atmosphere';
 import { ProjectStore } from '../../core/project/store';
@@ -34,11 +34,14 @@ export async function mapCommands(
     return r.ok;
   };
   const map = newId('map');
+  const spawnId = newId('spawn');
   if (
     !run({
       type: 'map.create',
       payload: {
         id: map,
+        // the arrival's id is fixed too, so the commands run the same on the project as on the copy
+        spawnId,
         name: spec.name,
         generate: {
           environments: spec.biomes,
@@ -53,6 +56,9 @@ export async function mapCommands(
     })
   )
     throw new Error('The land could not be made.');
+  // the arrival on open ground in the biggest walkable area (v68's generator can leave it inside a hill)
+  const open = arrivalSpot(scratch, map);
+  if (open) run({ type: 'map.updateSpawn', payload: { map, spawn: spawnId, pos: open } });
   if (spec.fog !== 'none') run({ type: 'map.setEnvironment', payload: { map, fog: FOG_PRESET[spec.fog].fog } });
   // the buildings, nearest the start first
   let steps = 4;
@@ -61,9 +67,9 @@ export async function mapCommands(
     if (!run({ type: 'asset.create', payload: { asset: def } })) continue;
     let placed = 0;
     for (let i = 0; i < b.count; i++) {
-      const cmd = assetSpot(scratch, bus, map, def, { minSteps: steps, maxSteps: 80 });
-      const cmds = cmd ? [cmd] : clearedSpot(scratch, bus, map, def, steps);
-      if (cmds.length && bus.execute(cmds, { source: 'user' }).ok) {
+      // a level spot the hero can walk to, plants cleared, never walling the hero in (run on the copy already)
+      const cmds = placeKeepingReach(scratch, bus, map, def, steps);
+      if (cmds.length) {
         commands.push(...cmds);
         placed++;
         steps = Math.min(40, steps + 2);

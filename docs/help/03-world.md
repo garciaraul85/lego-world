@@ -21,3 +21,14 @@ Drag from a spawn's port on one map to a spawn's port on another to connect them
 ## Validate routes
 
 World › Validate routes checks that every map can be reached from the start map, that there is a way back, and that every spawn stands on open ground inside the map. Issues go to the Problems tab.
+
+## A map from a picture (or words)
+
+World › **New map from a picture or words…** makes a whole new map: "a snowy mountain village at night with a lighthouse, three red houses, a blacksmith and two guards", "a pirate island at sunset with a ship and palm trees", "a big desert with a pyramid". The words give:
+
+- **the land**: forest, jungle, prairie, mountains, volcanoes, desert, beach and sea, highway, castle grounds (a town or village is open land with its houses; a city has skyscrapers), and its size;
+- **the sky**: day, noon, evening or night; rain or snow; mist, fog, swamp or smoke;
+- **the buildings**, each built from bricks as an asset from a picture is, with how many ("three red houses");
+- **the people**, each made as a character from a picture is, body shape and drawings too ("a blacksmith with a long beard", "two guards").
+
+**Create** shows three: as described, the same on other land, and bigger. **Make this map** builds it — the land, the arrival on open ground, the buildings on level spots the hero can walk to, the people near them — and opens it. It is one step: Undo takes the whole map away. A building that finds no room is listed in a notice; more than three buildings make the land bigger. Connect the new map to your others with a gate in the World graph. With only a picture, its main colours suggest the land; with the AI builder set up, Claude reads the whole picture.

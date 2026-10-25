@@ -187,10 +187,13 @@ export function mapSpecFromWords(text: string): MapSpec {
     .trim()
     .replace(/\b\w/g, (x) => x.toUpperCase())
     .slice(0, 60);
+  // many buildings want room: bigger land
+  const total = buildings.reduce((n, b) => n + b.count, 0);
+  const room: MapSpec['size'] = total > 3 && size < 32 ? 32 : size;
   return cleanMapSpec({
     name: name || 'New map',
     biomes: biomes.length ? biomes : ['prairie'],
-    size,
+    size: room,
     time,
     rain,
     snow,
