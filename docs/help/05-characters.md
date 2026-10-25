@@ -111,7 +111,9 @@ When a minifig says a line its mouth moves with the words: closed for m, b and p
 
 With the AI builder set up, Claude looks at the picture and chooses; it only chooses the editor's own settings and parts. Without it, the words pick the kind and the parts, and the picture gives the colours.
 
-The picture stays on this device: it goes to Claude only when you press Create, and it is never saved in the game unless you tick **Print**. Only use photos of yourself or of people who agreed; a famous character becomes an original one in brick style. The **Faces and pictures course** (Help menu) makes an owl and a walking teapot.
+The picture stays on this device: it goes to Claude only when you press Create, and it is never saved in the game unless you tick **Print**. Only use photos of yourself or of people who agreed; a famous character becomes an original one in brick style. [Faces and pictures course](action:help.faces) — it makes an owl and a walking teapot.
+
+Every body family also has eight **presets** (Dog, Cat, Horse, Wolf… Parrot, Owl… Shark, Clownfish…) under its description in the Body tab.
 
 ## Dialogue: what characters say
 
