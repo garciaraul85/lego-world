@@ -299,20 +299,27 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
               </button>
               {/* P23 part 4: the strike and flinch the state machine shows in Play; Milestone 3, 10d part 2: and every
                   other move its parts can do */}
-              {resolved &&
-                movesOf(resolved.bones).map((mv) => (
-                  <button
-                    type="button"
-                    class="btn"
-                    data-tour={
-                      mv.move === 'attack' ? 'body-strike' : mv.move === 'hurt' ? 'body-flinch' : `body-move-${mv.move}`
-                    }
-                    data-tip={`${mv.label}: ${mv.about}`}
-                    onClick={() => (ed.bodyAct.value = { kind: mv.move, at: performance.now() })}
-                  >
-                    {mv.label}
-                  </button>
-                ))}
+              {resolved && (
+                <span data-tour="body-moves" role="group" aria-label="Moves" style={{ display: 'contents' }}>
+                  {movesOf(resolved.bones).map((mv) => (
+                    <button
+                      type="button"
+                      class="btn"
+                      data-tour={
+                        mv.move === 'attack'
+                          ? 'body-strike'
+                          : mv.move === 'hurt'
+                            ? 'body-flinch'
+                            : `body-move-${mv.move}`
+                      }
+                      data-tip={`${mv.label}: ${mv.about}`}
+                      onClick={() => (ed.bodyAct.value = { kind: mv.move, at: performance.now() })}
+                    >
+                      {mv.label}
+                    </button>
+                  ))}
+                </span>
+              )}
               <label class="lbl">
                 <input
                   type="checkbox"

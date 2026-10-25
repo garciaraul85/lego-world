@@ -60,7 +60,7 @@ Every character is in one **state** at a time, and the clip set for that state p
 
 A state with **Built-in motion** shows the engine's own movement. Clips crossfade into each other; Hurt, Attack and Jump play their clip once each time, the others loop. With **Walk and run clips keep up with the speed** the walk and run clips play faster or slower with the speed, so the feet match the ground. **Use the built-in moves** fills the empty states with Walk, Run, Jump, Swing, Flinch and Breathe. **Try it** pretends a speed, a jump, an attack or a hit and lights the state that wins, playing its clip on the figure.
 
-The hero, neighbours and enemies all use their own character's states. A creature with a body plan has its own movement for each state: it walks when it moves, **strikes** (lunges with its head and jaw) when it attacks and **flinches** when it is hit; **Strike** and **Flinch** on the Body tab show them.
+The hero, neighbours and enemies all use their own character's states. A creature with a body plan has its own movement for each state: it walks when it moves, **strikes** (lunges with its head and jaw) when it attacks and **flinches** when it is hit; the Body tab's moves show them (with all its other moves).
 
 ## The character sheet
 
@@ -92,6 +92,8 @@ The sliders (Size, Leg length, Neck, Tail length, Wing span, Head size, Build) c
 **Built from bricks**: build a creature in the Asset studio and choose it in **Brick build**; each brick follows the bone it is nearest to. To move a brick to another bone, pick the bone in **Paint onto** and click the brick in the preview. **Auto-attach** puts them all back on their nearest bones.
 
 **Custom…** (the last card) makes a body of your own: pick the skeleton to **Start from** (any family) and press **Make my body**. The bones show at once, ready to add, move and remove. **Skeleton**: **✏️ Edit the skeleton** turns the family into a **body plan** of your own, kept in the game, that any character can wear. Click a bone to change its name, the bone it hangs from, its role, its joint (x right, y up, z forward), its **swing** (how far it moves, in degrees) and **phase** (legs with the same phase step together). **+ Bone on …** adds a bone under the picked one, **+ Brick on …** gives it bricks, **Remove** passes its bones and bricks to its parent. **Moves by** (Walk, Fly, Swim, Slither, Hop), **Stride** and **Hover** are for the whole body. [Creatures course](action:help.bodies)
+
+**Moves.** Every body — a family's, one of your own, or a figure made from words or a picture — gets the moves its parts can do, listed under the preview: anything with a head **Roars** (or **Shouts**) and **Charges**; its strike is a **Bite** with a jaw, a **Punch** with arms, a **Headbutt** with only a head; a tail **swipes**, legs **stomp**, wings **flap** and **glide**, arms **wave**, tentacles and arms **grab**, and everything can **spin**, **dance** and **sleep**. Press one to see it. In Play the strike and the **flinch** come by themselves when it fights; logic starts the rest with **Do a move** (Characters: who and which move; a body that can't do that move skips it).
 
 ## Faces for moods
 

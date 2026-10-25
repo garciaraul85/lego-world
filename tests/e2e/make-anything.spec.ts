@@ -145,3 +145,99 @@ test('figure.make: the AI builder makes any figure from its parts with one comma
   expect(plan.bones.filter((b) => b.name.startsWith('tentacle'))).toHaveLength(24);
   expect(errors).toEqual([]);
 });
+
+test('Moves for anything: the teapot’s Body tab lists what its parts can do, and logic makes it stomp in Play', async ({
+  page,
+}) => {
+  test.setTimeout(400_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  // a teapot with arms, placed on the map, and a rule: on start it stomps
+  await get(page, (e) =>
+    e.exec({
+      type: 'figure.make',
+      payload: {
+        character: 'chr_movepot001',
+        plan: 'bpl_movepot001',
+        name: 'Pot',
+        spec: { shape: 'teapot', heads: 0, legs: 2, arms: 2, extras: ['spout', 'handle', 'lid'] },
+      },
+    }),
+  );
+  await get(page, (e) =>
+    e.exec({ type: 'npc.place', payload: { map: e.mapId.value, character: 'chr_movepot001', pos: [3, 0.4, 3] } }),
+  );
+  const code = await get(page, (e) =>
+    e.exec({
+      type: 'logic.create',
+      payload: {
+        graph: {
+          id: 'lg_e2emoves01',
+          name: 'Moves',
+          scope: 'global',
+          nodes: [
+            { id: 'n1', type: 'event.onStart', pos: [0, 0] },
+            { id: 'n2', type: 'flow.wait', pos: [240, 0], args: { seconds: 0.5 } },
+            { id: 'n3', type: 'character.doMove', pos: [480, 0], args: { who: 'Pot', move: 'stomp' } },
+          ],
+          edges: [
+            ['n1', 'then', 'n2', 'in'],
+            ['n2', 'then', 'n3', 'in'],
+          ],
+        },
+      },
+    }),
+  );
+  expect(code.ok, code.error).toBe(true);
+  // the Body tab: its strike is a Punch (arms); it stomps, waves and grabs, but has no wings to glide
+  await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Characters' }).click();
+  await page.getByRole('option', { name: /^Pot\b/ }).click();
+  await page.locator('[data-tour="sheet-body"]').click();
+  const moves = page.getByRole('group', { name: 'Moves' });
+  await expect(moves).toBeVisible({ timeout: 30_000 });
+  await expect(moves.getByRole('button')).toHaveText([
+    'Punch',
+    'Stomp',
+    'Wave',
+    'Grab',
+    'Spin',
+    'Dance',
+    'Sleep',
+    'Flinch',
+  ]);
+  await moves.getByRole('button', { name: 'Dance' }).click();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __editor: { bodyAct: { value: { kind: string } } } }).__editor.bodyAct.value.kind,
+    ),
+  ).toBe('dance');
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: 'test-results/moves-body-tab.png' });
+  // in Play, the rule makes it stomp; a move its body can't do is skipped
+  await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Play', exact: true }).click();
+  await page.getByLabel('Game view').waitFor({ timeout: 60_000 });
+  type S = {
+    world: { npcs: { profile: { name?: string } }[] };
+    moveOf(n: unknown): { kind: string } | null;
+    doMove(who: string, kind: string): boolean;
+  };
+  const ses = <T>(f: (s: S) => T) => page.evaluate(`(${f.toString()})(window.__editor.session.value)`) as Promise<T>;
+  await expect
+    .poll(() => get(page, (e) => !!(e as unknown as { session: { value: unknown } }).session.value), {
+      timeout: 60_000,
+    })
+    .toBe(true);
+  await expect
+    .poll(() => ses((s) => s.moveOf(s.world.npcs.find((n) => n.profile.name === 'Pot'))?.kind ?? null), {
+      timeout: 240_000,
+      intervals: [50],
+    })
+    .toBe('stomp');
+  expect(await ses((s) => s.doMove('Pot', 'glide'))).toBe(false);
+  expect(await ses((s) => s.doMove('Pot', 'spin'))).toBe(true);
+  expect(await ses((s) => s.moveOf(s.world.npcs.find((n) => n.profile.name === 'Pot'))?.kind)).toBe('spin');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: 'test-results/moves-play.png' });
+  await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Stop' }).click();
+  expect(errors).toEqual([]);
+});

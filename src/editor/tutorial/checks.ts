@@ -278,6 +278,8 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     );
   },
   bodyWalking: (ed) => ed.bodyWalk.value,
+  // Milestone 3, 10d part 2: the last move pressed in the Body tab
+  bodyMove: (ed, a) => ed.bodyAct.value?.kind === a,
   bodyBonesShown: (ed) => ed.bodyBones.value,
   ownPlan: (ed) => {
     const p = studioCharacter(ed)?.body?.plan;

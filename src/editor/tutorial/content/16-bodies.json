@@ -251,6 +251,58 @@
       "placement": "left"
     },
     {
+      "id": "bodies.moves",
+      "title": "His moves",
+      "body": "Rex also has moves, worked out from his parts: a jaw makes his strike a Bite, his head roars and charges, his tail swipes, his legs stomp, and like everything he can spin, dance and sleep. A dragon's wings would flap and glide; a figure made from words gets the moves of whatever it has. In Play the strike and the flinch come by themselves; logic starts the rest with Do a move.",
+      "task": "Press Tail swipe, then Roar.",
+      "target": "[data-tour=\"body-moves\"]",
+      "check": {
+        "kind": "state",
+        "test": "bodyMove",
+        "args": "roar"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"body-move-swipe\"]"
+        },
+        {
+          "click": "[data-tour=\"body-move-roar\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the row of moves under the preview, press “Tail swipe”. Rex whips his tail round.",
+          "check": {
+            "kind": "state",
+            "test": "bodyMove",
+            "args": "swipe"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"body-move-swipe\"]",
+              "say": "Tail swipe: he has a tail."
+            }
+          ]
+        },
+        {
+          "text": "Press “Roar”: he rears his head and opens his jaw.",
+          "check": {
+            "kind": "state",
+            "test": "bodyMove",
+            "args": "roar"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"body-move-roar\"]",
+              "say": "Roar: a head with a jaw."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
       "id": "bodies.skeleton",
       "title": "A skeleton of your own",
       "body": "The family's skeleton follows the sliders. To add bones or change how they move, make it a body plan of your own: it is kept in the game, and any character can wear it (it shows beside the families).",
