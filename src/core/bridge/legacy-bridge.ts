@@ -1,5 +1,6 @@
 import { instanceBricks } from '../assets/instances';
 import type { Brick } from '../bricks/codec';
+import { lookForV68 } from '../character/hair';
 import { LEGACY_COLORS } from '../legacy/constants';
 import type { LegacyBuild, LegacyLink, LegacyMapEntry, LegacyPiece, LegacySave } from '../legacy/types';
 import { type IdResolver, ids, rebuildConfig } from '../migrate/v4to5';
@@ -143,7 +144,7 @@ export function mapToLegacyBuild(files: FileSource, mapId: string, opts: { piece
     build.npcs = instances.items.flatMap((i) => {
       if (i.kind !== 'npc') return [];
       const chr = files.get(paths.character(i.character)) as Character;
-      return [{ id: i.legacyId, biome: i.biome, role: i.role, profile: chr.profile, state: i.state }];
+      return [{ id: i.legacyId, biome: i.biome, role: i.role, profile: lookForV68(chr.profile), state: i.state }];
     });
   }
   return { ...build, ...((legacy.build as object) ?? {}) };
@@ -242,7 +243,9 @@ export function toLegacy(files: FileSource, opts: { activeMap?: string } = {}): 
       .map((p) => files.get(p) as Character)
       .filter((c) => c.role === 'hero');
     const heroInt = intIds(heroes);
-    const items = heroes.map((c) => ({ id: heroInt.get(c)!, profile: c.profile })).sort((a, b) => a.id - b.id);
+    const items = heroes
+      .map((c) => ({ id: heroInt.get(c)!, profile: lookForV68(c.profile) }))
+      .sort((a, b) => a.id - b.id);
     const activeId =
       sl.activeCharacterId !== undefined
         ? sl.activeCharacterId

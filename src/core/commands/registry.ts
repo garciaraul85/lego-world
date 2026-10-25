@@ -38,6 +38,7 @@ import { deleteDialogue, putDialogue } from './handlers/dialogue';
 import { deleteEffect, deleteScreenEffect, putEffect, putScreenEffect } from './handlers/effects';
 import { deleteFile, putFile } from './handlers/file';
 import { connectGate, deleteGate, deleteMap, updateGate } from './handlers/gates';
+import { deleteHairStyle, putHairStyle } from './handlers/hairstyles';
 import { addItem, removeItem, setMapAudio, updateItem } from './handlers/items';
 import {
   addNode,
@@ -102,6 +103,8 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('bodyplan.put', putBodyPlan);
   bus.register('figure.make', makeFigure);
   bus.register('bodyplan.delete', deleteBodyPlan);
+  bus.register('hairstyle.put', putHairStyle);
+  bus.register('hairstyle.delete', deleteHairStyle);
   bus.register('effect.put', putEffect);
   bus.register('effect.delete', deleteEffect);
   bus.register('screenEffect.put', putScreenEffect);

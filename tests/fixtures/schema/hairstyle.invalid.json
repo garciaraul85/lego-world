@@ -1,0 +1,17 @@
+{
+  "path": "hairstyles/hst_spacebuns1.json",
+  "value": {
+    "id": "hst_spacebuns1",
+    "name": "Space buns",
+    "color": "#8a4fbf",
+    "top": "Beehive",
+    "length": 130,
+    "volume": 40,
+    "parting": "Middle",
+    "fringe": "None",
+    "tie": "Two buns",
+    "tieLength": 45,
+    "beard": "None",
+    "beardLength": 40
+  }
+}

@@ -8,6 +8,16 @@ import {
 } from '../../../core/character/compose';
 import { FAMILY_INFO, FAMILY_PRESETS } from '../../../core/character/families';
 import {
+  cleanHair,
+  describeHair,
+  HAIR_BEARDS,
+  HAIR_FRINGES,
+  HAIR_PARTINGS,
+  HAIR_TIES,
+  HAIR_TOPS,
+  hairFromWords,
+} from '../../../core/character/hair';
+import {
   cleanMarks,
   MARK_SHAPES,
   MAX_MARKS,
@@ -250,7 +260,11 @@ function withShapeAndMarks(list: Candidate[], text: string, cat: Catalog): Candi
       ),
     );
     const marks = marksFromWords(text);
-    const matched: [string, string][] = [...k.matched];
+    // 10d part 3: a hairstyle v68's list has no name for (space buns, a braided beard, blue tips…)
+    const hair = hairFromWords(text);
+    const matched: [string, string][] = hair
+      ? [...k.matched.filter(([part]) => part !== 'Hair'), ['Hair', `custom: ${describeHair(hair)}`]]
+      : [...k.matched];
     if (Object.keys(shape).length)
       matched.push([
         'Body shape',
@@ -265,7 +279,7 @@ function withShapeAndMarks(list: Candidate[], text: string, cat: Catalog): Candi
       ]);
     return {
       ...k,
-      profile: { ...k.profile, ...shape },
+      profile: { ...k.profile, ...shape, ...(hair ? { hair: 'Custom', customHair: hair } : {}) },
       ...(marks.length ? { marks } : {}),
       matched,
     };
@@ -455,6 +469,7 @@ Minifig: "profile" with any of these fields (exact option names), and colours as
 ${minifig}
 
 Minifig body shape (whole numbers): breastSize 0-${SHAPE_RANGES.breastSize} (only for gender Female; 0 flat, 60 average, 110 large), buttSize 0-${SHAPE_RANGES.buttSize}, necklineDepth and necklineWidth 0-${SHAPE_RANGES.necklineDepth}. Choose them only when the picture or words show a build (curvy, athletic, slim, a V-neck…).
+Minifig custom hair: for a hairstyle the hair list has no name for (space buns, a high ponytail, a top knot, a fringe, braids, a sculpted beard, dyed tips…) set "hair": "Custom" and "customHair": { "top": ${HAIR_TOPS.join(' | ')}, "length": 0-100 (0 short, 50 shoulders, 100 waist), "volume": 0-100, "parting": ${HAIR_PARTINGS.join(' | ')}, "fringe": ${HAIR_FRINGES.join(' | ')}, "tie": ${HAIR_TIES.join(' | ')}, "tieLength": 0-100, "beard": ${HAIR_BEARDS.join(' | ')}, "beardLength": 0-100, "tips", "band", "beardColor" as "#rrggbb" (optional) }; hairColor stays the main colour.
 Minifig drawings: "marks": up to ${MAX_MARKS} of { "shape": ${MARK_SHAPES.join(' | ')}, "part": ${PAINT_PARTS.join(' | ')}, "side": ${PAINT_SIDES.join(' | ')} (left/right as you look at the front), "x", "y": 0-1 its middle on that side (head front: eyes y 0.47 at x 0.3 and 0.68, cheeks y 0.6 at x 0.24 and 0.76, forehead y 0.3, mouth y 0.68, chin y 0.86; torso front: chest y 0.4), "size": 0.03-1, "color": "#rrggbb", "turn": degrees, "text": up to 10 letters for shape text }. Use marks for face paint, freckles, scars, tattoos, a logo, a number or a word on clothes — what the picture or words show that no part choice has. A logo is a simple shape, never a copy of a real brand.
 
 Creature: "body": { "family": one of the families below, "params": { ${params} }, "colors": { "main", "accent", "belly", "eye" as "#rrggbb" } }.
@@ -509,6 +524,8 @@ export function sanitize(raw: unknown, cat: Catalog): Candidate | null {
       profile[k] = Math.round(Math.max(0, Math.min(SHAPE_RANGES[k]!, Number(v))));
   }
   if (profile.gender !== 'Female') delete profile.breastSize;
+  // 10d part 3: custom hair, cleaned (only with the hair choice Custom)
+  if (profile.hair === 'Custom') profile.customHair = cleanHair(prof.customHair);
   const marks = cleanMarks(r.marks);
   return { name, profile, ...(marks.length ? { marks } : {}), matched };
 }

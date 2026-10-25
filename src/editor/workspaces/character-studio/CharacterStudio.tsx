@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../../builtin/clips';
+import type { CustomHair } from '../../../core/character/hair';
 import type { Command } from '../../../core/commands';
 import { newId } from '../../../core/ids';
 import { type Character, type Clip, paths } from '../../../core/schema';
@@ -21,6 +22,7 @@ import { BodyTab, bodyOfChr } from './Body';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
 import { DrawTab } from './Draw';
 import { FaceTab, withMood } from './Face';
+import { HairEditor } from './Hair';
 import { PosePanel } from './Posing';
 import { AnimationsTab, BehaviourTab, MovesTab, OutfitsTab, SHEET_TABS, StatsTab, VoiceTab } from './Sheet';
 import { CharacterThumb, ClipThumb, peakTime, type ThumbView, trackPose } from './thumbs';
@@ -868,15 +870,32 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                   .filter((k) => !/^breast/.test(k) || chr.profile.gender === 'Female')
                   .map((k) =>
                     L.CharacterCatalog.colorFields.includes(k) ? (
-                      <label class="field">
-                        {pretty(k)}
-                        <input
-                          type="color"
-                          class="inp"
-                          value={String(chr.profile[k] ?? '#888888')}
-                          onChange={(e) => setField(k, (e.target as HTMLInputElement).value)}
-                        />
-                      </label>
+                      <>
+                        <label class="field">
+                          {pretty(k)}
+                          <input
+                            type="color"
+                            class="inp"
+                            value={String(chr.profile[k] ?? '#888888')}
+                            onChange={(e) => setField(k, (e.target as HTMLInputElement).value)}
+                          />
+                        </label>
+                        {/* Milestone 3, 10d part 3: custom hair, under the hair's colour */}
+                        {k === 'hairColor' && (
+                          <HairEditor
+                            ed={ed}
+                            profile={chr.profile}
+                            draft={(draft.customHair as CustomHair | undefined) ?? null}
+                            setDraft={(h) =>
+                              setDraft((d) => {
+                                const { customHair: _, ...rest } = d;
+                                return h ? { ...rest, customHair: h, hair: 'Custom' } : rest;
+                              })
+                            }
+                            setFields={setFields}
+                          />
+                        )}
+                      </>
                     ) : L.CharacterCatalog.rangeFields[k] ? (
                       <RangeField
                         k={k}

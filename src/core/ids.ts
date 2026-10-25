@@ -22,6 +22,8 @@ export const ID_PREFIX = {
   effect: 'fx',
   /** P23 part 2: a screen effect (shake, flash, fade, hit-stop, slow motion) */
   screenEffect: 'sce',
+  /** Milestone 3, 10d part 3: a hairstyle in My library */
+  hairstyle: 'hst',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

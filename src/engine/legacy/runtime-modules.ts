@@ -1,6 +1,7 @@
 // v68 gameplay modules (self-contained IIFEs), evaluated together in one scope so they see each other
 // exactly as in the assembled page. Their ports replace them one system at a time.
 
+import { cleanHair, drawHair } from '../../core/character/hair';
 import type { LegacyPiece } from '../../core/legacy/types';
 import characterArt from '../../legacy/character-art.js?raw';
 import characterCatalog from '../../legacy/character-catalog.js?raw';
@@ -223,10 +224,10 @@ const ORDER = [
   gameWeapons,
   studioMotion,
   studioAnimations,
-  characterCatalog,
+  withCustomHairChoice(characterCatalog),
   rigCollision,
   withRoomToWalk(gamePhysics),
-  withOutwardPaint(withTalkingMouth(withOffHand(characterModel))),
+  withCustomHair(withOutwardPaint(withTalkingMouth(withOffHand(characterModel)))),
   characterArt,
   npcWorld,
 ];
@@ -293,10 +294,36 @@ function withTalkingMouth(src: string): string {
   return src.replace(at, open);
 }
 
+/**
+ * Milestone 3, 10d part 3: custom hair. v68's catalog gains the hair choice Custom and keeps the look's
+ * `customHair` settings (cleaned); its model draws them with its own shapes (core/character/hair.ts drawHair), so
+ * custom hair takes drawings and squashes under a hat like v68's own. v68's files are unchanged: Play in v68 gets
+ * the nearest v68 hairstyle (lookForV68).
+ */
+function withCustomHairChoice(src: string): string {
+  const list = "'Dreadlocks','Swept','Pixie']";
+  const keep = 'necklineWidth:p.necklineWidth,paint};';
+  if (!src.includes(list) || !src.includes(keep))
+    throw new Error('character catalog moved; update withCustomHairChoice');
+  return src
+    .replace(list, "'Dreadlocks','Swept','Pixie','Custom']")
+    .replace(keep, `${keep}if(p.hair==='Custom')result.customHair=__hair.clean(p.customHair);`);
+}
+
+function withCustomHair(src: string): string {
+  const at = "if(p.hair!=='Bald'){part('root',hair);const tall=";
+  if (!src.includes(at)) throw new Error('character model: the hair block moved; update withCustomHair');
+  return src.replace(
+    at,
+    `if(p.hair==='Custom'){__hair.draw(p.customHair,hair,{part,lathe,sphere,box,cyl});}else ${at}`,
+  );
+}
+
 let runtime: LegacyRuntime | null = null;
 export function legacyRuntime(): LegacyRuntime {
   runtime ??= new Function(
+    '__hair',
     `${ORDER.join('\n')}\nreturn {WorldGenerator,VolcanoSimulation,SkyCycle,GameMagic,SuperPowers,GameWeapons,StudioMotion,StudioAnimations,CharacterCatalog,RigCollision,GamePhysics,CharacterModel,CharacterArt,NPCWorld};`,
-  )() as LegacyRuntime;
+  )({ clean: cleanHair, draw: drawHair }) as LegacyRuntime;
   return runtime;
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { hairError } from './hair';
 
 /**
  * Milestone 3, 10d: drawings described in words — “a red star on her left cheek”, “number 7 on the back of his
@@ -326,6 +327,8 @@ export function lookError(profile: Record<string, unknown>): string | null {
     const v = profile[k];
     if (v !== undefined && !opts.includes(String(v))) return `${k} is one of ${opts.join(', ')}.`;
   }
+  const hair = hairError(profile);
+  if (hair) return hair;
   const paint = profile.paint;
   if (paint !== undefined) {
     if (!paint || typeof paint !== 'object' || Array.isArray(paint)) return 'paint is a map of part → PNG picture.';

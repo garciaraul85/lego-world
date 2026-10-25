@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { BodyPlan } from '../character/body';
 import { CREATURE_EXTRAS, CREATURE_SHAPES } from '../character/compose';
+import { HAIR_BEARDS, HAIR_FRINGES, HAIR_PARTINGS, HAIR_TIES, HAIR_TOPS, HairStyle } from '../character/hair';
 import * as A from '../commands/handlers/assets';
 import * as Au from '../commands/handlers/audio';
 import * as Bp from '../commands/handlers/bodyplans';
@@ -10,6 +11,7 @@ import * as Ci from '../commands/handlers/cinematics';
 import * as Dl from '../commands/handlers/dialogue';
 import * as Fx from '../commands/handlers/effects';
 import * as G from '../commands/handlers/gates';
+import * as Hs from '../commands/handlers/hairstyles';
 import * as I from '../commands/handlers/items';
 import * as L from '../commands/handlers/logic';
 import * as M from '../commands/handlers/map';
@@ -525,7 +527,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ character: Character }),
     ['character'],
     'Characters',
-    'Replaces a character: name, look (profile), gear, and its sheet — stats (health, stamina, speed, jump, strength, defence, level, xpCurve), outfits (name, look overrides, stat bonuses) and outfit (worn), moves (style balanced/swift/heavy/defensive, power, speed), animations (a clip id for each state of its animation state machine: idle, walk, run, jump, attack, hurt, plus victory), states (runAt studs a second, hurtFor seconds, matchSpeed), voice (pitch, blip, footsteps, grunt sounds), behaviour (kind: villager, shopkeeper, questGiver, companion, enemy, boss…; routine: wander or stand), talk (conversations by condition) and barks. Send the whole character (read it first).',
+    'Replaces a character: name, look (profile; custom hair: profile.hair "Custom" with profile.customHair { top, length 0-100, volume 0-100, parting, fringe, tie, tieLength, beard, beardLength, tips, band, beardColor }), gear, and its sheet — stats (health, stamina, speed, jump, strength, defence, level, xpCurve), outfits (name, look overrides, stat bonuses) and outfit (worn), moves (style balanced/swift/heavy/defensive, power, speed), animations (a clip id for each state of its animation state machine: idle, walk, run, jump, attack, hurt, plus victory), states (runAt studs a second, hurtFor seconds, matchSpeed), voice (pitch, blip, footsteps, grunt sounds), behaviour (kind: villager, shopkeeper, questGiver, companion, enemy, boss…; routine: wander or stand), talk (conversations by condition) and barks. Send the whole character (read it first).',
     { character: { $read: 'characters/<id>.json' } } as never,
   ),
   def(
@@ -951,6 +953,39 @@ export const AI_COMMANDS: AiCommand[] = [
     'Effects',
     'Deletes a game screen effect that nothing uses (take it out of the game screen effects and cinematics first).',
     { id: 'sce_aaaaaaaaaa' },
+  ),
+  def(
+    'hairstyle.put',
+    Hs.putHairStyle,
+    z.strictObject({ style: HairStyle }),
+    ['character'],
+    'Characters',
+    `Adds or replaces a hairstyle in My library: name, color (#hex), top ${HAIR_TOPS.join('/')}, length 0-100 (0 short, 100 waist), volume 0-100, parting ${HAIR_PARTINGS.join('/')}, fringe ${HAIR_FRINGES.join('/')}, tie ${HAIR_TIES.join('/')}, tieLength 0-100, beard ${HAIR_BEARDS.join('/')}, beardLength 0-100, optional tips/band/beardColor (#hex). A character wears one as profile.hair "Custom" with the settings (no id, name or color) copied into profile.customHair plus from: the hairstyle id, and its colour as profile.hairColor.`,
+    {
+      style: {
+        id: 'hst_aaaaaaaaaa',
+        name: 'Space buns',
+        color: '#8a4fbf',
+        top: 'Smooth',
+        length: 30,
+        volume: 40,
+        parting: 'Middle',
+        fringe: 'None',
+        tie: 'Two buns',
+        tieLength: 45,
+        beard: 'None',
+        beardLength: 40,
+      },
+    },
+  ),
+  def(
+    'hairstyle.delete',
+    Hs.deleteHairStyle,
+    z.strictObject({ id: ids('hairstyle') }),
+    ['character'],
+    'Characters',
+    'Deletes a hairstyle from My library (characters wearing it keep their copy).',
+    { id: 'hst_aaaaaaaaaa' },
   ),
   def(
     'bodyplan.delete',

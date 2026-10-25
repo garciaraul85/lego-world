@@ -47,6 +47,8 @@ export const COMMAND_TYPES = [
   'bodyplan.put',
   'figure.make',
   'bodyplan.delete',
+  'hairstyle.put',
+  'hairstyle.delete',
   'effect.put',
   'effect.delete',
   'screenEffect.put',

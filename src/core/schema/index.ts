@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import { BodyPlan } from '../character/body';
+import { HairStyle } from '../character/hair';
 import { Conversation } from '../dialogue/schema';
 import { Effect } from '../effects/schema';
 import { ScreenEffect } from '../effects/screen';
@@ -67,6 +68,8 @@ const KINDS = [
   ['effect', /^effects\/fx_[0-9a-z]{10}\.json$/, Effect],
   // P23 part 2: screen effects of the game's own
   ['screenEffect', /^screenfx\/sce_[0-9a-z]{10}\.json$/, ScreenEffect],
+  // Milestone 3, 10d part 3: hairstyles in My library
+  ['hairstyle', /^hairstyles\/hst_[0-9a-z]{10}\.json$/, HairStyle],
 ] as const satisfies ReadonlyArray<readonly [string, RegExp, z.ZodType]>;
 
 export type FileKind = (typeof KINDS)[number][0] | 'editor';
@@ -153,4 +156,6 @@ export const paths = {
   effectDir: 'effects/',
   screenEffect: (id: string) => `screenfx/${id}.json`,
   screenEffectDir: 'screenfx/',
+  hairstyle: (id: string) => `hairstyles/${id}.json`,
+  hairstyleDir: 'hairstyles/',
 } as const;
