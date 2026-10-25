@@ -1,3 +1,4 @@
+import { BODY_MOVES } from '../../../core/character/moves';
 import { DRIFT_INFO, DRIFTS, GRADE_INFO, GRADES } from '../../../core/effects/screen';
 import { newId } from '../../../core/ids';
 import { FOG_PRESET, FOG_PRESETS } from '../../../core/lighting/atmosphere';
@@ -62,6 +63,12 @@ export function pinPos(
   return [n.pos[0] + (side === 'in' ? 0 : NODE_W), n.pos[1] + HEAD + 4 + i * ROW + ROW / 2];
 }
 
+const MOVE_NAME: Record<string, string> = { attack: 'Strike (bite, punch…)', hurt: 'Flinch', swipe: 'Tail swipe' };
+const MOVE_CHOICES = BODY_MOVES.map((m) => ({
+  value: m,
+  label: MOVE_NAME[m] ?? m.charAt(0).toUpperCase() + m.slice(1),
+}));
+
 export const graphs = (ed: EditorState) =>
   ed.store
     .list('logic/')
@@ -88,6 +95,8 @@ export function argChoices(ed: EditorState, kind: ArgKind): { value: string; lab
   if (kind === 'drift') return DRIFTS.map((d) => ({ value: d, label: DRIFT_INFO[d] }));
   // P27 part 2: a time of day, and a fog
   if (kind === 'time') return TIMES.map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }));
+  // Milestone 3, 10d part 2: a body's moves
+  if (kind === 'move') return MOVE_CHOICES;
   if (kind === 'fog')
     return [
       { value: 'map', label: 'The map’s own' },

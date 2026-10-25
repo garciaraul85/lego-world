@@ -15,6 +15,7 @@ import {
   ROLE_INFO,
 } from '../../../core/character/body';
 import { FAMILY_INFO, FAMILY_PRESETS, makeFamily } from '../../../core/character/families';
+import { movesOf } from '../../../core/character/moves';
 import { type ResolvedBody, resolveBody } from '../../../core/character/resolve';
 import { newId } from '../../../core/ids';
 import type { Asset, Character } from '../../../core/schema';
@@ -296,25 +297,22 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
                   ? '■ Stand'
                   : `▶ ${resolved?.move === 'fly' ? 'Fly' : resolved?.move === 'swim' ? 'Swim' : resolved?.move === 'slither' ? 'Slither' : resolved?.move === 'hop' ? 'Hop' : 'Walk'}`}
               </button>
-              {/* P23 part 4: the strike and flinch the state machine shows in Play */}
-              <button
-                type="button"
-                class="btn"
-                data-tour="body-strike"
-                data-tip="Show the attack state: the head lunges, the jaw snaps, arms reach"
-                onClick={() => (ed.bodyAct.value = { kind: 'attack', at: performance.now() })}
-              >
-                Strike
-              </button>
-              <button
-                type="button"
-                class="btn"
-                data-tour="body-flinch"
-                data-tip="Show the hurt state: the body rocks back"
-                onClick={() => (ed.bodyAct.value = { kind: 'hurt', at: performance.now() })}
-              >
-                Flinch
-              </button>
+              {/* P23 part 4: the strike and flinch the state machine shows in Play; Milestone 3, 10d part 2: and every
+                  other move its parts can do */}
+              {resolved &&
+                movesOf(resolved.bones).map((mv) => (
+                  <button
+                    type="button"
+                    class="btn"
+                    data-tour={
+                      mv.move === 'attack' ? 'body-strike' : mv.move === 'hurt' ? 'body-flinch' : `body-move-${mv.move}`
+                    }
+                    data-tip={`${mv.label}: ${mv.about}`}
+                    onClick={() => (ed.bodyAct.value = { kind: mv.move, at: performance.now() })}
+                  >
+                    {mv.label}
+                  </button>
+                ))}
               <label class="lbl">
                 <input
                   type="checkbox"

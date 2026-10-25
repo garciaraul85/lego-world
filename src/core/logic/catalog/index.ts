@@ -1,4 +1,4 @@
-import { DIALOGUE, DIALOGUE_EVENTS, SHEET, SHEET_EVENTS } from './dialogue';
+import { DIALOGUE, DIALOGUE_EVENTS, MOVES, SHEET, SHEET_EVENTS } from './dialogue';
 import { EFFECTS } from './effects';
 import { EVENTS } from './events';
 import { FLOW } from './flow';
@@ -36,6 +36,7 @@ export const CATALOG: readonly NodeDef[] = [
   ...DIALOGUE_EVENTS,
   // P22 part 2
   ...SHEET,
+  ...MOVES,
   ...SHEET_EVENTS,
   ...EFFECTS,
   ...LIGHTS,

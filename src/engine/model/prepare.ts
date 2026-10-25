@@ -1,6 +1,6 @@
 import { BUILTIN_MODEL_FILES } from '../../builtin/models/data';
-import type { ModelInstance } from '../../core/schema';
 import { readModel } from '../../core/media/gltf';
+import type { ModelInstance } from '../../core/schema';
 import type { ModelDraw, ModelPicture, ModelUpload } from '../render/model-draw';
 
 /**

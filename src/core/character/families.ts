@@ -220,7 +220,14 @@ function head(
   return { w, top };
 }
 
-export function tailChain(m: Maker, parent: string, at: [number, number, number], n: number, width: number, swing = 22) {
+export function tailChain(
+  m: Maker,
+  parent: string,
+  at: [number, number, number],
+  n: number,
+  width: number,
+  swing = 22,
+) {
   let prev = parent;
   for (let i = 0; i < n; i++) {
     const name = m.bone(`tail ${i + 1}`, prev, i === 0 ? at : [0, 0, -1], 'tail', swing, { phase: (i * 0.12) % 1 });

@@ -375,8 +375,10 @@ export function specFromWords(text: string): CreatureSpec {
   else if (/\b(cyclops|one[- ]eyed)\b/.test(t)) raw.eyes = 1;
   const legs = n('legs?|legged|feet|footed');
   if (legs !== null) raw.legs = legs;
+  else if (/\b(legs|legged)\b/.test(t) && !raw.legs) raw.legs = 2;
   const arms = n('arms?|armed|hands?|handed');
   if (arms !== null) raw.arms = arms;
+  else if (/\b(arms|armed|hands)\b/.test(t) && !raw.arms) raw.arms = 2;
   const tent = n('tentacles?|tentacled');
   if (tent !== null) raw.tentacles = tent;
   else if (/\btentacle/.test(t) && !raw.tentacles) raw.tentacles = 6;
@@ -419,10 +421,12 @@ export function specFromWords(text: string): CreatureSpec {
     if (c && !colors.includes(c)) colors.push(c);
   }
   const eyeColor = /\b([a-z]+)[\s-]eyed\b/.exec(t);
+  // its name: the words before what it has (“a walking teapot with arms” → Walking Teapot)
   const words = t
     .trim()
+    .split(/\s+(?:with|that|who|which|has|having)\s+/)[0]!
     .split(/\s+/)
-    .filter((w) => !['a', 'an', 'the', 'with', 'and', 'of'].includes(w));
+    .filter((w) => !['a', 'an', 'the', 'and', 'of'].includes(w));
   const name = words
     .slice(0, 4)
     .map((w) => w[0]!.toUpperCase() + w.slice(1))

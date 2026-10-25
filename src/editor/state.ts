@@ -177,7 +177,8 @@ export class EditorState {
   readonly skyPreview = signal<number | null>(null);
   /** P27 part 3b: where the Scene view looks (x, z studs), kept by the view as it draws; not a signal */
   viewCentre: [number, number] = [0, 0];
-  readonly bodyAct = signal<{ kind: 'attack' | 'hurt'; at: number } | null>(null);
+  /** Milestone 3, 10d part 2: any of the body's moves, previewed in the studio */
+  readonly bodyAct = signal<{ kind: import('../core/character/moves').BodyMove; at: number } | null>(null);
   readonly view = signal<ViewTab>('scene');
   readonly left = signal<LeftTab>('hier');
   readonly right = signal<RightTab>('inspect');

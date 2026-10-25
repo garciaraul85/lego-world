@@ -58,7 +58,9 @@ export type ArgKind =
   | 'drift'
   /** P27 part 2: a time of day (day, noon, evening, night); a fog (a preset, the map's own, or none) */
   | 'time'
-  | 'fog';
+  | 'fog'
+  /** Milestone 3, 10d part 2: one of a body's moves (roar, glide, dance…) */
+  | 'move';
 export type ArgDef = {
   name: string;
   kind: ArgKind;
@@ -103,6 +105,8 @@ export interface ExecCtx {
   progress?(op: 'achieve' | 'finish', id: string): void;
   /** P22: start a conversation (by id) */
   talk?(conversation: string): void;
+  /** Milestone 3, 10d part 2: a character does one of its body's moves */
+  move?(who: string, kind: string): void;
   /** P22 part 2: the hero's outfit, experience, or the next hero of the party */
   sheet?(op: 'outfit' | 'xp' | 'switch', value: string | number): void;
   /** P23: play an effect (by id) at a place (empty: the hero), or start / stop an effect placed on the map */

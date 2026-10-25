@@ -19,6 +19,7 @@ import {
   mapToLegacyBuild,
 } from '../../core/bridge/legacy-bridge';
 import { moodFace } from '../../core/character/faces';
+import { BODY_MOVES, type BodyMove, movesOf as bodyMovesOf, MOVE_LENGTH } from '../../core/character/moves';
 import { type ResolvedBody, resolveBody } from '../../core/character/resolve';
 import { levelOf, xpFor } from '../../core/character/sheet';
 import { type AnimState, MOVING_AT } from '../../core/character/states';
@@ -2497,6 +2498,7 @@ export class PlaySession {
         else this.gameOp('finish');
       },
       talk: (conversation) => void this.startConversation(conversation, null, 'other'),
+      move: (who, kind) => void this.doMove(who, kind),
       effect: (op, a, at) => this.effectOp(op, a, at),
       screen: (op, a) => this.screenFxOp(op, a),
       light: (op, name, value) => this.lightOp(op, name, undefined, value),
@@ -3367,6 +3369,46 @@ export class PlaySession {
   animStateOf(who: Npc | 'hero'): AnimState | null {
     if (who === 'hero') return this.heroStates.state;
     return this.npcStates.get(who.id)?.sm.state ?? null;
+  }
+
+  /** Milestone 3, 10d part 2: a move a character is doing (a roar, a spin, a dance…) and when it began (game clock) */
+  private moves = new Map<number | 'hero', { kind: BodyMove; at: number }>();
+
+  /**
+   * Milestone 3, 10d part 2: a character does one of its body's moves — `who` is “hero” or a character's name
+   * (the nearest neighbour with that name). Moves its body can't do are left out; minifigs have none yet.
+   */
+  doMove(who: string, kind: string): boolean {
+    if (!BODY_MOVES.includes(kind as BodyMove)) return false;
+    const npc =
+      who === 'hero' || !who
+        ? null
+        : this.world.npcs
+            .filter((n) => n.profile.name?.toLowerCase() === who.toLowerCase())
+            .sort(
+              (a, b) =>
+                Math.hypot(a.state.x - this.heroState.x, a.state.z - this.heroState.z) -
+                Math.hypot(b.state.x - this.heroState.x, b.state.z - this.heroState.z),
+            )[0];
+    const target: Npc | 'hero' = npc ?? 'hero';
+    if (who && who !== 'hero' && !npc) return false;
+    const body = this.bodyOf(target);
+    if (!body || !bodyMovesOf(body.bones).some((m) => m.move === kind)) return false;
+    this.moves.set(target === 'hero' ? 'hero' : target.id, { kind: kind as BodyMove, at: this.clock });
+    return true;
+  }
+
+  /** the move a character is doing now and how far through it (0…1), if any */
+  moveOf(who: Npc | 'hero'): { kind: BodyMove; u: number } | null {
+    const key = who === 'hero' ? 'hero' : who.id;
+    const m = this.moves.get(key);
+    if (!m) return null;
+    const u = (this.clock - m.at) / MOVE_LENGTH[m.kind];
+    if (u >= 1 || u < 0) {
+      this.moves.delete(key);
+      return null;
+    }
+    return { kind: m.kind, u };
   }
 
   /** P23 part 4: how far into its state a character is (seconds) */

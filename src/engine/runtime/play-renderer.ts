@@ -510,7 +510,9 @@ export class PlayRenderer {
       // P23 part 4: the state machine's strike and flinch
       const state = s.animStateOf(who);
       mo.m.act =
-        state === 'attack' || state === 'hurt' ? { kind: state, u: s.animSinceOf(who) / ACT_LENGTH[state] } : null;
+        state === 'attack' || state === 'hurt'
+          ? { kind: state, u: s.animSinceOf(who) / ACT_LENGTH[state] }
+          : s.moveOf(who);
       mo.x = st.x;
       mo.z = st.z;
       overlays.push(...bodyOverlays(body, bodyPose(body, mo.m), bodyWorld(body, st, mo.m)));

@@ -796,7 +796,14 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
         : modelChoices(c.ed).find((x) => x.ref === ref);
     if (!m) throw new Error(ref === 'own' ? 'Import a model first.' : 'That model is not in the list.');
     const sp = c.ed.mapDoc.value?.spawns[0]?.pos ?? [0, 0, 0];
-    if (!placeModelAt(c.ed, { x: sp[0]! + 5 + 4 * (modelItems(c.ed).length % 6), y: Math.round(sp[1]! / 0.4), z: sp[2]! + 5 }, m.ref, m.name))
+    if (
+      !placeModelAt(
+        c.ed,
+        { x: sp[0]! + 5 + 4 * (modelItems(c.ed).length % 6), y: Math.round(sp[1]! / 0.4), z: sp[2]! + 5 },
+        m.ref,
+        m.name,
+      )
+    )
       throw new Error('The model could not be placed.');
   },
   async importSampleModel(c) {

@@ -222,7 +222,11 @@ async function boot() {
   // e2e: draw a game in a canvas of the test's own (WebGL against WebGPU)
   (window as unknown as { __PlayRenderer: typeof PlayRenderer }).__PlayRenderer = PlayRenderer;
   // tests: the built-in models and how a model file is made ready to draw
-  (window as unknown as { __models: unknown }).__models = { BUILTIN_MODEL_FILES, prepareModel: (id: string) => prepareModel(id.includes(':') ? id : `builtin:${id}`, null), fromBase64 };
+  (window as unknown as { __models: unknown }).__models = {
+    BUILTIN_MODEL_FILES,
+    prepareModel: (id: string) => prepareModel(id.includes(':') ? id : `builtin:${id}`, null),
+    fromBase64,
+  };
   // the built-in asset library, for e2e tests that place a built-in asset by name
   (window as unknown as { __builtinAssets: typeof BUILTIN_ASSETS }).__builtinAssets = BUILTIN_ASSETS;
   // e2e helpers: place a built-in asset the way the dock does

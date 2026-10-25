@@ -24,6 +24,36 @@ export const DIALOGUE: NodeDef[] = [
   },
 ];
 
+/** Milestone 3, 10d part 2: any character with a body does one of its moves */
+export const MOVES: NodeDef[] = [
+  {
+    type: 'character.doMove',
+    kind: 'action',
+    title: 'Do a move',
+    category: 'Characters',
+    doc: 'A character with a body (an animal, a dragon, a dinosaur, a figure made from words) does one of the moves its parts can do: roar, charge, swipe its tail, stomp, flap or glide its wings, wave, grab, spin, dance or sleep (and strike or flinch). Moves its body can’t do are skipped. The Body tab shows its moves.',
+    inputs: [EXEC_IN],
+    outputs: [EXEC_OUT],
+    args: [
+      {
+        name: 'who',
+        kind: 'string',
+        label: 'Character',
+        help: 'A character’s name (the nearest one of that name), or hero.',
+      },
+      {
+        name: 'move',
+        kind: 'move',
+        label: 'Move',
+        default: 'roar',
+        help: 'What it does (a character can only do the moves its body has: the Body tab lists them).',
+      },
+    ],
+    code: { name: 'character.doMove', style: 'call' },
+    exec: (c, a) => c.move?.(String(a.who ?? 'hero'), String(a.move ?? 'roar')),
+  },
+];
+
 /** P22 part 2: the character sheet from logic */
 export const SHEET: NodeDef[] = [
   {

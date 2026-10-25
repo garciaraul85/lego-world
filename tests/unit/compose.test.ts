@@ -44,7 +44,12 @@ describe('a figure of its own from words', () => {
     expect(specFromWords('a living cloud').move).toBe('fly');
     const cat = specFromWords('a six-legged purple cat with four eyes');
     expect([cat.legs, cat.eyes, cat.colors.main]).toEqual([6, 4, '#81007b']);
-    expect(specFromWords('a giant red t-rex')).toMatchObject({ legs: 2, arms: 2, size: 8, colors: { main: '#c91a09' } });
+    expect(specFromWords('a giant red t-rex')).toMatchObject({
+      legs: 2,
+      arms: 2,
+      size: 8,
+      colors: { main: '#c91a09' },
+    });
     expect(specFromWords('a long-neck sauropod').neck).toBeGreaterThanOrEqual(8);
   });
 

@@ -37,7 +37,7 @@ export type PreviewInput = {
   /** walk on the spot, to see the generated movement */
   walking?: boolean;
   /** P23 part 4: a body plan's strike or flinch, from when it started (performance.now) */
-  act?: { kind: 'attack' | 'hurt'; at: number } | null;
+  act?: { kind: import('../../../core/character/moves').BodyMove; at: number } | null;
   /** painting bricks onto a bone: a click on a brick calls this with its index in the asset */
   paint?: ((brick: number) => void) | null;
 };

@@ -1,4 +1,5 @@
 import type { Bone } from '../../core/character/body';
+import { type BodyMove, MOVE_LENGTH } from '../../core/character/moves';
 import type { ResolvedBody } from '../../core/character/resolve';
 import { multiply } from '../render/math';
 import type { Overlay, RenderBrick } from '../render/renderer';
@@ -16,20 +17,28 @@ export type Motion = {
   moving: number;
   /** seconds, for idle motion */
   time: number;
-  /** P23 part 4: a strike or a flinch from the animation state machine, and how far through it (0…1) */
-  act?: { kind: 'attack' | 'hurt'; u: number } | null;
+  /** P23 part 4: a strike or a flinch from the animation state machine, and how far through it (0…1);
+   * Milestone 3, 10d part 2: any of the body's moves (roar, charge, swipe, stomp, flap…) */
+  act?: { kind: BodyMove; u: number } | null;
 };
 export const newMotion = (): Motion => ({ gait: 0, moving: 0, time: 0 });
 
-/** seconds a body plan's strike and flinch take */
-export const ACT_LENGTH = { attack: 0.5, hurt: 0.45 } as const;
+/** seconds each move takes (a strike and a flinch from the state machine, and the rest) */
+export const ACT_LENGTH = MOVE_LENGTH;
 
-/** how strong the strike or flinch is now: up quickly, then back (0 when there is none) */
-export function actAmount(m: Pick<Motion, 'act'>, kind: 'attack' | 'hurt'): number {
+/** how strong the move is now: up quickly, held a while for the long ones, then back (0 when there is none) */
+export function actAmount(m: Pick<Motion, 'act'>, kind: BodyMove): number {
   const a = m.act;
   if (!a || a.kind !== kind || a.u <= 0 || a.u >= 1) return 0;
-  return a.u < 0.3 ? a.u / 0.3 : (1 - a.u) / 0.7;
+  const up = kind === 'attack' || kind === 'hurt' || kind === 'charge' ? 0.3 : 0.18;
+  const down = kind === 'attack' || kind === 'hurt' ? 0.7 : 0.25;
+  if (a.u < up) return a.u / up;
+  if (a.u > 1 - down) return (1 - a.u) / down;
+  return 1;
 }
+
+/** how far through the move it is (0…1), for moves that keep going (spins, dances, waves) */
+const actU = (m: Pick<Motion, 'act'>, kind: BodyMove) => (m.act?.kind === kind ? m.act.u : 0);
 
 /** Moves the cycle on by the distance travelled this frame. */
 export function advance(m: Motion, body: Pick<ResolvedBody, 'stride' | 'scale'>, dist: number, dt: number) {
@@ -94,6 +103,8 @@ export function boneOrder(bones: readonly Bone[]): Bone[] {
 /** The turn of one bone for this moment of its motion (with a strike or flinch on top). */
 export function boneTurn(body: Pick<ResolvedBody, 'move' | 'bones'>, b: Bone, m: Motion): Float32Array {
   const base = baseTurn(body, b, m);
+  const kind = m.act?.kind;
+  if (kind && kind !== 'attack' && kind !== 'hurt') return multiply(base, moveTurn(body, b, m, kind));
   const hit = actAmount(m, 'attack');
   const ouch = actAmount(m, 'hurt');
   if (!hit && !ouch) return base;
@@ -114,6 +125,75 @@ export function boneTurn(body: Pick<ResolvedBody, 'move' | 'bones'>, b: Bone, m:
       return multiply(base, rotZ((b.side ?? 0) * A * ouch));
     default:
       return base;
+  }
+}
+
+/** Milestone 3, 10d part 2: how a bone turns for one of the body's moves */
+function moveTurn(body: Pick<ResolvedBody, 'move' | 'bones'>, b: Bone, m: Motion, kind: BodyMove): Float32Array {
+  const k = actAmount(m, kind);
+  const u = actU(m, kind);
+  const A = Math.max(15, b.swing) * deg;
+  const side = b.side ?? 0;
+  const shake = Math.sin(m.time * 40);
+  const tentacle = /^tentacle/i.test(b.name);
+  switch (kind) {
+    case 'roar':
+      // head and neck rear back, the jaw opens wide and shakes
+      if (b.role === 'head' || b.role === 'neck') return rotX(-A * 1.2 * k + 0.04 * k * shake);
+      if (b.role === 'jaw') return rotX(A * 2.4 * k);
+      if (b.role === 'arm') return rotZ(side * A * 1.5 * k);
+      if (b.role === 'wing') return rotZ(side * A * 1.4 * k);
+      if (b.role === 'tail') return rotX(-A * 0.8 * k);
+      return I();
+    case 'charge':
+      if (b.role === 'head' || b.role === 'neck') return rotX(A * 1.1 * k);
+      if (b.role === 'leg') return rotX(A * 1.4 * k * Math.sin(u * 28 + TAU * (b.phase ?? 0)));
+      if (b.role === 'tail') return rotX(-A * 0.6 * k);
+      return I();
+    case 'swipe':
+      if (b.role === 'tail') return rotY(A * 2.6 * k * Math.sin(u * Math.PI * 2));
+      if (b.role === 'head' || b.role === 'neck') return rotY(-A * 0.6 * k * Math.sin(u * Math.PI * 2));
+      return I();
+    case 'stomp': {
+      // the front rears up, then comes down hard
+      const up = Math.max(0, Math.sin(u * Math.PI * 2));
+      if (b.role === 'leg' && b.at[2] > 0) return rotX(-A * 2 * up);
+      if (b.role === 'head' || b.role === 'neck') return rotX(-A * 0.5 * up);
+      return I();
+    }
+    case 'flap':
+      if (b.role === 'wing') return rotZ(side * A * 1.8 * k * Math.sin(u * 30));
+      if (b.role === 'leg') return rotX(A * 0.6 * k);
+      return I();
+    case 'glide':
+      if (b.role === 'wing') return rotZ(-side * A * 0.4 * k);
+      if (b.role === 'tail') return rotY(A * 0.5 * k * Math.sin(u * 6));
+      if (b.role === 'leg') return rotX(A * 0.9 * k);
+      return I();
+    case 'wave':
+      // one arm (the right, or the first) waves high
+      if (b.role === 'arm' && (side > 0 || !body.bones.some((x) => x.role === 'arm' && (x.side ?? 0) > 0)))
+        return multiply(rotZ(side * A * 3 * k || A * 3 * k), rotX(A * 0.6 * k * Math.sin(u * 22)));
+      return I();
+    case 'grab':
+      if (tentacle) return rotX(-A * 2 * k);
+      if (b.role === 'arm') return rotX(-A * 2.4 * k * (u < 0.5 ? 1 : 0.6));
+      return I();
+    case 'dance':
+      if (b.role === 'arm') return rotZ(side * A * 1.6 * Math.abs(Math.sin(u * 18)));
+      if (b.role === 'head') return rotZ(A * 0.5 * Math.sin(u * 18));
+      if (b.role === 'tail' || tentacle) return rotY(A * 1.4 * Math.sin(u * 18));
+      if (b.role === 'wing') return rotZ(side * A * Math.abs(Math.sin(u * 18)));
+      if (b.role === 'leg') return rotX(A * Math.sin(u * 18 + TAU * (b.phase ?? 0)));
+      return I();
+    case 'sleep':
+      if (b.role === 'head' || b.role === 'neck') return rotX(A * 1.2 * k);
+      if (b.role === 'wing') return rotZ(-side * A * 0.6 * k);
+      if (b.role === 'tail' || tentacle) return rotX(A * 0.6 * k);
+      if (b.role === 'arm') return rotX(A * 0.3 * k);
+      return I();
+    default:
+      return I();
   }
 }
 
@@ -211,8 +291,42 @@ export function bodyWorld(
           placed,
           multiply(translate(0, 0, (0.5 * hit - 0.3 * ouch) * body.scale), rotX(-0.25 * ouch + 0.1 * hit)),
         )
-      : placed;
+      : m
+        ? multiply(placed, moveWorld(m, body.scale))
+        : placed;
   return multiply(acted, scaleM(body.scale));
+}
+
+/** Milestone 3, 10d part 2: how the whole body moves for a move: a spin, a rush forward, a hop, a lean */
+function moveWorld(m: Motion, s: number): Float32Array {
+  const kind = m.act?.kind;
+  if (!kind) return I();
+  const k = actAmount(m, kind);
+  const u = actU(m, kind);
+  switch (kind) {
+    case 'spin':
+      return rotY(Math.PI * 2 * u * u * (3 - 2 * u));
+    case 'charge':
+      return multiply(translate(0, 0, 1.8 * s * Math.sin(u * Math.PI)), rotX(0.18 * k));
+    case 'stomp': {
+      const up = Math.max(0, Math.sin(u * Math.PI * 2));
+      return multiply(translate(0, 0.25 * s * up, 0), rotX(-0.35 * up));
+    }
+    case 'flap':
+      return translate(0, 0.8 * s * Math.sin(u * Math.PI), 0);
+    case 'glide':
+      return multiply(rotZ(0.25 * k * Math.sin(u * Math.PI * 2)), translate(0, 0.3 * s * k, 0));
+    case 'roar':
+      return rotX(-0.12 * k);
+    case 'dance':
+      return multiply(translate(0, 0.2 * s * Math.abs(Math.sin(u * 18)), 0), rotY(0.4 * Math.sin(u * 9)));
+    case 'sleep':
+      return multiply(translate(0, -0.15 * s * k, 0), rotZ(0.12 * k));
+    case 'swipe':
+      return rotY(-0.35 * k * Math.sin(u * Math.PI * 2));
+    default:
+      return I();
+  }
 }
 
 const bricksByBone = new WeakMap<object, Map<string, RenderBrick[]>>();
