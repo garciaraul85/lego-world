@@ -300,7 +300,7 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
               {/* P23 part 4: the strike and flinch the state machine shows in Play; Milestone 3, 10d part 2: and every
                   other move its parts can do */}
               {resolved && (
-                <span data-tour="body-moves" role="group" aria-label="Moves" style={{ display: 'contents' }}>
+                <span data-tour="body-moves" role="group" aria-label="Moves" class="row" style={{ gap: '10px', flexWrap: 'wrap' }}>
                   {movesOf(resolved.bones).map((mv) => (
                     <button
                       type="button"
