@@ -611,6 +611,8 @@ export const HELP_STATES: HelpState[] = [
     id,
     screen,
     setup: async (p: Page) => {
+      // the box from the state before closes first (it covers the screen tabs)
+      await signals(p, { fromPicture: false });
       await ws(p, workspace);
       await signals(p, { makeKind: kind, fromPicture: true });
       await p.locator('[data-tour="fp-words"]').fill(text);
@@ -624,6 +626,7 @@ export const HELP_STATES: HelpState[] = [
     id: 'characters-talk',
     screen: 'characters',
     setup: async (p) => {
+      await signals(p, { fromPicture: false });
       await ws(p, 'Characters');
       await signals(p, { charTab: 'look', sheetTab: 'dialogue' });
       await p.evaluate(() => {
