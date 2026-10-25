@@ -299,6 +299,17 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   levelAtLeast: (ed, a) => Number(ed.session.value?.logic.vars.get('level') ?? 0) >= Number(a),
   // P22: the dialogue course
   characterExists: (ed, a) => ed.store.list('characters/').some((p) => ed.store.get<{ name: string }>(p)?.name === a),
+  // Milestone 3, 10d: a character of that name stands on the open map
+  characterPlaced: (ed, a) => {
+    const id = ed.store
+      .list('characters/')
+      .map((p) => ed.store.get<{ id: string; name: string }>(p))
+      .find((c) => c?.name === a)?.id;
+    const inst = ed.store.get<{ items: { kind: string; character?: string }[] }>(
+      `maps/${ed.mapId.value}/instances.json`,
+    );
+    return !!id && !!inst?.items.some((i) => i.kind === 'npc' && i.character === id);
+  },
   talksWith: (ed, a) =>
     ed.store
       .list('characters/')

@@ -8,7 +8,7 @@ type Chr = {
   id: string;
   name: string;
   faces?: Record<string, Record<string, string>>;
-  body?: { family?: string; colors?: Record<string, string> };
+  body?: { family?: string; plan?: string; colors?: Record<string, string> };
   profile: Record<string, unknown>;
 };
 type Ed = {
@@ -215,7 +215,7 @@ async function doItForMe(card: Locator, timeout: number, what: string) {
   await expect(done, what).toBeVisible({ timeout });
 }
 
-test('Faces and pictures course: Do it for me gives Tom his faces, talks to him in Play, and makes an owl', async ({
+test('Faces and pictures course: Do it for me gives Tom his faces, talks to him in Play, makes an owl and a walking teapot', async ({
   page,
 }) => {
   test.setTimeout(600_000);
@@ -226,7 +226,7 @@ test('Faces and pictures course: Do it for me gives Tom his faces, talks to him 
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });
   const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
-  expect(total).toBe(11);
+  expect(total).toBe(13);
   const titles: string[] = [];
   for (let i = 0; i < total + 1; i++) {
     const pos = await card.locator('header .mono').innerText();
@@ -252,5 +252,7 @@ test('Faces and pictures course: Do it for me gives Tom his faces, talks to him 
     happy: { expression: 'Laughing' },
   });
   expect(all.find((c) => c.name === 'Green Owl')?.body?.family).toBe('bird');
+  // Milestone 3, 10d: anything at all — a walking teapot, a figure of its own, placed on the map
+  expect(all.find((c) => c.name === 'Walking Teapot')?.body?.plan).toMatch(/^bpl_/);
   expect(errors).toEqual([]);
 });
