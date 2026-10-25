@@ -101,13 +101,17 @@ The **Face** tab shows a minifig's resting face (head shape, eyes and their colo
 
 When a minifig says a line its mouth moves with the words: closed for m, b and p and between words, wide open for a and o, half open for the other letters, and closed again when the line has appeared. It talks on its figure in Play, in the dialogue box's portrait, in the conversation preview and in cinematics, with the face of the line's mood. **▶ Hear it talk** on the Face tab shows a mood's face talking. Creatures with a body plan have no mouth to move.
 
-## A character from a picture
+## A character from a picture (or words) — anything at all
 
-**✨ From a picture…** (under + New character, or Assets › New character from a picture…) turns a photo, a drawing or a few words into three characters to pick from, closest first, each listing what its parts matched. With the AI builder set up, Claude looks at the picture; it only chooses settings the editor has — a body family with its sliders and colours, or the minifig's parts and colours — so **Use this one** gives an ordinary character you can keep changing, and Undo removes it. Without the AI builder the words pick the kind and the parts ("a queen with a sword and a long red scarf", "a little orange fox") and the picture gives the main colours.
+**✨ From a picture…** (under + New character, or Assets › New character from a picture…) turns a photo, a drawing or a few words into three characters to pick from, closest first, each listing what its parts matched. **Use this one** gives an ordinary character you can keep changing; **Use and place on the map** also stands it on the open map in front of the start. One Undo removes it.
 
-The picture stays on this device: it is sent to Claude only when you press **Create**, and it is never saved in the game. Only use photos of yourself or of people who agreed; a famous character becomes an original character in brick style, not a copy. [Faces and pictures course](action:help.faces)
+- **A person** ("a queen with a sword and a long red scarf") is made with v68's own body and outfit choices: hair, hat, face, glasses, shirt, trousers or dress, shoes, gloves, back gear, cape, scarf, held item and their colours. With a photo, v68's **Bring your look** colours each part (skin, hair, shirt, trousers, shoes) from where it is in the picture, and — if you tick **Print** — prints the face and clothes from the photo on the figure.
+- **An animal** ("a little orange fox", "a green owl") is a body family with its sliders and colours.
+- **Anything else, however wild** ("a walking teapot", "a three-headed robot snake", "an octopus chef", "a giant red T-rex", "a long-neck sauropod") becomes a **figure of its own**: a body plan with its own bones and bricks — heads, eyes, legs, arms, tentacles, wings, a tail, wheels, horns, a long neck, a spout or a crown — that walks, flies, swims, slithers or hops. Count things in the words (three-headed, six legs, four eyes, eight tentacles) and say colours and sizes (giant, tiny). It opens in the Body tab; change it bone by bone in the skeleton editor.
 
-Every body family also has eight **presets** (Dog, Cat, Horse, Wolf… Parrot, Owl… Shark, Clownfish…) under its description in the Body tab.
+With the AI builder set up, Claude looks at the picture and chooses; it only chooses the editor's own settings and parts. Without it, the words pick the kind and the parts, and the picture gives the colours.
+
+The picture stays on this device: it goes to Claude only when you press Create, and it is never saved in the game unless you tick **Print**. Only use photos of yourself or of people who agreed; a famous character becomes an original one in brick style. The **Faces and pictures course** (Help menu) makes an owl and a walking teapot.
 
 ## Dialogue: what characters say
 
