@@ -582,13 +582,43 @@ export const HELP_STATES: HelpState[] = [
     screen: 'characters',
     setup: async (p: Page) => {
       await ws(p, 'Characters');
-      await signals(p, { fromPicture: true });
+      await signals(p, { makeKind: 'character', fromPicture: true });
       const words = p.locator('[data-tour="fp-words"]');
       await words.fill('a green owl with orange wings');
       await p.locator('[data-tour="fp-create"]').click();
       await p.locator('[data-tour="fp-match-2"]').waitFor({ timeout: 30_000 });
     },
   },
+  ...(
+    [
+      [
+        'assets-from-picture',
+        'assets',
+        'Assets',
+        'asset',
+        'a red brick house with a blue door, two floors and a chimney',
+      ],
+      [
+        'world-from-picture',
+        'scene',
+        'Scene',
+        'map',
+        'a snowy mountain village at night with a lighthouse, three red houses, a blacksmith and two guards',
+      ],
+    ] as const
+  ).map(([id, screen, workspace, kind, text]) => ({
+    // Milestone 3, 10d parts 4–5: From a picture making an asset, and a whole map
+    id,
+    screen,
+    setup: async (p: Page) => {
+      await ws(p, workspace);
+      await signals(p, { makeKind: kind, fromPicture: true });
+      await p.locator('[data-tour="fp-words"]').fill(text);
+      await p.locator('[data-tour="fp-create"]').click();
+      await p.locator('[data-tour="fp-match-2"]').waitFor({ timeout: 30_000 });
+      await p.waitForTimeout(600);
+    },
+  })),
   {
     // the sheet's Dialogue tab: a neighbour's conversations and barks
     id: 'characters-talk',

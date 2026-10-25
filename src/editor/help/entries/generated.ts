@@ -36,6 +36,10 @@ export const ACTION_HELP: Record<string, string> = {
   'edit.down': 'Lowers the selection by one plate.',
   'characters.fromPicture':
     'Opens “A character from a picture” on the Characters screen: a photo, a drawing or a few words become three characters made of editor settings to pick from.',
+  'world.fromPicture':
+    'Opens “A map from a picture” (World menu): a photo, a drawing or a few words become three maps to pick from — the land, the sky, buildings built from bricks and people — made in one step that one Undo takes away.',
+  'assets.fromPicture':
+    'Opens “An asset from a picture” (Assets menu and the Assets screen): a photo, a drawing or a few words become three assets built from bricks — a house, a castle, a ship, a tree… — to pick from and put on the map.',
   'assets.open': 'Opens the Assets screen, where assets are built from bricks and from other assets.',
   'assets.new': 'Starts a new asset with one brick and opens it on the build plate in the Assets screen.',
   'assets.resetBuiltins':
@@ -114,6 +118,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Faces and pictures course: give Tom an angry and a happy face, hear him talk, write lines with moods, see him glare and laugh in Play, then make an owl from a few words with From a picture.',
   'help.shape':
     'Starts the Shape and draw course: make Nova, shape her (chest, hips, neckline) in Look, then draw a star on her cheek and print a shirt in the Draw tab.',
+  'help.make':
+    'Starts the Make anything course: make a red brick house from words and place it, then a whole snowy village at night with its lighthouse, houses and people.',
   'help.effects':
     'Starts the Effects course: copy the built-in Fire, name it Blue fire, make it of studs and blue, put it on the map, then make it the level-up effect of the game.',
   'help.screenfx':

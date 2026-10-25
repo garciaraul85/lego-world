@@ -121,3 +121,43 @@ test('Map from words: a snowy mountain village at night with a lighthouse, red h
   await expect.poll(() => get(page, (e) => e.mapDoc.value?.name ?? null)).not.toBeNull();
   expect(errors).toEqual([]);
 });
+
+async function doItForMe(card: import('@playwright/test').Locator, timeout: number, what: string) {
+  await card.getByRole('button', { name: 'Do it for me' }).click();
+  const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+  const done = card.getByText(/✓ Done!/);
+  await expect(rest.or(done), what).toBeVisible({ timeout });
+  if (await rest.isVisible()) await rest.click();
+  await expect(done, what).toBeVisible({ timeout });
+}
+
+test('Make anything course: Do it for me makes a house from words, then a whole village', async ({ page }) => {
+  test.setTimeout(600_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: /Make anything course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(3);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    if (await doIt.isVisible()) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doItForMe(card, 120_000, `${pos} ${title}`);
+    }
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  expect(await get(page, (e) => e.mapDoc.value?.name)).toBe('Snowy Mountain Village');
+  await page.screenshot({ path: 'test-results/make-course.png' });
+  expect(errors).toEqual([]);
+});

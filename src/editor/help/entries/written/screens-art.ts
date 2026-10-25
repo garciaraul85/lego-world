@@ -298,6 +298,7 @@ export const ART: HelpEntry[] = [
   },
   {
     id: 'art.font',
+    also: ['make my own font', 'make a font', 'custom font', 'font designer', 'design letters'],
     screen: 'art',
     kind: 'area',
     name: 'Font designer',

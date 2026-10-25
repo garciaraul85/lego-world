@@ -1,0 +1,185 @@
+{
+  "id": "make",
+  "title": "Make anything course",
+  "steps": [
+    {
+      "id": "make.asset",
+      "title": "A house from words",
+      "body": "From a picture makes more than characters. Choose 🏠 Asset or building and describe a thing — a house, a castle, a ship, a tree, a fountain — with its size, floors, roof, features and the colour of each part. The editor builds it from bricks (every brick held by studs, as the brick rules want); Claude, when it is set up, can read a picture too.",
+      "task": "In the Assets screen, make “a red brick house with a blue door, two floors and a chimney” and place it on the map.",
+      "target": "[data-tour=\"asset-from-picture\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetOnMap",
+        "args": "Red Brick House"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"ws-assets\"]"
+        },
+        {
+          "click": "[data-tour=\"asset-from-picture\"]"
+        },
+        {
+          "fill": "[data-tour=\"fp-words\"]",
+          "value": "a red brick house with a blue door, two floors and a chimney"
+        },
+        {
+          "click": "[data-tour=\"fp-create\"]"
+        },
+        {
+          "click": "[data-tour=\"fp-place-0\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Open the Assets screen (the tab Assets at the top).",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Assets"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"ws-assets\"]",
+              "say": "The Assets screen."
+            }
+          ]
+        },
+        {
+          "text": "Press ✨ From a picture… under + New asset, type “a red brick house with a blue door, two floors and a chimney” in Describe it and press Create. Three houses show, each a picture of its bricks.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"fp-match-0\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"asset-from-picture\"]",
+              "say": "✨ From a picture…"
+            },
+            {
+              "fill": "[data-tour=\"fp-words\"]",
+              "value": "a red brick house with a blue door, two floors and a chimney",
+              "say": "What to make."
+            },
+            {
+              "click": "[data-tour=\"fp-create\"]",
+              "say": "Create."
+            }
+          ]
+        },
+        {
+          "text": "On the first one press Use and place on the map. It goes on a flat free spot near the start.",
+          "check": {
+            "kind": "state",
+            "test": "assetOnMap",
+            "args": "Red Brick House"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"fp-place-0\"]",
+              "say": "Use and place on the map."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "right"
+    },
+    {
+      "id": "make.map",
+      "title": "A whole map from words",
+      "body": "A map too: its land (forest, mountains, desert, beach…; a village is open land with its houses), the sky (night, snow, fog), the buildings, made like the house, and the people, made like characters (body shape and drawings too). The editor builds the land, puts the arrival on open ground, the buildings on level spots the hero can walk to and the people near them — and it is one step: Undo takes the whole map away.",
+      "task": "World › New map from a picture or words…: make “a snowy mountain village at night with a lighthouse, three red houses, a blacksmith with a long beard and two guards”.",
+      "target": "[data-tour=\"menu-world\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapNamed",
+        "args": "Snowy Mountain Village"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"ws-scene\"]"
+        },
+        {
+          "action": "world.fromPicture"
+        },
+        {
+          "fill": "[data-tour=\"fp-words\"]",
+          "value": "a snowy mountain village at night with a lighthouse, three red houses, a blacksmith with a long beard and two guards"
+        },
+        {
+          "click": "[data-tour=\"fp-create\"]"
+        },
+        {
+          "click": "[data-tour=\"fp-use-0\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Open the Scene (the tab Scene at the top).",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Scene"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"ws-scene\"]",
+              "say": "The Scene."
+            }
+          ]
+        },
+        {
+          "text": "World › New map from a picture or words…, type “a snowy mountain village at night with a lighthouse, three red houses, a blacksmith with a long beard and two guards” and press Create.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"fp-match-0\"]"
+          },
+          "do": [
+            {
+              "action": "world.fromPicture"
+            },
+            {
+              "fill": "[data-tour=\"fp-words\"]",
+              "value": "a snowy mountain village at night with a lighthouse, three red houses, a blacksmith with a long beard and two guards",
+              "say": "The place, its buildings and its people."
+            },
+            {
+              "click": "[data-tour=\"fp-create\"]",
+              "say": "Create."
+            }
+          ]
+        },
+        {
+          "text": "On the first one press Make this map. It opens when it is made.",
+          "check": {
+            "kind": "state",
+            "test": "mapNamed",
+            "args": "Snowy Mountain Village"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"fp-use-0\"]",
+              "say": "Make this map."
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "bottom"
+    },
+    {
+      "id": "make.done",
+      "title": "You can make anything",
+      "body": "From a picture makes characters (any kind, with body shape and drawings), assets and buildings, and whole maps — from a photo, a drawing or a few words. Everything it makes is ordinary: change any brick, part or person after. Connect a new map to the others with a gate in the World graph.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "placement": "bottom"
+    }
+  ]
+}

@@ -353,6 +353,27 @@ export function stepsToView(view: string): ShowStep[] {
           done: (c) => c.ed.fromPicture.value,
         },
       ];
+    case 'assets-from-picture':
+      return [
+        ws('Assets'),
+        {
+          say: 'Press ✨ From a picture… under + New asset.',
+          find: control('[data-tour="asset-from-picture"]', /From a picture/),
+          press: true,
+          done: (c) => c.ed.fromPicture.value && c.ed.makeKind.value === 'asset',
+        },
+      ];
+    case 'world-from-picture':
+      return [
+        ws('Scene'),
+        { say: 'Open the World menu.', find: control('nav[aria-label="Menu"]', /^World$/), press: true },
+        {
+          say: 'Choose New map from a picture or words…',
+          find: control('[role="menu"]', /from a picture/),
+          press: true,
+          done: (c) => c.ed.fromPicture.value && c.ed.makeKind.value === 'map',
+        },
+      ];
     case 'characters-poses':
       // P23 part 4: a clip open in the Poses view
       return [

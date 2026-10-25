@@ -233,6 +233,11 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   },
   // P9c: the combat course
   mapNamed: (ed, a) => ed.mapDoc.value?.name === a,
+  // Milestone 3, 10d: an asset of this name placed on the open map (made from words)
+  assetOnMap: (ed, a) =>
+    (ed.store.get<{ items: { kind: string; asset?: string }[] }>(paths.instances(ed.mapId.value))?.items ?? []).some(
+      (i) => i.kind === 'asset' && ed.store.get<{ name: string }>(paths.asset(i.asset ?? ''))?.name === a,
+    ),
   enemyStat: (ed, a) => {
     const { stat, value } = a as { stat: string; value: number };
     const e = studioCharacter(ed)?.enemy as Record<string, unknown> | undefined;

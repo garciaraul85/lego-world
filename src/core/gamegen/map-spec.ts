@@ -169,7 +169,11 @@ export function mapSpecFromWords(text: string): MapSpec {
     const person = PEOPLE.test(c) && !kinds.test(c.replace(PEOPLE, ''));
     if (person) items.push({ kind: 'person', words: clause, count });
     else if (kinds.test(c)) items.push({ kind: 'building', words: clause, count });
-    else if (items.length && !BIOME_WORDS.some(([re]) => re.test(c)) && !/\b(night|evening|sunset|dusk|noon|rain|snow|fog|mist)\b/.test(c))
+    else if (
+      items.length &&
+      !BIOME_WORDS.some(([re]) => re.test(c)) &&
+      !/\b(night|evening|sunset|dusk|noon|rain|snow|fog|mist)\b/.test(c)
+    )
       items[items.length - 1]!.words += ` with ${clause}`;
   }
   for (const it of items) {

@@ -473,6 +473,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('faces'),
   },
   {
+    id: 'help.make',
+    label: 'Make anything course (assets and maps from words)',
+    run: ({ ui }) => ui.tutorial('make'),
+  },
+  {
     id: 'help.shape',
     label: 'Shape and draw course (body shape, drawing on the figure)',
     run: ({ ui }) => ui.tutorial('shape'),
@@ -678,6 +683,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.bodies',
     'help.faces',
     'help.shape',
+    'help.make',
     'help.effects',
     'help.screenfx',
     'help.posing',
