@@ -8,6 +8,7 @@ import { sessionKey } from '../../../platform/ai/keys';
 import { type AiSettings, gameSpent, loadAi, recordSpend, saveAi } from '../../../platform/ai/settings';
 import type { ActionCtx } from '../../actions/registry';
 import { pickProvider } from '../../ai/providers';
+import { paintWithMarks } from '../../character/draw-marks';
 import { type LookPicture, lookColors, lookPrints } from './bring-look';
 import { aiPrompt, type Candidate, type Catalog, localCandidates, mainColors, parseCandidates } from './picture-match';
 import { CharacterThumb } from './thumbs';
@@ -87,6 +88,29 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
       /* the picture could not be read by part: words and colours only */
     }
     return out;
+  };
+  // Milestone 3, 10d: each match's drawings (its marks over the prints from the picture), drawn as matches come
+  const [drawn, setDrawn] = useState<Map<Candidate, Record<string, string>>>(new Map());
+  useEffect(() => {
+    let gone = false;
+    void (async () => {
+      const out = new Map<Candidate, Record<string, string>>();
+      for (const k of found ?? []) {
+        if (!k.marks?.length || k.body || k.creature) continue;
+        const under = (lookFor(k).paint as Record<string, string> | undefined) ?? {};
+        out.set(k, { ...under, ...(await paintWithMarks(under, k.marks)) });
+      }
+      if (!gone) setDrawn(out);
+    })();
+    return () => {
+      gone = true;
+    };
+  }, [found, prints, partColors, pic]);
+  /** the look a match gets: v68's tools from the picture, then its drawings */
+  const lookOf = (k: Candidate): Record<string, unknown> => {
+    const look = lookFor(k);
+    const paint = drawn.get(k);
+    return paint ? { ...look, paint } : look;
   };
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -184,7 +208,7 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
     const name = k.name;
     let profile: Record<string, unknown> = { name };
     try {
-      const look = lookFor(k);
+      const look = lookOf(k);
       profile = L.CharacterCatalog.validate({
         ...L.CharacterCatalog.defaults,
         ...look,
@@ -329,7 +353,7 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
           <div class="fp-out" role="list" aria-label="Matches">
             {!found && <p class="muted small">Three matches show here, closest first.</p>}
             {found?.map((k, i) => (
-              <MatchCard c={c} k={k} i={i} look={lookFor(k)} onUse={() => use(k)} onPlace={() => use(k, true)} />
+              <MatchCard c={c} k={k} i={i} look={lookOf(k)} onUse={() => use(k)} onPlace={() => use(k, true)} />
             ))}
           </div>
         </div>

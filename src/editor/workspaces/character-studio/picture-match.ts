@@ -7,6 +7,18 @@ import {
   specFromWords,
 } from '../../../core/character/compose';
 import { FAMILY_INFO, FAMILY_PRESETS } from '../../../core/character/families';
+import {
+  cleanMarks,
+  MARK_SHAPES,
+  MAX_MARKS,
+  type Mark,
+  marksFromWords,
+  PAINT_PARTS,
+  PAINT_SIDES,
+  SHAPE_RANGES,
+  shapeFromWords,
+  withoutMarks,
+} from '../../../core/character/marks';
 
 /**
  * P22 part 4: a character from a picture or a description. Whatever answers — Claude, or the editor on its
@@ -21,6 +33,8 @@ export type Candidate = {
   body?: Body;
   /** Milestone 3, 10d: a figure of its own (any kind, however wild): its parts, built into a body plan */
   creature?: CreatureSpec;
+  /** Milestone 3, 10d: drawings on a minifig (a star on a cheek, a number on the back), drawn by the editor */
+  marks?: Mark[];
   /** what each part was matched to: [part, what it came from] */
   matched: [string, string][];
 };
@@ -190,7 +204,7 @@ export function familyOf(text: string): BodyFamily | null {
 /** A name from a description: the words after a/an, title case (“a blue fox wizard” → Blue Fox Wizard). */
 export function nameOf(text: string): string {
   const t = text.trim().replace(/^(an?|the|my)\s+/i, '');
-  const first = t.split(/\b(with|who|that|and|wearing|holding)\b/i)[0]!.trim();
+  const first = t.split(/\b(with|who|that|and|wearing|holding|in an?|in the|on (?:his|her|its|the))\b|,/i)[0]!.trim();
   const n = title(first).slice(0, 32).trim();
   return n || 'New character';
 }
@@ -206,8 +220,10 @@ export function localCandidates(
   cat: Catalog,
   opts: { personFromPhoto?: boolean } = {},
 ): Candidate[] {
-  const base = familyOrPerson(text, picture, cat, opts.personFromPhoto ?? false);
-  const wild = creatureOf(text, picture);
+  // what it is comes from the words without its drawings (“a knight with a red star on his cheek” is a knight)
+  const what = withoutMarks(text) || text;
+  const base = withShapeAndMarks(familyOrPerson(what, picture, cat, opts.personFromPhoto ?? false), text, cat);
+  const wild = creatureOf(what, picture);
   // something no family or minifig is (a teapot on legs, a three-headed snake): its own figure, three ways
   if (!wild?.creature) return base;
   const w = wild.creature;
@@ -218,6 +234,42 @@ export function localCandidates(
     { ...wild, creature: swapped, matched: [...wild.matched.slice(0, 1), ['Colours', 'the other way round']] },
     { ...wild, creature: bigger, matched: [...wild.matched.slice(0, 1), ['Size', 'bigger']] },
   ];
+}
+
+/**
+ * Milestone 3, 10d: a person's body shape and drawings from the words (“a curvy pirate in a deep V-neck with a red
+ * star on her left cheek”), added to each minifig match and listed in what it matched.
+ */
+function withShapeAndMarks(list: Candidate[], text: string, cat: Catalog): Candidate[] {
+  return list.map((k) => {
+    if (!k.profile) return k;
+    const female = k.profile.gender === 'Female';
+    const shape = Object.fromEntries(
+      Object.entries(shapeFromWords(text, female)).filter(
+        ([f, v]) => SHAPE_RANGES[f] !== undefined || cat.choices[f]?.includes(String(v)),
+      ),
+    );
+    const marks = marksFromWords(text);
+    const matched: [string, string][] = [...k.matched];
+    if (Object.keys(shape).length)
+      matched.push([
+        'Body shape',
+        Object.entries(shape)
+          .map(([f, v]) => `${f.replace(/([A-Z])/g, ' $1').toLowerCase()} ${v}`)
+          .join(', '),
+      ]);
+    for (const m of marks)
+      matched.push([
+        'Drawn',
+        `${m.shape === 'text' ? `“${m.text}”` : `a ${m.shape}`} on the ${m.part.replace(/([A-Z])/g, ' $1').toLowerCase()} (${m.side})`,
+      ]);
+    return {
+      ...k,
+      profile: { ...k.profile, ...shape },
+      ...(marks.length ? { marks } : {}),
+      matched,
+    };
+  });
 }
 
 /** a figure of its own from the words (and the picture's colours), when the words ask for one */
@@ -382,7 +434,7 @@ function familyOrPerson(text: string, picture: string[], cat: Catalog, personFro
 /** The instructions for Claude: the settings it may choose from, and the answer's shape. */
 export function aiPrompt(text: string, hasPicture: boolean, cat: Catalog, picture: string[]): string {
   const minifig = Object.entries(cat.choices)
-    .filter(([k]) => !/nipple|breast|butt|neckline|costume|power|spell|lingerie|underwear|swimwear|heroCut/i.test(k))
+    .filter(([k]) => !/nipple|costume|power|spell|lingerie|underwear|swimwear|heroCut/i.test(k))
     .map(([k, v]) => `  ${k}: ${v.join(' | ')}`)
     .join('\n');
   const fams = BODY_FAMILIES.filter((f) => f !== 'minifig')
@@ -402,13 +454,16 @@ A character is a minifig (a person, or a person with an animal theme), OR a crea
 Minifig: "profile" with any of these fields (exact option names), and colours as "#rrggbb" for: ${cat.colorFields.filter((f) => !/nipple/i.test(f)).join(', ')}.
 ${minifig}
 
+Minifig body shape (whole numbers): breastSize 0-${SHAPE_RANGES.breastSize} (only for gender Female; 0 flat, 60 average, 110 large), buttSize 0-${SHAPE_RANGES.buttSize}, necklineDepth and necklineWidth 0-${SHAPE_RANGES.necklineDepth}. Choose them only when the picture or words show a build (curvy, athletic, slim, a V-neck…).
+Minifig drawings: "marks": up to ${MAX_MARKS} of { "shape": ${MARK_SHAPES.join(' | ')}, "part": ${PAINT_PARTS.join(' | ')}, "side": ${PAINT_SIDES.join(' | ')} (left/right as you look at the front), "x", "y": 0-1 its middle on that side (head front: eyes y 0.47 at x 0.3 and 0.68, cheeks y 0.6 at x 0.24 and 0.76, forehead y 0.3, mouth y 0.68, chin y 0.86; torso front: chest y 0.4), "size": 0.03-1, "color": "#rrggbb", "turn": degrees, "text": up to 10 letters for shape text }. Use marks for face paint, freckles, scars, tattoos, a logo, a number or a word on clothes — what the picture or words show that no part choice has. A logo is a simple shape, never a copy of a real brand.
+
 Creature: "body": { "family": one of the families below, "params": { ${params} }, "colors": { "main", "accent", "belly", "eye" as "#rrggbb" } }.
 ${fams}
 
 Figure of its own: "creature": { "shape": ${CREATURE_SHAPES.join(' | ')}, "size": 2-10 (studs; a dog 3, a horse 5, a giant 9), "heads": 0-5 (0: the face is on the body), "eyes": 0-8 per head, "legs": 0-8, "arms": 0-6, "tentacles": 0-8, "wings": 0 | 2 | 4, "tail": 0-8 (pieces), "wheels": 0-6, "horns": 0-6, "neck": 0-12 (plates), "extras": [${CREATURE_EXTRAS.join(', ')}], "move": walk | fly | swim | slither | hop, "colors": { "main", "accent", "belly", "eye" as "#rrggbb" } }.
 
 Answer with JSON only, no other words, exactly this shape with 3 different candidates, the closest first:
-{"candidates":[{"name":"a short name (max 32 letters)","profile":{...} OR "body":{...} OR "creature":{...},"matched":[["part","what in the picture or words it matches"], ...]}]}
+{"candidates":[{"name":"a short name (max 32 letters)","profile":{...},"marks":[...] OR "body":{...} OR "creature":{...},"matched":[["part","what in the picture or words it matches"], ...]}]}
 "matched" lists 3 to 6 parts (Hair, Hat, Shirt colour, Body, Main colour...) and what each one matches.`;
 }
 
@@ -449,8 +504,13 @@ export function sanitize(raw: unknown, cat: Catalog): Candidate | null {
   for (const [k, v] of Object.entries(prof)) {
     if (cat.choices[k]?.includes(String(v))) profile[k] = String(v);
     else if (cat.colorFields.includes(k) && typeof v === 'string' && HEX.test(v)) profile[k] = v.toLowerCase();
+    // Milestone 3, 10d: body shape sizes, whole numbers in range
+    else if (SHAPE_RANGES[k] !== undefined && Number.isFinite(Number(v)))
+      profile[k] = Math.round(Math.max(0, Math.min(SHAPE_RANGES[k]!, Number(v))));
   }
-  return { name, profile, matched };
+  if (profile.gender !== 'Female') delete profile.breastSize;
+  const marks = cleanMarks(r.marks);
+  return { name, profile, ...(marks.length ? { marks } : {}), matched };
 }
 
 /** The candidates in Claude's answer (the JSON may sit inside other words or a code block). */

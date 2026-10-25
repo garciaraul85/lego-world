@@ -241,3 +241,44 @@ test('Moves for anything: the teapot’s Body tab lists what its parts can do, a
   await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Stop' }).click();
   expect(errors).toEqual([]);
 });
+
+test('From words: a curvy pirate woman in a deep V-neck with a red star on her left cheek and number 7 on her back', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Characters' }).click();
+  await page.locator('[data-tour="char-from-picture"]').click();
+  const dlg = page.getByRole('dialog', { name: 'Character from a picture' });
+  await dlg
+    .getByLabel('Describe it')
+    .fill('a curvy pirate woman in a deep V-neck with a red star on her left cheek and number 7 on her back');
+  await dlg.locator('[data-tour="fp-create"]').click();
+  const first = dlg.locator('[data-tour="fp-match-0"]');
+  await expect(first).toContainText('Body shape', { timeout: 30_000 });
+  await expect(first).toContainText('a star on the head (front)');
+  await expect(first).toContainText('“7” on the torso (back)');
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: 'test-results/make-pirate-marks.png' });
+  await dlg.locator('[data-tour="fp-use-0"]').click();
+  await expect(dlg).toHaveCount(0);
+  const ada = (await chars(page)).at(-1)!;
+  expect(ada.profile).toMatchObject({ gender: 'Female', breastSize: 75, neckline: 'V-neck', necklineDepth: 75 });
+  const paint = ada.profile.paint as Record<string, string>;
+  expect(Object.keys(paint).sort()).toEqual(['head', 'torso']);
+  expect(paint.head).toMatch(/^data:image\/png;base64,/);
+  // the star shows on her face in the Draw tab
+  await page.locator('[data-tour="sheet-draw"]').click();
+  await page.locator('[data-tour="draw-part"]').selectOption('head');
+  await page.waitForTimeout(1500);
+  const red = await page.evaluate(() => {
+    const c = document.querySelector('[data-tour="draw-canvas"]') as HTMLCanvasElement;
+    const d = c.getContext('2d')!.getImageData(Math.floor(0.76 * 255), Math.floor(0.6 * 255), 1, 1).data;
+    return [d[0], d[1], d[2]];
+  });
+  expect(red[0]).toBeGreaterThan(150);
+  expect(red[1]).toBeLessThan(80);
+  await page.screenshot({ path: 'test-results/make-pirate-draw.png' });
+  expect(errors).toEqual([]);
+});

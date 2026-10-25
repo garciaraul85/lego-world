@@ -275,8 +275,7 @@ function withRoomToWalk(src: string): string {
  * that side. Flat parts (boxes) already agree and are unchanged; no built-in character has drawings.
  */
 function withOutwardPaint(src: string): string {
-  const at =
-    'current.uvNormals.push(norm([ru[1]*rv[2]-ru[2]*rv[1],ru[2]*rv[0]-ru[0]*rv[2],ru[0]*rv[1]-ru[1]*rv[0]]));';
+  const at = 'current.uvNormals.push(norm([ru[1]*rv[2]-ru[2]*rv[1],ru[2]*rv[0]-ru[0]*rv[2],ru[0]*rv[1]-ru[1]*rv[0]]));';
   if (!src.includes(at)) throw new Error('character model: the paint side block moved; update withOutwardPaint');
   const outward =
     '{const q=norm([ru[1]*rv[2]-ru[2]*rv[1],ru[2]*rv[0]-ru[0]*rv[2],ru[0]*rv[1]-ru[1]*rv[0]]);' +

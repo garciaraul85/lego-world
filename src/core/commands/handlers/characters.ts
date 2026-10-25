@@ -1,3 +1,4 @@
+import { lookError } from '../../character/marks';
 import type { ProjectStore } from '../../project/store';
 import { Character, Clip, type Instances, paths } from '../../schema';
 import type { CommandHandler } from '../types';
@@ -19,7 +20,8 @@ export const createCharacter: CommandHandler<{ character: Character }> = {
   label: (p) => `New character ${p.character.name}`,
   validate: (store, p) =>
     invalid(Character.safeParse(p.character)) ??
-    (store.has(paths.character(p.character.id)) ? 'A character with that id already exists.' : null),
+    (store.has(paths.character(p.character.id)) ? 'A character with that id already exists.' : null) ??
+    lookError(p.character.profile),
   apply: (store, p) => store.put(paths.character(p.character.id), p.character),
 };
 
@@ -28,7 +30,7 @@ export const updateCharacter: CommandHandler<{ character: Character }> = {
   label: (p) => `Edit ${p.character.name}`,
   validate(store, p) {
     if (!store.has(paths.character(p.character.id))) return 'That character does not exist.';
-    const e = invalid(Character.safeParse(p.character));
+    const e = invalid(Character.safeParse(p.character)) ?? lookError(p.character.profile);
     if (e) return e;
     for (const c of p.character.emotes ?? []) if (!store.has(paths.clip(c))) return 'An emote clip is missing.';
     for (const t of p.character.talk ?? [])
