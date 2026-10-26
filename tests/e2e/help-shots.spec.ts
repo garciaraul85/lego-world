@@ -14,7 +14,7 @@ const GUIDE_STATE: Record<string, string> = { shell: 'scene', cinematics: 'cinem
 
 test('capture Help pictures', async ({ page }) => {
   test.skip(!process.env.HELP_SHOTS, 'set HELP_SHOTS=1 to capture Help pictures');
-  test.setTimeout(900_000);
+  test.setTimeout(1_800_000);
   await page.setViewportSize({ width: 1280, height: 800 });
   await openEditor(page);
   // no hover tips, toasts or blinking caret in the pictures
