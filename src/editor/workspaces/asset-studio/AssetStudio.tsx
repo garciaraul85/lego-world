@@ -3,9 +3,11 @@ import { builtinAsset } from '../../../builtin/assets';
 import { CLEANUP, CLEANUP_LABEL, type Cleanup, cleanupOf } from '../../../core/assets/cleanup';
 import { expandAsset } from '../../../core/assets/expand';
 import { partPose } from '../../../core/assets/free';
+import { MOVER_INFO, MOVERS, type Mover, makeMover } from '../../../core/assets/movers';
 import { bricksBox, hasScale, hasTilt, type Scale, type Tilt } from '../../../core/assets/tilt';
 import type { Brick } from '../../../core/bricks/codec';
 import { MapBricks } from '../../../core/bricks/map-bricks';
+import type { Command } from '../../../core/commands';
 import { CommandBus, registerAll } from '../../../core/commands';
 import { mapsUsing } from '../../../core/commands/handlers/assets';
 import { newId } from '../../../core/ids';
@@ -15,6 +17,7 @@ import { Autosave } from '../../../core/project/autosave';
 import { MemoryBackend } from '../../../core/project/backend';
 import { ProjectStore } from '../../../core/project/store';
 import { type Action, type Asset, BIOMES, paths, type Socket } from '../../../core/schema';
+import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import type { Marker } from '../../../engine/render/renderer';
 import { brickRgb, type PointLight } from '../../../engine/render/renderer';
 import { ACTIONS, type ActionCtx, keyOf, runAction } from '../../actions/registry';
@@ -792,6 +795,21 @@ function Properties({
   const original = builtin ?? (inProject ? openedAs : null);
   const changed = !!original && !sameAsset(original, def);
   const setInteractions = (interactions: Asset['interactions']) => patch({ interactions }, 'Edit interactions');
+  // step 11: a mover changes the states, the part, its socket and what E does, as one step
+  const applyMover = (next: Asset, label: string) => {
+    patch(
+      {
+        states: next.states,
+        initialState: next.initialState,
+        onlyIn: next.onlyIn,
+        parts: next.parts,
+        sockets: next.sockets,
+        interactions: next.interactions,
+      },
+      label,
+    );
+    ed.notify(`${label}. Pick a state above the plate to see it; in Play, E switches it.`);
+  };
   return (
     <section class="panel right studio-props" aria-label="Asset properties">
       <div class="ptabs">
@@ -863,6 +881,8 @@ function Properties({
             </button>
           )}
         </div>
+
+        <TurnInto c={c} def={def} patch={patch} reset={reset} inProject={inProject} />
 
         <div class="sec">
           <div class="sech">
@@ -967,6 +987,14 @@ function Properties({
                   Straighten
                 </button>
               </div>
+              <MoverPicker
+                index={i}
+                onPick={(kind) => {
+                  const next = makeMover(def, i, kind);
+                  if (typeof next === 'string') ed.notify(next, true);
+                  else applyMover(next, `${p.name}: ${MOVER_INFO[kind].label.split(' (')[0]}`);
+                }}
+              />
               {p.pose && (
                 <MovingPart def={def} part={p} index={i} onChange={(next, label) => setPart(i, next, label)} />
               )}
@@ -991,6 +1019,23 @@ function Properties({
           >
             Selected bricks → moving part
           </button>
+          <MoverPicker
+            index={-1}
+            disabled={!selectedIndexes().length}
+            label="Selected bricks → a door, a drawbridge…"
+            onPick={(kind) => {
+              const idx = selectedIndexes();
+              const taken = new Set(idx);
+              const rest = (def.parts ?? [])
+                .map((q) => ({ ...q, bricks: q.bricks.filter((k) => !taken.has(k)) }))
+                .filter((q) => q.bricks.length);
+              const name = MOVER_INFO[kind].label.split(' (')[0]!;
+              const withPart: Asset = { ...def, parts: [...rest, { name, bricks: idx }] };
+              const next = makeMover(withPart, rest.length, kind);
+              if (typeof next === 'string') ed.notify(next, true);
+              else applyMover(next, `Make a ${name.toLowerCase()}`);
+            }}
+          />
           <div class="hint">
             Select some bricks (a roof, a branch, a wheel), then turn them with Rotate (E) on the red, green and blue
             rings, or size them with Resize (Q). They become a part that every copy shows turned. A part that moves (a
@@ -1712,5 +1757,119 @@ function BuildHelpers({ sed, centre }: { sed: StudioState; centre: [number, numb
         </span>
       )}
     </span>
+  );
+}
+
+/** step 11 (P24 part 1b): pick what kind of moving part some bricks become */
+function MoverPicker(p: { index: number; onPick(kind: Mover): void; disabled?: boolean; label?: string }) {
+  return (
+    <label class="field">
+      {p.label ?? 'Move like'}
+      <select
+        class="inp"
+        value=""
+        disabled={p.disabled}
+        aria-label={p.label ?? 'Move like'}
+        data-tour={p.index < 0 ? 'mover-from-selection' : `mover-${p.index}`}
+        onChange={(e) => {
+          const v = (e.target as HTMLSelectElement).value as Mover;
+          (e.target as HTMLSelectElement).value = '';
+          if (v) p.onPick(v);
+        }}
+      >
+        <option value="">choose…</option>
+        {MOVERS.map((m) => (
+          <option value={m}>{MOVER_INFO[m].label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * Step 11 (P24 part 1b): turn the asset into something in one click — breakable (smashed in play, rebuildable),
+ * loose (it falls, is pushed about and floats), or a creature's body (a new character that walks with these
+ * bricks on a four-legged skeleton, opened in the Characters screen to change).
+ */
+function TurnInto({
+  c,
+  def,
+  patch,
+  reset,
+  inProject,
+}: {
+  c: ActionCtx;
+  def: Asset;
+  patch: (p: Partial<Asset>, label?: string) => unknown;
+  reset: (to: Asset, label: string) => void;
+  inProject: boolean;
+}) {
+  const { ed } = c;
+  const creature = () => {
+    const id = newId('character');
+    const name = `${def.name}`.slice(0, 32);
+    const L = legacyRuntime();
+    const profile = L.CharacterCatalog.validate({ ...L.CharacterCatalog.defaults, name });
+    const cmds: Command[] = [
+      ...(inProject ? [] : [{ type: 'asset.create', payload: { asset: { ...def, origin: 'user' } } } as Command]),
+      {
+        type: 'character.create',
+        payload: { character: { id, name, role: 'npc', profile, body: { family: 'fourLegs', asset: def.id } } },
+      },
+    ];
+    if (!ed.exec(cmds, { label: `${def.name} becomes a creature` }).ok) return;
+    ed.studioCharacter.value = id;
+    ed.sheetTab.value = 'body';
+    c.ui.workspace('Characters');
+    ed.notify(
+      `${name} walks on a four-legged skeleton wearing these bricks. In Body, pick another family, or paint bricks onto bones.`,
+    );
+  };
+  return (
+    <div class="sec" data-tour="turn-into" data-help="assets.turnInto">
+      <div class="sech">
+        <span>Turn it into</span>
+      </div>
+      <div class="row" style={{ flexWrap: 'wrap', gap: '4px' }}>
+        <button
+          type="button"
+          class={`btn small ${def.smash.enabled ? 'on' : ''}`}
+          aria-pressed={def.smash.enabled}
+          data-tour="turn-breakable"
+          title="It can be smashed in Play (its settings are under After it breaks)"
+          onClick={() =>
+            patch(
+              { smash: { ...def.smash, enabled: !def.smash.enabled } },
+              def.smash.enabled ? 'Not breakable' : 'Breakable',
+            )
+          }
+        >
+          💥 Breakable
+        </button>
+        <button
+          type="button"
+          class={`btn small ${def.loose ? 'on' : ''}`}
+          aria-pressed={!!def.loose}
+          data-tour="turn-loose"
+          title="Loose: it falls, tips over when pushed and floats in water"
+          onClick={() => {
+            const { loose: _l, ...rest } = def;
+            reset((def.loose ? rest : { ...def, loose: true }) as Asset, def.loose ? 'Not loose' : 'Pushable');
+          }}
+        >
+          📦 Pushable
+        </button>
+        <button
+          type="button"
+          class="btn small"
+          data-tour="turn-creature"
+          title="A new character that walks with these bricks as its body"
+          onClick={creature}
+        >
+          🐾 A creature
+        </button>
+      </div>
+      <p class="hint">Moving parts (a door, a drawbridge, a lid, a lever, a gate) are under Turned parts below.</p>
+    </div>
   );
 }

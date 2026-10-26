@@ -37,11 +37,17 @@ Above the build plate, beside the brush:
 - **🪣 Fill**: the Paint tool paints every brick of the clicked colour that is joined to it (side by side or stacked). Shift+click fills once without turning Fill on.
 - **⧉ Stamp** (Ctrl C, then Ctrl V): copies the selected bricks; each click of the Place tool puts another copy down where you point, going up until it fits (with the mirror, if one is on). **Stop** or Escape ends it.
 
+## Turn it into
+
+**Turn it into**, under the asset's name: **💥 Breakable** (smashed in Play), **📦 Pushable** (loose: it falls, tips over when pushed and floats) and **🐾 A creature** — a new character that walks on a four-legged skeleton wearing the asset's bricks, opened in Characters › Body to change.
+
 ## Turned parts
 
 Some things lean or tilt: a crooked roof, a branch, a wheel on its side. In the Asset studio, select those bricks (Alt-click picks single bricks, Shift-click adds more), then use Rotate (E): the red ring turns them about X, the green about Y, the blue about Z, in 15° steps. Resize (Q) on several bricks sizes them the same way. They become a part of the asset, listed under Turned parts on the right, and every placed copy shows them turned, also when the copy itself is turned. Straighten puts them back. For the brick rules a part keeps its straight place, so nothing that was built on it is left floating; nothing new can be built on a turned part.
 
 ## Moving parts
+
+**In one click:** select the bricks that move and pick a kind in **Selected bricks → a door, a drawbridge…**: **Door** (swings on its side), **Drawbridge** (stands up when closed, lowers to open), **Lid** (lifts at the front), **Lever** (tips over), **Gate** (slides up, a portcullis) or **Trapdoor** (drops open). The asset gets two states (closed and open; off and on for a lever), the part its hinge and pose, and **E** in Play opens and closes it (unless the asset already says what E does). A part's own **Move like** turns it into another kind. Everything stays editable in its pose rows.
 
 A part can also move between the asset's states: the treasure chest's lid swings open, a door turns on its hinge, the built-in Sword rises out of a chest. Each moving part has a pose in every state (a turn in degrees about X, Y and Z, and a move in studs) and a hinge it turns around; every placed copy eases from one pose to the next when its state changes, over the seconds you set.
 

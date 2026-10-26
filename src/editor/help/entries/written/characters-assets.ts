@@ -1041,6 +1041,12 @@ export const ASSETS: HelpEntry[] = [
       'hinge',
       'door swings',
       'drawbridge',
+      'make a door',
+      'make a drawbridge',
+      'lever',
+      'portcullis',
+      'gate',
+      'trapdoor',
       'rise',
       'pose',
       'turned part',
@@ -1051,7 +1057,8 @@ export const ASSETS: HelpEntry[] = [
     purpose:
       'Groups of the asset’s bricks drawn turned or sized (a leaning roof), or moving between the asset’s states: a chest lid that swings open, a door, a sword that rises. A moving part has a pose in each state — a turn in degrees about X, Y and Z around a hinge, and a move in studs — and every placed copy eases to the new pose when its state changes (seconds sets how long).',
     steps: [
-      'Select the bricks that move on the plate (a lid), then click “Selected bricks → moving part”.',
+      'Quickest: select the bricks that move (a door, a lid) and pick a kind in “Selected bricks → a door, a drawbridge…”: Door, Drawbridge, Lid, Lever, Gate (slides up) or Trapdoor. The asset gets two states, the part its hinge and pose, and E opens and closes it in Play. A part’s own “Move like” changes it to another kind.',
+      'By hand: select the bricks that move on the plate (a lid), then click “Selected bricks → moving part”.',
       'Pick a state above the plate (for example “open”) and type its turn: −105 in “turn x°” swings a lid up.',
       'In “Turns around” pick where it turns: the back bottom edge for a lid, a side edge for a door, its middle to spin.',
       'Set “seconds” for how long the move takes. Pick each state above the plate to see the part there.',
@@ -1085,6 +1092,30 @@ export const ASSETS: HelpEntry[] = [
     related: ['assets.library', 'assets.bricks'],
   },
   {
+    id: 'assets.turnInto',
+    screen: 'assets',
+    kind: 'area',
+    name: 'Turn it into',
+    also: [
+      'make breakable',
+      'make pushable',
+      'pushable',
+      'make it a creature',
+      'creature from bricks',
+      'brick creature',
+      'turn into',
+    ],
+    purpose:
+      'One click makes the asset something else. **💥 Breakable**: it can be smashed in Play (how it breaks and what is left is under After it breaks). **📦 Pushable**: it is loose — it falls, tips over when pushed and floats in water. **🐾 A creature**: a new character that walks on a four-legged skeleton wearing these bricks, opened in the Characters screen’s Body tab (pick another family, or paint bricks onto bones). Moving parts (a door, a drawbridge, a lid, a lever, a gate) are made under Turned parts.',
+    steps: [
+      'Open an asset in the **Assets** screen.',
+      'Under **Turn it into**, press Breakable, Pushable or A creature.',
+    ],
+    commands: ['asset.update', 'character.create'],
+    match: [{ in: '[data-tour="turn-into"]' }],
+    related: ['assets.parts', 'asset.loose', 'characters.bodyBricks'],
+  },
+  {
     id: 'assets.buildHelpers',
     screen: 'assets',
     kind: 'area',
@@ -1113,7 +1144,7 @@ export const ASSETS: HelpEntry[] = [
     ],
     commands: ['bricks.place', 'bricks.paint', 'bricks.remove'],
     match: [{ in: '[data-tour="build-helpers"]' }],
-    related: ['assets.bricks', 'assets.screen', 'tool.paint'],
+    related: ['assets.bricks', 'assets.screen'],
   },
   {
     id: 'assets.bricks',
