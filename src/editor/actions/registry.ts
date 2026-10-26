@@ -1,4 +1,5 @@
 import { builtinAsset } from '../../builtin/assets';
+import { stampOf } from '../../core/bricks/build-tools';
 import type { Brick } from '../../core/bricks/codec';
 import { rotateQuarter } from '../../core/bricks/transform';
 import { checkPlayable } from '../../core/checks/playable';
@@ -191,7 +192,38 @@ export const ACTIONS: EditorAction[] = [
       );
     },
   },
-  { id: 'edit.selectNone', label: 'Deselect', key: 'Escape', run: ({ ed }) => ed.select([]) },
+  // step 11 (P24 part 1a): copy bricks on a build plate and stamp them down again with the Place tool
+  {
+    id: 'edit.copy',
+    label: 'Copy bricks (to stamp)',
+    key: 'Ctrl C',
+    when: ({ ed }) => ed.buildsBricks && ed.selectedBricks.value.length > 0,
+    run: ({ ed }) => {
+      const stamp = stampOf(ed.selectedBricks.value);
+      ed.stamp.value = stamp;
+      ed.notify(`Copied ${stamp.length} brick${stamp.length === 1 ? '' : 's'}: Ctrl V, then click to stamp them.`);
+    },
+  },
+  {
+    id: 'edit.paste',
+    label: 'Stamp copied bricks',
+    key: 'Ctrl V',
+    when: ({ ed }) => ed.buildsBricks && !!ed.stamp.value?.length,
+    run: ({ ed }) => {
+      ed.select([]);
+      ed.tool.value = 'place';
+      ed.notify('Click to stamp the copied bricks; each click puts down another. Escape stops.');
+    },
+  },
+  {
+    id: 'edit.selectNone',
+    label: 'Deselect',
+    key: 'Escape',
+    run: ({ ed }) => {
+      ed.stamp.value = null;
+      ed.select([]);
+    },
+  },
   {
     id: 'edit.selectGroup',
     label: 'Select whole object',
@@ -625,6 +657,8 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'edit.undo',
     'edit.redo',
     '-',
+    'edit.copy',
+    'edit.paste',
     'edit.duplicate',
     'edit.delete',
     'edit.rotate',

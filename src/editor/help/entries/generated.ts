@@ -24,6 +24,10 @@ export const ACTION_HELP: Record<string, string> = {
   'edit.undo': 'Takes back the last change. Every edit, tool drag and AI step is one undo step.',
   'edit.redo': 'Puts back what Undo took back.',
   'edit.delete': 'Deletes the selection: bricks, an object, a spawn point, a zone, a sign or a sound emitter.',
+  'edit.copy':
+    'On an asset’s build plate: copies the selected bricks so Ctrl V can stamp them down again, as many times as you click.',
+  'edit.paste':
+    'On an asset’s build plate: picks the Place tool with the copied bricks; each click stamps another copy (with the mirror, if one is on). Escape stops.',
   'edit.duplicate': 'Copies the selection and stacks the copy on top, so it stays connected.',
   'edit.rotate': 'Turns the selection a quarter turn around its middle.',
   'edit.selectNone': 'Clears the selection.',

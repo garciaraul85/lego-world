@@ -11,10 +11,12 @@ import {
   shiftAffine,
   transformOf,
 } from '../../core/assets/tilt';
+import { brickAt, fillFrom, mirrorOf, overlaps, type Stamp, stampAt, stampSize } from '../../core/bricks/build-tools';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import type { Command } from '../../core/commands';
+import type { NewBrick } from '../../core/commands/handlers/bricks';
 import { skyCycle } from '../../core/legacy/modules';
 import { wiresOf } from '../../core/logic/wiring';
 import { maxOf } from '../../core/num';
@@ -56,7 +58,7 @@ import {
   selectOnly,
   waterItems,
 } from '../interact/place';
-import { rayBox } from '../scene';
+import { rayBox, type SceneModel } from '../scene';
 import type { EditorState } from '../state';
 import { fullscreenDock, sceneFullscreen, setActiveView, type ViewOp, type ViewportApi, viewOp } from './active';
 import {
@@ -182,6 +184,9 @@ export function Viewport({
     let preview: Brick[] | null = null;
     let zoneDraft: { x0: number; z0: number; x1: number; z1: number; y: number } | null = null;
     let assetGhost: Brick[] | null = null;
+    // step 11 (P24 part 1a): the mirror images of the brick about to be placed, and a stamp about to be put down
+    let mirrorGhosts: RenderBrick[] = [];
+    let stampGhost: { bricks: NewBrick[]; bad: string | null } | null = null;
     let assetAt: [number, number, number] | null = null;
     // P31 transform gizmo: the handle under the pointer, and the drag in progress
     let hot: HandleId | null = null;
@@ -226,6 +231,43 @@ export function Viewport({
     };
     const plates = (dy: number) =>
       dy ? ` · ${dy < 0 ? 'down' : 'up'} ${Math.abs(dy)} plate${Math.abs(dy) === 1 ? '' : 's'} to stand` : '';
+    /** on a build plate with a mirror on: the bricks and their mirror images that don't cut into each other */
+    const withMirror = (list: NewBrick[]): NewBrick[] => {
+      const m = ed.mirror.value;
+      if (!studio || (m.x === null && m.z === null)) return list;
+      const out = [...list];
+      for (const b of list) for (const c of mirrorOf(b, m)) if (!out.some((o) => overlaps(o, c))) out.push(c);
+      return out;
+    };
+    /** a held stamp (Ctrl C, Ctrl V) about to be put down: centred on the pointer, going up until it fits */
+    const fitStamp = (stamp: Stamp, hit: { x: number; y: number; z: number }) => {
+      const [w, d] = stampSize(stamp);
+      const x = Math.round(hit.x - w / 2);
+      const z = Math.round(hit.z - d / 2);
+      const at = (dy: number) => withMirror(stampAt(stamp, x, hit.y + dy, z));
+      const check = (dy: number) =>
+        ed.bus.check({ type: 'bricks.place', payload: { map: ed.mapId.value, bricks: at(dy) } });
+      const first = check(0);
+      if (!first) return { bricks: at(0), bad: null };
+      for (let dy = 1; dy <= 36; dy++) if (!check(dy)) return { bricks: at(dy), bad: null };
+      return { bricks: at(0), bad: first };
+    };
+    /** the plate's bricks that are the mirror images of these (for painting and erasing in mirror) */
+    const mirrorIds = (s: SceneModel, ids: number[]): number[] => {
+      const m = ed.mirror.value;
+      if (!studio || (m.x === null && m.z === null)) return [];
+      const all = s.all();
+      const out: number[] = [];
+      for (const id of ids) {
+        const b = s.get(id);
+        if (!b) continue;
+        for (const c of mirrorOf(b, m)) {
+          const o = brickAt(all, c);
+          if (o && !ids.includes(o.id) && !out.includes(o.id)) out.push(o.id);
+        }
+      }
+      return out;
+    };
     /**
      * The brick about to be placed (Place tool or a card dragged in): it sits on what is under it, going up
      * until it fits instead of cutting into a neighbour; `bad` says why it can't go there at all (red ghost).
@@ -683,6 +725,26 @@ export function Viewport({
           }
         }
         if (ghost) overlays.push({ bricks: [ghost], alpha: 0.6, flat: false });
+        if (ghost && mirrorGhosts.length) overlays.push({ bricks: mirrorGhosts, alpha: 0.35, flat: false });
+        if (stampGhost)
+          overlays.push({
+            bricks: stampGhost.bricks.map((b, i) =>
+              brickRender({ ...b, id: -1 - i, flags: 0, color: stampGhost!.bad ? '#ff3b30' : b.color }),
+            ),
+            alpha: 0.55,
+            flat: false,
+          });
+        // step 11: the mirror planes on the build plate, as lines across it
+        if (studio) {
+          const m = ed.mirror.value;
+          const R = 24;
+          const at: number[] = [];
+          for (const y of [0.02, 6]) if (m.x !== null) at.push(m.x, y, -R, m.x, y, R);
+          for (const y of [0.02, 6]) if (m.z !== null) at.push(-R, y, m.z, R, y, m.z);
+          if (m.x !== null) at.push(m.x, 0.02, -R, m.x, 6, -R, m.x, 0.02, R, m.x, 6, R);
+          if (m.z !== null) at.push(-R, 0.02, m.z, -R, 6, m.z, R, 0.02, m.z, R, 6, m.z);
+          if (at.length) lines.push({ lines: at, color: [0.35, 0.85, 1], onTop: false });
+        }
         if (assetGhost) overlays.push({ bricks: assetGhost.map(brickRender), alpha: 0.6, flat: false });
         if (sel.length && !live)
           for (const [k, list] of byGroup(sel)) {
@@ -887,6 +949,8 @@ export function Viewport({
       assetGhost = null;
       assetAt = null;
       ghostBad = null;
+      mirrorGhosts = [];
+      stampGhost = null;
       if (tool === 'asset') {
         const def = resolveAsset(ed, ed.assetBrush.value.asset);
         const hit = def && s.surface(r, (b) => !ed.isVisible(b));
@@ -908,10 +972,20 @@ export function Viewport({
         hover = null;
       } else if (tool === 'place') {
         const hit = s.surface(r, (b) => !ed.isVisible(b));
-        if (hit) {
+        const stamp = studio ? ed.stamp.value : null;
+        if (hit && stamp) {
+          stampGhost = fitStamp(stamp, hit);
+          ed.cursor.value = { x: Math.round(hit.x), z: Math.round(hit.z), y: hit.y };
+        } else if (hit) {
           const fit = fitBrick(hit, ed.brush.value);
           ghost = fit.ghost;
           ghostBad = fit.bad;
+          const br = ed.brush.value;
+          mirrorGhosts = withMirror([
+            { type: br.type, x: ghost.x, y: ghost.y, z: ghost.z, rot: br.rot, color: br.color },
+          ])
+            .slice(1)
+            .map((m) => ({ ...ghost!, x: m.x, z: m.z }));
           ed.cursor.value = { x: ghost.x, z: ghost.z, y: ghost.y };
         }
         hover = null;
@@ -946,19 +1020,28 @@ export function Viewport({
         }
         return;
       }
+      if (tool === 'place' && stampGhost) {
+        if (stampGhost.bad) flashTag(`Can't put the stamp here: ${stampGhost.bad}`, local(e));
+        else ed.exec({ type: 'bricks.place', payload: { map, bricks: stampGhost.bricks } }, { label: 'Stamp' });
+        ghostKey = '';
+        updateHover(e);
+        return;
+      }
       if (tool === 'place' && ghost && ghostBad) {
         flashTag(`Can't place it here: ${ghostBad}`, local(e));
         return;
       }
       if (tool === 'place' && ghost) {
         const br = ed.brush.value;
-        ed.exec({
-          type: 'bricks.place',
-          payload: {
-            map,
-            bricks: [{ type: br.type, x: ghost.x, y: ghost.y, z: ghost.z, rot: br.rot, color: br.color }],
-          },
-        });
+        const one: NewBrick = { type: br.type, x: ghost.x, y: ghost.y, z: ghost.z, rot: br.rot, color: br.color };
+        const both = withMirror([one]);
+        // the mirror side may be blocked: then only this side is placed, and the tag says so
+        const mirrored = both.length > 1 && !ed.bus.check({ type: 'bricks.place', payload: { map, bricks: both } });
+        if (both.length > 1 && !mirrored) flashTag('The mirror side is blocked: placed on this side only', local(e));
+        ed.exec(
+          { type: 'bricks.place', payload: { map, bricks: mirrored ? both : [one] } },
+          { label: mirrored ? 'Place bricks (mirrored)' : 'Place brick' },
+        );
         // the see-through brick moves on at once (on top of the one just placed), so it never sits over it
         ghostKey = '';
         updateHover(e);
@@ -1034,14 +1117,22 @@ export function Viewport({
       }
       const b = hit.brick;
       if (tool === 'paint') {
-        ed.exec({
-          type: 'bricks.paint',
-          payload: {
-            map,
-            ids: e.altKey ? [b.id] : b.group ? (s.groups.get(b.group) ?? [b.id]) : [b.id],
-            color: ed.brush.value.color,
-          },
-        });
+        // step 11: on a build plate, Fill (or Shift) paints every joined brick of that colour; a mirror paints both sides
+        const fill = studio && (ed.paintFill.value || e.shiftKey);
+        const base = fill
+          ? fillFrom(s.all(), b.id)
+          : e.altKey
+            ? [b.id]
+            : b.group
+              ? (s.groups.get(b.group) ?? [b.id])
+              : [b.id];
+        const twins = mirrorIds(s, [b.id]);
+        const more = fill ? twins.flatMap((id) => fillFrom(s.all(), id)) : mirrorIds(s, base);
+        const ids = [...new Set([...base, ...more])];
+        ed.exec(
+          { type: 'bricks.paint', payload: { map, ids, color: ed.brush.value.color } },
+          fill ? { label: `Fill ${ids.length} bricks` } : {},
+        );
         return;
       }
       if (tool === 'erase') {
@@ -1051,11 +1142,12 @@ export function Viewport({
           flashTag('Erase removes whole objects here. Loose bricks: select them and Make asset, or Delete.', local(e));
           return;
         }
-        const ids = owner
+        const one = owner
           ? owner.bricks.map((x) => x.id)
           : (e.shiftKey || !studio) && b.group
             ? (s.groups.get(b.group) ?? [b.id])
             : [b.id];
+        const ids = owner ? one : [...one, ...mirrorIds(s, one)];
         if (ed.exec({ type: 'bricks.remove', payload: { map, ids } }).ok) ed.pruneSelection();
         return;
       }

@@ -29,6 +29,14 @@ Its panels set:
 - **Smash and rebuild**: whether F smashes it, what it drops, and whether holding E rebuilds it.
 - **Generator rules**: whether the terrain generator scatters it, in which environments, how often (weight) and on what ground.
 
+## Build helpers: mirror, fill and stamp
+
+Above the build plate, beside the brush:
+
+- **⇆ Mirror X** and **⇅ Mirror Z**: everything you do happens on both sides of a blue line across the plate — each brick you place (its copy shows see-through first), paint or erase. The line starts at the middle of the asset; **−** and **+** move it half a stud at a time. If the other side is blocked, only this side is placed and a tag says so. With both on, a brick is copied to all four corners.
+- **🪣 Fill**: the Paint tool paints every brick of the clicked colour that is joined to it (side by side or stacked). Shift+click fills once without turning Fill on.
+- **⧉ Stamp** (Ctrl C, then Ctrl V): copies the selected bricks; each click of the Place tool puts another copy down where you point, going up until it fits (with the mirror, if one is on). **Stop** or Escape ends it.
+
 ## Turned parts
 
 Some things lean or tilt: a crooked roof, a branch, a wheel on its side. In the Asset studio, select those bricks (Alt-click picks single bricks, Shift-click adds more), then use Rotate (E): the red ring turns them about X, the green about Y, the blue about Z, in 15° steps. Resize (Q) on several bricks sizes them the same way. They become a part of the asset, listed under Turned parts on the right, and every placed copy shows them turned, also when the copy itself is turned. Straighten puts them back. For the brick rules a part keeps its straight place, so nothing that was built on it is left floating; nothing new can be built on a turned part.

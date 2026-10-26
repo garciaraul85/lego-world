@@ -38,6 +38,8 @@ import { assetFromScratch, initialIndex, type Scratch, scratchFor, turnPart } fr
 export class StudioState extends EditorState {
   /** the main editor: the plate's notices and log lines show there (the plate has no toast or console) */
   parent: EditorState | null = null;
+  /** the asset this plate builds */
+  forAsset: string | null = null;
   override get buildsBricks() {
     return true;
   }
@@ -161,6 +163,16 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     const autosave = new Autosave(store, new MemoryBackend(), { setTimer: () => null, clearTimer: () => {} });
     const sed = new StudioState({ store, bus, autosave, backend: new MemoryBackend() });
     sed.parent = ed;
+    // step 11: the mirror, Fill and a held stamp stay on when the plate is rebuilt (another state, an undo)
+    const prev = (globalThis as unknown as { __plate?: StudioState }).__plate;
+    sed.forAsset = def.id;
+    if (prev && prev !== sed && prev.forAsset === def.id) {
+      sed.mirror.value = prev.mirror.peek();
+      sed.paintFill.value = prev.paintFill.peek();
+      sed.stamp.value = prev.stamp.peek();
+    }
+    // tests and Brix reach the plate like the main editor (window.__editor)
+    (globalThis as unknown as { __plate?: StudioState }).__plate = sed;
     sed.tool.value = plateTool;
     sed.brush.value = ed.brush.value;
     synced.current = stableStringify(def);
@@ -464,6 +476,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
             Redo
           </button>
           <BrushPicker ed={sed} />
+          <BuildHelpers sed={sed} centre={[def.footprint[0] / 2, def.footprint[1] / 2]} />
           {def.states.length > 1 && (
             <label class="lbl small">
               <input type="checkbox" checked={newOnlyIn} onChange={() => setNewOnlyIn(!newOnlyIn)} /> New bricks only in
@@ -1598,4 +1611,106 @@ function assetTop(def: Asset): number {
   let top = 0;
   for (const b of def.bricks) top = Math.max(top, (Number(b[2]) || 0) * 0.4 + 1.2);
   return Math.round(top * 10) / 10;
+}
+
+/**
+ * Step 11 (P24 part 1a): building faster on the plate — a mirror across X and/or Z (each new brick, paint and
+ * erase happens on both sides; the plane shows as blue lines and can be moved half a stud at a time), Fill for the
+ * Paint tool (every joined brick of one colour), and Copy / Stamp (the Place tool puts the copied bricks down).
+ */
+function BuildHelpers({ sed, centre }: { sed: StudioState; centre: [number, number] }) {
+  const m = sed.mirror.value;
+  const half = (v: number) => Math.round(v * 2) / 2;
+  const toggle = (axis: 'x' | 'z') => {
+    sed.mirror.value = { ...m, [axis]: m[axis] === null ? half(centre[axis === 'x' ? 0 : 1]) : null };
+  };
+  const nudge = (axis: 'x' | 'z', by: number) => {
+    const v = m[axis];
+    if (v !== null) sed.mirror.value = { ...m, [axis]: v + by };
+  };
+  const stamp = sed.stamp.value;
+  const selected = sed.selectedBricks.value.length;
+  return (
+    <span
+      class="group build-helpers"
+      role="group"
+      aria-label="Build helpers"
+      data-tour="build-helpers"
+      data-help="assets.buildHelpers"
+    >
+      {(['x', 'z'] as const).map((axis) => (
+        <span class="row" style={{ gap: '2px' }}>
+          <button
+            type="button"
+            class={`btn small ${m[axis] !== null ? 'on' : ''}`}
+            aria-pressed={m[axis] !== null}
+            data-tour={`mirror-${axis}`}
+            title={`Mirror across ${axis.toUpperCase()}: every brick you place, paint or erase is copied on the other side`}
+            onClick={() => toggle(axis)}
+          >
+            {axis === 'x' ? '⇆' : '⇅'} Mirror {axis.toUpperCase()}
+          </button>
+          {m[axis] !== null && (
+            <>
+              <button
+                type="button"
+                class="btn small icon"
+                aria-label={`Move the ${axis.toUpperCase()} mirror back half a stud`}
+                data-tour={`mirror-${axis}-less`}
+                onClick={() => nudge(axis, -0.5)}
+              >
+                −
+              </button>
+              <span class="mono small" aria-label={`${axis.toUpperCase()} mirror at`}>
+                {m[axis]}
+              </span>
+              <button
+                type="button"
+                class="btn small icon"
+                aria-label={`Move the ${axis.toUpperCase()} mirror on half a stud`}
+                data-tour={`mirror-${axis}-more`}
+                onClick={() => nudge(axis, 0.5)}
+              >
+                +
+              </button>
+            </>
+          )}
+        </span>
+      ))}
+      <button
+        type="button"
+        class={`btn small ${sed.paintFill.value ? 'on' : ''}`}
+        aria-pressed={sed.paintFill.value}
+        data-tour="paint-fill"
+        title="Fill: the Paint tool paints every joined brick of the clicked colour (Shift+click does it once)"
+        onClick={() => {
+          sed.paintFill.value = !sed.paintFill.value;
+          if (sed.paintFill.value) sed.tool.value = 'paint';
+        }}
+      >
+        🪣 Fill
+      </button>
+      <button
+        type="button"
+        class="btn small"
+        disabled={!selected}
+        data-tour="stamp-copy"
+        title="Copy the selected bricks (Ctrl C), then click to stamp them down (Ctrl V)"
+        onClick={() => {
+          const ctx = { ed: sed } as unknown as ActionCtx;
+          for (const id of ['edit.copy', 'edit.paste']) runAction(ACTIONS.find((x) => x.id === id)!, ctx);
+        }}
+      >
+        ⧉ Stamp
+      </button>
+      {stamp && (
+        <span class="small muted" role="status" data-tour="stamp-status">
+          Stamping {stamp.length} brick{stamp.length === 1 ? '' : 's'}
+          <button type="button" class="btn small" data-tour="stamp-stop" onClick={() => (sed.stamp.value = null)}>
+            Stop
+          </button>
+        </span>
+      )}
+    </span>
+  );
 }

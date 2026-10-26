@@ -51,6 +51,8 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'edit.redo': S('core'),
   'edit.delete': S('core'),
   'edit.duplicate': S('core'),
+  'edit.copy': S('core'),
+  'edit.paste': S('core'),
   'edit.rotate': S('core'),
   'edit.selectNone': S('core'),
   'edit.selectGroup': S('core'),

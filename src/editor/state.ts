@@ -1,4 +1,5 @@
 import { batch, computed, effect, signal } from '@preact/signals';
+import type { Mirror, Stamp } from '../core/bricks/build-tools';
 import type { Brick } from '../core/bricks/codec';
 import type { PlayIssue } from '../core/checks/playable';
 import type { Command, CommandBus, ExecuteResult, Source } from '../core/commands';
@@ -87,6 +88,11 @@ export class EditorState {
   readonly selectedSpawn = signal<string | null>(null);
   readonly tool = signal<ToolId>('select');
   readonly brush = signal<{ type: string; color: string; rot: number }>({ type: 'brick2x4', color: '#d20c20', rot: 0 });
+  /** step 11 (P24 part 1a): building faster on a build plate — mirror planes (studs; null off), fill painting, and
+   * bricks copied for stamping (the Place tool puts the whole stamp down while one is held) */
+  readonly mirror = signal<Mirror>({ x: null, z: null });
+  readonly paintFill = signal(false);
+  readonly stamp = signal<Stamp | null>(null);
   /** the asset the Place asset tool puts down (project or built-in id) and its turn */
   readonly assetBrush = signal<{ asset: string | null; rot: number }>({ asset: null, rot: 0 });
   /** the asset open in the Asset studio */
