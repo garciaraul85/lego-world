@@ -306,6 +306,8 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.closest('input,textarea,select,[contenteditable]')) return;
+      // a dialog over the studio (From a picture…) keeps its keys: Escape closes it, not the plate's selection
+      if (document.querySelector('[aria-modal="true"]')) return;
       const a = ACTIONS.find((x) => x.key === keyOf(e));
       if (!a || !STUDIO_ACTION.test(a.id)) return;
       e.preventDefault();

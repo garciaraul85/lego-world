@@ -32,3 +32,5 @@ World › **New map from a picture or words…** makes a whole new map: "a snowy
 - **the people**, each made as a character from a picture is, body shape and drawings too ("a blacksmith with a long beard", "two guards").
 
 **Create** shows three: as described, the same on other land, and bigger. **Make this map** builds it — the land, the arrival on open ground, the buildings on level spots the hero can walk to, the people near them — and opens it. It is one step: Undo takes the whole map away. A building that finds no room is listed in a notice; more than three buildings make the land bigger. Connect the new map to your others with a gate in the World graph. With only a picture, its main colours suggest the land; with the AI builder set up, Claude reads the whole picture.
+
+**🔍 Preview** on a match builds that map to look at first — the whole map, to turn (drag), zoom (scroll) and move round (right-drag) — without adding it to the game. **Make this map** from the preview makes exactly the map you saw. **◀ Back to the matches** or Escape goes back.

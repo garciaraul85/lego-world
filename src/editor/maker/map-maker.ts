@@ -23,7 +23,7 @@ export async function mapCommands(
   ed: Pick<EditorState, 'store'>,
   spec: MapSpec,
   seed: number,
-): Promise<{ map: string; commands: Command[]; notes: string[] }> {
+): Promise<{ map: string; commands: Command[]; notes: string[]; store: ProjectStore }> {
   const scratch = new ProjectStore(ed.store.snapshot(), { validate: false });
   const bus = registerAll(new CommandBus(scratch));
   const commands: Command[] = [];
@@ -128,7 +128,8 @@ export async function mapCommands(
       else notes.push(`${name} could not be made.`);
     }
   }
-  return { map, commands, notes };
+  // the copy it was built on, for a preview of the map before it is made
+  return { map, commands, notes, store: scratch };
 }
 
 /** three maps from the words: as said, the same on other land (another seed), and a bigger one */

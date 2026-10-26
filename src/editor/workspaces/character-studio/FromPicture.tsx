@@ -5,7 +5,7 @@ import { type ResolvedBody, resolveBody } from '../../../core/character/resolve'
 import { describeMap, type MapSpec, mapSpecFromWords } from '../../../core/gamegen/map-spec';
 import { assetSpot } from '../../../core/gamegen/places';
 import { newId } from '../../../core/ids';
-import { type Character, type MapDoc, paths } from '../../../core/schema';
+import { type Asset, type Character, type MapDoc, paths } from '../../../core/schema';
 import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { sessionKey } from '../../../platform/ai/keys';
 import { type AiSettings, gameSpent, loadAi, recordSpend, saveAi } from '../../../platform/ai/settings';
@@ -16,6 +16,7 @@ import { AssetThumb } from '../../components/AssetThumb';
 import { type AssetCandidate, assetPrompt, localAssetCandidates, parseAssetCandidates } from '../../maker/asset-match';
 import { mapCommands, mapPrompt, mapVariants, parseMapCandidates } from '../../maker/map-maker';
 import { type LookPicture, lookColors, lookPrints } from './bring-look';
+import { FromPicturePreview, type PreviewWhat } from './FromPicturePreview';
 import { aiPrompt, type Candidate, type Catalog, localCandidates, mainColors, parseCandidates } from './picture-match';
 import { CharacterThumb } from './thumbs';
 
@@ -84,12 +85,22 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
   // Milestone 3, 10d part 5: maps — the land, its buildings and its people
   const [maps, setMaps] = useState<{ spec: MapSpec; seed: number; matched: [string, string][] }[] | null>(null);
   const [building, setBuilding] = useState<number | null>(null);
+  // a big preview of one match (turn, zoom, try it) before it is used; maps are built once for it and reused
+  const [preview, setPreview] = useState<(PreviewWhat & { use(): void; place?: () => void; useLabel: string }) | null>(
+    null,
+  );
+  const builtMaps = useRef(new Map<number, Awaited<ReturnType<typeof mapCommands>>>());
   useEffect(() => {
     setFound(null);
     setThings(null);
     setMaps(null);
     setStatus('');
+    setPreview(null);
   }, [kind]);
+  useEffect(() => {
+    builtMaps.current.clear();
+    setPreview(null);
+  }, [maps, things, found]);
   const [aiReady, setAiReady] = useState(false);
   const [reading, setReading] = useState(false);
   // Milestone 3, 10d: v68's Bring your look for a person in the picture
@@ -243,7 +254,9 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
     setBuilding(i);
     setStatus('Building the land, the buildings and the people…');
     try {
-      const out = await mapCommands(ed, m.spec, m.seed);
+      // the map previewed is the map made (built again if the game changed since)
+      let out = builtMaps.current.get(i) ?? (await mapCommands(ed, m.spec, m.seed));
+      if (ed.bus.check(out.commands)) out = await mapCommands(ed, m.spec, m.seed);
       const r = ed.exec(out.commands, { label: `New map ${m.spec.name} (from a picture)` });
       if (r.ok) {
         ed.openMap(out.map);
@@ -253,6 +266,31 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
       } else setStatus(`The map could not be made: ${r.error ?? 'unknown'}`);
     } catch (e) {
       setStatus(`The map could not be made: ${e instanceof Error ? e.message : 'unknown'}`);
+    } finally {
+      setBuilding(null);
+    }
+  };
+
+  const previewMap = async (i: number) => {
+    const m = maps?.[i];
+    if (!m) return;
+    setBuilding(i);
+    setStatus('Building the map for a look…');
+    try {
+      const out = builtMaps.current.get(i) ?? (await mapCommands(ed, m.spec, m.seed));
+      builtMaps.current.set(i, out);
+      setStatus('');
+      setPreview({
+        kind: 'map',
+        name: m.spec.name,
+        store: out.store,
+        map: out.map,
+        notes: out.notes,
+        use: () => void makeMap(i),
+        useLabel: 'Make this map',
+      });
+    } catch (e) {
+      setStatus(`The map could not be built: ${e instanceof Error ? e.message : 'unknown'}`);
     } finally {
       setBuilding(null);
     }
@@ -393,6 +431,31 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
       }
     >
       <div class="fp" ref={box}>
+        {preview && (
+          <FromPicturePreview
+            what={preview}
+            onClose={() => {
+              setPreview(null);
+              // the preview's view had the keys: the dialog gets them back (Escape closes it again)
+              setTimeout(() => box.current?.querySelector<HTMLElement>('[data-tour="fp-create"]')?.focus(), 0);
+            }}
+            onUse={() => {
+              const go = preview.use;
+              setPreview(null);
+              go();
+            }}
+            {...(preview.place
+              ? {
+                  onPlace: () => {
+                    const go = preview.place!;
+                    setPreview(null);
+                    go();
+                  },
+                }
+              : {})}
+            useLabel={preview.useLabel}
+          />
+        )}
         <header class="fp-head">
           <b>✨ Make from a picture</b>
           <span class="row" role="radiogroup" aria-label="What to make" data-tour="fp-kind" style={{ gap: '4px' }}>
@@ -555,16 +618,58 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
                     >
                       {building === i ? 'Building…' : 'Make this map'}
                     </button>
+                    <button
+                      type="button"
+                      class="btn"
+                      data-tour={`fp-preview-${i}`}
+                      disabled={building !== null}
+                      onClick={() => void previewMap(i)}
+                    >
+                      🔍 Preview
+                    </button>
                   </div>
                 </div>
               ))}
             {kind === 'asset' &&
               things?.map((k, i) => (
-                <ThingCard k={k} i={i} onUse={() => useThing(k)} onPlace={() => useThing(k, true)} />
+                <ThingCard
+                  k={k}
+                  i={i}
+                  onUse={() => useThing(k)}
+                  onPlace={() => useThing(k, true)}
+                  onPreview={(def) =>
+                    setPreview({
+                      kind: 'asset',
+                      name: k.name,
+                      def,
+                      use: () => useThing(k),
+                      place: () => useThing(k, true),
+                      useLabel: 'Use this one',
+                    })
+                  }
+                />
               ))}
             {kind === 'character' &&
               found?.map((k, i) => (
-                <MatchCard c={c} k={k} i={i} look={lookOf(k)} onUse={() => use(k)} onPlace={() => use(k, true)} />
+                <MatchCard
+                  c={c}
+                  k={k}
+                  i={i}
+                  look={lookOf(k)}
+                  onUse={() => use(k)}
+                  onPlace={() => use(k, true)}
+                  onPreview={(profile, body) =>
+                    setPreview({
+                      kind: 'character',
+                      name: k.name,
+                      profile,
+                      body,
+                      use: () => use(k),
+                      place: () => use(k, true),
+                      useLabel: 'Use this one',
+                    })
+                  }
+                />
               ))}
           </div>
         </div>
@@ -580,6 +685,7 @@ function MatchCard({
   look,
   onUse,
   onPlace,
+  onPreview,
 }: {
   c: ActionCtx;
   k: Candidate;
@@ -587,6 +693,7 @@ function MatchCard({
   look: Record<string, unknown>;
   onUse(): void;
   onPlace(): void;
+  onPreview(profile: Record<string, unknown>, body: ResolvedBody | null): void;
 }) {
   let body: ResolvedBody | null = null;
   try {
@@ -615,7 +722,15 @@ function MatchCard({
   }
   return (
     <div class="fp-card" role="listitem" aria-label={`Match ${i + 1}: ${k.name}`} data-tour={`fp-match-${i}`}>
-      <CharacterThumb profile={profile} body={body} size={84} />
+      <button
+        type="button"
+        class="fp-thumb-btn"
+        title="See it big: turn, zoom and try it"
+        aria-label={`Preview ${k.name}`}
+        onClick={() => onPreview(profile, body)}
+      >
+        <CharacterThumb profile={profile} body={body} size={84} />
+      </button>
       <div class="fp-info">
         <b>
           {i === 0 ? 'Closest · ' : ''}
@@ -634,17 +749,40 @@ function MatchCard({
         <button type="button" class="btn" data-tour={`fp-place-${i}`} onClick={onPlace}>
           Use and place on the map
         </button>
+        <button type="button" class="btn" data-tour={`fp-preview-${i}`} onClick={() => onPreview(profile, body)}>
+          🔍 Preview
+        </button>
       </div>
     </div>
   );
 }
 
 /** Milestone 3, 10d part 4: an asset match — a picture of the bricks it is built from, and what it matched */
-function ThingCard({ k, i, onUse, onPlace }: { k: AssetCandidate; i: number; onUse(): void; onPlace(): void }) {
+function ThingCard({
+  k,
+  i,
+  onUse,
+  onPlace,
+  onPreview,
+}: {
+  k: AssetCandidate;
+  i: number;
+  onUse(): void;
+  onPlace(): void;
+  onPreview(def: Asset): void;
+}) {
   const def = composeAsset(k.spec, 'ast_preview000');
   return (
     <div class="fp-card" role="listitem" aria-label={`Match ${i + 1}: ${k.name}`} data-tour={`fp-match-${i}`}>
-      <AssetThumb def={def} size={84} />
+      <button
+        type="button"
+        class="fp-thumb-btn"
+        title="See it big: turn and zoom"
+        aria-label={`Preview ${k.name}`}
+        onClick={() => onPreview(def)}
+      >
+        <AssetThumb def={def} size={84} />
+      </button>
       <div class="fp-info">
         <b>
           {i === 0 ? 'Closest · ' : ''}
@@ -663,6 +801,9 @@ function ThingCard({ k, i, onUse, onPlace }: { k: AssetCandidate; i: number; onU
         </button>
         <button type="button" class="btn" data-tour={`fp-place-${i}`} onClick={onPlace}>
           Use and place on the map
+        </button>
+        <button type="button" class="btn" data-tour={`fp-preview-${i}`} onClick={() => onPreview(def)}>
+          🔍 Preview
         </button>
       </div>
     </div>

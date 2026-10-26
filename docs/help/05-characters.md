@@ -146,6 +146,8 @@ The picture stays on this device: it goes to Claude only when you press Create, 
 
 Every body family also has eight **presets** (Dog, Cat, Horse, Wolf… Parrot, Owl… Shark, Clownfish…) under its description in the Body tab.
 
+**🔍 Preview** on a match (or a click on its picture) shows it big before anything is added: drag to turn it, scroll to zoom, Turntable to spin it, and try moves (Wave, Cheer, Spin attack, Jump attack, Roll) — a creature walks. **Use this one** from there adds it; **◀ Back to the matches** or Escape goes back.
+
 ## Dialogue: what characters say
 
 Open the **Dialogue** tab at the top of the Characters screen. A **conversation** is a few sections; each is a list of steps played in order:
