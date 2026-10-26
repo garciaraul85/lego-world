@@ -15,7 +15,7 @@ import { Autosave } from '../../../core/project/autosave';
 import { MemoryBackend } from '../../../core/project/backend';
 import { newProjectFiles } from '../../../core/project/new-project';
 import { ProjectStore } from '../../../core/project/store';
-import { paths } from '../../../core/schema';
+import { type MapDoc, paths } from '../../../core/schema';
 import { EditorState } from '../../state';
 import type { ViewportApi } from '../../viewport/active';
 import { Viewport } from '../../viewport/Viewport';
@@ -32,7 +32,7 @@ export const newCustomBrick = (): CustomBrick => ({
 });
 
 /** the sizes a shape can have: round ones as deep as wide, an arch 3 wide or more */
-const fit = (b: CustomBrick): CustomBrick => {
+const fitShape = (b: CustomBrick): CustomBrick => {
   let { w, d } = b;
   if (b.shape === 'round' || b.shape === 'cone' || b.shape === 'dome') d = w;
   if (b.shape === 'arch') w = Math.max(3, w);
@@ -42,6 +42,10 @@ const fit = (b: CustomBrick): CustomBrick => {
 /** the brick alone on an empty plate, to turn and zoom (an editor of its own, never the game) */
 function previewEditor(b: CustomBrick, color: string): EditorState {
   const files = newProjectFiles({ name: 'Brick preview', mapName: 'Brick' });
+  // no spawn marker beside the brick
+  const mapId = (files.get(paths.project) as { entry: { map: string } }).entry.map;
+  const map = files.get(paths.map(mapId)) as MapDoc;
+  files.set(paths.map(mapId), { ...map, spawns: map.spawns.map((s) => ({ ...s, pos: [0, -50, 0] })) });
   const store = new ProjectStore(files);
   const bus = registerAll(new CommandBus(store));
   const autosave = new Autosave(store, new MemoryBackend(), { setTimer: () => null, clearTimer: () => {} });
@@ -85,7 +89,7 @@ export function BrickEditor({
   const locked = used.length > 0;
   const set = (patch: Partial<CustomBrick>) => {
     setError('');
-    setB((x) => fit({ ...x, ...patch }));
+    setB((x) => fitShape({ ...x, ...patch }));
   };
   // the renderer draws the brick being edited (its draft stands in until it is saved)
   registerCustomBrick(b);

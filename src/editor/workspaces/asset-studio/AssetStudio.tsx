@@ -6,7 +6,14 @@ import { partPose } from '../../../core/assets/free';
 import { MOVER_INFO, MOVERS, type Mover, makeMover } from '../../../core/assets/movers';
 import { bricksBox, hasScale, hasTilt, type Scale, type Tilt } from '../../../core/assets/tilt';
 import type { Brick } from '../../../core/bricks/codec';
-import { type CustomBrick, customBrick, customIdOf, customType, parseBrickType } from '../../../core/bricks/custom';
+import {
+  type CustomBrick,
+  customBrick,
+  customBricks,
+  customIdOf,
+  customType,
+  parseBrickType,
+} from '../../../core/bricks/custom';
 import { MapBricks } from '../../../core/bricks/map-bricks';
 import type { Command } from '../../../core/commands';
 import { CommandBus, registerAll } from '../../../core/commands';
@@ -565,6 +572,8 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
 function BrushPicker({ ed }: { ed: EditorState }) {
   const b = ed.brush.value;
   const [open, setOpen] = useState(false);
+  // step 11: the game's custom bricks too (made in the Bricks tab's brick editor)
+  const customs = open ? customBricks().sort((x, y) => x.name.localeCompare(y.name)) : [];
   const t = parseBrickType(b.type) ?? { kind: 'brick', rows: 2, cols: 4 };
   const cid = customIdOf(b.type);
   const name = cid
@@ -594,6 +603,7 @@ function BrushPicker({ ed }: { ed: EditorState }) {
               ed.brush.value = { ...b, type };
               if (ed.tool.value !== 'place') ed.tool.value = 'place';
             }}
+            customs={customs.length ? customs : undefined}
           />
           <div class="row" style={{ justifyContent: 'flex-end' }}>
             <button type="button" class="btn on" onClick={() => setOpen(false)}>
