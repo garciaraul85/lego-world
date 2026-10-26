@@ -3,12 +3,16 @@ import { DEFAULT_EVENTS, DEFAULT_MIXER } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_MODEL_FILES } from '../../builtin/models/data';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
+import { MOVER_INFO, type Mover, makeMover } from '../../core/assets/movers';
+import { type Mirror, mirrorOf, type Stamp, stampAt, stampOf } from '../../core/bricks/build-tools';
+import type { Brick } from '../../core/bricks/codec';
 import type { BodyPlan, Bone } from '../../core/character/body';
 import { makeFamily } from '../../core/character/families';
 import { cleanHair, type HairStyle } from '../../core/character/hair';
 import { DEFAULT_STATS } from '../../core/character/sheet';
 import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
+import type { NewBrick } from '../../core/commands/handlers/bricks';
 import { progressOf } from '../../core/commands/handlers/progress';
 import { blankConversation, type Conversation } from '../../core/dialogue/schema';
 import { parseScript } from '../../core/dialogue/script';
@@ -33,10 +37,11 @@ import { fromBase64, modelMatrix, prepareModel } from '../../engine/model/prepar
 import { drawBox } from '../../engine/render/model-draw';
 import { BrowserSaveStore } from '../../platform/saves';
 import { type ActionCtx, action, runAction } from '../actions/registry';
-import { assetLibrary } from '../assets';
+import { assetLibrary, newAssetDef } from '../assets';
 import { looseCopies, modelItems, placeModelAt, placeWaterAt } from '../interact/place';
 import { importModelFiles, modelChoices } from '../panels/ModelFields';
 import { savingOf } from '../panels/SavingSection';
+import type { EditorState } from '../state';
 import { settleMove } from '../viewport/settle';
 import { buildInto } from '../workspaces/asset-studio/scratch';
 import { scriptNames } from '../workspaces/dialogue/model';
@@ -51,6 +56,17 @@ const run = (c: Ctx, cmds: Command | Command[], label: string) => {
   if (!r.ok) throw new Error(r.error ?? label);
 };
 const map = (c: Ctx) => c.ed.mapId.value;
+/** step 11: the Asset studio's build plate (its own editor state) */
+type Plate = Pick<EditorState, 'exec' | 'bus' | 'mapId'> & {
+  mirror: { value: Mirror };
+  stamp: { value: Stamp | null };
+  scene: { value: { all(): Brick[] } | null };
+};
+const plate = (): Plate => {
+  const p = (globalThis as unknown as { __plate?: Plate }).__plate;
+  if (!p?.scene.value) throw new Error('Open the asset in the Assets screen first.');
+  return p;
+};
 const studioChr = (c: Ctx) => {
   const id = c.ed.studioCharacter.value;
   const chr = id ? c.ed.store.get<Character>(paths.character(id)) : null;
@@ -224,6 +240,70 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const place = assetSpot(c.ed.store, c.ed.bus, map(c), def, { minSteps: 3 });
     if (!place) throw new Error('No room for it.');
     run(c, place, `Place ${def.name}`);
+  },
+  // step 11 (P24 part 1): the Build faster course — a new asset, mirrored bricks, a stamp and a drawbridge
+  buildNew(c, a) {
+    const name = String(a.name ?? 'Gatehouse');
+    const has = assetLibrary(c.ed).find((x) => x.asset.name === name && c.ed.store.has(paths.asset(x.asset.id)));
+    if (has) {
+      c.ui.editAsset(has.asset.id);
+      return;
+    }
+    const asset = { ...newAssetDef(c.ed), name };
+    run(c, { type: 'asset.create', payload: { asset } }, `New asset ${name}`);
+    c.ui.editAsset(asset.id);
+  },
+  buildMirrored(c, a) {
+    const p = plate();
+    if (p.mirror.value.x === null) p.mirror.value = { ...p.mirror.value, x: 0 };
+    const m = p.mirror.value;
+    const all = p.scene.value!.all();
+    const x0 = Math.max(...all.map((b) => b.x + 4), 2);
+    const n = Number(a.count ?? 3);
+    const want: NewBrick[] = [];
+    for (let i = 0; i < n; i++)
+      want.push({ type: 'brick1x2', x: x0 + i * 2, y: 0, z: 0, rot: 0, color: String(a.color ?? '#a0a5a9') });
+    const bricks = [...want, ...want.flatMap((b) => mirrorOf(b, m))];
+    const r = p.exec(
+      { type: 'bricks.place', payload: { map: p.mapId.value, bricks } },
+      { label: 'Place bricks (mirrored)' },
+    );
+    if (!r.ok) throw new Error(r.error ?? 'No room for the bricks.');
+  },
+  buildStamp(c) {
+    const p = plate();
+    const all = p.scene.value!.all();
+    const stamp = stampOf(all);
+    p.stamp.value = stamp;
+    for (let dz = 3; dz < 30; dz++) {
+      const bricks = stampAt(stamp, Math.min(...all.map((b) => b.x)), 0, Math.max(...all.map((b) => b.z)) + dz);
+      const cmd = { type: 'bricks.place', payload: { map: p.mapId.value, bricks } };
+      if (!p.bus.check(cmd)) {
+        p.exec(cmd, { label: 'Stamp' });
+        p.stamp.value = null;
+        return;
+      }
+    }
+    throw new Error('No room for the stamp.');
+  },
+  buildMover(c, a) {
+    const id = c.ed.studioAsset.value;
+    const def = id ? c.ed.store.get<Asset>(paths.asset(id)) : undefined;
+    if (!def) throw new Error('Open an asset first.');
+    const kind = String(a.kind ?? 'drawbridge') as Mover;
+    // the last bricks placed (the stamp) become the moving part
+    const idx = def.bricks.map((_, i) => i).slice(Math.floor(def.bricks.length / 2));
+    const taken = new Set(idx);
+    const rest = (def.parts ?? [])
+      .map((q) => ({ ...q, bricks: q.bricks.filter((k) => !taken.has(k)) }))
+      .filter((q) => q.bricks.length);
+    const next = makeMover(
+      { ...def, parts: [...rest, { name: MOVER_INFO[kind].label.split(' (')[0]!, bricks: idx }] },
+      rest.length,
+      kind,
+    );
+    if (typeof next === 'string') throw new Error(next);
+    run(c, { type: 'asset.update', payload: { asset: next } }, `Make a ${kind}`);
   },
   editAsset(c, a) {
     const def = assetByName(c, String(a.name));

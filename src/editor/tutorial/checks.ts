@@ -377,6 +377,22 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   },
   dialogueStyleIs: (ed, a) => (ed.store.manifest.dialogue?.style ?? 'adventure') === a,
   inConversation: (ed) => !!ed.session.value?.talks.active,
+  // step 11 (P24 part 1): the Build faster course — the open asset's plate and the asset itself
+  plateMirror: (_ed, a) => {
+    const p = (globalThis as unknown as { __plate?: { mirror: { value: Record<string, number | null> } } }).__plate;
+    return !!p && p.mirror.value[String(a)] !== null;
+  },
+  plateStamp: () =>
+    !!(globalThis as unknown as { __plate?: { stamp: { value: unknown[] | null } } }).__plate?.stamp.value?.length,
+  assetBricksAtLeast: (ed, a) => {
+    const id = ed.studioAsset.value;
+    return !!id && (ed.store.get<Asset>(paths.asset(id))?.bricks.length ?? 0) >= Number(a);
+  },
+  assetHasMover: (ed, a) => {
+    const id = ed.studioAsset.value;
+    const def = id ? ed.store.get<Asset>(paths.asset(id)) : undefined;
+    return !!def?.parts?.some((p) => p.name === a && !!p.pose && !!p.hinge) && def.interactions.length > 0;
+  },
   // P26: the saving course
   savingIs: (ed, a) => matches(savingOf(ed.store.manifest), a as Record<string, unknown>),
   // Milestone 2b: the water and physics course

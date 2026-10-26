@@ -122,6 +122,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Faces and pictures course: give Tom an angry and a happy face, hear him talk, write lines with moods, see him glare and laugh in Play, then make an owl from a few words with From a picture.',
   'help.shape':
     'Starts the Shape and draw course: make Nova, shape her (chest, hips, neckline) in Look, then draw a star on her cheek and print a shirt in the Draw tab.',
+  'help.buildFaster':
+    'Starts the Build faster course: a gatehouse built with Mirror X and Stamp, a drawbridge made in one click, then made pushable.',
   'help.hair':
     'Starts the Custom hair course: give Mira hair of her own (space buns, bigger, with dyed tips), save it to My library and put it on Leo.',
   'help.make':

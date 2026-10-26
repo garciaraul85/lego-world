@@ -510,6 +510,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('make'),
   },
   {
+    id: 'help.buildFaster',
+    label: 'Build faster course (mirror, stamp, moving parts)',
+    run: ({ ui }) => ui.tutorial('build'),
+  },
+  {
     id: 'help.hair',
     label: 'Custom hair course (hairstyles, My library)',
     run: ({ ui }) => ui.tutorial('hair'),
@@ -724,6 +729,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.shape',
     'help.make',
     'help.hair',
+    'help.buildFaster',
     'help.effects',
     'help.screenfx',
     'help.posing',

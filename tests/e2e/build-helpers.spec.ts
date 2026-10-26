@@ -96,7 +96,10 @@ test('Build helpers: Mirror X places, paints and erases both sides; Fill paints 
   expect(new Set(filled.map((b) => was.get(b.id))).size).toBeLessThanOrEqual(2);
   // Stamp: copy the whole asset and put a copy down
   await page.getByRole('button', { name: 'Undo', exact: true }).first().click();
+  // the plate is rebuilt after an undo in the editor: select once it is back
+  await page.waitForTimeout(800);
   await plate(page, (p) => p.select(p.scene.value!.all().map((b) => b.id)));
+  await expect(helpers.locator('[data-tour="stamp-copy"]')).toBeEnabled();
   await helpers.locator('[data-tour="mirror-x"]').click();
   await helpers.locator('[data-tour="stamp-copy"]').click();
   await expect(helpers.locator('[data-tour="stamp-status"]')).toContainText('Stamping');
@@ -113,5 +116,62 @@ test('Build helpers: Mirror X places, paints and erases both sides; Fill paints 
   await page.screenshot({ path: 'test-results/build-stamp.png' });
   await helpers.locator('[data-tour="stamp-stop"]').click();
   await expect(helpers.locator('[data-tour="stamp-status"]')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+async function doItForMe(card: import('@playwright/test').Locator, timeout: number, what: string) {
+  await card.getByRole('button', { name: 'Do it for me' }).click();
+  const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+  const done = card.getByText(/✓ Done!/);
+  await expect(rest.or(done), what).toBeVisible({ timeout });
+  if (await rest.isVisible()) await rest.click();
+  await expect(done, what).toBeVisible({ timeout });
+}
+
+test('Build faster course: Do it for me builds a gatehouse with the mirror and a stamp, a drawbridge, pushable', async ({
+  page,
+}) => {
+  test.setTimeout(400_000);
+  const errors: string[] = [];
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: /Build faster course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(6);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    if (await doIt.isVisible()) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doItForMe(card, 60_000, `${pos} ${title}`);
+    }
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  const a = await page.evaluate(() => {
+    const e = (
+      window as unknown as { __editor: { studioAsset: { value: string }; store: { get(p: string): unknown } } }
+    ).__editor;
+    return e.store.get(`assets/${e.studioAsset.value}.json`) as {
+      name: string;
+      bricks: unknown[];
+      loose?: boolean;
+      parts?: { name: string }[];
+    };
+  });
+  expect(a.name).toBe('Gatehouse');
+  expect(a.bricks.length).toBeGreaterThanOrEqual(14);
+  expect(a.loose).toBe(true);
+  expect(a.parts?.map((p) => p.name)).toContain('Drawbridge');
+  await page.screenshot({ path: 'test-results/build-course.png' });
   expect(errors).toEqual([]);
 });
