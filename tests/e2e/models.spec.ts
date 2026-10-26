@@ -126,10 +126,11 @@ test('a placed model is solid in Play (physics movement): the hero stands on a b
     }
   });
   await page.keyboard.press('F5');
+  // Play starts slowly when the machine is busy (the full run uses two browsers): up to 3 minutes
   await page.waitForFunction(
     () => ((window as unknown as { __editor: Ed }).__editor.session.value?.runtime.ticks ?? 0) > 30,
     undefined,
-    { timeout: 60_000 },
+    { timeout: 180_000 },
   );
   await expect
     .poll(() =>
