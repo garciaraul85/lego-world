@@ -806,6 +806,24 @@ export const HELP_STATES: HelpState[] = [
       await p.getByRole('region', { name: 'Asset library' }).getByRole('tab', { name: 'Bricks' }).click();
     },
   },
+  {
+    // Step 11 (P24 part 2): the brick editor making a curve, over an open asset's Bricks tab
+    id: 'assets-custom-brick',
+    screen: 'assets',
+    setup: async (p) => {
+      await ws(p, 'Assets');
+      await p.getByRole('listbox').getByRole('option').first().click();
+      const lib = p.getByRole('region', { name: 'Asset library' });
+      await lib.getByRole('tab', { name: 'Bricks' }).click();
+      await lib.locator('[data-tour="brick-kind-custom"]').click();
+      await lib.locator('[data-tour="brick-new"]').click();
+      const dlg = p.getByRole('dialog', { name: 'Brick editor' });
+      await dlg.locator('[data-tour="brick-name"]').fill('Roof curve');
+      await dlg.locator('[data-tour="brick-shape-curve"]').click();
+      await dlg.locator('[data-tour="brick-d"]').selectOption('3');
+      await p.waitForTimeout(1500);
+    },
+  },
   { id: 'screens', screen: 'screens', setup: (p) => ws(p, 'Screens') },
   {
     id: 'screens-widget',

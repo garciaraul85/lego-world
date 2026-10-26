@@ -6,6 +6,7 @@ import { BUILTIN_SCREENS } from '../../builtin/screens';
 import { MOVER_INFO, type Mover, makeMover } from '../../core/assets/movers';
 import { type Mirror, mirrorOf, type Stamp, stampAt, stampOf } from '../../core/bricks/build-tools';
 import type { Brick } from '../../core/bricks/codec';
+import { CustomBrick, customType } from '../../core/bricks/custom';
 import type { BodyPlan, Bone } from '../../core/character/body';
 import { makeFamily } from '../../core/character/families';
 import { cleanHair, type HairStyle } from '../../core/character/hair';
@@ -57,7 +58,7 @@ const run = (c: Ctx, cmds: Command | Command[], label: string) => {
 };
 const map = (c: Ctx) => c.ed.mapId.value;
 /** step 11: the Asset studio's build plate (its own editor state) */
-type Plate = Pick<EditorState, 'exec' | 'bus' | 'mapId'> & {
+type Plate = Pick<EditorState, 'exec' | 'bus' | 'mapId' | 'brush'> & {
   mirror: { value: Mirror };
   stamp: { value: Stamp | null };
   scene: { value: { all(): Brick[] } | null };
@@ -67,6 +68,12 @@ const plate = (): Plate => {
   if (!p?.scene.value) throw new Error('Open the asset in the Assets screen first.');
   return p;
 };
+/** the project's custom brick of this name */
+const customNamed = (c: Ctx, name: string): CustomBrick | undefined =>
+  c.ed.store
+    .list('bricks/')
+    .map((p) => c.ed.store.get<CustomBrick>(p))
+    .find((b) => b?.name === name);
 const studioChr = (c: Ctx) => {
   const id = c.ed.studioCharacter.value;
   const chr = id ? c.ed.store.get<Character>(paths.character(id)) : null;
@@ -285,6 +292,54 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       }
     }
     throw new Error('No room for the stamp.');
+  },
+  // step 11 (P24 part 2): the Custom bricks course — a slope made, put down four ways, changed into a curve
+  brickMake(c, a) {
+    const name = String(a.name ?? 'Roof slope');
+    const old = customNamed(c, name);
+    const brick = CustomBrick.parse({
+      id: old?.id ?? newId('custombrick'),
+      name,
+      base: old?.base ?? 'brick',
+      w: old?.w ?? Number(a.w ?? 2),
+      d: old?.d ?? Number(a.d ?? 3),
+      shape: String(a.shape ?? 'slope'),
+      studs: 'flat',
+    });
+    run(c, { type: 'brick.put', payload: { brick } }, `New brick ${name}`);
+    const p = (globalThis as unknown as { __plate?: Plate }).__plate;
+    if (p) p.brush.value = { ...p.brush.value, type: customType(brick) };
+  },
+  brickPlace(c, a) {
+    const p = plate();
+    const cb = customNamed(c, String(a.name ?? 'Roof slope'));
+    if (!cb) throw new Error('Make the brick first.');
+    const all = p.scene.value!.all();
+    const x0 = all.length ? Math.max(...all.map((b) => b.x)) + 5 : 0;
+    const n = Number(a.count ?? 4);
+    for (let i = 0; i < n; i++) {
+      let ok = false;
+      for (let y = 0; y < 30 && !ok; y++) {
+        const cmd = {
+          type: 'bricks.place',
+          payload: {
+            map: p.mapId.value,
+            bricks: [{ type: customType(cb), x: x0 + i * 4, y, z: 0, rot: i % 4, color: p.brush.value.color }],
+          },
+        };
+        if (!p.bus.check(cmd)) {
+          p.exec(cmd, { label: `Place ${cb.name}` });
+          ok = true;
+        }
+      }
+      if (!ok) throw new Error('No room for the brick.');
+    }
+  },
+  brickChange(c, a) {
+    const cb = customNamed(c, String(a.name ?? 'Roof slope'));
+    if (!cb) throw new Error('Make the brick first.');
+    const brick = { ...cb, shape: String(a.shape ?? 'curve') as CustomBrick['shape'] };
+    run(c, { type: 'brick.put', payload: { brick } }, `Change brick ${cb.name}`);
   },
   buildMover(c, a) {
     const id = c.ed.studioAsset.value;

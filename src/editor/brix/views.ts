@@ -465,6 +465,21 @@ export function stepsToView(view: string): ShowStep[] {
         ws('Assets'),
         { say: 'Open the Bricks tab.', find: control('[aria-label="Asset library"]', 'Bricks'), press: true },
       ];
+    case 'assets-custom-brick':
+      return [
+        ws('Assets'),
+        { say: 'Open the Bricks tab.', find: control('[aria-label="Asset library"]', 'Bricks'), press: true },
+        {
+          say: 'Press Custom.',
+          find: control('[aria-label="Asset library"]', /Custom/, '[data-tour="brick-kind-custom"]'),
+          press: true,
+        },
+        {
+          say: 'Press New brick… to open the brick editor.',
+          find: control('[aria-label="Asset library"]', /New brick/, '[data-tour="brick-new"]'),
+          press: true,
+        },
+      ];
     case 'screens':
       return [ws('Screens')];
     case 'screens-widget':

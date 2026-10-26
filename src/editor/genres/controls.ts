@@ -140,6 +140,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.brixCourse': S('core'),
   'help.here': S('core'),
   'help.buildFaster': S('core'),
+  'help.customBricks': S('core'),
   'help.ai': S('ai'),
   'assets.open': S('assets'),
   'characters.fromPicture': S('characters'),

@@ -1,0 +1,210 @@
+{
+  "id": "bricks",
+  "title": "Custom bricks course",
+  "steps": [
+    {
+      "id": "bricks.new",
+      "title": "A little tower",
+      "body": "The game's bricks, plates and tiles are boxes with studs. In the brick editor you make shapes of your own — slopes, curves, round bricks, cones, domes, arches, wedges — and build with them like any brick.",
+      "task": "Make a new asset called Tower.",
+      "target": "[data-tour=\"menu-assets\"]",
+      "check": {
+        "kind": "state",
+        "test": "studioAssetIs",
+        "args": "Tower"
+      },
+      "doItForMe": [
+        {
+          "fn": "buildNew",
+          "args": {
+            "name": "Tower"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Assets › New asset, then type Tower as its Name (Brix's helper does both).",
+          "check": {
+            "kind": "state",
+            "test": "studioAssetIs",
+            "args": "Tower"
+          },
+          "do": [
+            {
+              "fn": "buildNew",
+              "args": {
+                "name": "Tower"
+              },
+              "say": "Tower, open on its build plate."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "left"
+    },
+    {
+      "id": "bricks.make",
+      "title": "A roof slope",
+      "body": "In the Asset library's Bricks tab, Custom › New brick… opens the brick editor: a name, a shape, a height (brick, plate or tile), how many studs wide and deep, and studs on its flat top or none. The preview turns and zooms.",
+      "task": "Make a slope 2 wide and 3 deep called Roof slope.",
+      "target": "[data-tour=\"brick-kind-custom\"]",
+      "check": {
+        "kind": "state",
+        "test": "customBrickIs",
+        "args": {
+          "name": "Roof slope",
+          "shape": "slope"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "brickMake",
+          "args": {
+            "name": "Roof slope",
+            "shape": "slope",
+            "w": 2,
+            "d": 3
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Open the Bricks tab, press Custom, then New brick…. Name it Roof slope, pick Slope, Deep 3, and press Save the brick.",
+          "check": {
+            "kind": "state",
+            "test": "customBrickIs",
+            "args": {
+              "name": "Roof slope",
+              "shape": "slope"
+            }
+          },
+          "do": [
+            {
+              "fn": "brickMake",
+              "args": {
+                "name": "Roof slope",
+                "shape": "slope",
+                "w": 2,
+                "d": 3
+              },
+              "say": "Roof slope: in the Custom group, and in your brush."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "left"
+    },
+    {
+      "id": "bricks.place",
+      "title": "Build with it",
+      "body": "A saved brick is in your brush: click the build plate to put it down. T turns it a quarter turn first; paint it like any brick.",
+      "task": "Put four Roof slopes on the plate.",
+      "target": "[aria-label=\"Asset build plate\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetUsesCustom",
+        "args": {
+          "name": "Roof slope",
+          "count": 4
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "brickPlace",
+          "args": {
+            "name": "Roof slope",
+            "count": 4
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "With Roof slope in the brush, pick the Place tool (B) and click the plate four times (T turns it between clicks).",
+          "check": {
+            "kind": "state",
+            "test": "assetUsesCustom",
+            "args": {
+              "name": "Roof slope",
+              "count": 4
+            }
+          },
+          "do": [
+            {
+              "fn": "brickPlace",
+              "args": {
+                "name": "Roof slope",
+                "count": 4
+              },
+              "say": "Four roof slopes, turned to face four ways."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "left"
+    },
+    {
+      "id": "bricks.change",
+      "title": "Change the shape",
+      "body": "Press ✎ on a custom brick to change it: every brick of it follows, on every plate and map. Once it is used its height and size stay — Save a copy makes another size.",
+      "task": "Change Roof slope into a curve.",
+      "target": "[data-tour=\"brick-kind-custom\"]",
+      "check": {
+        "kind": "state",
+        "test": "customBrickIs",
+        "args": {
+          "name": "Roof slope",
+          "shape": "curve"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "brickChange",
+          "args": {
+            "name": "Roof slope",
+            "shape": "curve"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Press ✎ on Roof slope in the Custom group, pick Curve and press Save.",
+          "check": {
+            "kind": "state",
+            "test": "customBrickIs",
+            "args": {
+              "name": "Roof slope",
+              "shape": "curve"
+            }
+          },
+          "do": [
+            {
+              "fn": "brickChange",
+              "args": {
+                "name": "Roof slope",
+                "shape": "curve"
+              },
+              "say": "Every roof slope is a curve now."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "left"
+    },
+    {
+      "id": "bricks.done",
+      "title": "You can make bricks",
+      "body": "Custom bricks are in the Bricks tab's Custom group, in assets and maps, and keep their shape in Play (Play in v68 shows the plain brick of that size). Brix's Help has the brick editor (search “custom brick”).",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "placement": "bottom"
+    }
+  ]
+}

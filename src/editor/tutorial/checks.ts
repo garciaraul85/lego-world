@@ -393,6 +393,25 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     const def = id ? ed.store.get<Asset>(paths.asset(id)) : undefined;
     return !!def?.parts?.some((p) => p.name === a && !!p.pose && !!p.hinge) && def.interactions.length > 0;
   },
+  // step 11 (P24 part 2): the Custom bricks course
+  customBrickIs: (ed, a) => {
+    const want = a as { name: string; shape: string };
+    return ed.store.list('bricks/').some((p) => {
+      const b = ed.store.get<{ name: string; shape: string }>(p);
+      return b?.name === want.name && b.shape === want.shape;
+    });
+  },
+  assetUsesCustom: (ed, a) => {
+    const want = a as { name: string; count: number };
+    const id = ed.studioAsset.value;
+    const def = id ? ed.store.get<Asset>(paths.asset(id)) : undefined;
+    const cb = ed.store
+      .list('bricks/')
+      .map((p) => ed.store.get<{ id: string; name: string }>(p))
+      .find((b) => b?.name === want.name);
+    if (!def || !cb) return false;
+    return def.bricks.filter((b) => def.palette.types[b[0] as number]?.includes(`:${cb.id}:`)).length >= want.count;
+  },
   // P26: the saving course
   savingIs: (ed, a) => matches(savingOf(ed.store.manifest), a as Record<string, unknown>),
   // Milestone 2b: the water and physics course

@@ -126,3 +126,48 @@ test('Custom bricks: a slope made in the brick editor, built with on a plate, ch
   await page.keyboard.press('F5');
   expect(errors).toEqual([]);
 });
+
+async function doItForMe(card: import('@playwright/test').Locator, timeout: number, what: string) {
+  await card.getByRole('button', { name: 'Do it for me' }).click();
+  const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+  const done = card.getByText(/✓ Done!/);
+  await expect(rest.or(done), what).toBeVisible({ timeout });
+  if (await rest.isVisible()) await rest.click();
+  await expect(done, what).toBeVisible({ timeout });
+}
+
+test('Custom bricks course: Do it for me makes a roof slope, puts four down, changes it into a curve', async ({
+  page,
+}) => {
+  test.setTimeout(400_000);
+  const errors: string[] = [];
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: /Custom bricks course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(5);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    if (await doIt.isVisible()) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doItForMe(card, 60_000, `${pos} ${title}`);
+    }
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  const [cb] = await customs(page);
+  expect(cb).toMatchObject({ name: 'Roof slope', shape: 'curve' });
+  expect((await assetTypes(page)).some((t) => t.includes(`:${cb!.id}:`))).toBe(true);
+  await page.screenshot({ path: 'test-results/custom-brick-course.png' });
+  expect(errors).toEqual([]);
+});

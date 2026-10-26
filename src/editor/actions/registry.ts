@@ -515,6 +515,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('build'),
   },
   {
+    id: 'help.customBricks',
+    label: 'Custom bricks course (slopes, curves, the brick editor)',
+    run: ({ ui }) => ui.tutorial('bricks'),
+  },
+  {
     id: 'help.hair',
     label: 'Custom hair course (hairstyles, My library)',
     run: ({ ui }) => ui.tutorial('hair'),
@@ -730,6 +735,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.make',
     'help.hair',
     'help.buildFaster',
+    'help.customBricks',
     'help.effects',
     'help.screenfx',
     'help.posing',

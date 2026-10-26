@@ -37,6 +37,16 @@ Above the build plate, beside the brush:
 - **🪣 Fill**: the Paint tool paints every brick of the clicked colour that is joined to it (side by side or stacked). Shift+click fills once without turning Fill on.
 - **⧉ Stamp** (Ctrl C, then Ctrl V): copies the selected bricks; each click of the Place tool puts another copy down where you point, going up until it fits (with the mirror, if one is on). **Stop** or Escape ends it.
 
+## Custom bricks
+
+The Asset library's **Bricks** tab › **Custom** › **New brick…** opens the **brick editor**, for brick shapes the game doesn't have:
+
+- **Shape**: a slope (studs along its back), an inverted slope, a curve (a quarter-round top), a round brick, a cone, a dome, an arch (a round hole through it, 3 studs wide or more) or a wedge (cut on a slant). Round bricks, cones and domes are as deep as they are wide.
+- **Height**: a brick, a plate or a tile; **Wide** and **Deep**: 1 to 8 studs; **Studs**: on its flat top, or none.
+- The preview turns (drag) and zooms (scroll).
+
+A saved brick goes into your brush and the Custom group: place it, turn it (T) and paint it like any brick, in assets and maps. It keeps its shape in Play; Play in v68 shows the plain brick of that size. Press **✎** on it to change it, and every brick of it follows. Once bricks of it are used, its height and size stay (**Save a copy** makes another size) and it can't be deleted. A game holds up to 64 custom bricks; the AI builder makes them with `brick.put`.
+
 ## Turn it into
 
 **Turn it into**, under the asset's name: **💥 Breakable** (smashed in Play), **📦 Pushable** (loose: it falls, tips over when pushed and floats) and **🐾 A creature** — a new character that walks on a four-legged skeleton wearing the asset's bricks, opened in Characters › Body to change.

@@ -36,6 +36,7 @@ import shape from './content/26-shape-draw.json';
 import make from './content/27-make-anything.json';
 import hair from './content/28-hair.json';
 import build from './content/29-build.json';
+import bricks from './content/30-bricks.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -59,6 +60,7 @@ export type Track =
   | 'make'
   | 'hair'
   | 'build'
+  | 'bricks'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -122,6 +124,7 @@ export const SHAPE_STEPS: TrackStep[] = steps([shape].map((c) => Chapter.parse(c
 export const MAKE_STEPS: TrackStep[] = steps([make].map((c) => Chapter.parse(c)));
 export const HAIR_STEPS: TrackStep[] = steps([hair].map((c) => Chapter.parse(c)));
 export const BUILD_STEPS: TrackStep[] = steps([build].map((c) => Chapter.parse(c)));
+export const BRICKS_STEPS: TrackStep[] = steps([bricks].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -147,6 +150,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   make: { title: 'Make anything course', steps: MAKE_STEPS },
   hair: { title: 'Custom hair course', steps: HAIR_STEPS },
   build: { title: 'Build faster course', steps: BUILD_STEPS },
+  bricks: { title: 'Custom bricks course', steps: BRICKS_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),
