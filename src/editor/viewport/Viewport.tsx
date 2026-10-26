@@ -58,7 +58,7 @@ import {
   selectOnly,
   waterItems,
 } from '../interact/place';
-import { rayBox, type SceneModel } from '../scene';
+import { customRender, rayBox, type SceneModel } from '../scene';
 import type { EditorState } from '../state';
 import { fullscreenDock, sceneFullscreen, setActiveView, type ViewOp, type ViewportApi, viewOp } from './active';
 import {
@@ -309,6 +309,7 @@ export function Viewport({
           y: hit.y + ghostFit.dy,
           z,
           color: ghostFit.bad ? '#ff3b30' : br.color,
+          ...customRender(br),
         },
       };
     };
@@ -534,7 +535,7 @@ export function Viewport({
 
     const brickRender = (b: Brick): RenderBrick => {
       const [w, d] = footprint(b);
-      return { id: b.id, w, d, kind: kindOf(b.type), x: b.x, y: b.y, z: b.z, color: b.color };
+      return { id: b.id, w, d, kind: kindOf(b.type), x: b.x, y: b.y, z: b.z, color: b.color, ...customRender(b) };
     };
 
     const drawGizmo = (lines: LineSet[], markers: Marker[]) => {

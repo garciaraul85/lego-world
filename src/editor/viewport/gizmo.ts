@@ -10,6 +10,7 @@ import {
   type Tilt,
 } from '../../core/assets/tilt';
 import type { Brick } from '../../core/bricks/codec';
+import { customIdOf } from '../../core/bricks/custom';
 import { footprint } from '../../core/bricks/inspect';
 import { pivotOf, rotateQuarter } from '../../core/bricks/transform';
 import type { Command } from '../../core/commands';
@@ -430,6 +431,8 @@ export function rotateChange(map: string, t: GizmoTarget, quarters: number): Giz
 
 /** Brick type with the world footprint w×d (keeping the kind), and the rotation that gives it. */
 export function brickFor(b: Brick, w: number, d: number): { type: string; rot: number } | null {
+  // step 11: a custom brick keeps its size (it is its own shape)
+  if (customIdOf(b.type)) return null;
   const kind = /^(brick|plate|tile)/.exec(b.type)![1]!;
   for (const [r, c] of BRICK_SIZES) {
     // even rot: footprint = [cols, rows]; odd rot: [rows, cols]
@@ -524,7 +527,8 @@ export function resizeChange(map: string, t: GizmoTarget, handle: HandleId, amou
   if (handle === '+y') {
     const n = Math.round(amount / PLATE);
     const kind = n >= 1 ? 'brick' : n <= -1 ? 'plate' : null;
-    if (kind && !b.type.startsWith(kind)) next = { ...b, type: b.type.replace(/^(brick|plate|tile)/, kind) };
+    if (kind && !b.type.startsWith(kind) && !customIdOf(b.type))
+      next = { ...b, type: b.type.replace(/^(brick|plate|tile)/, kind) };
   } else {
     const alongX = handle.endsWith('x');
     const cur = alongX ? w : d;

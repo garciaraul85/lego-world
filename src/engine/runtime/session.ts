@@ -9,10 +9,12 @@ import { type Cleanup, cleanupOf, DEBRIS_FADE, MAX_BROKEN, RUBBLE_BRICKS } from 
 import { expandAsset } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances, instanceBricks } from '../../core/assets/instances';
+import { customIdOf } from '../../core/bricks/custom';
 import { footprint } from '../../core/bricks/inspect';
 import { brickHeight } from '../../core/bricks/map-bricks';
 import {
   brickToPiece,
+  chunkCustomShapes,
   chunkExactColors,
   chunkPieces,
   type FileSource,
@@ -522,24 +524,31 @@ export class PlaySession {
     const decoded: LegacyPiece[] = [];
     // any-colour bricks keep their exact colour in Play (v68 saves keep the nearest v68 colour)
     const exact = new Map<number, string>();
+    // step 11: custom bricks keep their shape in Play
+    const shapes = new Map<number, string>();
     for (let i = 0; i < chunkPaths.length; i++) {
       const c = this.snapshot.get(chunkPaths[i]!) as Chunk;
       chunkPieces(c, decoded);
       chunkExactColors(c, exact);
+      chunkCustomShapes(c, shapes);
       if (i % 8 === 7) yield (0.7 * (i + 1)) / chunkPaths.length;
     }
     for (const b of instanceBricks(this.snapshot, mapId)) {
       decoded.push(brickToPiece(b));
       if (!LEGACY_HEX.has(b.color.toLowerCase())) exact.set(b.id, b.color.toLowerCase());
+      const shape = customIdOf(b.type);
+      if (shape) shapes.set(b.id, shape);
     }
     yield 0.75;
     decoded.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
     yield 0.8;
     const build = mapToLegacyBuild(this.snapshot, mapId, { pieces: decoded });
     const meta = (build.world ?? null) as LegacyWorldMeta;
-    const pieces = build.pieces.map((p) =>
-      p.id !== undefined && exact.has(p.id) ? { ...p, hex: exact.get(p.id)! } : { ...p },
-    );
+    const pieces = build.pieces.map((p) => {
+      const q: LegacyPiece = p.id !== undefined && exact.has(p.id) ? { ...p, hex: exact.get(p.id)! } : { ...p };
+      if (p.id !== undefined && shapes.has(p.id)) q.shape = shapes.get(p.id)!;
+      return q;
+    });
     yield 0.85;
     // Milestone 2b: loose objects are bodies in the physics core, not solid bricks of the map
     const expanded = expandInstances(this.snapshot, mapId);

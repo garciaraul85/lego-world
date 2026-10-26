@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CUSTOM_SHAPES, CustomBrick } from '../bricks/custom';
 import { BodyPlan } from '../character/body';
 import { CREATURE_EXTRAS, CREATURE_SHAPES } from '../character/compose';
 import { HAIR_BEARDS, HAIR_FRINGES, HAIR_PARTINGS, HAIR_TIES, HAIR_TOPS, HairStyle } from '../character/hair';
@@ -8,6 +9,7 @@ import * as Bp from '../commands/handlers/bodyplans';
 import * as B from '../commands/handlers/bricks';
 import * as Ch from '../commands/handlers/characters';
 import * as Ci from '../commands/handlers/cinematics';
+import * as Cb from '../commands/handlers/custombricks';
 import * as Dl from '../commands/handlers/dialogue';
 import * as Fx from '../commands/handlers/effects';
 import * as G from '../commands/handlers/gates';
@@ -94,7 +96,7 @@ const Generate = z.strictObject({
   snowing: z.boolean().optional(),
 });
 const NewBrick = z.strictObject({
-  type: z.string().regex(/^(brick|plate|tile)\d+x\d+$/),
+  type: z.string().regex(/^(brick|plate|tile)(:cbk_[0-9a-z]{10}:)?\d+x\d+$/),
   x: z.number().int(),
   y: z.number().int().min(0),
   z: z.number().int(),
@@ -977,6 +979,24 @@ export const AI_COMMANDS: AiCommand[] = [
         beardLength: 40,
       },
     },
+  ),
+  def(
+    'brick.put',
+    Cb.putCustomBrick,
+    z.strictObject({ brick: CustomBrick }),
+    ['asset'],
+    'Assets',
+    `Adds or replaces a custom brick shape: name, base brick/plate/tile (its height), w and d (studs, 1-8, before it is turned), shape ${CUSTOM_SHAPES.join('/')}, studs flat/none. Its bricks have the type name <base>:<id>:<d>x<w> (like brick:cbk_aaaaaaaaaa:2x4) and are placed like any brick (bricks.place) or used in assets. Once used, its base and size stay.`,
+    { brick: { id: 'cbk_aaaaaaaaaa', name: 'Roof slope', base: 'brick', w: 2, d: 2, shape: 'slope', studs: 'flat' } },
+  ),
+  def(
+    'brick.delete',
+    Cb.deleteCustomBrick,
+    z.strictObject({ id: ids('custombrick') }),
+    ['asset'],
+    'Assets',
+    'Deletes a custom brick no map or asset uses.',
+    { id: 'cbk_aaaaaaaaaa' },
   ),
   def(
     'hairstyle.delete',

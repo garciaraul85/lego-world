@@ -34,6 +34,7 @@ import {
   updateClip,
 } from './handlers/characters';
 import { deleteCinematic, putCinematic } from './handlers/cinematics';
+import { deleteCustomBrick, putCustomBrick } from './handlers/custombricks';
 import { deleteDialogue, putDialogue } from './handlers/dialogue';
 import { deleteEffect, deleteScreenEffect, putEffect, putScreenEffect } from './handlers/effects';
 import { deleteFile, putFile } from './handlers/file';
@@ -105,6 +106,8 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('bodyplan.delete', deleteBodyPlan);
   bus.register('hairstyle.put', putHairStyle);
   bus.register('hairstyle.delete', deleteHairStyle);
+  bus.register('brick.put', putCustomBrick);
+  bus.register('brick.delete', deleteCustomBrick);
   bus.register('effect.put', putEffect);
   bus.register('effect.delete', deleteEffect);
   bus.register('screenEffect.put', putScreenEffect);

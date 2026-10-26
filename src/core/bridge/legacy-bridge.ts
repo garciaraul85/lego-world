@@ -1,5 +1,6 @@
 import { instanceBricks } from '../assets/instances';
 import type { Brick } from '../bricks/codec';
+import { customIdOf, parseBrickType } from '../bricks/custom';
 import { lookForV68 } from '../character/hair';
 import { LEGACY_COLORS } from '../legacy/constants';
 import type { LegacyBuild, LegacyLink, LegacyMapEntry, LegacyPiece, LegacySave } from '../legacy/types';
@@ -34,9 +35,10 @@ export function legacyColorIndex(hex: string | undefined): number {
 
 /** "brick2x4" -> kind/rows/cols */
 export function parseType(type: string): Pick<LegacyPiece, 'kind' | 'rows' | 'cols'> {
-  const m = /^(brick|plate|tile)(\d+)x(\d+)$/.exec(type);
+  // step 11: a custom brick goes to v68 as the plain brick of its kind and size
+  const m = parseBrickType(type);
   if (!m) throw new Error(`unknown brick type ${type}`);
-  return { kind: m[1] as LegacyPiece['kind'], rows: Number(m[2]), cols: Number(m[3]) };
+  return { kind: m.kind as LegacyPiece['kind'], rows: m.rows, cols: m.cols };
 }
 
 /** P27 part 3c: one chunk's bricks as legacy pieces, added to `out` (a map loads chunk by chunk) */
@@ -59,6 +61,17 @@ export function chunkPieces(c: Chunk, out: LegacyPiece[]): void {
     };
     if (r[o + 8]! >= 0) p.group = c.palette.groups[r[o + 8]!]!;
     out.push(p);
+  }
+}
+
+/** step 11: one chunk's custom bricks, added to `out` (id → custom brick id), for Play to draw their shapes */
+export function chunkCustomShapes(c: Chunk, out: Map<number, string>): void {
+  const ids = c.palette.types.map(customIdOf);
+  if (!ids.some((x) => x)) return;
+  const r = chunkRows(c);
+  for (let o = 0; o < r.length; o += BRICK_STRIDE) {
+    const id = ids[r[o]!];
+    if (id) out.set(r[o + 7]!, id);
   }
 }
 
@@ -90,6 +103,8 @@ export function brickToPiece(b: Brick, exact = false): LegacyPiece {
   const color = legacyColorIndex(b.color);
   const p: LegacyPiece = { id: b.id, rows, cols, turn: b.rot, x: b.x, y: b.y, z: b.z, kind, color };
   if (exact && !COLOR_INDEX.has(b.color.toLowerCase())) p.hex = b.color.toLowerCase();
+  const shape = exact ? customIdOf(b.type) : null;
+  if (shape) p.shape = shape;
   if (b.group !== undefined) p.group = b.group;
   return p;
 }

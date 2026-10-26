@@ -12,6 +12,8 @@ export type LegacyPiece = {
   group?: string;
   /** the exact colour when it is not one of v68's colours (Play draws it; v68 saves use `color`) */
   hex?: string;
+  /** step 11: the custom brick it is (Play draws its shape; v68 saves get the plain brick) */
+  shape?: string;
 };
 export type LegacyWorld = {
   config: Record<string, unknown> & { biomes?: string[]; size?: number; seed?: number };

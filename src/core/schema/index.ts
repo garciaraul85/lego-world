@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { CustomBrick } from '../bricks/custom';
 import { BodyPlan } from '../character/body';
 import { HairStyle } from '../character/hair';
 import { Conversation } from '../dialogue/schema';
@@ -70,6 +71,8 @@ const KINDS = [
   ['screenEffect', /^screenfx\/sce_[0-9a-z]{10}\.json$/, ScreenEffect],
   // Milestone 3, 10d part 3: hairstyles in My library
   ['hairstyle', /^hairstyles\/hst_[0-9a-z]{10}\.json$/, HairStyle],
+  // step 11 (P24 part 2): custom brick shapes
+  ['custombrick', /^bricks\/cbk_[0-9a-z]{10}\.json$/, CustomBrick],
 ] as const satisfies ReadonlyArray<readonly [string, RegExp, z.ZodType]>;
 
 export type FileKind = (typeof KINDS)[number][0] | 'editor';
@@ -158,4 +161,6 @@ export const paths = {
   screenEffectDir: 'screenfx/',
   hairstyle: (id: string) => `hairstyles/${id}.json`,
   hairstyleDir: 'hairstyles/',
+  customBrick: (id: string) => `bricks/${id}.json`,
+  customBrickDir: 'bricks/',
 } as const;

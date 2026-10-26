@@ -6226,3 +6226,38 @@ img.bw-portrait {
   cursor: zoom-in;
   align-self: flex-start;
 }
+
+/* step 11 (P24 part 2): the brick editor */
+.brick-editor {
+  width: min(900px, 100%);
+}
+.brick-editor-body {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  flex-wrap: wrap;
+}
+.brick-editor-view {
+  flex: 1;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.brick-editor-view .fp-preview-view {
+  margin: 0;
+  min-height: 380px;
+}
+.brick-shapes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.brick-custom-card .brick-edit {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+.brick-custom-card {
+  position: relative;
+}

@@ -6,6 +6,7 @@ import { partPose } from '../../../core/assets/free';
 import { MOVER_INFO, MOVERS, type Mover, makeMover } from '../../../core/assets/movers';
 import { bricksBox, hasScale, hasTilt, type Scale, type Tilt } from '../../../core/assets/tilt';
 import type { Brick } from '../../../core/bricks/codec';
+import { type CustomBrick, customBrick, customIdOf, customType, parseBrickType } from '../../../core/bricks/custom';
 import { MapBricks } from '../../../core/bricks/map-bricks';
 import type { Command } from '../../../core/commands';
 import { CommandBus, registerAll } from '../../../core/commands';
@@ -35,6 +36,7 @@ import { LightFields } from '../../panels/LightFields';
 import type { StudioPart } from '../../scene';
 import { EditorState, type ToolId } from '../../state';
 import { Viewport, type ViewportApi } from '../../viewport/Viewport';
+import { BrickEditor } from './BrickEditor';
 import { assetFromScratch, initialIndex, type Scratch, scratchFor, turnPart } from './scratch';
 
 /** The studio's own editor state: same tools and commands, on the scratch build plate. */
@@ -563,8 +565,11 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
 function BrushPicker({ ed }: { ed: EditorState }) {
   const b = ed.brush.value;
   const [open, setOpen] = useState(false);
-  const m = /^(brick|plate|tile)(\d+)x(\d+)$/.exec(b.type)!;
-  const name = `${m[1]!.charAt(0).toUpperCase() + m[1]!.slice(1)} ${m[2]}×${m[3]}`;
+  const t = parseBrickType(b.type) ?? { kind: 'brick', rows: 2, cols: 4 };
+  const cid = customIdOf(b.type);
+  const name = cid
+    ? (customBrick(cid)?.name ?? 'Custom brick')
+    : `${t.kind.charAt(0).toUpperCase() + t.kind.slice(1)} ${t.rows}×${t.cols}`;
   return (
     <span class="studio-brush">
       <button
@@ -651,7 +656,7 @@ function Library({
           Bricks
         </button>
       </div>
-      {tab === 'bricks' && sed ? <PlateBricks ed={sed} /> : null}
+      {tab === 'bricks' && sed ? <PlateBricks ed={sed} main={c.ed} /> : null}
       <div style={{ padding: '8px', display: tab === 'assets' ? 'flex' : 'none', flexDirection: 'column', gap: '6px' }}>
         <button type="button" class="btn on" onClick={newAsset}>
           + New asset
@@ -745,15 +750,45 @@ function Library({
 }
 
 /** P32: the bricks to build with: click a piece (then click the plate), or drag it straight onto the plate. */
-function PlateBricks({ ed }: { ed: EditorState }) {
+function PlateBricks({ ed, main }: { ed: EditorState; main: EditorState }) {
   const b = ed.brush.value;
   const set = (patch: Partial<typeof b>) => {
     ed.brush.value = { ...b, ...patch };
     if (patch.type && ed.tool.value !== 'place') ed.tool.value = 'place';
   };
+  // step 11: the game's custom bricks (kept in the game, not on the plate), made and changed in the brick editor
+  const [editing, setEditing] = useState<CustomBrick | 'new' | null>(null);
+  void main.revision.value;
+  const customs = main.store
+    .list(paths.customBrickDir)
+    .map((p) => main.store.get<CustomBrick>(p)!)
+    .filter(Boolean)
+    .sort((x, y) => x.name.localeCompare(y.name));
   return (
     <div class="scroll plate-bricks">
-      <BrickPicker type={b.type} color={b.color} rot={b.rot} onPick={(type) => set({ type })} draggable />
+      <BrickPicker
+        type={b.type}
+        color={b.color}
+        rot={b.rot}
+        onPick={(type) => set({ type })}
+        draggable
+        customs={customs}
+        onNewCustom={() => setEditing('new')}
+        onEditCustom={(cb) => setEditing(cb)}
+      />
+      {editing && (
+        <BrickEditor
+          ed={main}
+          start={editing === 'new' ? null : editing}
+          color={b.color}
+          onClose={() => setEditing(null)}
+          onSaved={(cb) => {
+            setEditing(null);
+            set({ type: customType(cb) });
+            main.notify(`${cb.name} is in Custom: click the plate to put it down.`);
+          }}
+        />
+      )}
       <span class="muted small">Turned {b.rot * 90}° (T)</span>
       <Swatches value={b.color} onPick={(color) => set({ color })} />
       <div class="hint">

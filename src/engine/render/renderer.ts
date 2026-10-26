@@ -1,5 +1,7 @@
+import { customBrick } from '../../core/bricks/custom';
 import type { SkySample } from '../../core/legacy/modules';
 import { brickGeometry, coneGeometry, downTriangle, type Geometry, PLATE, plainBox, turnedY } from './brick-geometry';
+import { customGeometry } from './custom-geometry';
 
 /** P23: particles to draw this frame: tiny bricks, plates, tiles or studs of one size, centre and colour each (6 floats) */
 export type ParticleBatch = {
@@ -37,6 +39,9 @@ export type RenderBrick = {
   z: number;
   color: string;
   paved?: boolean;
+  /** step 11: a custom brick's id and its quarter turns (its shape is drawn turned) */
+  shape?: string;
+  rot?: number;
 };
 
 export type Mesh = { p: WebGLBuffer; n: WebGLBuffer; count: number };
@@ -49,6 +54,9 @@ type Batch = {
   covered: boolean;
   buffer: WebGLBuffer;
   count: number;
+  /** step 11: a custom brick's shape and turn */
+  shape?: string;
+  rot?: number;
 };
 type ChunkGpu = { batches: Batch[]; min: Vec3; max: Vec3; bricks: number };
 
@@ -172,11 +180,23 @@ export type ChunkGroup = {
   paved: boolean;
   covered: boolean;
   values: Float32Array;
+  /** step 11: a custom brick's shape and turn */
+  shape?: string;
+  rot?: number;
 };
 export function chunkGroups(bricks: readonly RenderBrick[]): { groups: ChunkGroup[]; min: Vec3; max: Vec3 } {
   const groups = new Map<
     string,
-    { w: number; d: number; kind: RenderBrick['kind']; paved: boolean; covered: boolean; values: number[] }
+    {
+      w: number;
+      d: number;
+      kind: RenderBrick['kind'];
+      paved: boolean;
+      covered: boolean;
+      values: number[];
+      shape?: string;
+      rot?: number;
+    }
   >();
   const min: Vec3 = [Infinity, Infinity, Infinity];
   const max: Vec3 = [-Infinity, -Infinity, -Infinity];
@@ -194,9 +214,18 @@ export function chunkGroups(bricks: readonly RenderBrick[]): { groups: ChunkGrou
   };
   for (const b of bricks) {
     const paved = !!b.paved;
-    const covered = !paved && isCovered(b);
-    const k = `${b.w},${b.d},${b.kind},${paved},${covered}`;
-    const g = groups.get(k) ?? { w: b.w, d: b.d, kind: b.kind, paved, covered, values: [] };
+    // a custom brick is drawn whole (its studs are part of its shape)
+    const covered = !paved && !b.shape && isCovered(b);
+    const k = `${b.w},${b.d},${b.kind},${paved},${covered},${b.shape ?? ''},${b.rot ?? 0}`;
+    const g = groups.get(k) ?? {
+      w: b.w,
+      d: b.d,
+      kind: b.kind,
+      paved,
+      covered,
+      values: [],
+      ...(b.shape ? { shape: b.shape, rot: b.rot ?? 0 } : {}),
+    };
     if (!groups.has(k)) groups.set(k, g);
     const c = brickCenter(b);
     g.values.push(c[0], c[1], c[2], ...brickRgb(b.color));
@@ -525,11 +554,15 @@ export class Renderer {
     return { p, n, count: g.positions.length / 3 };
   }
 
-  private shape(w: number, d: number, kind: RenderBrick['kind'], paved: boolean): Mesh {
-    const key = `${w},${d},${kind},${paved},${this.segments}`;
+  private shape(w: number, d: number, kind: RenderBrick['kind'], paved: boolean, custom?: string, rot = 0): Mesh {
+    // step 11: a custom brick's mesh is its shape, made again when the brick changes (its settings are in the key)
+    const def = custom ? customBrick(custom) : undefined;
+    const key = def
+      ? `cbk:${def.shape},${def.studs},${def.base},${def.w},${def.d},${rot % 4},${this.segments}`
+      : `${w},${d},${kind},${paved},${this.segments}`;
     let m = this.meshes.get(key);
     if (!m) {
-      m = this.upload(brickGeometry(w, d, kind, this.segments, paved));
+      m = this.upload(def ? customGeometry(def, rot, this.segments) : brickGeometry(w, d, kind, this.segments, paved));
       this.meshes.set(key, m);
     }
     return m;
@@ -617,6 +650,7 @@ export class Renderer {
         covered: g.covered,
         buffer,
         count: g.values.length / 6,
+        ...(g.shape ? { shape: g.shape, rot: g.rot ?? 0 } : {}),
       });
     }
     this.chunks.set(key, { batches, min, max, bricks: bricks.length });
@@ -706,7 +740,7 @@ export class Renderer {
     if (!this.inst) {
       for (const b of list)
         this.drawSingle(
-          this.shape(b.w, b.d, b.kind, !!b.paved),
+          this.shape(b.w, b.d, b.kind, !!b.paved, b.shape, b.rot),
           brickCenter(b),
           tint ?? brickRgb(b.color),
           alpha,
@@ -716,8 +750,8 @@ export class Renderer {
     }
     const groups = new Map<string, { m: Mesh; values: number[] }>();
     for (const b of list) {
-      const k = `${b.w},${b.d},${b.kind}`;
-      const g = groups.get(k) ?? { m: this.shape(b.w, b.d, b.kind, false), values: [] };
+      const k = `${b.w},${b.d},${b.kind},${b.shape ?? ''},${b.rot ?? 0}`;
+      const g = groups.get(k) ?? { m: this.shape(b.w, b.d, b.kind, false, b.shape, b.rot), values: [] };
       if (!groups.has(k)) groups.set(k, g);
       g.values.push(...brickCenter(b), ...(tint ?? brickRgb(b.color)));
     }
@@ -830,7 +864,9 @@ export class Renderer {
       for (const b of c.batches) {
         gl.uniform1f(this.u.uPavement!, b.paved ? 1 : 0);
         const mesh =
-          (far || b.covered) && !b.paved ? this.lodShape(b.w, b.d, b.kind) : this.shape(b.w, b.d, b.kind, b.paved);
+          (far || b.covered) && !b.paved && !b.shape
+            ? this.lodShape(b.w, b.d, b.kind)
+            : this.shape(b.w, b.d, b.kind, b.paved, b.shape, b.rot);
         if (this.inst) this.drawInstanced(mesh, b.buffer, b.count);
       }
     }
@@ -1058,7 +1094,8 @@ export class Renderer {
       const planes = frustumPlanes(mvp);
       for (const c of near) {
         if (!boxVisible(planes, c.min, c.max)) continue;
-        for (const b of c.batches) this.drawInstanced(this.shape(b.w, b.d, b.kind, b.paved), b.buffer, b.count);
+        for (const b of c.batches)
+          this.drawInstanced(this.shape(b.w, b.d, b.kind, b.paved, b.shape, b.rot), b.buffer, b.count);
       }
       if (casters.length) {
         gl.uniform1f(u.uInstances!, 0);

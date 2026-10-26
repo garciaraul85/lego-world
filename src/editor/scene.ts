@@ -10,6 +10,7 @@ import {
   transformOf,
 } from '../core/assets/tilt';
 import { type Brick, chunkKey, decodeChunk } from '../core/bricks/codec';
+import { customIdOf, parseBrickType } from '../core/bricks/custom';
 import { footprint } from '../core/bricks/inspect';
 import { worldGenerator } from '../core/legacy/modules';
 import type { ProjectStore } from '../core/project/store';
@@ -191,7 +192,8 @@ export class SceneModel {
       mountainScale: g.mountainScale,
     });
     const legacy = (b: Brick) => {
-      const m = /^(brick|plate|tile)(\d+)x(\d+)$/.exec(b.type)!;
+      const t = parseBrickType(b.type)!;
+      const m = [b.type, t.kind, String(t.rows), String(t.cols)] as const;
       return {
         id: b.id,
         kind: m[1] as 'brick',
@@ -302,6 +304,7 @@ export class SceneModel {
       z: b.z,
       color: b.color,
       paved: this.pavement?.(b) ?? false,
+      ...customRender(b),
     };
   }
 
@@ -406,4 +409,10 @@ function faceNormal(p: Vec3, min: Vec3, max: Vec3): Vec3 {
       [0, 0, 1],
     ] as Vec3[]
   )[i]!;
+}
+
+/** step 11: a custom brick's shape and turn, for the renderer */
+export function customRender(b: Pick<Brick, 'type' | 'rot'>): { shape?: string; rot?: number } {
+  const shape = customIdOf(b.type);
+  return shape ? { shape, rot: b.rot } : {};
 }

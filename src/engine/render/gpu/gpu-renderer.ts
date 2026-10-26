@@ -1,7 +1,9 @@
+import { customBrick } from '../../../core/bricks/custom';
 import type { SkySample } from '../../../core/legacy/modules';
 import type { FogParams } from '../../lighting/atmosphere';
 import { brickGeometry, coneGeometry, downTriangle, type Geometry, plainBox, turnedY } from '../brick-geometry';
 import type { CameraFrame } from '../camera';
+import { customGeometry } from '../custom-geometry';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from '../math';
 import { drawBox, type ModelDraw, type ModelUpload } from '../model-draw';
 import {
@@ -126,6 +128,9 @@ type GpuBatch = {
   covered: boolean;
   buffer: GPUBuffer;
   count: number;
+  /** step 11: a custom brick's shape and turn */
+  shape?: string;
+  rot?: number;
 };
 type GpuChunk = { batches: GpuBatch[]; min: Vec3; max: Vec3; bricks: number };
 
@@ -761,7 +766,7 @@ export class GpuRenderer {
       for (const c of f.job.near) {
         if (!boxVisible(planes, c.min, c.max)) continue;
         for (const b of c.batches) {
-          const mesh = this.shape(b.w, b.d, b.kind, b.paved);
+          const mesh = this.shape(b.w, b.d, b.kind, b.paved, b.shape, b.rot);
           p.setVertexBuffer(0, mesh.p);
           p.setVertexBuffer(1, mesh.n);
           p.setVertexBuffer(2, b.buffer);
@@ -847,7 +852,14 @@ export class GpuRenderer {
     return m;
   }
 
-  private shape(w: number, d: number, kind: RenderBrick['kind'], paved: boolean): GpuMesh {
+  private shape(w: number, d: number, kind: RenderBrick['kind'], paved: boolean, custom?: string, rot = 0): GpuMesh {
+    // step 11: a custom brick's mesh is its shape, made again when the brick changes (its settings are in the key)
+    const def = custom ? customBrick(custom) : undefined;
+    if (def)
+      return this.cached(
+        `cbk:${def.shape},${def.studs},${def.base},${def.w},${def.d},${rot % 4},${this.segments}`,
+        () => customGeometry(def, rot, this.segments),
+      );
     return this.cached(`${w},${d},${kind},${paved},${this.segments}`, () =>
       brickGeometry(w, d, kind, this.segments, paved),
     );
@@ -896,7 +908,16 @@ export class GpuRenderer {
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
       });
       this.device.queue.writeBuffer(buffer, 0, g.values);
-      return { w: g.w, d: g.d, kind: g.kind, paved: g.paved, covered: g.covered, buffer, count: g.values.length / 6 };
+      return {
+        w: g.w,
+        d: g.d,
+        kind: g.kind,
+        paved: g.paved,
+        covered: g.covered,
+        buffer,
+        count: g.values.length / 6,
+        ...(g.shape ? { shape: g.shape, rot: g.rot ?? 0 } : {}),
+      };
     });
     this.chunks.set(key, { batches, min, max, bricks: bricks.length });
     this.chunkRev++;
@@ -1080,7 +1101,9 @@ export class GpuRenderer {
       const far = dist > this.lodDistance * this.detailScale;
       for (const b of c.batches) {
         const mesh =
-          (far || b.covered) && !b.paved ? this.lodShape(b.w, b.d, b.kind) : this.shape(b.w, b.d, b.kind, b.paved);
+          (far || b.covered) && !b.paved && !b.shape
+            ? this.lodShape(b.w, b.d, b.kind)
+            : this.shape(b.w, b.d, b.kind, b.paved, b.shape, b.rot);
         calls.push({
           pipe: this.pipes.opaque,
           mesh,
@@ -1151,8 +1174,8 @@ export class GpuRenderer {
       const sl = slot(o.model ?? IDENTITY, o.alpha, o.flat, false, false);
       const groups = new Map<string, { m: GpuMesh; values: number[] }>();
       for (const b of o.bricks) {
-        const k = `${b.w},${b.d},${b.kind}`;
-        const g = groups.get(k) ?? { m: this.shape(b.w, b.d, b.kind, false), values: [] };
+        const k = `${b.w},${b.d},${b.kind},${b.shape ?? ''},${b.rot ?? 0}`;
+        const g = groups.get(k) ?? { m: this.shape(b.w, b.d, b.kind, false, b.shape, b.rot), values: [] };
         if (!groups.has(k)) groups.set(k, g);
         g.values.push(...brickCenter(b), ...(o.color ?? brickRgb(b.color)));
       }
@@ -1220,7 +1243,10 @@ export class GpuRenderer {
         for (const b of c.batches)
           rcalls.push({
             pipe: this.pipes.opaque,
-            mesh: b.paved ? this.shape(b.w, b.d, b.kind, true) : this.lodShape(b.w, b.d, b.kind),
+            mesh:
+              b.paved || b.shape
+                ? this.shape(b.w, b.d, b.kind, !!b.paved, b.shape, b.rot)
+                : this.lodShape(b.w, b.d, b.kind),
             inst: { buffer: b.buffer, offset: 0, count: b.count },
             slot: b.paved ? paved : plain,
           });

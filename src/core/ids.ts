@@ -24,6 +24,8 @@ export const ID_PREFIX = {
   screenEffect: 'sce',
   /** Milestone 3, 10d part 3: a hairstyle in My library */
   hairstyle: 'hst',
+  /** step 11 (P24 part 2): a custom brick shape */
+  custombrick: 'cbk',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

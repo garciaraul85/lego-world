@@ -31,6 +31,7 @@ const toRender = (p: LegacyPiece): RenderBrick => {
     y: p.y,
     z: p.z,
     color: p.hex ?? LEGACY_COLORS[p.color]?.[1] ?? '#ff00ff',
+    ...(p.shape ? { shape: p.shape, rot: p.turn } : {}),
   };
 };
 
