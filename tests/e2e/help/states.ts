@@ -585,12 +585,12 @@ export const HELP_STATES: HelpState[] = [
       await ws(p, 'Characters');
       await p.evaluate(() => {
         const e = (window as unknown as { __editor: Ed & Record<string, { value: unknown }> }).__editor;
-        if (!e.store.get('characters/chr_helpsculpt1.json'))
+        if (!e.store.get('characters/chr_helpsculp1.json'))
           e.exec({
             type: 'character.create',
             payload: {
               character: {
-                id: 'chr_helpsculpt1',
+                id: 'chr_helpsculp1',
                 name: 'Patch',
                 role: 'npc',
                 profile: { name: 'Patch' },
@@ -598,7 +598,7 @@ export const HELP_STATES: HelpState[] = [
               },
             },
           });
-        e.studioCharacter!.value = 'chr_helpsculpt1';
+        e.studioCharacter!.value = 'chr_helpsculp1';
         e.sheetTab!.value = 'body';
       });
       await p.locator('[data-tour="sculpt-add"]').click();
