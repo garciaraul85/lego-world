@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CommandBus, registerAll } from '../../src/core/commands';
-import { importMedia, isAnimated, isBigPicture, sniff } from '../../src/core/media/import';
+import { importMedia, isAnimated, isBigPicture, MAX_BYTES, sniff } from '../../src/core/media/import';
 import { mediaCredits, mediaTotals, mediaUses, sizeText } from '../../src/core/media/uses';
 import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
@@ -56,6 +56,29 @@ describe('Your own media: kinds and checks', () => {
     expect(isBigPicture({ ...e, bytes: 3_000_000, animated: true })).toBe(false);
     expect(sizeText(1536)).toBe('2 KB');
     expect(sizeText(3 * 1024 * 1024)).toBe('3.0 MB');
+  });
+});
+
+describe('Your own media: limits', () => {
+  it('limits each kind as planned, and warns (never refuses) past the 300 MB budget', async () => {
+    const big = new Uint8Array(11 * 1024 * 1024);
+    big.set([0x89, 0x50, 0x4e, 0x47]);
+    const pic = await importMedia('big.png', big, { index: undefined, measure });
+    expect(!pic.ok && pic.error).toMatch(/over 10 MB/);
+    const full = {
+      items: {
+        [`sha256:${'c'.repeat(64)}`]: {
+          name: 'x.mp4',
+          kind: 'video' as const,
+          mime: 'video/mp4',
+          bytes: 300 * 1024 * 1024 - 8,
+        },
+      },
+    };
+    const over = await importMedia('spin.gif', GIF2, { index: full, measure });
+    expect(over.ok).toBe(true);
+    expect(over.ok && over.warnings.join(' ')).toMatch(/over 300 MB/);
+    expect(MAX_BYTES).toMatchObject({ image: 10485760, audio: 26214400, video: 104857600 });
   });
 });
 

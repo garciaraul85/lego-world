@@ -14,6 +14,8 @@ The Add cards show a small preview of each widget: click one to add it, or drag 
 
 A **Video** widget plays an imported clip (.mp4 or .webm; Import a video… in its properties): an intro, a story scene, or a moving background with **Loop**. **Sound** plays its sound (some browsers wait for the first click and play it silent until then), **Click or Enter skips it** lets players end it early, and **Show it whole** keeps the whole picture with black bars. **When it ends** runs actions: show the title screen, close this screen, set a value.
 
+Files from File › Media library drag straight onto the screen: a picture onto an image widget, a button or a background, a video onto the screen (a Video widget is made), a sound onto a button.
+
 A **Credits** widget shows your own lines (who made the game, thanks), then every imported file with a credit: its name, who made it and its licence. Set those in File › Media library.
 
 ## Move and size on the screen

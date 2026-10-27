@@ -326,13 +326,8 @@ test('Media library: big pictures shrink as they come in; files drag onto a scre
 
   // the sound onto a cutscene's timeline
   await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Cinematics' }).click();
+  await page.getByRole('button', { name: 'New empty scene' }).click();
   const timeline = page.getByRole('group', { name: 'Timeline' });
-  if (!(await timeline.isVisible().catch(() => false))) {
-    await page
-      .getByRole('button', { name: /New cinematic|\+ New/ })
-      .first()
-      .click();
-  }
   await expect(timeline).toBeVisible({ timeout: 20_000 });
   const before = await page.evaluate(() => {
     const e = (window as unknown as { __editor: Ed & { store: { list(p: string): string[] } } }).__editor;
@@ -362,5 +357,33 @@ test('Media library: big pictures shrink as they come in; files drag onto a scre
       .flatMap((t) => t.items).length;
   });
   expect(sfx).toBeGreaterThan(0);
+
+  // a 3D model file onto the Scene: it stands where it was let go
+  await openLib();
+  await lib.getByLabel('Files to import').setInputFiles(resolve(process.cwd(), 'src/builtin/models/barrel.glb'));
+  await expect.poll(async () => Object.keys(await media(page)).length, { timeout: 30_000 }).toBe(5);
+  await page.keyboard.press('Escape');
+  await page.getByRole('navigation', { name: 'Workspaces' }).getByRole('button', { name: 'Scene' }).click();
+  const view = page.getByRole('region', { name: 'Viewport' }).getByLabel('3D map view').first();
+  await expect(view).toBeVisible();
+  const ref = Object.entries(
+    await page.evaluate(
+      () =>
+        (
+          (window as unknown as { __editor: Ed }).__editor.store.get('media/index.json') as {
+            items: Record<string, { kind: string }>;
+          }
+        ).items,
+    ),
+  ).find(([, m]) => m.kind === 'model')![0];
+  await drag(/barrel\.glb/, view);
+  await expect
+    .poll(() =>
+      page.evaluate((ref) => {
+        const e = (window as unknown as { __editor: Ed & { mapId: { value: string } } }).__editor;
+        return JSON.stringify(e.store.get(`maps/${e.mapId.value}/instances.json`) ?? {}).includes(ref);
+      }, ref),
+    )
+    .toBe(true);
   expect(errors).toEqual([]);
 });
