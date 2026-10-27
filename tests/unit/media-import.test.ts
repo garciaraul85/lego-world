@@ -87,7 +87,7 @@ describe('Media import (P5.2)', () => {
       { source: 'user' },
     );
     expect(bus.execute({ type: 'media.remove', payload: { ref: ref0 } }, { source: 'user' }).error).toMatch(
-      /still plays/,
+      /Still used by Sound events/,
     );
   });
 });

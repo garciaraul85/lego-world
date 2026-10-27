@@ -88,6 +88,8 @@ export const COMMAND_TYPES = [
   'art.delete',
   'media.register',
   'media.remove',
+  'media.update',
+  'media.replace',
   'file.put',
   'file.delete',
 ] as const;

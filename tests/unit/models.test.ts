@@ -68,7 +68,7 @@ describe('3D models', () => {
     // the file can't be removed while a map uses it
     expect(run({ type: 'media.remove', payload: { ref } })).toMatchObject({
       ok: false,
-      error: expect.stringMatching(/map still has that model/),
+      error: expect.stringMatching(/Still used by Map/),
     });
     // sizes and turns stay in range
     expect(run({ type: 'item.update', payload: { map, id: 'ins_model00001', patch: { size: 100 } } }).ok).toBe(false);

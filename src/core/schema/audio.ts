@@ -57,14 +57,28 @@ export const MediaIndex = z.strictObject({
     MediaRef,
     z.strictObject({
       name: z.string().min(1).max(120),
-      kind: z.enum(['audio', 'image', 'font', 'model']),
+      kind: z.enum(['audio', 'image', 'font', 'model', 'video']),
       mime: z.string().min(1).max(60),
       bytes: z.number().int().min(0),
+      /** sound and video length, seconds */
       duration: z.number().min(0).optional(),
       channels: z.number().int().min(1).max(8).optional(),
       sampleRate: z.number().int().positive().optional(),
       /** Milestone 2b, 10c part 5: a 3D model's triangles */
       triangles: z.number().int().min(0).optional(),
+      /** step 11 (P24 part 3): a picture's or video's size in pixels */
+      w: z.number().int().min(1).optional(),
+      h: z.number().int().min(1).optional(),
+      /** an animated picture (a GIF or WebP with frames) */
+      animated: z.boolean().optional(),
+      /** who made it: shown in the game's credits */
+      credit: z
+        .strictObject({
+          author: z.string().max(80),
+          license: z.string().max(60),
+          link: z.string().max(300).optional(),
+        })
+        .optional(),
     }),
   ),
 });

@@ -18,10 +18,12 @@ import {
   putScreen,
   registerMedia,
   removeMedia,
+  replaceMedia,
   setMixer,
   setMusicSettings,
   setMusicState,
   setSoundEvent,
+  updateMedia,
 } from './handlers/audio';
 import { deleteBodyPlan, makeFigure, putBodyPlan } from './handlers/bodyplans';
 import { moveBricks, paintBricks, placeBricks, removeBricks, updateBricks } from './handlers/bricks';
@@ -146,6 +148,8 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('art.put', putArt);
   bus.register('art.delete', deleteArt);
   bus.register('media.remove', removeMedia);
+  bus.register('media.update', updateMedia);
+  bus.register('media.replace', replaceMedia);
   bus.register('screen.put', putScreen);
   bus.register('screen.delete', deleteScreen);
   bus.register('item.add', addItem);

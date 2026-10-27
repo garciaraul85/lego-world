@@ -1,7 +1,8 @@
 import { usesOf } from '../../audio/usage';
 import { isId } from '../../ids';
+import { mediaUses } from '../../media/uses';
 import type { ProjectStore } from '../../project/store';
-import { type MediaIndex, Mixer, Music, paths, type Screen, Screen as ScreenSchema, SoundEvents } from '../../schema';
+import { MediaIndex, Mixer, Music, paths, type Screen, Screen as ScreenSchema, SoundEvents } from '../../schema';
 import type { CommandHandler } from '../types';
 
 type SoundEvent = SoundEvents['events'][string];
@@ -105,20 +106,77 @@ export const removeMedia: CommandHandler<{ ref: string }> = {
   label: () => 'Remove imported media',
   validate(store, p) {
     if (!store.get<MediaIndex>(paths.media)?.items[p.ref]) return 'That media file is not in the project.';
-    for (const path of [paths.soundEvents, paths.music])
-      if (JSON.stringify(store.get(path) ?? {}).includes(p.ref)) return 'A sound event or music still plays that file.';
-    for (const path of store.list('screens/'))
-      if (JSON.stringify(store.get(path)).includes(p.ref)) return 'A screen still shows that image.';
-    // Milestone 2b, 10c part 5: a model placed on a map
-    for (const path of store.list('maps/'))
-      if (path.endsWith('/instances.json') && JSON.stringify(store.get(path)).includes(p.ref))
-        return 'A map still has that model placed on it.';
-    return null;
+    // step 11 (P24 part 3): every file that names it (art and characters too, not only screens, sounds and maps)
+    const u = mediaUses(store, p.ref);
+    return u.length
+      ? `Still used by ${u
+          .slice(0, 3)
+          .map((x) => x.what)
+          .join(', ')}${u.length > 3 ? '…' : ''}.`
+      : null;
   },
   apply(store, p) {
     const cur = store.get<MediaIndex>(paths.media)!;
     const items = { ...cur.items };
     delete items[p.ref];
+    store.put(paths.media, { items });
+  },
+};
+
+type MediaItem = MediaIndex['items'][string];
+
+/** step 11 (P24 part 3): rename an imported file, or say who made it (its credit) */
+export const updateMedia: CommandHandler<{ ref: string; name?: string; credit?: MediaItem['credit'] | null }> = {
+  label: (p) => (p.credit !== undefined ? 'Credit media' : 'Rename media'),
+  validate(store, p) {
+    const cur = store.get<MediaIndex>(paths.media)?.items[p.ref];
+    if (!cur) return 'That media file is not in the project.';
+    if (p.name !== undefined && !p.name.trim()) return 'A name is needed.';
+    const next = MediaIndex.safeParse({ items: { [p.ref]: patched(cur, p) } });
+    return issue(next);
+  },
+  apply(store, p) {
+    const cur = store.get<MediaIndex>(paths.media)!;
+    store.put(paths.media, { items: { ...cur.items, [p.ref]: patched(cur.items[p.ref]!, p) } });
+  },
+};
+function patched(cur: MediaItem, p: { name?: string; credit?: MediaItem['credit'] | null }): MediaItem {
+  const next: MediaItem = { ...cur };
+  if (p.name !== undefined) next.name = p.name.trim().slice(0, 120);
+  if (p.credit === null || (p.credit && !p.credit.author.trim() && !p.credit.license.trim() && !p.credit.link?.trim()))
+    delete next.credit;
+  else if (p.credit)
+    next.credit = {
+      author: p.credit.author.trim(),
+      license: p.credit.license.trim(),
+      ...(p.credit.link?.trim() ? { link: p.credit.link.trim() } : {}),
+    };
+  return next;
+}
+
+/**
+ * step 11 (P24 part 3): one file stands in for another everywhere it is used (a shrunk picture for the big one):
+ * every project file naming `from` names `to`, which is registered with `entry`; `from` leaves the project.
+ */
+export const replaceMedia: CommandHandler<{ from: string; to: string; entry: MediaItem }> = {
+  label: (p) => `Replace ${p.entry.name}`,
+  validate(store, p) {
+    const items = store.get<MediaIndex>(paths.media)?.items ?? {};
+    if (!items[p.from]) return 'That media file is not in the project.';
+    if (!/^sha256:[0-9a-f]{64}$/.test(p.to)) return 'Media refs look like sha256:<64 hex>.';
+    if (p.to === p.from) return 'It is the same file.';
+    return issue(MediaIndex.safeParse({ items: { [p.to]: p.entry } }));
+  },
+  apply(store, p) {
+    for (const u of mediaUses(store, p.from)) {
+      const data = store.get(u.path);
+      store.put(u.path, JSON.parse(JSON.stringify(data).replaceAll(p.from, p.to)));
+    }
+    const cur = store.get<MediaIndex>(paths.media)!;
+    const items = { ...cur.items, [p.to]: cur.items[p.to] ?? p.entry };
+    if (cur.items[p.from]?.credit && !items[p.to]!.credit)
+      items[p.to] = { ...items[p.to]!, credit: cur.items[p.from]!.credit };
+    delete items[p.from];
     store.put(paths.media, { items });
   },
 };

@@ -254,8 +254,10 @@ function widgetEntries(): HelpEntry[] {
 const MORE_COMMANDS: Record<string, string> = {
   'file.put': 'Writes one project file (used by import and the editor itself, never by the AI).',
   'file.delete': 'Deletes one project file (used by the editor itself, never by the AI).',
-  'media.register': 'Adds an imported sound, picture or font to the project media list.',
+  'media.register': 'Adds an imported sound, picture, video, font or 3D model to the project media list.',
   'media.remove': 'Removes an imported media file the project no longer uses.',
+  'media.update': 'Renames an imported file, or says who made it (its credit: author, licence, link).',
+  'media.replace': 'Puts one imported file in place of another everywhere it is used (a shrunk picture for a big one).',
   'art.put': 'Adds or changes a background, icon or font (Screens → Art).',
   'art.delete': 'Deletes a background, icon or font no screen uses.',
 };
