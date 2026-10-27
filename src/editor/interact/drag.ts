@@ -6,7 +6,16 @@ import { signal } from '@preact/signals';
  */
 export type DragPayload =
   | { kind: 'asset'; asset: string; rot: number }
-  | { kind: 'brick'; type: string; color: string; rot: number };
+  | { kind: 'brick'; type: string; color: string; rot: number }
+  | MediaDrag;
+
+/** step 11 (P24 part 3): an imported file dragged from the Media library */
+export type MediaDrag = {
+  kind: 'media';
+  ref: string;
+  media: 'image' | 'video' | 'audio' | 'model' | 'font';
+  name: string;
+};
 
 export const dragPayload = signal<DragPayload | null>(null);
 
@@ -15,7 +24,7 @@ export const DRAG_MIME = 'application/x-brickworlds';
 export function startDrag(e: DragEvent, p: DragPayload) {
   dragPayload.value = p;
   e.dataTransfer?.setData(DRAG_MIME, JSON.stringify(p));
-  e.dataTransfer?.setData('text/plain', p.kind === 'asset' ? p.asset : p.type);
+  e.dataTransfer?.setData('text/plain', p.kind === 'asset' ? p.asset : p.kind === 'media' ? p.name : p.type);
   if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
 }
 

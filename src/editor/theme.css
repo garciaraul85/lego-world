@@ -6453,3 +6453,8 @@ img.bw-portrait {
     grid-template-columns: 1fr;
   }
 }
+/* while a file is dragged out of the Media library, it steps aside so what is behind takes the drop */
+.media-lib-away {
+  opacity: 0;
+  pointer-events: none;
+}

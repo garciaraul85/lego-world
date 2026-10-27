@@ -3,9 +3,10 @@ import { encodePixels, GLYPH_SET } from '../../../../core/art/render';
 import { starterGlyphs } from '../../../../core/art/ttf';
 import type { Command } from '../../../../core/commands';
 import { newId } from '../../../../core/ids';
-import { ACCEPT_OF, importMedia } from '../../../../core/media/import';
-import { type Art, type MediaIndex, paths } from '../../../../core/schema';
+import { ACCEPT_OF } from '../../../../core/media/import';
+import { type Art, paths } from '../../../../core/schema';
 import { matches, NoMatch, SearchBox } from '../../../components/SearchBox';
+import { importFile } from '../../../media/import-files';
 import type { EditorState } from '../../../state';
 import { artFont, artUrl } from './render';
 
@@ -90,8 +91,7 @@ export function useArtActions(ed: EditorState, onOpen: (id: string) => void) {
   const importFiles = async (fl: FileList) => {
     let last: string | null = null;
     for (const f of [...fl]) {
-      const bytes = new Uint8Array(await f.arrayBuffer());
-      const r = await importMedia(f.name, bytes, { index: ed.store.get<MediaIndex>(paths.media) });
+      const r = await importFile(ed, f.name, new Uint8Array(await f.arrayBuffer()), { register: false });
       if (!r.ok) {
         ed.notify(r.error, true);
         continue;
@@ -101,7 +101,7 @@ export function useArtActions(ed: EditorState, onOpen: (id: string) => void) {
         ed.notify(`${f.name} is not ${kind === 'font' ? 'a font' : 'a picture'}.`, true);
         continue;
       }
-      ed.media?.put(r.ref, new Blob([bytes], { type: r.entry.mime }));
+      if (r.shrunk) ed.notify(`${f.name} shrunk as it came in: ${r.shrunk}.`);
       const name = f.name.replace(/\.[^.]+$/, '').slice(0, 60) || 'Imported';
       const art: Art = {
         id: newId('art') as Art['id'],

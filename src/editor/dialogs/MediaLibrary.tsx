@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { ACCEPT, importMedia, isBigPicture, MAX_PROJECT_BYTES, type MediaKind } from '../../core/media/import';
+import { ACCEPT, GAME_BUDGET_BYTES, isBigPicture, type MediaKind } from '../../core/media/import';
 import { mediaTotals, mediaUses, sizeText } from '../../core/media/uses';
 import { type MediaIndex, paths } from '../../core/schema';
+import { endDrag, startDrag } from '../interact/drag';
+import { importFiles as importAll, setShrinkOnImport, shrinkOnImport } from '../media/import-files';
 import { shrinkMedia } from '../media/shrink';
 import type { EditorState } from '../state';
 
@@ -19,7 +21,8 @@ export const LICENSES = ['My own work', 'CC0 (public domain)', 'CC BY 4.0', 'CC 
 
 /**
  * Step 11 (P24 part 3): the Media library (File › Media library…) — every file the game imported (pictures, videos,
- * sounds, 3D models, fonts): how much of the 200 MB they take, where each is used, its name and who made it (the
+ * sounds, 3D models, fonts): how much of the 300 MB budget they take (going over warns; a shared game is split into
+ * parts), where each is used, its name and who made it (the
  * credits), shrinking big pictures, and removing what nothing uses.
  */
 export function MediaLibrary({ ed, onClose }: { ed: EditorState; onClose(): void }) {
@@ -30,6 +33,9 @@ export function MediaLibrary({ ed, onClose }: { ed: EditorState; onClose(): void
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<string | null>(null);
   const [busy, setBusy] = useState('');
+  const [shrinkIn, setShrinkIn] = useState(shrinkOnImport());
+  // while a file is dragged out, the library steps aside so it can be dropped on what is behind it
+  const [dragging, setDragging] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   const totals = mediaTotals(index);
   const uses = new Map(items.map(([ref]) => [ref, mediaUses(ed.store, ref)]));
@@ -53,27 +59,10 @@ export function MediaLibrary({ ed, onClose }: { ed: EditorState; onClose(): void
 
   const importFiles = async (fl: FileList) => {
     setBusy('Importing…');
-    ed.audio.init();
-    const ctx = ed.audio.ctx;
-    let last: string | null = null;
-    for (const f of [...fl]) {
-      const bytes = new Uint8Array(await f.arrayBuffer());
-      const r = await importMedia(f.name, bytes, {
-        index: ed.store.get<MediaIndex>(paths.media),
-        ...(ctx ? { decode: (b: ArrayBuffer) => ctx.decodeAudioData(b) } : {}),
-      });
-      if (!r.ok) {
-        ed.notify(r.error, true);
-        continue;
-      }
-      ed.media?.put(r.ref, new Blob([bytes], { type: r.entry.mime }));
-      if (!r.duplicate) ed.exec({ type: 'media.register', payload: { ref: r.ref, entry: r.entry } });
-      else ed.notify(`${f.name} is already in the game (kept once).`);
-      for (const w of r.warnings) ed.notify(w);
-      last = r.ref;
-    }
+    const out = await importAll(ed, [...fl], { shrink: shrinkIn });
     setBusy('');
-    if (last) setSel(last);
+    const last = [...out].reverse().find((r) => r.ok);
+    if (last?.ok) setSel(last.ref);
   };
 
   /** a smaller copy takes the big picture's place everywhere it is used */
@@ -98,16 +87,39 @@ export function MediaLibrary({ ed, onClose }: { ed: EditorState; onClose(): void
       ed.notify(`Removed ${unused.length} unused files (${sizeText(unused.reduce((n, [, m]) => n + m.bytes, 0))}).`);
   };
 
-  const pct = Math.min(100, (totals.bytes / MAX_PROJECT_BYTES) * 100);
+  const pct = Math.min(100, (totals.bytes / GAME_BUDGET_BYTES) * 100);
+  const over = totals.bytes > GAME_BUDGET_BYTES;
   return (
-    <div class="fp-back" role="dialog" aria-modal="true" aria-label="Media library" data-help="media.library">
+    <div
+      class={`fp-back${dragging ? ' media-lib-away' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Media library"
+      data-help="media.library"
+    >
       <div class="fp media-lib">
         <header class="fp-head">
           <b>🗂 Media library</b>
           <span class="muted small" style={{ marginLeft: '10px' }}>
-            {items.length} files · {sizeText(totals.bytes)} of 200 MB
+            {items.length} files · {sizeText(totals.bytes)} of 300 MB
           </span>
           <span style={{ flex: 1 }} />
+          <label
+            class="row small"
+            title="A picture wider or taller than 2048 pixels, over 1 MB, or a BMP is made smaller as it comes in"
+          >
+            <input
+              type="checkbox"
+              checked={shrinkIn}
+              data-tour="media-shrink-in"
+              onChange={(e) => {
+                const on = (e.target as HTMLInputElement).checked;
+                setShrinkIn(on);
+                setShrinkOnImport(on);
+              }}
+            />
+            Shrink big pictures as they come in
+          </label>
           <button
             type="button"
             class="btn on small"
@@ -134,7 +146,7 @@ export function MediaLibrary({ ed, onClose }: { ed: EditorState; onClose(): void
             ✕
           </button>
         </header>
-        <div class="media-budget" data-tour="media-budget" title={`${sizeText(totals.bytes)} of 200 MB`}>
+        <div class="media-budget" data-tour="media-budget" title={`${sizeText(totals.bytes)} of 300 MB`}>
           <div
             class="media-budget-bar"
             role="meter"
@@ -147,7 +159,7 @@ export function MediaLibrary({ ed, onClose }: { ed: EditorState; onClose(): void
               totals.by[k.kind] ? (
                 <span
                   class={`media-seg media-${k.kind}`}
-                  style={{ width: `${(totals.by[k.kind]!.bytes / MAX_PROJECT_BYTES) * 100}%` }}
+                  style={{ width: `${(totals.by[k.kind]!.bytes / Math.max(GAME_BUDGET_BYTES, totals.bytes)) * 100}%` }}
                   title={`${k.label}: ${sizeText(totals.by[k.kind]!.bytes)}`}
                 />
               ) : null,
@@ -161,7 +173,14 @@ export function MediaLibrary({ ed, onClose }: { ed: EditorState; onClose(): void
               </span>
             ))}
             <span style={{ flex: 1 }} />
-            {pct > 80 && <span class="media-warn">Nearly full: shrink pictures or remove unused files.</span>}
+            {over ? (
+              <span class="media-warn" role="status">
+                Over 300 MB: it still works here; when shared, the game is split into parts. Shrink pictures or remove
+                unused files to stay under.
+              </span>
+            ) : (
+              pct > 80 && <span class="media-warn">Nearly 300 MB: shrink pictures or remove unused files.</span>
+            )}
           </div>
         </div>
         <div class="row" style={{ gap: '6px', flexWrap: 'wrap' }}>
@@ -226,6 +245,22 @@ export function MediaLibrary({ ed, onClose }: { ed: EditorState; onClose(): void
                   aria-selected={sel === ref}
                   class={`media-row ${sel === ref ? 'on' : ''}`}
                   data-tour={`media-row-${ref.slice(7, 17)}`}
+                  draggable
+                  title="Drag it onto a screen widget, a button, the cutscene timeline or (a 3D model) the Scene"
+                  onDragStart={(e) => {
+                    startDrag(e as unknown as DragEvent, {
+                      kind: 'media',
+                      ref,
+                      media: m.kind as MediaKind,
+                      name: m.name,
+                    });
+                    // after the browser has taken its drag picture
+                    setTimeout(() => setDragging(true), 0);
+                  }}
+                  onDragEnd={() => {
+                    endDrag();
+                    setDragging(false);
+                  }}
                   onClick={() => setSel(ref)}
                 >
                   <Thumb ed={ed} r={ref} m={m} size={44} />
@@ -326,7 +361,10 @@ function Detail({
       <div class="media-preview">
         {url && m.kind === 'image' && <img src={url} alt={m.name} />}
         {url && m.kind === 'video' && <video src={url} controls muted playsInline aria-label={`Video ${m.name}`} />}
-        {url && m.kind === 'audio' && <audio src={url} controls aria-label={`Sound ${m.name}`} />}
+        {url && m.kind === 'audio' && (
+          // biome-ignore lint/a11y/useMediaCaption: a preview of the maker's own file, which has no captions
+          <audio src={url} controls aria-label={`Sound ${m.name}`} />
+        )}
         {(!url || m.kind === 'font' || m.kind === 'model') && (
           <span style={{ fontSize: '48px' }} aria-hidden="true">
             {ICON[m.kind as MediaKind]}

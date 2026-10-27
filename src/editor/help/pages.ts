@@ -20,7 +20,7 @@ import { MAX_GATES } from '../../core/commands/handlers/gates';
 import { MAX_ITEMS_PER_MAP } from '../../core/commands/handlers/items';
 import { MAX_MAPS, MAX_SPAWNS, MAX_ZONES } from '../../core/commands/handlers/map';
 import { logicReferenceMarkdown } from '../../core/logic/reference';
-import { MAX_FILE_BYTES, MAX_PROJECT_BYTES } from '../../core/media/import';
+import { GAME_BUDGET_BYTES, MAX_BYTES } from '../../core/media/import';
 import { MAX_STEPS } from '../../engine/logic/interpreter';
 import { MAX_WORLD_UI } from '../../engine/ui/WorldUI';
 import { ACTIONS, MENUS } from '../actions/registry';
@@ -113,8 +113,11 @@ function limitsMarkdown(): string {
     `| Gates | ${MAX_GATES} |`,
     `| Cinematics | ${MAX_CINEMATICS} |`,
     `| Logic steps per event chain | ${MAX_STEPS} |`,
-    `| Imported file | ${mb(MAX_FILE_BYTES)} |`,
-    `| Imported media per project | ${mb(MAX_PROJECT_BYTES)} |`,
+    `| Imported picture or font | ${mb(MAX_BYTES.image)} |`,
+    `| Imported sound or music | ${mb(MAX_BYTES.audio)} |`,
+    `| Imported 3D model | ${mb(MAX_BYTES.model)} |`,
+    `| Imported video | ${mb(MAX_BYTES.video)} |`,
+    `| Imported media per game (going over warns) | ${mb(GAME_BUDGET_BYTES)} |`,
   ].join('\n');
 }
 

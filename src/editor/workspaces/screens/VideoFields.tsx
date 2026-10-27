@@ -1,9 +1,10 @@
 import { useRef } from 'preact/hooks';
-import { ACCEPT_OF, importMedia } from '../../../core/media/import';
+import { ACCEPT_OF } from '../../../core/media/import';
 import { sizeText } from '../../../core/media/uses';
 import { type MediaIndex, paths, type Widget } from '../../../core/schema';
 import { ActionListField } from '../../components/ActionListField';
 import { PreviewPicker } from '../../components/PreviewPicker';
+import { importFile } from '../../media/import-files';
 import { actionChoices } from '../../panels/AudioFields';
 import type { EditorState } from '../../state';
 
@@ -39,18 +40,15 @@ export function VideoFields({
     </label>
   );
   const importVideo = async (f: File) => {
-    const bytes = new Uint8Array(await f.arrayBuffer());
-    const r = await importMedia(f.name, bytes, { index: ed.store.get<MediaIndex>(paths.media) });
+    if (!/\.(mp4|webm)$/i.test(f.name)) {
+      ed.notify(`${f.name} is not a video (.mp4 or .webm).`, true);
+      return;
+    }
+    const r = await importFile(ed, f.name, new Uint8Array(await f.arrayBuffer()));
     if (!r.ok) {
       ed.notify(r.error, true);
       return;
     }
-    if (r.entry.kind !== 'video') {
-      ed.notify(`${f.name} is not a video.`, true);
-      return;
-    }
-    ed.media?.put(r.ref, new Blob([bytes], { type: r.entry.mime }));
-    if (!r.duplicate) ed.exec({ type: 'media.register', payload: { ref: r.ref, entry: r.entry } });
     style('src', r.ref);
     for (const x of r.warnings) ed.notify(x);
   };

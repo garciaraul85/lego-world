@@ -53,6 +53,7 @@ import {
   modelItems,
   placeAssetAt,
   placeItemAt,
+  placeModelAt,
   placeSpawnAt,
   type SceneTarget,
   selectOnly,
@@ -1452,6 +1453,13 @@ export function Viewport({
       const p = dragPayload.value;
       const s = ed.scene.value;
       if (!p || !s || mode !== 'scene') return;
+      // step 11 (P24 part 3): an imported 3D model file from the Media library goes into the Scene
+      if (p.kind === 'media') {
+        if (p.media !== 'model' || studio) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        return;
+      }
       // the Scene takes assets; an asset's build plate takes bricks and other assets
       if (p.kind === 'brick' ? !studio : studio && !studio.reuse) return;
       e.preventDefault();
@@ -1488,6 +1496,15 @@ export function Viewport({
       const p = dragPayload.value;
       const s = ed.scene.value;
       if (!p || !s || mode !== 'scene') return;
+      if (p.kind === 'media') {
+        if (p.media !== 'model' || studio) return;
+        e.preventDefault();
+        endDrag();
+        const at = s.surface(rayAt(e), (b) => !ed.isVisible(b));
+        if (at) placeModelAt(ed, at, p.ref, p.name.replace(/\.[^.]+$/, ''));
+        else flashTag('Drop it on the ground or a brick', local(e));
+        return;
+      }
       if (p.kind === 'brick' ? !studio : studio && !studio.reuse) return;
       e.preventDefault();
       const hit = s.surface(rayAt(e), (b) => !ed.isVisible(b));

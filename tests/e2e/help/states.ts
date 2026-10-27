@@ -844,11 +844,14 @@ export const HELP_STATES: HelpState[] = [
       await signals(p, { mediaLibrary: true });
       const lib = p.getByRole('dialog', { name: 'Media library' });
       const fix = resolve(process.cwd(), 'tests/fixtures/media');
+      // the wide picture comes in as it is, so the picture shows it marked big (then the choice goes back on)
+      await lib.locator('[data-tour="media-shrink-in"]').uncheck();
       await lib
         .getByLabel('Files to import')
         .setInputFiles(['spin.gif', 'clip.webm', 'wide.png'].map((f) => resolve(fix, f)));
       await lib.getByRole('option', { name: /spin\.gif/ }).waitFor({ timeout: 20_000 });
       await lib.getByRole('option', { name: /wide\.png/ }).waitFor({ timeout: 20_000 });
+      await lib.locator('[data-tour="media-shrink-in"]').check();
       await lib.getByRole('option', { name: /spin\.gif/ }).click();
       await lib.locator('[data-tour="media-author"]').fill('Ana');
       await lib.locator('[data-tour="media-license"]').fill('CC BY 4.0');
@@ -878,9 +881,13 @@ export const HELP_STATES: HelpState[] = [
     id: 'screens-credits',
     screen: 'screens',
     setup: async (p) => {
-      await p.getByRole('treeitem', { name: /credits1/ }).first().click().catch(async () => {
-        await p.locator('.sc-device [data-widget="credits1"]').first().click();
-      });
+      await p
+        .getByRole('treeitem', { name: /credits1/ })
+        .first()
+        .click()
+        .catch(async () => {
+          await p.locator('.sc-device [data-widget="credits1"]').first().click();
+        });
       await p.waitForTimeout(400);
     },
   },

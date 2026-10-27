@@ -3,8 +3,20 @@ import { ModelError, readModel } from './gltf';
 import { sha256 } from './hash';
 import { type Decoder, probeAudio } from './probe';
 
-export const MAX_FILE_BYTES = 20 * 1024 * 1024;
-export const MAX_PROJECT_BYTES = 200 * 1024 * 1024;
+/** step 11 (P24 part 3): the largest file of each kind (the plan's limits) */
+export const MAX_BYTES: Record<MediaKind, number> = {
+  image: 10 * 1024 * 1024,
+  font: 10 * 1024 * 1024,
+  audio: 25 * 1024 * 1024,
+  model: 20 * 1024 * 1024,
+  video: 100 * 1024 * 1024,
+};
+/** the largest of them (any file over this is refused whatever it is) */
+export const MAX_FILE_BYTES = MAX_BYTES.video;
+/** the game's media budget: the limit for sharing on the web. Going over warns; it never stops the maker. */
+export const GAME_BUDGET_BYTES = 300 * 1024 * 1024;
+/** a video longer than this is worth trimming (a warning) */
+export const LONG_VIDEO_SECONDS = 180;
 /** step 11 (P24 part 3): a picture bigger than this (or wider or taller than BIG_PIXELS) can be shrunk */
 export const BIG_PICTURE_BYTES = 1024 * 1024;
 export const BIG_PIXELS = 2048;
@@ -43,6 +55,14 @@ export const ACCEPT_OF = (kind: MediaKind) =>
     .filter(([, t]) => t.kind === kind)
     .map(([e]) => `.${e}`)
     .join(',');
+
+const KIND_WORD: Record<MediaKind, string> = {
+  image: 'picture',
+  font: 'font',
+  audio: 'sound or music file',
+  model: '3D model',
+  video: 'video',
+};
 
 export type MediaEntry = MediaIndex['items'][string];
 export type ImportResult =
@@ -138,7 +158,11 @@ export async function importMedia(
   const ext = extOf(name);
   const t = TYPES[ext];
   if (!t) return { ok: false, error: `${name}: only ${ACCEPT.replaceAll(',', ' ')} files can be imported.` };
-  if (bytes.length > MAX_FILE_BYTES) return { ok: false, error: `${name} is over 20 MB.` };
+  if (bytes.length > MAX_BYTES[t.kind])
+    return {
+      ok: false,
+      error: `${name} is over ${MAX_BYTES[t.kind] / 1024 / 1024} MB, the most a ${KIND_WORD[t.kind]} can be.`,
+    };
   if (t.kind === 'image' || t.kind === 'video') {
     const is = sniff(bytes);
     const want = SAME[ext] ?? ext;
@@ -155,12 +179,11 @@ export async function importMedia(
   const existing = items[ref];
   if (existing) return { ok: true, ref, entry: existing, duplicate: true, warnings: [] };
   const total = Object.values(items).reduce((n, m) => n + m.bytes, 0);
-  if (total + bytes.length > MAX_PROJECT_BYTES)
-    return {
-      ok: false,
-      error: 'The project already holds 200 MB of media. Shrink or remove some in File › Media library.',
-    };
   const warnings: string[] = [];
+  if (total + bytes.length > GAME_BUDGET_BYTES)
+    warnings.push(
+      `The game's media is now over ${GAME_BUDGET_BYTES / 1024 / 1024} MB: it still works here; when shared it will be split into parts. Shrink or remove some in File › Media library to stay under.`,
+    );
   const entry: MediaEntry = { name: name.slice(0, 120), kind: t.kind, mime: t.mime, bytes: bytes.length };
   if (t.kind === 'model') {
     try {
@@ -207,7 +230,9 @@ export async function importMedia(
     if (ext === 'avif') warnings.push(`${name}: .avif needs a recent browser (older iPhones can't show it).`);
     if (t.kind === 'image' && isBigPicture(entry))
       warnings.push(`${name} is big: shrink it in File › Media library to save space.`);
-    if (t.kind === 'video' && bytes.length > 8 * 1024 * 1024)
+    if (t.kind === 'video' && (entry.duration ?? 0) > LONG_VIDEO_SECONDS)
+      warnings.push(`${name} is over 3 minutes: a shorter clip keeps the game quick to load.`);
+    else if (t.kind === 'video' && bytes.length > 8 * 1024 * 1024)
       warnings.push(`${name} is over 8 MB: shorter or smaller videos keep the game quick to load.`);
   }
   return { ok: true, ref, entry, duplicate: false, warnings };

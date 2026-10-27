@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
-import { ACCEPT, extOf, importMedia } from '../../core/media/import';
-import { type MediaIndex, paths } from '../../core/schema';
+import { ACCEPT, extOf } from '../../core/media/import';
+import { importFile, setShrinkOnImport, shrinkOnImport } from '../media/import-files';
 import { Modal } from '../shell/Shell';
 import type { EditorState } from '../state';
 import { newSoundEvent } from '../workspaces/audio/model';
@@ -23,26 +23,19 @@ export function ImportMedia({
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [makeEvents, setMakeEvents] = useState(true);
+  const [shrinkIn, setShrinkIn] = useState(shrinkOnImport());
   const run = async (files: FileList) => {
     setBusy(true);
     const out: Row[] = [];
-    ed.audio.init();
-    const ctx = ed.audio.ctx;
     for (const f of [...files]) {
-      const bytes = new Uint8Array(await f.arrayBuffer());
-      const r = await importMedia(f.name, bytes, {
-        index: ed.store.get<MediaIndex>(paths.media),
-        ...(ctx ? { decode: (b: ArrayBuffer) => ctx.decodeAudioData(b) } : {}),
-      });
+      const r = await importFile(ed, f.name, new Uint8Array(await f.arrayBuffer()), { shrink: shrinkIn });
       if (!r.ok) {
         out.push({ name: f.name, state: 'error', msg: r.error });
         continue;
       }
-      ed.media?.put(r.ref, new Blob([bytes], { type: r.entry.mime }));
-      if (!r.duplicate) ed.exec({ type: 'media.register', payload: { ref: r.ref, entry: r.entry } });
       let msg = r.duplicate
         ? 'already in the project (stored once)'
-        : `imported${r.entry.duration ? ` · ${r.entry.duration.toFixed(2)} s` : ''}`;
+        : `imported${r.entry.duration ? ` · ${r.entry.duration.toFixed(2)} s` : ''}${r.shrunk ? ` · shrunk ${r.shrunk}` : ''}`;
       if (makeEvents && r.entry.kind === 'audio' && !r.duplicate) {
         const ev = newSoundEvent(ed, f.name.replace(/\.[^.]+$/, ''), [r.ref]);
         if (ev) {
@@ -63,6 +56,18 @@ export function ImportMedia({
         Sounds and music: .wav .mp3 .ogg .m4a · pictures: .png .jpg .webp .gif .avif .bmp .svg · videos: .mp4 .webm. Up
         to 20 MB per file and 200 MB per game: File › Media library shows what each takes, and who made it.
       </p>
+      <label class="row small">
+        <input
+          type="checkbox"
+          checked={shrinkIn}
+          onChange={(e) => {
+            const on = (e.target as HTMLInputElement).checked;
+            setShrinkIn(on);
+            setShrinkOnImport(on);
+          }}
+        />
+        Shrink big pictures as they come in (at most 2048 pixels)
+      </label>
       <label class="row small">
         <input
           type="checkbox"

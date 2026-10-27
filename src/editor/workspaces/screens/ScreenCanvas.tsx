@@ -4,6 +4,7 @@ import { type MediaIndex, paths, type Screen, type Widget } from '../../../core/
 import { effectiveWidget } from '../../../engine/ui/layout';
 import type { ScreenHost } from '../../../engine/ui/ScreenRenderer';
 import { resolveScreen, screenOfKind } from '../../../engine/ui/screens';
+import { dragPayload, endDrag, type MediaDrag } from '../../interact/drag';
 import type { EditorState } from '../../state';
 import { CanvasHandles, mainScreen } from './CanvasHandles';
 import { DeviceFrame } from './DeviceFrames';
@@ -31,6 +32,7 @@ export function ScreenCanvas({
   onPlay,
   onChange,
   onDrop,
+  onMediaDrop,
   artUrl,
   artFont,
 }: {
@@ -41,6 +43,8 @@ export function ScreenCanvas({
   onChange: (path: string, w: Widget, label: string) => void;
   /** a widget type dropped from the palette at an anchor and offset */
   onDrop: (type: Widget['type'], anchor: [number, number], offset: [number, number], portrait: boolean) => void;
+  /** step 11 (P24 part 3): a file from the Media library let go over a widget (its path) or the screen ('') */
+  onMediaDrop?: (path: string, file: MediaDrag, anchor: [number, number], offset: [number, number]) => void;
   artUrl: (id: string) => string | undefined;
   artFont: (ref: string) => string | undefined;
 }) {
@@ -200,12 +204,16 @@ export function ScreenCanvas({
         }}
         onDragOver={(e) => {
           if (e.dataTransfer?.types.includes(WIDGET_DRAG)) e.preventDefault();
+          const m = dragPayload.value;
+          if (m?.kind === 'media' && onMediaDrop && m.media !== 'model') e.preventDefault();
         }}
         onDrop={(e) => {
           const type = e.dataTransfer?.getData(WIDGET_DRAG) as Widget['type'] | undefined;
           const devEl = (e.currentTarget as HTMLElement).querySelector<HTMLElement>('.sc-device');
           const scr = devEl && mainScreen(devEl);
-          if (!type || !scr) return;
+          const m = dragPayload.value;
+          const media = m?.kind === 'media' && onMediaDrop ? m : null;
+          if ((!type && !media) || !scr) return;
           e.preventDefault();
           const r = scr.getBoundingClientRect();
           const fx = (e.clientX - r.left) / r.width;
@@ -216,7 +224,15 @@ export function ScreenCanvas({
             Math.round(((fx - anchor[0]) * r.width) / k / 8) * 8,
             Math.round(((fy - anchor[1]) * r.height) / k / 8) * 8,
           ];
-          onDrop(type, anchor, offset, portrait);
+          if (media) {
+            endDrag();
+            // the widget let go over, in the screen being edited (not the HUD shown under it)
+            const at = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-path]');
+            const p = at && scr.contains(at) ? (at.dataset.path ?? '') : '';
+            onMediaDrop!(p, media, anchor, offset);
+            return;
+          }
+          onDrop(type!, anchor, offset, portrait);
         }}
       >
         <DeviceFrame
