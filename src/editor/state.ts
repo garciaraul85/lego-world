@@ -175,6 +175,8 @@ export class EditorState {
   readonly talkHeard = signal(0);
   /** P22 part 4: the “A character from a picture” dialog is open */
   readonly fromPicture = signal(false);
+  /** step 11 (P24 part 3): the Media library dialog is open */
+  readonly mediaLibrary = signal(false);
   /** Milestone 3, 10d part 4: what From a picture makes */
   readonly makeKind = signal<'character' | 'asset' | 'map'>('character');
   readonly faceMood = signal<'neutral' | 'happy' | 'angry' | 'sad' | 'scared' | 'surprised'>('neutral');

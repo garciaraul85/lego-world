@@ -65,6 +65,8 @@ export const WIDGET_TYPES: Widget['type'][] = [
   'dialogue',
   'minimap',
   'slot',
+  'video',
+  'credits',
 ];
 
 /** A sensible new widget of each type. */
@@ -102,6 +104,15 @@ export function template(type: Widget['type'], n: number): Widget {
       return { type, id, style: { w: 150, h: 150, radius: 12 } };
     case 'slot':
       return { type, id, label: 'touch' };
+    case 'video':
+      return { type, id, style: { w: 640, h: 360, radius: 8, skip: 1 } };
+    case 'credits':
+      return {
+        type,
+        id,
+        text: 'Made with Brick Worlds',
+        style: { w: 520, h: 360, fontSize: 16, color: '#ffffff', bg: '#0b1020d0', pad: 16, radius: 12 },
+      };
   }
 }
 
@@ -223,6 +234,8 @@ export const WIDGET_NAMES: Record<Widget['type'], string> = {
   dialogue: 'Dialogue',
   minimap: 'Minimap',
   slot: 'Slot',
+  video: 'Video',
+  credits: 'Credits',
 };
 
 export const WIDGET_TIPS: Record<Widget['type'], string> = {
@@ -236,4 +249,6 @@ export const WIDGET_TIPS: Record<Widget['type'], string> = {
   dialogue: 'Where characters talk',
   minimap: 'A small map of the world',
   slot: 'A place for touch controls',
+  video: 'An imported video clip: an intro, a story scene, a looping background',
+  credits: 'Who made the game and its imported files',
 };

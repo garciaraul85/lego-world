@@ -27,6 +27,8 @@ export type ScreenHost = {
   art?(id: string): string | undefined;
   /** P31: CSS font-family for style.font (a built-in key or art:<id>) */
   font?(ref: string): string | undefined;
+  /** step 11 (P24 part 3): who made the game's imported files (the Credits widget lists them) */
+  credits?(): { name: string; kind: string; author: string; license: string; link?: string }[];
 };
 
 export type WidgetProps = { w: Widget; path: string; screen: string; host: ScreenHost };
@@ -217,7 +219,79 @@ export function WidgetView(props: WidgetProps) {
         '',
         host.slot?.(w.label ?? w.id ?? '') ?? (host.preview ? <span>slot · {w.label ?? w.id}</span> : null),
       );
+    case 'video':
+      return frame(p, '', <VideoView p={p} />);
+    case 'credits': {
+      const rows = host.credits?.() ?? [];
+      const lines = (w.text ?? '').split('\n').filter((x) => x.trim());
+      return frame(p, '', [
+        ...lines.map((l) => <div class="bw-credit-line">{interpolate(l, host.lookup)}</div>),
+        ...rows.map((r) => (
+          <div class="bw-credit">
+            <b>{r.name}</b>
+            {r.author ? ` by ${r.author}` : ''}
+            {r.license ? <span class="bw-credit-license"> · {r.license}</span> : null}
+          </div>
+        )),
+        !rows.length && host.preview ? (
+          <div class="bw-credit muted">Imported files with a credit (File › Media library) are listed here.</div>
+        ) : null,
+      ]);
+    }
   }
+}
+
+/**
+ * Step 11 (P24 part 3): an imported video (style.src). It plays when the screen shows; with style.loop it repeats,
+ * otherwise its "when it ends" actions run (also when skipped with a click, Enter, Space or Escape, if style.skip).
+ * Sound is off unless style.sound; a browser that blocks sound before the first click plays it muted.
+ */
+function VideoView({ p }: { p: WidgetProps }) {
+  const { w, host } = p;
+  const ref = useRef<HTMLVideoElement>(null);
+  const ended = useRef(false);
+  const src = typeof w.style?.src === 'string' ? host.media?.(w.style.src) : undefined;
+  const loop = !!w.style?.loop;
+  const end = () => {
+    if (ended.current || host.preview) return;
+    ended.current = true;
+    if (w.onEnd?.length) host.run(w.onEnd, p.screen);
+  };
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || !src) return;
+    ended.current = false;
+    v.muted = !w.style?.sound || !!host.preview;
+    const play = v.play();
+    play?.catch(() => {
+      v.muted = true;
+      void v.play().catch(() => {});
+    });
+  }, [src, w.style?.sound]);
+  useEffect(() => {
+    if (!w.style?.skip || host.preview) return;
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') end();
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [w.style?.skip]);
+  if (!src) return <span class="bw-icon">{host.preview ? '🎬' : ''}</span>;
+  return (
+    <video
+      ref={ref}
+      class="bw-video-el"
+      src={src}
+      loop={loop}
+      playsInline
+      muted
+      autoPlay
+      aria-label={w.label ?? 'Video'}
+      style={{ objectFit: w.style?.fit === 'fit' ? 'contain' : 'cover' }}
+      onEnded={loop ? undefined : end}
+      onClick={w.style?.skip ? end : undefined}
+    />
+  );
 }
 
 function Minimap({ host }: { host: ScreenHost }) {

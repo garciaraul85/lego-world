@@ -10,6 +10,12 @@ Edit a built-in and the project keeps its own copy; Reset brings the original ba
 
 The Add cards show a small preview of each widget: click one to add it, or drag it onto the screen where you want it. The tree on the left is also the order keyboard and gamepad focus follow.
 
+## Video and Credits
+
+A **Video** widget plays an imported clip (.mp4 or .webm; Import a video… in its properties): an intro, a story scene, or a moving background with **Loop**. **Sound** plays its sound (some browsers wait for the first click and play it silent until then), **Click or Enter skips it** lets players end it early, and **Show it whole** keeps the whole picture with black bars. **When it ends** runs actions: show the title screen, close this screen, set a value.
+
+A **Credits** widget shows your own lines (who made the game, thanks), then every imported file with a credit: its name, who made it and its licence. Set those in File › Media library.
+
 ## Move and size on the screen
 
 Like assets in the 3D view: the selected widget gets a box. Drag inside it to move, drag one of the 8 handles to size it. Edges and centres snap to other widgets and to the screen (pink guide lines), otherwise to an 8 px grid; hold Alt for no snapping. Arrow keys nudge by 1 (Shift: 8). Each drag is one undo step.

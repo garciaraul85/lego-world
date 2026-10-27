@@ -10,6 +10,7 @@ import { openLogicFor } from '../logic/createFromContext';
 import { ArtThumb, allArt } from './art/ArtLibrary';
 import { artUrl } from './art/render';
 import { canvasPortrait, KIND_LABEL, setLayout } from './model';
+import { VideoFields } from './VideoFields';
 
 /** colours offered first for screens: UI basics, then the brick colours */
 const UI_COLORS = [
@@ -330,6 +331,26 @@ export function WidgetProps({
           <p class="hint">
             {'{hp}'}, {'{map.name}'}, {'{inventory.coin}'} or any logic variable shows its live value. Logic’s Set
             screen text replaces it by id.
+          </p>
+        </div>
+      )}
+      {w.type === 'video' && <VideoFields ed={ed} w={w} set={set} style={style} />}
+      {w.type === 'credits' && (
+        <div class="sec" data-help="screens.credits" data-tour="credits-fields">
+          <div class="field">
+            Lines at the top
+            <textarea
+              class="inp"
+              rows={3}
+              aria-label="Credits lines"
+              data-tour="credits-lines"
+              value={w.text ?? ''}
+              onChange={(e) => set({ text: (e.target as HTMLTextAreaElement).value })}
+            />
+          </div>
+          <p class="hint">
+            One line each (who made the game, thanks…). Below them come the imported files with a credit: set who made
+            each in File › Media library.
           </p>
         </div>
       )}

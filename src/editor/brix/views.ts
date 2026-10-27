@@ -608,6 +608,26 @@ export function stepsToView(view: string): ShowStep[] {
         { say: 'Open the File menu.', find: control('nav[aria-label="Menu"]', /^File$/), press: true },
         { say: 'Choose New project…', find: control('body', 'New project', '[role="menuitem"]') },
       ];
+    case 'media-library':
+      return [
+        { say: 'Open the File menu.', find: control('nav[aria-label="Menu"]', /^File$/), press: true },
+        {
+          say: 'Choose Media library…',
+          find: control('body', /^Media library/, '[role="menuitem"]'),
+          press: true,
+          done: (c) => c.ed.mediaLibrary.value,
+        },
+      ];
+    case 'screens-video':
+    case 'screens-credits':
+      return [
+        ws('Screens'),
+        { say: 'Open the Screens tab.', find: control('body', /^Screens$/, '[role="tab"]'), press: true },
+        {
+          say: `Under Add, click ${view === 'screens-video' ? 'Video' : 'Credits'} (or select one on the screen).`,
+          find: control('[aria-label="Add widget"]', view === 'screens-video' ? 'Add Video' : 'Add Credits'),
+        },
+      ];
     default:
       return [];
   }

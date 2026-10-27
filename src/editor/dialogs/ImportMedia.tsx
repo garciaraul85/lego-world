@@ -8,7 +8,7 @@ import { newSoundEvent } from '../workspaces/audio/model';
 type Row = { name: string; state: 'ok' | 'dup' | 'error'; msg: string };
 
 /**
- * Import .wav/.mp3/.ogg/.m4a/.png (P5.2): each file is hashed (sha256) and probed; the same bytes
+ * Import sounds, pictures and videos (P5.2; step 11 adds GIF, AVIF, BMP, MP4 and WebM): each file is hashed (sha256) and probed; the same bytes
  * twice are stored once. Audio can become a sound event right away.
  */
 export function ImportMedia({
@@ -60,7 +60,8 @@ export function ImportMedia({
   return (
     <Modal title="Import media" onClose={onClose}>
       <p class="muted">
-        Sounds and music: .wav .mp3 .ogg .m4a · images for screens: .png. Up to 20 MB per file and 200 MB per project.
+        Sounds and music: .wav .mp3 .ogg .m4a · pictures: .png .jpg .webp .gif .avif .bmp .svg · videos: .mp4 .webm. Up
+        to 20 MB per file and 200 MB per game: File › Media library shows what each takes, and who made it.
       </p>
       <label class="row small">
         <input

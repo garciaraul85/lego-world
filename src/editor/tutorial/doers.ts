@@ -19,6 +19,7 @@ import { blankConversation, type Conversation } from '../../core/dialogue/schema
 import { parseScript } from '../../core/dialogue/script';
 import { arrivalSpot, assetSpot, reachable } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
+import { importMedia, isBigPicture } from '../../core/media/import';
 import { allSaves, type Saving } from '../../core/save/save';
 import {
   type Asset,
@@ -29,6 +30,7 @@ import {
   type LightInstance,
   type LogicGraph,
   type MapDoc,
+  type MediaIndex,
   type Mixer,
   paths,
   type Screen,
@@ -40,6 +42,8 @@ import { BrowserSaveStore } from '../../platform/saves';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { assetLibrary, newAssetDef } from '../assets';
 import { looseCopies, modelItems, placeModelAt, placeWaterAt } from '../interact/place';
+import { sampleClip, samplePoster } from '../media/samples';
+import { shrinkMedia } from '../media/shrink';
 import { importModelFiles, modelChoices } from '../panels/ModelFields';
 import { savingOf } from '../panels/SavingSection';
 import type { EditorState } from '../state';
@@ -340,6 +344,107 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     if (!cb) throw new Error('Make the brick first.');
     const brick = { ...cb, shape: String(a.shape ?? 'curve') as CustomBrick['shape'] };
     run(c, { type: 'brick.put', payload: { brick } }, `Change brick ${cb.name}`);
+  },
+  // step 11 (P24 part 3): the Your own media course — the Media library, sample files, a credit, a shrink, a screen
+  mediaOpen(c) {
+    c.ed.mediaLibrary.value = true;
+  },
+  async mediaSamples(c) {
+    const files = [await samplePoster(), await sampleClip()].filter((f): f is NonNullable<typeof f> => !!f);
+    for (const f of files) {
+      const r = await importMedia(f.name, f.bytes, { index: c.ed.store.get<MediaIndex>(paths.media) });
+      if (!r.ok) throw new Error(r.error);
+      const mime = r.entry.mime;
+      c.ed.media?.put(r.ref, new Blob([f.bytes as BlobPart], { type: mime }));
+      if (!r.duplicate) run(c, { type: 'media.register', payload: { ref: r.ref, entry: r.entry } }, `Import ${f.name}`);
+    }
+  },
+  mediaCredit(c, a) {
+    const items = c.ed.store.get<MediaIndex>(paths.media)?.items ?? {};
+    const ref = Object.keys(items).find((r) => items[r]!.kind === 'image' && !items[r]!.credit);
+    if (!ref) throw new Error('Import a picture first.');
+    run(
+      c,
+      {
+        type: 'media.update',
+        payload: { ref, credit: { author: String(a.author ?? 'Me'), license: String(a.license ?? 'My own work') } },
+      },
+      'Credit picture',
+    );
+  },
+  async mediaShrink(c) {
+    const items = c.ed.store.get<MediaIndex>(paths.media)?.items ?? {};
+    for (const ref of Object.keys(items).filter((r) => isBigPicture(items[r]!)))
+      if (!(await shrinkMedia(c.ed, ref))) throw new Error('It could not be shrunk.');
+  },
+  mediaIntro(c, a) {
+    const items = c.ed.store.get<MediaIndex>(paths.media)?.items ?? {};
+    const clip = Object.keys(items).find((r) => items[r]!.kind === 'video');
+    if (!clip) throw new Error('Import a video first.');
+    c.ed.mediaLibrary.value = false;
+    const name = String(a.name ?? 'Intro');
+    const old = c.ed.store
+      .list('screens/')
+      .map((p) => c.ed.store.get<Screen>(p)!)
+      .find((x) => x?.name === name);
+    const id = old?.id ?? (newId('screen') as Screen['id']);
+    const title = c.ed.store
+      .list('screens/')
+      .map((p) => c.ed.store.get<Screen>(p)!)
+      .find((x) => x?.kind === 'title');
+    const screen: Screen = {
+      id,
+      kind: 'custom',
+      name,
+      music: null,
+      pausesGame: true,
+      root: {
+        type: 'panel',
+        style: { bg: '#000000' },
+        children: [
+          {
+            type: 'video',
+            id: 'intro',
+            anchor: [0.5, 0.5],
+            style: { w: 960, h: 480, src: clip, skip: 1, fit: 'fit' },
+            onEnd: [
+              ...(title ? [{ do: 'showScreen' as const, screen: title.id }] : []),
+              { do: 'hideScreen' as const, screen: id },
+            ],
+          },
+        ],
+      },
+    };
+    run(c, { type: 'screen.put', payload: { screen } }, `Screen ${name}`);
+    c.ed.screenId.value = id;
+    c.ui.workspace('Screens');
+  },
+  mediaCreditsWidget(c, a) {
+    const name = String(a.name ?? 'Intro');
+    const s = c.ed.store
+      .list('screens/')
+      .map((p) => c.ed.store.get<Screen>(p)!)
+      .find((x) => x?.name === name);
+    if (!s) throw new Error(`Make the ${name} screen first.`);
+    if (JSON.stringify(s.root).includes('"credits"')) return;
+    const credits = {
+      type: 'credits' as const,
+      id: 'credits',
+      anchor: [1, 1] as [number, number],
+      offset: [-16, -16] as [number, number],
+      text: String(a.text ?? 'Made with Brick Worlds'),
+      style: { w: 360, h: 120, fontSize: 14, color: '#ffffff', bg: '#0b1020d0', pad: 12, radius: 10 },
+    };
+    run(
+      c,
+      {
+        type: 'screen.put',
+        payload: { screen: { ...s, root: { ...s.root, children: [...(s.root.children ?? []), credits] } } },
+      },
+      'Add Credits',
+    );
+    c.ed.screenId.value = s.id;
+    c.ui.workspace('Screens');
   },
   buildMover(c, a) {
     const id = c.ed.studioAsset.value;

@@ -3,7 +3,19 @@ import { ActionList } from './action';
 import { id, Vec2 } from './common';
 
 export type Widget = {
-  type: 'panel' | 'text' | 'image' | 'button' | 'hearts' | 'bar' | 'list' | 'dialogue' | 'minimap' | 'slot';
+  type:
+    | 'panel'
+    | 'text'
+    | 'image'
+    | 'button'
+    | 'hearts'
+    | 'bar'
+    | 'list'
+    | 'dialogue'
+    | 'minimap'
+    | 'slot'
+    | 'video'
+    | 'credits';
   id?: string;
   anchor?: [number, number];
   offset?: [number, number];
@@ -14,6 +26,8 @@ export type Widget = {
   touchOnly?: boolean;
   sound?: string;
   onPress?: z.infer<typeof ActionList>;
+  /** step 11 (P24 part 3): a video widget's actions when it ends (or is skipped) */
+  onEnd?: z.infer<typeof ActionList>;
   children?: Widget[];
   /** P31: a different place and look on portrait screens (taller than wide) */
   portrait?: { anchor?: [number, number]; offset?: [number, number]; style?: Record<string, string | number> };
@@ -35,7 +49,20 @@ export type WidgetPin = {
 
 export const Widget: z.ZodType<Widget> = z.lazy(() =>
   z.strictObject({
-    type: z.enum(['panel', 'text', 'image', 'button', 'hearts', 'bar', 'list', 'dialogue', 'minimap', 'slot']),
+    type: z.enum([
+      'panel',
+      'text',
+      'image',
+      'button',
+      'hearts',
+      'bar',
+      'list',
+      'dialogue',
+      'minimap',
+      'slot',
+      'video',
+      'credits',
+    ]),
     id: z.string().optional(),
     anchor: Vec2.optional(),
     offset: Vec2.optional(),
@@ -46,6 +73,7 @@ export const Widget: z.ZodType<Widget> = z.lazy(() =>
     touchOnly: z.boolean().optional(),
     sound: id('sound').optional(),
     onPress: ActionList.optional(),
+    onEnd: ActionList.optional(),
     children: z.array(Widget).optional(),
     portrait: z
       .strictObject({

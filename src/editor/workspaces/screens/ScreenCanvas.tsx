@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import type { Screen, Widget } from '../../../core/schema';
+import { mediaCredits } from '../../../core/media/uses';
+import { type MediaIndex, paths, type Screen, type Widget } from '../../../core/schema';
 import { effectiveWidget } from '../../../engine/ui/layout';
 import type { ScreenHost } from '../../../engine/ui/ScreenRenderer';
 import { resolveScreen, screenOfKind } from '../../../engine/ui/screens';
@@ -77,6 +78,7 @@ export function ScreenCanvas({
     run: () => {},
     sound: (id) => ed.audio.previewEvent(id),
     media: (ref) => ed.media?.url(ref),
+    credits: () => mediaCredits(ed.store.get<MediaIndex>(paths.media)),
     art: artUrl,
     font: artFont,
     touch: dev.id !== 'desktop' && dev.id !== 'laptop',

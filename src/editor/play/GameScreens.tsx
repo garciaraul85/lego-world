@@ -1,6 +1,8 @@
 import type { Signal } from '@preact/signals';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
+import { mediaCredits } from '../../core/media/uses';
+import { type MediaIndex, paths } from '../../core/schema';
 import type { PlayRenderer } from '../../engine/runtime/play-renderer';
 import type { PlaySession } from '../../engine/runtime/session';
 import { artUrl, fontCss } from '../../engine/ui/art';
@@ -39,6 +41,7 @@ export function GameScreens({
       pressed: (screen, widget) => s.screenButton(screen, widget),
       text: (screen, widget) => s.screenText.get(`${screen}:${widget}`),
       media: (ref) => ed.media?.url(ref),
+      credits: () => mediaCredits(ed.store.get<MediaIndex>(paths.media)),
       art: (id) => artUrl(ed.store, ed.media, id),
       font: (ref) => fontCss(ed.store, ed.media, ref),
       minimap: mini,

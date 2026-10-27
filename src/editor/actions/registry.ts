@@ -135,6 +135,13 @@ export const ACTIONS: EditorAction[] = [
   { id: 'file.save', label: 'Save now', key: 'Ctrl S', run: ({ ed }) => void ed.autosave.flush() },
   { id: 'file.import', label: 'Import project or LEGO World save…', run: ({ ui }) => ui.importFile() },
   {
+    id: 'file.mediaLibrary',
+    label: 'Media library (pictures, videos, sounds, credits)…',
+    run: ({ ed }) => {
+      ed.mediaLibrary.value = true;
+    },
+  },
+  {
     id: 'file.exportProject',
     label: 'Save project file (.bwproj)',
     key: 'Ctrl Shift S',
@@ -520,6 +527,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('bricks'),
   },
   {
+    id: 'help.media',
+    label: 'Your own media course (pictures, video, credits)',
+    run: ({ ui }) => ui.tutorial('media'),
+  },
+  {
     id: 'help.hair',
     label: 'Custom hair course (hairstyles, My library)',
     run: ({ ui }) => ui.tutorial('hair'),
@@ -659,6 +671,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'file.save',
     '-',
     'file.import',
+    'file.mediaLibrary',
     'file.exportProject',
     'file.exportLegacy',
     'file.exportGame',
@@ -736,6 +749,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.hair',
     'help.buildFaster',
     'help.customBricks',
+    'help.media',
     'help.effects',
     'help.screenfx',
     'help.posing',

@@ -1,0 +1,258 @@
+{
+  "id": "media",
+  "title": "Your own media course",
+  "steps": [
+    {
+      "id": "media.open",
+      "title": "Your own files",
+      "body": "Your game can use your own pictures, videos, sounds, 3D models and fonts. The Media library (File menu) lists them all: how much space they take, where each is used and who made it.",
+      "task": "Open File › Media library.",
+      "target": "[data-tour=\"menu-file\"]",
+      "check": {
+        "kind": "state",
+        "test": "mediaLibraryOpen"
+      },
+      "doItForMe": [
+        {
+          "fn": "mediaOpen"
+        }
+      ],
+      "how": [
+        {
+          "text": "Open the File menu and choose Media library…",
+          "check": {
+            "kind": "state",
+            "test": "mediaLibraryOpen"
+          },
+          "do": [
+            {
+              "fn": "mediaOpen",
+              "say": "The Media library."
+            }
+          ]
+        }
+      ],
+      "placement": "bottom"
+    },
+    {
+      "id": "media.import",
+      "title": "Import a picture and a video",
+      "body": "Import files… takes pictures (.png .jpg .webp .gif .avif .bmp .svg), videos (.mp4 .webm), sounds, 3D models and fonts, up to 20 MB each. Each is measured: a picture's size, a video's length.",
+      "task": "Import a picture and a short video (yours, or Do it for me makes samples).",
+      "target": "[data-tour=\"media-import\"]",
+      "check": {
+        "kind": "state",
+        "test": "mediaHas",
+        "args": {
+          "image": 1,
+          "video": 1
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "mediaSamples"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press Import files… and pick a picture and a video from your computer.",
+          "check": {
+            "kind": "state",
+            "test": "mediaHas",
+            "args": {
+              "image": 1,
+              "video": 1
+            }
+          },
+          "do": [
+            {
+              "fn": "mediaSamples",
+              "say": "A big poster and a 2-second video, made here."
+            }
+          ]
+        }
+      ],
+      "placement": "bottom"
+    },
+    {
+      "id": "media.credit",
+      "title": "Who made it",
+      "body": "Pick a file and fill in Who made it: author, licence and a link. Files you didn't make need their maker's licence; a Credits widget lists them all.",
+      "task": "Say who made the poster.",
+      "target": "[data-tour=\"media-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "mediaCredited",
+        "args": 1
+      },
+      "doItForMe": [
+        {
+          "fn": "mediaCredit",
+          "args": {
+            "author": "Me",
+            "license": "My own work"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Pick the poster, then type an Author and a Licence under Who made it.",
+          "check": {
+            "kind": "state",
+            "test": "mediaCredited",
+            "args": 1
+          },
+          "do": [
+            {
+              "fn": "mediaCredit",
+              "args": {
+                "author": "Me",
+                "license": "My own work"
+              },
+              "say": "Credited: Me, my own work."
+            }
+          ]
+        }
+      ],
+      "placement": "left"
+    },
+    {
+      "id": "media.shrink",
+      "title": "Make room",
+      "body": "The poster is wider than 2048 pixels: it is marked big. Shrink it makes a smaller copy and puts it everywhere the picture is used — Undo puts it back.",
+      "task": "Shrink the poster.",
+      "target": "[data-tour=\"media-shrink-all\"]",
+      "check": {
+        "kind": "state",
+        "test": "noBigPictures"
+      },
+      "doItForMe": [
+        {
+          "fn": "mediaShrink"
+        }
+      ],
+      "how": [
+        {
+          "text": "Press Shrink big pictures (or Shrink it on the poster).",
+          "check": {
+            "kind": "state",
+            "test": "noBigPictures"
+          },
+          "do": [
+            {
+              "fn": "mediaShrink",
+              "say": "Shrunk to 2048 pixels across."
+            }
+          ]
+        }
+      ],
+      "placement": "bottom"
+    },
+    {
+      "id": "media.intro",
+      "title": "An intro video",
+      "body": "A Video widget plays a clip on a screen. Without Loop, its When it ends actions run: here the title screen shows and the intro closes. Click or Enter skips it.",
+      "task": "Make an Intro screen that plays the video, then shows the title.",
+      "target": "[data-tour=\"workspaces\"]",
+      "check": {
+        "kind": "state",
+        "test": "screenHasWidget",
+        "args": {
+          "screen": "Intro",
+          "type": "video"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "mediaIntro",
+          "args": {
+            "name": "Intro"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In Screens, press + New, name it Intro, add a Video widget, pick the clip and add Show screen Title under When it ends.",
+          "check": {
+            "kind": "state",
+            "test": "screenHasWidget",
+            "args": {
+              "screen": "Intro",
+              "type": "video"
+            }
+          },
+          "do": [
+            {
+              "fn": "mediaIntro",
+              "args": {
+                "name": "Intro"
+              },
+              "say": "An Intro screen with the video."
+            }
+          ]
+        }
+      ],
+      "placement": "bottom",
+      "workspace": "Screens"
+    },
+    {
+      "id": "media.credits",
+      "title": "Credits",
+      "body": "A Credits widget shows your own lines, then every credited file.",
+      "task": "Add a Credits widget to the Intro screen.",
+      "target": "[aria-label=\"Add widget\"]",
+      "check": {
+        "kind": "state",
+        "test": "screenHasWidget",
+        "args": {
+          "screen": "Intro",
+          "type": "credits"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "mediaCreditsWidget",
+          "args": {
+            "name": "Intro"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Add, click Credits; type your lines under Lines at the top.",
+          "check": {
+            "kind": "state",
+            "test": "screenHasWidget",
+            "args": {
+              "screen": "Intro",
+              "type": "credits"
+            }
+          },
+          "do": [
+            {
+              "fn": "mediaCreditsWidget",
+              "args": {
+                "name": "Intro"
+              },
+              "say": "Credits in the corner."
+            }
+          ]
+        }
+      ],
+      "placement": "left",
+      "workspace": "Screens"
+    },
+    {
+      "id": "media.done",
+      "title": "Your media, your game",
+      "body": "File › Media library has every imported file, its size and credit; Video and Credits widgets are under Add in Screens. Brix's Help has them (search “video” or “credits”).",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "placement": "bottom"
+    }
+  ]
+}

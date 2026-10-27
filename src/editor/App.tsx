@@ -10,6 +10,7 @@ import { scanFiles } from '../core/security/secrets';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { AiPanel } from './ai/AiPanel';
 import { Brix } from './brix/Brix';
+import { MediaLibrary } from './dialogs/MediaLibrary';
 import { GenreChoice } from './genres/GenreCards';
 import { WorldGraph } from './graph/WorldGraph';
 import { contextHelpPage } from './help/context';
@@ -392,6 +393,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       {ai && <AiPanel c={c} prompt={aiPrompt} onClose={() => setAi(false)} />}
       {/* Milestone 3, 10d: From a picture makes characters and assets, from any workspace */}
       {ed.fromPicture.value && <FromPicture c={c} onClose={() => (ed.fromPicture.value = false)} />}
+      {ed.mediaLibrary.value && <MediaLibrary ed={ed} onClose={() => (ed.mediaLibrary.value = false)} />}
       {!hub && <Brix c={c} open={brix} onOpen={() => setBrix(true)} onClose={() => setBrix(false)} />}
       {help && <HelpView c={c} page={help} onClose={() => setHelp(null)} />}
       {hub && (

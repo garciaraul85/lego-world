@@ -18,6 +18,8 @@ export const ACTION_HELP: Record<string, string> = {
   'file.open': 'Opens a project saved in this browser.',
   'file.save': 'Saves now. The editor also saves by itself a moment after every change.',
   'file.import': 'Loads a project file (.bwproj) or a LEGO World v68 save (.json) from your computer.',
+  'file.mediaLibrary':
+    'Opens the Media library: every imported picture, video, sound, 3D model and font, how much of the 200 MB they take, where each is used, who made it (credits), shrinking big pictures and removing unused files.',
   'file.exportProject': 'Downloads the whole project as one .bwproj file, to keep or move to another computer.',
   'file.exportLegacy': 'Downloads the current map as a LEGO World v68 save (.json).',
   'file.exportGame': 'Makes a playable game file to share (coming in a later phase).',
@@ -122,6 +124,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Faces and pictures course: give Tom an angry and a happy face, hear him talk, write lines with moods, see him glare and laugh in Play, then make an owl from a few words with From a picture.',
   'help.shape':
     'Starts the Shape and draw course: make Nova, shape her (chest, hips, neckline) in Look, then draw a star on her cheek and print a shirt in the Draw tab.',
+  'help.media':
+    'Starts the Your own media course: import a poster and a short video, say who made it, shrink it, then an Intro screen that plays the video and shows credits.',
   'help.customBricks':
     'Starts the Custom bricks course: a tower roofed with a slope of your own made in the brick editor, placed four ways, then changed into a curve.',
   'help.buildFaster':

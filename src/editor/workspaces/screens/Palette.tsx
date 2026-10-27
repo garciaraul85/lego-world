@@ -17,6 +17,7 @@ export function Palette({ onAdd }: { onAdd: (type: Widget['type']) => void }) {
     sound: () => {},
     touch: true,
     preview: { selected: null, select: () => {} },
+    credits: () => [{ name: 'Forest theme', kind: 'audio', author: 'Ana', license: 'CC BY 4.0' }],
   };
   return (
     <div class="sc-palette" role="group" aria-label="Add widget">

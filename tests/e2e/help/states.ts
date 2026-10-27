@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import type { Page } from '@playwright/test';
 
 /**
@@ -832,6 +833,55 @@ export const HELP_STATES: HelpState[] = [
       await ws(p, 'Screens');
       await p.getByRole('tab', { name: 'Screens', exact: true }).click();
       await signals(p, { widgetPath: '0' });
+    },
+  },
+  {
+    // Step 11 (P24 part 3): the Media library with a GIF, a video and a big picture, the GIF credited
+    id: 'media-library',
+    screen: 'shell',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { mediaLibrary: true });
+      const lib = p.getByRole('dialog', { name: 'Media library' });
+      const fix = resolve(process.cwd(), 'tests/fixtures/media');
+      await lib
+        .getByLabel('Files to import')
+        .setInputFiles(['spin.gif', 'clip.webm', 'wide.png'].map((f) => resolve(fix, f)));
+      await lib.getByRole('option', { name: /spin\.gif/ }).waitFor({ timeout: 20_000 });
+      await lib.getByRole('option', { name: /wide\.png/ }).waitFor({ timeout: 20_000 });
+      await lib.getByRole('option', { name: /spin\.gif/ }).click();
+      await lib.locator('[data-tour="media-author"]').fill('Ana');
+      await lib.locator('[data-tour="media-license"]').fill('CC BY 4.0');
+      await lib.locator('[data-tour="media-name"]').click();
+      await p.waitForTimeout(600);
+    },
+  },
+  {
+    // Step 11 (P24 part 3): a Video widget with its clip and a Credits widget on a new screen
+    id: 'screens-video',
+    screen: 'screens',
+    setup: async (p) => {
+      await signals(p, { mediaLibrary: false });
+      await ws(p, 'Screens');
+      await p.getByRole('tab', { name: 'Screens', exact: true }).click();
+      await p.getByRole('button', { name: '+ New' }).click();
+      const palette = p.getByRole('group', { name: 'Add widget' });
+      await palette.getByRole('button', { name: 'Add Credits' }).click();
+      await palette.getByRole('button', { name: 'Add Video' }).click();
+      await p.getByLabel('Video file').setInputFiles(resolve(process.cwd(), 'tests/fixtures/media/clip.webm'));
+      await p.locator('.sc-device video.bw-video-el').first().waitFor({ timeout: 20_000 });
+      await p.waitForTimeout(1200);
+    },
+  },
+  {
+    // the Credits widget selected (its lines)
+    id: 'screens-credits',
+    screen: 'screens',
+    setup: async (p) => {
+      await p.getByRole('treeitem', { name: /credits1/ }).first().click().catch(async () => {
+        await p.locator('.sc-device [data-widget="credits1"]').first().click();
+      });
+      await p.waitForTimeout(400);
     },
   },
   {

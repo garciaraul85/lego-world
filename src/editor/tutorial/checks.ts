@@ -7,6 +7,7 @@ import type { Effect } from '../../core/effects/schema';
 import type { ScreenEffect } from '../../core/effects/screen';
 import { fogPresetOf } from '../../core/lighting/atmosphere';
 import { wiresOf } from '../../core/logic/wiring';
+import { isBigPicture } from '../../core/media/import';
 import { allSaves } from '../../core/save/save';
 import {
   type Asset,
@@ -411,6 +412,27 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
       .find((b) => b?.name === want.name);
     if (!def || !cb) return false;
     return def.bricks.filter((b) => def.palette.types[b[0] as number]?.includes(`:${cb.id}:`)).length >= want.count;
+  },
+  // step 11 (P24 part 3): the Your own media course
+  mediaLibraryOpen: (ed) => ed.mediaLibrary.value,
+  mediaHas: (ed, a) => {
+    const want = a as Record<string, number>;
+    const items = Object.values(ed.store.get<MediaIndex>(paths.media)?.items ?? {});
+    return Object.entries(want).every(([k, n]) => items.filter((m) => m.kind === k).length >= n);
+  },
+  mediaCredited: (ed, a) =>
+    Object.values(ed.store.get<MediaIndex>(paths.media)?.items ?? {}).filter((m) => m.credit).length >= Number(a ?? 1),
+  noBigPictures: (ed) => {
+    const items = Object.values(ed.store.get<MediaIndex>(paths.media)?.items ?? {});
+    return items.some((m) => m.kind === 'image') && !items.some(isBigPicture);
+  },
+  screenHasWidget: (ed, a) => {
+    const want = a as { screen: string; type: string };
+    const s = ed.store
+      .list('screens/')
+      .map((p) => ed.store.get<{ name: string; root: unknown }>(p))
+      .find((x) => x?.name === want.screen);
+    return !!s && JSON.stringify(s.root).includes(`"type":"${want.type}"`);
   },
   // P26: the saving course
   savingIs: (ed, a) => matches(savingOf(ed.store.manifest), a as Record<string, unknown>),
