@@ -1175,7 +1175,7 @@ export const ASSETS: HelpEntry[] = [
       'Click the build plate to put it down (T turns it first).',
     ],
     commands: ['brick.put', 'brick.delete'],
-    match: [{ in: '[aria-label="Brick editor"]' }],
+    match: [{ in: '[aria-label="Brick editor"]' }, { in: '[data-tour="brick-customs"]' }],
     related: ['assets.bricks', 'assets.buildHelpers'],
   },
   {
