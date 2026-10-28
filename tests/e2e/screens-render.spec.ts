@@ -87,6 +87,9 @@ test('Play from the first screen: splash → title → Play → HUD; Esc pauses,
   const pause = page.getByRole('region', { name: 'Pause' });
   await slow(pause).toBeVisible();
   await slow(pause.getByRole('button', { name: 'Resume' })).toBeFocused();
+  // step 11b: Items comes next (the item menu, to put items in the item buttons)
+  await page.keyboard.press('ArrowDown');
+  await slow(pause.getByRole('button', { name: 'Items' })).toBeFocused();
   // P26: Save game comes next (this game saves anywhere); Load game shows only once there is a save
   await page.keyboard.press('ArrowDown');
   await slow(pause.getByRole('button', { name: 'Save game' })).toBeFocused();
