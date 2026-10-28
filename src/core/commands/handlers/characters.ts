@@ -1,3 +1,4 @@
+import { builtinBodyPlan } from '../../../builtin/bodyplans';
 import { lookError } from '../../character/marks';
 import type { ProjectStore } from '../../project/store';
 import { Character, Clip, type Instances, paths } from '../../schema';
@@ -36,7 +37,9 @@ export const updateCharacter: CommandHandler<{ character: Character }> = {
     for (const t of p.character.talk ?? [])
       if (!store.has(paths.dialogue(t.conversation))) return 'A conversation in its Talk list does not exist.';
     const body = p.character.body;
-    if (body?.plan && !store.has(paths.bodyplan(body.plan))) return 'Its body plan does not exist.';
+    // step 11, 4a: one of the engine's own body plans will do
+    if (body?.plan && !store.has(paths.bodyplan(body.plan)) && !builtinBodyPlan(body.plan))
+      return 'Its body plan does not exist.';
     if (body?.asset && !store.has(paths.asset(body.asset))) return 'The brick build it wears does not exist.';
     return null;
   },

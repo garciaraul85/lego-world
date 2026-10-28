@@ -27,6 +27,7 @@ import savePoint from './save-point.json';
 import shrub from './shrub.json';
 import signpost from './signpost.json';
 import skyscraper from './skyscraper.json';
+import { STARTER_ASSETS } from './starter';
 import sword from './sword.json';
 import tower from './tower.json';
 import willowTree from './willow-tree.json';
@@ -63,8 +64,12 @@ const RAW: Record<string, unknown> = {
 };
 
 /** Built-in assets with their fixed ids (same id in every project, so placing one twice reuses the file). */
-export const BUILTIN_ASSETS: readonly Asset[] = Object.entries(RAW).map(([slug, raw]) =>
+export const BUILTIN_ASSETS: readonly Asset[] = Object.entries({ ...RAW, ...STARTER_ASSETS }).map(([slug, raw]) =>
   Asset.parse({ ...(raw as object), id: shapeId(`builtin:${slug}`), origin: 'builtin' }),
 );
+
+/** step 11, 4a: the adventure starter pack's buildings and props, by slug */
+export const STARTER_ASSET_SLUGS = Object.keys(STARTER_ASSETS);
+export const starterAssetId = (slug: string) => shapeId(`builtin:${slug}`);
 
 export const builtinAsset = (id: string) => BUILTIN_ASSETS.find((a) => a.id === id) ?? null;

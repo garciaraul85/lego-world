@@ -159,6 +159,8 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
 /** Bottom dock tabs. */
 export const DOCK_TAGS: Record<string, ControlTags> = {
   assets: S('build'),
+  // step 11, 4a: the starter pack
+  pack: S('build'),
   console: S('debug'),
   timeline: A('debug'),
   profiler: A('debug'),

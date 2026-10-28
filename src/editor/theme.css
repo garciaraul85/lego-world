@@ -5635,10 +5635,10 @@ body.brix-explain * {
 .brick-row.small {
   font-size: 11px;
 }
-.brick-row input[type='checkbox'] {
+.brick-row input[type="checkbox"] {
   width: auto;
 }
-.brick-row input[type='color'] {
+.brick-row input[type="color"] {
   width: 28px;
   padding: 0;
 }
@@ -6582,4 +6582,34 @@ img.bw-portrait {
   grid-template-columns: 1fr 110px 96px;
   gap: 6px;
   align-items: center;
+}
+
+/* step 11, 4a: the starter pack panel in the bottom dock */
+.pack-panel {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pack-title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.pack-card {
+  cursor: grab;
+}
+.pack-card .thumb {
+  height: 60px;
+}
+.pack-card .btn {
+  align-self: flex-start;
+}
+.pack-style {
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  border: 1px solid #2a313c;
+  border-radius: 6px;
+  margin-bottom: 4px;
 }

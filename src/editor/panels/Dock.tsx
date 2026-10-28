@@ -25,6 +25,7 @@ import {
   WATER_PRESET,
   waterItems,
 } from '../interact/place';
+import { PackPanel } from '../pack/PackPanel';
 import { keysFor } from '../platform';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
@@ -122,6 +123,7 @@ export function Dock({ c }: { c: ActionCtx }) {
   const problems = useProblems(ed, (w) => c.ui.workspace(w));
   const tabs: [DockTab, string][] = [
     ['assets', 'Assets'],
+    ['pack', 'Starter pack'],
     ['console', 'Console'],
     ['timeline', 'Timeline'],
     ['profiler', 'Profiler'],
@@ -149,6 +151,7 @@ export function Dock({ c }: { c: ActionCtx }) {
           ))}
       </div>
       {tab === 'assets' && <Assets c={c} />}
+      {tab === 'pack' && <PackPanel c={c} />}
       {tab === 'console' && <Console ed={ed} />}
       {tab === 'timeline' && <MapTimeline c={c} />}
       {tab === 'profiler' && <Profiler ed={ed} />}
@@ -1069,5 +1072,5 @@ function MapTimeline({ c }: { c: ActionCtx }) {
 }
 
 /** P18: every dock tab (for the tag tests) */
-export const DOCK_TABS = ['assets', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const;
+export const DOCK_TABS = ['assets', 'pack', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const;
 type DockTab = (typeof DOCK_TABS)[number];

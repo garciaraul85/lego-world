@@ -1,5 +1,6 @@
 import { effect } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { ADVENTURE_PACK } from '../../builtin/packs/adventure';
 import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
 import { type FreeGroup, freeGroupsOf } from '../../core/assets/free';
 import {
@@ -59,6 +60,7 @@ import {
   selectOnly,
   waterItems,
 } from '../interact/place';
+import { placePackCharacter } from '../pack/pack';
 import { customRender, rayBox, type SceneModel } from '../scene';
 import type { EditorState } from '../state';
 import { fullscreenDock, sceneFullscreen, setActiveView, type ViewOp, type ViewportApi, viewOp } from './active';
@@ -1460,6 +1462,13 @@ export function Viewport({
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
         return;
       }
+      // step 11, 4a: a character from the starter pack goes onto the map as a neighbour
+      if (p.kind === 'character') {
+        if (studio) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        return;
+      }
       // the Scene takes assets; an asset's build plate takes bricks and other assets
       if (p.kind === 'brick' ? !studio : studio && !studio.reuse) return;
       e.preventDefault();
@@ -1503,6 +1512,26 @@ export function Viewport({
         const at = s.surface(rayAt(e), (b) => !ed.isVisible(b));
         if (at) placeModelAt(ed, at, p.ref, p.name.replace(/\.[^.]+$/, ''));
         else flashTag('Drop it on the ground or a brick', local(e));
+        return;
+      }
+      if (p.kind === 'character') {
+        if (studio) return;
+        e.preventDefault();
+        endDrag();
+        const at = s.surface(rayAt(e), (b) => !ed.isVisible(b));
+        if (!at) {
+          flashTag('Drop it on the ground or a brick', local(e));
+          return;
+        }
+        // (the surface point is in studs and plates; neighbours stand in world units)
+        const pos: [number, number, number] = [at.x, at.y * 0.4, at.z];
+        const item = ADVENTURE_PACK.cast.find((x) => x.id === p.character);
+        if (item) placePackCharacter(ed, item, pos);
+        else
+          ed.exec(
+            { type: 'npc.place', payload: { map: ed.mapId.value, character: p.character, pos, heading: 0 } },
+            { label: `Place ${p.name}` },
+          );
         return;
       }
       if (p.kind === 'brick' ? !studio : studio && !studio.reuse) return;
