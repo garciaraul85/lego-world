@@ -1,4 +1,5 @@
-import type { Bone } from '../../core/character/body';
+import { shapeId } from '../../core/bricks/custom';
+import type { BodyBrick, Bone } from '../../core/character/body';
 import { type BodyMove, MOVE_LENGTH } from '../../core/character/moves';
 import type { ResolvedBody } from '../../core/character/resolve';
 import { multiply } from '../render/math';
@@ -329,22 +330,41 @@ function moveWorld(m: Motion, s: number): Float32Array {
   }
 }
 
-const bricksByBone = new WeakMap<object, Map<string, RenderBrick[]>>();
-function grouped(body: ResolvedBody): Map<string, RenderBrick[]> {
+const bricksByBone = new WeakMap<object, Group[]>();
+type Group = { bone: string; alpha: number; glow: boolean; bricks: RenderBrick[] };
+function grouped(body: ResolvedBody): Group[] {
   let g = bricksByBone.get(body);
   if (!g) {
-    g = new Map();
+    const by = new Map<string, Group>();
     for (const b of body.bricks) {
-      const list = g.get(b.bone) ?? [];
-      list.push({ id: 0, w: b.w, d: b.d, kind: b.kind, x: b.x, y: b.y, z: b.z, color: b.color });
-      g.set(b.bone, list);
+      // step 11, 4a: see-through and glowing parts draw apart from the solid ones on the same bone
+      const alpha = b.alpha ?? 1;
+      const glow = !!b.glow;
+      const k = `${b.bone}|${alpha}|${glow}`;
+      let grp = by.get(k);
+      if (!grp) {
+        grp = { bone: b.bone, alpha, glow, bricks: [] };
+        by.set(k, grp);
+      }
+      grp.bricks.push(renderBrick(b));
     }
+    g = [...by.values()];
     bricksByBone.set(body, g);
   }
   return g;
 }
 
-/** The body's bricks as overlays, one per bone, turned by that bone. */
+/** a body brick as the renderer draws it: a box, or one of the custom brick shapes */
+export function renderBrick(b: BodyBrick & { color: string }): RenderBrick {
+  const out: RenderBrick = { id: 0, w: b.w, d: b.d, kind: b.kind, x: b.x, y: b.y, z: b.z, color: b.color };
+  if (b.shape) {
+    out.shape = shapeId(b.shape, b.kind, b.w, b.d, b.studs ?? 'none');
+    out.rot = b.rot ?? 0;
+  }
+  return out;
+}
+
+/** The body's bricks as overlays, one per bone (and per see-through or glowing set), turned by that bone. */
 export function bodyOverlays(
   body: ResolvedBody,
   pose: Map<string, Float32Array>,
@@ -352,12 +372,13 @@ export function bodyOverlays(
   alpha = 1,
 ): Overlay[] {
   const out: Overlay[] = [];
-  for (const [bone, bricks] of grouped(body)) {
-    const m = pose.get(bone);
+  for (const g of grouped(body)) {
+    const m = pose.get(g.bone);
     if (!m) continue;
-    out.push({ bricks, alpha, flat: false, model: multiply(world, m) });
+    out.push({ bricks: g.bricks, alpha: alpha * g.alpha, flat: g.glow, model: multiply(world, m) });
   }
-  return out;
+  // solid first, so see-through parts blend over them
+  return out.sort((a, b) => b.alpha - a.alpha);
 }
 
 /** The skeleton as lines (joint to joint) in world space, and each joint's position. */

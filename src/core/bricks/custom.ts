@@ -75,7 +75,33 @@ export function registerCustomBrick(b: CustomBrick) {
 export function unregisterCustomBrick(id: string) {
   if (registry.delete(id)) for (const f of listeners) f();
 }
-export const customBrick = (id: string): CustomBrick | undefined => registry.get(id);
+export const customBrick = (id: string): CustomBrick | undefined => registry.get(id) ?? shapeBrick(id);
+
+/**
+ * Step 11, 4a: a shape with no file of its own — a body part's shape (a dome head, a round eye, a cone horn). Its id
+ * names everything about it: shape:<shape>:<base>:<w>x<d>:<studs>.
+ */
+const SHAPE_ID = /^shape:([a-z-]+):(brick|plate|tile):(\d)x(\d):(flat|none)$/;
+export const shapeId = (shape: CustomShape, base: CustomBrick['base'], w: number, d: number, studs: 'flat' | 'none') =>
+  `shape:${shape}:${base}:${w}x${d}:${studs}`;
+const shapes = new Map<string, CustomBrick>();
+function shapeBrick(id: string): CustomBrick | undefined {
+  const hit = shapes.get(id);
+  if (hit) return hit;
+  const m = SHAPE_ID.exec(id);
+  if (!m || !(CUSTOM_SHAPES as readonly string[]).includes(m[1]!)) return undefined;
+  const b: CustomBrick = {
+    id: 'cbk_shape00000',
+    name: m[1]!,
+    shape: m[1] as CustomShape,
+    base: m[2] as CustomBrick['base'],
+    w: Number(m[3]),
+    d: Number(m[4]),
+    studs: m[5] as 'flat' | 'none',
+  };
+  shapes.set(id, b);
+  return b;
+}
 export const customBricks = (): CustomBrick[] => [...registry.values()];
 /** called when a custom brick changes (the renderer drops the shapes it made) */
 export function onCustomBricks(f: () => void): () => void {

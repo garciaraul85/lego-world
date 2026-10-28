@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks';
 import type { BodyPlan } from '../../../core/character/body';
-import type { ResolvedBody } from '../../../core/character/resolve';
+import type { minifigExtras, ResolvedBody } from '../../../core/character/resolve';
 import type { Clip } from '../../../core/schema';
 import { rigPose } from '../../../engine/character/animator';
 import {
@@ -13,6 +13,7 @@ import {
   boneLines,
   newMotion,
 } from '../../../engine/character/body-anim';
+import { extrasOverlays } from '../../../engine/character/extras';
 import { sampleParams } from '../../../engine/character/routine';
 import { type CharacterRenderer, legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { OrbitCamera } from '../../../engine/render/camera';
@@ -46,6 +47,8 @@ export type PreviewInput = {
   draw?: { part: string; side: number } | null;
   /** 10d part 3: painting and brick-sculpting a body plan: the brick under the pointer is outlined, a click is a hit */
   sculpt?: { tool: SculptTool; plan: BodyPlan; onHit(hit: BrickHit): void } | null;
+  /** step 11, 4a: a minifig's extra parts (a tail, a snout…) on its joints */
+  extras?: ReturnType<typeof minifigExtras>;
 };
 
 /** Milestone 3, 10d: the open preview's figure renderer, which the Draw tab draws through (live paint, a part's own look) */
@@ -174,7 +177,10 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
         return;
       }
       try {
-        renderer.render(cam.frame(), cam.target, [], [], [], (mvp, eye) => {
+        const extras = input.current.extras?.length
+          ? extrasOverlays(L, input.current.extras, profile, state as never, !!clip)
+          : [];
+        renderer.render(cam.frame(), cam.target, extras, [], [], (mvp, eye) => {
           view = mvp;
           chars.begin(mvp, eye, renderer.skySample);
           // a clip pose turns with the turntable too

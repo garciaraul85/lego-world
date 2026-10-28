@@ -1,9 +1,11 @@
 import { freeGroups, hasFree, partsMoving } from '../../core/assets/free';
+import type { minifigExtras } from '../../core/character/resolve';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { QUALITY } from '../../core/render/quality';
 import { rigPose } from '../character/animator';
 import { ACT_LENGTH, advance, bodyOverlays, bodyPose, bodyWorld, type Motion, newMotion } from '../character/body-anim';
+import { extrasOverlays } from '../character/extras';
 import type { CharacterRenderer, Controller, HeroState } from '../legacy/runtime-modules';
 import { feedModels } from '../model/prepare';
 import { brickGeometry } from '../render/brick-geometry';
@@ -410,12 +412,63 @@ export class PlayRenderer {
       });
     }
     const creatures = this.creatures();
+    // who is drawn as a minifig this frame, and how (step 11, 4a: their extra parts follow the same pose)
+    type Fig = { profile: Record<string, unknown>; state: HeroState; extras: ReturnType<typeof minifigExtras> };
+    const figs: Fig[] = [];
+    for (const n of w.npcs) {
+      if (creatures.drawn.has(n.id)) continue;
+      const cast = s.cine.drawFor(n, n.profile, n.state);
+      if (cast?.state.hidden) continue;
+      // P22 part 4: a speaker shows the face of its line's mood (P23 part 3: in a cinematic too)
+      const face = cast ? s.castFaceOf(n, cast.mood ?? null) : s.moodFaceOf(n);
+      const look = cast?.profile ?? n.profile;
+      // P23 part 4: a neighbour's state clip (walk, attack, hurt…) poses it
+      const sp = cast ? null : s.npcPose(n);
+      const st = cast?.state ?? n.state;
+      figs.push({
+        profile: face ? { ...look, ...face } : look,
+        state: sp?.params
+          ? { ...st, studioPose: rigPose(sp.params, sp.clip), studioProgress: 0, studioFist: false }
+          : st,
+        extras: s.extrasOf(n),
+      });
+    }
+    for (const x of s.cine.extras()) {
+      const face = x.mood && x.name ? s.speakerFace(x.name, x.mood) : null;
+      figs.push({ profile: face ? { ...x.profile, ...face } : x.profile, state: x.state, extras: [] });
+    }
+    // P9b: a combat move (guard, roll, spin…) shows over an emote
+    const fight = s.combat.pose();
+    const heroPose = fight ?? s.heroAnim.params();
+    const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;
+    const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
+    if (creatures.drawn.has('hero')) {
+      /* drawn as a body plan (overlays) */
+    } else if (heroCast) {
+      const face = s.castFaceOf('hero', heroCast.mood ?? null);
+      if (!heroCast.state.hidden)
+        figs.push({
+          profile: face ? { ...heroCast.profile, ...face } : heroCast.profile,
+          state: heroCast.state,
+          extras: s.extrasOf('hero'),
+        });
+    } else
+      figs.push({
+        profile: s.moodFaceOf('hero') ? { ...s.hero, ...s.moodFaceOf('hero') } : s.hero,
+        state: heroPose
+          ? { ...s.heroState, studioPose: rigPose(heroPose, poseClip), studioProgress: 0, studioFist: false }
+          : s.heroState,
+        extras: s.extrasOf('hero'),
+      });
+    const extraParts: Overlay[] = [];
+    for (const f of figs)
+      if (f.extras.length) extraParts.push(...extrasOverlays(s.L, f.extras, f.profile, f.state as never));
     // P23: the particles of this frame
     this.renderer.particles = s.effects.batches();
     // P27: the lights of this moment, and how dark the map is without them
+    const q = QUALITY[s.quality];
     this.renderer.lights = s.pointLightsNow();
     // P27 part 4: what this quality level draws
-    const q = QUALITY[s.quality];
     this.renderer.maxLights = q.lights;
     this.renderer.shadows = q.shadows;
     this.renderer.maxShadows = q.shadowLights;
@@ -428,7 +481,7 @@ export class PlayRenderer {
     return this.renderer.render(
       cam,
       [s.heroState.x, s.heroState.y, s.heroState.z],
-      [...this.tiltedOverlays(), ...this.looseOverlays(), ...creatures.overlays],
+      [...this.tiltedOverlays(), ...this.looseOverlays(), ...creatures.overlays, ...extraParts],
       lines,
       markers,
       (mvp, eye) => {
@@ -439,52 +492,17 @@ export class PlayRenderer {
           this.renderer.applyLights(this.renderer.gl.getParameter(this.renderer.gl.CURRENT_PROGRAM));
         // a character playing a clip (a cinematic, an emote) is drawn where it stands
         const frame = { mvp, eye: eye as number[], light: sky };
-        const draw = (profile: Record<string, unknown>, state: HeroState) =>
-          drawCharacter(s.L, c, frame, profile, state);
         for (const n of w.npcs) {
           if (!this.bound.has(n.controller)) {
             c.bindCollision(n.profile, n.controller);
             this.bound.add(n.controller);
           }
-          if (creatures.drawn.has(n.id)) continue;
-          const cast = s.cine.drawFor(n, n.profile, n.state);
-          if (cast?.state.hidden) continue;
-          // P22 part 4: a speaker shows the face of its line's mood (P23 part 3: in a cinematic too)
-          const face = cast ? s.castFaceOf(n, cast.mood ?? null) : s.moodFaceOf(n);
-          const look = cast?.profile ?? n.profile;
-          // P23 part 4: a neighbour's state clip (walk, attack, hurt…) poses it
-          const sp = cast ? null : s.npcPose(n);
-          const st = cast?.state ?? n.state;
-          draw(
-            face ? { ...look, ...face } : look,
-            sp?.params ? { ...st, studioPose: rigPose(sp.params, sp.clip), studioProgress: 0, studioFist: false } : st,
-          );
-        }
-        for (const x of s.cine.extras()) {
-          const face = x.mood && x.name ? s.speakerFace(x.name, x.mood) : null;
-          draw(face ? { ...x.profile, ...face } : x.profile, x.state);
         }
         if (!this.bound.has(w.controller)) {
           c.bindCollision(s.hero, w.controller);
           this.bound.add(w.controller);
         }
-        // P9b: a combat move (guard, roll, spin…) shows over an emote
-        const fight = s.combat.pose();
-        const pose = fight ?? s.heroAnim.params();
-        const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;
-        const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
-        if (creatures.drawn.has('hero')) {
-          /* drawn as a body plan (overlays) */
-        } else if (heroCast) {
-          const face = s.castFaceOf('hero', heroCast.mood ?? null);
-          if (!heroCast.state.hidden) draw(face ? { ...heroCast.profile, ...face } : heroCast.profile, heroCast.state);
-        } else
-          draw(
-            s.moodFaceOf('hero') ? { ...s.hero, ...s.moodFaceOf('hero') } : s.hero,
-            pose
-              ? { ...s.heroState, studioPose: rigPose(pose, poseClip), studioProgress: 0, studioFist: false }
-              : s.heroState,
-          );
+        for (const f of figs) drawCharacter(s.L, c, frame, f.profile, f.state);
         for (const d of w.debris) c.debris(this.debrisMesh, d);
       },
     );

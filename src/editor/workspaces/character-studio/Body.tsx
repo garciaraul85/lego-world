@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { BUILTIN_BODY_PLANS, builtinBodyPlan } from '../../../builtin/bodyplans';
 import {
   BODY_FAMILIES,
   BONE_ROLES,
@@ -16,9 +17,9 @@ import {
 } from '../../../core/character/body';
 import { FAMILY_INFO, FAMILY_PRESETS, makeFamily } from '../../../core/character/families';
 import { movesOf } from '../../../core/character/moves';
-import { type ResolvedBody, resolveBody } from '../../../core/character/resolve';
+import { planOf, type ResolvedBody, resolveBody } from '../../../core/character/resolve';
 import { newId } from '../../../core/ids';
-import type { Asset, Character } from '../../../core/schema';
+import { type Asset, type Character, paths } from '../../../core/schema';
 import { AssetThumb } from '../../components/AssetThumb';
 import { FieldHelp } from '../../components/fields';
 import { matches, NoMatch, SearchBox, SearchSelect } from '../../components/SearchBox';
@@ -64,6 +65,30 @@ export function makeOwnPlan(
   ).ok;
 }
 
+/**
+ * Step 11, 4a: saves a body plan. One of the engine's own plans is never changed: the first change makes the
+ * character a copy of it in the project, and the change goes on the copy (one undo step).
+ */
+export function putPlan(ed: Sub['c']['ed'], chr: Character, plan: BodyPlan, label: string): boolean {
+  if (ed.store.has(paths.bodyplan(plan.id)) || !builtinBodyPlan(plan.id))
+    return ed.exec({ type: 'bodyplan.put', payload: { plan } }, { label }).ok;
+  if (!ed.store.has(paths.character(chr.id))) {
+    ed.notify('Change anything about this character first (its name, say): then its body can be changed.', true);
+    return false;
+  }
+  const copy: BodyPlan = { ...plan, id: newId('bodyplan'), name: `${plan.name} (mine)`.slice(0, 40) };
+  const { body: _b, ...rest } = chr;
+  const ok = ed.exec(
+    [
+      { type: 'bodyplan.put', payload: { plan: copy } },
+      { type: 'character.update', payload: { character: { ...rest, body: { ...(chr.body ?? {}), plan: copy.id } } } },
+    ],
+    { label },
+  ).ok;
+  if (ok) ed.notify(`${plan.name} is one of the engine's bodies: ${chr.name} now has its own copy to change.`);
+  return ok;
+}
+
 /** P23: a body family's card shows the creature itself (the minifig: this character) */
 function FamilyPicture({ f, profile }: { f: BodyFamily; profile: Record<string, unknown> }) {
   const body = f === 'minifig' ? null : resolveBody({ family: f }, () => undefined);
@@ -79,7 +104,7 @@ export { bodyOfChr };
 export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolean }) {
   const ed = c.ed;
   const body: Body = chr.body ?? {};
-  const own = body.plan ? (ed.store.get(`bodyplans/${body.plan}.json`) as BodyPlan | undefined) : undefined;
+  const own = body.plan ? planOf(body.plan, (p) => ed.store.get(p)) : undefined;
   const family: BodyFamily = own ? 'minifig' : (body.family ?? 'minifig');
   const isMinifig = !own && family === 'minifig';
   const [custom, setCustom] = useState(false);
@@ -87,10 +112,14 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
   const [customFrom, setCustomFrom] = useState<Exclude<BodyFamily, 'minifig'>>(
     family === 'minifig' ? 'fourLegs' : family,
   );
-  const plans = ed.store
-    .list('bodyplans/')
-    .map((p) => ed.store.get(p) as BodyPlan)
-    .filter(Boolean);
+  const plans = [
+    ...ed.store
+      .list('bodyplans/')
+      .map((p) => ed.store.get(p) as BodyPlan)
+      .filter(Boolean),
+    // step 11, 4a: the engine's own creature bodies
+    ...BUILTIN_BODY_PLANS,
+  ];
   const setBody = (next: Body | undefined, label: string) => {
     const { body: _b, ...rest } = chr;
     save((next ? { ...rest, body: next } : rest) as Character, label);
@@ -156,7 +185,7 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
                 aria-checked={own?.id === p.id}
                 class={`chip body-card ${own?.id === p.id ? 'on' : ''}`}
                 data-tour={`body-plan-${p.id}`}
-                title={`${p.name}: a body plan of this game (${MOVE_INFO[p.move]})`}
+                title={`${p.name}: ${builtinBodyPlan(p.id) ? "one of the engine's bodies" : 'a body plan of this game'} (${MOVE_INFO[p.move]})`}
                 onClick={() => pickPlan(p)}
               >
                 <CharacterThumb
@@ -451,7 +480,7 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
       ed.notify(bad[0]!, true);
       return false;
     }
-    return ed.exec({ type: 'bodyplan.put', payload: { plan } }, { label }).ok;
+    return putPlan(ed, chr, plan, label);
   };
   if (!own) {
     return (

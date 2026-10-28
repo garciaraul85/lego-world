@@ -24,7 +24,7 @@ import {
 } from '../../core/bridge/legacy-bridge';
 import { moodFace } from '../../core/character/faces';
 import { BODY_MOVES, type BodyMove, movesOf as bodyMovesOf, MOVE_LENGTH } from '../../core/character/moves';
-import { type ResolvedBody, resolveBody } from '../../core/character/resolve';
+import { minifigExtras, type ResolvedBody, resolveBody } from '../../core/character/resolve';
 import { levelOf, xpFor } from '../../core/character/sheet';
 import { type AnimState, MOVING_AT } from '../../core/character/states';
 import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
@@ -292,6 +292,8 @@ export class PlaySession {
   private standing = new Map<number, boolean>();
   /** P22 part 3: bodies other than the minifig, by NPC id ('hero' for the player) */
   private bodies = new Map<number | 'hero', ResolvedBody | null>();
+  /** step 11, 4a: minifigs' extra parts, by NPC id */
+  private extraParts = new Map<number | 'hero', ReturnType<typeof minifigExtras>>();
   rebuildHeld = false;
   rebuildEntry: BrokenEntry | null = null;
   private pendingSmash: {
@@ -841,6 +843,7 @@ export class PlaySession {
   setHero(chr: Character | undefined) {
     this.heroChr = chr;
     this.bodies.delete('hero');
+    this.extraParts.delete('hero');
     this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...wornProfile(chr) });
     // P9b: the off hand (a shield) lives beside v68's profile, which only knows a right-hand item
     this.hero.offHand = chr?.gear?.offHand ?? 'None';
@@ -1892,6 +1895,7 @@ export class PlaySession {
   /** NPC ids belong to one map: a new map (or a restart) looks bodies up again */
   private forgetBodies() {
     this.bodies?.clear();
+    this.extraParts?.clear();
     this.npcStates?.clear();
     // P27: a new map is as dark as it was made, with its own fog
     this.darknessNow = null;
@@ -1919,6 +1923,18 @@ export class PlaySession {
       this.bodies.set(key, body);
     }
     return this.bodies.get(key)!;
+  }
+
+  /** step 11, 4a: a minifig's extra parts (a tail, a snout…), coloured */
+  extrasOf(who: Npc | 'hero') {
+    const key = who === 'hero' ? 'hero' : who.id;
+    let e = this.extraParts.get(key);
+    if (!e) {
+      const chr = who === 'hero' ? this.heroChr : npcCharacter(this.snapshot, this.world.mapId, who);
+      e = minifigExtras(chr?.body);
+      this.extraParts.set(key, e);
+    }
+    return e;
   }
 
   standsStill(n: Npc): boolean {

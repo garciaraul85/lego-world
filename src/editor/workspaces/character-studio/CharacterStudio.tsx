@@ -3,6 +3,7 @@ import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../../builtin/clips';
 import type { BodyPlan } from '../../../core/character/body';
 import type { CustomHair } from '../../../core/character/hair';
+import { minifigExtras, planOf } from '../../../core/character/resolve';
 import type { Command } from '../../../core/commands';
 import { newId } from '../../../core/ids';
 import { type Character, type Clip, paths } from '../../../core/schema';
@@ -19,7 +20,7 @@ import { shows } from '../../genres/view';
 import { actionChoices } from '../../panels/AudioFields';
 import { ConversationList, DialogueMain, TalkSection } from '../dialogue/CharacterTalk';
 import { conversations } from '../dialogue/model';
-import { BodyTab, bodyOfChr } from './Body';
+import { BodyTab, bodyOfChr, putPlan } from './Body';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
 import { DrawTab } from './Draw';
 import { FaceTab, withMood } from './Face';
@@ -214,6 +215,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     part: clip && !body ? part : null,
     body,
     bones: body && ed.bodyBones.value ? { selected: ed.bodyBone.value } : null,
+    extras: body ? [] : minifigExtras(chr.body),
     walking: !!body && ed.bodyWalk.value,
     act: body ? ed.bodyAct.value : null,
     draw: !body && ed.sheetTab.value === 'draw' ? { part: ed.drawPart.value, side: ed.drawSide.value } : null,
@@ -221,7 +223,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     sculpt: (() => {
       const tool = ed.bodySculpt.value;
       const planId = chr.body?.plan;
-      const plan = planId ? ed.store.get<BodyPlan>(paths.bodyplan(planId)) : undefined;
+      const plan = planId ? planOf(planId, (p) => ed.store.get(p)) : undefined;
       if (!tool || !plan || !body || body.fromAsset || ed.sheetTab.value !== 'body') return null;
       return {
         tool,
@@ -232,9 +234,11 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
             if (tool.mode !== 'paint') ed.notify(next, true);
             return;
           }
-          ed.exec(
-            { type: 'bodyplan.put', payload: { plan: next } },
-            { label: tool.mode === 'paint' ? 'Paint a brick' : tool.mode === 'add' ? 'Add a brick' : 'Remove a brick' },
+          putPlan(
+            ed,
+            chr,
+            next,
+            tool.mode === 'paint' ? 'Paint a brick' : tool.mode === 'add' ? 'Add a brick' : 'Remove a brick',
           );
         },
       };
