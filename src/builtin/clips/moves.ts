@@ -136,7 +136,53 @@ const breathe = clipFromPoses({ id: 'clp_movebreath', name: 'Breathe', group: 'M
   [2.4, {}],
 ]);
 
-export const MOVE_CLIPS: Clip[] = [walk, run, jump, swing, flinch, breathe];
+/**
+ * step 11b: swimming. The body lies along the water (root pitch, as v68's plank), the arms wheel over one after the
+ * other (a front crawl) and the legs flutter; treading water keeps the body upright, the arms sweeping and the
+ * legs kicking slowly.
+ */
+const crawl = (lead: 'left' | 'right', reach: number) => {
+  const a = lead === 'left' ? 1 : -1;
+  return {
+    'root.pitch': 1.3,
+    'root.free': 1,
+    'root.height': 1.0,
+    'leftArm.x': a > 0 ? -2.9 * reach : 0.9 * reach,
+    'rightArm.x': a > 0 ? 0.9 * reach : -2.9 * reach,
+    'leftForearm.bend': a > 0 ? -0.15 : -0.9,
+    'rightForearm.bend': a > 0 ? -0.9 : -0.15,
+    'leftLeg.x': 0.18 * a,
+    'rightLeg.x': -0.18 * a,
+    'leftShin.bend': 0.25,
+    'rightShin.bend': 0.25,
+    'head.turn': 0.35 * a,
+  };
+};
+const swim = clipFromPoses({ id: 'clp_moveswim00', name: 'Swim', group: 'Moves', length: 1.1, loop: true }, [
+  [0, crawl('left', 1)],
+  [0.55, crawl('right', 1)],
+  [1.1, crawl('left', 1)],
+]);
+const treadPose = (k: number) => ({
+  'root.height': 1.72,
+  'leftArm.z': -0.9 - 0.25 * k,
+  'rightArm.z': 0.9 + 0.25 * k,
+  'leftArm.x': -0.35,
+  'rightArm.x': -0.35,
+  'leftForearm.bend': -0.5,
+  'rightForearm.bend': -0.5,
+  'leftLeg.x': -0.35 * k,
+  'rightLeg.x': 0.35 * k,
+  'leftShin.bend': 0.6,
+  'rightShin.bend': 0.6,
+});
+const tread = clipFromPoses({ id: 'clp_movetread0', name: 'Tread water', group: 'Moves', length: 1.4, loop: true }, [
+  [0, treadPose(1)],
+  [0.7, treadPose(-1)],
+  [1.4, treadPose(1)],
+]);
+
+export const MOVE_CLIPS: Clip[] = [walk, run, jump, swing, flinch, breathe, swim, tread];
 
 /** the state each built-in move is made for (Use the built-in moves on the character sheet) */
 export const MOVE_FOR = {
@@ -146,4 +192,6 @@ export const MOVE_FOR = {
   attack: swing.id,
   hurt: flinch.id,
   idle: breathe.id,
+  swim: swim.id,
+  tread: tread.id,
 } as const;

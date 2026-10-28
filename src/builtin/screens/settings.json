@@ -13,10 +13,7 @@
       {
         "type": "panel",
         "id": "menu",
-        "anchor": [
-          0.5,
-          0.5
-        ],
+        "anchor": [0.5, 0.5],
         "style": {
           "layout": "column",
           "gap": 10,

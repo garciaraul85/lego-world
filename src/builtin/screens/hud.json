@@ -10,14 +10,8 @@
       {
         "type": "panel",
         "id": "status",
-        "anchor": [
-          0,
-          0
-        ],
-        "offset": [
-          24,
-          20
-        ],
+        "anchor": [0, 0],
+        "offset": [24, 20],
         "style": {
           "layout": "row",
           "gap": 14,
@@ -29,18 +23,12 @@
           {
             "type": "hearts",
             "id": "hearts",
-            "bind": [
-              "hp",
-              "maxHp"
-            ]
+            "bind": ["hp", "maxHp"]
           },
           {
             "type": "bar",
             "id": "stamina",
-            "bind": [
-              "stamina",
-              "maxStamina"
-            ],
+            "bind": ["stamina", "maxStamina"],
             "label": "Stamina",
             "style": {
               "w": 110,
@@ -49,6 +37,18 @@
               "radius": 9,
               "fontSize": 12,
               "hideFull": 1
+            }
+          },
+          {
+            "type": "bar",
+            "id": "air",
+            "bind": ["air", "maxAir"],
+            "label": "Air",
+            "showIf": "underwater",
+            "style": {
+              "w": 180,
+              "h": 12,
+              "color": "#5bc0eb"
             }
           },
           {
@@ -65,14 +65,8 @@
       {
         "type": "text",
         "id": "mapname",
-        "anchor": [
-          1,
-          0
-        ],
-        "offset": [
-          -24,
-          20
-        ],
+        "anchor": [1, 0],
+        "offset": [-24, 20],
         "text": "{map.name}",
         "style": {
           "fontSize": 18,
@@ -85,17 +79,9 @@
       {
         "type": "list",
         "id": "inventory",
-        "anchor": [
-          1,
-          0
-        ],
-        "offset": [
-          -24,
-          70
-        ],
-        "bind": [
-          "inventory"
-        ],
+        "anchor": [1, 0],
+        "offset": [-24, 70],
+        "bind": ["inventory"],
         "style": {
           "fontSize": 16,
           "color": "#f7c900",
@@ -108,14 +94,8 @@
       {
         "type": "minimap",
         "id": "minimap",
-        "anchor": [
-          1,
-          1
-        ],
-        "offset": [
-          -24,
-          -24
-        ],
+        "anchor": [1, 1],
+        "offset": [-24, -24],
         "style": {
           "w": 150,
           "h": 150,
@@ -126,14 +106,8 @@
       {
         "type": "text",
         "id": "message",
-        "anchor": [
-          0.5,
-          1
-        ],
-        "offset": [
-          0,
-          -120
-        ],
+        "anchor": [0.5, 1],
+        "offset": [0, -120],
         "text": "{message}",
         "style": {
           "fontSize": 20,
@@ -148,14 +122,8 @@
       {
         "type": "text",
         "id": "prompt",
-        "anchor": [
-          0.5,
-          1
-        ],
-        "offset": [
-          0,
-          -64
-        ],
+        "anchor": [0.5, 1],
+        "offset": [0, -64],
         "text": "{prompt}",
         "style": {
           "fontSize": 20,
@@ -170,14 +138,8 @@
       {
         "type": "buttons",
         "id": "buttons",
-        "anchor": [
-          0,
-          1
-        ],
-        "offset": [
-          24,
-          -24
-        ],
+        "anchor": [0, 1],
+        "offset": [24, -24],
         "style": {
           "fontSize": 18,
           "color": "#ffffff",
@@ -187,14 +149,8 @@
       {
         "type": "button",
         "id": "pause",
-        "anchor": [
-          0.5,
-          0
-        ],
-        "offset": [
-          0,
-          16
-        ],
+        "anchor": [0.5, 0],
+        "offset": [0, 16],
         "label": "\u275a\u275a",
         "touchOnly": true,
         "onPress": [

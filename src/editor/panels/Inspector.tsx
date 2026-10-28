@@ -12,6 +12,7 @@ import {
   type QualityChoice,
 } from '../../core/render/quality';
 import { BIOMES, paths, type Settings, TIMES } from '../../core/schema';
+import { SWIM_DEFAULTS } from '../../core/water/swim';
 import type { GenerateConfig } from '../../core/worldgen/generate';
 import { browserDevice } from '../../engine/runtime/device';
 import { type ActionCtx, action, runAction } from '../actions/registry';
@@ -697,6 +698,53 @@ function MovementField({ c }: { c: ActionCtx }) {
   );
 }
 
+export const SWIM_HELP =
+  'In water deeper than about half the hero, the hero swims: afloat with the head out, the Action button says Dive (hold it to go down) and, under water, Swim up. Currents carry the swimmer; pushing against a low shore climbs out, and Jump at the surface leaps out. Under water the hero holds their breath: the HUD shows Air, and with none left a heart is lost every 2 seconds. Shallow water only slows walking. Off: the hero sinks and walks along the bottom.';
+
+/** step 11b part 2: can the hero swim, and how long a breath lasts */
+function SwimField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = { ...SWIM_DEFAULTS, ...(ed.store.get<Settings>(paths.settings)?.swimming ?? {}) };
+  const save = (p: Partial<typeof cur>) =>
+    ed.exec({ type: 'project.update', payload: { swimming: { ...cur, ...p } } }, { label: 'Swimming' });
+  return (
+    <div class="field" data-tour="project-swimming" data-help="project.swimming">
+      <span>
+        Swimming
+        <FieldHelp label="Swimming" text={SWIM_HELP} />
+      </span>
+      <span class="row" style={{ gap: '8px' }}>
+        <label class="row small">
+          <input
+            type="checkbox"
+            checked={cur.can}
+            aria-label="Hero can swim"
+            onChange={(e) => save({ can: (e.target as HTMLInputElement).checked })}
+          />
+          Hero can swim
+        </label>
+        <label class="row small">
+          Breath
+          <input
+            class="inp mono"
+            type="number"
+            min={3}
+            max={300}
+            style={{ width: '64px' }}
+            aria-label="Breath (seconds)"
+            value={cur.breath}
+            onChange={(e) => {
+              const v = Math.max(3, Math.min(300, Math.round(Number((e.target as HTMLInputElement).value) || 20)));
+              save({ breath: v });
+            }}
+          />
+          s
+        </label>
+      </span>
+    </div>
+  );
+}
+
 function ProjectTab({ c }: { c: ActionCtx }) {
   const { ed, ui } = c;
   ed.revision.value;
@@ -758,6 +806,7 @@ function ProjectTab({ c }: { c: ActionCtx }) {
         </div>
         <QualityField c={c} />
         <MovementField c={c} />
+        <SwimField c={c} />
       </div>
       <ControlsSection c={c} />
       <SavingSection c={c} />

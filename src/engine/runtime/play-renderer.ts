@@ -246,6 +246,9 @@ export class PlayRenderer {
     return { ...(this.stream?.counts ?? { shown: 0, total: 0 }), streaming: !!this.stream?.streaming };
   }
 
+  /** step 11b part 2: the camera is under water this frame */
+  underwater = false;
+
   render() {
     const s = this.session;
     const w = s.world;
@@ -261,6 +264,13 @@ export class PlayRenderer {
     const base = this.cameraOverride ?? s.cine.frame?.camera ?? this.camera();
     // P23 part 2: screen effects shake the game's camera (never the Director's stage view)
     const cam = this.cameraOverride ? base : shaken(base, s.screenFx.shake());
+    // step 11b part 2: under the water's surface the world is blue and close
+    const [ex, ey, ez] = cam.eye;
+    const under = s
+      .waterBoxes()
+      .find((w) => ex >= w.x0 && ex <= w.x1 && ez >= w.z0 && ez <= w.z1 && ey < w.y1 && ey >= w.y0 - 2);
+    if (under) this.renderer.fog = { near: 1, far: 28, max: 0.9, color: [0.05, 0.24, 0.34], height: 0, ground: 0 };
+    this.underwater = !!under;
     this.lastCamera = cam;
     const lines: LineSet[] = [];
     const markers: Marker[] = [];

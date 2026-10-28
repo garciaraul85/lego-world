@@ -351,6 +351,8 @@ const ACTION_LABEL: Record<AnimAction, string> = {
   run: 'Run',
   jump: 'Jump',
   attack: 'Attack',
+  swim: 'Swim (moving in deep water)',
+  tread: 'Tread water (still in deep water)',
 };
 
 export function AnimationsTab({ c, chr, save }: Props) {

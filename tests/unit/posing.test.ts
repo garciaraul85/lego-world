@@ -82,7 +82,16 @@ describe('posing', () => {
     expect(Object.keys(movedJoints(poseAt(c, 1))).sort()).toEqual(['head.turn', 'leftLeg.x', 'rightArm.z']);
   });
   it('the built-in moves are made of whole poses and are valid clips', () => {
-    expect(MOVE_CLIPS.map((c) => c.name)).toEqual(['Walk', 'Run', 'Jump', 'Swing', 'Flinch', 'Breathe']);
+    expect(MOVE_CLIPS.map((c) => c.name)).toEqual([
+      'Walk',
+      'Run',
+      'Jump',
+      'Swing',
+      'Flinch',
+      'Breathe',
+      'Swim',
+      'Tread water',
+    ]);
     for (const c of MOVE_CLIPS) {
       expect(Clip.safeParse(c).success, c.name).toBe(true);
       expect(BUILTIN_CLIPS.some((b) => b.id === c.id)).toBe(true);

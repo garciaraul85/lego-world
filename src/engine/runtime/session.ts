@@ -2,6 +2,7 @@ import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { SND } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
+import { MOVE_FOR } from '../../builtin/clips/moves';
 import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS } from '../../builtin/effects';
 import { genreById } from '../../builtin/genres';
 import { BUILTIN_SCREEN_EFFECTS, DEFAULT_SCREEN_EVENTS } from '../../builtin/screen-effects';
@@ -90,6 +91,20 @@ import {
   type Variables,
   type WaterInstance,
 } from '../../core/schema';
+import {
+  type Breath,
+  breathe,
+  DROWN_EVERY,
+  floatY,
+  headUnder,
+  SWIM_DEFAULTS,
+  type Swimming,
+  swimStep,
+  type WaterBox,
+  type WaterMode,
+  waterAt,
+  waterMode,
+} from '../../core/water/swim';
 import type { AudioPort, Vec3 } from '../audio/port';
 import { RecordingAudio } from '../audio/port';
 import { Animator } from '../character/animator';
@@ -110,7 +125,7 @@ import { type Atmosphere, atmosphere } from '../lighting/atmosphere';
 import { findLight, gatherLights, type LightSource, pointLights } from '../lighting/lights';
 import { LogicRuntime } from '../logic/interpreter';
 import { type MediaSource, modelMatrix, prepareModel, readyModel } from '../model/prepare';
-import { walkHero } from '../physics/hero';
+import { HERO_HEIGHT, HERO_RADIUS, walkHero } from '../physics/hero';
 import { PhysicsWorld, physicsReady } from '../physics/physics';
 import { type ModelUpload, placedTriangles } from '../render/model-draw';
 import { portrait } from '../render/portraits';
@@ -299,6 +314,10 @@ export class PlaySession {
   readonly buttons: GameButtons;
   /** step 11b: more things the Action button can offer (swimming, puzzles and items add theirs) */
   readonly actionOffers: (() => ActionOffer[])[] = [];
+  /** step 11b part 2: swimming now (in deep water), diving or rising (the Action button held), and breath */
+  swim = { on: false, down: false, up: false, under: false };
+  breath: Breath = { air: 20, drownIn: DROWN_EVERY };
+  private waterCache: { map: string; list: WaterBox[]; of: unknown } | null = null;
   readonly actions: ActionRunner;
   /** keyframe clips on the hero (emotes, keys 1-4) */
   readonly heroAnim = new Animator();
@@ -1064,9 +1083,17 @@ export class PlaySession {
       speedScale: (input.speedScale ?? 1) * this.heroStats.speed,
       jumpSpeed: (input.jumpSpeed ?? (this.hero.power === 'Super jumping' ? 19 : 9.5)) * Math.sqrt(this.heroStats.jump),
     };
-    if (this.physicsMovement) this.walkWithPhysics(move, dt);
-    // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
-    else this.world.controller.step(move, dt, this.camYaw);
+    // step 11b part 2: deep water: the hero swims (shallow water only slows walking)
+    const water = this.waterHere();
+    if (water.mode === 'swim') this.swimStep(water.box!, move, dt);
+    else {
+      if (this.swim.on) this.leaveWater();
+      if (water.mode === 'wade') move.speedScale *= 0.6;
+      if (this.physicsMovement) this.walkWithPhysics(move, dt);
+      // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
+      else this.world.controller.step(move, dt, this.camYaw);
+    }
+    this.stepBreath(water.box, dt);
     c.stepMove(dt);
     if (this.god) c.stamina = MAX_STAMINA;
     this.keepOutOfParts();
@@ -3352,9 +3379,15 @@ export class PlaySession {
         grounded: s.grounded && !v.jump,
         attacking,
         hurtAgo: this.clock - this.heroHurtAt,
+        swimming: this.swim.on,
       },
       this.heroChr?.states,
-      (st) => (this.bodyOf('hero') ? undefined : this.sheetClip(this.heroChr, st)),
+      (st) =>
+        this.bodyOf('hero')
+          ? undefined
+          : (this.sheetClip(this.heroChr, st) ??
+            // step 11b: v68's own motion is a walk, so swimming always has a clip (the built-in crawl and tread)
+            (st === 'swim' || st === 'tread' ? BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st]) : undefined)),
       dt,
       1.5,
     );
@@ -3518,6 +3551,140 @@ export class PlaySession {
     this.buttons.update();
   }
 
+  /** step 11b part 2: the game's swimming (Project › Movement) */
+  get swimming(): Swimming {
+    const v = (this.snapshot.get(paths.settings) as { swimming?: Swimming } | undefined)?.swimming;
+    return { ...SWIM_DEFAULTS, ...(v ?? {}) };
+  }
+
+  /** the map's water as boxes (its water items) */
+  waterBoxes(): WaterBox[] {
+    const w = this.world;
+    if (this.waterCache?.map === w.mapId && this.waterCache.of === w.water) return this.waterCache.list;
+    const list = w.water.map((it) => ({
+      x0: it.pos[0],
+      y0: it.pos[1],
+      z0: it.pos[2],
+      x1: it.pos[0] + it.size[0],
+      y1: it.pos[1] + it.size[1],
+      z1: it.pos[2] + it.size[2],
+      current: (it.current ?? [0, 0]) as [number, number],
+    }));
+    this.waterCache = { map: w.mapId, list, of: w.water };
+    return list;
+  }
+
+  /** the water the hero is in, and what it means: none, wading, or swimming */
+  waterHere(): { box: WaterBox | null; mode: WaterMode } {
+    const s = this.heroState;
+    const list = this.waterBoxes();
+    if (!list.length) return { box: null, mode: 'none' };
+    const box = waterAt(list, s.x, s.y + 0.05, s.z);
+    const h = HERO_HEIGHT * this.L.GamePhysics.scaleOf(s);
+    return { box, mode: waterMode(box, s.y, h, this.swimming.can) };
+  }
+
+  /** step 11b part 2: one step of swimming: across, up and down (the Action button), the current, the shore */
+  private swimStep(w: WaterBox, move: { x: number; z: number; speedScale?: number; jump?: boolean }, dt: number) {
+    const s = this.heroState;
+    const st = s as typeof s & Record<string, unknown>;
+    const k = this.L.GamePhysics.scaleOf(s);
+    const h = HERO_HEIGHT * k;
+    if (!this.swim.on) {
+      this.swim.on = true;
+      // falling in: the splash, then afloat
+      if (s.vy < -3) this.playSound(SND.splash, undefined);
+      s.vy = 0;
+    }
+    // a jump at the surface leaps out (onto a low shore)
+    if (move.jump && s.y >= floatY(w, h) - 0.2) {
+      this.leaveWater();
+      s.vy = 7.5;
+      s.y += 0.3;
+      return;
+    }
+    const step = swimStep(
+      s,
+      { x: move.x, z: move.z, up: this.swim.up, down: this.swim.down, speed: move.speedScale },
+      w,
+      h,
+      this.camYaw,
+      dt,
+    );
+    const c = this.world.controller;
+    const ph = this.physicsMovement ? this.world.physics : null;
+    let nx = s.x + step.dx;
+    let ny = s.y + step.dy;
+    let nz = s.z + step.dz;
+    if (ph) {
+      const r = ph.walk({ x: s.x, y: s.y, z: s.z }, { x: step.dx, y: step.dy, z: step.dz }, HERO_RADIUS * k, h);
+      nx = r.x;
+      ny = r.y;
+      nz = r.z;
+    } else if (c.clear(s.x, s.y, s.z) && !c.clear(nx, ny, nz)) {
+      // (stuck in something already, e.g. dropped into the water at the bottom: it may move out of it)
+      // blocked: slide along one axis, else stay
+      if (c.clear(nx, s.y, s.z)) [ny, nz] = [s.y, s.z];
+      else if (c.clear(s.x, s.y, nz)) [nx, ny] = [s.x, s.y];
+      else [nx, ny, nz] = [s.x, s.y, s.z];
+    }
+    // pushing into a low shore at the surface climbs out onto it
+    const pushed =
+      Math.hypot(step.dx, step.dz) > 0.001 && Math.hypot(nx - s.x, nz - s.z) < 0.3 * Math.hypot(step.dx, step.dz);
+    if (pushed && s.y >= floatY(w, h) - 0.3) {
+      const fx = s.x + Math.sin(s.heading) * 0.9;
+      const fz = s.z + Math.cos(s.heading) * 0.9;
+      for (let up = w.y1 - s.y; up < w.y1 - s.y + 1.4; up += 0.2) {
+        if (c.clear(fx, s.y + up, fz)) {
+          s.x = fx;
+          s.z = fz;
+          s.y += up + 0.05;
+          this.leaveWater();
+          return;
+        }
+      }
+    }
+    s.x = nx;
+    s.y = ny;
+    s.z = nz;
+    if (step.heading !== null) s.heading = step.heading;
+    s.speed = step.speed;
+    s.vy = 0;
+    s.grounded = true;
+    st.swimming = true;
+    st.diving = step.diving;
+  }
+
+  /** out of the water: walking again */
+  private leaveWater() {
+    const st = this.heroState as typeof this.heroState & Record<string, unknown>;
+    this.swim = { on: false, down: false, up: false, under: false };
+    st.swimming = false;
+    st.diving = false;
+  }
+
+  /** step 11b part 2: holding breath under water (the HUD shows {air} of {maxAir} while {underwater}) */
+  private stepBreath(w: WaterBox | null, dt: number) {
+    const s = this.heroState;
+    const max = this.swimming.breath;
+    const under = headUnder(w, s.y, HERO_HEIGHT * this.L.GamePhysics.scaleOf(s));
+    const r = breathe(this.breath, under && !this.god, max, dt);
+    this.breath = r.breath;
+    if (r.hearts) {
+      this.say('Out of air! Swim up.', 1.5);
+      this.hurt(r.hearts);
+    }
+    if (under !== this.swim.under) {
+      this.swim.under = under;
+      this.logic.setVar('underwater', under);
+      if (!under && this.breath.air < max) this.playSound(SND.splash, undefined);
+    }
+    const air = Math.ceil(this.breath.air);
+    if (this.logic.vars.get('air') !== air) this.logic.vars.set('air', air);
+    if (this.logic.vars.get('maxAir') !== max) this.logic.vars.set('maxAir', max);
+    this.logic.vars.set('swimming', this.swim.on);
+  }
+
   /** step 11b part 1: what the Action button can do here (the first that fits wins, see ACTION_PRIORITY) */
   private offersNow(): ActionOffer[] {
     if (this.over || this.cine.active || this.talks.active || this.talking) return [];
@@ -3536,6 +3703,17 @@ export class PlaySession {
     if (this.prompt) out.push({ kind: 'use', label: this.prompt.label, priority: ACTION_PRIORITY.use });
     else if (this.signPrompt) out.push({ kind: 'read', label: 'Read', priority: ACTION_PRIORITY.read });
     if (this.nearestBroken()) out.push({ kind: 'rebuild', label: 'Rebuild', priority: ACTION_PRIORITY.rebuild });
+    // step 11b part 2: in deep water the Action button dives, and under it swims up (held)
+    if (this.swim.on) {
+      const s2 = this.heroState;
+      const w = waterAt(this.waterBoxes(), s2.x, s2.y + 0.05, s2.z);
+      const atTop = w && s2.y >= floatY(w, HERO_HEIGHT * this.L.GamePhysics.scaleOf(s2)) - 0.2;
+      out.push(
+        atTop
+          ? { kind: 'dive', label: 'Dive', priority: ACTION_PRIORITY.dive }
+          : { kind: 'swimUp', label: 'Swim up', priority: ACTION_PRIORITY.swimUp },
+      );
+    }
     for (const f of this.actionOffers) out.push(...f());
     return out;
   }
@@ -3547,6 +3725,17 @@ export class PlaySession {
       act: (o, down) => {
         if (o.kind === 'rebuild') {
           this.rebuildHeld = down;
+          return;
+        }
+        // step 11b part 2: held to dive or to swim up; let go and the swimmer drifts back up
+        if (o.kind === 'dive') {
+          this.swim.down = down;
+          this.swim.up = false;
+          return;
+        }
+        if (o.kind === 'swimUp') {
+          this.swim.up = down;
+          this.swim.down = false;
           return;
         }
         if (!down) return;

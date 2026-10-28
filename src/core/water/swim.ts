@@ -32,7 +32,7 @@ export const SWIM_SPEED = 3.2;
 export const DIVE_SPEED = 2.8;
 export const RISE_SPEED = 3.4;
 /** under water with nothing pressed it drifts up slowly */
-export const DRIFT_UP = 0.7;
+export const DRIFT_UP = 1.6;
 /** how deep (in body heights) water must reach before a character swims, and where it floats */
 export const SWIM_DEPTH = 0.55;
 export const FLOAT_DEPTH = 0.72;
