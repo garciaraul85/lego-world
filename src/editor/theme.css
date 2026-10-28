@@ -1837,7 +1837,7 @@ select.inp {
   --adv-wood: #5a3a1a;
   font-family: "Palatino Linotype", "Book Antiqua", Palatino, "URW Palladio L", Georgia, serif;
 }
-.bw-look-adventure .bw-panel[style*="background"] {
+.bw-look-adventure .bw-panel[style*="background"]:not(.bw-screen > .bw-panel) {
   background: radial-gradient(ellipse at 50% 40%, var(--adv-parch) 55%, var(--adv-parch2) 100%) !important;
   border: 3px solid var(--adv-gold) !important;
   outline: 2px solid var(--adv-wood);
@@ -1848,7 +1848,7 @@ select.inp {
     inset 0 0 24px #b8904a55;
   color: var(--adv-ink) !important;
 }
-.bw-look-adventure .bw-panel[style*="background"] .bw-text {
+.bw-look-adventure .bw-panel[style*="background"]:not(.bw-screen > .bw-panel) .bw-text {
   color: var(--adv-ink) !important;
   text-shadow: none !important;
 }
