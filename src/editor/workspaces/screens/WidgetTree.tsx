@@ -13,6 +13,9 @@ const ICON: Record<Widget['type'], string> = {
   slot: '⬚',
   video: '🎬',
   credits: '📜',
+  buttons: '🎮',
+  items: '🎒',
+  controls: '⌨',
 };
 
 /** The widget tree of one screen; tree order is also keyboard / gamepad focus order. */

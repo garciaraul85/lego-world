@@ -1,0 +1,64 @@
+{
+  "id": "scr_controls00",
+  "kind": "custom",
+  "name": "Controls",
+  "music": null,
+  "pausesGame": true,
+  "root": {
+    "type": "panel",
+    "style": {
+      "bg": "#05070dc8"
+    },
+    "children": [
+      {
+        "type": "panel",
+        "id": "menu",
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "style": {
+          "layout": "column",
+          "gap": 12,
+          "w": 620,
+          "bg": "#141a2be8",
+          "pad": 24,
+          "radius": 16
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "title",
+            "text": "Controls",
+            "style": {
+              "fontSize": 32,
+              "weight": "bold",
+              "color": "#ffffff",
+              "align": "center"
+            }
+          },
+          {
+            "type": "controls",
+            "id": "bindings",
+            "style": {
+              "fontSize": 15,
+              "color": "#ffffff",
+              "gap": 6
+            }
+          },
+          {
+            "type": "button",
+            "id": "back",
+            "label": "Back",
+            "onPress": [
+              {
+                "do": "hideScreen",
+                "screen": "scr_controls00"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

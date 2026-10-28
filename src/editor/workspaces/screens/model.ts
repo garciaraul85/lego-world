@@ -67,6 +67,9 @@ export const WIDGET_TYPES: Widget['type'][] = [
   'slot',
   'video',
   'credits',
+  'buttons',
+  'items',
+  'controls',
 ];
 
 /** A sensible new widget of each type. */
@@ -106,6 +109,20 @@ export function template(type: Widget['type'], n: number): Widget {
       return { type, id, label: 'touch' };
     case 'video':
       return { type, id, style: { w: 640, h: 360, radius: 8, skip: 1 } };
+    case 'buttons':
+      return { type, id, anchor: [1, 0], offset: [-16, 16], style: { fontSize: 14, color: '#ffffff' } };
+    case 'items':
+      return {
+        type,
+        id,
+        style: { w: 560, fontSize: 16, color: '#ffffff', bg: '#141a2be8', pad: 16, radius: 12, gap: 8 },
+      };
+    case 'controls':
+      return {
+        type,
+        id,
+        style: { w: 560, fontSize: 15, color: '#ffffff', bg: '#141a2be8', pad: 16, radius: 12, gap: 6 },
+      };
     case 'credits':
       return {
         type,
@@ -236,6 +253,9 @@ export const WIDGET_NAMES: Record<Widget['type'], string> = {
   slot: 'Slot',
   video: 'Video',
   credits: 'Credits',
+  buttons: 'Buttons',
+  items: 'Item menu',
+  controls: 'Controls',
 };
 
 export const WIDGET_TIPS: Record<Widget['type'], string> = {
@@ -251,4 +271,7 @@ export const WIDGET_TIPS: Record<Widget['type'], string> = {
   slot: 'A place for touch controls',
   video: 'An imported video clip: an intro, a story scene, a looping background',
   credits: 'Who made the game and its imported files',
+  buttons: 'The game’s buttons: Attack, the Action button with what it does now, and the item buttons',
+  items: 'The items the hero has, to put in the item buttons',
+  controls: 'Every button and its keys and gamepad buttons, for players to change',
 };

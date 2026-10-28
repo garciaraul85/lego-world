@@ -218,6 +218,11 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   'world.teleport': S('logic'),
   'world.travel': S('logic', 'world'),
   'world.give': S('logic', 'collect'),
+  // step 11b part 1: the game's buttons
+  'event.onActionPressed': S('logic'),
+  'event.onItemUsed': S('logic', 'collect'),
+  'controls.setActionLabel': S('logic'),
+  'items.putInSlot': S('logic', 'collect'),
   'audio.playSound': S('audio'),
   'audio.setMusic': S('audio'),
   'audio.stopMusic': S('audio'),

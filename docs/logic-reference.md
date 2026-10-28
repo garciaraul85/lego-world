@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (81 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (85 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -175,6 +175,26 @@ Runs when the hero reaches a new level (Give experience).
 
 - Outputs: level (number)
 - Code: `on("levelUp", (e) => { … });`
+
+### On action pressed
+
+`event.onActionPressed` · event
+
+Runs when the player presses the Action button, with what it did (Talk, Open, Read, Jump, or a label set by Set action label). Leave the action empty to react to every press.
+
+- Settings: Action (string, optional)
+- Outputs: action (string)
+- Code: `on("actionPressed", { action: … }, (e) => { … });`
+
+### On item used
+
+`event.onItemUsed` · event
+
+Runs when the player presses an item button with an item in it (and has at least one). Leave the item empty to react to every item.
+
+- Settings: Item (string, optional)
+- Outputs: item (string), slot (number)
+- Code: `on("itemUsed", { item: … }, (e) => { … });`
 
 ## Flow
 
@@ -436,6 +456,24 @@ Adds items to the hero’s inventory.
 
 - Inputs: item (string), count (number)
 - Code: `world.give(item, count);`
+
+### Set action label
+
+`controls.setActionLabel` · action
+
+Gives the Action button something to do here: it shows this label (when nothing more important fits) and pressing it runs On action pressed with it. An empty label takes it away.
+
+- Inputs: label (string)
+- Code: `controls.setActionLabel(label);`
+
+### Put item in slot
+
+`items.putInSlot` · action
+
+Puts an item in one of the item buttons (as the player does in the item menu). It leaves any other button it was in.
+
+- Inputs: item (string), slot (number)
+- Code: `items.putInSlot(item, slot);`
 
 ## Audio
 

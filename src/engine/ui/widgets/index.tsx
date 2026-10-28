@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact';
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Action, Widget } from '../../../core/schema';
 import { asLines, asNumber, interpolate, type Lookup } from '../bindings';
 import { effectiveWidget, widgetCss } from '../layout';
@@ -27,6 +27,17 @@ export type ScreenHost = {
   art?(id: string): string | undefined;
   /** P31: CSS font-family for style.font (a built-in key or art:<id>) */
   font?(ref: string): string | undefined;
+  /** step 11b part 1: the game's buttons now: name, key, what each does (the Action button's live label) */
+  buttons?(): { id: string; name: string; key: string; label: string; count?: number }[];
+  /** step 11b part 1: the items the hero has, and the item buttons (what is in each) */
+  items?(): { name: string; count: number }[];
+  slots?(): { slot: number; key: string; item: string | null }[];
+  /** put an item in an item button */
+  equip?(slot: number, item: string): void;
+  /** step 11b part 1: every button's keys and gamepad buttons, and changing one (on this device) */
+  bindings?(): { id: string; name: string; keys: string; pad: string }[];
+  rebind?(id: string, key: string): void;
+  resetBindings?(): void;
   /** step 11 (P24 part 3): who made the game's imported files (the Credits widget lists them) */
   credits?(): { name: string; kind: string; author: string; license: string; link?: string }[];
 };
@@ -221,6 +232,75 @@ export function WidgetView(props: WidgetProps) {
       );
     case 'video':
       return frame(p, '', <VideoView p={p} />);
+    case 'buttons': {
+      // step 11b part 1: the game's buttons, like Zelda's corner of the screen
+      const list =
+        host.buttons?.() ??
+        (host.preview
+          ? [
+              { id: 'attack', name: 'Attack', key: 'F', label: 'Attack' },
+              { id: 'action', name: 'Action', key: 'E', label: 'Open' },
+              { id: 'item1', name: 'Item 1', key: 'J', label: 'Bow', count: 12 },
+              { id: 'item2', name: 'Item 2', key: 'K', label: '' },
+            ]
+          : []);
+      return frame(
+        p,
+        '',
+        list.map((b) => (
+          <div class={`bw-btn-slot bw-btn-${b.id.replace(/\d$/, '')}`} data-button={b.id}>
+            <span class="bw-btn-key">{b.key}</span>
+            <span class="bw-btn-label">{b.label || '—'}</span>
+            {b.count !== undefined && <span class="bw-btn-count">{b.count}</span>}
+          </div>
+        )),
+      );
+    }
+    case 'items': {
+      // step 11b part 1: the item menu: each item the hero has, and a button to put it in each item button
+      const items = host.items?.() ?? (host.preview ? [{ name: 'Bow', count: 12 }, { name: 'Bomb', count: 5 }] : []);
+      const slots =
+        host.slots?.() ??
+        (host.preview
+          ? [
+              { slot: 1, key: 'J', item: 'Bow' },
+              { slot: 2, key: 'K', item: null },
+            ]
+          : []);
+      return frame(p, '', [
+        <div class="bw-items-slots">
+          {slots.map((sl) => (
+            <span class="bw-btn-slot">
+              <span class="bw-btn-key">{sl.key}</span>
+              <span class="bw-btn-label">{sl.item ?? '—'}</span>
+            </span>
+          ))}
+        </div>,
+        items.length ? (
+          items.map((it) => (
+            <div class="bw-item-row">
+              <span class="bw-item-name">
+                {it.name} <span class="bw-btn-count">×{it.count}</span>
+              </span>
+              {slots.map((sl) => (
+                <button
+                  type="button"
+                  class={`bw-item-put${sl.item === it.name ? ' on' : ''}`}
+                  aria-label={`Put ${it.name} in item button ${sl.slot} (${sl.key})`}
+                  onClick={() => !host.preview && host.equip?.(sl.slot, it.name)}
+                >
+                  {sl.key}
+                </button>
+              ))}
+            </div>
+          ))
+        ) : (
+          <div class="bw-item-row">Nothing yet: items the hero finds show here.</div>
+        ),
+      ]);
+    }
+    case 'controls':
+      return frame(p, '', <ControlsList host={host} />);
     case 'credits': {
       const rows = host.credits?.() ?? [];
       const lines = (w.text ?? '').split('\n').filter((x) => x.trim());
@@ -239,6 +319,51 @@ export function WidgetView(props: WidgetProps) {
       ]);
     }
   }
+}
+
+/** step 11b part 1: every button and its keys; click one, then press the key it should be */
+function ControlsList({ host }: { host: ScreenHost }) {
+  const [wait, setWait] = useState<string | null>(null);
+  useEffect(() => {
+    if (!wait) return;
+    const key = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key !== 'Escape') host.rebind?.(wait, e.key.toLowerCase());
+      setWait(null);
+    };
+    window.addEventListener('keydown', key, true);
+    return () => window.removeEventListener('keydown', key, true);
+  }, [wait]);
+  const list =
+    host.bindings?.() ??
+    (host.preview
+      ? [
+          { id: 'action', name: 'Action', keys: 'E', pad: 'A' },
+          { id: 'attack', name: 'Attack', keys: 'F', pad: 'X' },
+        ]
+      : []);
+  return (
+    <>
+      {list.map((b) => (
+        <div class="bw-bind-row">
+          <span class="bw-bind-name">{b.name}</span>
+          <button
+            type="button"
+            class={`bw-bind-key${wait === b.id ? ' on' : ''}`}
+            aria-label={`${b.name}: ${b.keys}. Press to change`}
+            onClick={() => !host.preview && setWait(b.id)}
+          >
+            {wait === b.id ? 'Press a key…' : b.keys}
+          </button>
+          <span class="bw-bind-pad">{b.pad}</span>
+        </div>
+      ))}
+      <button type="button" class="bw-bind-reset" onClick={() => !host.preview && host.resetBindings?.()}>
+        Back to the game’s keys
+      </button>
+    </>
+  );
 }
 
 /**

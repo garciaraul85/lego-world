@@ -15,7 +15,10 @@ export type Widget = {
     | 'minimap'
     | 'slot'
     | 'video'
-    | 'credits';
+    | 'credits'
+    | 'buttons'
+    | 'items'
+    | 'controls';
   id?: string;
   anchor?: [number, number];
   offset?: [number, number];
@@ -62,6 +65,9 @@ export const Widget: z.ZodType<Widget> = z.lazy(() =>
       'slot',
       'video',
       'credits',
+      'buttons',
+      'items',
+      'controls',
     ]),
     id: z.string().optional(),
     anchor: Vec2.optional(),

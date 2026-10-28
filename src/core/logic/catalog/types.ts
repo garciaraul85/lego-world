@@ -115,6 +115,8 @@ export interface ExecCtx {
   screen?(op: 'play' | 'mood' | 'clear', a?: string | Record<string, unknown>): void;
   /** P27: switch a placed light (by name) on, off or over, or set this map's darkness while it plays */
   light?(op: 'on' | 'off' | 'toggle' | 'darkness', name: string, value?: number): void;
+  /** step 11b part 1: the Action button's own label here (Set action label), or an item put in an item button */
+  buttons?(op: 'label' | 'equip', value: string, slot?: number): void;
   /** P27 part 2: set the time of day (the sun jumps there and the day goes on) or the fog, while it plays */
   sky?(op: 'time' | 'fog', value: string): void;
 }

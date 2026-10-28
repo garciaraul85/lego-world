@@ -5,6 +5,7 @@ import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS } from '../../builtin/effects';
 import { genreById } from '../../builtin/genres';
 import { BUILTIN_SCREEN_EFFECTS, DEFAULT_SCREEN_EVENTS } from '../../builtin/screen-effects';
+import { SCR } from '../../builtin/screens';
 import { type Cleanup, cleanupOf, DEBRIS_FADE, MAX_BROKEN, RUBBLE_BRICKS } from '../../core/assets/cleanup';
 import { expandAsset } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
@@ -27,6 +28,18 @@ import { levelOf, xpFor } from '../../core/character/sheet';
 import { type AnimState, MOVING_AT } from '../../core/character/states';
 import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
 import type { Enemy } from '../../core/combat/enemy';
+import {
+  ACTION_PRIORITY,
+  type ActionOffer,
+  type Bindable,
+  BUTTON_NAME,
+  BUTTONS,
+  buttonsOf,
+  type Controls,
+  ITEM_BUTTONS,
+  keyName,
+  MOVES,
+} from '../../core/controls/controls';
 import type { Effect, EffectEvent } from '../../core/effects/schema';
 import { Mood, NO_MOOD, type ScreenEffect, type ScreenEvent } from '../../core/effects/screen';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
@@ -108,6 +121,7 @@ import { formatValue, interpolate } from '../ui/bindings';
 import { ScreenStack } from '../ui/ScreenStack';
 import { resolveScreen, screenOfKind } from '../ui/screens';
 import { ActionRunner, type GameOp } from './actions';
+import { type ButtonHost, GameButtons } from './buttons';
 import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
 import { Enemies } from './enemies';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem } from './health';
@@ -278,6 +292,13 @@ export class PlaySession {
   /** the interaction the hero can use right now (E), shown as a prompt */
   prompt: Prompt | null = null;
   readonly inventory = new Map<string, number>();
+  /**
+   * step 11b part 1: the game's buttons — what the Action button does here and now, and the item in each item
+   * button (Play turns keys, gamepad buttons and touches into presses through the game's bindings)
+   */
+  readonly buttons: GameButtons;
+  /** step 11b: more things the Action button can offer (swimming, puzzles and items add theirs) */
+  readonly actionOffers: (() => ActionOffer[])[] = [];
   readonly actions: ActionRunner;
   /** keyframe clips on the hero (emotes, keys 1-4) */
   readonly heroAnim = new Animator();
@@ -374,6 +395,10 @@ export class PlaySession {
     this.mediaSource = opts.media ?? null;
     this.saves = opts.saves ?? new MemorySaveStore();
     this.audio = opts.audio ?? new RecordingAudio();
+    this.buttons = new GameButtons(
+      (snapshot.get(paths.settings) as { controls?: Controls } | undefined)?.controls,
+      this.buttonHost(),
+    );
     const self = this;
     const host = {
       setState: (state: string, target: string | undefined, me: string | undefined) =>
@@ -2512,6 +2537,10 @@ export class PlaySession {
       screen: (op, a) => this.screenFxOp(op, a),
       light: (op, name, value) => this.lightOp(op, name, undefined, value),
       sky: (op, value) => this.skyOp(op, value),
+      buttons: (op, value, slot) => {
+        if (op === 'label') this.buttons.custom = value.trim() || null;
+        else this.equip(Math.max(1, Math.min(4, Math.round(slot ?? 1))), value || null);
+      },
       sheet: (op, value) =>
         op === 'outfit'
           ? this.setOutfit(String(value))
@@ -3070,6 +3099,9 @@ export class PlaySession {
 
   /** values for {bindings} in screens and world UI */
   lookup = (name: string): unknown => {
+    // step 11b part 1: {action}, {action.key}, {slot1}, {slot1.count}, {button.attack}…
+    const fromButtons = this.buttons.lookup(name);
+    if (fromButtons !== undefined) return fromButtons;
     switch (name) {
       case 'hero.gear':
         return `${String(this.hero.held ?? 'hands')}${hasShield(this.hero) ? ' + Shield' : ''}`;
@@ -3079,12 +3111,12 @@ export class PlaySession {
         return this.world.doc.name;
       case 'game.name':
         return this.project.name;
-      case 'prompt':
+      case 'prompt': {
         if (this.talking || this.talks.active) return '';
-        if (this.prompt) return `E · ${this.prompt.label}`;
-        if (this.signPrompt) return 'E · Read';
-        // P9c: standing where a smashed thing can be rebuilt
-        return this.nearestBroken() ? 'Hold E · Rebuild' : '';
+        // step 11b: the Action button's key and what it does here (not a plain jump: the HUD shows that anyway)
+        const now = this.buttons.now;
+        return now && now.kind !== 'jump' ? this.buttons.prompt() : '';
+      }
       case 'message':
         return this.clock < this.messageUntil ? this.message : '';
       case 'dialogue.speaker':
@@ -3481,6 +3513,136 @@ export class PlaySession {
     }
     this.signPrompt = sign;
     this.actions.step(this.clock);
+    this.buttons.update();
+  }
+
+  /** step 11b part 1: what the Action button can do here (the first that fits wins, see ACTION_PRIORITY) */
+  private offersNow(): ActionOffer[] {
+    if (this.over || this.cine.active || this.talks.active || this.talking) return [];
+    const out: ActionOffer[] = [];
+    const s = this.heroState;
+    const npc = this.combat.lockedNpc() ?? this.L.NPCWorld.nearest(this.world.npcs, s);
+    if (npc) out.push({ kind: 'talk', label: 'Talk', priority: ACTION_PRIORITY.talk });
+    if (this.prompt) out.push({ kind: 'use', label: this.prompt.label, priority: ACTION_PRIORITY.use });
+    else if (this.signPrompt) out.push({ kind: 'read', label: 'Read', priority: ACTION_PRIORITY.read });
+    if (this.nearestBroken()) out.push({ kind: 'rebuild', label: 'Rebuild', priority: ACTION_PRIORITY.rebuild });
+    for (const f of this.actionOffers) out.push(...f());
+    return out;
+  }
+
+  /** step 11b part 1: what each button does in this game */
+  private buttonHost(): ButtonHost {
+    return {
+      offers: () => this.offersNow(),
+      act: (o, down) => {
+        if (o.kind === 'rebuild') {
+          this.rebuildHeld = down;
+          return;
+        }
+        if (!down) return;
+        if (o.kind === 'talk') this.talk();
+        else if (o.kind === 'use' || o.kind === 'read') this.interact();
+        else if (o.kind === 'jump') this.input.jump = true;
+        this.logic.fire({ type: 'event.onActionPressed', match: { action: o.label }, payload: { action: o.label } });
+      },
+      attack: (down) => (down ? this.combat.press() : this.combat.release()),
+      jump: () => {
+        this.input.jump = true;
+      },
+      guard: (down) => (down ? this.input.keys.add('q') : this.input.keys.delete('q')),
+      roll: () => this.combat.roll(),
+      lock: () => this.combat.toggleLock(),
+      move: (dir, down) => (down ? this.input.keys.add(dir) : this.input.keys.delete(dir)),
+      useItem: (item, slot) => this.useItem(item, slot),
+      itemMenu: () => this.openItemMenu(),
+      count: (item) => this.inventory.get(item) ?? 0,
+    };
+  }
+
+  /** step 11b part 1: an item button pressed: its item is used (logic: On item used) */
+  useItem(item: string | null, slot: number) {
+    if (!item) {
+      this.say(`Nothing in item button ${slot} yet: put an item in it from the item menu.`, 2.5);
+      return;
+    }
+    if ((this.inventory.get(item) ?? 0) <= 0) {
+      this.say(`No ${item} left.`, 1.5);
+      return;
+    }
+    this.emit('info', `Item ${slot}: ${item}`);
+    this.logic.fire({ type: 'event.onItemUsed', match: { item }, payload: { item, slot } });
+  }
+
+  /** step 11b part 1: the buttons as the HUD shows them (key, and what each does now) */
+  buttonViews(): { id: string; name: string; key: string; label: string; count?: number }[] {
+    const b = this.buttons;
+    const out: { id: string; name: string; key: string; label: string; count?: number }[] = [
+      { id: 'attack', name: 'Attack', key: b.keyOf('attack'), label: 'Attack' },
+      { id: 'action', name: 'Action', key: b.keyOf('action'), label: b.now?.label ?? '' },
+    ];
+    if (b.c.jump === 'button') out.push({ id: 'jump', name: 'Jump', key: b.keyOf('jump'), label: 'Jump' });
+    for (let i = 0; i < b.c.items; i++) {
+      const item = b.slots[i] ?? null;
+      out.push({
+        id: `item${i + 1}`,
+        name: `Item ${i + 1}`,
+        key: b.keyOf(ITEM_BUTTONS[i]!),
+        label: item ?? '',
+        ...(item ? { count: this.inventory.get(item) ?? 0 } : {}),
+      });
+    }
+    return out;
+  }
+  itemViews(): { name: string; count: number }[] {
+    return [...this.inventory].filter(([, n]) => n > 0).map(([name, count]) => ({ name, count }));
+  }
+  slotViews(): { slot: number; key: string; item: string | null }[] {
+    const b = this.buttons;
+    return Array.from({ length: b.c.items }, (_, i) => ({
+      slot: i + 1,
+      key: b.keyOf(ITEM_BUTTONS[i]!),
+      item: b.slots[i] ?? null,
+    }));
+  }
+  /** step 11b part 1: an item put in an item button (logic: Put item in slot does the same) */
+  equip(slot: number, item: string | null) {
+    this.buttons.equip(slot, item);
+    this.emit('info', `Item button ${slot}: ${item ?? 'empty'}`);
+  }
+  /** step 11b part 1: the player's own keys changed (Play keeps them on the device) */
+  onBindings: ((keys: Partial<Record<Bindable, string[]>>) => void) | null = null;
+  bindingViews(): { id: string; name: string; keys: string; pad: string }[] {
+    const b = this.buttons;
+    return [...buttonsOf({ layout: b.c.layout, items: b.c.items, jump: b.c.jump }), ...MOVES].map((id) => ({
+      id,
+      name: BUTTON_NAME[id],
+      keys: (b.playerKeys[id] ?? b.c.keys[id]).map(keyName).join(', '),
+      pad: b.keyOf(id, true),
+    }));
+  }
+  rebind(id: string, key: string) {
+    const b = this.buttons;
+    const k = key.toLowerCase();
+    const next: Partial<Record<Bindable, string[]>> = {};
+    // the key leaves any other button that had it
+    for (const x of [...BUTTONS, ...MOVES]) {
+      const cur = b.playerKeys[x] ?? b.c.keys[x];
+      if (x !== id && cur.includes(k)) next[x] = cur.filter((y) => y !== k);
+      else if (b.playerKeys[x]) next[x] = b.playerKeys[x];
+    }
+    next[id as Bindable] = [k];
+    b.playerKeys = next;
+    this.onBindings?.(next);
+  }
+  resetBindings() {
+    this.buttons.playerKeys = {};
+    this.onBindings?.({});
+  }
+
+  /** step 11b part 1: the item menu (the Items screen: pick what goes in each item button) */
+  openItemMenu() {
+    if (this.screens.top()?.id === SCR.items) this.screenOp('hide', SCR.items, false);
+    else this.screenOp('show', SCR.items, false);
   }
 
   /** P22: a neighbour close to the hero says one of its barks (its character's short lines) */

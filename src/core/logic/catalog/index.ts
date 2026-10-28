@@ -1,3 +1,4 @@
+import { BUTTON_EVENTS, BUTTONS } from './buttons';
 import { DIALOGUE, DIALOGUE_EVENTS, MOVES, SHEET, SHEET_EVENTS } from './dialogue';
 import { EFFECTS } from './effects';
 import { EVENTS } from './events';
@@ -40,6 +41,9 @@ export const CATALOG: readonly NodeDef[] = [
   ...SHEET_EVENTS,
   ...EFFECTS,
   ...LIGHTS,
+  // step 11b part 1
+  ...BUTTON_EVENTS,
+  ...BUTTONS,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 
