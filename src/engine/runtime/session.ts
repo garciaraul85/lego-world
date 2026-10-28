@@ -27,7 +27,15 @@ import { BODY_MOVES, type BodyMove, movesOf as bodyMovesOf, MOVE_LENGTH } from '
 import { minifigExtras, type ResolvedBody, resolveBody } from '../../core/character/resolve';
 import { levelOf, xpFor } from '../../core/character/sheet';
 import { type AnimState, MOVING_AT } from '../../core/character/states';
-import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
+import {
+  type AttackHit,
+  type DamageType,
+  damageOf,
+  type Health,
+  heldAttack,
+  hitSide,
+  stunsIt,
+} from '../../core/combat/damage';
 import type { Enemy } from '../../core/combat/enemy';
 import {
   ACTION_PRIORITY,
@@ -1401,10 +1409,25 @@ export class PlaySession {
     const key = `n:${npc.id}`;
     const def = chr.harm.health;
     if ((this.health.peek(key)?.hp ?? def.hp) <= 0) return;
-    const { dealt, wound } = this.health.hit(key, def, attack);
+    // step 11, 4a: where the hit comes from (a shield in front, a soft back), and whether it stuns
+    const side = hitSide(npc.state, this.heroState, this.figureOf(npc).top);
+    const { dealt, wound } = this.health.hit(key, def, attack, side);
     const pos: Vec3 = [npc.state.x, npc.state.y, npc.state.z];
+    const stun = stunsIt(attack, def);
+    if (stun) {
+      this.combat.stunNpc(npc, def.stunFor ?? 2);
+      this.hitEffect('stun', [pos[0], pos[1] + this.figureOf(npc).top * 0.6, pos[2]]);
+    }
     if (dealt <= 0) {
-      this.say(this.health.invulnerable.has(key) ? `${name} can’t be hurt right now.` : `${name} shrugs it off.`, 1.5);
+      if (stun) this.say(`${name} is stunned!`, 1.2);
+      else if (this.health.invulnerable.has(key)) this.say(`${name} can’t be hurt right now.`, 1.5);
+      else if (def.sides?.[side] === 0) {
+        // blocked: a clang, and a word on where to hit instead
+        this.audio.play(SND.land, { pos });
+        this.hitEffect('slash', [pos[0], pos[1] + 2, pos[2]]);
+        const weak = (['back', 'side', 'above'] as const).find((x) => (def.sides?.[x] ?? 1) > 1);
+        this.say(weak ? `Blocked! Try its ${weak === 'above' ? 'head, from above' : weak}.` : 'Blocked!', 1.5);
+      } else this.say(`${name} shrugs it off.`, 1.5);
       return;
     }
     this.audio.play(SND.hurt, { pos });
@@ -1438,6 +1461,8 @@ export class PlaySession {
     if (def.atZero.respawn !== undefined) this.world.defeated.push({ npc, at: this.clock, after: def.atZero.respawn });
     if (this.talking === npc) this.talking = null;
     if (def.atZero.drop) this.drop(def.atZero.drop, { at: pos });
+    // step 11, 4a: its loot, each by its chance
+    for (const l of def.atZero.loot ?? []) if (Math.random() < l.chance) this.drop(l, { at: pos });
     if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
     this.say(`${name} is defeated.`, 2);
     this.eventEffect('defeat', [pos[0], pos[1] + 1.5, pos[2]]);
@@ -1465,6 +1490,14 @@ export class PlaySession {
   }
 
   private give(item: string, count: number) {
+    // step 11, 4a: a heart heals at once, like Zelda's
+    if (/^hearts?$/i.test(item.trim())) {
+      this.heal('hero', count);
+      this.eventEffect('heal', [this.heroState.x, this.heroState.y + 3, this.heroState.z]);
+      this.say(`+${count} ♥`, 1.2);
+      this.audio.play(SND.pickup);
+      return;
+    }
     const n = (this.inventory.get(item) ?? 0) + count;
     this.inventory.set(item, n);
     this.emit('info', `Got ${count} × ${item} (${n} in total)`);
@@ -1988,6 +2021,17 @@ export class PlaySession {
 
   /** P9c: what a neighbour fights with (null: it does not fight) — from its character, looked up once */
   private enemyCache = new Map<number, Enemy | null>();
+  /** step 11, 4a (enemies): how far a neighbour's body reaches out sideways */
+  radiusOf(n: Npc): number {
+    return this.figureOf(n).radius;
+  }
+
+  /** step 11, 4a (enemies): the hero is running or fighting, so enemies with hearing notice */
+  heroLoud(): boolean {
+    const h = this.heroState as typeof this.heroState & { attack?: number };
+    return !!h.attack || this.input.keys.has('shift') || !!this.combat.pose();
+  }
+
   enemyOf(n: Npc): Enemy | null {
     if (!this.enemyCache.has(n.id)) {
       const chr = npcCharacter(this.snapshot, this.world.mapId, n);

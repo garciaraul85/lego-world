@@ -1,5 +1,12 @@
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
-import { type AttackHit, DAMAGE_TYPES, type DamageType, damageOf, type Health } from '../../core/combat/damage';
+import {
+  type AttackHit,
+  DAMAGE_TYPES,
+  type DamageType,
+  damageOf,
+  type Health,
+  type HitSide,
+} from '../../core/combat/damage';
 import { type Asset, type Character, type Instances, paths } from '../../core/schema';
 import type { Npc } from '../legacy/runtime-modules';
 
@@ -86,10 +93,10 @@ export class HealthBook {
   }
 
   /** applies one hit; returns the damage done (0: armour, resistance or invulnerable stopped it) */
-  hit(key: string, def: Health, attack: AttackHit): { dealt: number; wound: Wound } {
+  hit(key: string, def: Health, attack: AttackHit, side?: HitSide): { dealt: number; wound: Wound } {
     const wound = this.of(key, def);
     if (wound.hp <= 0) return { dealt: 0, wound };
-    const dealt = damageOf(attack, { ...def, invulnerable: this.invulnerable.has(key) });
+    const dealt = damageOf(attack, { ...def, invulnerable: this.invulnerable.has(key) }, side);
     wound.hp = Math.max(0, Math.round((wound.hp - dealt) * 100) / 100);
     return { dealt, wound };
   }
@@ -110,6 +117,8 @@ export const asDamageType = (t: string): DamageType =>
 
 /** “only explosive hurts it” — the types that get through a target's resistances, in words */
 export function hurtBy(def: Health): string {
-  const through = DAMAGE_TYPES.filter((t) => (def.resist?.[t] ?? 1) > 0);
-  return through.length === DAMAGE_TYPES.length ? 'any hit' : through.length ? through.join(' or ') : 'nothing';
+  // (a stun does no damage of its own: it is not counted)
+  const types = DAMAGE_TYPES.filter((t) => t !== 'stun');
+  const through = types.filter((t) => (def.resist?.[t] ?? 1) > 0);
+  return through.length === types.length ? 'any hit' : through.length ? through.join(' or ') : 'nothing';
 }

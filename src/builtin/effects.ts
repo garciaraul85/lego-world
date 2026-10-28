@@ -340,6 +340,10 @@ export const DEFAULT_HITS: Record<DamageType, string> = {
   fire: FX.fire,
   explosive: FX.explosion,
   electric: FX.zap,
+  // step 11, 4a
+  light: FX.sparkles,
+  ice: FX.snow,
+  stun: FX.hitFlash,
 };
 export const DEFAULT_EFFECT_EVENTS: Record<EffectEvent, string> = {
   levelUp: FX.levelUp,

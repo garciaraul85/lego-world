@@ -5,8 +5,35 @@ import { z } from 'zod';
  * explosions), a neighbour that “can be harmed”, the hero (its hearts). An attack has power and a damage type;
  * a target has armour (taken off every hit) and resistances (how much of each type gets through).
  */
-export const DAMAGE_TYPES = ['slash', 'blunt', 'pierce', 'fire', 'explosive', 'electric'] as const;
+export const DAMAGE_TYPES = [
+  'slash',
+  'blunt',
+  'pierce',
+  'fire',
+  'explosive',
+  'electric',
+  'light',
+  'ice',
+  'stun',
+] as const;
 export type DamageType = (typeof DAMAGE_TYPES)[number];
+
+/**
+ * Step 11, 4a: what each type is in a game: slash (swords), blunt (hammers, fists), pierce (arrows), fire (torches,
+ * fire arrows), explosive (bombs), electric, light (light arrows, a mirror's beam, the Lens), ice (ice arrows, frost),
+ * stun (a boomerang, a flash: stops a foe for a moment and does no damage of its own).
+ */
+export const DAMAGE_INFO: Record<DamageType, { label: string; about: string }> = {
+  slash: { label: 'Slash', about: 'swords, axes' },
+  blunt: { label: 'Blunt', about: 'hammers, clubs, fists' },
+  pierce: { label: 'Pierce', about: 'arrows, spears' },
+  fire: { label: 'Fire', about: 'torches, fire arrows, flames' },
+  explosive: { label: 'Explosive', about: 'bombs, blasts' },
+  electric: { label: 'Electric', about: 'shocks, lightning' },
+  light: { label: 'Light', about: 'light arrows, a mirror’s beam' },
+  ice: { label: 'Ice', about: 'ice arrows, frost' },
+  stun: { label: 'Stun', about: 'a boomerang, a flash: stops it for a moment, no damage' },
+};
 
 /** How much of a damage type gets through: 0 = immune, 1 = normal, 2 = weak to it. */
 export const Resist = z.partialRecord(z.enum(DAMAGE_TYPES), z.number().min(0).max(4));
@@ -19,6 +46,17 @@ export const AtZero = z.strictObject({
   drop: z.strictObject({ item: z.string().min(1).max(60), count: z.number().int().min(1).max(99) }).optional(),
   /** a custom event sent to logic (On custom event) */
   emit: z.string().min(1).max(60).optional(),
+  /** step 11, 4a: more it may drop, each with its chance (a heart 50%, arrows 30%…) */
+  loot: z
+    .array(
+      z.strictObject({
+        item: z.string().min(1).max(60),
+        count: z.number().int().min(1).max(99),
+        chance: z.number().min(0.01).max(1),
+      }),
+    )
+    .max(6)
+    .optional(),
   /** P27 part 3d (characters): comes back after this many seconds, or when the player comes back to the map (0) */
   respawn: z.number().min(0).max(3600).optional(),
 });
@@ -32,16 +70,54 @@ export const Health = z.strictObject({
   resist: Resist.optional(),
   /** cannot be damaged at all (logic can switch this) */
   invulnerable: z.boolean().optional(),
+  /**
+   * step 11, 4a: how much gets through by where the hit comes from (characters): a shield or a hard shell in front
+   * (front 0), a soft back (back 2), a tail at the sides, a head hit from above (a plunge)
+   */
+  sides: z.partialRecord(z.enum(['front', 'back', 'side', 'above']), z.number().min(0).max(4)).optional(),
+  /** step 11, 4a: damage types that stun it for a moment (a boomerang, a flash; fire on an ice creature) */
+  stunBy: z.array(z.enum(DAMAGE_TYPES)).max(9).optional(),
+  /** seconds a stun lasts (default 2) */
+  stunFor: z.number().min(0.2).max(10).optional(),
   atZero: AtZero,
 });
 export type Health = z.infer<typeof Health>;
 export type AttackHit = { power: number; type: DamageType };
 
-/** The damage one hit does to a target: power × resistance − armour, never below zero. */
-export function damageOf(hit: AttackHit, target: Pick<Health, 'armor' | 'resist' | 'invulnerable'>): number {
+export type HitSide = 'front' | 'back' | 'side' | 'above';
+
+/**
+ * The damage one hit does to a target: power × resistance × side − armour, never below zero. A stun hit does no
+ * damage of its own (unless the target is weak to stun).
+ */
+export function damageOf(
+  hit: AttackHit,
+  target: Pick<Health, 'armor' | 'resist' | 'invulnerable' | 'sides'>,
+  side?: HitSide,
+): number {
   if (target.invulnerable) return 0;
-  const through = target.resist?.[hit.type] ?? 1;
-  return Math.max(0, Math.round((hit.power * through - (target.armor ?? 0)) * 100) / 100);
+  const through = target.resist?.[hit.type] ?? (hit.type === 'stun' ? 0 : 1);
+  const facing = side ? (target.sides?.[side] ?? 1) : 1;
+  return Math.max(0, Math.round((hit.power * through * facing - (target.armor ?? 0)) * 100) / 100);
+}
+
+/** step 11, 4a: whether a hit stuns the target (a stun hit, unless it is immune; or a type it is stunned by) */
+export const stunsIt = (hit: AttackHit, target: Pick<Health, 'resist' | 'stunBy'>) =>
+  (hit.type === 'stun' && target.resist?.stun !== 0) || !!target.stunBy?.includes(hit.type);
+
+/**
+ * step 11, 4a: where a hit comes from, seen by the target: in front (within 50° of where it faces), behind (beyond
+ * 130°), at its side, or from above (the attacker well over its top: a plunge)
+ */
+export function hitSide(
+  target: { x: number; y: number; z: number; heading: number },
+  from: { x: number; y: number; z: number },
+  top: number,
+): HitSide {
+  if (from.y > target.y + top * 0.8) return 'above';
+  const a = Math.atan2(from.x - target.x, from.z - target.z);
+  const off = Math.abs(((a - target.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+  return off < (50 * Math.PI) / 180 ? 'front' : off > (130 * Math.PI) / 180 ? 'back' : 'side';
 }
 
 /**
@@ -75,7 +151,7 @@ export const BREAKABLE_PRESETS: Record<string, { name: string; health: Health }>
     name: 'Only explosions break it (a stone wall)',
     health: {
       hp: 3,
-      resist: { slash: 0, blunt: 0, pierce: 0, fire: 0, electric: 0, explosive: 1 },
+      resist: { slash: 0, blunt: 0, pierce: 0, fire: 0, electric: 0, light: 0, ice: 0, explosive: 1 },
       atZero: { break: true },
     },
   },

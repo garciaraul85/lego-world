@@ -16,9 +16,13 @@ export type EnemyHost = {
   isStunned(n: Npc): boolean;
   /** the swing lands: hurts the hero (through guard, parry, dodge) */
   hitHero(n: Npc, power: number, type: DamageType): void;
+  /** step 11, 4a: how far its body reaches out sideways (a big spider strikes from further away) */
+  radiusOf(n: Npc): number;
+  /** step 11, 4a: the hero is making noise (running, fighting): heard within an enemy's hearing */
+  heroLoud(): boolean;
 };
 
-type Brain = { phase: 'idle' | 'chase' | 'windup'; t: number; cooldown: number };
+type Brain = { phase: 'idle' | 'chase' | 'windup' | 'back'; t: number; cooldown: number };
 
 const still = { x: 0, z: 0, run: false, jump: false, vertical: 0 };
 const angleDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
@@ -70,8 +74,23 @@ export class Enemies {
         continue;
       }
       if (b.phase === 'idle') {
-        if (d > e.sight) continue;
+        if (!this.notices(n, e, d, face)) continue;
         b.phase = 'chase';
+        // a pack hunter calls the others near it
+        if (e.wits === 'pack') this.callPack(npcs, n);
+      }
+      // a turret stays where it is: it turns to watch and strikes what comes into reach
+      const turret = e.style === 'turret' || e.style === 'ambusher';
+      const reach = e.reach + Math.max(0, this.host.radiusOf(n) - 0.6);
+      if (b.phase === 'back') {
+        // a smart fighter steps back after its swing, out of reach for a moment
+        b.t -= dt;
+        const k = 0.35 * e.speed;
+        if (!turret && d > 0.01)
+          n.controller.step({ x: -(dx / d) * k, z: (dz / d) * k, run: false, jump: false, vertical: 0 }, dt, 0);
+        s.heading = face;
+        if (b.t <= 0) b.phase = 'chase';
+        continue;
       }
       if (b.phase === 'windup') {
         b.t -= dt;
@@ -79,15 +98,18 @@ export class Enemies {
         n.controller.step(still, dt, 0);
         if (b.t > 0) continue;
         // the swing lands if the hero is still in reach and in front
-        if (d <= e.reach + 0.6 && Math.abs(angleDiff(face, s.heading)) < 1.2) this.host.hitHero(n, e.power, e.type);
-        b.phase = 'chase';
+        if (d <= reach + 0.6 && Math.abs(angleDiff(face, s.heading)) < 1.2) this.host.hitHero(n, e.power, e.type);
+        b.phase = e.wits === 'smart' ? 'back' : 'chase';
+        b.t = 0.7;
         b.cooldown = e.cooldown;
         continue;
       }
       // chasing: walk to the hero, then wind up a swing
-      if (d <= e.reach) {
+      if (d <= reach || turret) {
         n.controller.step(still, dt, 0);
-        s.heading = face;
+        // a turret turns slowly; anything else faces the hero at once
+        s.heading = turret ? s.heading + angleDiff(face, s.heading) * Math.min(1, dt * 1.5) : face;
+        if (d > reach) continue;
         if (b.cooldown <= 0) {
           b.phase = 'windup';
           b.t = e.windup;
@@ -99,6 +121,28 @@ export class Enemies {
       const k = 0.42 * e.speed;
       n.controller.step({ x: (dx / d) * k, z: -(dz / d) * k, run: false, jump: false, vertical: 0 }, dt, 0);
       s.heading = face;
+    }
+  }
+
+  /**
+   * step 11, 4a: it sees the hero (within sight and its cone of view, which is all round unless set) or hears it
+   * (running or fighting within its hearing)
+   */
+  private notices(n: Npc, e: Enemy, d: number, face: number): boolean {
+    if (e.hearing && d <= e.hearing && this.host.heroLoud()) return true;
+    if (d > e.sight) return false;
+    const cone = e.cone ?? 360;
+    return cone >= 360 || Math.abs(angleDiff(face, n.state.heading)) <= ((cone / 2) * Math.PI) / 180;
+  }
+
+  /** step 11, 4a: the enemies within 12 studs of a pack hunter that saw the hero join the fight */
+  private callPack(npcs: readonly Npc[], caller: Npc) {
+    for (const o of npcs) {
+      if (o === caller || !this.host.enemyOf(o)) continue;
+      if (Math.hypot(o.state.x - caller.state.x, o.state.z - caller.state.z) > 12) continue;
+      const b = this.brains.get(o.id) ?? { phase: 'idle' as const, t: 0, cooldown: 0 };
+      if (b.phase === 'idle') b.phase = 'chase';
+      this.brains.set(o.id, b);
     }
   }
 }
