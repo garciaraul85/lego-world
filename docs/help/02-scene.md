@@ -79,6 +79,10 @@ The **Starter pack** tab of the bottom dock holds the adventure starter pack, re
   - Dungeon: walls, a pillar, an archway, a barred gate, a locked door, wall torches and a brazier (they light up), clay pots (they break and may leave a heart), a boss chest, a cracked wall (only bombs break it), a push block, a floor switch, a spike trap, stairs and a guardian statue.
   - Village: a cottage, a well, a barrel, grass to cut and a plank bridge.
 - **Three terrain styles**: Green Vale, Shrine Highlands and Misty Woods.
+- **Look and sound**:
+  - The **Adventure screen look**: parchment panels, gold-framed buttons, a storybook font and framed hearts on every screen and menu. **Classic** brings the plain look back. The same switch is **Screen look** in the Project tab.
+  - Five effects: Fairy sparkle, Item get, Torch embers, Dungeon dust and Boss vanish. **Place** puts one in front of the start.
+  - Sounds (Item get, Key, Secret found, Sword swish, Boss roar) and music (Village, Dungeon, Boss). They are in every game already: ▶ listens. The sword swish plays on every blade swing and the key jingle when the hero is given a key.
 
 Drag a neighbour or an enemy onto the map, or press **Place** (it stands in front of the first spawn). A character comes into your game the first time it is used, with its conversation, so you can change it in the Character studio. Click a building or prop, then the ground (T turns it), or drag it in. **Use on this map** makes the open map again in a terrain style; Undo brings the old map back.
 

@@ -499,6 +499,8 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   },
   // step 11, 4a: the starter pack course
   dockIs: (ed, a) => ed.dock.value === a,
+  // step 11, 4b
+  lookIs: (ed, a) => (ed.store.manifest.uiLook ?? 'classic') === a,
   heroIs: (ed, a) => ed.store.get<{ name: string }>(paths.character(ed.store.manifest.hero ?? ''))?.name === a,
   npcPlaced: (ed, a) => {
     const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];

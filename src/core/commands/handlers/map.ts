@@ -330,6 +330,8 @@ export type UpdateProject = {
   swimming?: Swimming;
   /** step 11b part 1: the game's buttons (null: back to the defaults) */
   controls?: Controls | null;
+  /** step 11, 4b: how the game's screens and menus look */
+  uiLook?: 'classic' | 'adventure';
 };
 
 export const updateProject: CommandHandler<UpdateProject> = {
@@ -352,7 +354,9 @@ export const updateProject: CommandHandler<UpdateProject> = {
                     ? 'Swimming'
                     : p.controls !== undefined && Object.keys(p).length === 1
                       ? 'Controls'
-                      : 'Edit project settings',
+                      : p.uiLook !== undefined && Object.keys(p).length === 1
+                        ? `Screen look: ${p.uiLook}`
+                        : 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.saving && !SavingSchema.safeParse(p.saving).success)
@@ -389,6 +393,8 @@ export const updateProject: CommandHandler<UpdateProject> = {
     if (p.quality !== undefined && !QUALITY_CHOICES.includes(p.quality)) return 'Quality is auto, low, medium or high.';
     if (p.movement !== undefined && p.movement !== 'classic' && p.movement !== 'physics')
       return 'Movement is classic or physics.';
+    if (p.uiLook !== undefined && p.uiLook !== 'classic' && p.uiLook !== 'adventure')
+      return 'The screen look is classic or adventure.';
     if (p.swimming !== undefined && !Swimming.safeParse(p.swimming).success)
       return 'Swimming: can (true or false) and breath (3 to 300 seconds).';
     if (p.controls) {
@@ -444,6 +450,12 @@ export const updateProject: CommandHandler<UpdateProject> = {
       ...(p.hero !== undefined ? { hero: p.hero as Project['hero'] } : {}),
       ...(p.genre !== undefined ? { genre: p.genre } : {}),
     });
+    if (p.uiLook !== undefined) {
+      const next = { ...store.manifest };
+      if (p.uiLook === 'adventure') next.uiLook = 'adventure';
+      else delete next.uiLook;
+      store.put(paths.project, next);
+    }
     if (p.saving !== undefined) {
       const next = { ...store.manifest } as Project & { saving?: Saving };
       if (p.saving) next.saving = { ...p.saving };

@@ -7,7 +7,11 @@ const pad = (s: string) => s + '0'.repeat(10 - s.length);
 export const sndId = (name: string) => `snd_${pad(name)}` as const;
 export const musId = (name: string) => `mus_${pad(name)}` as const;
 
-const sfx = (tones: SfxRecipe['tones'], seed = 1): SfxRecipe => ({ kind: 'sfx', tones, seed });
+const sfx = (tones: SfxRecipe['tones'], seed = 1): SfxRecipe => ({
+  kind: 'sfx',
+  tones,
+  seed,
+});
 
 /** Every built-in sound (generated, CC0). Names are the media names shown in the Audio workspace. */
 export const SOUNDS: Record<string, SfxRecipe> = {
@@ -80,9 +84,32 @@ export const SOUNDS: Record<string, SfxRecipe> = {
     { wave: 'tri', f0: 196, at: 0.84, dur: 0.9, gain: 0.5 },
   ]),
   splash: sfx([
-    { wave: 'sine', f0: 523, dur: 1.4, gain: 0.25, attack: 0.2, trem: [6, 0.3] },
-    { wave: 'sine', f0: 659, at: 0.1, dur: 1.3, gain: 0.22, attack: 0.2, trem: [5, 0.3] },
-    { wave: 'sine', f0: 784, at: 0.2, dur: 1.2, gain: 0.2, attack: 0.2, trem: [7, 0.3] },
+    {
+      wave: 'sine',
+      f0: 523,
+      dur: 1.4,
+      gain: 0.25,
+      attack: 0.2,
+      trem: [6, 0.3],
+    },
+    {
+      wave: 'sine',
+      f0: 659,
+      at: 0.1,
+      dur: 1.3,
+      gain: 0.22,
+      attack: 0.2,
+      trem: [5, 0.3],
+    },
+    {
+      wave: 'sine',
+      f0: 784,
+      at: 0.2,
+      dur: 1.2,
+      gain: 0.2,
+      attack: 0.2,
+      trem: [7, 0.3],
+    },
     { wave: 'sine', f0: 1568, at: 0.3, dur: 1.0, gain: 0.08, attack: 0.3 },
   ]),
   victory: sfx([
@@ -101,8 +128,22 @@ export const SOUNDS: Record<string, SfxRecipe> = {
       { wave: 'tri', f0: 587, at: 0.28, dur: 0.16, gain: 0.32 },
       { wave: 'square', f0: 698, at: 0.42, dur: 0.34, gain: 0.16, lp: 2600 },
       { wave: 'sine', f0: 523, at: 0.78, dur: 1.3, gain: 0.3, trem: [6, 0.15] },
-      { wave: 'sine', f0: 659, at: 0.78, dur: 1.3, gain: 0.26, trem: [6, 0.15] },
-      { wave: 'sine', f0: 784, at: 0.78, dur: 1.3, gain: 0.24, trem: [6, 0.15] },
+      {
+        wave: 'sine',
+        f0: 659,
+        at: 0.78,
+        dur: 1.3,
+        gain: 0.26,
+        trem: [6, 0.15],
+      },
+      {
+        wave: 'sine',
+        f0: 784,
+        at: 0.78,
+        dur: 1.3,
+        gain: 0.24,
+        trem: [6, 0.15],
+      },
       { wave: 'square', f0: 1047, at: 0.78, dur: 1.1, gain: 0.12, lp: 3200 },
       { wave: 'sine', f0: 131, at: 0.78, dur: 1.2, gain: 0.35 },
       { wave: 'sine', f0: 2093, at: 0.95, dur: 0.12, gain: 0.08 },
@@ -112,12 +153,43 @@ export const SOUNDS: Record<string, SfxRecipe> = {
     7,
   ),
   wind: sfx([
-    { wave: 'noise', f0: 260, f1: 420, dur: 4, gain: 0.5, attack: 0.001, trem: [0.25, 0.5] },
-    { wave: 'noise', f0: 600, f1: 300, dur: 4, gain: 0.25, attack: 0.001, trem: [0.5, 0.6] },
+    {
+      wave: 'noise',
+      f0: 260,
+      f1: 420,
+      dur: 4,
+      gain: 0.5,
+      attack: 0.001,
+      trem: [0.25, 0.5],
+    },
+    {
+      wave: 'noise',
+      f0: 600,
+      f1: 300,
+      dur: 4,
+      gain: 0.25,
+      attack: 0.001,
+      trem: [0.5, 0.6],
+    },
   ]),
   lava: sfx([
-    { wave: 'noise', f0: 140, dur: 4, gain: 0.7, attack: 0.001, trem: [0.75, 0.4] },
-    { wave: 'sine', f0: 48, f1: 44, dur: 4, gain: 0.3, attack: 0.001, trem: [0.5, 0.5] },
+    {
+      wave: 'noise',
+      f0: 140,
+      dur: 4,
+      gain: 0.7,
+      attack: 0.001,
+      trem: [0.75, 0.4],
+    },
+    {
+      wave: 'sine',
+      f0: 48,
+      f1: 44,
+      dur: 4,
+      gain: 0.3,
+      attack: 0.001,
+      trem: [0.5, 0.5],
+    },
   ]),
   birds: sfx([
     { wave: 'sine', f0: 2400, f1: 3200, at: 0.2, dur: 0.12, gain: 0.15 },
@@ -126,6 +198,84 @@ export const SOUNDS: Record<string, SfxRecipe> = {
     { wave: 'sine', f0: 2200, f1: 2900, at: 2.7, dur: 0.1, gain: 0.12 },
     { wave: 'sine', f0: 3000, f1: 2500, at: 2.85, dur: 0.1, gain: 0.12 },
     { wave: 'noise', f0: 200, dur: 4, gain: 0.08, attack: 0.001 },
+  ]),
+  /** Step 11, 4b (adventure pack): a short rising jingle for a small item */
+  itemget: sfx([
+    { wave: 'tri', f0: 587, dur: 0.1, gain: 0.32 },
+    { wave: 'tri', f0: 740, at: 0.09, dur: 0.1, gain: 0.32 },
+    { wave: 'tri', f0: 880, at: 0.18, dur: 0.1, gain: 0.32 },
+    { wave: 'square', f0: 1175, at: 0.27, dur: 0.4, gain: 0.14, lp: 3000 },
+    { wave: 'sine', f0: 294, at: 0.27, dur: 0.4, gain: 0.3 },
+  ]),
+  /** a secret found: a climbing, sparkly run that settles on a bright chord */
+  secret: sfx(
+    [
+      { wave: 'sine', f0: 784, dur: 0.09, gain: 0.3 },
+      { wave: 'sine', f0: 740, at: 0.09, dur: 0.09, gain: 0.3 },
+      { wave: 'sine', f0: 622, at: 0.18, dur: 0.09, gain: 0.3 },
+      { wave: 'sine', f0: 440, at: 0.27, dur: 0.09, gain: 0.3 },
+      { wave: 'sine', f0: 415, at: 0.36, dur: 0.09, gain: 0.3 },
+      { wave: 'sine', f0: 659, at: 0.45, dur: 0.09, gain: 0.3 },
+      { wave: 'sine', f0: 831, at: 0.54, dur: 0.09, gain: 0.3 },
+      { wave: 'tri', f0: 1047, at: 0.63, dur: 0.6, gain: 0.34, trem: [7, 0.2] },
+      { wave: 'noise', f0: 7000, at: 0.6, dur: 0.5, gain: 0.05, attack: 0.1 },
+    ],
+    5,
+  ),
+  /** a sword swing: a quick airy whoosh */
+  swish: sfx(
+    [
+      {
+        wave: 'noise',
+        f0: 1800,
+        f1: 5200,
+        dur: 0.16,
+        gain: 0.45,
+        attack: 0.03,
+      },
+      { wave: 'sine', f0: 380, f1: 220, dur: 0.1, gain: 0.12 },
+    ],
+    9,
+  ),
+  /** a big creature's roar: low growl with a rasp */
+  bossroar: sfx(
+    [
+      {
+        wave: 'saw',
+        f0: 120,
+        f1: 70,
+        dur: 1.2,
+        gain: 0.4,
+        lp: 900,
+        attack: 0.08,
+        trem: [18, 0.4],
+      },
+      {
+        wave: 'square',
+        f0: 90,
+        f1: 55,
+        dur: 1.1,
+        gain: 0.18,
+        lp: 500,
+        attack: 0.1,
+      },
+      { wave: 'noise', f0: 700, f1: 300, dur: 1.0, gain: 0.35, attack: 0.1 },
+    ],
+    4,
+  ),
+  /** a key picked up: two bright bell taps */
+  keyget: sfx([
+    { wave: 'sine', f0: 1319, dur: 0.12, gain: 0.35 },
+    { wave: 'sine', f0: 2637, dur: 0.1, gain: 0.08 },
+    {
+      wave: 'sine',
+      f0: 1760,
+      at: 0.12,
+      dur: 0.35,
+      gain: 0.35,
+      trem: [8, 0.15],
+    },
+    { wave: 'sine', f0: 3520, at: 0.12, dur: 0.2, gain: 0.07 },
   ]),
 };
 
@@ -160,7 +310,13 @@ function song(
     bpm,
     bars: chords.length,
     tracks: [
-      { wave: style.arp, gain: 0.16, notes: arp, len: style.slow ? 4 : 2, lp: 2600 },
+      {
+        wave: style.arp,
+        gain: 0.16,
+        notes: arp,
+        len: style.slow ? 4 : 2,
+        lp: 2600,
+      },
       { wave: style.bassWave ?? 'tri', gain: 0.35, notes: bass, len: 7 },
       { wave: 'sine', gain: 0.12, notes: pad, len: 16 },
     ],
@@ -181,6 +337,26 @@ export const MUSIC: Record<string, MusicRecipe> = {
     88,
     [Dm, Am, G, Am, Dm, F, G, Am].map((c) => c.map((n) => n - 2)),
     { arp: 'saw', bassWave: 'square' },
+  ),
+  /** 4b: a cheerful village tune, a darker dungeon loop and a driving boss theme (original) */
+  village: song(
+    104,
+    [F, C, Dm, G, F, C, G, C].map((c) => c.map((n) => n + 2)),
+    { arp: 'tri' },
+  ),
+  dungeon: song(
+    66,
+    [Am, Dm, Am, Em, Am, F, Dm, Em].map((c) => c.map((n) => n - 3)),
+    {
+      arp: 'sine',
+      bassWave: 'square',
+      slow: true,
+    },
+  ),
+  boss: song(
+    144,
+    [Am, Am, F, G, Am, Am, Dm, Em].map((c) => c.map((n) => n - 5)),
+    { arp: 'saw', bassWave: 'saw' },
   ),
 };
 
@@ -239,6 +415,11 @@ export const SND = {
   wind: sndId('wind'),
   lava: sndId('lava'),
   birds: sndId('birds'),
+  itemget: sndId('itemget'),
+  secret: sndId('secret'),
+  swish: sndId('swish'),
+  bossroar: sndId('bossroar'),
+  keyget: sndId('keyget'),
 } as const;
 
 export const MUS = {
@@ -246,17 +427,44 @@ export const MUS = {
   night: musId('night'),
   menu: musId('menu'),
   castle: musId('castle'),
+  village: musId('village'),
+  dungeon: musId('dungeon'),
+  boss: musId('boss'),
 } as const;
+
+/** Step 11, 4b: the adventure pack's sound events (new games have them; older games add them from the pack panel) */
+export const ADVENTURE_EVENTS: [string, SoundEvent][] = [
+  ev('itemget', ['itemget'], { bus: 'ui', spatial: false, maxVoices: 1 }),
+  ev('secret', ['secret'], { bus: 'ui', spatial: false, maxVoices: 1 }),
+  ev('swish', ['swish'], { pitch: [0.9, 1.15], maxVoices: 3, volume: -4 }),
+  ev('bossroar', ['bossroar'], { maxVoices: 1 }),
+  ev('keyget', ['keyget'], { bus: 'ui', spatial: false, maxVoices: 1 }),
+];
 
 export const DEFAULT_EVENTS: SoundEvents = {
   events: Object.fromEntries([
     ev('smash', ['smash', 'smash2'], { pitch: [0.9, 1.1], maxVoices: 6 }),
     ev('place', ['place'], { bus: 'ui', spatial: false, pitch: [0.95, 1.05] }),
-    ev('rebuild', ['rebuild'], { pitch: [0.9, 1.2], maxVoices: 2, cooldown: 0.2, volume: -6 }),
+    ev('rebuild', ['rebuild'], {
+      pitch: [0.9, 1.2],
+      maxVoices: 2,
+      cooldown: 0.2,
+      volume: -6,
+    }),
     ev('rebuilt', ['rebuilt'], { maxVoices: 2 }),
     ev('jump', ['jump'], { pitch: [0.95, 1.05], volume: -4, maxVoices: 2 }),
-    ev('land', ['land'], { pitch: [0.9, 1.1], volume: -6, maxVoices: 2, cooldown: 0.15 }),
-    ev('step', ['step1', 'step2', 'step3'], { pick: 'shuffle', pitch: [0.9, 1.1], volume: -12, maxVoices: 3 }),
+    ev('land', ['land'], {
+      pitch: [0.9, 1.1],
+      volume: -6,
+      maxVoices: 2,
+      cooldown: 0.15,
+    }),
+    ev('step', ['step1', 'step2', 'step3'], {
+      pick: 'shuffle',
+      pitch: [0.9, 1.1],
+      volume: -12,
+      maxVoices: 3,
+    }),
     ev('pickup', ['pickup'], { maxVoices: 3 }),
     ev('chest', ['chest'], {}),
     ev('door', ['door'], {}),
@@ -276,27 +484,58 @@ export const DEFAULT_EVENTS: SoundEvents = {
     ev('splash', ['splash'], { bus: 'ui', spatial: false, maxVoices: 1 }),
     ev('victory', ['victory'], { bus: 'ui', spatial: false, maxVoices: 1 }),
     ev('treasure', ['treasure'], { bus: 'ui', spatial: false, maxVoices: 1 }),
-    ev('wind', ['wind'], { bus: 'ambience', spatial: false, maxVoices: 2, volume: -8 }),
+    ev('wind', ['wind'], {
+      bus: 'ambience',
+      spatial: false,
+      maxVoices: 2,
+      volume: -8,
+    }),
     ev('lava', ['lava'], { bus: 'ambience', maxVoices: 4, volume: -4 }),
     ev('birds', ['birds'], { bus: 'ambience', maxVoices: 4, volume: -6 }),
+    ...ADVENTURE_EVENTS,
   ]),
 };
 
 const state = (name: string, volume = 0): [string, Music['states'][string]] => [
   musId(name),
-  { name, layers: [{ media: ref(name), volume }], loop: true, bpm: MUSIC[name]!.bpm },
+  {
+    name,
+    layers: [{ media: ref(name), volume }],
+    loop: true,
+    bpm: MUSIC[name]!.bpm,
+  },
 ];
 
+/** Step 11, 4b: the adventure pack's music states */
+export const ADVENTURE_MUSIC = () => [state('village', -4), state('dungeon', -3), state('boss', -5)];
+
 export const DEFAULT_MUSIC: Music = {
-  states: Object.fromEntries([state('explore', -4), state('night', -3), state('menu', -4), state('castle', -4)]),
+  states: Object.fromEntries([
+    state('explore', -4),
+    state('night', -3),
+    state('menu', -4),
+    state('castle', -4),
+    ...ADVENTURE_MUSIC(),
+  ]),
   crossfade: 1.5,
-  stingers: { victory: ref('victory'), gameover: ref('gameover'), splash: ref('splash'), treasure: ref('treasure') },
+  stingers: {
+    victory: ref('victory'),
+    gameover: ref('gameover'),
+    splash: ref('splash'),
+    treasure: ref('treasure'),
+  },
 };
 
 export const DEFAULT_MIXER: Mixer = {
   buses: { master: 0, music: -6, sfx: 0, voice: 0, ui: -3, ambience: -6 },
   duck: [
     { when: 'voice', target: 'music', amount: -8, attack: 0.05, release: 0.4 },
-    { when: 'stinger', target: 'music', amount: -6, attack: 0.05, release: 0.6 },
+    {
+      when: 'stinger',
+      target: 'music',
+      amount: -6,
+      attack: 0.05,
+      release: 0.6,
+    },
   ],
 };

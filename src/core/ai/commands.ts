@@ -583,10 +583,11 @@ export const AI_COMMANDS: AiCommand[] = [
       screenEffects: ScreenHooks.nullable().optional(),
       quality: z.enum(QUALITY_CHOICES).optional(),
       movement: z.enum(['classic', 'physics']).optional(),
+      uiLook: z.enum(['classic', 'adventure']).optional(),
     }),
     ['map', 'character', 'screen'],
     'Scene',
-    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}), effects ({hits: {slash: fx_…}, events: {levelUp: fx_…}}; "none" plays nothing), screenEffects ({events: {hurt | bigHit | levelUp | defeat | death | land | smash: sce_… or "none"}, lowHealth: true/false}), quality (graphics the game starts at: auto | low | medium | high; players can change it in Settings), movement (how the hero moves: classic, v68’s original walking, or physics: slides along walls, pushes loose things and rides them).',
+    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}), effects ({hits: {slash: fx_…}, events: {levelUp: fx_…}}; "none" plays nothing), screenEffects ({events: {hurt | bigHit | levelUp | defeat | death | land | smash: sce_… or "none"}, lowHealth: true/false}), quality (graphics the game starts at: auto | low | medium | high; players can change it in Settings), movement (how the hero moves: classic, v68’s original walking, or physics: slides along walls, pushes loose things and rides them), uiLook (how screens and menus look: classic, or adventure: parchment panels, gold-framed buttons, a storybook font, framed hearts).',
     { name: 'Coin Quest', hero: 'chr_hhhhhhhhhh' },
   ),
   def(

@@ -79,6 +79,7 @@ export function ScreenCanvas({
   );
   const host: ScreenHost = {
     lookup: (n) => (sample ? SAMPLE[n] : `{${n}}`),
+    look: ed.store.manifest.uiLook,
     run: () => {},
     sound: (id) => ed.audio.previewEvent(id),
     media: (ref) => ed.media?.url(ref),

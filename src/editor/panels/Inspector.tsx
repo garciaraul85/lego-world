@@ -698,6 +698,37 @@ function MovementField({ c }: { c: ActionCtx }) {
   );
 }
 
+export const LOOK_HELP =
+  'How the game’s screens and menus look. Classic uses each widget’s own colours. Adventure dresses every screen at once: parchment panels with a gold and wood frame, gold-framed buttons, a storybook font and framed hearts (the starter pack’s look). Widgets keep their places and texts; switch back any time.';
+
+/** step 11, 4b: the screen look (classic or the starter pack's adventure look) */
+function ScreenLookField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = ed.store.manifest.uiLook ?? 'classic';
+  return (
+    <div class="field" data-tour="project-look" data-help="project.look">
+      <span>
+        Screen look
+        <FieldHelp label="Screen look" text={LOOK_HELP} />
+      </span>
+      <select
+        class="inp"
+        aria-label="Screen look"
+        value={cur}
+        onChange={(e) =>
+          ed.exec({
+            type: 'project.update',
+            payload: { uiLook: (e.target as HTMLSelectElement).value as 'classic' | 'adventure' },
+          })
+        }
+      >
+        <option value="classic">Classic</option>
+        <option value="adventure">Adventure (parchment and gold)</option>
+      </select>
+    </div>
+  );
+}
+
 export const SWIM_HELP =
   'In water deeper than about half the hero, the hero swims: afloat with the head out, the Action button says Dive (hold it to go down) and, under water, Swim up. Currents carry the swimmer; pushing against a low shore climbs out, and Jump at the surface leaps out. Under water the hero holds their breath: the HUD shows Air, and with none left a heart is lost every 2 seconds. Shallow water only slows walking. Off: the hero sinks and walks along the bottom.';
 
@@ -806,6 +837,7 @@ function ProjectTab({ c }: { c: ActionCtx }) {
         </div>
         <QualityField c={c} />
         <MovementField c={c} />
+        <ScreenLookField c={c} />
         <SwimField c={c} />
       </div>
       <ControlsSection c={c} />

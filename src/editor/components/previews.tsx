@@ -154,6 +154,7 @@ export function ScreenThumb({ ed, screen, width = 64 }: { ed: EditorState; scree
         scale={scale}
         host={{
           lookup: (n) => SAMPLE[n] ?? `{${n}}`,
+          look: ed.store.manifest.uiLook,
           run: () => {},
           sound: () => {},
           media: (ref) => ed.media?.url(ref),

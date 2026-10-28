@@ -40,6 +40,10 @@ Screens are laid out at 1280×720 and scaled to fit; tall (portrait) screens use
 
 While upright, moves, sizes, anchors and styles you change only apply to tall screens (the portrait layout); Use the normal layout forgets them. Check all sizes shows the screen on every device both ways and lists anything off screen, under a notch, overlapping or cut off; click a problem to jump to it.
 
+## Screen look
+
+**Screen look** (Project tab, or the Starter pack's Look and sound) dresses every screen at once. **Classic** uses each widget's own colours. **Adventure** turns panels into parchment with a gold and wood frame, gives buttons a gold frame, text a storybook font and the hearts a framed box. Places and texts stay the same, and the Screens workspace shows the look too.
+
 ## Colours
 
 Colour fields open a picker: a shade square, hue and see-through sliders, hex, your recent colours, the brick colours and an eyedropper.

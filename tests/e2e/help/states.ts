@@ -213,6 +213,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // step 11, 4b: the Project tab scrolled to Screen look
+    id: 'scene-look',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'project' });
+      await p.locator('[data-tour="project-look"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     id: 'scene-dialogue',
     screen: 'scene',
     setup: async (p) => {

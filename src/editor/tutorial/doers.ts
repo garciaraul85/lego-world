@@ -45,7 +45,7 @@ import { assetLibrary, newAssetDef } from '../assets';
 import { looseCopies, modelItems, placeModelAt, placeWaterAt, waterItems } from '../interact/place';
 import { sampleClip, samplePoster } from '../media/samples';
 import { shrinkMedia } from '../media/shrink';
-import { makePackHero, placePackCharacter } from '../pack/pack';
+import { makePackHero, placePackCharacter, setScreenLook } from '../pack/pack';
 import { importModelFiles, modelChoices } from '../panels/ModelFields';
 import { savingOf } from '../panels/SavingSection';
 import type { EditorState } from '../state';
@@ -1291,6 +1291,11 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     if (!item) throw new Error('No hero in the pack.');
     c.ed.dock.value = 'pack';
     if (!makePackHero(c.ed, item)) throw new Error('It could not be made the player character.');
+  },
+  packLook(c, a) {
+    c.ed.dock.value = 'pack';
+    if (!setScreenLook(c.ed, a?.look === 'classic' ? 'classic' : 'adventure'))
+      throw new Error('The screen look could not be changed.');
   },
   strikeFromBehind(c, a) {
     // what walking round behind it and swinging the sword does

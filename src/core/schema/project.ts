@@ -34,6 +34,8 @@ export const Project = z.strictObject({
   effects: EffectHooks.optional(),
   /** P23 part 2: which screen effect plays when things happen (hurt, a charged hit, level up…) */
   screenEffects: ScreenHooks.optional(),
+  /** step 11, 4b: how the game's screens and menus look (missing: classic) */
+  uiLook: z.enum(['classic', 'adventure']).optional(),
   /** Every non-.editor file except project.json itself, with xxhash64 (16 hex) and byte size. */
   files: z.record(z.string(), FileEntry),
 });

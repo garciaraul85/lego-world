@@ -3,7 +3,7 @@ import type { TerrainStyle } from '../../builtin/packs/adventure';
 import type { Command } from '../../core/commands';
 import { parseScript } from '../../core/dialogue/script';
 import { newId } from '../../core/ids';
-import { type Character, type MapDoc, paths } from '../../core/schema';
+import { type Character, type EffectInstance, type MapDoc, paths } from '../../core/schema';
 import type { EditorState } from '../state';
 
 type Item = PackCharacter & { id: string };
@@ -81,4 +81,28 @@ export function useTerrainStyle(ed: EditorState, style: TerrainStyle): boolean {
     { label: `Terrain: ${style.name}` },
   );
   return r.ok;
+}
+
+/** step 11, 4b: an effect from the pack placed in front of the first spawn (it plays where it stands): one undo step */
+export function placePackEffect(ed: EditorState, effect: string, name: string): string | null {
+  const map = ed.mapId.value;
+  const at = spot(ed);
+  const id = newId('instance');
+  const item: EffectInstance = {
+    id: id as EffectInstance['id'],
+    kind: 'effect',
+    name,
+    effect: effect as EffectInstance['effect'],
+    pos: [Math.round(at[0] * 2) / 2, at[1] + 1.5, Math.round(at[2] * 2) / 2],
+    scale: 1,
+    interval: [2, 4],
+    maxDistance: 40,
+    playing: true,
+  };
+  return ed.exec({ type: 'item.add', payload: { map, item } }, { label: `Add ${name}` }).ok ? id : null;
+}
+
+/** step 11, 4b: how the game's screens and menus look (classic or adventure): one undo step */
+export function setScreenLook(ed: EditorState, look: 'classic' | 'adventure'): boolean {
+  return ed.exec({ type: 'project.update', payload: { uiLook: look } }).ok;
 }

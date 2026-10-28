@@ -7,6 +7,8 @@ import { effectiveWidget, widgetCss } from '../layout';
 /** What widgets need from the game (or from the editor preview). */
 export type ScreenHost = {
   lookup: Lookup;
+  /** step 11, 4b: the game's screen look (project uiLook; missing: classic) */
+  look?: 'classic' | 'adventure';
   /** run a button's actions */
   run(actions: readonly Action[], screen: string): void;
   sound(event: string): void;

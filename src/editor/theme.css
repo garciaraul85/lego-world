@@ -1826,6 +1826,71 @@ select.inp {
 .bw-heart:not(.on) {
   color: #ffffff60;
 }
+/* step 11, 4b: the Adventure screen look (project uiLook): parchment panels, gold-framed buttons, a storybook font,
+   framed hearts. It wins over a widget's own colours so one switch changes every screen. */
+.bw-look-adventure {
+  --adv-ink: #3b2a14;
+  --adv-parch: #f3e3bf;
+  --adv-parch2: #e2c992;
+  --adv-gold: #c9962b;
+  --adv-gold2: #f5d77a;
+  --adv-wood: #5a3a1a;
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, "URW Palladio L", Georgia, serif;
+}
+.bw-look-adventure .bw-panel[style*="background"] {
+  background: radial-gradient(ellipse at 50% 40%, var(--adv-parch) 55%, var(--adv-parch2) 100%) !important;
+  border: 3px solid var(--adv-gold) !important;
+  outline: 2px solid var(--adv-wood);
+  outline-offset: -7px;
+  border-radius: 10px !important;
+  box-shadow:
+    0 6px 18px #0009,
+    inset 0 0 24px #b8904a55;
+  color: var(--adv-ink) !important;
+}
+.bw-look-adventure .bw-panel[style*="background"] .bw-text {
+  color: var(--adv-ink) !important;
+  text-shadow: none !important;
+}
+.bw-look-adventure .bw-text {
+  letter-spacing: 0.02em;
+}
+.bw-look-adventure .bw-button {
+  font-family: inherit;
+  color: var(--adv-ink) !important;
+  background: linear-gradient(180deg, #fbefcd 0%, var(--adv-parch2) 100%) !important;
+  border: 3px solid var(--adv-gold) !important;
+  border-radius: 6px !important;
+  box-shadow:
+    0 0 0 2px var(--adv-wood),
+    0 4px 0 2px var(--adv-wood);
+  letter-spacing: 0.03em;
+}
+.bw-look-adventure .bw-button:focus-visible,
+.bw-look-adventure .bw-button:hover {
+  border-color: var(--adv-gold2) !important;
+  filter: brightness(1.06);
+}
+.bw-look-adventure .bw-button:focus-visible {
+  outline: 3px solid var(--adv-gold2);
+}
+.bw-look-adventure .bw-button:active {
+  box-shadow:
+    0 0 0 2px var(--adv-wood),
+    0 2px 0 2px var(--adv-wood);
+}
+.bw-look-adventure .bw-hearts {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #2a1a0bcc;
+  border: 2px solid var(--adv-gold);
+  box-shadow: 0 0 0 2px var(--adv-wood);
+  color: #e8323c;
+}
+.bw-look-adventure .bw-bar {
+  border: 2px solid var(--adv-gold) !important;
+  box-shadow: 0 0 0 2px var(--adv-wood);
+}
 .bw-bar {
   position: relative;
   width: 220px;

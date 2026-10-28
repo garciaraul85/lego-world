@@ -1257,6 +1257,8 @@ export class PlaySession {
     const how = ATTACKS[kind];
     const push = { knock: how.knock, stun: how.stun };
     const h = this.heroState;
+    // step 11, 4b: a blade swings with a swish
+    if (attack.type === 'slash') this.audio.play(SND.swish, { pos: [h.x, h.y, h.z] });
     if (how.around) {
       const r = reach + 1.2;
       let any = false;
@@ -1503,7 +1505,8 @@ export class PlaySession {
     this.emit('info', `Got ${count} × ${item} (${n} in total)`);
     if (count > 0) this.eventEffect('coin', [this.heroState.x, this.heroState.y + 3, this.heroState.z]);
     this.say(`+${count} ${item}`, 1.5);
-    this.audio.play(SND.pickup);
+    // step 11, 4b: a key jingles
+    this.audio.play(/\bkeys?\b/i.test(item) ? SND.keyget : SND.pickup);
   }
 
   /** the neighbour called this (by name, or n:<id>) */

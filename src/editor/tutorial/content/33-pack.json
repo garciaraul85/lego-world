@@ -207,6 +207,28 @@
       "placement": "top"
     },
     {
+      "id": "pack.look",
+      "title": "The adventure look",
+      "body": "Scroll to Look and sound at the end of the pack. The Screen look switch dresses every screen and menu at once: parchment panels, gold-framed buttons, a storybook font and framed hearts. Next to it are the pack's effects, sounds and music (▶ listens).",
+      "task": "Under Look and sound, pick Adventure.",
+      "target": "[data-tour=\"pack-screen-look\"]",
+      "check": {
+        "kind": "state",
+        "test": "lookIs",
+        "args": "adventure"
+      },
+      "doItForMe": [
+        {
+          "fn": "packLook",
+          "args": {
+            "look": "adventure"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
       "id": "pack.fight",
       "title": "Hit him from behind",
       "body": "Press Play. From the front his shield clangs (“Blocked! Try its back.”); walk round behind him, or roll past, and strike.",
@@ -233,7 +255,7 @@
     {
       "id": "pack.done",
       "title": "Done!",
-      "body": "You played as Rook, placed a neighbour with a conversation, an enemy with a weakness and a pot, and hit the knight where it hurts. The terrain styles at the bottom of the pack make the map again in their style. Help › Starter pack, Can be harmed and Fights the hero say more.",
+      "body": "You played as Rook, placed a neighbour with a conversation, an enemy with a weakness and a pot, gave the game the adventure look, and hit the knight where it hurts. The terrain styles at the bottom of the pack make the map again in their style. Help › Starter pack, Screen look, Can be harmed and Fights the hero say more.",
       "task": "Press Finish.",
       "target": "[data-tour=\"menu-help\"]",
       "check": {

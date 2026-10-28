@@ -36,6 +36,7 @@ export function GameScreens({
     const mini = minimapDrawer(s);
     return {
       lookup: s.lookup,
+      look: ed.store.manifest.uiLook,
       run: (actions) => s.uiActions.run(actions, s.uiClock),
       sound: (id) => s.audio.play(id),
       pressed: (screen, widget) => s.screenButton(screen, widget),

@@ -1,20 +1,22 @@
 import { useState } from 'preact/hooks';
 import { BUILTIN_ASSETS } from '../../builtin/assets';
 import type { PackGroup } from '../../builtin/characters/starter';
+import { BUILTIN_EFFECTS } from '../../builtin/effects';
 import { ADVENTURE_PACK } from '../../builtin/packs/adventure';
 import { STYLE_INFO } from '../../core/combat/enemy';
 import { paths } from '../../core/schema';
 import type { ActionCtx } from '../actions/registry';
 import { AssetThumb } from '../components/AssetThumb';
 import { FieldHelp } from '../components/fields';
+import { EffectThumb, MusicListen } from '../components/previews';
 import { matches, NoMatch, SearchBox } from '../components/SearchBox';
 import { endDrag, startDrag } from '../interact/drag';
 import { bodyOfChr } from '../workspaces/character-studio/body-of';
 import { CharacterThumb } from '../workspaces/character-studio/thumbs';
-import { makePackHero, placePackCharacter, useTerrainStyle } from './pack';
+import { makePackHero, placePackCharacter, placePackEffect, setScreenLook, useTerrainStyle } from './pack';
 
 export const PACK_HELP =
-  'The adventure starter pack: a hero, ten neighbours (each with a sample conversation), ten kinds of enemy (each with its weaknesses), twenty buildings and props (dungeon walls, gates, torches, pots, a boss chest, a block to push, a cottage…) and three terrain styles. Drag anything onto the map, or press Place. A character comes into your game the first time it is used, so you can change it in the Character studio; buildings and props open in the Asset studio. A terrain style makes the open map again in that style (Undo brings the old one back).';
+  'The adventure starter pack: a hero, ten neighbours (each with a sample conversation), ten kinds of enemy (each with its weaknesses), twenty buildings and props (dungeon walls, gates, torches, pots, a boss chest, a block to push, a cottage…), three terrain styles, five effects (fairy sparkle, item get, torch embers, dungeon dust, a boss vanishing), an Adventure screen look, and its own sounds and music. Drag anything onto the map, or press Place. A character comes into your game the first time it is used, so you can change it in the Character studio; buildings and props open in the Asset studio. A terrain style makes the open map again in that style (Undo brings the old one back). The Adventure look dresses every screen and menu (parchment panels, gold-framed buttons, a storybook font, framed hearts); Classic brings the plain look back. The sounds and music are in every game already: listen here, then pick them in the Audio workspace, in logic (Play sound, Play music) or in a cinematic. The sword swish plays on every blade swing and the key jingle when the hero is given a key.';
 
 const GROUPS: [PackGroup, string][] = [
   ['hero', 'Hero'],
@@ -32,9 +34,23 @@ export function PackPanel({ c }: { c: ActionCtx }) {
     matches(q, a.name, a.category),
   );
   const terrain = ADVENTURE_PACK.terrain.filter((t) => matches(q, t.name, t.about));
+  const effects = BUILTIN_EFFECTS.filter((e) => (ADVENTURE_PACK.effects as readonly string[]).includes(e.id)).filter(
+    (e) => matches(q, e.name, 'effect'),
+  );
+  const sounds = ADVENTURE_PACK.sounds.filter((x) => matches(q, x.name, x.about, 'sound'));
+  const music = ADVENTURE_PACK.music.filter((x) => matches(q, x.name, x.about, 'music'));
+  const showLook = matches(q, 'screen look adventure classic menu hud');
+  const look = ed.store.manifest.uiLook ?? 'classic';
   const brush = ed.assetBrush.value;
   const hero = ed.store.manifest.hero;
-  const nothing = !cast.length && !assets.length && !terrain.length;
+  const nothing =
+    !cast.length &&
+    !assets.length &&
+    !terrain.length &&
+    !effects.length &&
+    !sounds.length &&
+    !music.length &&
+    !showLook;
   return (
     <div class="scroll pack-panel" data-tour="dock-pack" data-help="scene.dock.pack">
       <div class="row" style={{ gap: '8px', alignItems: 'center' }}>
@@ -183,6 +199,99 @@ export function PackPanel({ c }: { c: ActionCtx }) {
               </div>
             ))}
           </div>
+        </section>
+      )}
+      {(showLook || effects.length > 0 || sounds.length > 0 || music.length > 0) && (
+        <section class="pack-group" aria-label="Look and sound" data-tour="pack-look">
+          <div class="small muted pack-title">Look and sound</div>
+          {showLook && (
+            <div class="pack-style row" data-tour="pack-screen-look">
+              <span style={{ flex: 1 }}>
+                <strong class="small">Screen look</strong>
+                <span class="muted small">
+                  {' '}
+                  · parchment panels, gold-framed buttons, a storybook font, framed hearts
+                </span>
+              </span>
+              <div class="seg" role="radiogroup" aria-label="Screen look">
+                {(['classic', 'adventure'] as const).map((k) => (
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={look === k}
+                    class={`btn small ${look === k ? 'on' : ''}`}
+                    onClick={() =>
+                      look !== k &&
+                      setScreenLook(ed, k) &&
+                      ed.notify(
+                        k === 'adventure'
+                          ? 'Every screen and menu has the Adventure look now. Press Play to see it.'
+                          : 'The screens have the classic look again.',
+                      )
+                    }
+                  >
+                    {k === 'classic' ? 'Classic' : 'Adventure'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {effects.length > 0 && (
+            <div class="cards pack-cards" role="list" aria-label="Pack effects">
+              {effects.map((e) => (
+                <div
+                  class="card pack-card"
+                  role="listitem"
+                  aria-label={e.name}
+                  data-tour={`pack-fx-${e.name.toLowerCase().replace(/[^a-z]+/g, '-')}`}
+                  data-tip={`${e.name}. Point at it to see it play; Place puts it in front of the start. Hits and logic can play it too.`}
+                >
+                  <span class="thumb" aria-hidden="true">
+                    <EffectThumb effect={e} size={56} />
+                  </span>
+                  <span class="small asset-name">{e.name}</span>
+                  <button
+                    type="button"
+                    class="btn small"
+                    aria-label={`Place ${e.name}`}
+                    onClick={() => placePackEffect(ed, e.id, e.name) && ed.notify(`${e.name} is on the map.`)}
+                  >
+                    Place
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {(sounds.length > 0 || music.length > 0) && (
+            <div class="pack-terrain" role="list" aria-label="Pack sounds and music">
+              {sounds.map((x) => (
+                <div class="pack-style row" role="listitem" data-tour={`pack-sound-${x.id}`}>
+                  <button
+                    type="button"
+                    class="btn icon listen"
+                    aria-label={`Listen to ${x.name}`}
+                    data-tip={`Listen to ${x.name}`}
+                    onClick={() => ed.audio.previewEvent(x.id)}
+                  >
+                    ▶
+                  </button>
+                  <span style={{ flex: 1 }}>
+                    <strong class="small">{x.name}</strong>
+                    <span class="muted small"> · sound · {x.about}</span>
+                  </span>
+                </div>
+              ))}
+              {music.map((x) => (
+                <div class="pack-style row" role="listitem" data-tour={`pack-music-${x.id}`}>
+                  <MusicListen ed={ed} id={x.id} name={`${x.name} music`} />
+                  <span style={{ flex: 1 }}>
+                    <strong class="small">{x.name}</strong>
+                    <span class="muted small"> · music · {x.about}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
     </div>

@@ -74,6 +74,33 @@ export const PHYSICS: HelpEntry[] = [
     related: ['asset.loose', 'scene.item.water', 'project.quality'],
   },
   {
+    id: 'project.look',
+    also: [
+      'screen look',
+      'ui look',
+      'hud look',
+      'menu style',
+      'adventure look',
+      'parchment',
+      'storybook font',
+      'theme for screens',
+      'gold buttons',
+    ],
+    screen: 'scene',
+    kind: 'setting',
+    name: 'Screen look',
+    purpose:
+      'How every screen and menu of the game looks. **Classic** uses each widget’s own colours. **Adventure** (the starter pack’s look) dresses them all at once: panels become parchment with a gold and wood frame, buttons get a gold frame, text a storybook font, and the hearts sit in a framed box. Places, sizes and texts stay as they are, so you can switch back any time. The Screens workspace shows the look too.',
+    steps: [
+      'Open the **Project** tab of the Inspector and find **Screen look** (or open **Starter pack** › Look and sound).',
+      'Pick **Adventure**.',
+      'Press ▶ Play and pause (Esc) to see the menu, or open the Screens workspace.',
+    ],
+    commands: ['project.update'],
+    match: [{ in: '[data-help="project.look"]' }, { in: '[data-tour="pack-screen-look"]' }],
+    related: ['scene.dock.pack', 'screens.screen'],
+  },
+  {
     id: 'project.swimming',
     also: [
       'swimming',

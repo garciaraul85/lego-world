@@ -1,6 +1,8 @@
 import type { GenerateConfig } from '../../core/worldgen/generate';
 import { STARTER_ASSET_SLUGS, starterAssetId } from '../assets';
+import { MUS, SND } from '../audio/pack';
 import { STARTER_CHARACTERS } from '../characters';
+import { ADVENTURE_EFFECTS } from '../effects';
 
 /**
  * Step 11, 4a: the adventure starter pack — what its panel in the bottom dock shows. Its cast and its buildings and
@@ -20,7 +22,13 @@ export const TERRAIN_STYLES: TerrainStyle[] = [
     id: 'green-vale',
     name: 'Green Vale',
     about: 'Rolling meadows and woods by day: the village and the fields',
-    config: { environments: ['prairie', 'forest'], size: 24, mountainShape: 'rolling', mountainScale: 'low', time: 'day' },
+    config: {
+      environments: ['prairie', 'forest'],
+      size: 24,
+      mountainShape: 'rolling',
+      mountainScale: 'low',
+      time: 'day',
+    },
   },
   {
     id: 'shrine-highlands',
@@ -52,10 +60,25 @@ export const TERRAIN_STYLES: TerrainStyle[] = [
 export const ADVENTURE_PACK = {
   id: 'adventure',
   name: 'Adventure starter pack',
-  about: 'A hero, ten neighbours, ten kinds of enemy, twenty buildings and props, and three terrain styles',
+  about:
+    'A hero, ten neighbours, ten kinds of enemy, twenty buildings and props, three terrain styles, five effects, an adventure screen look, and its own sounds and music',
   /** the genre views it shows in */
   genres: ['explore', 'open'],
   cast: STARTER_CHARACTERS,
   assets: STARTER_ASSET_SLUGS.map(starterAssetId),
   terrain: TERRAIN_STYLES,
+  /** step 11, 4b: its effects, sounds and music (every game has them; the panel shows them together) */
+  effects: ADVENTURE_EFFECTS,
+  sounds: [
+    { id: SND.itemget, name: 'Item get', about: 'a short jingle for something small found' },
+    { id: SND.keyget, name: 'Key', about: 'plays when the hero is given a key' },
+    { id: SND.secret, name: 'Secret found', about: 'a puzzle solved or a hidden door found' },
+    { id: SND.swish, name: 'Sword swish', about: 'plays on every blade swing' },
+    { id: SND.bossroar, name: 'Boss roar', about: 'for a boss waking up' },
+  ],
+  music: [
+    { id: MUS.village, name: 'Village', about: 'cheerful, for towns and fields' },
+    { id: MUS.dungeon, name: 'Dungeon', about: 'slow and dark' },
+    { id: MUS.boss, name: 'Boss', about: 'fast and driving' },
+  ],
 } as const;
