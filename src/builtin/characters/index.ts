@@ -52,6 +52,7 @@ import speedHeroine from './speed-heroine.json';
 import speedster from './speedster.json';
 import sportMicroShortsSet from './sport-micro-shorts-set.json';
 import starHeroine from './star-heroine.json';
+import { type PackCharacter, STARTER_CAST } from './starter';
 import steelTitan from './steel-titan.json';
 import stormHeroine from './storm-heroine.json';
 import summerOutfit from './summer-outfit.json';
@@ -123,9 +124,21 @@ const RAW: Record<string, unknown> = {
 };
 
 /** v68's character presets, as Character files (ids fixed per preset). */
-export const BUILTIN_CHARACTERS: readonly Character[] = Object.entries(RAW).map(([slug, raw]) =>
-  Character.parse({
-    ...(raw as object),
-    id: `chr_${(BigInt(`0x${hash64(`builtin:${slug}`)}`) % 36n ** 10n).toString(36).padStart(10, '0')}`,
-  }),
+const builtinCharId = (slug: string) =>
+  `chr_${(BigInt(`0x${hash64(`builtin:${slug}`)}`) % 36n ** 10n).toString(36).padStart(10, '0')}`;
+
+/** v68's character presets (P3.5) */
+export const V68_CHARACTERS: readonly Character[] = Object.entries(RAW).map(([slug, raw]) =>
+  Character.parse({ ...(raw as object), id: builtinCharId(slug) }),
 );
+
+/** step 11, 4a: the adventure starter pack's cast (the hero, ten neighbours, ten enemies) */
+export const STARTER_CHARACTERS: readonly (PackCharacter & { id: string })[] = STARTER_CAST.map((p) => ({
+  ...p,
+  id: builtinCharId(p.slug),
+}));
+
+export const BUILTIN_CHARACTERS: readonly Character[] = [
+  ...V68_CHARACTERS,
+  ...STARTER_CHARACTERS.map((p) => Character.parse({ ...p.character, id: p.id })),
+];
