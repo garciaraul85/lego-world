@@ -169,3 +169,58 @@ test('Project › Controls changes a key; the player’s Controls screen changes
   await page.keyboard.press('F5');
   expect(errors).toEqual([]);
 });
+
+test('swimming: afloat in a pool, E dives (held), the view turns blue and Air shows; Swim and Tread', async ({
+  page,
+}) => {
+  test.setTimeout(400_000);
+  const errors: string[] = [];
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await open(page, errors);
+  // a pool beside the start (16 × 16, 6 deep)
+  const sp = await page.evaluate(() => {
+    const e = (window as unknown as { __editor: Ed }).__editor;
+    const map = e.store.manifest.entry.map;
+    const sp = (e.store.get(`maps/${map}/map.json`) as { spawns: { pos: number[] }[] }).spawns[0]!.pos;
+    const r = e.exec({
+      type: 'item.add',
+      payload: {
+        map,
+        item: {
+          id: 'ins_swimpool01',
+          kind: 'water',
+          name: 'Pool',
+          pos: [Math.round(sp[0]!) + 4, sp[1]! - 1, Math.round(sp[2]!) - 8],
+          size: [16, 6, 16],
+          body: 'pool',
+        },
+      },
+    });
+    if (!r.ok) throw new Error(r.error);
+    return sp;
+  });
+  await play(page);
+  await page.evaluate((sp) => {
+    const s = (window as unknown as { __editor: Ed }).__editor.session.value!;
+    s.placeAt([Math.round(sp[0]!) + 12, sp[1]! + 2, Math.round(sp[2]!)], 0);
+  }, sp);
+  type W = S & { swim: { on: boolean; under: boolean }; heroStates: { state: string } };
+  await expect.poll(() => ses(page, (s) => (s as W).swim.on), { timeout: 30_000 }).toBe(true);
+  await expect.poll(() => ses(page, (s) => s.buttons.now?.label), { timeout: 30_000 }).toBe('Dive');
+  await expect(page.locator('.bw-buttons [data-button="action"] .bw-btn-label')).toHaveText('Dive');
+  // swim forward: the crawl
+  await page.keyboard.down('w');
+  await expect.poll(() => ses(page, (s) => (s as W).heroStates.state)).toBe('swim');
+  await page.screenshot({ path: 'test-results/swim-surface.png' });
+  await page.keyboard.up('w');
+  // hold E: down under the surface
+  await page.keyboard.down('e');
+  await expect.poll(() => ses(page, (s) => (s as W).swim.under), { timeout: 20_000 }).toBe(true);
+  await page.waitForTimeout(800);
+  await expect(page.locator('[data-widget="air"]')).toBeVisible();
+  await page.screenshot({ path: 'test-results/swim-under.png' });
+  await page.keyboard.up('e');
+  await expect.poll(() => ses(page, (s) => (s as W).swim.under), { timeout: 90_000 }).toBe(false);
+  await page.keyboard.press('F5');
+  expect(errors).toEqual([]);
+});

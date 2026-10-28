@@ -3617,7 +3617,9 @@ export class PlaySession {
     let ny = s.y + step.dy;
     let nz = s.z + step.dz;
     if (ph) {
-      const r = ph.walk({ x: s.x, y: s.y, z: s.z }, { x: step.dx, y: step.dy, z: step.dz }, HERO_RADIUS * k, h);
+      const r = ph.walk({ x: s.x, y: s.y, z: s.z }, { x: step.dx, y: step.dy, z: step.dz }, HERO_RADIUS * k, h, {
+        noSnap: true,
+      });
       nx = r.x;
       ny = r.y;
       nz = r.z;

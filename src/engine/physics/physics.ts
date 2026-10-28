@@ -248,6 +248,8 @@ export class PhysicsWorld {
     delta: { x: number; y: number; z: number },
     radius: number,
     height: number,
+    /** step 11b: a swimmer is not pulled down onto the floor under it */
+    opt: { noSnap?: boolean } = {},
   ): { x: number; y: number; z: number; grounded: boolean; blockedUp: boolean; riding: boolean } {
     if (!this.kcc) {
       const k = this.world.createCharacterController(SKIN);
@@ -293,7 +295,9 @@ export class PhysicsWorld {
       d = { x: d.x + v.x * dt, y: d.y + Math.max(0, v.y) * dt, z: d.z + v.z * dt };
       riding = Math.hypot(v.x, v.z) > 0.05;
     }
+    if (opt.noSnap) this.kcc.disableSnapToGround();
     this.kcc.computeColliderMovement(c, d);
+    if (opt.noSnap) this.kcc.enableSnapToGround(0.45);
     const m = this.kcc.computedMovement();
     const grounded = this.kcc.computedGrounded();
     // what is under the feet now
