@@ -5626,6 +5626,22 @@ body.brix-explain * {
   width: 46px;
   padding: 2px 4px;
 }
+/* step 11, 4a: a brick's two lines (size and place; shape, see-through, glow) */
+.brick-row-wrap {
+  border-bottom: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+.brick-row.small {
+  font-size: 11px;
+}
+.brick-row input[type='checkbox'] {
+  width: auto;
+}
+.brick-row input[type='color'] {
+  width: 28px;
+  padding: 0;
+}
 .body-presets {
   display: flex;
   flex-wrap: wrap;
