@@ -108,6 +108,7 @@ import {
 import type { AudioPort, Vec3 } from '../audio/port';
 import { RecordingAudio } from '../audio/port';
 import { Animator } from '../character/animator';
+import { bodyBounds } from '../character/body-anim';
 import { StateMachine } from '../character/states';
 import { ParticleSystem, type PlayOptions, type StreamHandle } from '../effects/particles';
 import { ScreenFx } from '../effects/screen';
@@ -292,6 +293,8 @@ export class PlaySession {
   private standing = new Map<number, boolean>();
   /** P22 part 3: bodies other than the minifig, by NPC id ('hero' for the player) */
   private bodies = new Map<number | 'hero', ResolvedBody | null>();
+  /** step 11, 4a: the size of each body (see figureOf) */
+  private figures = new WeakMap<ResolvedBody, { bottom: number; top: number; radius: number }>();
   /** step 11, 4a: minifigs' extra parts, by NPC id */
   private extraParts = new Map<number | 'hero', ReturnType<typeof minifigExtras>>();
   rebuildHeld = false;
@@ -1320,7 +1323,9 @@ export class PlaySession {
       const dx = n.state.x - h.x;
       const dz = n.state.z - h.z;
       const d = Math.hypot(dx, dz);
-      if (d > bd || Math.abs(n.state.y - h.y) > 2) continue;
+      // step 11, 4a: a big body is hit from further away, a tall or hovering one at any height along it
+      const f = this.figureOf(n);
+      if (d > bd + Math.max(0, f.radius - 0.6) || h.y < n.state.y + f.bottom - 2 || h.y > n.state.y + f.top) continue;
       const off = Math.abs(((Math.atan2(dx, dz) - h.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
       if (off > 1 || !this.canHarm(n)) continue;
       best = n;
@@ -1492,7 +1497,7 @@ export class PlaySession {
       if (w && w.hp <= 0) continue;
       if (!near(n.state.x, n.state.z)) continue;
       const max = w?.max ?? npcCharacter(this.snapshot, this.world.mapId, n)?.harm?.health.hp ?? 1;
-      out.push({ pos: [n.state.x, n.state.y + 5.8, n.state.z], k: (w?.hp ?? max) / max });
+      out.push({ pos: [n.state.x, n.state.y + this.figureOf(n).top + 1.4, n.state.z], k: (w?.hp ?? max) / max });
     }
     return out;
   }
@@ -1923,6 +1928,35 @@ export class PlaySession {
       this.bodies.set(key, body);
     }
     return this.bodies.get(key)!;
+  }
+
+  /**
+   * Step 11, 4a: how big a character stands, from where it stands (its feet): the bottom and top of its body, and how
+   * far it reaches out sideways. A minifig is about 4.4 tall; a creature is measured from its bricks (a hovering bat's
+   * bottom is above the ground, a spider boss is wide). Markers, health bars, lock-on and hits use it.
+   */
+  figureOf(who: Npc | 'hero'): { bottom: number; top: number; radius: number } {
+    const st = who === 'hero' ? this.heroState : who.state;
+    const body = this.bodyOf(who);
+    if (!body) {
+      const k = this.L.GamePhysics.scaleOf(st);
+      return { bottom: 0, top: 4.4 * k, radius: 0.6 * k };
+    }
+    let f = this.figures.get(body);
+    if (!f) {
+      const { min, max } = bodyBounds(body);
+      f = {
+        bottom: Math.max(0, min[1]),
+        top: Math.max(1, max[1]),
+        radius: Math.max(
+          0.5,
+          ...min.filter((_, i) => i !== 1).map(Math.abs),
+          ...max.filter((_, i) => i !== 1).map(Math.abs),
+        ),
+      };
+      this.figures.set(body, f);
+    }
+    return f;
   }
 
   /** step 11, 4a: a minifig's extra parts (a tail, a snout…), coloured */

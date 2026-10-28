@@ -52,6 +52,8 @@ export const hasShield = (profile: Record<string, unknown>) => profile.offHand =
 type HostInstance = { def: { name: string; health?: unknown; lockOn?: boolean }; inst: { id: string } };
 export interface CombatHost {
   readonly heroState: HeroState;
+  /** step 11, 4a: how big a character's body stands (see PlaySession.figureOf) */
+  figureOf(who: Npc): { bottom: number; top: number; radius: number };
   readonly over: boolean;
   readonly input: { keys: Set<string>; touch: Set<string> };
   readonly hero: Record<string, unknown>;
@@ -382,7 +384,9 @@ export class Combat {
     if (!t) return null;
     if (t.kind === 'npc') {
       const n = this.s.world.npcs.find((x) => x.id === t.id);
-      return n ? [n.state.x, n.state.y + 1.2, n.state.z] : null;
+      if (!n) return null;
+      const f = this.s.figureOf(n);
+      return [n.state.x, n.state.y + f.bottom + 0.27 * (f.top - f.bottom), n.state.z];
     }
     const i = this.s.objs().byId(t.id);
     if (!i || (this.s.health.peek(`i:${i.inst.id}`)?.hp ?? 1) <= 0) return null;
@@ -396,7 +400,7 @@ export class Combat {
     if (!p) return null;
     if (t.kind === 'npc') {
       const n = this.s.world.npcs.find((x) => x.id === t.id);
-      return n ? [n.state.x, n.state.y + 4.6, n.state.z] : null;
+      return n ? [n.state.x, n.state.y + this.s.figureOf(n).top + 0.2, n.state.z] : null;
     }
     const i = this.s.objs().byId(t.id);
     const top = i ? this.s.instanceTop(i) : null;
