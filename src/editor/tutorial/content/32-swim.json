@@ -1,0 +1,204 @@
+{
+  "id": "swim",
+  "title": "Swimming course",
+  "steps": [
+    {
+      "id": "swim.pool",
+      "title": "A pool deep enough",
+      "body": "Water deeper than about half the hero's height is swum, not waded. A Pool from the dock is 3 studs deep: plenty.",
+      "task": "In the dock, open Water and press Place beside Pool (or right-click the ground: Add water here).",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "deepWater",
+        "args": 2.5
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "deepPool"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Scene” in the workspace tabs, then in the dock at the bottom open Water and place a Pool.",
+          "check": {
+            "kind": "state",
+            "test": "deepWater",
+            "args": 2.5
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            },
+            {
+              "fn": "deepPool",
+              "say": "A pool beside the start."
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "top"
+    },
+    {
+      "id": "swim.chest",
+      "title": "Treasure at the bottom",
+      "body": "Something worth diving for: a Treasure chest on the pool's floor.",
+      "task": "Place a Treasure chest inside the pool (Dock › Assets › Treasure chest, then click the pool's floor).",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetInWater",
+        "args": "Treasure chest"
+      },
+      "doItForMe": [
+        {
+          "fn": "chestInPool"
+        }
+      ],
+      "how": [
+        {
+          "text": "Pick the Treasure chest in the dock and click in the middle of the pool.",
+          "check": {
+            "kind": "state",
+            "test": "assetInWater",
+            "args": "Treasure chest"
+          },
+          "do": [
+            {
+              "fn": "chestInPool",
+              "say": "The chest sits on the pool's floor."
+            }
+          ]
+        }
+      ],
+      "placement": "top"
+    },
+    {
+      "id": "swim.breath",
+      "title": "How long a breath lasts",
+      "body": "Project › Swimming: with Hero can swim on, the hero floats in deep water and can dive. Breath is how many seconds of air the hero has under water; with none left a heart is lost every 2 seconds.",
+      "task": "On the Project tab, set Breath to 30 seconds.",
+      "target": "[data-tour=\"project-swimming\"]",
+      "check": {
+        "kind": "state",
+        "test": "swimmingIs",
+        "args": {
+          "can": true,
+          "breath": 30
+        }
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "project"
+        },
+        {
+          "fn": "swimBreath",
+          "args": {
+            "breath": 30
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "On the right, click the Project tab.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"project-swimming\"]"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "project"
+            },
+            {
+              "show": "[data-tour=\"project-swimming\"]"
+            }
+          ]
+        },
+        {
+          "text": "Type 30 in Breath.",
+          "check": {
+            "kind": "state",
+            "test": "swimmingIs",
+            "args": {
+              "can": true,
+              "breath": 30
+            }
+          },
+          "do": [
+            {
+              "fn": "swimBreath",
+              "args": {
+                "breath": 30
+              },
+              "say": "30 seconds of air."
+            }
+          ]
+        }
+      ],
+      "placement": "left"
+    },
+    {
+      "id": "swim.dive",
+      "title": "Dive",
+      "body": "Press Play and walk into the pool: the hero floats and the Action button in the corner says Dive. Hold E to go down. Under water the view turns blue, the Air bar counts down, and the button says Swim up. Let go and the hero drifts back up.",
+      "task": "Press Play, swim into the pool and hold E to dive under.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroUnderwater"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "diveInPool"
+        }
+      ],
+      "how": []
+    },
+    {
+      "id": "swim.open",
+      "title": "Open it under water",
+      "body": "The Action button always does what fits: by the chest it says Open, even under water (opening wins over swimming up).",
+      "task": "Swim down to the chest's front and press E.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playSaid",
+        "args": "Treasure chest"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "openChestUnderwater"
+        }
+      ],
+      "how": []
+    },
+    {
+      "id": "swim.done",
+      "title": "Done!",
+      "body": "You made a pool, hid a chest at the bottom, set how long a breath lasts, dived and opened the chest under water. Jump at the surface or swim into a low shore to climb out; a river's current carries swimmers. Help › Swimming and Controls say more, and Project › Controls picks the game's button layout.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "workspace": "Scene",
+      "placement": "bottom"
+    }
+  ]
+}

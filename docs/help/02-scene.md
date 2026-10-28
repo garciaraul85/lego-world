@@ -98,6 +98,8 @@ Water fills a box on the map up to its surface; it is see-through in the Scene a
 - **Current** — which way it flows and how fast (studs a second, across and deep). 0, 0 is still water.
 - **Colour** — a tint of your own.
 
+In Play, water deeper than about half the hero's height is swum and dived in (see Play › Swimming); shallower water slows walking.
+
 An asset ticked **Loose** in the asset studio is not fixed to the map: in Play each copy falls if nothing holds it up, tips over when the hero walks into it, floats in water and drifts with the current. Smashed bricks float too. The **Water and physics course** (Help menu) walks through it.
 
 ## 3D models

@@ -41,7 +41,7 @@ import { drawBox } from '../../engine/render/model-draw';
 import { BrowserSaveStore } from '../../platform/saves';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { assetLibrary, newAssetDef } from '../assets';
-import { looseCopies, modelItems, placeModelAt, placeWaterAt } from '../interact/place';
+import { looseCopies, modelItems, placeModelAt, placeWaterAt, waterItems } from '../interact/place';
 import { sampleClip, samplePoster } from '../media/samples';
 import { shrinkMedia } from '../media/shrink';
 import { importModelFiles, modelChoices } from '../panels/ModelFields';
@@ -1224,6 +1224,71 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const pose = o && s.world.physics?.objectPose(o.inst.inst.id);
     if (!pose) throw new Error('There is no loose thing on this map.');
     s.placeAt([pose.pos[0], pose.pos[1] + 2.5, pose.pos[2]], s.heroState.heading);
+  },
+  // step 11b part 2: the swimming course
+  deepPool(c) {
+    // what Dock › Water › Place does: a pool, 3 studs deep, beside the start
+    if (waterItems(c.ed).some((w) => w.size[1] >= 2.5)) return;
+    const sp = mapDoc(c).spawns[0]?.pos ?? [0, 0, 0];
+    if (!placeWaterAt(c.ed, { x: sp[0]! + 9, y: Math.round(sp[1]! / 0.4), z: sp[2]! }, 'pool'))
+      throw new Error('The water could not be added.');
+  },
+  chestInPool(c) {
+    // what placing the Treasure chest on the pool's floor does
+    const w = waterItems(c.ed).find((x) => x.size[1] >= 2.5);
+    if (!w) throw new Error('Add a pool first.');
+    const def = assetByName(c, 'Treasure chest');
+    if (!def) throw new Error('No Treasure chest.');
+    if (!c.ed.store.has(paths.asset(def.id))) {
+      const b = builtinAsset(def.id);
+      if (b) run(c, { type: 'asset.create', payload: { asset: b } }, 'Add Treasure chest');
+    }
+    // somewhere on the pool's floor where it stands on studs (the middle first)
+    const cx = Math.round(w.pos[0] + w.size[0] / 2);
+    const cz = Math.round(w.pos[2] + w.size[2] / 2);
+    const y0 = Math.round(w.pos[1] / 0.4);
+    for (let r = 0; r <= 3; r++)
+      for (let dx = -r; dx <= r; dx++)
+        for (let dz = -r; dz <= r; dz++) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+          for (const dy of [0, 1, -1, 2, 3]) {
+            const cmd = {
+              type: 'asset.place',
+              payload: { map: map(c), asset: def.id, pos: [cx + dx, y0 + dy, cz + dz] },
+            };
+            if (c.ed.exec(cmd, { label: 'Place Treasure chest' }).ok) return;
+          }
+        }
+    throw new Error('No room for the chest on the pool’s floor.');
+  },
+  swimBreath(c, a) {
+    run(
+      c,
+      { type: 'project.update', payload: { swimming: { can: true, breath: Number(a?.breath ?? 30) } } },
+      'Swimming',
+    );
+  },
+  diveInPool(c) {
+    // what walking into the pool and holding E (Dive) does: the hero ends up under the surface
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const w = waterItems(c.ed).find((x) => x.size[1] >= 2.5);
+    if (!w) throw new Error('Add a pool first.');
+    s.placeAt([w.pos[0] + 1.5, w.pos[1] + 0.05, w.pos[2] + 1.5], s.heroState.heading);
+  },
+  openChestUnderwater(c) {
+    // what swimming down to the chest and pressing E (Open) does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const inst = s.world.instances.find((i) => i.def.name === 'Treasure chest');
+    const so = inst?.sockets.find((x) => x.kind === 'interact');
+    if (!so) throw new Error('Put the Treasure chest in the pool first.');
+    s.placeAt([so.world[0]!, so.world[1]!, so.world[2]! + 0.9], Math.PI);
+    s.runtime.stepOnce();
+    s.buttons.update();
+    if (s.buttons.now?.kind !== 'use') throw new Error('Swim up to the chest’s front and press E.');
+    s.buttons.press('action');
+    s.buttons.release('action');
   },
   // Milestone 2b, 10c part 5: the 3D models course
   placeModel(c, a) {

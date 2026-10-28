@@ -194,6 +194,25 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // step 11b: the Project tab scrolled to Swimming, then to Controls
+    id: 'scene-swimming',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'project' });
+      await p.locator('[data-tour="project-swimming"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    id: 'scene-controls',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'project' });
+      await p.locator('[data-tour="project-controls"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     id: 'scene-dialogue',
     screen: 'scene',
     setup: async (p) => {

@@ -8,7 +8,21 @@ F5 plays from the start spawn, Play › Play this map plays the open map from it
 
 ## Controls
 
-WASD or the arrows move, Space jumps, Shift runs, F attacks, hold E to rebuild, E uses chests and doors, T talks to neighbours, 1–4 play emotes. Drag to look around. Esc opens the pause menu. On touch screens, on-screen arrows and buttons do the same.
+WASD or the arrows move, Shift runs, F attacks. Drag to look around. Esc opens the pause menu.
+
+The game's buttons work like Zelda's: no action has a fixed key. The buttons in the bottom corner show what each one does right now.
+
+- **Action** (E) does whatever fits where the hero stands: **Talk** to a neighbour close by and in front, **Open** a chest or a door (whatever the thing's prompt says), **Read** a sign, **Rebuild** (hold), **Dive** or **Swim up** in deep water (hold), and **Jump** when nothing else fits (Classic layout). The first that fits wins.
+- **Item buttons** (J, K, L, ;) use the item the player put in each. Put an item in a button from the item menu (I, or Pause › Items): pick an item, then the button. Logic hears it with **On item used**.
+- **Jump** (Space) in the Modern layout; **Guard** Q, **Roll** C, **Lock on** Z, the **item wheel** R.
+
+**Project › Controls** picks the layout: **Ocarina** (Attack, Action and 3 item buttons, no jump button), **Classic** (2 item buttons, Action jumps), **Modern** (a Jump button, 2 item buttons and an item wheel) or **Custom** (how many item buttons, and where jumping is). Click a key there and press another to change it for the game; a key already used moves over. Each button can also have a gamepad button. Players change their own keys in the game's **Settings › Controls**; theirs are kept on their device.
+
+A gamepad works too: the left stick moves, and the buttons follow Project › Controls (A is Action, X Attack). On touch screens, on-screen arrows and the same buttons show.
+
+## Swimming
+
+Water deeper than about half the hero's height is swum (**Project › Swimming**, on in new games). The hero floats with its head out and swims with the move keys (the **Swim** clip; **Tread** when still). The Action button says **Dive**: hold it to go down. Under water it says **Swim up**; let go and the hero drifts back up. Under the surface the view turns blue and the HUD's **Air** bar counts down from **Breath** seconds; with no air left the hero loses a heart every 2 seconds until it comes up, and air comes back quickly above water. Jump at the surface or swim into a low shore to climb out. A river's current carries swimmers, and shallower water only slows walking. With **Hero can swim** off, the hero sinks and walks along the bottom as before. Logic reads the variables `air`, `maxAir`, `underwater` and `swimming`. The **Swimming course** (Help menu) dives for a chest at the bottom of a pool.
 
 ## Fighting
 

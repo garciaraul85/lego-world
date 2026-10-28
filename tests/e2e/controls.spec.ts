@@ -224,3 +224,51 @@ test('swimming: afloat in a pool, E dives (held), the view turns blue and Air sh
   await page.keyboard.press('F5');
   expect(errors).toEqual([]);
 });
+
+test('Swimming course: Do it for me makes a pool, sinks a chest, sets the breath, dives and opens it', async ({
+  page,
+}) => {
+  test.setTimeout(500_000);
+  const errors: string[] = [];
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: /Swimming course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(6);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    if (await doIt.isVisible()) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doIt.click();
+      const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+      const done = card.getByText(/✓ Done!/);
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (await rest.isVisible()) await rest.click();
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (/Dive/.test(title)) await page.screenshot({ path: 'test-results/swim-course-dive.png' });
+    }
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  const sw = await page.evaluate(
+    () =>
+      (
+        (window as unknown as { __editor: Ed }).__editor.store.get('settings.json') as {
+          swimming?: { breath: number };
+        }
+      )?.swimming,
+  );
+  expect(sw?.breath).toBe(30);
+  await page.keyboard.press('F5');
+  expect(errors).toEqual([]);
+});

@@ -24,6 +24,7 @@ import {
   type Screen,
   type Variables,
 } from '../../core/schema';
+import { SWIM_DEFAULTS } from '../../core/water/swim';
 import { easeAt, poseAt, poseTimes } from '../../engine/character/posing';
 import { modelMatrix, readyModel } from '../../engine/model/prepare';
 import { drawBox } from '../../engine/render/model-draw';
@@ -448,6 +449,25 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   drawWithIs: (ed, a) => ed.drawWith.value === a,
   projectMovement: (ed, a) => (ed.store.get<{ movement?: string }>(paths.settings)?.movement ?? 'classic') === a,
   heroOnLoose: (ed) => !!ed.session.value?.world.physics?.standingOnLoose,
+  // step 11b part 2: the swimming course
+  deepWater: (ed, a) => waterItems(ed).some((w) => w.size[1] >= Number(a ?? 2.5)),
+  assetInWater: (ed, a) => {
+    const water = waterItems(ed);
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return items.some(
+      (i) =>
+        i.kind === 'asset' &&
+        (ed.store.get<Asset>(paths.asset(i.asset))?.name ?? '') === String(a) &&
+        water.some((w) => inWater(w, i.pos[0] + 0.5, i.pos[1] * 0.4 + 0.2, i.pos[2] + 0.5)),
+    );
+  },
+  swimmingIs: (ed, a) =>
+    matches(
+      { ...SWIM_DEFAULTS, ...(ed.store.get<{ swimming?: object }>(paths.settings)?.swimming ?? {}) },
+      a as Record<string, unknown>,
+    ),
+  heroUnderwater: (ed) => !!ed.session.value?.swim.under,
+  playSaid: (ed, a) => !!ed.session.value?.events.some((x) => x.msg.includes(String(a))),
   // Milestone 2b, 10c part 5: 3D models
   modelsShown: (ed) => ed.dock.value === 'assets' && ed.assetCat.value === '3D models',
   modelPlaced: (ed, a) =>
