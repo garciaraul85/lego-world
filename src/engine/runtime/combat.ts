@@ -116,7 +116,7 @@ export class Combat {
     if (held === null || this.stagger > 0) return;
     if (held >= SPIN_TIME) return this.startMove('spin', 0.5);
     if (held >= CHARGE_TIME) return this.s.strike('charged');
-    const run = this.s.input.keys.has('shift') || this.s.input.touch.has('run');
+    const run = this.s.input.keys.has('shift') || this.s.input.keys.has('run') || this.s.input.touch.has('run');
     this.s.strike(run ? 'heavy' : 'light');
   }
 

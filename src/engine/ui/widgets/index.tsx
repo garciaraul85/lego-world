@@ -258,7 +258,14 @@ export function WidgetView(props: WidgetProps) {
     }
     case 'items': {
       // step 11b part 1: the item menu: each item the hero has, and a button to put it in each item button
-      const items = host.items?.() ?? (host.preview ? [{ name: 'Bow', count: 12 }, { name: 'Bomb', count: 5 }] : []);
+      const items =
+        host.items?.() ??
+        (host.preview
+          ? [
+              { name: 'Bow', count: 12 },
+              { name: 'Bomb', count: 5 },
+            ]
+          : []);
       const slots =
         host.slots?.() ??
         (host.preview

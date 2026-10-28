@@ -1879,6 +1879,102 @@ select.inp {
   font-weight: 700;
   margin-bottom: 4px;
 }
+.bw-buttons {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+.bw-btn-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 58px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: #0b1020c8;
+  border: 2px solid #ffffff40;
+  position: relative;
+}
+.bw-btn-action {
+  border-color: #3fb950;
+  min-width: 76px;
+}
+.bw-btn-attack {
+  border-color: #e5484d;
+}
+.bw-btn-item {
+  border-color: #f7c900;
+}
+.bw-btn-key {
+  font-size: 0.75em;
+  opacity: 0.8;
+  font-weight: 700;
+}
+.bw-btn-label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bw-btn-count {
+  font-size: 0.75em;
+  opacity: 0.85;
+}
+.bw-items {
+  display: flex;
+  flex-direction: column;
+}
+.bw-items-slots {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.bw-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid #ffffff20;
+}
+.bw-item-name {
+  flex: 1;
+}
+.bw-item-put,
+.bw-bind-key,
+.bw-bind-reset {
+  font: inherit;
+  color: inherit;
+  background: #ffffff18;
+  border: 1px solid #ffffff40;
+  border-radius: 8px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.bw-item-put.on,
+.bw-bind-key.on {
+  background: #f7c900;
+  color: #111;
+}
+.bw-controls {
+  display: flex;
+  flex-direction: column;
+}
+.bw-bind-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 90px;
+  align-items: center;
+  gap: 8px;
+}
+.bw-bind-pad {
+  opacity: 0.7;
+}
+.tbtn-count {
+  font-size: 10px;
+  margin-left: 3px;
+  opacity: 0.8;
+}
+.tbtn-action.on {
+  background: #3fb950;
+  color: #fff;
+}
 .bw-credit-license {
   opacity: 0.7;
 }
@@ -6457,4 +6553,17 @@ img.bw-portrait {
 .media-lib-away {
   opacity: 0;
   pointer-events: none;
+}
+/* step 11b part 1: Project › Controls */
+.ctl-binds {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 6px 0;
+}
+.ctl-bind {
+  display: grid;
+  grid-template-columns: 1fr 110px 96px;
+  gap: 6px;
+  align-items: center;
 }

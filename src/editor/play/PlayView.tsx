@@ -1,5 +1,6 @@
 import { useSignal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { BUTTON_NAME, buttonForKey, buttonForPad, buttonsOf, ITEM_BUTTONS } from '../../core/controls/controls';
 import { nodeDef } from '../../core/logic/catalog';
 import { nameBook, withNames } from '../../core/logic/code/names';
 import { printGraph } from '../../core/logic/code/print';
@@ -25,7 +26,6 @@ export type PlayStart = {
 };
 
 const SPEEDS = [0.25, 0.5, 1, 2] as const;
-const MOVE_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift', 'e']);
 
 /**
  * Play-in-editor on the new engine runtime (P2). The session is built from a snapshot of the project,
@@ -77,6 +77,22 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     const onEvent = (e: { kind: string; msg: string }) => ed.log(e.kind === 'cheat' ? 'WARN' : 'LOGIC', `▶ ${e.msg}`);
     for (const e of s.events) onEvent(e);
     s.listeners.add(onEvent);
+    // step 11b part 1: the player's own keys for this game, kept on this device
+    const keysKey = `bw.keys.${ed.store.manifest.id}`;
+    try {
+      const saved = localStorage.getItem(keysKey);
+      if (saved) s.buttons.playerKeys = JSON.parse(saved);
+    } catch {
+      /* none kept, or no storage here */
+    }
+    s.onBindings = (keys) => {
+      try {
+        if (Object.keys(keys).length) localStorage.setItem(keysKey, JSON.stringify(keys));
+        else localStorage.removeItem(keysKey);
+      } catch {
+        /* no storage: they last until Play stops */
+      }
+    };
     ed.paused.value = false;
     ed.session.value = s;
     ed.playing.value = true;
@@ -163,7 +179,8 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       // P22: in a conversation: Enter, Space, E or T move on; arrows (or W/S) pick; 1–6 choose
       if (s.talks.active) {
         const ch = s.talks.view?.choices;
-        if (!e.repeat && (k === 'enter' || k === ' ' || k === 'e' || k === 't')) s.dialogueNext();
+        const moveOn = k === 'enter' || k === ' ' || buttonForKey(s.buttons.c, k, s.buttons.playerKeys) === 'action';
+        if (!e.repeat && moveOn) s.dialogueNext();
         else if (ch && (k === 'arrowup' || k === 'w')) s.talks.move(-1);
         else if (ch && (k === 'arrowdown' || k === 's')) s.talks.move(1);
         else if (ch && /^[1-6]$/.test(k) && !e.repeat) s.dialogueChoose(Number(k) - 1);
@@ -172,18 +189,11 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
         e.stopPropagation();
         return;
       }
-      if (k === 'e' && !e.repeat && s.interact()) {
-        /* used the prompted interaction */
-      } else if (MOVE_KEYS.has(k)) s.input.keys.add(k);
-      else if (k === ' ') s.input.jump = true;
-      else if (k === 'f') {
-        // P9b: tap for a light attack; hold to charge (spin when held long); in the air: jump attack / plunge
-        if (!e.repeat) s.combat.press();
-      } else if (k === 'q') s.input.keys.add('q');
-      else if (k === 'c' && !e.repeat) s.combat.roll();
-      else if (k === 'z' && !e.repeat) s.combat.toggleLock();
-      else if (k === 'tab' && !e.repeat) s.combat.cycleLock();
-      else if (k === 't' && !e.repeat) s.talk();
+      // step 11b part 1: every key goes through the game's bindings (Project › Controls, and the player's own)
+      const b = buttonForKey(s.buttons.c, k, s.buttons.playerKeys);
+      if (b) {
+        if (!e.repeat) s.buttons.press(b);
+      } else if (k === 'tab' && !e.repeat) s.combat.cycleLock();
       else if (k === 'h' && !e.repeat) s.switchHero();
       else if (k === 'p' && !e.repeat) ed.paused.value = !ed.paused.value;
       else if (/^[1-4]$/.test(k) && !e.repeat) s.emote(Number(k) - 1);
@@ -194,7 +204,8 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
     };
     const onUp = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
-      if (k === 'f') s.combat.release();
+      const b = buttonForKey(s.buttons.c, k, s.buttons.playerKeys);
+      if (b) s.buttons.release(b);
       s.input.keys.delete(k);
     };
     const onBlur = () => {
@@ -279,10 +290,6 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       (s) => s.input.touch.add(key),
       (s) => s.input.touch.delete(key),
     );
-  const tap = (name: string, fn: (s: PlaySession) => void) =>
-    hold(name, fn, () => {
-      /* tap */
-    });
 
   const map = session?.world.doc.name ?? '';
   const brk = ed.logicBreak.value;
@@ -392,64 +399,7 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
               ▼
             </button>
           </div>
-          <div class="acts">
-            <button
-              type="button"
-              class="tbtn"
-              {...tap('Jump', (s) => {
-                s.input.jump = true;
-              })}
-            >
-              Jump
-            </button>
-            <button
-              type="button"
-              class="tbtn"
-              {...hold(
-                'Smash',
-                (s) => s.combat.press(),
-                (s) => s.combat.release(),
-              )}
-            >
-              Smash
-            </button>
-            {/* P9b: guard while held, dodge roll, lock on */}
-            <button
-              type="button"
-              class="tbtn"
-              {...hold(
-                'Guard (hold)',
-                (s) => s.input.touch.add('guard'),
-                (s) => s.input.touch.delete('guard'),
-              )}
-            >
-              Guard
-            </button>
-            <button type="button" class="tbtn" {...tap('Roll', (s) => s.combat.roll())}>
-              Roll
-            </button>
-            <button type="button" class="tbtn" {...tap('Lock on', (s) => s.combat.toggleLock())}>
-              Lock
-            </button>
-            <button
-              type="button"
-              class="tbtn"
-              {...hold(
-                'Rebuild (hold)',
-                (s) => {
-                  if (!s.interact()) s.rebuildHeld = true;
-                },
-                (s) => {
-                  s.rebuildHeld = false;
-                },
-              )}
-            >
-              Build
-            </button>
-            <button type="button" class="tbtn" {...tap('Talk', (s) => s.talk())}>
-              Talk
-            </button>
-          </div>
+          {session && <TouchButtons session={session} tick={uiTick} hold={hold} />}
         </div>
       </div>
     </section>
@@ -465,16 +415,82 @@ function pollGamepad(s: PlaySession) {
     const prev = pads.get(gp.index) ?? [];
     const now = gp.buttons.map((b) => b.pressed);
     const hit = (i: number) => now[i] && !prev[i];
-    if (hit(9) || hit(1)) s.back();
     const layer = document.querySelector<HTMLElement>('.bw-layer');
     const top = s.screens.top()?.id;
     if (layer && s.screenPaused) {
+      // a menu: Start or B goes back, the d-pad moves between its buttons, A presses the focused one
+      if (hit(9) || hit(1)) s.back();
       if (hit(12) || hit(14)) moveFocus(layer, top, -1);
       if (hit(13) || hit(15)) moveFocus(layer, top, 1);
       if (hit(0)) (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('.bw-button')?.click();
-    } else if (hit(0)) s.input.jump = true;
+    } else {
+      if (hit(9)) s.back();
+      // step 11b part 1: every other button through the game's bindings (pressed and let go)
+      for (let i = 0; i < now.length; i++) {
+        if (i === 9 || now[i] === !!prev[i]) continue;
+        const b = buttonForPad(s.buttons.c, i, s.buttons.playerPad);
+        if (!b) continue;
+        if (now[i]) s.buttons.press(b);
+        else s.buttons.release(b);
+      }
+      // the left stick moves (pushed past a third of the way)
+      const [ax = 0, ay = 0] = gp.axes;
+      const set = (name: string, on: boolean) => (on ? s.input.touch.add(name) : s.input.touch.delete(name));
+      set('pad-left', ax < -0.35);
+      set('pad-right', ax > 0.35);
+      set('pad-forward', ay < -0.35);
+      set('pad-back', ay > 0.35);
+    }
     pads.set(gp.index, now);
   }
+}
+
+/**
+ * Step 11b part 1: the touch buttons, from the game's layout: Attack, the Action button with what it does now,
+ * Jump (when the layout has one), Guard, Roll, Lock and the item buttons with their items, and Items.
+ */
+function TouchButtons({
+  session: s,
+  tick,
+  hold,
+}: {
+  session: PlaySession;
+  tick: { value: number };
+  hold: (name: string, on: (s: PlaySession) => void, off: (s: PlaySession) => void) => Record<string, unknown>;
+}) {
+  void tick.value;
+  const views = new Map(s.buttonViews().map((v) => [v.id, v]));
+  const list = buttonsOf({ layout: s.buttons.c.layout, items: s.buttons.c.items, jump: s.buttons.c.jump });
+  return (
+    <div class="acts">
+      {list.map((b) => {
+        const v = views.get(b);
+        const text =
+          b === 'action'
+            ? v?.label || 'Action'
+            : ITEM_BUTTONS.includes(b)
+              ? v?.label || BUTTON_NAME[b]
+              : b === 'menu'
+                ? 'Items'
+                : BUTTON_NAME[b];
+        return (
+          <button
+            type="button"
+            class={`tbtn tbtn-${b}${b === 'action' && v?.label ? ' on' : ''}`}
+            data-button={b}
+            {...hold(
+              b === 'action' ? `Action: ${v?.label || 'nothing here'}` : BUTTON_NAME[b],
+              (x) => x.buttons.press(b),
+              (x) => x.buttons.release(b),
+            )}
+          >
+            {text}
+            {v?.count !== undefined && <span class="tbtn-count">{v.count}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 /** Where logic stopped: the graph, the line of code, and the node's input values. */

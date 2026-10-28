@@ -1023,8 +1023,10 @@ export class PlaySession {
     const t = this.input.touch;
     const has = (...names: string[]) => names.some((n) => k.has(n) || t.has(n));
     return {
-      x: (has('d', 'arrowright', 'right') ? 1 : 0) - (has('a', 'arrowleft', 'left') ? 1 : 0),
-      z: (has('w', 'arrowup', 'forward') ? 1 : 0) - (has('s', 'arrowdown', 'back') ? 1 : 0),
+      // step 11b: Play's keys arrive as the buttons they are bound to (forward, back, left, right); pad- is the
+      // stick; the plain key names still move the hero when something sets them directly (tests, courses)
+      x: (has('right', 'pad-right', 'd', 'arrowright') ? 1 : 0) - (has('left', 'pad-left', 'a', 'arrowleft') ? 1 : 0),
+      z: (has('forward', 'pad-forward', 'w', 'arrowup') ? 1 : 0) - (has('back', 'pad-back', 's', 'arrowdown') ? 1 : 0),
       run: has('shift', 'run'),
       jump: this.input.jump,
       vertical: 0,

@@ -25,6 +25,7 @@ import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { AtmosphereSection } from './AtmosphereSection';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
 import { BigWorldSection } from './BigWorldSection';
+import { ControlsSection } from './ControlsSection';
 import { DialogueSection } from './DialogueSection';
 import { DarknessSection } from './LightFields';
 import { MoodSection } from './MoodSection';
@@ -758,6 +759,7 @@ function ProjectTab({ c }: { c: ActionCtx }) {
         <QualityField c={c} />
         <MovementField c={c} />
       </div>
+      <ControlsSection c={c} />
       <SavingSection c={c} />
       <ProgressSection c={c} />
       <DialogueSection c={c} />
