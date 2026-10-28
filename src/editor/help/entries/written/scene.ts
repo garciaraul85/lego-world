@@ -260,6 +260,7 @@ export const SCENE: HelpEntry[] = [
     purpose: 'Switches what the bottom dock shows.',
     options: [
       ['Assets', 'everything you can put in the world: assets, characters, cinematics, screens, sounds, music'],
+      ['Starter pack', 'the adventure starter pack: a hero, neighbours, enemies, buildings and props, terrain styles'],
       ['Console', 'messages from the editor and from logic Log nodes'],
       ['Timeline', 'cinematic timelines while one plays'],
       ['Profiler', 'frame time, draw calls and chunks while playing'],
@@ -267,7 +268,9 @@ export const SCENE: HelpEntry[] = [
       ['Debug', 'colliders, spawn points and gates drawn in Play; cheats'],
       ['Mixer', 'live volume of each sound bus'],
     ],
-    match: [{ in: DOCK, role: 'button', name: /^(Assets|Console|Timeline|Profiler|Problems|Debug|Mixer)( ●)?$/ }],
+    match: [
+      { in: DOCK, role: 'button', name: /^(Assets|Starter pack|Console|Timeline|Profiler|Problems|Debug|Mixer)( ●)?$/ },
+    ],
   },
   {
     id: 'scene.dock.cats',
