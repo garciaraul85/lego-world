@@ -3523,8 +3523,16 @@ export class PlaySession {
     if (this.over || this.cine.active || this.talks.active || this.talking) return [];
     const out: ActionOffer[] = [];
     const s = this.heroState;
-    const npc = this.combat.lockedNpc() ?? this.L.NPCWorld.nearest(this.world.npcs, s);
-    if (npc) out.push({ kind: 'talk', label: 'Talk', priority: ACTION_PRIORITY.talk });
+    // a neighbour close by and in front (or locked on to), like Zelda: not one across the square
+    const locked = this.combat.lockedNpc();
+    const npc = locked ?? this.L.NPCWorld.nearest(this.world.npcs, s);
+    if (npc) {
+      const dx = npc.state.x - s.x;
+      const dz = npc.state.z - s.z;
+      const d = Math.hypot(dx, dz);
+      const facing = d < 0.5 || (dx * Math.sin(s.heading) + dz * Math.cos(s.heading)) / d > 0.2;
+      if (locked || (d < 3.5 && facing)) out.push({ kind: 'talk', label: 'Talk', priority: ACTION_PRIORITY.talk });
+    }
     if (this.prompt) out.push({ kind: 'use', label: this.prompt.label, priority: ACTION_PRIORITY.use });
     else if (this.signPrompt) out.push({ kind: 'read', label: 'Read', priority: ACTION_PRIORITY.read });
     if (this.nearestBroken()) out.push({ kind: 'rebuild', label: 'Rebuild', priority: ACTION_PRIORITY.rebuild });

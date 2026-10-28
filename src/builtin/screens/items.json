@@ -41,7 +41,7 @@
             "type": "items",
             "id": "items",
             "style": {
-              "fontSize": 17,
+              "fontSize": 22,
               "color": "#ffffff",
               "gap": 8
             }

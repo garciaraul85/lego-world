@@ -41,7 +41,7 @@
             "type": "controls",
             "id": "bindings",
             "style": {
-              "fontSize": 15,
+              "fontSize": 20,
               "color": "#ffffff",
               "gap": 6
             }
