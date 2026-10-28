@@ -527,6 +527,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('bricks'),
   },
   {
+    id: 'help.pack',
+    label: 'Starter pack course (hero, neighbours, enemies and their weaknesses)',
+    run: ({ ui }) => ui.tutorial('pack'),
+  },
+  {
     id: 'help.swim',
     label: 'Swimming course (dive, breath, the Action button)',
     run: ({ ui }) => ui.tutorial('swim'),
@@ -756,6 +761,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.customBricks',
     'help.media',
     'help.swim',
+    'help.pack',
     'help.effects',
     'help.screenfx',
     'help.posing',

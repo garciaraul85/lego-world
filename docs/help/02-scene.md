@@ -58,6 +58,30 @@ To change the bricks or colours of something, double-click its card in the dock,
 
 Map tab › Terrain generator: tick environments (forest, city, prairie, mountains, volcanoes and more), choose a size and Generate. New seed rolls a different world. Generated houses, trees and cars become asset instances you can move, smash and edit.
 
+## The starter pack
+
+The **Starter pack** tab of the bottom dock holds the adventure starter pack, ready to use:
+
+- **Rook**, the hero: **Play as** makes Rook the player character.
+- **Ten neighbours**, each with a sample conversation: Elder Maren (the opening quest), Pip the shopkeeper, Brann the blacksmith, Tess the gate guard, Coral the fisherwoman, Nim the kid, Ozzie the travelling merchant, Sela the healer, Lio the bard, and Glim, a lantern-bug companion.
+- **Ten kinds of enemy**, each with its own weaknesses:
+  - Pebblespout pops up and spits rocks.
+  - Rattlebones, a skeleton knight, blocks in front: hit it from behind.
+  - Gloomweaver, the one-eyed spider boss: hit its eye when it glows.
+  - Finspitter, a fish-folk, spits fire.
+  - The Watcher Eye is a stone sentinel that swords can't hurt: use a bomb, or sneak behind it.
+  - Cinderjaw, a fire lizard, has a soft tail.
+  - Flitterwing bats come plain, fire and ice; the boomerang stuns them.
+  - Threadback, a hanging spider, has an armoured front.
+  - Lanternwisp is a lantern ghost.
+  - Howler, a wolf-man pack hunter, calls the others.
+- **Twenty buildings and props**:
+  - Dungeon: walls, a pillar, an archway, a barred gate, a locked door, wall torches and a brazier (they light up), clay pots (they break and may leave a heart), a boss chest, a cracked wall (only bombs break it), a push block, a floor switch, a spike trap, stairs and a guardian statue.
+  - Village: a cottage, a well, a barrel, grass to cut and a plank bridge.
+- **Three terrain styles**: Green Vale, Shrine Highlands and Misty Woods.
+
+Drag a neighbour or an enemy onto the map, or press **Place** (it stands in front of the first spawn). A character comes into your game the first time it is used, with its conversation, so you can change it in the Character studio. Click a building or prop, then the ground (T turns it), or drag it in. **Use on this map** makes the open map again in a terrain style; Undo brings the old map back.
+
 ## Sky, weather and lighting
 
 The Map tab also sets the time of day, sky and weather, the map's music and ambience loop.

@@ -117,3 +117,48 @@ test('the starter pack: neighbours with their talk, an enemy dragged in, a pot, 
   await page.screenshot({ path: 'test-results/pack-terrain.png' });
   expect(errors).toEqual([]);
 });
+
+test('Starter pack course: Do it for me plays as Rook, places the elder, the knight and a pot, and hits the knight from behind', async ({
+  page,
+}) => {
+  test.setTimeout(500_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto('/editor.html?nohub');
+  await page.waitForFunction(
+    () => ((window as unknown as { __editor?: Ed }).__editor?.scene.value?.count ?? 0) > 0,
+    undefined,
+    { timeout: 60_000 },
+  );
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: /Starter pack course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(7);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    if (await doIt.isVisible()) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doIt.click();
+      const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+      const done = card.getByText(/✓ Done!/);
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (await rest.isVisible()) await rest.click();
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (/Hit him/.test(title)) await page.screenshot({ path: 'test-results/pack-course-fight.png' });
+    }
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  await page.keyboard.press('F5');
+  expect(errors).toEqual([]);
+});

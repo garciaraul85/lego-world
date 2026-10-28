@@ -2,6 +2,7 @@ import { BUILTIN_ASSETS, builtinAsset } from '../../builtin/assets';
 import { DEFAULT_EVENTS, DEFAULT_MIXER } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_MODEL_FILES } from '../../builtin/models/data';
+import { ADVENTURE_PACK } from '../../builtin/packs/adventure';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
 import { MOVER_INFO, type Mover, makeMover } from '../../core/assets/movers';
 import { type Mirror, mirrorOf, type Stamp, stampAt, stampOf } from '../../core/bricks/build-tools';
@@ -44,6 +45,7 @@ import { assetLibrary, newAssetDef } from '../assets';
 import { looseCopies, modelItems, placeModelAt, placeWaterAt, waterItems } from '../interact/place';
 import { sampleClip, samplePoster } from '../media/samples';
 import { shrinkMedia } from '../media/shrink';
+import { makePackHero, placePackCharacter } from '../pack/pack';
 import { importModelFiles, modelChoices } from '../panels/ModelFields';
 import { savingOf } from '../panels/SavingSection';
 import type { EditorState } from '../state';
@@ -1275,6 +1277,31 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const w = waterItems(c.ed).find((x) => x.size[1] >= 2.5);
     if (!w) throw new Error('Add a pool first.');
     s.placeAt([w.pos[0] + 1.5, w.pos[1] + 0.05, w.pos[2] + 1.5], s.heroState.heading);
+  },
+  // step 11, 4a: the starter pack course
+  packPlace(c, a) {
+    const slug = String(a?.slug ?? '');
+    const item = ADVENTURE_PACK.cast.find((x) => x.slug === slug);
+    if (!item) throw new Error(`No ${slug} in the pack.`);
+    c.ed.dock.value = 'pack';
+    if (!placePackCharacter(c.ed, item)) throw new Error(`${item.character.name} could not be placed.`);
+  },
+  packHero(c, a) {
+    const item = ADVENTURE_PACK.cast.find((x) => x.slug === String(a?.slug ?? 'rook'));
+    if (!item) throw new Error('No hero in the pack.');
+    c.ed.dock.value = 'pack';
+    if (!makePackHero(c.ed, item)) throw new Error('It could not be made the player character.');
+  },
+  strikeFromBehind(c, a) {
+    // what walking round behind it and swinging the sword does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const name = String(a?.name ?? '');
+    const n = s.world.npcs.find((x) => String(x.profile.name ?? '') === name);
+    if (!n) throw new Error(`${name} is not on this map.`);
+    const h = n.state.heading;
+    s.placeAt([n.state.x - Math.sin(h) * 1.6, n.state.y, n.state.z - Math.cos(h) * 1.6], h);
+    s.damage(name, 2, 'slash');
   },
   openChestUnderwater(c) {
     // what swimming down to the chest and pressing E (Open) does

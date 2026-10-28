@@ -56,6 +56,8 @@ A bar over a thing shows its health once it has been hurt (green, then yellow, t
 
 ## Enemies
 
+Each enemy has its weaknesses (Character studio › Health): some kinds of hit hurt more, some sides are blocked (a shield in front clangs: hit it from behind, or plunge from above), some hits stun it. A heart it leaves heals you at once. The starter pack's enemies show the ideas: a sentinel only bombs can break, a spider with an armoured front, bats a boomerang stuns.
+
 A neighbour whose character **fights the hero** (Character studio) wanders until it sees you, walks over, raises its arm with a red **!** over its head, then swings. Guard (Q) to block from the front, raise the guard just as it swings to parry (it is stunned), or roll (C). The **Training yard** (World › Add the Training yard, then Play › Play this map) has one to practise on, on a small fenced field with a hill to jump from, boulders, trees and three dummies.
 
 ## Rebuilding

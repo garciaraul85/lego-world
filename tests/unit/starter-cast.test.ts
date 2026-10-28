@@ -61,3 +61,61 @@ describe('the starter cast', () => {
     }
   });
 });
+
+import { CommandBus, registerAll } from '../../src/core/commands';
+import { newProjectFiles } from '../../src/core/project/new-project';
+import { ProjectStore } from '../../src/core/project/store';
+import { type Instances, paths } from '../../src/core/schema';
+import { RecordingAudio } from '../../src/engine/audio/port';
+import { PlaySession } from '../../src/engine/runtime/session';
+
+describe('the starter cast in Play', () => {
+  function withFoe(slug: string) {
+    const s = new ProjectStore(newProjectFiles({ name: 'Shrine', random: () => 0.3 }));
+    registerAll(new CommandBus(s));
+    const map = s.manifest.entry.map;
+    const foe = STARTER_CHARACTERS.find((c) => c.slug === slug)!;
+    const inst = s.get<Instances>(paths.instances(map))!;
+    s.put(paths.instances(map), {
+      ...inst,
+      npcsSaved: true,
+      items: [
+        ...inst.items,
+        {
+          id: 'ins_foeaaaaaaa',
+          kind: 'npc',
+          character: foe.id,
+          legacyId: 9,
+          biome: 'prairie',
+          role: 'guard',
+          state: { x: 2, y: 0.4, z: 2, heading: 0 },
+        },
+      ],
+    } as Instances);
+    const p = new PlaySession(s.snapshot(), { audio: new RecordingAudio() });
+    return { p, name: foe.character.name };
+  }
+  it('Rattlebones blocks most of a hit from the front and takes double from behind', () => {
+    const { p, name } = withFoe('rattlebones');
+    const n = p.world.npcs.find((x) => x.id === 9)!;
+    expect(n, 'a built-in character stands in the play').toBeTruthy();
+    // in front of it (it faces +z)
+    p.placeAt([2, 0.4, 5], Math.PI);
+    n.state.heading = 0;
+    p.damage(name, 2, 'slash');
+    expect(p.health.peek('n:9')?.hp).toBe(5.5);
+    // behind it
+    p.placeAt([2, 0.4, -1], 0);
+    n.state.heading = 0;
+    p.damage(name, 2, 'slash');
+    expect(p.health.peek('n:9')?.hp).toBe(1.5);
+  });
+  it('the Watcher Eye shrugs off a sword, and a bomb does double', () => {
+    const { p, name } = withFoe('watcher-eye');
+    p.placeAt([2, 0.4, -1], 0);
+    p.damage(name, 2, 'slash');
+    expect(p.health.peek('n:9')?.hp ?? 3).toBe(3);
+    p.damage(name, 1, 'explosive');
+    expect(p.health.peek('n:9')?.hp).toBe(1);
+  });
+});

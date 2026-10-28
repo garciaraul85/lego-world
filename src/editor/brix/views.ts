@@ -95,6 +95,7 @@ type SceneLike = {
 const scene = (c: ActionCtx) => c.ed.scene.value as unknown as SceneLike | null;
 
 const DOCK: Record<string, string> = {
+  pack: 'Starter pack',
   console: 'Console',
   timeline: 'Timeline',
   profiler: 'Profiler',
@@ -418,6 +419,7 @@ export function stepsToView(view: string): ShowStep[] {
     case 'characters-body':
     case 'characters-body-moves':
     case 'characters-skeleton':
+    case 'characters-extras':
       // P22 part 3: the Body tab (the skeleton editor is in it, below the shape and colours; 10d part 2: its moves under the preview)
       return [
         ws('Characters'),

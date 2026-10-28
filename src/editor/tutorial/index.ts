@@ -39,6 +39,7 @@ import build from './content/29-build.json';
 import bricks from './content/30-bricks.json';
 import media from './content/31-media.json';
 import swim from './content/32-swim.json';
+import pack from './content/33-pack.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -65,6 +66,7 @@ export type Track =
   | 'bricks'
   | 'media'
   | 'swim'
+  | 'pack'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -131,6 +133,7 @@ export const BUILD_STEPS: TrackStep[] = steps([build].map((c) => Chapter.parse(c
 export const BRICKS_STEPS: TrackStep[] = steps([bricks].map((c) => Chapter.parse(c)));
 export const MEDIA_STEPS: TrackStep[] = steps([media].map((c) => Chapter.parse(c)));
 export const SWIM_STEPS: TrackStep[] = steps([swim].map((c) => Chapter.parse(c)));
+export const PACK_STEPS: TrackStep[] = steps([pack].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -159,6 +162,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   bricks: { title: 'Custom bricks course', steps: BRICKS_STEPS },
   media: { title: 'Your own media course', steps: MEDIA_STEPS },
   swim: { title: 'Swimming course', steps: SWIM_STEPS },
+  pack: { title: 'Starter pack course', steps: PACK_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

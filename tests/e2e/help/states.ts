@@ -237,7 +237,7 @@ export const HELP_STATES: HelpState[] = [
       await signals(p, { left: 'search' });
     },
   },
-  ...(['console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const).map((d) => ({
+  ...(['pack', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const).map((d) => ({
     id: `scene-dock-${d}`,
     screen: 'scene',
     setup: async (p: Page) => {
@@ -487,6 +487,33 @@ export const HELP_STATES: HelpState[] = [
       if (v === 'moves') await p.locator('[data-tour="body-moves"]').scrollIntoViewIfNeeded();
     },
   })),
+  {
+    // step 11, 4a: a wolf-man's Extra parts (a copy of the starter pack's Howler)
+    id: 'characters-extras',
+    screen: 'characters',
+    setup: async (p: Page) => {
+      await ws(p, 'Characters');
+      await signals(p, { charTab: 'look', sheetTab: 'body' });
+      await p.evaluate(() => {
+        const w = window as unknown as {
+          __editor: Ed & Record<string, { value: unknown }>;
+          __builtinCharacters: { name: string; profile: unknown; body?: unknown }[];
+        };
+        const e = w.__editor;
+        const id = 'chr_helpwolf01';
+        if (!e.store.get(`characters/${id}.json`)) {
+          const h = w.__builtinCharacters.find((c) => c.name === 'Howler')!;
+          e.exec({
+            type: 'character.create',
+            payload: { character: { id, name: 'Wolfie', role: 'npc', profile: h.profile, body: h.body } },
+          });
+        }
+        e.studioCharacter!.value = id;
+        e.bodyBones!.value = false;
+      });
+      await p.locator('[data-tour="char-extras"]').scrollIntoViewIfNeeded();
+    },
+  },
   {
     // P22 part 4: the Face tab, an angry face picked
     id: 'characters-face',

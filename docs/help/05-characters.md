@@ -40,9 +40,25 @@ One character is the hero the player controls. Make player character (or Project
 
 A character that lives on a map as a neighbour can be harmed only when **Can be harmed** is on (Character properties › Health). Then it has hit points, armour and what each kind of hit does, like an object, and at zero it leaves the play, leaves an item and sends an event. Villagers have it off: hits do nothing to them.
 
+Its **weaknesses**, like a Zelda enemy's:
+
+- **Hits by type** — slash (swords), blunt (hammers), pierce (arrows), fire, explosive (bombs), electric, light (light arrows, a mirror's beam), ice and stun (a boomerang, a flash): each normal, weak ×2, half or immune. A stun does no damage of its own.
+- **Hits by side** — front, back, side and above (a plunge): normal, weak ×2, half or **blocks**. A skeleton knight's shield blocks in front; a spider's soft back takes double. A blocked hit clangs, and the message says where to hit instead.
+- **Stunned by** — kinds of hit that stop it for a moment (and for how many seconds). A stunned foe stands still and can be hit freely.
+- **Loot** — up to six more things it may leave at zero, each with its chance. A **heart** heals the hero at once.
+
 ## Fights the hero
 
 **Make enemy** turns a neighbour into a foe: pick Grunt (3 hits, slow swings), Brute (tough, armoured, hits hard) or Swift (fragile and fast). It switches on Can be harmed with that health and fills in how it fights: **Hits for** (hearts per swing), **Reach**, **Sees the hero within**, **Walking speed**, **Seconds between swings** and **Warning before a swing**. In Play it wanders until it sees the hero, walks over, raises its arm with a red “!” over its head, then swings. Guard (hold Q) to block from the front, raise the guard just before the swing to parry it (it is stunned), or dodge-roll (C). × stops it fighting.
+
+How it senses and decides:
+
+- **Sees this wide** — 360° sees all round; 120° only in front, so the hero can sneak past behind it.
+- **Hears the hero within** — running or fighting this close is heard even out of sight.
+- **Wits** — **Simple** repeats its pattern; **Smart** steps back after each swing and waits for an opening; **Pack** calls the enemies within 12 studs when it sees the hero.
+- **Kind of fighter** — Melee, Knight, Turret, Shooter, Pop-up, Flyer, Swarm, Ambusher, Ghost, Pack hunter or Boss. Today a turret or an ambusher stays where it is (it turns to watch and strikes what comes close) and the others walk over and swing; step 14 gives each kind its full brain (shots that can be bounced back, swooping, hiding, fading, phases).
+
+The "!", its health bar and lock-on follow its size: a spider boss is hit from further away, a hovering bat at its height.
 
 ## Animation clips
 
@@ -115,6 +131,14 @@ The sliders (Size, Leg length, Neck, Tail length, Wing span, Head size, Build) c
 **Custom…** (the last card) makes a body of your own: pick the skeleton to **Start from** (any family) and press **Make my body**. The bones show at once, ready to add, move and remove. **Skeleton**: **✏️ Edit the skeleton** turns the family into a **body plan** of your own, kept in the game, that any character can wear. Click a bone to change its name, the bone it hangs from, its role, its joint (x right, y up, z forward), its **swing** (how far it moves, in degrees) and **phase** (legs with the same phase step together). **+ Bone on …** adds a bone under the picked one, **+ Brick on …** gives it bricks, **Remove** passes its bones and bricks to its parent. **Moves by** (Walk, Fly, Swim, Slither, Hop), **Stride** and **Hover** are for the whole body. [Creatures course](action:help.bodies)
 
 **Moves.** Every body — a family's, one of your own, or a figure made from words or a picture — gets the moves its parts can do, listed under the preview: anything with a head **Roars** (or **Shouts**) and **Charges**; its strike is a **Bite** with a jaw, a **Punch** with arms, a **Headbutt** with only a head; a tail **swipes**, legs **stomp**, wings **flap** and **glide**, arms **wave**, tentacles and arms **grab**, and everything can **spin**, **dance** and **sleep**. Press one to see it. In Play the strike and the **flinch** come by themselves when it fights; logic starts the rest with **Do a move** (Characters: who and which move; a body that can't do that move skips it).
+
+**Shapes, see-through and glow.** A body brick can be a box or a shape — round, dome, cone, slope, inverted slope, curve, arch or wedge — turned a quarter at a time (⟳). **Solid** goes from 100% down to 15% for a ghost, and **Glows** draws it at full brightness, even in the dark (eyes, embers, a lantern).
+
+**The engine's bodies.** The starter pack's creatures — the Gloomweaver spider, Threadback, the Flitterwing bat, Cinderjaw, the Watcher Eye, Pebblespout, Lanternwisp and Glim — are body plans that come with the engine. They are listed with the families. Any character can wear one as it is; the first change you make to one gives that character its own copy.
+
+### Extra parts on a minifig
+
+A minifig can have **Extra parts**: bricks on its joints (torso, hips, head, arms, hands, legs, shins, feet), such as a tail on the hips, a snout, ears or horns on the head, fins on the arms, or claws on the hands. They move with it, and it keeps its clips, faces, outfits and what it holds. That is how the starter pack's wolf-man and fish-folk are made. In the **Body** tab of a minifig in your game, pick a joint in **On**, press **+ Part on …**, then set the part like any body brick. **Brick size** makes all the parts smaller than real bricks so they fit a minifig (half a stud by default).
 
 ### Paint and sculpt a creature
 

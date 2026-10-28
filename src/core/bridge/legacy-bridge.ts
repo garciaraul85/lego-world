@@ -1,3 +1,4 @@
+import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { instanceBricks } from '../assets/instances';
 import type { Brick } from '../bricks/codec';
 import { customIdOf, parseBrickType } from '../bricks/custom';
@@ -158,7 +159,11 @@ export function mapToLegacyBuild(files: FileSource, mapId: string, opts: { piece
   if (instances.npcsSaved) {
     build.npcs = instances.items.flatMap((i) => {
       if (i.kind !== 'npc') return [];
-      const chr = files.get(paths.character(i.character)) as Character;
+      // step 11, 4a: a built-in character (the starter pack's) can stand on a map without being copied in
+      const chr =
+        (files.get(paths.character(i.character)) as Character | undefined) ??
+        BUILTIN_CHARACTERS.find((c) => c.id === i.character);
+      if (!chr) return [];
       return [{ id: i.legacyId, biome: i.biome, role: i.role, profile: lookForV68(chr.profile), state: i.state }];
     });
   }

@@ -124,6 +124,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Faces and pictures course: give Tom an angry and a happy face, hear him talk, write lines with moods, see him glare and laugh in Play, then make an owl from a few words with From a picture.',
   'help.shape':
     'Starts the Shape and draw course: make Nova, shape her (chest, hips, neckline) in Look, then draw a star on her cheek and print a shirt in the Draw tab.',
+  'help.pack':
+    'Starts the Starter pack course: play as Rook, place Elder Maren with her conversation, Rattlebones and a clay pot, then hit the knight from behind in Play.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':

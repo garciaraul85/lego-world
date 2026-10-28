@@ -497,6 +497,20 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
       return !!p && Math.hypot(p.pos[0] - o.origin[0], p.pos[2] - o.origin[2]) >= Number(a ?? 1);
     });
   },
+  // step 11, 4a: the starter pack course
+  dockIs: (ed, a) => ed.dock.value === a,
+  heroIs: (ed, a) => ed.store.get<{ name: string }>(paths.character(ed.store.manifest.hero ?? ''))?.name === a,
+  npcPlaced: (ed, a) => {
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return items.some(
+      (i) => i.kind === 'npc' && ed.store.get<{ name: string }>(paths.character(i.character))?.name === String(a),
+    );
+  },
+  foeHurt: (ed, a) => {
+    const s = ed.session.value;
+    const n = s?.world.npcs.find((x) => String(x.profile.name ?? '') === String(a));
+    return !!s && !!n && (s.health.peek(`n:${n.id}`)?.hp ?? Infinity) < (s.health.peek(`n:${n.id}`)?.max ?? 0);
+  },
   placedAsset: (ed, a) => {
     const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
     return items.some(
