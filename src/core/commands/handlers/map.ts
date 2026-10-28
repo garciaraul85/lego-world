@@ -32,6 +32,7 @@ import {
 } from '../../schema';
 import { type GenerateConfig, generateConfigError, generateMap } from '../../worldgen/generate';
 import { generateLand, LAND_SIZES, type LandConfig } from '../../worldgen/land';
+import { Swimming } from '../../water/swim';
 import type { CommandHandler } from '../types';
 import { allBricks } from './assets';
 
@@ -324,6 +325,8 @@ export type UpdateProject = {
   quality?: QualityChoice;
   /** Milestone 2b: how the hero moves (classic: v68's own code; physics: walked by the physics engine) */
   movement?: 'classic' | 'physics';
+  /** step 11b: swimming and breath */
+  swimming?: Swimming;
 };
 
 export const updateProject: CommandHandler<UpdateProject> = {
@@ -342,7 +345,9 @@ export const updateProject: CommandHandler<UpdateProject> = {
                 ? 'Graphics quality'
                 : p.movement !== undefined && Object.keys(p).length === 1
                   ? `Movement: ${p.movement}`
-                  : 'Edit project settings',
+                  : p.swimming !== undefined && Object.keys(p).length === 1
+                    ? 'Swimming'
+                    : 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.saving && !SavingSchema.safeParse(p.saving).success)
@@ -379,6 +384,8 @@ export const updateProject: CommandHandler<UpdateProject> = {
     if (p.quality !== undefined && !QUALITY_CHOICES.includes(p.quality)) return 'Quality is auto, low, medium or high.';
     if (p.movement !== undefined && p.movement !== 'classic' && p.movement !== 'physics')
       return 'Movement is classic or physics.';
+    if (p.swimming !== undefined && !Swimming.safeParse(p.swimming).success)
+      return 'Swimming: can (true or false) and breath (3 to 300 seconds).';
     if (p.hero && !store.has(paths.character(p.hero))) return 'That character does not exist.';
     if (p.entryMap !== undefined && !store.has(paths.map(p.entryMap))) return 'Start map not found.';
     if (p.entryScreen && !/^scr_[0-9a-z]{10}$/.test(p.entryScreen)) return 'Pick a screen.';
@@ -398,6 +405,10 @@ export const updateProject: CommandHandler<UpdateProject> = {
     if (p.movement !== undefined) {
       const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
       store.put(paths.settings, { ...settings, movement: p.movement });
+    }
+    if (p.swimming !== undefined) {
+      const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
+      store.put(paths.settings, { ...settings, swimming: p.swimming });
     }
     const cur = store.manifest;
     const entryMap = (p.entryMap ?? cur.entry.map) as Project['entry']['map'];

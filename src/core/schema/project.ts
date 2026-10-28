@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Swimming } from '../water/swim';
 import { DialogueLook } from '../dialogue/schema';
 import { EffectHooks } from '../effects/schema';
 import { ScreenHooks } from '../effects/screen';
@@ -41,6 +42,8 @@ export const Settings = z.strictObject({
   quality: z.enum(['auto', 'low', 'medium', 'high']),
   /** Milestone 2b: how the hero moves — v68's own code (classic), or walked by the physics engine */
   movement: z.enum(['classic', 'physics']).optional(),
+  /** step 11b: can the hero swim, and how long a breath lasts under water (missing: swims, 20 seconds) */
+  swimming: Swimming.optional(),
   /** legacy activeCharacterId etc. that has no v5 home yet */
   legacy: z.record(z.string(), z.unknown()).optional(),
 });
