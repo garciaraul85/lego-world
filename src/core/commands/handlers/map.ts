@@ -6,6 +6,7 @@ import { maxBrickId } from '../../assets/instances';
 import { generatedInstanceId, instancify } from '../../assets/instancify';
 import { encodeChunks } from '../../bricks/codec';
 import { footprint, inspectBricks } from '../../bricks/inspect';
+import { Controls } from '../../controls/controls';
 import { DialogueLook } from '../../dialogue/schema';
 import { EffectHooks } from '../../effects/schema';
 import { Mood, ScreenHooks } from '../../effects/screen';
@@ -30,9 +31,9 @@ import {
   TIMES,
   ViewDistance,
 } from '../../schema';
+import { Swimming } from '../../water/swim';
 import { type GenerateConfig, generateConfigError, generateMap } from '../../worldgen/generate';
 import { generateLand, LAND_SIZES, type LandConfig } from '../../worldgen/land';
-import { Swimming } from '../../water/swim';
 import type { CommandHandler } from '../types';
 import { allBricks } from './assets';
 
@@ -327,6 +328,8 @@ export type UpdateProject = {
   movement?: 'classic' | 'physics';
   /** step 11b: swimming and breath */
   swimming?: Swimming;
+  /** step 11b part 1: the game's buttons (null: back to the defaults) */
+  controls?: Controls | null;
 };
 
 export const updateProject: CommandHandler<UpdateProject> = {
@@ -347,7 +350,9 @@ export const updateProject: CommandHandler<UpdateProject> = {
                   ? `Movement: ${p.movement}`
                   : p.swimming !== undefined && Object.keys(p).length === 1
                     ? 'Swimming'
-                    : 'Edit project settings',
+                    : p.controls !== undefined && Object.keys(p).length === 1
+                      ? 'Controls'
+                      : 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.saving && !SavingSchema.safeParse(p.saving).success)
@@ -386,6 +391,11 @@ export const updateProject: CommandHandler<UpdateProject> = {
       return 'Movement is classic or physics.';
     if (p.swimming !== undefined && !Swimming.safeParse(p.swimming).success)
       return 'Swimming: can (true or false) and breath (3 to 300 seconds).';
+    if (p.controls) {
+      const r = Controls.safeParse(p.controls);
+      if (!r.success)
+        return `Controls: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
+    }
     if (p.hero && !store.has(paths.character(p.hero))) return 'That character does not exist.';
     if (p.entryMap !== undefined && !store.has(paths.map(p.entryMap))) return 'Start map not found.';
     if (p.entryScreen && !/^scr_[0-9a-z]{10}$/.test(p.entryScreen)) return 'Pick a screen.';
@@ -409,6 +419,10 @@ export const updateProject: CommandHandler<UpdateProject> = {
     if (p.swimming !== undefined) {
       const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
       store.put(paths.settings, { ...settings, swimming: p.swimming });
+    }
+    if (p.controls !== undefined) {
+      const { controls: _old, ...settings } = store.get<Settings>(paths.settings) ?? { quality: 'auto' as const };
+      store.put(paths.settings, p.controls ? { ...settings, controls: p.controls } : settings);
     }
     const cur = store.manifest;
     const entryMap = (p.entryMap ?? cur.entry.map) as Project['entry']['map'];
