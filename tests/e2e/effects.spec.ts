@@ -46,7 +46,7 @@ test('the Effects screen: preview a built-in, copy and change it, place it, hook
   await open(page, errors);
   await ws(page, 'Effects');
   const lib = page.getByRole('listbox', { name: 'Effects' });
-  await expect(lib.getByRole('option')).toHaveCount(22);
+  await expect(lib.getByRole('option')).toHaveCount(27);
   await lib.locator('[data-name="Fire"]').click();
   // the preview plays it: particles are alive
   const canvas = page.locator('canvas[aria-label="Effect preview"]');
