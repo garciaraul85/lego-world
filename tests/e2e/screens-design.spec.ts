@@ -63,7 +63,7 @@ test('widgets move and size on the canvas, keep a portrait layout, pin to each o
   // the palette shows a live preview of each widget; click one to add it
   const palette = page.getByRole('group', { name: 'Add widget' });
   await expect(palette.locator('.sc-pal-preview .bw-button')).toBeVisible();
-  await palette.getByRole('button', { name: 'Add Button' }).click();
+  await palette.getByRole('button', { name: 'Add Button', exact: true }).click();
   const box = page.locator('.sc-box');
   await expect(box).toBeVisible();
   const before = (await widget(page, 'button1'))!;
@@ -172,7 +172,10 @@ test('art: generate a background, draw an icon, design a font, and use them on w
   await page.getByRole('button', { name: '← All art' }).click();
   await expect(page.getByRole('region', { name: 'Make art' })).toBeVisible();
   await page.getByRole('tab', { name: 'Screens' }).click();
-  await page.getByRole('group', { name: 'Add widget' }).getByRole('button', { name: 'Add Button' }).click();
+  await page
+    .getByRole('group', { name: 'Add widget' })
+    .getByRole('button', { name: 'Add Button', exact: true })
+    .click();
   // each choice is shown as a preview card: the button shows the current one
   const pick = async (label: string, option: RegExp | string) => {
     await page.getByRole('button', { name: new RegExp(`^${label}: `) }).click();

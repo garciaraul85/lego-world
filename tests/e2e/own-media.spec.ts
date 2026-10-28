@@ -290,7 +290,7 @@ test('Media library: big pictures shrink as they come in; files drag onto a scre
   await page.getByRole('button', { name: '+ New' }).click();
   const palette = page.getByRole('group', { name: 'Add widget' });
   await palette.getByRole('button', { name: 'Add Image' }).click();
-  await palette.getByRole('button', { name: 'Add Button' }).click();
+  await palette.getByRole('button', { name: 'Add Button', exact: true }).click();
   const dev = page.locator('.sc-device');
   const screenWidget = (id: string) =>
     page.evaluate((id) => {
