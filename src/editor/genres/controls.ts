@@ -143,6 +143,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.buildFaster': S('core'),
   'help.customBricks': S('core'),
   'help.media': S('core'),
+  'help.swim': S('core'),
   'help.ai': S('ai'),
   'assets.open': S('assets'),
   'characters.fromPicture': S('characters'),
