@@ -167,7 +167,14 @@ async function boot() {
               mapName: 'Code island',
               generate: { environments: ['forest', 'prairie'], size: 16, seed: 2024 },
             })
-          : newProjectFiles({ name: 'Tutorial sandbox', mapName: 'Practice map' }),
+          : track === 'pack'
+            ? // step 11, 4a: the Starter pack course needs ground for its neighbours and enemies to stand on
+              newProjectFiles({
+                name: 'Tutorial sandbox',
+                mapName: 'Practice map',
+                generate: { environments: ['prairie'], size: 16, seed: 2024 },
+              })
+            : newProjectFiles({ name: 'Tutorial sandbox', mapName: 'Practice map' }),
       );
       await saveAll(backend, s, serializeFile);
       writeIntent({ kind: 'tutorial', project: s.manifest.id, mode, track });
