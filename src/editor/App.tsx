@@ -25,6 +25,7 @@ import { Outliner } from './panels/Outliner';
 import { anyKeyboard } from './platform';
 import { PlayLayer } from './play/PlayLayer';
 import { type PlayStart, PlayView } from './play/PlayView';
+import { CoursesWindow } from './shell/Courses';
 import {
   CommandPalette,
   MenuBar,
@@ -69,7 +70,7 @@ export type AppHost = HubHost & {
 
 export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const vp = useRef<ViewportApi | null>(null);
-  const [modal, setModal] = useState<null | 'shortcuts' | 'open' | 'about' | 'new'>(null);
+  const [modal, setModal] = useState<null | 'shortcuts' | 'open' | 'about' | 'new' | 'courses'>(null);
   /** P18: the kind of game the New project dialog makes */
   const [newGenre, setNewGenre] = useState('explore');
   const [hub, setHub] = useState(host.showHub);
@@ -200,6 +201,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       },
       brix: () => setBrix(true),
       about: () => setModal('about'),
+      courses: () => setModal('courses'),
     }),
     [ed],
   );
@@ -337,6 +339,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       <HoverTip c={c} />
       {ed.palette.value && <CommandPalette c={c} />}
       {modal === 'shortcuts' && <Shortcuts onClose={() => setModal(null)} />}
+      {modal === 'courses' && <CoursesWindow c={c} onClose={() => setModal(null)} />}
       {modal === 'open' && <OpenDialog host={host} current={ed.store.manifest.id} onClose={() => setModal(null)} />}
       {modal === 'new' && (
         <Modal title="New project" onClose={() => setModal(null)}>

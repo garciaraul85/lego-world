@@ -117,6 +117,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.shortcuts': S('core'),
   'help.about': S('core'),
   'help.tutorial': S('core'),
+  'help.courses': S('core'),
   'help.coding': S('logic'),
   'help.combat': S('combat'),
   'help.saving': S('core'),

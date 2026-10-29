@@ -758,6 +758,33 @@ select.inp {
   flex-direction: column;
   gap: 10px;
 }
+.modal:has(.courses-list) {
+  width: min(640px, 100%);
+}
+/* Help › Courses…: grouped, and it scrolls however many courses there are */
+.courses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+.courses-title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  padding: 0 10px 4px;
+}
+.course-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
 .palette-list {
   display: flex;
   flex-direction: column;

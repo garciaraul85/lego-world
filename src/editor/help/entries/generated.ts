@@ -1,6 +1,6 @@
 import { AI_COMMANDS } from '../../../core/ai/commands';
 import { CATALOG, type NodeDef } from '../../../core/logic/catalog';
-import { ACTIONS, MENUS } from '../../actions/registry';
+import { ACTIONS, COURSE_IDS, MENUS } from '../../actions/registry';
 import { keysFor, MAC_KEYS } from '../../platform';
 import { TOOLS } from '../../shell/tools';
 import { WIDGET_NAMES, WIDGET_TIPS, WIDGET_TYPES } from '../../workspaces/screens/model';
@@ -99,6 +99,8 @@ export const ACTION_HELP: Record<string, string> = {
   'help.shortcuts': 'Shows every keyboard shortcut.',
   'help.about': 'Shows the engine version and credits.',
   'help.tutorial': 'Starts the guided tutorial: every feature, step by step, with Show me and Do it for me.',
+  'help.courses':
+    'Opens the Courses window: every course (Starter pack, Combat, Swimming, Effects…) grouped by topic, with a search. The list scrolls; pick one to start it.',
   'help.coding': 'Starts the coding course: the logic language, one line at a time.',
   'help.combat':
     'Starts the combat course on a sandbox: add the Training yard, make an enemy hit harder, wire a dummy to a chest, then fight — Show me and Do it for me for every step.',
@@ -165,14 +167,17 @@ for (const [menu, ids] of Object.entries(MENUS)) for (const id of ids) if (id !=
 function actionEntries(): HelpEntry[] {
   return ACTIONS.filter((a) => !a.id.startsWith('window.')).map((a) => {
     const menu = MENU_OF.get(a.id);
+    // courses live in the Courses window (Help › Courses…)
+    const course = COURSE_IDS.has(a.id);
     return {
       id: `action.${a.id}`,
       screen: 'shell',
-      kind: menu ? 'menu' : 'shortcut',
+      kind: menu || course ? 'menu' : 'shortcut',
       name: a.label.replace(/…$/, ''),
       purpose: ACTION_HELP[a.id] ?? '',
       steps: [
         ...(menu ? [`Open the **${menu}** menu and choose **${a.label}**.`] : []),
+        ...(course ? [`Open the **Help** menu, choose **Courses…**, then pick **${a.label}**.`] : []),
         ...(a.key
           ? [
               `Or press \`${a.key}\`${MAC_KEYS[a.key] ? ` (on a Mac: \`${keysFor(MAC_KEYS[a.key]!, true)}\`)` : ''} (when you are not typing in a field).`,
@@ -185,7 +190,7 @@ function actionEntries(): HelpEntry[] {
       related: ['shell.menu', 'shell.palette'],
       // shortcuts without a menu item have no control to point at; the command palette lists every action
       match: [
-        ...(menu ? [{ role: 'menuitem', name: a.label.replace(/…$/, '') }] : []),
+        ...(menu || course ? [{ role: 'menuitem', name: a.label.replace(/…$/, '') }] : []),
         { in: '.palette-list', name: a.label.replace(/…$/, '') },
       ],
     };

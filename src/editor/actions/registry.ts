@@ -44,6 +44,8 @@ export interface EditorUi {
   workspace(id: string): void;
   showShortcuts(): void;
   about(): void;
+  /** every course in one scrollable window (Help › Courses…) */
+  courses?(): void;
   /** P7: the Start hub, the guided tutorial and the help guide */
   startHub(): void;
   /** editor, coding, or a screen course: course.<screen> (P32) */
@@ -474,6 +476,7 @@ export const ACTIONS: EditorAction[] = [
   { id: 'help.shortcuts', label: 'Keyboard shortcuts', key: '?', run: ({ ui }) => ui.showShortcuts() },
   { id: 'help.about', label: 'About Brick Worlds Engine', run: ({ ui }) => ui.about() },
   { id: 'help.tutorial', label: 'Guided tutorial (every feature, step by step)', run: ({ ui }) => ui.tutorial() },
+  { id: 'help.courses', label: 'Courses…', run: ({ ui }) => ui.courses?.() },
   {
     id: 'help.coding',
     label: 'Coding course (the logic language, line by line)',
@@ -747,30 +750,8 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.guide',
     'help.brix',
     'help.tutorial',
-    'help.coding',
-    'help.combat',
-    'help.saving',
-    'help.dialogue',
-    'help.sheet',
-    'help.bodies',
-    'help.faces',
-    'help.shape',
-    'help.make',
-    'help.hair',
-    'help.buildFaster',
-    'help.customBricks',
-    'help.media',
-    'help.swim',
-    'help.pack',
-    'help.effects',
-    'help.screenfx',
-    'help.posing',
-    'help.lights',
-    'help.atmosphere',
-    'help.bigworlds',
-    'help.water',
-    'help.models',
-    'help.brixCourse',
+    'help.courses',
+    '-',
     'help.build',
     'help.shortcuts',
     'help.ai',
@@ -778,6 +759,22 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.about',
   ],
 };
+
+/**
+ * The courses, by topic: they live in the Courses window (Help › Courses…), which scrolls, so the Help menu stays
+ * short as courses are added.
+ */
+export const COURSE_GROUPS: [string, string[]][] = [
+  ['Getting started', ['help.brixCourse', 'help.make', 'help.pack']],
+  ['Building and worlds', ['help.buildFaster', 'help.customBricks', 'help.models', 'help.water', 'help.bigworlds']],
+  [
+    'Characters',
+    ['help.sheet', 'help.bodies', 'help.faces', 'help.shape', 'help.hair', 'help.posing', 'help.dialogue'],
+  ],
+  ['Playing and logic', ['help.coding', 'help.combat', 'help.saving', 'help.swim']],
+  ['Look and feel', ['help.effects', 'help.screenfx', 'help.lights', 'help.atmosphere', 'help.media']],
+];
+export const COURSE_IDS = new Set(COURSE_GROUPS.flatMap(([, ids]) => ids));
 
 /** Normalizes a keyboard event to the `key` notation used above. */
 export function keyOf(e: KeyboardEvent): string {
