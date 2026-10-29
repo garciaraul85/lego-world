@@ -119,6 +119,15 @@ export interface ExecCtx {
   buttons?(op: 'label' | 'equip', value: string, slot?: number): void;
   /** P27 part 2: set the time of day (the sun jumps there and the day goes on) or the fog, while it plays */
   sky?(op: 'time' | 'fog', value: string): void;
+  /** step 11, 4c: a line of text on screen for a while */
+  say?(text: string, seconds: number): void;
+  /** step 11, 4c: how many of an item the hero carries; take some away (never below zero) */
+  count?(item: string): number;
+  take?(item: string, count: number): void;
+  /** step 11, 4c: a character (by name) follows the hero, or stops */
+  follow?(who: string, on: boolean): void;
+  /** step 11, 4c: a character (by name or id) put on the map at a spawn point while playing */
+  spawnCharacter?(character: string, at: string): string | null;
 }
 
 export type Args = Record<string, unknown>;

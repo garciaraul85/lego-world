@@ -23,6 +23,7 @@ import {
   mapToLegacyBuild,
 } from '../../core/bridge/legacy-bridge';
 import { moodFace } from '../../core/character/faces';
+import { lookForV68 } from '../../core/character/hair';
 import { BODY_MOVES, type BodyMove, movesOf as bodyMovesOf, MOVE_LENGTH } from '../../core/character/moves';
 import { minifigExtras, type ResolvedBody, resolveBody } from '../../core/character/resolve';
 import { levelOf, xpFor } from '../../core/character/sheet';
@@ -148,7 +149,7 @@ import { ActionRunner, type GameOp } from './actions';
 import { type ButtonHost, GameButtons } from './buttons';
 import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
 import { Enemies } from './enemies';
-import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem } from './health';
+import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, spawnedNpcs } from './health';
 import { ObjectIndex } from './objects';
 import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
@@ -474,6 +475,8 @@ export class PlaySession {
     this.uiActions = new ActionRunner(host);
     const project = snapshot.get(paths.project) as Project;
     this.project = project;
+    // step 11, 4c: characters spawned in an earlier play are gone
+    spawnedNpcs.clear();
     this.saving = project.saving ?? genreById(project.genre).saving ?? DEFAULT_SAVING;
     this.talks = new TalkSystem({
       get: (p) => this.snapshot.get(p),
@@ -818,6 +821,126 @@ export class PlaySession {
   say(msg: string, seconds = 2.5) {
     this.message = msg;
     this.messageUntil = this.clock + seconds;
+  }
+
+  // ---------- step 11, 4c: items, followers and characters put on the map by logic ----------
+
+  /** the inventory's key for an item name, whatever its capitals */
+  private itemKey(item: string): string {
+    const t = item.trim();
+    if (this.inventory.has(t)) return t;
+    for (const k of this.inventory.keys()) if (k.toLowerCase() === t.toLowerCase()) return k;
+    return t;
+  }
+
+  itemCount(item: string): number {
+    return this.inventory.get(this.itemKey(item)) ?? 0;
+  }
+
+  takeItem(item: string, count: number) {
+    const k = this.itemKey(item);
+    const n = Math.max(0, (this.inventory.get(k) ?? 0) - count);
+    if (n) this.inventory.set(k, n);
+    else this.inventory.delete(k);
+    this.emit('info', `Took ${count} × ${k} (${n} left)`);
+  }
+
+  /** neighbours (by play id) following the hero */
+  readonly followers = new Set<number>();
+
+  /** the nearest character of this name on the open map */
+  npcNamed(who: string): Npc | null {
+    const w = who.trim().toLowerCase();
+    if (!w) return null;
+    return (
+      this.world.npcs
+        .filter((n) => String(n.profile.name ?? '').toLowerCase() === w)
+        .sort(
+          (a, b) =>
+            Math.hypot(a.state.x - this.heroState.x, a.state.z - this.heroState.z) -
+            Math.hypot(b.state.x - this.heroState.x, b.state.z - this.heroState.z),
+        )[0] ?? null
+    );
+  }
+
+  setFollow(who: string, on: boolean) {
+    const n = this.npcNamed(who);
+    if (!n) {
+      this.emit('info', `Follow: nobody called “${who}” here`);
+      return;
+    }
+    if (on) this.followers.add(n.id);
+    else {
+      this.followers.delete(n.id);
+      // it settles where it stands
+      (n as Npc & { home?: { x: number; y: number; z: number } }).home = { x: n.state.x, y: n.state.y, z: n.state.z };
+    }
+  }
+
+  /** followers walk after the hero, keep about 2.5 studs away, run to catch up and jump to it when far behind */
+  private stepFollowers(npcs: readonly Npc[], dt: number) {
+    const h = this.heroState;
+    for (const n of npcs) {
+      if (!this.followers.has(n.id)) continue;
+      const s = n.state;
+      const dx = h.x - s.x;
+      const dz = h.z - s.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 30 || Math.abs(h.y - s.y) > 8) {
+        Object.assign(s, { x: h.x - Math.sin(h.heading) * 2, y: h.y, z: h.z - Math.cos(h.heading) * 2, vy: 0 });
+        continue;
+      }
+      if (d < 2.5) {
+        n.controller.step({ x: 0, z: 0, run: false, jump: false, vertical: 0 }, dt, 0);
+        continue;
+      }
+      const k = d > 7 ? 0.62 : 0.42;
+      n.controller.step({ x: (dx / d) * k, z: -(dz / d) * k, run: d > 7, jump: false, vertical: 0 }, dt, 0);
+      s.heading = Math.atan2(dx, dz);
+    }
+  }
+
+  private charSerial = 0;
+
+  /** a character (by name or id; the game's, else the starter pack's) put on the open map at a spawn point */
+  spawnCharacter(character: string, at: string): string | null {
+    const want = character.trim().toLowerCase();
+    const own = [...this.snapshot.keys()]
+      .filter((p) => p.startsWith('characters/'))
+      .map((p) => this.snapshot.get(p) as Character | undefined)
+      .filter((c): c is Character => !!c?.name);
+    const chr =
+      [...own, ...BUILTIN_CHARACTERS].find((c) => c.id === character.trim()) ??
+      [...own, ...BUILTIN_CHARACTERS].find((c) => c.name.toLowerCase() === want);
+    const w = this.world;
+    const sp = w.doc.spawns.find((x) => x.id === at || x.name.toLowerCase() === at.trim().toLowerCase());
+    if (!chr || !sp) {
+      this.emit('info', `Spawn character: ${!chr ? `no character “${character}”` : `no spawn point “${at}” here`}`);
+      return null;
+    }
+    const id = 900_000 + ++this.charSerial;
+    const entry = {
+      id,
+      biome: 'city',
+      role: 'Explorer',
+      profile: lookForV68(chr.profile as Record<string, unknown>),
+      state: { x: sp.pos[0], y: sp.pos[1], z: sp.pos[2], heading: sp.yaw },
+    };
+    let made: Npc[] = [];
+    try {
+      made = this.L.NPCWorld.restore([entry], w.pieces, w.meta);
+    } catch (e) {
+      this.emit('info', `Spawn character: ${(e as Error).message}`);
+      return null;
+    }
+    const n = made[0];
+    if (!n) return null;
+    spawnedNpcs.set(id, { id: `ins_spawn${String(id).slice(-5)}`, character: chr.id });
+    w.npcs.push(n);
+    this.L.NPCWorld.connect(w.npcs, w.controller);
+    this.eventEffect('defeat', [sp.pos[0], sp.pos[1] + 1, sp.pos[2]]);
+    this.emit('info', `${chr.name} came in at ${sp.name}`);
+    return chr.name;
   }
 
   // ---------- actions (keyboard / touch / cheats) ----------
@@ -1199,9 +1322,13 @@ export class PlaySession {
     if (hp > 0) this.heroHurtAt = this.clock;
     // P9a: the hero's hearts are its health
     if (hp > 0)
-      this.logic.fire({ type: 'event.onDamaged', match: { asset: '' }, payload: { target: 'hero', amount: n, hp } });
+      this.logic.fire({
+        type: 'event.onDamaged',
+        match: { asset: '', who: 'hero' },
+        payload: { target: 'hero', amount: n, hp },
+      });
     else {
-      this.logic.fire({ type: 'event.onDefeated', match: { asset: '' }, payload: { target: 'hero' } });
+      this.logic.fire({ type: 'event.onDefeated', match: { asset: '', who: 'hero' }, payload: { target: 'hero' } });
       this.gameOver();
     }
   }
@@ -1379,7 +1506,7 @@ export class PlaySession {
       this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
       this.logic.fire({
         type: 'event.onDamaged',
-        match: { asset: owner.def.id },
+        match: { asset: owner.def.id, who: owner.def.name },
         payload: { target: owner.inst.id, amount: dealt, hp: wound.hp },
         self: owner.inst.id,
       });
@@ -1397,7 +1524,12 @@ export class PlaySession {
     if (def.atZero.drop) this.drop(def.atZero.drop, { near: at });
     if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
     this.emit('smash', `${owner.def.name} defeated`);
-    this.logic.fire({ type: 'event.onDefeated', match: { asset: owner.def.id }, payload: { target: at }, self: at });
+    this.logic.fire({
+      type: 'event.onDefeated',
+      match: { asset: owner.def.id, who: owner.def.name },
+      payload: { target: at },
+      self: at,
+    });
   }
 
   /** a hit on a neighbour that can be harmed */
@@ -1452,7 +1584,7 @@ export class PlaySession {
       this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
       this.logic.fire({
         type: 'event.onDamaged',
-        match: { asset: '' },
+        match: { asset: '', who: name },
         payload: { target: name, amount: dealt, hp: wound.hp },
         ...this.npcSelf(npc),
       });
@@ -1472,7 +1604,7 @@ export class PlaySession {
     this.emit('smash', `${name} defeated`);
     this.logic.fire({
       type: 'event.onDefeated',
-      match: { asset: '' },
+      match: { asset: '', who: name },
       payload: { target: name },
       ...this.npcSelf(npc),
     });
@@ -2675,6 +2807,12 @@ export class PlaySession {
             : this.switchHero(),
       spawn: (asset, at) => this.spawnAsset(asset, at),
       spawnNear: (item, near) => this.spawnNear(item, near),
+      // step 11, 4c: what the script templates need
+      say: (text, seconds) => this.say(text, seconds),
+      count: (item) => this.itemCount(item),
+      take: (item, count) => this.takeItem(item, count),
+      follow: (who, on) => this.setFollow(who, on),
+      spawnCharacter: (character, at) => this.spawnCharacter(character, at),
       despawn: (target) => {
         const inst = this.resolveEntity(target);
         if (inst) this.despawn(inst.inst.id);
@@ -4032,7 +4170,11 @@ export class PlaySession {
     const acting = this.cine.active ? awake.filter((n) => !this.cine.isCast(n)) : awake;
     // P9c: enemies in a fight move themselves; P9b: stunned neighbours stand still for a moment
     this.enemies.step(acting, dt * this.slowmo);
-    const free = acting.filter((n) => !this.combat.isStunned(n) && !this.enemies.engaged(n) && !this.standsStill(n));
+    // step 11, 4c: followers walk after the hero
+    if (this.followers.size) this.stepFollowers(acting, dt * this.slowmo);
+    const free = acting.filter(
+      (n) => !this.combat.isStunned(n) && !this.enemies.engaged(n) && !this.standsStill(n) && !this.followers.has(n.id),
+    );
     this.L.NPCWorld.step(free, dt * this.slowmo, this.heroState, this.talking?.id ?? null);
     // a talk ends when the hero walks away (further, when they are locked on to the one they talk to)
     const reach = this.talking && this.combat.lockedNpc() === this.talking ? LOCK_RELEASE : 4.5;

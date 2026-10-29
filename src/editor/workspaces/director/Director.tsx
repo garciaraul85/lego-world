@@ -235,6 +235,16 @@ function DirectorFor({
               <button type="button" class="link" onClick={() => onCreate('reward')} title="An example reward scene">
                 + Reward
               </button>
+              <button
+                type="button"
+                class="link"
+                data-tour="cine-template"
+                data-help="pack.templates"
+                title="A boss entrance, an item found, a door opening (the starter pack's)"
+                onClick={() => (ed.templates.value = { kind: 'cutscene' })}
+              >
+                + From a template…
+              </button>
             </span>
           </div>
           <div style={{ padding: '0 8px 6px' }}>

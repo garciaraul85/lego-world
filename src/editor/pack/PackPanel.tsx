@@ -3,6 +3,8 @@ import { BUILTIN_ASSETS } from '../../builtin/assets';
 import type { PackGroup } from '../../builtin/characters/starter';
 import { BUILTIN_EFFECTS } from '../../builtin/effects';
 import { ADVENTURE_PACK } from '../../builtin/packs/adventure';
+import { CUTSCENE_TEMPLATES } from '../../builtin/templates/cutscenes';
+import { SCRIPT_TEMPLATES } from '../../builtin/templates/scripts';
 import { STYLE_INFO } from '../../core/combat/enemy';
 import { paths } from '../../core/schema';
 import type { ActionCtx } from '../actions/registry';
@@ -16,7 +18,7 @@ import { CharacterThumb } from '../workspaces/character-studio/thumbs';
 import { makePackHero, placePackCharacter, placePackEffect, setScreenLook, useTerrainStyle } from './pack';
 
 export const PACK_HELP =
-  'The adventure starter pack: a hero, ten neighbours (each with a sample conversation), ten kinds of enemy (each with its weaknesses), twenty buildings and props (dungeon walls, gates, torches, pots, a boss chest, a block to push, a cottage…), three terrain styles, five effects (fairy sparkle, item get, torch embers, dungeon dust, a boss vanishing), an Adventure screen look, and its own sounds and music. Drag anything onto the map, or press Place. A character comes into your game the first time it is used, so you can change it in the Character studio; buildings and props open in the Asset studio. A terrain style makes the open map again in that style (Undo brings the old one back). The Adventure look dresses every screen and menu (parchment panels, gold-framed buttons, a storybook font, framed hearts); Classic brings the plain look back. The sounds and music are in every game already: listen here, then pick them in the Audio workspace, in logic (Play sound, Play music) or in a cinematic. The sword swish plays on every blade swing and the key jingle when the hero is given a key.';
+  'The adventure starter pack: a hero, ten neighbours (each with a sample conversation), ten kinds of enemy (each with its weaknesses), twenty buildings and props (dungeon walls, gates, torches, pots, a boss chest, a block to push, a cottage…), three terrain styles, ten script templates and three cutscene templates (fill in a short form and they become ordinary logic and scenes), five effects (fairy sparkle, item get, torch embers, dungeon dust, a boss vanishing), an Adventure screen look, and its own sounds and music. Drag anything onto the map, or press Place. A character comes into your game the first time it is used, so you can change it in the Character studio; buildings and props open in the Asset studio. A terrain style makes the open map again in that style (Undo brings the old one back). The Adventure look dresses every screen and menu (parchment panels, gold-framed buttons, a storybook font, framed hearts); Classic brings the plain look back. The sounds and music are in every game already: listen here, then pick them in the Audio workspace, in logic (Play sound, Play music) or in a cinematic. The sword swish plays on every blade swing and the key jingle when the hero is given a key.';
 
 const GROUPS: [PackGroup, string][] = [
   ['hero', 'Hero'],
@@ -40,10 +42,15 @@ export function PackPanel({ c }: { c: ActionCtx }) {
   const sounds = ADVENTURE_PACK.sounds.filter((x) => matches(q, x.name, x.about, 'sound'));
   const music = ADVENTURE_PACK.music.filter((x) => matches(q, x.name, x.about, 'music'));
   const showLook = matches(q, 'screen look adventure classic menu hud');
+  // step 11, 4c: the script and cutscene templates
+  const scripts = SCRIPT_TEMPLATES.filter((t) => matches(q, t.name, t.about, 'script logic template'));
+  const scenes = CUTSCENE_TEMPLATES.filter((t) => matches(q, t.name, t.about, 'cutscene cinematic scene template'));
   const look = ed.store.manifest.uiLook ?? 'classic';
   const brush = ed.assetBrush.value;
   const hero = ed.store.manifest.hero;
   const nothing =
+    !scripts.length &&
+    !scenes.length &&
     !cast.length &&
     !assets.length &&
     !terrain.length &&
@@ -195,6 +202,35 @@ export function PackPanel({ c }: { c: ActionCtx }) {
                   }}
                 >
                   Use on this map
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      {(scripts.length > 0 || scenes.length > 0) && (
+        <section class="pack-group" aria-label="Scripts and cutscenes" data-tour="pack-templates">
+          <div class="small muted pack-title">Scripts and cutscenes</div>
+          <div class="pack-terrain" role="list">
+            {[
+              ...scripts.map((t) => ({ t, kind: 'script' as const })),
+              ...scenes.map((t) => ({ t, kind: 'cutscene' as const })),
+            ].map(({ t, kind }) => (
+              <div class="pack-style row" role="listitem" data-tour={`pack-tpl-${t.id}`}>
+                <span style={{ flex: 1 }}>
+                  <strong class="small">{t.name}</strong>
+                  <span class="muted small">
+                    {' '}
+                    · {kind === 'script' ? 'script' : 'cutscene'} · {t.about}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  class="btn small"
+                  aria-label={`Use ${t.name}`}
+                  onClick={() => (ed.templates.value = { kind, id: t.id })}
+                >
+                  Use…
                 </button>
               </div>
             ))}

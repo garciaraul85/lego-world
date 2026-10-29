@@ -31,7 +31,15 @@ export function assetHealth(def: Asset): Health | null {
 /** A neighbour's character, by its legacy id (instances of kind npc on the map). */
 /** Milestone 2b: a map's neighbours by their v68 id, worked out once per instances file (not a walk per call) */
 const npcItems = new WeakMap<object, Map<number, { id: string; character: string }>>();
+/**
+ * Step 11, 4c: characters put on the map while playing (Spawn character): not in the map's file, so they are
+ * looked up here by their play-time id. A new play clears it.
+ */
+export const spawnedNpcs = new Map<number, { id: string; character: string }>();
+
 export function npcItem(host: HealthHost, mapId: string, npcId: number): { id: string; character: string } | undefined {
+  const spawned = spawnedNpcs.get(npcId);
+  if (spawned) return spawned;
   const inst = host.get(paths.instances(mapId)) as Instances | undefined;
   if (!inst) return undefined;
   let m = npcItems.get(inst);

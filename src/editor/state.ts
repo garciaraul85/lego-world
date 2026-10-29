@@ -229,6 +229,8 @@ export class EditorState {
   readonly cursor = signal<{ x: number; z: number; y: number } | null>(null);
   readonly menu = signal<string | null>(null);
   readonly palette = signal(false);
+  /** step 11, 4c: the template window (script or cutscene templates, opened at one of them) */
+  readonly templates = signal<{ kind: 'script' | 'cutscene'; id?: string } | null>(null);
   readonly playing = signal(false);
   /** the running engine Play session (P2); null while editing */
   readonly session = signal<PlaySession | null>(null);

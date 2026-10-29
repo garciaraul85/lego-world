@@ -109,6 +109,8 @@ export function printGraph(g: Pick<LogicGraph, 'nodes' | 'edges'>): Printed {
       if (BINARY[n.type]) return `(${arg('a')} ${BINARY[n.type]} ${arg('b')})`;
       if (n.type === 'compare.not') return `!${arg('a')}`;
       if (n.type === 'math.random') return `random(${arg('min')}, ${arg('max')})`;
+      // step 11, 4c
+      if (n.type === 'items.count') return `items.count(${arg('item')})`;
       throw new PrintError(node, `${d.title} can’t be printed as code.`);
     };
     const input = (n: LogicNode, pin: string, path: string, depth: number, scope: Scope): string => {

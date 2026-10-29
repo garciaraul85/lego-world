@@ -19,6 +19,7 @@ import { ContextMenu } from './interact/ContextMenu';
 import { HoverTip } from './interact/HoverTip';
 import { openMenuState } from './interact/menu';
 import { openSelectionMenu } from './interact/scene-menus';
+import { TemplateWindow } from './pack/TemplateWindow';
 import { Dock } from './panels/Dock';
 import { RightPanel } from './panels/Inspector';
 import { Outliner } from './panels/Outliner';
@@ -338,6 +339,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       <ContextMenu />
       <HoverTip c={c} />
       {ed.palette.value && <CommandPalette c={c} />}
+      {ed.templates.value && <TemplateWindow c={c} />}
       {modal === 'shortcuts' && <Shortcuts onClose={() => setModal(null)} />}
       {modal === 'courses' && <CoursesWindow c={c} onClose={() => setModal(null)} />}
       {modal === 'open' && <OpenDialog host={host} current={ed.store.manifest.id} onClose={() => setModal(null)} />}

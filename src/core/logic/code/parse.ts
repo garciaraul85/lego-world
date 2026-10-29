@@ -302,6 +302,12 @@ export function parseCode(code: string, prev?: Pick<LogicGraph, 'nodes' | 'edges
       value(x.arguments[1], n, 'max', `${p}/max`, scope);
       return [n.id, 'out'];
     }
+    // step 11, 4c: how many of an item the hero carries
+    if (x.type === 'CallExpression' && calleeName(x.callee) === 'items.count' && x.arguments.length === 1) {
+      const n = add('items.count', p);
+      value(x.arguments[0], n, 'item', `${p}/item`, scope);
+      return [n.id, 'out'];
+    }
     throw new CodeError('This value is not part of the logic language.', x);
   }
 

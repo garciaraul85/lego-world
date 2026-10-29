@@ -129,6 +129,9 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
             <button type="button" class="btn on" onClick={create}>
               + New logic graph
             </button>
+            <button type="button" class="btn" onClick={() => (ed.templates.value = { kind: 'script' })}>
+              + From a template…
+            </button>
           </div>
         ) : (
           <div class={`lg-views ${mode}`}>
@@ -242,9 +245,21 @@ function Sidebar({
               }
             />
           </span>
-          <button type="button" class="link" data-tour="logic-new" aria-label="New file" onClick={onCreate}>
-            + New
-          </button>
+          <span class="row">
+            <button type="button" class="link" data-tour="logic-new" aria-label="New file" onClick={onCreate}>
+              + New
+            </button>
+            <button
+              type="button"
+              class="link"
+              data-tour="logic-template"
+              data-help="pack.templates"
+              title="Ready-made logic from the starter pack: a locked door, a shop, a boss fight…"
+              onClick={() => (ed.templates.value = { kind: 'script' })}
+            >
+              + From a template…
+            </button>
+          </span>
         </div>
         {list.map((g) => (
           <div class={`lib-item ${g.id === graph?.id ? 'on' : ''}`}>

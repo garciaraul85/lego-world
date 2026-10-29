@@ -761,6 +761,67 @@ select.inp {
 .modal:has(.courses-list) {
   width: min(640px, 100%);
 }
+/* step 11, 4c: the template window */
+.modal:has(.tpl) {
+  width: min(820px, 100%);
+}
+.tpl {
+  display: grid;
+  grid-template-columns: minmax(180px, 230px) minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+}
+.tpl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 62vh;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  padding-right: 8px;
+}
+.tpl-item {
+  text-align: left;
+  width: 100%;
+}
+.tpl-item.on {
+  background: var(--accbg);
+  color: var(--acc2);
+}
+.tpl-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 62vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.tpl-name {
+  margin: 0;
+  font-size: 15px;
+}
+.tpl-form p {
+  margin: 0;
+}
+.tpl-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  text-align: left;
+}
+.tpl-error {
+  color: var(--err);
+}
+@media (max-width: 640px) {
+  .tpl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tpl-list {
+    border-right: 0;
+    max-height: 26vh;
+  }
+}
 /* Help › Courses…: grouped, and it scrolls however many courses there are */
 .courses-list {
   display: flex;

@@ -335,6 +335,8 @@ function matches(args: Record<string, unknown>, match: Record<string, unknown> |
   for (const [k, v] of Object.entries(match)) {
     const want = args[k];
     if (want === undefined || want === '' || want === null) continue; // empty = any
+    // step 11, 4c: names typed by hand (Who: gloomweaver) match whatever their capitals
+    if (typeof want === 'string' && typeof v === 'string' && want.trim().toLowerCase() === v.toLowerCase()) continue;
     if (want !== v) return false;
   }
   return true;
