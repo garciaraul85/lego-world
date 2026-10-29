@@ -129,7 +129,7 @@ export const ACTION_HELP: Record<string, string> = {
   'help.pack':
     'Starts the Starter pack course: play as Rook, place Elder Maren with her conversation, Rattlebones and a clay pot, then hit the knight from behind in Play.',
   'help.templatesCourse':
-    'Starts the Scripts and scenes course: place three Pebblespouts, make “Clear the room, find the treasure” from a template, beat them in Play for the chest, make a Boss entrance scene for Gloomweaver, and keep the script in My library.',
+    'Starts the Scripts and scenes course (14 steps): make “Clear the room” and “Waves of enemies” from templates and play them, write your own rules with Show message, Count and Take items, Spawn character and Follow the hero, make the Boss entrance and Item found scenes, then keep a script in My library, bring it back with Use in this game and Export a pack.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':
