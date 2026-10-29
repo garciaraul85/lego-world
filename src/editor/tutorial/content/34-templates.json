@@ -102,6 +102,110 @@
       "placement": "top"
     },
     {
+      "id": "tpl.waves",
+      "title": "Waves of enemies",
+      "body": "Some templates need a zone. Draw one about 14 studs in front of the start with the Zone tool and name it Arena (or let Do it for me make it). Then Starter pack › Scripts and cutscenes › Use… on “Waves of enemies”: Arena zone = Arena, Enemy = Rattlebones, Waves 2, Enemies per wave 1. Make it. Its enemies come in with Spawn character, one of the new logic blocks.",
+      "task": "Make an Arena zone and “Waves of enemies”.",
+      "target": "[data-tour=\"pack-tpl-waves\"]",
+      "check": {
+        "kind": "state",
+        "test": "logicNamed",
+        "args": "Waves of enemies"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "arenaZone"
+        },
+        {
+          "fn": "makeTemplate",
+          "args": {
+            "kind": "script",
+            "id": "waves",
+            "answers": {
+              "arena": "Arena",
+              "enemy": "Rattlebones",
+              "waves": 2,
+              "per": 1
+            }
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "tpl.wavesPlay",
+      "title": "Survive the arena",
+      "body": "Press Play and walk into the Arena. The gate shuts, “Wave 1!” and a Rattlebones comes in. Beat it (from behind: its shield blocks in front), then the next. “The arena is clear!”",
+      "task": "Press Play, walk into the Arena and beat both waves.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "logicVar",
+        "args": "wave:-1"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "winArena"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "tpl.own",
+      "title": "Write your own rules",
+      "body": "New blocks you can use yourself. Stop the game; in Logic press + New, switch to Code and type: on(\"start\", (e) => { say(\"The map costs 20 coins.\", 3); if ((items.count(\"coin\") >= 20)) { items.take(\"coin\", 20); } character.spawn(\"Nim\", \"Arrival\"); character.follow(\"Nim\", true); }); That is Show message (say), Count items and Take items (spend what the hero carries), Spawn character and Follow the hero.",
+      "task": "Make a logic file with these rules (name it My own rules).",
+      "target": "[data-tour=\"logic-new\"]",
+      "check": {
+        "kind": "state",
+        "test": "logicUses",
+        "args": "items.count,items.take,misc.say,character.spawn,character.follow"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "ui": "workspace",
+          "value": "Logic"
+        },
+        {
+          "fn": "writeOwnRules"
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Logic"
+    },
+    {
+      "id": "tpl.ownPlay",
+      "title": "Try them",
+      "body": "Press Play. The hero gets 5 coins: too few, so “The map costs 20 coins…”. Nim comes in at Arrival and follows the hero; walk around and Nim keeps up.",
+      "task": "Press Play and see Nim follow you.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "following",
+        "args": ""
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
       "id": "tpl.scene",
       "title": "A boss entrance",
       "body": "Stop the game. Place Gloomweaver (Starter pack › Enemies), then Use… on “Boss entrance”: the camera turns to the boss, it roars, its name comes up and the boss music starts. Make it opens the scene in Cinematics; ▶ there plays it.",
@@ -136,6 +240,40 @@
       "placement": "top"
     },
     {
+      "id": "tpl.item",
+      "title": "Item found",
+      "body": "Another cutscene template: Cinematics › + From a template… › Item found, Item = Boomerang. The hero holds it up with a golden flash and a jingle, and gets it when the scene ends.",
+      "task": "Make the “Item found” cutscene for a Boomerang.",
+      "target": "[data-tour=\"cine-template\"]",
+      "check": {
+        "kind": "state",
+        "test": "cinematicNamed",
+        "args": "Found the Boomerang"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "ui": "workspace",
+          "value": "Cinematics"
+        },
+        {
+          "fn": "makeTemplate",
+          "args": {
+            "kind": "cutscene",
+            "id": "item-found",
+            "answers": {
+              "item": "Boomerang"
+            }
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Cinematics"
+    },
+    {
       "id": "tpl.library",
       "title": "Keep it for every project",
       "body": "My library (next to Starter pack) keeps your own things for every project in this browser. Press + Add from this game…, tick the script “Clear the room, find the treasure” and Save. In another project, Use in this game brings it in.",
@@ -168,9 +306,59 @@
       "workspace": "Scene"
     },
     {
+      "id": "tpl.reuse",
+      "title": "Bring it back",
+      "body": "My library keeps a copy. Delete “Clear the room, find the treasure” from this game (Logic › Files › ×), then My library › Use in this game: it comes back, the same way it would come into any other project.",
+      "task": "Delete the script, then Use in this game.",
+      "target": "[data-tour=\"dock-library\"]",
+      "check": {
+        "kind": "state",
+        "test": "libraryUsed",
+        "args": "Clear the room, find the treasure"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "bringBack",
+          "args": {
+            "name": "Clear the room, find the treasure"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "tpl.share",
+      "title": "Share it",
+      "body": "Export pack saves My library as my-library.bwlib, a file you can send to a friend or open on another device with Import pack….",
+      "task": "Press Export pack.",
+      "target": "[data-tour=\"library-export\"]",
+      "check": {
+        "kind": "state",
+        "test": "libraryExported",
+        "args": ""
+      },
+      "doItForMe": [
+        {
+          "ui": "dock",
+          "value": "library"
+        },
+        {
+          "fn": "exportPack"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
       "id": "tpl.done",
       "title": "Done!",
-      "body": "You made a script and a scene from templates, played the script, and kept it in My library. The other templates (a shop, a boss fight, waves, a race against the clock, an escort…) work the same way. Help › Script and cutscene templates and My library say more.",
+      "body": "You made scripts and scenes from templates, played them, wrote rules with the new blocks (Show message, Count and Take items, Spawn character, Follow the hero, Who), and kept, brought back and shared a script with My library. The other templates (a shop, a boss fight, a race against the clock, an escort…) work the same way. Help › Script and cutscene templates and My library say more.",
       "task": "Press Finish.",
       "target": "[data-tour=\"menu-help\"]",
       "check": {

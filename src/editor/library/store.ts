@@ -31,6 +31,9 @@ const itemPath = (id: string) => `items/${id}.json`;
 export class LibraryStore {
   readonly items = signal<LibraryItem[]>([]);
   readonly loaded = signal(false);
+  /** the last item brought into a game, and whether a pack was exported (the Scripts and scenes course checks) */
+  readonly lastUsed = signal<string | null>(null);
+  readonly exported = signal(false);
   private backend: Backend;
   private loading: Promise<void> | null = null;
 

@@ -176,7 +176,7 @@ test('Scripts and scenes course: Do it for me makes the room-clear script, plays
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });
   const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
-  expect(total).toBe(7);
+  expect(total).toBe(14);
   for (let i = 0; i < total + 1; i++) {
     const pos = await card.locator('header .mono').innerText();
     const title = await card.getByRole('heading').first().innerText();

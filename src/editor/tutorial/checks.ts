@@ -514,6 +514,21 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     ed.store.list('cinematics/').some((p) => ed.store.get<{ name: string }>(p)?.name === String(a)),
   assetInPlay: (ed, a) => !!ed.session.value?.resolveEntity(String(a)),
   inLibrary: (_ed, a) => library().items.value.some((i) => i.name === String(a)),
+  logicUses: (ed, a) => {
+    const types = new Set(
+      ed.store.list('logic/').flatMap((p) => ed.store.get<LogicGraph>(p)?.nodes.map((n) => n.type) ?? []),
+    );
+    return String(a)
+      .split(',')
+      .every((t) => types.has(t.trim()));
+  },
+  logicVar: (ed, a) => {
+    const [name, v] = String(a).split(':');
+    return String(ed.session.value?.logic.vars.get(name!)) === v;
+  },
+  following: (ed) => (ed.session.value?.followers.size ?? 0) > 0,
+  libraryUsed: (_ed, a) => library().lastUsed.value === String(a),
+  libraryExported: () => library().exported.value,
   // step 11, 4b
   lookIs: (ed, a) => (ed.store.manifest.uiLook ?? 'classic') === a,
   heroIs: (ed, a) => ed.store.get<{ name: string }>(paths.character(ed.store.manifest.hero ?? ''))?.name === a,

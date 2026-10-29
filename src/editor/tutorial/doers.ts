@@ -107,9 +107,22 @@ const hud = (c: Ctx): Screen => {
 import { CUTSCENE_TEMPLATES } from '../../builtin/templates/cutscenes';
 import { SCRIPT_TEMPLATES } from '../../builtin/templates/scripts';
 import { gatherItem, type LibKind, type VarDef } from '../../core/library/library';
-import { gameThings } from '../library/LibraryPanel';
+import { nameBook, withIds } from '../../core/logic/code/names';
+import { parseCode } from '../../core/logic/code/parse';
+import { exportLibrary, gameThings, useLibraryItem } from '../library/LibraryPanel';
 import { library } from '../library/store';
 import { defaultAnswer, useCutsceneTemplate, useScriptTemplate } from '../pack/templates';
+
+/** step 11, 4c: the rules the Scripts and scenes course has you type */
+export const OWN_RULES = `on("start", (e) => {
+  say("The map costs 20 coins.", 3);
+  if ((items.count("coin") >= 20)) {
+    items.take("coin", 20);
+  }
+  character.spawn("Nim", "Arrival");
+  character.follow("Nim", true);
+});
+`;
 export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => void | Promise<void>> = {
   generateMap(c, a) {
     run(
@@ -1331,6 +1344,73 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const name = String(a?.name ?? '');
     for (let i = 0; i < 12 && s.world.npcs.some((n) => String(n.profile.name ?? '') === name); i++)
       s.damage(name, 99, 'slash');
+  },
+  arenaZone(c) {
+    // what drawing a zone with the Zone tool does: an 8 by 8 Arena 14 studs in front of the start
+    if (mapDoc(c).zones.some((z) => z.tags[0] === 'Arena')) return;
+    const sp = mapDoc(c).spawns[0];
+    const at = sp?.pos ?? [0, 0.4, 0];
+    const yaw = sp?.yaw ?? 0;
+    const cx = Math.round(at[0] + Math.sin(yaw) * 14);
+    const cz = Math.round(at[2] + Math.cos(yaw) * 14);
+    run(
+      c,
+      {
+        type: 'map.addZone',
+        payload: {
+          map: map(c),
+          zone: { min: [cx - 4, at[1], cz - 4], max: [cx + 4, at[1] + 4, cz + 4], tags: ['Arena'] },
+        },
+      },
+      'Add trigger zone',
+    );
+  },
+  async winArena(c) {
+    // what walking into the arena and beating every wave does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const z = s.world.doc.zones.find((x) => x.tags[0] === 'Arena');
+    if (!z) throw new Error('Make the Arena zone first.');
+    s.placeAt([(z.min[0] + z.max[0]) / 2, z.min[1], (z.min[2] + z.max[2]) / 2], s.heroState.heading);
+    for (let i = 0; i < 60 && String(s.logic.vars.get('wave')) !== '-1'; i++) {
+      await new Promise((r) => setTimeout(r, 400));
+      if (s.world.npcs.some((n) => String(n.profile.name ?? '') === 'Rattlebones'))
+        s.damage('Rattlebones', 99, 'slash');
+    }
+  },
+  writeOwnRules(c) {
+    // what typing the rules in Logic's Code view does
+    if (c.ed.store.list('logic/').some((p) => c.ed.store.get<LogicGraph>(p)?.name === 'My own rules')) return;
+    const parsed = parseCode(OWN_RULES);
+    if ('error' in parsed) throw new Error(parsed.error.message);
+    const r = withIds(parsed, nameBook(c.ed.store));
+    const id = newId('logic');
+    run(
+      c,
+      {
+        type: 'logic.create',
+        payload: { graph: { id, name: 'My own rules', scope: 'global', nodes: r.nodes, edges: r.edges } },
+      },
+      'New logic file',
+    );
+    c.ed.logicGraph.value = id;
+  },
+  bringBack(c, a) {
+    // what deleting the file (×) and pressing Use in this game in My library does
+    const name = String(a?.name ?? '');
+    const item = library().items.value.find((i) => i.name === name);
+    if (!item) throw new Error(`Save “${name}” to My library first.`);
+    for (const p of c.ed.store.list('logic/')) {
+      const g = c.ed.store.get<LogicGraph>(p);
+      if (g?.name === name) run(c, { type: 'logic.delete', payload: { graph: g.id } }, 'Delete logic file');
+    }
+    c.ed.dock.value = 'library';
+    useLibraryItem(c.ed, item);
+  },
+  exportPack(c) {
+    // what pressing Export pack in My library does
+    c.ed.dock.value = 'library';
+    exportLibrary(library().items.value);
   },
   stopIfPlaying(c) {
     if (c.ed.session.value) c.ui.stopPlay();

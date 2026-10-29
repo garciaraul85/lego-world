@@ -39,6 +39,7 @@ export function useLibraryItem(ed: EditorState, item: LibraryItem): string {
   const r = importCommands(ed.store, item, vars(ed));
   if (!r.commands.length) return `“${item.name}” is already in this game.`;
   const done = ed.exec(r.commands, { label: `From My library: ${item.name}` });
+  if (done.ok) library().lastUsed.value = item.name;
   if (!done.ok) return `“${item.name}” could not come in: ${done.error ?? 'it does not fit this game'}.`;
   const where: Record<LibKind, string> = {
     asset: 'the Assets list',
@@ -51,6 +52,13 @@ export function useLibraryItem(ed: EditorState, item: LibraryItem): string {
     hairstyle: 'Look › Hair › My library',
   };
   return `“${item.name}” is in this game${r.copied ? ' as a copy (the game had another under the same id)' : ''}: find it in ${where[item.kind]}.`;
+}
+
+/** saves items as my-library.bwlib (a download); a sentence for the notice */
+export function exportLibrary(items: LibraryItem[]): string {
+  saveFile('my-library.bwlib', packText(items));
+  library().exported.value = true;
+  return `Saved ${items.length} ${items.length === 1 ? 'thing' : 'things'} as my-library.bwlib.`;
 }
 
 function saveFile(name: string, text: string) {
@@ -110,8 +118,7 @@ export function LibraryPanel({ c }: { c: ActionCtx }) {
           data-tour="library-export"
           disabled={!items.length}
           onClick={() => {
-            saveFile('my-library.bwlib', packText(items));
-            ed.notify(`Saved ${items.length} ${items.length === 1 ? 'thing' : 'things'} as my-library.bwlib.`);
+            ed.notify(exportLibrary(items));
           }}
         >
           Export pack

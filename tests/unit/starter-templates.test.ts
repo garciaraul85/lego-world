@@ -62,6 +62,18 @@ describe('cutscene templates', () => {
   });
 });
 
+describe('the Scripts and scenes course', () => {
+  it('the rules it has you type are valid code using the new blocks', async () => {
+    const { OWN_RULES } = await import('../../src/editor/tutorial/doers');
+    const r = parseCode(OWN_RULES);
+    expect('error' in r ? r.error.message : '').toBe('');
+    if ('error' in r) return;
+    const types = new Set(r.nodes.map((n) => n.type));
+    for (const t of ['items.count', 'items.take', 'misc.say', 'character.spawn', 'character.follow'])
+      expect(types.has(t), t).toBe(true);
+  });
+});
+
 describe('the logic templates need', () => {
   const run = (code: string, items: Map<string, number>) => {
     const parsed = parseCode(code);
