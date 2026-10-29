@@ -37,6 +37,10 @@ The guided tutorial directs this 8-second scene, “Treasure chest”, with a ch
 
 The mark goes in front of the chest's lid: the tutorial names its exact X, Z and Facing, and draws a gold ring on the stage there (the step passes within 1.2 studs of the ring's middle, facing within 30°). Three camera shots frame it: wide while the hero walks, close on the chest at 2 s, on the hero at 4 s. The zone in front of the chest plays the scene once when the hero walks in. To add an item, move the playhead (click the ruler; ← and → then move it 0.1 s), press + on the row, then set it in the panel on the right.
 
+## From a template
+
+**+ From a template…** (next to + New) makes one of three ready scenes from the starter pack: **Boss entrance** (the camera turns to the boss where it stands, it roars, its name comes up and the boss music starts), **Item found** (a golden flash and a jingle; the item is the hero's when the scene ends) and **Door opens** (the camera cuts to the door as it opens, with the gate and secret-found sounds). Fill in the boss, item or door and, if you like, a zone that plays it once. Each makes the scene plus a small logic file that plays it and does what a scene cannot (giving the item, opening the door). The boss or door must be on the open map first.
+
 ## Triggering a scene
 
 Anything can start a scene: a trigger zone, an asset interaction, a screen button, a gate's On arrive, a clip marker, or the Play cinematic logic node. Players can skip a scene; On cinematic done tells logic when it ends.

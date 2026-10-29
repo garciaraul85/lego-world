@@ -63,9 +63,17 @@ on("custom", { event: "scene-takes-sword" }, (e) => {
 - **Set state** “out” on that copy makes the Sword's moving part rise out of the chest.
 - **Give item** adds it to the hero's inventory; **Remove** takes the floating copy away when the hero holds the sword.
 
+## Templates
+
+**+ From a template…** (next to + New) opens the starter pack's ten script templates: Locked door and key, Switch opens a gate, Collect them all then it opens, Shop counter, Boss fight, Checkpoint, Race against the clock, Follow me home, Waves of enemies, and Clear the room to find the treasure. Pick one, fill in the blanks (which door, which boss, how many, which zone) and press **Make it**: it becomes an ordinary logic file, with any variables it keeps, that you can read and change as a graph or as code. A zone or spawn point must be on the map first. Each Make it is one undo step. The same window opens from **Starter pack › Scripts and cutscenes**.
+
+## Messages, items, followers and visitors
+
+**Show message** puts a line of text in the middle of the screen for a few seconds (`say("It’s locked.", 2)`). **Count items** reads how many of an item the hero carries and **Take items** takes some away, never below zero (`if ((items.count("coin") >= 10)) { items.take("coin", 10); … }`). **Follow the hero** makes a character (by name) walk after the hero, run to catch up and jump to it when far behind; off, it stays where it is (`character.follow("Nim", true)`). **Spawn character** puts a character, the game's or the starter pack's, on the map at a spawn point while the game plays (`character.spawn("Rattlebones", "Arrival")`); it acts like one placed there and is gone the next time the game starts.
+
 ## Health
 
-**On damaged** runs when something with health is hurt and still has some left; **On defeated** when it reaches zero. Both give the target (the hero, an object or a neighbour's name), and On damaged gives the amount and the health left; pick an asset to react only to its copies. **Damage** hurts the hero, an object or a neighbour like a hit of that power and type would (armour and resistances count), **Heal** gives health back (never above its maximum), and **Set invulnerable** stops all damage until it is switched off. **On locked on** runs when the hero locks on (Z) to something: a neighbour, an object with health, or an asset with **Can be locked on** (a switch in a puzzle). In code: `on("damaged", { asset: "Wooden crate" }, (e) => { ... })`, `on("lockedOn", { asset: "Switch" }, (e) => { ... })`, `health.damage("hero", 1, "fire")`.
+**On damaged** runs when something with health is hurt and still has some left; **On defeated** when it reaches zero. Both give the target (the hero, an object or a neighbour's name), and On damaged gives the amount and the health left; pick an asset to react only to its copies, or type a name in **Who** to react to one character only (Gloomweaver, hero; capitals don't matter). **Damage** hurts the hero, an object or a neighbour like a hit of that power and type would (armour and resistances count), **Heal** gives health back (never above its maximum), and **Set invulnerable** stops all damage until it is switched off. **On locked on** runs when the hero locks on (Z) to something: a neighbour, an object with health, or an asset with **Can be locked on** (a switch in a puzzle). In code: `on("damaged", { asset: "Wooden crate" }, (e) => { ... })`, `on("lockedOn", { asset: "Switch" }, (e) => { ... })`, `health.damage("hero", 1, "fire")`.
 
 ## Lights
 

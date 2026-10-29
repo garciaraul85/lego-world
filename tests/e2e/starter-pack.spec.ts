@@ -132,6 +132,7 @@ test('Starter pack course: Do it for me plays as Rook, places the elder, the kni
     { timeout: 60_000 },
   );
   await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
   await page.getByRole('menuitem', { name: /Starter pack course/ }).click();
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });

@@ -535,6 +535,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('pack'),
   },
   {
+    id: 'help.templatesCourse',
+    label: 'Scripts and scenes course (templates, My library)',
+    run: ({ ui }) => ui.tutorial('templates'),
+  },
+  {
     id: 'help.swim',
     label: 'Swimming course (dive, breath, the Action button)',
     run: ({ ui }) => ui.tutorial('swim'),
@@ -765,7 +770,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
  * short as courses are added.
  */
 export const COURSE_GROUPS: [string, string[]][] = [
-  ['Getting started', ['help.brixCourse', 'help.make', 'help.pack']],
+  ['Getting started', ['help.brixCourse', 'help.make', 'help.pack', 'help.templatesCourse']],
   ['Building and worlds', ['help.buildFaster', 'help.customBricks', 'help.models', 'help.water', 'help.bigworlds']],
   [
     'Characters',

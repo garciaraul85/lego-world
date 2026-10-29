@@ -261,6 +261,7 @@ export const SCENE: HelpEntry[] = [
     options: [
       ['Assets', 'everything you can put in the world: assets, characters, cinematics, screens, sounds, music'],
       ['Starter pack', 'the adventure starter pack: a hero, neighbours, enemies, buildings and props, terrain styles'],
+      ['My library', 'your own things for every project in this browser'],
       ['Console', 'messages from the editor and from logic Log nodes'],
       ['Timeline', 'cinematic timelines while one plays'],
       ['Profiler', 'frame time, draw calls and chunks while playing'],
@@ -269,7 +270,11 @@ export const SCENE: HelpEntry[] = [
       ['Mixer', 'live volume of each sound bus'],
     ],
     match: [
-      { in: DOCK, role: 'button', name: /^(Assets|Starter pack|Console|Timeline|Profiler|Problems|Debug|Mixer)( ●)?$/ },
+      {
+        in: DOCK,
+        role: 'button',
+        name: /^(Assets|Starter pack|My library|Console|Timeline|Profiler|Problems|Debug|Mixer)( ●)?$/,
+      },
     ],
   },
   {
@@ -694,12 +699,13 @@ export const SCENE: HelpEntry[] = [
       'adventure effects',
       'fairy sparkle',
       'item get',
+      'scripts and cutscenes',
     ],
     screen: 'scene',
     kind: 'list',
     name: 'Starter pack',
     purpose:
-      'The adventure starter pack, ready to use: **Rook** the hero (Play as makes it the player character), ten **neighbours** (an elder, a shopkeeper, a blacksmith, a guard, a fisherwoman, a kid, a travelling merchant, a healer, a bard and Glim, a lantern-bug companion), each with a sample conversation, ten kinds of **enemy** with their own weaknesses (Pebblespout, Rattlebones, the Gloomweaver boss, Finspitter, the Watcher Eye, Cinderjaw, Flitterwing bats, Threadback, Lanternwisp, Howler), twenty **buildings and props** (dungeon walls, a pillar, an archway, a barred gate, a locked door, torches, a brazier, pots, a boss chest, a cracked wall, a push block, a floor switch, spikes, stairs, a guardian statue, a cottage, a well, a barrel, grass, a bridge), three **terrain styles**, and a **Look and sound** set: the **Adventure screen look**, five effects (Fairy sparkle, Item get, Torch embers, Dungeon dust, Boss vanish) and the pack’s sounds (item get, key, secret found, sword swish, boss roar) and music (Village, Dungeon, Boss). Drag a card onto the map, or press Place. A character comes into your game the first time it is used, so you can change it in the Character studio. The sounds and music are in every game already: ▶ listens.',
+      'The adventure starter pack, ready to use: **Rook** the hero (Play as makes it the player character), ten **neighbours** (an elder, a shopkeeper, a blacksmith, a guard, a fisherwoman, a kid, a travelling merchant, a healer, a bard and Glim, a lantern-bug companion), each with a sample conversation, ten kinds of **enemy** with their own weaknesses (Pebblespout, Rattlebones, the Gloomweaver boss, Finspitter, the Watcher Eye, Cinderjaw, Flitterwing bats, Threadback, Lanternwisp, Howler), twenty **buildings and props** (dungeon walls, a pillar, an archway, a barred gate, a locked door, torches, a brazier, pots, a boss chest, a cracked wall, a push block, a floor switch, spikes, stairs, a guardian statue, a cottage, a well, a barrel, grass, a bridge), three **terrain styles**, **Scripts and cutscenes** (ten script templates and three cutscene templates: Use… opens a short form), and a **Look and sound** set: the **Adventure screen look**, five effects (Fairy sparkle, Item get, Torch embers, Dungeon dust, Boss vanish) and the pack’s sounds (item get, key, secret found, sword swish, boss roar) and music (Village, Dungeon, Boss). Drag a card onto the map, or press Place. A character comes into your game the first time it is used, so you can change it in the Character studio. The sounds and music are in every game already: ▶ listens.',
     steps: [
       'Open **Starter pack** in the bottom dock.',
       'Drag a neighbour or an enemy onto the map (or press **Place**: it stands in front of the first spawn).',
@@ -717,7 +723,43 @@ export const SCENE: HelpEntry[] = [
       'item.add',
     ],
     match: [{ sel: '[data-tour="dock-pack"]' }, { in: '[data-tour="dock-pack"]' }],
-    related: ['scene.dock.characters', 'characters.enemy', 'characters.harm', 'characters.extras', 'project.look'],
+    related: [
+      'scene.dock.characters',
+      'characters.enemy',
+      'characters.harm',
+      'characters.extras',
+      'project.look',
+      'pack.templates',
+      'scene.dock.library',
+    ],
+  },
+  {
+    id: 'scene.dock.library',
+    also: [
+      'my library',
+      'library',
+      'reuse',
+      'share',
+      'every project',
+      'other projects',
+      'pack file',
+      'bwlib',
+      'export library',
+      'import library',
+    ],
+    screen: 'scene',
+    kind: 'list',
+    name: 'My library',
+    purpose:
+      'Your own things for every project in this browser: assets, characters, clips, effects, scripts, custom bricks, body plans and hairstyles. **+ Add from this game…** saves copies of what you tick, each with what it needs from the game (an asset’s custom bricks; a character’s body plan, clips and conversations; a script’s variables and the assets it names). **Use in this game** brings one into the open project; when the game already has something different under the same id, it comes in as a copy (“… (from library)”). **Export pack** saves the library, or what the search shows, as a .bwlib file to share or to move to another device; **Import pack…** adds one. Pictures, sounds and 3D models you imported stay with their game. Removing an item from the library never changes a game that uses it.',
+    steps: [
+      'Open **My library** in the bottom dock.',
+      'Press **+ Add from this game…**, tick what to keep and press **Save to My library**.',
+      'In another project, open My library and press **Use in this game**.',
+    ],
+    commands: ['file.put', 'logic.setVariable'],
+    match: [{ sel: '[data-tour="dock-library"]' }, { in: '[data-tour="dock-library"]' }],
+    related: ['scene.dock.pack', 'pack.templates'],
   },
   {
     id: 'scene.dock.effects',

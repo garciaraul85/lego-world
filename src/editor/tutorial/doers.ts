@@ -35,6 +35,7 @@ import {
   type Mixer,
   paths,
   type Screen,
+  type Variables,
   type Widget,
 } from '../../core/schema';
 import { fromBase64, modelMatrix, prepareModel } from '../../engine/model/prepare';
@@ -103,6 +104,12 @@ const hud = (c: Ctx): Screen => {
  * through the bus (so every one is undoable) or as UI changes. Named functions do the steps that
  * need a place on the map, an id, or a lookup.
  */
+import { CUTSCENE_TEMPLATES } from '../../builtin/templates/cutscenes';
+import { SCRIPT_TEMPLATES } from '../../builtin/templates/scripts';
+import { gatherItem, type LibKind, type VarDef } from '../../core/library/library';
+import { gameThings } from '../library/LibraryPanel';
+import { library } from '../library/store';
+import { defaultAnswer, useCutsceneTemplate, useScriptTemplate } from '../pack/templates';
 export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => void | Promise<void>> = {
   generateMap(c, a) {
     run(
@@ -1291,6 +1298,52 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     if (!item) throw new Error('No hero in the pack.');
     c.ed.dock.value = 'pack';
     if (!makePackHero(c.ed, item)) throw new Error('It could not be made the player character.');
+  },
+  // step 11, 4c: the Scripts and scenes course
+  packPlaceN(c, a) {
+    const item = ADVENTURE_PACK.cast.find((x) => x.slug === String(a?.slug ?? ''));
+    if (!item) throw new Error(`No ${String(a?.slug)} in the pack.`);
+    c.ed.dock.value = 'pack';
+    const want = Number(a?.count ?? 1);
+    const have = (c.ed.store.get<Instances>(paths.instances(c.ed.mapId.value))?.items ?? []).filter(
+      (i) => i.kind === 'npc' && i.character === item.id,
+    ).length;
+    for (let i = have; i < want; i++)
+      if (!placePackCharacter(c.ed, item)) throw new Error(`${item.character.name} could not be placed.`);
+  },
+  makeTemplate(c, a) {
+    // what filling in the template's form and pressing Make it does
+    const kind = a?.kind === 'cutscene' ? 'cutscene' : 'script';
+    const t = (kind === 'script' ? SCRIPT_TEMPLATES : CUTSCENE_TEMPLATES).find((x) => x.id === String(a?.id));
+    if (!t) throw new Error(`No template ${String(a?.id)}.`);
+    const given = (a?.answers ?? {}) as Record<string, string | number>;
+    const answers = Object.fromEntries(t.fields.map((f) => [f.key, given[f.key] ?? defaultAnswer(c.ed, f)]));
+    const r =
+      kind === 'script'
+        ? useScriptTemplate(c.ed, t as (typeof SCRIPT_TEMPLATES)[number], answers)
+        : useCutsceneTemplate(c.ed, t as (typeof CUTSCENE_TEMPLATES)[number], answers);
+    if ('error' in r) throw new Error(r.error);
+  },
+  defeatAll(c, a) {
+    // what beating each of them in a fight does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const name = String(a?.name ?? '');
+    for (let i = 0; i < 12 && s.world.npcs.some((n) => String(n.profile.name ?? '') === name); i++)
+      s.damage(name, 99, 'slash');
+  },
+  stopIfPlaying(c) {
+    if (c.ed.session.value) c.ui.stopPlay();
+  },
+  async saveToLibrary(c, a) {
+    // what ticking it in Add from this game and pressing Save does
+    const kind = String(a?.kind ?? 'script') as LibKind;
+    const found = gameThings(c.ed, kind).find(([, n]) => n === String(a?.name));
+    if (!found) throw new Error(`There is no ${String(a?.name)} in this game yet.`);
+    const vars = (c.ed.store.get<Variables>(paths.variables)?.vars ?? {}) as Record<string, VarDef>;
+    const it = gatherItem(c.ed.store, kind, found[0], { from: c.ed.store.manifest.name, vars });
+    if (!it) throw new Error('It could not be saved.');
+    await library().add([it]);
   },
   packLook(c, a) {
     c.ed.dock.value = 'pack';

@@ -16,7 +16,7 @@ The event's settings go in braces before the function, naming things as the edit
 
 ## Events
 
-`start` (play begins) · `enterZone` / `exitZone` { zone } · `interact` { asset } (E at any copy) · `smash` { asset } · `rebuildFinished` { asset } · `varChanged` { var } · `timer` { seconds, repeat } · `cinematicDone` { cinematic } · `screenButton` { screen, button } · `custom` { event } (anything sent with `emit`).
+`start` (play begins) · `enterZone` / `exitZone` { zone } · `interact` { asset } (E at any copy) · `smash` { asset } · `rebuildFinished` { asset } · `varChanged` { var } · `timer` { seconds, repeat } · `cinematicDone` { cinematic } · `screenButton` { screen, button } · `custom` { event } (anything sent with `emit`). Health: `damaged` and `defeated` { asset, who } (who: a character's name, or hero).
 
 ## Variables
 
@@ -32,7 +32,7 @@ The event's settings go in braces before the function, naming things as the edit
 
 ## Actions
 
-World: `world.give(item, count)`, `world.setState(instance, state)`, `world.teleport(spawn)`, `world.travel(map, spawn)`, `world.spawn(asset, spawn)`, `world.despawn(target)`. Sound: `audio.playSound(sound)`, `audio.setMusic(music)`, `audio.stopMusic()`. Screens: `screen.show(screen)`, `screen.hide(screen)`, `screen.setText(screen, element, text)`. Scenes: `cinematic.play(scene, once)`, `cinematic.stop()`. Other: `log(value)`, `emit(event)`.
+World: `world.give(item, count)`, `world.setState(instance, state)`, `world.teleport(spawn)`, `world.travel(map, spawn)`, `world.spawn(asset, spawn)`, `world.despawn(target)`. Sound: `audio.playSound(sound)`, `audio.setMusic(music)`, `audio.stopMusic()`. Screens: `screen.show(screen)`, `screen.hide(screen)`, `screen.setText(screen, element, text)`. Scenes: `cinematic.play(scene, once)`, `cinematic.stop()`. Items: `items.count(item)` (a value), `items.take(item, count)`. Characters: `character.follow(name, on)`, `character.spawn(character, spawn)`. Messages: `say(text, seconds)`. Other: `log(value)`, `emit(event)`.
 
 ## Errors and debugging
 

@@ -1,3 +1,4 @@
+import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_EFFECTS } from '../../builtin/effects';
 import { BUILTIN_SCREEN_EFFECTS } from '../../builtin/screen-effects';
 import { cleanupOf } from '../../core/assets/cleanup';
@@ -45,6 +46,7 @@ const screenEffectNamed = (ed: EditorState, id: string | null | undefined): Scre
     : undefined;
 
 /** Named tests for `state` checks (P7.3). They read the editor; none of them changes anything. */
+import { library } from '../library/store';
 export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boolean> = {
   menuOpen: (ed, a) => ed.menu.value === a,
   paletteOpen: (ed) => ed.palette.value,
@@ -499,6 +501,19 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   },
   // step 11, 4a: the starter pack course
   dockIs: (ed, a) => ed.dock.value === a,
+  // step 11, 4c: the Scripts and scenes course
+  npcCount: (ed, a) => {
+    const [name, n] = String(a).split(':');
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    const nameOf = (id: string) =>
+      ed.store.get<{ name: string }>(paths.character(id))?.name ?? BUILTIN_CHARACTERS.find((c) => c.id === id)?.name;
+    return items.filter((i) => i.kind === 'npc' && nameOf(i.character) === name).length >= Number(n ?? 1);
+  },
+  logicNamed: (ed, a) => ed.store.list('logic/').some((p) => ed.store.get<{ name: string }>(p)?.name === String(a)),
+  cinematicNamed: (ed, a) =>
+    ed.store.list('cinematics/').some((p) => ed.store.get<{ name: string }>(p)?.name === String(a)),
+  assetInPlay: (ed, a) => !!ed.session.value?.resolveEntity(String(a)),
+  inLibrary: (_ed, a) => library().items.value.some((i) => i.name === String(a)),
   // step 11, 4b
   lookIs: (ed, a) => (ed.store.manifest.uiLook ?? 'classic') === a,
   heroIs: (ed, a) => ed.store.get<{ name: string }>(paths.character(ed.store.manifest.hero ?? ''))?.name === a,

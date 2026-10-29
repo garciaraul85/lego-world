@@ -128,6 +128,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Shape and draw course: make Nova, shape her (chest, hips, neckline) in Look, then draw a star on her cheek and print a shirt in the Draw tab.',
   'help.pack':
     'Starts the Starter pack course: play as Rook, place Elder Maren with her conversation, Rattlebones and a clay pot, then hit the knight from behind in Play.',
+  'help.templatesCourse':
+    'Starts the Scripts and scenes course: place three Pebblespouts, make “Clear the room, find the treasure” from a template, beat them in Play for the chest, make a Boss entrance scene for Gloomweaver, and keep the script in My library.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':

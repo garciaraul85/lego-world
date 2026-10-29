@@ -96,6 +96,7 @@ const scene = (c: ActionCtx) => c.ed.scene.value as unknown as SceneLike | null;
 
 const DOCK: Record<string, string> = {
   pack: 'Starter pack',
+  library: 'My library',
   console: 'Console',
   timeline: 'Timeline',
   profiler: 'Profiler',
@@ -295,6 +296,18 @@ export function stepsToView(view: string): ShowStep[] {
               },
             ]
           : []),
+      ];
+    case 'logic-templates':
+      return [
+        ws('Logic'),
+        {
+          say: 'Open the script templates.',
+          find: () => null,
+          run: (c) => {
+            c.ed.templates.value = { kind: 'script', id: 'boss' };
+          },
+          done: (c) => !!c.ed.templates.value,
+        },
       ];
     case 'characters':
       return [ws('Characters')];

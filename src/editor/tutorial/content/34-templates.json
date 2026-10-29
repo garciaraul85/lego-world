@@ -1,0 +1,185 @@
+{
+  "id": "templates",
+  "title": "Scripts and scenes course",
+  "steps": [
+    {
+      "id": "tpl.open",
+      "title": "Scripts and scenes, ready made",
+      "body": "The starter pack has ten script templates (a locked door, a shop, a boss fight, waves of enemies…) and three cutscene templates. You fill in a short form; it becomes ordinary logic or a scene you can change. They are at the end of Starter pack.",
+      "task": "Open Starter pack in the bottom dock.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "dockIs",
+        "args": "pack"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "pack"
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "tpl.enemies",
+      "title": "Three to beat",
+      "body": "“Clear the room, find the treasure” needs enemies on the map. Place three Pebblespouts (Starter pack › Enemies › Place, three times).",
+      "task": "Place three Pebblespouts.",
+      "target": "[data-tour=\"pack-pebblespout\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcCount",
+        "args": "Pebblespout:3"
+      },
+      "doItForMe": [
+        {
+          "fn": "packPlaceN",
+          "args": {
+            "slug": "pebblespout",
+            "count": 3
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "tpl.script",
+      "title": "Make the script",
+      "body": "Under Scripts and cutscenes, press Use… on “Clear the room, find the treasure”. Set How many to 3 and At to Arrival (where the chest appears), then Make it. It opens in Logic: an On defeated that counts, and at 3 spawns a Boss chest and plays the secret-found sound.",
+      "task": "Make “Clear the room, find the treasure”.",
+      "target": "[data-tour=\"pack-tpl-room-clear\"]",
+      "check": {
+        "kind": "state",
+        "test": "logicNamed",
+        "args": "Clear the room, find the treasure"
+      },
+      "doItForMe": [
+        {
+          "fn": "makeTemplate",
+          "args": {
+            "kind": "script",
+            "id": "room-clear",
+            "answers": {
+              "count": 3
+            }
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "tpl.play",
+      "title": "Clear the room",
+      "body": "Press Play and beat the three Pebblespouts (F swings). When the third falls: “A treasure chest appeared!”.",
+      "task": "Press Play and beat all three.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetInPlay",
+        "args": "Boss chest"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "defeatAll",
+          "args": {
+            "name": "Pebblespout"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "tpl.scene",
+      "title": "A boss entrance",
+      "body": "Stop the game. Place Gloomweaver (Starter pack › Enemies), then Use… on “Boss entrance”: the camera turns to the boss, it roars, its name comes up and the boss music starts. Make it opens the scene in Cinematics; ▶ there plays it.",
+      "task": "Place Gloomweaver and make “Boss entrance”.",
+      "target": "[data-tour=\"pack-tpl-boss-entrance\"]",
+      "check": {
+        "kind": "state",
+        "test": "cinematicNamed",
+        "args": "Gloomweaver appears"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "packPlaceN",
+          "args": {
+            "slug": "gloomweaver",
+            "count": 1
+          }
+        },
+        {
+          "fn": "makeTemplate",
+          "args": {
+            "kind": "cutscene",
+            "id": "boss-entrance",
+            "answers": {}
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "tpl.library",
+      "title": "Keep it for every project",
+      "body": "My library (next to Starter pack) keeps your own things for every project in this browser. Press + Add from this game…, tick the script “Clear the room, find the treasure” and Save. In another project, Use in this game brings it in.",
+      "task": "Save the script to My library.",
+      "target": "[data-tour=\"dock-library\"]",
+      "check": {
+        "kind": "state",
+        "test": "inLibrary",
+        "args": "Clear the room, find the treasure"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "library"
+        },
+        {
+          "fn": "saveToLibrary",
+          "args": {
+            "kind": "script",
+            "name": "Clear the room, find the treasure"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "tpl.done",
+      "title": "Done!",
+      "body": "You made a script and a scene from templates, played the script, and kept it in My library. The other templates (a shop, a boss fight, waves, a race against the clock, an escort…) work the same way. Help › Script and cutscene templates and My library say more.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "workspace": "Scene",
+      "placement": "bottom"
+    }
+  ]
+}

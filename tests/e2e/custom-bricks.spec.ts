@@ -144,6 +144,7 @@ test('Custom bricks course: Do it for me makes a roof slope, puts four down, cha
   await page.setViewportSize({ width: 1400, height: 900 });
   await open(page, errors);
   await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
   await page.getByRole('menuitem', { name: /Custom bricks course/ }).click();
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });

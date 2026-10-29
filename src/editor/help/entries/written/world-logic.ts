@@ -63,6 +63,47 @@ export const WORLD: HelpEntry[] = [
 
 export const LOGIC: HelpEntry[] = [
   {
+    id: 'pack.templates',
+    screen: 'logic',
+    kind: 'list',
+    name: 'Script and cutscene templates',
+    also: [
+      'templates',
+      'script templates',
+      'cutscene templates',
+      'from a template',
+      'boss fight',
+      'shop',
+      'locked door',
+      'key door',
+      'timer challenge',
+      'race against the clock',
+      'escort',
+      'follow me',
+      'waves of enemies',
+      'wave spawner',
+      'checkpoint',
+      'boss entrance',
+      'item found',
+      'door opens',
+    ],
+    purpose:
+      'Ready-made logic and scenes from the adventure starter pack. **Scripts** (ten): Locked door and key, Switch opens a gate, Collect them all then it opens, Shop counter, Boss fight (wakes in its arena, calls helpers when angry, opens the way out when beaten), Checkpoint, Race against the clock, Follow me home, Waves of enemies, and Clear the room to find the treasure. **Cutscenes** (three): Boss entrance (the camera turns to the boss, it roars, its name comes up, the boss music starts), Item found (a golden flash and a jingle, then the item is the hero’s) and Door opens (the camera cuts to the door as it opens). Pick one, fill in the blanks (which door, which boss, how many, which zone) and press **Make it**: a script becomes an ordinary logic file, a cutscene a scene in Cinematics plus the small logic file that plays it. Change anything afterwards, as a graph or as code. Each Make it is one undo step.',
+    steps: [
+      'Open **Logic** and press **+ From a template…** (or **Cinematics › + From a template…**, or **Starter pack › Scripts and cutscenes › Use…**).',
+      'Pick a template on the left and fill in the form. A zone or spawn point must be on the map first (Scene › Zone tool, Spawn tool).',
+      'Press **Make it**, then ▶ Play to try it.',
+    ],
+    commands: ['logic.create', 'logic.setVariable', 'cinematic.put'],
+    match: [
+      { sel: '[data-tour="template-window"]' },
+      { sel: '[data-tour="logic-template"]' },
+      { sel: '[data-tour="cine-template"]' },
+      { sel: '[data-tour="pack-templates"]' },
+    ],
+    related: ['logic.graphs', 'scene.dock.pack', 'help:logic-reference'],
+  },
+  {
     id: 'logic.screen',
     screen: 'logic',
     kind: 'screen',

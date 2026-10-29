@@ -233,6 +233,7 @@ test('Swimming course: Do it for me makes a pool, sinks a chest, sets the breath
   await page.setViewportSize({ width: 1400, height: 900 });
   await open(page, errors);
   await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
   await page.getByRole('menuitem', { name: /Swimming course/ }).click();
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });

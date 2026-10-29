@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { damageOf, hitSide, stunsIt } from '../../src/core/combat/damage';
-import { Enemy } from '../../src/core/combat/enemy';
+import type { Enemy } from '../../src/core/combat/enemy';
 import { Enemies, type EnemyHost } from '../../src/engine/runtime/enemies';
 
 /** step 11, 4a: weaknesses (by damage type and by side), stuns, senses and wits */
@@ -28,7 +28,10 @@ describe('weaknesses', () => {
   });
 });
 
-function world(foes: { id: number; x: number; z: number; heading: number; e: Partial<Enemy> }[], hero = { x: 0, z: 0 }) {
+function world(
+  foes: { id: number; x: number; z: number; heading: number; e: Partial<Enemy> }[],
+  hero = { x: 0, z: 0 },
+) {
   const base: Enemy = { power: 1, type: 'blunt', reach: 1.5, sight: 8, speed: 1, cooldown: 1, windup: 0.4 };
   const npcs = foes.map((f) => {
     const n = {

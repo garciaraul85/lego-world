@@ -41,7 +41,10 @@ describe('the starter cast', () => {
       expect(body?.bricks.length, c.slug).toBeGreaterThan(3);
     }
     // the ghost is see-through, the turret's eye glows
-    const ghost = resolveBody(STARTER_CHARACTERS.find((c) => c.slug === 'lanternwisp')!.character.body, () => undefined)!;
+    const ghost = resolveBody(
+      STARTER_CHARACTERS.find((c) => c.slug === 'lanternwisp')!.character.body,
+      () => undefined,
+    )!;
     expect(ghost.bricks.some((b) => (b.alpha ?? 1) < 1)).toBe(true);
     const eye = resolveBody(STARTER_CHARACTERS.find((c) => c.slug === 'watcher-eye')!.character.body, () => undefined)!;
     expect(eye.bricks.some((b) => b.glow)).toBe(true);

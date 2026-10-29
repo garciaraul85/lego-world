@@ -11,7 +11,10 @@ import { LogicRuntime } from '../../src/engine/logic/interpreter';
 /** Step 11, 4c: script and cutscene templates, the logic they need, and My library */
 const answers = (fields: { key: string; kind: string; default: string | number }[]) =>
   Object.fromEntries(
-    fields.map((f) => [f.key, f.default === '' ? (f.kind === 'zone' ? 'Pond' : f.kind === 'spawn' ? 'Arrival' : '') : f.default]),
+    fields.map((f) => [
+      f.key,
+      f.default === '' ? (f.kind === 'zone' ? 'Pond' : f.kind === 'spawn' ? 'Arrival' : '') : f.default,
+    ]),
   );
 
 describe('script templates', () => {
@@ -96,7 +99,10 @@ describe('the logic templates need', () => {
   it('a shop: counts and takes coins, gives the item, says so', () => {
     const t = SCRIPT_TEMPLATES.find((x) => x.id === 'shop')!;
     const items = new Map([['coin', 15]]);
-    const { rt, said } = run(t.code(answers(t.fields), (x) => x), items);
+    const { rt, said } = run(
+      t.code(answers(t.fields), (x) => x),
+      items,
+    );
     const fire = () => rt.fire({ type: 'event.onInteract', match: { asset: 'Barrel' } }, true);
     fire();
     expect(items.get('coin')).toBe(5);
@@ -108,10 +114,7 @@ describe('the logic templates need', () => {
 
   it('On defeated with Who matches that character only, whatever its capitals', () => {
     const items = new Map<string, number>();
-    const { rt, said } = run(
-      'on("defeated", { who: "gloomweaver" }, (e) => {\n  say("beaten", 2);\n});\n',
-      items,
-    );
+    const { rt, said } = run('on("defeated", { who: "gloomweaver" }, (e) => {\n  say("beaten", 2);\n});\n', items);
     rt.fire({ type: 'event.onDefeated', match: { asset: '', who: 'Rattlebones' } }, true);
     expect(said).toEqual([]);
     rt.fire({ type: 'event.onDefeated', match: { asset: '', who: 'Gloomweaver' } }, true);
@@ -163,9 +166,8 @@ describe('My library', () => {
     const clash = importCommands(files({ 'characters/chr_aaaaaaaaaa.json': { ...chr, name: 'Other' } }), it);
     expect(clash.copied).toBe(true);
     expect(clash.id).not.toBe('chr_aaaaaaaaaa');
-    const main = clash.commands.find(
-      (c) => (c.payload as { path: string }).path === `characters/${clash.id}.json`,
-    )?.payload as { data: { name: string } };
+    const main = clash.commands.find((c) => (c.payload as { path: string }).path === `characters/${clash.id}.json`)
+      ?.payload as { data: { name: string } };
     expect(main.data.name).toBe('Mossling (from library)');
   });
 

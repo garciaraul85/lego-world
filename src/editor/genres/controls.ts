@@ -146,6 +146,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.media': S('core'),
   'help.swim': S('core'),
   'help.pack': S('core'),
+  'help.templatesCourse': S('core'),
   'help.ai': S('ai'),
   'assets.open': S('assets'),
   'characters.fromPicture': S('characters'),

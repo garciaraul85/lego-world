@@ -69,6 +69,15 @@ export function Director({ c }: { c: ActionCtx }) {
               <button type="button" class="btn" data-tour="cine-new" onClick={() => create('blank')}>
                 New empty scene
               </button>
+              <button
+                type="button"
+                class="btn"
+                data-tour="cine-template"
+                data-help="pack.templates"
+                onClick={() => (ed.templates.value = { kind: 'cutscene' })}
+              >
+                From a template…
+              </button>
             </div>
           </div>
         </section>

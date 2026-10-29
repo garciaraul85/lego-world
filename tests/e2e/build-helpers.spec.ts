@@ -136,6 +136,7 @@ test('Build faster course: Do it for me builds a gatehouse with the mirror and a
   await page.setViewportSize({ width: 1400, height: 900 });
   await open(page, errors);
   await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
   await page.getByRole('menuitem', { name: /Build faster course/ }).click();
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });

@@ -213,6 +213,21 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // step 11, 4c: the template window (script templates, at the boss fight)
+    id: 'logic-templates',
+    screen: 'logic',
+    setup: async (p) => {
+      await ws(p, 'Logic');
+      await p.evaluate(() => {
+        (window as unknown as { __editor: { templates: { value: unknown } } }).__editor.templates.value = {
+          kind: 'script',
+          id: 'boss',
+        };
+      });
+      await p.getByRole('dialog').waitFor();
+    },
+  },
+  {
     // step 11, 4b: the Project tab scrolled to Screen look
     id: 'scene-look',
     screen: 'scene',
@@ -247,7 +262,7 @@ export const HELP_STATES: HelpState[] = [
       await signals(p, { left: 'search' });
     },
   },
-  ...(['pack', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const).map((d) => ({
+  ...(['pack', 'library', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const).map((d) => ({
     id: `scene-dock-${d}`,
     screen: 'scene',
     setup: async (p: Page) => {

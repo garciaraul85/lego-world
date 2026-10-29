@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_EVENTS, DEFAULT_MUSIC, MUS, MUSIC, SND, SOUNDS } from '../../src/builtin/audio';
+import { renderRecipe } from '../../src/builtin/audio/synth';
 import { BUILTIN_EFFECTS } from '../../src/builtin/effects';
 import { ADVENTURE_PACK } from '../../src/builtin/packs/adventure';
-import { renderRecipe } from '../../src/builtin/audio/synth';
 import { CommandBus, registerAll } from '../../src/core/commands';
 import { Effect } from '../../src/core/effects/schema';
 import { newProjectFiles } from '../../src/core/project/new-project';
