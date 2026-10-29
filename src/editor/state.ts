@@ -48,7 +48,16 @@ export type LogLine = { t: string; level: LogLevel; msg: string };
 export type ViewTab = 'scene' | 'game' | 'graph' | 'nav';
 export type LeftTab = 'hier' | 'layers' | 'search';
 export type RightTab = 'inspect' | 'map' | 'project';
-export type DockTab = 'assets' | 'pack' | 'console' | 'timeline' | 'profiler' | 'problems' | 'debug' | 'audio';
+export type DockTab =
+  | 'assets'
+  | 'pack'
+  | 'library'
+  | 'console'
+  | 'timeline'
+  | 'profiler'
+  | 'problems'
+  | 'debug'
+  | 'audio';
 export type PlayStats = { fps: number; ticks: number; steps: number; ms: number };
 export type Layer = { visible: boolean; locked: boolean };
 

@@ -6766,3 +6766,14 @@ img.bw-portrait {
   border-radius: 6px;
   margin-bottom: 4px;
 }
+
+/* step 11, 4c: My library */
+.lib-pick {
+  gap: 8px;
+  padding: 4px 10px;
+  align-items: center;
+  cursor: pointer;
+}
+.lib-pick:hover {
+  background: var(--btnh);
+}

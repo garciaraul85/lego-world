@@ -163,6 +163,8 @@ export const DOCK_TAGS: Record<string, ControlTags> = {
   assets: S('build'),
   // step 11, 4a: the starter pack
   pack: S('build'),
+  // step 11, 4c: My library
+  library: S('build'),
   console: S('debug'),
   timeline: A('debug'),
   profiler: A('debug'),

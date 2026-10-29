@@ -25,6 +25,7 @@ import {
   WATER_PRESET,
   waterItems,
 } from '../interact/place';
+import { LibraryPanel } from '../library/LibraryPanel';
 import { PackPanel } from '../pack/PackPanel';
 import { keysFor } from '../platform';
 import { MELEE } from '../play/debug';
@@ -124,6 +125,7 @@ export function Dock({ c }: { c: ActionCtx }) {
   const tabs: [DockTab, string][] = [
     ['assets', 'Assets'],
     ['pack', 'Starter pack'],
+    ['library', 'My library'],
     ['console', 'Console'],
     ['timeline', 'Timeline'],
     ['profiler', 'Profiler'],
@@ -152,6 +154,7 @@ export function Dock({ c }: { c: ActionCtx }) {
       </div>
       {tab === 'assets' && <Assets c={c} />}
       {tab === 'pack' && <PackPanel c={c} />}
+      {tab === 'library' && <LibraryPanel c={c} />}
       {tab === 'console' && <Console ed={ed} />}
       {tab === 'timeline' && <MapTimeline c={c} />}
       {tab === 'profiler' && <Profiler ed={ed} />}
@@ -1072,5 +1075,15 @@ function MapTimeline({ c }: { c: ActionCtx }) {
 }
 
 /** P18: every dock tab (for the tag tests) */
-export const DOCK_TABS = ['assets', 'pack', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const;
+export const DOCK_TABS = [
+  'assets',
+  'pack',
+  'library',
+  'console',
+  'timeline',
+  'profiler',
+  'problems',
+  'debug',
+  'audio',
+] as const;
 type DockTab = (typeof DOCK_TABS)[number];

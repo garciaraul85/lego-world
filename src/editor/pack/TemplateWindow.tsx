@@ -106,7 +106,7 @@ function Field({
 }) {
   const list = choices.length ? `tpl-${f.key}-list` : undefined;
   return (
-    <label class="field tpl-field" data-tip={f.help}>
+    <div class="field tpl-field" data-tip={f.help}>
       <span>
         {f.label}
         {f.optional && <span class="muted small"> (optional)</span>}
@@ -140,6 +140,6 @@ function Field({
         </datalist>
       )}
       <span class="muted small">{f.help}</span>
-    </label>
+    </div>
   );
 }
