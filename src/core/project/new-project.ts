@@ -14,6 +14,11 @@ export type NewProjectOptions = {
   random?: () => number;
   /** P18: the kind of game (src/builtin/genres); omitted = open (every control) */
   genre?: string;
+  /**
+   * Step 11, 4c: studs around the arrival kept free of the generated plants (the courses that place enemies there:
+   * a shrub touching one made the game move it away, so it seemed destroyed)
+   */
+  clearAround?: number;
 };
 
 /** Files of a brand-new project with one map (generated or empty) and one spawn point. */
@@ -42,10 +47,13 @@ export function newProjectFiles(o: NewProjectOptions): Map<string, unknown> {
     map = { ...map, generator: g.generator, size: g.size, sky: g.sky, weather: g.weather };
     const split = instancify(g.bricks);
     for (const a of split.assets) files.set(paths.asset(a.id), a);
-    items = split.instances.map((i) => ({
-      ...i,
-      id: generatedInstanceId(mapId, i.idBase),
-    }));
+    const r = o.clearAround ?? 0;
+    items = split.instances
+      .filter((i) => !r || i.kind !== 'asset' || Math.hypot(i.pos[0] + 1, i.pos[2] + 1) > r)
+      .map((i) => ({
+        ...i,
+        id: generatedInstanceId(mapId, i.idBase),
+      }));
     for (const [key, chunk] of encodeChunks(split.plain)) {
       const [cx, cz] = key.split('_').map(Number) as [number, number];
       files.set(paths.chunk(mapId, cx, cz), chunk);

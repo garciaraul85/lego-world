@@ -193,3 +193,25 @@ describe('My library', () => {
     expect(() => readPack(packText([bad]))).toThrow(/nothing in it/);
   });
 });
+
+describe('the Scripts and scenes sandbox', () => {
+  it('keeps the ground around the arrival free of plants, so a placed enemy does not stand in a shrub', async () => {
+    const { newProjectFiles } = await import('../../src/core/project/new-project');
+    const { paths } = await import('../../src/core/schema');
+    const items = (o: object) => {
+      const f = newProjectFiles({
+        name: 't',
+        generate: { environments: ['prairie'], size: 32, seed: 2024 },
+        random: () => 0.4,
+        ...o,
+      });
+      const p = f.get('project.json') as { entry: { map: string } };
+      return (f.get(paths.instances(p.entry.map)) as { items: { kind: string; pos: number[] }[] }).items;
+    };
+    const near = (l: { kind: string; pos: number[] }[]) =>
+      l.filter((i) => i.kind === 'asset' && Math.hypot(i.pos[0]! + 1, i.pos[2]! + 1) <= 13);
+    expect(near(items({})).length).toBeGreaterThan(0);
+    expect(near(items({ clearAround: 13 }))).toEqual([]);
+    expect(items({ clearAround: 13 }).length).toBeGreaterThan(0);
+  });
+});
