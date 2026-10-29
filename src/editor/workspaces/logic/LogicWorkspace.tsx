@@ -126,10 +126,15 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
             <span class="muted">
               Logic graphs react to events (start, entering a zone, opening a chest, rebuilding) and change the game.
             </span>
-            <button type="button" class="btn on" onClick={create}>
+            <button type="button" class="btn on" data-help="logic.graphs" onClick={create}>
               + New logic graph
             </button>
-            <button type="button" class="btn" onClick={() => (ed.templates.value = { kind: 'script' })}>
+            <button
+              type="button"
+              class="btn"
+              data-help="pack.templates"
+              onClick={() => (ed.templates.value = { kind: 'script' })}
+            >
               + From a template…
             </button>
           </div>

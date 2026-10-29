@@ -100,6 +100,7 @@ export const LOGIC: HelpEntry[] = [
       { sel: '[data-tour="logic-template"]' },
       { sel: '[data-tour="cine-template"]' },
       { sel: '[data-tour="pack-templates"]' },
+      { in: ED, name: '+ From a template…' },
     ],
     related: ['logic.graphs', 'scene.dock.pack', 'help:logic-reference'],
   },
@@ -129,7 +130,11 @@ export const LOGIC: HelpEntry[] = [
     purpose:
       'Each file is one graph of rules and its code. Click one to open it; + New makes another; × deletes one. Files share every variable and talk to each other with custom events (emit in one, on custom in any).',
     commands: ['logic.create', 'logic.delete'],
-    match: [{ in: `${LIB} .lib-item` }, { in: LIB, name: /^(\+ New|New file|What is “Files”\?)$/ }],
+    match: [
+      { in: `${LIB} .lib-item` },
+      { in: LIB, name: /^(\+ New|New file|What is “Files”\?)$/ },
+      { in: ED, name: '+ New logic graph' },
+    ],
   },
   {
     id: 'logic.vars',
