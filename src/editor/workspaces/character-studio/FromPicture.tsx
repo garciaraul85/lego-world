@@ -13,6 +13,7 @@ import type { ActionCtx } from '../../actions/registry';
 import { pickProvider } from '../../ai/providers';
 import { paintWithMarks } from '../../character/draw-marks';
 import { AssetThumb } from '../../components/AssetThumb';
+import { standingSpot } from '../../interact/ground';
 import { type AssetCandidate, assetPrompt, localAssetCandidates, parseAssetCandidates } from '../../maker/asset-match';
 import { mapCommands, mapPrompt, mapVariants, parseMapCandidates } from '../../maker/map-maker';
 import { type LookPicture, lookColors, lookPrints } from './bring-look';
@@ -376,7 +377,7 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
     const sp = ed.store.get<MapDoc>(paths.map(map))?.spawns[0];
     const yaw = sp?.yaw ?? 0;
     const at = sp?.pos ?? [0, 0.4, 0];
-    const pos: [number, number, number] = [at[0] + Math.sin(yaw) * 5, at[1], at[2] + Math.cos(yaw) * 5];
+    const pos = standingSpot(ed, [at[0] + Math.sin(yaw) * 5, at[1], at[2] + Math.cos(yaw) * 5]);
     return { type: 'npc.place', payload: { map, character, pos, heading: yaw + Math.PI } };
   };
   const use = (k: Candidate, placeIt = false) => {

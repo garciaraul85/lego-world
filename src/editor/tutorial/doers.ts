@@ -1346,13 +1346,13 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       s.damage(name, 99, 'slash');
   },
   arenaZone(c) {
-    // what drawing a zone with the Zone tool does: an 8 by 8 Arena 14 studs in front of the start
+    // what drawing a zone with the Zone tool does: an 8 by 8 Arena 9 studs in front of the start
     if (mapDoc(c).zones.some((z) => z.tags[0] === 'Arena')) return;
     const sp = mapDoc(c).spawns[0];
     const at = sp?.pos ?? [0, 0.4, 0];
     const yaw = sp?.yaw ?? 0;
-    const cx = Math.round(at[0] + Math.sin(yaw) * 14);
-    const cz = Math.round(at[2] + Math.cos(yaw) * 14);
+    const cx = Math.round(at[0] + Math.sin(yaw) * 9);
+    const cz = Math.round(at[2] + Math.cos(yaw) * 9);
     run(
       c,
       {

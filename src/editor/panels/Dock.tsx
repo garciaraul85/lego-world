@@ -16,6 +16,7 @@ import { EffectThumb, ScreenThumb } from '../components/previews';
 import { matches, NoMatch, SearchBox } from '../components/SearchBox';
 import { shows } from '../genres/view';
 import { endDrag, startDrag } from '../interact/drag';
+import { standingSpot } from '../interact/ground';
 import {
   mapItems,
   placeEffectAt,
@@ -54,7 +55,7 @@ function CharacterCards({ c, hint, q }: { c: ActionCtx; hint: string; q: string 
     const sp = ed.store.get<MapDoc>(paths.map(map))?.spawns[0];
     const yaw = sp?.yaw ?? 0;
     const at = sp?.pos ?? [0, 0.4, 0];
-    const pos: [number, number, number] = [at[0] + Math.sin(yaw) * 5, at[1], at[2] + Math.cos(yaw) * 5];
+    const pos = standingSpot(ed, [at[0] + Math.sin(yaw) * 5, at[1], at[2] + Math.cos(yaw) * 5]);
     ed.exec(
       { type: 'npc.place', payload: { map, character: chr.id, pos, heading: yaw + Math.PI } },
       { label: `Place ${chr.name}` },

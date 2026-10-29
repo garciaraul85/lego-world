@@ -104,7 +104,7 @@
     {
       "id": "tpl.waves",
       "title": "Waves of enemies",
-      "body": "Some templates need a zone. Draw one about 14 studs in front of the start with the Zone tool and name it Arena (or let Do it for me make it). Then Starter pack › Scripts and cutscenes › Use… on “Waves of enemies”: Arena zone = Arena, Enemy = Rattlebones, Waves 2, Enemies per wave 1. Make it. Its enemies come in with Spawn character, one of the new logic blocks.",
+      "body": "Some templates need a zone. Draw one about 9 studs in front of the start with the Zone tool and name it Arena (or let Do it for me make it). Then Starter pack › Scripts and cutscenes › Use… on “Waves of enemies”: Arena zone = Arena, Enemy = Rattlebones, Waves 2, Enemies per wave 1. Make it. Its enemies come in with Spawn character, one of the new logic blocks.",
       "task": "Make an Arena zone and “Waves of enemies”.",
       "target": "[data-tour=\"pack-tpl-waves\"]",
       "check": {

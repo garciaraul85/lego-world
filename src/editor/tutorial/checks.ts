@@ -516,7 +516,7 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   inLibrary: (_ed, a) => library().items.value.some((i) => i.name === String(a)),
   logicUses: (ed, a) => {
     const types = new Set(
-      ed.store.list('logic/').flatMap((p) => ed.store.get<LogicGraph>(p)?.nodes.map((n) => n.type) ?? []),
+      ed.store.list('logic/').flatMap((p) => ed.store.get<LogicGraph>(p)?.nodes?.map((n) => n.type) ?? []),
     );
     return String(a)
       .split(',')

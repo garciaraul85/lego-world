@@ -64,6 +64,7 @@ import { placePackCharacter } from '../pack/pack';
 import { customRender, rayBox, type SceneModel } from '../scene';
 import type { EditorState } from '../state';
 import { fullscreenDock, sceneFullscreen, setActiveView, type ViewOp, type ViewportApi, viewOp } from './active';
+import { characterLayer, placedCharacters } from './characters';
 import {
   changeFor,
   dragAmount,
@@ -637,6 +638,7 @@ export function Viewport({
       const overlays: Overlay[] = [];
       const lines: LineSet[] = [];
       const markers: Marker[] = [];
+      let charExtra: ((mvp: Float32Array, eye: Vec3) => void) | undefined;
       if (s && mode === 'scene') {
         const sel = ed.selectedBricks.value;
         // freely turned or resized assets and parts are drawn here, each group with its own transform;
@@ -828,6 +830,13 @@ export function Viewport({
           if (wt.id === ed.selectedItem.value)
             lines.push({ lines: boxLines(...(wt.pos as Vec3), ...waterTop(wt)), color: [1, 0.72, 0.2], onTop: true });
         }
+        // step 11, 4c: placed characters, where they stand (they used to show only in Play)
+        if (!studio) {
+          const layer = characterLayer(renderer, placedCharacters(ed));
+          overlays.push(...layer.overlays);
+          markers.push(...layer.markers);
+          charExtra = layer.extra;
+        }
         for (const sp of studio ? [] : s.map.spawns)
           markers.push({
             pos: [sp.pos[0], sp.pos[1] + 0.9, sp.pos[2]],
@@ -857,7 +866,7 @@ export function Viewport({
       if (!studio) ed.viewCentre = [camera.target[0], camera.target[2]];
       if (streaming) dirty = true;
       const t0 = performance.now();
-      const st = renderer.render(cam, camera.target, overlays, lines, markers);
+      const st = renderer.render(cam, camera.target, overlays, lines, markers, charExtra);
       const ms = performance.now() - t0;
       const times = [...ed.frameTimes.value.slice(-59), ms];
       ed.frameTimes.value = times;

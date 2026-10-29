@@ -168,11 +168,12 @@ async function boot() {
               generate: { environments: ['forest', 'prairie'], size: 16, seed: 2024 },
             })
           : track === 'pack' || track === 'templates'
-            ? // step 11, 4a: the Starter pack course needs ground for its neighbours and enemies to stand on
+            ? // step 11, 4a: the Starter pack courses need ground for their neighbours and enemies to stand on
+              // (4c: room for an arena and waves too)
               newProjectFiles({
                 name: 'Tutorial sandbox',
                 mapName: 'Practice map',
-                generate: { environments: ['prairie'], size: 16, seed: 2024 },
+                generate: { environments: ['prairie'], size: track === 'templates' ? 32 : 16, seed: 2024 },
               })
             : newProjectFiles({ name: 'Tutorial sandbox', mapName: 'Practice map' }),
       );

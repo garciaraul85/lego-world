@@ -4,6 +4,7 @@ import type { Command } from '../../core/commands';
 import { parseScript } from '../../core/dialogue/script';
 import { newId } from '../../core/ids';
 import { type Character, type EffectInstance, type MapDoc, paths } from '../../core/schema';
+import { standingSpot } from '../interact/ground';
 import type { EditorState } from '../state';
 
 type Item = PackCharacter & { id: string };
@@ -44,7 +45,12 @@ function spot(ed: EditorState): [number, number, number] {
     (i) => i.kind === 'npc',
   ).length;
   const side = ((n % 5) - 2) * 2.5;
-  return [at[0] + Math.sin(yaw) * 6 + Math.cos(yaw) * side, at[1], at[2] + Math.cos(yaw) * 6 - Math.sin(yaw) * side];
+  // step 11, 4c: on open ground near there (never inside a bush, a bump or another character)
+  return standingSpot(ed, [
+    at[0] + Math.sin(yaw) * 6 + Math.cos(yaw) * side,
+    at[1],
+    at[2] + Math.cos(yaw) * 6 - Math.sin(yaw) * side,
+  ]);
 }
 
 /** puts a pack character on the open map (bringing it into the game first): one undo step */
