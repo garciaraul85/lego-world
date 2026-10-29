@@ -2474,7 +2474,7 @@ export class PlaySession {
     if (w.npcsStale && w.byChunk && w.windowAt) {
       w.npcsStale = false;
       const near = piecesAround(w.byChunk, w.windowAt);
-      this.L.NPCWorld.sync(w.npcs, near, w.meta);
+      this.syncNpcs(w, near);
       for (const n of w.npcs) n.controller.area = w.fullArea;
     }
     for (const e of [...w.broken])
@@ -4185,6 +4185,35 @@ export class PlaySession {
       this.endTalk();
   }
 
+  /**
+   * Step 11, 4c: the characters follow a change of bricks. v68's sync sent one whose spot was not clear to the
+   * map's first open corner, and "not clear" counted the hero standing against it, so an enemy in a fight
+   * vanished when a swing broke a brick. Now other characters do not count, and one caught in bricks steps to the
+   * nearest open spot instead.
+   */
+  syncNpcs(w: MapWorld, pieces: LegacyPiece[]) {
+    if (!w.npcs.length) return;
+    const was = w.npcs.map((n) => ({ x: n.state.x, y: n.state.y, z: n.state.z }));
+    for (const n of w.npcs) n.controller.setActors([]);
+    this.L.NPCWorld.sync(w.npcs, pieces, w.meta);
+    w.npcs.forEach((n, i) => {
+      const k = was[i]!;
+      if (Math.hypot(n.state.x - k.x, n.state.z - k.z) < 1.5) return;
+      const c = n.controller;
+      for (let r = 0.5; r <= 8; r += 0.5)
+        for (let a = 0; a < 16; a++) {
+          const x = k.x + Math.sin((a / 16) * Math.PI * 2) * r;
+          const z = k.z + Math.cos((a / 16) * Math.PI * 2) * r;
+          const y = c.floor(x, z, k.y + 1.3);
+          if (y === null || Math.abs(y - k.y) > 2.5 || !c.clear(x, y, z)) continue;
+          Object.assign(n.state, { x, y, z, vy: 0, grounded: true });
+          (n as Npc & { home?: unknown }).home = { x, y, z };
+          return;
+        }
+    });
+    this.L.NPCWorld.connect(w.npcs, w.controller);
+  }
+
   /** Gates that leave the current map: [spawn here, destination map, destination spawn]. */
   outbound(): { gate: string; from: string; toMap: string; toSpawn: string }[] {
     const gates = (this.snapshot.get(paths.gates) as Gates | undefined)?.gates ?? [];
@@ -4299,7 +4328,7 @@ export class PlaySession {
     const touched = change ? new Set([...(change.gone ?? []), ...(change.added ?? [])].map(chunkKeyOf)) : null;
     if (!w.big) {
       w.controller.replace(w.pieces, w.meta);
-      this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+      this.syncNpcs(w, w.pieces);
       if (touched) this.physicsLater(w, touched);
       else this.physicsBricks(w, null);
       return;
@@ -4448,7 +4477,7 @@ export class PlaySession {
     this.physicsBricks(w, new Set());
     if (heroOnly) return;
     w.npcsStale = false;
-    this.L.NPCWorld.sync(w.npcs, near, w.meta);
+    this.syncNpcs(w, near);
     for (const n of w.npcs) n.controller.area = w.fullArea;
   }
 

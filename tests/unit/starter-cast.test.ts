@@ -121,4 +121,15 @@ describe('the starter cast in Play', () => {
     p.damage(name, 1, 'explosive');
     expect(p.health.peek('n:9')?.hp).toBe(1);
   });
+  it('an enemy the hero stands against stays put when bricks change (it used to jump to a far corner)', () => {
+    const { p } = withFoe('pebblespout');
+    const n = p.world.npcs.find((x) => x.id === 9)!;
+    const at = { x: n.state.x, z: n.state.z };
+    // the hero right against it, as in a fight
+    Object.assign(p.heroState, { x: n.state.x, z: n.state.z + 0.9 });
+    p.L.NPCWorld.connect(p.world.npcs, p.world.controller);
+    expect(n.controller.clear(n.state.x, n.state.y, n.state.z)).toBe(false);
+    p.syncPhysics(p.world);
+    expect(Math.hypot(n.state.x - at.x, n.state.z - at.z)).toBeLessThan(1.5);
+  });
 });
