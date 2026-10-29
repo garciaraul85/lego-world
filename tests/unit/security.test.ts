@@ -146,6 +146,12 @@ describe('game scripts are sandboxed', () => {
       'light',
       'sky',
       'buttons',
+      // step 11, 4c: messages, items, followers and characters spawned by logic
+      'say',
+      'count',
+      'take',
+      'follow',
+      'spawnCharacter',
     ];
     for (const k of allowed) expect(ctxKeys, k).toContain(k);
   });

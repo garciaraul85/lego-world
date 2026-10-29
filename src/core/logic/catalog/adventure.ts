@@ -59,7 +59,7 @@ export const ADVENTURE: NodeDef[] = [
     kind: 'action',
     title: 'Follow the hero',
     category: 'Characters',
-    doc: 'A character walks after the hero and keeps close (an escort, a lost kid, a companion); it catches up if left far behind. Off: it stops where it is and goes back to its own routine.',
+    doc: 'A character walks after the hero and keeps close (an escort, a lost kid, a companion); it catches up if left far behind. Off: it stops and goes back to its own routine.',
     inputs: [EXEC_IN, { name: 'on', type: 'bool', default: true, help: 'On: follow. Off: stop following.' }],
     outputs: [EXEC_OUT],
     args: [
@@ -78,7 +78,7 @@ export const ADVENTURE: NodeDef[] = [
     kind: 'action',
     title: 'Spawn character',
     category: 'Characters',
-    doc: 'Puts a character on the map while the game plays, at a spawn point (a wave of enemies, a visitor). It acts like any character placed there: an enemy fights, a neighbour wanders and talks. It is gone the next time the game starts.',
+    doc: 'Puts a character on the map while the game plays, at a spawn point (a wave of enemies, a visitor). It acts like any character placed there: an enemy fights, a neighbour wanders and talks. It is not kept: playing again begins without it.',
     inputs: [EXEC_IN],
     outputs: [EXEC_OUT, { name: 'entity', type: 'entity' }],
     args: [

@@ -39,7 +39,7 @@ The mark goes in front of the chest's lid: the tutorial names its exact X, Z and
 
 ## From a template
 
-**+ From a template…** (next to + New) makes one of three ready scenes from the starter pack: **Boss entrance** (the camera turns to the boss where it stands, it roars, its name comes up and the boss music starts), **Item found** (a golden flash and a jingle; the item is the hero's when the scene ends) and **Door opens** (the camera cuts to the door as it opens, with the gate and secret-found sounds). Fill in the boss, item or door and, if you like, a zone that plays it once. Each makes the scene plus a small logic file that plays it and does what a scene cannot (giving the item, opening the door). The boss or door must be on the open map first.
+**+ From a template…** (next to + New) makes one of three ready scenes from the starter pack: **Boss entrance** (the camera turns to the boss, it roars, its name comes up and the boss music begins), **Item found** (a golden flash and a jingle; the item is the hero's when the scene ends) and **Door opens** (the camera cuts to the door as it opens, with the gate and secret-found sounds). Fill in the boss, item or door and, if you like, a zone that plays it once. Each makes the scene plus a small logic file that plays it and does what a scene cannot (giving the item, opening the door). The boss or door must be on the open map first.
 
 ## Triggering a scene
 

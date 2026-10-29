@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (85 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (90 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -116,9 +116,9 @@ Runs when Send event (or an asset interaction) sends this event name.
 
 Runs when something with health is hurt and still has some left: the hero, a neighbour that can be harmed, or an object with health.
 
-- Settings: Asset (asset, optional)
+- Settings: Asset (asset, optional), Who (string, optional)
 - Outputs: target (entity), amount (number), hp left (number)
-- Code: `on("damaged", { asset: … }, (e) => { … });`
+- Code: `on("damaged", { asset: …, who: … }, (e) => { … });`
 
 ### On defeated
 
@@ -126,9 +126,9 @@ Runs when something with health is hurt and still has some left: the hero, a nei
 
 Runs when something with health reaches zero (after it breaks, drops its item and sends its event).
 
-- Settings: Asset (asset, optional)
+- Settings: Asset (asset, optional), Who (string, optional)
 - Outputs: target (entity)
-- Code: `on("defeated", { asset: … }, (e) => { … });`
+- Code: `on("defeated", { asset: …, who: … }, (e) => { … });`
 
 ### On locked on
 
@@ -475,6 +475,25 @@ Puts an item in one of the item buttons (as the player does in the item menu). I
 - Inputs: item (string), slot (number)
 - Code: `items.putInSlot(item, slot);`
 
+### Count items
+
+`items.count` · pure
+
+How many of an item the hero carries (coin, Key, Bomb…), by the name it was given with.
+
+- Inputs: item (string)
+- Outputs: out (number)
+- Code: `items.count(item)`
+
+### Take items
+
+`items.take` · action
+
+Takes items from the hero (paying a shopkeeper, using up a key). Never below zero: check with Count items first.
+
+- Inputs: item (string), count (number)
+- Code: `items.take(item, count);`
+
 ## Audio
 
 ### Play sound
@@ -571,6 +590,15 @@ Sends a custom event that “On custom event” nodes react to.
 
 - Settings: Event name (event)
 - Code: `emit(event);`
+
+### Show message
+
+`misc.say` · action
+
+Shows a line of text in the middle of the screen for a few seconds (“It’s locked.”, “3 left!”). Text can be wired in, so it can show a variable.
+
+- Inputs: text (any), seconds (number)
+- Code: `say(text, seconds);`
 
 ## Notes
 
@@ -711,6 +739,26 @@ A character with a body (an animal, a dragon, a dinosaur, a figure made from wor
 
 - Settings: Character (string), Move (move)
 - Code: `character.doMove(who, move);`
+
+### Follow the hero
+
+`character.follow` · action
+
+A character walks after the hero and keeps close (an escort, a lost kid, a companion); it catches up if left far behind. Off: it stops and goes back to its own routine.
+
+- Settings: Character (string)
+- Inputs: on (bool)
+- Code: `character.follow(who, on);`
+
+### Spawn character
+
+`character.spawn` · action
+
+Puts a character on the map while the game plays, at a spawn point (a wave of enemies, a visitor). It acts like any character placed there: an enemy fights, a neighbour wanders and talks. It is not kept: playing again begins without it.
+
+- Settings: Character (string), At spawn (spawn)
+- Outputs: entity (entity)
+- Code: `character.spawn(character, at);`
 
 ## Effects
 

@@ -260,6 +260,12 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   // P22
   'dialogue.start': S('dialogue', 'logic'),
   'character.doMove': S('characters', 'logic'),
+  // step 11, 4c
+  'misc.say': S('logic'),
+  'items.count': S('logic'),
+  'items.take': S('logic'),
+  'character.follow': S('characters', 'logic'),
+  'character.spawn': S('combat', 'logic'),
   'effect.play': S('effects', 'logic'),
   'effect.start': S('effects', 'logic'),
   'effect.stop': S('effects', 'logic'),

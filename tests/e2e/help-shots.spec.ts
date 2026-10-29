@@ -10,7 +10,7 @@ import { HELP_STATES, openEditor } from './help/states';
  */
 const OUT = resolve('docs/help/shots');
 type Rect = [number, number, number, number];
-const GUIDE_STATE: Record<string, string> = { shell: 'scene', cinematics: 'cinematics-open' };
+const GUIDE_STATE: Record<string, string> = { shell: 'scene', cinematics: 'cinematics-open', logic: 'logic' };
 
 test('capture Help pictures', async ({ page }) => {
   test.skip(!process.env.HELP_SHOTS, 'set HELP_SHOTS=1 to capture Help pictures');

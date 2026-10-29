@@ -69,7 +69,7 @@ on("custom", { event: "scene-takes-sword" }, (e) => {
 
 ## Messages, items, followers and visitors
 
-**Show message** puts a line of text in the middle of the screen for a few seconds (`say("It’s locked.", 2)`). **Count items** reads how many of an item the hero carries and **Take items** takes some away, never below zero (`if ((items.count("coin") >= 10)) { items.take("coin", 10); … }`). **Follow the hero** makes a character (by name) walk after the hero, run to catch up and jump to it when far behind; off, it stays where it is (`character.follow("Nim", true)`). **Spawn character** puts a character, the game's or the starter pack's, on the map at a spawn point while the game plays (`character.spawn("Rattlebones", "Arrival")`); it acts like one placed there and is gone the next time the game starts.
+**Show message** puts a line of text in the middle of the screen for a few seconds (`say("It’s locked.", 2)`). **Count items** reads how many of an item the hero carries and **Take items** takes some away, never below zero (`if ((items.count("coin") >= 10)) { items.take("coin", 10); … }`). **Follow the hero** makes a character (by name) walk after the hero, run to catch up and jump to it when far behind; off, it stays put (`character.follow("Nim", true)`). **Spawn character** puts a character, the game's or the starter pack's, on the map at a spawn point while the game plays (`character.spawn("Rattlebones", "Arrival")`); it acts like one placed there and is not kept when the game is played again.
 
 ## Health
 
