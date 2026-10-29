@@ -376,8 +376,8 @@ export function FromPicture({ c, onClose }: { c: ActionCtx; onClose(): void }) {
     const sp = ed.store.get<MapDoc>(paths.map(map))?.spawns[0];
     const yaw = sp?.yaw ?? 0;
     const at = sp?.pos ?? [0, 0.4, 0];
-    const pos: [number, number, number] = [at[0] - Math.sin(yaw) * 5, at[1], at[2] - Math.cos(yaw) * 5];
-    return { type: 'npc.place', payload: { map, character, pos, heading: yaw } };
+    const pos: [number, number, number] = [at[0] + Math.sin(yaw) * 5, at[1], at[2] + Math.cos(yaw) * 5];
+    return { type: 'npc.place', payload: { map, character, pos, heading: yaw + Math.PI } };
   };
   const use = (k: Candidate, placeIt = false) => {
     const L = legacyRuntime();

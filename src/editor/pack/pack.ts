@@ -44,7 +44,7 @@ function spot(ed: EditorState): [number, number, number] {
     (i) => i.kind === 'npc',
   ).length;
   const side = ((n % 5) - 2) * 2.5;
-  return [at[0] - Math.sin(yaw) * 6 + Math.cos(yaw) * side, at[1], at[2] - Math.cos(yaw) * 6 - Math.sin(yaw) * side];
+  return [at[0] + Math.sin(yaw) * 6 + Math.cos(yaw) * side, at[1], at[2] + Math.cos(yaw) * 6 - Math.sin(yaw) * side];
 }
 
 /** puts a pack character on the open map (bringing it into the game first): one undo step */
