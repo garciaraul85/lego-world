@@ -229,6 +229,7 @@ export function stepsToView(view: string): ShowStep[] {
         right('inspect', 'Inspector'),
       ];
     case 'scene-map':
+    case 'scene-map-dungeon':
     case 'scene-atmosphere':
     case 'scene-bigworld':
       return [ws('Scene'), right('map', 'Map')];
@@ -469,6 +470,7 @@ export function stepsToView(view: string): ShowStep[] {
       return [ws('Assets')];
     case 'assets-open':
     case 'assets-checkpoint':
+    case 'assets-puzzle':
       return [
         ws('Assets'),
         {
