@@ -96,8 +96,8 @@
     {
       "id": "pz.push",
       "title": "Push it on",
-      "body": "Press Play and walk (W) into the block for a moment: the hero leans into it, and it slides two studs, square to the floor, onto the switch. The switch goes down and the gate opens.",
-      "task": "Press Play and push the block onto the switch.",
+      "body": "Press Play and walk up to the block. Hold Action (E · Grab) and walk (W) into it: the hero leans in and the block slides two studs onto the switch, the hero walking behind. The switch goes down and the gate opens. (Walk into it without E and you climb on top instead.)",
+      "task": "Press Play, hold E and push the block onto the switch.",
       "target": "[data-tour=\"play\"]",
       "check": {
         "kind": "state",
@@ -270,7 +270,7 @@
     {
       "id": "pz.done",
       "title": "Done!",
-      "body": "You pushed and pulled a block onto a weight switch that opens a gate, timed a crystal switch and hit it, and opened a locked door with a key from a chest in a dungeon. The Boss door, Boss key, Dungeon map and Compass work the same way. Make your own in the Asset studio under Puzzle.",
+      "body": "You pushed (with Grab) and pulled a block onto a weight switch that opens a gate, timed a crystal switch and hit it, and opened a locked door with a key from a chest in a dungeon. The Boss door, Boss key, Dungeon map and Compass work the same way. Make your own in the Asset studio under Puzzle.",
       "task": "Press Finish.",
       "check": {
         "kind": "manual"

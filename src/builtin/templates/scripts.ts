@@ -98,8 +98,7 @@ on("interact", { asset: ${q(a.door)} }, (e) => {
     ],
     vars: [],
     code: (a) => `// the ${a.switch} on: the ${a.gate} opens; off again (held or timed): it shuts
-on("switch", { asset: ${q(a.switch)}, to: "on" }, async (e) => {
-  await wait(0.4);
+on("switch", { asset: ${q(a.switch)}, to: "on" }, (e) => {
   world.setState(${q(a.gate)}, ${q(a.open)});
   audio.playSound("secret");
   say("Something opened nearby…", 2);

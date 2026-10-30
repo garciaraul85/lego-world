@@ -6,7 +6,19 @@ import { z } from 'zod';
  * plays the clip the character sheet sets for it (or the built-in motion when none is set). The rules are fixed
  * and checked in order, so the first one that holds wins; a character only tunes the numbers.
  */
-export const ANIM_STATES = ['hurt', 'attack', 'swim', 'tread', 'push', 'pull', 'jump', 'run', 'walk', 'idle'] as const;
+export const ANIM_STATES = [
+  'hurt',
+  'attack',
+  'swim',
+  'tread',
+  'climb',
+  'push',
+  'pull',
+  'jump',
+  'run',
+  'walk',
+  'idle',
+] as const;
 export type AnimState = (typeof ANIM_STATES)[number];
 
 export const StateSettings = z.strictObject({
@@ -38,7 +50,7 @@ export type StateInput = {
   /** step 11b: in deep water (swim when moving, tread water when still) */
   swimming?: boolean;
   /** step 12a: leaning into a block to push it, or holding one to pull it */
-  pushing?: 'push' | 'pull' | null;
+  pushing?: 'push' | 'pull' | 'climb' | null;
 };
 
 /** The state the rules pick (the first that holds, in the order of ANIM_STATES). */
@@ -47,6 +59,7 @@ export function pickState(i: StateInput, s: StateSettings | undefined): AnimStat
   if (i.hurtAgo >= 0 && i.hurtAgo < o.hurtFor) return 'hurt';
   if (i.attacking) return 'attack';
   if (i.swimming) return i.speed > MOVING_AT ? 'swim' : 'tread';
+  if (i.pushing === 'climb') return 'climb';
   if (i.pushing && i.grounded) return i.pushing;
   if (!i.grounded) return 'jump';
   if (i.speed >= o.runAt) return 'run';
@@ -64,13 +77,14 @@ export function clipRate(state: AnimState, speed: number, s: StateSettings | und
 }
 
 /** states whose clip plays once each time the state starts (the others loop) */
-export const ONCE: readonly AnimState[] = ['hurt', 'attack', 'jump'];
+export const ONCE: readonly AnimState[] = ['hurt', 'attack', 'jump', 'climb'];
 
 export const STATE_LABEL: Record<AnimState, string> = {
   hurt: 'Hurt',
   attack: 'Attack',
   swim: 'Swim',
   tread: 'Tread water',
+  climb: 'Climb',
   push: 'Push',
   pull: 'Pull',
   jump: 'Jump',
@@ -91,6 +105,8 @@ export function stateRule(state: AnimState, s: StateSettings | undefined): strin
       return 'while it moves in deep water';
     case 'tread':
       return 'while it stays still in deep water';
+    case 'climb':
+      return 'while it climbs onto a ledge';
     case 'push':
       return 'while it leans into a push block';
     case 'pull':

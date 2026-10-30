@@ -162,6 +162,17 @@ export class PlayRenderer {
       for (const id of set) ids.add(id);
       groups.push({ ids: set, model: g.t.model });
     }
+    // step 12a: a push block glides between whole studs: drawn where the slide has it
+    const sv = this.session.puzzles.slideView();
+    const sliding = sv ? w.instances.find((i) => i.inst.id === sv.id) : undefined;
+    if (sv && sliding) {
+      const set = new Set<number>();
+      for (let id = sliding.inst.idBase; id < sliding.inst.idBase + sliding.def.bricks.length; id++)
+        if (!ids.has(id)) set.add(id);
+      for (const id of set) ids.add(id);
+      const model = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, sv.dx, 0, sv.dz, 1]);
+      groups.push({ ids: set, model });
+    }
     // bricks that joined or left a group move between the chunks and the overlays (P27 part 3: only those)
     for (const id of new Set([...ids, ...this.tilted.ids]))
       if (ids.has(id) !== this.tilted.ids.has(id)) {
@@ -170,7 +181,7 @@ export class PlayRenderer {
       }
     this.tilted = { ids, groups };
     this.tiltedRev = w.rev;
-    this.moving = free.some((i) => partsMoving(i.def, i.state, i.anim ? { ...i.anim, now } : null));
+    this.moving = !!sv || free.some((i) => partsMoving(i.def, i.state, i.anim ? { ...i.anim, now } : null));
   }
 
   private tiltedOverlays(): Overlay[] {
@@ -220,7 +231,8 @@ export class PlayRenderer {
       (this.chunkIndex().get(k) ?? []).filter((p) => !(p.id !== undefined && this.tilted.ids.has(p.id))).map(toRender),
     );
     const st = this.session.heroState;
-    if (this.shown === w && (this.tiltedRev !== w.rev || this.moving)) this.syncTilted();
+    if (this.shown === w && (this.tiltedRev !== w.rev || this.moving || this.session.puzzles.sliding))
+      this.syncTilted();
     if (this.shown !== w) {
       this.tilted = { ids: new Set(), groups: [] };
       this.syncTilted();

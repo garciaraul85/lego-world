@@ -9,6 +9,8 @@ export const PUZZLES: HelpEntry[] = [
       'push block',
       'pull',
       'grab',
+      'climb',
+      'ledge',
       'switch',
       'floor switch',
       'pressure plate',
@@ -28,7 +30,7 @@ export const PUZZLES: HelpEntry[] = [
     kind: 'setting',
     name: 'Puzzle (push block, switch, lock, pickup)',
     purpose:
-      'What the asset does in a puzzle. A **push block** slides square along the floor when the hero walks into it (and back when the hero grabs it and steps back). A **switch** turns on when stepped on, hit or pressed, and stays on, stays only while held down, goes back after some seconds, or flips each time. A **lock** opens with a key: a small key (used up), the boss key (kept) or any item. A **pickup** is taken when the hero touches it. Each is one tick in the Asset studio; logic hears them with On switch, On pushed, On unlocked and On picked up.',
+      'What the asset does in a puzzle. A **push block** slides square along the floor when the hero holds Action (Grab) and walks into it, and back when the hero holds Grab and steps back; walked into without Grab, it is climbed. A **switch** turns on when stepped on, hit or pressed, and stays on, stays only while held down, goes back after some seconds, or flips each time. A **lock** opens with a key: a small key (used up), the boss key (kept) or any item. A **pickup** is taken when the hero touches it. Each is one tick in the Asset studio; logic hears them with On switch, On pushed, On unlocked and On picked up.',
     steps: [
       'Open the asset in the Asset studio (double-click it in Assets or the Starter pack).',
       'Under **Puzzle**, tick what it is: Push block, Switch, Lock or Pickup.',
@@ -39,7 +41,7 @@ export const PUZZLES: HelpEntry[] = [
     options: [
       [
         'Push block',
-        'Walk into it for a moment: the hero leans in, hands on it, and it slides its own size (or the studs you set) square along the floor, stops at walls and other blocks, steps up onto a switch and holds it down. Can be pulled: hold Action (Grab) and step back; the hero sits back and pulls. A character sheet can set its own Push and Pull clips.',
+        'Hold Action (Grab) at it and walk into it: the hero leans in, hands on it, and it slides its own size (or the studs you set) square along the floor, the hero walking behind. It stops at walls and other blocks, steps up onto a switch and holds it down, and stays on a switch until you let go of the stick and push again. Can be pulled: hold Grab and step back; the hero sits back and pulls. Walking into it without Grab climbs on top. A character sheet can set its own Push, Pull and Climb clips.',
       ],
       [
         'Stepped on',
@@ -67,6 +69,7 @@ export const PUZZLES: HelpEntry[] = [
       'Switch opens a gate (Logic › From a template…) opens and shuts a gate with any switch.',
       'Put a Small key in a Small chest (it gives one when opened) or leave one on the floor.',
       'A Weight switch is down only while something stands on it: push a block onto it to keep a gate open.',
+      'Any placed object up to about two bricks high (a push block, a crate, a chest) is climbed by walking into it for a moment.',
     ],
     commands: ['asset.update'],
     match: [{ in: '[data-help="asset.puzzle"]' }],

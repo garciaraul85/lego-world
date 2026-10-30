@@ -93,6 +93,7 @@ describe('posing', () => {
       'Tread water',
       'Push',
       'Pull',
+      'Climb',
     ]);
     for (const c of MOVE_CLIPS) {
       expect(Clip.safeParse(c).success, c.name).toBe(true);

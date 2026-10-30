@@ -1443,7 +1443,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     run(c, placeCommands(c.ed, def.id, [x0, top, z0], 0), `Place ${name}`);
   },
   async pushOntoSwitch(c, a) {
-    // what walking into the block for a moment does, until it slides onto the switch: the hero leans into it
+    // what holding Action (Grab) and walking into the block does, until it slides onto the switch: the hero leans in
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
     const block = s.world.instances.find((i) => i.def.name === String(a?.block ?? 'Push block'));
@@ -1455,11 +1455,14 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const yaw = Math.atan2(dx, dz);
     standAt(s, Number(block.inst.pos[0]) + 1 - dx * 1.6, Number(block.inst.pos[2]) + 1 - dz * 1.6, yaw);
     s.camYaw = Math.atan2(-dx, -dz);
+    // hold Action (Grab) and walk forward (W)
+    s.puzzles.setGrab(true);
     s.input.keys.add('forward');
     try {
       for (let i = 0; i < 40 && sw.state === sw.def.states[0]; i++) await new Promise((r) => setTimeout(r, 250));
     } finally {
       s.input.keys.delete('forward');
+      s.puzzles.setGrab(false);
     }
     // a slow machine: shove it the rest of the way
     for (let i = 0; i < 3 && sw.state === sw.def.states[0]; i++) {

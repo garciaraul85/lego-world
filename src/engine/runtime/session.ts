@@ -243,8 +243,13 @@ export type MapWorld = {
 /** P27 part 3: maps with more pieces than this play in a window of chunks around the hero */
 export const WINDOW_FROM = 40_000;
 
-/** P32: an item made only of moving parts floats — drawn, but outside the brick rules (a rising sword) */
+/**
+ * P32: an item made only of moving parts floats — drawn, but outside the brick rules (a rising sword). Step 12a: so
+ * does a push block: it rests on whatever it is pushed onto (a switch's smooth top, a tiled floor) without clicking
+ * onto studs, and must not make every later change on the map fail the rules (a gate that will not open).
+ */
 const floating = (def: Asset) => {
+  if (def.push) return true;
   const moving = new Set((def.parts ?? []).filter((p) => p.pose).flatMap((p) => p.bricks));
   return def.bricks.length > 0 && def.bricks.every((_, i) => moving.has(i));
 };
@@ -1212,8 +1217,14 @@ export class PlaySession {
     let input: ReturnType<PlaySession['inputVector']> & { speedScale?: number; jumpSpeed?: number } =
       still || c.stagger > 0 ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
     if (input.jump && c.lockedJump(input.x, input.z)) input = { ...input, jump: false };
-    // step 12a: holding a block to pull it: the hero stays put (stepping back drags it)
-    if (this.puzzles.grab) input = { ...input, x: 0, z: 0, jump: false };
+    // step 12a: climbing onto a ledge: the climb moves the hero
+    if (this.puzzles.climbing) {
+      this.puzzles.stepClimb(dt);
+      this.input.jump = false;
+      return;
+    }
+    // holding on to a block, or sliding one: the hero stays put (the push or pull carries it)
+    if (this.puzzles.grab || this.puzzles.sliding) input = { ...input, x: 0, z: 0, jump: false };
     const moving = c.moveInput();
     if (moving) input = moving;
     else if (c.guard || c.charge !== null) input = { ...input, run: false, speedScale: 0.45 };
@@ -3618,6 +3629,11 @@ export class PlaySession {
         const s = this.heroState;
         return this.world.controller.clear(x, s.y, z);
       },
+      heroClear: (x, y, z) => this.world.controller.clear(x, y, z),
+      placeHeroAt: (x, y, z) => {
+        const s = this.heroState;
+        Object.assign(s, { x, y, z, vy: 0, grounded: true });
+      },
       remove: (o) => this.despawn(o.inst.id),
       give: (item, n) => this.give(item, n),
       say: (t, sec) => this.say(t, sec),
@@ -3784,8 +3800,8 @@ export class PlaySession {
           ? undefined
           : (this.sheetClip(this.heroChr, st) ??
             // step 11b: v68's own motion is a walk, so swimming always has a clip (the built-in crawl and tread);
-            // step 12a: so do pushing and pulling
-            (st === 'swim' || st === 'tread' || st === 'push' || st === 'pull'
+            // step 12a: so do pushing, pulling and climbing
+            (st === 'swim' || st === 'tread' || st === 'push' || st === 'pull' || st === 'climb'
               ? BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st])
               : undefined)),
       dt,

@@ -90,6 +90,7 @@ export const ANIM_ACTIONS = [
   'attack',
   'swim',
   'tread',
+  'climb',
   'push',
   'pull',
 ] as const;

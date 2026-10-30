@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_ASSETS } from '../../src/builtin/assets';
+import { SCRIPT_TEMPLATES } from '../../src/builtin/templates/scripts';
 import { CommandBus, registerAll } from '../../src/core/commands';
+import { nameBook, withIds } from '../../src/core/logic/code/names';
+import { parseCode } from '../../src/core/logic/code/parse';
 import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
 import { dungeonItem, lockItem, puzzleProblems, switchHitBy } from '../../src/core/puzzles/puzzle';
@@ -12,7 +15,10 @@ import { PlaySession } from '../../src/engine/runtime/session';
 /** Step 12a: push blocks, switches, locks, pickups and each dungeon's keys, map and compass. */
 const piece = (name: string) => BUILTIN_ASSETS.find((a) => a.name === name)!;
 
-function game(things: [string, [number, number, number], string, number?][], opts: { dungeon?: boolean } = {}) {
+function game(
+  things: [string, [number, number, number], string, number?][],
+  opts: { dungeon?: boolean; code?: string } = {},
+) {
   const store = new ProjectStore(newProjectFiles({ name: 'Dungeon', random: () => 0.3 }));
   const bus = registerAll(new CommandBus(store));
   const map = store.manifest.entry.map;
@@ -31,6 +37,15 @@ function game(things: [string, [number, number, number], string, number?][], opt
   run({ type: 'asset.place', payload: { map, asset: pot.id, pos: [-4, 0, -4], rot: 0, id: 'ins_corner0001' } });
   run({ type: 'asset.place', payload: { map, asset: pot.id, pos: [44, 0, 36], rot: 0, id: 'ins_corner0002' } });
   if (opts.dungeon) run({ type: 'map.setDungeon', payload: { map, dungeon: true } });
+  if (opts.code) {
+    const parsed = parseCode(opts.code);
+    if ('error' in parsed) throw new Error(parsed.error.message);
+    const r = withIds(parsed, nameBook(store));
+    run({
+      type: 'logic.create',
+      payload: { graph: { id: 'lg_gatetst001', name: 'Gate', scope: 'global', nodes: r.nodes, edges: r.edges } },
+    });
+  }
   const p = new PlaySession(store.snapshot());
   const get = (id: string) => p.world.instances.find((i) => i.inst.id === id)!;
   return { store, bus, map, p, get };
@@ -65,29 +80,75 @@ describe('puzzle parts', () => {
   });
 });
 
+const state = (p: PlaySession) => (p as unknown as { heroStates: { state: string } }).heroStates.state;
+
 describe('push blocks', () => {
-  it('walking into one for a moment shoves it two studs; a wall stops it', () => {
+  it('held with Grab, walking into it for a moment slides it two studs; a wall stops it', () => {
     const { p, get } = game([
       ['Push block', [10, 0, 10], 'ins_block00001'],
       ['Dungeon wall', [16, 0, 8], 'ins_wall000001', 1],
     ]);
-    p.placeAt([8.6, 0.4, 11], Math.PI / 2);
+    p.placeAt([9.4, 0.4, 11], Math.PI / 2);
+    expect(p.puzzles.canGrab()).toBe(true);
+    p.puzzles.setGrab(true);
     walkX(p, 1);
-    steps(p, 1.2);
+    steps(p, 1.0);
     expect(get('ins_block00001').inst.pos[0]).toBe(12);
+    // the hero came along behind it
+    expect(p.heroState.x).toBeGreaterThan(10);
     // the wall is at x 16: one more shove reaches 14, then it is blocked
-    steps(p, 1.5);
+    steps(p, 1.2);
     expect(get('ins_block00001').inst.pos[0]).toBe(14);
-    steps(p, 1.5);
+    steps(p, 1.2);
     expect(get('ins_block00001').inst.pos[0]).toBe(14);
     expect(p.events.some((e) => /Push block: blocked/.test(e.msg))).toBe(true);
     // leaning into it the whole time
-    expect((p as unknown as { heroStates: { state: string } }).heroStates.state).toBe('push');
+    expect(state(p)).toBe('push');
   });
 
-  it('held with Action, stepping back pulls it after the hero', () => {
+  it('slides at an even pace: drawn between whole studs, the bricks a stud ahead', () => {
     const { p, get } = game([['Push block', [10, 0, 10], 'ins_block00001']]);
-    p.placeAt([9.2, 0.4, 11], Math.PI / 2);
+    p.placeAt([9.4, 0.4, 11], Math.PI / 2);
+    p.puzzles.setGrab(true);
+    walkX(p, 1);
+    const seen: number[] = [];
+    for (let t = 0; t < 1.2; t += 1 / 60) {
+      p.runtime.stepOnce();
+      const v = p.puzzles.slideView();
+      if (v) seen.push(Number(get('ins_block00001').inst.pos[0]) + v.dx);
+      // the first shove only
+      else if (seen.length) break;
+    }
+    // drawn at many places between 10 and 12, always moving forward
+    expect(seen.length).toBeGreaterThan(10);
+    expect(new Set(seen.map((x) => x.toFixed(2))).size).toBeGreaterThan(10);
+    for (let i = 1; i < seen.length; i++) expect(seen[i]!).toBeGreaterThanOrEqual(seen[i - 1]! - 1e-9);
+    expect(Math.min(...seen)).toBeGreaterThanOrEqual(10);
+    expect(Math.max(...seen)).toBeLessThanOrEqual(12);
+  });
+
+  it('walking into it without Grab does not push it: the hero climbs on top', () => {
+    const { p, get } = game([['Push block', [10, 0, 10], 'ins_block00001']]);
+    p.placeAt([8.6, 0.4, 11], Math.PI / 2);
+    walkX(p, 1);
+    let climbed = false;
+    for (let t = 0; t < 2 && !(climbed && !p.puzzles.climbing); t += 1 / 60) {
+      p.runtime.stepOnce();
+      if (p.puzzles.climbing) climbed = true;
+    }
+    expect(get('ins_block00001').inst.pos[0]).toBe(10);
+    expect(climbed).toBe(true);
+    p.input.keys.delete('forward');
+    steps(p, 0.3);
+    // standing on it (2 bricks and a tile up)
+    expect(p.heroState.y).toBeGreaterThan(2.5);
+    expect(p.heroState.x).toBeGreaterThan(9.5);
+    p.input.keys.delete('forward');
+  });
+
+  it('held with Grab, stepping back pulls it after the hero', () => {
+    const { p, get } = game([['Push block', [10, 0, 10], 'ins_block00001']]);
+    p.placeAt([9.4, 0.4, 11], Math.PI / 2);
     expect(p.puzzles.canGrab()).toBe(true);
     expect(
       (p as unknown as { offersNow(): { kind: string; label: string }[] })
@@ -97,15 +158,14 @@ describe('push blocks', () => {
     p.puzzles.setGrab(true);
     p.camYaw = -Math.PI / 2;
     p.input.keys.add('back');
-    steps(p, 0.6);
+    steps(p, 1.0);
     expect(get('ins_block00001').inst.pos[0]).toBe(8);
-    expect(p.heroState.x).toBeLessThan(8);
-    const state = () => (p as unknown as { heroStates: { state: string } }).heroStates.state;
-    expect(state()).toBe('pull');
+    expect(p.heroState.x).toBeLessThan(7.6);
+    expect(state(p)).toBe('pull');
     p.puzzles.setGrab(false);
     p.input.keys.delete('back');
     steps(p, 0.3);
-    expect(state()).not.toBe('pull');
+    expect(state(p)).not.toBe('pull');
   });
 });
 
@@ -127,20 +187,55 @@ describe('switches', () => {
     expect(heard).toEqual([{ asset: piece('Floor switch').id, to: 'on' }]);
   });
 
-  it('a weight switch is down only while a block stands on it', () => {
+  it('a weight switch is down only while a block stands on it; the block stops there until let go', () => {
     const { p, get } = game([
       ['Push block', [10, 0, 10], 'ins_block00001'],
       ['Weight switch', [12, 0, 10], 'ins_weight0001'],
     ]);
-    p.placeAt([8.6, 0.4, 11], Math.PI / 2);
+    p.placeAt([9.4, 0.4, 11], Math.PI / 2);
+    p.puzzles.setGrab(true);
     walkX(p, 1);
-    steps(p, 1.2);
+    steps(p, 1.0);
     // it rests on the switch (2 plates up)
     expect(get('ins_block00001').inst.pos).toEqual([12, 2, 10]);
     expect(get('ins_weight0001').state).toBe('down');
+    // still walking into it: it stays on the switch
     steps(p, 1.5);
+    expect(get('ins_block00001').inst.pos[0]).toBe(12);
+    // let go of the stick and push again: off it goes
+    p.input.keys.delete('forward');
+    steps(p, 0.1);
+    walkX(p, 1);
+    steps(p, 1.2);
     expect(get('ins_block00001').inst.pos[0]).toBe(14);
     expect(get('ins_weight0001').state).toBe('up');
+  });
+
+  it('a block pushed onto a switch opens the gate of “Switch opens a gate” (a block on a smooth top breaks no brick rule), and it shuts when pushed off', () => {
+    const t = SCRIPT_TEMPLATES.find((x) => x.id === 'switch-gate')!;
+    const code = t.code({ switch: 'Weight switch', gate: 'Barred gate', open: 'open', shut: 'closed' }, (x) => x);
+    const { p, get } = game(
+      [
+        ['Push block', [10, 0, 10], 'ins_block00001'],
+        ['Weight switch', [12, 0, 10], 'ins_weight0001'],
+        ['Barred gate', [20, 0, 9], 'ins_gate000001'],
+      ],
+      { code },
+    );
+    expect(get('ins_gate000001').state).toBe('closed');
+    p.placeAt([9.4, 0.4, 11], Math.PI / 2);
+    p.puzzles.setGrab(true);
+    walkX(p, 1);
+    steps(p, 1.0);
+    expect(get('ins_weight0001').state).toBe('down');
+    steps(p, 0.2);
+    expect(get('ins_gate000001').state).toBe('open');
+    p.input.keys.delete('forward');
+    steps(p, 0.1);
+    walkX(p, 1);
+    steps(p, 1.2);
+    expect(get('ins_weight0001').state).toBe('up');
+    expect(get('ins_gate000001').state).toBe('closed');
   });
 
   it('a timer switch ticks and goes back after its seconds; a crystal flips on each hit', () => {
@@ -272,10 +367,12 @@ describe('keys, locks and the dungeon items', () => {
       ['Push block', [10, 0, 10], 'ins_block00001'],
       ['Floor switch', [20, 0, 10], 'ins_switch0001'],
     ]);
-    p.placeAt([8.6, 0.4, 11], Math.PI / 2);
+    p.placeAt([9.4, 0.4, 11], Math.PI / 2);
+    p.puzzles.setGrab(true);
     walkX(p, 1);
-    steps(p, 1.2);
+    steps(p, 1.0);
     p.input.keys.clear();
+    p.puzzles.setGrab(false);
     p.placeAt([21, 0.9, 11], 0);
     steps(p, 0.2);
     p.puzzles.give('Small key', 1);
