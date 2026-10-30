@@ -6,7 +6,7 @@ import { z } from 'zod';
  * plays the clip the character sheet sets for it (or the built-in motion when none is set). The rules are fixed
  * and checked in order, so the first one that holds wins; a character only tunes the numbers.
  */
-export const ANIM_STATES = ['hurt', 'attack', 'swim', 'tread', 'jump', 'run', 'walk', 'idle'] as const;
+export const ANIM_STATES = ['hurt', 'attack', 'swim', 'tread', 'push', 'pull', 'jump', 'run', 'walk', 'idle'] as const;
 export type AnimState = (typeof ANIM_STATES)[number];
 
 export const StateSettings = z.strictObject({
@@ -37,6 +37,8 @@ export type StateInput = {
   hurtAgo: number;
   /** step 11b: in deep water (swim when moving, tread water when still) */
   swimming?: boolean;
+  /** step 12a: leaning into a block to push it, or holding one to pull it */
+  pushing?: 'push' | 'pull' | null;
 };
 
 /** The state the rules pick (the first that holds, in the order of ANIM_STATES). */
@@ -45,6 +47,7 @@ export function pickState(i: StateInput, s: StateSettings | undefined): AnimStat
   if (i.hurtAgo >= 0 && i.hurtAgo < o.hurtFor) return 'hurt';
   if (i.attacking) return 'attack';
   if (i.swimming) return i.speed > MOVING_AT ? 'swim' : 'tread';
+  if (i.pushing && i.grounded) return i.pushing;
   if (!i.grounded) return 'jump';
   if (i.speed >= o.runAt) return 'run';
   if (i.speed > MOVING_AT) return 'walk';
@@ -68,6 +71,8 @@ export const STATE_LABEL: Record<AnimState, string> = {
   attack: 'Attack',
   swim: 'Swim',
   tread: 'Tread water',
+  push: 'Push',
+  pull: 'Pull',
   jump: 'Jump',
   run: 'Run',
   walk: 'Walk',
@@ -86,6 +91,10 @@ export function stateRule(state: AnimState, s: StateSettings | undefined): strin
       return 'while it moves in deep water';
     case 'tread':
       return 'while it stays still in deep water';
+    case 'push':
+      return 'while it leans into a push block';
+    case 'pull':
+      return 'while it holds a block to pull it';
     case 'jump':
       return 'while its feet are off the ground';
     case 'run':

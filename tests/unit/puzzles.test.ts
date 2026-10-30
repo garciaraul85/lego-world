@@ -81,6 +81,8 @@ describe('push blocks', () => {
     steps(p, 1.5);
     expect(get('ins_block00001').inst.pos[0]).toBe(14);
     expect(p.events.some((e) => /Push block: blocked/.test(e.msg))).toBe(true);
+    // leaning into it the whole time
+    expect((p as unknown as { heroStates: { state: string } }).heroStates.state).toBe('push');
   });
 
   it('held with Action, stepping back pulls it after the hero', () => {
@@ -98,7 +100,12 @@ describe('push blocks', () => {
     steps(p, 0.6);
     expect(get('ins_block00001').inst.pos[0]).toBe(8);
     expect(p.heroState.x).toBeLessThan(8);
+    const state = () => (p as unknown as { heroStates: { state: string } }).heroStates.state;
+    expect(state()).toBe('pull');
     p.puzzles.setGrab(false);
+    p.input.keys.delete('back');
+    steps(p, 0.3);
+    expect(state()).not.toBe('pull');
   });
 });
 
@@ -281,5 +288,20 @@ describe('keys, locks and the dungeon items', () => {
     expect(q.world.instances.find((i) => i.inst.id === 'ins_switch0001')!.state).toBe('down');
     expect(q.itemCount('Small key')).toBe(1);
     expect(get('ins_block00001').inst.pos[0]).toBe(12);
+  });
+});
+
+describe('step 12a: the hero leans into a push and sits back to pull', () => {
+  it('picks the push and pull states, and the built-in clips play them', async () => {
+    const { pickState } = await import('../../src/core/character/states');
+    const { MOVE_FOR, MOVE_CLIPS } = await import('../../src/builtin/clips/moves');
+    const base = { speed: 0, grounded: true, attacking: false, hurtAgo: Infinity };
+    expect(pickState({ ...base, pushing: 'push' }, undefined)).toBe('push');
+    expect(pickState({ ...base, speed: 3, pushing: 'pull' }, undefined)).toBe('pull');
+    expect(pickState({ ...base, pushing: null }, undefined)).toBe('idle');
+    // a hit still shows, and in the air it is a jump
+    expect(pickState({ ...base, hurtAgo: 0.1, pushing: 'push' }, undefined)).toBe('hurt');
+    expect(pickState({ ...base, grounded: false, pushing: 'pull' }, undefined)).toBe('jump');
+    for (const s of ['push', 'pull'] as const) expect(MOVE_CLIPS.some((c) => c.id === MOVE_FOR[s])).toBe(true);
   });
 });

@@ -214,4 +214,16 @@ describe('the Scripts and scenes sandbox', () => {
     expect(near(items({ clearAround: 13 }))).toEqual([]);
     expect(items({ clearAround: 13 }).length).toBeGreaterThan(0);
   });
+
+  it('takes the flowers off the ground around the arrival, so a pushed block slides there', async () => {
+    const { newProjectFiles } = await import('../../src/core/project/new-project');
+    const { decodeChunk } = await import('../../src/core/bricks/codec');
+    const flowers = (o: object) => {
+      const f = newProjectFiles({ name: 't', generate: { environments: ['prairie'], size: 32, seed: 2024 }, ...o });
+      const bricks = [...f].filter(([k]) => k.includes('/chunks/')).flatMap(([, c]) => decodeChunk(c as never));
+      return bricks.filter((b) => b.y > 0 && Math.hypot(b.x + 0.5, b.z + 0.5) <= 14).length;
+    };
+    expect(flowers({})).toBeGreaterThan(0);
+    expect(flowers({ clearAround: 13 })).toBe(0);
+  });
 });

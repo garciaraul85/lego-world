@@ -182,7 +182,47 @@ const tread = clipFromPoses({ id: 'clp_movetread0', name: 'Tread water', group: 
   [1.4, treadPose(1)],
 ]);
 
-export const MOVE_CLIPS: Clip[] = [walk, run, jump, swing, flinch, breathe, swim, tread];
+/**
+ * step 12a: pushing and pulling a block. Pushing leans in, both hands flat on the block, the feet digging in one
+ * after the other; pulling sits back on bent knees, arms straight out gripping it, stepping back.
+ */
+const pushPose = (k: number) => ({
+  'torso.lean': 0.42,
+  'root.height': 1.7,
+  'leftArm.x': -1.5,
+  'rightArm.x': -1.5,
+  'leftForearm.bend': -0.55,
+  'rightForearm.bend': -0.55,
+  'leftLeg.x': -0.35 * k + 0.15,
+  'rightLeg.x': 0.35 * k + 0.15,
+  'leftShin.bend': k > 0 ? 0.55 : 0.15,
+  'rightShin.bend': k > 0 ? 0.15 : 0.55,
+  'head.turn': 0,
+});
+const push = clipFromPoses({ id: 'clp_movepush00', name: 'Push', group: 'Moves', length: 1.2, loop: true }, [
+  [0, pushPose(1)],
+  [0.6, pushPose(-1)],
+  [1.2, pushPose(1)],
+]);
+const pullPose = (k: number) => ({
+  'torso.lean': -0.3,
+  'root.height': 1.6,
+  'leftArm.x': -1.35 + 0.08 * k,
+  'rightArm.x': -1.35 - 0.08 * k,
+  'leftForearm.bend': -0.12,
+  'rightForearm.bend': -0.12,
+  'leftLeg.x': -0.45 + 0.2 * k,
+  'rightLeg.x': 0.25 - 0.2 * k,
+  'leftShin.bend': 0.75,
+  'rightShin.bend': 0.4,
+});
+const pull = clipFromPoses({ id: 'clp_movepull00', name: 'Pull', group: 'Moves', length: 1.0, loop: true }, [
+  [0, pullPose(1)],
+  [0.5, pullPose(-1)],
+  [1.0, pullPose(1)],
+]);
+
+export const MOVE_CLIPS: Clip[] = [walk, run, jump, swing, flinch, breathe, swim, tread, push, pull];
 
 /** the state each built-in move is made for (Use the built-in moves on the character sheet) */
 export const MOVE_FOR = {
@@ -194,4 +234,6 @@ export const MOVE_FOR = {
   idle: breathe.id,
   swim: swim.id,
   tread: tread.id,
+  push: push.id,
+  pull: pull.id,
 } as const;

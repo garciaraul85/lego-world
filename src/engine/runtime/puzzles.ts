@@ -105,6 +105,8 @@ const pieceBox = (p: { x: number; y: number; z: number; rows: number; cols: numb
 export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   readonly dungeons = new Map<string, DungeonRecord>();
   private pushing: { id: string; dx: number; dz: number; t: number } | null = null;
+  /** seconds the hero keeps leaning after a shove, while it walks up to the block again */
+  private leanFor = 0;
   /** the block held for pulling (Action held) */
   grab: { id: string; t: number } | null = null;
   private slide: { o: T; dx: number; dz: number; left: number; t: number; pulled: boolean } | null = null;
@@ -179,6 +181,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   // ---------- each step ----------
 
   step(dt: number) {
+    this.leanFor = Math.max(0, this.leanFor - dt);
     const s = this.h.heroState;
     if (this.h.dungeon()) this.record().seen.add(`${Math.floor(s.x / SEEN_CELL)},${Math.floor(s.z / SEEN_CELL)}`);
     this.stepSlide(dt);
@@ -366,6 +369,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
 
   private endSlide(sl: NonNullable<Puzzles<T>['slide']>) {
     this.slide = null;
+    if (!sl.pulled) this.leanFor = 0.6;
     if (this.grab) this.grab.t = 0;
     this.h.fire('pushed', sl.o, { pulled: sl.pulled });
     this.h.log(`${sl.o.def.name} ${sl.pulled ? 'pulled' : 'pushed'}`);
@@ -373,6 +377,16 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
 
   get sliding(): boolean {
     return !!this.slide;
+  }
+
+  /** how the hero stands: holding a block (pull), leaning into one (push), or neither */
+  get pose(): 'push' | 'pull' | null {
+    if (this.grab) return 'pull';
+    if (this.pushing || (this.slide && !this.slide.pulled)) return 'push';
+    // still walking on after a shove: no flicker into a walk between two shoves
+    const w = this.h.moveWish();
+    if (this.leanFor > 0 && Math.hypot(w.x, w.z) > 0.5) return 'push';
+    return null;
   }
 
   // ---------- switches ----------
@@ -564,6 +578,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     this.held.clear();
     this.slide = null;
     this.grab = null;
+    this.leanFor = 0;
     for (const [id, r] of Object.entries(d ?? {})) this.dungeons.set(id, { ...r, seen: new Set(r.seen) });
   }
 }

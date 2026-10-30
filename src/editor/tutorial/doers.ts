@@ -1443,7 +1443,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     run(c, placeCommands(c.ed, def.id, [x0, top, z0], 0), `Place ${name}`);
   },
   async pushOntoSwitch(c, a) {
-    // what walking into the block for a moment does, until it slides onto the switch
+    // what walking into the block for a moment does, until it slides onto the switch: the hero leans into it
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
     const block = s.world.instances.find((i) => i.def.name === String(a?.block ?? 'Push block'));
@@ -1451,16 +1451,24 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     if (!block || !sw) throw new Error('Place the block and the switch first.');
     const dx = Math.sign(Number(sw.inst.pos[0]) - Number(block.inst.pos[0]));
     const dz = Math.sign(Number(sw.inst.pos[2]) - Number(block.inst.pos[2]));
-    // the hero stands behind it, facing it
+    // the hero stands behind it, facing it, and walks (W) into it, the camera behind
     const yaw = Math.atan2(dx, dz);
-    s.placeAt([Number(block.inst.pos[0]) + 1 - dx * 1.6, s.heroState.y, Number(block.inst.pos[2]) + 1 - dz * 1.6], yaw);
+    standAt(s, Number(block.inst.pos[0]) + 1 - dx * 1.6, Number(block.inst.pos[2]) + 1 - dz * 1.6, yaw);
+    s.camYaw = Math.atan2(-dx, -dz);
+    s.input.keys.add('forward');
+    try {
+      for (let i = 0; i < 40 && sw.state === sw.def.states[0]; i++) await new Promise((r) => setTimeout(r, 250));
+    } finally {
+      s.input.keys.delete('forward');
+    }
+    // a slow machine: shove it the rest of the way
     for (let i = 0; i < 3 && sw.state === sw.def.states[0]; i++) {
       s.puzzles.tryMove(block, dx, dz, false);
       await new Promise((r) => setTimeout(r, 900));
     }
   },
   async pullBlock(c, a) {
-    // what holding Action (Grab) at the block and stepping back does
+    // what holding Action (Grab) at the block and stepping back (S) does: the hero sits back and pulls
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
     const block = s.world.instances.find((i) => i.def.name === String(a?.block ?? 'Push block'));
@@ -1470,9 +1478,24 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const dx = Math.round(Math.sin(yaw));
     const dz = Math.round(Math.cos(yaw));
     // the hero in front of it on the side of the start, facing it, pulls it back towards the start
-    s.placeAt([Number(block.inst.pos[0]) + 1 - dx * 1.4, s.heroState.y, Number(block.inst.pos[2]) + 1 - dz * 1.4], yaw);
-    s.puzzles.tryMove(block, -dx, -dz, true);
-    await new Promise((r) => setTimeout(r, 900));
+    standAt(s, Number(block.inst.pos[0]) + 1 - dx * 1.6, Number(block.inst.pos[2]) + 1 - dz * 1.6, yaw);
+    const from = `${block.inst.pos[0]},${block.inst.pos[2]}`;
+    const moved = () => `${block.inst.pos[0]},${block.inst.pos[2]}` !== from;
+    s.camYaw = Math.atan2(-dx, -dz);
+    s.puzzles.setGrab(true);
+    s.input.keys.add('back');
+    try {
+      for (let i = 0; i < 40 && !moved(); i++) await new Promise((r) => setTimeout(r, 250));
+      // hold on a moment, so the pull shows
+      await new Promise((r) => setTimeout(r, 600));
+    } finally {
+      s.input.keys.delete('back');
+      s.puzzles.setGrab(false);
+    }
+    if (!moved()) {
+      s.puzzles.tryMove(block, -dx, -dz, true);
+      await new Promise((r) => setTimeout(r, 900));
+    }
   },
   timedCrystal(c, a) {
     // what Puzzle › Switch › Timed and the seconds slider do in the Asset studio
@@ -1753,6 +1776,14 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     s.input.keys.delete('w');
   },
 };
+
+/** puts the hero at x, z facing yaw, on whatever it stands on there (a switch is a plate higher than the grass) */
+function standAt(s: NonNullable<Ctx['ed']['session']['value']>, x: number, z: number, yaw: number) {
+  const c = s.world.controller;
+  const y0 = s.heroState.y;
+  const y = [0, 0.4, 0.8, 1.2, -0.4].map((d) => y0 + d).find((y) => c.clear(x, y, z)) ?? y0;
+  s.placeAt([x, y, z], yaw);
+}
 
 /** Fill `$map`, `$spawn`… in a do-list's arguments. */
 function fill(c: Ctx, v: unknown): unknown {

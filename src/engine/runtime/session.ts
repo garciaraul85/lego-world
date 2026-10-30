@@ -3776,14 +3776,18 @@ export class PlaySession {
         attacking,
         hurtAgo: this.clock - this.heroHurtAt,
         swimming: this.swim.on,
+        pushing: this.puzzles.pose,
       },
       this.heroChr?.states,
       (st) =>
         this.bodyOf('hero')
           ? undefined
           : (this.sheetClip(this.heroChr, st) ??
-            // step 11b: v68's own motion is a walk, so swimming always has a clip (the built-in crawl and tread)
-            (st === 'swim' || st === 'tread' ? BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st]) : undefined)),
+            // step 11b: v68's own motion is a walk, so swimming always has a clip (the built-in crawl and tread);
+            // step 12a: so do pushing and pulling
+            (st === 'swim' || st === 'tread' || st === 'push' || st === 'pull'
+              ? BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st])
+              : undefined)),
       dt,
       1.5,
     );

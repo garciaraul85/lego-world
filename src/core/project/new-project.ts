@@ -55,12 +55,12 @@ export function newProjectFiles(o: NewProjectOptions): Map<string, unknown> {
         id: generatedInstanceId(mapId, i.idBase),
       }));
     // the clearing has studs everywhere (smooth tiles become plates), so anything can be put down in it
+    // ...and no flowers: small bricks standing on the ground would stop a pushed block or trip the hero
+    const near = (b: { x: number; z: number }) => Math.hypot(b.x + 0.5, b.z + 0.5) <= r + 3;
     const plain = r
-      ? split.plain.map((b) =>
-          b.type.startsWith('tile') && Math.hypot(b.x + 0.5, b.z + 0.5) <= r + 3
-            ? { ...b, type: `plate${b.type.slice(4)}` }
-            : b,
-        )
+      ? split.plain
+          .filter((b) => !(near(b) && b.y > 0 && /^(plate|tile|brick)1x1$/.test(b.type)))
+          .map((b) => (b.type.startsWith('tile') && near(b) ? { ...b, type: `plate${b.type.slice(4)}` } : b))
       : split.plain;
     for (const [key, chunk] of encodeChunks(plain)) {
       const [cx, cz] = key.split('_').map(Number) as [number, number];

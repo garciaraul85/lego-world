@@ -39,7 +39,7 @@ export const PUZZLES: HelpEntry[] = [
     options: [
       [
         'Push block',
-        'Walk into it for a moment: it slides its own size (or the studs you set) square along the floor, stops at walls and other blocks, steps up onto a switch and holds it down. Can be pulled: hold Action (Grab) and step back.',
+        'Walk into it for a moment: the hero leans in, hands on it, and it slides its own size (or the studs you set) square along the floor, stops at walls and other blocks, steps up onto a switch and holds it down. Can be pulled: hold Action (Grab) and step back; the hero sits back and pulls. A character sheet can set its own Push and Pull clips.',
       ],
       [
         'Stepped on',

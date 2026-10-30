@@ -80,7 +80,19 @@ export const Moves = z.strictObject({
 export type Moves = z.infer<typeof Moves>;
 
 /** the clip played for each action (missing: the built-in motion) */
-export const ANIM_ACTIONS = ['idle', 'victory', 'hurt', 'walk', 'run', 'jump', 'attack', 'swim', 'tread'] as const;
+export const ANIM_ACTIONS = [
+  'idle',
+  'victory',
+  'hurt',
+  'walk',
+  'run',
+  'jump',
+  'attack',
+  'swim',
+  'tread',
+  'push',
+  'pull',
+] as const;
 export type AnimAction = (typeof ANIM_ACTIONS)[number];
 /** actions Play uses (P23 part 4: all of them, through the animation state machine) */
 export const ANIM_LIVE: readonly AnimAction[] = ANIM_ACTIONS;

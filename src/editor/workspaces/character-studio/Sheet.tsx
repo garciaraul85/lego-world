@@ -353,6 +353,8 @@ const ACTION_LABEL: Record<AnimAction, string> = {
   attack: 'Attack',
   swim: 'Swim (moving in deep water)',
   tread: 'Tread water (still in deep water)',
+  push: 'Push (leaning into a push block)',
+  pull: 'Pull (holding a block to pull it)',
 };
 
 export function AnimationsTab({ c, chr, save }: Props) {

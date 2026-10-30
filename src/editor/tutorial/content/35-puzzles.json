@@ -96,7 +96,7 @@
     {
       "id": "pz.push",
       "title": "Push it on",
-      "body": "Press Play and walk (W) into the block for a moment: it slides two studs, square to the floor, onto the switch. The switch goes down and the gate opens.",
+      "body": "Press Play and walk (W) into the block for a moment: the hero leans into it, and it slides two studs, square to the floor, onto the switch. The switch goes down and the gate opens.",
       "task": "Press Play and push the block onto the switch.",
       "target": "[data-tour=\"play\"]",
       "check": {
@@ -118,7 +118,7 @@
     {
       "id": "pz.pull",
       "title": "Pull it back",
-      "body": "Go round to the start side of the block and face it: the Action button says Grab. Hold Action (E) and step back (S): the block comes with you, off the switch, and the gate shuts again.",
+      "body": "Go round to the start side of the block and face it: the Action button says Grab. Hold Action (E) and step back (S): the hero sits back and pulls, the block comes with you, off the switch, and the gate shuts again.",
       "task": "Grab the block and pull it off the switch.",
       "target": "[aria-label=\"Play view\"]",
       "check": {
