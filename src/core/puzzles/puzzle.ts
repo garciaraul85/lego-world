@@ -4,8 +4,8 @@ import { DAMAGE_TYPES, type DamageType } from '../combat/damage';
 /**
  * Step 12a: the puzzle parts an asset can have, Zelda style.
  *
- * - push: a block the hero shoves (walk into it for a moment) one step along the floor, square to the grid; with
- *   pull on, the hero can also grab it (hold Action) and step back to drag it. It stops at walls, other blocks and
+ * - push: a block the hero grabs (hold Action) and shoves one step along the floor, square to the grid; with
+ *   pull on, the hero can also step back to drag it. It stops at walls, other blocks and
  *   edges, and it can hold a floor switch down.
  * - switch: something with an off and an on state (its first two states). Stepped on (the hero, or a block on it),
  *   hit (a sword, an arrow, a boomerang, a bomb: the hit kinds it answers to), or pressed (Action). It stays on,
@@ -41,6 +41,8 @@ export const SwitchDef = z.strictObject({
   hitBy: z.array(z.enum(DAMAGE_TYPES)).max(9).optional(),
   /** step: what can hold it down (default both) */
   heavy: z.enum(['any', 'hero', 'block']).optional(),
+  /** step: how much weight must be on it (the hero or a neighbour 1, a crate 1–3 by size, a push block 3); default 1 */
+  weight: z.number().int().min(1).max(10).optional(),
 });
 export type SwitchDef = z.infer<typeof SwitchDef>;
 
@@ -94,7 +96,8 @@ export function describeSwitch(s: SwitchDef): string {
         : s.stays === 'timed'
           ? `back off after ${s.seconds ?? 10} s`
           : 'flips each time';
-  return `${how}, ${stays}`;
+  const w = s.by === 'step' && (s.weight ?? 1) > 1 ? `, needs weight ${s.weight}` : '';
+  return `${how}, ${stays}${w}`;
 }
 
 /** the problems with an asset's puzzle parts, as sentences (empty: fine) */

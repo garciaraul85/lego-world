@@ -173,10 +173,31 @@ export function PuzzleSection({ def, reset }: { def: Asset; reset: (to: Asset, l
                   set('switch', v === 'any' ? rest : { ...rest, heavy: v }, 'Held down by');
                 }}
               >
-                <option value="any">The hero or a block</option>
+                <option value="any">Anyone or anything</option>
                 <option value="hero">The hero only</option>
-                <option value="block">A block only</option>
+                <option value="block">Blocks and loose things only</option>
               </select>
+            </label>
+          )}
+          {sw.by === 'step' && (
+            <label
+              class="field"
+              title="How much must stand on it: the hero or a neighbour weighs 1, a loose crate 1 to 3 by its size, a push block 3."
+            >
+              <span>Needs weight</span>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                step={1}
+                aria-label="Needs weight"
+                value={sw.weight ?? 1}
+                onChange={(e) => {
+                  const v = Math.max(1, Math.min(10, Math.round(Number((e.target as HTMLInputElement).value) || 1)));
+                  const { weight: _w, ...rest } = sw;
+                  set('switch', v === 1 ? rest : { ...rest, weight: v }, 'Needs weight');
+                }}
+              />
             </label>
           )}
           {sw.by === 'hit' && (

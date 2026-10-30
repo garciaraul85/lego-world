@@ -341,9 +341,10 @@ function pushBlock(): Raw {
 
 function floorSwitch(): Raw {
   const b = new Build();
-  b.put('plate', 2, 2, 0, 0, 0, C.stoneDark);
-  const up = [b.put('plate', 1, 1, 0, 1, 0, C.gold), b.put('plate', 1, 1, 1, 1, 1, C.gold)];
-  const down = [b.put('tile', 2, 2, 0, 1, 0, C.gold)];
+  // up: a pad on a dark rim, a plate above the ground; down: pressed flat into the ground, a plate lower (what
+  // stands on it sinks with it)
+  const up = [b.put('plate', 2, 2, 0, 0, 0, C.stoneDark), b.put('plate', 2, 2, 0, 1, 0, C.gold)];
+  const down = [b.put('tile', 2, 2, 0, 0, 0, C.gold)];
   // step 12a: stepped on (by the hero or a block) it goes down and stays down
   return asset('Floor switch', 'prop', [2, 2], b, {
     states: ['up', 'down'],
@@ -357,9 +358,10 @@ function floorSwitch(): Raw {
 /** a floor switch in its own colours: blue held down (by a block), white on a timer */
 function stepSwitch(name: string, color: string, sw: Raw['switch']): Raw {
   const b = new Build();
-  b.put('plate', 2, 2, 0, 0, 0, C.stoneDark);
-  const up = [b.put('plate', 1, 1, 0, 1, 0, color), b.put('plate', 1, 1, 1, 1, 1, color)];
-  const down = [b.put('tile', 2, 2, 0, 1, 0, color)];
+  // up: a pad on a dark rim, a plate above the ground; down: pressed flat into the ground, a plate lower (what
+  // stands on it sinks with it)
+  const up = [b.put('plate', 2, 2, 0, 0, 0, C.stoneDark), b.put('plate', 2, 2, 0, 1, 0, color)];
+  const down = [b.put('tile', 2, 2, 0, 0, 0, color)];
   return asset(name, 'prop', [2, 2], b, {
     states: ['up', 'down'],
     initialState: 'up',

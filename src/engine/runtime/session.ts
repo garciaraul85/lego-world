@@ -153,7 +153,7 @@ import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, s
 import { ObjectIndex } from './objects';
 import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
-import { boxOf, Puzzles, SEEN_CELL } from './puzzles';
+import { boxOf, type PuzzleHost, Puzzles, SEEN_CELL } from './puzzles';
 import { Runtime, type System } from './runtime';
 import { applySave, captureMap, captureSave, loadMessage, restoreMap, type SaveHost, type SaveWorld } from './saves';
 import { afterDefence, movesOf, statsOf, wornProfile } from './sheet';
@@ -3409,6 +3409,9 @@ export class PlaySession {
         return this.project.name;
       case 'prompt': {
         if (this.talking || this.talks.active) return '';
+        // step 12a: holding a block: which way pushes and which pulls, with the keys
+        const g = this.puzzles.grabView();
+        if (g) return this.grabPrompt(g.dx, g.dz, g.pull);
         // step 11b: the Action button's key and what it does here (not a plain jump: the HUD shows that anyway)
         const now = this.buttons.now;
         return now && now.kind !== 'jump' ? this.buttons.prompt() : '';
@@ -3630,6 +3633,43 @@ export class PlaySession {
         return this.world.controller.clear(x, s.y, z);
       },
       heroClear: (x, y, z) => this.world.controller.clear(x, y, z),
+      weighing: () => {
+        const w = this.world;
+        const out: ReturnType<NonNullable<PuzzleHost['weighing']>> = [];
+        for (const n of w.npcs) {
+          const st = n.state;
+          out.push({
+            kind: 'npc',
+            x0: st.x - 0.3,
+            x1: st.x + 0.3,
+            z0: st.z - 0.3,
+            z1: st.z + 0.3,
+            y0: st.y / 0.4,
+            weight: 1,
+          });
+        }
+        // loose things where the physics engine has them now (moved from where they were placed)
+        const ph = w.physics;
+        if (ph)
+          for (const o of w.looseObjects) {
+            const pose = ph.objectPose(o.inst.inst.id);
+            const b = boxOf(o.inst.bricks);
+            if (!pose || !b) continue;
+            const dx = pose.pos[0] - o.origin[0];
+            const dy = (pose.pos[1] - o.origin[1]) / 0.4;
+            const dz = pose.pos[2] - o.origin[2];
+            out.push({
+              kind: 'loose',
+              x0: b.x0 + dx,
+              x1: b.x1 + dx,
+              z0: b.z0 + dz,
+              z1: b.z1 + dz,
+              y0: b.y0 + dy,
+              weight: Math.max(1, Math.min(3, Math.round(o.inst.bricks.length / 8))),
+            });
+          }
+        return out;
+      },
       placeHeroAt: (x, y, z) => {
         const s = this.heroState;
         Object.assign(s, { x, y, z, vy: 0, grounded: true });
@@ -3813,6 +3853,22 @@ export class PlaySession {
       else if ('sound' in e) this.audio.play(e.sound, { pos: [s.x, s.y + 1, s.z] });
       else this.cine.play(e.cinematic);
     }
+  }
+
+  /** step 12a: "▲ W push · ▼ S pull": the move key (and its arrow) that walks the way a push goes, and back */
+  grabPrompt(dx: number, dz: number, pull: boolean): string {
+    const yaw = this.camYaw;
+    // the way each move key walks, as moveWish turns them by the camera
+    const keys = [
+      { key: 'W', arrow: '▲', x: -Math.sin(yaw), z: -Math.cos(yaw) },
+      { key: 'S', arrow: '▼', x: Math.sin(yaw), z: Math.cos(yaw) },
+      { key: 'D', arrow: '▶', x: Math.cos(yaw), z: -Math.sin(yaw) },
+      { key: 'A', arrow: '◀', x: -Math.cos(yaw), z: Math.sin(yaw) },
+    ];
+    const best = (x: number, z: number) => keys.reduce((a, b) => (b.x * x + b.z * z > a.x * x + a.z * z ? b : a));
+    const p = best(dx, dz);
+    const b = best(-dx, -dz);
+    return pull ? `${p.arrow} ${p.key} push · ${b.arrow} ${b.key} pull` : `${p.arrow} ${p.key} push (it does not pull)`;
   }
 
   /** the clip a character sheet sets for a state (a project clip or a built-in one) */

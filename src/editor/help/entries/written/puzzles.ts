@@ -41,11 +41,11 @@ export const PUZZLES: HelpEntry[] = [
     options: [
       [
         'Push block',
-        'Hold Action (Grab) at it and walk into it: the hero leans in, hands on it, and it slides its own size (or the studs you set) square along the floor, the hero walking behind. It stops at walls and other blocks, steps up onto a switch and holds it down, and stays on a switch until you let go of the stick and push again. Can be pulled: hold Grab and step back; the hero sits back and pulls. Walking into it without Grab climbs on top. A character sheet can set its own Push, Pull and Climb clips.',
+        'Hold Action (Grab) at it: arrows on the floor show the two ways (yellow: push, blue: pull) and the HUD says which key does which (“▲ W push · ▼ S pull”). Walk into it: the hero leans in, hands on it, and it slides its own size (or the studs you set) square along the floor, the hero walking behind. It stops at walls and other blocks, steps up onto a switch and holds it down, and stays on a switch until you let go of the stick and push again. Can be pulled: hold Grab and step back; the hero sits back and pulls. Walking into it without Grab climbs on top. A character sheet can set its own Push, Pull and Climb clips.',
       ],
       [
         'Stepped on',
-        'The hero, or a block on it, presses it (Held down by: the hero or a block, the hero only, a block only).',
+        'Weight presses it: the hero, neighbours and enemies, push blocks and loose things the physics engine moves (a crate). Needs weight is how much must stand on it: the hero or a neighbour weighs 1, a crate 1 to 3 by its size, a push block 3. Its pad sinks a plate when pressed, and what stands on it sinks with it. Held down by: anyone or anything, the hero only, or blocks and loose things only.',
       ],
       [
         'Hit',

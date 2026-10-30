@@ -162,6 +162,9 @@ describe('push blocks', () => {
     expect(get('ins_block00001').inst.pos[0]).toBe(8);
     expect(p.heroState.x).toBeLessThan(7.6);
     expect(state(p)).toBe('pull');
+    // the HUD says which key pushes and which pulls (the camera looks along +x: W walks into it)
+    expect(p.lookup('prompt')).toBe('▲ W push · ▼ S pull');
+    expect(p.puzzles.grabView()).toMatchObject({ dx: 1, dz: 0, pull: true, lean: 'pull' });
     p.puzzles.setGrab(false);
     p.input.keys.delete('back');
     steps(p, 0.3);
@@ -196,8 +199,8 @@ describe('switches', () => {
     p.puzzles.setGrab(true);
     walkX(p, 1);
     steps(p, 1.0);
-    // it rests on the switch (2 plates up)
-    expect(get('ins_block00001').inst.pos).toEqual([12, 2, 10]);
+    // it slid up onto the pad (a plate up), and its weight pressed the pad flat: it sank with it
+    expect(get('ins_block00001').inst.pos).toEqual([12, 1, 10]);
     expect(get('ins_weight0001').state).toBe('down');
     // still walking into it: it stays on the switch
     steps(p, 1.5);
@@ -209,6 +212,54 @@ describe('switches', () => {
     steps(p, 1.2);
     expect(get('ins_block00001').inst.pos[0]).toBe(14);
     expect(get('ins_weight0001').state).toBe('up');
+  });
+
+  it('weight: a switch that needs 3 is not pressed by the hero alone, but a push block (3) presses it', () => {
+    const { p, get, bus, store } = game([
+      ['Push block', [10, 0, 10], 'ins_block00001'],
+      ['Weight switch', [12, 0, 10], 'ins_weight0001'],
+    ]);
+    void bus;
+    void store;
+    const sw = get('ins_weight0001');
+    sw.def = { ...sw.def, switch: { ...sw.def.switch!, weight: 3 } };
+    p.placeAt([13, 0.9, 11], 0);
+    steps(p, 0.3);
+    expect(sw.state).toBe('up');
+    p.placeAt([9.4, 0.4, 11], Math.PI / 2);
+    p.puzzles.setGrab(true);
+    walkX(p, 1);
+    steps(p, 1.0);
+    expect(get('ins_weight0001').state).toBe('down');
+  });
+
+  it('a loose crate the physics engine drops onto a floor switch presses it', () => {
+    const crate = { ...piece('Wooden crate'), loose: true };
+    const { p, get } = game([['Floor switch', [20, 0, 10], 'ins_switch0001']]);
+    void crate;
+    expect(get('ins_switch0001').state).toBe('up');
+    // a crate stood on it: the physics engine moves it (its weight, not its bricks' place, presses the pad)
+    const store2 = new ProjectStore(newProjectFiles({ name: 'Crate', random: () => 0.3 }));
+    const bus2 = registerAll(new CommandBus(store2));
+    const map2 = store2.manifest.entry.map;
+    const sw = piece('Floor switch');
+    const r = bus2.execute(
+      [
+        { type: 'asset.create', payload: { asset: sw } },
+        { type: 'asset.place', payload: { map: map2, asset: sw.id, pos: [20, 0, 10], id: 'ins_switch0001' } },
+        { type: 'asset.create', payload: { asset: crate } },
+        { type: 'asset.place', payload: { map: map2, asset: crate.id, pos: [20, 2, 10], id: 'ins_dropcrate1' } },
+      ],
+      { source: 'user' },
+    );
+    expect(r.ok, r.error).toBe(true);
+    const q = new PlaySession(store2.snapshot());
+    q.placeAt([0, 0.4, 0], 0);
+    expect(q.world.looseObjects).toHaveLength(1);
+    for (let i = 0; i < 60 * 3; i++) q.runtime.stepOnce();
+    expect(q.world.instances.find((i) => i.inst.id === 'ins_switch0001')!.state).toBe('down');
+    q.dispose();
+    p.dispose();
   });
 
   it('a block pushed onto a switch opens the gate of “Switch opens a gate” (a block on a smooth top breaks no brick rule), and it shuts when pushed off', () => {

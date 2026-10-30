@@ -18,6 +18,7 @@ import { FRAGMENT } from '../render/shaders';
 import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../render/stream';
 import { waterSurface } from '../render/water';
 import { chunkKeyOf, indexByChunk } from './pieces';
+import { boxOf as boxOfBricks } from './puzzles';
 import type { MapWorld, PlaySession } from './session';
 
 export type DebugDraw = { colliders: boolean; spawns: boolean };
@@ -194,6 +195,60 @@ export class PlayRenderer {
         return p ? [p] : [];
       });
       if (pieces.length) out.push({ bricks: pieces.map(toRender), alpha: 1, flat: false, model: g.model });
+    }
+    return out;
+  }
+
+  /**
+   * Step 12a: holding a block, arrows on the floor show the ways it goes: yellow beyond it (push), blue behind the
+   * hero (pull, when it pulls). The one the hero is doing is bright, the other faint.
+   */
+  private grabArrows(): Overlay[] {
+    const g = this.session.puzzles.grabView();
+    if (!g) return [];
+    const b = boxOfBricks(g.o.bricks);
+    if (!b) return [];
+    const cx = (b.x0 + b.x1) / 2;
+    const cz = (b.z0 + b.z1) / 2;
+    const half = g.dx ? (b.x1 - b.x0) / 2 : (b.z1 - b.z0) / 2;
+    const px = -g.dz;
+    const pz = g.dx;
+    const chevron = (sign: number, from: number, y: number, color: string): RenderBrick[] => {
+      const cell = (along: number, side: number): RenderBrick => ({
+        id: 0,
+        w: 1,
+        d: 1,
+        kind: 'tile',
+        x: Math.round(cx + g.dx * sign * along + px * side - 0.5),
+        y,
+        z: Math.round(cz + g.dz * sign * along + pz * side - 0.5),
+        color,
+      });
+      // a head (a V of five) and a shaft of two behind it
+      return [
+        cell(from + 2, 0),
+        cell(from + 1, 1),
+        cell(from + 1, -1),
+        cell(from, 2),
+        cell(from, -2),
+        cell(from + 1, 0),
+        cell(from, 0),
+      ];
+    };
+    const out: Overlay[] = [
+      {
+        bricks: chevron(1, half + 0.5, b.y0, '#f2b632'),
+        alpha: g.lean === 'push' ? 0.95 : 0.45,
+        flat: false,
+      },
+    ];
+    if (g.pull) {
+      const feet = Math.round(this.session.heroState.y / 0.4);
+      out.push({
+        bricks: chevron(-1, half + 2.5, feet, '#4aa3ff'),
+        alpha: g.lean === 'pull' ? 0.95 : 0.45,
+        flat: false,
+      });
     }
     return out;
   }
@@ -493,7 +548,7 @@ export class PlayRenderer {
     return this.renderer.render(
       cam,
       [s.heroState.x, s.heroState.y, s.heroState.z],
-      [...this.tiltedOverlays(), ...this.looseOverlays(), ...creatures.overlays, ...extraParts],
+      [...this.tiltedOverlays(), ...this.looseOverlays(), ...this.grabArrows(), ...creatures.overlays, ...extraParts],
       lines,
       markers,
       (mvp, eye) => {

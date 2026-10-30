@@ -60,6 +60,8 @@ export type PuzzleHost<T extends PuzzleObject = PuzzleObject> = {
   heroFits(x: number, z: number): boolean;
   /** the hero would fit standing at x, y, z */
   heroClear(x: number, y: number, z: number): boolean;
+  /** other things with weight: neighbours and enemies (1), loose objects (1–3 by size); boxes in studs, y0 in plates */
+  weighing?(): { kind: 'npc' | 'loose'; x0: number; x1: number; z0: number; z1: number; y0: number; weight: number }[];
   /** the hero is here now, feet at y (a climb) */
   placeHeroAt(x: number, y: number, z: number): void;
   remove(o: T): void;
@@ -86,8 +88,13 @@ const SLIDE_STEP = 0.24;
 /** a ledge up to this high (world units: 3 bricks, a push block on a switch) is climbed by walking into it */
 export const CLIMB_MAX = 3.6;
 const CLIMB_WAIT = 0.25;
-const CLIMB_UP = 0.45;
-const CLIMB_OVER = 0.25;
+/** what things weigh on a switch: the hero (and each neighbour) 1, a push block 3 */
+const HERO_WEIGHT = 1;
+const BLOCK_WEIGHT = 3;
+/** a climb: hands up onto the top, then the pull up, then over onto it (seconds; the Climb clip is as long) */
+const CLIMB_REACH = 0.18;
+const CLIMB_UP = 0.62;
+const CLIMB_OVER = 0.3;
 
 type Box = { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number };
 
@@ -124,7 +131,15 @@ const pieceBox = (p: { x: number; y: number; z: number; rows: number; cols: numb
 export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   readonly dungeons = new Map<string, DungeonRecord>();
   /** the block held for pulling (Action held) */
-  grab: { id: string; t: number; lean: 'push' | 'pull' | 'hold'; fresh: boolean } | null = null;
+  grab: {
+    id: string;
+    t: number;
+    lean: 'push' | 'pull' | 'hold';
+    fresh: boolean;
+    /** the way a push goes (square to the grid) */
+    dx: number;
+    dz: number;
+  } | null = null;
   /** a slide under way: n studs, done of them moved (the bricks), t seconds in, the hero's part of it */
   private slide: {
     o: T;
@@ -258,7 +273,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       return;
     }
     const f = this.facing();
-    if (f?.o.def.push) this.grab = { id: f.o.inst.id, t: 0, lean: 'hold', fresh: true };
+    if (f?.o.def.push) this.grab = { id: f.o.inst.id, t: 0, lean: 'hold', fresh: true, dx: f.dx, dz: f.dz };
   }
 
   /** holding on: forward pushes it, back pulls it (a pullable block), each after a moment */
@@ -410,6 +425,17 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     return !!this.slide;
   }
 
+  /** the block held: which way pushes, whether it pulls, and what the hero is doing with it (for the arrows) */
+  grabView(): { o: T; dx: number; dz: number; pull: boolean; lean: 'push' | 'pull' | 'hold' } | null {
+    const g = this.grab;
+    if (!g) return null;
+    const o = this.h.near(this.h.heroState.x, this.h.heroState.z, 6).find((x) => x.inst.id === g.id);
+    if (!o) return null;
+    const sl = this.slide;
+    const lean = sl ? (sl.pulled ? 'pull' : 'push') : g.lean;
+    return { o, dx: g.dx, dz: g.dz, pull: !!o.def.push?.pull, lean };
+  }
+
   /** where the sliding block is drawn, from where its bricks are: its id and the offset in studs */
   slideView(): { id: string; dx: number; dz: number } | null {
     const sl = this.slide;
@@ -484,7 +510,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     const c = this.climbing;
     if (!c) return;
     c.t += dt;
-    const up = Math.min(1, c.t / CLIMB_UP);
+    const up = Math.max(0, Math.min(1, (c.t - CLIMB_REACH) / (CLIMB_UP - CLIMB_REACH)));
     const over = Math.max(0, Math.min(1, (c.t - CLIMB_UP) / CLIMB_OVER));
     const ease = (k: number) => k * k * (3 - 2 * k);
     this.h.placeHeroAt(
@@ -508,8 +534,10 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   turn(o: T, on: boolean, why = '') {
     const sw = o.def.switch;
     if (!sw || o.def.states.length < 2 || this.isOn(o) === on) return;
+    const was = boxOf(o.bricks);
     this.h.setState(o, o.def.states[on ? 1 : 0]!);
     if (this.isOn(o) !== on) return;
+    if (sw.by === 'step') this.settleOn(o, was);
     this.h.sound('click', this.centre(o));
     if (on && sw.stays === 'timed')
       this.timers.set(o.inst.id, { ends: this.h.clock + (sw.seconds ?? 10), tick: this.h.clock, o });
@@ -551,39 +579,72 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     return false;
   }
 
+  /**
+   * Step switches go down under weight: whatever stands on one — the hero, neighbours and enemies, push blocks,
+   * loose things the physics engine moves — and weighs at least what it needs (Needs weight, 1 at first).
+   */
   private stepSwitches() {
     const s = this.h.heroState;
     const now = new Set<string>();
     const near = this.h.near(s.x, s.z, 24);
     const blocks = near.filter((o) => o.def.push);
+    const others = this.h.weighing?.() ?? [];
     for (const o of near) {
       const sw = o.def.switch;
       if (sw?.by !== 'step') continue;
       const b = boxOf(o.bricks);
       if (!b) continue;
       const heavy = sw.heavy ?? 'any';
-      const feet = s.y / 0.4;
-      const hero =
-        heavy !== 'block' &&
-        s.x > b.x0 - 0.2 &&
-        s.x < b.x1 + 0.2 &&
-        s.z > b.z0 - 0.2 &&
-        s.z < b.z1 + 0.2 &&
-        feet >= b.y1 - 1.5 &&
-        feet <= b.y1 + 1.5;
-      const block = heavy !== 'hero' && blocks.some((k) => rests(boxOf(k.bricks), b));
-      if (!hero && !block) continue;
+      const on = (x0: number, x1: number, z0: number, z1: number, y0: number) =>
+        x0 < b.x1 - 0.2 &&
+        x1 > b.x0 + 0.2 &&
+        z0 < b.z1 - 0.2 &&
+        z1 > b.z0 + 0.2 &&
+        y0 >= b.y1 - 1.5 &&
+        y0 <= b.y1 + 1.5;
+      let weight = 0;
+      let by = '';
+      const add = (w: number, who: string) => {
+        weight += w;
+        by ||= who;
+      };
+      // the hero (people stand on it with their feet: a narrow footprint)
+      if (heavy !== 'block' && on(s.x - 0.3, s.x + 0.3, s.z - 0.3, s.z + 0.3, s.y / 0.4)) add(HERO_WEIGHT, 'hero');
+      if (heavy !== 'hero') {
+        for (const k of blocks) if (rests(boxOf(k.bricks), b)) add(BLOCK_WEIGHT, 'block');
+        for (const t of others)
+          if ((heavy === 'any' || t.kind === 'loose') && on(t.x0, t.x1, t.z0, t.z1, t.y0)) add(t.weight, t.kind);
+      }
+      if (weight < (sw.weight ?? 1)) continue;
       now.add(o.inst.id);
       // stepped on now (not still standing on it)
-      if (!this.held.has(o.inst.id)) this.use(o, sw, block ? 'block' : 'hero');
+      if (!this.held.has(o.inst.id)) this.use(o, sw, by);
     }
-    // held switches come back up when nothing stands on them
+    // held switches come back up when nothing (or not enough) stands on them
     for (const id of this.held)
       if (!now.has(id)) {
         const o = near.find((x) => x.inst.id === id);
         if (o?.def.switch?.stays === 'held') this.turn(o, false, 'let go');
       }
     this.held = now;
+  }
+
+  /** after a switch moved: a push block resting on it sinks (or rises) with its top */
+  private settleOn(o: T, was: Box | null) {
+    if (!was) return;
+    for (const k of this.h.near(...this.centreXZ(o), 6)) {
+      if (!k.def.push || !rests(boxOf(k.bricks), was)) continue;
+      const y = this.landing(k, 0, 0);
+      const q = boxOf(k.bricks);
+      if (y === null || !q || y === q.y0) continue;
+      const p = k.inst.pos;
+      this.h.moveTo(k, [Number(p[0]), Number(p[1]) + (y - q.y0), Number(p[2])]);
+    }
+  }
+
+  private centreXZ(o: T): [number, number] {
+    const b = boxOf(o.bricks);
+    return b ? [(b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2] : [Number(o.inst.pos[0]), Number(o.inst.pos[2])];
   }
 
   private stepTimers() {

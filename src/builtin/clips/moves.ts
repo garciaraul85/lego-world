@@ -222,48 +222,64 @@ const pull = clipFromPoses({ id: 'clp_movepull00', name: 'Pull', group: 'Moves',
   [1.0, pullPose(1)],
 ]);
 
-/** climbing onto a ledge: hands up on the top, a knee up on it, then up and over */
-const climb = clipFromPoses({ id: 'clp_moveclimb0', name: 'Climb', group: 'Moves', length: 0.7, loop: false }, [
-  [
-    0,
-    {
-      'leftArm.x': -2.8,
-      'rightArm.x': -2.8,
-      'leftForearm.bend': -0.3,
-      'rightForearm.bend': -0.3,
-      'torso.lean': 0.15,
-      'leftLeg.x': -0.2,
-      'rightLeg.x': 0.2,
-    },
-  ],
-  [
-    0.35,
-    {
-      'leftArm.x': -1.9,
-      'rightArm.x': -1.9,
-      'leftForearm.bend': -1.2,
-      'rightForearm.bend': -1.2,
-      'torso.lean': 0.45,
-      'leftLeg.x': -1.2,
-      'leftShin.bend': 1.4,
-      'rightLeg.x': 0.3,
-      'rightShin.bend': 0.3,
-    },
-  ],
-  [
-    0.7,
-    {
-      'leftArm.x': -0.6,
-      'rightArm.x': -0.6,
-      'leftForearm.bend': -0.5,
-      'rightForearm.bend': -0.5,
-      'torso.lean': 0.3,
-      'leftLeg.x': -0.5,
-      'leftShin.bend': 0.8,
-      'rightLeg.x': 0.5,
-      'rightShin.bend': 0.9,
-    },
-  ],
+/**
+ * climbing onto a ledge (0.92 s, as the climb itself): both hands up onto the top, the pull up with the elbows
+ * bending and a knee coming up onto the edge, then over and up to stand
+ */
+const reach = {
+  'leftArm.x': -2.9,
+  'rightArm.x': -2.9,
+  'leftForearm.bend': -0.15,
+  'rightForearm.bend': -0.15,
+  'torso.lean': 0.1,
+  'leftLeg.x': 0,
+  'rightLeg.x': 0,
+  'leftShin.bend': 0.1,
+  'rightShin.bend': 0.1,
+  'root.height': 1.78,
+};
+const pullUp = {
+  'leftArm.x': -2.1,
+  'rightArm.x': -2.1,
+  'leftForearm.bend': -1.6,
+  'rightForearm.bend': -1.6,
+  'torso.lean': 0.35,
+  'leftLeg.x': 0.25,
+  'rightLeg.x': 0.35,
+  'leftShin.bend': 0.5,
+  'rightShin.bend': 0.7,
+  'root.height': 1.78,
+};
+const kneeUp = {
+  'leftArm.x': -1.1,
+  'rightArm.x': -1.1,
+  'leftForearm.bend': -1.9,
+  'rightForearm.bend': -1.9,
+  'torso.lean': 0.6,
+  'leftLeg.x': -1.4,
+  'leftShin.bend': 1.7,
+  'rightLeg.x': 0.5,
+  'rightShin.bend': 0.4,
+  'root.height': 1.6,
+};
+const standUp = {
+  'leftArm.x': -0.3,
+  'rightArm.x': -0.3,
+  'leftForearm.bend': -0.4,
+  'rightForearm.bend': -0.4,
+  'torso.lean': 0.2,
+  'leftLeg.x': -0.4,
+  'leftShin.bend': 0.7,
+  'rightLeg.x': 0.3,
+  'rightShin.bend': 0.5,
+  'root.height': 1.7,
+};
+const climb = clipFromPoses({ id: 'clp_moveclimb0', name: 'Climb', group: 'Moves', length: 0.92, loop: false }, [
+  [0, reach],
+  [0.18, reach],
+  [0.45, pullUp],
+  [0.66, kneeUp],
+  [0.92, standUp],
 ]);
 
 export const MOVE_CLIPS: Clip[] = [walk, run, jump, swing, flinch, breathe, swim, tread, push, pull, climb];
