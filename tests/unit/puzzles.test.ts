@@ -210,6 +210,29 @@ describe('keys, locks and the dungeon items', () => {
     expect(p.itemCount('Boss key')).toBe(1);
   });
 
+  it('a small chest gives a small key of this map, and it opens the locked door', () => {
+    const { p, get } = game(
+      [
+        ['Small chest', [10, 0, 10], 'ins_chest00001'],
+        ['Locked door', [20, 0, 10], 'ins_door000001'],
+      ],
+      { dungeon: true },
+    );
+    p.placeAt([12, 0.4, 12.6], Math.PI);
+    p.stepInteract();
+    expect(p.prompt?.instance.inst.id).toBe('ins_chest00001');
+    p.interact();
+    expect(get('ins_chest00001').state).toBe('open');
+    expect(p.itemCount('Small key')).toBe(1);
+    expect(p.inventory.has('Small key')).toBe(false);
+    expect(p.lookup('dungeon')).toBe('🗝 1');
+    p.placeAt([22.5, 0.4, 12.2], Math.PI);
+    p.stepInteract();
+    p.interact();
+    expect(get('ins_door000001').state).toBe('open');
+    expect(p.itemCount('Small key')).toBe(0);
+  });
+
   it('keys belong to the map where they were found', () => {
     const { p, map } = game([]);
     p.puzzles.give('Small key', 2);

@@ -211,8 +211,8 @@
           "fn": "placePuzzle",
           "args": {
             "name": "Locked door",
-            "ahead": 8,
-            "side": -7
+            "ahead": 7,
+            "side": -5
           }
         },
         {

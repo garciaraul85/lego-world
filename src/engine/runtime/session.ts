@@ -462,6 +462,7 @@ export class PlaySession {
         else if (isSettingKey(key)) this.progress.setSetting(key, value);
       },
       gave: () => this.audio.play(SND.pickup),
+      dungeonGive: (item: string, count: number) => this.puzzles.give(item, count),
       spawn: (asset: string, at: string) => void this.spawnAsset(asset, at),
       despawn: (target: string) => this.despawn(target),
       message: (text: string, seconds: number) => this.say(text, seconds),

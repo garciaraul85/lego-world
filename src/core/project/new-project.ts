@@ -54,7 +54,15 @@ export function newProjectFiles(o: NewProjectOptions): Map<string, unknown> {
         ...i,
         id: generatedInstanceId(mapId, i.idBase),
       }));
-    for (const [key, chunk] of encodeChunks(split.plain)) {
+    // the clearing has studs everywhere (smooth tiles become plates), so anything can be put down in it
+    const plain = r
+      ? split.plain.map((b) =>
+          b.type.startsWith('tile') && Math.hypot(b.x + 0.5, b.z + 0.5) <= r + 3
+            ? { ...b, type: `plate${b.type.slice(4)}` }
+            : b,
+        )
+      : split.plain;
+    for (const [key, chunk] of encodeChunks(plain)) {
       const [cx, cz] = key.split('_').map(Number) as [number, number];
       files.set(paths.chunk(mapId, cx, cz), chunk);
     }
