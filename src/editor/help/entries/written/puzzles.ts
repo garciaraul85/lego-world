@@ -106,7 +106,7 @@ export const PUZZLES: HelpEntry[] = [
       'Wire a switch to a gate with Logic › From a template… › Switch opens a gate, or write On switch in Logic.',
     ],
     commands: ['asset.place'],
-    match: [{ in: '[aria-label="Puzzle pieces"]' }],
+    match: [{ sel: '[aria-label="Puzzle pieces"]' }, { in: '[aria-label="Puzzle pieces"]' }],
     related: ['asset.puzzle', 'scene.map.dungeon', 'scene.dock.pack'],
   },
 ];
