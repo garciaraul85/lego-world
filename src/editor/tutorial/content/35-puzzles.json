@@ -30,7 +30,7 @@
     {
       "id": "pz.block",
       "title": "A block and a switch",
-      "body": "Click Push block, then click the ground 3 studs in front of the start. Then click Weight switch and put it right behind the block, so one shove slides the block onto it. A weight switch is down only while something stands on it.",
+      "body": "Click Push block, then click the ground 3 studs in front of the start. Then click Weight switch and put it right behind the block, so one shove slides the block onto it. A weight switch is down only while something heavy stands on it: the block is heavy enough, you alone are not.",
       "task": "Place a Push block, and a Weight switch just past it.",
       "target": "[aria-label=\"Puzzle pieces\"]",
       "check": {

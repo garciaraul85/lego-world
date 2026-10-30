@@ -68,7 +68,7 @@ export const PUZZLES: HelpEntry[] = [
     tips: [
       'Switch opens a gate (Logic › From a template…) opens and shuts a gate with any switch.',
       'Put a Small key in a Small chest (it gives one when opened) or leave one on the floor.',
-      'A Weight switch is down only while something stands on it: push a block onto it to keep a gate open.',
+      'A Weight switch needs weight 3: the hero alone is too light, a push block (or a big crate) holds it down, and it comes back up when the weight goes.',
       'Any placed object up to about two bricks high (a push block, a crate, a chest) is climbed by walking into it for a moment.',
     ],
     commands: ['asset.update'],
@@ -102,7 +102,7 @@ export const PUZZLES: HelpEntry[] = [
     kind: 'list',
     name: 'Starter pack › Puzzle pieces',
     purpose:
-      'Ready-made puzzle pieces: the **Push block** (pushes and pulls), the **Floor switch** (stays down), the **Weight switch** (down only while something is on it), the **Timer switch** (back up after 10 s), the **Crystal switch** (hit it to flip it), the **Lever** (Action), the **Locked door** (a small key), the **Boss door** (the boss key), the **Small key**, **Boss key**, **Dungeon map** and **Compass** pickups, and a **Small chest** with a small key in it.',
+      'Ready-made puzzle pieces: the **Push block** (pushes and pulls), the **Floor switch** (stays down), the **Weight switch** (down only while something heavy is on it: a push block, not the hero alone), the **Timer switch** (back up after 10 s), the **Crystal switch** (hit it to flip it), the **Lever** (Action), the **Locked door** (a small key), the **Boss door** (the boss key), the **Small key**, **Boss key**, **Dungeon map** and **Compass** pickups, and a **Small chest** with a small key in it.',
     steps: [
       'Open **Starter pack** in the bottom dock and scroll to Puzzle pieces.',
       'Drag a piece onto the map, or click it and click the ground (T turns it).',

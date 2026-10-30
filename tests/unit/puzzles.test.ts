@@ -453,3 +453,10 @@ describe('step 12a: the hero leans into a push and sits back to pull', () => {
     for (const s of ['push', 'pull'] as const) expect(MOVE_CLIPS.some((c) => c.id === MOVE_FOR[s])).toBe(true);
   });
 });
+
+describe('the starter Weight switch', () => {
+  it('needs weight 3: the hero alone does not hold it down, a push block does', () => {
+    expect(piece('Weight switch').switch?.weight).toBe(3);
+    expect(piece('Floor switch').switch?.weight).toBeUndefined();
+  });
+});

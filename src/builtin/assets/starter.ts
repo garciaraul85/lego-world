@@ -608,7 +608,7 @@ export const STARTER_ASSETS: Record<string, Raw> = {
   'grass-tuft': grassTuft(),
   'plank-bridge': bridge(),
   // step 12a: puzzle pieces
-  'weight-switch': stepSwitch('Weight switch', C.water, { by: 'step', stays: 'held' }),
+  'weight-switch': stepSwitch('Weight switch', C.water, { by: 'step', stays: 'held', weight: 3 }),
   'timer-switch': stepSwitch('Timer switch', C.white, { by: 'step', stays: 'timed', seconds: 10 }),
   'crystal-switch': crystalSwitch(),
   lever: lever(),
