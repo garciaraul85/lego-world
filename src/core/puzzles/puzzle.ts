@@ -66,7 +66,7 @@ export function dungeonItem(name: string): DungeonItem | null {
   const t = name.trim().toLowerCase();
   if (/^small keys?$/.test(t)) return 'Small key';
   if (/^boss keys?$|^big keys?$/.test(t)) return 'Boss key';
-  if (/^(dungeon )?map$/.test(t)) return 'Dungeon map';
+  if (/^dungeon maps?$/.test(t)) return 'Dungeon map'; // a plain “map” is an ordinary item
   if (/^compass$/.test(t)) return 'Compass';
   return null;
 }

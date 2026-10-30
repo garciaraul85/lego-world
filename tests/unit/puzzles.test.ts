@@ -57,6 +57,8 @@ describe('puzzle parts', () => {
     expect(dungeonItem('small KEYS')).toBe('Small key');
     expect(dungeonItem('Big key')).toBe('Boss key');
     expect(dungeonItem('Bomb')).toBeNull();
+    expect(dungeonItem('Dungeon map')).toBe('Dungeon map');
+    expect(dungeonItem('map')).toBeNull(); // an ordinary item: it goes into the inventory
     expect(lockItem({ key: 'item', item: 'Moon gem' })).toBe('Moon gem');
     expect(MapDoc.shape.dungeon).toBeTruthy();
     expect(Asset.shape.pickup).toBeTruthy();
