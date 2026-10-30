@@ -206,6 +206,15 @@ export const AI_COMMANDS: AiCommand[] = [
     { map: M1, time: 'evening', rain: true },
   ),
   def(
+    'map.setDungeon',
+    M.setDungeon,
+    z.strictObject({ map, dungeon: z.boolean() }),
+    ['map'],
+    'Scene',
+    'Makes a map a dungeon (or not): in play its minimap shows only where the hero has been until the Dungeon map is picked up there, the Compass marks its unopened chests and its boss, and small keys, the boss key, the map and the compass found there belong to it (they open only its own doors).',
+    { map: M1, dungeon: true },
+  ),
+  def(
     'map.addSpawn',
     M.addSpawn,
     z.strictObject({ map, id: ids('spawn').optional(), ...SpawnInput }),
@@ -502,7 +511,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ asset: Asset }),
     ['asset'],
     'Assets',
-    'Replaces an asset definition: states, sockets, interactions, smash, generator rules, loose (true: copies fall, tip over and float in play). Send the whole asset.',
+    'Replaces an asset definition: states, sockets, interactions, smash, generator rules, loose (true: copies fall, tip over and float in play), and the puzzle parts: push ({pull?, step?}: the hero shoves it square along the floor; pull: hold Action and step back), switch ({by: step | hit | press, stays: on | held | timed | toggle, seconds?, hitBy?: damage types, heavy?: any | hero | block}; off and on are its first two states), lock ({key: small | boss | item, item?, keep?}; locked and open are its first two states) and pickup ({item, count?}: touched, it is gone and the hero has the item: Small key, Boss key, Dungeon map, Compass, Heart or any item). Send the whole asset.',
     { asset: { $read: 'assets/<id>.json' } } as never,
   ),
   def(

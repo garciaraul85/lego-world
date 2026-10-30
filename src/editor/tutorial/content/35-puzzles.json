@@ -1,0 +1,285 @@
+{
+  "id": "puzzles",
+  "title": "Puzzles course",
+  "steps": [
+    {
+      "id": "pz.open",
+      "title": "Puzzle pieces",
+      "body": "Blocks to push and pull, switches to step on, hit or pull, doors with locks, keys, a map and a compass: they are under Starter pack › Puzzle pieces, and each works by itself. Logic only says what happens next.",
+      "task": "Open Starter pack in the bottom dock.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "dockIs",
+        "args": "pack"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "pack"
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "pz.block",
+      "title": "A block and a switch",
+      "body": "Click Push block, then click the ground 3 studs in front of the start. Then click Weight switch and put it right behind the block, so one shove slides the block onto it. A weight switch is down only while something stands on it.",
+      "task": "Place a Push block, and a Weight switch just past it.",
+      "target": "[aria-label=\"Puzzle pieces\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Push block,Weight switch"
+      },
+      "doItForMe": [
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Push block",
+            "ahead": 3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Weight switch",
+            "ahead": 5
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "pz.gate",
+      "title": "The gate it opens",
+      "body": "Place a Barred gate further on. Then under Scripts and cutscenes, Use… “Switch opens a gate”: set Switch to Weight switch and Make it. The logic is two lines: On switch to on opens the gate, to off shuts it.",
+      "task": "Place a Barred gate and make “Switch opens a gate” with the Weight switch.",
+      "target": "[data-tour=\"pack-tpl-switch-gate\"]",
+      "check": {
+        "kind": "state",
+        "test": "logicUses",
+        "args": "event.onSwitch"
+      },
+      "doItForMe": [
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Barred gate",
+            "ahead": 10
+          }
+        },
+        {
+          "fn": "makeTemplate",
+          "args": {
+            "id": "switch-gate",
+            "answers": {
+              "switch": "Weight switch"
+            }
+          }
+        },
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "pz.push",
+      "title": "Push it on",
+      "body": "Press Play and walk (W) into the block for a moment: it slides two studs, square to the floor, onto the switch. The switch goes down and the gate opens.",
+      "task": "Press Play and push the block onto the switch.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "stateInPlay",
+        "args": "Weight switch:down"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "pushOntoSwitch"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "pz.pull",
+      "title": "Pull it back",
+      "body": "Go round to the start side of the block and face it: the Action button says Grab. Hold Action (E) and step back (S): the block comes with you, off the switch, and the gate shuts again.",
+      "task": "Grab the block and pull it off the switch.",
+      "target": "[aria-label=\"Play view\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Push block pulled"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "pullBlock"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "pz.crystal",
+      "title": "A crystal on a timer",
+      "body": "Stop the game. Place a Crystal switch to the right of the start, then double-click its card to open it in the Asset studio. Under Puzzle › Switch, choose Timed and set 8 seconds: hit, it stays on for 8 seconds, ticking.",
+      "task": "Place a Crystal switch and make it Timed.",
+      "target": "[aria-label=\"Puzzle pieces\"]",
+      "check": {
+        "kind": "state",
+        "test": "switchStays",
+        "args": "Crystal switch:timed"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Crystal switch",
+            "ahead": 3,
+            "side": 6
+          }
+        },
+        {
+          "fn": "timedCrystal",
+          "args": {
+            "seconds": 8
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "pz.hit",
+      "title": "Hit it",
+      "body": "Press Play, walk to the crystal and swing your sword at it (F). It turns red and ticks; after 8 seconds it goes back. An arrow, a boomerang or a bomb will do the same once you have them.",
+      "task": "Press Play and hit the crystal.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "stateInPlay",
+        "args": "Crystal switch:on"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "hitSwitch"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "pz.lock",
+      "title": "A door and its key",
+      "body": "Stop the game. Place a Locked door to the left, and a Small chest near the start: opening it gives a small key. The door opens with a small key from this map, and uses it up.",
+      "task": "Place a Locked door and a Small chest.",
+      "target": "[aria-label=\"Puzzle pieces\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Locked door,Small chest"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Locked door",
+            "ahead": 8,
+            "side": -7
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Small chest",
+            "ahead": 3,
+            "side": -6
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "pz.dungeon",
+      "title": "Make it a dungeon",
+      "body": "In the Map tab on the right, tick This map is a dungeon. Its keys now open only its own doors, the minimap shows only where you have been until you find the Dungeon map, and the HUD counts your small keys.",
+      "task": "Tick This map is a dungeon (Map tab).",
+      "target": "[data-tour=\"map-dungeon\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapDungeon"
+      },
+      "doItForMe": [
+        {
+          "fn": "makeDungeon"
+        }
+      ],
+      "how": [],
+      "placement": "left"
+    },
+    {
+      "id": "pz.key",
+      "title": "Open the chest, then the door",
+      "body": "Press Play. Open the chest (Action): a small key, and the HUD shows 🗝 1. Walk to the door and press Action: it unlocks and the key is used up. With no key it would only say it is locked.",
+      "task": "Press Play, open the chest, then the door.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "stateInPlay",
+        "args": "Locked door:open"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "openChestAndDoor"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "pz.done",
+      "title": "Done!",
+      "body": "You pushed and pulled a block onto a weight switch that opens a gate, timed a crystal switch and hit it, and opened a locked door with a key from a chest in a dungeon. The Boss door, Boss key, Dungeon map and Compass work the same way. Make your own in the Asset studio under Puzzle.",
+      "task": "Press Finish.",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "target": "[data-tour=\"menu-help\"]",
+      "workspace": "Scene"
+    }
+  ]
+}

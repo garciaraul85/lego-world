@@ -167,13 +167,13 @@ async function boot() {
               mapName: 'Code island',
               generate: { environments: ['forest', 'prairie'], size: 16, seed: 2024 },
             })
-          : track === 'pack' || track === 'templates'
+          : track === 'pack' || track === 'templates' || track === 'puzzles'
             ? // step 11, 4a: the Starter pack courses need ground for their neighbours and enemies to stand on
               // (4c: room for an arena and waves too)
               newProjectFiles({
                 name: 'Tutorial sandbox',
                 mapName: 'Practice map',
-                generate: { environments: ['prairie'], size: track === 'templates' ? 32 : 16, seed: 2024 },
+                generate: { environments: ['prairie'], size: track === 'pack' ? 16 : 32, seed: 2024 },
                 // no shrub or mushroom where the enemies go
                 clearAround: 13,
               })

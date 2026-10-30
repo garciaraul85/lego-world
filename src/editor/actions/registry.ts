@@ -540,6 +540,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('templates'),
   },
   {
+    id: 'help.puzzlesCourse',
+    label: 'Puzzles course (push blocks, switches, locks and keys, dungeons)',
+    run: ({ ui }) => ui.tutorial('puzzles'),
+  },
+  {
     id: 'help.swim',
     label: 'Swimming course (dive, breath, the Action button)',
     run: ({ ui }) => ui.tutorial('swim'),
@@ -776,7 +781,7 @@ export const COURSE_GROUPS: [string, string[]][] = [
     'Characters',
     ['help.sheet', 'help.bodies', 'help.faces', 'help.shape', 'help.hair', 'help.posing', 'help.dialogue'],
   ],
-  ['Playing and logic', ['help.coding', 'help.combat', 'help.saving', 'help.swim']],
+  ['Playing and logic', ['help.coding', 'help.combat', 'help.puzzlesCourse', 'help.saving', 'help.swim']],
   ['Look and feel', ['help.effects', 'help.screenfx', 'help.lights', 'help.atmosphere', 'help.media']],
 ];
 export const COURSE_IDS = new Set(COURSE_GROUPS.flatMap(([, ids]) => ids));

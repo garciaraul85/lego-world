@@ -16,7 +16,14 @@ import type { Brick } from '../../core/bricks/codec';
  */
 export type IndexedObject = {
   inst: { id: string; name?: string; idBase: number; pos: number[] };
-  def: { bricks: readonly unknown[]; interactions: readonly unknown[]; checkpoint?: unknown };
+  def: {
+    bricks: readonly unknown[];
+    interactions: readonly unknown[];
+    checkpoint?: unknown;
+    /** step 12a: a lock or a press switch is used with Action too */
+    lock?: unknown;
+    switch?: { by: string } | undefined;
+  };
   bricks: readonly Pick<Brick, 'x' | 'y' | 'z'>[];
 };
 
@@ -69,7 +76,8 @@ export class ObjectIndex<T extends IndexedObject> {
   private add(o: T, i: number) {
     this.ids.set(o.inst.id, o);
     if (o.inst.name) this.names.set(o.inst.name.toLowerCase(), o);
-    if (o.def.interactions.length) this.interactive.push(o);
+    const usable = o.def.interactions.length > 0 || !!o.def.lock || o.def.switch?.by === 'press';
+    if (usable) this.interactive.push(o);
     if (o.def.checkpoint) this.checkpoints.push(o);
     if (o.def.bricks.length) {
       this.ranged.push(o);
@@ -95,8 +103,7 @@ export class ObjectIndex<T extends IndexedObject> {
       x = (x0 + x1 + 1) / 2;
       z = (z0 + z1 + 1) / 2;
       y = (sy / o.bricks.length) * 0.4;
-      if (o.def.interactions.length)
-        this.interactiveReach = Math.max(this.interactiveReach, Math.hypot(x1 - x0 + 2, z1 - z0 + 2) / 2);
+      if (usable) this.interactiveReach = Math.max(this.interactiveReach, Math.hypot(x1 - x0 + 2, z1 - z0 + 2) / 2);
     }
     if (i * 3 + 3 > this.centres.length) {
       const grown = new Float32Array(Math.max(this.centres.length * 2, i * 3 + 3));

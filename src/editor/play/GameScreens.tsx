@@ -175,10 +175,37 @@ function minimapDrawer(s: PlaySession) {
     }
     const g = canvas.getContext('2d');
     if (!g) return;
-    g.drawImage(cache.img, 0, 0);
+    // step 12a: a dungeon shows only where the hero has been until its map is found
+    const view = s.minimapView();
+    if (view.seen) {
+      g.fillStyle = '#05070d';
+      g.fillRect(0, 0, W, W);
+      const c = view.cell * cache.k;
+      for (const key of view.seen) {
+        const [cx, cz] = key.split(',').map(Number) as [number, number];
+        const sx = (cx * view.cell - cache.x0) * cache.k;
+        const sz = (cz * view.cell - cache.z0) * cache.k;
+        if (sx + c < 0 || sz + c < 0 || sx > W || sz > W) continue;
+        g.drawImage(cache.img, sx, sz, c, c, sx, sz, c, c);
+      }
+    } else g.drawImage(cache.img, 0, 0);
     g.fillStyle = '#ffffff';
     for (const n of w.npcs) {
+      if (view.seen && !view.seen.has(`${Math.floor(n.state.x / view.cell)},${Math.floor(n.state.z / view.cell)}`))
+        continue;
       g.fillRect((n.state.x - cache.x0) * cache.k - 1.5, (n.state.z - cache.z0) * cache.k - 1.5, 3, 3);
+    }
+    // the compass: chests not yet opened, and the boss
+    for (const m of view.marks) {
+      const mx = (m.x - cache.x0) * cache.k;
+      const mz = (m.z - cache.z0) * cache.k;
+      g.fillStyle = m.kind === 'boss' ? '#ff3b3b' : '#f7c900';
+      g.strokeStyle = '#000000';
+      g.beginPath();
+      if (m.kind === 'boss') g.arc(mx, mz, 5, 0, Math.PI * 2);
+      else g.rect(mx - 4, mz - 3, 8, 6);
+      g.fill();
+      g.stroke();
     }
     const h = s.heroState;
     const hx = (h.x - cache.x0) * cache.k;

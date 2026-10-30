@@ -277,6 +277,30 @@ export const SOUNDS: Record<string, SfxRecipe> = {
     },
     { wave: 'sine', f0: 3520, at: 0.12, dur: 0.2, gain: 0.07 },
   ]),
+  /** Step 12a (puzzles): a heavy stone block scraping over stone */
+  scrape: sfx(
+    [
+      { wave: 'noise', f0: 500, f1: 350, dur: 0.38, gain: 0.5, attack: 0.04, trem: [26, 0.5] },
+      { wave: 'sine', f0: 70, f1: 60, dur: 0.38, gain: 0.35, attack: 0.04 },
+    ],
+    11,
+  ),
+  /** a switch pressed: a stone click and a low thunk */
+  click: sfx([
+    { wave: 'square', f0: 1400, f1: 900, dur: 0.03, gain: 0.25 },
+    { wave: 'sine', f0: 160, f1: 90, at: 0.02, dur: 0.14, gain: 0.55 },
+  ]),
+  /** a timed switch running down: one tick */
+  tick: sfx([{ wave: 'square', f0: 2200, f1: 1800, dur: 0.025, gain: 0.18, lp: 5000 }]),
+  /** a lock turned: a metal clunk and the bolt sliding back */
+  unlock: sfx(
+    [
+      { wave: 'square', f0: 620, f1: 420, dur: 0.05, gain: 0.25, lp: 2400 },
+      { wave: 'noise', f0: 3000, f1: 1500, at: 0.06, dur: 0.18, gain: 0.25 },
+      { wave: 'sine', f0: 220, f1: 140, at: 0.2, dur: 0.16, gain: 0.45 },
+    ],
+    6,
+  ),
 };
 
 // ---------- music ----------
@@ -420,6 +444,10 @@ export const SND = {
   swish: sndId('swish'),
   bossroar: sndId('bossroar'),
   keyget: sndId('keyget'),
+  scrape: sndId('scrape'),
+  click: sndId('click'),
+  tick: sndId('tick'),
+  unlock: sndId('unlock'),
 } as const;
 
 export const MUS = {
@@ -439,6 +467,11 @@ export const ADVENTURE_EVENTS: [string, SoundEvent][] = [
   ev('swish', ['swish'], { pitch: [0.9, 1.15], maxVoices: 3, volume: -4 }),
   ev('bossroar', ['bossroar'], { maxVoices: 1 }),
   ev('keyget', ['keyget'], { bus: 'ui', spatial: false, maxVoices: 1 }),
+  // step 12a: puzzles
+  ev('scrape', ['scrape'], { maxVoices: 2, cooldown: 0.15 }),
+  ev('click', ['click'], { maxVoices: 2 }),
+  ev('tick', ['tick'], { bus: 'ui', spatial: false, maxVoices: 1, volume: -6 }),
+  ev('unlock', ['unlock'], { maxVoices: 1 }),
 ];
 
 export const DEFAULT_EVENTS: SoundEvents = {

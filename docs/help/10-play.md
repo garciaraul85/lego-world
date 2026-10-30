@@ -60,6 +60,10 @@ Each enemy has its weaknesses (Character studio › Health): some kinds of hit h
 
 A neighbour whose character **fights the hero** (Character studio) wanders until it sees you, walks over, raises its arm with a red **!** over its head, then swings. Guard (Q) to block from the front, raise the guard just as it swings to parry (it is stunned), or roll (C). The **Training yard** (World › Add the Training yard, then Play › Play this map) has one to practise on, on a small fenced field with a hill to jump from, boulders, trees and three dummies.
 
+## Puzzles
+
+Walk into a **push block** for a moment and it slides one step; hold Action (**Grab**) in front of one that can be pulled and step back to drag it. **Floor switches** go down when you (or a block) stand on them; a **weight switch** comes back up when nothing is on it, so push a block onto it; a **timer switch** ticks and goes back after its seconds. Hit a **crystal switch** with your sword (later an arrow, a boomerang or a bomb) to flip it, and pull a **lever** with Action. A **locked door** opens with Action when you carry a small key from this place (it is used up); the **boss door** wants the boss key. Walk over a key, the dungeon map or the compass to pick it up.
+
 ## Rebuilding
 
 Smashed bricks are real physical pieces: they fly off, tumble, bounce off the bricks around them, stack and come to rest, and the hero pushes them aside when walking through. In water they float and drift with its current, as loose objects do (see Scene › Water and loose things).

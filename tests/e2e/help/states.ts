@@ -262,6 +262,26 @@ export const HELP_STATES: HelpState[] = [
       await signals(p, { left: 'search' });
     },
   },
+  {
+    // step 12a: the Starter pack's Puzzle pieces
+    id: 'scene-dock-puzzles',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { left: 'hier', dock: 'pack' });
+      await p.locator('[aria-label="Puzzle pieces"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    // step 12a: the Map tab scrolled to Dungeon
+    id: 'scene-map-dungeon',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { right: 'map' });
+      await p.locator('[data-tour="map-dungeon"]').scrollIntoViewIfNeeded();
+    },
+  },
   ...(['pack', 'library', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const).map((d) => ({
     id: `scene-dock-${d}`,
     screen: 'scene',
@@ -867,6 +887,16 @@ export const HELP_STATES: HelpState[] = [
       await ws(p, 'Assets');
       await p.getByRole('listbox').getByRole('option').first().click();
       await p.locator('[data-tour="asset-checkpoint"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    // step 12a: an open asset scrolled to its Puzzle section
+    id: 'assets-puzzle',
+    screen: 'assets',
+    setup: async (p) => {
+      await ws(p, 'Assets');
+      await p.getByRole('listbox').getByRole('option').first().click();
+      await p.locator('[data-tour="asset-puzzle"]').scrollIntoViewIfNeeded();
     },
   },
   {

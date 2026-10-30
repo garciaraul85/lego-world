@@ -153,6 +153,7 @@ import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, s
 import { ObjectIndex } from './objects';
 import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
+import { boxOf, Puzzles, SEEN_CELL } from './puzzles';
 import { Runtime, type System } from './runtime';
 import { applySave, captureMap, captureSave, loadMessage, restoreMap, type SaveHost, type SaveWorld } from './saves';
 import { afterDefence, movesOf, statsOf, wornProfile } from './sheet';
@@ -371,6 +372,8 @@ export class PlaySession {
   readonly enemies: Enemies = new Enemies(this);
   /** P9b: attacks, guarding, moves and lock-on */
   readonly combat: Combat = new Combat(this);
+  /** step 12a: push blocks, switches, locks, pickups and each dungeon's keys, map and compass */
+  readonly puzzles: Puzzles<PlayInstance> = this.makePuzzles();
   private lastStamina = -1;
   onBreak: ((b: NonNullable<LogicRuntime['paused']>) => void) | null = null;
   emotes: Clip[] = [];
@@ -834,10 +837,14 @@ export class PlaySession {
   }
 
   itemCount(item: string): number {
-    return this.inventory.get(this.itemKey(item)) ?? 0;
+    return this.puzzles.count(item) ?? this.inventory.get(this.itemKey(item)) ?? 0;
   }
 
   takeItem(item: string, count: number) {
+    if (this.puzzles.take(item, count)) {
+      this.emit('info', `Took ${count} × ${item} (this map)`);
+      return;
+    }
     const k = this.itemKey(item);
     const n = Math.max(0, (this.inventory.get(k) ?? 0) - count);
     if (n) this.inventory.set(k, n);
@@ -1142,6 +1149,7 @@ export class PlaySession {
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
       { id: 'gates', fixed: (g) => g.stepGates() },
       { id: 'interact', fixed: (g) => g.stepInteract() },
+      { id: 'puzzles', fixed: (g, dt) => g.puzzles.step(dt) },
       { id: 'barks', fixed: (g) => g.runtime.ticks % 30 === 0 && g.stepBarks() },
       {
         id: 'talk',
@@ -1203,6 +1211,8 @@ export class PlaySession {
     let input: ReturnType<PlaySession['inputVector']> & { speedScale?: number; jumpSpeed?: number } =
       still || c.stagger > 0 ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
     if (input.jump && c.lockedJump(input.x, input.z)) input = { ...input, jump: false };
+    // step 12a: holding a block to pull it: the hero stays put (stepping back drags it)
+    if (this.puzzles.grab) input = { ...input, x: 0, z: 0, jump: false };
     const moving = c.moveInput();
     if (moving) input = moving;
     else if (c.guard || c.charge !== null) input = { ...input, run: false, speedScale: 0.45 };
@@ -1396,10 +1406,12 @@ export class PlaySession {
         }
       // Milestone 2b: the objects within reach of the swing (the widest objects are 48 studs), not every object
       for (const i of this.objs().near(h.x, h.z, r + 26)) {
-        if (!i.def.health) continue;
+        const sw = i.def.switch?.by === 'hit';
+        if (!i.def.health && !sw) continue;
         const c = this.instanceCenter(i);
         if (c && Math.hypot(c[0] - h.x, c[2] - h.z) <= r + Math.max(i.def.footprint[0], i.def.footprint[1]) / 2) {
-          this.hitInstance(i, attack);
+          if (sw) this.puzzles.hit(i, attack.type);
+          else this.hitInstance(i, attack);
           any = true;
         }
       }
@@ -1416,6 +1428,11 @@ export class PlaySession {
     if (!hit || (aim && aim.id !== null && hit.id !== aim.id && (!aim.group || hit.group !== aim.group))) return;
     // P9a: an object with health loses some; it breaks only when its health reaches zero
     const owner = this.instanceOfPiece(hit.id);
+    // step 12a: a switch that is hit (a crystal) is used, not broken
+    if (owner?.def.switch?.by === 'hit') {
+      this.puzzles.hit(owner, attack.type);
+      return;
+    }
     if (owner?.def.health) {
       this.hitInstance(owner, attack, hit);
       return;
@@ -1624,6 +1641,8 @@ export class PlaySession {
   }
 
   private give(item: string, count: number) {
+    // step 12a: a small key, the boss key, the map and the compass belong to this map (the dungeon)
+    if (this.puzzles.give(item, count)) return;
     // step 11, 4a: a heart heals at once, like Zelda's
     if (/^hearts?$/i.test(item.trim())) {
       this.heal('hero', count);
@@ -3188,6 +3207,7 @@ export class PlaySession {
     this.checkpoint = { map: this.world.mapId, spawn: sp?.id ?? null };
     this.travelLock = sp ? { spawn: sp.id } : null;
     this.inventory.clear();
+    this.puzzles.restore(undefined);
     this.health.clear();
     this.cine.seen.clear();
     this.logic.vars.clear();
@@ -3389,10 +3409,15 @@ export class PlaySession {
         return this.talks.view?.text ?? this.dialogue?.text ?? '';
       case 'inventory':
         return this.inventory;
+      // step 12a: this dungeon's small keys, and a line with its keys, boss key, map and compass
+      case 'keys':
+        return this.puzzles.count('Small key') ?? 0;
+      case 'dungeon':
+        return this.puzzles.hudLine();
       case 'time':
         return Math.floor(this.clock);
     }
-    if (name.startsWith('inventory.')) return this.inventory.get(name.slice(10)) ?? 0;
+    if (name.startsWith('inventory.')) return this.itemCount(name.slice(10));
     if (name.startsWith('save.')) return this.saveValue(name);
     if (/^(progress|achievements|collections|collection|bests|best|settings)\./.test(name))
       return this.progress.value(name);
@@ -3545,6 +3570,141 @@ export class PlaySession {
   }
 
   /** world.despawn: removes a placed asset for this play (refused if others stand on it). */
+  /** step 12a: the puzzle parts' view of the game */
+  private makePuzzles(): Puzzles<PlayInstance> {
+    // the host's getters read the session's state (a getter has its own this)
+    const self = this;
+    const p = new Puzzles<PlayInstance>({
+      get heroState() {
+        return self.heroState;
+      },
+      get clock() {
+        return self.clock;
+      },
+      mapId: () => this.world.mapId,
+      dungeon: () => !!this.world.doc.dungeon,
+      near: (x, z, r) => this.objs().near(x, z, r),
+      pieces: () => this.world.pieces,
+      moveWish: () => {
+        const v = this.inputVector();
+        if (!v.x && !v.z) return { x: 0, z: 0 };
+        const l = Math.min(1, Math.hypot(v.x, v.z)) / (Math.hypot(v.x, v.z) || 1);
+        const yaw = this.camYaw;
+        return {
+          x: (Math.cos(yaw) * v.x - Math.sin(yaw) * v.z) * l,
+          z: (-Math.sin(yaw) * v.x - Math.cos(yaw) * v.z) * l,
+        };
+      },
+      free: () => !this.talking && !this.talks.active && !this.over && !this.cine.active && !this.heroState.building,
+      someoneAt: (x0, z0, x1, z1, y0, y1) =>
+        this.world.npcs.some(
+          (n) =>
+            n.state.x > x0 - 0.4 &&
+            n.state.x < x1 + 0.4 &&
+            n.state.z > z0 - 0.4 &&
+            n.state.z < z1 + 0.4 &&
+            n.state.y < y1 &&
+            n.state.y + 3 > y0,
+        ),
+      setState: (o, state) => this.setInstanceState(o.inst.id, state, true),
+      moveTo: (o, pos) => this.moveInstance(o, pos),
+      placeHero: (x, z) => {
+        const s = this.heroState;
+        s.x = x;
+        s.z = z;
+      },
+      heroFits: (x, z) => {
+        const s = this.heroState;
+        return this.world.controller.clear(x, s.y, z);
+      },
+      remove: (o) => this.despawn(o.inst.id),
+      give: (item, n) => this.give(item, n),
+      say: (t, sec) => this.say(t, sec),
+      sound: (id, at) => this.audio.play(SND[id], at ? { pos: at } : {}),
+      fire: (event, o, extra) => {
+        const asset = o.def.id;
+        if (event === 'switch')
+          this.logic.fire({
+            type: 'event.onSwitch',
+            match: { asset, to: extra.on ? 'on' : 'off' },
+            payload: { target: o.inst.id, on: extra.on },
+            self: o.inst.id,
+          });
+        else if (event === 'pushed')
+          this.logic.fire({
+            type: 'event.onPushed',
+            match: { asset },
+            payload: { target: o.inst.id },
+            self: o.inst.id,
+          });
+        else if (event === 'unlocked')
+          this.logic.fire({
+            type: 'event.onUnlocked',
+            match: { asset },
+            payload: { target: o.inst.id, key: extra.key },
+            self: o.inst.id,
+          });
+        else
+          this.logic.fire({
+            type: 'event.onPickedUp',
+            match: { item: String(extra.item) },
+            payload: { item: extra.item, count: extra.count },
+          });
+      },
+      log: (t) => this.emit('info', t),
+    });
+    p.itemCount = (item) => this.inventory.get(this.itemKey(item)) ?? 0;
+    p.takeItem = (item, n) => this.takeItem(item, n);
+    return p;
+  }
+
+  /**
+   * Step 12a, for the minimap: in a dungeon without its map, the cells the hero has seen (null: show it all);
+   * with its compass, the chests not yet opened and the boss.
+   */
+  minimapView(): { seen: Set<string> | null; cell: number; marks: { x: number; z: number; kind: 'chest' | 'boss' }[] } {
+    const w = this.world;
+    const r = this.puzzles.dungeons.get(w.mapId);
+    const dungeon = !!w.doc.dungeon;
+    const seen = dungeon && !r?.map ? (r?.seen ?? new Set<string>()) : null;
+    const marks: { x: number; z: number; kind: 'chest' | 'boss' }[] = [];
+    if (dungeon && r?.compass) {
+      for (const i of w.instances) {
+        if (!/chest/i.test(i.def.name) || i.def.states.length < 2 || i.state !== i.def.states[0]) continue;
+        const b = boxOf(i.bricks);
+        if (b) marks.push({ x: (b.x0 + b.x1) / 2, z: (b.z0 + b.z1) / 2, kind: 'chest' });
+      }
+      for (const n of w.npcs)
+        if (this.enemyOf(n)?.style === 'boss') marks.push({ x: n.state.x, z: n.state.z, kind: 'boss' });
+    }
+    return { seen, cell: SEEN_CELL, marks };
+  }
+
+  /**
+   * Step 12a: moves a placed object to pos (a push block sliding): its bricks, prompts and solidity follow. It
+   * is not checked against the brick rules here: the puzzle checked the way was clear.
+   */
+  moveInstance(o: PlayInstance, pos: [number, number, number]) {
+    const w = this.world;
+    const lo = o.inst.idBase;
+    const hi = lo + o.def.bricks.length;
+    const gone = w.pieces.filter((q) => q.id! >= lo && q.id! < hi);
+    const inst = { ...o.inst, pos };
+    const next = expandAsset(o.def, { ...inst, state: o.state });
+    const added = next.bricks.map((b) => brickToPiece(b, true));
+    for (const q of gone) w.dirtyChunks.add(chunkKeyOf(q));
+    for (const q of added) w.dirtyChunks.add(chunkKeyOf(q));
+    w.pieces = [...w.pieces.filter((q) => q.id! < lo || q.id! >= hi), ...added].sort((a, b) => a.id! - b.id!);
+    o.inst = inst;
+    o.bricks = next.bricks;
+    o.sockets = next.sockets;
+    delete o.box;
+    // the object index keeps centres: a new list builds it again
+    w.instances = [...w.instances];
+    w.rev++;
+    this.syncPhysics(w, { gone, added });
+  }
+
   despawn(target: string) {
     const w = this.world;
     const inst = this.objs(w).byId(target);
@@ -3756,11 +3916,15 @@ export class PlaySession {
     const objs = this.objs();
     const smashed = this.smashedIds();
     for (const inst of objs.near(s.x, s.z, bestD + objs.interactiveReach + 1)) {
-      if (!inst.def.interactions.length) continue;
+      const usable = inst.def.switch?.by === 'press' || (!!inst.def.lock && inst.state === inst.def.states[0]);
+      if (!inst.def.interactions.length && !usable) continue;
       if (smashed.has(inst.inst.id)) continue;
       for (const so of inst.sockets) {
         if (so.kind !== 'interact' && so.kind !== 'sign') continue;
-        if (!inst.def.interactions.some((i) => i.socket === so.id && (!i.when || i.when.state === inst.state)))
+        if (
+          !usable &&
+          !inst.def.interactions.some((i) => i.socket === so.id && (!i.when || i.when.state === inst.state))
+        )
           continue;
         const d = Math.hypot(so.world[0] - s.x, so.world[2] - s.z);
         if (d < bestD && Math.abs(so.world[1] - (s.y + 1)) < 3) {
@@ -3951,6 +4115,9 @@ export class PlaySession {
           : { kind: 'swimUp', label: 'Swim up', priority: ACTION_PRIORITY.swimUp },
       );
     }
+    // step 12a: a block that can be pulled, right in front
+    if (this.puzzles.canGrab() || this.puzzles.grab)
+      out.push({ kind: 'grab', label: 'Grab', priority: ACTION_PRIORITY.grab });
     for (const f of this.actionOffers) out.push(...f());
     return out;
   }
@@ -3973,6 +4140,11 @@ export class PlaySession {
         if (o.kind === 'swimUp') {
           this.swim.up = down;
           this.swim.down = false;
+          return;
+        }
+        // step 12a: held to hold on to a block; step back to pull it
+        if (o.kind === 'grab') {
+          this.puzzles.setGrab(down);
           return;
         }
         if (!down) return;
@@ -4109,6 +4281,17 @@ export class PlaySession {
       return this.startConversation(sign.conversation, null, 'sign');
     const p = this.prompt;
     if (!p || this.talking) return false;
+    // step 12a: a lock tries the hero's key; a press switch (a lever) is used
+    if (this.puzzles.press(p.instance)) {
+      this.logic.fire({
+        type: 'event.onInteract',
+        match: { asset: p.instance.def.id },
+        payload: { target: p.instance.inst.id, socket: p.socket },
+        self: p.instance.inst.id,
+      });
+      this.stepInteract();
+      return true;
+    }
     const list = p.instance.def.interactions.filter(
       (i) => i.socket === p.socket && (!i.when || i.when.state === p.instance.state),
     );
@@ -4126,7 +4309,7 @@ export class PlaySession {
   }
 
   /** Changes an instance's state in play: its state-only bricks swap (refused if they would not fit). */
-  setInstanceState(instanceId: string | undefined, state: string) {
+  setInstanceState(instanceId: string | undefined, state: string, anyway = false) {
     const w = this.world;
     const inst = instanceId ? this.objs(w).byId(instanceId) : undefined;
     if (!inst || !inst.def.states.includes(state) || inst.state === state) return;
@@ -4137,12 +4320,14 @@ export class PlaySession {
       ...w.pieces.filter((p) => p.id! < lo || p.id! >= hi),
       ...next.bricks.map((b) => brickToPiece(b, true)),
     ];
-    const check = floating(inst.def)
-      ? { ok: true as const, reason: '' }
-      : this.layoutCheck(w, pieces, [
-          ...w.pieces.filter((p) => p.id! >= lo && p.id! < hi),
-          ...next.bricks.map((b) => brickToPiece(b)),
-        ]);
+    // step 12a: a switch or a lock changes state whatever rests on it (a block on a switch, a door opening)
+    const check =
+      floating(inst.def) || anyway
+        ? { ok: true as const, reason: '' }
+        : this.layoutCheck(w, pieces, [
+            ...w.pieces.filter((p) => p.id! >= lo && p.id! < hi),
+            ...next.bricks.map((b) => brickToPiece(b)),
+          ]);
     if (!check.ok) {
       this.say(`Something is in the way: ${check.reason}`, 2);
       return;

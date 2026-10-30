@@ -75,6 +75,11 @@ export const MapDoc = z.strictObject({
   dayLength: DayLength.optional(),
   /** P27 part 3: how far the map is drawn on big maps (studs; the fog closes in before it). Default 256. */
   viewDistance: ViewDistance.optional(),
+  /**
+   * step 12a: a dungeon: its minimap shows only where the hero has been until the Dungeon map is found here, the
+   * Compass marks its chests and boss, and its small keys open only its own doors
+   */
+  dungeon: z.boolean().optional(),
   music: id('music').nullable(),
   ambience: id('sound').nullable(),
   spawns: z.array(Spawn).max(32),

@@ -9,6 +9,7 @@ import { LIGHTS } from './lights';
 import { COMPARE, MATH } from './math';
 import { MEDIA } from './media';
 import { MISC } from './misc';
+import { PUZZLE_EVENTS } from './puzzles';
 import { PROGRESS_EVENTS, SAVE } from './save';
 import type { NodeDef, PinDef } from './types';
 import { VARS } from './vars';
@@ -47,6 +48,8 @@ export const CATALOG: readonly NodeDef[] = [
   ...BUTTONS,
   // step 11, 4c
   ...ADVENTURE,
+  // step 12a
+  ...PUZZLE_EVENTS,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

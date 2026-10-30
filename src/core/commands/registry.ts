@@ -63,6 +63,7 @@ import {
   removeSpawn,
   removeZone,
   renameMap,
+  setDungeon,
   setEnvironment,
   updateProject,
   updateSpawn,
@@ -79,6 +80,7 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('bricks.move', moveBricks);
   bus.register('bricks.paint', paintBricks);
   bus.register('map.setEnvironment', setEnvironment);
+  bus.register('map.setDungeon', setDungeon);
   bus.register('file.put', putFile);
   bus.register('file.delete', deleteFile);
   bus.register('map.generate', generateTerrain);

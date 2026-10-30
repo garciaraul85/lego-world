@@ -1404,7 +1404,7 @@ export const ASSETS: HelpEntry[] = [
     kind: 'field',
     name: 'Sockets and interactions',
     purpose:
-      'A socket is a spot where the hero can use the asset (press E). An interaction says what happens: switch state, give an item, play a sound, send an event.',
+      'A socket is a spot where the hero can use the asset (press E). An interaction says what happens: switch state, give an item, play a sound, send an event. To make a door open when the hero presses E, give it an interact socket and an interaction that switches it to its open state (or tick Lock under Puzzle for a door that wants a key).',
     steps: [
       'Press + Socket, then Put socket (P) and click where it goes.',
       'Press + Interaction and choose what it does.',

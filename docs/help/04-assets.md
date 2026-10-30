@@ -78,6 +78,17 @@ Tick **Gives light** in the Asset studio and every copy of the asset lights what
 
 Tick **Loose** in the Asset studio and every copy of the asset is moved by the physics engine in Play: it falls if nothing holds it up, tips over and slides when the hero walks into it, floats in water and drifts with a river's current. Leave it off for buildings, trees and anything that should stay put. Loose copies still break when smashed.
 
+## Puzzle: push blocks, switches, locks and pickups
+
+The **Puzzle** section of the Asset studio says what the asset does in a puzzle. Each is one tick.
+
+- **Push block**: in Play the hero walks into it for a moment and it slides one step square along the floor (its own size, or the **Step** you set). It stops at walls, other blocks and edges, steps up onto a switch and holds it down. With **Can be pulled**, the hero holds Action (the button shows **Grab**) and steps back to drag it.
+- **Switch**: its first two states are off and on (the Floor switch's are up and down). **Stepped on** by the hero or a block (**Held down by** chooses), **Hit** by a sword, an arrow, a boomerang or a bomb (tick the kinds it answers to; none ticked: any hit; it never breaks), or **Pressed** with Action at its interact socket (a lever). It **Stays on**, is on only while **Held down**, is **Timed** (it ticks, faster near the end, and goes back after its seconds) or **Flips each time**.
+- **Lock**: its first two states are locked and open. Action at its interact socket opens it when the hero has the key: **a small key** found on this map (used up), **the boss key** (kept), or **an item** you name (used up unless **Kept**).
+- **Pickup**: the hero touches it and it is gone: a **Small key**, **Boss key**, **Dungeon map** or **Compass** (they belong to the map where they are found), a **Heart** (it heals), or any item for the inventory.
+
+A switch or lock on an asset with one state gets an off and on (locked and open) pair of states; draw what each state shows with **Only in this state**. Logic hears them all: **On switch** (with To: on or off), **On pushed**, **On unlocked** and **On picked up**. The **Switch opens a gate** template (Logic › From a template…) opens a gate when any switch turns on and shuts it when a held or timed one goes off.
+
 ## Health: things that take several hits
 
 Without health, one hit smashes an asset (when **Can be smashed** is on). With **Health** (Asset properties, under Smash) it takes several hits first:

@@ -54,7 +54,7 @@
           {
             "type": "text",
             "id": "gear",
-            "text": "\u2692 {hero.gear}",
+            "text": "⚒ {hero.gear}",
             "style": {
               "fontSize": 18,
               "color": "#e8ecf4"
@@ -74,6 +74,21 @@
           "bg": "#0b1020b0",
           "pad": 10,
           "radius": 12
+        }
+      },
+      {
+        "type": "text",
+        "id": "dungeon",
+        "anchor": [0, 0],
+        "offset": [24, 76],
+        "text": "{dungeon}",
+        "style": {
+          "fontSize": 17,
+          "color": "#f7c900",
+          "bg": "#0b1020b0",
+          "pad": 8,
+          "radius": 10,
+          "hideEmpty": 1
         }
       },
       {
@@ -151,7 +166,7 @@
         "id": "pause",
         "anchor": [0.5, 0],
         "offset": [0, 16],
-        "label": "\u275a\u275a",
+        "label": "❚❚",
         "touchOnly": true,
         "onPress": [
           {

@@ -513,6 +513,34 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   cinematicNamed: (ed, a) =>
     ed.store.list('cinematics/').some((p) => ed.store.get<{ name: string }>(p)?.name === String(a)),
   assetInPlay: (ed, a) => !!ed.session.value?.resolveEntity(String(a)),
+  // step 12a: the Puzzles course
+  assetsOnMap: (ed, a) => {
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    const names = new Set(
+      items.flatMap((i) =>
+        i.kind === 'asset' ? [assetLibrary(ed).find((x) => x.asset.id === i.asset)?.asset.name ?? ''] : [],
+      ),
+    );
+    return String(a)
+      .split(',')
+      .every((n) => names.has(n.trim()));
+  },
+  /** “Name:state”: a copy of that asset is in that state in the running game */
+  stateInPlay: (ed, a) => {
+    const [name, state] = String(a).split(':');
+    return !!ed.session.value?.world.instances.some((i) => i.def.name === name && i.state === state);
+  },
+  /** the running game's log has this line (Push block pulled…) */
+  playLogged: (ed, a) => !!ed.session.value?.events.some((e) => e.msg.includes(String(a))),
+  /** “Name:stays”: the project's copy of the asset is a switch that stays that way (timed, toggle…) */
+  switchStays: (ed, a) => {
+    const [name, stays] = String(a).split(':');
+    return ed.store.list('assets/').some((p) => {
+      const x = ed.store.get<Asset>(p);
+      return x?.name === name && x?.switch?.stays === stays;
+    });
+  },
+  mapDungeon: (ed) => !!ed.mapDoc.value?.dungeon,
   inLibrary: (_ed, a) => library().items.value.some((i) => i.name === String(a)),
   logicUses: (ed, a) => {
     const types = new Set(

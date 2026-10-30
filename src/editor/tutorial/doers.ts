@@ -18,7 +18,7 @@ import type { NewBrick } from '../../core/commands/handlers/bricks';
 import { progressOf } from '../../core/commands/handlers/progress';
 import { blankConversation, type Conversation } from '../../core/dialogue/schema';
 import { parseScript } from '../../core/dialogue/script';
-import { arrivalSpot, assetSpot, reachable } from '../../core/gamegen/places';
+import { arrivalSpot, assetSpot, reachable, surfaceOf } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
 import { importMedia, isBigPicture } from '../../core/media/import';
 import { allSaves, type Saving } from '../../core/save/save';
@@ -42,7 +42,7 @@ import { fromBase64, modelMatrix, prepareModel } from '../../engine/model/prepar
 import { drawBox } from '../../engine/render/model-draw';
 import { BrowserSaveStore } from '../../platform/saves';
 import { type ActionCtx, action, runAction } from '../actions/registry';
-import { assetLibrary, newAssetDef } from '../assets';
+import { assetLibrary, newAssetDef, placeCommands } from '../assets';
 import { looseCopies, modelItems, placeModelAt, placeWaterAt, waterItems } from '../interact/place';
 import { sampleClip, samplePoster } from '../media/samples';
 import { shrinkMedia } from '../media/shrink';
@@ -1414,6 +1414,110 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   stopIfPlaying(c) {
     if (c.ed.session.value) c.ui.stopPlay();
+  },
+  // step 12a: the Puzzles course
+  placePuzzle(c, a) {
+    // what clicking a Puzzle pieces card and then the ground does: `ahead` studs in front of the start (its
+    // near edge), `side` studs to its right, on the ground there
+    const name = String(a?.name ?? '');
+    const def = assetByName(c, name);
+    if (!def) throw new Error(`No ${name} in the pack.`);
+    const have = (c.ed.store.get<Instances>(paths.instances(map(c)))?.items ?? []).some(
+      (i) => i.kind === 'asset' && assetByName(c, name)?.id === i.asset,
+    );
+    if (have) return;
+    c.ed.dock.value = 'pack';
+    const sp = mapDoc(c).spawns[0];
+    const at = sp?.pos ?? [0, 0.4, 0];
+    const yaw = sp?.yaw ?? 0;
+    const f: [number, number] = [Math.sin(yaw), Math.cos(yaw)];
+    const r: [number, number] = [Math.cos(yaw), -Math.sin(yaw)];
+    const [w, d] = def.footprint;
+    const ahead = Number(a?.ahead ?? 4) + d / 2;
+    const side = Number(a?.side ?? 0);
+    const x0 = Math.round(at[0] + f[0] * ahead + r[0] * side - w / 2);
+    const z0 = Math.round(at[2] + f[1] * ahead + r[1] * side - d / 2);
+    const s = surfaceOf(c.ed.store, map(c));
+    let top = 0;
+    for (let x = x0; x < x0 + w; x++) for (let z = z0; z < z0 + d; z++) top = Math.max(top, s.topAt(x, z) ?? 0);
+    run(c, placeCommands(c.ed, def.id, [x0, top, z0], 0), `Place ${name}`);
+  },
+  async pushOntoSwitch(c, a) {
+    // what walking into the block for a moment does, until it slides onto the switch
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const block = s.world.instances.find((i) => i.def.name === String(a?.block ?? 'Push block'));
+    const sw = s.world.instances.find((i) => i.def.name === String(a?.switch ?? 'Weight switch'));
+    if (!block || !sw) throw new Error('Place the block and the switch first.');
+    const dx = Math.sign(Number(sw.inst.pos[0]) - Number(block.inst.pos[0]));
+    const dz = Math.sign(Number(sw.inst.pos[2]) - Number(block.inst.pos[2]));
+    // the hero stands behind it, facing it
+    const yaw = Math.atan2(dx, dz);
+    s.placeAt([Number(block.inst.pos[0]) + 1 - dx * 1.6, s.heroState.y, Number(block.inst.pos[2]) + 1 - dz * 1.6], yaw);
+    for (let i = 0; i < 3 && sw.state === sw.def.states[0]; i++) {
+      s.puzzles.tryMove(block, dx, dz, false);
+      await new Promise((r) => setTimeout(r, 900));
+    }
+  },
+  async pullBlock(c, a) {
+    // what holding Action (Grab) at the block and stepping back does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const block = s.world.instances.find((i) => i.def.name === String(a?.block ?? 'Push block'));
+    if (!block) throw new Error('Place the block first.');
+    const sp = s.world.doc.spawns[0];
+    const yaw = sp?.yaw ?? 0;
+    const dx = Math.round(Math.sin(yaw));
+    const dz = Math.round(Math.cos(yaw));
+    // the hero in front of it on the side of the start, facing it, pulls it back towards the start
+    s.placeAt([Number(block.inst.pos[0]) + 1 - dx * 1.4, s.heroState.y, Number(block.inst.pos[2]) + 1 - dz * 1.4], yaw);
+    s.puzzles.tryMove(block, -dx, -dz, true);
+    await new Promise((r) => setTimeout(r, 900));
+  },
+  timedCrystal(c, a) {
+    // what Puzzle › Switch › Timed and the seconds slider do in the Asset studio
+    const def = assetByName(c, 'Crystal switch');
+    if (!def?.switch) throw new Error('Place a Crystal switch first.');
+    const next = { ...def, switch: { ...def.switch, stays: 'timed' as const, seconds: Number(a?.seconds ?? 8) } };
+    run(
+      c,
+      c.ed.store.has(paths.asset(def.id))
+        ? [{ type: 'asset.update', payload: { asset: next } }]
+        : [
+            { type: 'asset.create', payload: { asset: def } },
+            { type: 'asset.update', payload: { asset: next } },
+          ],
+      'Switch: Timed',
+    );
+    c.ui.editAsset(def.id);
+  },
+  hitSwitch(c, a) {
+    // what a sword swing at the switch does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const sw = s.world.instances.find((i) => i.def.name === String(a?.name ?? 'Crystal switch'));
+    if (!sw) throw new Error('Place the switch first.');
+    s.puzzles.hit(sw, 'slash');
+  },
+  makeDungeon(c) {
+    // what ticking This map is a dungeon in the Map tab does
+    c.ed.right.value = 'map';
+    if (!mapDoc(c).dungeon) run(c, { type: 'map.setDungeon', payload: { map: map(c), dungeon: true } }, 'Dungeon');
+  },
+  openChestAndDoor(c) {
+    // what pressing Action at the chest, then at the door, does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const chest = s.world.instances.find((i) => i.def.name === 'Small chest');
+    const door = s.world.instances.find((i) => i.def.name === 'Locked door');
+    if (!chest || !door) throw new Error('Place the Small chest and the Locked door first.');
+    for (const o of [chest, door]) {
+      const so = o.sockets.find((x) => x.kind === 'interact');
+      if (!so) continue;
+      s.placeAt([so.world[0], s.heroState.y, so.world[2] + 0.6], Math.PI);
+      s.stepInteract();
+      s.interact();
+    }
   },
   async saveToLibrary(c, a) {
     // what ticking it in Add from this game and pressing Save does

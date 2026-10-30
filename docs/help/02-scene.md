@@ -75,9 +75,10 @@ The **Starter pack** tab of the bottom dock holds the adventure starter pack, re
   - Threadback, a hanging spider, has an armoured front.
   - Lanternwisp is a lantern ghost.
   - Howler, a wolf-man pack hunter, calls the others.
-- **Twenty buildings and props**:
-  - Dungeon: walls, a pillar, an archway, a barred gate, a locked door, wall torches and a brazier (they light up), clay pots (they break and may leave a heart), a boss chest, a cracked wall (only bombs break it), a push block, a floor switch, a spike trap, stairs and a guardian statue.
+- **Buildings and props**:
+  - Dungeon: walls, a pillar, an archway, a barred gate, a locked door, wall torches and a brazier (they light up), clay pots (they break and may leave a heart), a boss chest, a cracked wall (only bombs break it), a spike trap, stairs and a guardian statue.
   - Village: a cottage, a well, a barrel, grass to cut and a plank bridge.
+- **Puzzle pieces**: the **Push block** (push it, or hold Action and step back to pull it), the **Floor switch** (stays down), the **Weight switch** (down only while something stands on it), the **Timer switch** (back up after 10 seconds), the **Crystal switch** (hit it to flip it), the **Lever** (Action), the **Locked door** (a small key opens it), the **Boss door** (the boss key), the **Small key**, **Boss key**, **Dungeon map** and **Compass** to pick up, and a **Small chest** with a small key in it.
 - **Three terrain styles**: Green Vale, Shrine Highlands and Misty Woods.
 - **Scripts and cutscenes**: ten script templates and three cutscene templates. **Use…** opens a short form; **Make it** turns it into an ordinary logic file or scene (see Logic › Templates).
 - **Look and sound**:
@@ -90,6 +91,10 @@ Drag a neighbour or an enemy onto the map, or press **Place** (it stands in fron
 ## My library
 
 **My library** in the bottom dock keeps your own things for every project in this browser: assets, characters, clips, effects, scripts, custom bricks, body plans and hairstyles. **+ Add from this game…** saves copies of what you tick, each with what it needs (an asset's custom bricks; a character's body plan, clips and conversations; a script's variables and the assets it names). **Use in this game** brings one into the open project; when the game already has something different under the same id, it comes in as a copy named "… (from library)". **Export pack** saves the library, or what the search shows, as a `.bwlib` file to share or to move to another device, and **Import pack…** adds one. Pictures, sounds and 3D models you imported stay with their game, and removing an item from the library never changes a game that uses it.
+
+## Dungeons
+
+Tick **This map is a dungeon** in the Map tab (Dungeon) and the map keeps its own small keys, boss key, map and compass: keys found here open only this map's locked doors. In Play its minimap shows only where the hero has been until the **Dungeon map** is picked up here, and the **Compass** marks the chests not yet opened (yellow) and the boss (red). The HUD shows the small keys (🗝) while the hero is in a dungeon. The line under the box counts the locks, keys, switches and blocks on the map and warns when there are more locks than keys.
 
 ## Sky, weather and lighting
 

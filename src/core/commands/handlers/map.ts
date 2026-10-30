@@ -118,6 +118,18 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
   },
 };
 
+/** step 12a: the map is a dungeon (or not): its minimap, compass and keys */
+export type SetDungeon = { map: string; dungeon: boolean };
+export const setDungeon: CommandHandler<SetDungeon> = {
+  label: (p) => (p.dungeon ? 'Make the map a dungeon' : 'Not a dungeon'),
+  validate: (store, p) =>
+    mapMissing(store, p.map) ?? (typeof p.dungeon === 'boolean' ? null : 'Dungeon is true or false.'),
+  apply(store, p) {
+    const { dungeon: _d, ...rest } = getMap(store, p.map);
+    store.put(paths.map(p.map), { ...rest, ...(p.dungeon ? { dungeon: true } : {}) });
+  },
+};
+
 /** Replaces every brick of a map with the v68 generator's output. Undo restores the old map. */
 function writeGenerated(store: ProjectStore, mapId: string, config: GenerateConfig) {
   const g = generateMap(config);

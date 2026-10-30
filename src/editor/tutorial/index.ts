@@ -41,6 +41,7 @@ import media from './content/31-media.json';
 import swim from './content/32-swim.json';
 import pack from './content/33-pack.json';
 import templates from './content/34-templates.json';
+import puzzles from './content/35-puzzles.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -69,6 +70,7 @@ export type Track =
   | 'swim'
   | 'pack'
   | 'templates'
+  | 'puzzles'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -137,6 +139,8 @@ export const MEDIA_STEPS: TrackStep[] = steps([media].map((c) => Chapter.parse(c
 export const SWIM_STEPS: TrackStep[] = steps([swim].map((c) => Chapter.parse(c)));
 export const PACK_STEPS: TrackStep[] = steps([pack].map((c) => Chapter.parse(c)));
 export const TEMPLATES_STEPS: TrackStep[] = steps([templates].map((c) => Chapter.parse(c)));
+/** step 12a: push blocks, switches, locks and keys, dungeons */
+export const PUZZLES_STEPS: TrackStep[] = steps([puzzles].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -167,6 +171,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   swim: { title: 'Swimming course', steps: SWIM_STEPS },
   pack: { title: 'Starter pack course', steps: PACK_STEPS },
   templates: { title: 'Scripts and scenes course', steps: TEMPLATES_STEPS },
+  puzzles: { title: 'Puzzles course', steps: PUZZLES_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

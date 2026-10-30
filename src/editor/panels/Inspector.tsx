@@ -28,6 +28,7 @@ import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSel
 import { BigWorldSection } from './BigWorldSection';
 import { ControlsSection } from './ControlsSection';
 import { DialogueSection } from './DialogueSection';
+import { DungeonSection } from './DungeonSection';
 import { DarknessSection } from './LightFields';
 import { MoodSection } from './MoodSection';
 import { ProgressSection } from './ProgressSection';
@@ -608,6 +609,7 @@ function MapTab({ c }: { c: ActionCtx }) {
         </div>
       </div>
       <DarknessSection c={c} m={m} />
+      <DungeonSection c={c} m={m} />
       <AtmosphereSection c={c} m={m} />
       <BigWorldSection c={c} m={m} />
       <MoodSection c={c} m={m} />

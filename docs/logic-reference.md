@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (90 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (94 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -195,6 +195,46 @@ Runs when the player presses an item button with an item in it (and has at least
 - Settings: Item (string, optional)
 - Outputs: item (string), slot (number)
 - Code: `on("itemUsed", { item: … }, (e) => { … });`
+
+### On switch
+
+`event.onSwitch` · event
+
+Runs when a switch turns on or off: stepped on (by the hero or a block), hit, pressed, let go (a held switch) or when its time runs out (a timed switch). Leave the asset empty for every switch, and To empty for both ways.
+
+- Settings: Asset (asset, optional), To (string, optional)
+- Outputs: target (entity), on (bool)
+- Code: `on("switch", { asset: …, to: … }, (e) => { … });`
+
+### On pushed
+
+`event.onPushed` · event
+
+Runs when a push block stops after the hero pushed or pulled it one step.
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity)
+- Code: `on("pushed", { asset: … }, (e) => { … });`
+
+### On unlocked
+
+`event.onUnlocked` · event
+
+Runs when the hero opens a lock with its key (a small key is used up; the boss key is kept).
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity), key (string)
+- Code: `on("unlocked", { asset: … }, (e) => { … });`
+
+### On picked up
+
+`event.onPickedUp` · event
+
+Runs when the hero touches a pickup (a key, the map, the compass, a heart…) and takes it.
+
+- Settings: Item (string, optional)
+- Outputs: item (string), count (number)
+- Code: `on("pickedUp", { item: … }, (e) => { … });`
 
 ## Flow
 

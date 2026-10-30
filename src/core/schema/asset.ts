@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Health } from '../combat/damage';
 import { AssetLight } from '../lighting/light';
+import { LockDef, PickupDef, PushDef, SwitchDef } from '../puzzles/puzzle';
 import { ActionList } from './action';
 import { BrickType } from './chunk';
 import { Color, id, Vec2, Vec3 } from './common';
@@ -110,6 +111,14 @@ export const Asset = z.strictObject({
   loose: z.boolean().optional(),
   /** P27: it gives light (a torch, a lamp): where on it, and in which of its states */
   light: AssetLight.optional(),
+  /** step 12a: a block the hero pushes (and pulls) square along the floor */
+  push: PushDef.optional(),
+  /** step 12a: a switch (stepped on, hit or pressed; stays on, held, timed or toggles) */
+  switch: SwitchDef.optional(),
+  /** step 12a: opens with a key (small key, boss key or an item) */
+  lock: LockDef.optional(),
+  /** step 12a: touched, it is gone and the hero has the item */
+  pickup: PickupDef.optional(),
   generator: z
     .strictObject({ environments: z.array(z.enum(BIOMES)), weight: z.number().min(0).max(1), placeOn: z.string() })
     .nullable(),

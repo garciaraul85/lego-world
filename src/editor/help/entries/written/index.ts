@@ -5,6 +5,7 @@ import { EFFECTS } from './effects';
 import { GUIDES } from './guides';
 import { LIGHTS } from './lights';
 import { PHYSICS } from './physics';
+import { PUZZLES } from './puzzles';
 import { SCENE } from './scene';
 import { ART, SCREENS } from './screens-art';
 import { SHELL } from './shell';
@@ -25,6 +26,7 @@ export const WRITTEN: HelpEntry[] = [
   ...EFFECTS,
   ...LIGHTS,
   ...PHYSICS,
+  ...PUZZLES,
   ...PLAY,
 ];
 

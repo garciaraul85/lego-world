@@ -33,8 +33,11 @@ export function PackPanel({ c }: { c: ActionCtx }) {
   const [q, setQ] = useState('');
   const cast = ADVENTURE_PACK.cast.filter((x) => matches(q, x.character.name, x.about, x.group));
   const assets = BUILTIN_ASSETS.filter((a) => (ADVENTURE_PACK.assets as readonly string[]).includes(a.id)).filter((a) =>
-    matches(q, a.name, a.category),
+    matches(q, a.name, a.category, a.push || a.switch || a.lock || a.pickup ? 'puzzle' : ''),
   );
+  const puzzle = (a: (typeof assets)[number]) => !!(a.push || a.switch || a.lock || a.pickup);
+  const buildings = assets.filter((a) => !puzzle(a));
+  const pieces = assets.filter(puzzle);
   const terrain = ADVENTURE_PACK.terrain.filter((t) => matches(q, t.name, t.about));
   const effects = BUILTIN_EFFECTS.filter((e) => (ADVENTURE_PACK.effects as readonly string[]).includes(e.id)).filter(
     (e) => matches(q, e.name, 'effect'),
@@ -138,47 +141,53 @@ export function PackPanel({ c }: { c: ActionCtx }) {
           </section>
         );
       })}
-      {assets.length > 0 && (
-        <section class="pack-group" aria-label="Buildings and props">
-          <div class="small muted pack-title">Buildings and props</div>
-          <div class="cards pack-cards" role="listbox" aria-label="Pack buildings and props">
-            {assets.map((a) => {
-              const on = brush.asset === a.id && ed.tool.value === 'asset';
-              return (
-                <button
-                  type="button"
-                  class={`card ${on ? 'on' : ''}`}
-                  role="option"
-                  aria-selected={on}
-                  data-tour={`pack-asset-${a.name.toLowerCase().replace(/[^a-z]+/g, '-')}`}
-                  data-tip={`${a.name}. Drag it into the scene, or click it and then click the ground (T turns it).`}
-                  draggable
-                  onDragStart={(e) =>
-                    startDrag(e as unknown as DragEvent, {
-                      kind: 'asset',
-                      asset: a.id,
-                      rot: brush.asset === a.id ? brush.rot : 0,
-                    })
-                  }
-                  onDragEnd={endDrag}
-                  onClick={() => {
-                    ed.assetBrush.value = { asset: a.id, rot: brush.asset === a.id ? brush.rot : 0 };
-                    ed.tool.value = 'asset';
-                  }}
-                  onDblClick={() => c.ui.editAsset(a.id)}
-                >
-                  <span class="thumb asset-thumb" aria-hidden="true">
-                    <AssetThumb def={a} size={56} />
-                  </span>
-                  <span class="small asset-name">{a.name}</span>
-                  <span class="mono small" style={{ color: 'var(--mut2)' }}>
-                    {a.category}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+      {[
+        ['Buildings and props', 'Pack buildings and props', buildings] as const,
+        // step 12a: blocks, switches, doors, keys
+        ['Puzzle pieces', 'Pack puzzle pieces', pieces] as const,
+      ].map(([title, label, list]) =>
+        list.length > 0 ? (
+          <section class="pack-group" aria-label={title}>
+            <div class="small muted pack-title">{title}</div>
+            <div class="cards pack-cards" role="listbox" aria-label={label}>
+              {list.map((a) => {
+                const on = brush.asset === a.id && ed.tool.value === 'asset';
+                return (
+                  <button
+                    type="button"
+                    class={`card ${on ? 'on' : ''}`}
+                    role="option"
+                    aria-selected={on}
+                    data-tour={`pack-asset-${a.name.toLowerCase().replace(/[^a-z]+/g, '-')}`}
+                    data-tip={`${a.name}. Drag it into the scene, or click it and then click the ground (T turns it).`}
+                    draggable
+                    onDragStart={(e) =>
+                      startDrag(e as unknown as DragEvent, {
+                        kind: 'asset',
+                        asset: a.id,
+                        rot: brush.asset === a.id ? brush.rot : 0,
+                      })
+                    }
+                    onDragEnd={endDrag}
+                    onClick={() => {
+                      ed.assetBrush.value = { asset: a.id, rot: brush.asset === a.id ? brush.rot : 0 };
+                      ed.tool.value = 'asset';
+                    }}
+                    onDblClick={() => c.ui.editAsset(a.id)}
+                  >
+                    <span class="thumb asset-thumb" aria-hidden="true">
+                      <AssetThumb def={a} size={56} />
+                    </span>
+                    <span class="small asset-name">{a.name}</span>
+                    <span class="mono small" style={{ color: 'var(--mut2)' }}>
+                      {a.category}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ) : null,
       )}
       {terrain.length > 0 && (
         <section class="pack-group" aria-label="Terrain styles">

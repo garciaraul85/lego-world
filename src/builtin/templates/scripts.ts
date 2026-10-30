@@ -43,15 +43,15 @@ export const SCRIPT_TEMPLATES: ScriptTemplate[] = [
   {
     id: 'locked-door',
     name: 'Locked door and key',
-    about: 'The door opens when the hero has a key, and the key is used up',
-    needs: 'a Locked door (Starter pack › Buildings and props)',
+    about: 'A door that opens with an item you choose (the pack’s Locked door needs no script: a small key opens it)',
+    needs: 'a door with an open state',
     fields: [
       {
         key: 'door',
         label: 'Door',
         kind: 'asset',
         default: 'Locked door',
-        help: 'The door asset (its copy nearest the hero opens). The pack’s Locked door asks for a key by itself.',
+        help: 'The door asset (its copy nearest the hero opens). The pack’s Locked door and Boss door open with their keys by themselves.',
       },
       {
         key: 'key',
@@ -82,26 +82,31 @@ on("interact", { asset: ${q(a.door)} }, (e) => {
   {
     id: 'switch-gate',
     name: 'Switch opens a gate',
-    about: 'Pressing a floor switch opens a barred gate, with a secret-found sound',
-    needs: 'a Floor switch and a Barred gate (Starter pack)',
+    about: 'A switch turning on opens a barred gate, with a secret-found sound',
+    needs: 'a switch (Floor, Weight, Timer, Crystal or Lever) and a Barred gate (Starter pack)',
     fields: [
       {
         key: 'switch',
         label: 'Switch',
         kind: 'asset',
         default: 'Floor switch',
-        help: 'What the hero presses (E). The pack’s Floor switch goes down by itself.',
+        help: 'The switch: stepped on, hit or pressed, as it is made. A held or timed switch shuts the gate again when it goes off.',
       },
       { key: 'gate', label: 'Gate', kind: 'asset', default: 'Barred gate', help: 'What opens.' },
       { key: 'open', label: 'Open state', kind: 'state', default: 'open', help: 'The gate’s state when open.' },
+      { key: 'shut', label: 'Shut state', kind: 'state', default: 'closed', help: 'The gate’s state when shut.' },
     ],
     vars: [],
-    code: (a) => `// pressing the ${a.switch} opens the ${a.gate}
-on("interact", { asset: ${q(a.switch)} }, async (e) => {
+    code: (a) => `// the ${a.switch} on: the ${a.gate} opens; off again (held or timed): it shuts
+on("switch", { asset: ${q(a.switch)}, to: "on" }, async (e) => {
   await wait(0.4);
   world.setState(${q(a.gate)}, ${q(a.open)});
   audio.playSound("secret");
   say("Something opened nearby…", 2);
+});
+
+on("switch", { asset: ${q(a.switch)}, to: "off" }, (e) => {
+  world.setState(${q(a.gate)}, ${q(a.shut)});
 });
 `,
   },
@@ -240,7 +245,13 @@ on("enterZone", { zone: ${q(a.zone)} }, (e) => {
     about: 'A switch starts a countdown; reach the goal zone in time for a reward, or the gate shuts again',
     needs: 'a switch, a gate, a goal zone',
     fields: [
-      { key: 'start', label: 'Start switch', kind: 'asset', default: 'Floor switch', help: 'What starts the race.' },
+      {
+        key: 'start',
+        label: 'Start switch',
+        kind: 'asset',
+        default: 'Lever',
+        help: 'What starts the race (a switch: a Lever, a Crystal switch…).',
+      },
       { key: 'seconds', label: 'Seconds', kind: 'number', default: 15, min: 3, max: 300, help: 'Time allowed.' },
       { key: 'gate', label: 'Gate', kind: 'asset', default: 'Barred gate', help: 'Opens for the race only.' },
       { key: 'goal', label: 'Goal zone', kind: 'zone', default: '', help: 'Where the hero must get to.' },
@@ -251,7 +262,7 @@ on("enterZone", { zone: ${q(a.zone)} }, (e) => {
       { name: 'racing', type: 'bool', default: false },
     ],
     code: (a, v) => `// a timed run: ${n(a.seconds, 15)} seconds from the ${a.start} to the goal
-on("interact", { asset: ${q(a.start)} }, (e) => {
+on("switch", { asset: ${q(a.start)} }, (e) => {
   vars.${v('raceLeft')} = ${n(a.seconds, 15)};
   vars.${v('racing')} = true;
   world.setState(${q(a.gate)}, "open");
@@ -265,7 +276,7 @@ on("timer", { seconds: 1, repeat: true }, (e) => {
     if ((vars.${v('raceLeft')} <= 0)) {
       vars.${v('racing')} = false;
       world.setState(${q(a.gate)}, "closed");
-      say("Too slow! Press the switch to try again.", 3);
+      say("Too slow! Use the switch to try again.", 3);
     }
   }
 });

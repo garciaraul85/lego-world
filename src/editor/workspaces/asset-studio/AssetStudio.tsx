@@ -44,6 +44,7 @@ import type { StudioPart } from '../../scene';
 import { EditorState, type ToolId } from '../../state';
 import { Viewport, type ViewportApi } from '../../viewport/Viewport';
 import { BrickEditor } from './BrickEditor';
+import { PuzzleSection } from './PuzzleSection';
 import { assetFromScratch, initialIndex, type Scratch, scratchFor, turnPart } from './scratch';
 
 /** The studio's own editor state: same tools and commands, on the scratch build plate. */
@@ -1354,6 +1355,9 @@ function Properties({
             <FieldHelp label="Loose" text={LOOSE_HELP} />
           </label>
         </div>
+
+        {/* step 12a: push block, switch, lock, pickup */}
+        <PuzzleSection def={def} reset={reset} />
 
         {/* P27: it gives light (a torch, a lamp), where on it, in which states */}
         <div class="sec" data-help="asset.light" data-tour="asset-light-sec">

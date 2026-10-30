@@ -4,6 +4,8 @@ import type { Asset, AssetBrick } from '../../core/schema';
  * Step 11, 4a: the adventure starter pack's buildings and props — dungeon pieces first (walls, a pillar, an arch, a
  * barred gate, a locked door, a wall torch, a brazier, pots, a boss chest, a cracked wall, a block to push, a floor
  * switch, spikes, stairs, a guardian statue), then the village (a cottage, a well, a barrel, a grass tuft, a bridge).
+ * Step 12a adds the puzzle pieces: weight, timer and crystal switches, a lever, the boss door, the small key, the
+ * boss key, the dungeon map, the compass and a small chest with a key in it.
  * All original, built here brick by brick so each opens in the Asset studio like any other asset.
  */
 type Raw = Omit<Asset, 'id'>;
@@ -173,21 +175,13 @@ function lockedDoor(): Raw {
   b.stack(4, 0, 1, 1, 0, 4, C.stoneDark);
   b.layer('brick', 0, 0, 5, 1, 12, C.stone);
   const door = b.stack(1, 0, 3, 1, 0, 4, (i) => (i === 2 ? C.gold : C.woodDark));
+  // step 12a: it opens with a small key found on this map (and uses it up)
   return asset('Locked door', 'structure', [5, 1], b, {
     states: ['locked', 'open'],
     initialState: 'locked',
     onlyIn: { locked: door },
-    sockets: [{ id: 'door', kind: 'interact', pos: [2.5, 1.4, 1.2], prompt: 'Locked' }],
-    interactions: [
-      {
-        socket: 'door',
-        when: { state: 'locked' },
-        do: [
-          { do: 'message', text: 'It’s locked. A small key would open it.' },
-          { do: 'emit', event: 'door-locked' },
-        ],
-      },
-    ],
+    sockets: [{ id: 'door', kind: 'interact', pos: [2.5, 1.4, 1.2], prompt: 'Unlock' }],
+    lock: { key: 'small' },
   });
 }
 
@@ -341,7 +335,8 @@ function pushBlock(): Raw {
   const b = new Build();
   b.stack(0, 0, 2, 2, 0, 2, (i) => (i % 2 ? C.stoneLight : C.stone));
   b.put('tile', 1, 1, 0, 6, 0, C.gold);
-  return asset('Push block', 'prop', [2, 2], b, { loose: true });
+  // step 12a: it slides square along the floor, two studs a shove; hold Action to pull it back
+  return asset('Push block', 'prop', [2, 2], b, { push: { pull: true } });
 }
 
 function floorSwitch(): Raw {
@@ -349,19 +344,126 @@ function floorSwitch(): Raw {
   b.put('plate', 2, 2, 0, 0, 0, C.stoneDark);
   const up = [b.put('plate', 1, 1, 0, 1, 0, C.gold), b.put('plate', 1, 1, 1, 1, 1, C.gold)];
   const down = [b.put('tile', 2, 2, 0, 1, 0, C.gold)];
+  // step 12a: stepped on (by the hero or a block) it goes down and stays down
   return asset('Floor switch', 'prop', [2, 2], b, {
     states: ['up', 'down'],
     initialState: 'up',
     onlyIn: { up, down },
-    sockets: [{ id: 'switch', kind: 'interact', pos: [1, 0.6, 2.2], prompt: 'Press' }],
+    switch: { by: 'step', stays: 'on' },
+  });
+}
+
+// ---------- step 12a: puzzle pieces ----------
+/** a floor switch in its own colours: blue held down (by a block), white on a timer */
+function stepSwitch(name: string, color: string, sw: Raw['switch']): Raw {
+  const b = new Build();
+  b.put('plate', 2, 2, 0, 0, 0, C.stoneDark);
+  const up = [b.put('plate', 1, 1, 0, 1, 0, color), b.put('plate', 1, 1, 1, 1, 1, color)];
+  const down = [b.put('tile', 2, 2, 0, 1, 0, color)];
+  return asset(name, 'prop', [2, 2], b, {
+    states: ['up', 'down'],
+    initialState: 'up',
+    onlyIn: { up, down },
+    switch: sw,
+  });
+}
+
+function crystalSwitch(): Raw {
+  const b = new Build();
+  b.put('plate', 2, 2, 0, 0, 0, C.stoneDark);
+  b.put('brick', 1, 1, 0, 1, 0, C.stone);
+  b.put('brick', 1, 1, 1, 1, 1, C.stone);
+  const off = [b.put('brick', 2, 2, 0, 4, 0, C.water), b.put('plate', 1, 1, 0, 7, 0, C.white)];
+  const on = [b.put('brick', 2, 2, 0, 4, 0, C.red), b.put('plate', 1, 1, 1, 7, 1, C.flame)];
+  return asset('Crystal switch', 'prop', [2, 2], b, {
+    states: ['off', 'on'],
+    initialState: 'off',
+    onlyIn: { off, on },
+    switch: { by: 'hit', stays: 'toggle' },
+    lockOn: true,
+    light: { color: '#7fc8ff', brightness: 1, range: 6, flicker: 0, shadow: false, at: [1, 2.4, 1] },
+  });
+}
+
+function lever(): Raw {
+  const b = new Build();
+  b.put('plate', 1, 2, 0, 0, 0, C.stoneDark);
+  b.put('brick', 1, 2, 0, 1, 0, C.stone);
+  const off = [b.put('plate', 1, 1, 0, 4, 0, C.wood), b.put('brick', 1, 1, 0, 5, 0, C.red)];
+  const on = [b.put('plate', 1, 1, 1, 4, 0, C.wood), b.put('brick', 1, 1, 1, 5, 0, C.gold)];
+  return asset('Lever', 'prop', [2, 1], b, {
+    states: ['off', 'on'],
+    initialState: 'off',
+    onlyIn: { off, on },
+    sockets: [{ id: 'lever', kind: 'interact', pos: [1, 1.6, 1.3], prompt: 'Pull' }],
+    switch: { by: 'press', stays: 'toggle' },
+  });
+}
+
+function bossDoor(): Raw {
+  const b = new Build();
+  b.stack(0, 0, 1, 1, 0, 5, C.stoneDark);
+  b.stack(6, 0, 1, 1, 0, 5, C.stoneDark);
+  // the lintel in two runs, each held by a pillar (the door is gone when open)
+  b.put('brick', 1, 4, 0, 15, 0, C.stone);
+  b.put('brick', 1, 3, 4, 15, 0, C.stone);
+  b.put('tile', 1, 3, 2, 18, 0, C.red);
+  const door = b.stack(1, 0, 5, 1, 0, 5, (i) => (i % 4 === 1 ? C.gold : C.red));
+  return asset('Boss door', 'structure', [7, 1], b, {
+    states: ['locked', 'open'],
+    initialState: 'locked',
+    onlyIn: { locked: door },
+    sockets: [{ id: 'door', kind: 'interact', pos: [3.5, 1.4, 1.2], prompt: 'Unlock' }],
+    lock: { key: 'boss' },
+  });
+}
+
+/** a key lying on the floor: a ring, a shaft and teeth */
+function key(name: string, color: string, item: string): Raw {
+  const b = new Build();
+  b.put('plate', 1, 1, 0, 0, 0, color);
+  b.put('plate', 1, 1, 0, 0, 1, color);
+  b.put('plate', 1, 1, 0, 0, 2, color);
+  b.put('plate', 1, 1, 1, 0, 2, color);
+  b.put('tile', 1, 1, 1, 0, 0, color);
+  b.put('plate', 1, 1, 0, 1, 0, C.white);
+  return asset(name, 'prop', [2, 3], b, { pickup: { item } });
+}
+
+function dungeonMap(): Raw {
+  const b = new Build();
+  b.put('plate', 2, 2, 0, 0, 0, C.straw);
+  b.put('tile', 1, 1, 0, 1, 0, C.wood);
+  b.put('tile', 1, 1, 1, 1, 1, C.red);
+  return asset('Dungeon map', 'prop', [2, 2], b, { pickup: { item: 'Dungeon map' } });
+}
+
+function compass(): Raw {
+  const b = new Build();
+  b.put('plate', 2, 2, 0, 0, 0, C.gold);
+  b.put('tile', 1, 1, 0, 1, 0, C.red);
+  b.put('tile', 1, 1, 1, 1, 1, C.white);
+  return asset('Compass', 'prop', [2, 2], b, { pickup: { item: 'Compass' } });
+}
+
+function smallChest(): Raw {
+  const b = new Build();
+  b.put('brick', 2, 4, 0, 0, 0, C.wood);
+  b.put('plate', 2, 4, 0, 3, 0, C.gold);
+  const lid = [b.put('brick', 2, 4, 0, 4, 0, C.woodDark), b.put('tile', 1, 1, 1, 7, 1, C.gold)];
+  return asset('Small chest', 'prop', [4, 2], b, {
+    states: ['closed', 'open'],
+    initialState: 'closed',
+    sockets: [{ id: 'lid', kind: 'interact', pos: [2, 2.4, 2.4], prompt: 'Open' }],
+    parts: [{ name: 'Lid', bricks: lid, hinge: [2, 1.6, 0], pose: { open: { turn: [-100, 0, 0] } }, ease: 0.6 }],
     interactions: [
       {
-        socket: 'switch',
-        when: { state: 'up' },
+        socket: 'lid',
+        when: { state: 'closed' },
         do: [
-          { do: 'sound', event: SND.gate },
-          { do: 'setState', state: 'down' },
-          { do: 'emit', event: 'switch-pressed' },
+          { do: 'sound', event: SND.chest },
+          { do: 'setState', state: 'open' },
+          { do: 'give', item: 'Small key' },
         ],
       },
     ],
@@ -503,4 +605,15 @@ export const STARTER_ASSETS: Record<string, Raw> = {
   barrel: barrel(),
   'grass-tuft': grassTuft(),
   'plank-bridge': bridge(),
+  // step 12a: puzzle pieces
+  'weight-switch': stepSwitch('Weight switch', C.water, { by: 'step', stays: 'held' }),
+  'timer-switch': stepSwitch('Timer switch', C.white, { by: 'step', stays: 'timed', seconds: 10 }),
+  'crystal-switch': crystalSwitch(),
+  lever: lever(),
+  'boss-door': bossDoor(),
+  'small-key': key('Small key', C.gold, 'Small key'),
+  'boss-key': key('Boss key', C.red, 'Boss key'),
+  'dungeon-map': dungeonMap(),
+  compass: compass(),
+  'small-chest': smallChest(),
 };
