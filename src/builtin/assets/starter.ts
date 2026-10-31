@@ -479,12 +479,12 @@ function torchStand(name: string, stays: 'on' | 'timed', seconds?: number): Raw 
   b.put('brick', 1, 1, 0, 1, 0, C.stone);
   b.put('brick', 1, 1, 0, 4, 0, C.stone);
   b.put('plate', 2, 2, 0, 7, 0, C.iron);
-  const lit = [b.put('brick', 1, 1, 0, 8, 0, C.fire), b.put('plate', 1, 1, 0, 11, 0, C.flame)];
-  const out = [b.put('tile', 1, 1, 0, 8, 0, C.woodDark)];
+  // the coals in the bowl; the flame is a fire effect while it is lit
+  b.put('tile', 1, 1, 0, 8, 0, C.woodDark);
   return asset(name, 'decoration', [2, 2], b, {
     states: ['out', 'lit'],
     initialState: 'out',
-    onlyIn: { out, lit },
+    flame: { at: [0.5, 3.6, 0.5], when: 'lit', size: 1.1 },
     switch: { by: 'hit', stays, hitBy: ['fire'], ...(seconds ? { seconds } : {}) },
     lockOn: true,
     light: {
@@ -512,9 +512,11 @@ function bombBag(): Raw {
 function handTorch(): Raw {
   const b = new Build();
   b.put('plate', 1, 3, 0, 0, 0, C.wood);
-  b.put('plate', 1, 1, 2, 1, 0, C.fire);
-  b.put('tile', 1, 1, 2, 2, 0, C.flame);
-  return asset('Hand torch', 'prop', [3, 1], b, { pickup: { item: 'Torch' } });
+  b.put('plate', 1, 1, 2, 1, 0, C.woodDark);
+  return asset('Hand torch', 'prop', [3, 1], b, {
+    pickup: { item: 'Torch' },
+    flame: { at: [2.5, 0.8, 0.5], size: 0.6 },
+  });
 }
 
 /** a stone with a gold sun on it: it shines a beam of light straight ahead (while shining) */
@@ -546,7 +548,7 @@ function mirror(): Raw {
   const b = new Build();
   b.put('plate', 2, 3, 0, 0, 0, C.stoneDark);
   b.put('plate', 1, 3, 0, 0, 2, C.stoneDark);
-  const glass = '#c8d6e5';
+  const glass = '#e6f6ff';
   const left = [0, 1, 2].flatMap((i) => [
     b.put('brick', 1, 1, i, 1, 2 - i, glass),
     b.put('brick', 1, 1, i, 4, 2 - i, glass),
@@ -557,7 +559,13 @@ function mirror(): Raw {
     initialState: 'left',
     onlyIn: { left, right },
     mirror: {},
-    sockets: [{ id: 'turn', kind: 'interact', pos: [1.5, 1.2, 3.2], prompt: 'Turn' }],
+    // it turns from any side
+    sockets: [
+      { id: 'turn', kind: 'interact', pos: [1.5, 1.2, 3.2], prompt: 'Turn' },
+      { id: 'turn-n', kind: 'interact', pos: [1.5, 1.2, -0.2], prompt: 'Turn' },
+      { id: 'turn-e', kind: 'interact', pos: [3.2, 1.2, 1.5], prompt: 'Turn' },
+      { id: 'turn-w', kind: 'interact', pos: [-0.2, 1.2, 1.5], prompt: 'Turn' },
+    ],
   });
 }
 

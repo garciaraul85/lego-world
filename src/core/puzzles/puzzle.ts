@@ -79,6 +79,19 @@ export const BeamDef = z.strictObject({
 });
 export type BeamDef = z.infer<typeof BeamDef>;
 
+/** step 12b: a fire effect on the asset (a lit torch stand's flame), in one of its states or always */
+export const FlameDef = z.strictObject({
+  /** where it burns on it (x, z studs, y up, as a socket's place) */
+  at: z.tuple([z.number(), z.number(), z.number()]),
+  /** the state it burns in (none: always) */
+  when: z.string().max(40).optional(),
+  /** how big (1: as the effect is made) */
+  size: z.number().min(0.2).max(4).optional(),
+  /** the effect (none: Fire) */
+  effect: z.string().max(40).optional(),
+});
+export type FlameDef = z.infer<typeof FlameDef>;
+
 export const MirrorDef = z.strictObject({
   /** Action at it turns it (on at first) */
   turns: z.boolean().optional(),
@@ -150,6 +163,7 @@ export function puzzleProblems(a: {
   loose?: boolean | undefined;
   mirror?: MirrorDef | undefined;
   beam?: BeamDef | undefined;
+  flame?: FlameDef | undefined;
 }): string[] {
   const out: string[] = [];
   if (a.switch && a.states.length < 2)
@@ -160,6 +174,8 @@ export function puzzleProblems(a: {
     out.push(`${a.name}: only a floor switch (held down) or a light sensor (while lit) can be held.`);
   if (a.mirror && a.states.length < 2)
     out.push(`${a.name} is a mirror but has one state: it needs two, one leaning each way.`);
+  if (a.flame?.when && !a.states.includes(a.flame.when))
+    out.push(`${a.name}: its flame burns in “${a.flame.when}”, which is not one of its states.`);
   if (a.beam?.when && !a.states.includes(a.beam.when))
     out.push(`${a.name}: its beam shines in “${a.beam.when}”, which is not one of its states.`);
   if (a.lock?.key === 'item' && !a.lock.item) out.push(`${a.name}: choose the item that opens the lock.`);

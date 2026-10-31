@@ -34,8 +34,8 @@ export type FireHost<T extends FireObject = FireObject> = {
   objectOfPiece(id: number | undefined): T | undefined;
   /** gone from the map (burnt away) */
   remove(o: T): void;
-  /** a fire effect that keeps going until stopped */
-  flames(at: [number, number, number]): { stop(): void } | null;
+  /** a fire effect that keeps going until stopped (scale: how big, 1 as made) */
+  flames(at: [number, number, number], scale?: number, effect?: string): { stop(): void } | null;
   sound(id: 'ignite' | 'fuse' | 'boom' | 'shine', at?: [number, number, number]): void;
   /** the blast of a bomb: what is around it is hurt, broken, flipped or set alight */
   blast(at: [number, number, number], radius: number): void;
@@ -55,6 +55,9 @@ export const BLAST_RADIUS = 3.2;
 const BEAM_EVERY = 0.1;
 const BEAM_RANGE = 32;
 const MAX_BOUNCES = 16;
+/** flames (an asset's Flame) play within this many studs of the hero; how often they are looked at again */
+const FLAME_RANGE = 48;
+const FLAME_EVERY = 0.25;
 
 export type BeamSegment = { from: [number, number, number]; to: [number, number, number]; color: string };
 
@@ -64,14 +67,14 @@ const pieceBox = (p: Piece) => {
 };
 
 export class FireLight<T extends FireObject = FireObject> {
-  readonly burning = new Map<
-    string,
-    { o: T; t: number; seconds: number; spread: boolean; fx: { stop(): void } | null }
-  >();
+  readonly burning = new Map<string, { o: T; t: number; seconds: number; spread: boolean; fx: { stop(): void }[] }>();
   readonly bombs: { x: number; y: number; z: number; t: number; fizz: number }[] = [];
   beams: BeamSegment[] = [];
   private lit = new Set<string>();
   private beamClock = 0;
+  /** step 12b: the flames burning on things (their Flame, in its state): by object id */
+  private flameFx = new Map<string, { o: T; fx: { stop(): void } | null }>();
+  private flameClock = FLAME_EVERY;
 
   constructor(private readonly h: FireHost<T>) {}
 
@@ -87,7 +90,7 @@ export class FireLight<T extends FireObject = FireObject> {
       t: 0,
       seconds: b.seconds ?? BURN_SECONDS,
       spread: b.spreads !== false,
-      fx: c ? this.h.flames(c) : null,
+      fx: this.burnFlames(o),
     });
     this.h.sound('ignite', c ?? undefined);
     this.h.log(`${o.def.name} caught fire${why ? ` (${why})` : ''}`);
@@ -127,10 +130,53 @@ export class FireLight<T extends FireObject = FireObject> {
       }
       if (f.t < f.seconds) continue;
       this.burning.delete(id);
-      f.fx?.stop();
+      for (const x of f.fx) x.stop();
       this.h.remove(f.o);
       this.h.burned(f.o);
       this.h.log(`${f.o.def.name} burned away`);
+    }
+  }
+
+  /** flames along the top of a burning thing, one every stud or two (at most 6) */
+  private burnFlames(o: T): { stop(): void }[] {
+    const b = boxOf(o.bricks as never);
+    if (!b) return [];
+    const alongX = b.x1 - b.x0 >= b.z1 - b.z0;
+    const len = alongX ? b.x1 - b.x0 : b.z1 - b.z0;
+    const n = Math.max(1, Math.min(6, Math.round(len / 1.5)));
+    const top = b.y1 * 0.4;
+    const out: { stop(): void }[] = [];
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n;
+      const x = alongX ? b.x0 + t * len : (b.x0 + b.x1) / 2;
+      const z = alongX ? (b.z0 + b.z1) / 2 : b.z0 + t * len;
+      const fx = this.h.flames([x, top, z], 1.1);
+      if (fx) out.push(fx);
+    }
+    return out;
+  }
+
+  /** an asset's Flame: a fire effect on it while it is in its state (a lit torch stand), started and stopped */
+  private stepFlames(dt: number) {
+    this.flameClock += dt;
+    if (this.flameClock < FLAME_EVERY) return;
+    this.flameClock = 0;
+    const s = this.h.heroState;
+    const want = new Map<string, T>();
+    for (const o of this.h.near(s.x, s.z, FLAME_RANGE)) {
+      const f = o.def.flame;
+      if (f && (!f.when || o.state === f.when) && !this.burning.has(o.inst.id)) want.set(o.inst.id, o);
+    }
+    for (const [id, f] of [...this.flameFx])
+      if (want.get(id) !== f.o) {
+        f.fx?.stop();
+        this.flameFx.delete(id);
+      }
+    for (const [id, o] of want) {
+      if (this.flameFx.has(id)) continue;
+      const f = o.def.flame!;
+      const at = localToWorld(o.def, o.inst, f.at);
+      this.flameFx.set(id, { o, fx: this.h.flames(at, f.size ?? 1, f.effect) });
     }
   }
 
@@ -260,6 +306,7 @@ export class FireLight<T extends FireObject = FireObject> {
 
   step(dt: number) {
     this.stepFire(dt);
+    this.stepFlames(dt);
     this.stepBombs(dt);
     this.beamClock += dt;
     if (this.beamClock >= BEAM_EVERY) {
@@ -270,8 +317,11 @@ export class FireLight<T extends FireObject = FireObject> {
 
   /** a new play (or a load): nothing burning, no bombs, beams traced again */
   reset() {
-    for (const f of this.burning.values()) f.fx?.stop();
+    for (const f of this.burning.values()) for (const x of f.fx) x.stop();
     this.burning.clear();
+    for (const f of this.flameFx.values()) f.fx?.stop();
+    this.flameFx.clear();
+    this.flameClock = FLAME_EVERY;
     this.bombs.length = 0;
     this.beams = [];
     this.lit.clear();

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Health } from '../combat/damage';
 import { AssetLight } from '../lighting/light';
-import { BeamDef, BurnDef, LockDef, MirrorDef, PickupDef, PushDef, SwitchDef } from '../puzzles/puzzle';
+import { BeamDef, BurnDef, FlameDef, LockDef, MirrorDef, PickupDef, PushDef, SwitchDef } from '../puzzles/puzzle';
 import { ActionList } from './action';
 import { BrickType } from './chunk';
 import { Color, id, Vec2, Vec3 } from './common';
@@ -122,6 +122,8 @@ export const Asset = z.strictObject({
   /** step 12b: it catches fire, burns and is gone (vines, a barricade, a web) */
   burn: BurnDef.optional(),
   /** step 12b: it shines a beam of light straight ahead */
+  /** step 12b: a fire effect on it, in a state or always */
+  flame: FlameDef.optional(),
   beam: BeamDef.optional(),
   /** step 12b: it turns a beam a quarter turn (two states, one leaning each way) */
   mirror: MirrorDef.optional(),

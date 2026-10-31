@@ -1,10 +1,12 @@
-import type { BeamDef, BurnDef } from '../../../core/puzzles/puzzle';
+import type { BeamDef, BurnDef, FlameDef } from '../../../core/puzzles/puzzle';
 import type { Asset } from '../../../core/schema';
 import { FieldHelp } from '../../components/fields';
 
 export const FIRE_LIGHT_HELP = {
   burn: 'It burns: a torch’s flame, a fire hit, a bomb’s blast or a burning thing touching it sets it alight. It burns for the seconds you set and is gone (for good: saves remember). With Spreads on, it sets burnable things touching it alight too. Logic’s On burned runs when it is gone.',
   beam: 'It shines a beam of light straight ahead (its front: the way it is turned), from the point you set, in one of its states or always. The beam stops at the first solid thing; a mirror turns it a quarter turn; a light sensor switch it reaches turns on.',
+  flame:
+    'A fire effect burns on it: always, or only in one of its states (a torch stand’s flame while it is “lit”). Set where it burns (its height over the middle of the asset) and how big. It is only a picture: what burns things is fire, a torch or a bomb.',
   mirror:
     'A mirror: it turns a beam a quarter turn. Its first state leans one way, its second the other (two states are added if it has one). With Turns with Action on, the hero turns it at its interact socket. Make it a push block too and it can be moved.',
 };
@@ -14,7 +16,7 @@ export const FIRE_LIGHT_HELP = {
  * “Lit by a beam”, in the Puzzle section; a torch stand a switch hit by Fire.) Each change is one undo step.
  */
 export function FireLightSection({ def, reset }: { def: Asset; reset: (to: Asset, label: string) => void }) {
-  const set = <K extends 'burn' | 'beam' | 'mirror'>(k: K, v: Asset[K] | undefined, label: string) => {
+  const set = <K extends 'burn' | 'beam' | 'mirror' | 'flame'>(k: K, v: Asset[K] | undefined, label: string) => {
     const { [k]: _old, ...rest } = def;
     let next = (v === undefined ? rest : { ...rest, [k]: v }) as Asset;
     // a mirror needs two states, one leaning each way
@@ -24,7 +26,15 @@ export function FireLightSection({ def, reset }: { def: Asset; reset: (to: Asset
   };
   const burn = def.burn;
   const beam = def.beam;
+  const flame = def.flame;
   const centre = (): BeamDef['at'] => [def.footprint[0] / 2, 1.6, def.footprint[1]];
+  const top = (): FlameDef['at'] => {
+    const y = def.bricks.reduce(
+      (m, b) => Math.max(m, (b[1] + (def.palette.types[b[3]]?.startsWith('brick') ? 3 : 1)) * 0.4),
+      0,
+    );
+    return [def.footprint[0] / 2, Math.round(y * 10) / 10, def.footprint[1] / 2];
+  };
   return (
     <div class="sec" data-help="asset.fireLight" data-tour="asset-fire-light">
       <div class="sech">
@@ -137,6 +147,69 @@ export function FireLightSection({ def, reset }: { def: Asset; reset: (to: Asset
               aria-label="Beam colour"
               value={beam.color ?? '#fff3a0'}
               onChange={(e) => set('beam', { ...beam, color: (e.target as HTMLInputElement).value }, 'Beam colour')}
+            />
+          </label>
+        </div>
+      )}
+
+      <label class="lbl" data-tour="asset-flame">
+        <input
+          type="checkbox"
+          checked={!!flame}
+          onChange={() => set('flame', flame ? undefined : ({ at: top() } satisfies FlameDef), 'Flame')}
+        />{' '}
+        Flame{flame ? `: ${flame.when ? `while ${flame.when}` : 'always'}` : ''}
+        <FieldHelp label="Flame" text={FIRE_LIGHT_HELP.flame} />
+      </label>
+      {flame && (
+        <div class="row" style={{ gap: '10px', flexWrap: 'wrap', margin: '2px 0 6px 22px' }}>
+          <label class="field">
+            <span>Burns</span>
+            <select
+              aria-label="Flame burns"
+              value={flame.when ?? ''}
+              onChange={(e) => {
+                const v = (e.target as HTMLSelectElement).value;
+                const { when: _w, ...rest } = flame;
+                set('flame', v ? { ...rest, when: v } : rest, 'Flame burns');
+              }}
+            >
+              <option value="">Always</option>
+              {def.states.map((s) => (
+                <option value={s}>While “{s}”</option>
+              ))}
+            </select>
+          </label>
+          <label class="field" style={{ minWidth: '110px' }}>
+            <span>Height {flame.at[1].toFixed(1)}</span>
+            <input
+              type="range"
+              aria-label="Flame height"
+              min={0}
+              max={12}
+              step={0.2}
+              value={flame.at[1]}
+              onChange={(e) =>
+                set(
+                  'flame',
+                  { ...flame, at: [flame.at[0], Number((e.target as HTMLInputElement).value), flame.at[2]] },
+                  'Flame height',
+                )
+              }
+            />
+          </label>
+          <label class="field" style={{ minWidth: '110px' }}>
+            <span>Size {(flame.size ?? 1).toFixed(1)}</span>
+            <input
+              type="range"
+              aria-label="Flame size"
+              min={0.2}
+              max={4}
+              step={0.1}
+              value={flame.size ?? 1}
+              onChange={(e) =>
+                set('flame', { ...flame, size: Number((e.target as HTMLInputElement).value) }, 'Flame size')
+              }
             />
           </label>
         </div>

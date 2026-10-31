@@ -3748,8 +3748,8 @@ export class PlaySession {
       pieces: () => this.world.pieces,
       objectOfPiece: (id) => this.instanceOfPiece(id) ?? undefined,
       remove: (o) => this.despawn(o.inst.id, true),
-      flames: (at) => {
-        const h = this.playEffect(FX.fire, at);
+      flames: (at, scale, effect) => {
+        const h = this.playEffect(effect || FX.fire, at, scale ? { scale } : {});
         return h ? { stop: () => this.effects.stop(h) } : null;
       },
       sound: (id, at) => this.audio.play(SND[id], at ? { pos: at } : {}),

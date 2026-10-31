@@ -1,6 +1,15 @@
 import { customBrick } from '../../core/bricks/custom';
 import type { SkySample } from '../../core/legacy/modules';
-import { brickGeometry, coneGeometry, downTriangle, type Geometry, PLATE, plainBox, turnedY } from './brick-geometry';
+import {
+  brickGeometry,
+  coneGeometry,
+  downTriangle,
+  type Geometry,
+  PLATE,
+  plainBox,
+  sphereGeometry,
+  turnedY,
+} from './brick-geometry';
 import { customGeometry } from './custom-geometry';
 
 /** P23: particles to draw this frame: tiny bricks, plates, tiles or studs of one size, centre and colour each (6 floats) */
@@ -82,6 +91,8 @@ export type Marker = {
   onTop?: boolean;
   /** an arrowhead pointing along +axis instead of a box (editor gizmos) */
   cone?: 'x' | 'y' | 'z' | '-y';
+  /** a ball (size[0]: its diameter) centred on pos: bombs */
+  sphere?: boolean;
   /** a flat triangle pointing down (size: width, height, thickness), turned to face this yaw — the lock-on arrow */
   tri?: number;
   /** a box turned about y to this yaw (its width along the camera's right): health bars */
@@ -599,6 +610,15 @@ export class Renderer {
       return mesh;
     }
     if (m.cone) return this.coneMesh(m.size[0] / 2, m.size[1], m.cone);
+    if (m.sphere) {
+      const key = `sphere:${m.size[0]}`;
+      let mesh = this.meshes.get(key);
+      if (!mesh) {
+        mesh = this.upload(sphereGeometry(m.size[0] / 2));
+        this.meshes.set(key, mesh);
+      }
+      return mesh;
+    }
     if (m.facing !== undefined) {
       const step = Math.round((m.facing / (Math.PI * 2)) * 64) & 63;
       const key = `face:${m.size.join(',')}:${step}`;

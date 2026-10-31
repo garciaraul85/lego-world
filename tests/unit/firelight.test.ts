@@ -112,6 +112,37 @@ describe('fire', () => {
     expect(get('ins_torch00002')!.state).toBe('out');
     expect(get('ins_torch00001')!.state).toBe('lit');
   });
+
+  it('a torch stand’s flame is a fire effect while lit, not bricks; a hand torch always has one', () => {
+    const def = piece('Torch stand');
+    expect(def.flame).toMatchObject({ when: 'lit' });
+    expect(def.onlyIn).toBeUndefined();
+    expect(piece('Hand torch').flame).toBeTruthy();
+    const { p, get } = game([['Torch stand', [10, 0, 12], 'ins_torch00001']]);
+    const flames = () => (p.fireLight as unknown as { flameFx: Map<string, unknown> }).flameFx;
+    p.placeAt([11, 0.4, 10.4], 0);
+    steps(p, 0.5);
+    expect(flames().has('ins_torch00001')).toBe(false);
+    give(p, 'Torch', 1);
+    p.useItem('Torch', 1);
+    expect(get('ins_torch00001')!.state).toBe('lit');
+    steps(p, 0.5);
+    expect(flames().has('ins_torch00001')).toBe(true);
+    p.setInstanceState('ins_torch00001', 'out', true);
+    steps(p, 0.5);
+    expect(flames().has('ins_torch00001')).toBe(false);
+    expect(puzzleProblems({ ...def, flame: { at: [0, 0, 0], when: 'nope' } })[0]).toMatch(/flame burns in “nope”/);
+    // a hand torch's flame goes when it is picked up
+    const g = game([['Hand torch', [20, 0, 20], 'ins_handtorch1']]);
+    const f2 = () => (g.p.fireLight as unknown as { flameFx: Map<string, unknown> }).flameFx;
+    g.p.placeAt([26, 0.4, 26], 0);
+    steps(g.p, 0.5);
+    expect(f2().has('ins_handtorch1')).toBe(true);
+    g.p.placeAt([21.5, 0.4, 20.5], 0);
+    steps(g.p, 0.6);
+    expect(g.p.inventory.get('Torch')).toBe(1);
+    expect(f2().has('ins_handtorch1')).toBe(false);
+  });
 });
 
 describe('bombs', () => {

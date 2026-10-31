@@ -219,46 +219,34 @@ export class PlayRenderer {
       const pos: Vec3 = [(b.from[0] + b.to[0]) / 2, b.from[1], (b.from[2] + b.to[2]) / 2];
       const lx = Math.abs(b.to[0] - b.from[0]);
       const lz = Math.abs(b.to[2] - b.from[2]);
-      out.push({ pos, size: [Math.max(lx, 0.14), 0.14, Math.max(lz, 0.14)], color: c, alpha: 0.95 });
-      out.push({ pos, size: [Math.max(lx, 0.42), 0.42, Math.max(lz, 0.42)], color: c, alpha: 0.28 });
+      // a bright core, a soft glow round it, and a glowing spot where it ends (on a mirror, a sensor, a wall)
+      out.push({ pos, size: [Math.max(lx, 0.24), 0.24, Math.max(lz, 0.24)], color: c, alpha: 0.95 });
+      out.push({ pos, size: [Math.max(lx, 0.7), 0.7, Math.max(lz, 0.7)], color: c, alpha: 0.3 });
+      out.push({ pos: [...b.to] as Vec3, size: [0.9, 0.9, 0.9], color: c, alpha: 0.55, sphere: true });
     }
     const now = this.session.clock;
-    // a burning thing: tongues of flame flicker along its top, a glow over it, dimming as it burns out
-    for (const [, f] of fl.burning) {
-      const bx = boxOfBricks(f.o.bricks as never);
-      if (!bx) continue;
-      const left = Math.max(0.25, 1 - f.t / Math.max(0.1, f.seconds));
-      const top = bx.y1 * 0.4;
-      const h = (bx.y1 - bx.y0) * 0.4;
-      const alongX = bx.x1 - bx.x0 >= bx.z1 - bx.z0;
-      const n = Math.max(1, Math.round(alongX ? bx.x1 - bx.x0 : bx.z1 - bx.z0));
-      const cx = (bx.x0 + bx.x1) / 2;
-      const cz = (bx.z0 + bx.z1) / 2;
-      out.push({
-        pos: [cx, (bx.y0 * 0.4 + top) / 2, cz],
-        size: [bx.x1 - bx.x0 + 0.2, h + 0.2, bx.z1 - bx.z0 + 0.2],
-        color: [1, 0.35, 0.05],
-        alpha: 0.22 * left,
-      });
-      for (let i = 0; i < n; i++) {
-        const along = (alongX ? bx.x0 : bx.z0) + i + 0.5;
-        const k = Math.sin(now * 11 + i * 2.3) * 0.5 + 0.5;
-        const tall = (0.6 + 0.9 * k) * left;
-        const x = alongX ? along : cx;
-        const z = alongX ? cz : along;
-        out.push({ pos: [x, top + tall / 2, z], size: [0.7, tall, 0.7], color: [1, 0.45, 0.08], alpha: 0.85 });
-        out.push({ pos: [x, top + tall * 0.35, z], size: [0.38, tall * 0.6, 0.38], color: [1, 0.9, 0.35] });
-      }
-    }
     for (const b of fl.bombs) {
-      out.push({ pos: [b.x, b.y + 0.45, b.z], size: [0.9, 0.9, 0.9], color: [0.12, 0.12, 0.16] });
-      out.push({ pos: [b.x, b.y + 0.98, b.z], size: [0.18, 0.2, 0.18], color: [0.55, 0.42, 0.25] });
+      // a round black bomb with a short fuse and a spark that blinks faster near the end
+      out.push({ pos: [b.x, b.y + 0.45, b.z], size: [0.9, 0.9, 0.9], color: [0.1, 0.1, 0.13], sphere: true });
+      out.push({
+        pos: [b.x + 0.18, b.y + 0.72, b.z - 0.12],
+        size: [0.2, 0.2, 0.2],
+        color: [0.55, 0.58, 0.66],
+        sphere: true,
+      });
+      out.push({ pos: [b.x, b.y + 0.98, b.z], size: [0.12, 0.2, 0.12], color: [0.55, 0.42, 0.25] });
       const blink = b.t > FUSE - 0.8 ? 12 : 4;
       if (Math.floor(now * blink) % 2 === 0)
-        out.push({ pos: [b.x, b.y + 1.15, b.z], size: [0.22, 0.22, 0.22], color: [1, 0.75, 0.2] });
+        out.push({ pos: [b.x, b.y + 1.12, b.z], size: [0.22, 0.22, 0.22], color: [1, 0.75, 0.2], sphere: true });
       // it glows red as it is about to go off
       if (b.t > FUSE - 0.8)
-        out.push({ pos: [b.x, b.y + 0.45, b.z], size: [1.0, 1.0, 1.0], color: [1, 0.2, 0.1], alpha: 0.35 });
+        out.push({
+          pos: [b.x, b.y + 0.45, b.z],
+          size: [1.05, 1.05, 1.05],
+          color: [1, 0.2, 0.1],
+          alpha: 0.35,
+          sphere: true,
+        });
     }
     return out;
   }

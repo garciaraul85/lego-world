@@ -1,7 +1,15 @@
 import { customBrick } from '../../../core/bricks/custom';
 import type { SkySample } from '../../../core/legacy/modules';
 import type { FogParams } from '../../lighting/atmosphere';
-import { brickGeometry, coneGeometry, downTriangle, type Geometry, plainBox, turnedY } from '../brick-geometry';
+import {
+  brickGeometry,
+  coneGeometry,
+  downTriangle,
+  type Geometry,
+  plainBox,
+  sphereGeometry,
+  turnedY,
+} from '../brick-geometry';
 import type { CameraFrame } from '../camera';
 import { customGeometry } from '../custom-geometry';
 import { boxVisible, frustumPlanes, multiply, perspective, type Vec3, viewMatrix } from '../math';
@@ -889,6 +897,7 @@ export class GpuRenderer {
         coneGeometry(m.size[0] / 2, m.size[1], axis),
       );
     }
+    if (m.sphere) return this.cached(`sphere:${m.size[0]}`, () => sphereGeometry(m.size[0] / 2));
     if (m.facing !== undefined) {
       const step = Math.round((m.facing / (Math.PI * 2)) * 64) & 63;
       return this.cached(`face:${m.size.join(',')}:${step}`, () =>

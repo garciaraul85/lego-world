@@ -174,8 +174,8 @@ async function boot() {
                 name: 'Tutorial sandbox',
                 mapName: 'Practice map',
                 generate: { environments: ['prairie'], size: track === 'pack' ? 16 : 32, seed: 2024 },
-                // no shrub or mushroom where the enemies go
-                clearAround: 13,
+                // no shrub or mushroom where the enemies go (12b: nor round the beam puzzle, ahead and to the right)
+                clearAround: track === 'firelight' ? 20 : 13,
               })
             : newProjectFiles({ name: 'Tutorial sandbox', mapName: 'Practice map' }),
       );

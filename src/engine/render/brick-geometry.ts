@@ -224,6 +224,26 @@ export function coneGeometry(radius: number, height: number, axis: 'x' | 'y' | '
   return out;
 }
 
+/** A ball centred on the origin (smooth normals): bombs and other round markers. */
+export function sphereGeometry(radius: number, segments = 18, rings = 12): Geometry {
+  const g = new Builder();
+  for (let k = 0; k < rings; k++) {
+    const p0 = -Math.PI / 2 + (k / rings) * Math.PI;
+    const p1 = -Math.PI / 2 + ((k + 1) / rings) * Math.PI;
+    const [r0, y0] = [Math.cos(p0), Math.sin(p0)];
+    const [r1, y1] = [Math.cos(p1), Math.sin(p1)];
+    for (let i = 0; i < segments; i++) {
+      const a = (i / segments) * Math.PI * 2;
+      const b = ((i + 1) / segments) * Math.PI * 2;
+      const n = (r: number, y: number, t: number) => [r * Math.cos(t), y, r * Math.sin(t)];
+      const pt = (r: number, y: number, t: number) => n(r, y, t).map((v) => v * radius);
+      g.tri(pt(r0, y0, a), pt(r0, y0, b), pt(r1, y1, b), n(r0, y0, a), n(r0, y0, b), n(r1, y1, b));
+      g.tri(pt(r0, y0, a), pt(r1, y1, b), pt(r1, y1, a), n(r0, y0, a), n(r1, y1, b), n(r1, y1, a));
+    }
+  }
+  return g.done();
+}
+
 export function plainBox(w: number, h: number, d: number, r = 0.04): Geometry {
   const g = new Builder();
   g.box(0, 0, 0, w, h, d, r);

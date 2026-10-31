@@ -1564,13 +1564,44 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       run(c, placeCommands(c.ed, def.id, [x0, top, z0], rot), `Place ${name}`);
     };
     c.ed.dock.value = 'pack';
-    // turned so its front (where the beam comes out) faces the way the start looks
+    // ahead and to the right of the start (a positive side is the left), clear of the vines (back after Stop) and
+    // of the torch stand, in the play camera's view: the crest shines across to the right into the mirror; the sensor is beyond the mirror, where the mirror
+    // sends the beam once it is turned (at first it sends it the other way, back toward the start)
     const sp = mapDoc(c).spawns[0];
     const yaw = sp?.yaw ?? 0;
-    const rot = (((Math.round(yaw / (Math.PI / 2)) % 4) + 4) % 4) as 0 | 1 | 2 | 3;
-    place('Sun crest', 3, -8, rot);
-    place('Mirror', 10, -8, 0);
-    place('Light sensor', 10, -3, 0);
+    const f: [number, number] = [Math.sin(yaw), Math.cos(yaw)];
+    const r: [number, number] = [Math.cos(yaw), -Math.sin(yaw)];
+    // a turn k sends the crest's front (local +z) to: 0 +z, 1 -x, 2 -z, 3 +x
+    const FRONT: [number, number][] = [
+      [0, 1],
+      [-1, 0],
+      [0, -1],
+      [1, 0],
+    ];
+    // the crest's front faces right (-r)
+    const rot = [0, 1, 2, 3].reduce((b, k) =>
+      -(FRONT[k]![0] * r[0] + FRONT[k]![1] * r[1]) > -(FRONT[b]![0] * r[0] + FRONT[b]![1] * r[1]) ? k : b,
+    );
+    const [dx, dz] = FRONT[rot]!;
+    // turned once more, a mirror leans the other way in each state. Its second state sends a beam going (dx, dz) on
+    // to (dz, dx) unturned, to (-dz, -dx) turned once: pick the turn that sends it on away from the start, so the
+    // hero turning the mirror from the start side sees the crest, the mirror and the sensor all ahead
+    let out: [number, number] = [dz, dx];
+    let mrot = 0;
+    if (out[0] * f[0] + out[1] * f[1] < 0) {
+      out = [-dz, -dx];
+      mrot = 1;
+    }
+    const ahead = 9;
+    const side = -12;
+    place('Sun crest', ahead, -4, rot);
+    place('Mirror', ahead - 1.5, side, mrot);
+    place(
+      'Light sensor',
+      ahead - 1 + Math.round((out[0] * f[0] + out[1] * f[1]) * 6),
+      side + Math.round((out[0] * r[0] + out[1] * r[1]) * 6),
+      0,
+    );
   },
   async turnMirror(c) {
     // what pressing Action at the mirror does, once or twice until the sensor lights
@@ -1579,7 +1610,20 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const m = s.world.instances.find((i) => i.def.name === 'Mirror');
     const sensor = s.world.instances.find((i) => i.def.name === 'Light sensor');
     if (!m || !sensor) throw new Error('Place the Mirror and the Light sensor first.');
-    faceThing(s, m, 1.2);
+    // on the start's side of it, looking the way the start looks: the crest, the mirror and the sensor all ahead
+    const yaw = s.world.doc.spawns[0]?.yaw ?? 0;
+    faceThing(s, m, 0.8, [-Math.round(Math.sin(yaw)), -Math.round(Math.cos(yaw))]);
+    // a step toward the crest's side, so the hero does not hide the mirror and the sensor beyond it
+    standAt(
+      s,
+      s.heroState.x + Math.round(Math.cos(yaw)) * 1.3,
+      s.heroState.z - Math.round(Math.sin(yaw)) * 1.3,
+      s.heroState.heading,
+    );
+    // what dragging the play view up and scrolling out does: looking down on the whole puzzle from behind the hero
+    s.camYaw = s.heroState.heading + Math.PI;
+    s.camPitch = 0.8;
+    s.zoom = 32;
     for (let i = 0; i < 2 && sensor.state !== sensor.def.states[1]; i++) {
       await wait(400);
       if (sensor.state === sensor.def.states[1]) break;
@@ -1888,6 +1932,7 @@ function faceThing(
   s: NonNullable<Ctx['ed']['session']['value']>,
   o: { bricks: { x: number; z: number }[] },
   gap: number,
+  side?: [number, number],
 ): [number, number] {
   const xs = o.bricks.map((b) => b.x);
   const zs = o.bricks.map((b) => b.z);
@@ -1900,7 +1945,8 @@ function faceThing(
   const sp = s.world.doc.spawns[0]?.pos ?? [0, 0, 0];
   const vx = sp[0] - cx;
   const vz = sp[2] - cz;
-  const back: [number, number] = Math.abs(vx) > Math.abs(vz) ? [Math.sign(vx) || 1, 0] : [0, Math.sign(vz) || 1];
+  const back: [number, number] =
+    side ?? (Math.abs(vx) > Math.abs(vz) ? [Math.sign(vx) || 1, 0] : [0, Math.sign(vz) || 1]);
   const half = back[0] ? (x1 - x0) / 2 : (z1 - z0) / 2;
   const x = cx + back[0] * (half + gap + 0.5);
   const z = cz + back[1] * (half + gap + 0.5);

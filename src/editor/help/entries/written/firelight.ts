@@ -16,20 +16,22 @@ export const FIRE_LIGHT: HelpEntry[] = [
       'laser',
       'mirror',
       'reflect',
+      'flame',
       'sun',
       'light sensor',
       'zelda',
     ],
     screen: 'assets',
     kind: 'setting',
-    name: 'Fire and light (burns, beam, mirror)',
+    name: 'Fire and light (burns, beam, flame, mirror)',
     purpose:
-      'What the asset does with fire and light. **Burns**: a torch’s flame, a fire hit, a bomb’s blast or a burning thing touching it sets it alight; it burns for some seconds and is gone for good. **Shines a beam**: a beam of light runs straight out of its front until something stops it. **Mirror**: it turns a beam a quarter turn, and Action turns it. (A light sensor is a switch **Lit by a beam**, and a torch stand a switch **Hit** by **Fire**: both in the Puzzle section.)',
+      'What the asset does with fire and light. **Burns**: a torch’s flame, a fire hit, a bomb’s blast or a burning thing touching it sets it alight; it burns for some seconds and is gone for good. **Shines a beam**: a beam of light runs straight out of its front until something stops it. **Flame**: a fire effect burns on it, always or in one state (a lit torch stand). **Mirror**: it turns a beam a quarter turn, and Action turns it. (A light sensor is a switch **Lit by a beam**, and a torch stand a switch **Hit** by **Fire**: both in the Puzzle section.)',
     steps: [
       'Open the asset in the Asset studio (double-click it in Assets or the Starter pack).',
-      'Under **Fire and light**, tick what it does: Burns, Shines a beam, or Mirror.',
+      'Under **Fire and light**, tick what it does: Burns, Shines a beam, Flame, or Mirror.',
       'Burns: how many seconds it burns, and whether it Spreads to burnable things touching it.',
       'Shines a beam: in which state it shines (or always), how far it reaches, its height and its colour. The beam comes out of its front: turn the placed copy (T) to aim it.',
+      'Flame: in which state it burns (or always), its height and its size.',
       'Mirror: two states lean one way and the other (draw each with Only in this state); give it an interact socket for Action.',
       'Press Play and try it.',
     ],
@@ -45,6 +47,10 @@ export const FIRE_LIGHT: HelpEntry[] = [
       [
         'Shines a beam',
         'Straight out of its front (the way the copy is turned), at the height you set, up to its reach. It stops at the first solid thing; nothing goes through walls.',
+      ],
+      [
+        'Flame',
+        'A fire effect (not bricks) on the placed copy, in its state or always: a torch stand’s flame while lit. Only a picture: it does not burn things.',
       ],
       [
         'Mirror',
