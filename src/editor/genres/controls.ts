@@ -148,6 +148,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.pack': S('core'),
   'help.templatesCourse': S('core'),
   'help.puzzlesCourse': S('core'),
+  'help.fireLightCourse': S('core'),
   'help.ai': S('ai'),
   'assets.open': S('assets'),
   'characters.fromPicture': S('characters'),
@@ -272,6 +273,8 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   'event.onPushed': S('logic', 'collect'),
   'event.onUnlocked': S('logic', 'collect'),
   'event.onPickedUp': S('logic', 'collect'),
+  // step 12b: fire and light
+  'event.onBurned': S('logic', 'collect'),
   'effect.play': S('effects', 'logic'),
   'effect.start': S('effects', 'logic'),
   'effect.stop': S('effects', 'logic'),

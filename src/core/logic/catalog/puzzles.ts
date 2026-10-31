@@ -83,4 +83,15 @@ export const PUZZLE_EVENTS: NodeDef[] = [
     ],
     code: { name: 'pickedUp', style: 'event' },
   },
+  {
+    type: 'event.onBurned',
+    kind: 'event',
+    title: 'On burned',
+    category: 'Events',
+    doc: 'Runs when a burnable thing (vines, a wooden barricade, a web) has burned away: set alight by a torch, a flame, a bomb or something burning next to it.',
+    inputs: [],
+    outputs: [EXEC_OUT, { name: 'target', type: 'entity', help: 'What burned (gone now).' }],
+    args: [asset('What burned (Vines, Wooden barricade…). Empty: anything.')],
+    code: { name: 'burned', style: 'event' },
+  },
 ];

@@ -17,6 +17,7 @@ import { createSceneRenderer, type RendererChoice, type SceneRenderer } from '..
 import { FRAGMENT } from '../render/shaders';
 import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../render/stream';
 import { waterSurface } from '../render/water';
+import { FUSE } from './firelight';
 import { chunkKeyOf, indexByChunk } from './pieces';
 import { boxOf as boxOfBricks } from './puzzles';
 import type { MapWorld, PlaySession } from './session';
@@ -37,6 +38,13 @@ const toRender = (p: LegacyPiece): RenderBrick => {
     ...(p.shape ? { shape: p.shape, rot: p.turn } : {}),
   };
 };
+
+/** '#rrggbb' to 0–1 channels */
+const hexRgb = (h: string): [number, number, number] => [
+  Number.parseInt(h.slice(1, 3), 16) / 255,
+  Number.parseInt(h.slice(3, 5), 16) / 255,
+  Number.parseInt(h.slice(5, 7), 16) / 255,
+];
 
 /** column-major T(pos)·R(rot)·T(-origin): bricks placed around `origin` drawn where a body now is */
 export function poseMatrix(
@@ -195,6 +203,35 @@ export class PlayRenderer {
         return p ? [p] : [];
       });
       if (pieces.length) out.push({ bricks: pieces.map(toRender), alpha: 1, flat: false, model: g.model });
+    }
+    return out;
+  }
+
+  /**
+   * Step 12b: beams of light (a bright core in a soft glow, each straight run a box) and lit bombs (a dark ball with
+   * a spark on its fuse that blinks faster as it burns down)
+   */
+  private fireLightMarkers(): Marker[] {
+    const fl = this.session.fireLight;
+    const out: Marker[] = [];
+    for (const b of fl.beams) {
+      const c = hexRgb(b.color);
+      const pos: Vec3 = [(b.from[0] + b.to[0]) / 2, b.from[1], (b.from[2] + b.to[2]) / 2];
+      const lx = Math.abs(b.to[0] - b.from[0]);
+      const lz = Math.abs(b.to[2] - b.from[2]);
+      out.push({ pos, size: [Math.max(lx, 0.14), 0.14, Math.max(lz, 0.14)], color: c, alpha: 0.95 });
+      out.push({ pos, size: [Math.max(lx, 0.42), 0.42, Math.max(lz, 0.42)], color: c, alpha: 0.28 });
+    }
+    const now = this.session.clock;
+    for (const b of fl.bombs) {
+      out.push({ pos: [b.x, b.y + 0.45, b.z], size: [0.9, 0.9, 0.9], color: [0.12, 0.12, 0.16] });
+      out.push({ pos: [b.x, b.y + 0.98, b.z], size: [0.18, 0.2, 0.18], color: [0.55, 0.42, 0.25] });
+      const blink = b.t > FUSE - 0.8 ? 12 : 4;
+      if (Math.floor(now * blink) % 2 === 0)
+        out.push({ pos: [b.x, b.y + 1.15, b.z], size: [0.22, 0.22, 0.22], color: [1, 0.75, 0.2] });
+      // it glows red as it is about to go off
+      if (b.t > FUSE - 0.8)
+        out.push({ pos: [b.x, b.y + 0.45, b.z], size: [1.0, 1.0, 1.0], color: [1, 0.2, 0.1], alpha: 0.35 });
     }
     return out;
   }
@@ -361,6 +398,7 @@ export class PlayRenderer {
       lines.push(...this.extra.lines);
       markers.push(...this.extra.markers);
     }
+    markers.push(...this.fireLightMarkers());
     // P9b: lock-on, Zelda style — a yellow down-pointing arrow bobs over what Z would lock on to (gone when out
     // of range); locked on, a red one pulses over the target. Drawn over everything, so nothing hides it.
     const locked = s.combat.markerPos(s.combat.target);

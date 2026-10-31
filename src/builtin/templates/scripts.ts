@@ -110,6 +110,49 @@ on("switch", { asset: ${q(a.switch)}, to: "off" }, (e) => {
 `,
   },
   {
+    id: 'light-torches',
+    name: 'Light all the torches',
+    about: 'When every torch stand is lit, a gate opens; one going out (a timed torch) shuts it again',
+    needs: 'torch stands (Torch stand or Timed torch, Starter pack › Fire and light) and a Barred gate',
+    fields: [
+      {
+        key: 'torch',
+        label: 'Torches',
+        kind: 'asset',
+        default: 'Torch stand',
+        help: 'The torch stands to light (with a torch’s flame).',
+      },
+      {
+        key: 'count',
+        label: 'How many',
+        kind: 'number',
+        default: 2,
+        min: 1,
+        max: 20,
+        help: 'How many must burn at once.',
+      },
+      { key: 'gate', label: 'Gate', kind: 'asset', default: 'Barred gate', help: 'What opens.' },
+      { key: 'open', label: 'Open state', kind: 'state', default: 'open', help: 'Its state when open.' },
+      { key: 'shut', label: 'Shut state', kind: 'state', default: 'closed', help: 'Its state when shut.' },
+    ],
+    vars: [{ name: 'torchesLit', type: 'number', default: 0 }],
+    code: (a, v) => `// all ${n(a.count, 2)} ${a.torch} lit: the ${a.gate} opens; one going out shuts it
+on("switch", { asset: ${q(a.torch)}, to: "on" }, (e) => {
+  vars.${v('torchesLit')} += 1;
+  if ((vars.${v('torchesLit')} === ${n(a.count, 2)})) {
+    world.setState(${q(a.gate)}, ${q(a.open)});
+    audio.playSound("secret");
+    say("All the torches burn. Something opened…", 2);
+  }
+});
+
+on("switch", { asset: ${q(a.torch)}, to: "off" }, (e) => {
+  vars.${v('torchesLit')} -= 1;
+  world.setState(${q(a.gate)}, ${q(a.shut)});
+});
+`,
+  },
+  {
     id: 'collect-open',
     name: 'Collect them all, then it opens',
     about: 'When the hero carries enough of an item (gems, keys, flowers), a door or gate opens once',

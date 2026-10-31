@@ -18,7 +18,7 @@ import { DAMAGE_TYPES, type DamageType } from '../combat/damage';
  * The small key, boss key, dungeon map and compass belong to the map where they were found (a dungeon is a map):
  * keys from one dungeon do not open another's doors.
  */
-export const SWITCH_BY = ['step', 'hit', 'press'] as const;
+export const SWITCH_BY = ['step', 'hit', 'press', 'light'] as const;
 export type SwitchBy = (typeof SWITCH_BY)[number];
 export const SWITCH_STAYS = ['on', 'held', 'timed', 'toggle'] as const;
 export type SwitchStays = (typeof SWITCH_STAYS)[number];
@@ -45,6 +45,45 @@ export const SwitchDef = z.strictObject({
   weight: z.number().int().min(1).max(10).optional(),
 });
 export type SwitchDef = z.infer<typeof SwitchDef>;
+
+/**
+ * Step 12b: fire and light.
+ *
+ * - burn: it catches fire from a fire hit (a torch swung, a flame), a bomb's blast or a burning thing touching it,
+ *   burns for some seconds and is gone (vines, a wooden barricade, a web).
+ * - beam: it shines a beam of light straight ahead (its front, the way it is turned) from a point on it, in one of
+ *   its states or always. The beam stops at the first solid thing; a mirror turns it; a light sensor switch it
+ *   reaches turns on.
+ * - mirror: it turns a beam a quarter turn. Its first state leans one way (/), its second the other (\); Action at
+ *   its interact socket turns it, and a turned copy (T) leans the other way.
+ */
+export const BurnDef = z.strictObject({
+  /** seconds it burns before it is gone (2 at first) */
+  seconds: z.number().min(0.5).max(30).optional(),
+  /** it sets burnable things touching it alight (on at first) */
+  spreads: z.boolean().optional(),
+});
+export type BurnDef = z.infer<typeof BurnDef>;
+
+export const BeamDef = z.strictObject({
+  /** where the beam starts on it (x, z studs, y up, as a socket's place) */
+  at: z.tuple([z.number(), z.number(), z.number()]),
+  /** the state it shines in (none: always) */
+  when: z.string().max(40).optional(),
+  /** how far it reaches, studs (32 at first) */
+  range: z.number().min(4).max(96).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
+});
+export type BeamDef = z.infer<typeof BeamDef>;
+
+export const MirrorDef = z.strictObject({
+  /** Action at it turns it (on at first) */
+  turns: z.boolean().optional(),
+});
+export type MirrorDef = z.infer<typeof MirrorDef>;
 
 export const KEY_KINDS = ['small', 'boss', 'item'] as const;
 export const LockDef = z.strictObject({
@@ -87,7 +126,7 @@ export function switchHitBy(s: SwitchDef, type: DamageType): boolean {
 
 /** the words for a switch, for the editor and Help */
 export function describeSwitch(s: SwitchDef): string {
-  const how = s.by === 'step' ? 'stepped on' : s.by === 'hit' ? 'hit' : 'pressed';
+  const how = s.by === 'step' ? 'stepped on' : s.by === 'hit' ? 'hit' : s.by === 'light' ? 'lit by a beam' : 'pressed';
   const stays =
     s.stays === 'on'
       ? 'stays on'
@@ -109,14 +148,20 @@ export function puzzleProblems(a: {
   lock?: LockDef | undefined;
   pickup?: PickupDef | undefined;
   loose?: boolean | undefined;
+  mirror?: MirrorDef | undefined;
+  beam?: BeamDef | undefined;
 }): string[] {
   const out: string[] = [];
   if (a.switch && a.states.length < 2)
     out.push(`${a.name} is a switch but has one state: it needs an off and an on state (its first two).`);
   if (a.lock && a.states.length < 2)
     out.push(`${a.name} has a lock but one state: it needs a locked and an open state (its first two).`);
-  if (a.switch?.stays === 'held' && a.switch.by !== 'step')
-    out.push(`${a.name}: only a floor switch can be held down.`);
+  if (a.switch?.stays === 'held' && a.switch.by !== 'step' && a.switch.by !== 'light')
+    out.push(`${a.name}: only a floor switch (held down) or a light sensor (while lit) can be held.`);
+  if (a.mirror && a.states.length < 2)
+    out.push(`${a.name} is a mirror but has one state: it needs two, one leaning each way.`);
+  if (a.beam?.when && !a.states.includes(a.beam.when))
+    out.push(`${a.name}: its beam shines in “${a.beam.when}”, which is not one of its states.`);
   if (a.lock?.key === 'item' && !a.lock.item) out.push(`${a.name}: choose the item that opens the lock.`);
   if (a.push && a.loose) out.push(`${a.name}: a push block slides square to the floor, so it is not loose too.`);
   return out;

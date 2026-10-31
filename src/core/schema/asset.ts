@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Health } from '../combat/damage';
 import { AssetLight } from '../lighting/light';
-import { LockDef, PickupDef, PushDef, SwitchDef } from '../puzzles/puzzle';
+import { BeamDef, BurnDef, LockDef, MirrorDef, PickupDef, PushDef, SwitchDef } from '../puzzles/puzzle';
 import { ActionList } from './action';
 import { BrickType } from './chunk';
 import { Color, id, Vec2, Vec3 } from './common';
@@ -119,6 +119,12 @@ export const Asset = z.strictObject({
   lock: LockDef.optional(),
   /** step 12a: touched, it is gone and the hero has the item */
   pickup: PickupDef.optional(),
+  /** step 12b: it catches fire, burns and is gone (vines, a barricade, a web) */
+  burn: BurnDef.optional(),
+  /** step 12b: it shines a beam of light straight ahead */
+  beam: BeamDef.optional(),
+  /** step 12b: it turns a beam a quarter turn (two states, one leaning each way) */
+  mirror: MirrorDef.optional(),
   generator: z
     .strictObject({ environments: z.array(z.enum(BIOMES)), weight: z.number().min(0).max(1), placeOn: z.string() })
     .nullable(),

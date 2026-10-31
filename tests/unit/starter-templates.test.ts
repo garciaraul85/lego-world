@@ -19,8 +19,8 @@ const answers = (fields: { key: string; kind: string; default: string | number }
 
 describe('script templates', () => {
   it('ten templates; each writes code the logic language reads and prints back', () => {
-    expect(SCRIPT_TEMPLATES).toHaveLength(10);
-    expect(new Set(SCRIPT_TEMPLATES.map((t) => t.id)).size).toBe(10);
+    expect(SCRIPT_TEMPLATES).toHaveLength(11);
+    expect(new Set(SCRIPT_TEMPLATES.map((t) => t.id)).size).toBe(11);
     for (const t of SCRIPT_TEMPLATES) {
       const code = t.code(answers(t.fields), (x) => x);
       const r = parseCode(code);

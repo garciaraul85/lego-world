@@ -3,7 +3,7 @@ import { SND } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
 import { MOVE_FOR } from '../../builtin/clips/moves';
-import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS } from '../../builtin/effects';
+import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS, FX } from '../../builtin/effects';
 import { genreById } from '../../builtin/genres';
 import { BUILTIN_SCREEN_EFFECTS, DEFAULT_SCREEN_EVENTS } from '../../builtin/screen-effects';
 import { SCR } from '../../builtin/screens';
@@ -149,6 +149,7 @@ import { ActionRunner, type GameOp } from './actions';
 import { type ButtonHost, GameButtons } from './buttons';
 import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
 import { Enemies } from './enemies';
+import { FireLight } from './firelight';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, spawnedNpcs } from './health';
 import { ObjectIndex } from './objects';
 import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
@@ -379,6 +380,8 @@ export class PlaySession {
   readonly combat: Combat = new Combat(this);
   /** step 12a: push blocks, switches, locks, pickups and each dungeon's keys, map and compass */
   readonly puzzles: Puzzles<PlayInstance> = this.makePuzzles();
+  /** step 12b: things burning, bombs fizzing, beams of light */
+  readonly fireLight: FireLight<PlayInstance> = this.makeFireLight();
   private lastStamina = -1;
   onBreak: ((b: NonNullable<LogicRuntime['paused']>) => void) | null = null;
   emotes: Clip[] = [];
@@ -1156,6 +1159,7 @@ export class PlaySession {
       { id: 'gates', fixed: (g) => g.stepGates() },
       { id: 'interact', fixed: (g) => g.stepInteract() },
       { id: 'puzzles', fixed: (g, dt) => g.puzzles.step(dt) },
+      { id: 'fire', fixed: (g, dt) => g.fireLight.step(dt) },
       { id: 'barks', fixed: (g) => g.runtime.ticks % 30 === 0 && g.stepBarks() },
       {
         id: 'talk',
@@ -1408,6 +1412,12 @@ export class PlaySession {
     const h = this.heroState;
     // step 11, 4b: a blade swings with a swish
     if (attack.type === 'slash') this.audio.play(SND.swish, { pos: [h.x, h.y, h.z] });
+    // step 12b: a fire hit (a torch) sets burnable things in front (or all around) alight
+    if (attack.type === 'fire') {
+      const r = how.around ? reach + 1.2 : 1.2;
+      const f = how.around ? 0 : reach * 0.7;
+      this.fireLight.flameAt(h.x + Math.sin(h.heading) * f, h.z + Math.cos(h.heading) * f, h.y + 1, r, 'a torch');
+    }
     if (how.around) {
       const r = reach + 1.2;
       let any = false;
@@ -1666,6 +1676,14 @@ export class PlaySession {
     const n = (this.inventory.get(item) ?? 0) + count;
     this.inventory.set(item, n);
     this.emit('info', `Got ${count} × ${item} (${n} in total)`);
+    // step 12b: a tool (Bomb, Torch) goes into an empty item button, ready to use
+    if (count > 0 && /^(bombs?|torch)$/i.test(item.trim()) && !this.buttons.slots.includes(item)) {
+      const free = Array.from({ length: this.buttons.c.items }, (_, i) => i).find((i) => !this.buttons.slots[i]);
+      if (free !== undefined) {
+        this.equip(free + 1, item);
+        this.say(`${item} is on item button ${free + 1} (${this.buttons.keyOf(ITEM_BUTTONS[free]!)}).`, 2.5);
+      }
+    }
     if (count > 0) this.eventEffect('coin', [this.heroState.x, this.heroState.y + 3, this.heroState.z]);
     this.say(`+${count} ${item}`, 1.5);
     // step 11, 4b: a key jingles
@@ -3220,6 +3238,7 @@ export class PlaySession {
     this.travelLock = sp ? { spawn: sp.id } : null;
     this.inventory.clear();
     this.puzzles.restore(undefined);
+    this.fireLight.reset();
     this.health.clear();
     this.cine.seen.clear();
     this.logic.vars.clear();
@@ -3674,7 +3693,8 @@ export class PlaySession {
         const s = this.heroState;
         Object.assign(s, { x, y, z, vy: 0, grounded: true });
       },
-      remove: (o) => this.despawn(o.inst.id),
+      // a pickup taken stays gone (saves remember)
+      remove: (o) => this.despawn(o.inst.id, true),
       give: (item, n) => this.give(item, n),
       say: (t, sec) => this.say(t, sec),
       sound: (id, at) => this.audio.play(SND[id], at ? { pos: at } : {}),
@@ -3713,6 +3733,108 @@ export class PlaySession {
     p.itemCount = (item) => this.inventory.get(this.itemKey(item)) ?? 0;
     p.takeItem = (item, n) => this.takeItem(item, n);
     return p;
+  }
+
+  private makeFireLight(): FireLight<PlayInstance> {
+    const self = this;
+    return new FireLight<PlayInstance>({
+      get heroState() {
+        return self.heroState;
+      },
+      get clock() {
+        return self.clock;
+      },
+      near: (x, z, r) => this.objs().near(x, z, r),
+      pieces: () => this.world.pieces,
+      objectOfPiece: (id) => this.instanceOfPiece(id) ?? undefined,
+      remove: (o) => this.despawn(o.inst.id, true),
+      flames: (at) => {
+        const h = this.playEffect(FX.fire, at);
+        return h ? { stop: () => this.effects.stop(h) } : null;
+      },
+      sound: (id, at) => this.audio.play(SND[id], at ? { pos: at } : {}),
+      blast: (at, r) => this.blastAt(at, r),
+      lightSensor: (o, lit) => this.puzzles.light(o, lit),
+      burned: (o) =>
+        this.logic.fire({
+          type: 'event.onBurned',
+          match: { asset: o.def.id },
+          payload: { target: o.inst.id },
+          self: o.inst.id,
+        }),
+      log: (t) => this.emit('info', t),
+    });
+  }
+
+  /**
+   * Step 12b: a bomb's blast. Neighbours and enemies in it are hurt and thrown back, things with health take
+   * explosive damage (a cracked wall breaks), switches that answer explosions flip, and the hero, if too close,
+   * loses a heart. Plain bricks are not broken.
+   */
+  blastAt(at: [number, number, number], r: number) {
+    this.hitEffect('explosive', at);
+    const attack = { power: 3, type: 'explosive' as const };
+    for (const n of [...this.world.npcs])
+      if (Math.hypot(n.state.x - at[0], n.state.z - at[2]) <= r + 0.6 && this.canHarm(n))
+        this.hitNpc(n, attack, { knock: 6, stun: 0.6 });
+    for (const i of this.objs().near(at[0], at[2], r + 26)) {
+      const sw = i.def.switch?.by === 'hit';
+      if (!i.def.health && !sw) continue;
+      const b = boxOf(i.bricks);
+      if (!b) continue;
+      const dx = Math.max(b.x0 - at[0], 0, at[0] - b.x1);
+      const dz = Math.max(b.z0 - at[2], 0, at[2] - b.z1);
+      if (Math.hypot(dx, dz) > r) continue;
+      if (sw) this.puzzles.hit(i, 'explosive', true);
+      else this.hitInstance(i, attack);
+    }
+    const h = this.heroState;
+    if (Math.hypot(h.x - at[0], h.z - at[2]) <= r - 0.8 && Math.abs(h.y - at[1]) < 3) {
+      this.hurt(1);
+      this.say('Too close to the blast!', 1.5);
+    }
+  }
+
+  /**
+   * Step 12b: the built-in tools. A Bomb is put down in front of the hero, lit (one fewer); a Torch waves a flame
+   * in front: burnable things catch, torches and other fire switches light, and what fire hurts is hurt.
+   * (true: it was a tool)
+   */
+  private useTool(item: string): boolean {
+    const name = item.trim().toLowerCase();
+    const h = this.heroState;
+    const fx = Math.sin(h.heading);
+    const fz = Math.cos(h.heading);
+    if (name === 'bomb' || name === 'bombs') {
+      this.takeItem(item, 1);
+      this.fireLight.drop(h.x + fx * 1.3, h.y, h.z + fz * 1.3);
+      this.say(`Bomb! (${this.inventory.get(item) ?? 0} left)`, 1.2);
+      return true;
+    }
+    if (name === 'torch') {
+      const x = h.x + fx * 1.4;
+      const z = h.z + fz * 1.4;
+      this.hitEffect('fire', [x, h.y + 1.6, z]);
+      this.audio.play(SND.ignite, { pos: [x, h.y + 1, z] });
+      this.flame(x, z, h.y + 1, 1.4);
+      return true;
+    }
+    return false;
+  }
+
+  /** step 12b: fire at a point (a torch's flame, a fire hit): burnables catch, fire switches light, foes burn */
+  private flame(x: number, z: number, y: number, r: number) {
+    this.fireLight.flameAt(x, z, y, r, 'a flame');
+    for (const i of this.objs().near(x, z, r + 8)) {
+      if (i.def.switch?.by !== 'hit') continue;
+      const b = boxOf(i.bricks);
+      if (!b) continue;
+      const dx = Math.max(b.x0 - x, 0, x - b.x1);
+      const dz = Math.max(b.z0 - z, 0, z - b.z1);
+      if (Math.hypot(dx, dz) <= r) this.puzzles.hit(i, 'fire', true);
+    }
+    const npc = this.npcInReach(r + 0.6);
+    if (npc) this.hitNpc(npc, { power: 1, type: 'fire' }, { knock: 2, stun: 0.3 });
   }
 
   /**
@@ -3762,22 +3884,26 @@ export class PlaySession {
     this.syncPhysics(w, { gone, added });
   }
 
-  despawn(target: string) {
+  /** forGood: it stays gone in saves (burnt away) and nothing on it stops it going */
+  despawn(target: string, forGood = false) {
     const w = this.world;
     const inst = this.objs(w).byId(target);
     if (!inst) return;
     const lo = inst.inst.idBase;
     const hi = lo + inst.def.bricks.length;
     const pieces = w.pieces.filter((p) => p.id! < lo || p.id! >= hi);
-    const check = this.layoutCheck(
-      w,
-      pieces,
-      w.pieces.filter((p) => p.id! >= lo && p.id! < hi),
-    );
+    const check = forGood
+      ? { ok: true as const, reason: '' }
+      : this.layoutCheck(
+          w,
+          pieces,
+          w.pieces.filter((p) => p.id! >= lo && p.id! < hi),
+        );
     if (!check.ok) {
       this.emit('info', `Remove ${inst.def.name}: ${check.reason}`);
       return;
     }
+    if (forGood) for (let id = lo; id < hi; id++) (w.goneIds ??= []).push(id);
     for (const p of w.pieces) if (p.id! >= lo && p.id! < hi) w.dirtyChunks.add(chunkKeyOf(p));
     w.pieces = pieces;
     w.instances = w.instances.filter((i) => i !== inst);
@@ -3993,7 +4119,10 @@ export class PlaySession {
     const objs = this.objs();
     const smashed = this.smashedIds();
     for (const inst of objs.near(s.x, s.z, bestD + objs.interactiveReach + 1)) {
-      const usable = inst.def.switch?.by === 'press' || (!!inst.def.lock && inst.state === inst.def.states[0]);
+      const usable =
+        inst.def.switch?.by === 'press' ||
+        (!!inst.def.lock && inst.state === inst.def.states[0]) ||
+        (!!inst.def.mirror && inst.def.mirror.turns !== false);
       if (!inst.def.interactions.length && !usable) continue;
       if (smashed.has(inst.inst.id)) continue;
       for (const so of inst.sockets) {
@@ -4255,6 +4384,8 @@ export class PlaySession {
       return;
     }
     this.emit('info', `Item ${slot}: ${item}`);
+    // step 12b: a Bomb and a Torch do something by themselves (logic hears them as well)
+    if (!this.talking && !this.talks.active && !this.over) this.useTool(item);
     this.logic.fire({ type: 'event.onItemUsed', match: { item }, payload: { item, slot } });
   }
 

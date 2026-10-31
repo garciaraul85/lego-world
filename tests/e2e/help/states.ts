@@ -273,6 +273,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // step 12b: the Starter pack's Fire and light pieces
+    id: 'scene-dock-firelight',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { left: 'hier', dock: 'pack' });
+      await p.locator('[aria-label="Fire and light"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     // step 12a: the Map tab scrolled to Dungeon
     id: 'scene-map-dungeon',
     screen: 'scene',
@@ -897,6 +907,16 @@ export const HELP_STATES: HelpState[] = [
       await ws(p, 'Assets');
       await p.getByRole('listbox').getByRole('option').first().click();
       await p.locator('[data-tour="asset-puzzle"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    // step 12b: an open asset scrolled to its Fire and light section
+    id: 'assets-firelight',
+    screen: 'assets',
+    setup: async (p) => {
+      await ws(p, 'Assets');
+      await p.getByRole('listbox').getByRole('option').first().click();
+      await p.locator('[data-tour="asset-fire-light"]').scrollIntoViewIfNeeded();
     },
   },
   {

@@ -137,7 +137,9 @@ export function stepsToView(view: string): ShowStep[] {
   const left = (id: 'hier' | 'layers' | 'search', label: string) =>
     tab('Outliner', label, (c) => c.ed.left.value === id);
   if (view.startsWith('scene-dock-')) {
-    const d = view.slice(11);
+    // step 12a/12b: Puzzle pieces and Fire and light are sections of the Starter pack tab
+    const v = view.slice(11);
+    const d = v === 'puzzles' || v === 'firelight' ? 'pack' : v;
     return [ws('Scene'), tab('Bottom dock', DOCK[d] ?? d, (c) => c.ed.dock.value === d)];
   }
   if (view.startsWith('scene-cat-')) {
@@ -471,6 +473,7 @@ export function stepsToView(view: string): ShowStep[] {
     case 'assets-open':
     case 'assets-checkpoint':
     case 'assets-puzzle':
+    case 'assets-firelight':
       return [
         ws('Assets'),
         {

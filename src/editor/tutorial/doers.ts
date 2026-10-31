@@ -1500,6 +1500,93 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       await new Promise((r) => setTimeout(r, 900));
     }
   },
+  // step 12b: the Fire and light course
+  async burnVines(c) {
+    // what walking over the Hand torch and pressing its item button (J) at the vines does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Hand torch', 'Torch');
+    const vines = s.world.instances.find((i) => i.def.name === 'Vines');
+    if (!vines) return;
+    faceThing(s, vines, 1.1);
+    await wait(300);
+    s.useItem('Torch', slotOf(s, 'Torch'));
+    for (let i = 0; i < 30 && s.world.instances.includes(vines); i++) await wait(250);
+  },
+  async lightTorch(c) {
+    // what pressing the Torch's item button at the torch stand does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Hand torch', 'Torch');
+    const stand = s.world.instances.find((i) => i.def.name === 'Torch stand');
+    if (!stand) throw new Error('Place a Torch stand first.');
+    faceThing(s, stand, 1.1);
+    await wait(300);
+    s.useItem('Torch', slotOf(s, 'Torch'));
+    await wait(300);
+  },
+  async blastWall(c) {
+    // what taking the Bomb bag, pressing the bombs' item button (K) at the wall and stepping back does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Bomb bag', 'Bomb');
+    const wall = s.world.instances.find((i) => i.def.name === 'Cracked wall');
+    if (!wall) throw new Error('Place a Cracked wall first.');
+    const back = faceThing(s, wall, 1.0);
+    await wait(300);
+    s.useItem('Bomb', slotOf(s, 'Bomb'));
+    // step back out of the blast
+    await wait(200);
+    standAt(s, s.heroState.x + back[0] * 5, s.heroState.z + back[1] * 5, s.heroState.heading);
+    for (let i = 0; i < 24 && !s.events.some((e) => e.msg.includes('A bomb went off')); i++) await wait(250);
+  },
+  placeBeamPuzzle(c) {
+    // what placing a Sun crest (turned to shine away from the start), a Mirror in its beam and a Light sensor beside
+    // the mirror does: the mirror at first sends the beam away from the sensor
+    const place = (name: string, ahead: number, side: number, rot: number) => {
+      const def = assetByName(c, name);
+      if (!def) throw new Error(`No ${name} in the pack.`);
+      const have = (c.ed.store.get<Instances>(paths.instances(map(c)))?.items ?? []).some(
+        (i) => i.kind === 'asset' && i.asset === def.id,
+      );
+      if (have) return;
+      const sp = mapDoc(c).spawns[0];
+      const at = sp?.pos ?? [0, 0.4, 0];
+      const yaw = sp?.yaw ?? 0;
+      const f: [number, number] = [Math.sin(yaw), Math.cos(yaw)];
+      const r: [number, number] = [Math.cos(yaw), -Math.sin(yaw)];
+      const [w, d] = def.footprint;
+      const x0 = Math.round(at[0] + f[0] * (ahead + d / 2) + r[0] * side - w / 2);
+      const z0 = Math.round(at[2] + f[1] * (ahead + d / 2) + r[1] * side - d / 2);
+      const surf = surfaceOf(c.ed.store, map(c));
+      let top = 0;
+      for (let x = x0; x < x0 + w; x++) for (let z = z0; z < z0 + d; z++) top = Math.max(top, surf.topAt(x, z) ?? 0);
+      run(c, placeCommands(c.ed, def.id, [x0, top, z0], rot), `Place ${name}`);
+    };
+    c.ed.dock.value = 'pack';
+    // turned so its front (where the beam comes out) faces the way the start looks
+    const sp = mapDoc(c).spawns[0];
+    const yaw = sp?.yaw ?? 0;
+    const rot = (((Math.round(yaw / (Math.PI / 2)) % 4) + 4) % 4) as 0 | 1 | 2 | 3;
+    place('Sun crest', 3, -8, rot);
+    place('Mirror', 10, -8, 0);
+    place('Light sensor', 10, -3, 0);
+  },
+  async turnMirror(c) {
+    // what pressing Action at the mirror does, once or twice until the sensor lights
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const m = s.world.instances.find((i) => i.def.name === 'Mirror');
+    const sensor = s.world.instances.find((i) => i.def.name === 'Light sensor');
+    if (!m || !sensor) throw new Error('Place the Mirror and the Light sensor first.');
+    faceThing(s, m, 1.2);
+    for (let i = 0; i < 2 && sensor.state !== sensor.def.states[1]; i++) {
+      await wait(400);
+      if (sensor.state === sensor.def.states[1]) break;
+      s.puzzles.press(m);
+      await wait(400);
+    }
+  },
   timedCrystal(c, a) {
     // what Puzzle › Switch › Timed and the seconds slider do in the Asset studio
     const def = assetByName(c, 'Crystal switch');
@@ -1779,6 +1866,47 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     s.input.keys.delete('w');
   },
 };
+
+/** waits a moment (real time) */
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** the hero walks over a pickup (if it has none of its item yet) and waits for it to be taken */
+async function takePickup(s: NonNullable<Ctx['ed']['session']['value']>, name: string, item: string) {
+  if ((s.inventory.get(item) ?? 0) > 0) return;
+  const o = s.world.instances.find((i) => i.def.name === name);
+  if (!o) throw new Error(`Place a ${name} first.`);
+  faceThing(s, o, 0.4);
+  for (let i = 0; i < 20 && (s.inventory.get(item) ?? 0) <= 0; i++) await wait(150);
+}
+
+/** the item button an item is in (1, 2…), or 1 */
+const slotOf = (s: NonNullable<Ctx['ed']['session']['value']>, item: string) =>
+  Math.max(1, s.buttons.slots.indexOf(item) + 1);
+
+/** the hero stands by a placed thing, on the side of the start, facing it; returns the way back (x, z) */
+function faceThing(
+  s: NonNullable<Ctx['ed']['session']['value']>,
+  o: { bricks: { x: number; z: number }[] },
+  gap: number,
+): [number, number] {
+  const xs = o.bricks.map((b) => b.x);
+  const zs = o.bricks.map((b) => b.z);
+  const x0 = Math.min(...xs);
+  const x1 = Math.max(...xs) + 1;
+  const z0 = Math.min(...zs);
+  const z1 = Math.max(...zs) + 1;
+  const cx = (x0 + x1) / 2;
+  const cz = (z0 + z1) / 2;
+  const sp = s.world.doc.spawns[0]?.pos ?? [0, 0, 0];
+  const vx = sp[0] - cx;
+  const vz = sp[2] - cz;
+  const back: [number, number] = Math.abs(vx) > Math.abs(vz) ? [Math.sign(vx) || 1, 0] : [0, Math.sign(vz) || 1];
+  const half = back[0] ? (x1 - x0) / 2 : (z1 - z0) / 2;
+  const x = cx + back[0] * (half + gap + 0.5);
+  const z = cz + back[1] * (half + gap + 0.5);
+  standAt(s, x, z, Math.atan2(-back[0], -back[1]));
+  return back;
+}
 
 /** puts the hero at x, z facing yaw, on whatever it stands on there (a switch is a plate higher than the grass) */
 function standAt(s: NonNullable<Ctx['ed']['session']['value']>, x: number, z: number, yaw: number) {

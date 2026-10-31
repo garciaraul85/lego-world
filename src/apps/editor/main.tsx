@@ -167,7 +167,7 @@ async function boot() {
               mapName: 'Code island',
               generate: { environments: ['forest', 'prairie'], size: 16, seed: 2024 },
             })
-          : track === 'pack' || track === 'templates' || track === 'puzzles'
+          : track === 'pack' || track === 'templates' || track === 'puzzles' || track === 'firelight'
             ? // step 11, 4a: the Starter pack courses need ground for their neighbours and enemies to stand on
               // (4c: room for an arena and waves too)
               newProjectFiles({

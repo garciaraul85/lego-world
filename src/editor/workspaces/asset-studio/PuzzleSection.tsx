@@ -13,9 +13,9 @@ import type { Asset } from '../../../core/schema';
 import { FieldHelp } from '../../components/fields';
 
 export const PUZZLE_HELP = {
-  push: 'A push block: in Play the hero walks into it for a moment and it slides one step (its own size, or the studs you set) square along the floor. It stops at walls, other blocks and edges, steps up onto a switch, and can hold a floor switch down. With Pull on, the hero can hold Action (Grab) and step back to drag it.',
+  push: 'A push block: in Play the hero holds Action (Grab) at it and walks into it, and it slides one step (its own size, or the studs you set) square along the floor. It stops at walls, other blocks and edges, steps up onto a switch, and holds a floor switch down (it weighs 3). With Can be pulled on, the hero can also hold Grab and step back to drag it. Walked into without Grab, it is climbed.',
   switch:
-    'A switch: its first two states are off and on (Floor switch: up and down). Stepped on: the hero or a block on it. Hit: a sword, an arrow, a boomerang or a bomb (choose which). Pressed: Action at its interact socket (a lever). It stays on, is on only while held down, goes back after some seconds (ticking), or flips each time. Logic’s On switch runs each time it turns on or off.',
+    'A switch: its first two states are off and on (Floor switch: up and down). Stepped on: weight on it (the hero, neighbours, blocks, loose crates; Needs weight says how much). Hit: a sword, an arrow, a boomerang, a bomb or fire (choose which: a torch stand answers Fire). Pressed: Action at its interact socket (a lever). Lit by a beam: a beam of light reaching it (a light sensor). It stays on, is on only while held down, goes back after some seconds (ticking), or flips each time. Logic’s On switch runs each time it turns on or off.',
   lock: 'A lock: its first two states are locked and open. Action at its interact socket opens it when the hero has the key: a small key found on this map (used up), the boss key (kept), or any item you name. Logic’s On unlocked runs when it opens.',
   pickup:
     'A pickup: when the hero touches it, it is gone and the hero has the item. A small key, the boss key, the dungeon map and the compass belong to the map where they are found; a heart heals; anything else goes into the inventory. Logic’s On picked up runs.',
@@ -27,7 +27,12 @@ const STAYS_LABEL: Record<SwitchDef['stays'], string> = {
   timed: 'Timed',
   toggle: 'Flips each time',
 };
-const BY_LABEL: Record<SwitchDef['by'], string> = { step: 'Stepped on', hit: 'Hit', press: 'Pressed (Action)' };
+const BY_LABEL: Record<SwitchDef['by'], string> = {
+  step: 'Stepped on',
+  hit: 'Hit',
+  press: 'Pressed (Action)',
+  light: 'Lit by a beam',
+};
 
 /**
  * Step 12a: the Asset studio's Puzzle section: push block, switch, lock and pickup. Each change is one undo step.

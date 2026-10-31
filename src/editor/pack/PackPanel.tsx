@@ -27,17 +27,31 @@ const GROUPS: [PackGroup, string][] = [
 ];
 
 /** Step 11, 4a: the starter pack's panel in the bottom dock (shown in the genre views that use it) */
+/** step 12b: a fire or light piece: it burns, shines, turns a beam, answers a beam or fire, or is a bomb or torch */
+const fireOrLight = (a: (typeof BUILTIN_ASSETS)[number]) =>
+  !!(a.burn || a.beam || a.mirror) ||
+  a.switch?.by === 'light' ||
+  !!a.switch?.hitBy?.includes('fire') ||
+  /^(bombs?|torch)$/i.test(a.pickup?.item ?? '');
+
 export function PackPanel({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
   const [q, setQ] = useState('');
   const cast = ADVENTURE_PACK.cast.filter((x) => matches(q, x.character.name, x.about, x.group));
   const assets = BUILTIN_ASSETS.filter((a) => (ADVENTURE_PACK.assets as readonly string[]).includes(a.id)).filter((a) =>
-    matches(q, a.name, a.category, a.push || a.switch || a.lock || a.pickup ? 'puzzle' : ''),
+    matches(
+      q,
+      a.name,
+      a.category,
+      a.push || a.switch || a.lock || a.pickup ? 'puzzle' : '',
+      fireOrLight(a) ? 'fire light' : '',
+    ),
   );
-  const puzzle = (a: (typeof assets)[number]) => !!(a.push || a.switch || a.lock || a.pickup);
+  const puzzle = (a: (typeof assets)[number]) => !!(a.push || a.switch || a.lock || a.pickup) || fireOrLight(a);
   const buildings = assets.filter((a) => !puzzle(a));
-  const pieces = assets.filter(puzzle);
+  const pieces = assets.filter((a) => puzzle(a) && !fireOrLight(a));
+  const fire = assets.filter(fireOrLight);
   const terrain = ADVENTURE_PACK.terrain.filter((t) => matches(q, t.name, t.about));
   const effects = BUILTIN_EFFECTS.filter((e) => (ADVENTURE_PACK.effects as readonly string[]).includes(e.id)).filter(
     (e) => matches(q, e.name, 'effect'),
@@ -145,6 +159,8 @@ export function PackPanel({ c }: { c: ActionCtx }) {
         ['Buildings and props', 'Pack buildings and props', buildings] as const,
         // step 12a: blocks, switches, doors, keys
         ['Puzzle pieces', 'Pack puzzle pieces', pieces] as const,
+        // step 12b: burnable things, torches, bombs, beams and mirrors
+        ['Fire and light', 'Pack fire and light', fire] as const,
       ].map(([title, label, list]) =>
         list.length > 0 ? (
           <section class="pack-group" aria-label={title}>

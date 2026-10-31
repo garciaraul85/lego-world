@@ -89,6 +89,16 @@ The **Puzzle** section of the Asset studio says what the asset does in a puzzle.
 
 A switch or lock on an asset with one state gets an off and on (locked and open) pair of states; draw what each state shows with **Only in this state**. Logic hears them all: **On switch** (with To: on or off), **On pushed**, **On unlocked** and **On picked up**. The **Switch opens a gate** template (Logic › From a template…) opens a gate when any switch turns on and shuts it when a held or timed one goes off.
 
+## Fire and light: burns, beams and mirrors
+
+The **Fire and light** section of the Asset studio, under Puzzle:
+
+- **Burns**: a torch's flame, a fire hit, a bomb's blast or a burning thing touching it sets it alight. It burns for its seconds (flames and a crackle) and is gone for good (saves remember). With **Spreads**, it sets burnable things touching it alight too. Logic hears **On burned**.
+- **Shines a beam**: a beam of light runs straight out of its front (the way the placed copy is turned: T), at the **Height** you set, up to its **Reach**, in one state (**Shines**) or always, in its own **Colour**. It stops at the first solid thing.
+- **Mirror**: a beam reaching it goes on from its middle a quarter turn to one side or the other, as it leans: its first state one way, its second the other (two states are added). With **Turns with Action**, the hero turns it at its interact socket. Make it a push block too and it can be moved.
+
+A **light sensor** is a switch **Lit by a beam** (Puzzle › Switch): it turns on when a beam reaches it and, if Held, off again when the beam goes. A **torch stand** is a switch **Hit** by **Fire**: a torch's flame lights it.
+
 ## Health: things that take several hits
 
 Without health, one hit smashes an asset (when **Can be smashed** is on). With **Health** (Asset properties, under Smash) it takes several hits first:

@@ -80,7 +80,8 @@ The **Starter pack** tab of the bottom dock holds the adventure starter pack, re
   - Village: a cottage, a well, a barrel, grass to cut and a plank bridge.
 - **Puzzle pieces**: the **Push block** (push it, or hold Action and step back to pull it), the **Floor switch** (stays down), the **Weight switch** (down only while something heavy stands on it: a push block or a big crate, not the hero alone), the **Timer switch** (back up after 10 seconds), the **Crystal switch** (hit it to flip it), the **Lever** (Action), the **Locked door** (a small key opens it), the **Boss door** (the boss key), the **Small key**, **Boss key**, **Dungeon map** and **Compass** to pick up, and a **Small chest** with a small key in it.
 - **Three terrain styles**: Green Vale, Shrine Highlands and Misty Woods.
-- **Scripts and cutscenes**: ten script templates and three cutscene templates. **Use…** opens a short form; **Make it** turns it into an ordinary logic file or scene (see Logic › Templates).
+- **Fire and light**: **Vines**, a **Wooden barricade** and a **Spider web** that burn away, a **Torch stand** (fire lights it) and a **Timed torch** (out again after 12 seconds), a **Bomb bag** (five bombs) and a **Hand torch** (the Torch) to pick up, a **Sun crest** that shines a beam, a **Mirror** to turn it, and a **Light sensor** that turns on while a beam reaches it.
+- **Scripts and cutscenes**: eleven script templates and three cutscene templates. **Use…** opens a short form; **Make it** turns it into an ordinary logic file or scene (see Logic › Templates).
 - **Look and sound**:
   - The **Adventure screen look**: parchment panels, gold-framed buttons, a storybook font and framed hearts on every screen and menu. **Classic** brings the plain look back. The same switch is **Screen look** in the Project tab.
   - Five effects: Fairy sparkle, Item get, Torch embers, Dungeon dust and Boss vanish. **Place** puts one in front of the start.

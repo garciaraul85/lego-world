@@ -23,6 +23,8 @@ export type IndexedObject = {
     /** step 12a: a lock or a press switch is used with Action too */
     lock?: unknown;
     switch?: { by: string } | undefined;
+    /** step 12b: a mirror turns with Action */
+    mirror?: { turns?: boolean | undefined } | undefined;
   };
   bricks: readonly Pick<Brick, 'x' | 'y' | 'z'>[];
 };
@@ -76,7 +78,11 @@ export class ObjectIndex<T extends IndexedObject> {
   private add(o: T, i: number) {
     this.ids.set(o.inst.id, o);
     if (o.inst.name) this.names.set(o.inst.name.toLowerCase(), o);
-    const usable = o.def.interactions.length > 0 || !!o.def.lock || o.def.switch?.by === 'press';
+    const usable =
+      o.def.interactions.length > 0 ||
+      !!o.def.lock ||
+      o.def.switch?.by === 'press' ||
+      (!!o.def.mirror && o.def.mirror.turns !== false);
     if (usable) this.interactive.push(o);
     if (o.def.checkpoint) this.checkpoints.push(o);
     if (o.def.bricks.length) {

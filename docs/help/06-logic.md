@@ -65,7 +65,7 @@ on("custom", { event: "scene-takes-sword" }, (e) => {
 
 ## Templates
 
-**+ From a template…** (next to + New) opens the starter pack's ten script templates: Locked door and key, Switch opens a gate, Collect them all then it opens, Shop counter, Boss fight, Checkpoint, Race against the clock, Follow me home, Waves of enemies, and Clear the room to find the treasure. Pick one, fill in the blanks (which door, which boss, how many, which zone) and press **Make it**: it becomes an ordinary logic file, with any variables it keeps, that you can read and change as a graph or as code. A zone or spawn point must be on the map first. Each Make it is one undo step. The same window opens from **Starter pack › Scripts and cutscenes**.
+**+ From a template…** (next to + New) opens the starter pack's eleven script templates: Locked door and key, Switch opens a gate, Light all the torches, Collect them all then it opens, Shop counter, Boss fight, Checkpoint, Race against the clock, Follow me home, Waves of enemies, and Clear the room to find the treasure. Pick one, fill in the blanks (which door, which boss, how many, which zone) and press **Make it**: it becomes an ordinary logic file, with any variables it keeps, that you can read and change as a graph or as code. A zone or spawn point must be on the map first. Each Make it is one undo step. The same window opens from **Starter pack › Scripts and cutscenes**.
 
 ## Messages, items, followers and visitors
 
@@ -73,7 +73,7 @@ on("custom", { event: "scene-takes-sword" }, (e) => {
 
 ## Puzzles
 
-Switches, push blocks, locks and pickups do their own work (Asset studio › Puzzle); logic only hears them. **On switch** runs when a switch turns on or off (`on("switch", { asset: "Floor switch", to: "on" }, (e) => { … })`; leave To empty for both ways). **On pushed** runs when a push block stops after a shove or a pull, **On unlocked** when a lock opens with its key (`e.key` is the key used), and **On picked up** when the hero takes a pickup (`on("pickedUp", { item: "Compass" }, …)`). **Give item** and **Count items** work with the small key, boss key, dungeon map and compass too: they count the ones found on this map.
+Switches, push blocks, locks and pickups do their own work (Asset studio › Puzzle); logic only hears them. **On switch** runs when a switch turns on or off (`on("switch", { asset: "Floor switch", to: "on" }, (e) => { … })`; leave To empty for both ways). **On pushed** runs when a push block stops after a shove or a pull, **On unlocked** when a lock opens with its key (`e.key` is the key used), and **On picked up** when the hero takes a pickup (`on("pickedUp", { item: "Compass" }, …)`). **Give item** and **Count items** work with the small key, boss key, dungeon map and compass too: they count the ones found on this map. **On burned** runs when a burnable thing has burned away (`on("burned", { asset: "Vines" }, …)`). A torch stand or a light sensor is a switch, so **On switch** hears it light; the **Light all the torches** template counts them and opens a gate when they all burn.
 
 ## Health
 

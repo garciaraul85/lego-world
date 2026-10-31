@@ -432,6 +432,151 @@ function key(name: string, color: string, item: string): Raw {
   return asset(name, 'prop', [2, 3], b, { pickup: { item } });
 }
 
+// ---------- step 12b: fire and light ----------
+/** a curtain of vines across a passage: it burns away */
+function vines(): Raw {
+  const b = new Build();
+  b.stack(0, 0, 4, 1, 0, 3, (i) => (i % 3 === 1 ? C.green : i % 4 === 2 ? C.woodDark : C.moss));
+  // leaves hanging off the top
+  b.put('plate', 1, 1, 0, 9, 0, C.moss);
+  b.put('plate', 1, 1, 3, 9, 0, C.green);
+  return asset('Vines', 'structure', [4, 1], b, { burn: { seconds: 2 } });
+}
+
+/** planks nailed across a doorway: they burn (slowly) */
+function barricade(): Raw {
+  const b = new Build();
+  // two posts, planks between them, a long plank across the top
+  b.put('brick', 1, 1, 0, 0, 0, C.woodDark);
+  b.put('brick', 1, 1, 3, 0, 0, C.woodDark);
+  b.put('brick', 1, 1, 0, 3, 0, C.woodDark);
+  b.put('brick', 1, 1, 3, 3, 0, C.woodDark);
+  b.put('brick', 1, 2, 1, 0, 0, C.wood);
+  b.put('brick', 1, 2, 1, 3, 0, C.straw);
+  b.put('brick', 1, 4, 0, 6, 0, C.wood);
+  b.put('plate', 1, 4, 0, 9, 0, C.woodDark);
+  return asset('Wooden barricade', 'structure', [4, 1], b, { burn: { seconds: 3 } });
+}
+
+/** a web strung across a gap: it is gone in a flash */
+function web(): Raw {
+  const b = new Build();
+  // strands across, held at the sides (and now and then in the middle)
+  for (let y = 0; y < 9; y++) {
+    if (y % 2 === 0) b.put('plate', 1, 3, 0, y, 0, C.white);
+    else {
+      b.put('plate', 1, 1, 0, y, 0, C.white);
+      b.put('plate', 1, 1, 2, y, 0, C.white);
+    }
+  }
+  return asset('Spider web', 'structure', [3, 1], b, { burn: { seconds: 0.8 } });
+}
+
+/** a stone stand with a bowl: fire (a torch, a flame) lights it, and it stays lit or goes out after some seconds */
+function torchStand(name: string, stays: 'on' | 'timed', seconds?: number): Raw {
+  const b = new Build();
+  b.put('plate', 2, 2, 0, 0, 0, C.stoneDark);
+  b.put('brick', 1, 1, 0, 1, 0, C.stone);
+  b.put('brick', 1, 1, 0, 4, 0, C.stone);
+  b.put('plate', 2, 2, 0, 7, 0, C.iron);
+  const lit = [b.put('brick', 1, 1, 0, 8, 0, C.fire), b.put('plate', 1, 1, 0, 11, 0, C.flame)];
+  const out = [b.put('tile', 1, 1, 0, 8, 0, C.woodDark)];
+  return asset(name, 'decoration', [2, 2], b, {
+    states: ['out', 'lit'],
+    initialState: 'out',
+    onlyIn: { out, lit },
+    switch: { by: 'hit', stays, hitBy: ['fire'], ...(seconds ? { seconds } : {}) },
+    lockOn: true,
+    light: {
+      color: '#ff9a3c',
+      brightness: 1.6,
+      range: 11,
+      flicker: 0.5,
+      shadow: true,
+      at: [0.5, 4.8, 0.5],
+      states: ['lit'],
+    },
+  });
+}
+
+/** a sack of bombs: five Bombs (they go into an empty item button) */
+function bombBag(): Raw {
+  const b = new Build();
+  b.put('brick', 2, 2, 0, 0, 0, C.iron);
+  b.put('plate', 1, 1, 0, 3, 0, C.straw);
+  b.put('plate', 1, 1, 1, 3, 1, C.red);
+  return asset('Bomb bag', 'prop', [2, 2], b, { pickup: { item: 'Bomb', count: 5 } });
+}
+
+/** a torch to carry: the Torch item (its flame lights torch stands and burns vines) */
+function handTorch(): Raw {
+  const b = new Build();
+  b.put('plate', 1, 3, 0, 0, 0, C.wood);
+  b.put('plate', 1, 1, 2, 1, 0, C.fire);
+  b.put('tile', 1, 1, 2, 2, 0, C.flame);
+  return asset('Hand torch', 'prop', [3, 1], b, { pickup: { item: 'Torch' } });
+}
+
+/** a stone with a gold sun on it: it shines a beam of light straight ahead (while shining) */
+function sunCrest(): Raw {
+  const b = new Build();
+  b.put('brick', 1, 1, 0, 0, 0, C.stone);
+  b.put('brick', 1, 1, 0, 3, 0, C.stone);
+  const shining = [b.put('plate', 1, 1, 0, 6, 0, C.gold), b.put('tile', 1, 1, 0, 7, 0, C.flame)];
+  const dark = [b.put('tile', 1, 1, 0, 6, 0, C.stoneDark)];
+  return asset('Sun crest', 'decoration', [1, 1], b, {
+    states: ['shining', 'dark'],
+    initialState: 'shining',
+    onlyIn: { shining, dark },
+    beam: { at: [0.5, 1.6, 1], when: 'shining' },
+    light: {
+      color: '#fff3a0',
+      brightness: 1,
+      range: 5,
+      flicker: 0,
+      shadow: false,
+      at: [0.5, 2.6, 0.5],
+      states: ['shining'],
+    },
+  });
+}
+
+/** a mirror on a stand: it turns a beam a quarter turn; Action turns it to lean the other way */
+function mirror(): Raw {
+  const b = new Build();
+  b.put('plate', 2, 3, 0, 0, 0, C.stoneDark);
+  b.put('plate', 1, 3, 0, 0, 2, C.stoneDark);
+  const glass = '#c8d6e5';
+  const left = [0, 1, 2].flatMap((i) => [
+    b.put('brick', 1, 1, i, 1, 2 - i, glass),
+    b.put('brick', 1, 1, i, 4, 2 - i, glass),
+  ]);
+  const right = [0, 1, 2].flatMap((i) => [b.put('brick', 1, 1, i, 1, i, glass), b.put('brick', 1, 1, i, 4, i, glass)]);
+  return asset('Mirror', 'decoration', [3, 3], b, {
+    states: ['left', 'right'],
+    initialState: 'left',
+    onlyIn: { left, right },
+    mirror: {},
+    sockets: [{ id: 'turn', kind: 'interact', pos: [1.5, 1.2, 3.2], prompt: 'Turn' }],
+  });
+}
+
+/** a crystal eye: lit by a beam it turns on (and off again when the beam goes) */
+function lightSensor(): Raw {
+  const b = new Build();
+  b.put('plate', 2, 2, 0, 0, 0, C.stoneDark);
+  b.put('brick', 2, 2, 0, 1, 0, C.stone);
+  const dark = [b.put('brick', 2, 2, 0, 4, 0, C.water)];
+  const lit = [b.put('brick', 2, 2, 0, 4, 0, C.gold)];
+  return asset('Light sensor', 'decoration', [2, 2], b, {
+    states: ['dark', 'lit'],
+    initialState: 'dark',
+    onlyIn: { dark, lit },
+    switch: { by: 'light', stays: 'held' },
+    light: { color: '#fff3a0', brightness: 1.2, range: 6, flicker: 0, shadow: false, at: [1, 2.4, 1], states: ['lit'] },
+  });
+}
+
 function dungeonMap(): Raw {
   const b = new Build();
   b.put('plate', 2, 2, 0, 0, 0, C.straw);
@@ -618,4 +763,15 @@ export const STARTER_ASSETS: Record<string, Raw> = {
   'dungeon-map': dungeonMap(),
   compass: compass(),
   'small-chest': smallChest(),
+  // step 12b: fire and light
+  vines: vines(),
+  'wooden-barricade': barricade(),
+  'spider-web': web(),
+  'torch-stand': torchStand('Torch stand', 'on'),
+  'timed-torch': torchStand('Timed torch', 'timed', 12),
+  'bomb-bag': bombBag(),
+  'hand-torch': handTorch(),
+  'sun-crest': sunCrest(),
+  mirror: mirror(),
+  'light-sensor': lightSensor(),
 };

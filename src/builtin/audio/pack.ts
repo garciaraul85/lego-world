@@ -301,6 +301,27 @@ export const SOUNDS: Record<string, SfxRecipe> = {
     ],
     6,
   ),
+  /** Step 12b (fire and light): something catching fire, a soft whoosh */
+  ignite: sfx([
+    { wave: 'noise', f0: 900, f1: 2600, dur: 0.35, gain: 0.45, attack: 0.08 },
+    { wave: 'sine', f0: 120, f1: 180, dur: 0.3, gain: 0.2, attack: 0.05 },
+  ]),
+  /** a bomb's fuse fizzing */
+  fuse: sfx([{ wave: 'noise', f0: 5200, f1: 4200, dur: 0.5, gain: 0.25, trem: [34, 0.6], lp: 7000 }]),
+  /** a bomb going off: a crack and a long low rumble */
+  boom: sfx(
+    [
+      { wave: 'noise', f0: 2400, f1: 300, dur: 0.12, gain: 0.9 },
+      { wave: 'noise', f0: 600, f1: 90, at: 0.05, dur: 0.9, gain: 0.7, attack: 0.02 },
+      { wave: 'sine', f0: 90, f1: 38, at: 0.02, dur: 0.8, gain: 0.8 },
+    ],
+    3,
+  ),
+  /** a light beam reaching a sensor: a bright chime */
+  shine: sfx([
+    { wave: 'sine', f0: 1320, dur: 0.4, gain: 0.25, trem: [10, 0.2] },
+    { wave: 'sine', f0: 1980, at: 0.06, dur: 0.35, gain: 0.15 },
+  ]),
 };
 
 // ---------- music ----------
@@ -448,6 +469,10 @@ export const SND = {
   click: sndId('click'),
   tick: sndId('tick'),
   unlock: sndId('unlock'),
+  ignite: sndId('ignite'),
+  fuse: sndId('fuse'),
+  boom: sndId('boom'),
+  shine: sndId('shine'),
 } as const;
 
 export const MUS = {
@@ -472,6 +497,11 @@ export const ADVENTURE_EVENTS: [string, SoundEvent][] = [
   ev('click', ['click'], { maxVoices: 2 }),
   ev('tick', ['tick'], { bus: 'ui', spatial: false, maxVoices: 1, volume: -6 }),
   ev('unlock', ['unlock'], { maxVoices: 1 }),
+  // step 12b: fire and light
+  ev('ignite', ['ignite'], { maxVoices: 3, cooldown: 0.1 }),
+  ev('fuse', ['fuse'], { maxVoices: 2, cooldown: 0.4, volume: -4 }),
+  ev('boom', ['boom'], { maxVoices: 2 }),
+  ev('shine', ['shine'], { maxVoices: 1, cooldown: 0.3 }),
 ];
 
 export const DEFAULT_EVENTS: SoundEvents = {

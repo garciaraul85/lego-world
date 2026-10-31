@@ -69,7 +69,7 @@ export type PuzzleHost<T extends PuzzleObject = PuzzleObject> = {
   give(item: string, count: number): void;
   say(text: string, seconds?: number): void;
   sound(
-    id: 'scrape' | 'click' | 'tick' | 'unlock' | 'keyget' | 'secret' | 'itemget',
+    id: 'scrape' | 'click' | 'tick' | 'unlock' | 'keyget' | 'secret' | 'itemget' | 'shine',
     at?: [number, number, number],
   ): void;
   /** logic and the event log */
@@ -556,23 +556,41 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     } else this.turn(o, true, why);
   }
 
-  /** a hit on an object: a switch that answers this kind of hit is used (true) */
-  hit(o: T, type: DamageType): boolean {
+  /** a hit on an object: a switch that answers this kind of hit is used (true); quiet: no word when it does not */
+  hit(o: T, type: DamageType, quiet = false): boolean {
     const sw = o.def.switch;
     if (sw?.by !== 'hit') return false;
     if (!switchHitBy(sw, type)) {
-      this.h.say(`Nothing happens: it needs ${sw.hitBy?.join(' or ')}.`, 1.8);
+      if (!quiet) this.h.say(`Nothing happens: it needs ${sw.hitBy?.join(' or ')}.`, 1.8);
       return true;
     }
     this.use(o, sw, type);
     return true;
   }
 
-  /** Action at an object: a press switch is used, a lock tries its key (true: handled) */
+  /** step 12b: a light sensor lit by a beam (true) or left dark */
+  light(o: T, lit: boolean) {
+    const sw = o.def.switch;
+    if (sw?.by !== 'light') return;
+    if (lit) {
+      this.h.sound('shine', this.centre(o));
+      this.use(o, sw, 'beam');
+    } else if (sw.stays === 'held') this.turn(o, false, 'beam gone');
+  }
+
+  /** Action at an object: a press switch is used, a lock tries its key, a mirror turns (true: handled) */
   press(o: T): boolean {
     const sw = o.def.switch;
     if (sw?.by === 'press') {
       this.use(o, sw, 'pressed');
+      return true;
+    }
+    // step 12b: a mirror turns to lean the other way
+    if (o.def.mirror && o.def.mirror.turns !== false && o.def.states.length >= 2) {
+      const i = Math.max(0, o.def.states.indexOf(o.state));
+      this.h.setState(o, o.def.states[i === 0 ? 1 : 0]!);
+      this.h.sound('click', this.centre(o));
+      this.h.log(`${o.def.name} turned`);
       return true;
     }
     if (o.def.lock && o.state === o.def.states[0]) return this.unlock(o, o.def.lock);
@@ -706,7 +724,8 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       const b = boxOf(o.bricks);
       if (!b) continue;
       const feet = s.y / 0.4;
-      if (s.x < b.x0 - 0.6 || s.x > b.x1 + 0.6 || s.z < b.z0 - 0.6 || s.z > b.z1 + 0.6) continue;
+      // touching it: the hero's body (not its middle) reaches a tall pickup it cannot step onto
+      if (s.x < b.x0 - 1 || s.x > b.x1 + 1 || s.z < b.z0 - 1 || s.z > b.z1 + 1) continue;
       if (feet > b.y1 + 2 || feet + 10 < b.y0) continue;
       this.h.remove(o);
       const n = p.count ?? 1;

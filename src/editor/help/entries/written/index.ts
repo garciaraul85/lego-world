@@ -2,6 +2,7 @@ import type { HelpEntry } from '../types';
 import { ASSETS, CHARACTERS } from './characters-assets';
 import { AUDIO, CINEMATICS, PLAY } from './cine-audio-play';
 import { EFFECTS } from './effects';
+import { FIRE_LIGHT } from './firelight';
 import { GUIDES } from './guides';
 import { LIGHTS } from './lights';
 import { PHYSICS } from './physics';
@@ -27,6 +28,7 @@ export const WRITTEN: HelpEntry[] = [
   ...LIGHTS,
   ...PHYSICS,
   ...PUZZLES,
+  ...FIRE_LIGHT,
   ...PLAY,
 ];
 

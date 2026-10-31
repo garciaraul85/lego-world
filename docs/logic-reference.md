@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (94 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (95 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -235,6 +235,16 @@ Runs when the hero touches a pickup (a key, the map, the compass, a heart…) an
 - Settings: Item (string, optional)
 - Outputs: item (string), count (number)
 - Code: `on("pickedUp", { item: … }, (e) => { … });`
+
+### On burned
+
+`event.onBurned` · event
+
+Runs when a burnable thing (vines, a wooden barricade, a web) has burned away: set alight by a torch, a flame, a bomb or something burning next to it.
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity)
+- Code: `on("burned", { asset: … }, (e) => { … });`
 
 ## Flow
 
