@@ -3903,7 +3903,10 @@ export class PlaySession {
       this.emit('info', `Remove ${inst.def.name}: ${check.reason}`);
       return;
     }
-    if (forGood) for (let id = lo; id < hi; id++) (w.goneIds ??= []).push(id);
+    if (forGood) {
+      w.goneIds ??= [];
+      for (let id = lo; id < hi; id++) w.goneIds.push(id);
+    }
     for (const p of w.pieces) if (p.id! >= lo && p.id! < hi) w.dirtyChunks.add(chunkKeyOf(p));
     w.pieces = pieces;
     w.instances = w.instances.filter((i) => i !== inst);
