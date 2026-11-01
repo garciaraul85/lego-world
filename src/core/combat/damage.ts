@@ -131,6 +131,9 @@ export const HELD_ATTACKS: Record<string, AttackHit> = {
   Shovel: { power: 1, type: 'blunt' },
   Club: { power: 1.5, type: 'blunt' },
   Baton: { power: 1, type: 'blunt' },
+  // step 12b: a stick picked up (a branch), and one alight
+  Stick: { power: 1, type: 'blunt' },
+  'Lit stick': { power: 1, type: 'fire' },
   'Baseball bat': { power: 1.5, type: 'blunt' },
   Crowbar: { power: 1.5, type: 'blunt' },
   Mace: { power: 2, type: 'blunt' },

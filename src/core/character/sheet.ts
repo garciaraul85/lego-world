@@ -95,6 +95,7 @@ export const ANIM_ACTIONS = [
   'lift',
   'throw',
   'drop',
+  'pick',
   'carry',
   'hold',
   'push',

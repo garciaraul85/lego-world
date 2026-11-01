@@ -61,12 +61,23 @@ export type FireHost<T extends FireObject = FireObject> = {
     effect?: string,
   ): { stop(): void; move?(at: [number, number, number]): void } | null;
   /** step 12b: the lit branch has burned up: one Branch fewer */
-  branchBurnedUp?(): void;
+  /** step 12b: the stick is gone: it burned down, burned up with what it set alight, or broke on something hard */
+  branchBurnedUp?(why: 'burned' | 'used' | 'broke'): void;
+  /** step 12b: the stick is out in the hero's hand, and where its end is (from the posed hand) */
+  stickOut?(): boolean;
+  stickTip?(): [number, number, number] | undefined;
+  /** step 12b: fire touched to a point (lights a torch stand; burnables are lit here) */
+  touchFire?(at: [number, number, number]): void;
   sound(id: 'ignite' | 'fuse' | 'boom' | 'shine', at?: [number, number, number]): void;
   /** the blast of a bomb: what is around it is hurt, broken, flipped or set alight (how many things it hit) */
   blast(at: [number, number, number], radius: number): number;
   /** a bomb handed to the physics engine (on) or taken back (off): true when the engine moves it */
   ball?(b: Bomb, on: boolean): boolean;
+  /**
+   * step 12b: what stands in a beam besides the bricks: the hero, neighbours and enemies, loose things the physics
+   * engine moves. The distance along the beam to the first, or null
+   */
+  beamBlock?(from: [number, number, number], dir: [number, number], max: number): number | null;
   /** a solid piece at this point (a thrown bomb stops against it) */
   solidAt?(x: number, y: number, z: number): boolean;
   /** how tall the hero stands (world units): a bomb held up sits on top of its hands */
@@ -94,8 +105,11 @@ const DROP_TIME = 0.4;
 const THROW_SPEED = 7.5;
 const THROW_UP = 4.5;
 const GRAVITY = 18;
-/** step 12b: a lit branch burns this long, then it is gone */
-export const BRANCH_SECONDS = 30;
+/** step 12b: a lit stick burns this long, then it is gone (like a Deku stick, it burns down fast) */
+export const BRANCH_SECONDS = 10;
+/** how near a fire the stick's end catches, and a burnable thing catches from it (studs) */
+const STICK_CATCH = 1.5;
+const STICK_TOUCH = 1.0;
 /** a bomb plant grows a new bomb this long after its last one went off */
 const REGROW_AFTER = 1.5;
 /** how often beams are traced again (seconds) */
@@ -107,6 +121,9 @@ const FLAME_RANGE = 48;
 const FLAME_EVERY = 0.25;
 
 export type BeamSegment = { from: [number, number, number]; to: [number, number, number]; color: string };
+
+const minOf = (a: number | null | undefined, b: number | null): number | null =>
+  a === null || a === undefined ? b : b === null ? a : Math.min(a, b);
 
 const pieceBox = (p: Piece) => {
   const [w, d] = p.turn % 2 ? [p.rows, p.cols] : [p.cols, p.rows];
@@ -237,10 +254,12 @@ export class FireLight<T extends FireObject = FireObject> {
     }
   }
 
-  // ---------- a burning branch ----------
+  // ---------- a stick (a branch) ----------
 
-  /** where the hero's hand holds a branch out, its burning end */
-  private branchTip(): [number, number, number] {
+  /** where the stick's end is: the posed hand when the host knows it, else out in front at shoulder height */
+  branchTip(): [number, number, number] {
+    const t = this.h.stickTip?.();
+    if (t) return t;
     const s = this.h.heroState;
     const k = (this.h.heroHeight?.() ?? 4.02) / 4.02;
     return [
@@ -265,30 +284,50 @@ export class FireLight<T extends FireObject = FireObject> {
     return false;
   }
 
-  /** the carried branch catches fire (it burns BRANCH_SECONDS, then it is gone) */
+  /** the stick in hand catches fire (it burns BRANCH_SECONDS, then it is gone) */
   lightBranch(): boolean {
     if (this.litBranch) return false;
-    this.litBranch = { t: 0, fx: this.h.flames(this.branchTip(), 0.55) };
+    this.litBranch = { t: 0, fx: this.h.flames(this.branchTip(), 0.5) };
     this.h.sound('ignite', this.branchTip());
-    this.h.log('The branch caught fire');
+    this.h.log('The stick caught fire');
     return true;
   }
 
-  /** the lit branch goes out (it burned up, or the hero no longer has it): its flame is gone too */
+  /** the stick's fire goes out (it was put away, or it is gone): its flame is gone too */
   putOutBranch() {
     this.litBranch?.fx?.stop();
     this.litBranch = null;
   }
 
-  private stepBranch(dt: number) {
-    const lb = this.litBranch;
-    if (!lb) return;
-    lb.t += dt;
-    lb.fx?.move?.(this.branchTip());
-    if (lb.t < BRANCH_SECONDS) return;
+  /** the stick is gone, and its fire with it: burned down, burned up with what it lit, or broken */
+  useUpBranch(why: 'burned' | 'used' | 'broke') {
     this.putOutBranch();
-    this.h.branchBurnedUp?.();
-    this.h.log('The branch burned up');
+    this.h.branchBurnedUp?.(why);
+    this.h.log(why === 'broke' ? 'The stick broke' : 'The stick burned up');
+  }
+
+  private stepBranch(dt: number) {
+    const out = this.h.stickOut?.() ?? !!this.litBranch;
+    if (!out) {
+      if (this.litBranch) this.putOutBranch();
+      return;
+    }
+    const tip = this.branchTip();
+    const lb = this.litBranch;
+    // held into a fire (a lit torch, something burning), the stick catches by itself
+    if (!lb) {
+      if (this.h.stickOut && this.fireNear(tip[0], tip[2], STICK_CATCH)) this.lightBranch();
+      return;
+    }
+    lb.t += dt;
+    lb.fx?.move?.(tip);
+    if (lb.t < BRANCH_SECONDS) {
+      // touched to something that burns (vines), it sets it alight and burns up with it; a torch stand just lights
+      this.h.touchFire?.(tip);
+      if (this.flameAt(tip[0], tip[2], tip[1], STICK_TOUCH, 'a burning stick') > 0) this.useUpBranch('used');
+      return;
+    }
+    this.useUpBranch('burned');
   }
 
   // ---------- bombs ----------
@@ -506,6 +545,20 @@ export class FireLight<T extends FireObject = FireObject> {
     this.lit = new Set(litNow.keys());
   }
 
+  /** how far along a beam a bomb (lying, rolling, falling or held) stands in its way (null: none) */
+  private bombInBeam(from: [number, number, number], dx: number, dz: number, max: number): number | null {
+    let best: number | null = null;
+    for (const b of this.bombs) {
+      const cy = b.y + BOMB_R;
+      const along = (b.x - from[0]) * dx + (b.z - from[2]) * dz;
+      const side = Math.hypot((b.x - from[0]) * dz - (b.z - from[2]) * dx, cy - from[1]);
+      if (along <= 0 || side > BOMB_R) continue;
+      const t = along - Math.sqrt(BOMB_R * BOMB_R - side * side);
+      if (t < (best ?? max)) best = Math.max(0, t);
+    }
+    return best;
+  }
+
   private traceOne(src: T, pieces: readonly Piece[], segs: BeamSegment[], lit: Map<string, T>) {
     const beam = src.def.beam!;
     const color = beam.color ?? '#fff3a0';
@@ -545,6 +598,12 @@ export class FireLight<T extends FireObject = FireObject> {
         if (t < -0.01 || t >= best) continue;
         best = Math.max(0, t);
         hitPiece = p;
+      }
+      // someone or something loose in the way (not a mirror, not shiny): the light stops on it
+      const blocked = minOf(this.h.beamBlock?.([x, y, z], [dx, dz], best), this.bombInBeam([x, y, z], dx, dz, best));
+      if (blocked !== null && blocked !== undefined && blocked < best) {
+        segs.push({ from: [x, y, z], to: [x + dx * blocked, y, z + dz * blocked], color });
+        return;
       }
       const ex = x + dx * best;
       const ez = z + dz * best;

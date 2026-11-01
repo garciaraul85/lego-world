@@ -16,6 +16,7 @@ export const ANIM_STATES = [
   'lift',
   'throw',
   'drop',
+  'pick',
   'carry',
   'hold',
   'push',
@@ -59,8 +60,8 @@ export type StateInput = {
   pushing?: 'push' | 'pull' | 'climb' | null;
   /** step 12b: climbing a ladder or vines */
   ladder?: boolean;
-  /** step 12b: picking a bomb up over its head, throwing it, putting it down, or holding it up */
-  carrying?: 'lift' | 'throw' | 'drop' | 'hold' | null;
+  /** step 12b: picking a bomb up over its head, throwing it, putting it down, or holding it up; picking a thing up off the floor */
+  carrying?: 'lift' | 'throw' | 'drop' | 'hold' | 'pick' | null;
 };
 
 /** The state the rules pick (the first that holds, in the order of ANIM_STATES). */
@@ -92,7 +93,7 @@ export function clipRate(state: AnimState, speed: number, s: StateSettings | und
 }
 
 /** states whose clip plays once each time the state starts (the others loop) */
-export const ONCE: readonly AnimState[] = ['hurt', 'attack', 'jump', 'climb', 'lift', 'throw', 'drop'];
+export const ONCE: readonly AnimState[] = ['hurt', 'attack', 'jump', 'climb', 'lift', 'throw', 'drop', 'pick'];
 
 export const STATE_LABEL: Record<AnimState, string> = {
   hurt: 'Hurt',
@@ -104,6 +105,7 @@ export const STATE_LABEL: Record<AnimState, string> = {
   lift: 'Lift',
   throw: 'Throw',
   drop: 'Put down',
+  pick: 'Pick up',
   carry: 'Carry',
   hold: 'Hold up',
   push: 'Push',
@@ -136,6 +138,8 @@ export function stateRule(state: AnimState, s: StateSettings | undefined): strin
       return 'while it throws what it holds';
     case 'drop':
       return 'while it puts what it holds down';
+    case 'pick':
+      return 'while it picks something up off the floor';
     case 'carry':
       return 'while it walks holding something up';
     case 'hold':

@@ -99,7 +99,7 @@ The **Fire and light** section of the Asset studio, under Puzzle:
 - **Shines a beam**: a beam of light runs straight out of its front (the way the placed copy is turned: T), at the **Height** you set, up to its **Reach**, in one state (**Shines**) or always, in its own **Colour**. It stops at the first solid thing.
 - **Grows bombs**: a plant with a bomb on top (its states: grown, picked). Action picks the bomb up, lit; once it has gone off another grows: **Always**, **Only after a miss** (the blast hit nothing, so a puzzle can be tried again until it is solved) or **Never**.
 - **Flame**: a fire effect burns on it, always or only in one state (a torch stand's flame while it is lit), at the **Height** and **Size** you set. It is only a picture; fire, a torch or a bomb is what burns things.
-- **Mirror**: a beam reaching it goes on from its middle a quarter turn to one side or the other, as it leans: its first state one way, its second the other (two states are added). With **Turns with Action**, the hero turns it at its interact socket. Make it a push block too and it can be moved.
+- **Mirror**: a beam reaching it goes on from its middle a quarter turn to one side or the other, as it leans: its first state one way, its second the other (two states are added). With **Turns when pushed**, the hero holds it (Grab, Action held) and pushes it round where it stands. Anything else in the beam stops it: the hero, a neighbour, a bomb, a loose crate (the physics engine's moving things).
 
 A **light sensor** is a switch **Lit by a beam** (Puzzle › Switch): it turns on when a beam reaches it and, if Held, off again when the beam goes. A **torch stand** is a switch **Hit** by **Fire**: a torch's flame lights it.
 

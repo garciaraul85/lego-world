@@ -257,7 +257,8 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     const pz = s.z + dz * range;
     const feet = s.y / 0.4;
     for (const o of this.h.near(s.x, s.z, 12)) {
-      if (!o.def.push) continue;
+      // a push block, or (step 12b) a mirror the hero turns by pushing it round
+      if (!o.def.push && !(o.def.mirror && o.def.mirror.turns !== false)) continue;
       const b = boxOf(o.bricks);
       if (!b) continue;
       if (px < b.x0 - 0.05 || px > b.x1 + 0.05 || pz < b.z0 - 0.05 || pz > b.z1 + 0.05) continue;
@@ -270,7 +271,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
 
   /** the Action button (Grab) can take hold of a push block in front */
   canGrab(): boolean {
-    return !!this.facing()?.o.def.push && !this.slide && !this.climbing;
+    return !!this.facing() && !this.slide && !this.climbing;
   }
 
   /** Action held (true) or let go: pushing and pulling both need a hold on the block */
@@ -280,7 +281,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       return;
     }
     const f = this.facing();
-    if (f?.o.def.push) this.grab = { id: f.o.inst.id, t: 0, lean: 'hold', fresh: true, dx: f.dx, dz: f.dz };
+    if (f) this.grab = { id: f.o.inst.id, t: 0, lean: 'hold', fresh: true, dx: f.dx, dz: f.dz };
   }
 
   /** holding on: forward pushes it, back pulls it (a pullable block), each after a moment */
@@ -303,6 +304,15 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       return;
     }
     g.lean = dir > 0 ? 'push' : 'pull';
+    // step 12b: a mirror held and pushed (or pulled) turns round to lean the other way, once per push
+    if (f.o.def.mirror) {
+      g.t += dt;
+      if (g.t < PUSH_HOLD) return;
+      g.t = 0;
+      g.fresh = false;
+      this.turnMirror(f.o);
+      return;
+    }
     if (dir < 0 && !f.o.def.push?.pull) {
       if (g.t === 0) this.h.say('It only moves when pushed.', 1.2);
       g.t = -Infinity;
@@ -556,9 +566,12 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     if (lad) {
       const c0 = this.climbTry;
       if (!c0 || Math.hypot(s.x - c0.x, s.z - c0.z) > 0.15) this.climbTry = { x: s.x, z: s.z, t: 0 };
-      else if ((c0.t += dt) >= CLIMB_WAIT * 0.5) {
-        this.climbTry = null;
-        this.grabLadder(lad);
+      else {
+        c0.t += dt;
+        if (c0.t >= CLIMB_WAIT * 0.5) {
+          this.climbTry = null;
+          this.grabLadder(lad);
+        }
       }
       return;
     }
@@ -619,7 +632,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
 
   // ---------- switches ----------
 
-  private isOn(o: T): boolean {
+  isOn(o: T): boolean {
     return o.state === o.def.states[1];
   }
 
@@ -678,17 +691,20 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       this.use(o, sw, 'pressed');
       return true;
     }
-    // step 12b: a mirror turns to lean the other way
-    if (o.def.mirror && o.def.mirror.turns !== false && o.def.states.length >= 2) {
-      const i = Math.max(0, o.def.states.indexOf(o.state));
-      this.h.setState(o, o.def.states[i === 0 ? 1 : 0]!);
-      this.turnPose = { kind: i === 0 ? 'push' : 'pull', t: TURN_POSE };
-      this.h.sound('click', this.centre(o));
-      this.h.log(`${o.def.name} turned`);
-      return true;
-    }
+    // step 12b: a mirror is turned by holding it (Grab) and pushing it round, not with a press
     if (o.def.lock && o.state === o.def.states[0]) return this.unlock(o, o.def.lock);
     return false;
+  }
+
+  /** step 12b: a mirror turned round to lean the other way (the hero holding it shoves it: the Push pose) */
+  turnMirror(o: T): boolean {
+    if (!o.def.mirror || o.def.mirror.turns === false || o.def.states.length < 2) return false;
+    const i = Math.max(0, o.def.states.indexOf(o.state));
+    this.h.setState(o, o.def.states[i === 0 ? 1 : 0]!);
+    this.turnPose = { kind: 'push', t: TURN_POSE };
+    this.h.sound('scrape', this.centre(o));
+    this.h.log(`${o.def.name} turned`);
+    return true;
   }
 
   /**

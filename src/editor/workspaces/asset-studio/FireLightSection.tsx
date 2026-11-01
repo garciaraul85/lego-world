@@ -10,7 +10,7 @@ export const FIRE_LIGHT_HELP = {
   flame:
     'A fire effect burns on it: always, or only in one of its states (a torch stand’s flame while it is “lit”). Set where it burns (its height over the middle of the asset) and how big. It is only a picture: what burns things is fire, a torch or a bomb.',
   mirror:
-    'A mirror: it turns a beam a quarter turn. Its first state leans one way, its second the other (two states are added if it has one). With Turns with Action on, the hero turns it at its interact socket. Make it a push block too and it can be moved.',
+    'A mirror: it turns a beam a quarter turn. Its first state leans one way, its second the other (two states are added if it has one). With Turns when pushed on, the hero holds it (Grab) and pushes it round where it stands. Anything in a beam stops it: the hero, a neighbour, a bomb, a crate.',
 };
 
 /**
@@ -271,10 +271,10 @@ export function FireLightSection({ def, reset }: { def: Asset; reset: (to: Asset
             <input
               type="checkbox"
               checked={def.mirror.turns !== false}
-              aria-label="Turns with Action"
+              aria-label="Turns when pushed"
               onChange={() => set('mirror', def.mirror?.turns === false ? {} : { turns: false }, 'Mirror turns')}
             />{' '}
-            Turns with Action
+            Turns when pushed
           </label>
           <span class="muted small">
             Leans one way in “{def.states[0]}”, the other in “{def.states[1] ?? '—'}”; draw each with Only in this

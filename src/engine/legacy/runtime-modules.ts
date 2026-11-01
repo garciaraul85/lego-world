@@ -215,6 +215,11 @@ export interface CharacterRenderer {
   cachePaint(data: string, canvas: HTMLCanvasElement): void;
 }
 
+/** step 12b: how far a stick reaches past the hand (see withStick) */
+export const STICK_LENGTH = 1.55;
+/** step 12b: how far the longer forearm moves the hand down in the model: v68's stretchArmY(1.94) - 1.94 */
+export const HAND_DROP = 2.88 - 0.33 * 2.0 - 0.61 * 1.55 - 1.94;
+
 const ORDER = [
   worldGenerator,
   volcanoSimulation,
@@ -227,7 +232,7 @@ const ORDER = [
   withCustomHairChoice(characterCatalog),
   rigCollision,
   withRoomToWalk(gamePhysics),
-  withCustomHair(withOutwardPaint(withTalkingMouth(withOffHand(characterModel)))),
+  withCustomHair(withOutwardPaint(withTalkingMouth(withStick(withOffHand(characterModel))))),
   characterArt,
   npcWorld,
 ];
@@ -245,6 +250,26 @@ function withOffHand(src: string): string {
     "box(sx,sy,sz,.14,1.05,.80);part('leftForearm',accent);box(sx-.075,sy,sz,.01,.66,.09);" +
     'box(sx-.075,sy+.08,sz,.01,.09,.50);}';
   return src.replace(at, shield + at);
+}
+
+/**
+ * Step 12b: a stick (a branch picked up) in the right hand, in place of the held item: the hero swings it as its
+ * sword (v68's sword swing, from `held: 'Sword'`) while `heldLook` draws a plain wooden stick (alight: its end
+ * charred, the flame itself is a fire effect at the tip).
+ */
+function withStick(src: string): string {
+  const at = "paintSlot='held';if(p.held!=='None'){part('rightArm',access);";
+  if (!src.includes(at)) throw new Error('character model: the held-item block moved; update withStick');
+  // built at the hand like every held item (the hand grips its end; the longer forearm moves both down together)
+  const y = '1.94';
+  const at1 = (d: number) => `y+${(d).toFixed(3)}`;
+  const stick =
+    `paintSlot='held';if(p.heldLook==='Stick'||p.heldLook==='Lit stick'){const x=1.10,y=${y},z=.34;` +
+    `part('rightArm','#7a4b26');limb([x,${at1(-0.22)},z],[x,${at1(STICK_LENGTH)},z],.075,.06);` +
+    `part('rightArm','#5b3519');box(x+.06,${at1(0.62)},z,.05,.16,.05);box(x-.05,${at1(1.05)},z,.05,.12,.05);` +
+    `if(p.heldLook==='Lit stick'){part('rightArm','#2a1a10');limb([x,${at1(STICK_LENGTH - 0.3)},z],[x,${at1(STICK_LENGTH + 0.02)},z],.07,.066);}` +
+    "}else if(p.held!=='None'){part('rightArm',access);";
+  return src.replace(at, stick);
 }
 
 /**

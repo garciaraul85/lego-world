@@ -566,6 +566,28 @@ export class PhysicsWorld {
     return { distance: t, point: [from[0] + d.x * t, from[1] + d.y * t, from[2] + d.z * t] };
   }
 
+  /**
+   * step 12b: the first moving thing along a ray (a loose crate, a tumbling brick, a bomb), not the fixed bricks or
+   * the hero: what stands in a beam of light
+   */
+  raycastMoving(from: [number, number, number], dir: [number, number, number], maxDistance: number): number | null {
+    const len = Math.hypot(dir[0], dir[1], dir[2]) || 1;
+    this.refreshQueries();
+    const ray = new RAPIER.Ray(
+      { x: from[0], y: from[1], z: from[2] },
+      { x: dir[0] / len, y: dir[1] / len, z: dir[2] / len },
+    );
+    const hit = this.world.castRay(
+      ray,
+      maxDistance,
+      true,
+      RAPIER.QueryFilterFlags.EXCLUDE_FIXED,
+      undefined,
+      this.heroCollider ?? undefined,
+    );
+    return hit ? hit.timeOfImpact : null;
+  }
+
   /** nothing solid between two points (eyes to eyes: who can see whom) */
   lineOfSight(a: [number, number, number], b: [number, number, number]): boolean {
     const dir: [number, number, number] = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];

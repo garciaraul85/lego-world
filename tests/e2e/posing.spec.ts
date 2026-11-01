@@ -100,7 +100,7 @@ test('states: the built-in moves, Try it lights the state that picks, and the he
     .toBeTruthy();
   const hero = await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.store.manifest.hero);
   await page.getByRole('tablist', { name: 'Character sheet' }).getByRole('tab', { name: 'Animations' }).click();
-  await expect(page.getByRole('list', { name: 'States' }).getByRole('listitem')).toHaveCount(17);
+  await expect(page.getByRole('list', { name: 'States' }).getByRole('listitem')).toHaveCount(18);
   await page.locator('[data-tour="states-builtin"]').click();
   await expect
     .poll(() =>

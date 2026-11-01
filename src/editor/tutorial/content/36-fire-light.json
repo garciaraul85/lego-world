@@ -29,9 +29,9 @@
     },
     {
       "id": "fl.place",
-      "title": "Vines, a branch and two torches",
-      "body": "Place Vines across the way 6 studs in front of the start, a Branch on the ground 3 studs ahead and a little to the left, a Burning torch (already alight) 2 studs ahead to the right, and a Torch stand (not lit) further to the right.",
-      "task": "Place Vines, a Branch, a Burning torch and a Torch stand.",
+      "title": "Vines, two branches and two torches",
+      "body": "Place Vines across the way 6 studs in front of the start, two Branches on the ground to the left (one 3 studs ahead, one level with the start), a Burning torch (already alight) 2 studs ahead to the right, and a Torch stand (not lit) further to the right. A branch is a stick: each one is used up once it has burned something, so the course has two.",
+      "task": "Place Vines, two Branches, a Burning torch and a Torch stand.",
       "target": "[aria-label=\"Fire and light\"]",
       "check": {
         "kind": "state",
@@ -57,6 +57,15 @@
         {
           "fn": "placePuzzle",
           "args": {
+            "name": "Branch",
+            "ahead": 0,
+            "side": 5,
+            "count": 2
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
             "name": "Burning torch",
             "ahead": 2,
             "side": -3
@@ -76,9 +85,9 @@
     },
     {
       "id": "fl.burn",
-      "title": "Light the branch, burn the vines",
-      "body": "Press Play and walk over the Branch: it goes into item button 1 (J). Walk up to the Burning torch and press J: the branch catches fire (it burns for 30 seconds, then it is used up). Walk to the vines and press J: they burn away. The vines are tall: you can also climb them (walk into them; W up, S down, Space lets go).",
-      "task": "Press Play, light the branch at the Burning torch and burn the vines.",
+      "title": "Light the stick, burn the vines",
+      "body": "Press Play and walk over a Branch: the hero bends down for it and holds it in the right hand as a stick (its item button, J, puts it away and takes it out again). Walk the stick's end into the Burning torch's flame: it catches by itself, and burns for 10 seconds before it is gone. Walk up to the vines with it: they catch, and the stick burns up with them. F swings the stick (as a sword): a plain stick breaks on anything hard, a burning one burns up on whatever it hits. The vines are tall: you can also climb them (walk into them; W up, S down, Space lets go).",
+      "task": "Press Play, light the stick at the Burning torch and burn the vines.",
       "target": "[data-tour=\"play\"]",
       "check": {
         "kind": "state",
@@ -99,8 +108,8 @@
     {
       "id": "fl.light",
       "title": "Light the torch stand",
-      "body": "Walk to the unlit torch stand and press J with the branch still burning: the stand lights and stays lit. If the branch has burned up, take another, or light a new one at the Burning torch. A torch stand only answers fire. A Timed torch goes out again after its seconds; Light all the torches (Scripts and cutscenes) opens a gate when they all burn.",
-      "task": "Light the torch stand with the burning branch.",
+      "body": "Take the other Branch, light it at the Burning torch, and walk its burning end into the unlit torch stand: the stand lights and stays lit (touching a torch does not use the stick up; swinging it does). Be quick: it burns for 10 seconds. A torch stand only answers fire. A Timed torch goes out again after its seconds; Light all the torches (Scripts and cutscenes) opens a gate when they all burn.",
+      "task": "Light the torch stand with a burning stick.",
       "target": "[aria-label=\"Play view\"]",
       "check": {
         "kind": "state",
@@ -200,8 +209,8 @@
     {
       "id": "fl.turn",
       "title": "Turn the mirror",
-      "body": "Press Play. To see the whole puzzle, drag up in the play view to look down from above, and scroll to zoom out. The beam crosses from the crest into the mirror, and the mirror sends it back toward you, away from the sensor. Walk up to the mirror (from any side) and press Action (E · Turn): it leans the other way, the beam turns on past the mirror onto the sensor, and the sensor lights up gold. Wire it to a gate with Switch opens a gate.",
-      "task": "Press Play and turn the mirror until the sensor lights.",
+      "body": "Press Play. To see the whole puzzle, drag up in the play view to look down from above, and scroll to zoom out. The beam crosses from the crest into the mirror, and the mirror sends it back toward you, away from the sensor. Walk up against the mirror, hold Action (E · Grab) and push (W, ▲ push it round): it turns round where it stands to lean the other way, the beam turns on past the mirror onto the sensor, and the sensor lights up gold. Anything in the beam's way stops it: you, a neighbour, a crate or a bomb. Wire the sensor to a gate with Switch opens a gate.",
+      "task": "Press Play, hold the mirror and push it round until the sensor lights.",
       "target": "[data-tour=\"play\"]",
       "check": {
         "kind": "state",
@@ -222,7 +231,7 @@
     {
       "id": "fl.done",
       "title": "Done!",
-      "body": "You lit a branch at a burning torch and burned the vines with it, lit a torch stand, threw a bomb from a bomb flower at a cracked wall, and turned a mirror to bring a beam of light onto a sensor. Make your own in the Asset studio: Fire and light › Burns, Shines a beam, Flame, Grows bombs, Mirror; a switch Lit by a beam, or Hit by Fire.",
+      "body": "You lit a stick at a burning torch and burned the vines with it, lit a torch stand, threw a bomb from a bomb flower at a cracked wall, and pushed a mirror round to bring a beam of light onto a sensor. Make your own in the Asset studio: Fire and light › Burns, Shines a beam, Flame, Grows bombs, Mirror; a switch Lit by a beam, or Hit by Fire.",
       "task": "Press Finish.",
       "check": {
         "kind": "manual"

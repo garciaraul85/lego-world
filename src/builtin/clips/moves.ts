@@ -392,6 +392,14 @@ const putDown = clipFromPoses({ id: 'clp_movedrop00', name: 'Put down', group: '
   [0.4, { ...upright, 'leftArm.x': -0.3, 'rightArm.x': -0.3 }],
 ]);
 
+/** step 12b: picking a thing up off the floor (a branch, a key): a bend and a reach down with the right hand, then up */
+const pickUp = clipFromPoses({ id: 'clp_movepick00', name: 'Pick up', group: 'Moves', length: 0.5, loop: false }, [
+  [0, upright],
+  [0.18, { ...low, 'leftArm.x': -0.3, 'leftForearm.bend': -0.2, 'rightArm.x': -1.1, 'rightForearm.bend': -0.05 }],
+  [0.28, { ...low, 'leftArm.x': -0.3, 'leftForearm.bend': -0.2, 'rightArm.x': -1.0, 'rightForearm.bend': -0.4 }],
+  [0.5, { ...upright, 'rightArm.x': -0.5, 'rightForearm.bend': -0.9 }],
+]);
+
 export const MOVE_CLIPS: Clip[] = [
   walk,
   run,
@@ -410,6 +418,7 @@ export const MOVE_CLIPS: Clip[] = [
   carry,
   toss,
   putDown,
+  pickUp,
 ];
 
 /** the state each built-in move is made for (Use the built-in moves on the character sheet) */
@@ -429,6 +438,7 @@ export const MOVE_FOR = {
   lift: lift.id,
   throw: toss.id,
   drop: putDown.id,
+  pick: pickUp.id,
   carry: carry.id,
   hold: hold.id,
 } as const;

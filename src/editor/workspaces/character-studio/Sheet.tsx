@@ -358,6 +358,7 @@ const ACTION_LABEL: Record<AnimAction, string> = {
   lift: 'Lift (picking a bomb up over the head)',
   throw: 'Throw (throwing what it holds)',
   drop: 'Put down (setting what it holds down)',
+  pick: 'Pick up (taking a thing off the floor)',
   carry: 'Carry (walking, holding it up)',
   hold: 'Hold up (standing, holding it up)',
   push: 'Push (leaning into a push block)',

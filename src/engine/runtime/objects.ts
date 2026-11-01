@@ -78,11 +78,7 @@ export class ObjectIndex<T extends IndexedObject> {
   private add(o: T, i: number) {
     this.ids.set(o.inst.id, o);
     if (o.inst.name) this.names.set(o.inst.name.toLowerCase(), o);
-    const usable =
-      o.def.interactions.length > 0 ||
-      !!o.def.lock ||
-      o.def.switch?.by === 'press' ||
-      (!!o.def.mirror && o.def.mirror.turns !== false);
+    const usable = o.def.interactions.length > 0 || !!o.def.lock || o.def.switch?.by === 'press';
     if (usable) this.interactive.push(o);
     if (o.def.checkpoint) this.checkpoints.push(o);
     if (o.def.bricks.length) {

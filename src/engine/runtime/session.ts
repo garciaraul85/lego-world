@@ -57,6 +57,7 @@ import type { LegacyPiece } from '../../core/legacy/types';
 import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosphere';
 import type { ExecCtx } from '../../core/logic/catalog';
 import { maxOf } from '../../core/num';
+import { switchHitBy } from '../../core/puzzles/puzzle';
 import {
   AutoQuality,
   type DeviceInfo,
@@ -116,7 +117,7 @@ import {
 } from '../../core/water/swim';
 import type { AudioPort, Vec3 } from '../audio/port';
 import { RecordingAudio } from '../audio/port';
-import { Animator } from '../character/animator';
+import { Animator, rigPose } from '../character/animator';
 import { bodyBounds } from '../character/body-anim';
 import { StateMachine } from '../character/states';
 import { ParticleSystem, type PlayOptions, type StreamHandle } from '../effects/particles';
@@ -124,12 +125,14 @@ import { ScreenFx } from '../effects/screen';
 import {
   type Controller,
   type Debris,
+  HAND_DROP,
   type HeroState,
   type LegacyRuntime,
   type LegacyWorldMeta,
   legacyRuntime,
   type MoveInput,
   type Npc,
+  STICK_LENGTH,
 } from '../legacy/runtime-modules';
 import { type Atmosphere, atmosphere } from '../lighting/atmosphere';
 import { findLight, gatherLights, type LightSource, pointLights } from '../lighting/lights';
@@ -1007,6 +1010,122 @@ export class PlaySession {
     this.hero.offHand = chr?.gear?.offHand ?? 'None';
     this.emotes = this.resolveEmotes(chr);
     this.staminaMax = chr?.stats ? statsOf(chr).stamina : MAX_STAMINA;
+    this.stickOut = false;
+    this.heldBefore = null;
+  }
+
+  // ---------- step 12b: a stick (a branch) in hand ----------
+
+  /** the stick is out in the hero's right hand (it swings as a sword, and is what Attack uses) */
+  stickOut = false;
+  /** the item the hand held before the stick came out (it goes back when the stick is put away or is gone) */
+  private heldBefore: string | null = null;
+  /** seconds left of the pick-up move (bending down for something off the floor) */
+  private pickT = 0;
+  /** a branch picked up comes out in the hand when the pick-up move reaches the floor */
+  private stickAfterPick = false;
+
+  /** the stick comes out: the hand shows it, and it swings as a sword */
+  takeOutStick(): boolean {
+    if (this.stickOut || (this.inventory.get('Branch') ?? 0) <= 0 || this.fireLight.held) return false;
+    this.heldBefore = String(this.hero.held ?? 'None');
+    this.stickOut = true;
+    this.syncStick();
+    return true;
+  }
+
+  /** the stick is put away (or is gone): its fire goes out, and the hand holds what it held before */
+  putAwayStick() {
+    if (!this.stickOut) return;
+    this.stickOut = false;
+    this.fireLight.putOutBranch();
+    const { heldLook: _, ...rest } = this.hero as Record<string, unknown>;
+    this.hero = { ...rest, held: this.heldBefore ?? 'None' } as typeof this.hero;
+    this.heldBefore = null;
+  }
+
+  /** the hand's look follows the stick (plain, or alight) */
+  private syncStick() {
+    if (!this.stickOut) return;
+    const look = this.fireLight.litBranch ? 'Lit stick' : 'Stick';
+    if (this.hero.heldLook === look && this.hero.held === 'Sword') return;
+    this.hero = { ...this.hero, held: 'Sword', heldLook: look };
+  }
+
+  private stepStick(dt: number) {
+    this.pickT = Math.max(0, this.pickT - dt);
+    if (this.stickAfterPick && this.pickT <= 0.25) {
+      this.stickAfterPick = false;
+      this.takeOutStick();
+    }
+    if (this.stickOut && (this.inventory.get('Branch') ?? 0) <= 0) this.putAwayStick();
+    this.syncStick();
+  }
+
+  /** the hero bends down for something off the floor (a branch, a key) */
+  pickUpMove() {
+    if (this.fireLight.held || this.fireLight.busy || this.puzzles.ladder || this.swim.on) return;
+    this.pickT = 0.5;
+  }
+
+  /** where the stick's end is, from the hand as it is posed now (as the renderer draws it) */
+  stickTip(): [number, number, number] | undefined {
+    if (!this.stickOut) return undefined;
+    const M = this.L.CharacterModel as unknown as {
+      jointPose(s: unknown, n: boolean, p: unknown): Record<string, Float32Array>;
+      heldPose(pose: unknown, s: unknown, p: unknown): Float32Array;
+      scaledMatrix(m: Float32Array, s: unknown, p: unknown): Float32Array;
+      transform(m: Float32Array, v: number[]): number[];
+      matrix(x: number, y: number, z: number, h: number): Float32Array;
+      pivots: Record<string, number[]>;
+    };
+    try {
+      const fight = this.combat.pose();
+      const params = fight ?? this.heroAnim.params();
+      const clip = fight ? this.combat.anim.clip : this.heroAnim.clip;
+      const s = this.heroState;
+      const st = params ? { ...s, studioPose: rigPose(params, clip), studioProgress: 0, studioFist: false } : s;
+      const pose = M.jointPose(st, false, this.hero);
+      const held = M.scaledMatrix(M.heldPose(pose, st, this.hero), st, this.hero);
+      // a held item is built at the hand (1.10, 1.94, 0.34), moved down with the longer forearm (HAND_DROP), and
+      // posed from the forearm's pivot with its grip in the hand
+      const fa = M.pivots.rightForearm!;
+      let p = M.transform(held, [1.1 - fa[0]!, 1.94 + HAND_DROP + STICK_LENGTH - fa[1]!, 0.34 - fa[2]!]);
+      if (params && (s.x || s.y || s.z || s.heading)) p = M.transform(M.matrix(s.x, s.y, s.z, s.heading), p);
+      if (p.every((v) => Number.isFinite(v))) return [p[0]!, p[1]!, p[2]!];
+    } catch {
+      /* the fallback below */
+    }
+    return undefined;
+  }
+
+  /**
+   * A swing with the stick (it swings as a sword): alight, it sets what it reaches burning and burns up with it, and
+   * it is used up on anything it hits; plain, it breaks on anything sturdy (a wall, a foe), as a Deku stick does.
+   */
+  private stickSwing(reach: number) {
+    const fl = this.fireLight;
+    const lit = !!fl.litBranch;
+    const tip = fl.branchTip();
+    const h = this.heroState;
+    const npc = this.npcInReach(reach + 0.8);
+    const hit = npc ? null : this.world.controller.target(reach);
+    const owner = hit ? this.instanceOfPiece(hit.id) : null;
+    // vines and other soft, burnable things are not sturdy: a plain stick passes through them
+    const sturdy = !!npc || (!!hit && !owner?.def.burn && !owner?.def.climbable);
+    if (lit) {
+      const caught = fl.flameAt(tip[0], tip[2], tip[1], 1.3, 'a burning stick');
+      this.flame(
+        (tip[0] + h.x + Math.sin(h.heading) * 1.4) / 2,
+        (tip[2] + h.z + Math.cos(h.heading) * 1.4) / 2,
+        tip[1],
+        1.3,
+      );
+      if (caught > 0 || sturdy || owner) {
+        fl.useUpBranch('used');
+        return;
+      }
+    } else if (sturdy) fl.useUpBranch('broke');
   }
 
   /** hearts, stamina, level and experience from the hero's sheet (variables the game defines itself win) */
@@ -1167,7 +1286,13 @@ export class PlaySession {
       { id: 'gates', fixed: (g) => g.stepGates() },
       { id: 'interact', fixed: (g) => g.stepInteract() },
       { id: 'puzzles', fixed: (g, dt) => g.puzzles.step(dt) },
-      { id: 'fire', fixed: (g, dt) => g.fireLight.step(dt) },
+      {
+        id: 'fire',
+        fixed: (g, dt) => {
+          g.stepStick(dt);
+          g.fireLight.step(dt);
+        },
+      },
       { id: 'barks', fixed: (g) => g.runtime.ticks % 30 === 0 && g.stepBarks() },
       {
         id: 'talk',
@@ -1410,11 +1535,14 @@ export class PlaySession {
     aim: { id: number | null; group?: string | undefined } | null,
   ) {
     this.strikeKind = kind;
+    // step 12b: a stick sees what it reaches before the hit (a broken or burned-up stick is gone after it)
+    const stick = this.stickOut && kind !== 'bash';
     try {
       this.resolveStrikeAt(kind, reach, aim);
     } finally {
       this.strikeKind = null;
     }
+    if (stick && this.stickOut) this.stickSwing(reach);
   }
 
   private resolveStrikeAt(
@@ -1692,6 +1820,13 @@ export class PlaySession {
     const n = (this.inventory.get(item) ?? 0) + count;
     this.inventory.set(item, n);
     this.emit('info', `Got ${count} × ${item} (${n} in total)`);
+    // step 12b: a branch picked up comes out at once, in the hand
+    if (count > 0 && /^branch$/i.test(item.trim()) && !this.stickOut) {
+      // bending down for it, the hand has it at the bottom of the move
+      if (this.pickT > 0) this.stickAfterPick = true;
+      else this.takeOutStick();
+      this.stickHint();
+    }
     // step 12b: a tool (Bomb, Torch) goes into an empty item button, ready to use
     if (count > 0 && /^(bombs?|torch|branch)$/i.test(item.trim()) && !this.buttons.slots.includes(item)) {
       const free = Array.from({ length: this.buttons.c.items }, (_, i) => i).find((i) => !this.buttons.slots[i]);
@@ -3435,7 +3570,7 @@ export class PlaySession {
     if (fromButtons !== undefined) return fromButtons;
     switch (name) {
       case 'hero.gear':
-        return `${String(this.hero.held ?? 'hands')}${hasShield(this.hero) ? ' + Shield' : ''}`;
+        return `${String(this.hero.heldLook ?? this.hero.held ?? 'hands')}${hasShield(this.hero) ? ' + Shield' : ''}`;
       case 'hero.name':
         return String(this.hero.name ?? 'Hero');
       case 'map.name':
@@ -3446,6 +3581,10 @@ export class PlaySession {
         if (this.talking || this.talks.active) return '';
         // step 12a: holding a block: which way pushes and which pulls, with the keys
         const g = this.puzzles.grabView();
+        if (g?.o.def.mirror) {
+          const p = this.grabPrompt(g.dx, g.dz, false).split(' ');
+          return `${p[0]} ${p[1]} push it round`;
+        }
         if (g) return this.grabPrompt(g.dx, g.dz, g.pull);
         // step 11b: the Action button's key and what it does here (not a plain jump: the HUD shows that anyway)
         const now = this.buttons.now;
@@ -3711,7 +3850,11 @@ export class PlaySession {
       },
       // a pickup taken stays gone (saves remember)
       remove: (o) => this.despawn(o.inst.id, true),
-      give: (item, n) => this.give(item, n),
+      give: (item, n) => {
+        // step 12b: a pickup taken off the floor: the hero bends down for it
+        if (n > 0) this.pickUpMove();
+        this.give(item, n);
+      },
       say: (t, sec) => this.say(t, sec),
       sound: (id, at) => this.audio.play(SND[id], at ? { pos: at } : {}),
       fire: (event, o, extra) => {
@@ -3768,15 +3911,51 @@ export class PlaySession {
         const h = this.playEffect(effect || FX.fire, at, scale ? { scale } : {});
         return h ? { stop: () => this.effects.stop(h), move: (p) => this.effects.move(h, p) } : null;
       },
-      // the lit branch burned up: one Branch fewer (and it leaves its item button when none are left)
-      branchBurnedUp: () => {
+      // the stick is gone (burned down, burned up with what it lit, or broken): one Branch fewer, the hand empty
+      branchBurnedUp: (why) => {
         this.takeItem('Branch', 1);
-        this.say('The branch burned up.', 2);
+        this.putAwayStick();
+        const h = this.heroState;
+        if (why === 'broke') {
+          this.hitEffect('blunt', [h.x + Math.sin(h.heading) * 1.4, h.y + 2, h.z + Math.cos(h.heading) * 1.4]);
+          this.say('The stick broke.', 2);
+        } else this.say(why === 'used' ? 'The stick burned up with it.' : 'The stick burned away.', 2);
       },
+      stickOut: () => this.stickOut,
+      stickTip: () => this.stickTip(),
+      // a burning stick touched to a fire switch that is not lit yet (a torch stand) lights it
+      touchFire: (at) => this.flameSwitches(at[0], at[2], 1.0, true),
       sound: (id, at) => this.audio.play(SND[id], at ? { pos: at } : {}),
       blast: (at, r) => this.blastAt(at, r),
       floor: (x, z, y) => this.world.controller.floor(x, z, y),
       heroHeight: () => HERO_HEIGHT * this.L.GamePhysics.scaleOf(this.heroState),
+      beamBlock: (from, dir, max) => {
+        let best: number | null = null;
+        const ph = this.world.physics;
+        // loose things (crates, debris, bombs) the physics engine moves
+        if (ph) {
+          // start a little out, so a thing the beam leaves does not stop it
+          const t = ph.raycastMoving(
+            [from[0] + dir[0] * 0.05, from[1], from[2] + dir[1] * 0.05],
+            [dir[0], 0, dir[1]],
+            max,
+          );
+          if (t !== null) best = t + 0.05;
+        }
+        // people: the hero, neighbours and enemies (a body about a stud and a half across, as tall as they are)
+        const body = (x: number, y: number, z: number, r: number, h: number) => {
+          if (from[1] < y - 0.1 || from[1] > y + h) return;
+          const along = (x - from[0]) * dir[0] + (z - from[2]) * dir[1];
+          const side = Math.abs((x - from[0]) * dir[1] - (z - from[2]) * dir[0]);
+          if (along <= 0 || side > r) return;
+          const t = along - Math.sqrt(r * r - side * side);
+          if (t < (best ?? max)) best = Math.max(0, t);
+        };
+        const k = this.L.GamePhysics.scaleOf(this.heroState);
+        body(this.heroState.x, this.heroState.y, this.heroState.z, 0.75 * k, HERO_HEIGHT * k);
+        for (const n of this.world.npcs) body(n.state.x, n.state.y, n.state.z, 0.75, HERO_HEIGHT);
+        return best !== null && best < max ? best : null;
+      },
       // a thrown or put-down bomb rolls, bounces and comes to rest in the physics engine (when it is running)
       ball: (b, on) => {
         const ph = this.world.physics;
@@ -3859,21 +4038,21 @@ export class PlaySession {
         this.releaseBomb();
         return true;
       }
+      this.putAwayStick();
       if (this.pickUpBomb()) return true;
       this.takeItem(item, 1);
       fl.lift();
       this.bombHint();
       return true;
     }
-    // step 12b: a branch: held to a fire it catches; alight, it is a torch until it burns up
+    // step 12b: a branch is a stick: its button takes it out (shown in the hand) or puts it away; out, Attack swings
+    // it, and held into a fire it catches by itself
     if (name === 'branch') {
-      const fl = this.fireLight;
-      if (fl.litBranch) return this.useTool('torch');
-      if (fl.fireNear(h.x + fx * 1.2, h.z + fz * 1.2, 2.2)) {
-        fl.lightBranch();
-        this.say(`The branch is burning: it lasts ${BRANCH_SECONDS} seconds. Its button sets things alight.`, 2.5);
-      } else
-        this.say('Hold the branch to a fire (a lit torch, something burning) and press its button to light it.', 3);
+      if (this.fireLight.held || this.fireLight.busy) return true;
+      if (this.stickOut) {
+        this.putAwayStick();
+        this.say('Stick put away.', 1.2);
+      } else if (this.takeOutStick()) this.stickHint();
       return true;
     }
     if (name === 'torch') {
@@ -3885,6 +4064,15 @@ export class PlaySession {
       return true;
     }
     return false;
+  }
+
+  /** step 12b: what a stick does */
+  private stickHint() {
+    const k = this.buttons.keyOf('attack').toUpperCase();
+    this.say(
+      `A stick! ${k} swings it (it breaks on hard things). Hold it into a fire to light it: it burns ${BRANCH_SECONDS} seconds.`,
+      3,
+    );
   }
 
   /** step 12b: how to get rid of a lit bomb held up */
@@ -3923,16 +4111,22 @@ export class PlaySession {
   /** step 12b: fire at a point (a torch's flame, a fire hit): burnables catch, fire switches light, foes burn */
   private flame(x: number, z: number, y: number, r: number) {
     this.fireLight.flameAt(x, z, y, r, 'a flame');
+    this.flameSwitches(x, z, r);
+    const npc = this.npcInReach(r + 0.6);
+    if (npc) this.hitNpc(npc, { power: 1, type: 'fire' }, { knock: 2, stun: 0.3 });
+  }
+
+  /** fire switches (a torch stand) within r of a point light */
+  private flameSwitches(x: number, z: number, r: number, unlitOnly = false) {
     for (const i of this.objs().near(x, z, r + 8)) {
       if (i.def.switch?.by !== 'hit') continue;
+      if (unlitOnly && (this.puzzles.isOn(i) || !switchHitBy(i.def.switch, 'fire'))) continue;
       const b = boxOf(i.bricks);
       if (!b) continue;
       const dx = Math.max(b.x0 - x, 0, x - b.x1);
       const dz = Math.max(b.z0 - z, 0, z - b.z1);
       if (Math.hypot(dx, dz) <= r) this.puzzles.hit(i, 'fire', true);
     }
-    const npc = this.npcInReach(r + 0.6);
-    if (npc) this.hitNpc(npc, { power: 1, type: 'fire' }, { knock: 2, stun: 0.3 });
   }
 
   /**
@@ -4061,7 +4255,7 @@ export class PlaySession {
         swimming: this.swim.on,
         pushing: this.puzzles.pose,
         ladder: !!this.puzzles.ladder,
-        carrying: this.fireLight.carryPose,
+        carrying: this.fireLight.carryPose ?? (this.pickT > 0 ? 'pick' : null),
       },
       this.heroChr?.states,
       (st) =>
@@ -4222,10 +4416,7 @@ export class PlaySession {
     const objs = this.objs();
     const smashed = this.smashedIds();
     for (const inst of objs.near(s.x, s.z, bestD + objs.interactiveReach + 1)) {
-      const usable =
-        inst.def.switch?.by === 'press' ||
-        (!!inst.def.lock && inst.state === inst.def.states[0]) ||
-        (!!inst.def.mirror && inst.def.mirror.turns !== false);
+      const usable = inst.def.switch?.by === 'press' || (!!inst.def.lock && inst.state === inst.def.states[0]);
       if (!inst.def.interactions.length && !usable) continue;
       if (smashed.has(inst.inst.id)) continue;
       for (const so of inst.sockets) {

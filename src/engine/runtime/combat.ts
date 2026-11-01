@@ -124,7 +124,8 @@ export class Combat {
 
   /** the hit an attack of this kind does with what the hero holds */
   hitOf(kind: AttackKind): AttackHit {
-    const base = heldAttack(this.s.hero.held);
+    // step 12b: a stick swings as a sword but hits as a stick (alight: fire)
+    const base = heldAttack(this.s.hero.heldLook ?? this.s.hero.held);
     const m = this.s.heroMoves?.().power ?? 1;
     return { power: base.power * ATTACKS[kind].mult * m, type: kind === 'bash' ? 'blunt' : base.type };
   }

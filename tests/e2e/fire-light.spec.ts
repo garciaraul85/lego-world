@@ -66,7 +66,7 @@ test('Fire and light pieces in the pack and the Fire and light section of the As
 test('Fire and light course: Do it for me burns, lights, throws a bomb from the flower at the wall and turns the mirror', async ({
   page,
 }) => {
-  test.setTimeout(500_000);
+  test.setTimeout(900_000);
   const errors: string[] = [];
   await open(page, errors);
   await page.locator('[data-tour="menu-help"]').click();

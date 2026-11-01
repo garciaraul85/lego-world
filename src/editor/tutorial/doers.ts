@@ -1422,10 +1422,11 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const name = String(a?.name ?? '');
     const def = assetByName(c, name);
     if (!def) throw new Error(`No ${name} in the pack.`);
-    const have = (c.ed.store.get<Instances>(paths.instances(map(c)))?.items ?? []).some(
+    // `count`: how many of it the step wants on the map (a second Branch); one by default
+    const have = (c.ed.store.get<Instances>(paths.instances(map(c)))?.items ?? []).filter(
       (i) => i.kind === 'asset' && assetByName(c, name)?.id === i.asset,
-    );
-    if (have) return;
+    ).length;
+    if (have >= Number(a?.count ?? 1)) return;
     c.ed.dock.value = 'pack';
     const sp = mapDoc(c).spawns[0];
     const at = sp?.pos ?? [0, 0.4, 0];
@@ -1502,31 +1503,34 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   // step 12b: the Fire and light course
   async burnVines(c) {
-    // what walking over the Branch, pressing its item button (J) at the Burning torch (it catches) and again at the
-    // vines does
+    // what walking over a Branch (it comes out in the hand), walking its end into the Burning torch's flame (it
+    // catches) and then up to the vines (they catch, and the stick burns up with them) does
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
     await takePickup(s, 'Branch', 'Branch');
     await lightBranch(s);
     const vines = s.world.instances.find((i) => i.def.name === 'Vines');
     if (!vines) return;
-    faceThing(s, vines, 1.1);
-    await wait(300);
-    s.useItem('Branch', slotOf(s, 'Branch'));
+    for (const gap of [0.6, 0.3, 0, -0.2]) {
+      if (s.fireLight.burning.has(vines.inst.id) || !s.fireLight.litBranch) break;
+      faceThing(s, vines, gap);
+      await wait(400);
+    }
     for (let i = 0; i < 30 && s.world.instances.includes(vines); i++) await wait(250);
   },
   async lightTorch(c) {
-    // what pressing the burning Branch's item button at the torch stand does (lit again at the Burning torch first,
-    // if it has gone out)
+    // what taking the other Branch, lighting it at the Burning torch and walking its end into the torch stand does
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
     await takePickup(s, 'Branch', 'Branch');
     await lightBranch(s);
     const stand = s.world.instances.find((i) => i.def.name === 'Torch stand');
     if (!stand) throw new Error('Place a Torch stand first.');
-    faceThing(s, stand, 1.1);
-    await wait(300);
-    s.useItem('Branch', slotOf(s, 'Branch'));
+    for (const gap of [0.6, 0.3, 0.1]) {
+      if (stand.state === stand.def.states[1]) break;
+      faceThing(s, stand, gap);
+      await wait(400);
+    }
     await wait(300);
   },
   async blastWall(c) {
@@ -1623,16 +1627,30 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     );
   },
   async turnMirror(c) {
-    // what pressing Action at the mirror does, once or twice until the sensor lights
+    // what holding the mirror (Grab, Action held) and pushing it (W) does, once or twice until the sensor lights
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
     const m = s.world.instances.find((i) => i.def.name === 'Mirror');
     const sensor = s.world.instances.find((i) => i.def.name === 'Light sensor');
     if (!m || !sensor) throw new Error('Place the Mirror and the Light sensor first.');
-    // on the start's side of it, looking the way the start looks: the crest, the mirror and the sensor all ahead
     const yaw = s.world.doc.spawns[0]?.yaw ?? 0;
-    faceThing(s, m, 0.8, [-Math.round(Math.sin(yaw)), -Math.round(Math.cos(yaw))]);
-    // a step toward the crest's side, so the hero does not hide the mirror and the sensor beyond it
+    const side: [number, number] = [-Math.round(Math.sin(yaw)), -Math.round(Math.cos(yaw))];
+    for (let i = 0; i < 2 && sensor.state !== sensor.def.states[1]; i++) {
+      // up against it on the start's side, held, and pushed for a moment: it turns round where it stands
+      faceThing(s, m, 0.05, side);
+      await wait(200);
+      s.puzzles.setGrab(true);
+      s.camYaw = s.heroState.heading + Math.PI;
+      s.input.keys.add('forward');
+      for (let t = 0; t < 12 && s.puzzles.pose !== 'push'; t++) await wait(100);
+      const was = m.state;
+      for (let t = 0; t < 20 && m.state === was; t++) await wait(100);
+      s.input.keys.delete('forward');
+      s.puzzles.setGrab(false);
+      await wait(300);
+    }
+    // a step back and toward the crest's side, so the hero does not hide the mirror and the sensor beyond it
+    faceThing(s, m, 0.8, side);
     standAt(
       s,
       s.heroState.x + Math.round(Math.cos(yaw)) * 1.3,
@@ -1643,12 +1661,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     s.camYaw = s.heroState.heading + Math.PI;
     s.camPitch = 0.8;
     s.zoom = 32;
-    for (let i = 0; i < 2 && sensor.state !== sensor.def.states[1]; i++) {
-      await wait(400);
-      if (sensor.state === sensor.def.states[1]) break;
-      s.puzzles.press(m);
-      await wait(400);
-    }
+    await wait(500);
   },
   timedCrystal(c, a) {
     // what Puzzle › Switch › Timed and the seconds slider do in the Asset studio
@@ -1934,15 +1947,17 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** the hero walks over a pickup (if it has none of its item yet) and waits for it to be taken */
-/** the carried branch alight: held to the Burning torch (its button), unless it is burning already */
+/** the stick in hand alight: its end walked into the Burning torch's flame (it catches by itself), unless it is burning */
 async function lightBranch(s: NonNullable<Ctx['ed']['session']['value']>) {
   if (s.fireLight.litBranch) return;
   const fire = s.world.instances.find((i) => i.def.name === 'Burning torch');
   if (!fire) throw new Error('Place a Burning torch first.');
-  faceThing(s, fire, 0.5);
-  await wait(500);
-  s.useItem('Branch', slotOf(s, 'Branch'));
-  for (let i = 0; i < 10 && !s.fireLight.litBranch; i++) await wait(150);
+  if (!s.stickOut) s.useItem('Branch', slotOf(s, 'Branch'));
+  for (const gap of [0.6, 0.3, 0.1, -0.1]) {
+    faceThing(s, fire, gap);
+    for (let i = 0; i < 4 && !s.fireLight.litBranch; i++) await wait(150);
+    if (s.fireLight.litBranch) break;
+  }
 }
 
 async function takePickup(s: NonNullable<Ctx['ed']['session']['value']>, name: string, item: string) {

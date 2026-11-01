@@ -560,7 +560,7 @@ function Debug({ c }: { c: ActionCtx }) {
           {h.building ? ' · building' : ''}
         </dd>
         <dt>held</dt>
-        <dd>{String(s.hero.held)}</dd>
+        <dd>{String(s.hero.heldLook ?? s.hero.held)}</dd>
         <dt>pieces</dt>
         <dd>{w.pieces.length.toLocaleString('en-US')}</dd>
         <dt>quality</dt>

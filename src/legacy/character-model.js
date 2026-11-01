@@ -280,7 +280,7 @@ function weaponHandMatrix(pose,s,w,profile){
  return mul(frame,mul(matrix(0,0,0,0,wrist),matrix(...handGrip(1).map(v=>-v))));
 }
 function handDrivenTool(pose,s,w,profile){return mul(weaponHandMatrix(pose,s,w,profile),mul(matrix(...handGrip(1),0,Math.PI/2),matrix(...weaponGrip.map(v=>-v))));}
-function toolMatrix(hand,s,w,m){return mul(matrix(...hand,(s.heading||0)+m.yaw,m.pitch,m.roll),matrix(...[1.10,1.94,.34].map((v,k)=>pivots.rightForearm[k]-v)));}
+function toolMatrix(hand,s,w,m){return mul(matrix(...hand,(s.heading||0)+m.yaw,m.pitch,m.roll),matrix(...[1.10,stretchArmY(1.94),.34].map((v,k)=>pivots.rightForearm[k]-v)));}
 function combatPose(pose,s,w,profile=null){
  const m=combatMotion(s,w),world=matrix(s.x,s.y,s.z,s.heading),fire=w.style==='fire',twoHand=w.twoHand||fire&&w.long,turn=twoHand?Math.max(-.25,Math.min(.25,fire?.25:m.hip+m.chest)):fire?-.10:m.hip+m.chest,crouch=fire?m.recoil*.016:m.crouch;
  const oldHips=pose.hips,spine=w.fullBodyRig?relativeTransform(oldHips,pose.root):null;
@@ -364,7 +364,7 @@ function heldPose(pose,state,profile,neutral=false){
  const arm=pose.rightForearm;if(neutral||!state.attack||!['Hammer','Sword','Wrench','Shovel','Wand'].includes(profile.held))return arm;
  const t=clamp01(1-state.attack/.52),a=hitPose(t),root=pose.root;
  const armY=[arm[4],arm[5],arm[6]],up=armY.reduce((v,x,k)=>v+x*root[4+k],0),forward=armY.reduce((v,x,k)=>v+x*root[8+k],0);
- const tilt=Math.atan2(forward,up),wrist=(a[9]-tilt)*attackWeight(t),grip=[1.10,1.94,.34].map((v,k)=>v-pivots.rightForearm[k]);
+ const tilt=Math.atan2(forward,up),wrist=(a[9]-tilt)*attackWeight(t),grip=[1.10,stretchArmY(1.94),.34].map((v,k)=>v-pivots.rightForearm[k]);
  return mul(arm,mul(matrix(...grip,0,wrist),matrix(...grip.map(v=>-v))));
 }
 function strikePoints(profile,state){const w=GameWeapons.get(profile.held),pose=jointPose(state,false,profile),held=scaledMatrix(heldPose(pose,state,profile),state,profile);return [w.tip*(w.edge?.24:.65),w.tip].map(y=>transform(held,[.02,-.61+y,.315]));}

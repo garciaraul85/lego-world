@@ -275,8 +275,9 @@ describe('bombs', () => {
   });
 });
 
-describe('a burning branch', () => {
-  it('picked up, held to the Burning torch it catches; it burns the vines; after its seconds it is used up and its flame gone', () => {
+describe('a stick (a branch)', () => {
+  const stick = (p: PlaySession) => p as unknown as { stickOut: boolean; hero: Record<string, unknown> };
+  it('picked up, it comes out in the hand; held into the Burning torch it catches by itself; touched to the vines they burn and the stick is gone with its fire', () => {
     const { p, get } = game([
       ['Branch', [10, 0, 6], 'ins_branch0001'],
       ['Burning torch', [10, 0, 14], 'ins_burntorch1'],
@@ -284,30 +285,81 @@ describe('a burning branch', () => {
     ]);
     expect(piece('Burning torch').initialState).toBe('lit');
     p.placeAt([11, 0.4, 7.4], 0);
-    steps(p, 0.5);
+    steps(p, 0.1);
     expect(p.inventory.get('Branch')).toBe(1);
-    const slot = () => p.buttons.slots.indexOf('Branch') + 1;
-    expect(slot()).toBeGreaterThan(0);
-    // away from any fire: nothing
-    p.useItem('Branch', slot());
-    expect(p.fireLight.litBranch).toBeNull();
-    // at the burning torch: it catches
-    p.placeAt([10.5, 0.4, 12.6], 0);
+    // the pick-up move, and the stick in the right hand (it swings as a sword, it looks like a stick)
+    expect(heroState(p)).toBe('pick');
+    // the hand has it at the bottom of the move
+    steps(p, 0.25);
+    expect(stick(p).stickOut).toBe(true);
+    expect(stick(p).hero).toMatchObject({ held: 'Sword', heldLook: 'Stick' });
+    const tip = p.fireLight.branchTip();
+    expect(Math.hypot(tip[0] - p.heroState.x, tip[2] - p.heroState.z)).toBeLessThan(3);
+    expect(tip[1]).toBeGreaterThan(p.heroState.y + 1);
     steps(p, 0.5);
+    expect(p.fireLight.litBranch).toBeNull();
+    // its button puts it away and takes it out again
+    const slot = () => p.buttons.slots.indexOf('Branch') + 1;
     p.useItem('Branch', slot());
-    expect(p.fireLight.litBranch).toBeTruthy();
-    // at the vines: they catch
-    p.placeAt([22.5, 0.4, 12.4], 0);
+    expect(stick(p).stickOut).toBe(false);
+    expect(stick(p).hero.heldLook).toBeUndefined();
     p.useItem('Branch', slot());
+    expect(stick(p).stickOut).toBe(true);
+    // walked up to the burning torch's flame, its end catches
+    const flame = (p.fireLight as unknown as { flameFx: Map<string, { o: { def: unknown; inst: unknown } }> }).flameFx;
+    expect(flame.has('ins_burntorch1')).toBe(true);
+    let lit = false;
+    for (const z of [11.6, 12, 12.4, 12.8]) {
+      p.placeAt([10.6 - (p.fireLight.branchTip()[0] - p.heroState.x), 0.4, z], 0);
+      steps(p, 0.3);
+      if (p.fireLight.litBranch) {
+        lit = true;
+        break;
+      }
+    }
+    expect(lit).toBe(true);
+    expect(stick(p).hero.heldLook).toBe('Lit stick');
+    // touched to the vines: they catch, and the stick burns up with them (no branch, no flame)
+    p.placeAt([21, 0.4, 12.9], 0);
+    steps(p, 0.5);
     expect(p.fireLight.burning.has('ins_vines00001')).toBe(true);
+    expect(p.fireLight.litBranch).toBeNull();
+    expect(stick(p).stickOut).toBe(false);
+    expect(p.inventory.get('Branch') ?? 0).toBe(0);
     steps(p, 4);
     expect(get('ins_vines00001')).toBeUndefined();
     // the vines' flames are gone with them
     expect(p.fireLight.burning.size).toBe(0);
-    // it burns up: no branch, no flame
-    steps(p, BRANCH_SECONDS);
+  });
+
+  it('alight, it burns down after its seconds; plain, a swing at a wall breaks it', () => {
+    const { p } = game([
+      ['Branch', [10, 0, 6], 'ins_branch0001'],
+      ['Branch', [30, 0, 6], 'ins_branch0002'],
+      ['Dungeon wall', [9, 0, 30], 'ins_dwall00001'],
+    ]);
+    p.placeAt([11, 0.4, 7.4], 0);
+    steps(p, 0.6);
+    p.fireLight.lightBranch();
+    expect(BRANCH_SECONDS).toBeLessThanOrEqual(12);
+    steps(p, BRANCH_SECONDS + 0.5);
     expect(p.fireLight.litBranch).toBeNull();
     expect(p.inventory.get('Branch') ?? 0).toBe(0);
+    expect(stick(p).stickOut).toBe(false);
+    // a swing in the air keeps it; a swing at the wall breaks it
+    p.placeAt([31, 0.4, 7.4], 0);
+    steps(p, 0.6);
+    expect(stick(p).stickOut).toBe(true);
+    p.smash();
+    steps(p, 1);
+    expect(stick(p).stickOut).toBe(true);
+    p.placeAt([11, 0.4, 28.6], 0);
+    steps(p, 0.2);
+    p.smash();
+    steps(p, 1);
+    expect(stick(p).stickOut).toBe(false);
+    expect(p.inventory.get('Branch') ?? 0).toBe(0);
+    expect(p.events.some((e) => /stick broke/i.test(e.msg))).toBe(true);
   });
 });
 
@@ -396,7 +448,7 @@ describe('beams of light', () => {
     expect(get('ins_sensor0001')!.state).toBe('dark');
   });
 
-  it('a mirror turns the beam a quarter turn onto a sensor; turned with Action, it sends it the other way', () => {
+  it('a mirror turns the beam a quarter turn onto a sensor; held and pushed, it turns round and sends it the other way', () => {
     const { p, get } = game([
       ['Sun crest', [10, 0, 10], 'ins_crest00001'],
       ['Mirror', [9, 0, 14], 'ins_mirror0001'],
@@ -406,16 +458,51 @@ describe('beams of light', () => {
     steps(p, 0.3);
     expect(p.fireLight.beams.length).toBeGreaterThanOrEqual(2);
     expect(get('ins_sensor0001')!.state).toBe('lit');
-    // Action at the mirror: it leans the other way
-    expect(p.puzzles.press(get('ins_mirror0001')!)).toBe(true);
+    // Action alone does not turn it
+    expect(p.puzzles.press(get('ins_mirror0001')!)).toBe(false);
+    expect(get('ins_mirror0001')!.state).not.toBe('right');
+    // held (Grab) from its side and pushed: it turns round, once, where it stands
+    p.placeAt([8.3, 0.4, 15.5], Math.PI / 2);
+    steps(p, 0.05);
+    expect(p.puzzles.canGrab()).toBe(true);
+    p.puzzles.setGrab(true);
+    p.camYaw = -Math.PI / 2;
+    p.input.keys.add('forward');
+    steps(p, 0.6);
     expect(get('ins_mirror0001')!.state).toBe('right');
-    // the hero shoves it round (the Push animation), and tugs it back the next time (Pull)
-    expect(p.puzzles.pose).toBe('push');
-    steps(p, 0.1);
+    expect(get('ins_mirror0001')!.inst.pos).toEqual([9, 0, 14]);
     expect(heroState(p)).toBe('push');
+    steps(p, 0.6);
+    expect(get('ins_mirror0001')!.state).toBe('right');
+    p.input.keys.delete('forward');
+    p.puzzles.setGrab(false);
     steps(p, 0.3);
     expect(get('ins_sensor0001')!.state).toBe('dark');
     const last = p.fireLight.beams.at(-1)!;
     expect(last.to[0]).toBeGreaterThan(12);
+  });
+
+  it('things in the beam stop it: the hero standing in it, and a bomb falling through it', () => {
+    const { p, get } = game([
+      ['Sun crest', [10, 0, 10], 'ins_crest00001'],
+      ['Light sensor', [10, 0, 22], 'ins_sensor0001'],
+    ]);
+    p.placeAt([4, 0.4, 4], 0);
+    steps(p, 0.3);
+    expect(get('ins_sensor0001')!.state).toBe('lit');
+    // the hero steps into the beam: it ends at the hero, and the sensor goes dark
+    p.placeAt([10.5, 0.4, 17], 0);
+    steps(p, 0.3);
+    expect(get('ins_sensor0001')!.state).toBe('dark');
+    expect(p.fireLight.beams.at(-1)!.to[2]).toBeLessThan(17);
+    p.placeAt([4, 0.4, 4], 0);
+    steps(p, 0.3);
+    expect(get('ins_sensor0001')!.state).toBe('lit');
+    // a bomb (a ball in the physics engine) dropped through it stops it while it is in the way
+    const by = p.fireLight.beams[0]!.from[1];
+    p.fireLight.drop(10.5, by - 0.6, 17);
+    steps(p, 0.15);
+    expect(p.fireLight.beams.at(-1)!.to[2]).toBeLessThan(17);
+    expect(get('ins_sensor0001')!.state).toBe('dark');
   });
 });
