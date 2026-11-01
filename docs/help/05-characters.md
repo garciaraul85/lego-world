@@ -91,13 +91,13 @@ Every character is in one **state** at a time, and the clip set for that state p
 1. **Hurt** for a moment after a hit (**Hurt shows for**, 0.45 s at first),
 2. **Attack** while it swings or strikes,
 3. **Swim** while it moves in deep water, **Tread water** while it stays still there,
-4. **Climb** while it climbs onto a ledge, **Push** while it leans into a push block, **Pull** while it holds one to pull it,
+4. **Climb** while it climbs onto a ledge, **Ladder** while it climbs a ladder or vines, **Lift**, **Throw** and **Put down** while it picks a bomb up over its head, throws it or sets it down, **Carry** and **Hold up** while it walks or stands holding it up, **Push** while it leans into a push block (or shoves a mirror round), **Pull** while it holds one to pull it (or tugs a mirror back),
 5. **Jump** while its feet are off the ground,
 6. **Run** when it moves at **Runs from** studs a second or faster (the hero walks at 4 and runs at 7.8),
 7. **Walk** when it moves slower,
 8. **Idle** when it stands (the hero waits a moment first).
 
-A state with **Built-in motion** shows the engine's own movement. Clips crossfade into each other; Hurt, Attack and Jump play their clip once each time, the others loop. With **Walk and run clips keep up with the speed** the walk and run clips play faster or slower with the speed, so the feet match the ground. **Use the built-in moves** fills the empty states with Walk, Run, Jump, Swing, Flinch, Breathe, Swim, Tread water, Climb, Push and Pull. Swimming, climbing, pushing and pulling always have a move: with no clip set, the built-in one plays. **Try it** pretends a speed, a jump, an attack or a hit and lights the state that wins, playing its clip on the figure.
+A state with **Built-in motion** shows the engine's own movement. Clips crossfade into each other; Hurt, Attack, Jump, Climb, Lift, Throw and Put down play their clip once each time, the others loop. With **Walk and run clips keep up with the speed** the walk and run clips play faster or slower with the speed, so the feet match the ground. **Use the built-in moves** fills the empty states with Walk, Run, Jump, Swing, Flinch, Breathe, Swim, Tread water, Climb, Ladder, Lift, Throw, Put down, Carry, Hold up, Push and Pull. Swimming, climbing (a ledge, a ladder or vines), pushing and pulling, and picking up, carrying, throwing and putting down a bomb always have a move: with no clip set, the built-in one plays. **Try it** pretends a speed, a jump, an attack or a hit and lights the state that wins, playing its clip on the figure.
 
 The hero, neighbours and enemies all use their own character's states. A creature with a body plan has its own movement for each state: it walks when it moves, **strikes** (lunges with its head and jaw) when it attacks and **flinches** when it is hit; the Body tab's moves show them (with all its other moves).
 

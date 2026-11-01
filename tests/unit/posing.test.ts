@@ -94,6 +94,12 @@ describe('posing', () => {
       'Push',
       'Pull',
       'Climb',
+      'Ladder',
+      'Lift',
+      'Hold up',
+      'Carry',
+      'Throw',
+      'Put down',
     ]);
     for (const c of MOVE_CLIPS) {
       expect(Clip.safeParse(c).success, c.name).toBe(true);

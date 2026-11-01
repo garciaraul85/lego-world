@@ -1526,19 +1526,33 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     await wait(300);
   },
   async blastWall(c) {
-    // what taking the Bomb bag, pressing the bombs' item button (K) at the wall and stepping back does
+    // what pressing Action at the Bomb flower (a lit bomb up over the head), facing the wall from a few studs away
+    // and throwing it (Attack) does — again with the bomb the flower grows after a miss, until the wall breaks
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
-    await takePickup(s, 'Bomb bag', 'Bomb');
     const wall = s.world.instances.find((i) => i.def.name === 'Cracked wall');
-    if (!wall) throw new Error('Place a Cracked wall first.');
-    const back = faceThing(s, wall, 1.0);
-    await wait(300);
-    s.useItem('Bomb', slotOf(s, 'Bomb'));
-    // step back out of the blast
-    await wait(200);
-    standAt(s, s.heroState.x + back[0] * 5, s.heroState.z + back[1] * 5, s.heroState.heading);
-    for (let i = 0; i < 24 && !s.events.some((e) => e.msg.includes('A bomb went off')); i++) await wait(250);
+    const plant = s.world.instances.find((i) => i.def.name === 'Bomb flower');
+    if (!wall || !plant) throw new Error('Place a Cracked wall and a Bomb flower first.');
+    const broken = () =>
+      !s.world.instances.includes(wall) ||
+      (s as unknown as { smashedIds(): Set<string> }).smashedIds().has(wall.inst.id);
+    for (let tries = 0; tries < 3 && !broken(); tries++) {
+      for (let i = 0; i < 30 && plant.state !== plant.def.states[0]; i++) await wait(150);
+      faceThing(s, plant, 0.4);
+      await wait(250);
+      if (!s.fireLight.pick(plant)) continue;
+      await wait(600);
+      // a few studs back from the wall, facing it, then the throw
+      faceThing(s, wall, 3.2);
+      await wait(300);
+      s.fireLight.throwHeld();
+      await wait(400);
+      // step back from the blast
+      const yaw = s.heroState.heading;
+      standAt(s, s.heroState.x - Math.sin(yaw) * 3, s.heroState.z - Math.cos(yaw) * 3, yaw);
+      for (let i = 0; i < 30 && s.fireLight.bombs.length; i++) await wait(150);
+      await wait(400);
+    }
   },
   placeBeamPuzzle(c) {
     // what placing a Sun crest (turned to shine away from the start), a Mirror in its beam and a Light sensor beside

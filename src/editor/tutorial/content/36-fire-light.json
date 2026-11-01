@@ -69,7 +69,7 @@
     {
       "id": "fl.burn",
       "title": "Burn the vines",
-      "body": "Press Play and walk over the Hand torch: it goes into item button 1 (J). Walk up to the vines and press J: a flame sets them alight, and they burn away in two seconds. Vines touching them catch too.",
+      "body": "Press Play and walk over the Hand torch: it goes into item button 1 (J). Vines can be climbed: walk into them and keep walking, and the hero climbs up (W up, S down, Space lets go). Then stand in front of them and press J: a flame sets them alight, and they burn away in two seconds. Vines touching them catch too.",
       "task": "Press Play, take the torch and burn the vines.",
       "target": "[data-tour=\"play\"]",
       "check": {
@@ -112,14 +112,14 @@
     },
     {
       "id": "fl.bombs",
-      "title": "A cracked wall and bombs",
-      "body": "Stop the game. Place a Cracked wall to the left of the start, and a Bomb bag in front of it. Only an explosion breaks a cracked wall.",
-      "task": "Place a Cracked wall and a Bomb bag.",
+      "title": "A cracked wall and a bomb flower",
+      "body": "Stop the game. Place a Cracked wall to the left of the start, and a Bomb flower in front of it, a few studs away. Only an explosion breaks a cracked wall. The flower grows a bomb; if a bomb misses, it grows another.",
+      "task": "Place a Cracked wall and a Bomb flower.",
       "target": "[aria-label=\"Fire and light\"]",
       "check": {
         "kind": "state",
         "test": "assetsOnMap",
-        "args": "Cracked wall,Bomb bag"
+        "args": "Cracked wall,Bomb flower"
       },
       "doItForMe": [
         {
@@ -136,8 +136,8 @@
         {
           "fn": "placePuzzle",
           "args": {
-            "name": "Bomb bag",
-            "ahead": 0,
+            "name": "Bomb flower",
+            "ahead": -2,
             "side": 7
           }
         }
@@ -148,13 +148,13 @@
     {
       "id": "fl.blast",
       "title": "Blow it up",
-      "body": "Press Play and walk over the Bomb bag: five bombs, in item button 2 (K). Stand by the wall, press K and step back: the bomb fizzes, blinks red and goes off. The wall breaks; anyone too close loses a heart.",
-      "task": "Press Play, take the bombs and blow up the wall.",
+      "body": "Press Play. Walk up to the Bomb flower and press E (Pick up): the hero lifts a lit bomb over its head. Throw it at the wall with F (the Attack button says Throw), or carry it to the wall and put it down with E, then step back. It goes off after 4 seconds and the wall breaks. Missed? The flower grows a new bomb: try again. (A Bomb bag gives bombs for an item button instead: K lifts one, K or F throws it.)",
+      "task": "Press Play, pick a bomb from the flower and break the wall.",
       "target": "[data-tour=\"play\"]",
       "check": {
         "kind": "state",
         "test": "playLogged",
-        "args": "A bomb went off"
+        "args": "Cracked wall defeated"
       },
       "doItForMe": [
         {

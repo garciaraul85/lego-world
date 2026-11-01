@@ -12,6 +12,12 @@ export const ANIM_STATES = [
   'swim',
   'tread',
   'climb',
+  'ladder',
+  'lift',
+  'throw',
+  'drop',
+  'carry',
+  'hold',
   'push',
   'pull',
   'jump',
@@ -51,6 +57,10 @@ export type StateInput = {
   swimming?: boolean;
   /** step 12a: leaning into a block to push it, or holding one to pull it */
   pushing?: 'push' | 'pull' | 'climb' | null;
+  /** step 12b: climbing a ladder or vines */
+  ladder?: boolean;
+  /** step 12b: picking a bomb up over its head, throwing it, putting it down, or holding it up */
+  carrying?: 'lift' | 'throw' | 'drop' | 'hold' | null;
 };
 
 /** The state the rules pick (the first that holds, in the order of ANIM_STATES). */
@@ -60,6 +70,9 @@ export function pickState(i: StateInput, s: StateSettings | undefined): AnimStat
   if (i.attacking) return 'attack';
   if (i.swimming) return i.speed > MOVING_AT ? 'swim' : 'tread';
   if (i.pushing === 'climb') return 'climb';
+  if (i.ladder) return 'ladder';
+  if (i.carrying === 'hold') return i.speed > MOVING_AT ? 'carry' : 'hold';
+  if (i.carrying) return i.carrying;
   if (i.pushing && i.grounded) return i.pushing;
   if (!i.grounded) return 'jump';
   if (i.speed >= o.runAt) return 'run';
@@ -71,13 +84,13 @@ export function pickState(i: StateInput, s: StateSettings | undefined): AnimStat
 export function clipRate(state: AnimState, speed: number, s: StateSettings | undefined): number {
   const o = settingsOf(s);
   if (!o.matchSpeed) return 1;
-  const ref = state === 'walk' ? WALK_REF : state === 'run' ? RUN_REF : state === 'swim' ? 3.2 : 0;
+  const ref = state === 'walk' || state === 'carry' ? WALK_REF : state === 'run' ? RUN_REF : state === 'swim' ? 3.2 : 0;
   if (!ref) return 1;
   return Math.max(0.5, Math.min(2, speed / ref));
 }
 
 /** states whose clip plays once each time the state starts (the others loop) */
-export const ONCE: readonly AnimState[] = ['hurt', 'attack', 'jump', 'climb'];
+export const ONCE: readonly AnimState[] = ['hurt', 'attack', 'jump', 'climb', 'lift', 'throw', 'drop'];
 
 export const STATE_LABEL: Record<AnimState, string> = {
   hurt: 'Hurt',
@@ -85,6 +98,12 @@ export const STATE_LABEL: Record<AnimState, string> = {
   swim: 'Swim',
   tread: 'Tread water',
   climb: 'Climb',
+  ladder: 'Ladder',
+  lift: 'Lift',
+  throw: 'Throw',
+  drop: 'Put down',
+  carry: 'Carry',
+  hold: 'Hold up',
   push: 'Push',
   pull: 'Pull',
   jump: 'Jump',
@@ -107,6 +126,18 @@ export function stateRule(state: AnimState, s: StateSettings | undefined): strin
       return 'while it stays still in deep water';
     case 'climb':
       return 'while it climbs onto a ledge';
+    case 'ladder':
+      return 'while it climbs a ladder or vines';
+    case 'lift':
+      return 'while it picks something up over its head';
+    case 'throw':
+      return 'while it throws what it holds';
+    case 'drop':
+      return 'while it puts what it holds down';
+    case 'carry':
+      return 'while it walks holding something up';
+    case 'hold':
+      return 'while it stands holding something up';
     case 'push':
       return 'while it leans into a push block';
     case 'pull':

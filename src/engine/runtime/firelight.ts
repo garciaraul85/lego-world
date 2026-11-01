@@ -15,6 +15,21 @@ export type FireObject = {
   state: string;
 };
 
+export type Bomb = {
+  x: number;
+  y: number;
+  z: number;
+  /** seconds since it was lit; fizz: since its last fizz */
+  t: number;
+  fizz: number;
+  /** flying (thrown) */
+  vx: number;
+  vy: number;
+  vz: number;
+  /** the bomb plant it came from (it may grow another) */
+  plant: FireObject | null;
+};
+
 type Piece = {
   id?: number | undefined;
   x: number;
@@ -37,8 +52,16 @@ export type FireHost<T extends FireObject = FireObject> = {
   /** a fire effect that keeps going until stopped (scale: how big, 1 as made) */
   flames(at: [number, number, number], scale?: number, effect?: string): { stop(): void } | null;
   sound(id: 'ignite' | 'fuse' | 'boom' | 'shine', at?: [number, number, number]): void;
-  /** the blast of a bomb: what is around it is hurt, broken, flipped or set alight */
-  blast(at: [number, number, number], radius: number): void;
+  /** the blast of a bomb: what is around it is hurt, broken, flipped or set alight (how many things it hit) */
+  blast(at: [number, number, number], radius: number): number;
+  /** a solid piece at this point (a thrown bomb stops against it) */
+  solidAt?(x: number, y: number, z: number): boolean;
+  /** how tall the hero stands (world units): a bomb held up sits on top of its hands */
+  heroHeight?(): number;
+  /** the highest floor under a point, from y down (null: none) */
+  floor(x: number, z: number, y: number): number | null;
+  /** a bomb plant grows its bomb again (its state) */
+  setState(o: T, state: string): void;
   /** a light sensor lit or no longer lit */
   lightSensor(o: T, lit: boolean): void;
   burned(o: T): void;
@@ -49,8 +72,17 @@ export type FireHost<T extends FireObject = FireObject> = {
 const BURN_SECONDS = 2;
 const SPREAD_AFTER = 0.6;
 /** a bomb's fuse and its blast */
-export const FUSE = 2.5;
+export const FUSE = 4;
 export const BLAST_RADIUS = 3.2;
+/** step 12b: picking a bomb up, throwing it, putting it down (seconds, as the clips); a throw's speed */
+export const LIFT_TIME = 0.45;
+const THROW_TIME = 0.35;
+const DROP_TIME = 0.4;
+const THROW_SPEED = 7.5;
+const THROW_UP = 4.5;
+const GRAVITY = 18;
+/** a bomb plant grows a new bomb this long after its last one went off */
+const REGROW_AFTER = 1.5;
 /** how often beams are traced again (seconds) */
 const BEAM_EVERY = 0.1;
 const BEAM_RANGE = 32;
@@ -68,7 +100,13 @@ const pieceBox = (p: Piece) => {
 
 export class FireLight<T extends FireObject = FireObject> {
   readonly burning = new Map<string, { o: T; t: number; seconds: number; spread: boolean; fx: { stop(): void }[] }>();
-  readonly bombs: { x: number; y: number; z: number; t: number; fizz: number }[] = [];
+  readonly bombs: Bomb[] = [];
+  /** step 12b: the bomb the hero holds up (it is one of bombs), and what the hero is doing with it */
+  held: Bomb | null = null;
+  private carry: { phase: 'lift' | 'throw' | 'drop'; t: number } | null = null;
+  /** bomb plants near the hero (drawn with their bomb while grown), and the ones growing a bomb again */
+  plants: T[] = [];
+  private regrow = new Map<string, { o: T; t: number }>();
   beams: BeamSegment[] = [];
   private lit = new Set<string>();
   private beamClock = 0;
@@ -163,7 +201,9 @@ export class FireLight<T extends FireObject = FireObject> {
     this.flameClock = 0;
     const s = this.h.heroState;
     const want = new Map<string, T>();
-    for (const o of this.h.near(s.x, s.z, FLAME_RANGE)) {
+    const near = this.h.near(s.x, s.z, FLAME_RANGE);
+    this.plants = near.filter((o) => !!o.def.bombPlant);
+    for (const o of near) {
       const f = o.def.flame;
       if (f && (!f.when || o.state === f.when) && !this.burning.has(o.inst.id)) want.set(o.inst.id, o);
     }
@@ -183,14 +223,141 @@ export class FireLight<T extends FireObject = FireObject> {
   // ---------- bombs ----------
 
   /** a lit bomb put down here (world units) */
-  drop(x: number, y: number, z: number) {
-    this.bombs.push({ x, y, z, t: 0, fizz: 0 });
+  drop(x: number, y: number, z: number, plant?: T): Bomb {
+    const b: Bomb = { x, y, z, t: 0, fizz: 0, vx: 0, vy: 0, vz: 0, plant: plant ?? null };
+    this.bombs.push(b);
     this.h.sound('fuse', [x, y, z]);
+    return b;
+  }
+
+  /** what the hero does with a bomb now, for the animation (lift, throw, put down, or holding it up) */
+  get carryPose(): 'lift' | 'throw' | 'drop' | 'hold' | null {
+    if (this.carry) return this.carry.phase;
+    return this.held ? 'hold' : null;
+  }
+
+  /** the hero is busy with a bomb (lifting, throwing, putting it down): it stands still meanwhile */
+  get busy(): boolean {
+    return !!this.carry;
+  }
+
+  /** where a held bomb is: over the hero's head (rising while it is lifted) */
+  private heldAt(): [number, number, number] {
+    const s = this.h.heroState;
+    const k = this.carry?.phase === 'lift' ? Math.min(1, this.carry.t / LIFT_TIME) : 1;
+    const fx = Math.sin(s.heading);
+    const fz = Math.cos(s.heading);
+    const reach = 0.9 * (1 - k);
+    const top = (this.h.heroHeight?.() ?? 3.4) + 0.3;
+    return [s.x + fx * reach, s.y + 0.1 + (top - 0.1) * k * k, s.z + fz * reach];
+  }
+
+  /** a lit bomb up over the hero's head: a new one (from the bag, or a plant), or one lying lit nearby */
+  lift(b?: Bomb, plant?: T): boolean {
+    if (this.held || this.carry) return false;
+    const s = this.h.heroState;
+    const bomb = b ?? this.drop(s.x, s.y, s.z, plant);
+    bomb.vx = bomb.vy = bomb.vz = 0;
+    this.held = bomb;
+    this.carry = { phase: 'lift', t: 0 };
+    this.h.log(b ? 'Picked up the bomb' : 'Lifted a bomb');
+    return true;
+  }
+
+  /** a lit bomb lying within reach in front of the hero */
+  bombAhead(): Bomb | null {
+    const s = this.h.heroState;
+    const ax = s.x + Math.sin(s.heading) * 0.9;
+    const az = s.z + Math.cos(s.heading) * 0.9;
+    return (
+      this.bombs.find((b) => b !== this.held && Math.hypot(b.x - ax, b.z - az) < 1.1 && Math.abs(b.y - s.y) < 1.5) ??
+      null
+    );
+  }
+
+  /** a bomb plant with its bomb grown, within reach in front of the hero */
+  plantAhead(): T | null {
+    const s = this.h.heroState;
+    const ax = s.x + Math.sin(s.heading) * 0.9;
+    const az = s.z + Math.cos(s.heading) * 0.9;
+    for (const o of this.plants) {
+      if (o.state !== o.def.states[0]) continue;
+      const b = boxOf(o.bricks as never);
+      if (b && ax > b.x0 - 0.8 && ax < b.x1 + 0.8 && az > b.z0 - 0.8 && az < b.z1 + 0.8) return o;
+    }
+    return null;
+  }
+
+  /** takes the bomb off a plant (it grows another once that one has gone off, as its setting says) */
+  pick(o: T): boolean {
+    if (this.held || this.carry || !o.def.bombPlant) return false;
+    this.h.setState(o, o.def.states[1] ?? o.def.states[0]!);
+    return this.lift(undefined, o);
+  }
+
+  /** the held bomb flies off forward in an arc */
+  throwHeld(): boolean {
+    const b = this.held;
+    if (!b || this.carry) return false;
+    const s = this.h.heroState;
+    b.vx = Math.sin(s.heading) * THROW_SPEED;
+    b.vz = Math.cos(s.heading) * THROW_SPEED;
+    b.vy = THROW_UP;
+    this.held = null;
+    this.carry = { phase: 'throw', t: 0 };
+    this.h.log('Threw the bomb');
+    return true;
+  }
+
+  /** the held bomb is put down in front of the hero */
+  dropHeld(): boolean {
+    const b = this.held;
+    if (!b || this.carry) return false;
+    const s = this.h.heroState;
+    const x = s.x + Math.sin(s.heading) * 1.1;
+    const z = s.z + Math.cos(s.heading) * 1.1;
+    const f = this.h.floor(x, z, s.y + 0.5);
+    Object.assign(b, { x, z, y: f ?? s.y, vx: 0, vy: 0, vz: 0 });
+    this.held = null;
+    this.carry = { phase: 'drop', t: 0 };
+    this.h.log('Put the bomb down');
+    return true;
+  }
+
+  /** a thrown bomb flies on (gravity), stops against a wall and lands on the floor */
+  private fly(b: Bomb, dt: number) {
+    if (!b.vx && !b.vy && !b.vz) return;
+    b.vy -= GRAVITY * dt;
+    const nx = b.x + b.vx * dt;
+    const nz = b.z + b.vz * dt;
+    // something higher than the bomb ahead: it stops there and drops
+    const ahead = this.h.floor(nx, nz, b.y + 0.4);
+    const wall = this.h.solidAt?.(nx, b.y + 0.45, nz) ?? false;
+    if (wall || (ahead !== null && ahead > b.y + 0.45)) {
+      b.vx = 0;
+      b.vz = 0;
+    } else {
+      b.x = nx;
+      b.z = nz;
+    }
+    const ny = b.y + b.vy * dt;
+    const f = this.h.floor(b.x, b.z, b.y + 0.4);
+    if (f !== null && ny <= f) {
+      b.y = f;
+      b.vx = b.vy = b.vz = 0;
+    } else b.y = Math.max(ny, -20);
   }
 
   private stepBombs(dt: number) {
+    if (this.carry) {
+      this.carry.t += dt;
+      const len = this.carry.phase === 'lift' ? LIFT_TIME : this.carry.phase === 'throw' ? THROW_TIME : DROP_TIME;
+      if (this.carry.t >= len) this.carry = null;
+    }
+    if (this.held) Object.assign(this.held, Object.fromEntries(['x', 'y', 'z'].map((k, i) => [k, this.heldAt()[i]])));
     for (const b of [...this.bombs]) {
       b.t += dt;
+      if (b !== this.held) this.fly(b, dt);
       b.fizz += dt;
       if (b.fizz >= 0.5 && b.t < FUSE) {
         b.fizz = 0;
@@ -198,10 +365,28 @@ export class FireLight<T extends FireObject = FireObject> {
       }
       if (b.t < FUSE) continue;
       this.bombs.splice(this.bombs.indexOf(b), 1);
+      // it went off in the hero's hands
+      if (b === this.held) {
+        this.held = null;
+        this.carry = null;
+        b.y = this.h.heroState.y + 1;
+      }
       this.h.sound('boom', [b.x, b.y, b.z]);
       this.h.log('A bomb went off');
       this.flameAt(b.x, b.z, b.y, BLAST_RADIUS, 'a blast');
-      this.h.blast([b.x, b.y, b.z], BLAST_RADIUS);
+      const hit = this.h.blast([b.x, b.y, b.z], BLAST_RADIUS);
+      // its plant grows another: always, or only when this one broke nothing (a miss), as the plant says
+      const p = b.plant as T | null;
+      const when = p?.def.bombPlant?.regrow ?? 'missed';
+      if (p && (when === 'always' || (when === 'missed' && hit === 0))) this.regrow.set(p.inst.id, { o: p, t: 0 });
+      else if (p) this.h.log(`${p.def.name}: no new bomb (the last one hit something)`);
+    }
+    for (const [id, r] of [...this.regrow]) {
+      r.t += dt;
+      if (r.t < REGROW_AFTER) continue;
+      this.regrow.delete(id);
+      this.h.setState(r.o, r.o.def.states[0]!);
+      this.h.log(`${r.o.def.name} grew a new bomb`);
     }
   }
 
@@ -323,6 +508,10 @@ export class FireLight<T extends FireObject = FireObject> {
     this.flameFx.clear();
     this.flameClock = FLAME_EVERY;
     this.bombs.length = 0;
+    this.held = null;
+    this.carry = null;
+    this.plants = [];
+    this.regrow.clear();
     this.beams = [];
     this.lit.clear();
   }

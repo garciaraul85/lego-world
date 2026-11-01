@@ -79,6 +79,14 @@ export const BeamDef = z.strictObject({
 });
 export type BeamDef = z.infer<typeof BeamDef>;
 
+/** step 12b: a plant that grows a bomb (Action picks it, lit); once it has gone off another grows (or not) */
+export const BOMB_REGROW = ['always', 'missed', 'never'] as const;
+export const BombPlantDef = z.strictObject({
+  /** grows another: always, only when the last one broke nothing (a miss: missed, at first), or never */
+  regrow: z.enum(BOMB_REGROW).optional(),
+});
+export type BombPlantDef = z.infer<typeof BombPlantDef>;
+
 /** step 12b: a fire effect on the asset (a lit torch stand's flame), in one of its states or always */
 export const FlameDef = z.strictObject({
   /** where it burns on it (x, z studs, y up, as a socket's place) */
@@ -164,6 +172,7 @@ export function puzzleProblems(a: {
   mirror?: MirrorDef | undefined;
   beam?: BeamDef | undefined;
   flame?: FlameDef | undefined;
+  bombPlant?: BombPlantDef | undefined;
 }): string[] {
   const out: string[] = [];
   if (a.switch && a.states.length < 2)
@@ -174,6 +183,8 @@ export function puzzleProblems(a: {
     out.push(`${a.name}: only a floor switch (held down) or a light sensor (while lit) can be held.`);
   if (a.mirror && a.states.length < 2)
     out.push(`${a.name} is a mirror but has one state: it needs two, one leaning each way.`);
+  if (a.bombPlant && a.states.length < 2)
+    out.push(`${a.name} grows bombs but has one state: it needs two (grown, then picked).`);
   if (a.flame?.when && !a.states.includes(a.flame.when))
     out.push(`${a.name}: its flame burns in “${a.flame.when}”, which is not one of its states.`);
   if (a.beam?.when && !a.states.includes(a.beam.when))

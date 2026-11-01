@@ -1,10 +1,12 @@
-import type { BeamDef, BurnDef, FlameDef } from '../../../core/puzzles/puzzle';
+import type { BeamDef, BOMB_REGROW, BombPlantDef, BurnDef, FlameDef } from '../../../core/puzzles/puzzle';
 import type { Asset } from '../../../core/schema';
 import { FieldHelp } from '../../components/fields';
 
 export const FIRE_LIGHT_HELP = {
   burn: 'It burns: a torch’s flame, a fire hit, a bomb’s blast or a burning thing touching it sets it alight. It burns for the seconds you set and is gone (for good: saves remember). With Spreads on, it sets burnable things touching it alight too. Logic’s On burned runs when it is gone.',
   beam: 'It shines a beam of light straight ahead (its front: the way it is turned), from the point you set, in one of its states or always. The beam stops at the first solid thing; a mirror turns it a quarter turn; a light sensor switch it reaches turns on.',
+  bombPlant:
+    'It grows a bomb on top (its first state: grown, its second: picked). In Play, Action picks the bomb up, lit, over the hero’s head: Attack throws it, Action puts it down. Once that bomb has gone off, the plant grows another: always, only after a miss (when the blast hit nothing: a puzzle can be tried again until it is solved), or never.',
   flame:
     'A fire effect burns on it: always, or only in one of its states (a torch stand’s flame while it is “lit”). Set where it burns (its height over the middle of the asset) and how big. It is only a picture: what burns things is fire, a torch or a bomb.',
   mirror:
@@ -16,12 +18,19 @@ export const FIRE_LIGHT_HELP = {
  * “Lit by a beam”, in the Puzzle section; a torch stand a switch hit by Fire.) Each change is one undo step.
  */
 export function FireLightSection({ def, reset }: { def: Asset; reset: (to: Asset, label: string) => void }) {
-  const set = <K extends 'burn' | 'beam' | 'mirror' | 'flame'>(k: K, v: Asset[K] | undefined, label: string) => {
+  const set = <K extends 'burn' | 'beam' | 'mirror' | 'flame' | 'bombPlant'>(
+    k: K,
+    v: Asset[K] | undefined,
+    label: string,
+  ) => {
     const { [k]: _old, ...rest } = def;
     let next = (v === undefined ? rest : { ...rest, [k]: v }) as Asset;
     // a mirror needs two states, one leaning each way
     if (v && k === 'mirror' && next.states.length < 2)
       next = { ...next, states: ['left', 'right'], initialState: 'left' };
+    // a bomb plant: grown and picked
+    if (v && k === 'bombPlant' && next.states.length < 2)
+      next = { ...next, states: ['grown', 'picked'], initialState: 'grown' };
     reset(next, label);
   };
   const burn = def.burn;
@@ -211,6 +220,38 @@ export function FireLightSection({ def, reset }: { def: Asset; reset: (to: Asset
                 set('flame', { ...flame, size: Number((e.target as HTMLInputElement).value) }, 'Flame size')
               }
             />
+          </label>
+        </div>
+      )}
+
+      <label class="lbl" data-tour="asset-bomb-plant">
+        <input
+          type="checkbox"
+          checked={!!def.bombPlant}
+          onChange={() => set('bombPlant', def.bombPlant ? undefined : ({} satisfies BombPlantDef), 'Grows bombs')}
+        />{' '}
+        Grows bombs
+        <FieldHelp label="Grows bombs" text={FIRE_LIGHT_HELP.bombPlant} />
+      </label>
+      {def.bombPlant && (
+        <div class="row" style={{ gap: '10px', flexWrap: 'wrap', margin: '2px 0 6px 22px' }}>
+          <label class="field">
+            <span>Grows another</span>
+            <select
+              aria-label="Grows another bomb"
+              value={def.bombPlant.regrow ?? 'missed'}
+              onChange={(e) =>
+                set(
+                  'bombPlant',
+                  { regrow: (e.target as HTMLSelectElement).value as (typeof BOMB_REGROW)[number] },
+                  'Grows another',
+                )
+              }
+            >
+              <option value="always">Always</option>
+              <option value="missed">Only after a miss</option>
+              <option value="never">Never</option>
+            </select>
           </label>
         </div>
       )}

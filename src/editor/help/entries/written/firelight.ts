@@ -23,9 +23,9 @@ export const FIRE_LIGHT: HelpEntry[] = [
     ],
     screen: 'assets',
     kind: 'setting',
-    name: 'Fire and light (burns, beam, flame, mirror)',
+    name: 'Fire and light (burns, beam, flame, bombs, mirror)',
     purpose:
-      'What the asset does with fire and light. **Burns**: a torch’s flame, a fire hit, a bomb’s blast or a burning thing touching it sets it alight; it burns for some seconds and is gone for good. **Shines a beam**: a beam of light runs straight out of its front until something stops it. **Flame**: a fire effect burns on it, always or in one state (a lit torch stand). **Mirror**: it turns a beam a quarter turn, and Action turns it. (A light sensor is a switch **Lit by a beam**, and a torch stand a switch **Hit** by **Fire**: both in the Puzzle section.)',
+      'What the asset does with fire and light. **Burns**: a torch’s flame, a fire hit, a bomb’s blast or a burning thing touching it sets it alight; it burns for some seconds and is gone for good. **Shines a beam**: a beam of light runs straight out of its front until something stops it. **Flame**: a fire effect burns on it, always or in one state (a lit torch stand). **Grows bombs**: a bomb to pick sits on it, and another grows after it has gone off (always, only after a miss, or never). **Mirror**: it turns a beam a quarter turn, and Action turns it. (A light sensor is a switch **Lit by a beam**, and a torch stand a switch **Hit** by **Fire**: both in the Puzzle section.)',
     steps: [
       'Open the asset in the Asset studio (double-click it in Assets or the Starter pack).',
       'Under **Fire and light**, tick what it does: Burns, Shines a beam, Flame, or Mirror.',
@@ -47,6 +47,10 @@ export const FIRE_LIGHT: HelpEntry[] = [
       [
         'Shines a beam',
         'Straight out of its front (the way the copy is turned), at the height you set, up to its reach. It stops at the first solid thing; nothing goes through walls.',
+      ],
+      [
+        'Grows bombs',
+        'A bomb sits on it (first state grown, second picked). Action picks it up, lit, over the hero’s head. Grows another: Always, Only after a miss (the blast hit nothing), or Never.',
       ],
       [
         'Flame',
@@ -83,7 +87,7 @@ export const FIRE_LIGHT: HelpEntry[] = [
     kind: 'list',
     name: 'Starter pack › Fire and light',
     purpose:
-      'Ready-made pieces: **Vines**, a **Wooden barricade** and a **Spider web** that burn away; a **Torch stand** that fire lights and a **Timed torch** that goes out again after 12 s; a **Bomb bag** (five Bombs) and a **Hand torch** (the Torch) for the hero to pick up; a **Sun crest** that shines a beam, a **Mirror** to turn it, and a **Light sensor** that turns on while a beam reaches it.',
+      'Ready-made pieces: **Vines**, a **Wooden barricade** and a **Spider web** that burn away; a **Torch stand** that fire lights and a **Timed torch** that goes out again after 12 s; a **Bomb bag** (five Bombs) and a **Hand torch** (the Torch) for the hero to pick up; a **Bomb flower** that grows a bomb to pick (another after a miss); a **Sun crest** that shines a beam, a **Mirror** to turn it, and a **Light sensor** that turns on while a beam reaches it.',
     steps: [
       'Open **Starter pack** in the bottom dock and scroll to Fire and light.',
       'Drag a piece onto the map, or click it and click the ground (T turns it: aim a Sun crest this way).',
@@ -95,16 +99,29 @@ export const FIRE_LIGHT: HelpEntry[] = [
   },
   {
     id: 'play.tools',
-    also: ['bomb', 'bombs', 'torch', 'item button', 'use item', 'blow up', 'explosion', 'light a torch'],
+    also: [
+      'bomb',
+      'bombs',
+      'throw',
+      'carry',
+      'pick up',
+      'bomb flower',
+      'torch',
+      'item button',
+      'use item',
+      'blow up',
+      'explosion',
+      'light a torch',
+    ],
     screen: 'scene',
     kind: 'setting',
     name: 'Bombs and the Torch',
     purpose:
-      'Two items do something by themselves when the hero uses them (an item button: J, K…). A **Bomb** is put down in front of the hero, lit: it fizzes, blinks red and goes off after 2.5 seconds. Its blast breaks a cracked wall (anything only explosions break), flips switches that answer explosions, sets burnable things alight, hurts enemies in it, and costs the hero a heart if too close. The **Torch** waves a flame in front of the hero: burnable things catch, torch stands light, and enemies that fear fire are hurt. Picked up (a Bomb bag, a Hand torch, or Give item), each goes into an empty item button. Logic hears them as well (On item used).',
+      'Two items do something by themselves when the hero uses them (an item button: J, K…). A **Bomb**’s button lifts one, lit, up over the hero’s head; the button again or **Attack** (Throw) throws it in an arc, **Action** (Put down) sets it down in front. It fizzes, blinks red and goes off 4 seconds after it was lit (held too long, in the hands). A lit bomb lying nearby, or a **Bomb flower**’s bomb, is picked up with Action. Its blast breaks a cracked wall (anything only explosions break), flips switches that answer explosions, sets burnable things alight, hurts enemies in it, and costs the hero a heart if too close. The **Torch** waves a flame in front of the hero: burnable things catch, torch stands light, and enemies that fear fire are hurt. Picked up (a Bomb bag, a Hand torch, or Give item), each goes into an empty item button. Logic hears them as well (On item used).',
     steps: [
       'Place a Bomb bag or a Hand torch (Starter pack › Fire and light), or give the item with logic.',
       'In Play, walk over it: its item button shows it.',
-      'Press that button (J or K) facing what you want to burn or blow up; step back from a bomb.',
+      'Press that button (J or K) facing what you want to burn; for a bomb, press it, then throw (the button again, or Attack) or put it down (Action), and step back.',
     ],
     tips: ['A hero holding a torch (its character’s held item: Torch) burns things with its attack too.'],
     related: ['pack.fireLight', 'asset.fireLight'],

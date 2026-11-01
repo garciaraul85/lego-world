@@ -91,10 +91,13 @@ A switch or lock on an asset with one state gets an off and on (locked and open)
 
 ## Fire and light: burns, beams and mirrors
 
+**Climbable** (Puzzle section): the hero walking into it holds on and climbs it like a ladder — forward up, back down, over the top onto it or what is beyond; Jump lets go. Vines and the Ladder are climbable.
+
 The **Fire and light** section of the Asset studio, under Puzzle:
 
 - **Burns**: a torch's flame, a fire hit, a bomb's blast or a burning thing touching it sets it alight. It burns for its seconds (flames and a crackle) and is gone for good (saves remember). With **Spreads**, it sets burnable things touching it alight too. Logic hears **On burned**.
 - **Shines a beam**: a beam of light runs straight out of its front (the way the placed copy is turned: T), at the **Height** you set, up to its **Reach**, in one state (**Shines**) or always, in its own **Colour**. It stops at the first solid thing.
+- **Grows bombs**: a plant with a bomb on top (its states: grown, picked). Action picks the bomb up, lit; once it has gone off another grows: **Always**, **Only after a miss** (the blast hit nothing, so a puzzle can be tried again until it is solved) or **Never**.
 - **Flame**: a fire effect burns on it, always or only in one state (a torch stand's flame while it is lit), at the **Height** and **Size** you set. It is only a picture; fire, a torch or a bomb is what burns things.
 - **Mirror**: a beam reaching it goes on from its middle a quarter turn to one side or the other, as it leans: its first state one way, its second the other (two states are added). With **Turns with Action**, the hero turns it at its interact socket. Make it a push block too and it can be moved.
 

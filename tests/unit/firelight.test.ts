@@ -145,8 +145,15 @@ describe('fire', () => {
   });
 });
 
+const heroState = (p: PlaySession) => (p as unknown as { heroStates: { state: string } }).heroStates.state;
+const offers = (p: PlaySession) =>
+  (p as unknown as { offersNow(): { kind: string; label: string }[] }).offersNow().map((o) => o.kind);
+const broken = (p: PlaySession, id: string) =>
+  !p.world.instances.some((i) => i.inst.id === id) ||
+  (p as unknown as { smashedIds(): Set<string> }).smashedIds().has(id);
+
 describe('bombs', () => {
-  it('a Bomb bag’s bombs go into an item button; one put down goes off: the cracked wall breaks, a crystal flips, the hero too close is hurt', () => {
+  it('the Bomb bag’s bombs go into an item button; the button lifts one, lit, over the head; again throws it at the wall', () => {
     const { p, get } = game([
       ['Cracked wall', [20, 0, 10], 'ins_wall000001'],
       ['Crystal switch', [17, 0, 8], 'ins_crystal001'],
@@ -158,21 +165,141 @@ describe('bombs', () => {
     expect(p.buttons.slots).toContain('Bomb');
     const slot = p.buttons.slots.indexOf('Bomb') + 1;
     const hearts = () => Number(p.logic.vars.get('hp') ?? 0);
-    p.placeAt([21, 0.4, 8.4], 0);
+    // 4 studs from the wall, facing it
+    p.placeAt([21.5, 0.4, 6], 0);
     const before = hearts();
     p.useItem('Bomb', slot);
     expect(p.inventory.get('Bomb')).toBe(4);
-    expect(p.fireLight.bombs).toHaveLength(1);
-    steps(p, FUSE - 0.3);
-    expect(p.fireLight.bombs).toHaveLength(1);
+    expect(p.fireLight.held).toBeTruthy();
+    expect(p.fireLight.carryPose).toBe('lift');
+    steps(p, 0.1);
+    expect(heroState(p)).toBe('lift');
     steps(p, 0.5);
+    expect(p.fireLight.carryPose).toBe('hold');
+    expect(heroState(p)).toBe('hold');
+    // over the head, and the Action button puts it down
+    expect(p.fireLight.held!.y).toBeGreaterThan(2.5);
+    expect(offers(p)).toContain('drop');
+    expect(p.buttonViews().find((b) => b.id === 'attack')!.label).toBe('Throw');
+    // the item button again: thrown, it flies to the wall and lands at its foot
+    p.useItem('Bomb', slot);
+    expect(p.fireLight.held).toBeNull();
+    steps(p, 0.1);
+    expect(heroState(p)).toBe('throw');
+    steps(p, 1.0);
+    const b = p.fireLight.bombs[0]!;
+    expect(b.z).toBeGreaterThan(8.5);
+    expect(b.z).toBeLessThan(10.2);
+    expect(b.vx + b.vy + b.vz).toBe(0);
+    p.placeAt([21.5, 0.4, 2], 0);
+    steps(p, FUSE - 1.6);
     expect(p.fireLight.bombs).toHaveLength(0);
-    // the wall, only breakable by explosions, is broken; the crystal (any hit) flipped
-    const w = get('ins_wall000001');
-    expect(!w || (p as unknown as { smashedIds(): Set<string> }).smashedIds().has('ins_wall000001')).toBe(true);
+    expect(broken(p, 'ins_wall000001')).toBe(true);
     expect(get('ins_crystal001')!.state).toBe('on');
+    expect(hearts()).toBe(before);
+    expect(p.events.some((e) => /Cracked wall defeated/.test(e.msg))).toBe(true);
+  });
+
+  it('put down with Action, and picked up again; one held too long goes off in the hands', () => {
+    const { p } = game([['Bomb bag', [30, 0, 30], 'ins_bombbag001']]);
+    give(p, 'Bomb', 2);
+    p.placeAt([10, 0.4, 10], 0);
+    p.useItem('Bomb', 1);
+    steps(p, 0.6);
+    expect(p.fireLight.dropHeld()).toBe(true);
+    steps(p, 0.1);
+    expect(heroState(p)).toBe('drop');
+    steps(p, 0.4);
+    const b = p.fireLight.bombs[0]!;
+    expect(b.z).toBeCloseTo(11.1, 1);
+    expect(b.y).toBeLessThan(1);
+    // Action again: the lit bomb is up over the head again (same fuse)
+    expect(offers(p)).toContain('lift');
+    expect(p.fireLight.lift(p.fireLight.bombAhead()!)).toBe(true);
+    const hearts = () => Number(p.logic.vars.get('hp') ?? 0);
+    const before = hearts();
+    steps(p, FUSE);
+    expect(p.fireLight.held).toBeNull();
     expect(hearts()).toBeLessThan(before);
-    expect(p.events.some((e) => /Too close to the blast|A bomb went off/.test(e.msg))).toBe(true);
+  });
+
+  it('a Bomb flower: Action picks its bomb; after a miss it grows another, after a hit it does not', () => {
+    const { p, get } = game([
+      ['Bomb flower', [10, 0, 10], 'ins_flower0001'],
+      ['Cracked wall', [30, 0, 30], 'ins_wall000001'],
+    ]);
+    const flower = () => get('ins_flower0001')!;
+    p.placeAt([11, 0.4, 8.4], 0);
+    steps(p, 0.4);
+    expect(flower().state).toBe('grown');
+    expect(offers(p)).toContain('lift');
+    expect(p.fireLight.pick(flower())).toBe(true);
+    expect(flower().state).toBe('picked');
+    steps(p, 0.6);
+    // put down out in the open: the blast hits nothing
+    p.placeAt([11, 0.4, 2], Math.PI);
+    steps(p, 0.1);
+    p.fireLight.dropHeld();
+    p.placeAt([11, 0.4, 8.4], 0);
+    steps(p, FUSE + 0.2);
+    expect(p.fireLight.bombs).toHaveLength(0);
+    expect(flower().state).toBe('picked');
+    steps(p, 1.6);
+    expect(flower().state).toBe('grown');
+    // this time at the wall: it breaks, and no new bomb grows
+    p.fireLight.pick(flower());
+    steps(p, 0.6);
+    p.placeAt([31.5, 0.4, 28.6], 0);
+    p.fireLight.dropHeld();
+    p.placeAt([31.5, 0.4, 24], 0);
+    steps(p, FUSE + 2);
+    expect(broken(p, 'ins_wall000001')).toBe(true);
+    expect(flower().state).toBe('picked');
+  });
+});
+
+describe('climbing a ladder or vines', () => {
+  it('walking into a ladder holds on; forward climbs up with the Ladder animation; at the top the hero climbs over', () => {
+    const { p } = game([
+      ['Ladder', [10, 0, 10], 'ins_ladder0001'],
+      ['Dungeon wall', [9, 0, 11], 'ins_dwall00001'],
+    ]);
+    expect(piece('Ladder').climbable).toBe(true);
+    expect(piece('Vines').climbable).toBe(true);
+    p.placeAt([11.5, 0.4, 8.6], 0);
+    p.camYaw = Math.PI;
+    p.input.keys.add('forward');
+    let on = false;
+    let maxY = 0;
+    for (let t = 0; t < 6; t += 1 / 60) {
+      p.runtime.stepOnce();
+      if (p.puzzles.ladder) on = true;
+      maxY = Math.max(maxY, p.heroState.y);
+      if (on && !p.puzzles.ladder && !p.puzzles.climbing) break;
+    }
+    expect(on).toBe(true);
+    expect(maxY).toBeGreaterThan(4);
+    p.input.keys.delete('forward');
+    steps(p, 0.5);
+    // over the top of the ladder, onto the wall behind it
+    expect(p.heroState.y).toBeGreaterThan(4);
+    expect(p.puzzles.ladder).toBeNull();
+  });
+
+  it('on the ladder: the Ladder state; back climbs down and off at the bottom', () => {
+    const { p } = game([['Ladder', [10, 0, 10], 'ins_ladder0001']]);
+    p.placeAt([11.5, 0.4, 8.6], 0);
+    p.camYaw = Math.PI;
+    p.input.keys.add('forward');
+    for (let t = 0; t < 1.5 && p.heroState.y < 2; t += 1 / 60) p.runtime.stepOnce();
+    expect(p.puzzles.ladder).toBeTruthy();
+    expect(heroState(p)).toBe('ladder');
+    p.input.keys.delete('forward');
+    p.input.keys.add('back');
+    for (let t = 0; t < 3 && p.puzzles.ladder; t += 1 / 60) p.runtime.stepOnce();
+    expect(p.puzzles.ladder).toBeNull();
+    expect(p.heroState.y).toBeLessThan(1);
+    p.input.keys.delete('back');
   });
 });
 
@@ -209,6 +336,10 @@ describe('beams of light', () => {
     // Action at the mirror: it leans the other way
     expect(p.puzzles.press(get('ins_mirror0001')!)).toBe(true);
     expect(get('ins_mirror0001')!.state).toBe('right');
+    // the hero shoves it round (the Push animation), and tugs it back the next time (Pull)
+    expect(p.puzzles.pose).toBe('push');
+    steps(p, 0.1);
+    expect(heroState(p)).toBe('push');
     steps(p, 0.3);
     expect(get('ins_sensor0001')!.state).toBe('dark');
     const last = p.fireLight.beams.at(-1)!;

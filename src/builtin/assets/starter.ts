@@ -319,8 +319,27 @@ function bossChest(): Raw {
 
 function crackedWall(): Raw {
   const b = new Build();
-  // its cracks: dark stones running up through it
-  b.stack(0, 0, 4, 1, 0, 4, (i) => (i % 2 === 1 ? C.iron : C.stoneDark));
+  // stones in greys, a black crack running down through them with darker stones along it, a chip out of the top
+  // corner (16 stones, so its pieces stay few when it is blown apart)
+  const crack = [[1, 2], [2], [1], [2]];
+  for (let row = 0; row < 4; row++)
+    for (let x = 0; x < 4; x++) {
+      if (row === 3 && x === 3) continue;
+      const inCrack = crack[row]!.includes(x);
+      const nearCrack = crack[row]!.some((c) => Math.abs(c - x) === 1);
+      const k = (x * 5 + row * 3) % 7;
+      const color = inCrack
+        ? '#1e2023'
+        : nearCrack
+          ? C.stoneDark
+          : k === 2
+            ? C.stoneLight
+            : k === 5
+              ? '#7b8085'
+              : C.stone;
+      b.put('brick', 1, 1, x, row * 3, 0, color);
+    }
+  b.put('plate', 1, 3, 0, 12, 0, C.stoneLight);
   return asset('Cracked wall', 'structure', [4, 1], b, {
     smash: { enabled: true, rebuild: false, sound: null, studs: 0, after: 'gone' },
     health: {
@@ -433,14 +452,30 @@ function key(name: string, color: string, item: string): Raw {
 }
 
 // ---------- step 12b: fire and light ----------
-/** a curtain of vines across a passage: it burns away */
+/**
+ * a curtain of vines across a passage: stems hang from a branch along the top, with leaves sticking out to the front
+ * and back in four greens, now and then a flower. It burns away, and it can be climbed.
+ */
 function vines(): Raw {
   const b = new Build();
-  b.stack(0, 0, 4, 1, 0, 3, (i) => (i % 3 === 1 ? C.green : i % 4 === 2 ? C.woodDark : C.moss));
-  // leaves hanging off the top
-  b.put('plate', 1, 1, 0, 9, 0, C.moss);
-  b.put('plate', 1, 1, 3, 9, 0, C.green);
-  return asset('Vines', 'structure', [4, 1], b, { burn: { seconds: 2 } });
+  const leaf = ['#4b9f4a', '#2f7d32', '#7dbb3c', '#3d6b2a'];
+  const stem = '#2a5a24';
+  // a made-up but fixed scatter: which side each leaf sticks out to, and its colour
+  const pick = (x: number, y: number) => (x * 7 + y * 3 + ((x * y) % 5)) % 8;
+  for (let x = 0; x < 4; x++) {
+    // each stem hangs to its own length from the branch (y 11): the outer ones a little shorter
+    const bottom = x === 0 || x === 3 ? 1 : 0;
+    for (let y = bottom; y < 11; y++) {
+      const k = pick(x, y);
+      if (k < 3) b.put('plate', 1, 2, x, y, 0, leaf[(x + y) % 4]!, 1);
+      else if (k < 6) b.put('plate', 1, 2, x, y, 1, leaf[(x + y + 1) % 4]!, 1);
+      else if (k === 6 && y % 3 === 1) b.put('plate', 1, 1, x, y, 1, '#e86fa0');
+      else b.put('plate', 1, 1, x, y, 1, stem);
+    }
+  }
+  // the branch they hang from
+  b.put('plate', 1, 4, 0, 11, 1, '#5c3a21');
+  return asset('Vines', 'structure', [4, 3], b, { burn: { seconds: 2 }, climbable: true });
 }
 
 /** planks nailed across a doorway: they burn (slowly) */
@@ -472,19 +507,22 @@ function web(): Raw {
   return asset('Spider web', 'structure', [3, 1], b, { burn: { seconds: 0.8 } });
 }
 
-/** a stone stand with a bowl: fire (a torch, a flame) lights it, and it stays lit or goes out after some seconds */
+/**
+ * a torch on a post: a stone foot, a wooden post, an iron cup with coals; fire (a torch, a flame) lights it — the
+ * flame is a fire effect on the cup — and it stays lit or goes out after some seconds
+ */
 function torchStand(name: string, stays: 'on' | 'timed', seconds?: number): Raw {
   const b = new Build();
-  b.put('plate', 2, 2, 0, 0, 0, C.stoneDark);
-  b.put('brick', 1, 1, 0, 1, 0, C.stone);
-  b.put('brick', 1, 1, 0, 4, 0, C.stone);
-  b.put('plate', 2, 2, 0, 7, 0, C.iron);
-  // the coals in the bowl; the flame is a fire effect while it is lit
-  b.put('tile', 1, 1, 0, 8, 0, C.woodDark);
-  return asset(name, 'decoration', [2, 2], b, {
+  b.put('brick', 1, 1, 0, 0, 0, C.stoneDark);
+  b.put('brick', 1, 1, 0, 3, 0, C.woodDark);
+  b.put('brick', 1, 1, 0, 6, 0, C.woodDark);
+  b.put('plate', 1, 1, 0, 9, 0, C.iron);
+  b.put('plate', 1, 1, 0, 10, 0, C.iron);
+  b.put('tile', 1, 1, 0, 11, 0, '#3b2416');
+  return asset(name, 'decoration', [1, 1], b, {
     states: ['out', 'lit'],
     initialState: 'out',
-    flame: { at: [0.5, 3.6, 0.5], when: 'lit', size: 1.1 },
+    flame: { at: [0.5, 4.75, 0.5], when: 'lit', size: 0.9 },
     switch: { by: 'hit', stays, hitBy: ['fire'], ...(seconds ? { seconds } : {}) },
     lockOn: true,
     light: {
@@ -493,9 +531,37 @@ function torchStand(name: string, stays: 'on' | 'timed', seconds?: number): Raw 
       range: 11,
       flicker: 0.5,
       shadow: true,
-      at: [0.5, 4.8, 0.5],
+      at: [0.5, 5.4, 0.5],
       states: ['lit'],
     },
+  });
+}
+
+/** a wooden ladder: two rails with rungs between them; the hero climbs it (put it against a wall or a cliff) */
+function ladder(): Raw {
+  const b = new Build();
+  // a length of rail on each side, then a rung across both, four times over
+  for (let y = 0; y < 16; y += 4) {
+    b.put('brick', 1, 1, 0, y, 0, C.wood);
+    b.put('brick', 1, 1, 2, y, 0, C.wood);
+    b.put('plate', 1, 3, 0, y + 3, 0, y === 12 ? C.woodDark : C.straw);
+  }
+  return asset('Ladder', 'structure', [3, 1], b, { climbable: true });
+}
+
+/** a bomb plant: a leafy bulb with a bomb on top (Action picks it, lit); it grows another after a miss */
+function bombFlower(): Raw {
+  const b = new Build();
+  b.put('plate', 2, 2, 0, 0, 0, '#2f7d32');
+  b.put('plate', 1, 1, 0, 1, 0, '#4b9f4a');
+  b.put('plate', 1, 1, 1, 1, 1, '#4b9f4a');
+  b.put('plate', 1, 1, 1, 1, 0, '#7dbb3c');
+  b.put('plate', 1, 1, 0, 1, 1, '#7dbb3c');
+  b.put('brick', 2, 2, 0, 2, 0, '#3d6b2a');
+  return asset('Bomb flower', 'nature', [2, 2], b, {
+    states: ['grown', 'picked'],
+    initialState: 'grown',
+    bombPlant: { regrow: 'missed' },
   });
 }
 
@@ -778,6 +844,8 @@ export const STARTER_ASSETS: Record<string, Raw> = {
   'torch-stand': torchStand('Torch stand', 'on'),
   'timed-torch': torchStand('Timed torch', 'timed', 12),
   'bomb-bag': bombBag(),
+  'bomb-flower': bombFlower(),
+  ladder: ladder(),
   'hand-torch': handTorch(),
   'sun-crest': sunCrest(),
   mirror: mirror(),

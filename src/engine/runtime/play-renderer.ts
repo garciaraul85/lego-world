@@ -225,6 +225,23 @@ export class PlayRenderer {
       out.push({ pos: [...b.to] as Vec3, size: [0.9, 0.9, 0.9], color: c, alpha: 0.55, sphere: true });
     }
     const now = this.session.clock;
+    // a bomb plant with its bomb grown: the bomb sits on top, its fuse unlit
+    for (const o of fl.plants) {
+      if (o.state !== o.def.states[0]) continue;
+      const bx = boxOfBricks(o.bricks as never);
+      if (!bx) continue;
+      const cx = (bx.x0 + bx.x1) / 2;
+      const cz = (bx.z0 + bx.z1) / 2;
+      const top = bx.y1 * 0.4;
+      out.push({ pos: [cx, top + 0.42, cz], size: [0.85, 0.85, 0.85], color: [0.1, 0.1, 0.13], sphere: true });
+      out.push({
+        pos: [cx + 0.17, top + 0.66, cz - 0.11],
+        size: [0.18, 0.18, 0.18],
+        color: [0.55, 0.58, 0.66],
+        sphere: true,
+      });
+      out.push({ pos: [cx, top + 0.92, cz], size: [0.12, 0.18, 0.12], color: [0.55, 0.42, 0.25] });
+    }
     for (const b of fl.bombs) {
       // a round black bomb with a short fuse and a spark that blinks faster near the end
       out.push({ pos: [b.x, b.y + 0.45, b.z], size: [0.9, 0.9, 0.9], color: [0.1, 0.1, 0.13], sphere: true });

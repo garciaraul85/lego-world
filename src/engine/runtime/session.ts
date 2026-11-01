@@ -275,6 +275,9 @@ const rgb = (i: number) => [1, 3, 5].map((k) => (parseInt(COLOR_OF(i).slice(k, k
  * drops the session and the project is exactly as it was. Movement, collision, NPCs and debris use
  * v68's own modules; smash, rebuild and gate travel are ports of v68's character-game / map-network code.
  */
+/** states v68's own motion already shows (the others play their built-in clip when the sheet sets none) */
+const OWN_MOTION = new Set(['walk', 'run', 'jump', 'attack', 'hurt', 'idle']);
+
 export class PlaySession {
   readonly L: LegacyRuntime;
   readonly runtime: Runtime<PlaySession>;
@@ -798,6 +801,11 @@ export class PlaySession {
 
   /** Put the hero at a spawn (v68 arrival: keep clear of scenery, fall back to the map's safe spawn). */
   placeAt(pos: [number, number, number], heading: number) {
+    // step 12b: a hero put somewhere else lets go of a ladder (and is not mid-climb)
+    if (this.puzzles) {
+      this.puzzles.ladder = null;
+      this.puzzles.climbing = null;
+    }
     const c = this.world.controller;
     Object.assign(c.state, {
       x: pos[0],
@@ -1221,14 +1229,22 @@ export class PlaySession {
     let input: ReturnType<PlaySession['inputVector']> & { speedScale?: number; jumpSpeed?: number } =
       still || c.stagger > 0 ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
     if (input.jump && c.lockedJump(input.x, input.z)) input = { ...input, jump: false };
+    // step 12b: on a ladder or vines: up and down with the move keys
+    if (this.puzzles.ladder) {
+      this.puzzles.stepLadder(dt, input.jump);
+      this.input.jump = false;
+      return;
+    }
     // step 12a: climbing onto a ledge: the climb moves the hero
     if (this.puzzles.climbing) {
       this.puzzles.stepClimb(dt);
       this.input.jump = false;
       return;
     }
-    // holding on to a block, or sliding one: the hero stays put (the push or pull carries it)
-    if (this.puzzles.grab || this.puzzles.sliding) input = { ...input, x: 0, z: 0, jump: false };
+    // holding on to a block, or sliding one: the hero stays put (the push or pull carries it); so while lifting,
+    // throwing or putting down a bomb (12b), and it walks a little slower holding one up
+    if (this.puzzles.grab || this.puzzles.sliding || this.fireLight.busy) input = { ...input, x: 0, z: 0, jump: false };
+    else if (this.fireLight.held) input = { ...input, run: false, jump: false, speedScale: 0.8 };
     const moving = c.moveInput();
     if (moving) input = moving;
     else if (c.guard || c.charge !== null) input = { ...input, run: false, speedScale: 0.45 };
@@ -3754,6 +3770,20 @@ export class PlaySession {
       },
       sound: (id, at) => this.audio.play(SND[id], at ? { pos: at } : {}),
       blast: (at, r) => this.blastAt(at, r),
+      floor: (x, z, y) => this.world.controller.floor(x, z, y),
+      heroHeight: () => HERO_HEIGHT * this.L.GamePhysics.scaleOf(this.heroState),
+      solidAt: (x, y, z) => {
+        const c = this.world.controller as unknown as {
+          nearby?(
+            x: number,
+            z: number,
+          ): { b: { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number } }[];
+        };
+        return (c.nearby?.(x, z) ?? []).some(
+          ({ b }) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && y >= b.y0 && y < b.y1,
+        );
+      },
+      setState: (o, st) => this.setInstanceState(o.inst.id, st, true),
       lightSensor: (o, lit) => this.puzzles.light(o, lit),
       burned: (o) =>
         this.logic.fire({
@@ -3771,7 +3801,8 @@ export class PlaySession {
    * explosive damage (a cracked wall breaks), switches that answer explosions flip, and the hero, if too close,
    * loses a heart. Plain bricks are not broken.
    */
-  blastAt(at: [number, number, number], r: number) {
+  blastAt(at: [number, number, number], r: number): number {
+    let hit = 0;
     this.hitEffect('explosive', at);
     const attack = { power: 3, type: 'explosive' as const };
     for (const n of [...this.world.npcs])
@@ -3787,12 +3818,14 @@ export class PlaySession {
       if (Math.hypot(dx, dz) > r) continue;
       if (sw) this.puzzles.hit(i, 'explosive', true);
       else this.hitInstance(i, attack);
+      hit++;
     }
     const h = this.heroState;
     if (Math.hypot(h.x - at[0], h.z - at[2]) <= r - 0.8 && Math.abs(h.y - at[1]) < 3) {
       this.hurt(1);
       this.say('Too close to the blast!', 1.5);
     }
+    return hit;
   }
 
   /**
@@ -3806,9 +3839,17 @@ export class PlaySession {
     const fx = Math.sin(h.heading);
     const fz = Math.cos(h.heading);
     if (name === 'bomb' || name === 'bombs') {
+      // holding one up: throw it; else a lit one in reach is picked up; else a new one comes out of the bag, lit
+      const fl = this.fireLight;
+      if (fl.busy) return true;
+      if (fl.held) {
+        fl.throwHeld();
+        return true;
+      }
+      if (this.pickUpBomb()) return true;
       this.takeItem(item, 1);
-      this.fireLight.drop(h.x + fx * 1.3, h.y, h.z + fz * 1.3);
-      this.say(`Bomb! (${this.inventory.get(item) ?? 0} left)`, 1.2);
+      fl.lift();
+      this.bombHint();
       return true;
     }
     if (name === 'torch') {
@@ -3817,6 +3858,27 @@ export class PlaySession {
       this.hitEffect('fire', [x, h.y + 1.6, z]);
       this.audio.play(SND.ignite, { pos: [x, h.y + 1, z] });
       this.flame(x, z, h.y + 1, 1.4);
+      return true;
+    }
+    return false;
+  }
+
+  /** step 12b: how to get rid of a lit bomb held up */
+  private bombHint() {
+    const k = (b: 'attack' | 'action') => this.buttons.keyOf(b).toUpperCase();
+    this.say(`A lit bomb! ${k('attack')} throws it, ${k('action')} puts it down.`, 2.5);
+  }
+
+  /** step 12b: a lit bomb lying in reach, or a bomb plant's bomb, up over the hero's head (true: one was) */
+  private pickUpBomb(): boolean {
+    const fl = this.fireLight;
+    if (fl.held || fl.busy) return false;
+    const b = fl.bombAhead();
+    if (b) return fl.lift(b);
+    const p = fl.plantAhead();
+    if (p) {
+      fl.pick(p);
+      this.bombHint();
       return true;
     }
     return false;
@@ -3962,6 +4024,8 @@ export class PlaySession {
         hurtAgo: this.clock - this.heroHurtAt,
         swimming: this.swim.on,
         pushing: this.puzzles.pose,
+        ladder: !!this.puzzles.ladder,
+        carrying: this.fireLight.carryPose,
       },
       this.heroChr?.states,
       (st) =>
@@ -3969,10 +4033,10 @@ export class PlaySession {
           ? undefined
           : (this.sheetClip(this.heroChr, st) ??
             // step 11b: v68's own motion is a walk, so swimming always has a clip (the built-in crawl and tread);
-            // step 12a: so do pushing, pulling and climbing
-            (st === 'swim' || st === 'tread' || st === 'push' || st === 'pull' || st === 'climb'
-              ? BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st])
-              : undefined)),
+            // step 12a: so do pushing, pulling and climbing; 12b: ladders, and lifting, carrying and throwing
+            (OWN_MOTION.has(st)
+              ? undefined
+              : BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st as keyof typeof MOVE_FOR]))),
       dt,
       1.5,
     );
@@ -4324,6 +4388,15 @@ export class PlaySession {
           : { kind: 'swimUp', label: 'Swim up', priority: ACTION_PRIORITY.swimUp },
       );
     }
+    // step 12b: holding a bomb up: put it down; a lit bomb or a bomb plant's bomb in reach: pick it up
+    if (this.fireLight.held && !this.fireLight.busy)
+      out.push({ kind: 'drop', label: 'Put down', priority: ACTION_PRIORITY.drop });
+    else if (
+      !this.fireLight.held &&
+      !this.fireLight.busy &&
+      (this.fireLight.bombAhead() || this.fireLight.plantAhead())
+    )
+      out.push({ kind: 'lift', label: 'Pick up', priority: ACTION_PRIORITY.lift });
     // step 12a: a block that can be pulled, right in front
     if (this.puzzles.canGrab() || this.puzzles.grab)
       out.push({ kind: 'grab', label: 'Grab', priority: ACTION_PRIORITY.grab });
@@ -4357,12 +4430,22 @@ export class PlaySession {
           return;
         }
         if (!down) return;
-        if (o.kind === 'talk') this.talk();
+        if (o.kind === 'drop') this.fireLight.dropHeld();
+        else if (o.kind === 'lift') this.pickUpBomb();
+        else if (o.kind === 'talk') this.talk();
         else if (o.kind === 'use' || o.kind === 'read') this.interact();
         else if (o.kind === 'jump') this.input.jump = true;
         this.logic.fire({ type: 'event.onActionPressed', match: { action: o.label }, payload: { action: o.label } });
       },
-      attack: (down) => (down ? this.combat.press() : this.combat.release()),
+      // step 12b: holding a bomb up, Attack throws it
+      attack: (down) => {
+        if (this.fireLight.held || this.fireLight.busy) {
+          if (down) this.fireLight.throwHeld();
+          return;
+        }
+        if (down) this.combat.press();
+        else this.combat.release();
+      },
       jump: () => {
         this.input.jump = true;
       },
@@ -4396,7 +4479,7 @@ export class PlaySession {
   buttonViews(): { id: string; name: string; key: string; label: string; count?: number }[] {
     const b = this.buttons;
     const out: { id: string; name: string; key: string; label: string; count?: number }[] = [
-      { id: 'attack', name: 'Attack', key: b.keyOf('attack'), label: 'Attack' },
+      { id: 'attack', name: 'Attack', key: b.keyOf('attack'), label: this.fireLight.held ? 'Throw' : 'Attack' },
       { id: 'action', name: 'Action', key: b.keyOf('action'), label: b.now?.label ?? '' },
     ];
     if (b.c.jump === 'button') out.push({ id: 'jump', name: 'Jump', key: b.keyOf('jump'), label: 'Jump' });

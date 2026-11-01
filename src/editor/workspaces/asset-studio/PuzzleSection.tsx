@@ -17,6 +17,8 @@ export const PUZZLE_HELP = {
   switch:
     'A switch: its first two states are off and on (Floor switch: up and down). Stepped on: weight on it (the hero, neighbours, blocks, loose crates; Needs weight says how much). Hit: a sword, an arrow, a boomerang, a bomb or fire (choose which: a torch stand answers Fire). Pressed: Action at its interact socket (a lever). Lit by a beam: a beam of light reaching it (a light sensor). It stays on, is on only while held down, goes back after some seconds (ticking), or flips each time. Logic’s On switch runs each time it turns on or off.',
   lock: 'A lock: its first two states are locked and open. Action at its interact socket opens it when the hero has the key: a small key found on this map (used up), the boss key (kept), or any item you name. Logic’s On unlocked runs when it opens.',
+  climbable:
+    'Climbable: the hero walking into it holds on and climbs it like a ladder — forward up, back down, off at the bottom; at the top it climbs over onto it or onto what is beyond. Jump lets go. Vines and the Ladder are climbable.',
   pickup:
     'A pickup: when the hero touches it, it is gone and the hero has the item. A small key, the boss key, the dungeon map and the compass belong to the map where they are found; a heart heals; anything else goes into the inventory. Logic’s On picked up runs.',
 };
@@ -39,7 +41,11 @@ const BY_LABEL: Record<SwitchDef['by'], string> = {
  * A switch or lock on an asset with one state gets an off/on (locked/open) pair of states added.
  */
 export function PuzzleSection({ def, reset }: { def: Asset; reset: (to: Asset, label: string) => void }) {
-  const set = <K extends 'push' | 'switch' | 'lock' | 'pickup'>(k: K, v: Asset[K] | undefined, label: string) => {
+  const set = <K extends 'push' | 'switch' | 'lock' | 'pickup' | 'climbable'>(
+    k: K,
+    v: Asset[K] | undefined,
+    label: string,
+  ) => {
     const { [k]: _old, ...rest } = def;
     let next = (v === undefined ? rest : { ...rest, [k]: v }) as Asset;
     // a switch or a lock needs two states: add them when the asset has one
@@ -61,6 +67,15 @@ export function PuzzleSection({ def, reset }: { def: Asset; reset: (to: Asset, l
       <div class="sech">
         <span>Puzzle</span>
       </div>
+      <label class="lbl" data-tour="asset-climbable">
+        <input
+          type="checkbox"
+          checked={!!def.climbable}
+          onChange={() => set('climbable', def.climbable ? undefined : true, 'Climbable')}
+        />{' '}
+        Climbable (like a ladder)
+        <FieldHelp label="Climbable" text={PUZZLE_HELP.climbable} />
+      </label>
       <label class="lbl" data-tour="asset-push">
         <input
           type="checkbox"

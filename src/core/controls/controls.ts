@@ -230,7 +230,19 @@ export function clashOf(c: ReturnType<typeof controlsOf>, b: Bindable, key: stri
 }
 
 /** the things the Action button can do, most important first (the first that fits is what it does) */
-export const ACTION_KINDS = ['talk', 'use', 'read', 'grab', 'climb', 'dive', 'swimUp', 'rebuild', 'jump'] as const;
+export const ACTION_KINDS = [
+  'drop',
+  'talk',
+  'lift',
+  'use',
+  'read',
+  'grab',
+  'climb',
+  'dive',
+  'swimUp',
+  'rebuild',
+  'jump',
+] as const;
 export type ActionKind = (typeof ACTION_KINDS)[number] | 'custom';
 
 export type ActionOffer = { kind: ActionKind; label: string; priority: number };
@@ -244,7 +256,10 @@ export function pickAction(offers: readonly ActionOffer[]): ActionOffer | null {
 
 /** how much each kind matters (higher wins); custom labels on objects sit with Use */
 export const ACTION_PRIORITY: Record<ActionKind, number> = {
+  // step 12b: holding a bomb up, Action puts it down; a bomb (or a bomb plant's) in reach is picked up
+  drop: 95,
   talk: 90,
+  lift: 85,
   use: 80,
   custom: 80,
   read: 70,

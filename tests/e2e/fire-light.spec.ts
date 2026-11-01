@@ -26,7 +26,19 @@ test('Fire and light pieces in the pack and the Fire and light section of the As
   await open(page, errors);
   await page.locator('[data-tour="dock"]').getByRole('button', { name: 'Starter pack', exact: true }).click();
   const pieces = page.getByRole('listbox', { name: 'Pack fire and light' });
-  for (const n of ['Vines', 'Torch stand', 'Bomb bag', 'Hand torch', 'Sun crest', 'Mirror', 'Light sensor'])
+  await expect(
+    page.getByRole('listbox', { name: 'Pack puzzle pieces' }).getByRole('option', { name: /^Ladder/ }),
+  ).toBeVisible();
+  for (const n of [
+    'Vines',
+    'Torch stand',
+    'Bomb bag',
+    'Bomb flower',
+    'Hand torch',
+    'Sun crest',
+    'Mirror',
+    'Light sensor',
+  ])
     await expect(pieces.getByRole('option', { name: new RegExp(`^${n}`) })).toBeVisible();
   // the Asset studio: open the Barrel, make it burn for 4 s
   await page
@@ -51,7 +63,9 @@ test('Fire and light pieces in the pack and the Fire and light section of the As
   expect(errors).toEqual([]);
 });
 
-test('Fire and light course: Do it for me burns, lights, blows up and turns the mirror', async ({ page }) => {
+test('Fire and light course: Do it for me burns, lights, throws a bomb from the flower at the wall and turns the mirror', async ({
+  page,
+}) => {
   test.setTimeout(500_000);
   const errors: string[] = [];
   await open(page, errors);

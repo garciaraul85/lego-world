@@ -354,6 +354,12 @@ const ACTION_LABEL: Record<AnimAction, string> = {
   swim: 'Swim (moving in deep water)',
   tread: 'Tread water (still in deep water)',
   climb: 'Climb (onto a ledge)',
+  ladder: 'Ladder (climbing a ladder or vines)',
+  lift: 'Lift (picking a bomb up over the head)',
+  throw: 'Throw (throwing what it holds)',
+  drop: 'Put down (setting what it holds down)',
+  carry: 'Carry (walking, holding it up)',
+  hold: 'Hold up (standing, holding it up)',
   push: 'Push (leaning into a push block)',
   pull: 'Pull (holding a block to pull it)',
 };

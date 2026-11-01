@@ -95,6 +95,9 @@ const BLOCK_WEIGHT = 3;
 const CLIMB_REACH = 0.18;
 const CLIMB_UP = 0.62;
 const CLIMB_OVER = 0.3;
+/** step 12b: climbing a ladder or vines: studs a second up or down; how long the hero leans in on turning a mirror */
+const LADDER_SPEED = 2.4;
+const TURN_POSE = 0.8;
 
 type Box = { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number };
 
@@ -225,7 +228,11 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     const s = this.h.heroState;
     if (this.h.dungeon()) this.record().seen.add(`${Math.floor(s.x / SEEN_CELL)},${Math.floor(s.z / SEEN_CELL)}`);
     this.stepSlide(dt);
-    if (!this.slide && !this.climbing && this.h.free()) {
+    if (this.turnPose) {
+      this.turnPose.t -= dt;
+      if (this.turnPose.t <= 0) this.turnPose = null;
+    }
+    if (!this.slide && !this.climbing && !this.ladder && this.h.free()) {
       this.stepGrab(dt);
       this.stepClimbStart(dt);
     } else this.climbTry = null;
@@ -447,6 +454,8 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   /** how the hero stands: climbing, leaning into a block (push), holding or pulling one, or neither */
   get pose(): 'push' | 'pull' | 'climb' | null {
     if (this.climbing) return 'climb';
+    // step 12b: turning a mirror: a shove one way, a tug back the other
+    if (this.turnPose) return this.turnPose.kind;
     const sl = this.slide;
     if (sl) return sl.pulled ? 'pull' : 'push';
     if (this.grab) return this.grab.lean === 'push' ? 'push' : 'pull';
@@ -454,6 +463,79 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   }
 
   // ---------- climbing ----------
+
+  /** step 12b: leaning into a mirror to turn it (push) or tugging it back (pull), for a moment */
+  private turnPose: { kind: 'push' | 'pull'; t: number } | null = null;
+
+  /** step 12b: on a ladder or vines: what, and where the hero holds on (x, z), facing it */
+  ladder: { o: T; x: number; z: number; heading: number; y0: number } | null = null;
+
+  /** the climbable thing right in front of the hero (a ladder, vines), or null */
+  private climbableAhead(fx: number, fz: number): T | null {
+    const s = this.h.heroState;
+    const ax = s.x + fx * 0.9;
+    const az = s.z + fz * 0.9;
+    for (const o of this.h.near(ax, az, 8)) {
+      if (!o.def.climbable) continue;
+      const b = boxOf(o.bricks);
+      if (!b || b.y1 * 0.4 <= s.y + 0.6) continue;
+      // just ahead, or the hero already in among it (between a ladder's rails, in the vines)
+      const inside = (x: number, z: number, m: number) => x > b.x0 - m && x < b.x1 + m && z > b.z0 - m && z < b.z1 + m;
+      if (inside(ax, az, 0.35) || inside(s.x, s.z, 0)) return o;
+    }
+    return null;
+  }
+
+  /** onto a ladder: the hero holds on where it stands, facing it */
+  private grabLadder(o: T) {
+    const s = this.h.heroState;
+    this.ladder = { o, x: s.x, z: s.z, heading: s.heading, y0: s.y };
+    this.h.sound('scrape');
+    this.h.log(`Climbing the ${o.def.name.toLowerCase()}`);
+  }
+
+  /**
+   * On a ladder: forward climbs up, back climbs down (off at the bottom); at the top the hero climbs over onto
+   * what is there; jumping lets go. The game holds the hero meanwhile.
+   */
+  stepLadder(dt: number, jump: boolean) {
+    const l = this.ladder;
+    if (!l) return;
+    const s = this.h.heroState;
+    // burnt away, or gone
+    if (!this.h.near(l.x, l.z, 8).includes(l.o) || jump) {
+      this.ladder = null;
+      return;
+    }
+    const fx = Math.sin(l.heading);
+    const fz = Math.cos(l.heading);
+    const want = this.h.moveWish();
+    const along = want.x * fx + want.z * fz;
+    const b = boxOf(l.o.bricks)!;
+    const top = b.y1 * 0.4;
+    let y = s.y + along * LADDER_SPEED * dt;
+    // at the bottom (where it got on, or on something solid), climbing down steps off
+    if (along < 0 && (y <= l.y0 || !this.h.heroClear(l.x, y - 0.05, l.z))) {
+      this.ladder = null;
+      this.h.placeHeroAt(l.x - fx * 0.2, Math.max(l.y0, Math.min(s.y, y)), l.z - fz * 0.2);
+      return;
+    }
+    // hands over the top: climb over onto it (or onto what is beyond it), else hold at the top
+    if (y >= top - 1.2) {
+      for (const d of [0.95, 1.6, 2.3])
+        for (let h = top; h <= top + 1.2 + 1e-6; h += 0.4) {
+          const tx = l.x + fx * d;
+          const tz = l.z + fz * d;
+          if (!this.h.heroClear(tx, h, tz)) continue;
+          this.ladder = null;
+          this.climbing = { from: [l.x, y, l.z], to: [tx, h, tz], t: CLIMB_REACH };
+          return;
+        }
+      y = Math.min(y, top - 1.2);
+    }
+    this.h.placeHeroAt(l.x, Math.max(y, s.y - 1), l.z);
+    s.heading = l.heading;
+  }
 
   /** climbing onto a ledge: from, to, seconds so far */
   climbing: { from: [number, number, number]; to: [number, number, number]; t: number } | null = null;
@@ -467,6 +549,17 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     const fz = Math.cos(s.heading);
     if (!s.grounded || this.grab || Math.hypot(want.x, want.z) < 0.5 || want.x * fx + want.z * fz < 0.7) {
       this.climbTry = null;
+      return;
+    }
+    // step 12b: a ladder or vines in front: hold on and climb
+    const lad = this.climbableAhead(fx, fz);
+    if (lad) {
+      const c0 = this.climbTry;
+      if (!c0 || Math.hypot(s.x - c0.x, s.z - c0.z) > 0.15) this.climbTry = { x: s.x, z: s.z, t: 0 };
+      else if ((c0.t += dt) >= CLIMB_WAIT * 0.5) {
+        this.climbTry = null;
+        this.grabLadder(lad);
+      }
       return;
     }
     const c = this.climbTry;
@@ -589,6 +682,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     if (o.def.mirror && o.def.mirror.turns !== false && o.def.states.length >= 2) {
       const i = Math.max(0, o.def.states.indexOf(o.state));
       this.h.setState(o, o.def.states[i === 0 ? 1 : 0]!);
+      this.turnPose = { kind: i === 0 ? 'push' : 'pull', t: TURN_POSE };
       this.h.sound('click', this.centre(o));
       this.h.log(`${o.def.name} turned`);
       return true;
@@ -757,6 +851,8 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     this.grab = null;
     this.climbing = null;
     this.climbTry = null;
+    this.ladder = null;
+    this.turnPose = null;
     for (const [id, r] of Object.entries(d ?? {})) this.dungeons.set(id, { ...r, seen: new Set(r.seen) });
   }
 }

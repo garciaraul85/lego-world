@@ -28,9 +28,9 @@ export const PUZZLES: HelpEntry[] = [
     ],
     screen: 'assets',
     kind: 'setting',
-    name: 'Puzzle (push block, switch, lock, pickup)',
+    name: 'Puzzle (climbable, push block, switch, lock, pickup)',
     purpose:
-      'What the asset does in a puzzle. A **push block** slides square along the floor when the hero holds Action (Grab) and walks into it, and back when the hero holds Grab and steps back; walked into without Grab, it is climbed. A **switch** turns on when stepped on, hit or pressed, and stays on, stays only while held down, goes back after some seconds, or flips each time. A **lock** opens with a key: a small key (used up), the boss key (kept) or any item. A **pickup** is taken when the hero touches it. Each is one tick in the Asset studio; logic hears them with On switch, On pushed, On unlocked and On picked up.',
+      'What the asset does in a puzzle. **Climbable**: the hero climbs it like a ladder (vines, the Ladder). A **push block** slides square along the floor when the hero holds Action (Grab) and walks into it, and back when the hero holds Grab and steps back; walked into without Grab, it is climbed. A **switch** turns on when stepped on, hit or pressed, and stays on, stays only while held down, goes back after some seconds, or flips each time. A **lock** opens with a key: a small key (used up), the boss key (kept) or any item. A **pickup** is taken when the hero touches it. Each is one tick in the Asset studio; logic hears them with On switch, On pushed, On unlocked and On picked up.',
     steps: [
       'Open the asset in the Asset studio (double-click it in Assets or the Starter pack).',
       'Under **Puzzle**, tick what it is: Push block, Switch, Lock or Pickup.',
@@ -39,6 +39,10 @@ export const PUZZLES: HelpEntry[] = [
       'Press Play and try it.',
     ],
     options: [
+      [
+        'Climbable',
+        'Walking into it, the hero holds on and climbs it like a ladder (its own Ladder clip): forward up, back down and off at the bottom; at the top it climbs over onto it, or onto what is beyond (a ladder against a wall). Jump lets go.',
+      ],
       [
         'Push block',
         'Hold Action (Grab) at it: arrows on the floor show the two ways (yellow: push, blue: pull) and the HUD says which key does which (“▲ W push · ▼ S pull”). Walk into it: the hero leans in, hands on it, and it slides its own size (or the studs you set) square along the floor, the hero walking behind. It stops at walls and other blocks, steps up onto a switch and holds it down, and stays on a switch until you let go of the stick and push again. Can be pulled: hold Grab and step back; the hero sits back and pulls. Walking into it without Grab climbs on top. A character sheet can set its own Push, Pull and Climb clips.',

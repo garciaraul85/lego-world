@@ -282,7 +282,134 @@ const climb = clipFromPoses({ id: 'clp_moveclimb0', name: 'Climb', group: 'Moves
   [0.92, standUp],
 ]);
 
-export const MOVE_CLIPS: Clip[] = [walk, run, jump, swing, flinch, breathe, swim, tread, push, pull, climb];
+/**
+ * step 12b: climbing a ladder or vines (a loop): one hand reaches up while the other pulls, the knee on the same
+ * side comes up to the next rung, then the other side
+ */
+const rung = (k: number) => ({
+  'leftArm.x': k > 0 ? -2.95 : -2.2,
+  'rightArm.x': k > 0 ? -2.2 : -2.95,
+  'leftForearm.bend': k > 0 ? -0.2 : -1.3,
+  'rightForearm.bend': k > 0 ? -1.3 : -0.2,
+  'leftLeg.x': k > 0 ? -0.95 : -0.15,
+  'rightLeg.x': k > 0 ? -0.15 : -0.95,
+  'leftShin.bend': k > 0 ? 1.4 : 0.35,
+  'rightShin.bend': k > 0 ? 0.35 : 1.4,
+  'torso.lean': 0.08,
+  'root.height': 1.78,
+});
+const ladder = clipFromPoses({ id: 'clp_moveladdr0', name: 'Ladder', group: 'Moves', length: 1.0, loop: true }, [
+  [0, rung(1)],
+  [0.5, rung(-1)],
+  [1.0, rung(1)],
+]);
+
+/**
+ * step 12b: picking a bomb up over the head (bend, grab low, lift), holding it up (standing, and walking), throwing
+ * it (arms back over the head, then forward and down), and putting it down (bend forward, arms down)
+ */
+const overhead = {
+  'leftArm.x': -3.0,
+  'rightArm.x': -3.0,
+  'leftForearm.bend': -0.4,
+  'rightForearm.bend': -0.4,
+  'leftArm.z': 0.18,
+  'rightArm.z': -0.18,
+};
+const low = {
+  'leftArm.x': -0.9,
+  'rightArm.x': -0.9,
+  'leftForearm.bend': -0.3,
+  'rightForearm.bend': -0.3,
+  'torso.lean': 0.65,
+  'leftShin.bend': 0.9,
+  'rightShin.bend': 0.9,
+  'leftLeg.x': -0.45,
+  'rightLeg.x': -0.45,
+  'root.height': 1.45,
+};
+const upright = {
+  'torso.lean': 0,
+  'leftShin.bend': 0.05,
+  'rightShin.bend': 0.05,
+  'leftLeg.x': 0,
+  'rightLeg.x': 0,
+  'root.height': 1.78,
+};
+const lift = clipFromPoses({ id: 'clp_movelift00', name: 'Lift', group: 'Moves', length: 0.45, loop: false }, [
+  [0, low],
+  [0.15, low],
+  [0.3, { ...upright, 'leftArm.x': -1.8, 'rightArm.x': -1.8, 'leftForearm.bend': -1.2, 'rightForearm.bend': -1.2 }],
+  [0.45, { ...upright, ...overhead }],
+]);
+const hold = clipFromPoses({ id: 'clp_movehold00', name: 'Hold up', group: 'Moves', length: 1.6, loop: true }, [
+  [0, { ...upright, ...overhead }],
+  [0.8, { ...upright, ...overhead, 'root.height': 1.75, 'leftForearm.bend': -0.85, 'rightForearm.bend': -0.85 }],
+  [1.6, { ...upright, ...overhead }],
+]);
+const carryStep = (leg: number, shin: [number, number]) => ({
+  ...overhead,
+  'leftLeg.x': -leg,
+  'rightLeg.x': leg,
+  'leftShin.bend': shin[0],
+  'rightShin.bend': shin[1],
+  'torso.lean': 0.05,
+  'root.height': 1.78,
+});
+const carry = clipFromPoses({ id: 'clp_movecarry0', name: 'Carry', group: 'Moves', length: 0.8, loop: true }, [
+  [0, carryStep(0.45, [0.08, 0.3])],
+  [0.2, { ...carryStep(0, [0.05, 0.6]), 'root.height': 1.84 }],
+  [0.4, carryStep(-0.45, [0.3, 0.08])],
+  [0.6, { ...carryStep(0, [0.6, 0.05]), 'root.height': 1.84 }],
+  [0.8, carryStep(0.45, [0.08, 0.3])],
+]);
+const toss = clipFromPoses({ id: 'clp_movethrow0', name: 'Throw', group: 'Moves', length: 0.35, loop: false }, [
+  [0, { ...upright, ...overhead, 'leftArm.x': -3.2, 'rightArm.x': -3.2, 'torso.lean': -0.25 }],
+  [0.12, { ...upright, ...overhead, 'leftArm.x': -3.3, 'rightArm.x': -3.3, 'torso.lean': -0.3, 'rightLeg.x': 0.3 }],
+  [
+    0.24,
+    {
+      ...upright,
+      'leftArm.x': -1.4,
+      'rightArm.x': -1.4,
+      'leftForearm.bend': -0.1,
+      'rightForearm.bend': -0.1,
+      'torso.lean': 0.35,
+      'leftLeg.x': -0.4,
+      'rightLeg.x': 0.3,
+    },
+  ],
+  [
+    0.35,
+    { ...upright, 'leftArm.x': -0.7, 'rightArm.x': -0.7, 'torso.lean': 0.15, 'leftLeg.x': -0.3, 'rightLeg.x': 0.2 },
+  ],
+]);
+const putDown = clipFromPoses({ id: 'clp_movedrop00', name: 'Put down', group: 'Moves', length: 0.4, loop: false }, [
+  [0, { ...upright, ...overhead }],
+  [0.2, { ...low, 'leftArm.x': -1.3, 'rightArm.x': -1.3 }],
+  [0.3, low],
+  [0.4, { ...upright, 'leftArm.x': -0.3, 'rightArm.x': -0.3 }],
+]);
+
+export const MOVE_CLIPS: Clip[] = [
+  walk,
+  run,
+  jump,
+  swing,
+  flinch,
+  breathe,
+  swim,
+  tread,
+  push,
+  pull,
+  climb,
+  ladder,
+  lift,
+  hold,
+  carry,
+  toss,
+  putDown,
+];
 
 /** the state each built-in move is made for (Use the built-in moves on the character sheet) */
 export const MOVE_FOR = {
@@ -297,4 +424,10 @@ export const MOVE_FOR = {
   push: push.id,
   pull: pull.id,
   climb: climb.id,
+  ladder: ladder.id,
+  lift: lift.id,
+  throw: toss.id,
+  drop: putDown.id,
+  carry: carry.id,
+  hold: hold.id,
 } as const;
