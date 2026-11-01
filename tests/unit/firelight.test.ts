@@ -5,7 +5,7 @@ import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
 import { puzzleProblems } from '../../src/core/puzzles/puzzle';
 import { paths, validateFile } from '../../src/core/schema';
-import { FUSE } from '../../src/engine/runtime/firelight';
+import { BRANCH_SECONDS, FUSE } from '../../src/engine/runtime/firelight';
 import { PlaySession } from '../../src/engine/runtime/session';
 
 /** Step 12b: fire (burnable things, torch stands, the Torch), bombs, and beams of light with mirrors and sensors. */
@@ -161,7 +161,7 @@ const broken = (p: PlaySession, id: string) =>
   (p as unknown as { smashedIds(): Set<string> }).smashedIds().has(id);
 
 describe('bombs', () => {
-  it('the Bomb bag’s bombs go into an item button; the button lifts one, lit, over the head; again throws it at the wall', () => {
+  it('the Bomb bag’s bombs go into an item button; the button lifts one, lit, held up; Action while walking throws it at the wall', () => {
     const { p, get } = game([
       ['Cracked wall', [20, 0, 10], 'ins_wall000001'],
       ['Crystal switch', [17, 0, 8], 'ins_crystal001'],
@@ -185,20 +185,29 @@ describe('bombs', () => {
     steps(p, 0.5);
     expect(p.fireLight.carryPose).toBe('hold');
     expect(heroState(p)).toBe('hold');
-    // over the head, and the Action button puts it down
+    // held up in front of the face; standing still the Action button says Put down, walking it says Throw
     expect(p.fireLight.held!.y).toBeGreaterThan(2.5);
-    expect(offers(p)).toContain('drop');
-    expect(p.buttonViews().find((b) => b.id === 'attack')!.label).toBe('Throw');
-    // the item button again: thrown, it flies to the wall and lands at its foot
-    p.useItem('Bomb', slot);
+    const label = () =>
+      (p as unknown as { offersNow(): { kind: string; label: string }[] }).offersNow().find((o) => o.kind === 'drop')
+        ?.label;
+    expect(label()).toBe('Put down');
+    // Attack does nothing with a bomb held up
+    expect(p.buttonViews().find((b) => b.id === 'attack')!.label).toBe('Attack');
+    p.camYaw = Math.PI;
+    p.input.keys.add('forward');
+    expect(label()).toBe('Throw');
+    // Action while walking: thrown, it flies to the wall and lands at its foot
+    (p as unknown as { releaseBomb(): void }).releaseBomb();
+    p.input.keys.delete('forward');
     expect(p.fireLight.held).toBeNull();
     steps(p, 0.1);
     expect(heroState(p)).toBe('throw');
     steps(p, 1.0);
+    // it hit the wall (rolling back a little off it: the physics engine moves it) and lies near its foot
     const b = p.fireLight.bombs[0]!;
-    expect(b.z).toBeGreaterThan(8.5);
+    expect(b.z).toBeGreaterThan(7.5);
     expect(b.z).toBeLessThan(10.2);
-    expect(b.vx + b.vy + b.vz).toBe(0);
+    expect(b.y).toBeLessThan(1);
     p.placeAt([21.5, 0.4, 2], 0);
     steps(p, FUSE - 1.6);
     expect(p.fireLight.bombs).toHaveLength(0);
@@ -263,6 +272,42 @@ describe('bombs', () => {
     steps(p, FUSE + 2);
     expect(broken(p, 'ins_wall000001')).toBe(true);
     expect(flower().state).toBe('picked');
+  });
+});
+
+describe('a burning branch', () => {
+  it('picked up, held to the Burning torch it catches; it burns the vines; after its seconds it is used up and its flame gone', () => {
+    const { p, get } = game([
+      ['Branch', [10, 0, 6], 'ins_branch0001'],
+      ['Burning torch', [10, 0, 14], 'ins_burntorch1'],
+      ['Vines', [20, 0, 14], 'ins_vines00001'],
+    ]);
+    expect(piece('Burning torch').initialState).toBe('lit');
+    p.placeAt([11, 0.4, 7.4], 0);
+    steps(p, 0.5);
+    expect(p.inventory.get('Branch')).toBe(1);
+    const slot = () => p.buttons.slots.indexOf('Branch') + 1;
+    expect(slot()).toBeGreaterThan(0);
+    // away from any fire: nothing
+    p.useItem('Branch', slot());
+    expect(p.fireLight.litBranch).toBeNull();
+    // at the burning torch: it catches
+    p.placeAt([10.5, 0.4, 12.6], 0);
+    steps(p, 0.5);
+    p.useItem('Branch', slot());
+    expect(p.fireLight.litBranch).toBeTruthy();
+    // at the vines: they catch
+    p.placeAt([22.5, 0.4, 12.4], 0);
+    p.useItem('Branch', slot());
+    expect(p.fireLight.burning.has('ins_vines00001')).toBe(true);
+    steps(p, 4);
+    expect(get('ins_vines00001')).toBeUndefined();
+    // the vines' flames are gone with them
+    expect(p.fireLight.burning.size).toBe(0);
+    // it burns up: no branch, no flame
+    steps(p, BRANCH_SECONDS);
+    expect(p.fireLight.litBranch).toBeNull();
+    expect(p.inventory.get('Branch') ?? 0).toBe(0);
   });
 });
 

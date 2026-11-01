@@ -308,13 +308,14 @@ const ladder = clipFromPoses({ id: 'clp_moveladdr0', name: 'Ladder', group: 'Mov
  * step 12b: picking a bomb up over the head (bend, grab low, lift), holding it up (standing, and walking), throwing
  * it (arms back over the head, then forward and down), and putting it down (bend forward, arms down)
  */
+// held up in front of the face, both hands on its sides (the arms raised forward, elbows a little bent)
 const overhead = {
-  'leftArm.x': -3.0,
-  'rightArm.x': -3.0,
-  'leftForearm.bend': -0.4,
-  'rightForearm.bend': -0.4,
-  'leftArm.z': 0.18,
-  'rightArm.z': -0.18,
+  'leftArm.x': -2.3,
+  'rightArm.x': -2.3,
+  'leftForearm.bend': -0.35,
+  'rightForearm.bend': -0.35,
+  'leftArm.z': 0.2,
+  'rightArm.z': -0.2,
 };
 const low = {
   'leftArm.x': -0.9,

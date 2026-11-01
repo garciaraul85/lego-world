@@ -87,7 +87,7 @@ export const FIRE_LIGHT: HelpEntry[] = [
     kind: 'list',
     name: 'Starter pack › Fire and light',
     purpose:
-      'Ready-made pieces: **Vines**, a **Wooden barricade** and a **Spider web** that burn away; a **Torch stand** that fire lights and a **Timed torch** that goes out again after 12 s; a **Bomb bag** (five Bombs) and a **Hand torch** (the Torch) for the hero to pick up; a **Bomb flower** that grows a bomb to pick (another after a miss); a **Sun crest** that shines a beam, a **Mirror** to turn it, and a **Light sensor** that turns on while a beam reaches it.',
+      'Ready-made pieces: **Vines**, a **Wooden barricade** and a **Spider web** that burn away; a **Torch stand** that fire lights and a **Timed torch** that goes out again after 12 s; a **Bomb bag** (five Bombs) and a **Hand torch** (the Torch) for the hero to pick up; a **Bomb flower** that grows a bomb to pick (another after a miss); a **Branch** to light at a fire, and a **Burning torch** that is alight from the start; a **Sun crest** that shines a beam, a **Mirror** to turn it, and a **Light sensor** that turns on while a beam reaches it.',
     steps: [
       'Open **Starter pack** in the bottom dock and scroll to Fire and light.',
       'Drag a piece onto the map, or click it and click the ground (T turns it: aim a Sun crest this way).',
@@ -117,11 +117,11 @@ export const FIRE_LIGHT: HelpEntry[] = [
     kind: 'setting',
     name: 'Bombs and the Torch',
     purpose:
-      'Two items do something by themselves when the hero uses them (an item button: J, K…). A **Bomb**’s button lifts one, lit, up over the hero’s head; the button again or **Attack** (Throw) throws it in an arc, **Action** (Put down) sets it down in front. It fizzes, blinks red and goes off 4 seconds after it was lit (held too long, in the hands). A lit bomb lying nearby, or a **Bomb flower**’s bomb, is picked up with Action. Its blast breaks a cracked wall (anything only explosions break), flips switches that answer explosions, sets burnable things alight, hurts enemies in it, and costs the hero a heart if too close. The **Torch** waves a flame in front of the hero: burnable things catch, torch stands light, and enemies that fear fire are hurt. Picked up (a Bomb bag, a Hand torch, or Give item), each goes into an empty item button. Logic hears them as well (On item used).',
+      'Items that do something by themselves from an item button (J, K…). A **Bomb**’s button lifts one, lit, held up in front of the hero’s face in both hands; then **Action** throws it while the hero walks (Throw: an arc, a thud against a wall, a short roll, moved by the physics engine) or puts it down in front while it stands (Put down). It fizzes, blinks red and goes off 4 seconds after it was lit (held too long, in the hands). A lit bomb lying nearby, or a **Bomb flower**’s bomb, is picked up with Action. A **Branch** held to a fire (its button next to a burning torch or something burning) catches; burning, it works like the Torch for 30 seconds, then it is used up. Its blast breaks a cracked wall (anything only explosions break), flips switches that answer explosions, sets burnable things alight, hurts enemies in it, and costs the hero a heart if too close. The **Torch** waves a flame in front of the hero: burnable things catch, torch stands light, and enemies that fear fire are hurt. Picked up (a Bomb bag, a Hand torch, or Give item), each goes into an empty item button. Logic hears them as well (On item used).',
     steps: [
       'Place a Bomb bag or a Hand torch (Starter pack › Fire and light), or give the item with logic.',
       'In Play, walk over it: its item button shows it.',
-      'Press that button (J or K) facing what you want to burn; for a bomb, press it, then throw (the button again, or Attack) or put it down (Action), and step back.',
+      'Press that button (J or K) facing what you want to burn; for a bomb, press it, then Action: walking throws it, standing puts it down; step back. A branch: press its button by a fire first.',
     ],
     tips: ['A hero holding a torch (its character’s held item: Torch) burns things with its attack too.'],
     related: ['pack.fireLight', 'asset.fireLight'],

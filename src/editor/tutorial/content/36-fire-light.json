@@ -5,7 +5,7 @@
     {
       "id": "fl.open",
       "title": "Fire and light",
-      "body": "Vines that burn away, torch stands to light, bombs that break cracked walls, and beams of light that mirrors turn onto a sensor: they are under Starter pack › Fire and light, and each works by itself.",
+      "body": "Vines that burn away, torches to light, bombs that break cracked walls, and beams of light that mirrors turn onto a sensor: they are under Starter pack › Fire and light, and each works by itself.",
       "task": "Open Starter pack in the bottom dock.",
       "target": "[data-tour=\"dock\"]",
       "check": {
@@ -29,14 +29,14 @@
     },
     {
       "id": "fl.place",
-      "title": "Vines, a torch and a torch stand",
-      "body": "Place Vines across the way 6 studs in front of the start, a Hand torch 3 studs ahead and a little to the left (not right at the start, or the hero picks it up the moment Play starts), and a Torch stand ahead to the right. The Hand torch is the Torch item: it stands upright with its tip burning, and walking over it puts it into an item button.",
-      "task": "Place Vines, a Hand torch and a Torch stand.",
+      "title": "Vines, a branch and two torches",
+      "body": "Place Vines across the way 6 studs in front of the start, a Branch on the ground 3 studs ahead and a little to the left, a Burning torch (already alight) 2 studs ahead to the right, and a Torch stand (not lit) further to the right.",
+      "task": "Place Vines, a Branch, a Burning torch and a Torch stand.",
       "target": "[aria-label=\"Fire and light\"]",
       "check": {
         "kind": "state",
         "test": "assetsOnMap",
-        "args": "Vines,Hand torch,Torch stand"
+        "args": "Vines,Branch,Burning torch,Torch stand"
       },
       "doItForMe": [
         {
@@ -49,7 +49,7 @@
         {
           "fn": "placePuzzle",
           "args": {
-            "name": "Hand torch",
+            "name": "Branch",
             "ahead": 3,
             "side": 4
           }
@@ -57,9 +57,17 @@
         {
           "fn": "placePuzzle",
           "args": {
+            "name": "Burning torch",
+            "ahead": 2,
+            "side": -3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
             "name": "Torch stand",
             "ahead": 3,
-            "side": -5
+            "side": -6
           }
         }
       ],
@@ -68,9 +76,9 @@
     },
     {
       "id": "fl.burn",
-      "title": "Burn the vines",
-      "body": "Press Play and walk over the Hand torch (its tip is burning): it goes into item button 1 (J). The vines are tall: walk into them and keep walking, and the hero climbs (W up, S down; the hands and feet move only while you climb; Space lets go). Then stand in front of them and press J: a flame sets them alight, and they burn away. Vines touching them catch too.",
-      "task": "Press Play, take the torch and burn the vines.",
+      "title": "Light the branch, burn the vines",
+      "body": "Press Play and walk over the Branch: it goes into item button 1 (J). Walk up to the Burning torch and press J: the branch catches fire (it burns for 30 seconds, then it is used up). Walk to the vines and press J: they burn away. The vines are tall: you can also climb them (walk into them; W up, S down, Space lets go).",
+      "task": "Press Play, light the branch at the Burning torch and burn the vines.",
       "target": "[data-tour=\"play\"]",
       "check": {
         "kind": "state",
@@ -91,8 +99,8 @@
     {
       "id": "fl.light",
       "title": "Light the torch stand",
-      "body": "Walk to the torch stand and press J again: it lights and stays lit. A torch stand only answers fire, so a sword does nothing to it. A Timed torch goes out again after its seconds; Light all the torches (Scripts and cutscenes) opens a gate when they all burn.",
-      "task": "Light the torch stand with the torch.",
+      "body": "Walk to the unlit torch stand and press J with the branch still burning: the stand lights and stays lit. If the branch has burned up, take another, or light a new one at the Burning torch. A torch stand only answers fire. A Timed torch goes out again after its seconds; Light all the torches (Scripts and cutscenes) opens a gate when they all burn.",
+      "task": "Light the torch stand with the burning branch.",
       "target": "[aria-label=\"Play view\"]",
       "check": {
         "kind": "state",
@@ -148,7 +156,7 @@
     {
       "id": "fl.blast",
       "title": "Blow it up",
-      "body": "Press Play. Walk up to the Bomb flower and press E (Pick up): the hero lifts a lit bomb over its head. Throw it at the wall with F (the Attack button says Throw), or carry it to the wall and put it down with E, then step back. It goes off after 4 seconds and the wall breaks. Missed? The flower grows a new bomb: try again. (A Bomb bag gives bombs for an item button instead: K lifts one, K or F throws it.)",
+      "body": "Press Play. Walk up to the Bomb flower and press E (Pick up): the hero lifts a lit bomb and holds it up in front. Walk toward the wall and press E: the bomb is thrown (Action throws while you walk). Or stand still by the wall and press E to put it down, then step back. It goes off after 4 seconds and the wall breaks. Missed? The flower grows a new bomb: try again.",
       "task": "Press Play, pick a bomb from the flower and break the wall.",
       "target": "[data-tour=\"play\"]",
       "check": {
@@ -214,7 +222,7 @@
     {
       "id": "fl.done",
       "title": "Done!",
-      "body": "You burned vines and lit a torch stand with the Torch, blew up a cracked wall with a bomb, and turned a mirror to bring a beam of light onto a sensor. Make your own in the Asset studio: Fire and light › Burns, Shines a beam, Mirror; a switch Lit by a beam, or Hit by Fire.",
+      "body": "You lit a branch at a burning torch and burned the vines with it, lit a torch stand, threw a bomb from a bomb flower at a cracked wall, and turned a mirror to bring a beam of light onto a sensor. Make your own in the Asset studio: Fire and light › Burns, Shines a beam, Flame, Grows bombs, Mirror; a switch Lit by a beam, or Hit by Fire.",
       "task": "Press Finish.",
       "check": {
         "kind": "manual"

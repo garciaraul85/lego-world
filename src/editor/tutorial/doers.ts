@@ -1502,32 +1502,36 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   // step 12b: the Fire and light course
   async burnVines(c) {
-    // what walking over the Hand torch and pressing its item button (J) at the vines does
+    // what walking over the Branch, pressing its item button (J) at the Burning torch (it catches) and again at the
+    // vines does
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
-    await takePickup(s, 'Hand torch', 'Torch');
+    await takePickup(s, 'Branch', 'Branch');
+    await lightBranch(s);
     const vines = s.world.instances.find((i) => i.def.name === 'Vines');
     if (!vines) return;
     faceThing(s, vines, 1.1);
     await wait(300);
-    s.useItem('Torch', slotOf(s, 'Torch'));
+    s.useItem('Branch', slotOf(s, 'Branch'));
     for (let i = 0; i < 30 && s.world.instances.includes(vines); i++) await wait(250);
   },
   async lightTorch(c) {
-    // what pressing the Torch's item button at the torch stand does
+    // what pressing the burning Branch's item button at the torch stand does (lit again at the Burning torch first,
+    // if it has gone out)
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
-    await takePickup(s, 'Hand torch', 'Torch');
+    await takePickup(s, 'Branch', 'Branch');
+    await lightBranch(s);
     const stand = s.world.instances.find((i) => i.def.name === 'Torch stand');
     if (!stand) throw new Error('Place a Torch stand first.');
     faceThing(s, stand, 1.1);
     await wait(300);
-    s.useItem('Torch', slotOf(s, 'Torch'));
+    s.useItem('Branch', slotOf(s, 'Branch'));
     await wait(300);
   },
   async blastWall(c) {
-    // what pressing Action at the Bomb flower (a lit bomb up over the head), facing the wall from a few studs away
-    // and throwing it (Attack) does — again with the bomb the flower grows after a miss, until the wall breaks
+    // what pressing Action at the Bomb flower (a lit bomb held up), facing the wall from a few studs away and
+    // throwing it (Action while walking) does — again with the bomb the flower grows after a miss, until the wall breaks
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
     const wall = s.world.instances.find((i) => i.def.name === 'Cracked wall');
@@ -1930,6 +1934,17 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** the hero walks over a pickup (if it has none of its item yet) and waits for it to be taken */
+/** the carried branch alight: held to the Burning torch (its button), unless it is burning already */
+async function lightBranch(s: NonNullable<Ctx['ed']['session']['value']>) {
+  if (s.fireLight.litBranch) return;
+  const fire = s.world.instances.find((i) => i.def.name === 'Burning torch');
+  if (!fire) throw new Error('Place a Burning torch first.');
+  faceThing(s, fire, 0.5);
+  await wait(500);
+  s.useItem('Branch', slotOf(s, 'Branch'));
+  for (let i = 0; i < 10 && !s.fireLight.litBranch; i++) await wait(150);
+}
+
 async function takePickup(s: NonNullable<Ctx['ed']['session']['value']>, name: string, item: string) {
   if ((s.inventory.get(item) ?? 0) > 0) return;
   const o = s.world.instances.find((i) => i.def.name === name);

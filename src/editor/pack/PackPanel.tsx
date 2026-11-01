@@ -32,7 +32,7 @@ const fireOrLight = (a: (typeof BUILTIN_ASSETS)[number]) =>
   !!(a.burn || a.beam || a.mirror || a.bombPlant) ||
   a.switch?.by === 'light' ||
   !!a.switch?.hitBy?.includes('fire') ||
-  /^(bombs?|torch)$/i.test(a.pickup?.item ?? '');
+  /^(bombs?|torch|branch)$/i.test(a.pickup?.item ?? '');
 
 export function PackPanel({ c }: { c: ActionCtx }) {
   const { ed } = c;

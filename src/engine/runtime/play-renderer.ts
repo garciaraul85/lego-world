@@ -17,7 +17,7 @@ import { createSceneRenderer, type RendererChoice, type SceneRenderer } from '..
 import { FRAGMENT } from '../render/shaders';
 import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../render/stream';
 import { waterSurface } from '../render/water';
-import { FUSE } from './firelight';
+import { BOMB_R, FUSE } from './firelight';
 import { chunkKeyOf, indexByChunk } from './pieces';
 import { boxOf as boxOfBricks } from './puzzles';
 import type { MapWorld, PlaySession } from './session';
@@ -233,38 +233,9 @@ export class PlayRenderer {
       const cx = (bx.x0 + bx.x1) / 2;
       const cz = (bx.z0 + bx.z1) / 2;
       const top = bx.y1 * 0.4;
-      out.push({ pos: [cx, top + 0.42, cz], size: [0.85, 0.85, 0.85], color: [0.1, 0.1, 0.13], sphere: true });
-      out.push({
-        pos: [cx + 0.17, top + 0.66, cz - 0.11],
-        size: [0.18, 0.18, 0.18],
-        color: [0.55, 0.58, 0.66],
-        sphere: true,
-      });
-      out.push({ pos: [cx, top + 0.92, cz], size: [0.12, 0.18, 0.12], color: [0.55, 0.42, 0.25] });
+      bombShape(out, cx, top, cz, null, now);
     }
-    for (const b of fl.bombs) {
-      // a round black bomb with a short fuse and a spark that blinks faster near the end
-      out.push({ pos: [b.x, b.y + 0.45, b.z], size: [0.9, 0.9, 0.9], color: [0.1, 0.1, 0.13], sphere: true });
-      out.push({
-        pos: [b.x + 0.18, b.y + 0.72, b.z - 0.12],
-        size: [0.2, 0.2, 0.2],
-        color: [0.55, 0.58, 0.66],
-        sphere: true,
-      });
-      out.push({ pos: [b.x, b.y + 0.98, b.z], size: [0.12, 0.2, 0.12], color: [0.55, 0.42, 0.25] });
-      const blink = b.t > FUSE - 0.8 ? 12 : 4;
-      if (Math.floor(now * blink) % 2 === 0)
-        out.push({ pos: [b.x, b.y + 1.12, b.z], size: [0.22, 0.22, 0.22], color: [1, 0.75, 0.2], sphere: true });
-      // it glows red as it is about to go off
-      if (b.t > FUSE - 0.8)
-        out.push({
-          pos: [b.x, b.y + 0.45, b.z],
-          size: [1.05, 1.05, 1.05],
-          color: [1, 0.2, 0.1],
-          alpha: 0.35,
-          sphere: true,
-        });
-    }
+    for (const b of fl.bombs) bombShape(out, b.x, b.y, b.z, b.t, now);
     return out;
   }
 
@@ -724,4 +695,32 @@ export function shaken<C extends CameraFrame>(c: C, [dx, dy, roll]: [number, num
     c.eye[2] + c.right[2] * dx + c.up[2] * dy,
   ];
   return { ...c, eye, right, up };
+}
+
+/**
+ * step 12b: a round black bomb (BOMB_R) standing on y: a shine, a short fuse, and once lit a spark that blinks faster
+ * near the end, glowing red just before it goes off
+ */
+function bombShape(out: Marker[], x: number, y: number, z: number, lit: number | null, now: number) {
+  const r = BOMB_R;
+  out.push({ pos: [x, y + r, z], size: [2 * r, 2 * r, 2 * r], color: [0.1, 0.1, 0.13], sphere: true });
+  out.push({
+    pos: [x + r * 0.4, y + r * 1.55, z - r * 0.28],
+    size: [r * 0.42, r * 0.42, r * 0.42],
+    color: [0.55, 0.58, 0.66],
+    sphere: true,
+  });
+  out.push({ pos: [x, y + 2 * r + 0.08, z], size: [0.14, 0.24, 0.14], color: [0.55, 0.42, 0.25] });
+  if (lit === null) return;
+  const blink = lit > FUSE - 0.8 ? 12 : 4;
+  if (Math.floor(now * blink) % 2 === 0)
+    out.push({ pos: [x, y + 2 * r + 0.26, z], size: [0.26, 0.26, 0.26], color: [1, 0.75, 0.2], sphere: true });
+  if (lit > FUSE - 0.8)
+    out.push({
+      pos: [x, y + r, z],
+      size: [2.2 * r, 2.2 * r, 2.2 * r],
+      color: [1, 0.2, 0.1],
+      alpha: 0.35,
+      sphere: true,
+    });
 }

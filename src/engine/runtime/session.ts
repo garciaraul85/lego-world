@@ -149,7 +149,7 @@ import { ActionRunner, type GameOp } from './actions';
 import { type ButtonHost, GameButtons } from './buttons';
 import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
 import { Enemies } from './enemies';
-import { FireLight } from './firelight';
+import { BOMB_R, BRANCH_SECONDS, FireLight } from './firelight';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, spawnedNpcs } from './health';
 import { ObjectIndex } from './objects';
 import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
@@ -1693,7 +1693,7 @@ export class PlaySession {
     this.inventory.set(item, n);
     this.emit('info', `Got ${count} × ${item} (${n} in total)`);
     // step 12b: a tool (Bomb, Torch) goes into an empty item button, ready to use
-    if (count > 0 && /^(bombs?|torch)$/i.test(item.trim()) && !this.buttons.slots.includes(item)) {
+    if (count > 0 && /^(bombs?|torch|branch)$/i.test(item.trim()) && !this.buttons.slots.includes(item)) {
       const free = Array.from({ length: this.buttons.c.items }, (_, i) => i).find((i) => !this.buttons.slots[i]);
       if (free !== undefined) {
         this.equip(free + 1, item);
@@ -3766,12 +3766,25 @@ export class PlaySession {
       remove: (o) => this.despawn(o.inst.id, true),
       flames: (at, scale, effect) => {
         const h = this.playEffect(effect || FX.fire, at, scale ? { scale } : {});
-        return h ? { stop: () => this.effects.stop(h) } : null;
+        return h ? { stop: () => this.effects.stop(h), move: (p) => this.effects.move(h, p) } : null;
+      },
+      // the lit branch burned up: one Branch fewer (and it leaves its item button when none are left)
+      branchBurnedUp: () => {
+        this.takeItem('Branch', 1);
+        this.say('The branch burned up.', 2);
       },
       sound: (id, at) => this.audio.play(SND[id], at ? { pos: at } : {}),
       blast: (at, r) => this.blastAt(at, r),
       floor: (x, z, y) => this.world.controller.floor(x, z, y),
       heroHeight: () => HERO_HEIGHT * this.L.GamePhysics.scaleOf(this.heroState),
+      // a thrown or put-down bomb rolls, bounces and comes to rest in the physics engine (when it is running)
+      ball: (b, on) => {
+        const ph = this.world.physics;
+        if (!ph) return false;
+        if (on) ph.addBall(b, BOMB_R);
+        else ph.removeBall(b);
+        return true;
+      },
       solidAt: (x, y, z) => {
         const c = this.world.controller as unknown as {
           nearby?(
@@ -3843,13 +3856,24 @@ export class PlaySession {
       const fl = this.fireLight;
       if (fl.busy) return true;
       if (fl.held) {
-        fl.throwHeld();
+        this.releaseBomb();
         return true;
       }
       if (this.pickUpBomb()) return true;
       this.takeItem(item, 1);
       fl.lift();
       this.bombHint();
+      return true;
+    }
+    // step 12b: a branch: held to a fire it catches; alight, it is a torch until it burns up
+    if (name === 'branch') {
+      const fl = this.fireLight;
+      if (fl.litBranch) return this.useTool('torch');
+      if (fl.fireNear(h.x + fx * 1.2, h.z + fz * 1.2, 2.2)) {
+        fl.lightBranch();
+        this.say(`The branch is burning: it lasts ${BRANCH_SECONDS} seconds. Its button sets things alight.`, 2.5);
+      } else
+        this.say('Hold the branch to a fire (a lit torch, something burning) and press its button to light it.', 3);
       return true;
     }
     if (name === 'torch') {
@@ -3865,8 +3889,20 @@ export class PlaySession {
 
   /** step 12b: how to get rid of a lit bomb held up */
   private bombHint() {
-    const k = (b: 'attack' | 'action') => this.buttons.keyOf(b).toUpperCase();
-    this.say(`A lit bomb! ${k('attack')} throws it, ${k('action')} puts it down.`, 2.5);
+    const k = this.buttons.keyOf('action').toUpperCase();
+    this.say(`A lit bomb! Walking, ${k} throws it; standing still, ${k} puts it down.`, 2.5);
+  }
+
+  /** step 12b: the hero is walking (a move key held): Action throws a held bomb then, else it puts it down */
+  private walking(): boolean {
+    const v = this.inputVector();
+    return Math.hypot(v.x, v.z) > 0.2;
+  }
+
+  /** step 12b: a held bomb thrown (walking) or put down (standing still) */
+  private releaseBomb() {
+    if (this.walking()) this.fireLight.throwHeld();
+    else this.fireLight.dropHeld();
   }
 
   /** step 12b: a lit bomb lying in reach, or a bomb plant's bomb, up over the hero's head (true: one was) */
@@ -4388,9 +4424,10 @@ export class PlaySession {
           : { kind: 'swimUp', label: 'Swim up', priority: ACTION_PRIORITY.swimUp },
       );
     }
-    // step 12b: holding a bomb up: put it down; a lit bomb or a bomb plant's bomb in reach: pick it up
+    // step 12b: holding a bomb up: throw it (walking) or put it down (standing); a lit bomb or a bomb plant's bomb
+    // in reach: pick it up
     if (this.fireLight.held && !this.fireLight.busy)
-      out.push({ kind: 'drop', label: 'Put down', priority: ACTION_PRIORITY.drop });
+      out.push({ kind: 'drop', label: this.walking() ? 'Throw' : 'Put down', priority: ACTION_PRIORITY.drop });
     else if (
       !this.fireLight.held &&
       !this.fireLight.busy &&
@@ -4430,19 +4467,16 @@ export class PlaySession {
           return;
         }
         if (!down) return;
-        if (o.kind === 'drop') this.fireLight.dropHeld();
+        if (o.kind === 'drop') this.releaseBomb();
         else if (o.kind === 'lift') this.pickUpBomb();
         else if (o.kind === 'talk') this.talk();
         else if (o.kind === 'use' || o.kind === 'read') this.interact();
         else if (o.kind === 'jump') this.input.jump = true;
         this.logic.fire({ type: 'event.onActionPressed', match: { action: o.label }, payload: { action: o.label } });
       },
-      // step 12b: holding a bomb up, Attack throws it
+      // step 12b: no swinging while holding a bomb up (Action throws or puts it down)
       attack: (down) => {
-        if (this.fireLight.held || this.fireLight.busy) {
-          if (down) this.fireLight.throwHeld();
-          return;
-        }
+        if (this.fireLight.held || this.fireLight.busy) return;
         if (down) this.combat.press();
         else this.combat.release();
       },
@@ -4479,7 +4513,7 @@ export class PlaySession {
   buttonViews(): { id: string; name: string; key: string; label: string; count?: number }[] {
     const b = this.buttons;
     const out: { id: string; name: string; key: string; label: string; count?: number }[] = [
-      { id: 'attack', name: 'Attack', key: b.keyOf('attack'), label: this.fireLight.held ? 'Throw' : 'Attack' },
+      { id: 'attack', name: 'Attack', key: b.keyOf('attack'), label: 'Attack' },
       { id: 'action', name: 'Action', key: b.keyOf('action'), label: b.now?.label ?? '' },
     ];
     if (b.c.jump === 'button') out.push({ id: 'jump', name: 'Jump', key: b.keyOf('jump'), label: 'Jump' });

@@ -28,7 +28,12 @@ export type Bomb = {
   vz: number;
   /** the bomb plant it came from (it may grow another) */
   plant: FireObject | null;
+  /** the physics engine moves it (rolling, bouncing, coming to rest) */
+  phys?: boolean;
 };
+
+/** a bomb's radius (studs) */
+export const BOMB_R = 0.62;
 
 type Piece = {
   id?: number | undefined;
@@ -49,11 +54,19 @@ export type FireHost<T extends FireObject = FireObject> = {
   objectOfPiece(id: number | undefined): T | undefined;
   /** gone from the map (burnt away) */
   remove(o: T): void;
-  /** a fire effect that keeps going until stopped (scale: how big, 1 as made) */
-  flames(at: [number, number, number], scale?: number, effect?: string): { stop(): void } | null;
+  /** a fire effect that keeps going until stopped (scale: how big, 1 as made); it can be moved */
+  flames(
+    at: [number, number, number],
+    scale?: number,
+    effect?: string,
+  ): { stop(): void; move?(at: [number, number, number]): void } | null;
+  /** step 12b: the lit branch has burned up: one Branch fewer */
+  branchBurnedUp?(): void;
   sound(id: 'ignite' | 'fuse' | 'boom' | 'shine', at?: [number, number, number]): void;
   /** the blast of a bomb: what is around it is hurt, broken, flipped or set alight (how many things it hit) */
   blast(at: [number, number, number], radius: number): number;
+  /** a bomb handed to the physics engine (on) or taken back (off): true when the engine moves it */
+  ball?(b: Bomb, on: boolean): boolean;
   /** a solid piece at this point (a thrown bomb stops against it) */
   solidAt?(x: number, y: number, z: number): boolean;
   /** how tall the hero stands (world units): a bomb held up sits on top of its hands */
@@ -81,6 +94,8 @@ const DROP_TIME = 0.4;
 const THROW_SPEED = 7.5;
 const THROW_UP = 4.5;
 const GRAVITY = 18;
+/** step 12b: a lit branch burns this long, then it is gone */
+export const BRANCH_SECONDS = 30;
 /** a bomb plant grows a new bomb this long after its last one went off */
 const REGROW_AFTER = 1.5;
 /** how often beams are traced again (seconds) */
@@ -106,6 +121,8 @@ export class FireLight<T extends FireObject = FireObject> {
   private carry: { phase: 'lift' | 'throw' | 'drop'; t: number } | null = null;
   /** bomb plants near the hero (drawn with their bomb while grown), and the ones growing a bomb again */
   plants: T[] = [];
+  /** step 12b: the branch the hero carries is alight: seconds so far, and its flame (at the hero's hand) */
+  litBranch: { t: number; fx: { stop(): void; move?(at: [number, number, number]): void } | null } | null = null;
   private regrow = new Map<string, { o: T; t: number }>();
   beams: BeamSegment[] = [];
   private lit = new Set<string>();
@@ -220,11 +237,65 @@ export class FireLight<T extends FireObject = FireObject> {
     }
   }
 
+  // ---------- a burning branch ----------
+
+  /** where the hero's hand holds a branch out, its burning end */
+  private branchTip(): [number, number, number] {
+    const s = this.h.heroState;
+    const k = (this.h.heroHeight?.() ?? 4.02) / 4.02;
+    return [
+      s.x + Math.sin(s.heading) * 1.1 * k + Math.cos(s.heading) * 0.6 * k,
+      s.y + 2.6 * k,
+      s.z + Math.cos(s.heading) * 1.1 * k - Math.sin(s.heading) * 0.6 * k,
+    ];
+  }
+
+  /** fire within r of a point: something burning, or a flame on something (a lit torch, a hand torch's tip) */
+  fireNear(x: number, z: number, r: number): boolean {
+    for (const f of this.burning.values()) {
+      const b = boxOf(f.o.bricks as never);
+      if (b && Math.hypot(Math.max(b.x0 - x, 0, x - b.x1), Math.max(b.z0 - z, 0, z - b.z1)) <= r) return true;
+    }
+    for (const f of this.flameFx.values()) {
+      const fl = f.o.def.flame;
+      if (!fl) continue;
+      const at = localToWorld(f.o.def, f.o.inst, fl.at);
+      if (Math.hypot(at[0] - x, at[2] - z) <= r) return true;
+    }
+    return false;
+  }
+
+  /** the carried branch catches fire (it burns BRANCH_SECONDS, then it is gone) */
+  lightBranch(): boolean {
+    if (this.litBranch) return false;
+    this.litBranch = { t: 0, fx: this.h.flames(this.branchTip(), 0.55) };
+    this.h.sound('ignite', this.branchTip());
+    this.h.log('The branch caught fire');
+    return true;
+  }
+
+  /** the lit branch goes out (it burned up, or the hero no longer has it): its flame is gone too */
+  putOutBranch() {
+    this.litBranch?.fx?.stop();
+    this.litBranch = null;
+  }
+
+  private stepBranch(dt: number) {
+    const lb = this.litBranch;
+    if (!lb) return;
+    lb.t += dt;
+    lb.fx?.move?.(this.branchTip());
+    if (lb.t < BRANCH_SECONDS) return;
+    this.putOutBranch();
+    this.h.branchBurnedUp?.();
+    this.h.log('The branch burned up');
+  }
+
   // ---------- bombs ----------
 
   /** a lit bomb put down here (world units) */
   drop(x: number, y: number, z: number, plant?: T): Bomb {
-    const b: Bomb = { x, y, z, t: 0, fizz: 0, vx: 0, vy: 0, vz: 0, plant: plant ?? null };
+    const b: Bomb = { x, y, z, t: 0, fizz: 0, vx: 0, vy: 0, vz: 0, plant: plant ?? null, phys: false };
     this.bombs.push(b);
     this.h.sound('fuse', [x, y, z]);
     return b;
@@ -241,15 +312,20 @@ export class FireLight<T extends FireObject = FireObject> {
     return !!this.carry;
   }
 
-  /** where a held bomb is: over the hero's head (rising while it is lifted) */
+  /**
+   * where a held bomb is: held up in both hands in front of the face (the arms raised forward, as the Hold up clip
+   * has them), rising from the ground while it is lifted. Its bottom: a little below the hands, which hold its sides.
+   */
   private heldAt(): [number, number, number] {
     const s = this.h.heroState;
     const k = this.carry?.phase === 'lift' ? Math.min(1, this.carry.t / LIFT_TIME) : 1;
     const fx = Math.sin(s.heading);
     const fz = Math.cos(s.heading);
-    const reach = 0.9 * (1 - k);
-    const top = (this.h.heroHeight?.() ?? 3.4) + 0.3;
-    return [s.x + fx * reach, s.y + 0.1 + (top - 0.1) * k * k, s.z + fz * reach];
+    const scale = (this.h.heroHeight?.() ?? 4.02) / 4.02;
+    const ease = k * k * (3 - 2 * k);
+    const reach = (0.9 + (1.3 - 0.9) * ease) * scale;
+    const y = s.y + (0.1 + (3.45 - 0.1) * ease) * scale;
+    return [s.x + fx * reach, y, s.z + fz * reach];
   }
 
   /** a lit bomb up over the hero's head: a new one (from the bag, or a plant), or one lying lit nearby */
@@ -257,6 +333,8 @@ export class FireLight<T extends FireObject = FireObject> {
     if (this.held || this.carry) return false;
     const s = this.h.heroState;
     const bomb = b ?? this.drop(s.x, s.y, s.z, plant);
+    if (bomb.phys) this.h.ball?.(bomb, false);
+    bomb.phys = false;
     bomb.vx = bomb.vy = bomb.vz = 0;
     this.held = bomb;
     this.carry = { phase: 'lift', t: 0 };
@@ -304,6 +382,7 @@ export class FireLight<T extends FireObject = FireObject> {
     b.vz = Math.cos(s.heading) * THROW_SPEED;
     b.vy = THROW_UP;
     this.held = null;
+    b.phys = this.h.ball?.(b, true) ?? false;
     this.carry = { phase: 'throw', t: 0 };
     this.h.log('Threw the bomb');
     return true;
@@ -319,6 +398,7 @@ export class FireLight<T extends FireObject = FireObject> {
     const f = this.h.floor(x, z, s.y + 0.5);
     Object.assign(b, { x, z, y: f ?? s.y, vx: 0, vy: 0, vz: 0 });
     this.held = null;
+    b.phys = this.h.ball?.(b, true) ?? false;
     this.carry = { phase: 'drop', t: 0 };
     this.h.log('Put the bomb down');
     return true;
@@ -367,7 +447,7 @@ export class FireLight<T extends FireObject = FireObject> {
     if (this.held) Object.assign(this.held, Object.fromEntries(['x', 'y', 'z'].map((k, i) => [k, this.heldAt()[i]])));
     for (const b of [...this.bombs]) {
       b.t += dt;
-      if (b !== this.held) this.fly(b, dt);
+      if (b !== this.held && !b.phys) this.fly(b, dt);
       b.fizz += dt;
       if (b.fizz >= 0.5 && b.t < FUSE) {
         b.fizz = 0;
@@ -375,6 +455,7 @@ export class FireLight<T extends FireObject = FireObject> {
       }
       if (b.t < FUSE) continue;
       this.bombs.splice(this.bombs.indexOf(b), 1);
+      if (b.phys) this.h.ball?.(b, false);
       // it went off in the hero's hands
       if (b === this.held) {
         this.held = null;
@@ -502,6 +583,7 @@ export class FireLight<T extends FireObject = FireObject> {
   step(dt: number) {
     this.stepFire(dt);
     this.stepFlames(dt);
+    this.stepBranch(dt);
     this.stepBombs(dt);
     this.beamClock += dt;
     if (this.beamClock >= BEAM_EVERY) {
@@ -516,7 +598,9 @@ export class FireLight<T extends FireObject = FireObject> {
     this.burning.clear();
     for (const f of this.flameFx.values()) f.fx?.stop();
     this.flameFx.clear();
+    this.putOutBranch();
     this.flameClock = FLAME_EVERY;
+    for (const b of this.bombs) if (b.phys) this.h.ball?.(b, false);
     this.bombs.length = 0;
     this.held = null;
     this.carry = null;

@@ -38,6 +38,9 @@ export type LooseBrick = {
   sleeping?: boolean;
 };
 
+/** step 12b: a ball the physics engine moves (a bomb): its bottom and its speed, written back after each step */
+export type Ball = { x: number; y: number; z: number; vx: number; vy: number; vz: number };
+
 /** a body of water: a box whose top is the surface, and how it flows (studs a second, across and deep) */
 export type WaterBox = Box & { current: [number, number] };
 
@@ -56,6 +59,8 @@ export class PhysicsWorld {
   readonly world: RAPIER.World;
   private chunks = new Map<string, RAPIER.Collider[]>();
   private loose = new Map<LooseBrick, RAPIER.RigidBody>();
+  /** step 12b: balls (a thrown or put-down bomb): they roll, bounce off walls and come to rest; y is their bottom */
+  private balls = new Map<Ball, { body: RAPIER.RigidBody; r: number }>();
   private hero: RAPIER.RigidBody | null = null;
   private heroCollider: RAPIER.Collider | null = null;
   /** colliders came or went since the last step: rays must wait for the engine to see them */
@@ -205,6 +210,31 @@ export class PhysicsWorld {
     if (!body) return;
     this.world.removeRigidBody(body);
     this.loose.delete(d);
+  }
+
+  /** step 12b: a ball starts to roll and fly from where it is (y: its bottom), at its speed */
+  addBall(b: Ball, r: number) {
+    if (this.balls.has(b)) return;
+    this.groundAt(b.x, b.z);
+    const body = this.world.createRigidBody(
+      RAPIER.RigidBodyDesc.dynamic()
+        .setTranslation(b.x, b.y + r, b.z)
+        .setLinvel(b.vx, b.vy, b.vz)
+        .setLinearDamping(0.5)
+        .setAngularDamping(3)
+        .setCcdEnabled(true),
+    );
+    // heavy and dull: it thuds against a wall and rolls only a little
+    this.world.createCollider(RAPIER.ColliderDesc.ball(r).setDensity(3).setFriction(1).setRestitution(0.08), body);
+    this.balls.set(b, { body, r });
+    this.queriesStale = true;
+  }
+
+  removeBall(b: Ball) {
+    const o = this.balls.get(b);
+    if (!o) return;
+    this.world.removeRigidBody(o.body);
+    this.balls.delete(b);
   }
 
   /** keeps the loose bricks to exactly this list (bricks gone from it lose their body, new ones get one) */
@@ -463,10 +493,23 @@ export class PhysicsWorld {
     for (const b of this.loose.values()) if (!b.isSleeping()) this.groundAt(b.translation().x, b.translation().z);
     for (const o of this.objects.values())
       if (!o.body.isSleeping()) this.groundAt(o.body.translation().x, o.body.translation().z);
+    for (const o of this.balls.values())
+      if (!o.body.isSleeping()) this.groundAt(o.body.translation().x, o.body.translation().z);
     this.applyWater(Math.min(dt, 1 / 30));
     this.world.timestep = Math.min(dt, 1 / 30);
     this.world.step();
     this.queriesStale = false;
+    // balls: where they are now (their bottom), and how fast
+    for (const [b, o] of this.balls) {
+      const t = o.body.translation();
+      const v = o.body.linvel();
+      b.x = t.x;
+      b.y = t.y - o.r;
+      b.z = t.z;
+      b.vx = v.x;
+      b.vy = v.y;
+      b.vz = v.z;
+    }
   }
 
   /** brings the engine's picture of what is where up to date without moving anything (for rays) */
@@ -538,6 +581,7 @@ export class PhysicsWorld {
     this.chunks.clear();
     this.loose.clear();
     this.objects.clear();
+    this.balls.clear();
     this.hero = null;
     this.heroCollider = null;
     this.walker = null;

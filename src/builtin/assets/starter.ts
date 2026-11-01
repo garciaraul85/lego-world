@@ -513,7 +513,7 @@ function web(): Raw {
  * a torch on a post: a stone foot, a wooden post, an iron cup with coals; fire (a torch, a flame) lights it — the
  * flame is a fire effect on the cup — and it stays lit or goes out after some seconds
  */
-function torchStand(name: string, stays: 'on' | 'timed', seconds?: number): Raw {
+function torchStand(name: string, stays: 'on' | 'timed', seconds?: number, lit = false): Raw {
   const b = new Build();
   b.put('brick', 1, 1, 0, 0, 0, C.stoneDark);
   b.put('brick', 1, 1, 0, 3, 0, C.woodDark);
@@ -523,7 +523,7 @@ function torchStand(name: string, stays: 'on' | 'timed', seconds?: number): Raw 
   b.put('tile', 1, 1, 0, 11, 0, '#3b2416');
   return asset(name, 'decoration', [1, 1], b, {
     states: ['out', 'lit'],
-    initialState: 'out',
+    initialState: lit ? 'lit' : 'out',
     flame: { at: [0.5, 4.75, 0.5], when: 'lit', size: 0.9 },
     switch: { by: 'hit', stays, hitBy: ['fire'], ...(seconds ? { seconds } : {}) },
     lockOn: true,
@@ -565,6 +565,15 @@ function bombFlower(): Raw {
     initialState: 'grown',
     bombPlant: { regrow: 'missed' },
   });
+}
+
+/** a fallen branch: picked up it is a Branch; held to a fire it catches, and burns as a torch until it is used up */
+function branch(): Raw {
+  const b = new Build();
+  b.put('plate', 1, 4, 0, 0, 0, '#6b4a2b');
+  b.put('plate', 1, 1, 1, 1, 0, '#4f3520');
+  b.put('tile', 1, 1, 3, 1, 0, '#4b9f4a');
+  return asset('Branch', 'prop', [4, 1], b, { pickup: { item: 'Branch' } });
 }
 
 /** a sack of bombs: five Bombs (they go into an empty item button) */
@@ -847,6 +856,8 @@ export const STARTER_ASSETS: Record<string, Raw> = {
   'spider-web': web(),
   'torch-stand': torchStand('Torch stand', 'on'),
   'timed-torch': torchStand('Timed torch', 'timed', 12),
+  'burning-torch': torchStand('Burning torch', 'on', undefined, true),
+  branch: branch(),
   'bomb-bag': bombBag(),
   'bomb-flower': bombFlower(),
   ladder: ladder(),
