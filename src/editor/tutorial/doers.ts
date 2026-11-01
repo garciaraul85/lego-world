@@ -1541,12 +1541,13 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       faceThing(s, plant, 0.4);
       await wait(250);
       if (!s.fireLight.pick(plant)) continue;
-      await wait(600);
+      // up over the head (the game may run slower than the clock)
+      for (let i = 0; i < 40 && s.fireLight.carryPose !== 'hold'; i++) await wait(100);
       // a few studs back from the wall, facing it, then the throw
       faceThing(s, wall, 3.2);
       await wait(300);
       s.fireLight.throwHeld();
-      await wait(400);
+      for (let i = 0; i < 40 && s.fireLight.busy; i++) await wait(100);
       // step back from the blast
       const yaw = s.heroState.heading;
       standAt(s, s.heroState.x - Math.sin(yaw) * 3, s.heroState.z - Math.cos(yaw) * 3, yaw);

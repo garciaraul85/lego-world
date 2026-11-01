@@ -324,6 +324,16 @@ export class FireLight<T extends FireObject = FireObject> {
     return true;
   }
 
+  /** a placed object's bricks fill this point (its whole box: a wall, a crate, a cracked wall) */
+  private objectAt(x: number, y: number, z: number): boolean {
+    for (const o of this.h.near(x, z, 8)) {
+      if (o.def.pickup || o.def.bombPlant) continue;
+      const q = boxOf(o.bricks as never);
+      if (q && x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1 && y >= q.y0 * 0.4 && y < q.y1 * 0.4) return true;
+    }
+    return false;
+  }
+
   /** a thrown bomb flies on (gravity), stops against a wall and lands on the floor */
   private fly(b: Bomb, dt: number) {
     if (!b.vx && !b.vy && !b.vz) return;
@@ -332,7 +342,7 @@ export class FireLight<T extends FireObject = FireObject> {
     const nz = b.z + b.vz * dt;
     // something higher than the bomb ahead: it stops there and drops
     const ahead = this.h.floor(nx, nz, b.y + 0.4);
-    const wall = this.h.solidAt?.(nx, b.y + 0.45, nz) ?? false;
+    const wall = this.h.solidAt?.(nx, b.y + 0.45, nz) || this.objectAt(nx, b.y + 0.45, nz);
     if (wall || (ahead !== null && ahead > b.y + 0.45)) {
       b.vx = 0;
       b.vz = 0;
