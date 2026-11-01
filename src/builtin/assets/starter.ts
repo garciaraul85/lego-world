@@ -460,12 +460,14 @@ function vines(): Raw {
   const b = new Build();
   const leaf = ['#4b9f4a', '#2f7d32', '#7dbb3c', '#3d6b2a'];
   const stem = '#2a5a24';
+  const W = 6;
+  const TOP = 20;
   // a made-up but fixed scatter: which side each leaf sticks out to, and its colour
   const pick = (x: number, y: number) => (x * 7 + y * 3 + ((x * y) % 5)) % 8;
-  for (let x = 0; x < 4; x++) {
-    // each stem hangs to its own length from the branch (y 11): the outer ones a little shorter
-    const bottom = x === 0 || x === 3 ? 1 : 0;
-    for (let y = bottom; y < 11; y++) {
+  for (let x = 0; x < W; x++) {
+    // each stem hangs to its own length from the branch: the outer ones a little shorter
+    const bottom = x === 0 || x === W - 1 ? 2 : x === 1 || x === W - 2 ? 1 : 0;
+    for (let y = bottom; y < TOP; y++) {
       const k = pick(x, y);
       if (k < 3) b.put('plate', 1, 2, x, y, 0, leaf[(x + y) % 4]!, 1);
       else if (k < 6) b.put('plate', 1, 2, x, y, 1, leaf[(x + y + 1) % 4]!, 1);
@@ -474,8 +476,8 @@ function vines(): Raw {
     }
   }
   // the branch they hang from
-  b.put('plate', 1, 4, 0, 11, 1, '#5c3a21');
-  return asset('Vines', 'structure', [4, 3], b, { burn: { seconds: 2 }, climbable: true });
+  b.put('plate', 1, 6, 0, TOP, 1, '#5c3a21');
+  return asset('Vines', 'structure', [W, 3], b, { burn: { seconds: 2.5 }, climbable: true });
 }
 
 /** planks nailed across a doorway: they burn (slowly) */
@@ -577,11 +579,13 @@ function bombBag(): Raw {
 /** a torch to carry: the Torch item (its flame lights torch stands and burns vines) */
 function handTorch(): Raw {
   const b = new Build();
-  b.put('plate', 1, 3, 0, 0, 0, C.wood);
-  b.put('plate', 1, 1, 2, 1, 0, C.woodDark);
-  return asset('Hand torch', 'prop', [3, 1], b, {
+  // a torch stood upright: a wooden handle, a dark wrapped head, its tip burning (a fire effect in Play)
+  b.put('plate', 1, 1, 0, 0, 0, C.woodDark);
+  b.put('brick', 1, 1, 0, 1, 0, C.wood);
+  b.put('brick', 1, 1, 0, 4, 0, '#3b2416');
+  return asset('Hand torch', 'prop', [1, 1], b, {
     pickup: { item: 'Torch' },
-    flame: { at: [2.5, 0.8, 0.5], size: 0.6 },
+    flame: { at: [0.5, 3.0, 0.5], size: 0.85 },
   });
 }
 

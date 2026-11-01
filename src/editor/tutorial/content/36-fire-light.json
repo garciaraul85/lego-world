@@ -30,7 +30,7 @@
     {
       "id": "fl.place",
       "title": "Vines, a torch and a torch stand",
-      "body": "Place Vines across the way 6 studs in front of the start, a Hand torch just to the left of the start, and a Torch stand ahead to the right. The Hand torch is the Torch item: picked up, it goes into an item button.",
+      "body": "Place Vines across the way 6 studs in front of the start, a Hand torch 3 studs ahead and a little to the left (not right at the start, or the hero picks it up the moment Play starts), and a Torch stand ahead to the right. The Hand torch is the Torch item: it stands upright with its tip burning, and walking over it puts it into an item button.",
       "task": "Place Vines, a Hand torch and a Torch stand.",
       "target": "[aria-label=\"Fire and light\"]",
       "check": {
@@ -50,8 +50,8 @@
           "fn": "placePuzzle",
           "args": {
             "name": "Hand torch",
-            "ahead": 1,
-            "side": 3
+            "ahead": 3,
+            "side": 4
           }
         },
         {
@@ -69,7 +69,7 @@
     {
       "id": "fl.burn",
       "title": "Burn the vines",
-      "body": "Press Play and walk over the Hand torch: it goes into item button 1 (J). Vines can be climbed: walk into them and keep walking, and the hero climbs up (W up, S down, Space lets go). Then stand in front of them and press J: a flame sets them alight, and they burn away in two seconds. Vines touching them catch too.",
+      "body": "Press Play and walk over the Hand torch (its tip is burning): it goes into item button 1 (J). The vines are tall: walk into them and keep walking, and the hero climbs (W up, S down; the hands and feet move only while you climb; Space lets go). Then stand in front of them and press J: a flame sets them alight, and they burn away. Vines touching them catch too.",
       "task": "Press Play, take the torch and burn the vines.",
       "target": "[data-tour=\"play\"]",
       "check": {

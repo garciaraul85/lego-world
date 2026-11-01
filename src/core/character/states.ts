@@ -82,6 +82,8 @@ export function pickState(i: StateInput, s: StateSettings | undefined): AnimStat
 
 /** how fast a state's clip plays (1: its own speed) */
 export function clipRate(state: AnimState, speed: number, s: StateSettings | undefined): number {
+  // step 12b: on a ladder or vines the hands and feet move only while it climbs (still: it holds on)
+  if (state === 'ladder') return speed > MOVING_AT ? 1 : 0;
   const o = settingsOf(s);
   if (!o.matchSpeed) return 1;
   const ref = state === 'walk' || state === 'carry' ? WALK_REF : state === 'run' ? RUN_REF : state === 'swim' ? 3.2 : 0;

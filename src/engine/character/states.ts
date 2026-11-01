@@ -53,6 +53,8 @@ export class StateMachine {
     }
     const clip = this.state === 'idle' && this.since < idleAfter ? undefined : clipFor(this.state);
     this.rate = clipRate(this.state, input.speed, settings);
+    // it takes hold first (the clip blends in) before keeping still on a ladder
+    if (this.state === 'ladder' && this.since < 0.25) this.rate = Math.max(this.rate, 1);
     if (clip) {
       const once = ONCE.includes(this.state);
       if (once ? !this.started : a.clip?.id !== clip.id) {

@@ -1,7 +1,7 @@
 import { effect } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ADVENTURE_PACK } from '../../builtin/packs/adventure';
-import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
+import { expandAsset, localToWorld, rotatedFootprint } from '../../core/assets/expand';
 import { type FreeGroup, freeGroupsOf } from '../../core/assets/free';
 import {
   affineModel,
@@ -846,6 +846,16 @@ export function Viewport({
           });
         for (const sp of studio ? [] : s.map.spawns)
           lines.push({ lines: facingLine(sp.pos as Vec3, sp.yaw), color: [0.31, 0.82, 0.77] });
+        // step 12b: an asset's Flame (a hand torch's tip, a lit torch stand) as a small flame shape: in Play it is a
+        // fire effect, which the Scene view does not run
+        for (const e of studio ? [] : s.instances) {
+          const f = e.def.flame;
+          if (!f || (f.when && (e.inst.state ?? e.def.initialState) !== f.when)) continue;
+          const p = localToWorld(e.def, e.inst, f.at);
+          const k = f.size ?? 1;
+          markers.push({ pos: p, size: [0.55 * k, 1.0 * k, 0], color: [1, 0.42, 0.08], alpha: 0.85, cone: 'y' });
+          markers.push({ pos: p, size: [0.3 * k, 0.6 * k, 0], color: [1, 0.88, 0.35], cone: 'y' });
+        }
       }
       if (s) drawGizmo(lines, markers);
       // P27: the map's lights and darkness, as in the game (asset studio: none)

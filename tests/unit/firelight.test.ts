@@ -67,8 +67,8 @@ describe('fire', () => {
   it('the Torch’s flame sets vines alight; they burn away, set the vines touching them alight, and logic hears it', () => {
     const { p, get } = game([
       ['Vines', [10, 0, 12], 'ins_vines00001'],
-      ['Vines', [14, 0, 12], 'ins_vines00002'],
-      ['Vines', [30, 0, 12], 'ins_vines00003'],
+      ['Vines', [16, 0, 12], 'ins_vines00002'],
+      ['Vines', [36, 0, 12], 'ins_vines00003'],
     ]);
     const heard: unknown[] = [];
     const fire = p.logic.fire.bind(p.logic);
@@ -84,7 +84,7 @@ describe('fire', () => {
     // the vines touching them caught too; the far ones did not
     expect(p.fireLight.burning.has('ins_vines00002')).toBe(true);
     expect(p.fireLight.burning.has('ins_vines00003')).toBe(false);
-    steps(p, 2.5);
+    steps(p, 3);
     expect(get('ins_vines00001')).toBeUndefined();
     expect(get('ins_vines00002')).toBeUndefined();
     expect(get('ins_vines00003')).toBeTruthy();
@@ -132,6 +132,14 @@ describe('fire', () => {
     steps(p, 0.5);
     expect(flames().has('ins_torch00001')).toBe(false);
     expect(puzzleProblems({ ...def, flame: { at: [0, 0, 0], when: 'nope' } })[0]).toMatch(/flame burns in “nope”/);
+    // walking into the upright hand torch picks it up
+    const w = game([['Hand torch', [20, 0, 20], 'ins_handtorch2']]);
+    w.p.placeAt([20.5, 0.4, 16.5], 0);
+    w.p.camYaw = Math.PI;
+    w.p.input.keys.add('forward');
+    for (let t = 0; t < 2 && !w.p.inventory.get('Torch'); t += 1 / 60) w.p.runtime.stepOnce();
+    w.p.input.keys.delete('forward');
+    expect(w.p.inventory.get('Torch')).toBe(1);
     // a hand torch's flame goes when it is picked up
     const g = game([['Hand torch', [20, 0, 20], 'ins_handtorch1']]);
     const f2 = () => (g.p.fireLight as unknown as { flameFx: Map<string, unknown> }).flameFx;
@@ -284,6 +292,26 @@ describe('climbing a ladder or vines', () => {
     // over the top of the ladder, onto the wall behind it
     expect(p.heroState.y).toBeGreaterThan(4);
     expect(p.puzzles.ladder).toBeNull();
+  });
+
+  it('the vines are tall and wide; on them the hands and feet move only while climbing', () => {
+    const v = piece('Vines');
+    expect(v.footprint[0]).toBeGreaterThanOrEqual(6);
+    expect(Math.max(...v.bricks.map((b) => b[2]))).toBeGreaterThanOrEqual(19);
+    const { p } = game([['Vines', [10, 0, 10], 'ins_vines00001']]);
+    p.placeAt([12.5, 0.4, 8.6], 0);
+    p.camYaw = Math.PI;
+    p.input.keys.add('forward');
+    for (let t = 0; t < 1.5 && p.heroState.y < 2; t += 1 / 60) p.runtime.stepOnce();
+    expect(p.puzzles.ladder).toBeTruthy();
+    const sm = (p as unknown as { heroStates: { state: string; rate: number } }).heroStates;
+    expect(sm.state).toBe('ladder');
+    expect(sm.rate).toBeGreaterThan(0);
+    p.input.keys.delete('forward');
+    steps(p, 0.5);
+    expect(p.puzzles.ladder).toBeTruthy();
+    expect(sm.state).toBe('ladder');
+    expect(sm.rate).toBe(0);
   });
 
   it('on the ladder: the Ladder state; back climbs down and off at the bottom', () => {
