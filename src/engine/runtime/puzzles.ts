@@ -649,14 +649,12 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     // sideways along the wall, while there is wall to hold and room
     let x = s.x;
     let z = s.z;
+    // is there room for the body here (tested a little back from the wall: the hands are on it)
+    const room = (px: number, py: number, pz: number) => this.h.heroClear(px - fx * 0.45, py, pz - fz * 0.45);
     if (Math.abs(side) > 0.2) {
       const nx = s.x + rx * side * WALL_SIDE * dt;
       const nz = s.z + rz * side * WALL_SIDE * dt;
-      if (
-        this.h.heroClear(nx, y, nz) &&
-        this.solidAhead(nx, y + 1.5, nz, fx, fz) &&
-        !this.noClimbAt(nx + fx, y + 1.5, nz + fz)
-      ) {
+      if (room(nx, y, nz) && this.solidAhead(nx, y + 1.5, nz, fx, fz) && !this.noClimbAt(nx + fx, y + 1.5, nz + fz)) {
         x = nx;
         z = nz;
       }
@@ -667,7 +665,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
         for (let h = y + 0.4; h <= y + 2.4 + 1e-6; h += 0.4) {
           const tx = x + fx * d;
           const tz = z + fz * d;
-          if (!this.h.heroClear(tx, h, tz) || !this.h.heroClear(x, h, z)) continue;
+          if (!this.h.heroClear(tx, h, tz) || !room(x, h, z)) continue;
           this.wall = null;
           this.climbing = { from: [x, y, z], to: [tx, h, tz], t: CLIMB_REACH };
           this.h.log('Over the top of the wall');
@@ -676,7 +674,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       // nothing to hold and nothing to climb onto: let go
       if (!this.solidAhead(x, y + 0.6, z, fx, fz)) return this.letGo();
     }
-    if (!this.h.heroClear(x, y, z)) y = s.y;
+    if (!room(x, y, z)) y = s.y;
     this.h.placeHeroAt(x, y, z);
     s.heading = w.heading;
   }

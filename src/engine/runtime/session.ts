@@ -1392,6 +1392,7 @@ export class PlaySession {
     if (this.puzzles.wall) {
       this.puzzles.stepWall(dt, input.jump);
       this.input.jump = false;
+      this.syncStamina();
       return;
     }
     // step 12a: climbing onto a ledge: the climb moves the hero
@@ -1443,13 +1444,18 @@ export class PlaySession {
     this.keepOutOfParts();
     if (c.target) c.stepLock();
     else c.stepHint();
-    const st = Math.round(c.stamina);
+    this.syncStamina();
+    this.movementSounds(dt, wasGrounded, fallSpeed);
+    if (this.heroState.y < -14) this.fellOff();
+  }
+
+  /** the stamina the HUD's bar shows (logic's stamina), when it changed */
+  private syncStamina() {
+    const st = Math.round(this.combat.stamina);
     if (st !== this.lastStamina) {
       this.lastStamina = st;
       this.logic.vars.set('stamina', st);
     }
-    this.movementSounds(dt, wasGrounded, fallSpeed);
-    if (this.heroState.y < -14) this.fellOff();
   }
 
   // ---------- step 12c: moving platforms ----------

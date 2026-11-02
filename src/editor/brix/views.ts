@@ -474,6 +474,7 @@ export function stepsToView(view: string): ShowStep[] {
     case 'assets-checkpoint':
     case 'assets-puzzle':
     case 'assets-firelight':
+    case 'assets-icemove':
       return [
         ws('Assets'),
         {
