@@ -664,6 +664,72 @@ function lightSensor(): Raw {
   });
 }
 
+// ---------- step 12c: ice, moving platforms, climbing ----------
+const ICE = ['#d6f1fb', '#b9e4f5', '#e9f8fd', '#a6d9ef'];
+const ice = (i: number) => ICE[(i * 5 + (i >> 2)) % 4]!;
+
+/** a sheet of ice to lay on the floor: walking on it slides */
+function icyFloor(): Raw {
+  const b = new Build();
+  b.layer('plate', 0, 0, 8, 8, 0, ice);
+  return asset('Icy floor', 'structure', [8, 8], b, { ice: { floor: true, melts: 'never' } });
+}
+
+/** a block of ice: held and pushed, it slides on by itself until something stops it */
+function iceBlock(): Raw {
+  const b = new Build();
+  b.stack(0, 0, 2, 2, 0, 2, ice);
+  b.put('tile', 1, 1, 1, 6, 1, '#ffffff');
+  return asset('Ice block', 'prop', [2, 2], b, { push: { pull: false }, ice: { slides: true, melts: 'never' } });
+}
+
+/** a wall of ice across a passage: fire melts it, and so does a beam of light */
+function iceWall(): Raw {
+  const b = new Build();
+  b.stack(0, 0, 4, 1, 0, 4, ice);
+  b.put('plate', 1, 4, 0, 12, 0, '#eefaff');
+  return asset('Ice wall', 'structure', [4, 1], b, { ice: { melts: 'fire-or-light', seconds: 2 } });
+}
+
+/** a stone platform that goes back and forth 8 studs (carrying whoever stands on it) */
+function movingPlatform(): Raw {
+  const b = new Build();
+  b.layer('plate', 0, 0, 4, 4, 0, (i) => (i % 3 === 1 ? C.stoneLight : C.stone));
+  // the top: stone with gold corners, flat to stand on
+  for (let z = 0; z < 4; z++)
+    for (let x = 0; x < 4; x++)
+      b.put('tile', 1, 1, x, 1, z, (x === 0 || x === 3) && (z === 0 || z === 3) ? C.gold : C.stone);
+  return asset('Moving platform', 'structure', [4, 4], b, { moves: { by: [0, 0, 8], seconds: 3, pause: 1 } });
+}
+
+/** a lift: a platform that goes up 6 studs and down again; the Switch lift only runs while it is on */
+function lift(name: string, whenOn: boolean): Raw {
+  const b = new Build();
+  b.layer('plate', 0, 0, 4, 4, 0, C.wood);
+  b.layer('plate', 0, 0, 4, 4, 1, C.woodDark);
+  // a light on top, flat: red while off, green while on
+  const off = whenOn ? [b.put('tile', 1, 1, 1, 2, 1, C.red)] : [];
+  const on = whenOn ? [b.put('tile', 1, 1, 1, 2, 1, '#4ade80')] : [];
+  return asset(name, 'structure', [4, 4], b, {
+    moves: { by: [0, 6, 0], seconds: 3, pause: 1.5, ...(whenOn ? { whenOn: true } : {}) },
+    ...(whenOn ? { states: ['off', 'on'], initialState: 'off', onlyIn: { off, on } } : {}),
+  });
+}
+
+/** a tall rough rock face to climb (with Climbing: Anything) */
+function rockFace(): Raw {
+  const b = new Build();
+  b.stack(0, 0, 6, 2, 0, 8, (i) => (i % 4 === 1 ? C.stoneDark : i % 5 === 3 ? C.moss : C.stone));
+  return asset('Rock face', 'structure', [6, 2], b);
+}
+
+/** a tall wall of polished stone: it cannot be climbed, even with Climbing: Anything */
+function smoothWall(): Raw {
+  const b = new Build();
+  b.stack(0, 0, 6, 2, 0, 8, (i) => (i % 2 ? '#d9d6cf' : '#cbc7bd'));
+  return asset('Smooth wall', 'structure', [6, 2], b, { noClimb: true });
+}
+
 function dungeonMap(): Raw {
   const b = new Build();
   b.put('plate', 2, 2, 0, 0, 0, C.straw);
@@ -865,4 +931,13 @@ export const STARTER_ASSETS: Record<string, Raw> = {
   'sun-crest': sunCrest(),
   mirror: mirror(),
   'light-sensor': lightSensor(),
+  // step 12c: ice, moving platforms, climbing
+  'icy-floor': icyFloor(),
+  'ice-block': iceBlock(),
+  'ice-wall': iceWall(),
+  'moving-platform': movingPlatform(),
+  lift: lift('Lift', false),
+  'switch-lift': lift('Switch lift', true),
+  'rock-face': rockFace(),
+  'smooth-wall': smoothWall(),
 };

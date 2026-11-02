@@ -156,6 +156,7 @@ import { BOMB_R, BRANCH_SECONDS, FireLight } from './firelight';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, spawnedNpcs } from './health';
 import { ObjectIndex } from './objects';
 import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
+import { Platforms } from './platforms';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
 import { boxOf, type PuzzleHost, Puzzles, SEEN_CELL } from './puzzles';
 import { Runtime, type System } from './runtime';
@@ -279,6 +280,9 @@ const rgb = (i: number) => [1, 3, 5].map((k) => (parseInt(COLOR_OF(i).slice(k, k
  * v68's own modules; smash, rebuild and gate travel are ports of v68's character-game / map-network code.
  */
 /** states v68's own motion already shows (the others play their built-in clip when the sheet sets none) */
+/** step 12c: how fast the hero's speed follows the keys on ice, and how fast it slows to a stop (per second) */
+const ICE_GRIP = 1.8;
+const ICE_STOP = 0.7;
 const OWN_MOTION = new Set(['walk', 'run', 'jump', 'attack', 'hurt', 'idle']);
 
 export class PlaySession {
@@ -388,6 +392,19 @@ export class PlaySession {
   readonly puzzles: Puzzles<PlayInstance> = this.makePuzzles();
   /** step 12b: things burning, bombs fizzing, beams of light */
   readonly fireLight: FireLight<PlayInstance> = this.makeFireLight();
+  /** step 12c: moving platforms (and lifts), and what the hero rides */
+  readonly platforms: Platforms<PlayInstance> = this.makePlatforms();
+
+  private makePlatforms(): Platforms<PlayInstance> {
+    const self = this;
+    return new Platforms<PlayInstance>({
+      movers: () => self.world.instances.filter((i) => !!i.def.moves),
+      get heroState() {
+        return self.heroState;
+      },
+      moveTo: (o, pos) => self.moveInstance(o, pos),
+    });
+  }
   private lastStamina = -1;
   onBreak: ((b: NonNullable<LogicRuntime['paused']>) => void) | null = null;
   emotes: Clip[] = [];
@@ -807,6 +824,7 @@ export class PlaySession {
     // step 12b: a hero put somewhere else lets go of a ladder (and is not mid-climb)
     if (this.puzzles) {
       this.puzzles.ladder = null;
+      this.puzzles.wall = null;
       this.puzzles.climbing = null;
     }
     const c = this.world.controller;
@@ -1065,7 +1083,7 @@ export class PlaySession {
 
   /** the hero bends down for something off the floor (a branch, a key) */
   pickUpMove() {
-    if (this.fireLight.held || this.fireLight.busy || this.puzzles.ladder || this.swim.on) return;
+    if (this.fireLight.held || this.fireLight.busy || this.puzzles.ladder || this.puzzles.wall || this.swim.on) return;
     this.pickT = 0.5;
   }
 
@@ -1277,6 +1295,7 @@ export class PlaySession {
 
   private systems(): System<PlaySession>[] {
     return [
+      { id: 'platforms', fixed: (g, dt) => g.platforms.step(dt) },
       { id: 'hero', fixed: (g, dt) => g.moveHero(dt) },
       { id: 'cinematic', fixed: (g, dt) => g.cine.step(dt) },
       { id: 'combat', fixed: (g, dt) => g.stepSmash(dt) },
@@ -1361,6 +1380,12 @@ export class PlaySession {
       this.input.jump = false;
       return;
     }
+    // step 12c: on a wall (Climbing: Anything), while stamina lasts
+    if (this.puzzles.wall) {
+      this.puzzles.stepWall(dt, input.jump);
+      this.input.jump = false;
+      return;
+    }
     // step 12a: climbing onto a ledge: the climb moves the hero
     if (this.puzzles.climbing) {
       this.puzzles.stepClimb(dt);
@@ -1394,9 +1419,15 @@ export class PlaySession {
     else {
       if (this.swim.on) this.leaveWater();
       if (water.mode === 'wade') move.speedScale *= 0.6;
-      if (this.physicsMovement) this.walkWithPhysics(move, dt);
+      // step 12c: on ice the hero slides: its speed follows the keys slowly, and it slides on after letting go
+      const ice = this.iceMove(move, dt);
+      const yaw = ice ? 0 : this.camYaw;
+      const from = { x: this.heroState.x, z: this.heroState.z, heading: this.heroState.heading };
+      if (this.physicsMovement) this.walkWithPhysics(move, dt, yaw);
       // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
-      else this.world.controller.step(move, dt, this.camYaw);
+      else this.world.controller.step(move, dt, yaw);
+      if (ice) this.afterIce(ice, from, dt);
+      this.rideOn();
     }
     this.stepBreath(water.box, dt);
     c.stepMove(dt);
@@ -1413,6 +1444,119 @@ export class PlaySession {
     if (this.heroState.y < -14) this.fellOff();
   }
 
+  // ---------- step 12c: moving platforms ----------
+
+  /** standing on a moving platform: carried as far as it moved, and held on its top (unless jumping off) */
+  private rideOn() {
+    const r = this.platforms.ride;
+    if (!r) return;
+    const s = this.heroState;
+    const x = s.x + r.dx;
+    const z = s.z + r.dz;
+    if (this.world.controller.clear(x, Math.max(s.y, r.top) + 0.1, z)) {
+      s.x = x;
+      s.z = z;
+    }
+    if (s.vy <= 0.5 && Math.abs(s.y - r.top) < 0.6) {
+      s.y = r.top;
+      s.vy = 0;
+      s.grounded = true;
+    }
+  }
+
+  // ---------- step 12c: ice ----------
+
+  /** the hero's sliding speed on ice (studs a second, world x and z), while it is on ice */
+  iceVel: { x: number; z: number } | null = null;
+
+  /** the placed thing the hero stands on (its top under the hero's feet), or null */
+  standingOn(): PlayInstance | null {
+    const s = this.heroState;
+    if (!s.grounded) return null;
+    for (const o of this.objs().near(s.x, s.z, 12)) {
+      const b = boxOf(o.bricks);
+      if (!b || s.x < b.x0 - 0.3 || s.x > b.x1 + 0.3 || s.z < b.z0 - 0.3 || s.z > b.z1 + 0.3) continue;
+      if (Math.abs(b.y1 * 0.4 - s.y) < 0.3) return o;
+    }
+    return null;
+  }
+
+  /**
+   * On an icy floor (an asset with Ice › Slippery): the keys set where the hero would like to go, and its speed gets
+   * there slowly (ICE_GRIP a second), slower still to stop (ICE_STOP): it slides on after letting go. The move is
+   * turned into that speed, in world directions (the controller is then given no camera turn). Null: not on ice.
+   */
+  private iceMove(move: MoveInput & { speedScale: number }, dt: number): { want: boolean } | null {
+    const on = this.standingOn();
+    const ice = on?.def.ice;
+    const s = this.heroState;
+    if (!ice || ice.floor === false) {
+      // in the air the slide carries on; on anything else it stops
+      if (this.iceVel && !s.grounded) return this.slideOn(move, false);
+      this.iceVel = null;
+      return null;
+    }
+    const yaw = this.camYaw;
+    let mx = move.x || 0;
+    let mz = move.z || 0;
+    const l = Math.hypot(mx, mz);
+    if (l > 1) {
+      mx /= l;
+      mz /= l;
+    }
+    const speed = (move.run ? 7.8 : 4) * (move.speedScale ?? 1);
+    const tx = (Math.cos(yaw) * mx - Math.sin(yaw) * mz) * speed;
+    const tz = (-Math.sin(yaw) * mx - Math.cos(yaw) * mz) * speed;
+    if (!this.iceVel)
+      this.iceVel = {
+        x: Math.sin(s.heading) * (Number(s.speed) || 0),
+        z: Math.cos(s.heading) * (Number(s.speed) || 0),
+      };
+    const v = this.iceVel;
+    const want = l > 0.05;
+    const k = Math.min(1, (want ? ICE_GRIP : ICE_STOP) * dt);
+    v.x += (tx - v.x) * k;
+    v.z += (tz - v.z) * k;
+    return this.slideOn(move, want);
+  }
+
+  /** the move given to the controller: the sliding speed, in world directions */
+  private slideOn(move: MoveInput & { speedScale: number }, want: boolean): { want: boolean } {
+    const v = this.iceVel!;
+    const vl = Math.hypot(v.x, v.z);
+    if (vl < 0.05) {
+      move.x = 0;
+      move.z = 0;
+    } else {
+      // with no camera turn the controller walks (x, -z): see v68's step
+      move.x = v.x / vl;
+      move.z = -v.z / vl;
+      move.speedScale = vl / 4;
+    }
+    move.run = false;
+    return { want };
+  }
+
+  /** after a slide: a wall took the speed it stopped; letting go, the hero keeps facing where it faced */
+  private afterIce(ice: { want: boolean }, from: { x: number; z: number; heading: number }, dt: number) {
+    const s = this.heroState;
+    const v = this.iceVel;
+    if (!v || dt <= 0) return;
+    const ax = (s.x - from.x) / dt;
+    const az = (s.z - from.z) / dt;
+    // only what it really moved carries on (against a wall, along it)
+    if (Math.abs(ax) < Math.abs(v.x) - 0.01) v.x = ax;
+    if (Math.abs(az) < Math.abs(v.z) - 0.01) v.z = az;
+    if (!ice.want) s.heading = from.heading;
+  }
+
+  /** step 12c: what the hero climbs (Project › Climbing): ladders and vines only, or anything with stamina */
+  get climbingChoice(): 'ladders' | 'anything' {
+    return (
+      (this.snapshot.get(paths.settings) as { climbing?: 'ladders' | 'anything' } | undefined)?.climbing ?? 'ladders'
+    );
+  }
+
   /** Milestone 2b, 10b part 3: the project's movement (Project › Movement), when the physics engine is loaded */
   get movementChoice(): 'classic' | 'physics' {
     return (
@@ -1426,7 +1570,11 @@ export class PlaySession {
   }
 
   /** Milestone 2b, 10b part 3: the hero walked by the physics engine, the other characters solid to it */
-  private walkWithPhysics(move: MoveInput & { speedScale?: number; jumpSpeed?: number }, dt: number) {
+  private walkWithPhysics(
+    move: MoveInput & { speedScale?: number; jumpSpeed?: number },
+    dt: number,
+    yaw = this.camYaw,
+  ) {
     const w = this.world;
     this.physicsFlush(w);
     const ph = w.physics!;
@@ -1441,7 +1589,7 @@ export class PlaySession {
       }),
     );
     const weapon = s.attack > 0 ? (this.L.GameWeapons.get(String(s.attackWeapon ?? '')) as never) : null;
-    walkHero(ph, s, move, dt, this.camYaw, { scale: k, weapon });
+    walkHero(ph, s, move, dt, yaw, { scale: k, weapon });
     // kept inside the map, as v68 keeps it
     const p = G.containPoint(c.area, s.x, s.z, G.characterMargin * k);
     s.x = p.x;
@@ -1607,8 +1755,11 @@ export class PlaySession {
     // a shield bash only shoves: it does not break plain bricks
     if (kind === 'bash') return;
     // step 12b: things that burn (vines, a web, a barricade) are only got rid of with fire, not knocked down
-    if (owner?.def.burn) {
-      if (attack.type !== 'fire') this.say('Swinging does nothing to it: it only burns.', 1.6);
+    if (owner?.def.burn || owner?.def.ice) {
+      // step 12c: ice melts with fire (a fire hit melts it) and is not knocked down either
+      if (owner.def.ice && attack.type === 'fire') this.fireLight.melt(owner, 'fire');
+      else if (attack.type !== 'fire')
+        this.say(`Swinging does nothing to it: it only ${owner.def.burn ? 'burns' : 'melts'}.`, 1.6);
       return;
     }
     this.breakHit(hit, { heading: this.heroState.heading, impulse: 2 * how.mult, mass: 1 });
@@ -3396,6 +3547,7 @@ export class PlaySession {
     this.inventory.clear();
     this.puzzles.restore(undefined);
     this.fireLight.reset();
+    this.platforms.reset();
     this.health.clear();
     this.cine.seen.clear();
     this.logic.vars.clear();
@@ -3813,6 +3965,11 @@ export class PlaySession {
         return this.world.controller.clear(x, s.y, z);
       },
       heroClear: (x, y, z) => this.world.controller.clear(x, y, z),
+      climbAnything: () => this.climbingChoice === 'anything',
+      stamina: () => (this.god ? MAX_STAMINA : this.combat.stamina),
+      spendStamina: (n) => {
+        if (!this.god) this.combat.spend(n);
+      },
       weighing: () => {
         const w = this.world;
         const out: ReturnType<NonNullable<PuzzleHost['weighing']>> = [];
@@ -4265,7 +4422,7 @@ export class PlaySession {
         hurtAgo: this.clock - this.heroHurtAt,
         swimming: this.swim.on,
         pushing: this.puzzles.pose,
-        ladder: !!this.puzzles.ladder,
+        ladder: !!this.puzzles.ladder || !!this.puzzles.wall,
         carrying: this.fireLight.carryPose ?? (this.pickT > 0 ? 'pick' : null),
       },
       this.heroChr?.states,

@@ -700,6 +700,40 @@ function MovementField({ c }: { c: ActionCtx }) {
   );
 }
 
+const CLIMBING_HELP =
+  'What the hero climbs. Ladders and vines: only those (like Ocarina of Time); walls stop it, though it climbs onto low ledges. Anything: almost any wall too (like Breath of the Wild), while its stamina lasts: walk into a wall to hold on, W/S climb, A/D move along it, Space is a climb jump (a quarter of the stamina), Space while pulling back lets go. Out of stamina it lets go and falls. Assets ticked Not climbable (Asset studio) cannot be climbed; ladders and vines cost no stamina.';
+
+/** step 12c: what the hero climbs (ladders and vines only, or anything with stamina) */
+function ClimbingField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = ed.store.get<Settings>(paths.settings)?.climbing ?? 'ladders';
+  return (
+    <div class="field" data-tour="project-climbing" data-help="project.climbing">
+      <span>
+        Climbing
+        <FieldHelp label="Climbing" text={CLIMBING_HELP} />
+      </span>
+      <select
+        class="inp"
+        aria-label="Climbing"
+        value={cur}
+        onChange={(e) =>
+          ed.exec(
+            {
+              type: 'project.update',
+              payload: { climbing: (e.target as HTMLSelectElement).value as 'ladders' | 'anything' },
+            },
+            { label: 'Climbing' },
+          )
+        }
+      >
+        <option value="ladders">Ladders and vines only</option>
+        <option value="anything">Anything, with stamina</option>
+      </select>
+    </div>
+  );
+}
+
 export const LOOK_HELP =
   'How the game’s screens and menus look. Classic uses each widget’s own colours. Adventure dresses every screen at once: parchment panels with a gold and wood frame, gold-framed buttons, a storybook font and framed hearts (the starter pack’s look). Widgets keep their places and texts; switch back any time.';
 
@@ -839,6 +873,7 @@ function ProjectTab({ c }: { c: ActionCtx }) {
         </div>
         <QualityField c={c} />
         <MovementField c={c} />
+        <ClimbingField c={c} />
         <ScreenLookField c={c} />
         <SwimField c={c} />
       </div>

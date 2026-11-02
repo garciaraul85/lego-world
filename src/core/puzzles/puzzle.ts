@@ -100,6 +100,40 @@ export const FlameDef = z.strictObject({
 });
 export type FlameDef = z.infer<typeof FlameDef>;
 
+/**
+ * step 12c: ice. A floor of it is slippery (the hero speeds up and slows down slowly, and slides on); a block of it,
+ * pushed, slides on by itself until something stops it; and it melts with fire (and a beam of light, if set).
+ */
+export const ICE_MELTS = ['fire', 'fire-or-light', 'never'] as const;
+export const IceDef = z.strictObject({
+  /** walking on it slides (on at first) */
+  floor: z.boolean().optional(),
+  /** a push block of it slides on by itself, until something stops it */
+  slides: z.boolean().optional(),
+  /** what melts it: fire (at first), fire or a beam of light, or nothing */
+  melts: z.enum(ICE_MELTS).optional(),
+  /** seconds it takes to melt (2 at first) */
+  seconds: z.number().min(0.5).max(30).optional(),
+});
+export type IceDef = z.infer<typeof IceDef>;
+
+/**
+ * step 12c: a moving platform. It travels from where it is placed to `by` studs away and back (or round and back
+ * to the start, with stops), carrying what stands on it; with `whenOn` it only runs in its second state (a switch,
+ * logic's Set state, or Light all the torches can turn it on).
+ */
+export const MoveDef = z.strictObject({
+  /** the far end, from where it is placed (studs: x, up, z) */
+  by: z.tuple([z.number().min(-64).max(64), z.number().min(-32).max(32), z.number().min(-64).max(64)]),
+  /** seconds from one end to the other (3 at first) */
+  seconds: z.number().min(0.5).max(60).optional(),
+  /** seconds it waits at each end (1 at first) */
+  pause: z.number().min(0).max(30).optional(),
+  /** only while it is in its second state (on) */
+  whenOn: z.boolean().optional(),
+});
+export type MoveDef = z.infer<typeof MoveDef>;
+
 export const MirrorDef = z.strictObject({
   /** Action at it turns it (on at first) */
   turns: z.boolean().optional(),
@@ -173,6 +207,8 @@ export function puzzleProblems(a: {
   beam?: BeamDef | undefined;
   flame?: FlameDef | undefined;
   bombPlant?: BombPlantDef | undefined;
+  ice?: IceDef | undefined;
+  moves?: MoveDef | undefined;
 }): string[] {
   const out: string[] = [];
   if (a.switch && a.states.length < 2)
@@ -190,6 +226,11 @@ export function puzzleProblems(a: {
   if (a.beam?.when && !a.states.includes(a.beam.when))
     out.push(`${a.name}: its beam shines in “${a.beam.when}”, which is not one of its states.`);
   if (a.lock?.key === 'item' && !a.lock.item) out.push(`${a.name}: choose the item that opens the lock.`);
+  if (a.ice?.slides && !a.push) out.push(`${a.name}: ice that slides when pushed must be a push block too.`);
+  if (a.moves?.whenOn && a.states.length < 2)
+    out.push(`${a.name} moves only when on but has one state: it needs two (off, then on).`);
+  if (a.moves && (a.push || a.loose)) out.push(`${a.name}: a moving platform is not a push block or loose too.`);
+  if (a.moves && a.moves.by.every((v) => v === 0)) out.push(`${a.name}: a moving platform needs somewhere to go.`);
   if (a.push && a.loose) out.push(`${a.name}: a push block slides square to the floor, so it is not loose too.`);
   return out;
 }

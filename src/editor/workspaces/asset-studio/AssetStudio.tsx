@@ -45,6 +45,7 @@ import { EditorState, type ToolId } from '../../state';
 import { Viewport, type ViewportApi } from '../../viewport/Viewport';
 import { BrickEditor } from './BrickEditor';
 import { FireLightSection } from './FireLightSection';
+import { IceMoveSection } from './IceMoveSection';
 import { PuzzleSection } from './PuzzleSection';
 import { assetFromScratch, initialIndex, type Scratch, scratchFor, turnPart } from './scratch';
 
@@ -1360,6 +1361,7 @@ function Properties({
         {/* step 12a: push block, switch, lock, pickup */}
         <PuzzleSection def={def} reset={reset} />
         <FireLightSection def={def} reset={reset} />
+        <IceMoveSection def={def} reset={reset} />
 
         {/* P27: it gives light (a torch, a lamp), where on it, in which states */}
         <div class="sec" data-help="asset.light" data-tour="asset-light-sec">

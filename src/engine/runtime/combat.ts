@@ -130,6 +130,12 @@ export class Combat {
     return { power: base.power * ATTACKS[kind].mult * m, type: kind === 'bash' ? 'blunt' : base.type };
   }
 
+  /** step 12c: stamina used by something else (climbing): it does not refill for `wait` seconds */
+  spend(n: number, wait = 0.5) {
+    this.stamina = Math.max(0, this.stamina - n);
+    this.staminaWait = Math.max(this.staminaWait, wait);
+  }
+
   // ---------- moves ----------
 
   /** dodge roll (C): always the way the hero faces */

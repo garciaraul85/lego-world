@@ -6,8 +6,10 @@ import {
   BombPlantDef,
   BurnDef,
   FlameDef,
+  IceDef,
   LockDef,
   MirrorDef,
+  MoveDef,
   PickupDef,
   PushDef,
   SwitchDef,
@@ -141,6 +143,12 @@ export const Asset = z.strictObject({
   beam: BeamDef.optional(),
   /** step 12b: it turns a beam a quarter turn (two states, one leaning each way) */
   mirror: MirrorDef.optional(),
+  /** step 12c: ice: a slippery floor, a block that slides on when pushed, melted by fire (or light) */
+  ice: IceDef.optional(),
+  /** step 12c: a moving platform: back and forth (or up and down), carrying what stands on it */
+  moves: MoveDef.optional(),
+  /** step 12c: with Climbing: anything (Project settings), the hero cannot climb it (smooth stone) */
+  noClimb: z.boolean().optional(),
   generator: z
     .strictObject({ environments: z.array(z.enum(BIOMES)), weight: z.number().min(0).max(1), placeOn: z.string() })
     .nullable(),

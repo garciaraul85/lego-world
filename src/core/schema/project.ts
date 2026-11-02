@@ -45,6 +45,8 @@ export const Settings = z.strictObject({
   quality: z.enum(['auto', 'low', 'medium', 'high']),
   /** Milestone 2b: how the hero moves — v68's own code (classic), or walked by the physics engine */
   movement: z.enum(['classic', 'physics']).optional(),
+  /** step 12c: what the hero climbs — ladders and vines only (Ocarina), or anything while stamina lasts (Breath of the Wild) */
+  climbing: z.enum(['ladders', 'anything']).optional(),
   /** step 11b: can the hero swim, and how long a breath lasts under water (missing: swims, 20 seconds) */
   swimming: Swimming.optional(),
   /** step 11b part 1: the game's buttons: its layout, item buttons, where jumping is, its keys and gamepad buttons */

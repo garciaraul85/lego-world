@@ -64,6 +64,11 @@ export type PuzzleHost<T extends PuzzleObject = PuzzleObject> = {
   weighing?(): { kind: 'npc' | 'loose'; x0: number; x1: number; z0: number; z1: number; y0: number; weight: number }[];
   /** the hero is here now, feet at y (a climb) */
   placeHeroAt(x: number, y: number, z: number): void;
+  /** step 12c: the game's Climbing is Anything (walls, with stamina), not only ladders and vines */
+  climbAnything?(): boolean;
+  /** step 12c: the hero's stamina now (0–its most), and some used (climbing, a climb jump) */
+  stamina?(): number;
+  spendStamina?(n: number): void;
   remove(o: T): void;
   /** an ordinary item (not a dungeon's) to the inventory, as the game always gives */
   give(item: string, count: number): void;
@@ -85,8 +90,20 @@ const PUSH_HOLD = 0.3;
 const PULL_HOLD = 0.3;
 /** seconds a block takes to slide a stud (the hero walks with it) */
 const SLIDE_STEP = 0.24;
+/** step 12c: an ice block glides a stud in this long, up to this far */
+const ICE_SLIDE_STEP = 0.07;
+const ICE_SLIDE_MAX = 48;
 /** a ledge up to this high (world units: 3 bricks, a push block on a switch) is climbed by walking into it */
 export const CLIMB_MAX = 3.6;
+/** step 12c: climbing a wall: studs a second up and down, and sideways; stamina a second climbing, and holding still */
+const WALL_SPEED = 1.8;
+const WALL_SIDE = 1.6;
+const WALL_DRAIN = 9;
+const WALL_HOLD = 2;
+/** a climb jump: how high, how long, and what it costs (a quarter of the wheel) */
+const WALL_HOP = 2.4;
+const WALL_HOP_TIME = 0.35;
+const WALL_HOP_COST = 25;
 const CLIMB_WAIT = 0.25;
 /** what things weigh on a switch: the hero (and each neighbour) 1, a push block 3 */
 const HERO_WEIGHT = 1;
@@ -153,6 +170,8 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     t: number;
     pulled: boolean;
     hero?: number;
+    /** step 12c: an ice block: it slides on by itself (faster), and the hero stays where it pushed from */
+    ice?: boolean;
   } | null = null;
   /** timed switches: when each goes back off, and the last tick */
   private timers = new Map<string, { ends: number; tick: number; o: T }>();
@@ -232,7 +251,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       this.turnPose.t -= dt;
       if (this.turnPose.t <= 0) this.turnPose = null;
     }
-    if (!this.slide && !this.climbing && !this.ladder && this.h.free()) {
+    if (!this.slide && !this.climbing && !this.ladder && !this.wall && this.h.free()) {
       this.stepGrab(dt);
       this.stepClimbStart(dt);
     } else this.climbTry = null;
@@ -333,15 +352,23 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   /** starts a slide if the block can go there; false (and a word) when something is in the way */
   tryMove(o: T, dx: number, dz: number, pulled: boolean): boolean {
     if (this.slide) return false;
-    const n = this.stepOf(o, dx);
+    // step 12c: a block of ice, pushed, slides on until something stops it (a wall, a block, an edge)
+    const ice = !!o.def.ice?.slides && !pulled;
+    let n = ice ? ICE_SLIDE_MAX : this.stepOf(o, dx);
     for (let i = 1; i <= n; i++)
       if (this.landing(o, dx * i, dz * i) === null) {
         if (i === 1) {
           this.h.log(`${o.def.name}: blocked`);
           return false;
         }
+        if (ice) n = i - 1;
         break;
       }
+    if (ice) {
+      this.slide = { o, dx, dz, n, done: 0, t: 0, pulled: false, ice: true };
+      this.h.sound('scrape', this.centre(o));
+      return true;
+    }
     if (pulled) {
       // the hero steps back first: there must be room behind
       const s = this.h.heroState;
@@ -395,11 +422,12 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     const sl = this.slide;
     if (!sl) return;
     sl.t += dt;
-    const vis = Math.min(sl.n, sl.t / SLIDE_STEP);
+    const step = sl.ice ? ICE_SLIDE_STEP : SLIDE_STEP;
+    const vis = Math.min(sl.n, sl.t / step);
     // the hero comes along (pushing: behind it; pulling: stepping back first)
     const s = this.h.heroState;
     const moved = vis - (sl.hero ?? 0);
-    if (moved > 0 && this.h.heroFits(s.x + sl.dx * moved, s.z + sl.dz * moved)) {
+    if (!sl.ice && moved > 0 && this.h.heroFits(s.x + sl.dx * moved, s.z + sl.dz * moved)) {
       this.h.placeHero(s.x + sl.dx * moved, s.z + sl.dz * moved);
       sl.hero = vis;
     }
@@ -415,7 +443,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       this.h.moveTo(sl.o, [Number(p[0]) + sl.dx, Number(p[1]) + (y - b.y0), Number(p[2]) + sl.dz]);
       sl.done++;
     }
-    if (sl.done >= sl.n && sl.t >= sl.n * SLIDE_STEP) this.endSlide(sl);
+    if (sl.done >= sl.n && sl.t >= sl.n * step) this.endSlide(sl);
   }
 
   private endSlide(sl: NonNullable<Puzzles<T>['slide']>) {
@@ -438,8 +466,9 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       .some((o) => o.def.switch?.by === 'step' && o !== k && rests(q, boxOf(o.bricks)!));
   }
 
+  /** a block sliding with the hero behind it (an ice block slides away by itself: the hero is free) */
   get sliding(): boolean {
-    return !!this.slide;
+    return !!this.slide && !this.slide.ice;
   }
 
   /** the block held: which way pushes, whether it pulls, and what the hero is doing with it (for the arrows) */
@@ -457,7 +486,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   slideView(): { id: string; dx: number; dz: number } | null {
     const sl = this.slide;
     if (!sl) return null;
-    const off = Math.min(sl.n, sl.t / SLIDE_STEP) - sl.done;
+    const off = Math.min(sl.n, sl.t / (sl.ice ? ICE_SLIDE_STEP : SLIDE_STEP)) - sl.done;
     return { id: sl.o.inst.id, dx: sl.dx * off, dz: sl.dz * off };
   }
 
@@ -467,7 +496,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     // step 12b: turning a mirror: a shove one way, a tug back the other
     if (this.turnPose) return this.turnPose.kind;
     const sl = this.slide;
-    if (sl) return sl.pulled ? 'pull' : 'push';
+    if (sl && !sl.ice) return sl.pulled ? 'pull' : 'push';
     if (this.grab) return this.grab.lean === 'push' ? 'push' : 'pull';
     return null;
   }
@@ -547,6 +576,120 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     s.heading = l.heading;
   }
 
+  // ---------- step 12c: climbing anything (Breath of the Wild) ----------
+
+  /** on a wall: facing it, where it got on (feet), and a climb jump under way (seconds left) */
+  wall: { heading: number; y0: number; hop: number } | null = null;
+
+  /** a placed thing marked Not climbable there */
+  private noClimbAt(x: number, y: number, z: number): boolean {
+    return this.h.near(x, z, 8).some((o) => {
+      if (!o.def.noClimb) return false;
+      const b = boxOf(o.bricks);
+      return !!b && x > b.x0 - 0.4 && x < b.x1 + 0.4 && z > b.z0 - 0.4 && z < b.z1 + 0.4 && y < b.y1 * 0.4 + 0.5;
+    });
+  }
+
+  /** a brick there (not the edge of the world, which also stops the hero) */
+  private brickAt(x: number, y: number, z: number): boolean {
+    const py = y / 0.4;
+    for (const p of this.h.pieces()) {
+      const q = pieceBox(p);
+      if (x > q.x0 - 0.5 && x < q.x1 + 0.5 && z > q.z0 - 0.5 && z < q.z1 + 0.5 && py >= q.y0 - 1 && py <= q.y1 + 1)
+        return true;
+    }
+    return false;
+  }
+
+  /** something solid ahead of the hero at this height (the wall it holds) */
+  private solidAhead(x: number, y: number, z: number, fx: number, fz: number): boolean {
+    return !this.h.heroClear(x + fx * 0.95, y, z + fz * 0.95);
+  }
+
+  /**
+   * On a wall (Climbing: Anything): forward climbs up, back down (off at the bottom), sideways along it; each second
+   * of climbing uses stamina (a little holding still), and Jump is a climb jump (a quick hop up, a quarter of the
+   * wheel). Out of stamina the hero lets go and falls. Hands over the top: it pulls itself up onto it.
+   */
+  stepWall(dt: number, jump: boolean) {
+    const w = this.wall;
+    if (!w) return;
+    const s = this.h.heroState;
+    const fx = Math.sin(w.heading);
+    const fz = Math.cos(w.heading);
+    const rx = Math.cos(w.heading);
+    const rz = -Math.sin(w.heading);
+    const want = this.h.moveWish();
+    const along = want.x * fx + want.z * fz;
+    const side = want.x * rx + want.z * rz;
+    // jumping backward (away from the wall) lets go; jumping otherwise is a climb jump
+    if (jump && along < -0.5) return this.letGo();
+    if (jump && w.hop <= 0 && (this.h.stamina?.() ?? 0) > 0) {
+      w.hop = WALL_HOP_TIME;
+      this.h.spendStamina?.(WALL_HOP_COST);
+    }
+    const moving = Math.abs(along) > 0.2 || Math.abs(side) > 0.2 || w.hop > 0;
+    this.h.spendStamina?.((moving ? WALL_DRAIN : WALL_HOLD) * dt);
+    if ((this.h.stamina?.() ?? 1) <= 0) {
+      this.h.say('Out of stamina!', 1.2);
+      return this.letGo();
+    }
+    let y = s.y + along * WALL_SPEED * dt;
+    if (w.hop > 0) {
+      const d = Math.min(w.hop, dt);
+      w.hop -= d;
+      y = Math.max(y, s.y + (WALL_HOP / WALL_HOP_TIME) * d);
+    }
+    // at the bottom: climbing down steps off
+    if (along < 0 && (y <= w.y0 || !this.h.heroClear(s.x, y - 0.05, s.z))) {
+      this.wall = null;
+      this.h.placeHeroAt(s.x - fx * 0.2, Math.max(w.y0, Math.min(s.y, y)), s.z - fz * 0.2);
+      return;
+    }
+    // sideways along the wall, while there is wall to hold and room
+    let x = s.x;
+    let z = s.z;
+    if (Math.abs(side) > 0.2) {
+      const nx = s.x + rx * side * WALL_SIDE * dt;
+      const nz = s.z + rz * side * WALL_SIDE * dt;
+      if (
+        this.h.heroClear(nx, y, nz) &&
+        this.solidAhead(nx, y + 1.5, nz, fx, fz) &&
+        !this.noClimbAt(nx + fx, y + 1.5, nz + fz)
+      ) {
+        x = nx;
+        z = nz;
+      }
+    }
+    // hands over the top: room ahead above the hands, pull up onto it
+    if (!this.solidAhead(x, y + 1.8, z, fx, fz)) {
+      for (const d of [0.95, 1.6])
+        for (let h = y + 0.4; h <= y + 2.4 + 1e-6; h += 0.4) {
+          const tx = x + fx * d;
+          const tz = z + fz * d;
+          if (!this.h.heroClear(tx, h, tz) || !this.h.heroClear(x, h, z)) continue;
+          this.wall = null;
+          this.climbing = { from: [x, y, z], to: [tx, h, tz], t: CLIMB_REACH };
+          return;
+        }
+      // nothing to hold and nothing to climb onto: let go
+      if (!this.solidAhead(x, y + 0.6, z, fx, fz)) return this.letGo();
+    }
+    if (!this.h.heroClear(x, y, z)) y = s.y;
+    this.h.placeHeroAt(x, y, z);
+    s.heading = w.heading;
+  }
+
+  /** off the wall: the hero falls from where it is */
+  private letGo() {
+    this.wall = null;
+    const s = this.h.heroState;
+    s.vy = 0;
+    s.grounded = false;
+    this.h.placeHeroAt(s.x - Math.sin(s.heading) * 0.3, s.y, s.z - Math.cos(s.heading) * 0.3);
+    s.grounded = false;
+  }
+
   /** climbing onto a ledge: from, to, seconds so far */
   climbing: { from: [number, number, number]; to: [number, number, number]; t: number } | null = null;
   private climbTry: { x: number; z: number; t: number } | null = null;
@@ -586,6 +729,20 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     this.climbTry = null;
     const ax = s.x + fx * 0.95;
     const az = s.z + fz * 0.95;
+    // step 12c: with Climbing: Anything, a wall too tall to climb onto is climbed (while stamina lasts)
+    let ledge = false;
+    for (let h = 0.4; h <= CLIMB_MAX + 1e-6; h += 0.4) if (this.h.heroClear(ax, s.y + h, az)) ledge = true;
+    if (!ledge && this.h.climbAnything?.() && this.brickAt(ax, s.y + 1.5, az)) {
+      if (this.noClimbAt(ax, s.y + 1.5, az)) {
+        this.h.say('Too smooth to climb.', 1.4);
+        return;
+      }
+      if ((this.h.stamina?.() ?? 1) <= 0) return;
+      this.wall = { heading: s.heading, y0: s.y, hop: 0 };
+      this.h.sound('scrape');
+      this.h.log('Climbing the wall');
+      return;
+    }
     // the lowest height ahead with room to stand, a ledge (not a step the hero walks up anyway)
     for (let h = 0.4; h <= CLIMB_MAX + 1e-6; h += 0.4) {
       if (!this.h.heroClear(ax, s.y + h, az)) continue;

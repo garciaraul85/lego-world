@@ -182,6 +182,16 @@ export class PlayRenderer {
       const model = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, sv.dx, 0, sv.dz, 1]);
       groups.push({ ids: set, model });
     }
+    // step 12c: a moving platform glides between whole studs (and plates): drawn where it really is
+    const pv = this.session.platforms.views();
+    for (const v of pv) {
+      const o = w.instances.find((i) => i.inst.id === v.id);
+      if (!o) continue;
+      const set = new Set<number>();
+      for (let id = o.inst.idBase; id < o.inst.idBase + o.def.bricks.length; id++) if (!ids.has(id)) set.add(id);
+      for (const id of set) ids.add(id);
+      groups.push({ ids: set, model: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, v.dx, v.dy, v.dz, 1]) });
+    }
     // bricks that joined or left a group move between the chunks and the overlays (P27 part 3: only those)
     for (const id of new Set([...ids, ...this.tilted.ids]))
       if (ids.has(id) !== this.tilted.ids.has(id)) {
@@ -190,7 +200,10 @@ export class PlayRenderer {
       }
     this.tilted = { ids, groups };
     this.tiltedRev = w.rev;
-    this.moving = !!sv || free.some((i) => partsMoving(i.def, i.state, i.anim ? { ...i.anim, now } : null));
+    this.moving =
+      !!sv ||
+      this.session.platforms.moving ||
+      free.some((i) => partsMoving(i.def, i.state, i.anim ? { ...i.anim, now } : null));
   }
 
   private tiltedOverlays(): Overlay[] {
@@ -326,7 +339,7 @@ export class PlayRenderer {
       (this.chunkIndex().get(k) ?? []).filter((p) => !(p.id !== undefined && this.tilted.ids.has(p.id))).map(toRender),
     );
     const st = this.session.heroState;
-    if (this.shown === w && (this.tiltedRev !== w.rev || this.moving || this.session.puzzles.sliding))
+    if (this.shown === w && (this.tiltedRev !== w.rev || this.moving || !!this.session.puzzles.slideView()))
       this.syncTilted();
     if (this.shown !== w) {
       this.tilted = { ids: new Set(), groups: [] };

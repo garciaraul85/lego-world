@@ -112,6 +112,9 @@ const STICK_CATCH = 1.2;
 const STICK_TOUCH = 1.0;
 /** a bomb plant grows a new bomb this long after its last one went off */
 const REGROW_AFTER = 1.5;
+/** step 12c: ice melts in this many seconds (its own Ice › seconds otherwise), steaming (the Smoke effect) */
+export const MELT_SECONDS = 2;
+const STEAM = 'fx_smoke00001';
 /** how often beams are traced again (seconds) */
 const BEAM_EVERY = 0.1;
 const BEAM_RANGE = 32;
@@ -169,19 +172,62 @@ export class FireLight<T extends FireObject = FireObject> {
     return true;
   }
 
-  /** a flame (or fire hit) at a point: burnable things within r catch */
+  /** a flame (or fire hit) at a point: burnable things within r catch, and ice there melts (12c) */
   flameAt(x: number, z: number, y: number, r: number, why: string): number {
     let n = 0;
     for (const o of this.h.near(x, z, r + 8)) {
-      if (!o.def.burn) continue;
+      if (!o.def.burn && !o.def.ice) continue;
       const b = boxOf(o.bricks as never);
       if (!b) continue;
       const dx = Math.max(b.x0 - x, 0, x - b.x1);
       const dz = Math.max(b.z0 - z, 0, z - b.z1);
       const dy = Math.max(b.y0 * 0.4 - y, 0, y - b.y1 * 0.4);
-      if (Math.hypot(dx, dz) <= r && dy <= 2) if (this.ignite(o, why)) n++;
+      if (Math.hypot(dx, dz) > r || dy > 2) continue;
+      if (o.def.burn ? this.ignite(o, why) : this.melt(o, 'fire')) n++;
     }
     return n;
+  }
+
+  // ---------- step 12c: ice ----------
+
+  /** ice melting: seconds so far, how long it takes, its steam */
+  readonly melting = new Map<string, { o: T; t: number; seconds: number; fx: { stop(): void }[] }>();
+
+  /** ice starts to melt (fire, or a beam of light where it melts with light); true: it started */
+  melt(o: T, by: 'fire' | 'light'): boolean {
+    const ice = o.def.ice;
+    const m = ice?.melts ?? 'fire';
+    if (!ice || m === 'never' || (by === 'light' && m !== 'fire-or-light') || this.melting.has(o.inst.id)) return false;
+    const b = boxOf(o.bricks as never);
+    const fx: { stop(): void }[] = [];
+    if (b) {
+      const top = b.y1 * 0.4;
+      for (const [x, z] of [
+        [b.x0 + 0.3, (b.z0 + b.z1) / 2],
+        [b.x1 - 0.3, (b.z0 + b.z1) / 2],
+        [(b.x0 + b.x1) / 2, b.z0 + 0.3],
+        [(b.x0 + b.x1) / 2, b.z1 - 0.3],
+      ] as [number, number][]) {
+        const f = this.h.flames([x, top - 0.3, z], 0.9, STEAM);
+        if (f) fx.push(f);
+      }
+    }
+    this.melting.set(o.inst.id, { o, t: 0, seconds: ice.seconds ?? MELT_SECONDS, fx });
+    this.h.sound('ignite', centre(o) ?? undefined);
+    this.h.log(`${o.def.name} is melting (${by === 'light' ? 'a beam of light' : 'fire'})`);
+    return true;
+  }
+
+  private stepMelt(dt: number) {
+    for (const [id, m] of [...this.melting]) {
+      m.t += dt;
+      if (m.t < m.seconds) continue;
+      this.melting.delete(id);
+      for (const f of m.fx) f.stop();
+      this.h.remove(m.o);
+      this.h.burned(m.o);
+      this.h.log(`${m.o.def.name} melted away`);
+    }
   }
 
   private stepFire(dt: number) {
@@ -625,6 +671,11 @@ export class FireLight<T extends FireObject = FireObject> {
       left -= best;
       if (!hitPiece) return;
       const o = this.h.objectOfPiece(hitPiece.id);
+      // step 12c: ice that melts with light melts where the beam reaches it (and stops it meanwhile)
+      if (o?.def.ice) {
+        this.melt(o, 'light');
+        return;
+      }
       if (o?.def.switch?.by === 'light') {
         lit.set(o.inst.id, o);
         return;
@@ -655,6 +706,7 @@ export class FireLight<T extends FireObject = FireObject> {
 
   step(dt: number) {
     this.stepFire(dt);
+    this.stepMelt(dt);
     this.stepFlames(dt);
     this.stepBranch(dt);
     this.stepBombs(dt);
@@ -669,6 +721,8 @@ export class FireLight<T extends FireObject = FireObject> {
   reset() {
     for (const f of this.burning.values()) for (const x of f.fx) x.stop();
     this.burning.clear();
+    for (const m of this.melting.values()) for (const x of m.fx) x.stop();
+    this.melting.clear();
     for (const f of this.flameFx.values()) f.fx?.stop();
     this.flameFx.clear();
     this.putOutBranch();

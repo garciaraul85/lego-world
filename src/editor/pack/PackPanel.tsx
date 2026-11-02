@@ -26,6 +26,9 @@ const GROUPS: [PackGroup, string][] = [
   ['enemy', 'Enemies'],
 ];
 
+/** step 12c: ice, a moving platform or lift, or a wall to climb (or not) */
+const iceOrMoving = (a: (typeof BUILTIN_ASSETS)[number]) => !!(a.ice || a.moves || a.noClimb) || a.name === 'Rock face';
+
 /** Step 11, 4a: the starter pack's panel in the bottom dock (shown in the genre views that use it) */
 /** step 12b: a fire or light piece: it burns, shines, turns a beam, answers a beam or fire, or is a bomb or torch */
 const fireOrLight = (a: (typeof BUILTIN_ASSETS)[number]) =>
@@ -46,12 +49,14 @@ export function PackPanel({ c }: { c: ActionCtx }) {
       a.category,
       a.push || a.switch || a.lock || a.pickup ? 'puzzle' : '',
       fireOrLight(a) ? 'fire light' : '',
+      iceOrMoving(a) ? 'ice platform climb' : '',
     ),
   );
   const puzzle = (a: (typeof assets)[number]) =>
-    !!(a.push || a.switch || a.lock || a.pickup || a.climbable) || fireOrLight(a);
+    !!(a.push || a.switch || a.lock || a.pickup || a.climbable) || fireOrLight(a) || iceOrMoving(a);
   const buildings = assets.filter((a) => !puzzle(a));
-  const pieces = assets.filter((a) => puzzle(a) && !fireOrLight(a));
+  const pieces = assets.filter((a) => puzzle(a) && !fireOrLight(a) && !iceOrMoving(a));
+  const iceMoving = assets.filter(iceOrMoving);
   const fire = assets.filter(fireOrLight);
   const terrain = ADVENTURE_PACK.terrain.filter((t) => matches(q, t.name, t.about));
   const effects = BUILTIN_EFFECTS.filter((e) => (ADVENTURE_PACK.effects as readonly string[]).includes(e.id)).filter(
@@ -162,6 +167,8 @@ export function PackPanel({ c }: { c: ActionCtx }) {
         ['Puzzle pieces', 'Pack puzzle pieces', pieces] as const,
         // step 12b: burnable things, torches, bombs, beams and mirrors
         ['Fire and light', 'Pack fire and light', fire] as const,
+        // step 12c: ice, moving platforms and lifts, walls to climb
+        ['Ice, platforms and climbing', 'Pack ice, platforms and climbing', iceMoving] as const,
       ].map(([title, label, list]) =>
         list.length > 0 ? (
           <section class="pack-group" aria-label={title}>

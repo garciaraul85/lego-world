@@ -338,6 +338,8 @@ export type UpdateProject = {
   quality?: QualityChoice;
   /** Milestone 2b: how the hero moves (classic: v68's own code; physics: walked by the physics engine) */
   movement?: 'classic' | 'physics';
+  /** step 12c: what the hero climbs: ladders and vines only, or anything while its stamina lasts */
+  climbing?: 'ladders' | 'anything';
   /** step 11b: swimming and breath */
   swimming?: Swimming;
   /** step 11b part 1: the game's buttons (null: back to the defaults) */
@@ -362,13 +364,15 @@ export const updateProject: CommandHandler<UpdateProject> = {
                 ? 'Graphics quality'
                 : p.movement !== undefined && Object.keys(p).length === 1
                   ? `Movement: ${p.movement}`
-                  : p.swimming !== undefined && Object.keys(p).length === 1
-                    ? 'Swimming'
-                    : p.controls !== undefined && Object.keys(p).length === 1
-                      ? 'Controls'
-                      : p.uiLook !== undefined && Object.keys(p).length === 1
-                        ? `Screen look: ${p.uiLook}`
-                        : 'Edit project settings',
+                  : p.climbing !== undefined && Object.keys(p).length === 1
+                    ? `Climbing: ${p.climbing}`
+                    : p.swimming !== undefined && Object.keys(p).length === 1
+                      ? 'Swimming'
+                      : p.controls !== undefined && Object.keys(p).length === 1
+                        ? 'Controls'
+                        : p.uiLook !== undefined && Object.keys(p).length === 1
+                          ? `Screen look: ${p.uiLook}`
+                          : 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.saving && !SavingSchema.safeParse(p.saving).success)
@@ -403,6 +407,8 @@ export const updateProject: CommandHandler<UpdateProject> = {
       if (missing) return `There is no screen effect ${missing}.`;
     }
     if (p.quality !== undefined && !QUALITY_CHOICES.includes(p.quality)) return 'Quality is auto, low, medium or high.';
+    if (p.climbing !== undefined && p.climbing !== 'ladders' && p.climbing !== 'anything')
+      return 'Climbing is ladders (ladders and vines only) or anything (with stamina).';
     if (p.movement !== undefined && p.movement !== 'classic' && p.movement !== 'physics')
       return 'Movement is classic or physics.';
     if (p.uiLook !== undefined && p.uiLook !== 'classic' && p.uiLook !== 'adventure')
@@ -433,6 +439,10 @@ export const updateProject: CommandHandler<UpdateProject> = {
     if (p.movement !== undefined) {
       const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
       store.put(paths.settings, { ...settings, movement: p.movement });
+    }
+    if (p.climbing !== undefined) {
+      const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
+      store.put(paths.settings, { ...settings, climbing: p.climbing });
     }
     if (p.swimming !== undefined) {
       const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
