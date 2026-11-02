@@ -55,6 +55,8 @@ export const FX = {
   embers: 'fx_embers0001',
   dungeonDust: 'fx_ddust00001',
   vanish: 'fx_vanish0001',
+  // step 12c: melting ice
+  steam: 'fx_steam00001',
 } as const;
 
 /** Step 11, 4b: the adventure pack's effects (shown in the pack panel) */
@@ -415,6 +417,22 @@ export const BUILTIN_EFFECTS: Effect[] = [
     gravity: -2,
     drag: 0.9,
     light: { color: '#b56cff', brightness: 2, range: 12, flicker: 0.4, shadow: false },
+  }),
+  // step 12c: white steam rising off melting ice
+  fx(FX.steam, 'Steam', {
+    shape: 'brick',
+    mode: 'stream',
+    rate: 14,
+    spawn: 'sphere',
+    radius: 0.5,
+    direction: 'up',
+    spread: 25,
+    speed: [0.8, 1.6],
+    life: [0.9, 1.6],
+    size: [0.25, 0.8],
+    colors: ['#ffffff', '#e6f6fc', '#cfe9f3'],
+    gravity: -0.8,
+    drag: 0.5,
   }),
 ];
 

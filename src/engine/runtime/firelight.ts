@@ -112,9 +112,9 @@ const STICK_CATCH = 1.2;
 const STICK_TOUCH = 1.0;
 /** a bomb plant grows a new bomb this long after its last one went off */
 const REGROW_AFTER = 1.5;
-/** step 12c: ice melts in this many seconds (its own Ice › seconds otherwise), steaming (the Smoke effect) */
+/** step 12c: ice melts in this many seconds (its own Ice › seconds otherwise), steaming (the Steam effect) */
 export const MELT_SECONDS = 2;
-const STEAM = 'fx_smoke00001';
+const STEAM = 'fx_steam00001';
 /** how often beams are traced again (seconds) */
 const BEAM_EVERY = 0.1;
 const BEAM_RANGE = 32;
