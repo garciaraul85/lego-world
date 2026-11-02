@@ -1529,6 +1529,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     for (const gap of [0.6, 0.3, 0.1]) {
       if (stand.state === stand.def.states[1]) break;
       faceThing(s, stand, gap);
+      lineUpTip(s);
       await wait(400);
     }
     await wait(300);
@@ -1955,9 +1956,23 @@ async function lightBranch(s: NonNullable<Ctx['ed']['session']['value']>) {
   if (!s.stickOut) s.useItem('Branch', slotOf(s, 'Branch'));
   for (const gap of [0.6, 0.3, 0.1, -0.1]) {
     faceThing(s, fire, gap);
+    // the stick is in the right hand: a step to the side brings its end in line with the flame
+    lineUpTip(s);
     for (let i = 0; i < 4 && !s.fireLight.litBranch; i++) await wait(150);
     if (s.fireLight.litBranch) break;
   }
+}
+
+/** the hero steps sideways so the stick's end (in the right hand) is straight ahead of where it was facing */
+function lineUpTip(s: NonNullable<Ctx['ed']['session']['value']>) {
+  const h = s.heroState;
+  const tip = s.fireLight.branchTip();
+  const fx = Math.sin(h.heading);
+  const fz = Math.cos(h.heading);
+  const dx = tip[0] - h.x;
+  const dz = tip[2] - h.z;
+  const along = dx * fx + dz * fz;
+  standAt(s, h.x - (dx - along * fx), h.z - (dz - along * fz), h.heading);
 }
 
 async function takePickup(s: NonNullable<Ctx['ed']['session']['value']>, name: string, item: string) {

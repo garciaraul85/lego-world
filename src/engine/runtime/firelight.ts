@@ -108,7 +108,7 @@ const GRAVITY = 18;
 /** step 12b: a lit stick burns this long, then it is gone (like a Deku stick, it burns down fast) */
 export const BRANCH_SECONDS = 10;
 /** how near a fire the stick's end catches, and a burnable thing catches from it (studs) */
-const STICK_CATCH = 1.5;
+const STICK_CATCH = 1.2;
 const STICK_TOUCH = 1.0;
 /** a bomb plant grows a new bomb this long after its last one went off */
 const REGROW_AFTER = 1.5;
@@ -209,22 +209,31 @@ export class FireLight<T extends FireObject = FireObject> {
     }
   }
 
-  /** flames along the top of a burning thing, one every stud or two (at most 6) */
+  /**
+   * flames over a burning thing, along it and up both its faces (just outside them, so the bricks do not hide them;
+   * tall vines burn top to bottom): at most 18, all stopped when it has burned away
+   */
   private burnFlames(o: T): { stop(): void }[] {
     const b = boxOf(o.bricks as never);
     if (!b) return [];
     const alongX = b.x1 - b.x0 >= b.z1 - b.z0;
     const len = alongX ? b.x1 - b.x0 : b.z1 - b.z0;
-    const n = Math.max(1, Math.min(6, Math.round(len / 1.5)));
-    const top = b.y1 * 0.4;
+    const n = Math.max(1, Math.min(3, Math.round(len / 2)));
+    const y0 = b.y0 * 0.4;
+    const tall = b.y1 * 0.4 - y0;
+    const rows = Math.max(1, Math.min(3, Math.round(tall / 2.5)));
     const out: { stop(): void }[] = [];
-    for (let i = 0; i < n; i++) {
-      const t = (i + 0.5) / n;
-      const x = alongX ? b.x0 + t * len : (b.x0 + b.x1) / 2;
-      const z = alongX ? (b.z0 + b.z1) / 2 : b.z0 + t * len;
-      const fx = this.h.flames([x, top, z], 1.1);
-      if (fx) out.push(fx);
-    }
+    for (let r = 0; r < rows; r++)
+      for (let i = 0; i < n; i++) {
+        const t = (i + 0.5) / n;
+        const y = y0 + tall * ((r + 0.5) / rows);
+        for (const side of [0, 1]) {
+          const x = alongX ? b.x0 + t * len : side ? b.x1 + 0.25 : b.x0 - 0.25;
+          const z = alongX ? (side ? b.z1 + 0.25 : b.z0 - 0.25) : b.z0 + t * len;
+          const fx = this.h.flames([x, y, z], 1.1);
+          if (fx) out.push(fx);
+        }
+      }
     return out;
   }
 
@@ -269,17 +278,22 @@ export class FireLight<T extends FireObject = FireObject> {
     ];
   }
 
-  /** fire within r of a point: something burning, or a flame on something (a lit torch, a hand torch's tip) */
-  fireNear(x: number, z: number, r: number): boolean {
+  /**
+   * fire within r of a point: something burning, or a flame on something (a lit torch, a hand torch's tip). With a
+   * height y, the point must also be within `up` studs of the fire's height (a stick held up to a torch's flame,
+   * not under it).
+   */
+  fireNear(x: number, z: number, r: number, y?: number, up = 1.2): boolean {
     for (const f of this.burning.values()) {
       const b = boxOf(f.o.bricks as never);
-      if (b && Math.hypot(Math.max(b.x0 - x, 0, x - b.x1), Math.max(b.z0 - z, 0, z - b.z1)) <= r) return true;
+      if (!b || Math.hypot(Math.max(b.x0 - x, 0, x - b.x1), Math.max(b.z0 - z, 0, z - b.z1)) > r) continue;
+      if (y === undefined || Math.max(b.y0 * 0.4 - y, 0, y - b.y1 * 0.4) <= up) return true;
     }
     for (const f of this.flameFx.values()) {
       const fl = f.o.def.flame;
       if (!fl) continue;
       const at = localToWorld(f.o.def, f.o.inst, fl.at);
-      if (Math.hypot(at[0] - x, at[2] - z) <= r) return true;
+      if (Math.hypot(at[0] - x, at[2] - z) <= r && (y === undefined || Math.abs(at[1] - y) <= up)) return true;
     }
     return false;
   }
@@ -316,7 +330,7 @@ export class FireLight<T extends FireObject = FireObject> {
     const lb = this.litBranch;
     // held into a fire (a lit torch, something burning), the stick catches by itself
     if (!lb) {
-      if (this.h.stickOut && this.fireNear(tip[0], tip[2], STICK_CATCH)) this.lightBranch();
+      if (this.h.stickOut && this.fireNear(tip[0], tip[2], STICK_CATCH, tip[1], 2.0)) this.lightBranch();
       return;
     }
     lb.t += dt;

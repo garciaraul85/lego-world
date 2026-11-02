@@ -323,6 +323,8 @@ describe('a stick (a branch)', () => {
     p.placeAt([21, 0.4, 12.9], 0);
     steps(p, 0.5);
     expect(p.fireLight.burning.has('ins_vines00001')).toBe(true);
+    // flames all over both faces of the tall vines, just outside them (not hidden inside the bricks)
+    expect(p.fireLight.burning.get('ins_vines00001')!.fx.length).toBeGreaterThanOrEqual(12);
     expect(p.fireLight.litBranch).toBeNull();
     expect(stick(p).stickOut).toBe(false);
     expect(p.inventory.get('Branch') ?? 0).toBe(0);
@@ -360,6 +362,58 @@ describe('a stick (a branch)', () => {
     expect(stick(p).stickOut).toBe(false);
     expect(p.inventory.get('Branch') ?? 0).toBe(0);
     expect(p.events.some((e) => /stick broke/i.test(e.msg))).toBe(true);
+  });
+});
+
+describe('one thing in the hands, and vines only burn', () => {
+  const stick = (p: PlaySession) => p as unknown as { stickOut: boolean };
+  it('a swing (sword or plain stick) does not knock vines down; only fire gets rid of them', () => {
+    const { p, get } = game([['Vines', [20, 0, 14], 'ins_vines00001']]);
+    p.placeAt([21.5, 0.4, 12.9], 0);
+    steps(p, 0.3);
+    for (let i = 0; i < 3; i++) {
+      p.smash();
+      steps(p, 0.8);
+    }
+    expect(get('ins_vines00001')).toBeTruthy();
+    expect(get('ins_vines00001')!.bricks.length).toBe(piece('Vines').bricks.length);
+    expect(p.fireLight.burning.size).toBe(0);
+  });
+
+  it('picking a bomb from a flower puts the stick away; with a bomb up, the stick does not come out', () => {
+    const { p } = game([
+      ['Branch', [10, 0, 6], 'ins_branch0001'],
+      ['Bomb flower', [30, 0, 10], 'ins_flower0001'],
+    ]);
+    p.placeAt([11, 0.4, 7.4], 0);
+    steps(p, 1);
+    expect(stick(p).stickOut).toBe(true);
+    p.placeAt([31, 0.4, 8.6], 0);
+    steps(p, 0.3);
+    expect((p as unknown as { pickUpBomb(): boolean }).pickUpBomb()).toBe(true);
+    expect(stick(p).stickOut).toBe(false);
+    steps(p, 0.6);
+    expect(p.fireLight.held).toBeTruthy();
+    p.useItem('Branch', p.buttons.slots.indexOf('Branch') + 1);
+    expect(stick(p).stickOut).toBe(false);
+    expect((p as unknown as { hero: Record<string, unknown> }).hero.heldLook).toBeUndefined();
+  });
+
+  it('the stick catches only held up to the flame, not far below or above it', () => {
+    const { p } = game([['Burning torch', [10, 0, 14], 'ins_burntorch1']]);
+    p.placeAt([4, 0.4, 4], 0);
+    steps(p, 0.5);
+    const flame = (p.fireLight as unknown as { flameFx: Map<string, unknown> }).flameFx;
+    expect(flame.size).toBe(1);
+    // at the flame's height it catches; two studs below it, it does not
+    const at = (() => {
+      for (let y = 0; y < 8; y += 0.1) if (p.fireLight.fireNear(10.5, 14.5, 0.5, y, 0.05)) return y;
+      return -1;
+    })();
+    expect(at).toBeGreaterThan(0);
+    expect(p.fireLight.fireNear(10.5, 14.5, 1, at - 2.5, 2)).toBe(false);
+    expect(p.fireLight.fireNear(10.5, 14.5, 1, at - 1.8, 2)).toBe(true);
+    expect(p.fireLight.fireNear(10.5, 14.5, 1, at + 0.5)).toBe(true);
   });
 });
 

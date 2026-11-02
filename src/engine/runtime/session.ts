@@ -1027,7 +1027,8 @@ export class PlaySession {
 
   /** the stick comes out: the hand shows it, and it swings as a sword */
   takeOutStick(): boolean {
-    if (this.stickOut || (this.inventory.get('Branch') ?? 0) <= 0 || this.fireLight.held) return false;
+    if (this.stickOut || (this.inventory.get('Branch') ?? 0) <= 0 || this.fireLight.held || this.fireLight.busy)
+      return false;
     this.heldBefore = String(this.hero.held ?? 'None');
     this.stickOut = true;
     this.syncStick();
@@ -1605,6 +1606,11 @@ export class PlaySession {
     }
     // a shield bash only shoves: it does not break plain bricks
     if (kind === 'bash') return;
+    // step 12b: things that burn (vines, a web, a barricade) are only got rid of with fire, not knocked down
+    if (owner?.def.burn) {
+      if (attack.type !== 'fire') this.say('Swinging does nothing to it: it only burns.', 1.6);
+      return;
+    }
     this.breakHit(hit, { heading: this.heroState.heading, impulse: 2 * how.mult, mass: 1 });
   }
 
@@ -4097,10 +4103,15 @@ export class PlaySession {
   private pickUpBomb(): boolean {
     const fl = this.fireLight;
     if (fl.held || fl.busy) return false;
+    // one thing in the hands at a time: the stick is put away for a bomb
     const b = fl.bombAhead();
-    if (b) return fl.lift(b);
+    if (b) {
+      this.putAwayStick();
+      return fl.lift(b);
+    }
     const p = fl.plantAhead();
     if (p) {
+      this.putAwayStick();
       fl.pick(p);
       this.bombHint();
       return true;
