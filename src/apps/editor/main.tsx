@@ -177,7 +177,12 @@ async function boot() {
                 // no shrub or mushroom where the enemies go (12b: nor round the beam puzzle, ahead and to the right)
                 clearAround: track === 'firelight' ? 20 : 13,
               })
-            : newProjectFiles({ name: 'Tutorial sandbox', mapName: 'Practice map' }),
+            : newProjectFiles({
+                name: 'Tutorial sandbox',
+                mapName: 'Practice map',
+                // step 12c: the ice course has only the hero (neighbours got in the way of the ice and the climb)
+                ...(track === 'ice' ? { noNeighbours: true } : {}),
+              }),
       );
       await saveAll(backend, s, serializeFile);
       writeIntent({ kind: 'tutorial', project: s.manifest.id, mode, track });

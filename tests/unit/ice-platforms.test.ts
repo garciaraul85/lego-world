@@ -10,7 +10,11 @@ import { PlaySession } from '../../src/engine/runtime/session';
 /** Step 12c: ice (a slippery floor, a sliding block, ice that melts), moving platforms and lifts, climbing anything. */
 const piece = (name: string) => BUILTIN_ASSETS.find((a) => a.name === name)!;
 
-function game(things: [string, [number, number, number], string, number?][], climbing?: 'anything') {
+function game(
+  things: [string, [number, number, number], string, number?][],
+  climbing?: 'anything',
+  movement?: 'physics',
+) {
   const store = new ProjectStore(newProjectFiles({ name: 'Fire', random: () => 0.3 }));
   const bus = registerAll(new CommandBus(store));
   const map = store.manifest.entry.map;
@@ -28,6 +32,7 @@ function game(things: [string, [number, number, number], string, number?][], cli
   run({ type: 'asset.place', payload: { map, asset: tuft.id, pos: [-4, 0, -4], rot: 0, id: 'ins_corner0001' } });
   run({ type: 'asset.place', payload: { map, asset: tuft.id, pos: [44, 0, 36], rot: 0, id: 'ins_corner0002' } });
   if (climbing) run({ type: 'project.update', payload: { climbing } });
+  if (movement) run({ type: 'project.update', payload: { movement } });
   const p = new PlaySession(store.snapshot());
   // the new project's neighbours live where the tests are: not in these tests
   (p.world.npcs as unknown[]).splice(0);
@@ -93,6 +98,20 @@ describe('ice', () => {
     steps(p, 0.5);
     expect(p.heroState.z - off).toBeGreaterThan(0.5);
     expect(p.iceVel).toBeTruthy();
+  });
+
+  it('walked by the physics engine too (new projects), the hero slides on after letting go', () => {
+    const { p } = game([['Icy floor', [10, 0, 10], 'ins_icefloor01']], undefined, 'physics');
+    expect(p.physicsMovement).toBe(true);
+    p.placeAt([12, 0.4, 10.5], 0);
+    steps(p, 0.3);
+    p.camYaw = Math.PI;
+    p.input.keys.add('forward');
+    steps(p, 0.9);
+    p.input.keys.delete('forward');
+    const off = p.heroState.z;
+    steps(p, 0.6);
+    expect(p.heroState.z - off).toBeGreaterThan(1);
   });
 
   it('an ice block, held and pushed, slides on by itself until a wall stops it; the hero stays', () => {

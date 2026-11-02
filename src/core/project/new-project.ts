@@ -19,6 +19,8 @@ export type NewProjectOptions = {
    * a shrub touching one made the game move it away, so it seemed destroyed)
    */
   clearAround?: number;
+  /** step 12c: no neighbours on the map (v68 makes some on a new map otherwise): only the hero */
+  noNeighbours?: boolean;
 };
 
 /** Files of a brand-new project with one map (generated or empty) and one spawn point. */
@@ -69,7 +71,7 @@ export function newProjectFiles(o: NewProjectOptions): Map<string, unknown> {
   }
   files.set(paths.map(mapId), map);
   files.set(paths.state(mapId), { broken: [], player: null } satisfies MapState);
-  files.set(paths.instances(mapId), { npcsSaved: false, items } satisfies Instances);
+  files.set(paths.instances(mapId), { npcsSaved: !!o.noNeighbours, items } satisfies Instances);
   files.set(paths.gates, { gates: [], mapOrder: [mapId] } satisfies Gates);
   // Milestone 2b: new projects walk the hero with the physics engine (projects made before keep v68's walking)
   files.set(paths.settings, { quality: 'auto', movement: 'physics', legacy: { characters: false } } satisfies Settings);

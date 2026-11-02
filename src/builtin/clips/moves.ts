@@ -305,6 +305,30 @@ const ladder = clipFromPoses({ id: 'clp_moveladdr0', name: 'Ladder', group: 'Mov
 ]);
 
 /**
+ * step 12c: climbing a wall (Climbing: Anything): hands flat on the face, one high and one at the head, leaning in;
+ * the knee on the side of the low hand drawn up to a foothold, the other leg pushing below, then the other side
+ */
+const grip = (k: number) => ({
+  'leftArm.x': k > 0 ? -2.75 : -2.05,
+  'rightArm.x': k > 0 ? -2.05 : -2.75,
+  'leftArm.z': -0.15,
+  'rightArm.z': 0.15,
+  'leftForearm.bend': k > 0 ? -0.35 : -1.05,
+  'rightForearm.bend': k > 0 ? -1.05 : -0.35,
+  'leftLeg.x': k > 0 ? -0.25 : -1.15,
+  'rightLeg.x': k > 0 ? -1.15 : -0.25,
+  'leftShin.bend': k > 0 ? 0.55 : 1.55,
+  'rightShin.bend': k > 0 ? 1.55 : 0.55,
+  'torso.lean': 0.04,
+  'root.height': 1.7,
+});
+export const wallClimb = clipFromPoses({ id: 'clp_movewall00', name: 'Wall climb', group: 'Moves', length: 1.1, loop: true }, [
+  [0, grip(1)],
+  [0.55, grip(-1)],
+  [1.1, grip(1)],
+]);
+
+/**
  * step 12b: picking a bomb up over the head (bend, grab low, lift), holding it up (standing, and walking), throwing
  * it (arms back over the head, then forward and down), and putting it down (bend forward, arms down)
  */
@@ -413,6 +437,7 @@ export const MOVE_CLIPS: Clip[] = [
   pull,
   climb,
   ladder,
+  wallClimb,
   lift,
   hold,
   carry,

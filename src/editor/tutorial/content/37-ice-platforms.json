@@ -30,7 +30,7 @@
     {
       "id": "ic.place",
       "title": "An icy floor, an ice block and an ice wall",
-      "body": "Place an Icy floor 3 studs in front of the start, an Ice block on it near its start end, and an Ice wall across the way just past the far end of the floor (13 studs ahead), in line with the block.",
+      "body": "Place an Icy floor (8 studs across, 16 long) 3 studs in front of the start, an Ice block on it near its start end, and an Ice wall across the way just past the far end of the floor (21 studs ahead), in line with the block.",
       "task": "Place an Icy floor, an Ice block and an Ice wall.",
       "target": "[aria-label=\"Ice, platforms and climbing\"]",
       "check": {
@@ -57,7 +57,7 @@
           "fn": "placePuzzle",
           "args": {
             "name": "Ice wall",
-            "ahead": 13
+            "ahead": 21
           }
         }
       ],
@@ -88,14 +88,14 @@
     },
     {
       "id": "ic.torch",
-      "title": "A torch for the ice",
-      "body": "Stop the game. Place a Hand torch on the ground to one side of the start (Starter pack › Fire and light), off the icy floor. Ice melts with fire.",
-      "task": "Place a Hand torch.",
+      "title": "A stick and a fire",
+      "body": "Stop the game. Ice melts with fire. Place a Branch on the ground to one side of the start, off the ice, and a Burning torch beside it (Starter pack › Fire and light), as in the Fire and light course.",
+      "task": "Place a Branch and a Burning torch.",
       "target": "[aria-label=\"Fire and light\"]",
       "check": {
         "kind": "state",
         "test": "assetsOnMap",
-        "args": "Hand torch"
+        "args": "Branch,Burning torch"
       },
       "doItForMe": [
         {
@@ -104,9 +104,17 @@
         {
           "fn": "placePuzzle",
           "args": {
-            "name": "Hand torch",
+            "name": "Branch",
             "ahead": 1,
             "side": -7
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Burning torch",
+            "ahead": 4,
+            "side": -8
           }
         }
       ],
@@ -116,8 +124,8 @@
     {
       "id": "ic.melt",
       "title": "Melt the ice wall",
-      "body": "Press Play, walk over the Hand torch (it goes into item button 1, J), go to the ice wall and press J: it steams and melts away. A sword does nothing to ice. An Ice wall also melts in a beam of light: turn a mirror onto it.",
-      "task": "Press Play and melt the ice wall.",
+      "body": "Press Play. Walk over the Branch: the hero picks it up as a stick. Hold its end up into the Burning torch’s flame: it catches. Walk to the ice wall and touch it with the burning stick: the wall steams and melts away, and the stick burns up with it (10 seconds, so be quick). A sword does nothing to ice. An Ice wall also melts in a beam of light: turn a mirror onto it.",
+      "task": "Press Play, light a stick and melt the ice wall.",
       "target": "[data-tour=\"play\"]",
       "check": {
         "kind": "state",

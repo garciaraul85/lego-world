@@ -64,6 +64,8 @@ export type PuzzleHost<T extends PuzzleObject = PuzzleObject> = {
   weighing?(): { kind: 'npc' | 'loose'; x0: number; x1: number; z0: number; z1: number; y0: number; weight: number }[];
   /** the hero is here now, feet at y (a climb) */
   placeHeroAt(x: number, y: number, z: number): void;
+  /** step 12c: the move keys as pressed (x: right, z: forward), not turned by the camera */
+  moveKeys?(): { x: number; z: number };
   /** step 12c: the game's Climbing is Anything (walls, with stamina), not only ladders and vines */
   climbAnything?(): boolean;
   /** step 12c: the hero's stamina now (0–its most), and some used (climbing, a climb jump) */
@@ -97,6 +99,8 @@ const ICE_SLIDE_MAX = 48;
 export const CLIMB_MAX = 3.6;
 /** step 12c: climbing a wall: studs a second up and down, and sideways; stamina a second climbing, and holding still */
 const WALL_SPEED = 1.8;
+/** the hero's middle is this far off the face of the wall it holds (its hands on it) */
+const WALL_GAP = 0.85;
 const WALL_SIDE = 1.6;
 const WALL_DRAIN = 9;
 const WALL_HOLD = 2;
@@ -603,7 +607,24 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
 
   /** something solid ahead of the hero at this height (the wall it holds) */
   private solidAhead(x: number, y: number, z: number, fx: number, fz: number): boolean {
-    return !this.h.heroClear(x + fx * 0.95, y, z + fz * 0.95);
+    const d = WALL_GAP + 0.3;
+    return this.solidAt(x + fx * d, y, z + fz * d);
+  }
+
+  /** a brick right there (a point inside it) */
+  private solidAt(x: number, y: number, z: number): boolean {
+    const py = y / 0.4;
+    for (const p of this.h.pieces()) {
+      const q = pieceBox(p);
+      if (x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1 && py >= q.y0 && py <= q.y1) return true;
+    }
+    return false;
+  }
+
+  /** how far ahead the wall's face is (at chest height), or null */
+  private faceAhead(x: number, y: number, z: number, fx: number, fz: number): number | null {
+    for (let d = 0; d <= 2; d += 0.05) if (this.solidAt(x + fx * d, y, z + fz * d)) return d;
+    return null;
   }
 
   /**
@@ -619,9 +640,11 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     const fz = Math.cos(w.heading);
     const rx = Math.cos(w.heading);
     const rz = -Math.sin(w.heading);
+    // on a wall the keys are the wall's own: up and down, left and right as the hero faces it (wherever the camera is)
+    const keys = this.h.moveKeys?.();
     const want = this.h.moveWish();
-    const along = want.x * fx + want.z * fz;
-    const side = want.x * rx + want.z * rz;
+    const along = keys ? keys.z : want.x * fx + want.z * fz;
+    const side = keys ? keys.x : want.x * rx + want.z * rz;
     // jumping backward (away from the wall) lets go; jumping otherwise is a climb jump
     if (jump && along < -0.5) return this.letGo();
     if (jump && w.hop <= 0 && (this.h.stamina?.() ?? 0) > 0) {
@@ -661,11 +684,12 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     }
     // hands over the top: room ahead above the hands, pull up onto it
     if (!this.solidAhead(x, y + 1.8, z, fx, fz)) {
-      for (const d of [0.95, 1.6])
+      for (const d of [WALL_GAP + 0.6, WALL_GAP + 1.3])
         for (let h = y + 0.4; h <= y + 2.4 + 1e-6; h += 0.4) {
           const tx = x + fx * d;
           const tz = z + fz * d;
-          if (!this.h.heroClear(tx, h, tz) || !room(x, h, z)) continue;
+          // standing room up there, on top of the wall (a brick just under the feet), not in the air beside it
+          if (!this.solidAt(tx, h - 0.2, tz) || !this.h.heroClear(tx, h, tz) || !room(x, h, z)) continue;
           this.wall = null;
           this.climbing = { from: [x, y, z], to: [tx, h, tz], t: CLIMB_REACH };
           this.h.log('Over the top of the wall');
@@ -737,7 +761,17 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
         return;
       }
       if ((this.h.stamina?.() ?? 1) <= 0) return;
-      this.wall = { heading: s.heading, y0: s.y, hop: 0 };
+      // hold on facing the wall square, the body a little off its face (the hands on it)
+      const heading = Math.round(s.heading / (Math.PI / 2)) * (Math.PI / 2);
+      const hx = Math.sin(heading);
+      const hz = Math.cos(heading);
+      const face = this.faceAhead(s.x, s.y + 1.5, s.z, hx, hz);
+      if (face === null) return;
+      const nx = s.x + hx * (face - WALL_GAP);
+      const nz = s.z + hz * (face - WALL_GAP);
+      if (this.h.heroClear(nx - hx * 0.3, s.y + 0.1, nz - hz * 0.3)) this.h.placeHeroAt(nx, s.y, nz);
+      s.heading = heading;
+      this.wall = { heading, y0: s.y, hop: 0 };
       this.h.sound('scrape');
       this.h.log('Climbing the wall');
       return;

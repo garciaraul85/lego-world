@@ -2,7 +2,7 @@ import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { SND } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
-import { MOVE_FOR } from '../../builtin/clips/moves';
+import { MOVE_FOR, wallClimb } from '../../builtin/clips/moves';
 import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS, FX } from '../../builtin/effects';
 import { genreById } from '../../builtin/genres';
 import { BUILTIN_SCREEN_EFFECTS, DEFAULT_SCREEN_EVENTS } from '../../builtin/screen-effects';
@@ -1558,9 +1558,10 @@ export class PlaySession {
     if (!v || dt <= 0) return;
     const ax = (s.x - from.x) / dt;
     const az = (s.z - from.z) / dt;
-    // only what it really moved carries on (against a wall, along it)
-    if (Math.abs(ax) < Math.abs(v.x) - 0.01) v.x = ax;
-    if (Math.abs(az) < Math.abs(v.z) - 0.01) v.z = az;
+    // against a wall the speed into it is lost (along it, it slides on); the physics walker's own easing is not a wall
+    const c = this.world.controller;
+    if (Math.abs(ax) < Math.abs(v.x) - 0.01 && !c.clear(s.x + Math.sign(v.x) * 0.25, s.y + 0.2, s.z)) v.x = ax;
+    if (Math.abs(az) < Math.abs(v.z) - 0.01 && !c.clear(s.x, s.y + 0.2, s.z + Math.sign(v.z) * 0.25)) v.z = az;
     if (!ice.want) s.heading = from.heading;
   }
 
@@ -3980,6 +3981,10 @@ export class PlaySession {
       },
       heroClear: (x, y, z) => this.world.controller.clear(x, y, z),
       climbAnything: () => this.climbingChoice === 'anything',
+      moveKeys: () => {
+        const v = this.inputVector();
+        return { x: v.x, z: v.z };
+      },
       stamina: () => (this.god ? MAX_STAMINA : this.combat.stamina),
       spendStamina: (n) => {
         if (!this.god) this.combat.spend(n);
@@ -4448,7 +4453,10 @@ export class PlaySession {
             // step 12a: so do pushing, pulling and climbing; 12b: ladders, and lifting, carrying and throwing
             (OWN_MOTION.has(st)
               ? undefined
-              : BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st as keyof typeof MOVE_FOR]))),
+              : // step 12c: holding a wall (Climbing: Anything) climbs with its own built-in move
+                st === 'ladder' && this.puzzles.wall
+                ? wallClimb
+                : BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st as keyof typeof MOVE_FOR]))),
       dt,
       1.5,
     );

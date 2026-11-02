@@ -95,6 +95,7 @@ describe('posing', () => {
       'Pull',
       'Climb',
       'Ladder',
+      'Wall climb',
       'Lift',
       'Hold up',
       'Carry',

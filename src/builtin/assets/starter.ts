@@ -668,11 +668,11 @@ function lightSensor(): Raw {
 const ICE = ['#d6f1fb', '#b9e4f5', '#e9f8fd', '#a6d9ef'];
 const ice = (i: number) => ICE[(i * 5 + (i >> 2)) % 4]!;
 
-/** a sheet of ice to lay on the floor: walking on it slides */
+/** a long sheet of ice to lay on the floor (8 studs across, 16 long): walking on it slides */
 function icyFloor(): Raw {
   const b = new Build();
-  b.layer('plate', 0, 0, 8, 8, 0, ice);
-  return asset('Icy floor', 'structure', [8, 8], b, { ice: { floor: true, melts: 'never' } });
+  b.layer('plate', 0, 0, 8, 16, 0, ice);
+  return asset('Icy floor', 'structure', [8, 16], b, { ice: { floor: true, melts: 'never' } });
 }
 
 /** a block of ice: held and pushed, it slides on by itself until something stops it */

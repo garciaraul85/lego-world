@@ -1555,15 +1555,20 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     await wait(1500);
   },
   async meltIceWall(c) {
-    // what walking over the Hand torch and pressing its item button (J) facing the ice wall does
+    // what picking up the Branch, holding its end in the Burning torch's flame and touching the ice wall with it does
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
-    await takePickup(s, 'Hand torch', 'Torch');
+    await takePickup(s, 'Branch', 'Branch');
+    for (let i = 0; i < 10 && !s.stickOut; i++) await wait(150);
+    await lightBranch(s);
     const w = s.world.instances.find((i) => i.def.name === 'Ice wall');
     if (!w) return;
-    faceThing(s, w, 0.6);
-    await wait(300);
-    s.useItem('Torch', slotOf(s, 'Torch'));
+    for (const gap of [0.6, 0.3, 0.1]) {
+      if (s.fireLight.melting.has(w.inst.id) || !s.fireLight.litBranch) break;
+      faceThing(s, w, gap);
+      lineUpTip(s);
+      await wait(500);
+    }
     for (let i = 0; i < 30 && s.world.instances.includes(w); i++) await wait(200);
   },
   async ridePlatform(c) {
