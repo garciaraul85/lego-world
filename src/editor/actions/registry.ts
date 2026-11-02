@@ -550,6 +550,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('firelight'),
   },
   {
+    id: 'help.iceCourse',
+    label: 'Ice, platforms and climbing course (icy floors, ice blocks, moving platforms, climbing walls)',
+    run: ({ ui }) => ui.tutorial('ice'),
+  },
+  {
     id: 'help.swim',
     label: 'Swimming course (dive, breath, the Action button)',
     run: ({ ui }) => ui.tutorial('swim'),
@@ -788,7 +793,15 @@ export const COURSE_GROUPS: [string, string[]][] = [
   ],
   [
     'Playing and logic',
-    ['help.coding', 'help.combat', 'help.puzzlesCourse', 'help.fireLightCourse', 'help.saving', 'help.swim'],
+    [
+      'help.coding',
+      'help.combat',
+      'help.puzzlesCourse',
+      'help.fireLightCourse',
+      'help.iceCourse',
+      'help.saving',
+      'help.swim',
+    ],
   ],
   ['Look and feel', ['help.effects', 'help.screenfx', 'help.lights', 'help.atmosphere', 'help.media']],
 ];

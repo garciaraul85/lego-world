@@ -856,6 +856,24 @@ export function Viewport({
           markers.push({ pos: p, size: [0.55 * k, 1.0 * k, 0], color: [1, 0.42, 0.08], alpha: 0.85, cone: 'y' });
           markers.push({ pos: p, size: [0.3 * k, 0.6 * k, 0], color: [1, 0.88, 0.35], cone: 'y' });
         }
+        // step 12c: a moving platform: a line to where it goes, and its outline there
+        for (const e of studio ? [] : s.instances) {
+          const mv = e.def.moves;
+          if (!mv) continue;
+          const turned = (e.inst.rot ?? 0) % 2 === 1;
+          const w = turned ? e.def.footprint[1] : e.def.footprint[0];
+          const d = turned ? e.def.footprint[0] : e.def.footprint[1];
+          const x = Number(e.inst.pos[0]);
+          const y = Number(e.inst.pos[1]) * 0.4;
+          const z = Number(e.inst.pos[2]);
+          const [bx, by, bz] = mv.by;
+          const c: Vec3 = [x + w / 2, y + 0.9, z + d / 2];
+          lines.push({ lines: [...c, c[0] + bx, c[1] + by, c[2] + bz], color: [0.31, 0.82, 0.77], onTop: true });
+          lines.push({
+            lines: boxLines(x + bx, y + by, z + bz, x + bx + w, y + by + 0.8, z + bz + d),
+            color: [0.31, 0.82, 0.77],
+          });
+        }
       }
       if (s) drawGizmo(lines, markers);
       // P27: the map's lights and darkness, as in the game (asset studio: none)

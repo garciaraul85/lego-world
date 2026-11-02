@@ -283,6 +283,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // step 12c: the Starter pack's ice, platforms and climbing pieces
+    id: 'scene-dock-icemove',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { left: 'hier', dock: 'pack' });
+      await p.locator('[aria-label="Ice, platforms and climbing"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     // step 12a: the Map tab scrolled to Dungeon
     id: 'scene-map-dungeon',
     screen: 'scene',
@@ -917,6 +927,16 @@ export const HELP_STATES: HelpState[] = [
       await ws(p, 'Assets');
       await p.getByRole('listbox').getByRole('option').first().click();
       await p.locator('[data-tour="asset-fire-light"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    // step 12c: an open asset scrolled to its Ice, moving and climbing section
+    id: 'assets-icemove',
+    screen: 'assets',
+    setup: async (p) => {
+      await ws(p, 'Assets');
+      await p.getByRole('listbox').getByRole('option').first().click();
+      await p.locator('[data-tour="asset-ice-move"]').scrollIntoViewIfNeeded();
     },
   },
   {

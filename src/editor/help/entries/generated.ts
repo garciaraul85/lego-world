@@ -133,7 +133,9 @@ export const ACTION_HELP: Record<string, string> = {
   'help.puzzlesCourse':
     'Starts the Puzzles course (11 steps): push a block onto a weight switch that opens a gate (made with Switch opens a gate), pull it back off, make a crystal switch timed in the Asset studio and hit it, then make the map a dungeon and open a locked door with a small key from a chest.',
   'help.fireLightCourse':
-    'Starts the Fire and light course (9 steps): take a Hand torch and burn a curtain of vines with its flame, light a torch stand, blow up a cracked wall with a bomb from a Bomb bag, then turn a mirror to bring a sun crest’s beam onto a light sensor.',
+    'Starts the Fire and light course (9 steps): pick up a stick, light it at a burning torch and burn a curtain of vines with it, light a torch stand with a second stick, throw a bomb from a Bomb flower at a cracked wall, then push a mirror round to bring a sun crest’s beam onto a light sensor.',
+  'help.iceCourse':
+    'Starts the Ice, platforms and climbing course (11 steps): push an ice block across an icy floor until an ice wall stops it, melt the wall with a torch, ride a moving platform, then set Climbing to Anything and climb a rock face with stamina.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':

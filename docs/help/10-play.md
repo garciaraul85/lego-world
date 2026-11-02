@@ -70,6 +70,12 @@ Items that work by themselves from an item button: a **Bomb**'s button lifts one
 
 Walk into **vines** or a **ladder** and keep walking to climb it: forward climbs up, back climbs down (off at the bottom), and at the top the hero climbs over onto it or onto what is beyond; Jump lets go.
 
+**Ice**: on an **icy floor** the hero is slow to get going and slow to stop, and slides on after you let go. Hold an **ice block** (Action, Grab) and push: it slides on by itself until something stops it. **Ice walls** melt with fire (the Torch, a burning stick, a bomb) and, if they are made to, with a beam of light; a sword does nothing to them.
+
+**Moving platforms** go back and forth (or up and down, a **lift**), waiting at each end; stand on one and you ride along. A **Switch lift** only runs while it is on.
+
+**Climbing**: with **Project › Climbing: Anything, with stamina** (like Breath of the Wild), walk into almost any wall and keep walking to hold on: W climbs up, S down (off at the bottom), A and D move along it. Climbing uses stamina (a little while holding still), shown by the stamina bar; **Space** is a climb jump (a quick hop up for a quarter of the stamina), and Space while pulling back lets go. Out of stamina you let go and fall; at the top the hero pulls itself up. Ladders and vines cost no stamina, and walls marked Not climbable say “Too smooth to climb.” With **Ladders and vines only** (the default, like Ocarina of Time) walls stop you.
+
 ## Rebuilding
 
 Smashed bricks are real physical pieces: they fly off, tumble, bounce off the bricks around them, stack and come to rest, and the hero pushes them aside when walking through. In water they float and drift with its current, as loose objects do (see Scene › Water and loose things).

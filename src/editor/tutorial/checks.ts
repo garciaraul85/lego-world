@@ -531,6 +531,8 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     return !!ed.session.value?.world.instances.some((i) => i.def.name === name && i.state === state);
   },
   /** the running game's log has this line (Push block pulled…) */
+  /** step 12c: Project › Climbing is this (ladders, anything) */
+  climbingIs: (ed, a) => (ed.store.get<{ climbing?: string }>(paths.settings)?.climbing ?? 'ladders') === a,
   playLogged: (ed, a) => !!ed.session.value?.events.some((e) => e.msg.includes(String(a))),
   /** “Name:stays”: the project's copy of the asset is a switch that stays that way (timed, toggle…) */
   switchStays: (ed, a) => {

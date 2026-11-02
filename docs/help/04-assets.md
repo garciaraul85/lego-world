@@ -103,6 +103,14 @@ The **Fire and light** section of the Asset studio, under Puzzle:
 
 A **light sensor** is a switch **Lit by a beam** (Puzzle › Switch): it turns on when a beam reaches it and, if Held, off again when the beam goes. A **torch stand** is a switch **Hit** by **Fire**: a torch's flame lights it.
 
+## Ice, moving and climbing
+
+The **Ice, moving and climbing** section, under Fire and light:
+
+- **Ice**: **Slippery floor** — the hero speeds up and slows down slowly on it and slides on after letting go (like the icy floors of Ocarina of Time). **Slides when pushed** (a Push block only) — held and pushed, the block slides on by itself until a wall, a block or an edge stops it; the hero stays where it pushed from. **Melts with** Fire, Fire or a beam of light, or Nothing, in the seconds you set: it steams, then is gone for good. A swing does nothing to ice.
+- **Moves**: it travels from its place to the far end (**Across**, **Up**, **Deep**, in studs) and back, easing in and out, taking the seconds you set and **waiting** at each end. Whoever stands on it rides along; straight up makes a lift. With **Only when on** it runs only in its second state (two states, off and on, are added): logic's Set state, Switch opens a gate, or Light all the torches can turn it on. In the Scene view a line shows its path, with its outline at the far end.
+- **Not climbable**: with Project › Climbing set to Anything, the hero cannot climb it.
+
 ## Health: things that take several hits
 
 Without health, one hit smashes an asset (when **Can be smashed** is on). With **Health** (Asset properties, under Smash) it takes several hits first:

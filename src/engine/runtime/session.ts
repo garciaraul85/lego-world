@@ -395,14 +395,22 @@ export class PlaySession {
   /** step 12c: moving platforms (and lifts), and what the hero rides */
   readonly platforms: Platforms<PlayInstance> = this.makePlatforms();
 
+  private moversOf: { all: readonly PlayInstance[]; movers: PlayInstance[] } | null = null;
+
   private makePlatforms(): Platforms<PlayInstance> {
     const self = this;
     return new Platforms<PlayInstance>({
-      movers: () => self.world.instances.filter((i) => !!i.def.moves),
+      movers: () => {
+        // the list is made again only when the map's things change (a platform moving changes it too)
+        const all = self.world.instances;
+        if (self.moversOf?.all !== all) self.moversOf = { all, movers: all.filter((i) => !!i.def.moves) };
+        return self.moversOf.movers;
+      },
       get heroState() {
         return self.heroState;
       },
       moveTo: (o, pos) => self.moveInstance(o, pos),
+      log: (t) => self.emit('info', t),
     });
   }
   private lastStamina = -1;

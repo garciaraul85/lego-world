@@ -670,6 +670,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
           if (!this.h.heroClear(tx, h, tz) || !this.h.heroClear(x, h, z)) continue;
           this.wall = null;
           this.climbing = { from: [x, y, z], to: [tx, h, tz], t: CLIMB_REACH };
+          this.h.log('Over the top of the wall');
           return;
         }
       // nothing to hold and nothing to climb onto: let go

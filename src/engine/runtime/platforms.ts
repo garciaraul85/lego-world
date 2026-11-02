@@ -21,6 +21,8 @@ export type PlatformHost<T extends PlatformObject = PlatformObject> = {
   readonly heroState: HeroState;
   /** its bricks put at a new place (x, z studs, y plates) */
   moveTo(o: T, pos: [number, number, number]): void;
+  /** the event log */
+  log?(text: string): void;
 };
 
 type Run = {
@@ -83,6 +85,7 @@ export class Platforms<T extends PlatformObject = PlatformObject> {
   }
 
   step(dt: number) {
+    const was = this.ride?.id ?? null;
     this.ride = null;
     for (const o of this.h.movers()) {
       const mv = o.def.moves;
@@ -117,6 +120,7 @@ export class Platforms<T extends PlatformObject = PlatformObject> {
             dz: r.at[2] - before[2],
             top: b.top,
           };
+        if (was !== o.inst.id) this.h.log?.(`Riding the ${o.def.name}`);
       }
     }
   }

@@ -1534,6 +1534,83 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     }
     await wait(300);
   },
+  // step 12c: the Ice, platforms and climbing course
+  async slideIceBlock(c) {
+    // what holding Action (Grab) at the ice block and pushing it (W) does: it slides on by itself
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const b = s.world.instances.find((i) => i.def.name === 'Ice block');
+    if (!b) throw new Error('Place an Ice block first.');
+    const yaw = s.world.doc.spawns[0]?.yaw ?? 0;
+    // behind it, on the start's side, facing away from the start
+    faceThing(s, b, 0.15, [-Math.round(Math.sin(yaw)), -Math.round(Math.cos(yaw))]);
+    await wait(300);
+    s.puzzles.setGrab(true);
+    s.camYaw = s.heroState.heading + Math.PI;
+    s.input.keys.add('forward');
+    const was = Number(b.inst.pos[0]) + Number(b.inst.pos[2]);
+    for (let i = 0; i < 30 && Number(b.inst.pos[0]) + Number(b.inst.pos[2]) === was; i++) await wait(100);
+    s.input.keys.delete('forward');
+    s.puzzles.setGrab(false);
+    await wait(1500);
+  },
+  async meltIceWall(c) {
+    // what walking over the Hand torch and pressing its item button (J) facing the ice wall does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Hand torch', 'Torch');
+    const w = s.world.instances.find((i) => i.def.name === 'Ice wall');
+    if (!w) return;
+    faceThing(s, w, 0.6);
+    await wait(300);
+    s.useItem('Torch', slotOf(s, 'Torch'));
+    for (let i = 0; i < 30 && s.world.instances.includes(w); i++) await wait(200);
+  },
+  async ridePlatform(c) {
+    // what jumping onto the moving platform does: the hero rides it there and back
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const p = s.world.instances.find((i) => i.def.name === 'Moving platform');
+    if (!p) throw new Error('Place a Moving platform first.');
+    const xs = p.bricks.map((b) => b.x);
+    const zs = p.bricks.map((b) => b.z);
+    const ys = p.bricks.map((b) => b.y);
+    s.placeAt(
+      [
+        (Math.min(...xs) + Math.max(...xs) + 1) / 2,
+        (Math.max(...ys) + 1) * 0.4,
+        (Math.min(...zs) + Math.max(...zs) + 1) / 2,
+      ],
+      s.heroState.heading,
+    );
+    s.camYaw = s.heroState.heading + Math.PI + 0.8;
+    s.camPitch = 0.45;
+    for (let i = 0; i < 30 && !s.platforms.ride; i++) await wait(150);
+    await wait(2500);
+  },
+  setClimbing(c, a) {
+    // what Project › Climbing does
+    run(
+      c,
+      { type: 'project.update', payload: { climbing: (a?.to as 'ladders' | 'anything') ?? 'anything' } },
+      'Climbing',
+    );
+  },
+  async climbWall(c) {
+    // what walking into the rock face and holding W does (Climbing: Anything): up, and over the top
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const r = s.world.instances.find((i) => i.def.name === 'Rock face');
+    if (!r) throw new Error('Place a Rock face first.');
+    faceThing(s, r, 0.05);
+    await wait(300);
+    s.camYaw = s.heroState.heading + Math.PI;
+    s.camPitch = 0.3;
+    s.input.keys.add('forward');
+    for (let i = 0; i < 120 && !s.events.some((e) => e.msg.includes('Over the top of the wall')); i++) await wait(150);
+    await wait(600);
+    s.input.keys.delete('forward');
+  },
   async blastWall(c) {
     // what pressing Action at the Bomb flower (a lit bomb held up), facing the wall from a few studs away and
     // throwing it (Action while walking) does — again with the bomb the flower grows after a miss, until the wall breaks
