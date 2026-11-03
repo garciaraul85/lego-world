@@ -4,6 +4,7 @@ import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_MODEL_FILES } from '../../builtin/models/data';
 import { ADVENTURE_PACK } from '../../builtin/packs/adventure';
 import { BUILTIN_SCREENS } from '../../builtin/screens';
+import { localToWorld } from '../../core/assets/expand';
 import { MOVER_INFO, type Mover, makeMover } from '../../core/assets/movers';
 import { type Mirror, mirrorOf, type Stamp, stampAt, stampOf } from '../../core/bricks/build-tools';
 import type { Brick } from '../../core/bricks/codec';
@@ -1441,8 +1442,22 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const s = surfaceOf(c.ed.store, map(c));
     let top = 0;
     for (let x = x0; x < x0 + w; x++) for (let z = z0; z < z0 + d; z++) top = Math.max(top, s.topAt(x, z) ?? 0);
-    // `rot`: quarter turns (a fan turned round to blow back toward the start)
-    run(c, placeCommands(c.ed, def.id, [x0, top, z0], Number(a?.rot ?? 0)), `Place ${name}`);
+    // `rot`: quarter turns; `faceStart`: turned so its front (a fan's blast) faces back toward the start
+    let rot = Number(a?.rot ?? 0);
+    if (a?.faceStart) {
+      const want: [number, number] = [-f[0], -f[1]];
+      let best = -2;
+      for (let q = 0; q < 4; q++) {
+        const p0 = localToWorld(def, { pos: [0, 0, 0], rot: q }, [0, 0, 0]);
+        const p1 = localToWorld(def, { pos: [0, 0, 0], rot: q }, [0, 0, 1]);
+        const dot = (p1[0] - p0[0]) * want[0] + (p1[2] - p0[2]) * want[1];
+        if (dot > best) {
+          best = dot;
+          rot = q;
+        }
+      }
+    }
+    run(c, placeCommands(c.ed, def.id, [x0, top, z0], rot), `Place ${name}`);
   },
   async pushOntoSwitch(c, a) {
     // what holding Action (Grab) and walking into the block does, until it slides onto the switch: the hero leans in
@@ -1557,24 +1572,27 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   // step 12c-2: the Wind, water and throwing course
   async walkIntoWind(c) {
-    // what walking (W) toward the fan does: into its wind, leaning into it
+    // what walking (W) from the start straight toward the fan does: into its wind, leaning into it
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
     const fan = s.world.instances.find((i) => i.def.wind);
     if (!fan) throw new Error('Place a Fan first.');
-    const f = s.wind.fieldOf(fan);
-    if (!f) throw new Error('The fan is not blowing.');
-    // in its wind, a few studs out, facing the fan; the camera behind
-    const yaw = Math.atan2(-f.dir[0], -f.dir[1]);
-    standAt(s, f.from[0] + f.dir[0] * 7, f.from[2] + f.dir[1] * 7, yaw);
+    const b = fan.bricks;
+    const cx = (Math.min(...b.map((q) => q.x)) + Math.max(...b.map((q) => q.x)) + 1) / 2;
+    const cz = (Math.min(...b.map((q) => q.z)) + Math.max(...b.map((q) => q.z)) + 1) / 2;
+    const sp = s.world.doc.spawns[0]?.pos ?? [0, 0, 0];
+    // at the start, facing the fan, the camera behind
+    const yaw = Math.atan2(cx - sp[0]!, cz - sp[2]!);
+    standAt(s, sp[0]!, sp[2]!, yaw);
     s.camYaw = yaw + Math.PI;
     s.input.keys.add('forward');
     try {
-      for (let i = 0; i < 30 && !logged(s, 'Walking into the wind'); i++) await wait(150);
+      for (let i = 0; i < 60 && !logged(s, 'Walking into the wind'); i++) await wait(150);
       await wait(1200);
     } finally {
       s.input.keys.delete('forward');
     }
+    if (!logged(s, 'Walking into the wind')) throw new Error('The fan’s wind does not reach the way to it: turn the fan so its front faces the start.');
   },
   async gustAt(c, a) {
     // what picking up the Gust leaf, taking it out (its button) and swinging it (F) at a thing does
@@ -1619,22 +1637,44 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       for (let i = 0; i < 20 && target.state === target.def.states[0]; i++) await wait(150);
     }
   },
-  async wadeRiver(c) {
-    // what walking into the river does: in its current
+  async swimRiver(c) {
+    // what walking into the river does (it is deep: the hero swims, and the current carries it), then holding
+    // Action (Dive) a moment to go under
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
     const w = s.waterBoxes().find((b) => b.current[0] || b.current[1]);
     if (!w) throw new Error('Place a River first.');
-    standAt(s, (w.x0 + w.x1) / 2 - 4, (w.z0 + w.z1) / 2, s.heroState.heading);
-    for (let i = 0; i < 20 && !logged(s, 'Wading in a current'); i++) await wait(150);
+    // at its near bank, upstream, facing it
+    const sp = s.world.doc.spawns[0]?.pos ?? [0, 0, 0];
+    const near = Math.abs(w.z0 - sp[2]!) < Math.abs(w.z1 - sp[2]!) ? w.z0 - 1.2 : w.z1 + 1.2;
+    const into = near < w.z0 ? 1 : -1;
+    const yaw = into > 0 ? 0 : Math.PI;
+    standAt(s, w.x0 + 4, near, yaw);
+    s.camYaw = yaw + Math.PI;
+    s.input.keys.add('forward');
+    try {
+      for (let i = 0; i < 30 && !s.swim.on; i++) await wait(150);
+    } finally {
+      s.input.keys.delete('forward');
+    }
+    await wait(800);
+    s.swim.down = true;
     await wait(1500);
+    s.swim.down = false;
+    await wait(1200);
   },
   placeRiver(c) {
-    // what Dock › Water › River and a click beside the start does: a river flowing across, its current 3 studs a second
+    // what Dock › Water › River and a click behind the start does: a deep river flowing across, its current 3 studs a
+    // second, the start near its upstream end
     const items = c.ed.store.get<Instances>(paths.instances(map(c)))?.items ?? [];
     if (items.some((i) => i.kind === 'water' && i.body === 'river')) return;
-    const sp = mapDoc(c).spawns[0]?.pos ?? [0, 0.4, 0];
-    if (!placeWaterAt(c.ed, { x: sp[0]! - 6, y: Math.round(sp[1]! / 0.4), z: sp[2]! - 12 }, 'river'))
+    const sp = mapDoc(c).spawns[0];
+    const at = sp?.pos ?? [0, 0.4, 0];
+    const yaw = sp?.yaw ?? 0;
+    // behind the start: 12 studs back
+    const bx = at[0]! - Math.sin(yaw) * 12;
+    const bz = at[2]! - Math.cos(yaw) * 12;
+    if (!placeWaterAt(c.ed, { x: bx + 18, y: Math.round(at[1]! / 0.4), z: bz }, 'river'))
       throw new Error('Could not place the river there.');
   },
   async meltIceWall(c) {

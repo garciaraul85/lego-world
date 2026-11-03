@@ -29,7 +29,7 @@
     {
       "id": "wd.fan",
       "title": "A fan",
-      "body": "Place a Fan 12 studs ahead of the start, turned round (R twice) so it blows back toward the start. Air leaves its front: 16 studs a second, reaching 16 studs, falling off as it goes; a wall stops it.",
+      "body": "Place a Fan 12 studs ahead of the start with its open front toward the start (before you click, press R to turn it until the opening faces you), so it blows back toward the start. Air leaves its front at 16 studs a second and reaches 16 studs, slowing as it goes; a wall stops it.",
       "task": "Place a Fan facing the start.",
       "target": "[aria-label=\"Wind and throwing\"]",
       "check": {
@@ -43,8 +43,7 @@
           "args": {
             "name": "Fan",
             "ahead": 12,
-            "side": 0,
-            "rot": 2
+            "faceStart": true
           }
         }
       ],
@@ -54,7 +53,7 @@
     {
       "id": "wd.walk",
       "title": "Walk into the wind",
-      "body": "Press Play and walk toward the fan. In its wind you are slower: you lean into it, an arm up against it, with short heavy steps. Stop walking and you brace, turned to face it. Jump in it and it carries you back: in the air nothing holds you.",
+      "body": "Press Play and walk (W) straight toward the fan. As you come into its wind you slow down: you lean into it, an arm up in front of your face, with short heavy steps; near the fan the wind is strongest. Stop walking and you brace, turned to face it. Jump in it and it carries you back: in the air nothing holds you.",
       "task": "Press Play and walk into the fan’s wind.",
       "target": "[data-tour=\"play\"]",
       "check": {
@@ -251,7 +250,7 @@
     {
       "id": "wd.river",
       "title": "A river’s current",
-      "body": "Stop the game. Place a River behind the start (Scene › Water › River, its current 3 studs a second; set it in the Inspector). Things float down it, and it carries you swimming; wading, it pushes on your legs.",
+      "body": "Stop the game. Place a River behind the start (Scene › Water › River: 4.4 deep, its current 3 studs a second; change them in the Inspector). Loose things float down it.",
       "task": "Place a River.",
       "target": "[data-tour=\"dock\"]",
       "check": {
@@ -271,22 +270,22 @@
       "placement": "top"
     },
     {
-      "id": "wd.wade",
-      "title": "Wade into it",
-      "body": "Press Play and walk into the river. The current pushes on what is under the water: a slow one you walk through, a strong one (8 studs a second and up) sweeps you downstream.",
-      "task": "Press Play and wade into the river.",
+      "id": "wd.swim",
+      "title": "Swim in the current",
+      "body": "Press Play, turn round and walk into the river. It is deep enough to swim in: the current carries you downstream as you swim (swimming against it is slow). Hold E (Dive) to go under, let go to drift back up. Shallow water you wade instead (chest-deep at most), and a strong current there pushes on your legs.",
+      "task": "Press Play and swim in the river.",
       "target": "[data-tour=\"play\"]",
       "check": {
         "kind": "state",
         "test": "playLogged",
-        "args": "Wading in a current"
+        "args": "Swimming in a current"
       },
       "doItForMe": [
         {
           "fn": "playIfStopped"
         },
         {
-          "fn": "wadeRiver"
+          "fn": "swimRiver"
         }
       ],
       "how": [],
@@ -295,7 +294,7 @@
     {
       "id": "wd.done",
       "title": "Done!",
-      "body": "You walked into a fan’s wind, spun a pinwheel and blew a torch out with the Gust leaf, threw a rock at a crystal switch, and waded into a river’s current. Make your own in the Asset studio: Wind and lifting › Blows wind (speed, reach, width, height, when) and Lift and throw (breaks, weight); a switch Turned by the wind is a pinwheel.",
+      "body": "You walked into a fan’s wind, spun a pinwheel and blew a torch out with the Gust leaf, threw a rock at a crystal switch, and swam in a river’s current. Make your own in the Asset studio: Wind and lifting › Blows wind (speed, reach, width, height, when) and Lift and throw (breaks, weight); a switch Turned by the wind is a pinwheel.",
       "task": "Press Finish.",
       "target": "[data-tour=\"menu-help\"]",
       "check": {

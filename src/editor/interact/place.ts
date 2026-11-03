@@ -175,7 +175,9 @@ export function waterItems(ed: EditorState): WaterInstance[] {
 
 export const WATER_PRESET: Record<WaterInstance['body'], { name: string; size: [number, number, number] }> = {
   pool: { name: 'Pool', size: [8, 3, 8] },
-  river: { name: 'River', size: [32, 2.4, 6] },
+  // deep enough to swim and dive in (a person floats with the head out in water about three quarters as deep as
+  // they are tall); shallow water is waded
+  river: { name: 'River', size: [48, 4.4, 8] },
   lake: { name: 'Lake', size: [24, 4, 24] },
   sea: { name: 'Sea', size: [64, 8, 64] },
 };

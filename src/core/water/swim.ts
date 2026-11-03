@@ -56,11 +56,13 @@ export function waterAt(list: readonly WaterBox[], x: number, y: number, z: numb
 export type WaterMode = 'none' | 'wade' | 'swim';
 
 /** what a character standing with its feet at y (height h) does in this water */
-export function waterMode(w: WaterBox | null, feetY: number, h: number, can: boolean): WaterMode {
+export function waterMode(w: WaterBox | null, feetY: number, h: number, can: boolean, swimming = false): WaterMode {
   if (!w) return 'none';
   const depth = w.y1 - feetY;
   if (depth <= WADE_DEPTH * h) return 'none';
-  if (can && depth >= SWIM_DEPTH * h) return 'swim';
+  // 12c-2: a character starts swimming only where the water is deep enough to float in (head out, feet off the
+  // floor); shallower, it wades chest-deep. Once swimming it keeps on until the water is shallower than SWIM_DEPTH.
+  if (can && depth >= (swimming ? SWIM_DEPTH : FLOAT_DEPTH + 0.02) * h) return 'swim';
   return 'wade';
 }
 

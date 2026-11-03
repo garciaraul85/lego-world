@@ -7,6 +7,7 @@ import { puzzleProblems } from '../../src/core/puzzles/puzzle';
 import { paths, validateFile } from '../../src/core/schema';
 import { AIR_DENSITY, dragAccel, windAt } from '../../src/engine/physics/physics';
 import { PlaySession } from '../../src/engine/runtime/session';
+import { waterMode } from '../../src/core/water/swim';
 
 /** Step 12c-2: wind (fans, the Gust leaf, pinwheels), water currents, putting fire out, things thrown at switches. */
 const piece = (name: string) => BUILTIN_ASSETS.find((a) => a.name === name)!;
@@ -282,6 +283,16 @@ describe('fire put out', () => {
 });
 
 describe('water', () => {
+  it('the hero swims only where it can float (head out, feet off the floor); shallower it wades', () => {
+    const box = (y1: number) => ({ x0: 0, x1: 10, y0: 0, y1, z0: 0, z1: 10, current: [0, 0] as [number, number] });
+    // chest-deep: wading, not swimming on the floor
+    expect(waterMode(box(2.4), 0, 4.02, true)).toBe('wade');
+    expect(waterMode(box(3.0), 0, 4.02, true)).toBe('swim');
+    expect(waterMode(box(4.4), 0, 4.02, true)).toBe('swim');
+    // once swimming it keeps on into a little shallower water (no flicker at the edge)
+    expect(waterMode(box(2.4), 0, 4.02, true, true)).toBe('swim');
+  });
+
   it('a current wading pushes the hero downstream; a bomb that falls in goes out; a lit stick dipped in goes out', () => {
     const { p } = game([], { water: { pos: [6, 0, 6], size: [20, 1.6, 20], current: [8, 0] } });
     p.placeAt([10, 0, 15], 0);

@@ -1821,12 +1821,14 @@ export class PlaySession {
     const { ax, az, grip } = this.heroFlow;
     const a = Math.hypot(ax, az);
     const d = Math.hypot(this.heroDrift.x, this.heroDrift.z);
-    if (d > 0.8) return 'blown';
-    if (a < 0.4 * grip) return null;
+    const was = this.windPoseWas;
+    // a little slack either way, so the moves do not flicker at the edges of the wind or of a gust
+    if (d > (was === 'blown' ? 0.4 : 0.8)) return 'blown';
+    if (a < (was ? 0.3 : 0.4) * grip) return null;
     const s = this.heroState;
     if (walking) {
       const into = Math.sin(s.heading) * ax + Math.cos(s.heading) * az;
-      return into < -0.3 * a ? 'into' : null;
+      return into < (was === 'into' ? -0.1 : -0.3) * a ? 'into' : null;
     }
     const want = Math.atan2(-ax, -az);
     const diff = Math.atan2(Math.sin(want - s.heading), Math.cos(want - s.heading));
@@ -5107,7 +5109,7 @@ export class PlaySession {
     if (!list.length) return { box: null, mode: 'none' };
     const box = waterAt(list, s.x, s.y + 0.05, s.z);
     const h = HERO_HEIGHT * this.L.GamePhysics.scaleOf(s);
-    return { box, mode: waterMode(box, s.y, h, this.swimming.can) };
+    return { box, mode: waterMode(box, s.y, h, this.swimming.can, this.swim.on) };
   }
 
   /** step 11b part 2: one step of swimming: across, up and down (the Action button), the current, the shore */
@@ -5118,6 +5120,8 @@ export class PlaySession {
     const h = HERO_HEIGHT * k;
     if (!this.swim.on) {
       this.swim.on = true;
+      // step 12c-2: a river's current carries the swimmer along
+      if (w.current[0] || w.current[1]) this.emit('info', 'Swimming in a current');
       // falling in: the splash, then afloat
       if (s.vy < -3) this.playSound(SND.splash, undefined);
       s.vy = 0;
