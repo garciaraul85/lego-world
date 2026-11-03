@@ -5,13 +5,14 @@ import { EFFECTS } from './effects';
 import { FIRE_LIGHT } from './firelight';
 import { GUIDES } from './guides';
 import { ICE_MOVE } from './icemove';
-import { WIND } from './wind';
 import { LIGHTS } from './lights';
 import { PHYSICS } from './physics';
 import { PUZZLES } from './puzzles';
 import { SCENE } from './scene';
 import { ART, SCREENS } from './screens-art';
 import { SHELL } from './shell';
+import { SHOTS } from './shots';
+import { WIND } from './wind';
 import { LOGIC, WORLD } from './world-logic';
 
 /** Every hand-written entry, by screen. */
@@ -33,6 +34,7 @@ export const WRITTEN: HelpEntry[] = [
   ...FIRE_LIGHT,
   ...ICE_MOVE,
   ...WIND,
+  ...SHOTS,
   ...PLAY,
 ];
 

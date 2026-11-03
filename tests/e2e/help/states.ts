@@ -303,6 +303,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // step 13a: the Starter pack's bow and boomerang pieces
+    id: 'scene-dock-shots',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { left: 'hier', dock: 'pack' });
+      await p.locator('[aria-label="Bow and boomerang"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     // step 12a: the Map tab scrolled to Dungeon
     id: 'scene-map-dungeon',
     screen: 'scene',

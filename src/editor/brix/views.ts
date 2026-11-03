@@ -139,7 +139,7 @@ export function stepsToView(view: string): ShowStep[] {
   if (view.startsWith('scene-dock-')) {
     // step 12a/12b: Puzzle pieces and Fire and light are sections of the Starter pack tab
     const v = view.slice(11);
-    const d = v === 'puzzles' || v === 'firelight' || v === 'icemove' || v === 'wind' ? 'pack' : v;
+    const d = v === 'puzzles' || v === 'firelight' || v === 'icemove' || v === 'wind' || v === 'shots' ? 'pack' : v;
     return [ws('Scene'), tab('Bottom dock', DOCK[d] ?? d, (c) => c.ed.dock.value === d)];
   }
   if (view.startsWith('scene-cat-')) {

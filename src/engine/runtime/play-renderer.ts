@@ -40,6 +40,29 @@ const toRender = (p: LegacyPiece): RenderBrick => {
   };
 };
 
+/** step 13a: one 1 × 1 tile at the origin (a model matrix stretches it into a rod) */
+const UNIT_TILE = (color: string): RenderBrick => ({ id: 0, w: 1, d: 1, kind: 'tile', x: 0, y: 0, z: 0, color });
+
+/**
+ * step 13a: the model matrix that stretches UNIT_TILE (1 × 0.4 × 1) into a box `len` long from `from` along `dir`,
+ * w across and h high round its middle line (`up`: which way h stands; across the way it points otherwise)
+ */
+function rodModel(from: Vec3, dir: Vec3, len: number, w: number, h: number, up?: Vec3): Float32Array {
+  const f = normalize(dir);
+  const ref: Vec3 = up ?? (Math.abs(f[1]) > 0.95 ? [1, 0, 0] : [0, 1, 0]);
+  const side = normalize(cross(ref, f));
+  const u = cross(f, side);
+  const m = new Float32Array(16);
+  for (let i = 0; i < 3; i++) {
+    m[i] = side[i]! * w;
+    m[4 + i] = (u[i]! * h) / 0.4;
+    m[8 + i] = f[i]! * len;
+    m[12 + i] = from[i]! - side[i]! * w * 0.5 - u[i]! * h * 0.5;
+  }
+  m[15] = 1;
+  return m;
+}
+
 /** '#rrggbb' to 0–1 channels */
 const hexRgb = (h: string): [number, number, number] => [
   Number.parseInt(h.slice(1, 3), 16) / 255,
@@ -119,9 +142,18 @@ export class PlayRenderer {
     const s = this.session;
     const st = s.heroState;
     const scale = s.L.CharacterCatalog.heightScale(s.hero);
-    const target: Vec3 = [st.x, st.y + 2.0 * scale, st.z];
-    const distance = (11.5 * 55) / s.zoom;
-    const pitch = Math.max(0.08, s.camPitch);
+    let target: Vec3 = [st.x, st.y + 2.0 * scale, st.z];
+    let distance = (11.5 * 55) / s.zoom;
+    let pitch = Math.max(0.08, s.camPitch);
+    // step 13a: drawing a bow, the camera comes in over the hero's right shoulder and tilts with the aim
+    const aim = this.aimEase(s.shots.aiming);
+    if (aim > 0) {
+      const rx = Math.cos(s.camYaw);
+      const rz = -Math.sin(s.camYaw);
+      target = [target[0] - rx * 1.3 * aim * scale, target[1] + 0.9 * aim * scale, target[2] - rz * 1.3 * aim * scale];
+      distance *= 1 - 0.45 * aim;
+      pitch = pitch * (1 - aim) + Math.max(-0.35, Math.min(0.6, 0.14 - s.shots.aimPitch * 0.6)) * aim;
+    }
     let eye: Vec3 = [
       target[0] + distance * Math.sin(s.camYaw) * Math.cos(pitch),
       target[1] + distance * Math.sin(pitch),
@@ -136,6 +168,120 @@ export class PlayRenderer {
     const right = normalize(cross([0, 1, 0], z));
     const up = cross(z, right);
     return { eye, right, up, forward: [-z[0], -z[1], -z[2]], fov: 0.9, distance: distance * f };
+  }
+
+  /** step 13a: how far the camera has come in to aim (0..1), easing in and out */
+  private aimK = 0;
+  private aimAt = 0;
+  private aimEase(on: boolean): number {
+    const now = performance.now();
+    const dt = this.aimAt ? Math.min(0.1, (now - this.aimAt) / 1000) : 0;
+    this.aimAt = now;
+    this.aimK = Math.max(0, Math.min(1, this.aimK + (on ? dt * 5 : -dt * 4)));
+    return this.aimK * this.aimK * (3 - 2 * this.aimK);
+  }
+
+  /**
+   * step 13a: arrows in flight and stuck in things (a shaft, a head the colour of its element, feathers), the
+   * boomerang spinning (and the pickup it carries), each drawn along the way it points
+   */
+  private shotOverlays(): Overlay[] {
+    const sh = this.session.shots;
+    const out: Overlay[] = [];
+    const rod = (from: Vec3, dir: Vec3, len: number, w: number, h: number, color: string, spinAbout?: Vec3) => {
+      out.push({ bricks: [UNIT_TILE(color)], alpha: 1, flat: false, model: rodModel(from, dir, len, w, h, spinAbout) });
+    };
+    const arrow = (tip: Vec3, dir: Vec3, el: string) => {
+      const f = normalize(dir);
+      const back = (d: number): Vec3 => [tip[0] - f[0] * d, tip[1] - f[1] * d, tip[2] - f[2] * d];
+      rod(back(1.75), f, 1.55, 0.07, 0.07, '#c9a26b');
+      rod(back(0.28), f, 0.3, 0.15, 0.15, el === 'fire' ? '#ff7a1a' : el === 'ice' ? '#8fe3ff' : '#9aa3ad');
+      // two feathers across each other
+      rod(back(1.75), f, 0.42, 0.3, 0.02, '#e8e2d0');
+      rod(back(1.75), f, 0.42, 0.02, 0.3, '#c8322a');
+    };
+    for (const a of sh.flying) {
+      if (a.kind !== 'arrow') continue;
+      const b = a.ball;
+      // its middle is the ball; the tip is half a shaft ahead of it
+      arrow([b.x + a.dir[0] * 0.9, b.y + a.dir[1] * 0.9, b.z + a.dir[2] * 0.9], a.dir, a.el);
+    }
+    for (const st of sh.stuck) arrow(st.pos, st.dir, st.el);
+    const bm = sh.boomer;
+    if (bm) {
+      const wood = bm.whirl ? '#2f9e5a' : '#8a5a2b';
+      const tips = bm.whirl ? '#f4f4f4' : '#c91a09';
+      // two arms in a V, spinning flat (a little tilted, as a thrown boomerang flies)
+      for (const k of [0, 1]) {
+        const a = bm.spin + k * 1.9;
+        const d: Vec3 = [Math.cos(a), 0.18 * Math.sin(a * 0.5), Math.sin(a)];
+        rod(bm.pos, d, 0.85, 0.32, 0.1, wood);
+        rod([bm.pos[0] + d[0] * 0.65, bm.pos[1] + d[1] * 0.65, bm.pos[2] + d[2] * 0.65], d, 0.22, 0.34, 0.12, tips);
+      }
+      const c = bm.carried;
+      if (c?.pieces.length) {
+        const m = new Float32Array([
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          bm.pos[0] - c.origin[0],
+          bm.pos[1] - 0.6 - c.origin[1],
+          bm.pos[2] - c.origin[2],
+          1,
+        ]);
+        out.push({ bricks: (c.pieces as LegacyPiece[]).map(toRender), alpha: 1, flat: false, model: m });
+      }
+    }
+    return out;
+  }
+
+  /** step 13a: seeds and nuts in flight (small balls), and while drawing, where the shot would go and come down */
+  private shotMarkers(): Marker[] {
+    const sh = this.session.shots;
+    const out: Marker[] = [];
+    for (const a of sh.flying) {
+      const b = a.ball;
+      if (a.kind === 'seed')
+        out.push({ pos: [b.x, b.y, b.z], size: [0.24, 0.24, 0.24], color: [0.42, 0.52, 0.18], sphere: true });
+      if (a.kind === 'nut') {
+        out.push({ pos: [b.x, b.y, b.z], size: [0.38, 0.38, 0.38], color: [0.5, 0.31, 0.15], sphere: true });
+        out.push({
+          pos: [b.x + 0.08, b.y + 0.1, b.z],
+          size: [0.12, 0.12, 0.12],
+          color: [0.85, 0.75, 0.5],
+          sphere: true,
+        });
+      }
+    }
+    if (sh.aiming) {
+      const n = sh.arc.length;
+      for (let i = 6; i < n; i += 4) {
+        const p = sh.arc[i]!;
+        out.push({ pos: p, size: [0.13, 0.13, 0.13], color: [1, 1, 0.92], alpha: 0.55 + 0.4 * (i / n), sphere: true });
+      }
+      const l = sh.landing;
+      if (l) {
+        const pulse = 1 + 0.15 * Math.sin(this.session.clock * 10);
+        out.push({
+          pos: l,
+          size: [0.55 * pulse, 0.55 * pulse, 0.55 * pulse],
+          color: [1, 0.82, 0.2],
+          alpha: 0.75,
+          sphere: true,
+          onTop: true,
+        });
+      }
+    }
+    return out;
   }
 
   /** freely turned assets (P31): their pieces are drawn turned, not in the chunks */
@@ -211,7 +357,24 @@ export class PlayRenderer {
       const sn = Math.sin(sp.angle);
       groups.push({
         ids: set,
-        model: new Float32Array([c, 0, -sn, 0, 0, 1, 0, 0, sn, 0, c, 0, hx - (c * hx + sn * hz), 0, hz - (-sn * hx + c * hz), 1]),
+        model: new Float32Array([
+          c,
+          0,
+          -sn,
+          0,
+          0,
+          1,
+          0,
+          0,
+          sn,
+          0,
+          c,
+          0,
+          hx - (c * hx + sn * hz),
+          0,
+          hz - (-sn * hx + c * hz),
+          1,
+        ]),
       });
     }
     // bricks that joined or left a group move between the chunks and the overlays (P27 part 3: only those)
@@ -465,6 +628,7 @@ export class PlayRenderer {
       markers.push(...this.extra.markers);
     }
     markers.push(...this.fireLightMarkers());
+    markers.push(...this.shotMarkers());
     // P9b: lock-on, Zelda style — a yellow down-pointing arrow bobs over what Z would lock on to (gone when out
     // of range); locked on, a red one pulses over the target. Drawn over everything, so nothing hides it.
     const locked = s.combat.markerPos(s.combat.target);
@@ -609,7 +773,9 @@ export class PlayRenderer {
       figs.push({ profile: face ? { ...x.profile, ...face } : x.profile, state: x.state, extras: [] });
     }
     // P9b: a combat move (guard, roll, spin…) shows over an emote
-    const fight = s.combat.pose();
+    // step 13a: drawing a bow, throwing a boomerang: the arms over whatever else the body does
+    const shot = s.shots.pose();
+    const fight = shot ? { ...(s.combat.pose() ?? s.heroAnim.params() ?? {}), ...shot } : s.combat.pose();
     const heroPose = fight ?? s.heroAnim.params();
     const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;
     const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
@@ -652,7 +818,15 @@ export class PlayRenderer {
     return this.renderer.render(
       cam,
       [s.heroState.x, s.heroState.y, s.heroState.z],
-      [...this.tiltedOverlays(), ...this.looseOverlays(), ...this.thingOverlays(), ...this.grabArrows(), ...creatures.overlays, ...extraParts],
+      [
+        ...this.tiltedOverlays(),
+        ...this.looseOverlays(),
+        ...this.thingOverlays(),
+        ...this.shotOverlays(),
+        ...this.grabArrows(),
+        ...creatures.overlays,
+        ...extraParts,
+      ],
       lines,
       markers,
       (mvp, eye) => {
@@ -771,8 +945,18 @@ export function shaken<C extends CameraFrame>(c: C, [dx, dy, roll]: [number, num
 function thingShape(out: Marker[], x: number, y: number, z: number, look: 'rock' | 'pot', r: number) {
   if (look === 'rock') {
     out.push({ pos: [x, y + r * 0.9, z], size: [2 * r, 1.8 * r, 2 * r], color: [0.47, 0.47, 0.5], sphere: true });
-    out.push({ pos: [x + r * 0.35, y + r * 1.25, z - r * 0.2], size: [r * 1.1, r, r * 1.1], color: [0.55, 0.55, 0.58], sphere: true });
-    out.push({ pos: [x - r * 0.3, y + r * 0.7, z + r * 0.35], size: [r, r * 0.9, r], color: [0.4, 0.4, 0.43], sphere: true });
+    out.push({
+      pos: [x + r * 0.35, y + r * 1.25, z - r * 0.2],
+      size: [r * 1.1, r, r * 1.1],
+      color: [0.55, 0.55, 0.58],
+      sphere: true,
+    });
+    out.push({
+      pos: [x - r * 0.3, y + r * 0.7, z + r * 0.35],
+      size: [r, r * 0.9, r],
+      color: [0.4, 0.4, 0.43],
+      sphere: true,
+    });
     return;
   }
   out.push({ pos: [x, y + r * 0.95, z], size: [2 * r, 1.9 * r, 2 * r], color: [0.72, 0.4, 0.24], sphere: true });

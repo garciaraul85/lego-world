@@ -341,6 +341,45 @@ export const SOUNDS: Record<string, SfxRecipe> = {
   ),
   /** a gust of wind (the Gust leaf swung): a rising and falling whoosh */
   gust: sfx([{ wave: 'noise', f0: 500, f1: 1800, dur: 0.45, gain: 0.5, attack: 0.12, lp: 3000 }], 19),
+  /** Step 13a (shooting and throwing): a bowstring let go, a low twang */
+  twang: sfx(
+    [
+      { wave: 'tri', f0: 190, f1: 150, dur: 0.28, gain: 0.45, trem: [38, 0.5] },
+      { wave: 'noise', f0: 2200, f1: 700, dur: 0.08, gain: 0.3 },
+    ],
+    23,
+  ),
+  /** an arrow going into wood: a short dull knock */
+  thunk: sfx([
+    { wave: 'sine', f0: 260, f1: 140, dur: 0.1, gain: 0.7 },
+    { wave: 'noise', f0: 1600, f1: 500, dur: 0.06, gain: 0.35 },
+  ]),
+  /** something hard glancing off: a bright click */
+  clack: sfx([
+    { wave: 'square', f0: 1900, f1: 1300, dur: 0.035, gain: 0.25 },
+    { wave: 'noise', f0: 5000, f1: 2500, dur: 0.05, gain: 0.25 },
+  ]),
+  /** a stun nut bursting: a pop and a ringing shimmer */
+  flash: sfx([
+    { wave: 'noise', f0: 3000, f1: 800, dur: 0.08, gain: 0.6 },
+    { wave: 'sine', f0: 1760, dur: 0.5, gain: 0.18, trem: [16, 0.4] },
+    { wave: 'sine', f0: 2640, at: 0.03, dur: 0.4, gain: 0.1 },
+  ]),
+  /** something thrown spinning through the air (a boomerang): a whoosh that comes and goes */
+  whoosh: sfx(
+    [{ wave: 'noise', f0: 900, f1: 1400, dur: 0.35, gain: 0.35, attack: 0.05, trem: [18, 0.7], lp: 2600 }],
+    29,
+  ),
+  /** a boomerang caught: a soft slap */
+  catch: sfx([
+    { wave: 'noise', f0: 1200, f1: 400, dur: 0.06, gain: 0.45 },
+    { wave: 'sine', f0: 330, f1: 220, dur: 0.08, gain: 0.3 },
+  ]),
+  /** water freezing (an ice arrow): a crackle and a glassy ring */
+  freeze: sfx([
+    { wave: 'noise', f0: 7000, f1: 3000, dur: 0.4, gain: 0.3, trem: [44, 0.8], lp: 9000 },
+    { wave: 'sine', f0: 2100, f1: 2400, at: 0.05, dur: 0.45, gain: 0.12 },
+  ]),
 };
 
 // ---------- music ----------
@@ -496,6 +535,13 @@ export const SND = {
   thud: sndId('thud'),
   shatter: sndId('shatter'),
   gust: sndId('gust'),
+  twang: sndId('twang'),
+  thunk: sndId('thunk'),
+  clack: sndId('clack'),
+  flash: sndId('flash'),
+  whoosh: sndId('whoosh'),
+  catch: sndId('catch'),
+  freeze: sndId('freeze'),
 } as const;
 
 export const MUS = {
@@ -530,6 +576,14 @@ export const ADVENTURE_EVENTS: [string, SoundEvent][] = [
   ev('thud', ['thud'], { pitch: [0.9, 1.1], maxVoices: 3, cooldown: 0.08 }),
   ev('shatter', ['shatter'], { pitch: [0.9, 1.15], maxVoices: 3 }),
   ev('gust', ['gust'], { pitch: [0.9, 1.1], maxVoices: 2 }),
+  // step 13a: shooting and throwing
+  ev('twang', ['twang'], { pitch: [0.92, 1.08], maxVoices: 2 }),
+  ev('thunk', ['thunk'], { pitch: [0.9, 1.1], maxVoices: 4, cooldown: 0.04 }),
+  ev('clack', ['clack'], { pitch: [0.9, 1.15], maxVoices: 3, cooldown: 0.04 }),
+  ev('flash', ['flash'], { maxVoices: 2 }),
+  ev('whoosh', ['whoosh'], { pitch: [0.9, 1.1], maxVoices: 2 }),
+  ev('catch', ['catch'], { maxVoices: 1 }),
+  ev('freeze', ['freeze'], { maxVoices: 2 }),
 ];
 
 export const DEFAULT_EVENTS: SoundEvents = {

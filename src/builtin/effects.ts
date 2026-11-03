@@ -59,6 +59,9 @@ export const FX = {
   steam: 'fx_steam00001',
   wind: 'fx_wind000001',
   gust: 'fx_gust000001',
+  // step 13a: a stun nut's flash, an ice arrow's frost
+  nutFlash: 'fx_nutflash01',
+  frost: 'fx_frost00001',
 } as const;
 
 /** Step 11, 4b: the adventure pack's effects (shown in the pack panel) */
@@ -467,6 +470,39 @@ export const BUILTIN_EFFECTS: Effect[] = [
     colors: ['#ffffff', '#e9f5e1', '#cfe8c4'],
     gravity: 0,
     drag: 1.2,
+  }),
+  // step 13a: a stun nut bursting: a bright white-gold flash of sparks thrown out every way, gone in a blink
+  fx(FX.nutFlash, 'Stun flash', {
+    shape: 'tile',
+    mode: 'burst',
+    count: 46,
+    spawn: 'sphere',
+    radius: 0.3,
+    direction: 'out',
+    spread: 180,
+    speed: [6, 12],
+    life: [0.2, 0.45],
+    size: [0.35, 0.05],
+    colors: ['#ffffff', '#fffbe0', '#ffe27a'],
+    gravity: 0,
+    drag: 3,
+    light: { color: '#fff6c8', brightness: 3, range: 14, flicker: 0, shadow: false },
+  }),
+  // step 13a: an ice arrow's frost: pale blue crystals bursting out and drifting down
+  fx(FX.frost, 'Frost', {
+    shape: 'plate',
+    mode: 'burst',
+    count: 30,
+    spawn: 'sphere',
+    radius: 0.4,
+    direction: 'out',
+    spread: 180,
+    speed: [1.5, 4],
+    life: [0.6, 1.2],
+    size: [0.28, 0.08],
+    colors: ['#ffffff', '#d8f3ff', '#9fdcf5'],
+    gravity: 2,
+    drag: 1.5,
   }),
 ];
 

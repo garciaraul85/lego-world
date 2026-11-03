@@ -116,7 +116,11 @@ export type FireHost<T extends FireObject = FireObject> = {
   /** step 12c-2: where the physics engine has a thrown thing now (its middle), how it is turned, how fast it goes */
   thingPose?(
     b: Bomb,
-  ): { pos: [number, number, number]; rot: { x: number; y: number; z: number; w: number }; vel: [number, number, number] } | null;
+  ): {
+    pos: [number, number, number];
+    rot: { x: number; y: number; z: number; w: number };
+    vel: [number, number, number];
+  } | null;
   /** step 12c-2: a thrown thing (or bomb) flying fast reaches a point: switches it strikes are hit (their ids) */
   strike?(b: Bomb, at: [number, number, number], speed: number): string[];
   /** step 12c-2: a pot broke (bits fly, a sound) */
@@ -230,8 +234,11 @@ export class FireLight<T extends FireObject = FireObject> {
   /** ice melting: seconds so far, how long it takes, its steam */
   readonly melting = new Map<string, { o: T; t: number; seconds: number; fx: { stop(): void }[] }>();
 
-  /** ice starts to melt (fire, or a beam of light where it melts with light); true: it started */
-  melt(o: T, by: 'fire' | 'light'): boolean {
+  /**
+   * ice starts to melt (fire, or a beam of light where it melts with light; step 13a: or it thaws, an ice arrow's
+   * floe having lasted); true: it started
+   */
+  melt(o: T, by: 'fire' | 'light' | 'thaw'): boolean {
     const ice = o.def.ice;
     const m = ice?.melts ?? 'fire';
     if (!ice || m === 'never' || (by === 'light' && m !== 'fire-or-light') || this.melting.has(o.inst.id)) return false;
@@ -251,7 +258,9 @@ export class FireLight<T extends FireObject = FireObject> {
     }
     this.melting.set(o.inst.id, { o, t: 0, seconds: ice.seconds ?? MELT_SECONDS, fx });
     this.h.sound('ignite', centre(o) ?? undefined);
-    this.h.log(`${o.def.name} is melting (${by === 'light' ? 'a beam of light' : 'fire'})`);
+    this.h.log(
+      `${o.def.name} is melting (${by === 'light' ? 'a beam of light' : by === 'thaw' ? 'it thaws' : 'fire'})`,
+    );
     return true;
   }
 
@@ -513,7 +522,14 @@ export class FireLight<T extends FireObject = FireObject> {
     for (const o of this.h.near(ax, az, 6)) {
       if (!o.def.lift) continue;
       const b = boxOf(o.bricks as never);
-      if (b && ax > b.x0 - 0.6 && ax < b.x1 + 0.6 && az > b.z0 - 0.6 && az < b.z1 + 0.6 && Math.abs(b.y0 * 0.4 - s.y) < 1.2)
+      if (
+        b &&
+        ax > b.x0 - 0.6 &&
+        ax < b.x1 + 0.6 &&
+        az > b.z0 - 0.6 &&
+        az < b.z1 + 0.6 &&
+        Math.abs(b.y0 * 0.4 - s.y) < 1.2
+      )
         return o;
     }
     return null;

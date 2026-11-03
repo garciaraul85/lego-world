@@ -276,6 +276,25 @@ function withStick(src: string): string {
     `part('rightArm','#4f9a3a');box(x,${at1(1.15)},z,.8,1.0,.09);box(x,${at1(0.62)},z,.42,.2,.09);` +
     `part('rightArm','#5fae45');box(x,${at1(1.78)},z,.5,.36,.09);box(x,${at1(2.02)},z,.22,.2,.09);` +
     `part('rightArm','#2f6b25');box(x,${at1(1.25)},z,.08,1.5,.16);box(x-.2,${at1(1.25)},z,.04,.6,.12);box(x+.2,${at1(1.25)},z,.04,.6,.12);` +
+    // step 13a: the bow or the slingshot in the LEFT hand. Carried (no draw), its limbs run along the arm (upright at
+    // the side); drawn, across it (upright when the arm points ahead), the string pulled back towards the chin by the
+    // draw (heldDraw 0..5) with an arrow nocked (its head the colour of its element: heldArrow)
+    // (in the off hand's slot, on the left forearm as the shield is: the held slot follows the right hand)
+    `}else if(p.heldLook==='Bow'||p.heldLook==='Sling'){paintSlot='offhand';const x=-1.16,y=1.94,z=.34,d=p.heldDraw==null?-1:p.heldDraw/5,` +
+    'A=d<0?[0,1,0]:[1,0,0],F=d<0?[0,0,1]:[0,-1,0],W=d<0?[1,0,0]:[0,0,1],Q=(a,f,s)=>{s=s||0;return[x+A[0]*a+F[0]*f+W[0]*s,y+A[1]*a+F[1]*f+W[1]*s,z+A[2]*a+F[2]*f+W[2]*s]},dd=Math.max(0,d);' +
+    "if(p.heldLook==='Bow'){part('leftForearm','#8a5a2b');" +
+    'limb(Q(.16,.03),Q(.55,.12),.075,.065);limb(Q(.55,.12),Q(.98,.06),.065,.05);limb(Q(.98,.06),Q(1.18,-.06),.05,.04);' +
+    'limb(Q(-.16,.03),Q(-.55,.12),.075,.065);limb(Q(-.55,.12),Q(-.98,.06),.065,.05);limb(Q(-.98,.06),Q(-1.18,-.06),.05,.04);' +
+    "part('leftForearm','#3b2416');limb(Q(-.2,.03),Q(.2,.03),.095,.095);" +
+    "const T1=Q(1.18,-.06),T2=Q(-1.18,-.06),N=Q(0,-.06-1.7*dd,.18*dd);part('leftForearm','#efe6cc');" +
+    'if(d<0)limb(T1,T2,.02,.02);else{limb(T1,N,.02,.02);limb(N,T2,.02,.02);' +
+    "const G=Q(0,.14),u=norm(G.map((v,k)=>v-N[k])),T=N.map((v,k)=>v+u[k]*2.0);part('leftForearm','#c9a26b');limb(N,T,.04,.04);" +
+    "part('leftForearm',p.heldArrow==='fire'?'#ff7a1a':p.heldArrow==='ice'?'#8fe3ff':'#9aa3ad');" +
+    'limb(T.map((v,k)=>v-u[k]*.3),T.map((v,k)=>v+u[k]*.05),.085,.012);' +
+    "part('leftForearm','#e8e2d0');limb(N.map((v,k)=>v+u[k]*.1),N.map((v,k)=>v+u[k]*.5),.12,.05);}" +
+    "}else{part('leftForearm','#7a4b26');limb(Q(-.45,0),Q(.1,0),.07,.06);limb(Q(.1,0),Q(.5,.04,.22),.055,.045);limb(Q(.1,0),Q(.5,.04,-.22),.055,.045);" +
+    "const L1=Q(.5,.04,.22),L2=Q(.5,.04,-.22),N=Q(.48,-.08-1.5*dd,.12*dd);part('leftForearm','#c8322a');limb(L1,N,.03,.03);limb(N,L2,.03,.03);" +
+    "part('leftForearm','#5b3519');box(N[0],N[1],N[2],.16,.16,.16);}paintSlot='held';" +
     "}else if(p.held!=='None'){part('rightArm',access);";
   return src.replace(at, stick);
 }

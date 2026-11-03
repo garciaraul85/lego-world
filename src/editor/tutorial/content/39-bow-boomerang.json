@@ -1,0 +1,277 @@
+{
+  "id": "shots",
+  "title": "Bow and boomerang course",
+  "steps": [
+    {
+      "id": "sh.open",
+      "title": "Bow and boomerang",
+      "body": "Things to shoot and throw, as in Zelda: a bow with plain, fire and ice arrows, a slingshot, stun nuts, a boomerang and a whirl boomerang, and targets to hit. They are under Starter pack › Bow and boomerang. Arrows, seeds and nuts are real bodies in the physics engine: they fall as they fly and the air slows them (a fan’s wind blows them off course), so a far shot is aimed higher.",
+      "task": "Open Starter pack in the bottom dock.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "dockIs",
+        "args": "pack"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "pack"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "sh.bow",
+      "title": "A bow and an eye target",
+      "body": "Place the Bow a few studs ahead of the start, and an Eye target 20 studs ahead with its eye toward the start (before you click, press R to turn it). An arrow (or a seed) in its eye turns it on, and it stays on: wire it to a gate with logic.",
+      "task": "Place the Bow and an Eye target.",
+      "target": "[aria-label=\"Bow and boomerang\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Bow,Eye target"
+      },
+      "doItForMe": [
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Bow",
+            "ahead": 3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Eye target",
+            "ahead": 20,
+            "faceStart": true
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "sh.shoot",
+      "title": "Shoot the eye",
+      "body": "Press Play and walk over the bow: it goes into an item button, with 10 arrows. Press that button (J) to take it out. Face the eye and hold F: the hero turns side-on and draws, the camera comes in over the shoulder and dots show where the arrow will fly. The aim finds a target in front by itself; the move keys turn and tilt it. Let go of F: the arrow flies, falls a little on the way and sticks in the eye.",
+      "task": "Press Play and shoot the eye target.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Eye target on"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "shootAt",
+          "args": {
+            "name": "Eye target",
+            "from": 14
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "sh.torches",
+      "title": "Two torches",
+      "body": "Stop the game. Place a Burning torch to the left 14 studs ahead, and a Torch stand 4 studs further on behind it.",
+      "task": "Place a Burning torch and a Torch stand.",
+      "target": "[aria-label=\"Fire and light\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Burning torch,Torch stand"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Burning torch",
+            "ahead": 14,
+            "side": -8
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Torch stand",
+            "ahead": 18,
+            "side": -8
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "sh.fire",
+      "title": "Through the flame",
+      "body": "Press Play, take out the bow and step back so the Burning torch is straight between you and the Torch stand. Shoot at the Torch stand: the arrow rises over the near torch and goes through its flame, catches fire and lights the far one. (Fire arrows are lit from the start; a fire arrow burns what burns and melts ice, and water puts it out.)",
+      "task": "Press Play and light the Torch stand with an arrow.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Torch stand on"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "shootAt",
+          "args": {
+            "name": "Torch stand",
+            "through": "Burning torch",
+            "from": 24,
+            "until": "Torch stand on"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "sh.pool",
+      "title": "Water and ice arrows",
+      "body": "Stop the game. Place a Pool beside the start (Scene › Water › Pool), and the Ice arrows (a quiver of five) next to the start on the other side.",
+      "task": "Place a Pool and the Ice arrows.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Ice arrows"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "deepPool"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Ice arrows",
+            "ahead": 1,
+            "side": -3
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "sh.freeze",
+      "title": "Freeze the water",
+      "body": "Press Play, walk over the Ice arrows and press their item button: the bow comes out with an ice arrow. Face the pool and shoot into the water: where the arrow goes in, the water freezes into a floe of ice. Swim to it and climb on: it is slippery, it holds you, and it melts after a while (fire melts it at once). An ice arrow also puts small flames out and freezes a foe for a moment.",
+      "task": "Press Play and freeze the water.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "froze the water"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "freezeWater"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "sh.boom",
+      "title": "A boomerang",
+      "body": "Stop the game. Place a Boomerang a little behind the start on the left, and a Crystal switch 10 studs ahead on the left.",
+      "task": "Place a Boomerang and a Crystal switch.",
+      "target": "[aria-label=\"Bow and boomerang\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Boomerang,Crystal switch"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Boomerang",
+            "ahead": -3,
+            "side": -3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Crystal switch",
+            "ahead": 10,
+            "side": -4
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "sh.throw",
+      "title": "Throw it",
+      "body": "Press Play, walk over the boomerang and face the crystal switch. Press its item button (K): it is thrown at once, curves out to the switch (it hits it and the switch turns), and comes back to your hand. It stuns foes, bounces back off walls, and brings back a key or a heart it touches. The Whirl boomerang carries a little whirlwind: it spins pinwheels and blows flames out on its way.",
+      "task": "Press Play and throw the boomerang at the crystal switch.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Crystal switch on"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "throwBoomerangAt",
+          "args": {
+            "name": "Crystal switch",
+            "from": 9
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "sh.done",
+      "title": "Done!",
+      "body": "You shot an eye target, lit a torch through another’s flame, froze water with an ice arrow and threw a boomerang at a crystal switch. Also in the pack: the Slingshot (seeds: a quicker, lighter shot that bounces), Stun nuts (thrown, they flash and stun foes near them), the Archery target (an arrow or seed in it turns it on for a few seconds) and the Whirl boomerang.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

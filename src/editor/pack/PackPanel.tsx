@@ -33,6 +33,12 @@ const iceOrMoving = (a: (typeof BUILTIN_ASSETS)[number]) => !!(a.ice || a.moves 
 const windOrThrow = (a: (typeof BUILTIN_ASSETS)[number]) =>
   !!(a.wind || a.lift) || a.switch?.by === 'wind' || /^gust leaf$/i.test(a.pickup?.item ?? '');
 
+/** step 13a: the bow and its arrows, the slingshot and seeds, stun nuts, boomerangs, targets to shoot, an ice floe */
+const shootOrThrow = (a: (typeof BUILTIN_ASSETS)[number]) =>
+  /^(bow|arrows|fire arrows|ice arrows|slingshot|seeds|stun nuts?|boomerang|whirl boomerang)$/i.test(
+    a.pickup?.item ?? '',
+  ) || /^(eye target|archery target|ice floe)$/i.test(a.name);
+
 /** Step 11, 4a: the starter pack's panel in the bottom dock (shown in the genre views that use it) */
 /** step 12b: a fire or light piece: it burns, shines, turns a beam, answers a beam or fire, or is a bomb or torch */
 const fireOrLight = (a: (typeof BUILTIN_ASSETS)[number]) =>
@@ -55,15 +61,19 @@ export function PackPanel({ c }: { c: ActionCtx }) {
       fireOrLight(a) ? 'fire light' : '',
       iceOrMoving(a) ? 'ice platform climb' : '',
       windOrThrow(a) ? 'wind fan throw lift' : '',
+      shootOrThrow(a) ? 'bow arrow shoot slingshot boomerang target' : '',
     ),
   );
   const puzzle = (a: (typeof assets)[number]) =>
     !!(a.push || a.switch || a.lock || a.pickup || a.climbable) || fireOrLight(a) || iceOrMoving(a) || windOrThrow(a);
-  const buildings = assets.filter((a) => !puzzle(a));
-  const pieces = assets.filter((a) => puzzle(a) && !fireOrLight(a) && !iceOrMoving(a) && !windOrThrow(a));
-  const iceMoving = assets.filter((a) => iceOrMoving(a) && !windOrThrow(a));
-  const fire = assets.filter((a) => fireOrLight(a) && !windOrThrow(a));
-  const windThrow = assets.filter(windOrThrow);
+  const buildings = assets.filter((a) => !puzzle(a) && !shootOrThrow(a));
+  const pieces = assets.filter(
+    (a) => puzzle(a) && !fireOrLight(a) && !iceOrMoving(a) && !windOrThrow(a) && !shootOrThrow(a),
+  );
+  const iceMoving = assets.filter((a) => iceOrMoving(a) && !windOrThrow(a) && !shootOrThrow(a));
+  const fire = assets.filter((a) => fireOrLight(a) && !windOrThrow(a) && !shootOrThrow(a));
+  const windThrow = assets.filter((a) => windOrThrow(a) && !shootOrThrow(a));
+  const shoot = assets.filter(shootOrThrow);
   const terrain = ADVENTURE_PACK.terrain.filter((t) => matches(q, t.name, t.about));
   const effects = BUILTIN_EFFECTS.filter((e) => (ADVENTURE_PACK.effects as readonly string[]).includes(e.id)).filter(
     (e) => matches(q, e.name, 'effect'),
@@ -177,6 +187,8 @@ export function PackPanel({ c }: { c: ActionCtx }) {
         ['Ice, platforms and climbing', 'Pack ice, platforms and climbing', iceMoving] as const,
         // step 12c-2: fans and pinwheels, things to lift and throw, the Gust leaf
         ['Wind and throwing', 'Pack wind and throwing', windThrow] as const,
+        // step 13a: the bow, the slingshot, stun nuts, boomerangs and targets
+        ['Bow and boomerang', 'Pack bow and boomerang', shoot] as const,
       ].map(([title, label, list]) =>
         list.length > 0 ? (
           <section class="pack-group" aria-label={title}>

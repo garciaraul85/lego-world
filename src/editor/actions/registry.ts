@@ -560,6 +560,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('wind'),
   },
   {
+    id: 'help.shotsCourse',
+    label: 'Bow and boomerang course (arrows, fire and ice arrows, the slingshot, the boomerang)',
+    run: ({ ui }) => ui.tutorial('shots'),
+  },
+  {
     id: 'help.swim',
     label: 'Swimming course (dive, breath, the Action button)',
     run: ({ ui }) => ui.tutorial('swim'),
@@ -805,6 +810,7 @@ export const COURSE_GROUPS: [string, string[]][] = [
       'help.fireLightCourse',
       'help.iceCourse',
       'help.windCourse',
+      'help.shotsCourse',
       'help.saving',
       'help.swim',
     ],

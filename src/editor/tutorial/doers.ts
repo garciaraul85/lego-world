@@ -1592,7 +1592,8 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     } finally {
       s.input.keys.delete('forward');
     }
-    if (!logged(s, 'Walking into the wind')) throw new Error('The fan’s wind does not reach the way to it: turn the fan so its front faces the start.');
+    if (!logged(s, 'Walking into the wind'))
+      throw new Error('The fan’s wind does not reach the way to it: turn the fan so its front faces the start.');
   },
   async gustAt(c, a) {
     // what picking up the Gust leaf, taking it out (its button) and swinging it (F) at a thing does
@@ -1676,6 +1677,78 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const bz = at[2]! - Math.cos(yaw) * 12;
     if (!placeWaterAt(c.ed, { x: bx + 18, y: Math.round(at[1]! / 0.4), z: bz }, 'river'))
       throw new Error('Could not place the river there.');
+  },
+  // step 13a: the Bow and boomerang course
+  async shootAt(c, a) {
+    // what walking over the Bow (it goes into an item button), pressing its button (or Fire or Ice arrows'), facing
+    // the target, holding Attack (F) to draw and letting go does; `through`: stood so the shot passes that first
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Bow', 'Bow');
+    const arrows = String(a?.arrows ?? 'Bow');
+    if (arrows !== 'Bow') await takePickup(s, arrows, arrows);
+    if (s.shots.out !== 'bow' || (arrows === 'Ice arrows') !== (s.shots.arrow === 'ice'))
+      s.useItem(arrows, slotOf(s, arrows));
+    const name = String(a?.name ?? 'Eye target');
+    const o = s.world.instances.find((i) => i.def.name === name);
+    if (!o) throw new Error(`Place a ${name} first.`);
+    const via = a?.through ? s.world.instances.find((i) => i.def.name === String(a.through)) : undefined;
+    const want = String(a?.until ?? `${name} on`);
+    for (let tries = 0; tries < 3 && !logged(s, want); tries++) {
+      standFacing(s, o, Number(a?.from ?? 14), via);
+      s.camYaw = s.heroState.heading + Math.PI;
+      await wait(400);
+      s.attackButton(true);
+      await wait(1000);
+      s.attackButton(false);
+      for (let i = 0; i < 15 && !logged(s, want); i++) await wait(150);
+    }
+  },
+  async freezeWater(c) {
+    // what pressing the Ice arrows' button, facing the water and drawing and letting go does: a floe of ice
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Bow', 'Bow');
+    await takePickup(s, 'Ice arrows', 'Ice arrows');
+    if (s.shots.out !== 'bow' || s.shots.arrow !== 'ice') s.useItem('Ice arrows', slotOf(s, 'Ice arrows'));
+    const w = s.waterBoxes()[0];
+    if (!w) throw new Error('Place a Pool first.');
+    const sp = s.world.doc.spawns[0]?.pos ?? [0, 0, 0];
+    const cx = (w.x0 + w.x1) / 2;
+    const cz = (w.z0 + w.z1) / 2;
+    // on the bank nearest the start, a few studs back, facing the middle of the water
+    const dx = sp[0]! - cx;
+    const dz = sp[2]! - cz;
+    const along = Math.abs(dx) > Math.abs(dz);
+    const x = along ? (dx > 0 ? w.x1 + 4 : w.x0 - 4) : cx;
+    const z = along ? cz : dz > 0 ? w.z1 + 4 : w.z0 - 4;
+    for (let tries = 0; tries < 3 && !logged(s, 'froze the water'); tries++) {
+      standAt(s, x, z, Math.atan2(cx - x, cz - z));
+      s.camYaw = s.heroState.heading + Math.PI;
+      await wait(400);
+      s.attackButton(true);
+      await wait(900);
+      s.attackButton(false);
+      for (let i = 0; i < 15 && !logged(s, 'froze the water'); i++) await wait(150);
+    }
+  },
+  async throwBoomerangAt(c, a) {
+    // what walking over the Boomerang, facing the target and pressing its item button does: out and back
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const item = String(a?.item ?? 'Boomerang');
+    await takePickup(s, item, item);
+    const name = String(a?.name ?? 'Crystal switch');
+    const o = s.world.instances.find((i) => i.def.name === name);
+    if (!o) throw new Error(`Place a ${name} first.`);
+    const want = String(a?.until ?? `${name} on`);
+    for (let tries = 0; tries < 3 && !logged(s, want); tries++) {
+      standFacing(s, o, Number(a?.from ?? 9));
+      s.camYaw = s.heroState.heading + Math.PI + 0.6;
+      await wait(400);
+      s.useItem(item, slotOf(s, item));
+      for (let i = 0; i < 30 && (s.shots.boomer || !logged(s, want)); i++) await wait(150);
+    }
   },
   async meltIceWall(c) {
     // what picking up the Branch, holding its end in the Burning torch's flame and touching the ice wall with it does
@@ -2193,7 +2266,32 @@ const slotOf = (s: NonNullable<Ctx['ed']['session']['value']>, item: string) =>
   Math.max(1, s.buttons.slots.indexOf(item) + 1);
 
 /** step 12c-2: the play's event log says this */
-const logged = (s: NonNullable<Ctx['ed']['session']['value']>, text: string) => s.events.some((e) => e.msg.includes(text));
+const logged = (s: NonNullable<Ctx['ed']['session']['value']>, text: string) =>
+  s.events.some((e) => e.msg.includes(text));
+
+/**
+ * step 13a: the hero stands `dist` studs from a placed thing, facing it: on the line back toward the start, or on the
+ * line from it through another thing (so a shot at it passes through that one first)
+ */
+function standFacing(
+  s: NonNullable<Ctx['ed']['session']['value']>,
+  o: { bricks: { x: number; z: number }[] },
+  dist: number,
+  via?: { bricks: { x: number; z: number }[] },
+) {
+  const mid = (q: { bricks: { x: number; z: number }[] }): [number, number] => {
+    const xs = q.bricks.map((b) => b.x);
+    const zs = q.bricks.map((b) => b.z);
+    return [(Math.min(...xs) + Math.max(...xs) + 1) / 2, (Math.min(...zs) + Math.max(...zs) + 1) / 2];
+  };
+  const [cx, cz] = mid(o);
+  const sp = s.world.doc.spawns[0]?.pos ?? [0, 0, 0];
+  const [tx, tz] = via ? mid(via) : [sp[0]!, sp[2]!];
+  const l = Math.hypot(tx - cx, tz - cz) || 1;
+  const x = cx + ((tx - cx) / l) * dist;
+  const z = cz + ((tz - cz) / l) * dist;
+  standAt(s, x, z, Math.atan2(cx - x, cz - z));
+}
 
 /** the hero stands by a placed thing, on the side of the start, facing it; returns the way back (x, z) */
 function faceThing(

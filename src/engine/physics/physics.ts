@@ -105,7 +105,7 @@ export function windAt(fields: readonly WindField[], x: number, y: number, z: nu
     // it spreads a little as it goes
     const half = f.half + along * 0.08;
     if (side > half) continue;
-    const k = 1 - (1 - FAR_SPEED) * Math.max(0, along) / Math.max(1, f.reach);
+    const k = 1 - ((1 - FAR_SPEED) * Math.max(0, along)) / Math.max(1, f.reach);
     // softer at its edges
     const edge = Math.min(1, (half - side) / 0.6 + 0.3);
     const v = f.speed * k * edge;
@@ -166,7 +166,8 @@ export class PhysicsWorld {
       const m = body.mass();
       body.applyImpulse({ x: ax * m * dt, y: 0, z: az * m * dt }, true);
       // a thing standing tall in the wind also tips a little (the push is above its middle)
-      if (upTo > 0) body.applyTorqueImpulse({ x: az * m * dt * upTo * 0.15, y: 0, z: -ax * m * dt * upTo * 0.15 }, true);
+      if (upTo > 0)
+        body.applyTorqueImpulse({ x: az * m * dt * upTo * 0.15, y: 0, z: -ax * m * dt * upTo * 0.15 }, true);
     };
     for (const [d, body] of this.loose) {
       const hx = DEBRIS_HALF.x * d.scale;
@@ -370,7 +371,10 @@ export class PhysicsWorld {
         .setCcdEnabled(true),
     );
     // heavy and dull: it thuds against a wall and rolls only a little
-    this.world.createCollider(RAPIER.ColliderDesc.ball(r).setDensity(density).setFriction(1).setRestitution(0.08), body);
+    this.world.createCollider(
+      RAPIER.ColliderDesc.ball(r).setDensity(density).setFriction(1).setRestitution(0.08),
+      body,
+    );
     this.balls.set(b, { body, r });
     this.queriesStale = true;
   }
@@ -380,6 +384,144 @@ export class PhysicsWorld {
     if (!o) return;
     this.world.removeRigidBody(o.body);
     this.balls.delete(b);
+  }
+
+  // ---- step 13a: things shot and thrown (arrows, seeds, nuts): small, fast, real bodies ----
+  private shots = new Map<
+    Ball,
+    { body: RAPIER.RigidBody; collider: RAPIER.Collider; r: number; drag: number; density: number }
+  >();
+  private shotColliders = new Set<number>();
+
+  /**
+   * a shot starts to fly from where it is (x, y, z: its middle) at its speed: a small ball with continuous collision
+   * (it never passes through a wall however fast), falling with gravity, slowed by air drag (drag: k in a = k·|v|·v,
+   * against the air, so the wind carries it), and floating or sinking in water by its density (an arrow's wood floats)
+   */
+  addShot(b: Ball, r: number, opts: { density: number; drag: number; bounce?: number }) {
+    if (this.shots.has(b)) return;
+    this.groundAt(b.x, b.z);
+    const body = this.world.createRigidBody(
+      RAPIER.RigidBodyDesc.dynamic()
+        .setTranslation(b.x, b.y, b.z)
+        .setLinvel(b.vx, b.vy, b.vz)
+        .setLinearDamping(0)
+        .setAngularDamping(2)
+        .setCcdEnabled(true),
+    );
+    const collider = this.world.createCollider(
+      RAPIER.ColliderDesc.ball(r)
+        .setDensity(opts.density)
+        .setFriction(0.6)
+        .setRestitution(opts.bounce ?? 0.25),
+      body,
+    );
+    this.shots.set(b, { body, collider, r, drag: opts.drag, density: opts.density });
+    this.shotColliders.add(collider.handle);
+    this.queriesStale = true;
+  }
+
+  removeShot(b: Ball) {
+    const o = this.shots.get(b);
+    if (!o) return;
+    this.shotColliders.delete(o.collider.handle);
+    this.world.removeRigidBody(o.body);
+    this.shots.delete(b);
+  }
+
+  /** a shot's speed set (a boomerang's catch, a nut's bounce) */
+  setShotVelocity(b: Ball, v: [number, number, number]) {
+    this.shots.get(b)?.body.setLinvel({ x: v[0], y: v[1], z: v[2] }, true);
+  }
+
+  get shotCount() {
+    return this.shots.size;
+  }
+
+  /** a shot's mass (density × volume), for the push it gives what it hits */
+  shotMass(b: Ball): number {
+    return this.shots.get(b)?.body.mass() ?? 0;
+  }
+
+  /** air drag on every shot, against the wind where it is (a = k·|u−v|·(u−v), in all three directions) */
+  private applyShotDrag(dt: number) {
+    for (const o of this.shots.values()) {
+      const t = o.body.translation();
+      const v = o.body.linvel();
+      const w: [number, number] = this.wind.length ? windAt(this.wind, t.x, t.y, t.z) : [0, 0];
+      const rx = w[0] - v.x;
+      const ry = -v.y;
+      const rz = w[1] - v.z;
+      const k = o.drag * Math.hypot(rx, ry, rz);
+      const m = o.body.mass();
+      o.body.applyImpulse({ x: k * rx * m * dt, y: k * ry * m * dt, z: k * rz * m * dt }, true);
+    }
+  }
+
+  /** a push given to a loose object at a point (an arrow's or a seed's momentum, as it hits) */
+  pushObject(key: string, impulse: [number, number, number], at: [number, number, number]) {
+    const o = this.objects.get(key);
+    if (!o) return;
+    o.body.applyImpulseAtPoint({ x: impulse[0], y: impulse[1], z: impulse[2] }, { x: at[0], y: at[1], z: at[2] }, true);
+  }
+
+  private isActorCollider(c: RAPIER.Collider): boolean {
+    for (const e of this.actorBodies.values()) if (e.collider.handle === c.handle) return true;
+    return false;
+  }
+
+  /** the key of the loose object a collider belongs to (null: a brick, the ground, a character…) */
+  private objectOfCollider(c: RAPIER.Collider): string | null {
+    const body = c.parent();
+    if (!body) return null;
+    for (const [key, o] of this.objects) if (o.body.handle === body.handle) return key;
+    return null;
+  }
+
+  /**
+   * step 13a: the first solid thing along a straight run from a point to another (a shot's path this step): where,
+   * the surface's way out there, and whether it is a fixed thing (bricks, the ground) or a loose object (its key).
+   * The hero and the shots themselves are not in the way.
+   */
+  castSegment(
+    from: [number, number, number],
+    to: [number, number, number],
+    opts: { pad?: number; skipHero?: boolean } = {},
+  ): {
+    point: [number, number, number];
+    normal: [number, number, number];
+    t: number;
+    object: string | null;
+    fixed: boolean;
+  } | null {
+    const dir: [number, number, number] = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
+    const len = Math.hypot(...dir);
+    if (len < 1e-6) return null;
+    const d = { x: dir[0] / len, y: dir[1] / len, z: dir[2] / len };
+    this.refreshQueries();
+    const ray = new RAPIER.Ray({ x: from[0], y: from[1], z: from[2] }, d);
+    const pad = opts.pad ?? 0;
+    const hit = this.world.castRayAndGetNormal(
+      ray,
+      len + pad,
+      true,
+      undefined,
+      undefined,
+      opts.skipHero === false ? undefined : (this.heroCollider ?? undefined),
+      undefined,
+      // (characters are hit by the session, by their own shape: their capsules here are only for walking into)
+      (c) => !this.shotColliders.has(c.handle) && !this.isActorCollider(c),
+    );
+    if (!hit) return null;
+    const t = hit.timeOfImpact;
+    const body = hit.collider.parent();
+    return {
+      point: [from[0] + d.x * t, from[1] + d.y * t, from[2] + d.z * t],
+      normal: [hit.normal.x, hit.normal.y, hit.normal.z],
+      t,
+      object: this.objectOfCollider(hit.collider),
+      fixed: !body || body.isFixed(),
+    };
   }
 
   /** keeps the loose bricks to exactly this list (bricks gone from it lose their body, new ones get one) */
@@ -649,6 +791,7 @@ export class PhysicsWorld {
     };
     for (const [d, body] of this.loose) each(body, DEBRIS_HALF.y * d.scale);
     for (const o of this.objects.values()) each(o.body, o.half, o.density);
+    for (const o of this.shots.values()) each(o.body, o.r, o.density);
   }
 
   /** one step of the simulation */
@@ -660,8 +803,10 @@ export class PhysicsWorld {
       if (!o.body.isSleeping()) this.groundAt(o.body.translation().x, o.body.translation().z);
     for (const o of this.balls.values())
       if (!o.body.isSleeping()) this.groundAt(o.body.translation().x, o.body.translation().z);
+    for (const o of this.shots.values()) this.groundAt(o.body.translation().x, o.body.translation().z);
     this.applyWater(Math.min(dt, 1 / 30));
     this.applyWind(Math.min(dt, 1 / 30));
+    this.applyShotDrag(Math.min(dt, 1 / 30));
     this.world.timestep = Math.min(dt, 1 / 30);
     this.world.step();
     this.queriesStale = false;
@@ -671,6 +816,17 @@ export class PhysicsWorld {
       const v = o.body.linvel();
       b.x = t.x;
       b.y = t.y - o.r;
+      b.z = t.z;
+      b.vx = v.x;
+      b.vy = v.y;
+      b.vz = v.z;
+    }
+    // shots: where they are now (their middle), and how fast
+    for (const [b, o] of this.shots) {
+      const t = o.body.translation();
+      const v = o.body.linvel();
+      b.x = t.x;
+      b.y = t.y;
       b.z = t.z;
       b.vx = v.x;
       b.vy = v.y;
@@ -789,6 +945,8 @@ export class PhysicsWorld {
     this.loose.clear();
     this.objects.clear();
     this.balls.clear();
+    this.shots.clear();
+    this.shotColliders.clear();
     this.hero = null;
     this.heroCollider = null;
     this.walker = null;

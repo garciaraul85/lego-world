@@ -807,6 +807,122 @@ function gustLeaf(): Raw {
   return asset('Gust leaf', 'prop', [4, 2], b, { pickup: { item: 'Gust leaf' } });
 }
 
+// ---------- step 13a: shooting and throwing ----------
+
+/** a bow lying on the floor: its curved limbs and a pale string; taken, it is the Bow (with 10 arrows) */
+function bowPickup(): Raw {
+  const b = new Build();
+  b.put('plate', 1, 1, 0, 0, 1, C.woodDark);
+  b.put('plate', 1, 3, 1, 0, 0, C.wood);
+  b.put('plate', 1, 1, 4, 0, 1, C.woodDark);
+  b.put('tile', 1, 1, 2, 1, 0, '#3b2416');
+  b.put('tile', 1, 3, 1, 0, 1, C.straw);
+  return asset('Bow', 'prop', [5, 2], b, { pickup: { item: 'Bow' } });
+}
+
+/** a quiver of arrows (feathers out of its top): ten Arrows; the Fire and Ice quivers hold five of theirs */
+function quiver(name: string, item: string, count: number, tip: string): Raw {
+  const b = new Build();
+  b.put('brick', 1, 1, 0, 0, 0, '#6b4a2b');
+  b.put('plate', 1, 1, 0, 3, 0, C.woodDark);
+  b.put('tile', 1, 1, 0, 4, 0, tip);
+  return asset(name, 'prop', [1, 1], b, { pickup: { item, count } });
+}
+
+/** a slingshot lying on the floor: a forked stick and a red band; taken, it is the Slingshot (with 20 seeds) */
+function slingshotPickup(): Raw {
+  const b = new Build();
+  b.put('plate', 1, 2, 0, 0, 1, C.wood);
+  b.put('plate', 1, 1, 2, 0, 0, C.wood);
+  b.put('plate', 1, 1, 2, 0, 1, C.woodDark);
+  b.put('plate', 1, 1, 2, 0, 2, C.wood);
+  b.put('tile', 1, 1, 2, 1, 1, C.red);
+  return asset('Slingshot', 'prop', [3, 3], b, { pickup: { item: 'Slingshot' } });
+}
+
+function seedBag(): Raw {
+  const b = new Build();
+  b.put('plate', 1, 1, 0, 0, 0, '#6b8e23');
+  b.put('plate', 1, 1, 0, 1, 0, '#556b2f');
+  b.put('tile', 1, 1, 0, 2, 0, C.straw);
+  return asset('Seed bag', 'prop', [1, 1], b, { pickup: { item: 'Seeds', count: 20 } });
+}
+
+/** three hard brown nuts: Stun nuts (thrown, each bursts in a flash that stuns foes near it) */
+function stunNuts(): Raw {
+  const b = new Build();
+  b.put('plate', 1, 1, 0, 0, 0, '#8b5a2b');
+  b.put('plate', 1, 1, 1, 0, 1, '#a0522d');
+  b.put('plate', 1, 1, 0, 0, 1, '#7a4a22');
+  b.put('tile', 1, 1, 0, 1, 0, C.straw);
+  return asset('Stun nuts', 'prop', [2, 2], b, { pickup: { item: 'Stun nut', count: 3 } });
+}
+
+/** a boomerang lying on the floor (an L of wood with red tips); the whirl boomerang is green and white */
+function boomerangPickup(name: string, wood: string, tips: string): Raw {
+  const b = new Build();
+  b.put('plate', 1, 3, 0, 0, 0, wood);
+  b.put('plate', 1, 1, 0, 0, 1, wood);
+  b.put('plate', 1, 1, 0, 0, 2, wood);
+  b.put('tile', 1, 1, 2, 1, 0, tips);
+  b.put('tile', 1, 1, 0, 1, 2, tips);
+  return asset(name, 'prop', [3, 3], b, { pickup: { item: name } });
+}
+
+/**
+ * an eye in a stone block, looking out of its front (+z): an arrow or a seed in the eye turns it on (its pupil goes
+ * red, and stays). Swords do nothing to it: it is up out of reach in a wall, as Zelda's eye switches are.
+ */
+function eyeTarget(): Raw {
+  const b = new Build();
+  b.layer('brick', 0, 0, 3, 1, 0, C.stoneDark);
+  b.put('brick', 1, 1, 0, 3, 0, C.white);
+  b.put('brick', 1, 1, 2, 3, 0, C.white);
+  const off = [b.put('brick', 1, 1, 1, 3, 0, '#1b1b1f')];
+  const on = [b.put('brick', 1, 1, 1, 3, 0, C.red)];
+  b.layer('brick', 0, 0, 3, 1, 6, C.stone);
+  b.layer('tile', 0, 0, 3, 1, 9, C.stoneLight);
+  return asset('Eye target', 'decoration', [3, 1], b, {
+    states: ['open', 'struck'],
+    initialState: 'open',
+    onlyIn: { open: off, struck: on },
+    switch: { by: 'hit', stays: 'on', hitBy: ['pierce', 'blunt'] },
+    lockOn: true,
+  });
+}
+
+/**
+ * a round straw target on wooden legs (its rings white, red, gold): an arrow or a seed in it turns it on for a few
+ * seconds (a crystal of light on top). Arrows stick in it; a fire arrow burns it away.
+ */
+function archeryTarget(): Raw {
+  const b = new Build();
+  b.put('brick', 1, 1, 0, 0, 0, C.woodDark);
+  b.put('brick', 1, 1, 2, 0, 0, C.woodDark);
+  // a plank across the legs, the rings stacked on it
+  b.put('plate', 1, 3, 0, 3, 0, C.wood);
+  const ring = [C.white, C.red, C.white, C.red, C.gold, C.red, C.white, C.red, C.white];
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) b.put('brick', 1, 1, c, 4 + r * 3, 0, ring[r * 3 + c]!);
+  const off = [b.put('tile', 1, 1, 1, 13, 0, C.stoneDark)];
+  const on = [b.put('plate', 1, 1, 1, 13, 0, C.flame)];
+  return asset('Archery target', 'decoration', [3, 1], b, {
+    states: ['waiting', 'hit'],
+    initialState: 'waiting',
+    onlyIn: { waiting: off, hit: on },
+    switch: { by: 'hit', stays: 'timed', seconds: 4, hitBy: ['pierce', 'blunt'] },
+    burn: { seconds: 3 },
+    lockOn: true,
+  });
+}
+
+/** a floe of ice: what an ice arrow freezes on water (slippery; fire melts it, and it thaws by itself) */
+function iceFloe(): Raw {
+  const b = new Build();
+  b.layer('plate', 0, 0, 4, 4, 0, ice);
+  b.layer('plate', 0, 0, 4, 4, 1, (i) => (i % 3 ? '#eefaff' : ICE[1]!));
+  return asset('Ice floe', 'structure', [4, 4], b, { ice: { floor: true, melts: 'fire', seconds: 1.5 } });
+}
+
 function dungeonMap(): Raw {
   const b = new Build();
   b.put('plate', 2, 2, 0, 0, 0, C.straw);
@@ -1024,4 +1140,17 @@ export const STARTER_ASSETS: Record<string, Raw> = {
   pinwheel: pinwheel(),
   rock: liftRock(),
   'gust-leaf': gustLeaf(),
+  // step 13a: shooting and throwing
+  bow: bowPickup(),
+  quiver: quiver('Quiver', 'Arrows', 10, C.straw),
+  'fire-quiver': quiver('Fire arrows', 'Fire arrows', 5, C.fire),
+  'ice-quiver': quiver('Ice arrows', 'Ice arrows', 5, '#8fe3ff'),
+  slingshot: slingshotPickup(),
+  'seed-bag': seedBag(),
+  'stun-nuts': stunNuts(),
+  boomerang: boomerangPickup('Boomerang', C.wood, C.red),
+  'whirl-boomerang': boomerangPickup('Whirl boomerang', '#2f9e5a', C.white),
+  'eye-target': eyeTarget(),
+  'archery-target': archeryTarget(),
+  'ice-floe': iceFloe(),
 };

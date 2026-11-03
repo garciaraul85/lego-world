@@ -8,7 +8,7 @@ import { genreById } from '../../builtin/genres';
 import { BUILTIN_SCREEN_EFFECTS, DEFAULT_SCREEN_EVENTS } from '../../builtin/screen-effects';
 import { SCR } from '../../builtin/screens';
 import { type Cleanup, cleanupOf, DEBRIS_FADE, MAX_BROKEN, RUBBLE_BRICKS } from '../../core/assets/cleanup';
-import { expandAsset } from '../../core/assets/expand';
+import { expandAsset, localToWorld } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances, instanceBricks } from '../../core/assets/instances';
 import { customIdOf } from '../../core/bricks/custom';
@@ -150,7 +150,16 @@ import { ScreenStack } from '../ui/ScreenStack';
 import { resolveScreen, screenOfKind } from '../ui/screens';
 import { ActionRunner, type GameOp } from './actions';
 import { type ButtonHost, GameButtons } from './buttons';
-import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
+import {
+  ATTACKS,
+  type AttackKind,
+  angleDiff,
+  Combat,
+  hasShield,
+  LOCK_RELEASE,
+  type LockTarget,
+  MAX_STAMINA,
+} from './combat';
 import { Enemies } from './enemies';
 import { BOMB_R, type Bomb, BRANCH_SECONDS, FireLight } from './firelight';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, spawnedNpcs } from './health';
@@ -159,11 +168,12 @@ import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDO
 import { Platforms } from './platforms';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
 import { boxOf, type PuzzleHost, Puzzles, SEEN_CELL } from './puzzles';
-import { FLAME_OUT_SPEED, Wind } from './wind';
 import { Runtime, type System } from './runtime';
 import { applySave, captureMap, captureSave, loadMessage, restoreMap, type SaveHost, type SaveWorld } from './saves';
 import { afterDefence, movesOf, statsOf, wornProfile } from './sheet';
+import { type ArrowElement, Shots, type Weapon } from './shots';
 import { TalkSystem } from './talk';
+import { FLAME_OUT_SPEED, Wind } from './wind';
 
 type AssetInstanceId = import('../../core/schema').AssetInstance['id'];
 
@@ -283,6 +293,8 @@ const rgb = (i: number) => [1, 3, 5].map((k) => (parseInt(COLOR_OF(i).slice(k, k
 /** states v68's own motion already shows (the others play their built-in clip when the sheet sets none) */
 /** step 12c-2: how well the hero's feet hold on the ground (boots on stone, μ), against a push */
 const HERO_GRIP = 0.6;
+/** step 13a: the floe of ice an ice arrow freezes on water */
+const ICE_FLOE_ID = BUILTIN_ASSETS.find((a) => a.name === 'Ice floe')?.id ?? '';
 const OWN_MOTION = new Set(['walk', 'run', 'jump', 'attack', 'hurt', 'idle']);
 
 export class PlaySession {
@@ -396,6 +408,8 @@ export class PlaySession {
   readonly platforms: Platforms<PlayInstance> = this.makePlatforms();
   /** step 12c-2: fans and gusts blowing, pinwheels turning, small flames blown out */
   readonly wind: Wind<PlayInstance> = this.makeWind();
+  /** step 13a: the bow, the slingshot, stun nuts and the boomerang: what is in the air, stuck, frozen */
+  readonly shots: Shots<PlayInstance> = this.makeShots();
 
   private makeWind(): Wind<PlayInstance> {
     const self = this;
@@ -422,10 +436,303 @@ export class PlaySession {
     });
   }
 
+  private makeShots(): Shots<PlayInstance> {
+    const self = this;
+    const fxOf = {
+      hit: FX.hitFlash,
+      splash: FX.splash,
+      flash: FX.nutFlash,
+      frost: FX.frost,
+      spark: FX.sparks,
+      whirl: FX.gust,
+    };
+    return new Shots<PlayInstance>({
+      get heroState() {
+        return self.heroState;
+      },
+      get clock() {
+        return self.clock;
+      },
+      physics: () => self.world.physics ?? null,
+      launchPoint: () => self.launchPoint(),
+      near: (x, z, r) => self.objs().near(x, z, r),
+      byId: (id) => self.objs().byId(id),
+      npcs: () =>
+        self.world.npcs.map((n) => {
+          const f = self.figureOf(n);
+          return { id: n.id, x: n.state.x, y: n.state.y, z: n.state.z, bottom: f.bottom, top: f.top, radius: f.radius };
+        }),
+      hitNpc: (id, type, power, opt) => {
+        const n = self.world.npcs.find((x) => x.id === id);
+        if (!n || !self.canHarm(n)) return;
+        // a stun alone (a nut's flash, the boomerang): it stops for a moment and is not hurt
+        if (type === 'stun' && power <= 0) {
+          self.combat.stunNpc(n, opt.stun);
+          self.hitEffect('stun', [n.state.x, n.state.y + self.figureOf(n).top * 0.6, n.state.z]);
+          self.say(`${String(n.profile.name ?? 'It')} is stunned!`, 1.2);
+          self.emit('smash', `${String(n.profile.name ?? 'Neighbour')} stunned (${opt.stun.toFixed(1)} s)`);
+          return;
+        }
+        self.hitNpc(n, { power, type }, { knock: opt.knock, stun: opt.stun });
+      },
+      hitObject: (o, type, power, at) => {
+        if (o.def.switch?.by === 'hit') {
+          const was = self.puzzles.isOn(o);
+          self.puzzles.hit(o, type, true);
+          if (self.puzzles.isOn(o) !== was) self.emit('info', `${o.def.name} was hit (${type})`);
+          return true;
+        }
+        if (o.def.health) {
+          self.hitInstance(o, { power, type });
+          self.hitEffect(type, at);
+          return true;
+        }
+        return false;
+      },
+      flame: (at, r) => {
+        self.fireLight.flameAt(at[0], at[2], at[1], r, 'a fire arrow');
+        self.flameSwitches(at[0], at[2], r);
+      },
+      fireNear: (at, r) => self.fireLight.fireNear(at[0], at[2], r, at[1], 0.9),
+      putOut: (at, r) => {
+        let out = false;
+        for (const o of self.objs().near(at[0], at[2], r + 6)) {
+          const fl = o.def.flame;
+          if (!fl || !o.def.switch || !self.puzzles.isOn(o) || (fl.when && o.state !== fl.when)) continue;
+          const p = localToWorld(o.def, o.inst, fl.at);
+          if (Math.hypot(p[0] - at[0], p[1] - at[1], p[2] - at[2]) > r + 0.6) continue;
+          self.puzzles.turn(o, false, 'put out by ice');
+          self.emit('info', `${o.def.name}: the ice arrow put it out`);
+          out = true;
+        }
+        return out;
+      },
+      waterAt: (x, y, z) => waterAt(self.waterBoxes(), x, y, z),
+      freeze: (at) => self.freezeWater(at),
+      thaw: (id) => {
+        const o = self.objs().byId(id);
+        if (o) self.fireLight.melt(o, 'thaw');
+      },
+      fetch: (o) => {
+        const p = o.def.pickup;
+        if (!p) return null;
+        const pieces: LegacyPiece[] = [];
+        for (let id = o.inst.idBase; id < o.inst.idBase + o.def.bricks.length; id++) {
+          const q = self.pieceById(self.world, id);
+          if (q) pieces.push({ ...q });
+        }
+        const b = boxOf(o.bricks);
+        const origin: [number, number, number] = b
+          ? [(b.x0 + b.x1) / 2, ((b.y0 + b.y1) / 2) * 0.4, (b.z0 + b.z1) / 2]
+          : [0, 0, 0];
+        self.despawn(o.inst.id, true);
+        return { item: p.item, count: p.count ?? 1, name: o.def.name, pieces, origin };
+      },
+      deliver: (c) => {
+        self.give(c.item, c.count);
+        self.audio.play(SND.pickup, { pos: [self.heroState.x, self.heroState.y + 1, self.heroState.z] });
+        self.logic.fire({
+          type: 'event.onPickedUp',
+          match: { item: c.item },
+          payload: { item: c.item, count: c.count },
+        });
+      },
+      gust: (field, life) => self.wind.gust(field, life),
+      flames: (at, scale) => {
+        const h = self.playEffect(FX.fire, at, { scale });
+        return h ? { stop: () => self.effects.stop(h), move: (p) => self.effects.move(h, p) } : null;
+      },
+      effect: (kind, at, forward) => {
+        self.playEffect(fxOf[kind], at, forward ? { forward } : {});
+      },
+      sound: (id, at) => self.audio.play(SND[id], { pos: at }),
+      solidAt: (x, y, z) => self.solidPoint(x, y, z),
+      lockPos: () => self.combat.targetPos(),
+      aimTargets: (throwing) => self.aimTargets(throwing),
+      lightTorches: (at, r) => {
+        for (const o of self.objs().near(at[0], at[2], r + 6)) {
+          const fl = o.def.flame;
+          if (!fl || o.def.switch?.by !== 'hit' || self.puzzles.isOn(o) || !switchHitBy(o.def.switch, 'fire')) continue;
+          const p = localToWorld(o.def, o.inst, fl.at);
+          if (Math.hypot(p[0] - at[0], p[1] + 0.3 - at[1], p[2] - at[2]) <= r) self.puzzles.hit(o, 'fire', true);
+        }
+      },
+      say: (t, sec) => self.say(t, sec),
+      log: (t) => self.emit('info', t),
+    });
+  }
+
+  /** step 13a: where shots leave the hero: the bow's grip in the left hand, held up ahead at the shoulder */
+  launchPoint(): [number, number, number] {
+    const h = this.heroState;
+    const k = this.L.GamePhysics.scaleOf(h);
+    const fx = Math.sin(h.heading);
+    const fz = Math.cos(h.heading);
+    // (the archer stands side-on, the bow out on the line of the aim at the chin)
+    return [h.x + fx * 1.2 * k, h.y + 2.9 * k, h.z + fz * 1.2 * k];
+  }
+
+  /** step 13a: what is worth aiming at: foes, switches to hit (targets, crystals, torch stands), pinwheels, pickups */
+  private aimTargets(throwing = false): [number, number, number][] {
+    const h = this.heroState;
+    const out: [number, number, number][] = [];
+    for (const n of this.world.npcs) {
+      if (!this.canHarm(n)) continue;
+      const f = this.figureOf(n);
+      out.push([n.state.x, n.state.y + f.bottom + 0.55 * (f.top - f.bottom), n.state.z]);
+    }
+    for (const o of this.objs().near(h.x, h.z, 46)) {
+      const sw = o.def.switch?.by;
+      const fetch = throwing && !!o.def.pickup;
+      if (sw !== 'hit' && sw !== 'wind' && !o.def.health && !o.def.lockOn && !fetch) continue;
+      // a switch already on for good (a lit torch, a struck eye) is not worth aiming at again
+      if (sw === 'hit' && o.def.switch?.stays !== 'toggle' && this.puzzles.isOn(o)) continue;
+      const b = boxOf(o.bricks);
+      if (!b) continue;
+      const fl = o.def.flame;
+      const mid: [number, number, number] = [(b.x0 + b.x1) / 2, ((b.y0 + b.y1) / 2) * 0.4, (b.z0 + b.z1) / 2];
+      // a torch stand is aimed just over its bowl (through its flame); a pinwheel at its sails; a pickup a little
+      // over it (the boomerang dips to it); the rest at their middle (an eye target's eye)
+      if (fl && sw === 'hit') {
+        const p = localToWorld(o.def, o.inst, fl.at);
+        out.push([p[0], p[1] + 0.35, p[2]]);
+      } else if (sw === 'wind') out.push([mid[0], b.y1 * 0.4 - 0.7, mid[2]]);
+      else if (fetch) out.push([mid[0], b.y1 * 0.4 + 0.5, mid[2]]);
+      else out.push(mid);
+    }
+    // step 13a: with ice arrows, the water ahead (a little way in from where the way ahead meets it) is worth aiming at
+    if (!throwing && this.shots.out === 'bow' && this.shots.arrow === 'ice') {
+      const fx = Math.sin(h.heading);
+      const fz = Math.cos(h.heading);
+      for (const w of this.waterBoxes()) {
+        for (let d = 3; d <= 30; d += 0.5) {
+          const x = h.x + fx * d;
+          const z = h.z + fz * d;
+          if (x < w.x0 + 1 || x > w.x1 - 1 || z < w.z0 + 1 || z > w.z1 - 1) continue;
+          out.push([x + fx * 2, w.y1, z + fz * 2]);
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
+  /** step 13a: an ice arrow freezes the water where it goes in: a floe of ice on the surface (slippery; it melts) */
+  private freezeWater(at: [number, number, number]): string | null {
+    const def =
+      (this.snapshot.get(paths.asset(ICE_FLOE_ID)) as Asset | undefined) ??
+      BUILTIN_ASSETS.find((a) => a.id === ICE_FLOE_ID);
+    const wet = waterAt(this.waterBoxes(), at[0], at[1] - 0.05, at[2]);
+    if (!def || !wet) return null;
+    const [fw, fd] = def.footprint;
+    // its top two plates over the surface: it floats as ice does, most of it under
+    // (all of it on the water: a shot in at the edge freezes the water along the edge)
+    const inside = (v: number, lo: number, hi: number, n: number) =>
+      Math.max(Math.ceil(lo), Math.min(Math.floor(hi) - n, v));
+    const pos: [number, number, number] = [
+      inside(Math.round(at[0] - fw / 2), wet.x0, wet.x1, fw),
+      Math.round((wet.y1 - 0.4) / 0.4),
+      inside(Math.round(at[2] - fd / 2), wet.z0, wet.z1, fd),
+    ];
+    return this.placeCopy(def, pos, 0, undefined, { unchecked: true });
+  }
+
+  // ---------- step 13a: the bow and the slingshot in hand ----------
+
+  /** the bow (with these arrows) or the slingshot comes out in the left hand; what the right hand held is put away */
+  takeOutWeapon(w: Weapon, arrow: ArrowElement = 'plain') {
+    if (this.fireLight.held || this.fireLight.busy) return;
+    if (this.shots.out !== w) {
+      this.putAwayStick();
+      this.heldBefore = String(this.hero.held ?? 'None');
+    }
+    this.shots.out = w;
+    this.shots.arrow = arrow;
+    this.syncWeaponLook();
+  }
+
+  /** the bow or slingshot is put away (a draw is dropped): the hand holds what it held before */
+  putAwayWeapon() {
+    if (!this.shots.out) return;
+    this.shots.cancel();
+    this.shots.out = null;
+    const { heldLook: _, heldDraw: _d, heldArrow: _a, ...rest } = this.hero as Record<string, unknown>;
+    this.hero = { ...rest, held: this.heldBefore ?? 'None' } as typeof this.hero;
+    this.heldBefore = null;
+  }
+
+  /** the hand's look follows the bow: carried, or drawn (how far, with which arrow) */
+  private syncWeaponLook() {
+    const s = this.shots;
+    if (!s.out) return;
+    const look = s.out === 'bow' ? 'Bow' : 'Sling';
+    const draw = s.aiming ? Math.round(s.drawn * 5) : null;
+    const arrow = s.out === 'bow' ? s.arrow : null;
+    const h = this.hero as Record<string, unknown>;
+    if (h.heldLook === look && h.held === 'None' && (h.heldDraw ?? null) === draw && (h.heldArrow ?? null) === arrow)
+      return;
+    const { heldDraw: _d, heldArrow: _a, ...rest } = h;
+    this.hero = {
+      ...rest,
+      held: 'None',
+      heldLook: look,
+      ...(draw !== null ? { heldDraw: draw } : {}),
+      ...(arrow ? { heldArrow: arrow } : {}),
+    } as typeof this.hero;
+  }
+
+  /** the item a shot uses up: arrows (of the bow's kind) or seeds */
+  private ammoItem(): string {
+    const s = this.shots;
+    return s.out === 'sling'
+      ? 'Seeds'
+      : s.arrow === 'fire'
+        ? 'Fire arrows'
+        : s.arrow === 'ice'
+          ? 'Ice arrows'
+          : 'Arrows';
+  }
+
+  /** Attack held with the bow or slingshot out: it is drawn (if there is something to shoot) */
+  private startDrawing() {
+    const s = this.shots;
+    if (!s.out || s.aiming || this.swim.on || this.puzzles.ladder || this.puzzles.wall || this.puzzles.climbing) return;
+    const item = this.ammoItem();
+    if ((this.inventory.get(this.itemKey(item)) ?? 0) <= 0) {
+      this.say(`No ${item.toLowerCase()} left.`, 1.5);
+      return;
+    }
+    s.startDraw();
+    this.syncWeaponLook();
+    this.emit('info', `Drawing the ${s.out === 'bow' ? 'bow' : 'slingshot'}${s.aimAt ? ' (aimed at a target)' : ''}`);
+  }
+
+  /** Attack let go: the shot flies */
+  private releaseDrawing() {
+    const s = this.shots;
+    if (!s.aiming) return;
+    const item = this.ammoItem();
+    s.release(() => {
+      if ((this.inventory.get(this.itemKey(item)) ?? 0) <= 0) return false;
+      this.takeItem(item, 1);
+      return true;
+    });
+    this.syncWeaponLook();
+  }
+
+  /** step 13a: each step: the shots fly (their paths looked along before the physics engine moves them) */
+  stepShots(dt: number) {
+    this.shots.step(dt * this.slowmo);
+    this.syncWeaponLook();
+  }
+
   /** a brick (or a placed thing's brick) fills this point */
   solidPoint(x: number, y: number, z: number): boolean {
     const c = this.world.controller as unknown as {
-      nearby?(x: number, z: number): { b: { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number } }[];
+      nearby?(
+        x: number,
+        z: number,
+      ): { b: { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number } }[];
     };
     return (c.nearby?.(x, z) ?? []).some(
       ({ b }) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && y >= b.y0 && y < b.y1,
@@ -1125,7 +1432,14 @@ export class PlaySession {
     const fz = Math.cos(h.heading);
     const k = this.L.GamePhysics.scaleOf(h);
     this.wind.gust(
-      { from: [h.x + fx * 0.8, h.y + 0.6 * k, h.z + fz * 0.8], dir: [fx, fz], reach: 10, half: 1.3, height: 4.4 * k, speed: 22 },
+      {
+        from: [h.x + fx * 0.8, h.y + 0.6 * k, h.z + fz * 0.8],
+        dir: [fx, fz],
+        reach: 10,
+        half: 1.3,
+        height: 4.4 * k,
+        speed: 22,
+      },
       0.4,
     );
     const at: [number, number, number] = [h.x + fx * 1.2, h.y + 2.4 * k, h.z + fz * 1.2];
@@ -1137,6 +1451,7 @@ export class PlaySession {
   /** the stick is put away (or is gone): its fire goes out, and the hand holds what it held before */
   putAwayStick() {
     this.putAwayLeaf();
+    this.putAwayWeapon();
     if (!this.stickOut) return;
     this.stickOut = false;
     this.fireLight.putOutBranch();
@@ -1383,6 +1698,8 @@ export class PlaySession {
       { id: 'cinematic', fixed: (g, dt) => g.cine.step(dt) },
       { id: 'combat', fixed: (g, dt) => g.stepSmash(dt) },
       { id: 'rebuild', fixed: (g, dt) => g.stepRebuild(dt) },
+      // step 13a: shots look ahead along their path before the physics engine moves them (in debris)
+      { id: 'shots', fixed: (g, dt) => g.stepShots(dt) },
       { id: 'debris', fixed: (g, dt) => g.stepDebris(dt) },
       { id: 'cleanup', fixed: (g, dt) => g.stepCleanup(dt) },
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
@@ -1484,6 +1801,11 @@ export class PlaySession {
     const moving = c.moveInput();
     if (moving) input = moving;
     else if (c.guard || c.charge !== null) input = { ...input, run: false, speedScale: 0.45 };
+    // step 13a: drawing a bow the hero stands, and the move keys aim (left and right turn, forward and back tilt)
+    if (this.shots.aiming) {
+      this.shots.steer(input.x, input.z, dt);
+      input = { ...input, x: 0, z: 0, run: false, jump: false };
+    }
     this.input.jump = false;
     // P26: a fall off the world comes back to the checkpoint (v68's controller would use its safe spot)
     if (this.heroState.y < -14) return this.fellOff();
@@ -1523,6 +1845,12 @@ export class PlaySession {
     this.keepOutOfParts();
     if (c.target) c.stepLock();
     else c.stepHint();
+    // step 13a: drawn, the hero turns to where it aims, and the camera comes round behind its shoulder
+    if (this.shots.aiming) {
+      const h = this.heroState;
+      h.heading += angleDiff(this.shots.aimYaw, h.heading) * Math.min(1, dt * 14);
+      if (!c.target) this.camYaw += angleDiff(this.shots.aimYaw + Math.PI, this.camYaw) * Math.min(1, dt * 6);
+    }
     this.syncStamina();
     this.movementSounds(dt, wasGrounded, fallSpeed);
     if (this.heroState.y < -14) this.fellOff();
@@ -1719,7 +2047,12 @@ export class PlaySession {
     const k = this.L.GamePhysics.scaleOf(s);
     const ph = this.physicsMovement ? this.world.physics : null;
     if (ph) {
-      const r = ph.walk({ x: s.x, y: s.y, z: s.z }, { x: d.x * dt, y: 0, z: d.z * dt }, HERO_RADIUS * k, HERO_HEIGHT * k);
+      const r = ph.walk(
+        { x: s.x, y: s.y, z: s.z },
+        { x: d.x * dt, y: 0, z: d.z * dt },
+        HERO_RADIUS * k,
+        HERO_HEIGHT * k,
+      );
       if (Math.abs(r.x - s.x) < Math.abs(d.x * dt) * 0.5) d.x = 0;
       if (Math.abs(r.z - s.z) < Math.abs(d.z * dt) * 0.5) d.z = 0;
       s.x = r.x;
@@ -2328,8 +2661,18 @@ export class PlaySession {
       else this.takeOutStick();
       this.stickHint();
     }
-    // step 12b: a tool (Bomb, Torch) goes into an empty item button, ready to use
-    if (count > 0 && /^(bombs?|torch|branch|gust leaf)$/i.test(item.trim()) && !this.buttons.slots.includes(item)) {
+    // step 13a: a bow comes with a quiver of arrows, a slingshot with a bag of seeds (when there are none yet)
+    if (count > 0 && /^bow$/i.test(item.trim()) && (this.inventory.get('Arrows') ?? 0) <= 0) this.give('Arrows', 10);
+    if (count > 0 && /^slingshot$/i.test(item.trim()) && (this.inventory.get('Seeds') ?? 0) <= 0)
+      this.give('Seeds', 20);
+    // step 12b: a tool (Bomb, Torch) goes into an empty item button, ready to use (13a: and the shooting things)
+    if (
+      count > 0 &&
+      /^(bombs?|torch|branch|gust leaf|bow|fire arrows|ice arrows|slingshot|stun nuts?|boomerang|whirl boomerang)$/i.test(
+        item.trim(),
+      ) &&
+      !this.buttons.slots.includes(item)
+    ) {
       const free = Array.from({ length: this.buttons.c.items }, (_, i) => i).find((i) => !this.buttons.slots[i]);
       if (free !== undefined) {
         this.equip(free + 1, item);
@@ -3129,7 +3472,7 @@ export class PlaySession {
       ph.syncLoose(w.debris, (d) => (d as Debris).entryId === rebuilding);
       // loose objects keep the simulation going even with no loose bricks about
       // (and the hero walked by it: what it pushes and stands on moves every step)
-      if (w.debris.length || ph.objectCount || ph.walking) {
+      if (w.debris.length || ph.objectCount || ph.walking || ph.shotCount) {
         const s = this.heroState;
         const k = this.L.GamePhysics.scaleOf(s);
         ph.moveHero(s.x, s.y, s.z, 0.8 * k, 4.4 * k);
@@ -3894,6 +4237,7 @@ export class PlaySession {
     this.fireLight.reset();
     this.platforms.reset();
     this.wind.reset();
+    this.shots.reset();
     this.windFx.clear();
     this.heroDrift = { x: 0, z: 0 };
     this.health.clear();
@@ -4228,6 +4572,8 @@ export class PlaySession {
     pos: [number, number, number],
     rot: number,
     as?: { id: string; idBase: number },
+    /** step 13a: a thing made in play where no brick holds it (an ice floe on water): not checked */
+    opts: { unchecked?: boolean } = {},
   ): string | null {
     const w = this.world;
     const idBase =
@@ -4251,7 +4597,8 @@ export class PlaySession {
     const added = exp.bricks.map((b) => brickToPiece(b, true));
     const pieces = [...w.pieces, ...added];
     // a floating item (every brick in a moving part) is drawn only: it does not have to fit
-    const check = floating(def) ? { ok: true as const, reason: '' } : this.layoutCheck(w, pieces, added);
+    const check =
+      floating(def) || opts.unchecked ? { ok: true as const, reason: '' } : this.layoutCheck(w, pieces, added);
     if (!check.ok) {
       this.emit('info', `Spawn ${def.name}: ${check.reason}`);
       return null;
@@ -4679,6 +5026,45 @@ export class PlaySession {
       }
       return true;
     }
+    // step 13a: the bow (its button takes it out with plain arrows; Fire arrows and Ice arrows take it out with
+    // theirs), the slingshot: out in the left hand, or put away; out, Attack held draws it and let go shoots
+    if (name === 'bow' || name === 'fire arrows' || name === 'ice arrows' || name === 'slingshot') {
+      if (this.fireLight.held || this.fireLight.busy) return true;
+      const w: Weapon = name === 'slingshot' ? 'sling' : 'bow';
+      const el: ArrowElement = name === 'fire arrows' ? 'fire' : name === 'ice arrows' ? 'ice' : 'plain';
+      if (w === 'bow' && (this.inventory.get(this.itemKey('Bow')) ?? 0) <= 0) {
+        this.say(`${item} need a bow to shoot them.`, 2);
+        return true;
+      }
+      if (this.shots.out === w && (w === 'sling' || this.shots.arrow === el)) {
+        this.putAwayWeapon();
+        this.say(`${w === 'bow' ? 'Bow' : 'Slingshot'} put away.`, 1.2);
+        return true;
+      }
+      this.takeOutWeapon(w, el);
+      const k = this.buttons.keyOf('attack').toUpperCase();
+      const what =
+        w === 'sling' ? 'The slingshot' : el === 'plain' ? 'The bow' : el === 'fire' ? 'Fire arrows' : 'Ice arrows';
+      this.say(`${what}! Hold ${k} to draw (the move keys aim), let go to shoot.`, 2.6);
+      return true;
+    }
+    // step 13a: a stun nut is thrown at once (its flash stuns foes near where it bursts)
+    if (name === 'stun nut' || name === 'stun nuts') {
+      if (this.fireLight.held || this.fireLight.busy || this.shots.aiming) return true;
+      this.takeItem(item, 1);
+      this.shots.throwNut();
+      return true;
+    }
+    // step 13a: the boomerang is thrown at once (and comes back to the hand)
+    if (name === 'boomerang' || name === 'whirl boomerang') {
+      if (this.fireLight.held || this.fireLight.busy || this.shots.aiming) return true;
+      if (this.shots.boomer) {
+        this.say('It is still flying.', 1);
+        return true;
+      }
+      this.shots.throwBoomerang(name === 'whirl boomerang');
+      return true;
+    }
     if (name === 'torch') {
       const x = h.x + fx * 1.4;
       const z = h.z + fz * 1.4;
@@ -4766,7 +5152,10 @@ export class PlaySession {
       if (cy + hy < q.y0 * 0.4 || cy - hy > q.y1 * 0.4) continue;
       this.puzzles.hit(i, 'blunt', true);
       this.hitEffect('blunt', at);
-      this.emit('info', `${b.thing ? `The ${b.thing.name}` : 'The bomb'} hit ${i.def.name} (${speed.toFixed(1)} studs a second)`);
+      this.emit(
+        'info',
+        `${b.thing ? `The ${b.thing.name}` : 'The bomb'} hit ${i.def.name} (${speed.toFixed(1)} studs a second)`,
+      );
       out.push(i.inst.id);
     }
     return out;
@@ -4918,7 +5307,11 @@ export class PlaySession {
       if (gust)
         this.emit(
           'info',
-          gust === 'blown' ? 'Blown back by the wind' : gust === 'into' ? 'Walking into the wind' : 'Bracing against the wind',
+          gust === 'blown'
+            ? 'Blown back by the wind'
+            : gust === 'into'
+              ? 'Walking into the wind'
+              : 'Bracing against the wind',
         );
     }
     // bracing or blown back plays its move at its own pace (as a walk at walking speed)
@@ -4949,17 +5342,17 @@ export class PlaySession {
                   ? windWalk
                   : windBrace
               : (this.sheetClip(this.heroChr, st) ??
-              // step 11b: v68's own motion is a walk, so swimming always has a clip (the built-in crawl and tread);
-              // step 12a: so do pushing, pulling and climbing; 12b: ladders, and lifting, carrying and throwing
-              (OWN_MOTION.has(st)
-                ? undefined
-                : // step 12c: holding a wall (Climbing: Anything) climbs with its own built-in move
-                  st === 'ladder' && this.puzzles.wall
-                  ? wallClimb
-                  : // and pulls up over its top with its own (the hands on the edge)
-                    st === 'climb' && this.puzzles.climbing?.mantle
-                    ? ledgePull
-                    : BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st as keyof typeof MOVE_FOR]))),
+                // step 11b: v68's own motion is a walk, so swimming always has a clip (the built-in crawl and tread);
+                // step 12a: so do pushing, pulling and climbing; 12b: ladders, and lifting, carrying and throwing
+                (OWN_MOTION.has(st)
+                  ? undefined
+                  : // step 12c: holding a wall (Climbing: Anything) climbs with its own built-in move
+                    st === 'ladder' && this.puzzles.wall
+                    ? wallClimb
+                    : // and pulls up over its top with its own (the hands on the edge)
+                      st === 'climb' && this.puzzles.climbing?.mantle
+                      ? ledgePull
+                      : BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st as keyof typeof MOVE_FOR]))),
       dt,
       1.5,
     );
@@ -5367,6 +5760,12 @@ export class PlaySession {
       // step 12b: no swinging while holding a bomb up (Action throws or puts it down)
       attack: (down) => {
         if (this.fireLight.held || this.fireLight.busy) return;
+        // step 13a: the bow or slingshot out: held, it draws; let go, it shoots
+        if (this.shots.out) {
+          if (down) this.startDrawing();
+          else this.releaseDrawing();
+          return;
+        }
         // step 12c-2: the Gust leaf swings at once (no charging, no spin: it is a leaf, not a sword)
         if (this.leafOut) {
           if (down) {
@@ -5389,6 +5788,11 @@ export class PlaySession {
       itemMenu: () => this.openItemMenu(),
       count: (item) => this.inventory.get(item) ?? 0,
     };
+  }
+
+  /** the Attack button pressed (true) or let go: what the buttons do (a course's Do it for me presses it too) */
+  attackButton(down: boolean) {
+    this.buttonHost().attack(down);
   }
 
   /** step 11b part 1: an item button pressed: its item is used (logic: On item used) */

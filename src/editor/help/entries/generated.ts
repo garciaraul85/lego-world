@@ -138,6 +138,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Ice, platforms and climbing course (11 steps): push an ice block across an icy floor until an ice wall stops it, melt the wall with a burning stick, ride a moving platform, then set Climbing to Anything and climb a rock face with stamina.',
   'help.windCourse':
     'Starts the Wind, water and throwing course (12 steps): walk into a fan’s wind, spin a pinwheel and blow a burning torch out with the Gust leaf, throw a rock at a crystal switch, then swim in a river’s current and dive.',
+  'help.shotsCourse':
+    'Starts the Bow and boomerang course (10 steps): shoot an eye target with the bow, light a torch stand with an arrow shot through another torch’s flame, freeze a pool with an ice arrow, then throw a boomerang at a crystal switch and catch it as it comes back.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':
