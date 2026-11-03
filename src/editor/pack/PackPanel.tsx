@@ -29,6 +29,10 @@ const GROUPS: [PackGroup, string][] = [
 /** step 12c: ice, a moving platform or lift, or a wall to climb (or not) */
 const iceOrMoving = (a: (typeof BUILTIN_ASSETS)[number]) => !!(a.ice || a.moves || a.noClimb) || a.name === 'Rock face';
 
+/** step 12c-2: a fan, a pinwheel, something to lift and throw, or the Gust leaf */
+const windOrThrow = (a: (typeof BUILTIN_ASSETS)[number]) =>
+  !!(a.wind || a.lift) || a.switch?.by === 'wind' || /^gust leaf$/i.test(a.pickup?.item ?? '');
+
 /** Step 11, 4a: the starter pack's panel in the bottom dock (shown in the genre views that use it) */
 /** step 12b: a fire or light piece: it burns, shines, turns a beam, answers a beam or fire, or is a bomb or torch */
 const fireOrLight = (a: (typeof BUILTIN_ASSETS)[number]) =>
@@ -50,14 +54,16 @@ export function PackPanel({ c }: { c: ActionCtx }) {
       a.push || a.switch || a.lock || a.pickup ? 'puzzle' : '',
       fireOrLight(a) ? 'fire light' : '',
       iceOrMoving(a) ? 'ice platform climb' : '',
+      windOrThrow(a) ? 'wind fan throw lift' : '',
     ),
   );
   const puzzle = (a: (typeof assets)[number]) =>
-    !!(a.push || a.switch || a.lock || a.pickup || a.climbable) || fireOrLight(a) || iceOrMoving(a);
+    !!(a.push || a.switch || a.lock || a.pickup || a.climbable) || fireOrLight(a) || iceOrMoving(a) || windOrThrow(a);
   const buildings = assets.filter((a) => !puzzle(a));
-  const pieces = assets.filter((a) => puzzle(a) && !fireOrLight(a) && !iceOrMoving(a));
-  const iceMoving = assets.filter(iceOrMoving);
-  const fire = assets.filter(fireOrLight);
+  const pieces = assets.filter((a) => puzzle(a) && !fireOrLight(a) && !iceOrMoving(a) && !windOrThrow(a));
+  const iceMoving = assets.filter((a) => iceOrMoving(a) && !windOrThrow(a));
+  const fire = assets.filter((a) => fireOrLight(a) && !windOrThrow(a));
+  const windThrow = assets.filter(windOrThrow);
   const terrain = ADVENTURE_PACK.terrain.filter((t) => matches(q, t.name, t.about));
   const effects = BUILTIN_EFFECTS.filter((e) => (ADVENTURE_PACK.effects as readonly string[]).includes(e.id)).filter(
     (e) => matches(q, e.name, 'effect'),
@@ -169,6 +175,8 @@ export function PackPanel({ c }: { c: ActionCtx }) {
         ['Fire and light', 'Pack fire and light', fire] as const,
         // step 12c: ice, moving platforms and lifts, walls to climb
         ['Ice, platforms and climbing', 'Pack ice, platforms and climbing', iceMoving] as const,
+        // step 12c-2: fans and pinwheels, things to lift and throw, the Gust leaf
+        ['Wind and throwing', 'Pack wind and throwing', windThrow] as const,
       ].map(([title, label, list]) =>
         list.length > 0 ? (
           <section class="pack-group" aria-label={title}>

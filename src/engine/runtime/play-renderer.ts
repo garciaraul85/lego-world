@@ -1,3 +1,4 @@
+import { localToWorld } from '../../core/assets/expand';
 import { freeGroups, hasFree, partsMoving } from '../../core/assets/free';
 import type { minifigExtras } from '../../core/character/resolve';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
@@ -192,6 +193,27 @@ export class PlayRenderer {
       for (const id of set) ids.add(id);
       groups.push({ ids: set, model: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, v.dx, v.dy, v.dz, 1]) });
     }
+    // step 12c-2: a pinwheel's sails spin round their hinge (upright axis), as far round as the wind has turned them
+    let spinning = false;
+    for (const [id, sp] of this.session.wind.spins) {
+      const o = w.instances.find((i) => i.inst.id === id);
+      const part = o?.def.parts?.[0];
+      if (!o || !part?.hinge) continue;
+      if (Math.abs(sp.omega) > 0.01) spinning = true;
+      const set = new Set<number>();
+      for (const k of part.bricks) {
+        const pid = o.inst.idBase + k;
+        if (!ids.has(pid)) set.add(pid);
+      }
+      for (const pid of set) ids.add(pid);
+      const [hx, , hz] = localToWorld(o.def, o.inst, part.hinge);
+      const c = Math.cos(sp.angle);
+      const sn = Math.sin(sp.angle);
+      groups.push({
+        ids: set,
+        model: new Float32Array([c, 0, -sn, 0, 0, 1, 0, 0, sn, 0, c, 0, hx - (c * hx + sn * hz), 0, hz - (-sn * hx + c * hz), 1]),
+      });
+    }
     // bricks that joined or left a group move between the chunks and the overlays (P27 part 3: only those)
     for (const id of new Set([...ids, ...this.tilted.ids]))
       if (ids.has(id) !== this.tilted.ids.has(id)) {
@@ -201,6 +223,7 @@ export class PlayRenderer {
     this.tilted = { ids, groups };
     this.tiltedRev = w.rev;
     this.moving =
+      spinning ||
       !!sv ||
       this.session.platforms.moving ||
       free.some((i) => partsMoving(i.def, i.state, i.anim ? { ...i.anim, now } : null));
@@ -248,7 +271,9 @@ export class PlayRenderer {
       const top = bx.y1 * 0.4;
       bombShape(out, cx, top, cz, null, now);
     }
-    for (const b of fl.bombs) bombShape(out, b.x, b.y, b.z, b.t, now);
+    for (const b of fl.bombs)
+      if (b.thing) thingShape(out, b.x, b.y, b.z, b.thing.look, b.thing.r);
+      else bombShape(out, b.x, b.y, b.z, b.t, now);
     return out;
   }
 
@@ -714,6 +739,23 @@ export function shaken<C extends CameraFrame>(c: C, [dx, dy, roll]: [number, num
  * step 12b: a round black bomb (BOMB_R) standing on y: a shine, a short fuse, and once lit a spark that blinks faster
  * near the end, glowing red just before it goes off
  */
+/**
+ * step 12c-2: a rock or a pot lifted, carried or thrown: a rock is a lumpy grey stone (a few rounded lumps), a pot a
+ * round clay pot with a narrower neck and a rim
+ */
+function thingShape(out: Marker[], x: number, y: number, z: number, look: 'rock' | 'pot', r: number) {
+  if (look === 'rock') {
+    out.push({ pos: [x, y + r * 0.9, z], size: [2 * r, 1.8 * r, 2 * r], color: [0.47, 0.47, 0.5], sphere: true });
+    out.push({ pos: [x + r * 0.35, y + r * 1.25, z - r * 0.2], size: [r * 1.1, r, r * 1.1], color: [0.55, 0.55, 0.58], sphere: true });
+    out.push({ pos: [x - r * 0.3, y + r * 0.7, z + r * 0.35], size: [r, r * 0.9, r], color: [0.4, 0.4, 0.43], sphere: true });
+    return;
+  }
+  out.push({ pos: [x, y + r * 0.95, z], size: [2 * r, 1.9 * r, 2 * r], color: [0.72, 0.4, 0.24], sphere: true });
+  out.push({ pos: [x, y + r * 1.95, z], size: [r * 1.1, r * 0.45, r * 1.1], color: [0.66, 0.36, 0.21] });
+  out.push({ pos: [x, y + r * 2.2, z], size: [r * 1.35, r * 0.14, r * 1.35], color: [0.78, 0.46, 0.28] });
+  out.push({ pos: [x, y + r * 1.1, z], size: [2.04 * r, r * 0.16, 2.04 * r], color: [0.5, 0.26, 0.16] });
+}
+
 function bombShape(out: Marker[], x: number, y: number, z: number, lit: number | null, now: number) {
   const r = BOMB_R;
   out.push({ pos: [x, y + r, z], size: [2 * r, 2 * r, 2 * r], color: [0.1, 0.1, 0.13], sphere: true });

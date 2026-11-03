@@ -57,6 +57,8 @@ export const FX = {
   vanish: 'fx_vanish0001',
   // step 12c: melting ice
   steam: 'fx_steam00001',
+  wind: 'fx_wind000001',
+  gust: 'fx_gust000001',
 } as const;
 
 /** Step 11, 4b: the adventure pack's effects (shown in the pack panel) */
@@ -433,6 +435,38 @@ export const BUILTIN_EFFECTS: Effect[] = [
     colors: ['#ffffff', '#e6f6fc', '#cfe9f3'],
     gravity: -0.8,
     drag: 0.5,
+  }),
+  // step 12c-2: a fan's air: pale streaks flying out of it along the wind, fading as they slow and spread
+  fx(FX.wind, 'Wind', {
+    shape: 'tile',
+    mode: 'stream',
+    rate: 22,
+    spawn: 'sphere',
+    radius: 1.1,
+    direction: 'forward',
+    spread: 8,
+    speed: [9, 14],
+    life: [0.8, 1.3],
+    size: [0.22, 0.08],
+    colors: ['#ffffff', '#eef7fb', '#d9ecf3'],
+    gravity: 0,
+    drag: 0.6,
+  }),
+  // step 12c-2: a gust of the Gust leaf: a puff of streaks and a few leaves thrown ahead
+  fx(FX.gust, 'Gust', {
+    shape: 'tile',
+    mode: 'burst',
+    count: 36,
+    spawn: 'sphere',
+    radius: 0.5,
+    direction: 'forward',
+    spread: 16,
+    speed: [10, 18],
+    life: [0.35, 0.7],
+    size: [0.22, 0.06],
+    colors: ['#ffffff', '#e9f5e1', '#cfe8c4'],
+    gravity: 0,
+    drag: 1.2,
   }),
 ];
 

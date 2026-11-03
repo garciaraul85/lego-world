@@ -253,7 +253,7 @@ function withOffHand(src: string): string {
 }
 
 /**
- * Step 12b: a stick (a branch picked up) in the right hand, in place of the held item: the hero swings it as its
+ * Step 12b: a stick (a branch picked up) in the right hand (12c-2: or the Gust leaf), in place of the held item: the hero swings it as its
  * sword (v68's sword swing, from `held: 'Sword'`) while `heldLook` draws a plain wooden stick (alight: its end
  * charred, the flame itself is a fire effect at the tip).
  */
@@ -268,6 +268,11 @@ function withStick(src: string): string {
     `part('rightArm','#7a4b26');limb([x,${at1(-0.22)},z],[x,${at1(STICK_LENGTH)},z],.075,.06);` +
     `part('rightArm','#5b3519');box(x+.06,${at1(0.62)},z,.05,.16,.05);box(x-.05,${at1(1.05)},z,.05,.12,.05);` +
     `if(p.heldLook==='Lit stick'){part('rightArm','#2a1a10');limb([x,${at1(STICK_LENGTH - 0.3)},z],[x,${at1(STICK_LENGTH + 0.02)},z],.07,.066);}` +
+    // step 12c-2: the Gust leaf: a short stem in the fist and a broad leaf on it, its midrib darker
+    `}else if(p.heldLook==='Leaf'){const x=1.10,y=${y},z=.34;` +
+    `part('rightArm','#5a7a2a');limb([x,${at1(-0.2)},z],[x,${at1(0.75)},z],.05,.04);` +
+    `part('rightArm','#4f9a3a');box(x,${at1(1.55)},z,.05,1.5,.95);box(x,${at1(2.42)},z,.05,.38,.55);box(x,${at1(0.86)},z,.05,.22,.6);` +
+    `part('rightArm','#2f6b25');box(x+.03,${at1(1.5)},z,.02,1.7,.08);` +
     "}else if(p.held!=='None'){part('rightArm',access);";
   return src.replace(at, stick);
 }

@@ -555,6 +555,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('ice'),
   },
   {
+    id: 'help.windCourse',
+    label: 'Wind, water and throwing course (fans, the Gust leaf, pinwheels, rocks, currents)',
+    run: ({ ui }) => ui.tutorial('wind'),
+  },
+  {
     id: 'help.swim',
     label: 'Swimming course (dive, breath, the Action button)',
     run: ({ ui }) => ui.tutorial('swim'),
@@ -799,6 +804,7 @@ export const COURSE_GROUPS: [string, string[]][] = [
       'help.puzzlesCourse',
       'help.fireLightCourse',
       'help.iceCourse',
+      'help.windCourse',
       'help.saving',
       'help.swim',
     ],

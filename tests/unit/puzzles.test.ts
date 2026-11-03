@@ -65,7 +65,7 @@ describe('puzzle parts', () => {
     const bad = { ...piece('Floor switch'), switch: { by: 'kick', stays: 'on' } };
     expect(validateFile(paths.asset(bad.id), bad).length).toBeGreaterThan(0);
     expect(puzzleProblems({ name: 'Rock', states: ['a'], switch: { by: 'hit', stays: 'held' } }).join(' ')).toMatch(
-      /one state.*only a floor switch \(held down\) or a light sensor/,
+      /one state.*only a floor switch \(held down\), a light sensor/,
     );
     expect(switchHitBy({ by: 'hit', stays: 'toggle', hitBy: ['pierce'] }, 'slash')).toBe(false);
     expect(switchHitBy({ by: 'hit', stays: 'toggle' }, 'explosive')).toBe(true);

@@ -437,6 +437,78 @@ export const iceSlide = clipFromPoses(
 );
 
 /**
+ * step 12c-2: in a strong wind. Bracing (standing, facing into it): knees bent, a wide stance with one foot ahead,
+ * the body leaning into the wind, one forearm up shielding the face and the other arm out for balance, swaying as
+ * the gusts come. Walking into it: the same lean, short heavy steps. Blown back: the feet sliding back, leaning
+ * hard into it with the arms flailing for balance.
+ */
+const brace = (k: number) => ({
+  'torso.lean': 0.36 + 0.05 * k,
+  'root.height': 1.66,
+  'leftLeg.x': -0.45,
+  'rightLeg.x': 0.38,
+  'leftShin.bend': 0.55,
+  'rightShin.bend': 0.3,
+  'rightArm.x': -1.75,
+  'rightArm.z': 0.25,
+  'rightForearm.bend': -2.0,
+  'leftArm.x': 0.35,
+  'leftArm.z': -0.55 - 0.1 * k,
+  'leftForearm.bend': -0.35,
+  'head.turn': -0.08 * k,
+});
+export const windBrace = clipFromPoses({ id: 'clp_movebrace0', name: 'Brace', group: 'Moves', length: 1.4, loop: true }, [
+  [0, brace(1), 'easeInOut'],
+  [0.7, brace(-1), 'easeInOut'],
+  [1.4, brace(1)],
+]);
+const intoWind = (k: number) => ({
+  'torso.lean': 0.46,
+  'root.height': 1.7,
+  'leftLeg.x': -0.35 * k - 0.05,
+  'rightLeg.x': 0.35 * k - 0.05,
+  'leftShin.bend': k > 0 ? 0.25 : 0.75,
+  'rightShin.bend': k > 0 ? 0.75 : 0.25,
+  'rightArm.x': -1.75,
+  'rightArm.z': 0.25,
+  'rightForearm.bend': -2.0,
+  'leftArm.x': 0.25 * k,
+  'leftArm.z': -0.35,
+  'leftForearm.bend': -0.5,
+});
+export const windWalk = clipFromPoses(
+  { id: 'clp_moveintow0', name: 'Into the wind', group: 'Moves', length: 1.2, loop: true },
+  [
+    [0, intoWind(1), 'easeInOut'],
+    [0.6, intoWind(-1), 'easeInOut'],
+    [1.2, intoWind(1)],
+  ],
+);
+const blown = (k: number) => ({
+  'torso.lean': 0.5,
+  'root.height': 1.62,
+  'leftLeg.x': 0.15 + 0.3 * k,
+  'rightLeg.x': 0.15 - 0.3 * k,
+  'leftShin.bend': 0.6,
+  'rightShin.bend': 0.6,
+  'leftArm.x': k > 0 ? -2.5 : -0.6,
+  'rightArm.x': k > 0 ? -0.6 : -2.5,
+  'leftArm.z': -0.8,
+  'rightArm.z': 0.8,
+  'leftForearm.bend': -0.5,
+  'rightForearm.bend': -0.5,
+  'head.turn': 0.15 * k,
+});
+export const windBlown = clipFromPoses(
+  { id: 'clp_moveblown0', name: 'Blown back', group: 'Moves', length: 0.7, loop: true },
+  [
+    [0, blown(1), 'easeInOut'],
+    [0.35, blown(-1), 'easeInOut'],
+    [0.7, blown(1)],
+  ],
+);
+
+/**
  * step 12b: picking a bomb up over the head (bend, grab low, lift), holding it up (standing, and walking), throwing
  * it (arms back over the head, then forward and down), and putting it down (bend forward, arms down)
  */
@@ -548,6 +620,9 @@ export const MOVE_CLIPS: Clip[] = [
   wallClimb,
   ledgePull,
   iceSlide,
+  windBrace,
+  windWalk,
+  windBlown,
   lift,
   hold,
   carry,

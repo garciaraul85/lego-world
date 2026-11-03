@@ -270,6 +270,8 @@ function pot(): Raw {
   b.put('brick', 2, 2, 0, 1, 0, C.clay);
   b.put('plate', 1, 1, 0, 4, 0, C.woodDark);
   return asset('Clay pot', 'prop', [2, 2], b, {
+    // step 12c-2: it can be lifted and thrown too: it breaks where it lands, dropping what it holds
+    lift: { breaks: true },
     smash: { enabled: true, rebuild: false, sound: null, studs: 0, after: 'gone' },
     health: {
       hp: 1,
@@ -730,6 +732,81 @@ function smoothWall(): Raw {
   return asset('Smooth wall', 'structure', [6, 2], b, { noClimb: true });
 }
 
+// ---------- step 12c-2: wind, water and things to throw ----------
+
+/**
+ * a fan in a stone frame: it blows air straight out of its front (+z). The Switch fan blows only while on (a red
+ * light on top while off, green while on); the Gale fan is bigger and strong enough to blow the hero back.
+ */
+function fan(name: string, opts: { wide?: boolean; whenOn?: boolean; speed?: number; reach?: number }): Raw {
+  const b = new Build();
+  const w = opts.wide ? 6 : 4;
+  const tall = opts.wide ? 4 : 3;
+  b.layer('plate', 0, 0, w, 2, 0, C.stoneDark);
+  for (let i = 0; i < tall; i++)
+    for (const z of [0, 1]) {
+      b.put('brick', 1, 1, 0, 1 + i * 3, z, C.stone);
+      b.put('brick', 1, 1, w - 1, 1 + i * 3, z, C.stone);
+    }
+  b.layer('plate', 0, 0, w, 2, 1 + tall * 3, C.stoneLight);
+  // the blades behind the opening: an iron bar up the middle, round a gold hub
+  const mid = Math.floor(w / 2) - 1;
+  const hubY = 1 + Math.floor(tall / 2) * 3;
+  for (let i = 0; i < tall; i++) b.put('brick', 1, 2, mid, 1 + i * 3, 0, 1 + i * 3 === hubY ? C.gold : C.iron);
+  const off = opts.whenOn ? [b.put('tile', 1, 1, 0, 2 + tall * 3, 0, C.red)] : [];
+  const on = opts.whenOn ? [b.put('tile', 1, 1, 0, 2 + tall * 3, 0, '#4ade80')] : [];
+  return asset(name, 'structure', [w, 2], b, {
+    wind: {
+      at: [w / 2, 0.4, 2],
+      ...(opts.whenOn ? { when: 'on' } : {}),
+      ...(opts.speed ? { speed: opts.speed } : {}),
+      ...(opts.reach ? { reach: opts.reach } : {}),
+      width: w - 1,
+      height: tall * 1.2,
+    },
+    ...(opts.whenOn ? { states: ['off', 'on'], initialState: 'off', onlyIn: { off, on } } : {}),
+  });
+}
+
+/** a pinwheel on a post: the wind (a fan, a gust) spins its sails round on top, and it is on while the wind blows */
+function pinwheel(): Raw {
+  const b = new Build();
+  b.layer('plate', 0, 0, 3, 3, 0, C.stoneDark);
+  for (let y = 1; y < 10; y += 3) b.put('brick', 1, 1, 1, y, 1, C.wood);
+  b.put('brick', 1, 1, 1, 10, 1, C.gold);
+  // the sails: a red bar one way and a blue bar the other, a yellow cap
+  const sails = [
+    b.put('plate', 1, 3, 0, 13, 1, C.red),
+    b.put('plate', 1, 3, 1, 14, 0, C.water, 1),
+    b.put('tile', 1, 1, 1, 15, 1, C.flame),
+  ];
+  return asset('Pinwheel', 'decoration', [3, 3], b, {
+    states: ['still', 'turning'],
+    initialState: 'still',
+    switch: { by: 'wind', stays: 'held' },
+    // the game spins the sails round their hinge as fast as the wind turns them
+    parts: [{ name: 'Sails', bricks: sails, hinge: [1.5, 5.4, 1.5] }],
+  });
+}
+
+/** a rock to lift and throw: it hits switches it strikes, and weighs on a floor switch */
+function liftRock(): Raw {
+  const b = new Build();
+  b.put('brick', 2, 2, 0, 0, 0, C.stoneDark);
+  b.put('plate', 1, 1, 0, 3, 0, C.stone);
+  b.put('plate', 1, 1, 1, 3, 1, C.stoneLight);
+  return asset('Rock', 'prop', [2, 2], b, { lift: {} });
+}
+
+/** a big leaf on a stem: taken, it is the Gust leaf (swung, it blows a gust of wind) */
+function gustLeaf(): Raw {
+  const b = new Build();
+  b.put('plate', 1, 4, 0, 0, 1, '#5a7a2a');
+  b.put('plate', 1, 2, 1, 0, 0, '#4f9a3a');
+  b.put('plate', 1, 2, 1, 1, 1, '#3f8a2f');
+  return asset('Gust leaf', 'prop', [4, 2], b, { pickup: { item: 'Gust leaf' } });
+}
+
 function dungeonMap(): Raw {
   const b = new Build();
   b.put('plate', 2, 2, 0, 0, 0, C.straw);
@@ -940,4 +1017,11 @@ export const STARTER_ASSETS: Record<string, Raw> = {
   'switch-lift': lift('Switch lift', true),
   'rock-face': rockFace(),
   'smooth-wall': smoothWall(),
+  // step 12c-2: wind, water and things to throw
+  fan: fan('Fan', {}),
+  'switch-fan': fan('Switch fan', { whenOn: true }),
+  'gale-fan': fan('Gale fan', { wide: true, speed: 26, reach: 20 }),
+  pinwheel: pinwheel(),
+  rock: liftRock(),
+  'gust-leaf': gustLeaf(),
 };

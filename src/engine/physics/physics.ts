@@ -60,6 +60,72 @@ export const ICE_GRIP = 0.1;
 /** an ice block sliding on ice, and on anything else (stone, wood, the ground) */
 export const ICE_ON_ICE = 0.02;
 export const ICE_ON_GROUND = 0.25;
+
+/**
+ * step 12c-2: wind. Moving air pushes on what it meets with quadratic drag, F = ½·ρ·Cd·A·|v|·v, where v is the air's
+ * speed against the thing, A the side it shows the wind and Cd its shape (a box about 1.05, a ball 0.5, a person
+ * about 1). How far that moves it is F / m against its friction on the ground (μ m g): light things blow away, heavy
+ * ones stay put, anything on ice or in the air drifts. The air here is denser than real air (0.05 in the game's
+ * units, where water is 1): a fan in a dungeon pushes as Zelda's fans do, which real air at the same speed would not.
+ */
+export const AIR_DENSITY = 0.05;
+/** a body of water's pull on what is in it uses the same drag, with water's density */
+export const WATER_DENSITY = 1;
+
+/** a wind field: air moving one way through a box (a fan's blast, a gust), its speed falling off along it */
+export type WindField = {
+  /** where it leaves the fan: the middle of its outlet, at the bottom (world units) */
+  from: [number, number, number];
+  /** which way it blows (a unit vector across the ground) */
+  dir: [number, number];
+  /** how far it reaches (studs, already cut short by a wall), how wide (half, studs) and how tall */
+  reach: number;
+  half: number;
+  height: number;
+  /** the air's speed at the outlet (studs a second); it falls to FAR_SPEED of that at the far end */
+  speed: number;
+};
+/** at the far end of its reach a wind blows at this much of its speed (it spreads and slows) */
+export const FAR_SPEED = 0.35;
+
+/** the wind there (studs a second, across and deep) from every field; zero outside them */
+export function windAt(fields: readonly WindField[], x: number, y: number, z: number): [number, number] {
+  let vx = 0;
+  let vz = 0;
+  for (const f of fields) {
+    const rx = x - f.from[0];
+    const rz = z - f.from[2];
+    const along = rx * f.dir[0] + rz * f.dir[1];
+    if (along < -0.3 || along > f.reach) continue;
+    // it spreads up a little as it goes, too
+    if (y < f.from[1] - 0.2 || y > f.from[1] + f.height + Math.max(0, along) * 0.08) continue;
+    const side = Math.abs(rx * f.dir[1] - rz * f.dir[0]);
+    // it spreads a little as it goes
+    const half = f.half + along * 0.08;
+    if (side > half) continue;
+    const k = 1 - (1 - FAR_SPEED) * Math.max(0, along) / Math.max(1, f.reach);
+    // softer at its edges
+    const edge = Math.min(1, (half - side) / 0.6 + 0.3);
+    const v = f.speed * k * edge;
+    vx += f.dir[0] * v;
+    vz += f.dir[1] * v;
+  }
+  return [vx, vz];
+}
+
+/** the acceleration drag gives a thing (per second², across and deep): ½ρ·CdA/m · |v−u|·(v−u) */
+export function dragAccel(
+  wind: [number, number],
+  vel: [number, number],
+  cdAOverM: number,
+  density = AIR_DENSITY,
+): [number, number] {
+  const rx = wind[0] - vel[0];
+  const rz = wind[1] - vel[1];
+  const r = Math.hypot(rx, rz);
+  const k = 0.5 * density * cdAOverM * r;
+  return [k * rx, k * rz];
+}
 /** the ground under every map: tiles this many studs across, out to this far each way */
 const GROUND_TILE = 64;
 /** the character controller keeps this gap to what it touches; the hero's feet are this far below its body */
@@ -80,6 +146,36 @@ export class PhysicsWorld {
   private objects = new Map<string, { body: RAPIER.RigidBody; half: number }>();
 
   private solids = new Map<string, RAPIER.Collider>();
+
+  /** step 12c-2: the wind blowing now (fans, gusts): it pushes the loose things before each step */
+  wind: readonly WindField[] = [];
+  /** loose objects' size against the wind: Cd·A, by key */
+  private windShape = new Map<string, number>();
+
+  /** step 12c-2: drag of the wind on everything loose (bricks, objects, balls) in it, as impulses (before a step) */
+  private applyWind(dt: number) {
+    if (!this.wind.length) return;
+    const push = (body: RAPIER.RigidBody, cdAOverM: number, upTo: number) => {
+      const t = body.translation();
+      const w = windAt(this.wind, t.x, t.y, t.z);
+      if (!w[0] && !w[1]) return;
+      const v = body.linvel();
+      const [ax, az] = dragAccel(w, [v.x, v.z], cdAOverM);
+      const m = body.mass();
+      body.applyImpulse({ x: ax * m * dt, y: 0, z: az * m * dt }, true);
+      // a thing standing tall in the wind also tips a little (the push is above its middle)
+      if (upTo > 0) body.applyTorqueImpulse({ x: az * m * dt * upTo * 0.15, y: 0, z: -ax * m * dt * upTo * 0.15 }, true);
+    };
+    for (const [d, body] of this.loose) {
+      const hx = DEBRIS_HALF.x * d.scale;
+      const hy = DEBRIS_HALF.y * d.scale;
+      // a brick: the side it shows (about 2hx × 2hy), as a box (Cd 1.05), its mass from the engine
+      push(body, (1.05 * (2 * hx) * (2 * hy)) / Math.max(1e-3, body.mass()), hy);
+    }
+    for (const [key, o] of this.objects)
+      push(o.body, (this.windShape.get(key) ?? 0) / Math.max(1e-3, o.body.mass()), o.half);
+    for (const o of this.balls.values()) push(o.body, (0.5 * Math.PI * o.r * o.r) / Math.max(1e-3, o.body.mass()), 0);
+  }
   /** step 12c: the slippery tops of icy floors, by key (with what they were made from, to see a change) */
   private ice = new Map<string, { c: RAPIER.Collider; sig: string }>();
 
@@ -260,7 +356,7 @@ export class PhysicsWorld {
   }
 
   /** step 12b: a ball starts to roll and fly from where it is (y: its bottom), at its speed */
-  addBall(b: Ball, r: number) {
+  addBall(b: Ball, r: number, density = 3) {
     if (this.balls.has(b)) return;
     this.groundAt(b.x, b.z);
     const body = this.world.createRigidBody(
@@ -272,7 +368,7 @@ export class PhysicsWorld {
         .setCcdEnabled(true),
     );
     // heavy and dull: it thuds against a wall and rolls only a little
-    this.world.createCollider(RAPIER.ColliderDesc.ball(r).setDensity(3).setFriction(1).setRestitution(0.08), body);
+    this.world.createCollider(RAPIER.ColliderDesc.ball(r).setDensity(density).setFriction(1).setRestitution(0.08), body);
     this.balls.set(b, { body, r });
     this.queriesStale = true;
   }
@@ -481,6 +577,8 @@ export class PhysicsWorld {
       );
     }
     this.objects.set(key, { body, half: (y1 - y0) / 2 });
+    // the side it shows the wind (its bigger upright face) as a box: Cd·A
+    this.windShape.set(key, 1.05 * Math.max(x1 - x0, z1 - z0) * (y1 - y0));
     return { origin: [cx, cy, cz] as [number, number, number] };
   }
 
@@ -489,6 +587,7 @@ export class PhysicsWorld {
     if (!o) return;
     this.world.removeRigidBody(o.body);
     this.objects.delete(key);
+    this.windShape.delete(key);
   }
 
   /** where a loose object is and how it is turned (null: no such object) */
@@ -543,6 +642,7 @@ export class PhysicsWorld {
     for (const o of this.balls.values())
       if (!o.body.isSleeping()) this.groundAt(o.body.translation().x, o.body.translation().z);
     this.applyWater(Math.min(dt, 1 / 30));
+    this.applyWind(Math.min(dt, 1 / 30));
     this.world.timestep = Math.min(dt, 1 / 30);
     this.world.step();
     this.queriesStale = false;
@@ -629,6 +729,25 @@ export class PhysicsWorld {
       maxDistance,
       true,
       RAPIER.QueryFilterFlags.EXCLUDE_FIXED,
+      undefined,
+      this.heroCollider ?? undefined,
+    );
+    return hit ? hit.timeOfImpact : null;
+  }
+
+  /** step 12c-2: the first fixed solid thing (bricks, the ground) along a ray: where a wind stops */
+  raycastFixed(from: [number, number, number], dir: [number, number, number], maxDistance: number): number | null {
+    const len = Math.hypot(dir[0], dir[1], dir[2]) || 1;
+    this.refreshQueries();
+    const ray = new RAPIER.Ray(
+      { x: from[0], y: from[1], z: from[2] },
+      { x: dir[0] / len, y: dir[1] / len, z: dir[2] / len },
+    );
+    const hit = this.world.castRay(
+      ray,
+      maxDistance,
+      true,
+      RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC | RAPIER.QueryFilterFlags.EXCLUDE_KINEMATIC,
       undefined,
       this.heroCollider ?? undefined,
     );

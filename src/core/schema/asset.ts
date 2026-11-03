@@ -7,6 +7,8 @@ import {
   BurnDef,
   FlameDef,
   IceDef,
+  LiftDef,
+  WindDef,
   LockDef,
   MirrorDef,
   MoveDef,
@@ -149,6 +151,10 @@ export const Asset = z.strictObject({
   moves: MoveDef.optional(),
   /** step 12c: with Climbing: anything (Project settings), the hero cannot climb it (smooth stone) */
   noClimb: z.boolean().optional(),
+  /** step 12c-2: it blows wind straight ahead (a fan), in a state or always */
+  wind: WindDef.optional(),
+  /** step 12c-2: the hero lifts it and carries, puts down or throws it (a rock, a pot) */
+  lift: LiftDef.optional(),
   generator: z
     .strictObject({ environments: z.array(z.enum(BIOMES)), weight: z.number().min(0).max(1), placeOn: z.string() })
     .nullable(),

@@ -15,7 +15,7 @@ import { FieldHelp } from '../../components/fields';
 export const PUZZLE_HELP = {
   push: 'A push block: in Play the hero holds Action (Grab) at it and walks into it, and it slides one step (its own size, or the studs you set) square along the floor. It stops at walls, other blocks and edges, steps up onto a switch, and holds a floor switch down (it weighs 3). With Can be pulled on, the hero can also hold Grab and step back to drag it. Walked into without Grab, it is climbed.',
   switch:
-    'A switch: its first two states are off and on (Floor switch: up and down). Stepped on: weight on it (the hero, neighbours, blocks, loose crates; Needs weight says how much). Hit: a sword, an arrow, a boomerang, a bomb or fire (choose which: a torch stand answers Fire). Pressed: Action at its interact socket (a lever). Lit by a beam: a beam of light reaching it (a light sensor). It stays on, is on only while held down, goes back after some seconds (ticking), or flips each time. Logic’s On switch runs each time it turns on or off.',
+    'A switch: its first two states are off and on (Floor switch: up and down). Stepped on: weight on it (the hero, neighbours, blocks, loose crates; Needs weight says how much). Hit: a sword, an arrow, a boomerang, a bomb or fire (choose which: a torch stand answers Fire). Pressed: Action at its interact socket (a lever). Lit by a beam: a beam of light reaching it (a light sensor). Turned by the wind: a fan’s wind or a gust reaching it spins it (a pinwheel); Held down only keeps it on just while the wind blows. It stays on, is on only while held down, goes back after some seconds (ticking), or flips each time. Logic’s On switch runs each time it turns on or off.',
   lock: 'A lock: its first two states are locked and open. Action at its interact socket opens it when the hero has the key: a small key found on this map (used up), the boss key (kept), or any item you name. Logic’s On unlocked runs when it opens.',
   climbable:
     'Climbable: the hero walking into it holds on and climbs it like a ladder — forward up, back down, off at the bottom; at the top it climbs over onto it or onto what is beyond. Jump lets go. Vines and the Ladder are climbable.',
@@ -34,6 +34,7 @@ const BY_LABEL: Record<SwitchDef['by'], string> = {
   hit: 'Hit',
   press: 'Pressed (Action)',
   light: 'Lit by a beam',
+  wind: 'Turned by the wind (pinwheel)',
 };
 
 /**
@@ -134,7 +135,7 @@ export function PuzzleSection({ def, reset }: { def: Asset; reset: (to: Asset, l
                 onClick={() =>
                   set(
                     'switch',
-                    { ...sw, by: b, stays: sw.stays === 'held' && b !== 'step' ? 'on' : sw.stays },
+                    { ...sw, by: b, stays: sw.stays === 'held' && b !== 'step' && b !== 'light' && b !== 'wind' ? 'on' : sw.stays },
                     `Switch: ${BY_LABEL[b]}`,
                   )
                 }
@@ -149,7 +150,7 @@ export function PuzzleSection({ def, reset }: { def: Asset; reset: (to: Asset, l
             role="group"
             aria-label="Switch stays"
           >
-            {SWITCH_STAYS.filter((s) => s !== 'held' || sw.by === 'step').map((s) => (
+            {SWITCH_STAYS.filter((s) => s !== 'held' || sw.by === 'step' || sw.by === 'light' || sw.by === 'wind').map((s) => (
               <button
                 type="button"
                 class={`btn small ${sw.stays === s ? 'on' : ''}`}

@@ -18,7 +18,7 @@ import { DAMAGE_TYPES, type DamageType } from '../combat/damage';
  * The small key, boss key, dungeon map and compass belong to the map where they were found (a dungeon is a map):
  * keys from one dungeon do not open another's doors.
  */
-export const SWITCH_BY = ['step', 'hit', 'press', 'light'] as const;
+export const SWITCH_BY = ['step', 'hit', 'press', 'light', 'wind'] as const;
 export type SwitchBy = (typeof SWITCH_BY)[number];
 export const SWITCH_STAYS = ['on', 'held', 'timed', 'toggle'] as const;
 export type SwitchStays = (typeof SWITCH_STAYS)[number];
@@ -134,6 +134,40 @@ export const MoveDef = z.strictObject({
 });
 export type MoveDef = z.infer<typeof MoveDef>;
 
+/**
+ * step 12c-2: wind. A fan blows air straight ahead (its front, the way it is turned) from a point on it, in one of
+ * its states or always: how fast the air leaves it, how far it reaches (a wall stops it sooner) and how wide and
+ * tall the blast is. The air pushes on what it meets by drag (light things fly, heavy ones stay put; the hero leans
+ * into it, and on ice or in the air drifts with it), spins pinwheels (wind switches) and blows small flames out.
+ */
+export const WindDef = z.strictObject({
+  /** where the air leaves it (x, z studs, y up, as a socket's place): the middle of its front, at the bottom */
+  at: z.tuple([z.number(), z.number(), z.number()]),
+  /** the state it blows in (none: always) */
+  when: z.string().max(40).optional(),
+  /** how fast the air leaves it, studs a second (16 at first: the hero leans into it; 24 blows the hero back) */
+  speed: z.number().min(2).max(60).optional(),
+  /** how far it reaches, studs (16 at first) */
+  reach: z.number().min(2).max(64).optional(),
+  /** how wide and how tall the blast is at the fan, studs (3 and 3 at first) */
+  width: z.number().min(1).max(16).optional(),
+  height: z.number().min(1).max(16).optional(),
+});
+export type WindDef = z.infer<typeof WindDef>;
+
+/**
+ * step 12c-2: something the hero can lift (Action, as a bomb) and carry over its head, put down or throw: a rock, a
+ * pot. Thrown, it flies in an arc and the physics engine rolls it to rest; it hits switches it strikes (a blunt hit)
+ * and weighs on floor switches. A pot breaks where it lands.
+ */
+export const LiftDef = z.strictObject({
+  /** it breaks where it lands or hits (a pot) */
+  breaks: z.boolean().optional(),
+  /** what it weighs on a floor switch (1 at first, as the hero) */
+  weight: z.number().int().min(1).max(5).optional(),
+});
+export type LiftDef = z.infer<typeof LiftDef>;
+
 export const MirrorDef = z.strictObject({
   /** Action at it turns it (on at first) */
   turns: z.boolean().optional(),
@@ -181,7 +215,16 @@ export function switchHitBy(s: SwitchDef, type: DamageType): boolean {
 
 /** the words for a switch, for the editor and Help */
 export function describeSwitch(s: SwitchDef): string {
-  const how = s.by === 'step' ? 'stepped on' : s.by === 'hit' ? 'hit' : s.by === 'light' ? 'lit by a beam' : 'pressed';
+  const how =
+    s.by === 'step'
+      ? 'stepped on'
+      : s.by === 'hit'
+        ? 'hit'
+        : s.by === 'light'
+          ? 'lit by a beam'
+          : s.by === 'wind'
+            ? 'turned by the wind'
+            : 'pressed';
   const stays =
     s.stays === 'on'
       ? 'stays on'
@@ -209,14 +252,18 @@ export function puzzleProblems(a: {
   bombPlant?: BombPlantDef | undefined;
   ice?: IceDef | undefined;
   moves?: MoveDef | undefined;
+  wind?: WindDef | undefined;
+  lift?: LiftDef | undefined;
 }): string[] {
   const out: string[] = [];
   if (a.switch && a.states.length < 2)
     out.push(`${a.name} is a switch but has one state: it needs an off and an on state (its first two).`);
   if (a.lock && a.states.length < 2)
     out.push(`${a.name} has a lock but one state: it needs a locked and an open state (its first two).`);
-  if (a.switch?.stays === 'held' && a.switch.by !== 'step' && a.switch.by !== 'light')
-    out.push(`${a.name}: only a floor switch (held down) or a light sensor (while lit) can be held.`);
+  if (a.switch?.stays === 'held' && a.switch.by !== 'step' && a.switch.by !== 'light' && a.switch.by !== 'wind')
+    out.push(
+      `${a.name}: only a floor switch (held down), a light sensor (while lit) or a pinwheel (while the wind blows) can be held.`,
+    );
   if (a.mirror && a.states.length < 2)
     out.push(`${a.name} is a mirror but has one state: it needs two, one leaning each way.`);
   if (a.bombPlant && a.states.length < 2)
@@ -231,6 +278,10 @@ export function puzzleProblems(a: {
     out.push(`${a.name} moves only when on but has one state: it needs two (off, then on).`);
   if (a.moves && (a.push || a.loose)) out.push(`${a.name}: a moving platform is not a push block or loose too.`);
   if (a.moves && a.moves.by.every((v) => v === 0)) out.push(`${a.name}: a moving platform needs somewhere to go.`);
+  if (a.wind?.when && !a.states.includes(a.wind.when))
+    out.push(`${a.name}: its wind blows in “${a.wind.when}”, which is not one of its states.`);
+  if (a.lift && (a.push || a.loose || a.moves || a.switch))
+    out.push(`${a.name}: a thing to lift and throw is not a push block, loose, a platform or a switch too.`);
   if (a.push && a.loose) out.push(`${a.name}: a push block slides square to the floor, so it is not loose too.`);
   return out;
 }

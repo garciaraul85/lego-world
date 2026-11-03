@@ -2,7 +2,7 @@ import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { SND } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
-import { iceSlide, ledgePull, MOVE_FOR, wallClimb } from '../../builtin/clips/moves';
+import { iceSlide, ledgePull, MOVE_FOR, wallClimb, windBlown, windBrace, windWalk } from '../../builtin/clips/moves';
 import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS, FX } from '../../builtin/effects';
 import { genreById } from '../../builtin/genres';
 import { BUILTIN_SCREEN_EFFECTS, DEFAULT_SCREEN_EVENTS } from '../../builtin/screen-effects';
@@ -139,7 +139,7 @@ import { findLight, gatherLights, type LightSource, pointLights } from '../light
 import { LogicRuntime } from '../logic/interpreter';
 import { type MediaSource, modelMatrix, prepareModel, readyModel } from '../model/prepare';
 import { HERO_GRAVITY, HERO_HEIGHT, HERO_RADIUS, walkHero } from '../physics/hero';
-import { ICE_FRICTION, ICE_GRIP, PhysicsWorld, physicsReady } from '../physics/physics';
+import { dragAccel, ICE_FRICTION, ICE_GRIP, PhysicsWorld, physicsReady, WATER_DENSITY } from '../physics/physics';
 import { type ModelUpload, placedTriangles } from '../render/model-draw';
 import { portrait } from '../render/portraits';
 import type { PointLight } from '../render/renderer';
@@ -152,13 +152,14 @@ import { ActionRunner, type GameOp } from './actions';
 import { type ButtonHost, GameButtons } from './buttons';
 import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
 import { Enemies } from './enemies';
-import { BOMB_R, BRANCH_SECONDS, FireLight } from './firelight';
+import { BOMB_R, type Bomb, BRANCH_SECONDS, FireLight } from './firelight';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, spawnedNpcs } from './health';
 import { ObjectIndex } from './objects';
 import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
 import { Platforms } from './platforms';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
 import { boxOf, type PuzzleHost, Puzzles, SEEN_CELL } from './puzzles';
+import { FLAME_OUT_SPEED, Wind } from './wind';
 import { Runtime, type System } from './runtime';
 import { applySave, captureMap, captureSave, loadMessage, restoreMap, type SaveHost, type SaveWorld } from './saves';
 import { afterDefence, movesOf, statsOf, wornProfile } from './sheet';
@@ -280,6 +281,8 @@ const rgb = (i: number) => [1, 3, 5].map((k) => (parseInt(COLOR_OF(i).slice(k, k
  * v68's own modules; smash, rebuild and gate travel are ports of v68's character-game / map-network code.
  */
 /** states v68's own motion already shows (the others play their built-in clip when the sheet sets none) */
+/** step 12c-2: how well the hero's feet hold on the ground (boots on stone, μ), against a push */
+const HERO_GRIP = 0.6;
 const OWN_MOTION = new Set(['walk', 'run', 'jump', 'attack', 'hurt', 'idle']);
 
 export class PlaySession {
@@ -391,6 +394,43 @@ export class PlaySession {
   readonly fireLight: FireLight<PlayInstance> = this.makeFireLight();
   /** step 12c: moving platforms (and lifts), and what the hero rides */
   readonly platforms: Platforms<PlayInstance> = this.makePlatforms();
+  /** step 12c-2: fans and gusts blowing, pinwheels turning, small flames blown out */
+  readonly wind: Wind<PlayInstance> = this.makeWind();
+
+  private makeWind(): Wind<PlayInstance> {
+    const self = this;
+    return new Wind<PlayInstance>({
+      get heroState() {
+        return self.heroState;
+      },
+      near: (x, z, r) => self.objs().near(x, z, r),
+      wallAlong: (from, dir, max) => {
+        const ph = self.world.physics;
+        if (ph) return ph.raycastFixed(from, [dir[0], 0, dir[1]], max);
+        // no physics engine: the bricks, a step at a time
+        const solid = (x: number, y: number, z: number) => self.solidPoint(x, y, z);
+        for (let d = 0.5; d <= max; d += 0.5) if (solid(from[0] + dir[0] * d, from[1], from[2] + dir[1] * d)) return d;
+        return null;
+      },
+      blow: (o, on) => self.puzzles.blow(o, on),
+      blowOut: (o) => {
+        if (!self.puzzles.isOn(o)) return;
+        self.puzzles.turn(o, false, 'blown out');
+        self.emit('info', `${o.def.name}: the wind blew it out`);
+      },
+      log: (t) => self.emit('info', t),
+    });
+  }
+
+  /** a brick (or a placed thing's brick) fills this point */
+  solidPoint(x: number, y: number, z: number): boolean {
+    const c = this.world.controller as unknown as {
+      nearby?(x: number, z: number): { b: { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number } }[];
+    };
+    return (c.nearby?.(x, z) ?? []).some(
+      ({ b }) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && y >= b.y0 && y < b.y1,
+    );
+  }
 
   private moversOf: { all: readonly PlayInstance[]; movers: PlayInstance[] } | null = null;
 
@@ -832,6 +872,8 @@ export class PlaySession {
       this.puzzles.wall = null;
       this.puzzles.climbing = null;
     }
+    // step 12c-2: put somewhere else, the hero stands still (no drift)
+    if (this.heroDrift) this.heroDrift = { x: 0, z: 0 };
     const c = this.world.controller;
     Object.assign(c.state, {
       x: pos[0],
@@ -1052,14 +1094,47 @@ export class PlaySession {
   takeOutStick(): boolean {
     if (this.stickOut || (this.inventory.get('Branch') ?? 0) <= 0 || this.fireLight.held || this.fireLight.busy)
       return false;
+    this.putAwayLeaf();
     this.heldBefore = String(this.hero.held ?? 'None');
     this.stickOut = true;
     this.syncStick();
     return true;
   }
 
+  /** step 12c-2: the Gust leaf is in the hero's hand (swung like the sword, it blows a gust) */
+  leafOut = false;
+
+  /** the Gust leaf is put away: the hand holds what it held before */
+  putAwayLeaf() {
+    if (!this.leafOut) return;
+    this.leafOut = false;
+    const { heldLook: _, ...rest } = this.hero as Record<string, unknown>;
+    this.hero = { ...rest, held: this.heldBefore ?? 'None' } as typeof this.hero;
+    this.heldBefore = null;
+  }
+
+  /**
+   * step 12c-2: a swing of the Gust leaf: a gust of wind for a moment ahead of the hero (as the Korok Leaf in Breath
+   * of the Wild): it pushes light things and the others, turns pinwheels and blows small flames out
+   */
+  leafGust() {
+    const h = this.heroState;
+    const fx = Math.sin(h.heading);
+    const fz = Math.cos(h.heading);
+    const k = this.L.GamePhysics.scaleOf(h);
+    this.wind.gust(
+      { from: [h.x + fx * 0.8, h.y + 0.6 * k, h.z + fz * 0.8], dir: [fx, fz], reach: 10, half: 1.3, height: 4.4 * k, speed: 22 },
+      0.4,
+    );
+    const at: [number, number, number] = [h.x + fx * 1.2, h.y + 2.4 * k, h.z + fz * 1.2];
+    this.playEffect(FX.gust, at, { forward: [fx, 0, fz] });
+    this.audio.play(SND.gust, { pos: at });
+    this.emit('info', 'A gust of wind');
+  }
+
   /** the stick is put away (or is gone): its fire goes out, and the hand holds what it held before */
   putAwayStick() {
+    this.putAwayLeaf();
     if (!this.stickOut) return;
     this.stickOut = false;
     this.fireLight.putOutBranch();
@@ -1301,6 +1376,7 @@ export class PlaySession {
   private systems(): System<PlaySession>[] {
     return [
       { id: 'platforms', fixed: (g, dt) => g.platforms.step(dt) },
+      { id: 'wind', fixed: (g, dt) => g.stepWind(dt) },
       { id: 'hero', fixed: (g, dt) => g.moveHero(dt) },
       { id: 'cinematic', fixed: (g, dt) => g.cine.step(dt) },
       { id: 'combat', fixed: (g, dt) => g.stepSmash(dt) },
@@ -1425,6 +1501,8 @@ export class PlaySession {
     else {
       if (this.swim.on) this.leaveWater();
       if (water.mode === 'wade') move.speedScale *= 0.6;
+      // step 12c-2: what the wind (and a current, wading) pushes the hero with; walking into it is slower
+      this.flowOnHero(water.mode === 'wade' ? water.box : null, move);
       // step 12c: on ice the hero slides: its speed follows the keys slowly, and it slides on after letting go
       const ice = this.iceMove(move, dt);
       const yaw = ice ? 0 : this.camYaw;
@@ -1433,6 +1511,7 @@ export class PlaySession {
       // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
       else this.world.controller.step(move, dt, yaw);
       if (ice) this.afterIce(ice, from, dt);
+      else this.driftHero(dt);
       this.rideOn();
     }
     this.stepBreath(water.box, dt);
@@ -1529,6 +1608,9 @@ export class PlaySession {
       };
     const v = this.iceVel;
     const want = l > 0.05;
+    // step 12c-2: the wind on ice (nothing holds the hero but the ice's little friction)
+    v.x += this.heroFlow.ax * dt;
+    v.z += this.heroFlow.az * dt;
     const vl = Math.hypot(v.x, v.z);
     if (want) {
       // the feet push toward the speed wanted, no harder than they grip
@@ -1552,6 +1634,204 @@ export class PlaySession {
       this.iceSlip = vl > 0.4;
     }
     return this.slideOn(move, want);
+  }
+
+  // ---------- step 12c-2: wind and currents ----------
+
+  /** the speed wind or a current has given the hero beyond its walking (studs a second, across and deep) */
+  heroDrift = { x: 0, z: 0 };
+  /** what pushes the hero now (per second², across and deep: drag of the wind and of a current it wades in), and
+   * how hard its feet can hold against it (μg) */
+  heroFlow = { ax: 0, az: 0, grip: HERO_GRIP * HERO_GRAVITY };
+  private windFx = new Map<string, { stop(): void; move?(at: [number, number, number]): void }>();
+  private windPoseWas: string | null = null;
+  private wadingIn: WaterBox | null = null;
+  private npcDrift = new WeakMap<object, { x: number; z: number }>();
+
+  /**
+   * The drag on the hero: the wind at its chest and, wading, the current on what is under water. The body's speed
+   * against them is its walking plus its drift. Walking into it, the feet push no harder than they grip: the hero
+   * is slower (stopped in a strong enough wind); with it behind, a little faster.
+   */
+  private flowOnHero(water: WaterBox | null, move: MoveInput & { speedScale: number }) {
+    const s = this.heroState;
+    const k = this.L.GamePhysics.scaleOf(s);
+    const h = HERO_HEIGHT * k;
+    const vx = Math.sin(s.heading) * (Number(s.speed) || 0) + this.heroDrift.x;
+    const vz = Math.cos(s.heading) * (Number(s.speed) || 0) + this.heroDrift.z;
+    const wind = this.wind.fields.length ? this.wind.at(s.x, s.y + h * 0.6, s.z) : ([0, 0] as [number, number]);
+    // Cd·A / m of a person, standing (about 1 × 0.9 × the height, against a body of the water's density)
+    const cdA = (1.0 * 0.9 * h) / (2.0 * k * k * k);
+    let [ax, az] = wind[0] || wind[1] ? dragAccel(wind, [vx, vz], cdA) : [0, 0];
+    if (water !== this.wadingIn) {
+      this.wadingIn = water;
+      if (water && (water.current[0] || water.current[1])) this.emit('info', 'Wading in a current');
+    }
+    if (water && (water.current[0] || water.current[1])) {
+      // the part of the body under the water, in the current
+      const under = Math.max(0, Math.min(h, water.y1 - s.y));
+      const [wx, wz] = dragAccel(water.current, [vx, vz], (1.0 * 0.9 * under) / (2.0 * k * k * k), WATER_DENSITY);
+      ax += wx;
+      az += wz;
+    }
+    const grip = (this.standingOn()?.def.ice ? ICE_FRICTION : HERO_GRIP) * HERO_GRAVITY;
+    this.heroFlow = { ax, az, grip };
+    const a = Math.hypot(ax, az);
+    if (a < 0.05 || !s.grounded) return;
+    // walking: how much of the way it walks the wind pushes against
+    const v = this.inputVector();
+    if (!v.x && !v.z) return;
+    const yaw = this.camYaw;
+    const wx = Math.cos(yaw) * v.x - Math.sin(yaw) * v.z;
+    const wz = -Math.sin(yaw) * v.x - Math.cos(yaw) * v.z;
+    const wl = Math.hypot(wx, wz) || 1;
+    const along = (ax * wx + az * wz) / wl;
+    move.speedScale *= along < 0 ? Math.max(0.12, 1 + along / grip) : 1 + Math.min(0.35, (along / grip) * 0.35);
+  }
+
+  /**
+   * The drift: in the air nothing holds the hero, so the push builds it up; on the ground the feet hold against
+   * the push up to their grip, and past it the hero is pushed back, sliding; out of the wind the feet stop it.
+   * The hero is moved by it (the physics engine's walker or v68's checks stop it at walls).
+   */
+  private driftHero(dt: number) {
+    const s = this.heroState;
+    const d = this.heroDrift;
+    const { ax, az, grip } = this.heroFlow;
+    const a = Math.hypot(ax, az);
+    if (!s.grounded) {
+      d.x += ax * dt;
+      d.z += az * dt;
+    } else if (a > grip) {
+      d.x += (ax / a) * (a - grip) * dt;
+      d.z += (az / a) * (a - grip) * dt;
+    } else {
+      const dl = Math.hypot(d.x, d.z);
+      const stop = (grip - a) * dt;
+      const k = dl > stop ? (dl - stop) / dl : 0;
+      d.x *= k;
+      d.z *= k;
+    }
+    if (Math.hypot(d.x, d.z) < 1e-3) return;
+    const k = this.L.GamePhysics.scaleOf(s);
+    const ph = this.physicsMovement ? this.world.physics : null;
+    if (ph) {
+      const r = ph.walk({ x: s.x, y: s.y, z: s.z }, { x: d.x * dt, y: 0, z: d.z * dt }, HERO_RADIUS * k, HERO_HEIGHT * k);
+      if (Math.abs(r.x - s.x) < Math.abs(d.x * dt) * 0.5) d.x = 0;
+      if (Math.abs(r.z - s.z) < Math.abs(d.z * dt) * 0.5) d.z = 0;
+      s.x = r.x;
+      s.z = r.z;
+      return;
+    }
+    const c = this.world.controller;
+    const nx = s.x + d.x * dt;
+    if (c.clear(nx, s.y + 0.05, s.z)) s.x = nx;
+    else d.x = 0;
+    const nz = s.z + d.z * dt;
+    if (c.clear(s.x, s.y + 0.05, nz)) s.z = nz;
+    else d.z = 0;
+  }
+
+  /**
+   * Step 12c-2, each step: fans and gusts; the physics engine gets the wind (it pushes the loose things); the fans'
+   * streaks of air; a stick's flame blown out (or put out in water); bombs that fall in water go out; neighbours and
+   * enemies pushed as the hero is; an ice block in a strong wind slides off.
+   */
+  stepWind(dt: number) {
+    const w = this.wind;
+    w.step(dt);
+    const ph = this.world.physics;
+    if (ph) ph.wind = w.fields;
+    // a fan's air, as streaks along it
+    const on = new Set<string>();
+    for (const f of w.fans) {
+      const id = f.o.inst.id;
+      on.add(id);
+      if (this.windFx.has(id)) continue;
+      const fl = f.field;
+      const h = this.playEffect(FX.wind, [fl.from[0], fl.from[1] + fl.height / 2, fl.from[2]], {
+        forward: [fl.dir[0], 0, fl.dir[1]],
+        scale: Math.max(0.6, fl.half / 1.5),
+      });
+      if (h) this.windFx.set(id, { stop: () => this.effects.stop(h) });
+    }
+    for (const [id, fx] of this.windFx)
+      if (!on.has(id)) {
+        fx.stop();
+        this.windFx.delete(id);
+      }
+    const fl = this.fireLight;
+    // the stick's flame: blown out in a strong enough wind, put out in water
+    if (fl.litBranch) {
+      const tip = fl.branchTip();
+      const wet = !!waterAt(this.waterBoxes(), tip[0], tip[1], tip[2]);
+      if (wet || (w.fields.length && w.speedAt(tip[0], tip[1], tip[2]) >= FLAME_OUT_SPEED)) {
+        fl.putOutBranch();
+        this.say(wet ? 'The water put the stick’s fire out.' : 'The wind blew the stick’s fire out.', 1.8);
+        this.emit('info', wet ? 'The stick’s fire went out in the water' : 'The wind blew the stick’s fire out');
+      }
+    }
+    // a lit bomb in water: its fuse goes out
+    for (const b of [...fl.bombs]) {
+      if (b === fl.held || b.thing) continue;
+      if (waterAt(this.waterBoxes(), b.x, b.y + 0.5, b.z)) fl.douse(b);
+    }
+    if (w.fields.length) this.windOnOthers(dt);
+  }
+
+  /** neighbours and enemies in the wind: pushed as the hero is (held by their feet up to their grip) */
+  private windOnOthers(dt: number) {
+    const grip = HERO_GRIP * HERO_GRAVITY;
+    for (const n of this.world.npcs) {
+      const st = n.state;
+      const wind = this.wind.at(st.x, st.y + 2.4, st.z);
+      let d = this.npcDrift.get(n);
+      if (!wind[0] && !wind[1] && !d) continue;
+      d ??= { x: 0, z: 0 };
+      const [ax, az] = dragAccel(wind, [d.x, d.z], (0.9 * HERO_HEIGHT) / 2.0);
+      const a = Math.hypot(ax, az);
+      if (a > grip) {
+        d.x += (ax / a) * (a - grip) * dt;
+        d.z += (az / a) * (a - grip) * dt;
+      } else {
+        const dl = Math.hypot(d.x, d.z);
+        const k = dl > (grip - a) * dt ? (dl - (grip - a) * dt) / dl : 0;
+        d.x *= k;
+        d.z *= k;
+      }
+      if (Math.hypot(d.x, d.z) < 1e-3) {
+        this.npcDrift.delete(n);
+        continue;
+      }
+      this.npcDrift.set(n, d);
+      const nx = st.x + d.x * dt;
+      const nz = st.z + d.z * dt;
+      if (!this.solidPoint(nx, st.y + 1, st.z) && !this.solidPoint(nx, st.y + 2.5, st.z)) st.x = nx;
+      else d.x = 0;
+      if (!this.solidPoint(st.x, st.y + 1, nz) && !this.solidPoint(st.x, st.y + 2.5, nz)) st.z = nz;
+      else d.z = 0;
+    }
+  }
+
+  /**
+   * step 12c-2: how the hero stands in the wind now: blown back (its feet slipping), walking into it, bracing
+   * (standing, turned to face it), or nothing (a breeze). Bracing turns the hero to face the wind, a little at a time.
+   */
+  private windPose(walking: boolean): 'blown' | 'into' | 'brace' | null {
+    const { ax, az, grip } = this.heroFlow;
+    const a = Math.hypot(ax, az);
+    const d = Math.hypot(this.heroDrift.x, this.heroDrift.z);
+    if (d > 0.8) return 'blown';
+    if (a < 0.4 * grip) return null;
+    const s = this.heroState;
+    if (walking) {
+      const into = Math.sin(s.heading) * ax + Math.cos(s.heading) * az;
+      return into < -0.3 * a ? 'into' : null;
+    }
+    const want = Math.atan2(-ax, -az);
+    const diff = Math.atan2(Math.sin(want - s.heading), Math.cos(want - s.heading));
+    s.heading += Math.max(-0.08, Math.min(0.08, diff));
+    return 'brace';
   }
 
   /** the hero is sliding on ice rather than walking (the Slide move plays) */
@@ -1740,6 +2020,11 @@ export class PlaySession {
     this.strikeKind = kind;
     // step 12b: a stick sees what it reaches before the hit (a broken or burned-up stick is gone after it)
     const stick = this.stickOut && kind !== 'bash';
+    // step 12c-2: a swing of the Gust leaf blows a gust (a leaf hurts nothing)
+    if (this.leafOut && kind !== 'bash') {
+      this.leafGust();
+      return;
+    }
     try {
       this.resolveStrikeAt(kind, reach, aim);
     } finally {
@@ -2039,7 +2324,7 @@ export class PlaySession {
       this.stickHint();
     }
     // step 12b: a tool (Bomb, Torch) goes into an empty item button, ready to use
-    if (count > 0 && /^(bombs?|torch|branch)$/i.test(item.trim()) && !this.buttons.slots.includes(item)) {
+    if (count > 0 && /^(bombs?|torch|branch|gust leaf)$/i.test(item.trim()) && !this.buttons.slots.includes(item)) {
       const free = Array.from({ length: this.buttons.c.items }, (_, i) => i).find((i) => !this.buttons.slots[i]);
       if (free !== undefined) {
         this.equip(free + 1, item);
@@ -3603,6 +3888,9 @@ export class PlaySession {
     this.puzzles.restore(undefined);
     this.fireLight.reset();
     this.platforms.reset();
+    this.wind.reset();
+    this.windFx.clear();
+    this.heroDrift = { x: 0, z: 0 };
     this.health.clear();
     this.cine.seen.clear();
     this.logic.vars.clear();
@@ -4021,6 +4309,18 @@ export class PlaySession {
       },
       heroClear: (x, y, z) => this.world.controller.clear(x, y, z),
       climbAnything: () => this.climbingChoice === 'anything',
+      windPush: (o, vel) => {
+        if (!this.wind.fields.length) return [0, 0];
+        const b = boxOf(o.bricks);
+        if (!b) return [0, 0];
+        const h = (b.y1 - b.y0) * 0.4;
+        const wind = this.wind.at((b.x0 + b.x1) / 2, b.y0 * 0.4 + h / 2, (b.z0 + b.z1) / 2);
+        if (!wind[0] && !wind[1]) return [0, 0];
+        // a block of ice (0.9 as dense as water): the face it shows the wind against its mass
+        const cdA = 1.05 * Math.max(b.x1 - b.x0, b.z1 - b.z0) * h;
+        const m = 0.9 * (b.x1 - b.x0) * (b.z1 - b.z0) * h;
+        return dragAccel(wind, vel ?? [0, 0], cdA / Math.max(1e-3, m));
+      },
       moveKeys: () => {
         const v = this.inputVector();
         return { x: v.x, z: v.z };
@@ -4042,6 +4342,20 @@ export class PlaySession {
             z1: st.z + 0.3,
             y0: st.y / 0.4,
             weight: 1,
+          });
+        }
+        // step 12c-2: a rock, a pot or a bomb lying (thrown or put down) weighs on a floor switch
+        for (const b of this.fireLight.bombs) {
+          if (b === this.fireLight.held) continue;
+          const r = b.thing?.r ?? BOMB_R;
+          out.push({
+            kind: 'loose',
+            x0: b.x - r * 0.7,
+            x1: b.x + r * 0.7,
+            z0: b.z - r * 0.7,
+            z1: b.z + r * 0.7,
+            y0: b.y / 0.4,
+            weight: b.thing?.weight ?? 1,
           });
         }
         // loose things where the physics engine has them now (moved from where they were placed)
@@ -4182,7 +4496,7 @@ export class PlaySession {
       ball: (b, on) => {
         const ph = this.world.physics;
         if (!ph) return false;
-        if (on) ph.addBall(b, BOMB_R);
+        if (on) ph.addBall(b, b.thing?.r ?? BOMB_R, b.thing ? (b.thing.look === 'pot' ? 1.2 : 2.6) : 3);
         else ph.removeBall(b);
         return true;
       },
@@ -4198,6 +4512,15 @@ export class PlaySession {
         );
       },
       setState: (o, st) => this.setInstanceState(o.inst.id, st, true),
+      // step 12c-2: a rock or pot lifted leaves its place (it comes back next play)
+      takeUp: (o) => this.despawn(o.inst.id),
+      strike: (b, at, speed) => this.thrownStrike(b, at, speed),
+      shatter: (b) => {
+        const at: [number, number, number] = [b.x, b.y + 0.4, b.z];
+        this.playEffect(FX.splinters, at);
+        this.audio.play(SND.shatter, { pos: at });
+        for (const l of b.thing?.loot ?? []) if (Math.random() < l.chance) this.drop(l as never, { at });
+      },
       lightSensor: (o, lit) => this.puzzles.light(o, lit),
       burned: (o) =>
         this.logic.fire({
@@ -4277,6 +4600,22 @@ export class PlaySession {
       } else if (this.takeOutStick()) this.stickHint();
       return true;
     }
+    // step 12c-2: the Gust leaf is taken out (held in the hand) or put away; out, Attack swings it: a gust
+    if (name === 'gust leaf') {
+      if (this.fireLight.held || this.fireLight.busy) return true;
+      if (this.leafOut) {
+        this.putAwayLeaf();
+        this.say('Gust leaf put away.', 1.2);
+      } else {
+        this.putAwayStick();
+        this.leafOut = true;
+        this.heldBefore = String(this.hero.held ?? 'None');
+        this.hero = { ...this.hero, held: 'Sword', heldLook: 'Leaf' };
+        const k = this.buttons.keyOf('attack').toUpperCase();
+        this.say(`A Gust leaf! ${k} swings it: a gust of wind blows ahead.`, 2.5);
+      }
+      return true;
+    }
     if (name === 'torch') {
       const x = h.x + fx * 1.4;
       const z = h.z + fz * 1.4;
@@ -4332,7 +4671,39 @@ export class PlaySession {
       this.bombHint();
       return true;
     }
+    // step 12c-2: a rock or a pot to lift
+    const t = fl.thingAhead();
+    if (t) {
+      this.putAwayStick();
+      fl.liftThing(t);
+      const k = this.buttons.keyOf('action').toUpperCase();
+      this.say(`Walking, ${k} throws it; standing still, ${k} puts it down.`, 2.2);
+      return true;
+    }
     return false;
+  }
+
+  /**
+   * step 12c-2: a thrown rock, pot or bomb flying fast reaches a point: a switch it strikes is hit (a blunt blow:
+   * a crystal switch, a target), each once on the way; the ids it hit
+   */
+  private thrownStrike(b: Bomb, at: [number, number, number], speed: number): string[] {
+    const out: string[] = [];
+    const r = (b.thing?.r ?? BOMB_R) + 0.15;
+    for (const i of this.objs().near(at[0], at[2], 8)) {
+      if (i.def.switch?.by !== 'hit' || b.flying?.has(i.inst.id)) continue;
+      const q = boxOf(i.bricks);
+      if (!q) continue;
+      const dx = Math.max(q.x0 - at[0], 0, at[0] - q.x1);
+      const dz = Math.max(q.z0 - at[2], 0, at[2] - q.z1);
+      const dy = Math.max(q.y0 * 0.4 - at[1], 0, at[1] - q.y1 * 0.4);
+      if (Math.hypot(dx, dz, dy) > r) continue;
+      this.puzzles.hit(i, 'blunt', true);
+      this.hitEffect('blunt', at);
+      this.emit('info', `${b.thing ? `The ${b.thing.name}` : 'The bomb'} hit ${i.def.name} (${speed.toFixed(1)} studs a second)`);
+      out.push(i.inst.id);
+    }
+    return out;
   }
 
   /** step 12b: fire at a point (a torch's flame, a fire hit): burnables catch, fire switches light, foes burn */
@@ -4474,10 +4845,22 @@ export class PlaySession {
     // step 12c: sliding on ice counts as moving (it slides rather than walks)
     const slipping = this.iceSlip && !!this.iceVel && s.grounded;
     const going = (!!(v.x || v.z) || slipping) && !this.talks.active;
+    // step 12c-2: in a strong wind: bracing against it, walking into it, or blown back
+    const gust = slipping || this.swim.on || !s.grounded ? null : this.windPose(!!(v.x || v.z));
+    if (gust !== this.windPoseWas) {
+      this.windPoseWas = gust;
+      if (gust)
+        this.emit(
+          'info',
+          gust === 'blown' ? 'Blown back by the wind' : gust === 'into' ? 'Walking into the wind' : 'Bracing against the wind',
+        );
+    }
+    // bracing or blown back plays its move at its own pace (as a walk at walking speed)
+    const held = gust === 'brace' || gust === 'blown';
     const attacking = (s.attack as number) > 0;
     const events = sm.step(
       {
-        speed: going ? Math.max(MOVING_AT + 0.01, Number(s.speed) || 0) : 0,
+        speed: held ? 4 : going ? Math.max(MOVING_AT + 0.01, Number(s.speed) || 0) : 0,
         grounded: s.grounded && !v.jump,
         attacking,
         hurtAgo: this.clock - this.heroHurtAt,
@@ -4493,7 +4876,13 @@ export class PlaySession {
           : // step 12c: sliding on ice (not walking): its own built-in move, whatever the sheet sets for walking
             slipping && (st === 'walk' || st === 'run' || st === 'idle')
             ? iceSlide
-            : (this.sheetClip(this.heroChr, st) ??
+            : gust && (st === 'walk' || st === 'run' || st === 'idle')
+              ? gust === 'blown'
+                ? windBlown
+                : gust === 'into'
+                  ? windWalk
+                  : windBrace
+              : (this.sheetClip(this.heroChr, st) ??
               // step 11b: v68's own motion is a walk, so swimming always has a clip (the built-in crawl and tread);
               // step 12a: so do pushing, pulling and climbing; 12b: ladders, and lifting, carrying and throwing
               (OWN_MOTION.has(st)
@@ -4860,9 +5249,13 @@ export class PlaySession {
     else if (
       !this.fireLight.held &&
       !this.fireLight.busy &&
-      (this.fireLight.bombAhead() || this.fireLight.plantAhead())
+      (this.fireLight.bombAhead() || this.fireLight.plantAhead() || this.fireLight.thingAhead())
     )
-      out.push({ kind: 'lift', label: 'Pick up', priority: ACTION_PRIORITY.lift });
+      out.push({
+        kind: 'lift',
+        label: !this.fireLight.bombAhead() && !this.fireLight.plantAhead() ? 'Lift' : 'Pick up',
+        priority: ACTION_PRIORITY.lift,
+      });
     // step 12a: a block that can be pulled, right in front
     if (this.puzzles.canGrab() || this.puzzles.grab)
       out.push({ kind: 'grab', label: 'Grab', priority: ACTION_PRIORITY.grab });

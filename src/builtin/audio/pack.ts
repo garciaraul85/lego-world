@@ -322,6 +322,25 @@ export const SOUNDS: Record<string, SfxRecipe> = {
     { wave: 'sine', f0: 1320, dur: 0.4, gain: 0.25, trem: [10, 0.2] },
     { wave: 'sine', f0: 1980, at: 0.06, dur: 0.35, gain: 0.15 },
   ]),
+  /** Step 12c-2 (wind and water): a fuse or a flame put out by water, a short hiss */
+  fizzle: sfx([{ wave: 'noise', f0: 6000, f1: 2500, dur: 0.45, gain: 0.35, attack: 0.01, lp: 8000 }], 13),
+  /** something heavy landing (a thrown rock): a dull thud */
+  thud: sfx([
+    { wave: 'sine', f0: 120, f1: 55, dur: 0.22, gain: 0.8 },
+    { wave: 'noise', f0: 700, f1: 200, dur: 0.12, gain: 0.35 },
+  ]),
+  /** a pot breaking: a crack and clattering pieces */
+  shatter: sfx(
+    [
+      { wave: 'noise', f0: 4200, f1: 1600, dur: 0.1, gain: 0.7 },
+      { wave: 'square', f0: 1700, f1: 1200, at: 0.05, dur: 0.04, gain: 0.15 },
+      { wave: 'square', f0: 2100, f1: 1500, at: 0.12, dur: 0.03, gain: 0.12 },
+      { wave: 'noise', f0: 3000, f1: 900, at: 0.08, dur: 0.3, gain: 0.35 },
+    ],
+    17,
+  ),
+  /** a gust of wind (the Gust leaf swung): a rising and falling whoosh */
+  gust: sfx([{ wave: 'noise', f0: 500, f1: 1800, dur: 0.45, gain: 0.5, attack: 0.12, lp: 3000 }], 19),
 };
 
 // ---------- music ----------
@@ -473,6 +492,10 @@ export const SND = {
   fuse: sndId('fuse'),
   boom: sndId('boom'),
   shine: sndId('shine'),
+  fizzle: sndId('fizzle'),
+  thud: sndId('thud'),
+  shatter: sndId('shatter'),
+  gust: sndId('gust'),
 } as const;
 
 export const MUS = {
@@ -502,6 +525,11 @@ export const ADVENTURE_EVENTS: [string, SoundEvent][] = [
   ev('fuse', ['fuse'], { maxVoices: 2, cooldown: 0.4, volume: -4 }),
   ev('boom', ['boom'], { maxVoices: 2 }),
   ev('shine', ['shine'], { maxVoices: 1, cooldown: 0.3 }),
+  // step 12c-2: wind and water
+  ev('fizzle', ['fizzle'], { maxVoices: 2, cooldown: 0.2 }),
+  ev('thud', ['thud'], { pitch: [0.9, 1.1], maxVoices: 3, cooldown: 0.08 }),
+  ev('shatter', ['shatter'], { pitch: [0.9, 1.15], maxVoices: 3 }),
+  ev('gust', ['gust'], { pitch: [0.9, 1.1], maxVoices: 2 }),
 ];
 
 export const DEFAULT_EVENTS: SoundEvents = {

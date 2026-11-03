@@ -1441,7 +1441,8 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const s = surfaceOf(c.ed.store, map(c));
     let top = 0;
     for (let x = x0; x < x0 + w; x++) for (let z = z0; z < z0 + d; z++) top = Math.max(top, s.topAt(x, z) ?? 0);
-    run(c, placeCommands(c.ed, def.id, [x0, top, z0], 0), `Place ${name}`);
+    // `rot`: quarter turns (a fan turned round to blow back toward the start)
+    run(c, placeCommands(c.ed, def.id, [x0, top, z0], Number(a?.rot ?? 0)), `Place ${name}`);
   },
   async pushOntoSwitch(c, a) {
     // what holding Action (Grab) and walking into the block does, until it slides onto the switch: the hero leans in
@@ -1553,6 +1554,88 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     s.input.keys.delete('forward');
     s.puzzles.setGrab(false);
     await wait(1500);
+  },
+  // step 12c-2: the Wind, water and throwing course
+  async walkIntoWind(c) {
+    // what walking (W) toward the fan does: into its wind, leaning into it
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const fan = s.world.instances.find((i) => i.def.wind);
+    if (!fan) throw new Error('Place a Fan first.');
+    const f = s.wind.fieldOf(fan);
+    if (!f) throw new Error('The fan is not blowing.');
+    // in its wind, a few studs out, facing the fan; the camera behind
+    const yaw = Math.atan2(-f.dir[0], -f.dir[1]);
+    standAt(s, f.from[0] + f.dir[0] * 7, f.from[2] + f.dir[1] * 7, yaw);
+    s.camYaw = yaw + Math.PI;
+    s.input.keys.add('forward');
+    try {
+      for (let i = 0; i < 30 && !logged(s, 'Walking into the wind'); i++) await wait(150);
+      await wait(1200);
+    } finally {
+      s.input.keys.delete('forward');
+    }
+  },
+  async gustAt(c, a) {
+    // what picking up the Gust leaf, taking it out (its button) and swinging it (F) at a thing does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Gust leaf', 'Gust leaf');
+    if (!s.leafOut) s.useItem('Gust leaf', slotOf(s, 'Gust leaf'));
+    const name = String(a?.name ?? 'Pinwheel');
+    const o = s.world.instances.find((i) => i.def.name === name);
+    if (!o) throw new Error(`Place a ${name} first.`);
+    faceThing(s, o, 2.5);
+    await wait(300);
+    const want = String(a?.until ?? '');
+    for (let i = 0; i < 4 && !(want && logged(s, want)); i++) {
+      s.leafGust();
+      await wait(700);
+    }
+  },
+  async throwRockAt(c, a) {
+    // what lifting the Rock (Action), walking and pressing Action again at the target does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const target = s.world.instances.find((i) => i.def.name === String(a?.target ?? 'Crystal switch'));
+    if (!target) throw new Error('Place the Crystal switch first.');
+    const fl = s.fireLight;
+    for (let tries = 0; tries < 3 && target.state === target.def.states[0]; tries++) {
+      if (!fl.held) {
+        const rock = s.world.instances.find((i) => i.def.name === String(a?.name ?? 'Rock'));
+        const lying = fl.bombs.find((b) => b.thing);
+        if (rock) {
+          faceThing(s, rock, 0.1);
+          await wait(200);
+          fl.liftThing(rock);
+        } else if (lying) fl.lift(lying);
+        else throw new Error('Place a Rock first.');
+        for (let i = 0; i < 30 && (!fl.held || fl.busy); i++) await wait(100);
+      }
+      // about six studs short of it, facing it: the throw (Action while walking)
+      faceThing(s, target, 5.2);
+      await wait(300);
+      fl.throwHeld();
+      for (let i = 0; i < 20 && target.state === target.def.states[0]; i++) await wait(150);
+    }
+  },
+  async wadeRiver(c) {
+    // what walking into the river does: in its current
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const w = s.waterBoxes().find((b) => b.current[0] || b.current[1]);
+    if (!w) throw new Error('Place a River first.');
+    standAt(s, (w.x0 + w.x1) / 2 - 4, (w.z0 + w.z1) / 2, s.heroState.heading);
+    for (let i = 0; i < 20 && !logged(s, 'Wading in a current'); i++) await wait(150);
+    await wait(1500);
+  },
+  placeRiver(c) {
+    // what Dock › Water › River and a click beside the start does: a river flowing across, its current 3 studs a second
+    const items = c.ed.store.get<Instances>(paths.instances(map(c)))?.items ?? [];
+    if (items.some((i) => i.kind === 'water' && i.body === 'river')) return;
+    const sp = mapDoc(c).spawns[0]?.pos ?? [0, 0.4, 0];
+    if (!placeWaterAt(c.ed, { x: sp[0]! - 6, y: Math.round(sp[1]! / 0.4), z: sp[2]! - 12 }, 'river'))
+      throw new Error('Could not place the river there.');
   },
   async meltIceWall(c) {
     // what picking up the Branch, holding its end in the Burning torch's flame and touching the ice wall with it does
@@ -2068,6 +2151,9 @@ async function takePickup(s: NonNullable<Ctx['ed']['session']['value']>, name: s
 /** the item button an item is in (1, 2…), or 1 */
 const slotOf = (s: NonNullable<Ctx['ed']['session']['value']>, item: string) =>
   Math.max(1, s.buttons.slots.indexOf(item) + 1);
+
+/** step 12c-2: the play's event log says this */
+const logged = (s: NonNullable<Ctx['ed']['session']['value']>, text: string) => s.events.some((e) => e.msg.includes(text));
 
 /** the hero stands by a placed thing, on the side of the start, facing it; returns the way back (x, z) */
 function faceThing(

@@ -533,6 +533,11 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   /** the running game's log has this line (Push block pulled…) */
   /** step 12c: Project › Climbing is this (ladders, anything) */
   climbingIs: (ed, a) => (ed.store.get<{ climbing?: string }>(paths.settings)?.climbing ?? 'ladders') === a,
+  /** step 12c-2: a body of water of this kind (river, pool…) is on the map */
+  waterOnMap: (ed, a) =>
+    (ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? []).some(
+      (i) => i.kind === 'water' && i.body === String(a),
+    ),
   playLogged: (ed, a) => !!ed.session.value?.events.some((e) => e.msg.includes(String(a))),
   /** “Name:stays”: the project's copy of the asset is a switch that stays that way (timed, toggle…) */
   switchStays: (ed, a) => {

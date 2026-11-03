@@ -293,6 +293,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // step 12c-2: the Starter pack's wind and throwing pieces
+    id: 'scene-dock-wind',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { left: 'hier', dock: 'pack' });
+      await p.locator('[aria-label="Wind and throwing"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     // step 12a: the Map tab scrolled to Dungeon
     id: 'scene-map-dungeon',
     screen: 'scene',
@@ -937,6 +947,16 @@ export const HELP_STATES: HelpState[] = [
       await ws(p, 'Assets');
       await p.getByRole('listbox').getByRole('option').first().click();
       await p.locator('[data-tour="asset-ice-move"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    // step 12c-2: an open asset scrolled to its Wind and lifting section
+    id: 'assets-wind',
+    screen: 'assets',
+    setup: async (p) => {
+      await ws(p, 'Assets');
+      await p.getByRole('listbox').getByRole('option').first().click();
+      await p.locator('[data-tour="asset-wind-sec"]').scrollIntoViewIfNeeded();
     },
   },
   {

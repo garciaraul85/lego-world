@@ -76,6 +76,12 @@ Walk into **vines** or a **ladder** and keep walking to climb it: forward climbs
 
 **Climbing**: with **Project › Climbing: Anything, with stamina** (like Breath of the Wild), walk into almost any wall and keep walking to hold on: W climbs up, S down (off at the bottom), A and D move left and right along it (as the hero faces the wall). Climbing uses stamina (a little while holding still), shown by the stamina bar; **Space** is a climb jump (a quick hop up for a quarter of the stamina), and Space while pulling back lets go. Out of stamina you let go and fall; when its hands reach the top the hero pulls itself up over the edge, its hands on the edge all the way (hang, pull up, a knee onto the top, stand). Ladders and vines cost no stamina, and walls marked Not climbable say “Too smooth to climb.” With **Ladders and vines only** (the default, like Ocarina of Time) walls stop you.
 
+**Wind**: a fan’s wind pushes on what it meets, as real air does (drag): light things blow along, heavy ones stay put. Walking into it you are slower, leaning into it with an arm up; standing in it you turn to face it and brace; a strong one (a Gale fan) blows you back. In the air or on ice nothing holds you, so you drift with it. The **Gust leaf**: its item button takes it out, and Attack swings it to blow a gust ahead (pinwheels spin, small flames go out, light things fly).
+
+**Water and fire**: a river’s current carries you swimming and pushes on your legs wading (a strong one sweeps you downstream). A burning stick dipped in water, or held in a strong wind, goes out; a lit bomb that falls in water fizzles out; a lit torch stand in a strong wind goes out.
+
+**Throwing**: face a Rock or a Clay pot and press Action to lift it; walking, Action throws it (it flies in an arc and rolls to rest), standing, puts it down. What it strikes is hit (a crystal switch turns); a rock lying on a floor switch holds it down; a pot breaks where it lands.
+
 ## Rebuilding
 
 Smashed bricks are real physical pieces: they fly off, tumble, bounce off the bricks around them, stack and come to rest, and the hero pushes them aside when walking through. In water they float and drift with its current, as loose objects do (see Scene › Water and loose things).

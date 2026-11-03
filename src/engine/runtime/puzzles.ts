@@ -70,6 +70,8 @@ export type PuzzleHost<T extends PuzzleObject = PuzzleObject> = {
   moveKeys?(): { x: number; z: number };
   /** step 12c: the game's Climbing is Anything (walls, with stamina), not only ladders and vines */
   climbAnything?(): boolean;
+  /** step 12c-2: what the wind does to a placed thing (per second², across and deep: its drag over its mass) */
+  windPush?(o: T, vel?: [number, number]): [number, number];
   /** step 12c: the hero's stamina now (0–its most), and some used (climbing, a climb jump) */
   stamina?(): number;
   spendStamina?(n: number): void;
@@ -297,6 +299,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     const s = this.h.heroState;
     if (this.h.dungeon()) this.record().seen.add(`${Math.floor(s.x / SEEN_CELL)},${Math.floor(s.z / SEEN_CELL)}`);
     this.stepSlide(dt);
+    this.stepWindShoves();
     if (this.turnPose) {
       this.turnPose.t -= dt;
       if (this.turnPose.t <= 0) this.turnPose = null;
@@ -400,7 +403,29 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   }
 
   /** starts a slide if the block can go there; false (and a word) when something is in the way */
-  tryMove(o: T, dx: number, dz: number, pulled: boolean): boolean {
+  /**
+   * step 12c-2: an ice block in a strong enough wind slides off by itself, the way the wind blows (its stronger
+   * way, square to the grid), once the wind's push beats its friction on what it rests on
+   */
+  private stepWindShoves() {
+    if (this.slide || !this.h.windPush) return;
+    const s = this.h.heroState;
+    for (const o of this.h.near(s.x, s.z, 40)) {
+      if (!o.def.ice?.slides || !o.def.push) continue;
+      const [ax, az] = this.h.windPush(o);
+      const mu = (this.onIce(o) ? ICE_ON_ICE : ICE_ON_GROUND) * GRAVITY;
+      const along = Math.abs(ax) >= Math.abs(az) ? ax : az;
+      if (Math.abs(along) <= mu) continue;
+      const dx = Math.abs(ax) >= Math.abs(az) ? Math.sign(ax) : 0;
+      const dz = dx ? 0 : Math.sign(az);
+      if (this.tryMove(o, dx, dz, false, ICE_CREEP)) {
+        this.h.log(`${o.def.name}: the wind pushed it`);
+        return;
+      }
+    }
+  }
+
+  tryMove(o: T, dx: number, dz: number, pulled: boolean, shove = ICE_SHOVE): boolean {
     if (this.slide) return false;
     // step 12c: a block of ice, pushed, slides on until something stops it (a wall, a block, an edge)
     const ice = !!o.def.ice?.slides && !pulled;
@@ -415,7 +440,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
         break;
       }
     if (ice) {
-      this.slide = { o, dx, dz, n, done: 0, t: 0, pulled: false, ice: true, v: ICE_SHOVE, at: 0 };
+      this.slide = { o, dx, dz, n, done: 0, t: 0, pulled: false, ice: true, v: shove, at: 0 };
       this.h.sound('scrape', this.centre(o));
       return true;
     }
@@ -498,7 +523,9 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   /** an ice block glides on, slowed by friction (less on ice than off it): how far it has gone now (studs) */
   private glide(sl: NonNullable<Puzzles<T>['slide']>, dt: number): number {
     const mu = this.onIce(sl.o) ? ICE_ON_ICE : ICE_ON_GROUND;
-    let v = (sl.v ?? 0) - mu * GRAVITY * dt;
+    // step 12c-2: a wind along the way it slides pushes it on (or holds it back)
+    const w = this.h.windPush?.(sl.o, [(sl.v ?? 0) * sl.dx, (sl.v ?? 0) * sl.dz]) ?? [0, 0];
+    let v = (sl.v ?? 0) + (w[0] * sl.dx + w[1] * sl.dz) * dt - mu * GRAVITY * dt;
     // too slow to reach another stud: it creeps on to rest on the next whole one
     if (v < ICE_CREEP) {
       sl.n = Math.min(sl.n, Math.max(1, Math.ceil((sl.at ?? 0) - 1e-6)));
@@ -1010,6 +1037,15 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     }
     this.use(o, sw, type);
     return true;
+  }
+
+  /** step 12c-2: a pinwheel the wind reaches (true: it turns) or no longer reaches */
+  blow(o: T, on: boolean) {
+    const sw = o.def.switch;
+    if (sw?.by !== 'wind') return;
+    if (on) {
+      this.use(o, sw, 'the wind');
+    } else if (sw.stays === 'held') this.turn(o, false, 'wind gone');
   }
 
   /** step 12b: a light sensor lit by a beam (true) or left dark */

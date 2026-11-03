@@ -5,6 +5,7 @@ import { EFFECTS } from './effects';
 import { FIRE_LIGHT } from './firelight';
 import { GUIDES } from './guides';
 import { ICE_MOVE } from './icemove';
+import { WIND } from './wind';
 import { LIGHTS } from './lights';
 import { PHYSICS } from './physics';
 import { PUZZLES } from './puzzles';
@@ -31,6 +32,7 @@ export const WRITTEN: HelpEntry[] = [
   ...PUZZLES,
   ...FIRE_LIGHT,
   ...ICE_MOVE,
+  ...WIND,
   ...PLAY,
 ];
 

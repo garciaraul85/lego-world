@@ -1,0 +1,310 @@
+{
+  "id": "wind",
+  "title": "Wind, water and throwing course",
+  "steps": [
+    {
+      "id": "wd.open",
+      "title": "Wind, water and throwing",
+      "body": "Fans that blow, a leaf that makes a gust, pinwheels the wind turns, rocks and pots to throw at switches, and rivers whose current pushes (as in the wind temples of Zelda and Breath of the Wild’s Korok Leaf). They are under Starter pack › Wind and throwing. The wind pushes things as real air does, by drag: light things blow away, heavy ones stay put.",
+      "task": "Open Starter pack in the bottom dock.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "dockIs",
+        "args": "pack"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "pack"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "wd.fan",
+      "title": "A fan",
+      "body": "Place a Fan 12 studs ahead of the start, turned round (R twice) so it blows back toward the start. Air leaves its front: 16 studs a second, reaching 16 studs, falling off as it goes; a wall stops it.",
+      "task": "Place a Fan facing the start.",
+      "target": "[aria-label=\"Wind and throwing\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Fan"
+      },
+      "doItForMe": [
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Fan",
+            "ahead": 12,
+            "side": 0,
+            "rot": 2
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "wd.walk",
+      "title": "Walk into the wind",
+      "body": "Press Play and walk toward the fan. In its wind you are slower: you lean into it, an arm up against it, with short heavy steps. Stop walking and you brace, turned to face it. Jump in it and it carries you back: in the air nothing holds you.",
+      "task": "Press Play and walk into the fan’s wind.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Walking into the wind"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "walkIntoWind"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "wd.leaf",
+      "title": "The Gust leaf and a pinwheel",
+      "body": "Stop the game. Place the Gust leaf just to the side of the start and a Pinwheel a little further off on the same side.",
+      "task": "Place the Gust leaf and a Pinwheel.",
+      "target": "[aria-label=\"Wind and throwing\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Gust leaf,Pinwheel"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Gust leaf",
+            "ahead": 1,
+            "side": 5
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Pinwheel",
+            "ahead": 6,
+            "side": 8
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "wd.gust",
+      "title": "Spin the pinwheel",
+      "body": "Press Play and walk over the Gust leaf: it goes into an item button. Press that button (J) to take it out, walk up to the pinwheel and swing it (F): a gust blows ahead and the pinwheel spins round. It is a switch Turned by the wind: wire it to a gate or a Switch fan with logic.",
+      "task": "Press Play and swing the Gust leaf at the pinwheel.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Pinwheel on (the wind)"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "gustAt",
+          "args": {
+            "name": "Pinwheel",
+            "until": "Pinwheel on"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "wd.torch",
+      "title": "Blow a flame out",
+      "body": "Stop the game. Place a Burning torch on the other side of the start. A small flame goes out in a strong wind: a lit torch stand, or a burning stick.",
+      "task": "Place a Burning torch.",
+      "target": "[aria-label=\"Fire and light\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Burning torch"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Burning torch",
+            "ahead": 3,
+            "side": -8
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "wd.blowout",
+      "title": "Swing the leaf at it",
+      "body": "Press Play, take out the Gust leaf and swing it at the Burning torch: the gust blows its flame out. (Water puts fire out too: a burning stick dipped in water goes out, and a lit bomb that falls in fizzles.)",
+      "task": "Press Play and blow the torch out.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "blew it out"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "gustAt",
+          "args": {
+            "name": "Burning torch",
+            "until": "blew it out"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "wd.rock",
+      "title": "A rock and a crystal switch",
+      "body": "Stop the game. Place a Rock in front of the start a little to the left, and a Crystal switch further on in line with it.",
+      "task": "Place a Rock and a Crystal switch.",
+      "target": "[aria-label=\"Wind and throwing\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Rock,Crystal switch"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Rock",
+            "ahead": 2,
+            "side": -4
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Crystal switch",
+            "ahead": 9,
+            "side": -4
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "wd.throw",
+      "title": "Throw it",
+      "body": "Press Play. Face the rock and press E (Lift): the hero lifts it over its head. Walk toward the crystal switch and press E again: walking, it throws (an arc; the physics engine rolls it to rest). The switch it strikes is hit. Standing still, E puts it down instead: a rock lying on a floor switch holds it down, and a Clay pot breaks where it lands.",
+      "task": "Press Play and throw the rock at the crystal switch.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Crystal switch on"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "throwRockAt",
+          "args": {
+            "name": "Rock",
+            "target": "Crystal switch"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "wd.river",
+      "title": "A river’s current",
+      "body": "Stop the game. Place a River behind the start (Scene › Water › River, its current 3 studs a second; set it in the Inspector). Things float down it, and it carries you swimming; wading, it pushes on your legs.",
+      "task": "Place a River.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "waterOnMap",
+        "args": "river"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placeRiver"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "wd.wade",
+      "title": "Wade into it",
+      "body": "Press Play and walk into the river. The current pushes on what is under the water: a slow one you walk through, a strong one (8 studs a second and up) sweeps you downstream.",
+      "task": "Press Play and wade into the river.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Wading in a current"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "wadeRiver"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "wd.done",
+      "title": "Done!",
+      "body": "You walked into a fan’s wind, spun a pinwheel and blew a torch out with the Gust leaf, threw a rock at a crystal switch, and waded into a river’s current. Make your own in the Asset studio: Wind and lifting › Blows wind (speed, reach, width, height, when) and Lift and throw (breaks, weight); a switch Turned by the wind is a pinwheel.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

@@ -44,6 +44,7 @@ import templates from './content/34-templates.json';
 import puzzles from './content/35-puzzles.json';
 import firelight from './content/36-fire-light.json';
 import ice from './content/37-ice-platforms.json';
+import wind from './content/38-wind-water.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -75,6 +76,7 @@ export type Track =
   | 'puzzles'
   | 'firelight'
   | 'ice'
+  | 'wind'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -148,6 +150,8 @@ export const PUZZLES_STEPS: TrackStep[] = steps([puzzles].map((c) => Chapter.par
 export const FIRELIGHT_STEPS: TrackStep[] = steps([firelight].map((c) => Chapter.parse(c)));
 /** step 12c: ice, moving platforms, climbing anything */
 export const ICE_STEPS: TrackStep[] = steps([ice].map((c) => Chapter.parse(c)));
+/** step 12c-2: wind, water currents, putting fire out, throwing */
+export const WIND_STEPS: TrackStep[] = steps([wind].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -181,6 +185,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   puzzles: { title: 'Puzzles course', steps: PUZZLES_STEPS },
   firelight: { title: 'Fire and light course', steps: FIRELIGHT_STEPS },
   ice: { title: 'Ice, platforms and climbing course', steps: ICE_STEPS },
+  wind: { title: 'Wind, water and throwing course', steps: WIND_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

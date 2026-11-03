@@ -30,6 +30,23 @@ export type Bomb = {
   plant: FireObject | null;
   /** the physics engine moves it (rolling, bouncing, coming to rest) */
   phys?: boolean;
+  /**
+   * step 12c-2: not a bomb but a thing lifted off the floor (a rock, a pot): no fuse. Its name, whether it breaks
+   * where it lands or hits, what it weighs on a floor switch, how it looks, and its radius
+   */
+  thing?: {
+    name: string;
+    breaks: boolean;
+    weight: number;
+    look: 'rock' | 'pot';
+    r: number;
+    /** what it drops when it breaks (a pot's hearts), each by its chance */
+    loot?: readonly { item: string; count?: number; chance: number }[];
+  };
+  /** thrown and still flying fast: the switches it has hit on the way (each once) */
+  flying?: Set<string>;
+  /** its speed last step (a sudden loss is a landing or a hit) */
+  lastSpeed?: number;
 };
 
 /** a bomb's radius (studs) */
@@ -68,7 +85,7 @@ export type FireHost<T extends FireObject = FireObject> = {
   stickTip?(): [number, number, number] | undefined;
   /** step 12b: fire touched to a point (lights a torch stand; burnables are lit here) */
   touchFire?(at: [number, number, number]): void;
-  sound(id: 'ignite' | 'fuse' | 'boom' | 'shine', at?: [number, number, number]): void;
+  sound(id: 'ignite' | 'fuse' | 'boom' | 'shine' | 'fizzle' | 'thud', at?: [number, number, number]): void;
   /** the blast of a bomb: what is around it is hurt, broken, flipped or set alight (how many things it hit) */
   blast(at: [number, number, number], radius: number): number;
   /** a bomb handed to the physics engine (on) or taken back (off): true when the engine moves it */
@@ -84,6 +101,12 @@ export type FireHost<T extends FireObject = FireObject> = {
   heroHeight?(): number;
   /** the highest floor under a point, from y down (null: none) */
   floor(x: number, z: number, y: number): number | null;
+  /** step 12c-2: a placed thing lifted off the floor is gone from its place for this play */
+  takeUp?(o: T): void;
+  /** step 12c-2: a thrown thing (or bomb) flying fast reaches a point: switches it strikes are hit (their ids) */
+  strike?(b: Bomb, at: [number, number, number], speed: number): string[];
+  /** step 12c-2: a pot broke (bits fly, a sound) */
+  shatter?(b: Bomb): void;
   /** a bomb plant grows its bomb again (its state) */
   setState(o: T, state: string): void;
   /** a light sensor lit or no longer lit */
@@ -437,7 +460,7 @@ export class FireLight<T extends FireObject = FireObject> {
     bomb.vx = bomb.vy = bomb.vz = 0;
     this.held = bomb;
     this.carry = { phase: 'lift', t: 0 };
-    this.h.log(b ? 'Picked up the bomb' : 'Lifted a bomb');
+    this.h.log(bomb.thing ? `Lifted the ${bomb.thing.name}` : b ? 'Picked up the bomb' : 'Lifted a bomb');
     return true;
   }
 
@@ -465,6 +488,91 @@ export class FireLight<T extends FireObject = FireObject> {
     return null;
   }
 
+  /** step 12c-2: a placed thing to lift (a rock, a pot) within reach in front of the hero */
+  thingAhead(): T | null {
+    const s = this.h.heroState;
+    const ax = s.x + Math.sin(s.heading) * 0.9;
+    const az = s.z + Math.cos(s.heading) * 0.9;
+    for (const o of this.h.near(ax, az, 6)) {
+      if (!o.def.lift) continue;
+      const b = boxOf(o.bricks as never);
+      if (b && ax > b.x0 - 0.6 && ax < b.x1 + 0.6 && az > b.z0 - 0.6 && az < b.z1 + 0.6 && Math.abs(b.y0 * 0.4 - s.y) < 1.2)
+        return o;
+    }
+    return null;
+  }
+
+  /** step 12c-2: lifts a placed thing (a rock, a pot) up over the head: it leaves its place and is carried */
+  liftThing(o: T): boolean {
+    const l = o.def.lift;
+    if (!l || this.held || this.carry) return false;
+    const s = this.h.heroState;
+    const pot = !!l.breaks;
+    const b: Bomb = {
+      x: s.x,
+      y: s.y,
+      z: s.z,
+      t: 0,
+      fizz: 0,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+      plant: null,
+      phys: false,
+      thing: {
+        name: o.def.name,
+        breaks: pot,
+        weight: l.weight ?? 1,
+        look: pot ? 'pot' : 'rock',
+        r: pot ? 0.6 : 0.55,
+        loot: o.def.health?.atZero?.loot,
+      },
+    };
+    this.bombs.push(b);
+    this.h.takeUp?.(o);
+    return this.lift(b);
+  }
+
+  /** step 12c-2: a lit bomb in water: its fuse goes out, and it is gone */
+  douse(b: Bomb) {
+    if (b.thing) return;
+    const i = this.bombs.indexOf(b);
+    if (i < 0) return;
+    this.bombs.splice(i, 1);
+    if (b.phys) this.h.ball?.(b, false);
+    this.h.sound('fizzle', [b.x, b.y, b.z]);
+    this.h.log('The bomb’s fuse went out in the water');
+  }
+
+  /** step 12c-2: a pot breaks: it is gone, its bits fly */
+  private breakThing(b: Bomb) {
+    const i = this.bombs.indexOf(b);
+    if (i < 0) return;
+    this.bombs.splice(i, 1);
+    if (b.phys) this.h.ball?.(b, false);
+    this.h.shatter?.(b);
+    this.h.log(`The ${b.thing?.name ?? 'pot'} broke`);
+  }
+
+  /**
+   * step 12c-2: a thrown thing flying fast: switches it strikes are hit (a blunt blow, once each); it lands with a
+   * thud, and a pot breaks where it lands or on what it hits
+   */
+  private stepFlight(b: Bomb, wasSpeed: number) {
+    if (!b.flying) return;
+    const speed = Math.hypot(b.vx, b.vy, b.vz);
+    const at: [number, number, number] = [b.x, b.y + (b.thing?.r ?? BOMB_R), b.z];
+    const hit = speed > 2.5 ? (this.h.strike?.(b, at, speed) ?? []) : [];
+    for (const id of hit) b.flying.add(id);
+    // it struck something hard or came down: the speed it had is gone in a moment
+    const stopped = wasSpeed > 3 && speed < wasSpeed * 0.55;
+    if (hit.length || stopped) {
+      if (b.thing?.breaks) return this.breakThing(b);
+      if (b.thing && stopped) this.h.sound('thud', at);
+    }
+    if (speed < 1.5) b.flying = undefined;
+  }
+
   /** takes the bomb off a plant (it grows another once that one has gone off, as its setting says) */
   pick(o: T): boolean {
     if (this.held || this.carry || !o.def.bombPlant) return false;
@@ -482,8 +590,9 @@ export class FireLight<T extends FireObject = FireObject> {
     b.vy = THROW_UP;
     this.held = null;
     b.phys = this.h.ball?.(b, true) ?? false;
+    b.flying = new Set();
     this.carry = { phase: 'throw', t: 0 };
-    this.h.log('Threw the bomb');
+    this.h.log(b.thing ? `Threw the ${b.thing.name}` : 'Threw the bomb');
     return true;
   }
 
@@ -499,7 +608,7 @@ export class FireLight<T extends FireObject = FireObject> {
     this.held = null;
     b.phys = this.h.ball?.(b, true) ?? false;
     this.carry = { phase: 'drop', t: 0 };
-    this.h.log('Put the bomb down');
+    this.h.log(b.thing ? `Put the ${b.thing.name} down` : 'Put the bomb down');
     return true;
   }
 
@@ -545,8 +654,13 @@ export class FireLight<T extends FireObject = FireObject> {
     }
     if (this.held) Object.assign(this.held, Object.fromEntries(['x', 'y', 'z'].map((k, i) => [k, this.heldAt()[i]])));
     for (const b of [...this.bombs]) {
-      b.t += dt;
+      const was = b.lastSpeed ?? Math.hypot(b.vx, b.vy, b.vz);
       if (b !== this.held && !b.phys) this.fly(b, dt);
+      b.lastSpeed = Math.hypot(b.vx, b.vy, b.vz);
+      if (b !== this.held) this.stepFlight(b, was);
+      // a rock or a pot: no fuse
+      if (b.thing) continue;
+      b.t += dt;
       b.fizz += dt;
       if (b.fizz >= 0.5 && b.t < FUSE) {
         b.fizz = 0;
