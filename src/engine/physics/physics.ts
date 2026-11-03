@@ -50,6 +50,16 @@ export const BUOYANCY = 1.7;
 /** half sizes of the debris brick (v68's 1 × 1 brick drawn at d.scale: 0.975 wide, 1.2 high) */
 const DEBRIS_HALF = { x: 0.4875, y: 0.6, z: 0.4875 };
 export const GRAVITY = 18;
+/**
+ * step 12c: friction on ice (the coefficient, as a = μg). Wet ice under a boot or a crate is about 0.02 to 0.1; the
+ * engine uses this for icy tops (loose things slide on them) and the hero's slide uses it too.
+ */
+export const ICE_FRICTION = 0.05;
+/** the most a foot can push off ice before it slips (static friction of a boot on ice) */
+export const ICE_GRIP = 0.1;
+/** an ice block sliding on ice, and on anything else (stone, wood, the ground) */
+export const ICE_ON_ICE = 0.02;
+export const ICE_ON_GROUND = 0.25;
 /** the ground under every map: tiles this many studs across, out to this far each way */
 const GROUND_TILE = 64;
 /** the character controller keeps this gap to what it touches; the hero's feet are this far below its body */
@@ -70,6 +80,43 @@ export class PhysicsWorld {
   private objects = new Map<string, { body: RAPIER.RigidBody; half: number }>();
 
   private solids = new Map<string, RAPIER.Collider>();
+  /** step 12c: the slippery tops of icy floors, by key (with what they were made from, to see a change) */
+  private ice = new Map<string, { c: RAPIER.Collider; sig: string }>();
+
+  /**
+   * step 12c: icy floors: a thin top of low friction (ICE_FRICTION, the lower of two surfaces' counts) on each, so
+   * loose things (a crate, debris) slide on ice as they would. The list is all of them: others are dropped.
+   */
+  setIce(tops: readonly { key: string; x0: number; x1: number; z0: number; z1: number; y: number }[]) {
+    const keep = new Set<string>();
+    for (const t of tops) {
+      const sig = `${t.x0},${t.x1},${t.z0},${t.z1},${t.y}`;
+      keep.add(t.key);
+      const was = this.ice.get(t.key);
+      if (was?.sig === sig) continue;
+      if (was) this.world.removeCollider(was.c, false);
+      const c = this.world.createCollider(
+        RAPIER.ColliderDesc.cuboid((t.x1 - t.x0) / 2, 0.01, (t.z1 - t.z0) / 2)
+          .setTranslation((t.x0 + t.x1) / 2, t.y, (t.z0 + t.z1) / 2)
+          .setFriction(ICE_FRICTION)
+          .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min)
+          .setRestitution(0.05),
+      );
+      this.ice.set(t.key, { c, sig });
+      this.queriesStale = true;
+    }
+    for (const [k, v] of this.ice)
+      if (!keep.has(k)) {
+        this.world.removeCollider(v.c, false);
+        this.ice.delete(k);
+        this.queriesStale = true;
+      }
+  }
+
+  /** the icy tops there are (keys) */
+  iceKeys(): string[] {
+    return [...this.ice.keys()];
+  }
 
   constructor() {
     if (!ready) throw new Error('The physics engine is not loaded yet.');

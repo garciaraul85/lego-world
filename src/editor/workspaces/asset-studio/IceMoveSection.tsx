@@ -3,7 +3,7 @@ import type { Asset } from '../../../core/schema';
 import { FieldHelp } from '../../components/fields';
 
 export const ICE_MOVE_HELP = {
-  ice: 'It is ice. As a floor, it is slippery: the hero speeds up and slows down slowly on it and slides on after letting go (like the icy floors of Ocarina of Time). A push block of ice, held and pushed, slides on by itself until something stops it (a wall, a block, an edge). Ice melts with fire (a torch, a burning stick, a bomb’s blast; it steams, then is gone for good), with fire or a beam of light, or never. A swing does nothing to it.',
+  ice: 'It is ice. As a floor, it is slippery: the hero moves on it by friction, as on real ice (its feet slip if they push too hard), so it gets going, turns and stops slowly and glides on after letting go (like the icy floors of Ocarina of Time). A push block of ice, held and pushed, is shoved off and slides on by itself, slowed by friction (hardly on ice, soon on the ground) until it stops or something stops it (a wall, a block, an edge). Ice melts with fire (a torch, a burning stick, a bomb’s blast; it steams, then is gone for good), with fire or a beam of light, or never. A swing does nothing to it.',
   moves:
     'It moves: from where it is placed to the far end (studs across, up and deep) and back, easing in and out, waiting at each end. Whoever stands on it rides along. Up only makes a lift. With Only when on it runs only in its second state (logic’s Set state, a switch wired to it, or Light all the torches can turn it on, like the Forest Temple’s lift that runs while its torches burn).',
   noClimb:

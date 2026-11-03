@@ -2,7 +2,7 @@ import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { SND } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
-import { MOVE_FOR, wallClimb } from '../../builtin/clips/moves';
+import { iceSlide, ledgePull, MOVE_FOR, wallClimb } from '../../builtin/clips/moves';
 import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS, FX } from '../../builtin/effects';
 import { genreById } from '../../builtin/genres';
 import { BUILTIN_SCREEN_EFFECTS, DEFAULT_SCREEN_EVENTS } from '../../builtin/screen-effects';
@@ -138,8 +138,8 @@ import { type Atmosphere, atmosphere } from '../lighting/atmosphere';
 import { findLight, gatherLights, type LightSource, pointLights } from '../lighting/lights';
 import { LogicRuntime } from '../logic/interpreter';
 import { type MediaSource, modelMatrix, prepareModel, readyModel } from '../model/prepare';
-import { HERO_HEIGHT, HERO_RADIUS, walkHero } from '../physics/hero';
-import { PhysicsWorld, physicsReady } from '../physics/physics';
+import { HERO_GRAVITY, HERO_HEIGHT, HERO_RADIUS, walkHero } from '../physics/hero';
+import { ICE_FRICTION, ICE_GRIP, PhysicsWorld, physicsReady } from '../physics/physics';
 import { type ModelUpload, placedTriangles } from '../render/model-draw';
 import { portrait } from '../render/portraits';
 import type { PointLight } from '../render/renderer';
@@ -280,9 +280,6 @@ const rgb = (i: number) => [1, 3, 5].map((k) => (parseInt(COLOR_OF(i).slice(k, k
  * v68's own modules; smash, rebuild and gate travel are ports of v68's character-game / map-network code.
  */
 /** states v68's own motion already shows (the others play their built-in clip when the sheet sets none) */
-/** step 12c: how fast the hero's speed follows the keys on ice, and how fast it slows to a stop (per second) */
-const ICE_GRIP = 1.8;
-const ICE_STOP = 0.7;
 const OWN_MOTION = new Set(['walk', 'run', 'jump', 'attack', 'hurt', 'idle']);
 
 export class PlaySession {
@@ -1496,9 +1493,12 @@ export class PlaySession {
   }
 
   /**
-   * On an icy floor (an asset with Ice › Slippery): the keys set where the hero would like to go, and its speed gets
-   * there slowly (ICE_GRIP a second), slower still to stop (ICE_STOP): it slides on after letting go. The move is
-   * turned into that speed, in world directions (the controller is then given no camera turn). Null: not on ice.
+   * On an icy floor (an asset with Ice › Slippery) the hero moves by friction, as on real ice (a = μg). Its feet can
+   * push off only so hard before they slip (ICE_GRIP): pressing the keys it speeds up, slows down or turns at most
+   * that fast. Letting go, nothing pushes: sliding friction (ICE_FRICTION, as the physics engine's icy tops) slows it
+   * a little at a time, and it glides on. The move is turned into that speed, in world directions (the controller is
+   * then given no camera turn), and walked through the world as ever (the physics engine's walker, in new projects).
+   * Null: not on ice.
    */
   private iceMove(move: MoveInput & { speedScale: number }, dt: number): { want: boolean } | null {
     const on = this.standingOn();
@@ -1508,6 +1508,7 @@ export class PlaySession {
       // in the air the slide carries on; on anything else it stops
       if (this.iceVel && !s.grounded) return this.slideOn(move, false);
       this.iceVel = null;
+      this.iceSlip = false;
       return null;
     }
     const yaw = this.camYaw;
@@ -1528,17 +1529,39 @@ export class PlaySession {
       };
     const v = this.iceVel;
     const want = l > 0.05;
-    const k = Math.min(1, (want ? ICE_GRIP : ICE_STOP) * dt);
-    v.x += (tx - v.x) * k;
-    v.z += (tz - v.z) * k;
+    const vl = Math.hypot(v.x, v.z);
+    if (want) {
+      // the feet push toward the speed wanted, no harder than they grip
+      const dx = tx - v.x;
+      const dz = tz - v.z;
+      const dl = Math.hypot(dx, dz);
+      const most = ICE_GRIP * HERO_GRAVITY * dt;
+      const k = dl > most ? most / dl : 1;
+      v.x += dx * k;
+      v.z += dz * k;
+      // slipping: going a good deal faster than, or another way from, where the feet push
+      const tl = Math.hypot(tx, tz);
+      const along = vl > 0.01 && tl > 0.01 ? (v.x * tx + v.z * tz) / (vl * tl) : 1;
+      this.iceSlip = vl > 1 && (along < 0.75 || vl > tl + 1.2);
+    } else {
+      // gliding: sliding friction takes a little of the speed at a time
+      const drop = ICE_FRICTION * HERO_GRAVITY * dt;
+      const k = vl > drop ? (vl - drop) / vl : 0;
+      v.x *= k;
+      v.z *= k;
+      this.iceSlip = vl > 0.4;
+    }
     return this.slideOn(move, want);
   }
+
+  /** the hero is sliding on ice rather than walking (the Slide move plays) */
+  iceSlip = false;
 
   /** the move given to the controller: the sliding speed, in world directions */
   private slideOn(move: MoveInput & { speedScale: number }, want: boolean): { want: boolean } {
     const v = this.iceVel!;
     const vl = Math.hypot(v.x, v.z);
-    if (vl < 0.05) {
+    if (vl < 0.02) {
       move.x = 0;
       move.z = 0;
     } else {
@@ -1549,6 +1572,21 @@ export class PlaySession {
     }
     move.run = false;
     return { want };
+  }
+
+  /** step 12c: the icy floors' tops go into the physics engine, slippery (when the placed things change) */
+  private iceOf: { all: readonly PlayInstance[]; ph: PhysicsWorld } | null = null;
+  private syncIce(w: MapWorld) {
+    const ph = w.physics;
+    if (!ph || (this.iceOf?.all === w.instances && this.iceOf.ph === ph)) return;
+    this.iceOf = { all: w.instances, ph };
+    const tops: { key: string; x0: number; x1: number; z0: number; z1: number; y: number }[] = [];
+    for (const i of w.instances) {
+      if (!i.def.ice || i.def.ice.floor === false || i.def.push || i.def.moves) continue;
+      const b = boxOf(i.bricks);
+      if (b) tops.push({ key: i.inst.id, x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, y: b.y1 * 0.4 + 0.005 });
+    }
+    ph.setIce(tops);
   }
 
   /** after a slide: a wall took the speed it stopped; letting go, the hero keeps facing where it faced */
@@ -1592,6 +1630,7 @@ export class PlaySession {
   ) {
     const w = this.world;
     this.physicsFlush(w);
+    this.syncIce(w);
     const ph = w.physics!;
     const c = w.controller;
     const s = c.state;
@@ -2795,6 +2834,7 @@ export class PlaySession {
     const ph = w.physics;
     if (ph) {
       this.physicsFlush(w);
+      this.syncIce(w);
       const rebuilding = this.rebuildEntry?.id;
       ph.syncLoose(w.debris, (d) => (d as Debris).entryId === rebuilding);
       // loose objects keep the simulation going even with no loose bricks about
@@ -4431,7 +4471,9 @@ export class PlaySession {
       return;
     }
     const v = this.inputVector();
-    const going = !!(v.x || v.z) && !this.talks.active;
+    // step 12c: sliding on ice counts as moving (it slides rather than walks)
+    const slipping = this.iceSlip && !!this.iceVel && s.grounded;
+    const going = (!!(v.x || v.z) || slipping) && !this.talks.active;
     const attacking = (s.attack as number) > 0;
     const events = sm.step(
       {
@@ -4448,15 +4490,21 @@ export class PlaySession {
       (st) =>
         this.bodyOf('hero')
           ? undefined
-          : (this.sheetClip(this.heroChr, st) ??
-            // step 11b: v68's own motion is a walk, so swimming always has a clip (the built-in crawl and tread);
-            // step 12a: so do pushing, pulling and climbing; 12b: ladders, and lifting, carrying and throwing
-            (OWN_MOTION.has(st)
-              ? undefined
-              : // step 12c: holding a wall (Climbing: Anything) climbs with its own built-in move
-                st === 'ladder' && this.puzzles.wall
-                ? wallClimb
-                : BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st as keyof typeof MOVE_FOR]))),
+          : // step 12c: sliding on ice (not walking): its own built-in move, whatever the sheet sets for walking
+            slipping && (st === 'walk' || st === 'run' || st === 'idle')
+            ? iceSlide
+            : (this.sheetClip(this.heroChr, st) ??
+              // step 11b: v68's own motion is a walk, so swimming always has a clip (the built-in crawl and tread);
+              // step 12a: so do pushing, pulling and climbing; 12b: ladders, and lifting, carrying and throwing
+              (OWN_MOTION.has(st)
+                ? undefined
+                : // step 12c: holding a wall (Climbing: Anything) climbs with its own built-in move
+                  st === 'ladder' && this.puzzles.wall
+                  ? wallClimb
+                  : // and pulls up over its top with its own (the hands on the edge)
+                    st === 'climb' && this.puzzles.climbing?.mantle
+                    ? ledgePull
+                    : BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st as keyof typeof MOVE_FOR]))),
       dt,
       1.5,
     );

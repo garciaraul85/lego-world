@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { ledgePull, MANTLE_RELEASE } from '../../src/builtin/clips/moves';
+import { rigPose } from '../../src/engine/character/animator';
+import { sampleParams } from '../../src/engine/character/routine';
+import { mantleHands } from '../../src/engine/runtime/puzzles';
 
 /**
  * Step 12b: arms of human proportion (the one change to v68's character model). v68's suites check the model as
@@ -17,6 +21,7 @@ for (const [file, name] of [
   ['game-weapons.js', 'GameWeapons'],
   ['character-catalog.js', 'CharacterCatalog'],
   ['game-physics.js', 'GamePhysics'],
+  ['studio-motion.js', 'StudioMotion'],
   ['character-model.js', 'CharacterModel'],
 ])
   runInNewContext(`${readFileSync(`src/legacy/${file}`, 'utf8')};globalThis.${name}=${name};`, ctx);
@@ -47,5 +52,18 @@ describe('arms of human proportion', () => {
       }
     }
     expect(n).toBeGreaterThan(100);
+  });
+
+  it('pulling up over a wall: the runtime knows where the Pull up move puts the hands (they stay on the edge)', () => {
+    const profile = C.validate({ ...C.defaults });
+    for (let t = 0; t <= MANTLE_RELEASE + 1e-6; t += 0.025) {
+      const state = { heading: 0, grounded: true, studioPose: rigPose(sampleParams(ledgePull, t), ledgePull), studioProgress: 0, studioFist: false };
+      const pose = Mo.jointPose(state, false, profile);
+      const r = point(pose.rightForearm!, Mo.handGrip(1));
+      const l = point(pose.leftForearm!, Mo.handGrip(-1));
+      const [hz, hy] = mantleHands(t);
+      expect(Math.abs((r[2]! + l[2]!) / 2 - hz), `forward at ${t}`).toBeLessThan(0.1);
+      expect(Math.abs((r[1]! + l[1]!) / 2 - hy), `up at ${t}`).toBeLessThan(0.1);
+    }
   });
 });

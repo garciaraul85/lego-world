@@ -5,6 +5,8 @@ import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
 import { puzzleProblems } from '../../src/core/puzzles/puzzle';
 import { paths, validateFile } from '../../src/core/schema';
+import { ICE_FRICTION, ICE_GRIP } from '../../src/engine/physics/physics';
+import { mantleHands } from '../../src/engine/runtime/puzzles';
 import { PlaySession } from '../../src/engine/runtime/session';
 
 /** Step 12c: ice (a slippery floor, a sliding block, ice that melts), moving platforms and lifts, climbing anything. */
@@ -107,11 +109,67 @@ describe('ice', () => {
     steps(p, 0.3);
     p.camYaw = Math.PI;
     p.input.keys.add('forward');
-    steps(p, 0.9);
+    steps(p, 1.5);
     p.input.keys.delete('forward');
     const off = p.heroState.z;
     steps(p, 0.6);
-    expect(p.heroState.z - off).toBeGreaterThan(1);
+    expect(p.heroState.z - off).toBeGreaterThan(1.2);
+  });
+
+  it('on ice the hero moves by friction: the feet push off no harder than they grip, and letting go it glides, slowing at μg', () => {
+    const { p } = game([['Icy floor', [10, 0, 0], 'ins_icefloor01']]);
+    p.placeAt([12, 0.4, 2], 0);
+    steps(p, 0.3);
+    p.camYaw = Math.PI;
+    p.input.keys.add('forward');
+    let last = 0;
+    for (let i = 0; i < 30; i++) {
+      p.runtime.stepOnce();
+      const v = Math.hypot(p.iceVel!.x, p.iceVel!.z);
+      // never faster than the grip allows (a = μ g, g the hero's 22)
+      expect(v - last).toBeLessThan(ICE_GRIP * 22 * (1 / 60) + 1e-6);
+      last = v;
+    }
+    expect(p.iceSlip).toBe(false);
+    steps(p, 1.2);
+    p.input.keys.delete('forward');
+    p.runtime.stepOnce();
+    const v0 = Math.hypot(p.iceVel!.x, p.iceVel!.z);
+    steps(p, 0.5);
+    const v1 = Math.hypot(p.iceVel!.x, p.iceVel!.z);
+    // gliding: sliding friction takes μ g a second, and the hero slides (it does not walk)
+    expect(v0 - v1).toBeGreaterThan(ICE_FRICTION * 22 * 0.45);
+    expect(v0 - v1).toBeLessThan(ICE_FRICTION * 22 * 0.55);
+    expect(p.iceSlip).toBe(true);
+    expect((p as unknown as { heroAnim: { clip?: { name: string } } }).heroAnim.clip?.name).toBe('Slide');
+  });
+
+  it('the icy floor’s top is slippery in the physics engine (low friction), and goes when the ice does', () => {
+    const { p } = game([['Icy floor', [10, 0, 0], 'ins_icefloor01']], undefined, 'physics');
+    p.placeAt([12, 0.4, 2], 0);
+    steps(p, 0.1);
+    const ph = p.world.physics!;
+    expect(ph.iceKeys()).toEqual(['ins_icefloor01']);
+    p.despawn('ins_icefloor01', true);
+    steps(p, 0.1);
+    expect(ph.iceKeys()).toEqual([]);
+  });
+
+  it('an ice block slows by friction: on the ground it stops after v² / 2μg', () => {
+    const { p, get } = game([['Ice block', [10, 0, 2], 'ins_iceblock01']]);
+    p.placeAt([9.4, 0.4, 3], Math.PI / 2);
+    steps(p, 0.05);
+    p.puzzles.setGrab(true);
+    p.camYaw = -Math.PI / 2;
+    p.input.keys.add('forward');
+    steps(p, 0.4);
+    p.input.keys.delete('forward');
+    p.puzzles.setGrab(false);
+    steps(p, 4);
+    // shoved at 9 studs a second, μ 0.25 on the ground: 81 / 9 = 9 studs (on to rest on a whole one)
+    const went = Number(get('ins_iceblock01')!.inst.pos[0]) - 10;
+    expect(went).toBeGreaterThanOrEqual(8);
+    expect(went).toBeLessThanOrEqual(10);
   });
 
   it('an ice block, held and pushed, slides on by itself until a wall stops it; the hero stays', () => {
@@ -257,6 +315,64 @@ describe('climbing anything', () => {
     steps(p, 1);
     expect(p.puzzles.wall).toBeNull();
     expect(p.message).toMatch(/Too smooth/);
+  });
+
+  it('on the wall, right moves the hero to its right and left to its left (as it faces the wall)', () => {
+    const { p } = game([['Rock face', [30, 0, 26], 'ins_rock000001']], 'anything');
+    p.placeAt([33, 0.4, 24.9], 0);
+    p.camYaw = Math.PI;
+    p.input.keys.add('forward');
+    steps(p, 0.6);
+    p.input.keys.delete('forward');
+    expect(p.puzzles.wall).toBeTruthy();
+    // facing +z (heading 0), the camera behind: its right is -x
+    const x0 = p.heroState.x;
+    p.input.keys.add('right');
+    steps(p, 0.5);
+    p.input.keys.delete('right');
+    expect(p.heroState.x).toBeLessThan(x0 - 0.4);
+    const x1 = p.heroState.x;
+    p.input.keys.add('left');
+    steps(p, 0.5);
+    p.input.keys.delete('left');
+    expect(p.heroState.x).toBeGreaterThan(x1 + 0.4);
+    expect(p.puzzles.wall).toBeTruthy();
+  });
+
+  it('pulling up over the top, the hands stay on the edge (no floating) until the hero is up on it', () => {
+    const { p, get } = game([['Rock face', [30, 0, 26], 'ins_rock000001']], 'anything');
+    const top = Math.max(...get('ins_rock000001')!.bricks.map((b) => (b.y + 3) * 0.4));
+    p.placeAt([33, 0.4, 24.9], 0);
+    p.camYaw = Math.PI;
+    p.input.keys.add('forward');
+    let seen = 0;
+    let started = false;
+    for (let i = 0; i < 60 * 9 && !(started && !p.puzzles.climbing); i++) {
+      p.runtime.stepOnce();
+      const c = p.puzzles.climbing;
+      if (!c?.mantle) continue;
+      if (!started) {
+        // it starts when the hands reach the top, not when the body is past it
+        expect(p.heroState.y + 4.17).toBeGreaterThan(top - 0.4);
+        expect(p.heroState.y).toBeLessThan(top - 3);
+      }
+      started = true;
+      if (c.t < 0.16 || c.t > 0.78) continue;
+      const [hz, hy] = mantleHands(c.t);
+      // the hands on the edge: at the top's height, at the face or just in past it (the face is at z 26)
+      expect(Math.abs(p.heroState.y + hy - top), `t ${c.t}`).toBeLessThan(0.08);
+      expect(p.heroState.z + hz, `t ${c.t}`).toBeGreaterThan(26 - 0.02);
+      expect(p.heroState.z + hz, `t ${c.t}`).toBeLessThan(26 + 0.8);
+      // and the body below the top, against the wall (not in the air beside it)
+      expect(p.heroState.y).toBeLessThan(top - 1.2);
+      expect(p.heroState.z).toBeLessThan(26);
+      seen++;
+    }
+    p.input.keys.delete('forward');
+    expect(seen).toBeGreaterThan(20);
+    expect(p.heroState.y).toBeCloseTo(top, 1);
+    expect(p.heroState.z).toBeGreaterThan(26.2);
+    expect(p.heroState.grounded).toBe(true);
   });
 
   it('with Climbing: Ladders (the default) a rock face is not climbed', () => {

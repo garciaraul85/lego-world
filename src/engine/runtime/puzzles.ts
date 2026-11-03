@@ -13,6 +13,8 @@ import {
 } from '../../core/puzzles/puzzle';
 import type { Asset } from '../../core/schema';
 import type { HeroState } from '../legacy/runtime-modules';
+import { MANTLE_RELEASE, MANTLE_SECONDS } from '../../builtin/clips/moves';
+import { GRAVITY, ICE_ON_GROUND, ICE_ON_ICE } from '../physics/physics';
 
 /**
  * Step 12a: the puzzle parts at play: blocks the hero pushes and pulls square along the floor, switches (stepped
@@ -92,9 +94,14 @@ const PUSH_HOLD = 0.3;
 const PULL_HOLD = 0.3;
 /** seconds a block takes to slide a stud (the hero walks with it) */
 const SLIDE_STEP = 0.24;
-/** step 12c: an ice block glides a stud in this long, up to this far */
-const ICE_SLIDE_STEP = 0.07;
-const ICE_SLIDE_MAX = 48;
+/**
+ * step 12c: an ice block, shoved, sets off this fast (studs a second) and friction slows it (ICE_ON_ICE on an icy
+ * floor, ICE_ON_GROUND on anything else: a = μg); it never goes further than ICE_SLIDE_MAX studs. Its bricks rest on
+ * whole studs, so at the last it creeps on to the next one.
+ */
+const ICE_SHOVE = 9;
+const ICE_CREEP = 1.2;
+const ICE_SLIDE_MAX = 64;
 /** a ledge up to this high (world units: 3 bricks, a push block on a switch) is climbed by walking into it */
 export const CLIMB_MAX = 3.6;
 /** step 12c: climbing a wall: studs a second up and down, and sideways; stamina a second climbing, and holding still */
@@ -118,6 +125,42 @@ const CLIMB_UP = 0.62;
 const CLIMB_OVER = 0.3;
 /** step 12b: climbing a ladder or vines: studs a second up or down; how long the hero leans in on turning a mirror */
 const LADDER_SPEED = 2.4;
+/**
+ * step 12c: where the hands are in the Pull up move (forward and up from the feet, world units), every 0.05 s until
+ * they leave the edge (MANTLE_RELEASE). Pulling up over the top of a wall, the body is moved so that the hands stay
+ * on the edge, as motion warping does in games (a unit test checks this table against the move itself).
+ */
+export const MANTLE_HANDS: [number, number][] = [
+  [1.09, 4.17],
+  [1.09, 4.17],
+  [1.09, 4.17],
+  [1.09, 4.17],
+  [1.12, 4.13],
+  [1.17, 4.02],
+  [1.18, 3.84],
+  [1.09, 3.64],
+  [0.94, 3.47],
+  [0.79, 3.37],
+  [0.73, 3.34],
+  [0.97, 3.04],
+  [1.01, 2.35],
+  [0.88, 2.09],
+  [0.77, 1.73],
+  [0.48, 1.37],
+];
+/** the hands in the Pull up move at t seconds (forward, up) */
+export function mantleHands(t: number): [number, number] {
+  const k = Math.max(0, Math.min(MANTLE_HANDS.length - 1, t / 0.05));
+  const i = Math.min(MANTLE_HANDS.length - 2, Math.floor(k));
+  const a = MANTLE_HANDS[i]!;
+  const b = MANTLE_HANDS[i + 1]!;
+  const u = k - i;
+  return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+}
+/** the hands go this far in past the edge of the top (onto it) */
+const EDGE_IN = 0.12;
+/** at the start of the pull up the body settles into hanging from the edge (seconds) */
+const MANTLE_SETTLE = 0.15;
 const TURN_POSE = 0.8;
 
 type Box = { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number };
@@ -174,8 +217,11 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     t: number;
     pulled: boolean;
     hero?: number;
-    /** step 12c: an ice block: it slides on by itself (faster), and the hero stays where it pushed from */
+    /** step 12c: an ice block: it slides on by itself, and the hero stays where it pushed from */
     ice?: boolean;
+    /** an ice block's speed (studs a second) and how far it has gone (studs) */
+    v?: number;
+    at?: number;
   } | null = null;
   /** timed switches: when each goes back off, and the last tick */
   private timers = new Map<string, { ends: number; tick: number; o: T }>();
@@ -369,7 +415,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
         break;
       }
     if (ice) {
-      this.slide = { o, dx, dz, n, done: 0, t: 0, pulled: false, ice: true };
+      this.slide = { o, dx, dz, n, done: 0, t: 0, pulled: false, ice: true, v: ICE_SHOVE, at: 0 };
       this.h.sound('scrape', this.centre(o));
       return true;
     }
@@ -426,8 +472,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     const sl = this.slide;
     if (!sl) return;
     sl.t += dt;
-    const step = sl.ice ? ICE_SLIDE_STEP : SLIDE_STEP;
-    const vis = Math.min(sl.n, sl.t / step);
+    const vis = sl.ice ? this.glide(sl, dt) : Math.min(sl.n, sl.t / SLIDE_STEP);
     // the hero comes along (pushing: behind it; pulling: stepping back first)
     const s = this.h.heroState;
     const moved = vis - (sl.hero ?? 0);
@@ -447,7 +492,34 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       this.h.moveTo(sl.o, [Number(p[0]) + sl.dx, Number(p[1]) + (y - b.y0), Number(p[2]) + sl.dz]);
       sl.done++;
     }
-    if (sl.done >= sl.n && sl.t >= sl.n * step) this.endSlide(sl);
+    if (sl.done >= sl.n && (sl.ice ? (sl.at ?? 0) >= sl.n : sl.t >= sl.n * SLIDE_STEP)) this.endSlide(sl);
+  }
+
+  /** an ice block glides on, slowed by friction (less on ice than off it): how far it has gone now (studs) */
+  private glide(sl: NonNullable<Puzzles<T>['slide']>, dt: number): number {
+    const mu = this.onIce(sl.o) ? ICE_ON_ICE : ICE_ON_GROUND;
+    let v = (sl.v ?? 0) - mu * GRAVITY * dt;
+    // too slow to reach another stud: it creeps on to rest on the next whole one
+    if (v < ICE_CREEP) {
+      sl.n = Math.min(sl.n, Math.max(1, Math.ceil((sl.at ?? 0) - 1e-6)));
+      v = ICE_CREEP;
+    }
+    sl.v = v;
+    sl.at = Math.min(sl.n, (sl.at ?? 0) + v * dt);
+    return sl.at;
+  }
+
+  /** a block resting on an icy floor (something else marked Ice with Slippery floor, just under it) */
+  private onIce(o: T): boolean {
+    const b = boxOf(o.bricks);
+    if (!b) return false;
+    const cx = (b.x0 + b.x1) / 2;
+    const cz = (b.z0 + b.z1) / 2;
+    return this.h.near(cx, cz, 12).some((q) => {
+      if (q === o || !q.def.ice || q.def.ice.floor === false) return false;
+      const c = boxOf(q.bricks);
+      return !!c && cx > c.x0 && cx < c.x1 && cz > c.z0 && cz < c.z1 && Math.abs(c.y1 - b.y0) < 0.5;
+    });
   }
 
   private endSlide(sl: NonNullable<Puzzles<T>['slide']>) {
@@ -490,7 +562,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   slideView(): { id: string; dx: number; dz: number } | null {
     const sl = this.slide;
     if (!sl) return null;
-    const off = Math.min(sl.n, sl.t / (sl.ice ? ICE_SLIDE_STEP : SLIDE_STEP)) - sl.done;
+    const off = (sl.ice ? Math.min(sl.n, sl.at ?? 0) : Math.min(sl.n, sl.t / SLIDE_STEP)) - sl.done;
     return { id: sl.o.inst.id, dx: sl.dx * off, dz: sl.dz * off };
   }
 
@@ -638,8 +710,9 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     const s = this.h.heroState;
     const fx = Math.sin(w.heading);
     const fz = Math.cos(w.heading);
-    const rx = Math.cos(w.heading);
-    const rz = -Math.sin(w.heading);
+    // the hero's right, facing the wall (its heading h faces (sin h, cos h); its right is (-cos h, sin h))
+    const rx = -Math.cos(w.heading);
+    const rz = Math.sin(w.heading);
     // on a wall the keys are the wall's own: up and down, left and right as the hero faces it (wherever the camera is)
     const keys = this.h.moveKeys?.();
     const want = this.h.moveWish();
@@ -682,25 +755,57 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
         z = nz;
       }
     }
-    // hands over the top: room ahead above the hands, pull up onto it
-    if (!this.solidAhead(x, y + 1.8, z, fx, fz)) {
-      for (const d of [WALL_GAP + 0.6, WALL_GAP + 1.3])
-        for (let h = y + 0.4; h <= y + 2.4 + 1e-6; h += 0.4) {
-          const tx = x + fx * d;
-          const tz = z + fz * d;
-          // standing room up there, on top of the wall (a brick just under the feet), not in the air beside it
-          if (!this.solidAt(tx, h - 0.2, tz) || !this.h.heroClear(tx, h, tz) || !room(x, h, z)) continue;
-          this.wall = null;
-          this.climbing = { from: [x, y, z], to: [tx, h, tz], t: CLIMB_REACH };
-          this.h.log('Over the top of the wall');
-          return;
-        }
-      // nothing to hold and nothing to climb onto: let go
-      if (!this.solidAhead(x, y + 0.6, z, fx, fz)) return this.letGo();
+    // the top of the wall within reach of the hands: going up, pull up over it (hands on the edge all the way)
+    const face = this.faceAhead(x, Math.min(y + 1.5, s.y + 1.5), z, fx, fz) ?? WALL_GAP;
+    const top = this.topInReach(x, y, z, fx, fz, face);
+    if (top !== null) {
+      const hang = top - MANTLE_HANDS[0]![1];
+      const stand = this.standOnTop(x, z, fx, fz, face, top);
+      if (stand && (along > 0.2 || w.hop > 0)) {
+        this.wall = null;
+        this.climbing = {
+          from: [x, Math.min(y, hang + 0.3), z],
+          to: [stand[0], top, stand[1]],
+          t: 0,
+          mantle: { top, edge: face + EDGE_IN, fx, fz, s: 0 },
+        };
+        this.h.sound('scrape');
+        this.h.log('Over the top of the wall');
+        return;
+      }
+      // no room to stand up there: the hands stop at the edge
+      if (y > hang && y > s.y) y = Math.max(s.y, hang);
     }
+    // nothing to hold and nothing to climb onto: let go
+    if (!this.solidAhead(x, y + 0.6, z, fx, fz)) return this.letGo();
     if (!room(x, y, z)) y = s.y;
     this.h.placeHeroAt(x, y, z);
     s.heading = w.heading;
+  }
+
+  /** the top of the wall ahead, where the hands are or below them (the face at `face`), or null */
+  private topInReach(x: number, y: number, z: number, fx: number, fz: number, face: number): number | null {
+    const px = x + fx * (face + 0.15);
+    const pz = z + fz * (face + 0.15);
+    const reach = y + MANTLE_HANDS[0]![1] + 0.1;
+    for (let h = y + 1.0; h <= reach + 1e-6; h += 0.05) {
+      if (this.solidAt(px, h, pz)) continue;
+      if (!this.solidAt(px, h - 0.05, pz)) return null;
+      // on the plates' grid (bricks are 3 plates, plates 0.4 high)
+      const g = Math.round(h / 0.4) * 0.4;
+      return Math.abs(g - h) < 0.08 ? g : h;
+    }
+    return null;
+  }
+
+  /** where the hero stands up on top of the wall after pulling up (a brick under the feet, room for the body) */
+  private standOnTop(x: number, z: number, fx: number, fz: number, face: number, top: number): [number, number] | null {
+    for (const d of [face + 0.6, face + 1.0, face + 1.4]) {
+      const tx = x + fx * d;
+      const tz = z + fz * d;
+      if (this.solidAt(tx, top - 0.2, tz) && this.h.heroClear(tx, top + 0.02, tz)) return [tx, tz];
+    }
+    return null;
   }
 
   /** off the wall: the hero falls from where it is */
@@ -714,7 +819,16 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   }
 
   /** climbing onto a ledge: from, to, seconds so far */
-  climbing: { from: [number, number, number]; to: [number, number, number]; t: number } | null = null;
+  climbing: {
+    from: [number, number, number];
+    to: [number, number, number];
+    t: number;
+    /**
+     * step 12c: pulling up over the top of a wall (the Pull up move): the top's height, how far ahead of where it
+     * started the hands hold the edge, which way it faces, and how far forward the feet have come
+     */
+    mantle?: { top: number; edge: number; fx: number; fz: number; s: number };
+  } | null = null;
   private climbTry: { x: number; z: number; t: number } | null = null;
 
   /** walking into a ledge up to CLIMB_MAX high (a push block, a crate, a low wall) for a moment climbs onto it */
@@ -806,6 +920,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     const c = this.climbing;
     if (!c) return;
     c.t += dt;
+    if (c.mantle) return this.stepMantle(c as typeof c & { mantle: NonNullable<typeof c.mantle> });
     const up = Math.max(0, Math.min(1, (c.t - CLIMB_REACH) / (CLIMB_UP - CLIMB_REACH)));
     const over = Math.max(0, Math.min(1, (c.t - CLIMB_UP) / CLIMB_OVER));
     const ease = (k: number) => k * k * (3 - 2 * k);
@@ -816,6 +931,39 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     );
     if (c.t >= CLIMB_UP + CLIMB_OVER) {
       this.climbing = null;
+      this.h.log('Climbed up');
+    }
+  }
+
+  /**
+   * Pulling up over the top of a wall: until the hands let go, the body goes where the Pull up move puts it with the
+   * hands on the edge (never back from the wall: the hands may slide in onto the top); then it steps up onto the top.
+   */
+  private stepMantle(
+    c: NonNullable<Puzzles['climbing']> & { mantle: NonNullable<NonNullable<Puzzles['climbing']>['mantle']> },
+  ) {
+    const m = c.mantle;
+    const ease = (k: number) => k * k * (3 - 2 * k);
+    const t = Math.min(c.t, MANTLE_RELEASE);
+    const [hz, hy] = mantleHands(t);
+    const w = ease(Math.min(1, t / MANTLE_SETTLE));
+    m.s = Math.max(m.s, (m.edge - hz) * w);
+    const y = c.from[1] + (m.top - hy - c.from[1]) * w;
+    const at = (sv: number, yv: number) => this.h.placeHeroAt(c.from[0] + m.fx * sv, yv, c.from[2] + m.fz * sv);
+    if (c.t <= MANTLE_RELEASE) {
+      at(m.s, y);
+      return;
+    }
+    // the hands let go: up onto the top and stand
+    const k = ease(Math.min(1, (c.t - MANTLE_RELEASE) / (MANTLE_SECONDS - MANTLE_RELEASE)));
+    const sx = c.from[0] + m.fx * m.s;
+    const sz = c.from[2] + m.fz * m.s;
+    this.h.placeHeroAt(sx + (c.to[0] - sx) * k, y + (c.to[1] - y) * k, sz + (c.to[2] - sz) * k);
+    if (c.t >= MANTLE_SECONDS) {
+      this.climbing = null;
+      const s = this.h.heroState;
+      s.vy = 0;
+      s.grounded = true;
       this.h.log('Climbed up');
     }
   }

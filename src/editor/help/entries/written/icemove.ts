@@ -23,7 +23,7 @@ export const ICE_MOVE: HelpEntry[] = [
     kind: 'setting',
     name: 'Ice, moving and climbing (ice, moves, not climbable)',
     purpose:
-      'What the asset does as ice, as a moving platform, and for climbing. **Ice**: a **slippery floor** (the hero speeds up and slows down slowly on it and slides on after letting go, like the icy floors of Ocarina of Time); a push block of ice **slides when pushed**, on by itself until something stops it; and it **melts** with fire (a torch, a burning stick, a bomb’s blast: it steams for its seconds, then is gone for good), with fire or a beam of light, or never. A swing does nothing to ice. **Moves**: it travels from its place to the far end and back, easing in and out and waiting at each end; whoever stands on it rides along (straight up makes a lift). With **Only when on** it runs only in its second state. **Not climbable**: with Project › Climbing set to Anything, the hero cannot climb it.',
+      'What the asset does as ice, as a moving platform, and for climbing. **Ice**: a **slippery floor**: the hero moves on it by friction, as on real ice: its feet can only push off so hard before they slip, so it gets going, turns and stops slowly, and let go it glides on in a balancing Slide, losing a little speed at a time (like the icy floors of Ocarina of Time). Loose things slide on it too (the physics engine gives its top low friction). A push block of ice **slides when pushed**: shoved off fast, it glides far on an icy floor and soon stops on the ground, unless something stops it first; and it **melts** with fire (a torch, a burning stick, a bomb’s blast: it steams for its seconds, then is gone for good), with fire or a beam of light, or never. A swing does nothing to ice. **Moves**: it travels from its place to the far end and back, easing in and out and waiting at each end; whoever stands on it rides along (straight up makes a lift). With **Only when on** it runs only in its second state. **Not climbable**: with Project › Climbing set to Anything, the hero cannot climb it.',
     steps: [
       'Open the asset in the Asset studio (double-click it in Assets or the Starter pack).',
       'Under **Ice, moving and climbing**, tick Ice, Moves or Not climbable.',
@@ -35,11 +35,11 @@ export const ICE_MOVE: HelpEntry[] = [
     options: [
       [
         'Slippery floor',
-        'Standing on it the hero slides: slow to get going, slow to stop. Leave it on for floors, off for ice walls.',
+        'Standing on it the hero slides: slow to get going, turn and stop (the feet slip), gliding on when let go. Leave it on for floors, off for ice walls.',
       ],
       [
         'Slides when pushed',
-        'Held (Grab) and pushed, the block slides on by itself (the hero stays where it pushed from) until a wall, a block or an edge stops it.',
+        'Held (Grab) and pushed, the block is shoved off and slides on by itself (the hero stays where it pushed from). Friction slows it: hardly at all on an icy floor, soon on the ground. A wall, a block or an edge stops it.',
       ],
       ['Melts with', 'Fire; Fire or a beam of light (a Sun crest’s beam, turned onto it with mirrors); or Nothing.'],
       [
@@ -109,7 +109,7 @@ export const ICE_MOVE: HelpEntry[] = [
     kind: 'setting',
     name: 'Climbing',
     purpose:
-      'What the hero climbs. **Ladders and vines only** (like Ocarina of Time): walls stop the hero, though it still climbs onto low ledges. **Anything, with stamina** (like Breath of the Wild): walk into almost any wall and keep walking to hold on; W climbs up, S down (off at the bottom), A and D move along it. Climbing uses stamina (a little holding still); the stamina bar shows while it is not full. **Space** is a climb jump: a quick hop up for a quarter of the stamina; Space while pulling back lets go. Out of stamina the hero lets go and falls. At the top it pulls itself up over the edge. Ladders and vines cost no stamina; assets ticked **Not climbable** cannot be climbed.',
+      'What the hero climbs. **Ladders and vines only** (like Ocarina of Time): walls stop the hero, though it still climbs onto low ledges. **Anything, with stamina** (like Breath of the Wild): walk into almost any wall and keep walking to hold on; W climbs up, S down (off at the bottom), A and D move along it. Climbing uses stamina (a little holding still); the stamina bar shows while it is not full. **Space** is a climb jump: a quick hop up for a quarter of the stamina; Space while pulling back lets go. Out of stamina the hero lets go and falls. Left and right are as the hero faces the wall. When its hands reach the top it pulls itself up over the edge: hanging from the edge, a pull up, a knee onto the top, then standing (the hands stay on the edge all the way). Ladders and vines cost no stamina; assets ticked **Not climbable** cannot be climbed.',
     steps: [
       'Open the **Project** tab of the Inspector.',
       'Pick **Climbing**: Ladders and vines only, or Anything, with stamina.',

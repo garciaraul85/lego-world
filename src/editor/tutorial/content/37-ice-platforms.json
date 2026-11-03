@@ -67,7 +67,7 @@
     {
       "id": "ic.slide",
       "title": "Slide on the ice, push the block",
-      "body": "Press Play and walk onto the icy floor: you are slow to get going, slow to stop, and slide on after you let go. Walk up behind the ice block, hold E (Grab) and push (W): it slides on by itself until the ice wall stops it.",
+      "body": "Press Play and walk onto the icy floor: you move by friction, as on real ice. Your feet slip if they push too hard, so you are slow to get going, to turn and to stop; let go and you glide on, arms out for balance. Walk up behind the ice block, hold E (Grab) and push (W): shoved off, it glides on by itself (on ice friction hardly slows it) until the ice wall stops it.",
       "task": "Press Play and push the ice block.",
       "target": "[data-tour=\"play\"]",
       "check": {
@@ -247,7 +247,7 @@
     {
       "id": "ic.climb",
       "title": "Climb the rock face",
-      "body": "Press Play, walk into the rock face and keep walking: you hold on. W climbs up, S down, A and D move along it. The stamina bar drains as you climb; Space is a climb jump (a quick hop up for a quarter of it). Out of stamina you let go and fall. At the top you pull yourself up over the edge. A Smooth wall cannot be climbed.",
+      "body": "Press Play, walk into the rock face and keep walking: you hold on. W climbs up, S down, A and D move left and right along it. The stamina bar drains as you climb; Space is a climb jump (a quick hop up for a quarter of it). Out of stamina you let go and fall. When your hands reach the top you pull yourself up over the edge: hanging from it, a pull up, a knee onto the top, then standing. A Smooth wall cannot be climbed.",
       "task": "Press Play and climb to the top of the rock face.",
       "target": "[data-tour=\"play\"]",
       "check": {

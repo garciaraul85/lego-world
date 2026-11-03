@@ -322,11 +322,119 @@ const grip = (k: number) => ({
   'torso.lean': 0.04,
   'root.height': 1.7,
 });
-export const wallClimb = clipFromPoses({ id: 'clp_movewall00', name: 'Wall climb', group: 'Moves', length: 1.1, loop: true }, [
-  [0, grip(1)],
-  [0.55, grip(-1)],
-  [1.1, grip(1)],
-]);
+export const wallClimb = clipFromPoses(
+  { id: 'clp_movewall00', name: 'Wall climb', group: 'Moves', length: 1.1, loop: true },
+  [
+    [0, grip(1)],
+    [0.55, grip(-1)],
+    [1.1, grip(1)],
+  ],
+);
+
+/**
+ * step 12c: pulling up over the top of a wall (a mantle, as climbers and Breath of the Wild do it): hanging from
+ * both hands on the edge, the pull up until the head is over it (elbows bent, the chest against the wall), the
+ * press down on the hands with a knee up onto the top, then standing up on it. The game moves the body so that the
+ * hands stay on the edge until the press is done (MANTLE_HANDS in the runtime: where the hands are in this clip).
+ */
+const hang = {
+  'leftArm.x': -2.25,
+  'rightArm.x': -2.25,
+  'leftArm.z': -0.08,
+  'rightArm.z': 0.08,
+  'leftForearm.bend': -0.2,
+  'rightForearm.bend': -0.2,
+  'torso.lean': 0.02,
+  'leftLeg.x': -0.35,
+  'rightLeg.x': 0.05,
+  'leftShin.bend': 0.7,
+  'rightShin.bend': 0.25,
+  'root.height': 1.78,
+};
+const chinUp = {
+  'leftArm.x': -0.65,
+  'rightArm.x': -0.65,
+  'leftArm.z': -0.12,
+  'rightArm.z': 0.12,
+  'leftForearm.bend': -2.35,
+  'rightForearm.bend': -2.35,
+  'torso.lean': 0.18,
+  'leftLeg.x': -0.7,
+  'rightLeg.x': 0.15,
+  'leftShin.bend': 1.2,
+  'rightShin.bend': 0.35,
+  'root.height': 1.78,
+};
+const elbowsOver = {
+  'leftArm.x': 0.3,
+  'rightArm.x': 0.3,
+  'leftArm.z': -0.12,
+  'rightArm.z': 0.12,
+  'leftForearm.bend': -1.9,
+  'rightForearm.bend': -1.9,
+  'torso.lean': 0.4,
+  'leftLeg.x': -1.1,
+  'rightLeg.x': 0.3,
+  'leftShin.bend': 1.6,
+  'rightShin.bend': 0.3,
+  'root.height': 1.78,
+};
+const pressUp = {
+  'leftArm.x': 0.1,
+  'rightArm.x': 0.1,
+  'leftArm.z': -0.12,
+  'rightArm.z': 0.12,
+  'leftForearm.bend': -0.9,
+  'rightForearm.bend': -0.9,
+  'torso.lean': 0.6,
+  'leftLeg.x': -1.55,
+  'rightLeg.x': 0.45,
+  'leftShin.bend': 1.95,
+  'rightShin.bend': 0.3,
+  'root.height': 1.78,
+};
+/** how long the pull up over the top takes, and when the hands leave the edge (seconds) */
+export const MANTLE_SECONDS = 1.1;
+export const MANTLE_RELEASE = 0.78;
+export const ledgePull = clipFromPoses(
+  { id: 'clp_moveledge0', name: 'Pull up', group: 'Moves', length: MANTLE_SECONDS, loop: false },
+  [
+    [0, hang],
+    [0.15, hang, 'easeInOut'],
+    [0.5, chinUp, 'easeInOut'],
+    [0.64, elbowsOver, 'easeInOut'],
+    [MANTLE_RELEASE, pressUp, 'easeInOut'],
+    [MANTLE_SECONDS, standUp],
+  ],
+);
+
+/**
+ * step 12c: sliding on ice: the feet stay put under the body (nothing to push off), knees bent low, one foot a
+ * little ahead, the arms out to the sides for balance, wobbling one way and the other
+ */
+const balance = (k: number) => ({
+  'leftArm.z': -1.15 - 0.2 * k,
+  'rightArm.z': 1.15 - 0.2 * k,
+  'leftArm.x': -0.35 + 0.1 * k,
+  'rightArm.x': -0.35 - 0.1 * k,
+  'leftForearm.bend': -0.35,
+  'rightForearm.bend': -0.35,
+  'leftLeg.x': -0.3,
+  'rightLeg.x': 0.25,
+  'leftShin.bend': 0.55,
+  'rightShin.bend': 0.45,
+  'torso.lean': 0.12,
+  'head.turn': 0.08 * k,
+  'root.height': 1.62,
+});
+export const iceSlide = clipFromPoses(
+  { id: 'clp_moveslide0', name: 'Slide', group: 'Moves', length: 1.6, loop: true },
+  [
+    [0, balance(1), 'easeInOut'],
+    [0.8, balance(-1), 'easeInOut'],
+    [1.6, balance(1)],
+  ],
+);
 
 /**
  * step 12b: picking a bomb up over the head (bend, grab low, lift), holding it up (standing, and walking), throwing
@@ -438,6 +546,8 @@ export const MOVE_CLIPS: Clip[] = [
   climb,
   ladder,
   wallClimb,
+  ledgePull,
+  iceSlide,
   lift,
   hold,
   carry,
