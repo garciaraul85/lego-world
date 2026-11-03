@@ -1101,6 +1101,8 @@ export class PlaySession {
     return true;
   }
 
+  private thingCount = 0;
+
   /** step 12c-2: the Gust leaf is in the hero's hand (swung like the sword, it blows a gust) */
   leafOut = false;
 
@@ -1451,7 +1453,8 @@ export class PlaySession {
     const still = this.talking || this.talks.active || this.over || this.cine.active;
     // P9b: guard (Q held), charging, moves and lock-on
     const c = this.combat;
-    c.stepGuard(dt, !still && (this.input.keys.has('q') || this.input.touch.has('guard')));
+    // step 12c-2: a leaf does not guard (the Gust leaf out, Q does nothing)
+    c.stepGuard(dt, !still && !this.leafOut && (this.input.keys.has('q') || this.input.touch.has('guard')));
     let input: ReturnType<PlaySession['inputVector']> & { speedScale?: number; jumpSpeed?: number } =
       still || c.stagger > 0 ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
     if (input.jump && c.lockedJump(input.x, input.z)) input = { ...input, jump: false };
@@ -4498,6 +4501,33 @@ export class PlaySession {
       ball: (b, on) => {
         const ph = this.world.physics;
         if (!ph) return false;
+        // step 12c-2: a rock or pot is its own bricks: a body of their boxes that tumbles as it flies and lands
+        const t = b.thing;
+        if (t?.pieces && t.origin && t.half) {
+          if (!on) {
+            if (t.key) ph.removeObject(t.key);
+            t.key = undefined;
+            return true;
+          }
+          t.key ??= `thing:${++this.thingCount}`;
+          const G = this.L.GamePhysics;
+          const [cx, cy, cz] = t.origin;
+          // where it is now: its bottom at b, its middle half its height above
+          const dx = b.x - cx;
+          const dy = b.y + t.half[1] - cy;
+          const dz = b.z - cz;
+          const boxes = (t.pieces as LegacyPiece[]).map((p) => {
+            const q = G.bounds(p);
+            return { x0: q.x0 + dx, x1: q.x1 + dx, y0: q.y0 + dy, y1: q.y1 + dy, z0: q.z0 + dz, z1: q.z1 + dz };
+          });
+          // a rock is stone (about 2.6 times as dense as water), a clay pot thin-walled and hollow (about 0.9)
+          ph.addObject(t.key, boxes, t.look === 'pot' ? 0.9 : 2.6);
+          // thrown, it turns over forward as it flies (the hands let go of its back edge last)
+          const h = this.heroState;
+          const spin = Math.hypot(b.vx, b.vz) > 1 ? 4 : 0;
+          ph.setObjectVelocity(t.key, [b.vx, b.vy, b.vz], [Math.cos(h.heading) * spin, 0, -Math.sin(h.heading) * spin]);
+          return true;
+        }
         if (on) ph.addBall(b, b.thing?.r ?? BOMB_R, b.thing ? (b.thing.look === 'pot' ? 1.2 : 2.6) : 3);
         else ph.removeBall(b);
         return true;
@@ -4514,8 +4544,39 @@ export class PlaySession {
         );
       },
       setState: (o, st) => this.setInstanceState(o.inst.id, st, true),
-      // step 12c-2: a rock or pot lifted leaves its place (it comes back next play)
-      takeUp: (o) => this.despawn(o.inst.id),
+      // step 12c-2: a rock or pot lifted leaves its place (it comes back next play), its bricks carried with it
+      takeUp: (o, b) => {
+        const w = this.world;
+        const lo = o.inst.idBase;
+        const hi = lo + o.def.bricks.length;
+        const pieces = w.pieces.filter((p) => p.id !== undefined && p.id >= lo && p.id < hi).map((p) => ({ ...p }));
+        const G = this.L.GamePhysics;
+        const box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, z0: Infinity, z1: -Infinity };
+        for (const p of pieces) {
+          const q = G.bounds(p);
+          box.x0 = Math.min(box.x0, q.x0);
+          box.x1 = Math.max(box.x1, q.x1);
+          box.y0 = Math.min(box.y0, q.y0);
+          box.y1 = Math.max(box.y1, q.y1);
+          box.z0 = Math.min(box.z0, q.z0);
+          box.z1 = Math.max(box.z1, q.z1);
+        }
+        if (b.thing && pieces.length) {
+          b.thing.pieces = pieces;
+          b.thing.origin = [(box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2, (box.z0 + box.z1) / 2];
+          b.thing.half = [(box.x1 - box.x0) / 2, (box.y1 - box.y0) / 2, (box.z1 - box.z0) / 2];
+          b.thing.r = Math.max(b.thing.half[0], b.thing.half[2]);
+        }
+        this.despawn(o.inst.id);
+      },
+      thingPose: (b) => {
+        const ph = this.world.physics;
+        const key = b.thing?.key;
+        if (!ph || !key) return null;
+        const p = ph.objectPose(key);
+        const v = ph.objectVelocity(key);
+        return p && v ? { pos: p.pos, rot: p.rot, vel: v } : null;
+      },
       strike: (b, at, speed) => this.thrownStrike(b, at, speed),
       shatter: (b) => {
         const at: [number, number, number] = [b.x, b.y + 0.4, b.z];
@@ -4691,15 +4752,18 @@ export class PlaySession {
    */
   private thrownStrike(b: Bomb, at: [number, number, number], speed: number): string[] {
     const out: string[] = [];
-    const r = (b.thing?.r ?? BOMB_R) + 0.15;
+    // the thing's own box (a rock's, a pot's: half its size each way round its middle; a bomb's ball), a little
+    // grown: what it touches
+    const hx = (b.thing?.half?.[0] ?? b.thing?.r ?? BOMB_R) + 0.35;
+    const hy = (b.thing?.half?.[1] ?? b.thing?.r ?? BOMB_R) + 0.35;
+    const hz = (b.thing?.half?.[2] ?? b.thing?.r ?? BOMB_R) + 0.35;
+    const cy = b.y + (b.thing?.half?.[1] ?? b.thing?.r ?? BOMB_R);
     for (const i of this.objs().near(at[0], at[2], 8)) {
       if (i.def.switch?.by !== 'hit' || b.flying?.has(i.inst.id)) continue;
       const q = boxOf(i.bricks);
       if (!q) continue;
-      const dx = Math.max(q.x0 - at[0], 0, at[0] - q.x1);
-      const dz = Math.max(q.z0 - at[2], 0, at[2] - q.z1);
-      const dy = Math.max(q.y0 * 0.4 - at[1], 0, at[1] - q.y1 * 0.4);
-      if (Math.hypot(dx, dz, dy) > r) continue;
+      if (b.x + hx < q.x0 || b.x - hx > q.x1 || b.z + hz < q.z0 || b.z - hz > q.z1) continue;
+      if (cy + hy < q.y0 * 0.4 || cy - hy > q.y1 * 0.4) continue;
       this.puzzles.hit(i, 'blunt', true);
       this.hitEffect('blunt', at);
       this.emit('info', `${b.thing ? `The ${b.thing.name}` : 'The bomb'} hit ${i.def.name} (${speed.toFixed(1)} studs a second)`);
@@ -5303,6 +5367,14 @@ export class PlaySession {
       // step 12b: no swinging while holding a bomb up (Action throws or puts it down)
       attack: (down) => {
         if (this.fireLight.held || this.fireLight.busy) return;
+        // step 12c-2: the Gust leaf swings at once (no charging, no spin: it is a leaf, not a sword)
+        if (this.leafOut) {
+          if (down) {
+            this.combat.press();
+            this.combat.release();
+          }
+          return;
+        }
         if (down) this.combat.press();
         else this.combat.release();
       },

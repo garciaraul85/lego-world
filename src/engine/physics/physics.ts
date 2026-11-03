@@ -46,6 +46,8 @@ export type WaterBox = Box & { current: [number, number] };
 
 /** how strongly water lifts a loose thing, against its weight (above 1: it floats, partly under) */
 export const BUOYANCY = 1.7;
+/** how dense a loose object is at first (a wooden crate, against water's 1): BUOYANCY is its lift */
+export const OBJECT_DENSITY = 0.6;
 
 /** half sizes of the debris brick (v68's 1 × 1 brick drawn at d.scale: 0.975 wide, 1.2 high) */
 const DEBRIS_HALF = { x: 0.4875, y: 0.6, z: 0.4875 };
@@ -143,7 +145,7 @@ export class PhysicsWorld {
   private queriesStale = true;
   private water: WaterBox[] = [];
   /** loose objects (whole assets) by their key, and how tall they are (for how deep they sit in water) */
-  private objects = new Map<string, { body: RAPIER.RigidBody; half: number }>();
+  private objects = new Map<string, { body: RAPIER.RigidBody; half: number; density: number }>();
 
   private solids = new Map<string, RAPIER.Collider>();
 
@@ -535,7 +537,7 @@ export class PhysicsWorld {
   }
 
   /** a whole asset as one rigid body: its bricks (world boxes) are its shape; returns its key */
-  addObject(key: string, boxes: readonly Box[]) {
+  addObject(key: string, boxes: readonly Box[], density = OBJECT_DENSITY) {
     this.removeObject(key);
     let x0 = Infinity;
     let y0 = Infinity;
@@ -570,13 +572,13 @@ export class PhysicsWorld {
       this.world.createCollider(
         RAPIER.ColliderDesc.cuboid(hx * 0.98, hy * 0.98, hz * 0.98)
           .setTranslation(b.x0 + hx - cx, b.y0 + hy - cy, b.z0 + hz - cz)
-          .setDensity(0.6)
+          .setDensity(density)
           .setFriction(0.8)
           .setRestitution(0.15),
         body,
       );
     }
-    this.objects.set(key, { body, half: (y1 - y0) / 2 });
+    this.objects.set(key, { body, half: (y1 - y0) / 2, density });
     // the side it shows the wind (its bigger upright face) as a box: Cd·A
     this.windShape.set(key, 1.05 * Math.max(x1 - x0, z1 - z0) * (y1 - y0));
     return { origin: [cx, cy, cz] as [number, number, number] };
@@ -600,6 +602,22 @@ export class PhysicsWorld {
     return { pos: [t.x, t.y, t.z], rot: o.body.rotation() };
   }
 
+  /** step 12c-2: sets a loose object going (a thing thrown): its speed, and how fast it turns over */
+  setObjectVelocity(key: string, v: [number, number, number], spin: [number, number, number] = [0, 0, 0]) {
+    const o = this.objects.get(key);
+    if (!o) return;
+    o.body.setLinvel({ x: v[0], y: v[1], z: v[2] }, true);
+    o.body.setAngvel({ x: spin[0], y: spin[1], z: spin[2] }, true);
+  }
+
+  /** step 12c-2: how fast a loose object is moving (null: no such object) */
+  objectVelocity(key: string): [number, number, number] | null {
+    const o = this.objects.get(key);
+    if (!o) return null;
+    const v = o.body.linvel();
+    return [v.x, v.y, v.z];
+  }
+
   get objectCount() {
     return this.objects.size;
   }
@@ -607,7 +625,7 @@ export class PhysicsWorld {
   /** buoyancy, drag and current on everything loose that is in water (before each step) */
   private applyWater(dt: number) {
     if (!this.water.length) return;
-    const each = (body: RAPIER.RigidBody, half: number) => {
+    const each = (body: RAPIER.RigidBody, half: number, density = OBJECT_DENSITY) => {
       const t = body.translation();
       for (const w of this.water) {
         if (t.x < w.x0 || t.x > w.x1 || t.z < w.z0 || t.z > w.z1 || t.y - half > w.y1 || t.y + half < w.y0) continue;
@@ -616,7 +634,8 @@ export class PhysicsWorld {
         if (under <= 0) continue;
         const m = body.mass();
         const v = body.linvel();
-        const lift = m * GRAVITY * BUOYANCY * under * dt;
+        // step 12c-2: the water's lift on its volume: a thing denser than a crate (a rock) gets less of it, and sinks
+        const lift = m * GRAVITY * BUOYANCY * (OBJECT_DENSITY / density) * under * dt;
         // water slows it, and the current pulls it along
         const k = Math.min(1, 2.5 * under * dt);
         body.applyImpulse(
@@ -629,7 +648,7 @@ export class PhysicsWorld {
       }
     };
     for (const [d, body] of this.loose) each(body, DEBRIS_HALF.y * d.scale);
-    for (const o of this.objects.values()) each(o.body, o.half);
+    for (const o of this.objects.values()) each(o.body, o.half, o.density);
   }
 
   /** one step of the simulation */

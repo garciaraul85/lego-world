@@ -42,6 +42,16 @@ export type Bomb = {
     r: number;
     /** what it drops when it breaks (a pot's hearts), each by its chance */
     loot?: readonly { item: string; count?: number; chance: number }[];
+    /**
+     * its own bricks, as they stood where it was placed, and their middle there (world units) and half size: it is
+     * drawn as itself (not a ball), turned as the physics engine tumbles it
+     */
+    pieces?: readonly unknown[];
+    origin?: [number, number, number];
+    half?: [number, number, number];
+    /** how it is turned now (a quaternion), and its body in the physics engine */
+    rot?: { x: number; y: number; z: number; w: number };
+    key?: string;
   };
   /** thrown and still flying fast: the switches it has hit on the way (each once) */
   flying?: Set<string>;
@@ -101,8 +111,12 @@ export type FireHost<T extends FireObject = FireObject> = {
   heroHeight?(): number;
   /** the highest floor under a point, from y down (null: none) */
   floor(x: number, z: number, y: number): number | null;
-  /** step 12c-2: a placed thing lifted off the floor is gone from its place for this play */
-  takeUp?(o: T): void;
+  /** step 12c-2: a placed thing lifted off the floor is gone from its place for this play (its bricks go with it) */
+  takeUp?(o: T, b: Bomb): void;
+  /** step 12c-2: where the physics engine has a thrown thing now (its middle), how it is turned, how fast it goes */
+  thingPose?(
+    b: Bomb,
+  ): { pos: [number, number, number]; rot: { x: number; y: number; z: number; w: number }; vel: [number, number, number] } | null;
   /** step 12c-2: a thrown thing (or bomb) flying fast reaches a point: switches it strikes are hit (their ids) */
   strike?(b: Bomb, at: [number, number, number], speed: number): string[];
   /** step 12c-2: a pot broke (bits fly, a sound) */
@@ -445,7 +459,9 @@ export class FireLight<T extends FireObject = FireObject> {
     const fz = Math.cos(s.heading);
     const scale = (this.h.heroHeight?.() ?? 4.02) / 4.02;
     const ease = k * k * (3 - 2 * k);
-    const reach = (0.9 + (1.3 - 0.9) * ease) * scale;
+    // a rock or pot bigger than a bomb is held further out, so it does not go through the face
+    const big = this.held?.thing ? Math.max(0, (this.held.thing.half?.[2] ?? this.held.thing.r) - BOMB_R) : 0;
+    const reach = (0.9 + (1.3 - 0.9) * ease) * scale + big * ease;
     const y = s.y + (0.1 + (3.45 - 0.1) * ease) * scale;
     return [s.x + fx * reach, y, s.z + fz * reach];
   }
@@ -458,6 +474,7 @@ export class FireLight<T extends FireObject = FireObject> {
     if (bomb.phys) this.h.ball?.(bomb, false);
     bomb.phys = false;
     bomb.vx = bomb.vy = bomb.vz = 0;
+    if (bomb.thing) bomb.thing.rot = undefined;
     this.held = bomb;
     this.carry = { phase: 'lift', t: 0 };
     this.h.log(bomb.thing ? `Lifted the ${bomb.thing.name}` : b ? 'Picked up the bomb' : 'Lifted a bomb');
@@ -529,7 +546,7 @@ export class FireLight<T extends FireObject = FireObject> {
       },
     };
     this.bombs.push(b);
-    this.h.takeUp?.(o);
+    this.h.takeUp?.(o, b);
     return this.lift(b);
   }
 
@@ -654,6 +671,18 @@ export class FireLight<T extends FireObject = FireObject> {
     }
     if (this.held) Object.assign(this.held, Object.fromEntries(['x', 'y', 'z'].map((k, i) => [k, this.heldAt()[i]])));
     for (const b of [...this.bombs]) {
+      // a thrown rock or pot: where the physics engine has it (its middle, its bottom here), turned as it tumbles
+      if (b.thing && b.phys && b !== this.held) {
+        const p = this.h.thingPose?.(b);
+        if (p) {
+          const hy = b.thing.half?.[1] ?? b.thing.r;
+          b.x = p.pos[0];
+          b.y = p.pos[1] - hy;
+          b.z = p.pos[2];
+          [b.vx, b.vy, b.vz] = p.vel;
+          b.thing.rot = p.rot;
+        }
+      }
       const was = b.lastSpeed ?? Math.hypot(b.vx, b.vy, b.vz);
       if (b !== this.held && !b.phys) this.fly(b, dt);
       b.lastSpeed = Math.hypot(b.vx, b.vy, b.vz);

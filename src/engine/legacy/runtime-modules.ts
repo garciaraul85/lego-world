@@ -269,10 +269,13 @@ function withStick(src: string): string {
     `part('rightArm','#5b3519');box(x+.06,${at1(0.62)},z,.05,.16,.05);box(x-.05,${at1(1.05)},z,.05,.12,.05);` +
     `if(p.heldLook==='Lit stick'){part('rightArm','#2a1a10');limb([x,${at1(STICK_LENGTH - 0.3)},z],[x,${at1(STICK_LENGTH + 0.02)},z],.07,.066);}` +
     // step 12c-2: the Gust leaf: a short stem in the fist and a broad leaf on it, its midrib darker
+    // its broad face to the front (it pushes the air ahead in a swing), so it shows from in front and behind; a
+    // little shorter than a sword, held by its stem, so carried at the side its tip is level with the shoulder
     `}else if(p.heldLook==='Leaf'){const x=1.10,y=${y},z=.34;` +
-    `part('rightArm','#5a7a2a');limb([x,${at1(-0.2)},z],[x,${at1(0.75)},z],.05,.04);` +
-    `part('rightArm','#4f9a3a');box(x,${at1(1.55)},z,.05,1.5,.95);box(x,${at1(2.42)},z,.05,.38,.55);box(x,${at1(0.86)},z,.05,.22,.6);` +
-    `part('rightArm','#2f6b25');box(x+.03,${at1(1.5)},z,.02,1.7,.08);` +
+    `part('rightArm','#5a7a2a');limb([x,${at1(-0.2)},z],[x,${at1(0.55)},z],.06,.05);` +
+    `part('rightArm','#4f9a3a');box(x,${at1(1.15)},z,.8,1.0,.09);box(x,${at1(0.62)},z,.42,.2,.09);` +
+    `part('rightArm','#5fae45');box(x,${at1(1.78)},z,.5,.36,.09);box(x,${at1(2.02)},z,.22,.2,.09);` +
+    `part('rightArm','#2f6b25');box(x,${at1(1.25)},z,.08,1.5,.16);box(x-.2,${at1(1.25)},z,.04,.6,.12);box(x+.2,${at1(1.25)},z,.04,.6,.12);` +
     "}else if(p.held!=='None'){part('rightArm',access);";
   return src.replace(at, stick);
 }

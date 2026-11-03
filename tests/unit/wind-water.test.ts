@@ -237,6 +237,38 @@ describe('things to throw', () => {
     expect(get('ins_floor00001')!.state).toBe('down');
   });
 
+  it('a thrown rock is its own bricks (not a ball), and the physics engine tumbles it as it flies', () => {
+    const { p } = game([['Rock', [10, 0, 10], 'ins_rock000001']]);
+    const fl = p.fireLight;
+    p.placeAt([11, 0, 8.6], 0);
+    steps(p, 0.1);
+    (p as unknown as { pickUpBomb(): boolean }).pickUpBomb();
+    steps(p, 0.6);
+    const b = fl.held!;
+    expect(b.thing?.pieces?.length).toBe(piece('Rock').bricks.length);
+    expect(b.thing?.half?.[0]).toBeCloseTo(1, 1);
+    fl.throwHeld();
+    steps(p, 0.4);
+    const q = b.thing!.rot!;
+    // turned over forward, not upright any more
+    expect(Math.abs(q.w)).toBeLessThan(0.99);
+  });
+
+  it('the Gust leaf swings at once: no charging, no spin, and Q does not guard with it', () => {
+    const { p } = game([]);
+    (p as unknown as { give(i: string, n: number): void }).give('Gust leaf', 1);
+    (p as unknown as { useTool(i: string): boolean }).useTool('Gust leaf');
+    const host = (p as unknown as { buttonHost(): { attack(down: boolean): void } }).buttonHost();
+    host.attack(true);
+    expect(p.combat.charge).toBeNull();
+    steps(p, 0.6);
+    host.attack(false);
+    expect(p.events.some((e) => /A gust of wind/.test(e.msg))).toBe(true);
+    p.input.keys.add('q');
+    steps(p, 0.3);
+    expect(p.combat.guard).toBe(false);
+  });
+
   it('a pot thrown breaks where it lands', () => {
     const { p } = game([['Clay pot', [10, 0, 10], 'ins_pot0000001']]);
     const fl = p.fireLight;

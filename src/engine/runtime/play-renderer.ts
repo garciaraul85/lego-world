@@ -272,8 +272,10 @@ export class PlayRenderer {
       bombShape(out, cx, top, cz, null, now);
     }
     for (const b of fl.bombs)
-      if (b.thing) thingShape(out, b.x, b.y, b.z, b.thing.look, b.thing.r);
-      else bombShape(out, b.x, b.y, b.z, b.t, now);
+      if (b.thing) {
+        // drawn as its own bricks (thingOverlays); a marker only if they were not kept
+        if (!b.thing.pieces) thingShape(out, b.x, b.y, b.z, b.thing.look, b.thing.r);
+      } else bombShape(out, b.x, b.y, b.z, b.t, now);
     return out;
   }
 
@@ -332,6 +334,29 @@ export class PlayRenderer {
   }
 
   /** Milestone 2b: loose objects drawn where the physics core has them (turned and moved from where they were placed) */
+  /**
+   * step 12c-2: a rock or pot lifted, carried or thrown is drawn as its own bricks: where it is (its middle half its
+   * height above its bottom), turned as the physics engine has tumbled it (upright while held)
+   */
+  private thingOverlays(): Overlay[] {
+    const out: Overlay[] = [];
+    for (const b of this.session.fireLight.bombs) {
+      const t = b.thing;
+      if (!t?.pieces || !t.origin || !t.half) continue;
+      const pose = {
+        pos: [b.x, b.y + t.half[1], b.z] as [number, number, number],
+        rot: t.rot ?? { x: 0, y: 0, z: 0, w: 1 },
+      };
+      out.push({
+        bricks: (t.pieces as LegacyPiece[]).map(toRender),
+        alpha: 1,
+        flat: false,
+        model: poseMatrix(pose, t.origin),
+      });
+    }
+    return out;
+  }
+
   private looseOverlays(): Overlay[] {
     const w = this.session.world;
     const ph = w.physics;
@@ -627,7 +652,7 @@ export class PlayRenderer {
     return this.renderer.render(
       cam,
       [s.heroState.x, s.heroState.y, s.heroState.z],
-      [...this.tiltedOverlays(), ...this.looseOverlays(), ...this.grabArrows(), ...creatures.overlays, ...extraParts],
+      [...this.tiltedOverlays(), ...this.looseOverlays(), ...this.thingOverlays(), ...this.grabArrows(), ...creatures.overlays, ...extraParts],
       lines,
       markers,
       (mvp, eye) => {
