@@ -5,16 +5,19 @@ import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
 import { puzzleProblems } from '../../src/core/puzzles/puzzle';
 import { paths, validateFile } from '../../src/core/schema';
+import { waterMode } from '../../src/core/water/swim';
 import { AIR_DENSITY, dragAccel, windAt } from '../../src/engine/physics/physics';
 import { PlaySession } from '../../src/engine/runtime/session';
-import { waterMode } from '../../src/core/water/swim';
 
 /** Step 12c-2: wind (fans, the Gust leaf, pinwheels), water currents, putting fire out, things thrown at switches. */
 const piece = (name: string) => BUILTIN_ASSETS.find((a) => a.name === name)!;
 
 function game(
   things: [string, [number, number, number], string, number?][],
-  opts: { movement?: 'physics'; water?: { pos: [number, number, number]; size: [number, number, number]; current: [number, number] } } = {},
+  opts: {
+    movement?: 'physics';
+    water?: { pos: [number, number, number]; size: [number, number, number]; current: [number, number] };
+  } = {},
 ) {
   const store = new ProjectStore(newProjectFiles({ name: 'Wind', random: () => 0.3, noNeighbours: true }));
   const bus = registerAll(new CommandBus(store));
@@ -37,14 +40,17 @@ function game(
   (p.world.npcs as unknown[]).splice(0);
   (p.world.controller as unknown as { setActors(a: unknown[]): void }).setActors([]);
   if (opts.water)
-    (p.world as unknown as { water: unknown[] }).water = [...p.world.water, {
-      id: 'ins_water00001',
-      kind: 'water',
-      pos: opts.water.pos,
-      size: opts.water.size,
-      body: 'river',
-      current: opts.water.current,
-    }];
+    (p.world as unknown as { water: unknown[] }).water = [
+      ...p.world.water,
+      {
+        id: 'ins_water00001',
+        kind: 'water',
+        pos: opts.water.pos,
+        size: opts.water.size,
+        body: 'river',
+        current: opts.water.current,
+      },
+    ];
   const get = (id: string) => p.world.instances.find((i) => i.inst.id === id);
   return { store, p, get };
 }
@@ -73,7 +79,14 @@ describe('wind, water and throwing parts', () => {
     expect(ax2 / ax).toBeCloseTo(4, 6);
     // moving with the wind, nothing pushes
     expect(dragAccel([10, 0], [10, 0], 1)[0]).toBe(0);
-    const f = { from: [0, 0, 0] as [number, number, number], dir: [0, 1] as [number, number], reach: 10, half: 1, height: 3, speed: 10 };
+    const f = {
+      from: [0, 0, 0] as [number, number, number],
+      dir: [0, 1] as [number, number],
+      reach: 10,
+      half: 1,
+      height: 3,
+      speed: 10,
+    };
     expect(windAt([f], 0, 1, 1)[1]).toBeGreaterThan(windAt([f], 0, 1, 9)[1]);
     expect(windAt([f], 0, 1, 12)[1]).toBe(0);
     expect(windAt([f], 5, 1, 2)[1]).toBe(0);
@@ -111,7 +124,9 @@ describe('fans', () => {
     const zb = p.heroState.z;
     steps(p, 1);
     expect(p.heroState.z).toBeGreaterThan(zb + 0.5);
-    expect(['Blown back', 'Brace']).toContain((p as unknown as { heroAnim: { clip?: { name: string } } }).heroAnim.clip?.name);
+    expect(['Blown back', 'Brace']).toContain(
+      (p as unknown as { heroAnim: { clip?: { name: string } } }).heroAnim.clip?.name,
+    );
   });
 
   it('the wind spins a pinwheel (on while it blows); a switch fan blows only while on; a lit torch in it goes out', () => {
@@ -161,11 +176,23 @@ describe('the physics engine in the wind', () => {
     const run = (c: unknown) => expect(bus.execute(c as never, { source: 'user' }).ok).toBe(true);
     for (const d of [barrel, piece('Gale fan'), piece('Pinwheel'), piece('Grass tuft')])
       run({ type: 'asset.create', payload: { asset: d } });
-    run({ type: 'asset.place', payload: { map, asset: piece('Gale fan').id, pos: [10, 0, 10], rot: 0, id: 'ins_galefan001' } });
+    run({
+      type: 'asset.place',
+      payload: { map, asset: piece('Gale fan').id, pos: [10, 0, 10], rot: 0, id: 'ins_galefan001' },
+    });
     run({ type: 'asset.place', payload: { map, asset: barrel.id, pos: [12, 0, 15], rot: 0, id: 'ins_barrel0001' } });
-    run({ type: 'asset.place', payload: { map, asset: piece('Pinwheel').id, pos: [11, 0, 20], rot: 0, id: 'ins_pinwheel01' } });
-    run({ type: 'asset.place', payload: { map, asset: piece('Grass tuft').id, pos: [-4, 0, -4], rot: 0, id: 'ins_corner0001' } });
-    run({ type: 'asset.place', payload: { map, asset: piece('Grass tuft').id, pos: [44, 0, 44], rot: 0, id: 'ins_corner0002' } });
+    run({
+      type: 'asset.place',
+      payload: { map, asset: piece('Pinwheel').id, pos: [11, 0, 20], rot: 0, id: 'ins_pinwheel01' },
+    });
+    run({
+      type: 'asset.place',
+      payload: { map, asset: piece('Grass tuft').id, pos: [-4, 0, -4], rot: 0, id: 'ins_corner0001' },
+    });
+    run({
+      type: 'asset.place',
+      payload: { map, asset: piece('Grass tuft').id, pos: [44, 0, 44], rot: 0, id: 'ins_corner0002' },
+    });
     run({ type: 'project.update', payload: { movement: 'physics' } });
     const p = new PlaySession(store.snapshot());
     (p.world.npcs as unknown[]).splice(0);
@@ -306,7 +333,13 @@ describe('fire put out', () => {
     p.fireLight.lightBranch();
     const tip = p.fireLight.branchTip();
     (p.world as unknown as { water: unknown[] }).water = [
-      { id: 'ins_water00002', kind: 'water', pos: [tip[0] - 2, 0, tip[2] - 2], size: [4, tip[1] + 0.5, 4], body: 'pool' },
+      {
+        id: 'ins_water00002',
+        kind: 'water',
+        pos: [tip[0] - 2, 0, tip[2] - 2],
+        size: [4, tip[1] + 0.5, 4],
+        body: 'pool',
+      },
     ];
     steps(p, 0.1);
     expect(p.fireLight.litBranch).toBeNull();

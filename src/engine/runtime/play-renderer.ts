@@ -324,6 +324,77 @@ export class PlayRenderer {
         out.push({ bricks: (c.pieces as LegacyPiece[]).map(toRender), alpha: 1, flat: false, model: m });
       }
     }
+    // step 14a: what enemies shoot (a rock, a fireball), a sentinel's beam, a breath of fire, a spider's thread
+    for (const f of this.session.foeShots.flying) {
+      const b = f.ball;
+      const v: Vec3 = [b.vx, b.vy, b.vz];
+      const c: Vec3 = [b.x - v[0] * 0.012, b.y - v[1] * 0.012, b.z - v[2] * 0.012];
+      if (f.kind === 'rock') rod(c, v, 0.42, 0.42, 0.42, '#8a8378', [0, 1, 0]);
+      else {
+        out.push({ bricks: [UNIT_TILE('#ffb02e')], alpha: 0.9, flat: true, model: rodModel(c, v, 0.55, 0.5, 0.5) });
+        out.push({ bricks: [UNIT_TILE('#ff5a1a')], alpha: 0.45, flat: true, model: rodModel(c, v, 0.85, 0.8, 0.8) });
+      }
+    }
+    for (const l of this.session.enemies.effects()) {
+      if (l.beam) {
+        const d: Vec3 = [l.beam.to[0] - l.beam.from[0], l.beam.to[1] - l.beam.from[1], l.beam.to[2] - l.beam.from[2]];
+        const len = Math.hypot(...d);
+        if (len > 0.05) {
+          if (l.beam.power < 1) {
+            // charging: a thin flickering line, brighter as it charges
+            const flick = 0.5 + 0.5 * Math.sin(this.session.clock * 40);
+            out.push({
+              bricks: [UNIT_TILE('#ff6a5a')],
+              alpha: 0.15 + 0.4 * l.beam.power * flick,
+              flat: true,
+              model: rodModel(l.beam.from, d, len, 0.05, 0.05),
+            });
+          } else {
+            out.push({
+              bricks: [UNIT_TILE('#fff2e8')],
+              alpha: 1,
+              flat: true,
+              model: rodModel(l.beam.from, d, len, 0.12, 0.12),
+            });
+            out.push({
+              bricks: [UNIT_TILE('#ff2a1a')],
+              alpha: 0.4,
+              flat: true,
+              model: rodModel(l.beam.from, d, len, 0.42, 0.42),
+            });
+          }
+        }
+      }
+      if (l.breath && l.breath.k > 0.02) {
+        // a cone of flame: a few see-through boxes that widen and fade toward its end
+        const br = l.breath;
+        for (let i = 0; i < 5; i++) {
+          const u0 = i / 5;
+          const at: Vec3 = [
+            br.from[0] + br.dir[0] * br.reach * u0,
+            br.from[1] + br.dir[1] * br.reach * u0,
+            br.from[2] + br.dir[2] * br.reach * u0,
+          ];
+          const w = 0.35 + 1.5 * u0;
+          out.push({
+            bricks: [UNIT_TILE(i < 2 ? '#ffd23f' : '#ff7a1a')],
+            alpha: br.k * (0.55 - 0.08 * i),
+            flat: true,
+            model: rodModel(at, br.dir, br.reach / 5, w, w * 0.8),
+          });
+        }
+      }
+    }
+    for (const n of this.session.world.npcs) {
+      const l = this.session.enemies.look(n);
+      if (!l?.thread) continue;
+      const top = this.session.figureOf(n).top;
+      const end: Vec3 = [n.state.x, n.state.y + top, n.state.z];
+      const d: Vec3 = [l.thread[0] - end[0], l.thread[1] - end[1], l.thread[2] - end[2]];
+      const len = Math.hypot(...d);
+      if (len > 0.1)
+        out.push({ bricks: [UNIT_TILE('#dcd6c6')], alpha: 1, flat: false, model: rodModel(end, d, len, 0.08, 0.08) });
+    }
     return out;
   }
 
@@ -871,7 +942,13 @@ export class PlayRenderer {
     }
     const creatures = this.creatures();
     // who is drawn as a minifig this frame, and how (step 11, 4a: their extra parts follow the same pose)
-    type Fig = { profile: Record<string, unknown>; state: HeroState; extras: ReturnType<typeof minifigExtras> };
+    type Fig = {
+      profile: Record<string, unknown>;
+      state: HeroState;
+      extras: ReturnType<typeof minifigExtras>;
+      /** step 14a: how far it is drawn below where it stands (an enemy sinking under water) */
+      sunk?: number;
+    };
     const figs: Fig[] = [];
     for (const n of w.npcs) {
       if (creatures.drawn.has(n.id)) continue;
@@ -882,8 +959,14 @@ export class PlayRenderer {
       const look = cast?.profile ?? n.profile;
       // P23 part 4: a neighbour's state clip (walk, attack, hurt…) poses it
       const sp = cast ? null : s.npcPose(n);
+      // step 14a: an enemy down under the water or the ground is drawn sunk (and not at all, all the way down)
+      const lk = cast ? null : s.enemies.look(n);
+      if (lk && lk.sink > 0.97) continue;
+      // (lowered only while it is drawn: v68's figure must be drawn from its own state)
+      const sunk = lk?.sink ? lk.sink * (s.figureOf(n).top + 0.4) : 0;
       const st = cast?.state ?? n.state;
       figs.push({
+        sunk,
         profile: face ? { ...look, ...face } : look,
         state: sp?.params
           ? { ...st, studioPose: rigPose(sp.params, sp.clip), studioProgress: 0, studioFist: false }
@@ -923,8 +1006,17 @@ export class PlayRenderer {
         extras: s.extrasOf('hero'),
       });
     const extraParts: Overlay[] = [];
-    for (const f of figs)
-      if (f.extras.length) extraParts.push(...extrasOverlays(s.L, f.extras, f.profile, f.state as never));
+    for (const f of figs) {
+      if (!f.extras.length) continue;
+      // (a sinking one's fins go down with it)
+      const y = f.state.y;
+      f.state.y = y - (f.sunk ?? 0);
+      try {
+        extraParts.push(...extrasOverlays(s.L, f.extras, f.profile, f.state as never));
+      } finally {
+        f.state.y = y;
+      }
+    }
     // P23: the particles of this frame
     this.renderer.particles = s.effects.batches();
     // P27: the lights of this moment, and how dark the map is without them
@@ -972,7 +1064,20 @@ export class PlayRenderer {
           c.bindCollision(s.hero, w.controller);
           this.bound.add(w.controller);
         }
-        for (const f of figs) drawCharacter(s.L, c, frame, f.profile, f.state);
+        for (const f of figs) {
+          if (!f.sunk) {
+            drawCharacter(s.L, c, frame, f.profile, f.state);
+            continue;
+          }
+          // the figure's own state, lowered for its drawing and put back
+          const y = f.state.y;
+          f.state.y = y - f.sunk;
+          try {
+            drawCharacter(s.L, c, frame, f.profile, f.state);
+          } finally {
+            f.state.y = y;
+          }
+        }
         for (const d of w.debris) c.debris(this.debrisMesh, d);
       },
     );
@@ -1018,6 +1123,21 @@ export class PlayRenderer {
     };
     for (const n of s.world.npcs) {
       const cast = s.cine.drawFor(n, n.profile, n.state);
+      // step 14a: an enemy sunk underground is drawn lower (and not at all, all the way down); a ghost faded out is
+      // drawn see-through (all but gone; through the Lens of Truth, half seen)
+      const lk = cast ? null : s.enemies.look(n);
+      if (lk && (lk.sink > 0.97 || lk.fade < 1)) {
+        const from = overlays.length;
+        const hidden = lk.sink > 0.97;
+        one(n.id, n, { ...n.state, y: n.state.y - lk.sink * (s.figureOf(n).top + 0.4), hidden } as never);
+        const a = s.lens.on ? Math.max(lk.fade, 0.6) : lk.fade;
+        for (let i = from; i < overlays.length; i++) overlays[i] = { ...overlays[i]!, alpha: overlays[i]!.alpha * a };
+        continue;
+      }
+      if (lk?.sink) {
+        one(n.id, n, { ...n.state, y: n.state.y - lk.sink * (s.figureOf(n).top + 0.4) } as never);
+        continue;
+      }
       one(n.id, n, (cast?.state ?? n.state) as never);
     }
     const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);

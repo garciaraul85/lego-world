@@ -144,6 +144,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Hook and magnet course (9 steps): hook yourself up a smooth wall to a hook target, pull a light crate to you with the hook line, hang from a swing beam on the grapple rope, climb, swing and let go, then lift an iron crate with the magnet glove and drop it on a floor switch.',
   'help.lensCourse':
     'Starts the Hover boots and Lens course (10 steps): float over a Pit gap in the hover boots, hold up the Lens of Truth, walk through a fake wall to a hidden chest, cross an invisible bridge, then fill the magic meter from a magic jar.',
+  'help.foesCourse':
+    'Starts the Enemies course (10 steps): bounce a Pebblespout’s rock back at it with the shield, block a Watcher Eye’s beam, strike a fading Lanternwisp seen through the Lens of Truth, then meet a pack of Howlers that circle and strike one at a time.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':

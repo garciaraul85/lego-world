@@ -107,7 +107,11 @@ export class Wind<T extends WindObject = WindObject> {
     const side: [number, number] = [-dir[1], dir[0]];
     let best = 0;
     for (const k of [0, -0.8, 0.8]) {
-      const o: [number, number, number] = [from[0] + side[0] * half * k, from[1] + height / 2, from[2] + side[1] * half * k];
+      const o: [number, number, number] = [
+        from[0] + side[0] * half * k,
+        from[1] + height / 2,
+        from[2] + side[1] * half * k,
+      ];
       const d = this.h.wallAlong(o, dir, max);
       best = Math.max(best, d === null ? max : d);
     }

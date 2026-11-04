@@ -57,7 +57,13 @@ describe('arms of human proportion', () => {
   it('pulling up over a wall: the runtime knows where the Pull up move puts the hands (they stay on the edge)', () => {
     const profile = C.validate({ ...C.defaults });
     for (let t = 0; t <= MANTLE_RELEASE + 1e-6; t += 0.025) {
-      const state = { heading: 0, grounded: true, studioPose: rigPose(sampleParams(ledgePull, t), ledgePull), studioProgress: 0, studioFist: false };
+      const state = {
+        heading: 0,
+        grounded: true,
+        studioPose: rigPose(sampleParams(ledgePull, t), ledgePull),
+        studioProgress: 0,
+        studioFist: false,
+      };
       const pose = Mo.jointPose(state, false, profile);
       const r = point(pose.rightForearm!, Mo.handGrip(1));
       const l = point(pose.leftForearm!, Mo.handGrip(-1));

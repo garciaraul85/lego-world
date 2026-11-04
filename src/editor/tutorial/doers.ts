@@ -1307,6 +1307,108 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     c.ed.dock.value = 'pack';
     if (!placePackCharacter(c.ed, item)) throw new Error(`${item.character.name} could not be placed.`);
   },
+  // step 14a: the enemies course
+  packPlaceAt(c, a) {
+    // what dragging a pack enemy onto the ground does: `ahead` studs in front of the start, `side` to its right
+    const slug = String(a?.slug ?? '');
+    const item = ADVENTURE_PACK.cast.find((x) => x.slug === slug);
+    if (!item) throw new Error(`No ${slug} in the pack.`);
+    const m = map(c);
+    const have = (c.ed.store.get<Instances>(paths.instances(m))?.items ?? []).filter(
+      (i) => i.kind === 'npc' && i.character === item.id,
+    ).length;
+    if (have >= Number(a?.count ?? 1)) return;
+    c.ed.dock.value = 'pack';
+    const sp = mapDoc(c).spawns[0];
+    const at = sp?.pos ?? [0, 0.4, 0];
+    const yaw = sp?.yaw ?? 0;
+    const ahead = Number(a?.ahead ?? 8);
+    const side = Number(a?.side ?? 0);
+    const pos: [number, number, number] = [
+      at[0]! + Math.sin(yaw) * ahead + Math.cos(yaw) * side,
+      at[1]!,
+      at[2]! + Math.cos(yaw) * ahead - Math.sin(yaw) * side,
+    ];
+    if (!placePackCharacter(c.ed, item, pos)) throw new Error(`${item.character.name} could not be placed.`);
+  },
+  async bounceRock(c) {
+    // what standing in front of the Pebblespout with the shield up (Q held, facing it) does when it spits
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const n = s.world.npcs.find((x) => String(x.profile.name ?? '') === 'Pebblespout');
+    if (!n) throw new Error('Place a Pebblespout first.');
+    const face = (x: number, z: number) => Math.atan2(x - s.heroState.x, z - s.heroState.z);
+    const at: [number, number] = [n.state.x + Math.sin(n.state.heading) * 8, n.state.z + Math.cos(n.state.heading) * 8];
+    standAt(s, at[0], at[1], face(n.state.x, n.state.z));
+    s.input.keys.add('q');
+    const t0 = s.clock;
+    try {
+      for (let i = 0; i < 400 && s.clock - t0 < 14 && !logged(s, 'The rock went back'); i++) {
+        await wait(100);
+        const m = s.world.npcs.find((x) => x === n);
+        if (!m) break;
+        s.heroState.heading = face(m.state.x, m.state.z);
+      }
+    } finally {
+      s.input.keys.delete('q');
+    }
+    if (!logged(s, 'The rock went back')) throw new Error('No rock came back: hold Q facing it when it spits.');
+  },
+  async blockBeam(c) {
+    // what standing in the Watcher Eye's sight, shield up toward it, does when it fires
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const n = s.world.npcs.find((x) => String(x.profile.name ?? '') === 'Watcher Eye');
+    if (!n) throw new Error('Place a Watcher Eye first.');
+    const h = n.state.heading;
+    standAt(s, n.state.x + Math.sin(h) * 8, n.state.z + Math.cos(h) * 8, h + Math.PI);
+    s.input.keys.add('q');
+    const t0 = s.clock;
+    try {
+      for (let i = 0; i < 300 && s.clock - t0 < 10 && !logged(s, 'shield blocked the beam'); i++) {
+        await wait(100);
+        s.heroState.heading = Math.atan2(n.state.x - s.heroState.x, n.state.z - s.heroState.z);
+        s.combat.stamina = Math.max(s.combat.stamina, 60);
+      }
+    } finally {
+      s.input.keys.delete('q');
+    }
+    if (!logged(s, 'shield blocked the beam')) throw new Error('The beam did not come: stand in front of its eye.');
+  },
+  async lensStrike(c, a) {
+    // what holding up the Lens of Truth, walking up behind the faded ghost and swinging the sword does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const name = String(a?.name ?? 'Lanternwisp');
+    await takePickup(s, 'Lens of Truth', 'Lens of Truth');
+    if (!s.lens.on) s.useItem('Lens of Truth', slotOf(s, 'Lens of Truth'));
+    const n = s.world.npcs.find((x) => String(x.profile.name ?? '') === name);
+    if (!n) throw new Error(`Place a ${name} first.`);
+    const before = s.events.length;
+    for (let tries = 0; tries < 6; tries++) {
+      const h = n.state.heading;
+      s.placeAt([n.state.x - Math.sin(h) * 1.8, n.state.y, n.state.z - Math.cos(h) * 1.8], h);
+      await wait(200);
+      s.heroState.heading = Math.atan2(n.state.x - s.heroState.x, n.state.z - s.heroState.z);
+      s.attackButton(true);
+      await wait(120);
+      s.attackButton(false);
+      await wait(600);
+      if (s.events.slice(before).some((e) => e.msg.startsWith(`${name}: −`))) return;
+    }
+    throw new Error(`The sword did not reach the ${name}: hold the Lens up and strike it.`);
+  },
+  async meetPack(c) {
+    // what walking toward the Howlers does: one sees you and howls, and the pack comes round you
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const n = s.world.npcs.find((x) => String(x.profile.name ?? '') === 'Howler');
+    if (!n) throw new Error('Place the Howlers first.');
+    standAt(s, n.state.x, n.state.z + 8, Math.PI);
+    const t0 = s.clock;
+    for (let i = 0; i < 200 && s.clock - t0 < 6 && !logged(s, 'howls'); i++) await wait(100);
+    await wait(1500);
+  },
   packHero(c, a) {
     const item = ADVENTURE_PACK.cast.find((x) => x.slug === String(a?.slug ?? 'rook'));
     if (!item) throw new Error('No hero in the pack.');

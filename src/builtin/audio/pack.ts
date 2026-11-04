@@ -402,6 +402,25 @@ export const SOUNDS: Record<string, SfxRecipe> = {
     { wave: 'tri', f0: 880, at: 0.07, dur: 0.08, gain: 0.2 },
     { wave: 'tri', f0: 1320, at: 0.14, dur: 0.16, gain: 0.18 },
   ]),
+  /** Step 14a: a sentinel's beam charging and firing: a rising electric whine */
+  zap: sfx(
+    [
+      { wave: 'saw', f0: 300, f1: 1400, dur: 0.6, gain: 0.14, trem: [40, 0.5], lp: 4000 },
+      { wave: 'sine', f0: 1800, f1: 2200, at: 0.3, dur: 0.4, gain: 0.08 },
+    ],
+    51,
+  ),
+  /** a spider dropping or climbing: a dry hiss */
+  hiss: sfx([{ wave: 'noise', f0: 5000, f1: 3800, dur: 0.45, gain: 0.2, attack: 0.03, lp: 7000 }], 53),
+  /** a bat's wings: quick soft beats */
+  flap: sfx(
+    [
+      { wave: 'noise', f0: 700, f1: 500, dur: 0.07, gain: 0.25, lp: 1400 },
+      { wave: 'noise', f0: 700, f1: 500, at: 0.12, dur: 0.07, gain: 0.22, lp: 1400 },
+      { wave: 'noise', f0: 700, f1: 500, at: 0.24, dur: 0.07, gain: 0.18, lp: 1400 },
+    ],
+    55,
+  ),
   /** water freezing (an ice arrow): a crackle and a glassy ring */
   freeze: sfx([
     { wave: 'noise', f0: 7000, f1: 3000, dur: 0.4, gain: 0.3, trem: [44, 0.8], lp: 9000 },
@@ -576,6 +595,9 @@ export const SND = {
   hoverOn: sndId('hoverOn'),
   hoverEnd: sndId('hoverEnd'),
   magic: sndId('magic'),
+  zap: sndId('zap'),
+  hiss: sndId('hiss'),
+  flap: sndId('flap'),
 } as const;
 
 export const MUS = {
@@ -627,6 +649,10 @@ export const ADVENTURE_EVENTS: [string, SoundEvent][] = [
   ev('hoverOn', ['hoverOn'], { maxVoices: 1 }),
   ev('hoverEnd', ['hoverEnd'], { maxVoices: 1 }),
   ev('magic', ['magic'], { maxVoices: 1, spatial: false }),
+  // step 14a: enemies
+  ev('zap', ['zap'], { maxVoices: 2 }),
+  ev('hiss', ['hiss'], { pitch: [0.9, 1.1], maxVoices: 2 }),
+  ev('flap', ['flap'], { pitch: [0.85, 1.2], maxVoices: 3 }),
 ];
 
 export const DEFAULT_EVENTS: SoundEvents = {

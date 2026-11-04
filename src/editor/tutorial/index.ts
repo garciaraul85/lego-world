@@ -48,6 +48,7 @@ import wind from './content/38-wind-water.json';
 import shots from './content/39-bow-boomerang.json';
 import hooks from './content/40-hook-magnet.json';
 import lens from './content/41-boots-lens.json';
+import foes from './content/42-enemies.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -83,6 +84,7 @@ export type Track =
   | 'shots'
   | 'hooks'
   | 'lens'
+  | 'foes'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -164,6 +166,8 @@ export const SHOTS_STEPS: TrackStep[] = steps([shots].map((c) => Chapter.parse(c
 export const HOOKS_STEPS: TrackStep[] = steps([hooks].map((c) => Chapter.parse(c)));
 /** step 13c: the hover boots, the Lens of Truth, hidden and fake things, magic */
 export const LENS_STEPS: TrackStep[] = steps([lens].map((c) => Chapter.parse(c)));
+/** step 14a: the starter enemies' own ways of fighting */
+export const FOES_STEPS: TrackStep[] = steps([foes].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -201,6 +205,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   shots: { title: 'Bow and boomerang course', steps: SHOTS_STEPS },
   hooks: { title: 'Hook and magnet course', steps: HOOKS_STEPS },
   lens: { title: 'Hover boots and Lens course', steps: LENS_STEPS },
+  foes: { title: 'Enemies course', steps: FOES_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

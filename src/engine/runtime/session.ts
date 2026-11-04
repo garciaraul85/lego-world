@@ -164,6 +164,7 @@ import {
 } from './combat';
 import { Enemies } from './enemies';
 import { BOMB_R, type Bomb, BRANCH_SECONDS, FireLight } from './firelight';
+import { FoeShots } from './foe-shots';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, spawnedNpcs } from './health';
 import { type Gear, Hooks } from './hooks';
 import { Lens } from './lens';
@@ -404,7 +405,212 @@ export class PlaySession {
   private fogSet: Fog | null | undefined = undefined;
   private smashedCache: { world: MapWorld; rev: number; key: string; ids: Set<string> } | null = null;
   /** P9c: neighbours that fight the hero */
-  readonly enemies: Enemies = new Enemies(this);
+  readonly enemies: Enemies = this.makeEnemies();
+  /** step 14a: what enemies shoot (rocks, fireballs) */
+  readonly foeShots: FoeShots = this.makeFoeShots();
+  /** step 14a: the hero on fire (a fire bat's bite, a breath of fire): until when, and its flame */
+  private heroAlight: { until: number; fx: { stop(): void; move?(p: Vec3): void } | null } | null = null;
+
+  private makeEnemies(): Enemies {
+    const self = this;
+    const fxOf = {
+      fire: FX.fire,
+      dust: FX.dust,
+      splash: FX.splash,
+      sparks: FX.sparks,
+      frost: FX.frost,
+      vanish: FX.vanish,
+    } as const;
+    const sndOf = {
+      roar: SND.bossroar,
+      whoosh: SND.whoosh,
+      splash: SND.splash,
+      zap: SND.zap,
+      fire: SND.ignite,
+      flap: SND.flap,
+      hiss: SND.hiss,
+    } as const;
+    return new Enemies({
+      get heroState() {
+        return self.heroState;
+      },
+      get clock() {
+        return self.clock;
+      },
+      calm: () => self.calm(),
+      enemyOf: (n) => self.enemyOf(n),
+      isStunned: (n) => self.isStunned(n),
+      hitHero: (n, power, type) => self.hitHero(n, power, type),
+      radiusOf: (n) => self.radiusOf(n),
+      mouthOf: (n) => self.mouthOf(n),
+      heroLoud: () => self.heroLoud(),
+      heroAttacking: () => Number(self.heroState.attack) > 0,
+      pushHero: (dx, dz) => {
+        self.moveHeroBy([dx, 0, dz]);
+      },
+      harmHero: (n, power, type, from, then) => self.harmHero(n, power, type, from, then),
+      // a flyer's body: free where it is (a point at its middle and one at its feet)
+      clear: (x, y, z) => !self.solidPoint(x, y + 0.2, z) && !self.solidPoint(x, y + 1, z),
+      waterTop: (x, z) => {
+        for (const w of self.waterBoxes()) if (x >= w.x0 && x <= w.x1 && z >= w.z0 && z <= w.z1) return w.y1;
+        return null;
+      },
+      sightLine: (from, to) => self.sightLine(from, to),
+      lensOn: () => self.lens.on,
+      shoot: (n, kind, from, at) => {
+        const e = self.enemyOf(n);
+        self.foeShots.fire(kind, n.id, from, at, e?.power ?? 1, kind === 'fireball' ? 'fire' : (e?.type ?? 'blunt'));
+      },
+      move: (n, kind) => self.moves.set(n.id, { kind, at: self.clock }),
+      flame: (at, r) => {
+        self.fireLight.flameAt(at[0], at[2], at[1], r, 'a breath of fire');
+        self.flameSwitches(at[0], at[2], r);
+      },
+      effect: (kind, at) => {
+        self.playEffect(fxOf[kind], at);
+      },
+      sound: (id, at) => self.audio.play(sndOf[id], { pos: at }),
+      log: (t) => self.emit('info', t),
+    });
+  }
+
+  private makeFoeShots(): FoeShots {
+    const self = this;
+    return new FoeShots({
+      get heroState() {
+        return self.heroState;
+      },
+      physics: () => self.world.physics ?? null,
+      clear: (x, y, z) => self.world.controller.clear(x, y, z),
+      heroSize: () => {
+        const k = self.L.GamePhysics.scaleOf(self.heroState);
+        return { radius: 0.5 * k, height: 3.3 * k };
+      },
+      hitHero: (owner, power, type, from) => {
+        const n = self.world.npcs.find((x) => x.id === owner);
+        return n ? self.harmHero(n, power, type, from) : 'hit';
+      },
+      enemies: () =>
+        self.world.npcs
+          .filter((n) => !!self.enemyOf(n) && self.enemies.hittable(n))
+          .map((n) => {
+            const f = self.figureOf(n);
+            return {
+              id: n.id,
+              x: n.state.x,
+              y: n.state.y,
+              z: n.state.z,
+              bottom: f.bottom,
+              top: f.top,
+              radius: f.radius,
+            };
+          }),
+      hitEnemy: (id, power, type, stun) => {
+        const n = self.world.npcs.find((x) => x.id === id);
+        if (!n || !self.canHarm(n)) return;
+        self.hitNpc(n, { power, type }, { knock: 2, stun });
+        self.combat.stunNpc(n, stun);
+      },
+      flame: (at, r) => {
+        self.fireLight.flameAt(at[0], at[2], at[1], r, 'a fireball');
+        self.flameSwitches(at[0], at[2], r);
+      },
+      effect: (kind, at) => {
+        self.playEffect(
+          kind === 'fire' ? FX.fire : kind === 'sparks' ? FX.sparks : kind === 'smoke' ? FX.smoke : FX.dust,
+          at,
+        );
+      },
+      trail: (at) => {
+        const h = self.playEffect(FX.fire, at, { scale: 0.6 });
+        return h ? { stop: () => self.effects.stop(h), move: (p) => self.effects.move(h, p) } : null;
+      },
+      sound: (id, at) => self.audio.play(SND[id], { pos: at }),
+      log: (t) => self.emit('info', t),
+    });
+  }
+
+  /**
+   * Step 14a: something strikes the hero from a point (a shot, a beam, a breath, a bite): through the guard, as a
+   * swing is (a shield toward it blocks it); a hit by fire sets the hero alight a moment, by ice freezes it
+   */
+  harmHero(
+    n: Npc,
+    power: number,
+    type: DamageType,
+    from: [number, number],
+    then?: 'burn' | 'freeze',
+  ): 'hit' | 'block' | 'parry' | 'dodge' | 'break' {
+    if (this.health.invulnerable.has('hero') || this.over) return 'dodge';
+    const r = this.combat.defend({ power, type }, from);
+    if (r.how === 'parry') {
+      this.say('Parry!', 1.2);
+      this.emit('smash', 'Parried');
+    } else if (r.how === 'block') this.say('Blocked', 0.8);
+    else if (r.how === 'break') this.say('Your guard broke!', 1.5);
+    else if (r.how === 'dodge') this.emit('info', 'Dodged');
+    if (r.taken > 0) {
+      this.hurt(r.taken);
+      const h = this.heroState;
+      if (then === 'burn' && !this.swim.on) {
+        this.heroAlight?.fx?.stop();
+        const fx = this.playEffect(FX.fire, [h.x, h.y + 1.6, h.z], { scale: 0.8 });
+        this.heroAlight = {
+          until: this.clock + 1.6,
+          fx: fx ? { stop: () => this.effects.stop(fx), move: (p) => this.effects.move(fx, p) } : null,
+        };
+        this.say('You’re on fire!', 1.4);
+        this.emit('info', `${n.profile.name} set the hero alight`);
+      }
+      if (then === 'freeze') {
+        this.combat.stagger = Math.max(this.combat.stagger, 1.2);
+        this.playEffect(FX.frost, [h.x, h.y + 1.6, h.z]);
+        this.audio.play(SND.freeze, { pos: [h.x, h.y, h.z] });
+        this.say('Frozen!', 1.2);
+        this.emit('info', `${n.profile.name} froze the hero`);
+      }
+    }
+    return r.how;
+  }
+
+  /** step 14a: the hero's flame burns down (water puts it out at once), lighting what burns as it goes */
+  private stepAlight() {
+    const a = this.heroAlight;
+    if (!a) return;
+    const h = this.heroState;
+    a.fx?.move?.([h.x, h.y + 1.6, h.z]);
+    const wet = this.swim.on || this.waterHere().mode === 'wade';
+    if (wet || this.clock >= a.until) {
+      a.fx?.stop();
+      this.heroAlight = null;
+      if (wet) this.say('The water puts the fire out.', 1.2);
+      return;
+    }
+    if (Math.random() < 0.05) this.fireLight.flameAt(h.x, h.z, h.y + 0.5, 1, 'the burning hero');
+  }
+
+  /** step 14a: how far along a line from `from` to `to` it gets before a wall (0…1; 1: it is clear) */
+  sightLine(from: [number, number, number], to: [number, number, number]): number {
+    const ph = this.world.physics;
+    if (ph) {
+      const hit = ph.castSegment(from, to, { skipHero: true });
+      // (its t is how far along, in studs)
+      const len = Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]) || 1;
+      return hit ? Math.max(0, Math.min(1, hit.t / len)) : 1;
+    }
+    for (let i = 1; i <= 48; i++) {
+      const k = i / 48;
+      if (
+        this.solidPoint(
+          from[0] + (to[0] - from[0]) * k,
+          from[1] + (to[1] - from[1]) * k,
+          from[2] + (to[2] - from[2]) * k,
+        )
+      )
+        return (i - 1) / 48;
+    }
+    return 1;
+  }
   /** P9b: attacks, guarding, moves and lock-on */
   readonly combat: Combat = new Combat(this);
   /** step 12a: push blocks, switches, locks, pickups and each dungeon's keys, map and compass */
@@ -603,10 +809,20 @@ export class PlaySession {
       near: (x, z, r) => self.objs().near(x, z, r),
       byId: (id) => self.objs().byId(id),
       npcs: () =>
-        self.world.npcs.map((n) => {
-          const f = self.figureOf(n);
-          return { id: n.id, x: n.state.x, y: n.state.y, z: n.state.z, bottom: f.bottom, top: f.top, radius: f.radius };
-        }),
+        self.world.npcs
+          .filter((n) => self.enemies.hittable(n))
+          .map((n) => {
+            const f = self.figureOf(n);
+            return {
+              id: n.id,
+              x: n.state.x,
+              y: n.state.y,
+              z: n.state.z,
+              bottom: f.bottom,
+              top: f.top,
+              radius: f.radius,
+            };
+          }),
       hitNpc: (id, type, power, opt) => {
         const n = self.world.npcs.find((x) => x.id === id);
         if (!n || !self.canHarm(n)) return;
@@ -866,6 +1082,12 @@ export class PlaySession {
   }
 
   /** step 13a: each step: the shots fly (their paths looked along before the physics engine moves them) */
+  /** step 14a: enemies' shots fly, and a burning hero burns down */
+  stepFoeShots(dt: number) {
+    this.foeShots.step(dt * this.slowmo);
+    this.stepAlight();
+  }
+
   stepShots(dt: number) {
     this.shots.step(dt * this.slowmo);
     this.syncWeaponLook();
@@ -2085,6 +2307,7 @@ export class PlaySession {
       // step 13a: shots look ahead along their path before the physics engine moves them (in debris)
       { id: 'shots', fixed: (g, dt) => g.stepShots(dt) },
       { id: 'hooks', fixed: (g, dt) => g.stepHooks(dt) },
+      { id: 'foeShots', fixed: (g, dt) => g.stepFoeShots(dt) },
       { id: 'lens', fixed: (g, dt) => g.stepLens(dt) },
       { id: 'debris', fixed: (g, dt) => g.stepDebris(dt) },
       { id: 'cleanup', fixed: (g, dt) => g.stepCleanup(dt) },
@@ -2868,6 +3091,8 @@ export class PlaySession {
 
   /** a neighbour the hero's hits hurt (its character has Can be harmed on) */
   canHarm(n: Npc): boolean {
+    // step 14a: not while it is out of reach of blows (sunk underground, faded out without the Lens)
+    if (this.enemies && !this.enemies.hittable(n)) return false;
     return !!npcCharacter(this.snapshot, this.world.mapId, n)?.harm?.canBeHarmed;
   }
 
@@ -3633,6 +3858,18 @@ export class PlaySession {
       this.figures.set(body, f);
     }
     return f;
+  }
+
+  /** step 14a: how far in front of its middle a character's front is, and how high its head (its mouth, an eye) */
+  mouthOf(who: Npc | 'hero'): { front: number; height: number } {
+    const st = who === 'hero' ? this.heroState : who.state;
+    const body = this.bodyOf(who);
+    if (!body) {
+      const k = this.L.GamePhysics.scaleOf(st);
+      return { front: 0.5 * k, height: 3.6 * k };
+    }
+    const { min, max } = bodyBounds(body);
+    return { front: Math.max(0.5, max[2]), height: Math.max(0.6, min[1] + (max[1] - min[1]) * 0.62) };
   }
 
   /** step 11, 4a: a minifig's extra parts (a tail, a snout…), coloured */
@@ -4704,6 +4941,10 @@ export class PlaySession {
     this.wind.reset();
     this.shots.reset();
     this.hooks.reset();
+    this.enemies.reset();
+    this.foeShots.reset();
+    this.heroAlight?.fx?.stop();
+    this.heroAlight = null;
     this.lens.reset();
     this.lensLook = false;
     this.wearBoots(false);

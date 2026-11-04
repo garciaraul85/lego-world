@@ -457,11 +457,14 @@ const brace = (k: number) => ({
   'leftForearm.bend': -0.35,
   'head.turn': -0.08 * k,
 });
-export const windBrace = clipFromPoses({ id: 'clp_movebrace0', name: 'Brace', group: 'Moves', length: 1.4, loop: true }, [
-  [0, brace(1), 'easeInOut'],
-  [0.7, brace(-1), 'easeInOut'],
-  [1.4, brace(1)],
-]);
+export const windBrace = clipFromPoses(
+  { id: 'clp_movebrace0', name: 'Brace', group: 'Moves', length: 1.4, loop: true },
+  [
+    [0, brace(1), 'easeInOut'],
+    [0.7, brace(-1), 'easeInOut'],
+    [1.4, brace(1)],
+  ],
+);
 const intoWind = (k: number) => ({
   'torso.lean': 0.46,
   'root.height': 1.7,

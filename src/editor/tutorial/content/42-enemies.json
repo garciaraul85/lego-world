@@ -1,0 +1,276 @@
+{
+  "id": "foes",
+  "title": "Enemies course",
+  "steps": [
+    {
+      "id": "fo.open",
+      "title": "Enemies that fight back",
+      "body": "Every enemy in the Starter pack now fights in its own way, the way Zelda's enemies do: a Pebblespout pops out of the ground and spits rocks you can bounce back with your shield, a Watcher Eye fires a beam you can block, a Lanternwisp fades out of sight until you look through the Lens of Truth, and Howlers hunt as a pack. They are in Starter pack › Cast.",
+      "task": "Open Starter pack in the bottom dock.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "dockIs",
+        "args": "pack"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "pack"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fo.hero",
+      "title": "Sword and shield",
+      "body": "Rook carries a sword and a shield. Hold Q to put the shield up toward what you face: it blocks a hit from the front, and a rock that hits it bounces back.",
+      "task": "Make Rook the player character (Hero › Play as).",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroIs",
+        "args": "Rook"
+      },
+      "doItForMe": [
+        {
+          "fn": "packHero",
+          "args": {
+            "slug": "rook"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fo.pebble",
+      "title": "A Pebblespout",
+      "body": "Place a Pebblespout about 9 studs ahead of the start. It waits under the ground with only its top showing. When you stand a few studs away it comes up, spits a rock in an arc that lands where you stand, and ducks back down. Up close it stays hidden.",
+      "task": "Place a Pebblespout.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcPlaced",
+        "args": "Pebblespout"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "pebblespout",
+            "ahead": 9,
+            "side": 0
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fo.bounce",
+      "title": "Bounce the rock back",
+      "body": "Press Play and stand in front of it, about 8 studs away. Hold Q, facing it, while it spits: the rock bounces off the shield straight back at it, faster, and hits it twice as hard as it would hit you. Without the shield up the rock hurts you.",
+      "task": "Press Play and bounce a rock back at the Pebblespout.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "The rock went back"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "bounceRock"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fo.eye",
+      "title": "A Watcher Eye",
+      "body": "Stop the game and place a Watcher Eye 9 studs ahead and 6 to the right. It turns slowly and looks about. When it sees you (nothing in the way), its eye glows for a moment while it charges, then it fires a beam that burns. A wall between you blocks the beam, and so does a shield held toward it.",
+      "task": "Place a Watcher Eye.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcPlaced",
+        "args": "Watcher Eye"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "watcher-eye",
+            "ahead": 9,
+            "side": 6
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fo.block",
+      "title": "Block the beam",
+      "body": "Press Play and stand in front of the Watcher Eye. When its eye starts to glow, hold Q facing it: the shield takes the beam, though holding it costs stamina.",
+      "task": "Press Play and block the beam with the shield.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "shield blocked the beam"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "blockBeam"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fo.wisp",
+      "title": "A Lanternwisp",
+      "body": "Stop the game. Place the Lens of Truth to the left of the start and a Lanternwisp 9 studs ahead and 6 to the left. The Lanternwisp chases you for a while, then fades out and drifts round behind you. Faded, your sword goes through it and you cannot lock on to it.",
+      "task": "Place the Lens of Truth and a Lanternwisp.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcPlaced",
+        "args": "Lanternwisp"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Lens of Truth",
+            "ahead": 1,
+            "side": -3
+          }
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "lanternwisp",
+            "ahead": 9,
+            "side": -6
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fo.strike",
+      "title": "See it and strike",
+      "body": "Press Play, pick up the Lens and press its button to hold it up. Through the Lens a faded Lanternwisp shows as a faint outline, and now the sword hits it. Find it (it likes to be behind you) and strike.",
+      "task": "Press Play and strike the Lanternwisp through the Lens.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "foeHurt",
+        "args": "Lanternwisp"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "lensStrike",
+          "args": {
+            "name": "Lanternwisp"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fo.pack",
+      "title": "A pack of Howlers",
+      "body": "Stop the game and place three Howlers 14 studs ahead. The first to see you howls and calls the rest. They circle you, keeping a ring, and only one comes in to bite at a time; swing at one in front and it hops back. Press Play and walk toward them.",
+      "task": "Place three Howlers, press Play and hear them howl.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "howls"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "howler",
+            "ahead": 14,
+            "side": -2,
+            "count": 1
+          }
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "howler",
+            "ahead": 14,
+            "side": 0,
+            "count": 2
+          }
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "howler",
+            "ahead": 14,
+            "side": 2,
+            "count": 3
+          }
+        },
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "meetPack"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fo.done",
+      "title": "Done!",
+      "body": "You bounced a rock back, blocked a beam, struck a ghost through the Lens and met a hunting pack. The rest fight their own way too: Cinderjaw breathes fire close up (water puts you out), Flitterwings swoop down, a Threadback drops off its thread as you pass under, Rattlebones counters a swing at its front (get round it), a Finspitter spits fireballs from the water. Help › Enemies in play has them all.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

@@ -46,9 +46,9 @@ import { Viewport, type ViewportApi } from '../../viewport/Viewport';
 import { BrickEditor } from './BrickEditor';
 import { FireLightSection } from './FireLightSection';
 import { IceMoveSection } from './IceMoveSection';
-import { WindSection } from './WindSection';
 import { PuzzleSection } from './PuzzleSection';
 import { assetFromScratch, initialIndex, type Scratch, scratchFor, turnPart } from './scratch';
+import { WindSection } from './WindSection';
 
 /** The studio's own editor state: same tools and commands, on the scratch build plate. */
 export class StudioState extends EditorState {

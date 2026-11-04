@@ -56,7 +56,7 @@ How it senses and decides:
 - **Sees this wide** — 360° sees all round; 120° only in front, so the hero can sneak past behind it.
 - **Hears the hero within** — running or fighting this close is heard even out of sight.
 - **Wits** — **Simple** repeats its pattern; **Smart** steps back after each swing and waits for an opening; **Pack** calls the enemies within 12 studs when it sees the hero.
-- **Kind of fighter** — Melee, Knight, Turret, Shooter, Pop-up, Flyer, Swarm, Ambusher, Ghost, Pack hunter or Boss. Today a turret or an ambusher stays where it is (it turns to watch and strikes what comes close) and the others walk over and swing; step 14 gives each kind its full brain (shots that can be bounced back, swooping, hiding, fading, phases).
+- **Kind of fighter** — Melee, Knight, Turret, Shooter, Pop-up, Flyer, Swarm, Ambusher, Ghost, Pack hunter or Boss. Each fights its own way in play (see Play › Enemies): a pop-up hides and spits shots you can bounce back, a turret fires a beam, a flyer swoops, an ambusher drops from its thread, a ghost fades out, a pack circles and strikes one at a time, a knight counters. A Boss for now walks over and swings.
 
 The "!", its health bar and lock-on follow its size: a spider boss is hit from further away, a hovering bat at its height.
 

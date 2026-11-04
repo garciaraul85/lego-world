@@ -32,7 +32,10 @@ export const WIND: HelpEntry[] = [
       'Press Play and try it.',
     ],
     options: [
-      ['Speed', 'How fast the air leaves it (studs a second). 16: the hero leans into it. 24 and up: it blows the hero back.'],
+      [
+        'Speed',
+        'How fast the air leaves it (studs a second). 16: the hero leans into it. 24 and up: it blows the hero back.',
+      ],
       ['Reach', 'How far it blows (studs). A wall stops it sooner.'],
       ['Width, Height', 'How big the blast is at the fan; it spreads a little as it goes.'],
       ['Blows', 'Always, or only in one of its states (a Switch fan blows while on).'],

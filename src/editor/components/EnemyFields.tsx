@@ -108,7 +108,7 @@ export function EnemyFields({
         </select>
       </label>
       <p class="muted small">
-        {STYLE_INFO[enemy.style ?? 'melee'].label}: {STYLE_INFO[enemy.style ?? 'melee'].about}. Today:{' '}
+        {STYLE_INFO[enemy.style ?? 'melee'].label}: {STYLE_INFO[enemy.style ?? 'melee'].about}. In play:{' '}
         {STYLE_INFO[enemy.style ?? 'melee'].now}.
       </p>
       <label class="small">

@@ -575,6 +575,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('lens'),
   },
   {
+    id: 'help.foesCourse',
+    label: 'Enemies course (bounce a rock back, block a beam, strike a ghost through the Lens, a hunting pack)',
+    run: ({ ui }) => ui.tutorial('foes'),
+  },
+  {
     id: 'help.swim',
     label: 'Swimming course (dive, breath, the Action button)',
     run: ({ ui }) => ui.tutorial('swim'),
@@ -823,6 +828,7 @@ export const COURSE_GROUPS: [string, string[]][] = [
       'help.shotsCourse',
       'help.hooksCourse',
       'help.lensCourse',
+      'help.foesCourse',
       'help.saving',
       'help.swim',
     ],

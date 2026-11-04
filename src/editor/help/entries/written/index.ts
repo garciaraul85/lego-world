@@ -3,6 +3,7 @@ import { ASSETS, CHARACTERS } from './characters-assets';
 import { AUDIO, CINEMATICS, PLAY } from './cine-audio-play';
 import { EFFECTS } from './effects';
 import { FIRE_LIGHT } from './firelight';
+import { FOES } from './foes';
 import { GUIDES } from './guides';
 import { HOOKS } from './hooks';
 import { ICE_MOVE } from './icemove';
@@ -39,6 +40,7 @@ export const WRITTEN: HelpEntry[] = [
   ...SHOTS,
   ...HOOKS,
   ...LENS,
+  ...FOES,
   ...PLAY,
 ];
 

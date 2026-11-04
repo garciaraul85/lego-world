@@ -147,13 +147,13 @@ export const CHARACTERS: HelpEntry[] = [
       ['Hears the hero within', 'studs: running or fighting this close is heard even out of sight'],
       [
         'Kind of fighter',
-        'Melee, Knight, Turret, Shooter, Pop-up, Flyer, Swarm, Ambusher, Ghost, Pack hunter, Boss: today a turret or an ambusher stays put and the others walk over and swing; step 14 gives each its full brain',
+        'Melee, Knight, Turret, Shooter, Pop-up, Flyer, Swarm, Ambusher, Ghost, Pack hunter, Boss: each fights its own way in play (see Enemies in play); a Boss for now walks over and swings',
       ],
       ['Wits', 'Simple repeats its pattern; Smart steps back after each swing; Pack calls the others within 12 studs'],
     ],
     commands: ['character.update'],
     match: [{ in: '[data-tour="char-enemy"]' }],
-    related: ['characters.harm', 'play.view'],
+    related: ['characters.harm', 'play.foes', 'play.view'],
   },
   {
     id: 'characters.sheet',

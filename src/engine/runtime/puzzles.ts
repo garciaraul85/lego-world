@@ -1,3 +1,4 @@
+import { MANTLE_RELEASE, MANTLE_SECONDS } from '../../builtin/clips/moves';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import { brickHeight } from '../../core/bricks/map-bricks';
@@ -13,7 +14,6 @@ import {
 } from '../../core/puzzles/puzzle';
 import type { Asset } from '../../core/schema';
 import type { HeroState } from '../legacy/runtime-modules';
-import { MANTLE_RELEASE, MANTLE_SECONDS } from '../../builtin/clips/moves';
 import { GRAVITY, ICE_ON_GROUND, ICE_ON_ICE } from '../physics/physics';
 
 /**

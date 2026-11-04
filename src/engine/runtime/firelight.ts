@@ -114,9 +114,7 @@ export type FireHost<T extends FireObject = FireObject> = {
   /** step 12c-2: a placed thing lifted off the floor is gone from its place for this play (its bricks go with it) */
   takeUp?(o: T, b: Bomb): void;
   /** step 12c-2: where the physics engine has a thrown thing now (its middle), how it is turned, how fast it goes */
-  thingPose?(
-    b: Bomb,
-  ): {
+  thingPose?(b: Bomb): {
     pos: [number, number, number];
     rot: { x: number; y: number; z: number; w: number };
     vel: [number, number, number];

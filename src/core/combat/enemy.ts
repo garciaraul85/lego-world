@@ -17,45 +17,49 @@ export const ENEMY_STYLES = [
 ] as const;
 export type EnemyStyle = (typeof ENEMY_STYLES)[number];
 export const STYLE_INFO: Record<EnemyStyle, { label: string; about: string; now: string }> = {
-  melee: { label: 'Melee', about: 'walks over and swings', now: 'walks over and swings' },
+  melee: {
+    label: 'Melee',
+    about: 'walks over and swings',
+    now: 'walks over and swings; a fire one charges from afar and breathes fire close up',
+  },
   knight: {
     label: 'Knight',
     about: 'blocks from the front, side-steps and counters',
-    now: 'walks over and swings; its front blocks (set by its sides)',
+    now: 'circles at the edge of its reach, shield toward you; a swing at its front is answered with a counter',
   },
   turret: {
     label: 'Turret',
     about: 'stays put, turns to watch, fires when it sees you',
-    now: 'stays put and turns to watch, striking what comes close',
+    now: 'stays put and sweeps its gaze; seeing you, it charges and fires a beam (walls and a shield stop it)',
   },
   shooter: {
     label: 'Shooter',
     about: 'keeps its distance and fires',
-    now: 'walks over and swings (shots come in step 14)',
+    now: 'keeps its distance and shoots (a rock, or a fireball)',
   },
   popup: {
     label: 'Pop-up',
     about: 'hides, pops up to fire, hides again',
-    now: 'walks over and swings (hiding comes in step 14)',
+    now: 'hides underground (or under water), comes up to spit, ducks; can only be hit while up',
   },
-  flyer: {
-    label: 'Flyer',
-    about: 'flies and swoops',
-    now: 'hovers as it walks over and swings (flight comes in step 14)',
+  flyer: { label: 'Flyer', about: 'flies and swoops', now: 'flies, circles over you and swoops down to bite' },
+  swarm: { label: 'Swarm', about: 'many weak ones, erratic', now: 'flies erratically, circles over you and swoops' },
+  ambusher: {
+    label: 'Ambusher',
+    about: 'waits hidden and drops on you',
+    now: 'hangs high on a thread, drops on you as you pass under, climbs back up',
   },
-  swarm: { label: 'Swarm', about: 'many weak ones, erratic', now: 'walks over and swings' },
-  ambusher: { label: 'Ambusher', about: 'waits hidden and drops on you', now: 'stands still until you come close' },
   ghost: {
     label: 'Ghost',
     about: 'fades in and out, can only be hit when seen',
-    now: 'walks over and swings, half see-through',
+    now: 'fades out, drifts behind you, fades in to strike; the Lens of Truth shows it',
   },
   pack: {
     label: 'Pack hunter',
     about: 'circles you and calls the others',
-    now: 'walks over and swings; calls the others near it',
+    now: 'howls for the others; the pack circles you and strikes one at a time',
   },
-  boss: { label: 'Boss', about: 'phases and weak moments', now: 'walks over and swings (phases come in step 14)' },
+  boss: { label: 'Boss', about: 'phases and weak moments', now: 'walks over and swings (phases come in step 14a-2)' },
 };
 
 /**

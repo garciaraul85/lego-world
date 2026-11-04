@@ -135,7 +135,11 @@ export function PuzzleSection({ def, reset }: { def: Asset; reset: (to: Asset, l
                 onClick={() =>
                   set(
                     'switch',
-                    { ...sw, by: b, stays: sw.stays === 'held' && b !== 'step' && b !== 'light' && b !== 'wind' ? 'on' : sw.stays },
+                    {
+                      ...sw,
+                      by: b,
+                      stays: sw.stays === 'held' && b !== 'step' && b !== 'light' && b !== 'wind' ? 'on' : sw.stays,
+                    },
                     `Switch: ${BY_LABEL[b]}`,
                   )
                 }
@@ -150,22 +154,24 @@ export function PuzzleSection({ def, reset }: { def: Asset; reset: (to: Asset, l
             role="group"
             aria-label="Switch stays"
           >
-            {SWITCH_STAYS.filter((s) => s !== 'held' || sw.by === 'step' || sw.by === 'light' || sw.by === 'wind').map((s) => (
-              <button
-                type="button"
-                class={`btn small ${sw.stays === s ? 'on' : ''}`}
-                aria-pressed={sw.stays === s}
-                onClick={() =>
-                  set(
-                    'switch',
-                    { ...sw, stays: s, ...(s === 'timed' ? { seconds: sw.seconds ?? 10 } : {}) },
-                    `Switch: ${STAYS_LABEL[s]}`,
-                  )
-                }
-              >
-                {STAYS_LABEL[s]}
-              </button>
-            ))}
+            {SWITCH_STAYS.filter((s) => s !== 'held' || sw.by === 'step' || sw.by === 'light' || sw.by === 'wind').map(
+              (s) => (
+                <button
+                  type="button"
+                  class={`btn small ${sw.stays === s ? 'on' : ''}`}
+                  aria-pressed={sw.stays === s}
+                  onClick={() =>
+                    set(
+                      'switch',
+                      { ...sw, stays: s, ...(s === 'timed' ? { seconds: sw.seconds ?? 10 } : {}) },
+                      `Switch: ${STAYS_LABEL[s]}`,
+                    )
+                  }
+                >
+                  {STAYS_LABEL[s]}
+                </button>
+              ),
+            )}
           </div>
           {sw.stays === 'timed' && (
             <label class="field">
