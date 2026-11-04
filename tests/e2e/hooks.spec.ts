@@ -88,3 +88,61 @@ test('Hook and magnet course: Do it for me hooks up a wall, pulls a crate, swing
   }
   expect(errors).toEqual([]);
 });
+
+test('Grapple rope: the hero hangs by one fist on the rope, the body in line with it as it swings', async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  // the practice map, as the course sets it up
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
+  await page.getByRole('menuitem', { name: /Hook and magnet course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  await card.getByRole('button', { name: 'Leave the tutorial' }).click();
+  await page.evaluate(() => {
+    const e = (window as any).__editor;
+    const map = e.store.manifest.entry.map;
+    const def = (window as any).__builtinAssets.find((a: any) => a.name === 'Swing beam');
+    e.exec({ type: 'asset.create', payload: { asset: def } });
+    e.exec({ type: 'asset.place', payload: { map, asset: def.id, pos: [8, 0, -12], rot: 0 } });
+  });
+  await page.getByRole('group', { name: 'Play controls' }).getByRole('button', { name: 'Play', exact: true }).click();
+  const S = (f: string) => page.evaluate(`(() => { const s = window.__editor.session.value; ${f} })()`);
+  await page.waitForFunction(() => ((window as any).__editor.session.value?.runtime.ticks ?? 0) > 10, undefined, {
+    timeout: 180_000,
+  });
+  await S(`s.give('Grapple rope', 1); s.useTool('Grapple rope'); s.placeAt([12, 0, -8], Math.PI);`);
+  await page.waitForTimeout(500);
+  await S('s.attackButton(true);');
+  await page.waitForTimeout(400);
+  await S('s.attackButton(false);');
+  await expect.poll(() => S('return !!s.hooks.swing'), { timeout: 5000 }).toBe(true);
+  // climb off the ground and pump a swing going
+  await S(`s.input.keys.add('shift'); s.input.keys.add('forward');`);
+  await page.waitForTimeout(900);
+  await S(`s.input.keys.delete('shift');`);
+  await page.waitForTimeout(600);
+  await S(`s.input.keys.delete('forward'); s.input.keys.add('back');`);
+  await page.waitForTimeout(600);
+  await S(`s.input.keys.delete('back');`);
+  for (let i = 0; i < 6; i++) {
+    const r = (await S(`const [left, fist] = s.gripPoints(); const hp = s.handPoint(); const a = s.hooks.line.anchor;
+      const h = s.heroState; const u = [a[0]-fist[0], a[1]-fist[1], a[2]-fist[2]]; const L = Math.hypot(...u);
+      const up = [fist[0]-h.x, fist[1]-(h.y+2.24), fist[2]-h.z]; const M = Math.hypot(...up);
+      return { onRope: Math.hypot(fist[0]-hp[0], fist[1]-hp[1], fist[2]-hp[2]),
+        inLine: (u[0]*up[0]+u[1]*up[1]+u[2]*up[2]) / (L*M), freeLow: left[1] < fist[1] - 2, side: (u[0]*Math.cos(h.heading) - u[2]*Math.sin(h.heading)) / L, fwd: (u[0]*Math.sin(h.heading) + u[2]*Math.cos(h.heading)) / L, upSide: (up[0]*Math.cos(h.heading) - up[2]*Math.sin(h.heading)) / M, upFwd: (up[0]*Math.sin(h.heading) + up[2]*Math.cos(h.heading)) / M }`)) as {
+      onRope: number;
+      inLine: number;
+      freeLow: boolean;
+    };
+    // the rope ends in the fist; the arm (hips to fist) points along the rope; the other hand hangs free
+    expect(r.onRope).toBeLessThan(0.05);
+    expect(r.inLine).toBeGreaterThan(0.95);
+    expect(r.freeLow).toBe(true);
+    await page.waitForTimeout(250);
+  }
+  expect(errors).toEqual([]);
+});

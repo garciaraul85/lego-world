@@ -78,6 +78,16 @@ export type HooksHost<T extends HookObject = HookObject> = {
 /** how far the hook line and the grapple rope reach, and how fast they shoot and reel (studs, studs a second) */
 export const HOOK_RANGE = 16;
 export const ROPE_RANGE = 18;
+/**
+ * Hanging from the rope by one hand, as one hangs from a clawshot (the other hand stays free): the right arm nearly
+ * straight overhead, the torso rolled so that the fist is over the middle of the body (the body hangs under its grip),
+ * the left arm loose at the side. Measured with Session.gripPoints: the fist 4.64 studs up, over the body's middle.
+ */
+const HANG_ARM: [number, number, number] = [-3.0, 0, -0.25];
+const HANG_ROLL = 0.25;
+/** the height the hanging body tips about (its hips, as measured: the fist swings on a 2.4-stud arm above them) */
+const HANG_PIVOT = 2.24;
+const FREE_ARM: [number, number, number] = [-0.15, 0, -0.3];
 const HOOK_SPEED = 45;
 const REEL_SPEED = 24;
 const FETCH_SPEED = 18;
@@ -584,8 +594,17 @@ export class Hooks<T extends HookObject = HookObject> {
       for (let i = 0; i < 3; i++) if (r.blocked[i]) v[i] = 0;
       if (r.grounded && v[1] < 0) v[1] = 0;
       s.vy = v[1];
-      // the hero turns to the way it swings
-      if (Math.hypot(v[0], v[2]) > 1) s.heading = Math.atan2(v[0], v[2]);
+      // the hero turns, slowly, to face along the way it swings (forward or back, whichever is nearer the way it
+      // faces: it does not spin round where the swing turns back)
+      if (Math.hypot(v[0], v[2]) > 1.5) {
+        let want = Math.atan2(v[0], v[2]);
+        let d = Math.atan2(Math.sin(want - s.heading), Math.cos(want - s.heading));
+        if (Math.abs(d) > Math.PI / 2) {
+          want += Math.PI;
+          d = Math.atan2(Math.sin(want - s.heading), Math.cos(want - s.heading));
+        }
+        s.heading += d * Math.min(1, 3 * dt);
+      }
       l.tip = [...l.anchor] as [number, number, number];
       void len;
       return true;
@@ -621,18 +640,22 @@ export class Hooks<T extends HookObject = HookObject> {
     if (this.swing) {
       const v = this.swing.vel;
       const fwd = v[0] * Math.sin(s.heading) + v[2] * Math.cos(s.heading);
-      // the body hangs along the rope: tipped as far as the rope is from straight down (in the way it faces)
+      // the body hangs along the rope: tipped (about the hips) as far as the rope is from straight down, in the way
+      // it faces, so that the arm and the rope are one line (from the hips, not the hand: the hand is where the tip
+      // puts it)
       const a = this.line?.anchor;
-      const hand = this.h.hand();
-      const ahead = a ? (hand[0] - a[0]) * Math.sin(s.heading) + (hand[2] - a[2]) * Math.cos(s.heading) : 0;
-      const drop = a ? Math.max(0.5, a[1] - hand[1]) : 1;
+      const hip: [number, number, number] = [s.x, s.y + HANG_PIVOT, s.z];
+      const ahead = a ? (hip[0] - a[0]) * Math.sin(s.heading) + (hip[2] - a[2]) * Math.cos(s.heading) : 0;
+      const drop = a ? Math.max(0.5, a[1] - hip[1]) : 1;
       const tip = Math.max(-1.1, Math.min(1.1, Math.atan2(ahead, drop)));
       return {
         body: -tip,
-        la: [-2.95, 0, 0.3],
-        ra: [-2.95, 0, -0.3],
-        le: -0.25,
-        re: -0.25,
+        // the right hand on the rope overhead, the left loose (it swings a little the other way to the swing)
+        ra: HANG_ARM,
+        re: -0.05,
+        roll: HANG_ROLL,
+        la: [FREE_ARM[0] + Math.max(-0.25, Math.min(0.25, fwd * 0.03)), 0, FREE_ARM[2]],
+        le: -0.35,
         ll: [-0.25 - Math.max(-0.3, Math.min(0.3, fwd * 0.04)), 0, -0.02],
         rl: [-0.05 - Math.max(-0.3, Math.min(0.3, fwd * 0.04)), 0, 0.02],
         lk: 0.5,

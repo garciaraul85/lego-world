@@ -765,10 +765,11 @@ export class PlaySession {
   handPoint(): [number, number, number] {
     const h = this.heroState;
     const k = this.L.GamePhysics.scaleOf(h);
-    // hanging on the rope: both hands over the head
-    if (this.hooks?.swing) return [h.x, h.y + 4.7 * k, h.z];
     const fx = Math.sin(h.heading);
     const fz = Math.cos(h.heading);
+    // hanging on the rope by one hand: its fist as it is drawn (the body tips with the rope), else straight over the
+    // middle of the body
+    if (this.hooks?.swing) return this.gripPoints()?.[1] ?? [h.x + fx * 0.09 * k, h.y + 4.64 * k, h.z + fz * 0.09 * k];
     // the hero's right is -x when facing +z
     return [h.x + fx * 1.1 * k - fz * 0.5 * k, h.y + 2.8 * k, h.z + fz * 1.1 * k + fx * 0.5 * k];
   }
@@ -1635,6 +1636,43 @@ export class PlaySession {
   pickUpMove() {
     if (this.fireLight.held || this.fireLight.busy || this.puzzles.ladder || this.puzzles.wall || this.swim.on) return;
     this.pickT = 0.5;
+  }
+
+  /**
+   * Where both hands grip (left, right) in the world, from the pose as the renderer draws it now (or the pose given):
+   * the rope hangs from between them, and tests check the hands are on it.
+   */
+  gripPoints(over?: Record<string, unknown>): [number, number, number][] | undefined {
+    const M = this.L.CharacterModel;
+    try {
+      const shot = (over as never) ?? this.hooks.pose() ?? this.shots.pose();
+      const base = (this.combat.pose() ?? this.heroAnim.params() ?? {}) as Record<string, unknown>;
+      const params = shot ? { ...base, ...(shot as Record<string, unknown>) } : this.heroAnim.params();
+      const clip = shot ? this.combat.anim.clip : this.heroAnim.clip;
+      const s = this.heroState;
+      const st = params
+        ? {
+            ...s,
+            x: 0,
+            y: 0,
+            z: 0,
+            heading: 0,
+            studioPose: rigPose(params as never, clip),
+            studioProgress: 0,
+            studioFist: false,
+          }
+        : { ...s, x: 0, y: 0, z: 0, heading: 0 };
+      const pose = M.jointPose(st, false, this.hero);
+      const world = M.matrix(s.x, s.y, s.z, s.heading);
+      return (['leftForearm', 'rightForearm'] as const).map((j, i) => {
+        const m = M.scaledMatrix(pose[j]!, st, this.hero);
+        const g = M.handGrip(i ? 1 : -1);
+        const p = M.transform(world, M.transform(m, g));
+        return [p[0]!, p[1]!, p[2]!] as [number, number, number];
+      });
+    } catch {
+      return undefined;
+    }
   }
 
   /** where the stick's end is, from the hand as it is posed now (as the renderer draws it) */

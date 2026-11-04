@@ -213,7 +213,9 @@ export class PlayRenderer {
     const hk = this.session.hooks;
     const l = hk.line;
     if (l) {
-      const hand = this.session.handPoint();
+      // hanging from the rope: it runs to the fist as drawn
+      const grips = hk.swing ? this.session.gripPoints() : undefined;
+      const hand = grips ? grips[1]! : this.session.handPoint();
       const d: Vec3 = [l.tip[0] - hand[0], l.tip[1] - hand[1], l.tip[2] - hand[2]];
       const len = Math.hypot(...d);
       if (len > 0.05) {
