@@ -313,6 +313,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // step 13b: the Starter pack's hook and magnet pieces
+    id: 'scene-dock-hooks',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { left: 'hier', dock: 'pack' });
+      await p.locator('[aria-label="Hook and magnet"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     // step 12a: the Map tab scrolled to Dungeon
     id: 'scene-map-dungeon',
     screen: 'scene',

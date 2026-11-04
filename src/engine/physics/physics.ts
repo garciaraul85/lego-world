@@ -470,6 +470,19 @@ export class PhysicsWorld {
     return false;
   }
 
+  /** step 13b: a loose object's mass (density × volume; 0: no such object) */
+  objectMass(key: string): number {
+    return this.objects.get(key)?.body.mass() ?? 0;
+  }
+
+  /** step 13b: a loose object's spin calmed (the magnet glove steadies what it holds): k of it taken away */
+  dampObjectSpin(key: string, k: number) {
+    const o = this.objects.get(key);
+    if (!o) return;
+    const a = o.body.angvel();
+    o.body.setAngvel({ x: a.x * (1 - k), y: a.y * (1 - k), z: a.z * (1 - k) }, true);
+  }
+
   /** the key of the loose object a collider belongs to (null: a brick, the ground, a character…) */
   private objectOfCollider(c: RAPIER.Collider): string | null {
     const body = c.parent();

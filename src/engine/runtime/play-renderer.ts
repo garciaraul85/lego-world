@@ -146,13 +146,14 @@ export class PlayRenderer {
     let distance = (11.5 * 55) / s.zoom;
     let pitch = Math.max(0.08, s.camPitch);
     // step 13a: drawing a bow, the camera comes in over the hero's right shoulder and tilts with the aim
-    const aim = this.aimEase(s.shots.aiming);
+    const aim = this.aimEase(s.shots.aiming || s.hooks.aiming);
     if (aim > 0) {
       const rx = Math.cos(s.camYaw);
       const rz = -Math.sin(s.camYaw);
       target = [target[0] - rx * 1.3 * aim * scale, target[1] + 0.9 * aim * scale, target[2] - rz * 1.3 * aim * scale];
       distance *= 1 - 0.45 * aim;
-      pitch = pitch * (1 - aim) + Math.max(-0.35, Math.min(0.6, 0.14 - s.shots.aimPitch * 0.6)) * aim;
+      const ap = s.hooks.aiming ? s.hooks.aimPitch : s.shots.aimPitch;
+      pitch = pitch * (1 - aim) + Math.max(-0.35, Math.min(0.6, 0.14 - ap * 0.6)) * aim;
     }
     let eye: Vec3 = [
       target[0] + distance * Math.sin(s.camYaw) * Math.cos(pitch),
@@ -207,6 +208,50 @@ export class PlayRenderer {
       arrow([b.x + a.dir[0] * 0.9, b.y + a.dir[1] * 0.9, b.z + a.dir[2] * 0.9], a.dir, a.el);
     }
     for (const st of sh.stuck) arrow(st.pos, st.dir, st.el);
+    // step 13b: the hook line's chain (steel links) or the grapple rope (twisted brown), from the hand to the hook,
+    // and the hook (or claw) at its end; the magnet glove's pull on what it holds (a faint pink beam)
+    const hk = this.session.hooks;
+    const l = hk.line;
+    if (l) {
+      const hand = this.session.handPoint();
+      const d: Vec3 = [l.tip[0] - hand[0], l.tip[1] - hand[1], l.tip[2] - hand[2]];
+      const len = Math.hypot(...d);
+      if (len > 0.05) {
+        if (l.gear === 'hook') {
+          // links: short boxes along it, every other one turned a quarter
+          const n = Math.min(80, Math.ceil(len / 0.32));
+          for (let i = 0; i < n; i++) {
+            const a = i / n;
+            const p: Vec3 = [hand[0] + d[0] * a, hand[1] + d[1] * a, hand[2] + d[2] * a];
+            rod(p, d, (len / n) * 0.9, i % 2 ? 0.12 : 0.05, i % 2 ? 0.05 : 0.12, '#8d949c');
+          }
+        } else rod(hand, d, len, 0.07, 0.07, '#9b7a4a');
+        const u = normalize(d);
+        rod(
+          [l.tip[0] - u[0] * 0.35, l.tip[1] - u[1] * 0.35, l.tip[2] - u[2] * 0.35],
+          u,
+          0.4,
+          0.22,
+          0.22,
+          l.gear === 'hook' ? '#c9a227' : '#9aa3ad',
+        );
+        rod(l.tip, u, 0.18, 0.4, 0.06, l.gear === 'hook' ? '#c9a227' : '#9aa3ad');
+      }
+    }
+    const hp = hk.holdPoint();
+    if (hp && hk.held) {
+      const pose = this.session.world.physics?.objectPose(hk.held.key);
+      if (pose) {
+        const hand = this.session.handPoint();
+        const d: Vec3 = [pose.pos[0] - hand[0], pose.pos[1] - hand[1], pose.pos[2] - hand[2]];
+        out.push({
+          bricks: [UNIT_TILE('#ff6fb5')],
+          alpha: 0.35,
+          flat: false,
+          model: rodModel(hand, d, Math.hypot(...d), 0.35, 0.35),
+        });
+      }
+    }
     const bm = sh.boomer;
     if (bm) {
       const wood = bm.whirl ? '#2f9e5a' : '#8a5a2b';
@@ -261,6 +306,32 @@ export class PlayRenderer {
           sphere: true,
         });
       }
+    }
+    // step 13b: aiming a line: a straight row of dots to where it would hit, the mark green where it catches
+    const hk = this.session.hooks;
+    if (hk.aiming && hk.aimHit) {
+      const hand = this.session.handPoint();
+      const at = hk.aimHit.at;
+      const n = Math.max(2, Math.floor(Math.hypot(at[0] - hand[0], at[1] - hand[1], at[2] - hand[2]) / 0.8));
+      for (let i = 2; i < n; i++) {
+        const a = i / n;
+        out.push({
+          pos: [hand[0] + (at[0] - hand[0]) * a, hand[1] + (at[1] - hand[1]) * a, hand[2] + (at[2] - hand[2]) * a],
+          size: [0.1, 0.1, 0.1],
+          color: [1, 1, 0.92],
+          alpha: 0.5,
+          sphere: true,
+        });
+      }
+      const pulse = 1 + 0.15 * Math.sin(this.session.clock * 10);
+      out.push({
+        pos: at,
+        size: [0.55 * pulse, 0.55 * pulse, 0.55 * pulse],
+        color: hk.aimHit.catches ? [0.3, 0.95, 0.4] : [0.9, 0.9, 0.9],
+        alpha: 0.8,
+        sphere: true,
+        onTop: true,
+      });
     }
     if (sh.aiming) {
       const n = sh.arc.length;
@@ -774,7 +845,7 @@ export class PlayRenderer {
     }
     // P9b: a combat move (guard, roll, spin…) shows over an emote
     // step 13a: drawing a bow, throwing a boomerang: the arms over whatever else the body does
-    const shot = s.shots.pose();
+    const shot = s.hooks.pose() ?? s.shots.pose();
     const fight = shot ? { ...(s.combat.pose() ?? s.heroAnim.params() ?? {}), ...shot } : s.combat.pose();
     const heroPose = fight ?? s.heroAnim.params();
     const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;

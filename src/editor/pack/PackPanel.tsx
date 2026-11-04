@@ -39,6 +39,11 @@ const shootOrThrow = (a: (typeof BUILTIN_ASSETS)[number]) =>
     a.pickup?.item ?? '',
   ) || /^(eye target|archery target|ice floe)$/i.test(a.name);
 
+/** step 13b: the hook line, the grapple rope, the magnet glove, and what they catch on or lift */
+const hookOrMagnet = (a: (typeof BUILTIN_ASSETS)[number]) =>
+  /^(hook line|grapple rope|magnet glove)$/i.test(a.pickup?.item ?? '') ||
+  /^(hook target|swing beam|light crate|iron crate)$/i.test(a.name);
+
 /** Step 11, 4a: the starter pack's panel in the bottom dock (shown in the genre views that use it) */
 /** step 12b: a fire or light piece: it burns, shines, turns a beam, answers a beam or fire, or is a bomb or torch */
 const fireOrLight = (a: (typeof BUILTIN_ASSETS)[number]) =>
@@ -62,18 +67,20 @@ export function PackPanel({ c }: { c: ActionCtx }) {
       iceOrMoving(a) ? 'ice platform climb' : '',
       windOrThrow(a) ? 'wind fan throw lift' : '',
       shootOrThrow(a) ? 'bow arrow shoot slingshot boomerang target' : '',
+      hookOrMagnet(a) ? 'hook hookshot rope grapple magnet glove crate' : '',
     ),
   );
   const puzzle = (a: (typeof assets)[number]) =>
     !!(a.push || a.switch || a.lock || a.pickup || a.climbable) || fireOrLight(a) || iceOrMoving(a) || windOrThrow(a);
-  const buildings = assets.filter((a) => !puzzle(a) && !shootOrThrow(a));
+  const buildings = assets.filter((a) => !puzzle(a) && !shootOrThrow(a) && !hookOrMagnet(a));
   const pieces = assets.filter(
-    (a) => puzzle(a) && !fireOrLight(a) && !iceOrMoving(a) && !windOrThrow(a) && !shootOrThrow(a),
+    (a) => puzzle(a) && !fireOrLight(a) && !iceOrMoving(a) && !windOrThrow(a) && !shootOrThrow(a) && !hookOrMagnet(a),
   );
   const iceMoving = assets.filter((a) => iceOrMoving(a) && !windOrThrow(a) && !shootOrThrow(a));
   const fire = assets.filter((a) => fireOrLight(a) && !windOrThrow(a) && !shootOrThrow(a));
   const windThrow = assets.filter((a) => windOrThrow(a) && !shootOrThrow(a));
   const shoot = assets.filter(shootOrThrow);
+  const hookMag = assets.filter(hookOrMagnet);
   const terrain = ADVENTURE_PACK.terrain.filter((t) => matches(q, t.name, t.about));
   const effects = BUILTIN_EFFECTS.filter((e) => (ADVENTURE_PACK.effects as readonly string[]).includes(e.id)).filter(
     (e) => matches(q, e.name, 'effect'),
@@ -189,6 +196,8 @@ export function PackPanel({ c }: { c: ActionCtx }) {
         ['Wind and throwing', 'Pack wind and throwing', windThrow] as const,
         // step 13a: the bow, the slingshot, stun nuts, boomerangs and targets
         ['Bow and boomerang', 'Pack bow and boomerang', shoot] as const,
+        // step 13b: the hook line, the grapple rope, the magnet glove, targets and crates
+        ['Hook and magnet', 'Pack hook and magnet', hookMag] as const,
       ].map(([title, label, list]) =>
         list.length > 0 ? (
           <section class="pack-group" aria-label={title}>

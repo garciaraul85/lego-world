@@ -375,6 +375,13 @@ export const SOUNDS: Record<string, SfxRecipe> = {
     { wave: 'noise', f0: 1200, f1: 400, dur: 0.06, gain: 0.45 },
     { wave: 'sine', f0: 330, f1: 220, dur: 0.08, gain: 0.3 },
   ]),
+  /** Step 13b: a hook glancing off stone: a metallic clink */
+  clink: sfx([
+    { wave: 'square', f0: 2600, f1: 2200, dur: 0.05, gain: 0.22 },
+    { wave: 'sine', f0: 3400, at: 0.01, dur: 0.25, gain: 0.12, trem: [30, 0.3] },
+  ]),
+  /** the magnet glove taking hold: a low electric hum that rises */
+  hum: sfx([{ wave: 'saw', f0: 110, f1: 160, dur: 0.6, gain: 0.18, trem: [24, 0.4], lp: 900 }], 31),
   /** water freezing (an ice arrow): a crackle and a glassy ring */
   freeze: sfx([
     { wave: 'noise', f0: 7000, f1: 3000, dur: 0.4, gain: 0.3, trem: [44, 0.8], lp: 9000 },
@@ -542,6 +549,8 @@ export const SND = {
   whoosh: sndId('whoosh'),
   catch: sndId('catch'),
   freeze: sndId('freeze'),
+  clink: sndId('clink'),
+  hum: sndId('hum'),
 } as const;
 
 export const MUS = {
@@ -584,6 +593,9 @@ export const ADVENTURE_EVENTS: [string, SoundEvent][] = [
   ev('whoosh', ['whoosh'], { pitch: [0.9, 1.1], maxVoices: 2 }),
   ev('catch', ['catch'], { maxVoices: 1 }),
   ev('freeze', ['freeze'], { maxVoices: 2 }),
+  // step 13b: hooks and the magnet glove
+  ev('clink', ['clink'], { pitch: [0.9, 1.1], maxVoices: 2 }),
+  ev('hum', ['hum'], { maxVoices: 1 }),
 ];
 
 export const DEFAULT_EVENTS: SoundEvents = {

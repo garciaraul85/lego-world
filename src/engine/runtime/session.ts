@@ -163,6 +163,7 @@ import {
 import { Enemies } from './enemies';
 import { BOMB_R, type Bomb, BRANCH_SECONDS, FireLight } from './firelight';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, spawnedNpcs } from './health';
+import { type Gear, Hooks } from './hooks';
 import { ObjectIndex } from './objects';
 import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
 import { Platforms } from './platforms';
@@ -410,6 +411,8 @@ export class PlaySession {
   readonly wind: Wind<PlayInstance> = this.makeWind();
   /** step 13a: the bow, the slingshot, stun nuts and the boomerang: what is in the air, stuck, frozen */
   readonly shots: Shots<PlayInstance> = this.makeShots();
+  /** step 13b: the hook line, the grapple rope and the magnet glove */
+  readonly hooks: Hooks<PlayInstance> = this.makeHooks();
 
   private makeWind(): Wind<PlayInstance> {
     const self = this;
@@ -724,6 +727,155 @@ export class PlaySession {
   stepShots(dt: number) {
     this.shots.step(dt * this.slowmo);
     this.syncWeaponLook();
+  }
+
+  private makeHooks(): Hooks<PlayInstance> {
+    const self = this;
+    const sh = this.shots as unknown as {
+      h: { npcs(): never; hitNpc: never; hitObject: never; fetch: never; deliver: never };
+    };
+    return new Hooks<PlayInstance>({
+      get heroState() {
+        return self.heroState;
+      },
+      physics: () => self.world.physics ?? null,
+      hand: () => self.handPoint(),
+      near: (x, z, r) => self.objs().near(x, z, r),
+      byId: (id) => self.objs().byId(id),
+      // the same as the shots' (foes, hits, fetching a pickup and handing it over)
+      npcs: () => sh.h.npcs(),
+      hitNpc: (...a) => (sh.h.hitNpc as unknown as (...x: unknown[]) => void)(...a),
+      hitObject: (...a) => (sh.h.hitObject as unknown as (...x: unknown[]) => boolean)(...a),
+      fetch: (o) => (sh.h.fetch as unknown as (o: PlayInstance) => never)(o),
+      deliver: (c) => (sh.h.deliver as unknown as (c: unknown) => void)(c),
+      moveHero: (d) => self.moveHeroBy(d),
+      pullUp: (at, way) => self.pullUpAt(at, way),
+      lockPos: () => self.combat.targetPos(),
+      sound: (id, at) => self.audio.play(SND[id], { pos: at }),
+      effect: (kind, at) => {
+        self.playEffect(kind === 'spark' ? FX.sparks : FX.hitFlash, at);
+      },
+      solidAt: (x, y, z) => self.solidPoint(x, y, z),
+      say: (t, sec) => self.say(t, sec),
+      log: (t) => self.emit('info', t),
+    });
+  }
+
+  /** step 13b: the right hand held out ahead at the shoulder (where a line leaves and comes back to) */
+  handPoint(): [number, number, number] {
+    const h = this.heroState;
+    const k = this.L.GamePhysics.scaleOf(h);
+    // hanging on the rope: both hands over the head
+    if (this.hooks?.swing) return [h.x, h.y + 4.7 * k, h.z];
+    const fx = Math.sin(h.heading);
+    const fz = Math.cos(h.heading);
+    // the hero's right is -x when facing +z
+    return [h.x + fx * 1.1 * k - fz * 0.5 * k, h.y + 2.8 * k, h.z + fz * 1.1 * k + fx * 0.5 * k];
+  }
+
+  /** step 13b: the hero moved through the world by this much (a pull along a line, a swing): bricks stop it */
+  moveHeroBy(d: [number, number, number]): { blocked: [boolean, boolean, boolean]; grounded: boolean } {
+    const s = this.heroState;
+    const k = this.L.GamePhysics.scaleOf(s);
+    const ph = this.physicsMovement ? this.world.physics : null;
+    const was = [s.x, s.y, s.z];
+    if (ph) {
+      const r = ph.walk({ x: s.x, y: s.y, z: s.z }, { x: d[0], y: d[1], z: d[2] }, HERO_RADIUS * k, HERO_HEIGHT * k, {
+        noSnap: true,
+      });
+      s.x = r.x;
+      s.y = r.y;
+      s.z = r.z;
+      s.grounded = r.grounded;
+    } else {
+      const c = this.world.controller;
+      const at = [s.x, s.y, s.z];
+      for (let i = 0; i < 3; i++) {
+        const next = [...at];
+        next[i]! += d[i]!;
+        if (c.clear(next[0]!, next[1]! + (i === 1 ? 0 : 0.05), next[2]!)) at[i] = next[i]!;
+      }
+      [s.x, s.y, s.z] = at as [number, number, number];
+      s.grounded = !c.clear(s.x, s.y - 0.06, s.z);
+    }
+    const now = [s.x, s.y, s.z];
+    const blocked = [0, 1, 2].map(
+      (i) => Math.abs(d[i]!) > 1e-4 && Math.abs(now[i]! - was[i]!) < Math.abs(d[i]!) * 0.5,
+    ) as [boolean, boolean, boolean];
+    return { blocked, grounded: s.grounded };
+  }
+
+  /**
+   * step 13b: at a hook, the hero climbs onto a floor next to it or just past it (the top of the wall it is on), its
+   * feet no more than a step over the hand's reach; the nearest such spot (true: there was one)
+   */
+  pullUpAt(at: [number, number, number], way: [number, number, number]): boolean {
+    const c = this.world.controller;
+    const s = this.heroState;
+    const fx = way[0];
+    const fz = way[2];
+    const l = Math.hypot(fx, fz) || 1;
+    const ux = fx / l;
+    const uz = fz / l;
+    let best: { x: number; y: number; z: number; cost: number } | null = null;
+    for (const along of [0.4, 1.0, 1.6, 2.2])
+      for (const side of [0, 0.9, -0.9, 1.7, -1.7])
+        for (let y = at[1] - 3.6; y <= at[1] + 0.8; y += 0.2) {
+          const x = at[0] + ux * along - uz * side;
+          const z = at[2] + uz * along + ux * side;
+          if (!c.clear(x, y, z) || c.clear(x, y - 0.25, z)) continue;
+          const cost = Math.abs(side) * 2 + along + Math.abs(y - (at[1] - 2.6)) * 0.3;
+          if (!best || cost < best.cost) best = { x, y, z, cost };
+          break;
+        }
+    if (!best || best.y < s.y + 0.3) return false;
+    this.placeAt([best.x, best.y + 0.02, best.z], s.heading);
+    return true;
+  }
+
+  /** step 13b: the hook line, the grapple rope or the magnet glove comes out in the right hand (or is put away) */
+  takeOutGear(g: Gear) {
+    if (this.fireLight.held || this.fireLight.busy) return;
+    if (this.hooks.out === g) {
+      this.putAwayGear();
+      return;
+    }
+    this.putAwayStick();
+    this.heldBefore = String(this.hero.held ?? 'None');
+    this.hooks.out = g;
+    this.hero = {
+      ...this.hero,
+      held: 'None',
+      heldLook: g === 'hook' ? 'Hook line' : g === 'rope' ? 'Grapple rope' : 'Magnet glove',
+    };
+    const k = this.buttons.keyOf('attack').toUpperCase();
+    this.say(
+      g === 'magnet'
+        ? `The magnet glove! Hold ${k} at something metal to lift it (forward and back move it, left and right turn); let go to drop it.`
+        : g === 'rope'
+          ? `The grapple rope! Hold ${k} to aim at a ring or a beam over you, let go to shoot. Hanging: the move keys swing, with Shift held forward and back climb; Jump lets go.`
+          : `The hook line! Hold ${k} to aim, let go to shoot: it pulls you to wood and hook targets, and light things to you.`,
+      3,
+    );
+  }
+
+  putAwayGear() {
+    if (!this.hooks.out) return;
+    this.hooks.letGo();
+    this.hooks.out = null;
+    const { heldLook: _, ...rest } = this.hero as Record<string, unknown>;
+    this.hero = { ...rest, held: this.heldBefore ?? 'None' } as typeof this.hero;
+    this.heldBefore = null;
+  }
+
+  /** step 13b: each step: the lines fly and reel, the glove holds; a let-go swing flies on */
+  stepHooks(dt: number) {
+    this.hooks.step(dt * this.slowmo);
+    const f = this.hooks.flung;
+    if (f) {
+      this.heroDrift = { x: f[0], z: f[1] };
+      this.hooks.flung = null;
+    }
   }
 
   /** a brick (or a placed thing's brick) fills this point */
@@ -1452,6 +1604,7 @@ export class PlaySession {
   putAwayStick() {
     this.putAwayLeaf();
     this.putAwayWeapon();
+    this.putAwayGear();
     if (!this.stickOut) return;
     this.stickOut = false;
     this.fireLight.putOutBranch();
@@ -1700,6 +1853,7 @@ export class PlaySession {
       { id: 'rebuild', fixed: (g, dt) => g.stepRebuild(dt) },
       // step 13a: shots look ahead along their path before the physics engine moves them (in debris)
       { id: 'shots', fixed: (g, dt) => g.stepShots(dt) },
+      { id: 'hooks', fixed: (g, dt) => g.stepHooks(dt) },
       { id: 'debris', fixed: (g, dt) => g.stepDebris(dt) },
       { id: 'cleanup', fixed: (g, dt) => g.stepCleanup(dt) },
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
@@ -1775,6 +1929,20 @@ export class PlaySession {
     let input: ReturnType<PlaySession['inputVector']> & { speedScale?: number; jumpSpeed?: number } =
       still || c.stagger > 0 ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
     if (input.jump && c.lockedJump(input.x, input.z)) input = { ...input, jump: false };
+    // step 13b: pulled along a line to its hook, or swinging on the rope: the hooks move the hero
+    if (this.hooks.movesHero) {
+      const done = this.hooks.stepHero(input, this.camYaw, dt);
+      this.input.jump = false;
+      if (done) {
+        this.keepOutOfParts();
+        return;
+      }
+    }
+    // step 13b: aiming a line, or holding something with the glove: the hero stands, the move keys aim (or move it)
+    if (this.hooks.aiming || this.hooks.held) {
+      this.hooks.steer(input.x, input.z, dt);
+      input = { ...input, x: 0, z: 0, run: false, jump: false };
+    }
     // step 12b: on a ladder or vines: up and down with the move keys
     if (this.puzzles.ladder) {
       this.puzzles.stepLadder(dt, input.jump);
@@ -1845,6 +2013,11 @@ export class PlaySession {
     this.keepOutOfParts();
     if (c.target) c.stepLock();
     else c.stepHint();
+    if (this.hooks.aiming) {
+      const h = this.heroState;
+      h.heading += angleDiff(this.hooks.aimYaw, h.heading) * Math.min(1, dt * 14);
+      if (!c.target) this.camYaw += angleDiff(this.hooks.aimYaw + Math.PI, this.camYaw) * Math.min(1, dt * 6);
+    }
     // step 13a: drawn, the hero turns to where it aims, and the camera comes round behind its shoulder
     if (this.shots.aiming) {
       const h = this.heroState;
@@ -2668,7 +2841,7 @@ export class PlaySession {
     // step 12b: a tool (Bomb, Torch) goes into an empty item button, ready to use (13a: and the shooting things)
     if (
       count > 0 &&
-      /^(bombs?|torch|branch|gust leaf|bow|fire arrows|ice arrows|slingshot|stun nuts?|boomerang|whirl boomerang)$/i.test(
+      /^(bombs?|torch|branch|gust leaf|bow|fire arrows|ice arrows|slingshot|stun nuts?|boomerang|whirl boomerang|hook line|grapple rope|magnet glove)$/i.test(
         item.trim(),
       ) &&
       !this.buttons.slots.includes(item)
@@ -4238,6 +4411,7 @@ export class PlaySession {
     this.platforms.reset();
     this.wind.reset();
     this.shots.reset();
+    this.hooks.reset();
     this.windFx.clear();
     this.heroDrift = { x: 0, z: 0 };
     this.health.clear();
@@ -5048,6 +5222,12 @@ export class PlaySession {
       this.say(`${what}! Hold ${k} to draw (the move keys aim), let go to shoot.`, 2.6);
       return true;
     }
+    // step 13b: the hook line, the grapple rope and the magnet glove: out in the right hand, or put away
+    if (name === 'hook line' || name === 'grapple rope' || name === 'magnet glove') {
+      if (this.fireLight.held || this.fireLight.busy) return true;
+      this.takeOutGear(name === 'hook line' ? 'hook' : name === 'grapple rope' ? 'rope' : 'magnet');
+      return true;
+    }
     // step 13a: a stun nut is thrown at once (its flash stuns foes near where it bursts)
     if (name === 'stun nut' || name === 'stun nuts') {
       if (this.fireLight.held || this.fireLight.busy || this.shots.aiming) return true;
@@ -5760,6 +5940,12 @@ export class PlaySession {
       // step 12b: no swinging while holding a bomb up (Action throws or puts it down)
       attack: (down) => {
         if (this.fireLight.held || this.fireLight.busy) return;
+        // step 13b: the hook line or rope out: held, it aims; let go, it shoots (the glove: held, it holds)
+        if (this.hooks.out) {
+          if (down) this.hooks.press();
+          else this.hooks.release();
+          return;
+        }
         // step 13a: the bow or slingshot out: held, it draws; let go, it shoots
         if (this.shots.out) {
           if (down) this.startDrawing();
@@ -6208,7 +6394,8 @@ export class PlaySession {
         const [bw, bd] = footprint(b);
         return { x0: b.x, x1: b.x + bw, y0: b.y * 0.4, y1: (b.y + brickHeight(b.type)) * 0.4, z0: b.z, z1: b.z + bd };
       });
-      const { origin } = ph.addObject(i.inst.id, boxes);
+      // step 13b: a metal thing is iron (7.8 times as dense as water would be very heavy for a minifig: 2.5 here)
+      const { origin } = ph.addObject(i.inst.id, boxes, i.def.metal ? 2.5 : undefined);
       const pieces = i.bricks.flatMap((b) => {
         const p = w.loosePieces.get(b.id);
         return p ? [p] : [];

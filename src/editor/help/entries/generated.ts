@@ -140,6 +140,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Wind, water and throwing course (12 steps): walk into a fan’s wind, spin a pinwheel and blow a burning torch out with the Gust leaf, throw a rock at a crystal switch, then swim in a river’s current and dive.',
   'help.shotsCourse':
     'Starts the Bow and boomerang course (10 steps): shoot an eye target with the bow, light a torch stand with an arrow shot through another torch’s flame, freeze a pool with an ice arrow, then throw a boomerang at a crystal switch and catch it as it comes back.',
+  'help.hooksCourse':
+    'Starts the Hook and magnet course (9 steps): hook yourself up a smooth wall to a hook target, pull a light crate to you with the hook line, hang from a swing beam on the grapple rope, climb, swing and let go, then lift an iron crate with the magnet glove and drop it on a floor switch.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':

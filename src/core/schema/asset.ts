@@ -8,13 +8,13 @@ import {
   FlameDef,
   IceDef,
   LiftDef,
-  WindDef,
   LockDef,
   MirrorDef,
   MoveDef,
   PickupDef,
   PushDef,
   SwitchDef,
+  WindDef,
 } from '../puzzles/puzzle';
 import { ActionList } from './action';
 import { BrickType } from './chunk';
@@ -155,6 +155,10 @@ export const Asset = z.strictObject({
   wind: WindDef.optional(),
   /** step 12c-2: the hero lifts it and carries, puts down or throws it (a rock, a pot) */
   lift: LiftDef.optional(),
+  /** step 13b: the hook line and the grapple rope catch on it (a hook target, a ring, a beam); wood catches anyway */
+  hook: z.boolean().optional(),
+  /** step 13b: it is metal: the magnet glove lifts it (a loose one), and it is heavy (sinks in water) */
+  metal: z.boolean().optional(),
   generator: z
     .strictObject({ environments: z.array(z.enum(BIOMES)), weight: z.number().min(0).max(1), placeOn: z.string() })
     .nullable(),

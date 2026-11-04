@@ -923,6 +923,78 @@ function iceFloe(): Raw {
   return asset('Ice floe', 'structure', [4, 4], b, { ice: { floor: true, melts: 'fire', seconds: 1.5 } });
 }
 
+// ---------- step 13b: hooks and the magnet glove ----------
+
+/** the hook line lying on the floor: a steel launcher with a gold hook in its mouth */
+function hookLinePickup(): Raw {
+  const b = new Build();
+  b.put('plate', 1, 3, 0, 0, 0, '#5d646d');
+  b.put('tile', 1, 1, 0, 1, 0, '#8d949c');
+  b.put('tile', 1, 1, 2, 1, 0, '#c9a227');
+  return asset('Hook line', 'prop', [3, 1], b, { pickup: { item: 'Hook line' } });
+}
+
+/** a coil of rope with a steel claw on it: the grapple rope */
+function grappleRopePickup(): Raw {
+  const b = new Build();
+  b.put('plate', 2, 2, 0, 0, 0, '#9b7a4a');
+  b.put('plate', 1, 1, 0, 1, 0, '#7a5c33');
+  b.put('tile', 1, 1, 1, 1, 1, '#9aa3ad');
+  return asset('Grapple rope', 'prop', [2, 2], b, { pickup: { item: 'Grapple rope' } });
+}
+
+/** a red magnet with silver ends: the magnet glove */
+function magnetGlovePickup(): Raw {
+  const b = new Build();
+  b.put('plate', 1, 3, 0, 0, 0, C.red);
+  b.put('plate', 1, 1, 0, 0, 1, C.red);
+  b.put('plate', 1, 1, 2, 0, 1, C.red);
+  b.put('tile', 1, 1, 0, 1, 1, '#d9dde2');
+  b.put('tile', 1, 1, 2, 1, 1, '#d9dde2');
+  return asset('Magnet glove', 'prop', [3, 2], b, { pickup: { item: 'Magnet glove' } });
+}
+
+/** a stone post with a gold ring on its front: the hook line and the rope catch on it (put it up on a wall) */
+function hookTarget(): Raw {
+  const b = new Build();
+  b.put('brick', 1, 2, 0, 0, 0, C.stoneDark);
+  b.put('brick', 1, 2, 0, 3, 0, C.stone);
+  b.put('brick', 1, 1, 0, 6, 0, C.gold);
+  b.put('brick', 1, 1, 1, 6, 0, C.gold);
+  b.put('plate', 1, 2, 0, 9, 0, C.gold);
+  b.put('tile', 1, 2, 0, 10, 0, C.stoneLight);
+  return asset('Hook target', 'decoration', [2, 1], b, { hook: true, lockOn: true });
+}
+
+/** a tall wooden frame: two posts and a beam across their tops to swing from (the rope catches on the beam) */
+function swingBeam(): Raw {
+  const b = new Build();
+  for (const x of [0, 7]) b.stack(x, 0, 1, 1, 0, 8, C.woodDark);
+  b.put('brick', 1, 4, 0, 24, 0, C.wood);
+  b.put('brick', 1, 4, 4, 24, 0, C.wood);
+  b.put('plate', 1, 4, 2, 27, 0, C.gold);
+  return asset('Swing beam', 'structure', [8, 1], b, { hook: true, lockOn: true });
+}
+
+/** a light wooden crate that tumbles and floats (light: the hook line pulls it to the hero) */
+function woodenCrate(): Raw {
+  const b = new Build();
+  b.put('brick', 2, 2, 0, 0, 0, C.wood);
+  b.put('plate', 2, 2, 0, 3, 0, C.woodDark);
+  b.put('tile', 1, 1, 0, 4, 0, C.straw);
+  return asset('Light crate', 'prop', [2, 2], b, { loose: true });
+}
+
+/** an iron crate: loose and heavy (it sinks); the magnet glove lifts it */
+function ironCrate(): Raw {
+  const b = new Build();
+  b.put('brick', 2, 2, 0, 0, 0, '#5d646d');
+  b.put('plate', 2, 2, 0, 3, 0, '#8d949c');
+  b.put('tile', 1, 1, 0, 4, 0, '#c8322a');
+  b.put('tile', 1, 1, 1, 4, 1, '#c8322a');
+  return asset('Iron crate', 'prop', [2, 2], b, { loose: true, metal: true });
+}
+
 function dungeonMap(): Raw {
   const b = new Build();
   b.put('plate', 2, 2, 0, 0, 0, C.straw);
@@ -1153,4 +1225,12 @@ export const STARTER_ASSETS: Record<string, Raw> = {
   'eye-target': eyeTarget(),
   'archery-target': archeryTarget(),
   'ice-floe': iceFloe(),
+  // step 13b: hooks and the magnet glove
+  'hook-line': hookLinePickup(),
+  'grapple-rope': grappleRopePickup(),
+  'magnet-glove': magnetGlovePickup(),
+  'hook-target': hookTarget(),
+  'swing-beam': swingBeam(),
+  'wooden-crate': woodenCrate(),
+  'iron-crate': ironCrate(),
 };

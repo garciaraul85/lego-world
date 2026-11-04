@@ -1750,6 +1750,115 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       for (let i = 0; i < 30 && (s.shots.boomer || !logged(s, want)); i++) await wait(150);
     }
   },
+  // step 13b: the Hook and magnet course
+  async hookTo(c, a) {
+    // what walking over the Hook line, pressing its button, facing the thing, holding Attack (F) to aim and letting go
+    // does: the hook flies out, catches, and pulls (the hero to a target, a light crate to the hero)
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Hook line', 'Hook line');
+    if (s.hooks.out !== 'hook') s.useItem('Hook line', slotOf(s, 'Hook line'));
+    const name = String(a?.name ?? 'Hook target');
+    const o = s.world.instances.find((i) => i.def.name === name);
+    if (!o) throw new Error(`Place a ${name} first.`);
+    const want = String(a?.until ?? 'Pulled to the hook');
+    for (let tries = 0; tries < 3 && !logged(s, want); tries++) {
+      standFacing(s, o, Number(a?.from ?? 10));
+      s.camYaw = s.heroState.heading + Math.PI + 0.5;
+      await wait(400);
+      s.attackButton(true);
+      await wait(500);
+      s.attackButton(false);
+      for (let i = 0; i < 25 && !logged(s, want); i++) await wait(150);
+    }
+  },
+  async swingRope(c) {
+    // what walking over the Grapple rope, aiming it up at the beam, climbing (Shift and W), swinging (W) and letting go
+    // (Space) does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Grapple rope', 'Grapple rope');
+    if (s.hooks.out !== 'rope') s.useItem('Grapple rope', slotOf(s, 'Grapple rope'));
+    const beam = s.world.instances.find((i) => i.def.name === 'Swing beam');
+    if (!beam) throw new Error('Place a Swing beam first.');
+    // beside the beam, under it (either side of it, a few studs off), facing it
+    const xs = beam.bricks.map((b) => b.x);
+    const zs = beam.bricks.map((b) => b.z);
+    const cx = (Math.min(...xs) + Math.max(...xs) + 1) / 2;
+    const cz = (Math.min(...zs) + Math.max(...zs) + 1) / 2;
+    const alongX = Math.max(...xs) - Math.min(...xs) >= Math.max(...zs) - Math.min(...zs);
+    const spots: [number, number][] = [3.5, -3.5, 5, -5].map((d) => (alongX ? [cx, cz + d] : [cx + d, cz]));
+    for (let tries = 0; tries < spots.length && !s.hooks.swing; tries++) {
+      const [x, z] = spots[tries]!;
+      standAt(s, x, z, Math.atan2(cx - x, cz - z));
+      s.camYaw = s.heroState.heading + Math.PI + 1.2;
+      await wait(400);
+      s.attackButton(true);
+      await wait(400);
+      s.attackButton(false);
+      for (let i = 0; i < 12 && !s.hooks.swing; i++) await wait(150);
+    }
+    if (!s.hooks.swing) throw new Error('The rope did not catch on the beam: stand under it and aim up at it.');
+    s.input.keys.add('shift');
+    s.input.keys.add('forward');
+    await wait(1100);
+    s.input.keys.delete('shift');
+    // pump: forward a moment, back a moment, as the swing goes
+    for (let i = 0; i < 3; i++) {
+      s.input.keys.add('forward');
+      await wait(600);
+      s.input.keys.delete('forward');
+      s.input.keys.add('back');
+      await wait(600);
+      s.input.keys.delete('back');
+    }
+    s.input.jump = true;
+    await wait(1500);
+  },
+  async magnetOnto(c, a) {
+    // what walking over the Magnet glove, pressing its button, holding Attack at the iron crate, walking it over to the
+    // switch and letting go does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Magnet glove', 'Magnet glove');
+    if (s.hooks.out !== 'magnet') s.useItem('Magnet glove', slotOf(s, 'Magnet glove'));
+    const crate = s.world.instances.find((i) => i.def.name === String(a?.thing ?? 'Iron crate'));
+    const sw = s.world.instances.find((i) => i.def.name === String(a?.onto ?? 'Floor switch'));
+    if (!crate || !sw) throw new Error('Place the Iron crate and the Floor switch first.');
+    const want = `${sw.def.name} on`;
+    for (let tries = 0; tries < 3 && !logged(s, want); tries++) {
+      const pose = s.world.physics?.objectPose(crate.inst.id);
+      const at = pose ? pose.pos : [Number(crate.inst.pos[0]) + 1, 0, Number(crate.inst.pos[2]) + 1];
+      const sp = s.world.doc.spawns[0]?.pos ?? [0, 0, 0];
+      const l = Math.hypot(sp[0]! - at[0]!, sp[2]! - at[2]!) || 1;
+      standAt(
+        s,
+        at[0]! + ((sp[0]! - at[0]!) / l) * 4,
+        at[2]! + ((sp[2]! - at[2]!) / l) * 4,
+        Math.atan2(at[0]! - sp[0]!, at[2]! - sp[2]!),
+      );
+      s.camYaw = s.heroState.heading + Math.PI + 0.9;
+      await wait(400);
+      s.attackButton(true);
+      await wait(1200);
+      if (!s.hooks.held) {
+        s.attackButton(false);
+        continue;
+      }
+      // walk round so the crate hangs over the switch, then let go
+      const xs = sw.bricks.map((b) => b.x);
+      const zs = sw.bricks.map((b) => b.z);
+      const cx = (Math.min(...xs) + Math.max(...xs) + 1) / 2;
+      const cz = (Math.min(...zs) + Math.max(...zs) + 1) / 2;
+      const d = s.hooks.held.dist;
+      const back: [number, number] = [sp[0]! - cx, sp[2]! - cz];
+      const bl = Math.hypot(...back) || 1;
+      standAt(s, cx + (back[0] / bl) * d, cz + (back[1] / bl) * d, Math.atan2(-back[0], -back[1]));
+      await wait(1800);
+      s.attackButton(false);
+      for (let i = 0; i < 15 && !logged(s, want); i++) await wait(150);
+    }
+  },
   async meltIceWall(c) {
     // what picking up the Branch, holding its end in the Burning torch's flame and touching the ice wall with it does
     const s = c.ed.session.value;

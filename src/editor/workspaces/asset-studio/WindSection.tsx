@@ -4,6 +4,9 @@ import { FieldHelp } from '../../components/fields';
 
 export const WIND_HELP = {
   wind: 'It blows wind straight out of its front (the way it is turned), always or in one of its states: a fan. The air pushes what it meets as real air does, by drag: light things (loose crates, bricks, bombs) are blown along, heavy ones stay put; the hero leans into it, walks into it more slowly and in a strong wind is blown back; on ice or in the air it drifts with it. A wall stops the wind. It spins pinwheels (switches Turned by the wind) and blows small flames out (a lit torch stand, a burning stick), as the fans of Zelda’s wind temples do.',
+  hook: 'The hook line and the grapple rope catch on it (a hook target, a ring, a beam): the hook line pulls the hero to it, the rope holds the hero hanging from it. Wood (anything that burns), ladders and vines catch anyway; stone does not, and a loose thing lighter than the hero is pulled to the hero instead.',
+  metal:
+    'It is iron: a loose one is the magnet glove’s to lift and carry through the air, and it is heavy (2.5 times as dense as water: it sinks, and the wind hardly moves it).',
   lift: 'The hero can lift it (Action, as a bomb), carry it over its head, put it down (standing still) or throw it (walking). Thrown, it flies in an arc and the physics engine rolls it to rest; a switch it strikes is hit (a crystal switch turns), and lying on a floor switch it weighs on it. Breaks: it breaks where it lands or on what it hits, dropping what it holds (a clay pot’s hearts).',
 };
 
@@ -91,6 +94,30 @@ export function WindSection({ def, reset }: { def: Asset; reset: (to: Asset, lab
           </label>
         </div>
       )}
+      <label class="lbl" data-tour="asset-hook" data-help="asset.hook">
+        <input
+          type="checkbox"
+          checked={!!def.hook}
+          onChange={() => {
+            const { hook: _h, ...rest } = def;
+            reset((def.hook ? rest : { ...rest, hook: true }) as Asset, 'Hook catches');
+          }}
+        />{' '}
+        The hook catches on it
+        <FieldHelp label="Hook" text={WIND_HELP.hook} />
+      </label>
+      <label class="lbl" data-tour="asset-metal" data-help="asset.hook">
+        <input
+          type="checkbox"
+          checked={!!def.metal}
+          onChange={() => {
+            const { metal: _m, ...rest } = def;
+            reset((def.metal ? rest : { ...rest, metal: true }) as Asset, 'Metal');
+          }}
+        />{' '}
+        Metal (the magnet glove lifts it)
+        <FieldHelp label="Metal" text={WIND_HELP.metal} />
+      </label>
       <label class="lbl" data-tour="asset-lift">
         <input
           type="checkbox"

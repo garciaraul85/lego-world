@@ -295,6 +295,14 @@ function withStick(src: string): string {
     "}else{part('leftForearm','#7a4b26');limb(Q(-.45,0),Q(.1,0),.07,.06);limb(Q(.1,0),Q(.5,.04,.22),.055,.045);limb(Q(.1,0),Q(.5,.04,-.22),.055,.045);" +
     "const L1=Q(.5,.04,.22),L2=Q(.5,.04,-.22),N=Q(.48,-.08-1.5*dd,.12*dd);part('leftForearm','#c8322a');limb(L1,N,.03,.03);limb(N,L2,.03,.03);" +
     "part('leftForearm','#5b3519');box(N[0],N[1],N[2],.16,.16,.16);}paintSlot='held';" +
+    // step 13b: the hook line (a steel launcher with the hook in its mouth), the grapple rope (a coil and a claw) and
+    // the magnet glove (a red and silver magnet over the fist), in the right hand
+    "}else if(p.heldLook==='Hook line'){const x=1.10,y=1.94,z=.34;part('rightArm','#5d646d');box(x,y-.05,z+.12,.34,.34,.62);" +
+    "part('rightArm','#8d949c');box(x,y-.05,z+.5,.26,.26,.16);part('rightArm','#c9a227');box(x,y-.05,z+.62,.12,.3,.08);box(x,y+.13,z+.08,.1,.14,.3);" +
+    "}else if(p.heldLook==='Grapple rope'){const x=1.10,y=1.94,z=.34;part('rightArm','#9b7a4a');box(x,y-.1,z+.05,.42,.42,.36);" +
+    "part('rightArm','#7a5c33');box(x,y-.1,z+.05,.46,.12,.4);part('rightArm','#9aa3ad');box(x,y+.25,z+.18,.08,.3,.08);box(x-.1,y+.38,z+.18,.2,.06,.06);" +
+    "}else if(p.heldLook==='Magnet glove'){const x=1.10,y=1.94,z=.34;part('rightArm','#c8322a');box(x,y-.02,z+.22,.44,.36,.2);" +
+    "box(x-.17,y-.02,z+.42,.12,.36,.26);box(x+.17,y-.02,z+.42,.12,.36,.26);part('rightArm','#d9dde2');box(x-.17,y-.02,z+.58,.12,.36,.08);box(x+.17,y-.02,z+.58,.12,.36,.08);" +
     "}else if(p.held!=='None'){part('rightArm',access);";
   return src.replace(at, stick);
 }

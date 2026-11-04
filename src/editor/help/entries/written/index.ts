@@ -4,6 +4,7 @@ import { AUDIO, CINEMATICS, PLAY } from './cine-audio-play';
 import { EFFECTS } from './effects';
 import { FIRE_LIGHT } from './firelight';
 import { GUIDES } from './guides';
+import { HOOKS } from './hooks';
 import { ICE_MOVE } from './icemove';
 import { LIGHTS } from './lights';
 import { PHYSICS } from './physics';
@@ -35,6 +36,7 @@ export const WRITTEN: HelpEntry[] = [
   ...ICE_MOVE,
   ...WIND,
   ...SHOTS,
+  ...HOOKS,
   ...PLAY,
 ];
 
