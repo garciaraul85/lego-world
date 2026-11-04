@@ -1815,6 +1815,116 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     s.input.jump = true;
     await wait(1500);
   },
+  async hoverAcross(c) {
+    // what walking over the hover boots, pressing their button (on), and walking off the Pit gap's first ledge
+    // toward the other does: the boots float the hero across
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Hover boots', 'Hover boots');
+    if (!s.boots.worn) s.useItem('Hover boots', slotOf(s, 'Hover boots'));
+    const gap = s.world.instances.find((i) => i.def.name === 'Pit gap');
+    if (!gap) throw new Error('Place a Pit gap first.');
+    const xs = gap.bricks.map((b) => b.x);
+    const zs = gap.bricks.map((b) => b.z);
+    const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs) + 1, Math.min(...zs), Math.max(...zs) + 1];
+    const alongX = x1 - x0 > z1 - z0;
+    const top = (Math.max(...gap.bricks.map((b) => b.y)) + 3) * 0.4;
+    // on the first ledge, 4 studs in from its outer end, facing along the gap
+    const at: [number, number] = alongX ? [x0 + 4, (z0 + z1) / 2] : [(x0 + x1) / 2, z0 + 4];
+    const yaw = alongX ? Math.PI / 2 : 0;
+    s.placeAt([at[0], top, at[1]], yaw);
+    s.camYaw = yaw + Math.PI;
+    await wait(500);
+    s.input.keys.add('forward');
+    const t0 = s.clock;
+    for (let i = 0; i < 200 && s.clock - t0 < 6 && !logged(s, 'Landed after floating'); i++) await wait(150);
+    s.input.keys.delete('forward');
+    if (!logged(s, 'Hovering on the hover boots'))
+      throw new Error('The hero did not float: walk off the ledge with the boots on.');
+  },
+  async takePickupNamed(c, a) {
+    // what walking over a pickup does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const name = String(a?.name ?? '');
+    const o = s.world.instances.find((i) => i.def.name === name);
+    if (!o) throw new Error(`Place a ${name} first.`);
+    faceThing(s, o, 0.4);
+    for (let i = 0; i < 20 && s.world.instances.includes(o); i++) await wait(150);
+  },
+  async lensLook(c) {
+    // what walking over the Lens of Truth and pressing its button does: up to the eye, the view turns purple
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await takePickup(s, 'Lens of Truth', 'Lens of Truth');
+    if (!s.lens.on) s.useItem('Lens of Truth', slotOf(s, 'Lens of Truth'));
+    for (let i = 0; i < 10 && s.lens.amount < 1; i++) await wait(100);
+  },
+  async openHiddenChest(c) {
+    // what walking through the fake wall (it only looks solid) into the alcove and pressing Action at the hidden
+    // chest does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const wall = s.world.instances.find((i) => i.def.name === 'Fake wall');
+    const chest = s.world.instances.find((i) => i.def.name === 'Hidden chest');
+    if (!wall || !chest) throw new Error('Place the Fake wall and the Hidden chest first.');
+    const mid = (q: { bricks: { x: number; z: number }[] }): [number, number] => {
+      const xs = q.bricks.map((b) => b.x);
+      const zs = q.bricks.map((b) => b.z);
+      return [(Math.min(...xs) + Math.max(...xs) + 1) / 2, (Math.min(...zs) + Math.max(...zs) + 1) / 2];
+    };
+    const [wx, wz] = mid(wall);
+    const [cx, cz] = mid(chest);
+    const d = Math.hypot(cx - wx, cz - wz) || 1;
+    const [ux, uz] = [(cx - wx) / d, (cz - wz) / d];
+    // outside the wall, facing the chest through it; walk in
+    const yaw = Math.atan2(ux, uz);
+    standAt(s, wx - ux * 3, wz - uz * 3, yaw);
+    s.camYaw = yaw + Math.PI;
+    await wait(400);
+    s.input.keys.add('forward');
+    // up to 4 seconds of game time (a slow machine plays slower than the clock on the wall)
+    const t0 = s.clock;
+    for (let i = 0; i < 160 && s.clock - t0 < 4; i++) {
+      await wait(120);
+      if (Math.hypot(s.heroState.x - cx, s.heroState.z - cz) < 2.6) break;
+    }
+    s.input.keys.delete('forward');
+    // into the wall's own row at least (a solid wall stops the hero nearly a stud short of its middle)
+    const through = (s.heroState.x - wx) * ux + (s.heroState.z - wz) * uz > -0.3;
+    if (!through) throw new Error('The hero did not get through the wall: is it a Fake wall?');
+    const so = chest.sockets.find((x) => x.kind === 'interact');
+    if (so) {
+      s.placeAt([so.world[0] - ux * 0.6, s.heroState.y, so.world[2] - uz * 0.6], yaw);
+      await wait(200);
+      s.stepInteract();
+      s.interact();
+    }
+    await wait(400);
+  },
+  async crossBridge(c) {
+    // what walking from one ledge of the second Pit gap over the Invisible bridge to the other does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    if (s.boots.worn) s.useItem('Hover boots', slotOf(s, 'Hover boots'));
+    const bridge = s.world.instances.find((i) => i.def.name === 'Invisible bridge');
+    if (!bridge) throw new Error('Place an Invisible bridge first.');
+    const xs = bridge.bricks.map((b) => b.x);
+    const zs = bridge.bricks.map((b) => b.z);
+    const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs) + 1, Math.min(...zs), Math.max(...zs) + 1];
+    const alongX = x1 - x0 >= z1 - z0;
+    const top = (Math.max(...bridge.bricks.map((b) => b.y)) + 3) * 0.4;
+    const at: [number, number] = alongX ? [x0 - 2.5, (z0 + z1) / 2] : [(x0 + x1) / 2, z0 - 2.5];
+    const yaw = alongX ? Math.PI / 2 : 0;
+    s.placeAt([at[0], top, at[1]], yaw);
+    s.camYaw = yaw + Math.PI;
+    await wait(400);
+    s.input.keys.add('forward');
+    const t0 = s.clock;
+    for (let i = 0; i < 200 && s.clock - t0 < 4 && !logged(s, 'Standing on the Invisible bridge'); i++) await wait(150);
+    await wait(500);
+    s.input.keys.delete('forward');
+  },
   async magnetOnto(c, a) {
     // what walking over the Magnet glove, pressing its button, holding Attack at the iron crate, walking it over to the
     // switch and letting go does

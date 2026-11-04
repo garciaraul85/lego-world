@@ -303,6 +303,10 @@ function withStick(src: string): string {
     "part('rightArm','#7a5c33');box(x,y-.1,z+.05,.46,.12,.4);part('rightArm','#9aa3ad');box(x,y+.25,z+.18,.08,.3,.08);box(x-.1,y+.38,z+.18,.2,.06,.06);" +
     "}else if(p.heldLook==='Magnet glove'){const x=1.10,y=1.94,z=.34;part('rightArm','#c8322a');box(x,y-.02,z+.22,.44,.36,.2);" +
     "box(x-.17,y-.02,z+.42,.12,.36,.26);box(x+.17,y-.02,z+.42,.12,.36,.26);part('rightArm','#d9dde2');box(x-.17,y-.02,z+.58,.12,.36,.08);box(x+.17,y-.02,z+.58,.12,.36,.08);" +
+    // step 13c: the Lens of Truth: a gold handle out of the fist and a gold ring round violet glass, held at the eye
+    "}else if(p.heldLook==='Lens of Truth'){const x=1.10,y=1.94,z=.34,c=y-.6;part('rightArm','#c9a227');box(x,y-.18,z,.1,.2,.1);" +
+    'box(x,c+.32,z,.72,.1,.1);box(x,c-.32,z,.72,.1,.1);box(x-.32,c,z,.1,.6,.1);box(x+.32,c,z,.1,.6,.1);' +
+    "part('rightArm','#8b5cf6');box(x,c,z,.56,.56,.04);" +
     "}else if(p.held!=='None'){part('rightArm',access);";
   return src.replace(at, stick);
 }

@@ -3,6 +3,7 @@ import { Controls } from '../controls/controls';
 import { DialogueLook } from '../dialogue/schema';
 import { EffectHooks } from '../effects/schema';
 import { ScreenHooks } from '../effects/screen';
+import { Magic } from '../items/magic';
 import { Saving } from '../save/save';
 import { Swimming } from '../water/swim';
 import { IsoDate, id } from './common';
@@ -49,6 +50,8 @@ export const Settings = z.strictObject({
   climbing: z.enum(['ladders', 'anything']).optional(),
   /** step 11b: can the hero swim, and how long a breath lasts under water (missing: swims, 20 seconds) */
   swimming: Swimming.optional(),
+  /** step 13c: does the game have magic, and how much a full meter holds (missing: yes, 48) */
+  magic: Magic.optional(),
   /** step 11b part 1: the game's buttons: its layout, item buttons, where jumping is, its keys and gamepad buttons */
   controls: Controls.optional(),
   /** legacy activeCharacterId etc. that has no v5 home yet */

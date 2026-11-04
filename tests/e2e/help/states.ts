@@ -323,6 +323,16 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // step 13c: the Starter pack's hover boots, Lens of Truth, hidden and fake pieces
+    id: 'scene-dock-lens',
+    screen: 'scene',
+    setup: async (p) => {
+      await ws(p, 'Scene');
+      await signals(p, { left: 'hier', dock: 'pack' });
+      await p.locator('[aria-label="Boots and Lens"]').scrollIntoViewIfNeeded();
+    },
+  },
+  {
     // step 12a: the Map tab scrolled to Dungeon
     id: 'scene-map-dungeon',
     screen: 'scene',

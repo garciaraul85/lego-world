@@ -47,6 +47,12 @@ const UNIT_TILE = (color: string): RenderBrick => ({ id: 0, w: 1, d: 1, kind: 't
  * step 13a: the model matrix that stretches UNIT_TILE (1 × 0.4 × 1) into a box `len` long from `from` along `dir`,
  * w across and h high round its middle line (`up`: which way h stands; across the way it points otherwise)
  */
+/** pieces drawn as overlays, not in the chunks (turned, moving, or, step 13c, hidden or fake: drawn as the Lens shows) */
+type Tilted = {
+  ids: Set<number>;
+  groups: { ids: Set<number>; model: Float32Array; kind?: 'hidden' | 'fake' }[];
+};
+
 function rodModel(from: Vec3, dir: Vec3, len: number, w: number, h: number, up?: Vec3): Float32Array {
   const f = normalize(dir);
   const ref: Vec3 = up ?? (Math.abs(f[1]) > 0.95 ? [1, 0, 0] : [0, 1, 0]);
@@ -240,6 +246,36 @@ export class PlayRenderer {
         rod(l.tip, u, 0.18, 0.4, 0.06, l.gear === 'hook' ? '#c9a227' : '#9aa3ad');
       }
     }
+    // step 13c: the hover boots: a small white wing at the outside of each heel, swept back and up; floating, a thin
+    // jet of air under each sole (pale, see-through, flickering)
+    const boots = this.session.boots;
+    const feet = boots.worn ? this.session.solePoints() : undefined;
+    if (feet) {
+      const h = this.session.heroState;
+      const fx = Math.sin(h.heading);
+      const fz = Math.cos(h.heading);
+      feet.forEach((f, i) => {
+        const out: Vec3 = i === 0 ? [fz, 0, -fx] : [-fz, 0, fx];
+        const at: Vec3 = [f.heel[0] + out[0] * 0.38, f.heel[1], f.heel[2] + out[2] * 0.38];
+        rod(at, [-fx * 0.75 + out[0] * 0.2, 0.62, -fz * 0.75 + out[2] * 0.2], 0.6, 0.05, 0.34, '#f4f6fa');
+        rod(at, [-fx * 0.85 + out[0] * 0.2, 0.3, -fz * 0.85 + out[2] * 0.2], 0.42, 0.05, 0.22, '#c9d2de');
+      });
+      const jet = boots.jet;
+      // a jet: a faint, thin column of air that tapers and fades as it goes down (three parts)
+      if (jet > 0)
+        for (const f of feet)
+          for (const [d0, len, w, a] of [
+            [0.02, 0.22, 0.34, 0.26],
+            [0.24, 0.28 * jet, 0.24, 0.16],
+            [0.24 + 0.28 * jet, 0.3 * jet, 0.14, 0.09],
+          ] as const)
+            out.push({
+              bricks: [UNIT_TILE('#eaf8ff')],
+              alpha: a * (0.6 + 0.4 * jet),
+              flat: false,
+              model: rodModel([f.sole[0], f.sole[1] - d0, f.sole[2]], [0, -1, 0], len, w, w),
+            });
+    }
     const hp = hk.holdPoint();
     if (hp && hk.held) {
       const pose = this.session.world.physics?.objectPose(hk.held.key);
@@ -358,7 +394,7 @@ export class PlayRenderer {
   }
 
   /** freely turned assets (P31): their pieces are drawn turned, not in the chunks */
-  private tilted: { ids: Set<number>; groups: { ids: Set<number>; model: Float32Array }[] } = {
+  private tilted: Tilted = {
     ids: new Set(),
     groups: [],
   };
@@ -378,7 +414,7 @@ export class PlayRenderer {
   private syncTilted() {
     const w = this.session.world;
     const ids = new Set<number>();
-    const groups: { ids: Set<number>; model: Float32Array }[] = [];
+    const groups: Tilted['groups'] = [];
     const now = this.session.clock;
     // P32: moving parts ease to their state's pose after a state change
     const anim = (id: string) => {
@@ -450,6 +486,17 @@ export class PlayRenderer {
         ]),
       });
     }
+    // step 13c: hidden things are not in the chunks: drawn (faintly) only through the Lens; fake things are not among
+    // the pieces at all (not solid): drawn as they look, and see-through through the Lens
+    const I = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+    const hiddenSet = new Set<number>();
+    for (const o of w.instances) {
+      if (!o.def.hidden || o.def.fake) continue;
+      for (let id = o.inst.idBase; id < o.inst.idBase + o.def.bricks.length; id++) if (!ids.has(id)) hiddenSet.add(id);
+    }
+    for (const id of hiddenSet) ids.add(id);
+    if (hiddenSet.size) groups.push({ ids: hiddenSet, model: I, kind: 'hidden' });
+    if (w.fakePieces.size) groups.push({ ids: new Set(w.fakePieces.keys()), model: I, kind: 'fake' });
     // bricks that joined or left a group move between the chunks and the overlays (P27 part 3: only those)
     for (const id of new Set([...ids, ...this.tilted.ids]))
       if (ids.has(id) !== this.tilted.ids.has(id)) {
@@ -467,14 +514,17 @@ export class PlayRenderer {
 
   private tiltedOverlays(): Overlay[] {
     const w = this.session.world;
-    if (!this.tilted.ids.size) return [];
+    if (!this.tilted.groups.length) return [];
     const out: Overlay[] = [];
+    const lens = this.session.lens;
     for (const g of this.tilted.groups) {
+      const alpha = g.kind === 'hidden' ? lens.hiddenAlpha : g.kind === 'fake' ? lens.fakeAlpha : 1;
+      if (alpha < 0.02) continue;
       const pieces = [...g.ids].flatMap((id) => {
-        const p = this.session.pieceById(w, id);
+        const p = g.kind === 'fake' ? w.fakePieces.get(id) : this.session.pieceById(w, id);
         return p ? [p] : [];
       });
-      if (pieces.length) out.push({ bricks: pieces.map(toRender), alpha: 1, flat: false, model: g.model });
+      if (pieces.length) out.push({ bricks: pieces.map(toRender), alpha, flat: false, model: g.model });
     }
     return out;
   }
@@ -847,7 +897,8 @@ export class PlayRenderer {
     }
     // P9b: a combat move (guard, roll, spin…) shows over an emote
     // step 13a: drawing a bow, throwing a boomerang: the arms over whatever else the body does
-    const shot = s.hooks.pose() ?? s.shots.pose();
+    // step 13c: and the Lens at the eye, the hover boots' paddling
+    const shot = s.poseOver();
     const fight = shot ? { ...(s.combat.pose() ?? s.heroAnim.params() ?? {}), ...shot } : s.combat.pose();
     const heroPose = fight ?? s.heroAnim.params();
     const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;

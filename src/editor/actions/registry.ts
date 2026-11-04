@@ -570,6 +570,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('hooks'),
   },
   {
+    id: 'help.lensCourse',
+    label: 'Hover boots and Lens course (float over a gap, the Lens of Truth, fake walls, an invisible bridge, magic)',
+    run: ({ ui }) => ui.tutorial('lens'),
+  },
+  {
     id: 'help.swim',
     label: 'Swimming course (dive, breath, the Action button)',
     run: ({ ui }) => ui.tutorial('swim'),
@@ -817,6 +822,7 @@ export const COURSE_GROUPS: [string, string[]][] = [
       'help.windCourse',
       'help.shotsCourse',
       'help.hooksCourse',
+      'help.lensCourse',
       'help.saving',
       'help.swim',
     ],

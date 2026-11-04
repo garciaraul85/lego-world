@@ -382,6 +382,26 @@ export const SOUNDS: Record<string, SfxRecipe> = {
   ]),
   /** the magnet glove taking hold: a low electric hum that rises */
   hum: sfx([{ wave: 'saw', f0: 110, f1: 160, dur: 0.6, gain: 0.18, trem: [24, 0.4], lp: 900 }], 31),
+  /** Step 13c: the Lens of Truth held up: a soft rising shimmer */
+  lensOn: sfx([
+    { wave: 'sine', f0: 520, f1: 880, dur: 0.35, gain: 0.16, attack: 0.04, trem: [9, 0.3] },
+    { wave: 'tri', f0: 1320, f1: 1760, at: 0.06, dur: 0.3, gain: 0.07 },
+  ]),
+  /** the Lens put down: the shimmer falling away */
+  lensOff: sfx([{ wave: 'sine', f0: 880, f1: 440, dur: 0.25, gain: 0.12, trem: [9, 0.3] }]),
+  /** the hover boots taking hold of the air: a breathy hiss */
+  hoverOn: sfx(
+    [{ wave: 'noise', f0: 1800, f1: 2400, dur: 0.5, gain: 0.18, attack: 0.05, trem: [26, 0.5], lp: 3200 }],
+    41,
+  ),
+  /** the float running out: the hiss sputters down */
+  hoverEnd: sfx([{ wave: 'noise', f0: 2200, f1: 600, dur: 0.3, gain: 0.16, trem: [14, 0.8], lp: 2600 }], 43),
+  /** a magic jar: a bright rising arpeggio */
+  magic: sfx([
+    { wave: 'tri', f0: 660, dur: 0.08, gain: 0.2 },
+    { wave: 'tri', f0: 880, at: 0.07, dur: 0.08, gain: 0.2 },
+    { wave: 'tri', f0: 1320, at: 0.14, dur: 0.16, gain: 0.18 },
+  ]),
   /** water freezing (an ice arrow): a crackle and a glassy ring */
   freeze: sfx([
     { wave: 'noise', f0: 7000, f1: 3000, dur: 0.4, gain: 0.3, trem: [44, 0.8], lp: 9000 },
@@ -551,6 +571,11 @@ export const SND = {
   freeze: sndId('freeze'),
   clink: sndId('clink'),
   hum: sndId('hum'),
+  lensOn: sndId('lensOn'),
+  lensOff: sndId('lensOff'),
+  hoverOn: sndId('hoverOn'),
+  hoverEnd: sndId('hoverEnd'),
+  magic: sndId('magic'),
 } as const;
 
 export const MUS = {
@@ -596,6 +621,12 @@ export const ADVENTURE_EVENTS: [string, SoundEvent][] = [
   // step 13b: hooks and the magnet glove
   ev('clink', ['clink'], { pitch: [0.9, 1.1], maxVoices: 2 }),
   ev('hum', ['hum'], { maxVoices: 1 }),
+  // step 13c: the Lens of Truth, the hover boots and a magic jar
+  ev('lensOn', ['lensOn'], { maxVoices: 1, spatial: false }),
+  ev('lensOff', ['lensOff'], { maxVoices: 1, spatial: false }),
+  ev('hoverOn', ['hoverOn'], { maxVoices: 1 }),
+  ev('hoverEnd', ['hoverEnd'], { maxVoices: 1 }),
+  ev('magic', ['magic'], { maxVoices: 1, spatial: false }),
 ];
 
 export const DEFAULT_EVENTS: SoundEvents = {

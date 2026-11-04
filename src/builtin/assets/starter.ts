@@ -995,6 +995,129 @@ function ironCrate(): Raw {
   return asset('Iron crate', 'prop', [2, 2], b, { loose: true, metal: true });
 }
 
+// ---------- step 13c: hover boots, the Lens of Truth, magic, hidden and fake things ----------
+
+/** a pair of silver boots with little white wings at the heels: the hover boots */
+function hoverBootsPickup(): Raw {
+  const b = new Build();
+  b.put('brick', 1, 2, 0, 0, 0, '#d6dbe3');
+  b.put('brick', 1, 2, 0, 0, 2, '#d6dbe3');
+  b.put('tile', 1, 1, 0, 3, 0, '#f4f6fa');
+  b.put('tile', 1, 1, 0, 3, 2, '#f4f6fa');
+  return asset('Hover boots', 'prop', [2, 3], b, { pickup: { item: 'Hover boots' } });
+}
+
+/** a gold ring round violet glass, on a short handle: the Lens of Truth */
+function lensPickup(): Raw {
+  const b = new Build();
+  b.put('plate', 1, 3, 0, 0, 0, C.gold);
+  b.put('plate', 1, 1, 0, 0, 1, C.gold);
+  b.put('tile', 1, 1, 1, 0, 1, '#8b5cf6');
+  b.put('plate', 1, 1, 2, 0, 1, C.gold);
+  b.put('plate', 1, 3, 0, 0, 2, C.gold);
+  b.put('plate', 1, 1, 1, 0, 3, '#8a5a2b');
+  return asset('Lens of Truth', 'prop', [3, 4], b, { pickup: { item: 'Lens of Truth' } });
+}
+
+/** a small green jar with a cork: some magic back */
+function magicJar(): Raw {
+  const b = new Build();
+  b.put('brick', 1, 1, 0, 0, 0, '#22a95b');
+  b.put('plate', 1, 1, 0, 3, 0, '#7ee2a0');
+  b.put('tile', 1, 1, 0, 4, 0, '#a7744a');
+  return asset('Magic jar', 'prop', [1, 1], b, { pickup: { item: 'Magic jar' } });
+}
+
+/** a big green jar: the whole meter back */
+function bigMagicJar(): Raw {
+  const b = new Build();
+  b.put('brick', 2, 2, 0, 0, 0, '#22a95b');
+  b.put('plate', 2, 2, 0, 3, 0, '#7ee2a0');
+  b.put('tile', 1, 1, 0, 4, 0, '#a7744a');
+  return asset('Big magic jar', 'prop', [2, 2], b, { pickup: { item: 'Big magic jar' } });
+}
+
+/**
+ * Two stone ledges 3 bricks high with a 6-stud gap between them, steps up at each end: walk off one in the hover
+ * boots and float across (6 studs at walking speed is about all their float carries)
+ */
+function pitGap(): Raw {
+  const b = new Build();
+  b.stack(0, 0, 1, 4, 0, 1, stones);
+  b.stack(1, 0, 1, 4, 0, 2, stones);
+  // the ledges, their edges at the gap gold (flush with the top: nothing to trip on)
+  b.stack(2, 0, 5, 4, 0, 3, stones);
+  b.stack(7, 0, 1, 4, 0, 2, stones);
+  b.layer('brick', 7, 0, 1, 4, 6, C.gold);
+  b.stack(15, 0, 5, 4, 0, 3, stones);
+  b.stack(14, 0, 1, 4, 0, 2, stones);
+  b.layer('brick', 14, 0, 1, 4, 6, C.gold);
+  b.stack(20, 0, 1, 4, 0, 2, stones);
+  b.stack(21, 0, 1, 4, 0, 1, stones);
+  return asset('Pit gap', 'structure', [22, 4], b);
+}
+
+/** a block of violet stone that fills a Pit gap's gap: solid, but seen only through the Lens of Truth */
+function invisibleBridge(): Raw {
+  const b = new Build();
+  b.stack(0, 0, 6, 4, 0, 3, (i) => (i % 3 ? '#8b7fd1' : '#6f5fbf'));
+  return asset('Invisible bridge', 'structure', [6, 4], b, { hidden: true });
+}
+
+/** an old stone wall that only looks solid: the hero walks through it (the Lens of Truth shows it see-through) */
+function fakeWall(): Raw {
+  const b = new Build();
+  b.stack(0, 0, 6, 1, 0, 4, mossy);
+  return asset('Fake wall', 'structure', [6, 1], b, { fake: true });
+}
+
+/** a stone floor that only looks solid: put it over a gap and the hero falls through */
+function fakeFloor(): Raw {
+  const b = new Build();
+  b.layer('plate', 0, 0, 8, 4, 0, stones);
+  b.layer('tile', 0, 0, 8, 4, 1, (i) => (i % 4 === 1 ? C.stoneLight : C.stone));
+  return asset('Fake floor', 'structure', [8, 4], b, { fake: true });
+}
+
+/** three stone walls round a little room, open at the front (its +z side: a Fake wall fits the opening) */
+function stoneAlcove(): Raw {
+  const b = new Build();
+  b.stack(0, 0, 1, 6, 0, 4, stones);
+  b.stack(7, 0, 1, 6, 0, 4, stones);
+  b.stack(1, 0, 6, 1, 0, 4, stones);
+  // a dark cap along the tops of the walls (no roof: a piece placed in it sits on the floor)
+  b.layer('plate', 0, 0, 1, 6, 12, C.stoneDark);
+  b.layer('plate', 7, 0, 1, 6, 12, C.stoneDark);
+  b.layer('plate', 1, 0, 6, 1, 12, C.stoneDark);
+  return asset('Stone alcove', 'structure', [8, 6], b);
+}
+
+/** a chest only the Lens of Truth shows (it can be opened all the same, if found): a big magic jar inside */
+function hiddenChest(): Raw {
+  const b = new Build();
+  b.put('brick', 2, 4, 0, 0, 0, '#6f5fbf');
+  b.put('plate', 2, 4, 0, 3, 0, C.gold);
+  const lid = [b.put('brick', 2, 4, 0, 4, 0, '#4c3d99'), b.put('tile', 1, 1, 1, 7, 1, C.gold)];
+  return asset('Hidden chest', 'prop', [4, 2], b, {
+    hidden: true,
+    states: ['closed', 'open'],
+    initialState: 'closed',
+    sockets: [{ id: 'lid', kind: 'interact', pos: [2, 2.4, 2.4], prompt: 'Open' }],
+    parts: [{ name: 'Lid', bricks: lid, hinge: [2, 1.6, 0], pose: { open: { turn: [-100, 0, 0] } }, ease: 0.6 }],
+    interactions: [
+      {
+        socket: 'lid',
+        when: { state: 'closed' },
+        do: [
+          { do: 'sound', event: SND.chest },
+          { do: 'setState', state: 'open' },
+          { do: 'give', item: 'Big magic jar' },
+        ],
+      },
+    ],
+  });
+}
+
 function dungeonMap(): Raw {
   const b = new Build();
   b.put('plate', 2, 2, 0, 0, 0, C.straw);
@@ -1233,4 +1356,15 @@ export const STARTER_ASSETS: Record<string, Raw> = {
   'swing-beam': swingBeam(),
   'wooden-crate': woodenCrate(),
   'iron-crate': ironCrate(),
+  // step 13c: hover boots, the Lens of Truth, magic, hidden and fake things
+  'hover-boots': hoverBootsPickup(),
+  'lens-of-truth': lensPickup(),
+  'magic-jar': magicJar(),
+  'big-magic-jar': bigMagicJar(),
+  'pit-gap': pitGap(),
+  'invisible-bridge': invisibleBridge(),
+  'fake-wall': fakeWall(),
+  'fake-floor': fakeFloor(),
+  'stone-alcove': stoneAlcove(),
+  'hidden-chest': hiddenChest(),
 };

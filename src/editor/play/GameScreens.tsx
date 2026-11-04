@@ -101,7 +101,13 @@ export function GameScreens({
   return (
     <>
       {/* P23 part 2: the map's mood and screen effects, under the world UI and screens */}
-      <ScreenFxOverlay mood={s.mood} layers={s.screenFx.layers()} lowHealth={s.lowHealth()} clock={s.clock} />
+      <ScreenFxOverlay
+        mood={s.mood}
+        layers={s.screenFx.layers()}
+        lowHealth={s.lowHealth()}
+        clock={s.clock}
+        lens={s.lens.amount}
+      />
       <div ref={worldRef} class="bw-world-layer" aria-hidden="true" hidden={!!cine?.cin.hideHud} />
       {cine && s.cine.frame && (
         <CinematicOverlay post={s.cine.frame.post} skippable={cine.cin.skippable} onSkip={() => s.cine.skip()} />

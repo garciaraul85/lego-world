@@ -142,6 +142,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Bow and boomerang course (10 steps): shoot an eye target with the bow, light a torch stand with an arrow shot through another torch’s flame, freeze a pool with an ice arrow, then throw a boomerang at a crystal switch and catch it as it comes back.',
   'help.hooksCourse':
     'Starts the Hook and magnet course (9 steps): hook yourself up a smooth wall to a hook target, pull a light crate to you with the hook line, hang from a swing beam on the grapple rope, climb, swing and let go, then lift an iron crate with the magnet glove and drop it on a floor switch.',
+  'help.lensCourse':
+    'Starts the Hover boots and Lens course (10 steps): float over a Pit gap in the hover boots, hold up the Lens of Truth, walk through a fake wall to a hidden chest, cross an invisible bridge, then fill the magic meter from a magic jar.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':

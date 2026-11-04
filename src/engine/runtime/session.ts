@@ -119,6 +119,7 @@ import type { AudioPort, Vec3 } from '../audio/port';
 import { RecordingAudio } from '../audio/port';
 import { Animator, rigPose } from '../character/animator';
 import { bodyBounds } from '../character/body-anim';
+import type { PoseParams } from '../character/routine';
 import { StateMachine } from '../character/states';
 import { ParticleSystem, type PlayOptions, type StreamHandle } from '../effects/particles';
 import { ScreenFx } from '../effects/screen';
@@ -149,6 +150,7 @@ import { formatValue, interpolate } from '../ui/bindings';
 import { ScreenStack } from '../ui/ScreenStack';
 import { resolveScreen, screenOfKind } from '../ui/screens';
 import { ActionRunner, type GameOp } from './actions';
+import { HOVER_FRICTION, HOVER_GRIP, HOVER_WALK, HoverBoots } from './boots';
 import { type ButtonHost, GameButtons } from './buttons';
 import {
   ATTACKS,
@@ -164,6 +166,8 @@ import { Enemies } from './enemies';
 import { BOMB_R, type Bomb, BRANCH_SECONDS, FireLight } from './firelight';
 import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, spawnedNpcs } from './health';
 import { type Gear, Hooks } from './hooks';
+import { Lens } from './lens';
+import { MAGIC_DEFAULTS, MAGIC_JAR, MagicMeter } from './magic';
 import { ObjectIndex } from './objects';
 import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
 import { Platforms } from './platforms';
@@ -253,6 +257,8 @@ export type MapWorld = {
   looseObjects: { inst: PlayInstance; origin: [number, number, number]; pieces: LegacyPiece[] }[];
   /** Milestone 2b: the bricks of loose objects, by id (not among the map's solid pieces) */
   loosePieces: Map<number, LegacyPiece>;
+  /** step 13c: the bricks of fake things, by id (drawn, but not among the map's solid pieces) */
+  fakePieces: Map<number, LegacyPiece>;
   /** P27 part 3d: neighbours beaten that come back (after seconds; 0: when the player comes back) */
   defeated: { npc: Npc; at: number; after: number }[];
 };
@@ -413,6 +419,118 @@ export class PlaySession {
   readonly shots: Shots<PlayInstance> = this.makeShots();
   /** step 13b: the hook line, the grapple rope and the magnet glove */
   readonly hooks: Hooks<PlayInstance> = this.makeHooks();
+  /** step 13c: the magic meter (it lives in logic's magic, maxMagic and hasMagic) */
+  readonly magic = new MagicMeter(
+    () => this.logic.vars,
+    (k, v) => this.logic.setVar(k, v as never),
+    () => this.magicSettings,
+  );
+  /** step 13c: the Lens of Truth (held up, it shows hidden things and sees through fake ones) */
+  readonly lens = new Lens({
+    drain: (r, dt) => this.magic.drain(r, dt),
+    has: () => !this.magic.on || this.magic.now > 0,
+    say: (t, sec) => this.say(t, sec),
+    log: (t) => this.emit('info', t),
+    sound: (id) => this.audio.play(SND[id], { pos: [this.heroState.x, this.heroState.y + 3.5, this.heroState.z] }),
+  });
+  /** step 13c: the hover boots (worn: the hero floats off edges for a moment, and hardly grips) */
+  readonly boots = new HoverBoots({
+    log: (t) => this.emit('info', t),
+    sound: (id) => this.audio.play(SND[id], { pos: [this.heroState.x, this.heroState.y, this.heroState.z] }),
+  });
+  /** the shoes the hero wore before the hover boots went on */
+  private shoesBefore: { shoes: unknown; shoeColor: unknown } | null = null;
+  /** the Lens's look is in the hand */
+  private lensLook = false;
+
+  /** step 13c: the game's magic (Project › Movement) */
+  get magicSettings() {
+    const v = (this.snapshot.get(paths.settings) as { magic?: Partial<typeof MAGIC_DEFAULTS> } | undefined)?.magic;
+    return { ...MAGIC_DEFAULTS, ...(v ?? {}) };
+  }
+
+  /** step 13c: the hover boots on, or off (the hero's shoes become the boots: silver, with white wings) */
+  wearBoots(on: boolean) {
+    if (on === this.boots.worn) return;
+    this.boots.worn = on;
+    const h = this.hero as Record<string, unknown>;
+    if (on) {
+      this.shoesBefore = { shoes: h.shoes, shoeColor: h.shoeColor };
+      this.hero = { ...this.hero, shoes: 'Armored boots', shoeColor: '#d6dbe3' } as typeof this.hero;
+    } else if (this.shoesBefore) {
+      this.hero = { ...this.hero, ...this.shoesBefore } as typeof this.hero;
+      this.shoesBefore = null;
+      this.boots.hover = null;
+    }
+  }
+
+  /** step 13c: the Lens up or down; while up it is in the right hand at the eye (other things put away) */
+  private toggleLens() {
+    if (this.lens.on) {
+      this.lensDown();
+      return;
+    }
+    this.putAwayStick();
+    this.lens.toggle();
+    this.syncLensLook();
+  }
+
+  /** the Lens down, and the hand as it was (at once: another tool may be coming out) */
+  private lensDown() {
+    this.lens.put();
+    this.syncLensLook();
+  }
+
+  private stepLens(dt: number) {
+    this.lens.step(dt);
+    this.syncLensLook();
+    // standing on something hidden (an invisible bridge): said once each time the hero gets onto it
+    const on = this.heroState.grounded ? this.hiddenUnderfoot() : null;
+    const hid = on ? on.inst.id : null;
+    if (hid !== this.onHidden) {
+      this.onHidden = hid;
+      if (hid && on) this.emit('info', `Standing on the ${on.def.name}${this.lens.on ? '' : ' (unseen)'}`);
+    }
+  }
+  private onHidden: string | null = null;
+
+  /** the hidden thing the hero stands on (its top under the hero's feet), or null */
+  private hiddenUnderfoot(): PlayInstance | null {
+    const s = this.heroState;
+    for (const o of this.objs().near(s.x, s.z, 12)) {
+      if (!o.def.hidden) continue;
+      const b = boxOf(o.bricks);
+      if (!b || s.x < b.x0 - 0.3 || s.x > b.x1 + 0.3 || s.z < b.z0 - 0.3 || s.z > b.z1 + 0.3) continue;
+      if (Math.abs(b.y1 * 0.4 - s.y) < 0.3) return o;
+    }
+    return null;
+  }
+
+  private syncLensLook() {
+    const want = this.lens.on;
+    if (want === this.lensLook) return;
+    this.lensLook = want;
+    if (want) {
+      this.heldBefore = String(this.hero.held ?? 'None');
+      this.hero = { ...this.hero, held: 'None', heldLook: 'Lens of Truth' };
+    } else {
+      const { heldLook: _, ...rest } = this.hero as Record<string, unknown>;
+      this.hero = { ...rest, held: this.heldBefore ?? 'None' } as typeof this.hero;
+      this.heldBefore = null;
+    }
+  }
+
+  /**
+   * What the items pose on top of the body's own move (the arms drawing a bow, hanging from the rope, the lens at
+   * the eye, the hover boots' paddling), or null: the renderer and gripPoints use the same.
+   */
+  poseOver(): PoseParams | null {
+    const hang = this.hooks.pose() ?? this.shots.pose();
+    const boots = this.boots.pose();
+    const lens = this.lens.pose();
+    if (!hang && !boots && !lens) return null;
+    return { ...(boots ?? {}), ...(hang ?? {}), ...(lens ?? {}) } as PoseParams;
+  }
 
   private makeWind(): Wind<PlayInstance> {
     const self = this;
@@ -1161,6 +1279,16 @@ export class PlaySession {
       pieces.length = 0;
       pieces.push(...kept);
     }
+    // step 13c: fake things (a wall or floor that only looks solid) are drawn, never solid: out of the map's pieces
+    const fakeIds = new Set<number>();
+    for (const e of expanded) if (e.def.fake && !e.def.loose) for (const b of e.bricks) fakeIds.add(b.id);
+    const fakePieces = new Map<number, LegacyPiece>();
+    if (fakeIds.size) {
+      for (const p of pieces) if (p.id !== undefined && fakeIds.has(p.id)) fakePieces.set(p.id, p);
+      const kept = pieces.filter((p) => p.id === undefined || !fakeIds.has(p.id));
+      pieces.length = 0;
+      pieces.push(...kept);
+    }
     const state = (this.snapshot.get(paths.state(mapId)) as MapState | undefined) ?? { broken: [], player: null };
     // P27 part 3: a big map starts with the window around where the hero arrives
     const big = pieces.length > WINDOW_FROM;
@@ -1203,6 +1331,7 @@ export class PlaySession {
       models: (inst?.items ?? []).filter((i): i is ModelInstance => i.kind === 'model'),
       looseObjects: [],
       loosePieces,
+      fakePieces,
       worldUi: (inst?.items ?? []).filter((i): i is UiInstance => i.kind === 'ui'),
       big,
       byChunk,
@@ -1603,6 +1732,7 @@ export class PlaySession {
 
   /** the stick is put away (or is gone): its fire goes out, and the hand holds what it held before */
   putAwayStick() {
+    this.lensDown();
     this.putAwayLeaf();
     this.putAwayWeapon();
     this.putAwayGear();
@@ -1644,8 +1774,27 @@ export class PlaySession {
    */
   gripPoints(over?: Record<string, unknown>): [number, number, number][] | undefined {
     const M = this.L.CharacterModel;
+    return this.jointPoints(
+      [
+        ['leftForearm', null, M.handGrip(-1)],
+        ['rightForearm', null, M.handGrip(1)],
+      ],
+      over,
+    );
+  }
+
+  /**
+   * Step 13c: points on the hero's joints as the renderer draws it now: each [joint, a point of the model (its
+   * rest pose, studs) or null, else one from the joint's pivot]. The hover boots' wings and jet are drawn at the
+   * soles this way.
+   */
+  jointPoints(
+    pts: [string, number[] | null, number[]?][],
+    over?: Record<string, unknown>,
+  ): [number, number, number][] | undefined {
+    const M = this.L.CharacterModel;
     try {
-      const shot = (over as never) ?? this.hooks.pose() ?? this.shots.pose();
+      const shot = (over as never) ?? this.poseOver();
       const base = (this.combat.pose() ?? this.heroAnim.params() ?? {}) as Record<string, unknown>;
       const params = shot ? { ...base, ...(shot as Record<string, unknown>) } : this.heroAnim.params();
       const clip = shot ? this.combat.anim.clip : this.heroAnim.clip;
@@ -1664,15 +1813,33 @@ export class PlaySession {
         : { ...s, x: 0, y: 0, z: 0, heading: 0 };
       const pose = M.jointPose(st, false, this.hero);
       const world = M.matrix(s.x, s.y, s.z, s.heading);
-      return (['leftForearm', 'rightForearm'] as const).map((j, i) => {
+      return pts.map(([j, model, local]) => {
+        const pv = M.pivots[j] ?? [0, 0, 0];
+        const l = model ? model.map((v, i) => v - (pv[i] ?? 0)) : (local ?? [0, 0, 0]);
         const m = M.scaledMatrix(pose[j]!, st, this.hero);
-        const g = M.handGrip(i ? 1 : -1);
-        const p = M.transform(world, M.transform(m, g));
+        const p = M.transform(world, M.transform(m, l));
         return [p[0]!, p[1]!, p[2]!] as [number, number, number];
       });
     } catch {
       return undefined;
     }
+  }
+
+  /** step 13c: the soles (left, right), the middles of their heels, and a point a little above each heel */
+  solePoints(): { sole: [number, number, number]; heel: [number, number, number] }[] | undefined {
+    const M = this.L.CharacterModel;
+    const out: { sole: [number, number, number]; heel: [number, number, number] }[] = [];
+    for (const j of ['leftShin', 'rightShin'] as const) {
+      const pv = M.pivots[j];
+      if (!pv) return undefined;
+      const pts = this.jointPoints([
+        [j, [pv[0]!, 0.02, 0.09]],
+        [j, [pv[0]!, 0.42, -0.36]],
+      ]);
+      if (!pts) return undefined;
+      out.push({ sole: pts[0]!, heel: pts[1]! });
+    }
+    return out;
   }
 
   /** where the stick's end is, from the hand as it is posed now (as the renderer draws it) */
@@ -1892,6 +2059,7 @@ export class PlaySession {
       // step 13a: shots look ahead along their path before the physics engine moves them (in debris)
       { id: 'shots', fixed: (g, dt) => g.stepShots(dt) },
       { id: 'hooks', fixed: (g, dt) => g.stepHooks(dt) },
+      { id: 'lens', fixed: (g, dt) => g.stepLens(dt) },
       { id: 'debris', fixed: (g, dt) => g.stepDebris(dt) },
       { id: 'cleanup', fixed: (g, dt) => g.stepCleanup(dt) },
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
@@ -2028,8 +2196,11 @@ export class PlaySession {
     };
     // step 11b part 2: deep water: the hero swims (shallow water only slows walking)
     const water = this.waterHere();
-    if (water.mode === 'swim') this.swimStep(water.box!, move, dt);
-    else {
+    if (water.mode === 'swim') {
+      this.swimStep(water.box!, move, dt);
+      // step 13c: in the water the boots do not float
+      this.boots.step({ y: 0, vy: 0, grounded: true }, dt, false);
+    } else {
       if (this.swim.on) this.leaveWater();
       if (water.mode === 'wade') move.speedScale *= 0.6;
       // step 12c-2: what the wind (and a current, wading) pushes the hero with; walking into it is slower
@@ -2044,6 +2215,13 @@ export class PlaySession {
       if (ice) this.afterIce(ice, from, dt);
       else this.driftHero(dt);
       this.rideOn();
+      // step 13c: floating on the hover boots: held at the height it left the ground (or its jump topped out)
+      const s = this.heroState;
+      const hy = this.boots.step(s, dt, !this.fireLight.held);
+      if (hy !== null) {
+        s.y = hy;
+        s.vy = 0;
+      }
     }
     this.stepBreath(water.box, dt);
     c.stepMove(dt);
@@ -2106,6 +2284,8 @@ export class PlaySession {
     const s = this.heroState;
     if (!s.grounded) return null;
     for (const o of this.objs().near(s.x, s.z, 12)) {
+      // step 13c: a fake floor holds nothing up
+      if (o.def.fake) continue;
       const b = boxOf(o.bricks);
       if (!b || s.x < b.x0 - 0.3 || s.x > b.x1 + 0.3 || s.z < b.z0 - 0.3 || s.z > b.z1 + 0.3) continue;
       if (Math.abs(b.y1 * 0.4 - s.y) < 0.3) return o;
@@ -2125,7 +2305,17 @@ export class PlaySession {
     const on = this.standingOn();
     const ice = on?.def.ice;
     const s = this.heroState;
-    if (!ice || ice.floor === false) {
+    // step 13c: the hover boots' soles hardly grip, anywhere: as on ice, a little less slippery (and in the air,
+    // floating, the feet still push on the air as weakly; falling, nothing pushes)
+    const boots = this.boots.worn && !this.swim.on;
+    if (boots && !s.grounded && !this.boots.hover) {
+      this.iceVel ??= {
+        x: Math.sin(s.heading) * (Number(s.speed) || 0),
+        z: Math.cos(s.heading) * (Number(s.speed) || 0),
+      };
+      return this.slideOn(move, false);
+    }
+    if (!boots && (!ice || ice.floor === false)) {
       // in the air the slide carries on; on anything else it stops
       if (this.iceVel && !s.grounded) return this.slideOn(move, false);
       this.iceVel = null;
@@ -2140,7 +2330,9 @@ export class PlaySession {
       mx /= l;
       mz /= l;
     }
-    const speed = (move.run ? 7.8 : 4) * (move.speedScale ?? 1);
+    const speed = (boots ? HOVER_WALK : move.run ? 7.8 : 4) * (move.speedScale ?? 1);
+    const grip = boots && !(ice && ice.floor !== false) ? HOVER_GRIP : ICE_GRIP;
+    const friction = boots && !(ice && ice.floor !== false) ? HOVER_FRICTION : ICE_FRICTION;
     const tx = (Math.cos(yaw) * mx - Math.sin(yaw) * mz) * speed;
     const tz = (-Math.sin(yaw) * mx - Math.cos(yaw) * mz) * speed;
     if (!this.iceVel)
@@ -2159,7 +2351,7 @@ export class PlaySession {
       const dx = tx - v.x;
       const dz = tz - v.z;
       const dl = Math.hypot(dx, dz);
-      const most = ICE_GRIP * HERO_GRAVITY * dt;
+      const most = grip * HERO_GRAVITY * dt;
       const k = dl > most ? most / dl : 1;
       v.x += dx * k;
       v.z += dz * k;
@@ -2169,7 +2361,7 @@ export class PlaySession {
       this.iceSlip = vl > 1 && (along < 0.75 || vl > tl + 1.2);
     } else {
       // gliding: sliding friction takes a little of the speed at a time
-      const drop = ICE_FRICTION * HERO_GRAVITY * dt;
+      const drop = friction * HERO_GRAVITY * dt;
       const k = vl > drop ? (vl - drop) / vl : 0;
       v.x *= k;
       v.z *= k;
@@ -2854,6 +3046,26 @@ export class PlaySession {
   private give(item: string, count: number) {
     // step 12a: a small key, the boss key, the map and the compass belong to this map (the dungeon)
     if (this.puzzles.give(item, count)) return;
+    // step 13c: a magic jar fills some of the meter (a big one all of it), at once
+    if (/^(big )?magic jars?$/i.test(item.trim())) {
+      const big = /^big/i.test(item.trim());
+      const had = this.magic.has;
+      if (!this.magic.on) return;
+      this.magic.fill(big ? this.magic.max : MAGIC_JAR * count);
+      this.audio.play(SND.magic);
+      this.eventEffect('heal', [this.heroState.x, this.heroState.y + 3, this.heroState.z]);
+      this.say(
+        had ? `+${big ? 'full' : MAGIC_JAR * count} magic` : 'A magic meter! Items that use magic draw on it.',
+        2,
+      );
+      this.emit(
+        'info',
+        `Picked up a ${big ? 'big magic jar' : 'magic jar'}: magic ${this.magic.now} of ${this.magic.max}`,
+      );
+      return;
+    }
+    // step 13c: the Lens of Truth comes with a magic meter (full), as the Great Fairy's gift does in Ocarina
+    if (/^lens of truth$/i.test(item.trim()) && count > 0) this.magic.grant();
     // step 11, 4a: a heart heals at once, like Zelda's
     if (/^hearts?$/i.test(item.trim())) {
       this.heal('hero', count);
@@ -2879,7 +3091,7 @@ export class PlaySession {
     // step 12b: a tool (Bomb, Torch) goes into an empty item button, ready to use (13a: and the shooting things)
     if (
       count > 0 &&
-      /^(bombs?|torch|branch|gust leaf|bow|fire arrows|ice arrows|slingshot|stun nuts?|boomerang|whirl boomerang|hook line|grapple rope|magnet glove)$/i.test(
+      /^(bombs?|torch|branch|gust leaf|bow|fire arrows|ice arrows|slingshot|stun nuts?|boomerang|whirl boomerang|hook line|grapple rope|magnet glove|hover boots|lens of truth)$/i.test(
         item.trim(),
       ) &&
       !this.buttons.slots.includes(item)
@@ -4450,6 +4662,11 @@ export class PlaySession {
     this.wind.reset();
     this.shots.reset();
     this.hooks.reset();
+    this.lens.reset();
+    this.lensLook = false;
+    this.wearBoots(false);
+    this.boots.reset();
+    this.magic.reset();
     this.windFx.clear();
     this.heroDrift = { x: 0, z: 0 };
     this.health.clear();
@@ -5210,6 +5427,29 @@ export class PlaySession {
       this.takeItem(item, 1);
       fl.lift();
       this.bombHint();
+      return true;
+    }
+    // step 13c: the hover boots go on (or come off); the Lens of Truth goes up to the eye (or down)
+    if (name === 'hover boots') {
+      this.wearBoots(!this.boots.worn);
+      this.say(
+        this.boots.worn
+          ? 'Hover boots on! Walk off an edge: they hold you level in the air for a moment. They hardly grip, so you slide, and you cannot run in them.'
+          : 'Hover boots off.',
+        this.boots.worn ? 3.2 : 1.2,
+      );
+      return true;
+    }
+    if (name === 'lens of truth') {
+      if (this.fireLight.held || this.fireLight.busy) return true;
+      this.toggleLens();
+      if (this.lens.on)
+        this.say(
+          this.magic.on
+            ? 'The Lens of Truth! Hidden things show, and fake walls and floors look see-through. It uses magic while it is up.'
+            : 'The Lens of Truth! Hidden things show, and fake walls and floors look see-through.',
+          3,
+        );
       return true;
     }
     // step 12b: a branch is a stick: its button takes it out (shown in the hand) or puts it away; out, Attack swings

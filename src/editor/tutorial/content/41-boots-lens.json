@@ -1,0 +1,293 @@
+{
+  "id": "lens",
+  "title": "Hover boots and Lens course",
+  "steps": [
+    {
+      "id": "bl.open",
+      "title": "Hover boots and the Lens of Truth",
+      "body": "Two of Zelda's dungeon items, and the magic one of them uses. The hover boots (from Ocarina of Time) float you level in the air for a moment when you walk off an edge, but hardly grip, so you slide. The Lens of Truth shows what is hidden and sees through what is fake; it uses magic while you hold it up. They are under Starter pack › Boots and Lens.",
+      "task": "Open Starter pack in the bottom dock.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "dockIs",
+        "args": "pack"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "pack"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bl.gap",
+      "title": "A gap to float across",
+      "body": "Place the Hover boots beside the start and a Pit gap about 10 studs ahead: two stone ledges 3 bricks high with a 6-stud gap between them, steps up at each end.",
+      "task": "Place the Hover boots and a Pit gap.",
+      "target": "[aria-label=\"Boots and Lens\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Hover boots,Pit gap"
+      },
+      "doItForMe": [
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Hover boots",
+            "ahead": 1,
+            "side": 3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Pit gap",
+            "ahead": 10,
+            "side": 0
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bl.hover",
+      "title": "Float across",
+      "body": "Press Play, walk over the hover boots and press their button (J) to put them on. Climb onto a ledge and walk off it toward the other: the boots hold you level in the air for a second and a half while your legs paddle, carried on by the speed you had. Their soles hardly grip, so start walking a little way back: you speed up slowly, and you slide when you stop. You cannot run in them.",
+      "task": "Press Play, put the boots on and float over the gap.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Hovering on the hover boots"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "hoverAcross"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bl.alcove",
+      "title": "A wall that is not there",
+      "body": "Stop the game. Place the Lens of Truth to the left of the start, a Stone alcove about 20 studs ahead (three walls round a little room), a Fake wall in its open front, and a Hidden chest inside it. The fake wall looks like the others but is not solid; the chest cannot be seen at all.",
+      "task": "Place the Lens of Truth, a Stone alcove, a Fake wall and a Hidden chest.",
+      "target": "[aria-label=\"Boots and Lens\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Lens of Truth,Stone alcove,Fake wall,Hidden chest"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Lens of Truth",
+            "ahead": -2,
+            "side": -3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Stone alcove",
+            "ahead": 20,
+            "side": 0,
+            "faceStart": true
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Fake wall",
+            "ahead": 20,
+            "side": 0,
+            "faceStart": true
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Hidden chest",
+            "ahead": 22,
+            "side": 0,
+            "faceStart": true
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bl.look",
+      "title": "Look through the Lens",
+      "body": "Press Play, walk over the Lens of Truth and press its button (K). The hero holds it up to the eye and the view turns purple inside a dark ring. A magic meter appears under the hearts and goes down while the Lens is up; press the button again to put it down.",
+      "task": "Press Play and hold the Lens up.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Looking through the Lens of Truth"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "lensLook"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bl.chest",
+      "title": "Through the fake wall",
+      "body": "Look at the alcove through the Lens: the fake wall is see-through, and the hidden chest shows inside. Walk straight through the wall and press Action at the chest: a big magic jar fills the meter.",
+      "task": "Walk through the fake wall and open the hidden chest.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Hidden chest is now open"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "lensLook"
+        },
+        {
+          "fn": "openHiddenChest"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bl.bridge",
+      "title": "An invisible bridge",
+      "body": "Stop the game. Place a second Pit gap about 30 studs ahead, and an Invisible bridge in its gap. The bridge is solid but unseen: without the Lens, the gap looks empty.",
+      "task": "Place a second Pit gap and an Invisible bridge in it.",
+      "target": "[aria-label=\"Boots and Lens\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Pit gap,Invisible bridge"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Pit gap",
+            "ahead": 30,
+            "side": 0,
+            "count": 2
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Invisible bridge",
+            "ahead": 30,
+            "side": 0
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bl.cross",
+      "title": "Walk across",
+      "body": "Press Play and climb onto the far Pit gap. Hold up the Lens to see the bridge, then walk across it (take the hover boots off first, or you will slide). Without the Lens the bridge still holds you; you just cannot see it.",
+      "task": "Press Play and walk across the invisible bridge.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Standing on the Invisible bridge"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "crossBridge"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bl.jar",
+      "title": "Magic jars",
+      "body": "Stop the game. Place a Magic jar beside the start. Press Play and walk over it: it fills 12 of the meter's 48 (a Big magic jar fills all of it). In Project › Movement, Magic turns the meter off (items then need none) or makes it bigger.",
+      "task": "Place a Magic jar, press Play and pick it up.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Picked up a magic jar"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Magic jar",
+            "ahead": 2,
+            "side": -4
+          }
+        },
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "takePickupNamed",
+          "args": {
+            "name": "Magic jar"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bl.done",
+      "title": "Done!",
+      "body": "You floated across a gap in the hover boots, looked through the Lens of Truth, walked through a fake wall to a hidden chest, crossed an invisible bridge and refilled your magic. Make your own: in the Asset studio’s Wind and lifting section, tick Hidden (the Lens shows it) or Fake (looks solid, isn’t) on any asset.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

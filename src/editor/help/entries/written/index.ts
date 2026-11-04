@@ -6,6 +6,7 @@ import { FIRE_LIGHT } from './firelight';
 import { GUIDES } from './guides';
 import { HOOKS } from './hooks';
 import { ICE_MOVE } from './icemove';
+import { LENS } from './lens';
 import { LIGHTS } from './lights';
 import { PHYSICS } from './physics';
 import { PUZZLES } from './puzzles';
@@ -37,6 +38,7 @@ export const WRITTEN: HelpEntry[] = [
   ...WIND,
   ...SHOTS,
   ...HOOKS,
+  ...LENS,
   ...PLAY,
 ];
 

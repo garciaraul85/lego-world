@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import { MAX_MAPS } from '../../core/commands/handlers/map';
+import { MAGIC_DEFAULTS } from '../../core/items/magic';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import { worldGenerator } from '../../core/legacy/modules';
 import { minOf } from '../../core/num';
@@ -812,6 +813,52 @@ function SwimField({ c }: { c: ActionCtx }) {
   );
 }
 
+export const MAGIC_HELP =
+  'The magic meter (as in Zelda): the hero has none until it gets something that uses magic (the Lens of Truth) or picks up a magic jar; then a green bar shows under the hearts. The Lens takes 4 a second while it is up; a Magic jar gives back 12, a Big magic jar fills it. Logic sees it as the variables magic, maxMagic and hasMagic (Set or Add variable changes it). Off: items that use magic need none, and no meter shows.';
+
+/** step 13c: does the game have magic, and how much a full meter holds */
+function MagicField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = { ...MAGIC_DEFAULTS, ...(ed.store.get<Settings>(paths.settings)?.magic ?? {}) };
+  const save = (p: Partial<typeof cur>) =>
+    ed.exec({ type: 'project.update', payload: { magic: { ...cur, ...p } } }, { label: 'Magic' });
+  return (
+    <div class="field" data-tour="project-magic" data-help="project.magic">
+      <span>
+        Magic
+        <FieldHelp label="Magic" text={MAGIC_HELP} />
+      </span>
+      <span class="row" style={{ gap: '8px' }}>
+        <label class="row small">
+          <input
+            type="checkbox"
+            checked={cur.can}
+            aria-label="The game has magic"
+            onChange={(e) => save({ can: (e.target as HTMLInputElement).checked })}
+          />
+          The game has magic
+        </label>
+        <label class="row small">
+          Full meter
+          <input
+            class="inp mono"
+            type="number"
+            min={4}
+            max={200}
+            style={{ width: '64px' }}
+            aria-label="Full magic meter"
+            value={cur.max}
+            onChange={(e) => {
+              const v = Math.max(4, Math.min(200, Math.round(Number((e.target as HTMLInputElement).value) || 48)));
+              save({ max: v });
+            }}
+          />
+        </label>
+      </span>
+    </div>
+  );
+}
+
 function ProjectTab({ c }: { c: ActionCtx }) {
   const { ed, ui } = c;
   ed.revision.value;
@@ -876,6 +923,7 @@ function ProjectTab({ c }: { c: ActionCtx }) {
         <ClimbingField c={c} />
         <ScreenLookField c={c} />
         <SwimField c={c} />
+        <MagicField c={c} />
       </div>
       <ControlsSection c={c} />
       <SavingSection c={c} />

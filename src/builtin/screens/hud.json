@@ -41,6 +41,20 @@
           },
           {
             "type": "bar",
+            "id": "magic",
+            "bind": ["magic", "maxMagic"],
+            "label": "Magic",
+            "showIf": "hasMagic",
+            "style": {
+              "w": 120,
+              "h": 14,
+              "color": "#4ade80",
+              "radius": 7,
+              "fontSize": 11
+            }
+          },
+          {
+            "type": "bar",
             "id": "air",
             "bind": ["air", "maxAir"],
             "label": "Air",

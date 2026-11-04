@@ -7,6 +7,9 @@ export const WIND_HELP = {
   hook: 'The hook line and the grapple rope catch on it (a hook target, a ring, a beam): the hook line pulls the hero to it, the rope holds the hero hanging from it. Wood (anything that burns), ladders and vines catch anyway; stone does not, and a loose thing lighter than the hero is pulled to the hero instead.',
   metal:
     'It is iron: a loose one is the magnet glove’s to lift and carry through the air, and it is heavy (2.5 times as dense as water: it sinks, and the wind hardly moves it).',
+  hidden:
+    'Unseen in play until the hero looks through the Lens of Truth (it shows faintly through it). It is still solid and works as ever: an invisible platform to walk on, a hidden chest that opens if found, a hidden door.',
+  fake: 'It looks solid but is not: the hero walks or falls straight through it, and so does everything else. Through the Lens of Truth it looks see-through. A fake wall hides a way on; a fake floor over a gap is a trap.',
   lift: 'The hero can lift it (Action, as a bomb), carry it over its head, put it down (standing still) or throw it (walking). Thrown, it flies in an arc and the physics engine rolls it to rest; a switch it strikes is hit (a crystal switch turns), and lying on a floor switch it weighs on it. Breaks: it breaks where it lands or on what it hits, dropping what it holds (a clay pot’s hearts).',
 };
 
@@ -117,6 +120,30 @@ export function WindSection({ def, reset }: { def: Asset; reset: (to: Asset, lab
         />{' '}
         Metal (the magnet glove lifts it)
         <FieldHelp label="Metal" text={WIND_HELP.metal} />
+      </label>
+      <label class="lbl" data-tour="asset-hidden" data-help="asset.lens">
+        <input
+          type="checkbox"
+          checked={!!def.hidden}
+          onChange={() => {
+            const { hidden: _h, ...rest } = def;
+            reset((def.hidden ? rest : { ...rest, hidden: true }) as Asset, 'Hidden');
+          }}
+        />{' '}
+        Hidden (the Lens of Truth shows it)
+        <FieldHelp label="Hidden" text={WIND_HELP.hidden} />
+      </label>
+      <label class="lbl" data-tour="asset-fake" data-help="asset.lens">
+        <input
+          type="checkbox"
+          checked={!!def.fake}
+          onChange={() => {
+            const { fake: _f, ...rest } = def;
+            reset((def.fake ? rest : { ...rest, fake: true }) as Asset, 'Fake');
+          }}
+        />{' '}
+        Fake (looks solid, isn’t)
+        <FieldHelp label="Fake" text={WIND_HELP.fake} />
       </label>
       <label class="lbl" data-tour="asset-lift">
         <input

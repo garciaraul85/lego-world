@@ -159,6 +159,10 @@ export const Asset = z.strictObject({
   hook: z.boolean().optional(),
   /** step 13b: it is metal: the magnet glove lifts it (a loose one), and it is heavy (sinks in water) */
   metal: z.boolean().optional(),
+  /** step 13c: unseen until looked at through the Lens of Truth (still solid: an invisible platform, a hidden chest) */
+  hidden: z.boolean().optional(),
+  /** step 13c: looks solid but is not (a fake wall or floor: walked or fallen through); the Lens shows it see-through */
+  fake: z.boolean().optional(),
   generator: z
     .strictObject({ environments: z.array(z.enum(BIOMES)), weight: z.number().min(0).max(1), placeOn: z.string() })
     .nullable(),

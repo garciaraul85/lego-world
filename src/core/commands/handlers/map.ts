@@ -12,6 +12,7 @@ import { EffectHooks } from '../../effects/schema';
 import { Mood, ScreenHooks } from '../../effects/screen';
 import { hash64 } from '../../hash';
 import { type Id, newId } from '../../ids';
+import { Magic } from '../../items/magic';
 import { Ambient, DayLength, Fog } from '../../lighting/atmosphere';
 import type { ProjectStore } from '../../project/store';
 import { QUALITY_CHOICES, type QualityChoice } from '../../render/quality';
@@ -342,6 +343,8 @@ export type UpdateProject = {
   climbing?: 'ladders' | 'anything';
   /** step 11b: swimming and breath */
   swimming?: Swimming;
+  /** step 13c: the game's magic */
+  magic?: Magic;
   /** step 11b part 1: the game's buttons (null: back to the defaults) */
   controls?: Controls | null;
   /** step 11, 4b: how the game's screens and menus look */
@@ -368,11 +371,13 @@ export const updateProject: CommandHandler<UpdateProject> = {
                     ? `Climbing: ${p.climbing}`
                     : p.swimming !== undefined && Object.keys(p).length === 1
                       ? 'Swimming'
-                      : p.controls !== undefined && Object.keys(p).length === 1
-                        ? 'Controls'
-                        : p.uiLook !== undefined && Object.keys(p).length === 1
-                          ? `Screen look: ${p.uiLook}`
-                          : 'Edit project settings',
+                      : p.magic !== undefined && Object.keys(p).length === 1
+                        ? 'Magic'
+                        : p.controls !== undefined && Object.keys(p).length === 1
+                          ? 'Controls'
+                          : p.uiLook !== undefined && Object.keys(p).length === 1
+                            ? `Screen look: ${p.uiLook}`
+                            : 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.saving && !SavingSchema.safeParse(p.saving).success)
@@ -415,6 +420,8 @@ export const updateProject: CommandHandler<UpdateProject> = {
       return 'The screen look is classic or adventure.';
     if (p.swimming !== undefined && !Swimming.safeParse(p.swimming).success)
       return 'Swimming: can (true or false) and breath (3 to 300 seconds).';
+    if (p.magic !== undefined && !Magic.safeParse(p.magic).success)
+      return 'Magic: can (true or false) and max (4 to 200).';
     if (p.controls) {
       const r = Controls.safeParse(p.controls);
       if (!r.success)
@@ -447,6 +454,10 @@ export const updateProject: CommandHandler<UpdateProject> = {
     if (p.swimming !== undefined) {
       const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
       store.put(paths.settings, { ...settings, swimming: p.swimming });
+    }
+    if (p.magic !== undefined) {
+      const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
+      store.put(paths.settings, { ...settings, magic: p.magic });
     }
     if (p.controls !== undefined) {
       const { controls: _old, ...settings } = store.get<Settings>(paths.settings) ?? { quality: 'auto' as const };
