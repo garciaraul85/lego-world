@@ -6424,7 +6424,8 @@ export class PlaySession {
     // a neighbour close by and in front (or locked on to), like Zelda: not one across the square
     const locked = this.combat.lockedNpc();
     const npc = locked ?? this.L.NPCWorld.nearest(this.world.npcs, s);
-    if (npc) {
+    // step 14a: an enemy is fought, not talked to
+    if (npc && !this.enemyOf(npc)) {
       const dx = npc.state.x - s.x;
       const dz = npc.state.z - s.z;
       const d = Math.hypot(dx, dz);
