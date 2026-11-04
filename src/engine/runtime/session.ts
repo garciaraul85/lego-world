@@ -433,7 +433,7 @@ export class PlaySession {
     log: (t) => this.emit('info', t),
     sound: (id) => this.audio.play(SND[id], { pos: [this.heroState.x, this.heroState.y + 3.5, this.heroState.z] }),
   });
-  /** step 13c: the hover boots (worn: the hero floats off edges for a moment, and hardly grips) */
+  /** step 13c: the hover boots (worn: the hero floats for a moment when it walks off an edge) */
   readonly boots = new HoverBoots({
     log: (t) => this.emit('info', t),
     sound: (id) => this.audio.play(SND[id], { pos: [this.heroState.x, this.heroState.y, this.heroState.z] }),
@@ -1455,6 +1455,8 @@ export class PlaySession {
 
   /** Put the hero at a spawn (v68 arrival: keep clear of scenery, fall back to the map's safe spawn). */
   placeAt(pos: [number, number, number], heading: number) {
+    // step 13c: a hero put somewhere (a respawn, a checkpoint, a door) has not walked off an edge: no float
+    this.boots?.placed();
     // step 12b: a hero put somewhere else lets go of a ladder (and is not mid-climb)
     if (this.puzzles) {
       this.puzzles.ladder = null;
@@ -2215,7 +2217,7 @@ export class PlaySession {
       if (ice) this.afterIce(ice, from, dt);
       else this.driftHero(dt);
       this.rideOn();
-      // step 13c: floating on the hover boots: held at the height it left the ground (or its jump topped out)
+      // step 13c: floating on the hover boots: held at the height it walked off
       const s = this.heroState;
       const hy = this.boots.step(s, dt, !this.fireLight.held);
       if (hy !== null) {
@@ -2305,16 +2307,9 @@ export class PlaySession {
     const on = this.standingOn();
     const ice = on?.def.ice;
     const s = this.heroState;
-    // step 13c: the hover boots' soles hardly grip, anywhere: as on ice, a little less slippery (and in the air,
-    // floating, the feet still push on the air as weakly; falling, nothing pushes)
-    const boots = this.boots.worn && !this.swim.on;
-    if (boots && !s.grounded && !this.boots.hover) {
-      this.iceVel ??= {
-        x: Math.sin(s.heading) * (Number(s.speed) || 0),
-        z: Math.cos(s.heading) * (Number(s.speed) || 0),
-      };
-      return this.slideOn(move, false);
-    }
+    // step 13c: floating on the hover boots, the feet push on the air as weakly as on ice (falling after it, the
+    // speed carries on: the branch below); on the ground the boots walk and run as any shoes
+    const boots = !!this.boots.hover && !this.swim.on;
     if (!boots && (!ice || ice.floor === false)) {
       // in the air the slide carries on; on anything else it stops
       if (this.iceVel && !s.grounded) return this.slideOn(move, false);
@@ -2330,7 +2325,9 @@ export class PlaySession {
       mx /= l;
       mz /= l;
     }
-    const speed = (boots ? HOVER_WALK : move.run ? 7.8 : 4) * (move.speedScale ?? 1);
+    // floating, the feet push toward walking speed, but do not brake a faster run off the edge
+    const carried = this.iceVel ? Math.hypot(this.iceVel.x, this.iceVel.z) : Number(s.speed) || 0;
+    const speed = (boots ? Math.max(HOVER_WALK, carried) : move.run ? 7.8 : 4) * (move.speedScale ?? 1);
     const grip = boots && !(ice && ice.floor !== false) ? HOVER_GRIP : ICE_GRIP;
     const friction = boots && !(ice && ice.floor !== false) ? HOVER_FRICTION : ICE_FRICTION;
     const tx = (Math.cos(yaw) * mx - Math.sin(yaw) * mz) * speed;
@@ -3096,10 +3093,30 @@ export class PlaySession {
       ) &&
       !this.buttons.slots.includes(item)
     ) {
-      const free = Array.from({ length: this.buttons.c.items }, (_, i) => i).find((i) => !this.buttons.slots[i]);
-      if (free !== undefined) {
-        this.equip(free + 1, item);
-        this.say(`${item} is on item button ${free + 1} (${this.buttons.keyOf(ITEM_BUTTONS[free]!)}).`, 2.5);
+      // an empty item button; with none empty (step 13c fix), the one whose item was used longest ago: a new tool is
+      // always ready to use, and the item menu puts the old one back
+      const n = this.buttons.c.items;
+      const all = Array.from({ length: n }, (_, i) => i);
+      const free = all.find((i) => !this.buttons.slots[i]);
+      const slot =
+        free ??
+        all.reduce((a, b) =>
+          this.lastTouched(this.buttons.slots[b]) < this.lastTouched(this.buttons.slots[a]) ? b : a,
+        );
+      if (n > 0) {
+        const was = this.buttons.slots[slot];
+        this.equip(slot + 1, item);
+        const key = this.buttons.keyOf(ITEM_BUTTONS[slot]!).toUpperCase();
+        const menu = this.buttons.keyOf('menu').toUpperCase();
+        if (count > 0) this.eventEffect('coin', [this.heroState.x, this.heroState.y + 3, this.heroState.z]);
+        this.say(
+          was
+            ? `+${count} ${item}: it is on item button ${slot + 1} (${key}) in place of the ${was}. The item menu (${menu}) changes it.`
+            : `+${count} ${item}: it is on item button ${slot + 1} (${key}).`,
+          3,
+        );
+        this.audio.play(SND.pickup);
+        return;
       }
     }
     if (count > 0) this.eventEffect('coin', [this.heroState.x, this.heroState.y + 3, this.heroState.z]);
@@ -4656,6 +4673,7 @@ export class PlaySession {
     this.checkpoint = { map: this.world.mapId, spawn: sp?.id ?? null };
     this.travelLock = sp ? { spawn: sp.id } : null;
     this.inventory.clear();
+    this.usedAt.clear();
     this.puzzles.restore(undefined);
     this.fireLight.reset();
     this.platforms.reset();
@@ -5434,7 +5452,7 @@ export class PlaySession {
       this.wearBoots(!this.boots.worn);
       this.say(
         this.boots.worn
-          ? 'Hover boots on! Walk off an edge: they hold you level in the air for a moment. They hardly grip, so you slide, and you cannot run in them.'
+          ? 'Hover boots on! Walk off an edge (a jump does not float): they hold you level in the air for a moment, and you sail on with the speed you had.'
           : 'Hover boots off.',
         this.boots.worn ? 3.2 : 1.2,
       );
@@ -6270,9 +6288,17 @@ export class PlaySession {
       return;
     }
     this.emit('info', `Item ${slot}: ${item}`);
+    this.usedAt.set(item, this.clock);
     // step 12b: a Bomb and a Torch do something by themselves (logic hears them as well)
     if (!this.talking && !this.talks.active && !this.over) this.useTool(item);
     this.logic.fire({ type: 'event.onItemUsed', match: { item }, payload: { item, slot } });
+  }
+
+  /** when each item was last used from its button, or put on it (a new tool takes the one touched longest ago) */
+  private usedAt = new Map<string, number>();
+  private equipCount = 0;
+  private lastTouched(item: string | null | undefined): number {
+    return item ? (this.usedAt.get(item) ?? -1) : -2;
   }
 
   /** step 11b part 1: the buttons as the HUD shows them (key, and what each does now) */
@@ -6309,6 +6335,7 @@ export class PlaySession {
   /** step 11b part 1: an item put in an item button (logic: Put item in slot does the same) */
   equip(slot: number, item: string | null) {
     this.buttons.equip(slot, item);
+    if (item) this.usedAt.set(item, this.clock + this.equipCount++ * 1e-6);
     this.emit('info', `Item button ${slot}: ${item ?? 'empty'}`);
   }
   /** step 11b part 1: the player's own keys changed (Play keeps them on the device) */

@@ -1,21 +1,21 @@
 /**
- * Step 13c: the hover boots (after Ocarina of Time's). Worn, they float: off an edge (or at the top of a jump) the
- * hero stays level in the air for HOVER_TIME seconds, carried on by the speed it had, then falls as ever. Their
- * soles hardly grip, on the ground or in the air: the feet push no harder than HOVER_GRIP·g (a = μg, as on ice),
- * so the hero speeds up, turns and stops slowly and slides on when the keys are let go, losing speed only to
- * HOVER_FRICTION·g. No running in them. While floating the legs paddle in short quick steps and the arms go out
- * for balance; a thin jet of air shows under each sole.
+ * Step 13c: the hover boots (after Ocarina of Time's). Worn, they float: walking off an edge, the hero stays level
+ * in the air for HOVER_TIME seconds, carried on by the speed it had, then falls as ever. A jump does not float. On
+ * the ground they walk and run as any shoes; floating, the air hardly holds the feet: they push no harder than
+ * HOVER_GRIP·g (a = μg, as on ice), so the hero turns and slows only a little and slides on, losing speed only to
+ * HOVER_FRICTION·g. While floating the legs paddle in short quick steps and the arms go out for balance; a thin
+ * jet of air shows under each sole.
  */
 
 import type { PoseParams } from '../character/routine';
 
 /** how long the boots hold the hero level in the air, seconds */
 export const HOVER_TIME = 1.5;
-/** how hard the feet can push (μ, times g) on the ground and while hovering */
+/** how hard the feet can push on the air while floating (μ, times g) */
 export const HOVER_GRIP = 0.16;
 /** the little friction that slows a slide (μ, times g): more than ice, less than shoes */
 export const HOVER_FRICTION = 0.12;
-/** walking speed in them (no running) */
+/** the most the feet push the float up to (walking speed) */
 export const HOVER_WALK = 4;
 /** the paddling steps a second */
 export const PADDLE_HZ = 3.2;
@@ -28,6 +28,8 @@ export class HoverBoots {
   private used = false;
   /** seconds floated (the paddling's clock) */
   private t = 0;
+  /** on the ground at the last step (the float starts only the moment the feet leave it) */
+  private wasGrounded = true;
 
   constructor(private h: { log(text: string): void; sound(id: 'hoverOn' | 'hoverEnd'): void }) {}
 
@@ -36,6 +38,8 @@ export class HoverBoots {
    * fall stopped), or null.
    */
   step(s: { y: number; vy: number; grounded: boolean }, dt: number, can: boolean): number | null {
+    const left = this.wasGrounded && !s.grounded;
+    this.wasGrounded = s.grounded;
     if (!this.worn || !can || s.grounded) {
       if (s.grounded) {
         this.used = false;
@@ -44,7 +48,10 @@ export class HoverBoots {
       if (this.hover) this.end(false);
       return null;
     }
-    if (!this.hover && !this.used && s.vy <= 0) {
+    // only walking off an edge floats: the feet leave the ground without going up. A jump does not (it is used up
+    // until the hero lands), and nor does putting the boots on in the air
+    if (left && !this.hover && !this.used && s.vy > 1) this.used = true;
+    if (left && !this.hover && !this.used) {
       this.hover = { left: HOVER_TIME, y: s.y };
       this.used = true;
       this.t = 0;
@@ -61,17 +68,18 @@ export class HoverBoots {
     return this.hover.y;
   }
 
+  /** the hero was put somewhere: it did not walk off anything (no float until it has stood on the ground) */
+  placed() {
+    this.hover = null;
+    this.wasGrounded = false;
+  }
+
   private end(ran: boolean) {
     this.hover = null;
     if (ran) {
       this.h.sound('hoverEnd');
       this.h.log('The hover boots ran out of float');
     }
-  }
-
-  /** a jump with them on floats again at its top */
-  jumped() {
-    this.used = false;
   }
 
   /**
@@ -109,5 +117,6 @@ export class HoverBoots {
     this.hover = null;
     this.used = false;
     this.t = 0;
+    this.wasGrounded = true;
   }
 }

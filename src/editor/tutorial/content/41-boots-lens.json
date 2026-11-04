@@ -5,7 +5,7 @@
     {
       "id": "bl.open",
       "title": "Hover boots and the Lens of Truth",
-      "body": "Two of Zelda's dungeon items, and the magic one of them uses. The hover boots (from Ocarina of Time) float you level in the air for a moment when you walk off an edge, but hardly grip, so you slide. The Lens of Truth shows what is hidden and sees through what is fake; it uses magic while you hold it up. They are under Starter pack › Boots and Lens.",
+      "body": "Two of Zelda's dungeon items, and the magic one of them uses. The hover boots (from Ocarina of Time) float you level in the air for a moment when you walk off an edge, and you slide on through the air while you float. The Lens of Truth shows what is hidden and sees through what is fake; it uses magic while you hold it up. They are under Starter pack › Boots and Lens.",
       "task": "Open Starter pack in the bottom dock.",
       "target": "[data-tour=\"dock\"]",
       "check": {
@@ -61,7 +61,7 @@
     {
       "id": "bl.hover",
       "title": "Float across",
-      "body": "Press Play, walk over the hover boots and press their button (J) to put them on. Climb onto a ledge and walk off it toward the other: the boots hold you level in the air for a second and a half while your legs paddle, carried on by the speed you had. Their soles hardly grip, so start walking a little way back: you speed up slowly, and you slide when you stop. You cannot run in them.",
+      "body": "Press Play, walk over the hover boots and press their button to put them on (the message says which button). On the ground they are ordinary shoes. Climb onto a ledge and walk off it toward the other (a jump does not float): the boots hold you level in the air for a second and a half while your legs paddle. Up there your feet hardly push on the air, as on ice: you sail on with the speed you had and can only steer a little, so walk or run at the edge and keep going.",
       "task": "Press Play, put the boots on and float over the gap.",
       "target": "[data-tour=\"play\"]",
       "check": {
@@ -220,7 +220,7 @@
     {
       "id": "bl.cross",
       "title": "Walk across",
-      "body": "Press Play and climb onto the far Pit gap. Hold up the Lens to see the bridge, then walk across it (take the hover boots off first, or you will slide). Without the Lens the bridge still holds you; you just cannot see it.",
+      "body": "Press Play and climb onto the far Pit gap. Hold up the Lens to see the bridge, then walk across it. Without the Lens the bridge still holds you; you just cannot see it.",
       "task": "Press Play and walk across the invisible bridge.",
       "target": "[data-tour=\"play\"]",
       "check": {

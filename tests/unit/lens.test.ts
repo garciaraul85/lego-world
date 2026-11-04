@@ -172,9 +172,10 @@ describe('the Lens of Truth', () => {
 });
 
 describe('the hover boots', () => {
-  it('hold the hero level for HOVER_TIME after leaving the ground, once until it lands', () => {
+  it('hold the hero level for HOVER_TIME after walking off an edge, once until it lands', () => {
     const b = new HoverBoots({ log: () => {}, sound: () => {} });
     b.worn = true;
+    b.step({ y: 3.6, vy: 0, grounded: true }, 1 / 60, true);
     const s = { y: 3.4, vy: -0.4, grounded: false };
     let t = 0;
     let held = 0;
@@ -187,8 +188,9 @@ describe('the hover boots', () => {
     expect(held).toBeLessThan(HOVER_TIME + 0.05);
     // still in the air: no second float
     expect(b.step(s, 1 / 60, true)).toBeNull();
-    // landed, then off again: it floats again
+    // landed, then off an edge again: it floats again
     b.step({ y: 0, vy: 0, grounded: true }, 1 / 60, true);
+    b.step({ y: 2, vy: 0, grounded: true }, 1 / 60, true);
     expect(b.step({ y: 2, vy: -0.1, grounded: false }, 1 / 60, true)).toBe(2);
     // the pose paddles: the legs go opposite ways and swap
     const p1 = b.pose()!;
@@ -199,13 +201,19 @@ describe('the hover boots', () => {
     expect(Math.sign(ll(p2) - ll(p1))).toBe(-Math.sign(rl(p2) - rl(p1)));
   });
 
-  it('do nothing going up (a jump floats only at its top) or taken off', () => {
+  it('never float a jump (not on the way up, nor at its top), nor when put on in the air', () => {
     const b = new HoverBoots({ log: () => {}, sound: () => {} });
     b.worn = true;
-    expect(b.step({ y: 2, vy: 3, grounded: false }, 1 / 60, true)).toBeNull();
-    expect(b.step({ y: 2.1, vy: -0.1, grounded: false }, 1 / 60, true)).toBe(2.1);
-    b.worn = false;
-    expect(b.step({ y: 2.1, vy: -0.1, grounded: false }, 1 / 60, true)).toBeNull();
+    b.step({ y: 0, vy: 0, grounded: true }, 1 / 60, true);
+    expect(b.step({ y: 0.2, vy: 9, grounded: false }, 1 / 60, true)).toBeNull();
+    for (let vy = 8; vy > -6; vy -= 0.4) expect(b.step({ y: 2, vy, grounded: false }, 1 / 60, true)).toBeNull();
+    expect(b.hover).toBeNull();
+    // landed, then the boots are put on mid-fall: no float either
+    const c = new HoverBoots({ log: () => {}, sound: () => {} });
+    c.step({ y: 3, vy: 0, grounded: true }, 1 / 60, true);
+    c.step({ y: 2.9, vy: -0.5, grounded: false }, 1 / 60, true);
+    c.worn = true;
+    expect(c.step({ y: 2.8, vy: -1, grounded: false }, 1 / 60, true)).toBeNull();
   });
 });
 
@@ -229,10 +237,49 @@ describe('in play', () => {
     expect(floated).toBe(true);
     expect(p.heroState.x).toBeGreaterThan(14);
     expect(p.heroState.y).toBeGreaterThan(3);
-    // they hardly grip: let go and the hero slides on
+    // on the ground they are ordinary shoes: let go and the hero stops (no sliding)
+    steps(0.5);
     const x = p.heroState.x;
     steps(0.5);
-    expect(p.heroState.x - x).toBeGreaterThan(0.5);
+    expect(Math.abs(p.heroState.x - x)).toBeLessThan(0.2);
+  });
+
+  it('on the ground the boots walk and run as shoes do; a jump in them does not float', () => {
+    // the same run without them, to compare
+    const plain = game([]);
+    plain.p.placeAt([0, 0.4, 0], Math.PI / 2);
+    plain.p.camYaw = Math.PI / 2 + Math.PI;
+    plain.steps(0.3);
+    plain.p.input.keys.add('forward');
+    plain.p.input.keys.add('shift');
+    const px0 = plain.p.heroState.x;
+    plain.steps(1);
+    const without = plain.p.heroState.x - px0;
+    const { p, give, use, steps } = game([]);
+    give('Hover boots', 1);
+    use('Hover boots');
+    p.placeAt([0, 0.4, 0], Math.PI / 2);
+    p.camYaw = Math.PI / 2 + Math.PI;
+    steps(0.3);
+    // as fast as without them, straight away (no slow ice start), and running is running
+    p.input.keys.add('forward');
+    p.input.keys.add('shift');
+    const x0 = p.heroState.x;
+    steps(1);
+    p.input.keys.delete('shift');
+    p.input.keys.delete('forward');
+    expect(p.heroState.x - x0).toBeGreaterThan(without * 0.95);
+    expect(without).toBeGreaterThan(1);
+    expect(p.iceVel).toBeNull();
+    // a jump: up and down again, never held in the air
+    p.input.jump = true;
+    let floated = false;
+    for (let t = 0; t < 2; t += 1 / 60) {
+      p.runtime.stepOnce();
+      if (p.boots.hover) floated = true;
+    }
+    expect(floated).toBe(false);
+    expect(p.heroState.grounded).toBe(true);
   });
 
   it('without the boots, the hero walks off the same ledge and falls', () => {
@@ -288,6 +335,24 @@ describe('in play', () => {
     expect(p.hero.heldLook).toBeUndefined();
     give('Magic jar', 1);
     expect(p.logic.vars.get('magic')).toBe(48);
+  });
+
+  it('a new tool always gets an item button: with them all full, the one touched longest ago', () => {
+    const { p, give, steps } = game([]);
+    const n = p.buttons.c.items;
+    const tools = ['Hook line', 'Grapple rope', 'Magnet glove', 'Boomerang'].slice(0, n);
+    for (const t of tools) give(t, 1);
+    expect(p.buttons.slots.slice(0, n)).toEqual(tools);
+    // the first one is used: the next new tool goes over the second (put on longest ago, never used)
+    steps(0.5);
+    p.useItem(tools[0]!, 1);
+    give('Lens of Truth', 1);
+    expect(p.buttons.slots.slice(0, n)).toContain('Lens of Truth');
+    expect(p.buttons.slots.slice(0, n)).toContain(tools[0]);
+    if (n > 1) expect(p.buttons.slots[1]).toBe('Lens of Truth');
+    // and the one after that does not take the Lens's button
+    give('Hover boots', 1);
+    expect(p.buttons.slots.slice(0, n)).toContain(n > 2 ? 'Lens of Truth' : 'Hover boots');
   });
 
   it('with magic off, the Lens needs none and no meter comes', () => {
