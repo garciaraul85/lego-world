@@ -1188,8 +1188,10 @@ export class GpuRenderer {
         if (!groups.has(k)) groups.set(k, g);
         g.values.push(...brickCenter(b), ...(o.color ?? brickRgb(b.color)));
       }
+      // a see-through overlay (a fake wall through the Lens) goes after the characters, with the other see-through
+      // things: before them, it filled the depth and hid a character standing behind it (step 13c fix)
       for (const g of groups.values())
-        calls.push({
+        (o.alpha < 1 ? seeThrough : calls).push({
           pipe: o.alpha < 1 ? this.pipes.overlay : this.pipes.opaque,
           mesh: g.m,
           inst: { buffer: null as never, ...frameInst(g.values) },

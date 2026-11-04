@@ -355,6 +355,29 @@ describe('in play', () => {
     expect(p.buttons.slots.slice(0, n)).toContain(n > 2 ? 'Lens of Truth' : 'Hover boots');
   });
 
+  it('walking with the Lens up, the legs step (a walk under the lens pose, not a pose over nothing)', () => {
+    const { p, give, use, steps } = game([]);
+    give('Lens of Truth', 1);
+    use('Lens of Truth');
+    p.placeAt([0, 0.4, 0], Math.PI / 2);
+    p.camYaw = Math.PI / 2 + Math.PI;
+    steps(0.3);
+    p.input.keys.add('forward');
+    steps(0.4);
+    const legs: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      steps(0.07);
+      const b = p.baseParams();
+      expect(b, 'a walk under the lens').not.toBeNull();
+      legs.push((b!.ll as number[])[0]!);
+    }
+    p.input.keys.delete('forward');
+    expect(p.heroStates.state).toBe('walk');
+    // the legs swing both ways through the step, and the arm keeps the lens up
+    expect(Math.max(...legs) - Math.min(...legs)).toBeGreaterThan(0.5);
+    expect(p.poseOver()!.ra).toEqual([-0.6, -0.3, -0.3]);
+  });
+
   it('with magic off, the Lens needs none and no meter comes', () => {
     const { p, give, use, steps } = game([], { magic: { can: false, max: 48 } });
     give('Lens of Truth', 1);

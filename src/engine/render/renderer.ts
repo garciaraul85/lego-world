@@ -922,16 +922,13 @@ export class Renderer {
       gl.depthMask(true);
     }
 
+    // see-through overlays (a fake wall through the Lens, ghost bricks) are drawn after the characters: drawn
+    // before, they filled the depth buffer and hid a character standing behind them (step 13c fix)
+    const seeThrough = overlays.filter((o) => o.alpha < 1);
     for (const o of overlays) {
+      if (o.alpha < 1) continue;
       if (o.model) gl.uniformMatrix4fv(this.u.uModel!, false, o.model);
-      if (o.alpha < 1) {
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.depthFunc(gl.LEQUAL);
-      }
       this.drawBrickList(o.bricks, o.alpha, o.flat, o.color);
-      gl.disable(gl.BLEND);
-      gl.depthFunc(gl.LESS);
       if (o.model) gl.uniformMatrix4fv(this.u.uModel!, false, IDENTITY);
     }
 
@@ -959,6 +956,22 @@ export class Renderer {
     if (extra) {
       extra(mvp, cam.eye);
       gl.useProgram(this.prog);
+    }
+    if (seeThrough.length) {
+      // the characters' program may have left other vertex arrays on: only the bricks' own are wanted
+      const n = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) as number;
+      for (let i = 0; i < n; i++) gl.disableVertexAttribArray(i);
+      gl.uniform3fv(this.u.uOffset!, [0, 0, 0]);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthFunc(gl.LEQUAL);
+      for (const o of seeThrough) {
+        if (o.model) gl.uniformMatrix4fv(this.u.uModel!, false, o.model);
+        this.drawBrickList(o.bricks, o.alpha, o.flat, o.color);
+        if (o.model) gl.uniformMatrix4fv(this.u.uModel!, false, IDENTITY);
+      }
+      gl.disable(gl.BLEND);
+      gl.depthFunc(gl.LESS);
     }
     if (this.modelDraws.length) this.drawModels(mvp, cam.eye, planes, true);
     if (this.water.length) this.drawWater(mvp, cam.eye, s);

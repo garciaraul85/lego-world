@@ -27,7 +27,7 @@ import { lookForV68 } from '../../core/character/hair';
 import { BODY_MOVES, type BodyMove, movesOf as bodyMovesOf, MOVE_LENGTH } from '../../core/character/moves';
 import { minifigExtras, type ResolvedBody, resolveBody } from '../../core/character/resolve';
 import { levelOf, xpFor } from '../../core/character/sheet';
-import { type AnimState, MOVING_AT } from '../../core/character/states';
+import { type AnimState, MOVING_AT, RUN_REF, WALK_REF } from '../../core/character/states';
 import {
   type AttackHit,
   type DamageType,
@@ -119,7 +119,7 @@ import type { AudioPort, Vec3 } from '../audio/port';
 import { RecordingAudio } from '../audio/port';
 import { Animator, rigPose } from '../character/animator';
 import { bodyBounds } from '../character/body-anim';
-import type { PoseParams } from '../character/routine';
+import { type PoseParams, sampleParams } from '../character/routine';
 import { StateMachine } from '../character/states';
 import { ParticleSystem, type PlayOptions, type StreamHandle } from '../effects/particles';
 import { ScreenFx } from '../effects/screen';
@@ -518,6 +518,30 @@ export class PlaySession {
       this.hero = { ...rest, held: this.heldBefore ?? 'None' } as typeof this.hero;
       this.heldBefore = null;
     }
+  }
+
+  /**
+   * Step 13c fix: the body's own move under an item's pose. A clip the state machine plays (or a combat move) as
+   * ever; but walking, running or standing on v68's own motion there are no parameters to put the item's arms on,
+   * and a pose over nothing stands the legs still (the hero glided along). There the built-in Walk, Run or Breathe
+   * clip stands in for v68's motion, its step timed by the distance walked (the feet keep up with the ground).
+   */
+  baseParams(): PoseParams | null {
+    const own = this.combat.pose() ?? this.heroAnim.params();
+    if (own) return own;
+    const st = this.heroStates.state;
+    const id = st === 'run' ? MOVE_FOR.run : st === 'walk' ? MOVE_FOR.walk : st === 'idle' ? MOVE_FOR.idle : null;
+    const clip = id ? BUILTIN_CLIPS.find((c) => c.id === id) : null;
+    if (!clip) return null;
+    const len = clip.length || 1;
+    return sampleParams(clip, ((this.ownPhase % len) + len) % len);
+  }
+  /** the built-in stand-in clip's time: walking it moves with the stride, standing with the clock */
+  private ownPhase = 0;
+  private stepOwnPhase(dt: number) {
+    const st = this.heroStates.state;
+    const sp = Number(this.heroState.speed) || 0;
+    this.ownPhase += st === 'run' ? (dt * sp) / RUN_REF : st === 'walk' ? (dt * sp) / WALK_REF : dt;
   }
 
   /**
@@ -1797,7 +1821,7 @@ export class PlaySession {
     const M = this.L.CharacterModel;
     try {
       const shot = (over as never) ?? this.poseOver();
-      const base = (this.combat.pose() ?? this.heroAnim.params() ?? {}) as Record<string, unknown>;
+      const base = (this.baseParams() ?? {}) as Record<string, unknown>;
       const params = shot ? { ...base, ...(shot as Record<string, unknown>) } : this.heroAnim.params();
       const clip = shot ? this.combat.anim.clip : this.heroAnim.clip;
       const s = this.heroState;
@@ -5767,6 +5791,7 @@ export class PlaySession {
   stepAnim(dt: number) {
     const s = this.heroState;
     const sm = this.heroStates;
+    this.stepOwnPhase(dt);
     if (s.building) {
       sm.stop();
       this.heroAnim.step(dt);

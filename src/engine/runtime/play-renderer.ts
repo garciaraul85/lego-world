@@ -899,7 +899,8 @@ export class PlayRenderer {
     // step 13a: drawing a bow, throwing a boomerang: the arms over whatever else the body does
     // step 13c: and the Lens at the eye, the hover boots' paddling
     const shot = s.poseOver();
-    const fight = shot ? { ...(s.combat.pose() ?? s.heroAnim.params() ?? {}), ...shot } : s.combat.pose();
+    // under it, the body's own move (13c fix: the built-in walk when v68's own motion walks, so the legs step)
+    const fight = shot ? { ...(s.baseParams() ?? {}), ...shot } : s.combat.pose();
     const heroPose = fight ?? s.heroAnim.params();
     const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;
     const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
