@@ -1,6 +1,7 @@
 import type { BodyMove } from '../../core/character/moves';
 import type { DamageType } from '../../core/combat/damage';
 import type { Enemy, EnemyStyle } from '../../core/combat/enemy';
+import type { AttackAs } from '../character/attack-poses';
 import type { HeroState, Npc } from '../legacy/runtime-modules';
 import type { FoeShotKind } from './foe-shots';
 
@@ -366,8 +367,10 @@ export class Enemies {
   private startSwing(n: Npc, e: Enemy, b: Brain, windup: number) {
     b.phase = 'windup';
     b.t = windup;
-    const dur = windup + 0.3;
-    Object.assign(n.state, { attack: dur, attackDuration: dur, attackWeapon: String(n.profile.held ?? 'None') });
+    const held = String(n.profile.held ?? 'None');
+    // a beast of the pack pounces; one with a weapon swings it; the rest claw
+    const as: AttackAs = this.styleOf(e) === 'pack' ? 'pounce' : held !== 'None' ? 'swing' : 'claw';
+    tell(n, windup, 0.3, as, held);
   }
 
   /** winding up: it turns to the hero; then the swing lands if the hero is still in reach and in front */
@@ -484,7 +487,7 @@ export class Enemies {
         b.phase = 'spit';
         b.t = e.windup;
         this.host.move?.(n, 'roar');
-        Object.assign(s, { attack: e.windup + 0.2, attackDuration: e.windup + 0.2, attackWeapon: 'None' });
+        tell(n, e.windup, 0.2, 'spit');
         return;
       case 'spit': {
         s.heading = s.heading + angleDiff(face, s.heading) * Math.min(1, dt * 6);
@@ -776,7 +779,8 @@ export class Enemies {
         this.host.move?.(n, 'flap');
         this.host.sound?.('flap', [s.x, s.y + 1, s.z]);
         // the tell: a shriek and a beat of the wings before it drops
-        Object.assign(s, { attack: SWOOP_TIME, attackDuration: SWOOP_TIME, attackWeapon: 'None' });
+        // wings up through the dive (the tell); the blow is shown when it reaches the hero (below)
+        tell(n, SWOOP_TIME, 0.3, 'swoop');
       }
       return;
     }
@@ -787,6 +791,8 @@ export class Enemies {
       const dy = Math.abs(s.y - (h.y + 1.6));
       if (!b.landed && d < 1.1 + this.frontOf(n) * 0.5 && dy < 1.4) {
         b.landed = true;
+        // the wings sweep down and the claws strike as it reaches the hero
+        tell(n, 0, 0.35, 'swoop');
         const then = e.type === 'fire' ? 'burn' : e.type === 'ice' ? 'freeze' : undefined;
         if (this.host.harmHero) this.host.harmHero(n, e.power, e.type, [s.x, s.z], then);
         else this.host.hitHero(n, e.power, e.type);
@@ -994,7 +1000,7 @@ export class Enemies {
         this.host.move?.(n, 'roar');
         this.host.sound?.('roar', [s.x, s.y + 2, s.z]);
         this.host.log?.(`${n.profile.name} howls`);
-        Object.assign(s, { attack: 0.8, attackDuration: 0.8, attackWeapon: 'None' });
+        tell(n, 0.3, 0.9, 'howl');
       }
       this.callPack(npcs, n);
     }
@@ -1077,7 +1083,7 @@ export class Enemies {
     if (b.cooldown <= 0 && d <= e.sight) {
       b.phase = 'spit';
       b.t = e.windup;
-      Object.assign(s, { attack: e.windup + 0.2, attackDuration: e.windup + 0.2, attackWeapon: 'None' });
+      tell(n, e.windup, 0.2, 'spit');
     }
   }
 
@@ -1105,4 +1111,13 @@ export class Enemies {
       this.brains.set(o.id, b);
     }
   }
+}
+
+/**
+ * The tell and the blow: `windup` seconds of the tell (the arm drawn back, the body crouched), the blow lands at its
+ * end, then `follow` seconds back to standing. The renderer times the body's move by these.
+ */
+function tell(n: Npc, windup: number, follow: number, as: AttackAs, weapon = 'None') {
+  const dur = windup + follow;
+  Object.assign(n.state, { attack: dur, attackDuration: dur, attackWeapon: weapon, attackHit: windup, attackAs: as });
 }

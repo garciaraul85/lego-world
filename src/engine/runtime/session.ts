@@ -118,6 +118,7 @@ import {
 import type { AudioPort, Vec3 } from '../audio/port';
 import { RecordingAudio } from '../audio/port';
 import { Animator, rigPose } from '../character/animator';
+import { type AttackAs, attackPose } from '../character/attack-poses';
 import { bodyBounds } from '../character/body-anim';
 import { type PoseParams, sampleParams } from '../character/routine';
 import { StateMachine } from '../character/states';
@@ -6217,6 +6218,22 @@ export class PlaySession {
   }
 
   /** P23 part 4: a neighbour's pose from its state's clip (null: its own motion) */
+  /**
+   * step 14a fix: how far through its attack an enemy is: seconds since it began (`t`), when the blow lands (`hit`)
+   * and how long it all takes (`dur`), and what kind of attack it is — or null when it is not attacking
+   */
+  attackOf(n: Npc): { as: AttackAs; t: number; hit: number; dur: number } | null {
+    const st = n.state as { attack?: number; attackDuration?: number; attackHit?: number; attackAs?: AttackAs };
+    if (!st.attack || st.attack <= 0 || !st.attackAs || !st.attackDuration) return null;
+    return { as: st.attackAs, t: st.attackDuration - st.attack, hit: st.attackHit ?? 0, dur: st.attackDuration };
+  }
+
+  /** step 14a fix: a minifig enemy's attack pose (the tell, the blow, back), or null when it is not attacking */
+  enemyPose(n: Npc): PoseParams | null {
+    const a = this.attackOf(n);
+    return a ? attackPose(a.as, a.t, a.hit, a.dur) : null;
+  }
+
   npcPose(n: Npc): { params: ReturnType<Animator['params']>; clip: Clip | null } | null {
     const a = this.npcStates.get(n.id)?.sm.anim;
     const params = a?.params();

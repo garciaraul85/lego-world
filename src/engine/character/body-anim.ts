@@ -27,12 +27,32 @@ export const newMotion = (): Motion => ({ gait: 0, moving: 0, time: 0 });
 /** seconds each move takes (a strike and a flinch from the state machine, and the rest) */
 export const ACT_LENGTH = MOVE_LENGTH;
 
+/** step 14a fix: in a strike, the tell (drawn back, below 0) holds until this far through, the blow lands at HIT */
+const TELL_END = 0.5;
+const HIT = 0.6;
+/** how deep the tell draws back (against the blow's 1) */
+const TELL = 0.5;
+
+/** step 14a fix: how far through a strike (0…1) an attack timed by its brain is: the blow at HIT when it lands */
+export function attackU(t: number, hit: number, dur: number): number {
+  if (dur <= 0) return 1;
+  if (t < hit) return (HIT * t) / Math.max(1e-3, hit);
+  return Math.min(1, HIT + ((1 - HIT) * (t - hit)) / Math.max(1e-3, dur - hit));
+}
+
 /** how strong the move is now: up quickly, held a while for the long ones, then back (0 when there is none) */
 export function actAmount(m: Pick<Motion, 'act'>, kind: BodyMove): number {
   const a = m.act;
   if (!a || a.kind !== kind || a.u <= 0 || a.u >= 1) return 0;
-  const up = kind === 'attack' || kind === 'hurt' || kind === 'charge' ? 0.3 : 0.18;
-  const down = kind === 'attack' || kind === 'hurt' ? 0.7 : 0.25;
+  if (kind === 'attack') {
+    // step 14a fix: a tell first (drawn back and held: the player sees it coming), the blow, then back
+    const ease = (x: number) => x * x * (3 - 2 * x);
+    if (a.u < TELL_END) return -TELL * ease(Math.min(1, a.u / (TELL_END * 0.7)));
+    if (a.u < HIT) return -TELL + (1 + TELL) * ease((a.u - TELL_END) / (HIT - TELL_END));
+    return 1 - ease((a.u - HIT) / (1 - HIT));
+  }
+  const up = kind === 'hurt' || kind === 'charge' ? 0.3 : 0.18;
+  const down = kind === 'hurt' ? 0.7 : 0.25;
   if (a.u < up) return a.u / up;
   if (a.u > 1 - down) return (1 - a.u) / down;
   return 1;
@@ -116,7 +136,8 @@ export function boneTurn(body: Pick<ResolvedBody, 'move' | 'bones'>, b: Bone, m:
     case 'neck':
       return multiply(base, rotX(A * (0.7 * hit - 0.5 * ouch)));
     case 'jaw':
-      return multiply(base, rotX(A * 1.6 * hit));
+      // shut through the tell, snapped open on the blow
+      return multiply(base, rotX(A * 1.6 * Math.max(0, hit)));
     case 'arm':
       return multiply(base, rotX(-A * 2 * hit + A * 0.8 * ouch));
     case 'tail':

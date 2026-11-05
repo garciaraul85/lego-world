@@ -5,6 +5,7 @@ import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
 import { type Instances, paths } from '../../src/core/schema';
 import { RecordingAudio } from '../../src/engine/audio/port';
+import { attackPose } from '../../src/engine/character/attack-poses';
 import { GRAVITY } from '../../src/engine/physics/physics';
 import { aimAt, segHitsCylinder } from '../../src/engine/runtime/foe-shots';
 import { PlaySession } from '../../src/engine/runtime/session';
@@ -158,26 +159,15 @@ describe('Watcher Eye (turret)', () => {
 
 describe('Cinderjaw (fire melee)', () => {
   it('breathes fire on a hero close in front: hurt and set alight', () => {
-    const { p, foe, steps, hp, brain } = play([['cinderjaw', 0, 0, 0]]);
+    const { p, foe, steps, hp } = play([['cinderjaw', 0, 0, 0]]);
     // 3 studs in front of its mouth (it is a big lizard: its mouth is well in front of its middle)
     const front = p.mouthOf(foe()).front + 3;
     p.placeAt([0, 0.4, front], Math.PI);
     const before = hp();
     let breath = false;
-    const log: unknown[] = [];
     steps(4, () => {
       p.placeAt([foe().state.x, 0.4, foe().state.z + front], Math.PI);
-      const l = p.enemies.effects().find((x) => x.breath);
-      if (l) {
-        breath = true;
-        log.push([
-          l.breath!.from.map((v) => +v.toFixed(1)),
-          l.breath!.reach.toFixed(1),
-          +foe().state.heading.toFixed(2),
-          +p.heroState.z.toFixed(1),
-          (brain() as any).landed,
-        ]);
-      }
+      if (p.enemies.effects().some((x) => x.breath)) breath = true;
     });
     expect(breath).toBe(true);
     expect(hp()).toBeLessThan(before);
@@ -276,5 +266,66 @@ describe('Rattlebones (knight)', () => {
     });
     expect(countered).toBe(true);
     expect(p.events.some((e) => e.msg.includes('blocks and counters'))).toBe(true);
+  });
+});
+
+describe('attack animations', () => {
+  it('every starter enemy shows its attack: a tell through the windup, the blow as it lands', () => {
+    const foes = [
+      'howler',
+      'rattlebones',
+      'finspitter',
+      'pebblespout',
+      'watcher-eye',
+      'cinderjaw',
+      'flitterwing',
+      'threadback',
+      'lanternwisp',
+      'gloomweaver',
+    ];
+    const seen: Record<string, string> = {};
+    for (const slug of foes) {
+      const water =
+        slug === 'finspitter'
+          ? { pos: [-4, 0, -4] as [number, number, number], size: [8, 3, 8] as [number, number, number] }
+          : undefined;
+      const { p, foe, steps } = play([[slug, 0, 0, 0]], { water });
+      p.placeAt([0, 0.4, slug === 'threadback' ? 0.6 : 3], Math.PI);
+      let as = '';
+      steps(10, () => {
+        const f = foe();
+        const a = f ? p.attackOf(f)?.as : undefined;
+        // (a Howler's howl comes first: the attack after it)
+        if (!as && a && a !== 'howl') as = a;
+        if (slug === 'threadback' || !f) return;
+        // stay where it can reach (a flyer swoops, a turret looks, a pop-up spits from further off)
+        const d = ['pebblespout', 'finspitter', 'watcher-eye'].includes(slug) ? 7 : 2;
+        p.placeAt([f.state.x, 0.4, f.state.z + d], Math.PI);
+      });
+      seen[slug] = as;
+    }
+    // the turret fires a beam (its eye glows: no body attack); the fire lizard roars and breathes (its own moves)
+    const want: Record<string, string> = {
+      howler: 'pounce',
+      rattlebones: 'swing',
+      finspitter: 'spit',
+      pebblespout: 'spit',
+      flitterwing: 'swoop',
+      threadback: 'claw',
+      lanternwisp: 'claw',
+      gloomweaver: 'claw',
+    };
+    for (const [slug, as] of Object.entries(want)) expect(`${slug}: ${seen[slug]}`).toBe(`${slug}: ${as}`);
+  });
+
+  it('a minifig enemy pounces: crouched and drawn back in the tell, stretched out at the blow', () => {
+    const rest = attackPose('pounce', 0, 0.35, 0.65) as Record<string, unknown>;
+    const tell = attackPose('pounce', 0.34, 0.35, 0.65) as Record<string, unknown>;
+    const blow = attackPose('pounce', 0.42, 0.35, 0.65) as Record<string, unknown>;
+    expect(JSON.stringify(tell)).not.toBe(JSON.stringify(rest));
+    expect(JSON.stringify(blow)).not.toBe(JSON.stringify(tell));
+    // back to standing at the end
+    const r = (o: unknown) => JSON.stringify(o, (_k, v) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v));
+    expect(r(attackPose('pounce', 0.65, 0.35, 0.65))).toBe(r(rest));
   });
 });

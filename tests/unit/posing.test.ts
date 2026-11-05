@@ -194,9 +194,14 @@ describe('the animation state machine', () => {
   it('a body plan strikes and flinches: the body lunges forward or rocks back', () => {
     const m = newMotion();
     expect(actAmount(m, 'attack')).toBe(0);
-    m.act = { kind: 'attack', u: 0.3 };
+    // step 14a fix: a tell first (drawn back, held), then the blow at 0.6
+    m.act = { kind: 'attack', u: 0.4 };
+    expect(actAmount(m, 'attack')).toBeLessThan(-0.3);
+    const tell = bodyWorld({ move: 'walk' as const, hover: 0, scale: 1 }, { x: 0, y: 0, z: 0, heading: 0 }, m);
+    m.act = { kind: 'attack', u: 0.6 };
     expect(actAmount(m, 'attack')).toBeCloseTo(1);
     expect(actAmount(m, 'hurt')).toBe(0);
+    expect(tell[14]!).toBeLessThan(0);
     const body = { move: 'walk' as const, hover: 0, scale: 1 };
     const rest = bodyWorld(body, { x: 0, y: 0, z: 0, heading: 0 }, newMotion());
     const lunge = bodyWorld(body, { x: 0, y: 0, z: 0, heading: 0 }, m);

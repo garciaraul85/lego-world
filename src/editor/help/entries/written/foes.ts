@@ -29,7 +29,7 @@ export const FOES: HelpEntry[] = [
     kind: 'setting',
     name: 'Enemies in play',
     purpose:
-      'Each **Kind of fighter** (Characters › Fights the hero) has its own brain in play, with real physics for what it throws. A red “!” over an enemy, or a glow, is the tell: guard (hold Q facing it), dodge or parry now.',
+      'Each **Kind of fighter** (Characters › Fights the hero) has its own brain in play, with real physics for what it throws. Every attack has a tell you can read: a red “!” over it, a glow, and its body drawing back (a Howler crouches to spring, a sword is raised over the shoulder, a spitter throws its head back, a bat beats its wings up). The blow comes as the tell ends: guard (hold Q facing it), dodge or parry then.',
     options: [
       [
         'Pop-up (Pebblespout)',

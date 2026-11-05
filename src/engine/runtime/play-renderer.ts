@@ -5,7 +5,16 @@ import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { QUALITY } from '../../core/render/quality';
 import { rigPose } from '../character/animator';
-import { ACT_LENGTH, advance, bodyOverlays, bodyPose, bodyWorld, type Motion, newMotion } from '../character/body-anim';
+import {
+  ACT_LENGTH,
+  advance,
+  attackU,
+  bodyOverlays,
+  bodyPose,
+  bodyWorld,
+  type Motion,
+  newMotion,
+} from '../character/body-anim';
 import { extrasOverlays } from '../character/extras';
 import type { CharacterRenderer, Controller, HeroState } from '../legacy/runtime-modules';
 import { feedModels } from '../model/prepare';
@@ -959,6 +968,8 @@ export class PlayRenderer {
       const look = cast?.profile ?? n.profile;
       // P23 part 4: a neighbour's state clip (walk, attack, hurt…) poses it
       const sp = cast ? null : s.npcPose(n);
+      // step 14a fix: an enemy's attack (its tell, the blow) poses it over anything else
+      const ap = cast ? null : s.enemyPose(n);
       // step 14a: an enemy down under the water or the ground is drawn sunk (and not at all, all the way down)
       const lk = cast ? null : s.enemies.look(n);
       if (lk && lk.sink > 0.97) continue;
@@ -968,9 +979,11 @@ export class PlayRenderer {
       figs.push({
         sunk,
         profile: face ? { ...look, ...face } : look,
-        state: sp?.params
-          ? { ...st, studioPose: rigPose(sp.params, sp.clip), studioProgress: 0, studioFist: false }
-          : st,
+        state: ap
+          ? { ...st, studioPose: rigPose(ap, null), studioProgress: 0, studioFist: true }
+          : sp?.params
+            ? { ...st, studioPose: rigPose(sp.params, sp.clip), studioProgress: 0, studioFist: false }
+            : st,
         extras: s.extrasOf(n),
       });
     }
@@ -1113,10 +1126,16 @@ export class PlayRenderer {
       advance(mo.m, body, dist < 3 ? dist : 0, dt);
       // P23 part 4: the state machine's strike and flinch
       const state = s.animStateOf(who);
+      // step 14a fix: an enemy's attack is timed by its brain: the tell through its windup, the blow as it lands
+      const atk = who === 'hero' ? null : s.attackOf(who);
       mo.m.act =
-        state === 'attack' || state === 'hurt'
-          ? { kind: state, u: s.animSinceOf(who) / ACT_LENGTH[state] }
-          : s.moveOf(who);
+        atk && atk.as !== 'howl'
+          ? { kind: 'attack', u: attackU(atk.t, atk.hit, atk.dur) }
+          : atk
+            ? s.moveOf(who)
+            : state === 'attack' || state === 'hurt'
+              ? { kind: state, u: s.animSinceOf(who) / ACT_LENGTH[state] }
+              : s.moveOf(who);
       mo.x = st.x;
       mo.z = st.z;
       overlays.push(...bodyOverlays(body, bodyPose(body, mo.m), bodyWorld(body, st, mo.m)));
