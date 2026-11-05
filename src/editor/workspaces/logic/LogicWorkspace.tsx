@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
-import { BUILTINS, builtinNamed } from '../../../core/logic/builtins';
+import { anyBuiltinNamed, BUILTINS, CHARACTER_BUILTINS } from '../../../core/logic/builtins';
 import { CATALOG, nodeDef } from '../../../core/logic/catalog';
 import { fieldHelp } from '../../../core/logic/field-help';
 import { graphProblems } from '../../../core/logic/graph';
@@ -41,7 +41,7 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
   ed.revision.value;
   const list = graphs(ed);
   // Milestone 3b (B3): a built-in behaviour's page (logicGraph "builtin:Lock")
-  const builtin = ed.logicGraph.value?.startsWith('builtin:') ? builtinNamed(ed.logicGraph.value.slice(8)) : null;
+  const builtin = ed.logicGraph.value?.startsWith('builtin:') ? anyBuiltinNamed(ed.logicGraph.value.slice(8)) : null;
   const graph = builtin ? null : (list.find((g) => g.id === ed.logicGraph.value) ?? list[0] ?? null);
   const mode: Mode = ed.logicView.value;
   const setMode = (m: Mode) => (ed.logicView.value = m);
@@ -369,10 +369,10 @@ function Sidebar({
             Built-in
             <FieldHelp label="Built-in behaviours" text={BUILTIN_HELP} />
           </span>
-          <span>{BUILTINS.length}</span>
+          <span>{BUILTINS.length + CHARACTER_BUILTINS.length}</span>
         </div>
         <div data-tour="builtin-list" class="builtin-chips">
-          {BUILTINS.map((b) => (
+          {[...BUILTINS, ...CHARACTER_BUILTINS].map((b) => (
             <button
               type="button"
               class={`chip-btn ${ed.logicGraph.value === `builtin:${b.name}` ? 'on' : ''}`}
@@ -381,6 +381,7 @@ function Sidebar({
               onClick={() => (ed.logicGraph.value = `builtin:${b.name}`)}
             >
               {b.name}
+              {b.for === 'character' && <span class="small muted"> ☺</span>}
             </button>
           ))}
         </div>

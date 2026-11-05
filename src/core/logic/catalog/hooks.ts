@@ -125,6 +125,44 @@ export const HOOKS: NodeDef[] = [
     'Asked when the hook line or the rope reaches it. Return true and it catches (the hero is pulled to it), false and it bounces off.',
     [],
     'bool',
+  ),  // Milestone 3b (B4): characters
+  hook(
+    'CanJump',
+    'Can the hero jump? (Hero)',
+    'Asked when the player presses Jump. onGround is true when the hero stands on something. Return false and the hero does not jump.',
+    [{ name: 'onGround', type: 'bool' }],
+    'bool',
+  ),
+  hook(
+    'MoveSpeed',
+    'How fast does the hero move? (Hero)',
+    'Asked every step: base is the speed from the sheet and outfit (1: normal). Return a speed (2: twice as fast, 0: stands still).',
+    [],
+    'number',
+  ),
+  hook(
+    'HitPower',
+    'How hard does this swing hit? (Hero)',
+    'Asked when the hero swings: power is the hit after strength and moves, kind is light, heavy, charged, spin or bash. Return the power.',
+    [
+      { name: 'power', type: 'number' },
+      { name: 'kind', type: 'string' },
+    ],
+    'number',
+  ),
+  hook(
+    'GainXp',
+    'How much experience? (Hero)',
+    'Asked when the hero gains experience: amount is what it would get. Return the experience it gets.',
+    [{ name: 'amount', type: 'number' }],
+    'number',
+  ),
+  hook(
+    'CanTalk',
+    'Will it talk? (Neighbour)',
+    'Asked when the hero talks to a neighbour. Return false and it says nothing.',
+    [],
+    'bool',
   ),
 ];
 

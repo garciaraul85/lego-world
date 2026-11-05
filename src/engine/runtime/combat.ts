@@ -73,6 +73,8 @@ export interface CombatHost {
   instanceTop(i: HostInstance): number | null;
   /** P22 part 2: the hero's sheet — hit power, stamina cap, how much a guard costs */
   heroMoves?(): { power: number; guard: number };
+  /** Milestone 3b (B4): a hook answered by a behaviour (the hero's: hitPower), or base */
+  askHook?<V>(owner: string, hook: string, payload: Record<string, unknown>, base: V): V;
   readonly staminaMax?: number;
 }
 
@@ -127,7 +129,11 @@ export class Combat {
     // step 12b: a stick swings as a sword but hits as a stick (alight: fire)
     const base = heldAttack(this.s.hero.heldLook ?? this.s.hero.held);
     const m = this.s.heroMoves?.().power ?? 1;
-    return { power: base.power * ATTACKS[kind].mult * m, type: kind === 'bash' ? 'blunt' : base.type };
+    const power = base.power * ATTACKS[kind].mult * m;
+    return {
+      power: Math.max(0, this.s.askHook ? this.s.askHook('hero', 'hitPower', { power, kind }, power) : power),
+      type: kind === 'bash' ? 'blunt' : base.type,
+    };
   }
 
   /** step 12c: stamina used by something else (climbing): it does not refill for `wait` seconds */

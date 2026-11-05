@@ -21,7 +21,7 @@ import { blankConversation, type Conversation } from '../../core/dialogue/schema
 import { parseScript } from '../../core/dialogue/script';
 import { arrivalSpot, assetSpot, reachable, surfaceOf } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
-import { builtinNamed } from '../../core/logic/builtins';
+import { anyBuiltinNamed } from '../../core/logic/builtins';
 import { className, parseBehaviour } from '../../core/logic/code/behaviour';
 import { importMedia, isBigPicture } from '../../core/media/import';
 import { allSaves, type Saving } from '../../core/save/save';
@@ -224,7 +224,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   extendBuiltinNamed(c, a) {
     // what the built-in page's Extend button does (one already made is opened instead)
-    const b = builtinNamed(String(a?.name));
+    const b = anyBuiltinNamed(String(a?.name));
     if (!b) throw new Error(`There is no built-in ${String(a?.name)}.`);
     const have = c.ed.store
       .list('logic/')
@@ -253,6 +253,58 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       ],
       `${String(a?.field)}: ${String(a?.value)}`,
     );
+  },
+  // Milestone 3b (B4): the Hero course
+  attachToCharacter(c, a) {
+    // what Characters › (the character) › Behaviour › + Script does
+    const g = behaviourByName(c, String(a?.behaviour ?? ''));
+    if (!g) throw new Error(`Make the ${String(a?.behaviour)} behaviour first.`);
+    const chr = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === String(a?.character));
+    if (!chr) throw new Error(`There is no ${String(a?.character)}.`);
+    c.ui.workspace('Characters');
+    c.ed.studioCharacter.value = chr.id;
+    c.ed.sheetTab.value = 'behaviour';
+    if (chr.scripts?.some((s) => s.use === g.id)) return;
+    run(
+      c,
+      [{ type: 'script.attach', payload: { target: { kind: 'character', id: chr.id }, use: g.id } }],
+      `Attach ${g.name}`,
+    );
+  },
+  setCharacterBuiltinField(c, a) {
+    // what typing into the Hero row of Characters › Behaviour does
+    const chr = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === String(a?.character));
+    if (!chr) throw new Error(`There is no ${String(a?.character)}.`);
+    c.ui.workspace('Characters');
+    c.ed.studioCharacter.value = chr.id;
+    c.ed.sheetTab.value = 'behaviour';
+    run(
+      c,
+      [
+        {
+          type: 'builtin.setField',
+          payload: { character: chr.id, name: String(a?.name), field: String(a?.field), value: a?.value as FieldValue },
+        },
+      ],
+      `${String(a?.field)}: ${String(a?.value)}`,
+    );
+  },
+  async jumpUntilLogged(c, a) {
+    // what pressing Space again and again, quickly, does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const said = () => s.events.some((e) => e.msg.includes(String(a?.until ?? '')));
+    for (let n = 0; n < 10 && !said(); n++) {
+      for (let i = 0; i < 30 && !s.heroState.grounded; i++) await wait(50);
+      s.input.jump = true;
+      await wait(250);
+    }
   },
   async liftUntilLogged(c, a) {
     // what pressing the Action button at a liftable thing, again and again, does

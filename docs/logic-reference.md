@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (146 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (151 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -1421,3 +1421,48 @@ Asked when the hook line or the rope reaches it. Return true and it catches (the
 
 - Outputs: base (bool)
 - Code: `on("canCatch", (e) => { … });`
+
+### Can the hero jump? (Hero)
+
+`event.onCanJump` · event
+
+Asked when the player presses Jump. onGround is true when the hero stands on something. Return false and the hero does not jump.
+
+- Outputs: onGround (bool), base (bool)
+- Code: `on("canJump", (e) => { … });`
+
+### How fast does the hero move? (Hero)
+
+`event.onMoveSpeed` · event
+
+Asked every step: base is the speed from the sheet and outfit (1: normal). Return a speed (2: twice as fast, 0: stands still).
+
+- Outputs: base (number)
+- Code: `on("moveSpeed", (e) => { … });`
+
+### How hard does this swing hit? (Hero)
+
+`event.onHitPower` · event
+
+Asked when the hero swings: power is the hit after strength and moves, kind is light, heavy, charged, spin or bash. Return the power.
+
+- Outputs: power (number), kind (string), base (number)
+- Code: `on("hitPower", (e) => { … });`
+
+### How much experience? (Hero)
+
+`event.onGainXp` · event
+
+Asked when the hero gains experience: amount is what it would get. Return the experience it gets.
+
+- Outputs: amount (number), base (number)
+- Code: `on("gainXp", (e) => { … });`
+
+### Will it talk? (Neighbour)
+
+`event.onCanTalk` · event
+
+Asked when the hero talks to a neighbour. Return false and it says nothing.
+
+- Outputs: base (bool)
+- Code: `on("canTalk", (e) => { … });`

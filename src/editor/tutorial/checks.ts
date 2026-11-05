@@ -7,7 +7,7 @@ import type { Conversation } from '../../core/dialogue/schema';
 import type { Effect } from '../../core/effects/schema';
 import type { ScreenEffect } from '../../core/effects/screen';
 import { fogPresetOf } from '../../core/lighting/atmosphere';
-import { builtinNamed } from '../../core/logic/builtins';
+import { builtinNamed, characterBuiltinNamed } from '../../core/logic/builtins';
 import { wiresOf } from '../../core/logic/wiring';
 import { isBigPicture } from '../../core/media/import';
 import { allSaves } from '../../core/save/save';
@@ -226,6 +226,27 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
       .find((x) => x?.name === asset);
     const field = builtinNamed(b)?.fields.find((x) => x.name === f);
     return !!def && !!field && String(field.get(def)) === v;
+  },
+  // Milestone 3b (B4): the Hero course
+  characterHasBehaviour: (ed, a) => {
+    const [chr, b] = String(a).split(',');
+    const g = behaviourGraph(ed, b!);
+    return (
+      !!g &&
+      ed.store.list('characters/').some((p) => {
+        const x = ed.store.get<Character>(p);
+        return x?.name === chr && !!x?.scripts?.some((s) => s.use === g.id);
+      })
+    );
+  },
+  characterBuiltinField: (ed, a) => {
+    const [chr, b, f, v] = String(a).split(',');
+    const c = ed.store
+      .list('characters/')
+      .map((p) => ed.store.get<Character>(p))
+      .find((x) => x?.name === chr);
+    const field = characterBuiltinNamed(b)?.fields.find((x) => x.name === f);
+    return !!c && !!field && String(field.get(c)) === v;
   },
   // P32: the treasure-chest story — logic
   graphNamed: (ed, a) => openGraph(ed)?.name === a,

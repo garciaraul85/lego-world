@@ -4,23 +4,28 @@
  * each is described as a behaviour: what it does, its settings as fields, its hooks (decisions a behaviour that
  * extends it can make itself: `class GemDoor extends Lock { canOpen(e) { … } }`) and the events it sends.
  */
-import type { Asset, BehaviourField, FieldValue } from '../schema';
+import { DEFAULT_STATS } from '../character/sheet';
+import type { Asset, BehaviourField, Character, FieldValue } from '../schema';
 
 export type BuiltinHook = { method: string; event: string; returns: 'bool' | 'number'; doc: string };
-export type Builtin = {
+export type Builtin<T = Asset> = {
   /** its class name (what `extends` names) */
   name: string;
   about: string;
+  /** Milestone 3b (B4): what it goes on: an asset (and its copies), or a character */
+  for?: 'asset' | 'character';
+  /** B4: it is what the thing is (the Hero, a Neighbour): it cannot be added or taken off */
+  fixed?: boolean;
   /** the asset has it (its setting is there) */
-  on(a: Asset): boolean;
+  on(a: T): boolean;
   /** what attaching it adds to an asset (its default settings) */
-  add(a: Asset): Partial<Asset>;
+  add(a: T): Partial<T>;
   /** the asset without it */
-  remove(a: Asset): Asset;
+  remove(a: T): T;
   /** its settings as fields: read from the asset, and written back */
   fields: (BehaviourField & {
-    get(a: Asset): FieldValue;
-    set(a: Asset, v: FieldValue): Partial<Asset>;
+    get(a: T): FieldValue;
+    set(a: T, v: FieldValue): Partial<T>;
     /** a text field that is one of these (a list to pick from) */
     choices?: readonly string[];
   })[];
@@ -524,19 +529,141 @@ BUILTINS.find((b) => b.name === 'Light')!.fields.push(
 );
 
 export const builtinNamed = (name: string | undefined) => BUILTINS.find((b) => b.name === name) ?? null;
+
+// ---------- Milestone 3b (B4): characters ----------
+
+const stat = (name: keyof typeof DEFAULT_STATS & string, label: string, min: number, max: number, int = false) => ({
+  name,
+  type: 'number' as const,
+  default: DEFAULT_STATS[name] as number,
+  label,
+  min,
+  max,
+  get: (c: Character) => (c.stats?.[name] as number | undefined) ?? (DEFAULT_STATS[name] as number),
+  set: (c: Character, v: FieldValue): Partial<Character> => {
+    let n = Math.max(min, Math.min(max, Number(v) || (DEFAULT_STATS[name] as number)));
+    if (int) n = Math.round(n);
+    return { stats: { ...DEFAULT_STATS, ...(c.stats ?? {}), [name]: n } };
+  },
+});
+const harmOf = (c: Character): NonNullable<Character['harm']> =>
+  c.harm ?? { canBeHarmed: true, health: { hp: 3, atZero: { break: false } } };
+
+export const CHARACTER_BUILTINS: Builtin<Character>[] = [
+  {
+    name: 'Hero',
+    for: 'character',
+    fixed: true,
+    about:
+      'The character the player plays: it walks, runs and jumps with the sheet’s speed and jump, hits with its strength, takes hits after its defence, and gains experience.',
+    on: (c) => c.role === 'hero',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [
+      stat('health', 'Hearts', 1, 99, true),
+      stat('speed', 'Speed (1: normal)', 0.5, 2),
+      stat('jump', 'Jump (1: normal)', 0.5, 2),
+      stat('strength', 'Strength (1: normal)', 0.5, 3),
+      stat('defence', 'Defence (8% less a point)', 0, 10, true),
+      stat('stamina', 'Stamina', 10, 500, true),
+    ],
+    hooks: [
+      hk('canJump', 'bool', 'Can the hero jump now? (onGround: standing on something)'),
+      hk('moveSpeed', 'number', 'How fast the hero walks or runs now (1: normal; asked every step)'),
+      hk('hitPower', 'number', 'How hard this swing hits (power, kind: light, heavy, charged, spin, bash)'),
+      hk('takeDamage', 'number', 'How much a hit takes from the hero’s hearts (after defence)'),
+      hk('gainXp', 'number', 'How much experience the hero gets (amount)'),
+    ],
+    events: ['event.onDamaged', 'event.onDefeated', 'event.onLevelUp'],
+    editIn: 'Characters › Stats',
+  },
+  {
+    name: 'Neighbour',
+    for: 'character',
+    fixed: true,
+    about: 'A character who lives on the map: it walks about or stands where it was put, and the hero talks to it.',
+    on: (c) => c.role === 'npc',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [
+      {
+        name: 'stands',
+        type: 'bool',
+        default: false,
+        label: 'Stands where it was put',
+        get: (c) => c.behaviour?.routine === 'stand',
+        set: (c, v) => ({ behaviour: { kind: c.behaviour?.kind ?? 'villager', routine: v ? 'stand' : 'wander' } }),
+      },
+    ],
+    hooks: [hk('canTalk', 'bool', 'Will it talk to the hero now?')],
+    events: ['event.onConversationEnd', 'event.onChoice'],
+    editIn: 'Characters › Behaviour',
+  },
+  {
+    name: 'Damageable',
+    for: 'character',
+    about: 'The hero can hit and hurt it; at 0 it is defeated (and drops its loot).',
+    on: (c) => !!c.harm?.canBeHarmed,
+    add: (c) => ({ harm: { ...harmOf(c), canBeHarmed: true } }),
+    remove: (c) => {
+      const { harm: _gone, ...rest } = c;
+      return rest as Character;
+    },
+    fields: [
+      {
+        name: 'hp',
+        type: 'number',
+        default: 3,
+        label: 'Health',
+        min: 1,
+        max: 999,
+        get: (c) => c.harm?.health.hp ?? 3,
+        set: (c, v) => {
+          const h = harmOf(c);
+          return { harm: { ...h, health: { ...h.health, hp: Math.max(1, Math.min(999, Number(v) || 1)) } } };
+        },
+      },
+      {
+        name: 'armor',
+        type: 'number',
+        default: 0,
+        label: 'Armour (taken off every hit)',
+        min: 0,
+        max: 99,
+        get: (c) => c.harm?.health.armor ?? 0,
+        set: (c, v) => {
+          const h = harmOf(c);
+          return { harm: { ...h, health: { ...h.health, armor: Math.max(0, Math.min(99, Number(v) || 0)) } } };
+        },
+      },
+    ],
+    hooks: [hk('takeDamage', 'number', 'How much a hit takes (after armour, its sides and weaknesses).')],
+    events: ['event.onDamaged', 'event.onDefeated'],
+    editIn: 'Characters › Stats › Can be harmed',
+  },
+];
+
+export const characterBuiltinNamed = (name: string | undefined) =>
+  CHARACTER_BUILTINS.find((b) => b.name === name) ?? null;
+/** any built-in by its class name (an asset's or a character's) */
+export const anyBuiltinNamed = (name: string | undefined): Builtin<Asset> | Builtin<Character> | null =>
+  builtinNamed(name) ?? characterBuiltinNamed(name);
+
 /** a built-in's hook by its event type */
 export const hookOf = (event: string) => {
-  for (const b of BUILTINS) for (const h of b.hooks) if (h.event === event) return { builtin: b, hook: h };
+  for (const b of [...BUILTINS, ...CHARACTER_BUILTINS])
+    for (const h of b.hooks) if (h.event === event) return { builtin: b, hook: h };
   return null;
 };
 
 /** a new behaviour that extends a built-in: each of its hooks answered with the engine's own answer, to change */
-export function extendCode(b: Builtin, name: string): string {
+export function extendCode(b: Pick<Builtin<unknown>, 'name' | 'hooks'>, name: string): string {
   const cls = name.replace(/[^A-Za-z0-9]/g, '') || `My${b.name}`;
   const lines = [`class ${cls} extends ${b.name} {`, ...(b.hooks.length ? [''] : [])];
-  for (const h of b.hooks) {
+  b.hooks.forEach((h, i) => {
+    if (i) lines.push('');
     lines.push(`  ${h.method}(e) {`, `    return super.${h.method}(e);`, '  }');
-  }
+  });
   lines.push('}');
   return lines.join('\n');
 }

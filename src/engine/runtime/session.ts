@@ -1918,6 +1918,8 @@ export class PlaySession {
     this.staminaMax = chr?.stats ? statsOf(chr).stamina : MAX_STAMINA;
     this.stickOut = false;
     this.heldBefore = null;
+    // Milestone 3b (B4): another hero (the party's next) runs its own behaviours
+    if (this.logic && this.scriptOwners) this.syncScripts(true);
   }
 
   // ---------- step 12b: a stick (a branch) in hand ----------
@@ -2170,7 +2172,9 @@ export class PlaySession {
   }
 
   /** P22 part 2: experience for the hero; reaching a level says so (and plays its victory clip) */
-  giveXp(n: number) {
+  giveXp(n0: number) {
+    // Milestone 3b (B4): the hero's behaviour may change how much it gets
+    const n = this.askHook('hero', 'gainXp', { amount: n0 }, n0);
     const st = statsOf(this.heroChr);
     const xp = Math.max(0, Number(this.logic.vars.get('xp') ?? 0) + n);
     this.logic.setVar('xp', xp);
@@ -2244,6 +2248,12 @@ export class PlaySession {
     const npc = this.combat.lockedNpc() ?? this.L.NPCWorld.nearest(this.world.npcs, this.heroState);
     if (!npc) {
       this.say('Nobody close enough to talk to.', 1.5);
+      return;
+    }
+    // Milestone 3b (B4): a behaviour on the neighbour may say no (Neighbour.canTalk)
+    const talker = npcItem(this.snapshot, this.world.mapId, npc.id)?.id;
+    if (talker && !this.askHook(talker, 'canTalk', {}, true)) {
+      this.say(`${String(npc.profile.name ?? 'They')} has nothing to say.`, 1.5);
       return;
     }
     // P22: the neighbour's character has conversations: the first whose condition holds plays
@@ -2443,10 +2453,14 @@ export class PlaySession {
     const fallSpeed = before.vy;
     // P27 part 3: a big map's window follows the hero
     this.moveWindow(this.world);
+    // Milestone 3b (B4): the hero's behaviour may say no to a jump, and set how fast it moves
+    if (input.jump && !this.askHook('hero', 'canJump', { onGround: before.grounded }, true))
+      input = { ...input, jump: false };
+    const speed = this.askHook('hero', 'moveSpeed', {}, this.heroStats.speed);
     const move = {
       ...input,
       // P22 part 2: the sheet's speed and jump
-      speedScale: (input.speedScale ?? 1) * this.heroStats.speed,
+      speedScale: (input.speedScale ?? 1) * Math.max(0, speed),
       jumpSpeed: (input.jumpSpeed ?? (this.hero.power === 'Super jumping' ? 19 : 9.5)) * Math.sqrt(this.heroStats.jump),
     };
     // step 11b part 2: deep water: the hero swims (shallow water only slows walking)
@@ -2953,7 +2967,9 @@ export class PlaySession {
     // P26: the player's difficulty scales the damage the hero takes (story: half, hard: double)
     const raw = this.progress.damage(n0);
     // P22 part 2: the sheet's defence (and a defensive fighter's guard)
-    const n = this.heroChr?.stats ? afterDefence(raw, this.heroStats.defence) : raw;
+    const def = this.heroChr?.stats ? afterDefence(raw, this.heroStats.defence) : raw;
+    // Milestone 3b (B4): the hero's behaviour may change what a hit takes
+    const n = Math.max(0, this.askHook('hero', 'takeDamage', { amount: def, type: 'any' }, def));
     if (n <= 0 || this.health.invulnerable.has('hero') || this.over) return;
     const hp = Math.max(0, Number(this.logic.vars.get('hp') ?? 0) - n);
     this.logic.setVar('hp', hp);
@@ -3356,7 +3372,11 @@ export class PlaySession {
     if ((this.health.peek(key)?.hp ?? def.hp) <= 0) return;
     // step 11, 4a: where the hit comes from (a shield in front, a soft back), and whether it stuns
     const side = hitSide(npc.state, this.heroState, this.figureOf(npc).top);
-    const { dealt, wound } = this.health.hit(key, def, attack, side);
+    // Milestone 3b (B4): a behaviour on the neighbour (Damageable.takeDamage) may change what the hit takes
+    const owner = npcItem(this.snapshot, this.world.mapId, npc.id)?.id;
+    const { dealt, wound } = this.health.hit(key, def, attack, side, (d) =>
+      owner ? this.askHook(owner, 'takeDamage', { amount: d, type: attack.type }, d) : d,
+    );
     const pos: Vec3 = [npc.state.x, npc.state.y, npc.state.z];
     const stun = stunsIt(attack, def);
     if (stun) {
@@ -4668,6 +4688,8 @@ export class PlaySession {
    * Attaches each copy's behaviours (its asset's or character's, and its own) with their field values, and lets
    * go of copies that are gone. `start`: a copy that arrives now runs its On start at once.
    */
+  /** Milestone 3b (B4): the character whose behaviours run as the hero now */
+  private heroScriptsOf: string | null = null;
   syncScripts(start: boolean) {
     const w = this.world;
     this.scriptsSeen = { world: w, objects: w.instances.length, npcs: w.npcs.length };
@@ -4692,6 +4714,14 @@ export class PlaySession {
       const list = attachmentsOf(chr?.scripts, item.scripts);
       if (list.length) put(item.id, list);
     }
+    // Milestone 3b (B4): the hero's character's behaviours run as "hero" (a switch of hero starts the new one's)
+    if (this.heroScriptsOf !== (this.heroChr?.id ?? null)) {
+      this.logic.detach('hero');
+      this.scriptOwners.delete('hero');
+      this.heroScriptsOf = this.heroChr?.id ?? null;
+    }
+    const heroList = attachmentsOf(this.heroChr?.scripts, undefined);
+    if (heroList.length) put('hero', heroList);
     for (const o of this.scriptOwners) if (!now.has(o)) this.logic.detach(o);
     this.scriptOwners = now;
   }

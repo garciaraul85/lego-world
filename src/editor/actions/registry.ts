@@ -601,6 +601,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('builtins2'),
   },
   {
+    id: 'help.heroBehavioursCourse',
+    label: 'Hero behaviours course (extend the Hero: out of breath after three quick jumps)',
+    run: ({ ui }) => ui.tutorial('heroBehaviours'),
+  },
+  {
     id: 'help.swim',
     label: 'Swimming course (dive, breath, the Action button)',
     run: ({ ui }) => ui.tutorial('swim'),
@@ -854,6 +859,7 @@ export const COURSE_GROUPS: [string, string[]][] = [
       'help.engineApiCourse',
       'help.builtinsCourse',
       'help.builtins2Course',
+      'help.heroBehavioursCourse',
       'help.saving',
       'help.swim',
     ],

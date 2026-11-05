@@ -5,15 +5,15 @@
 import { useState } from 'preact/hooks';
 import type { ScriptTarget } from '../../core/commands/handlers/scripts';
 import { attachmentsOf, startValues } from '../../core/logic/behaviours';
-import { BUILTINS, type Builtin } from '../../core/logic/builtins';
+import { BUILTINS } from '../../core/logic/builtins';
 import type { Asset, FieldValue, LogicGraph, ScriptAttachment } from '../../core/schema';
 import type { ActionCtx } from '../actions/registry';
 import { FieldHelp } from '../components/fields';
 import { shows } from '../genres/view';
 import type { EditorState } from '../state';
 import { BEHAVIOUR_HELP, ValueInput } from '../workspaces/logic/BehaviourPanel';
-import { extendBuiltin } from '../workspaces/logic/BuiltinPage';
 import { graphs, newBehaviour } from '../workspaces/logic/model';
+import { BuiltinRow } from './BuiltinRow';
 
 export const SCRIPTS_HELP = {
   section:
@@ -85,7 +85,14 @@ export function BehaviourSection({ c }: { c: ActionCtx }) {
         <span>{running.length + builtins.length}</span>
       </div>
       {builtins.map((b) => (
-        <BuiltinRow key={`${e.def.id}:${b.name}`} c={c} b={b} a={e.def as Asset} />
+        <BuiltinRow
+          key={`${e.def.id}:${b.name}`}
+          c={c}
+          b={b}
+          it={e.def as Asset}
+          on={{ asset: e.def.id }}
+          where={`every ${e.def.name}`}
+        />
       ))}
       {running.map((a) => {
         const g = all.find((x) => x.id === a.use);
@@ -294,99 +301,6 @@ function Attached({
       {!g.behaviour!.fields.length && (
         <div class="hint small">No fields. Add some in Logic (Fields, left) to set them here.</div>
       )}
-    </fieldset>
-  );
-}
-
-/** Milestone 3b (B3): a built-in behaviour the asset has (its settings), on every copy */
-function BuiltinRow({ c, b, a }: { c: ActionCtx; b: Builtin; a: Asset }) {
-  const { ed } = c;
-  return (
-    <fieldset class="bhv-attached bhv-builtin" aria-label={`Built-in ${b.name}`}>
-      <div class="row" style={{ gap: '6px' }}>
-        <button
-          type="button"
-          class="link"
-          title="Read about it in Logic"
-          onClick={() => {
-            ed.logicGraph.value = `builtin:${b.name}`;
-            c.ui.workspace('Logic');
-          }}
-        >
-          <strong>{b.name}</strong>
-        </button>
-        <span class="small muted">built-in · every {a.name}</span>
-        <span style={{ marginLeft: 'auto' }} />
-        {b.hooks.length > 0 && (
-          <button
-            type="button"
-            class="link small"
-            title={`Make a behaviour of your own that extends ${b.name} and put it on every ${a.name}`}
-            onClick={() => {
-              const id = extendBuiltin(c, b);
-              if (id) ed.exec({ type: 'script.attach', payload: { target: { kind: 'asset', id: a.id }, use: id } });
-            }}
-          >
-            Extend
-          </button>
-        )}
-        {b.name !== 'Interactable' && (
-          <button
-            type="button"
-            class="link"
-            aria-label={`Remove ${b.name} from every ${a.name}`}
-            onClick={() => ed.exec({ type: 'builtin.detach', payload: { asset: a.id, name: b.name } })}
-          >
-            ×
-          </button>
-        )}
-      </div>
-      {b.fields.map((f) => (
-        <label class="field">
-          <span>{f.label}</span>
-          {f.choices ? (
-            <select
-              class="inp"
-              aria-label={`${b.name} ${f.label}`}
-              value={String(f.get(a))}
-              onChange={(ev) =>
-                ed.exec(
-                  {
-                    type: 'builtin.setField',
-                    payload: {
-                      asset: a.id,
-                      name: b.name,
-                      field: f.name,
-                      value: (ev.target as HTMLSelectElement).value,
-                    },
-                  },
-                  { label: `${f.label}: ${(ev.target as HTMLSelectElement).value}` },
-                )
-              }
-            >
-              {f.choices.map((ch) => (
-                <option value={ch}>{ch}</option>
-              ))}
-            </select>
-          ) : (
-            <ValueInput
-              ed={ed}
-              type={f.type}
-              label={`${b.name} ${f.label}`}
-              value={f.get(a)}
-              min={f.min}
-              max={f.max}
-              onCommit={(v) =>
-                ed.exec(
-                  { type: 'builtin.setField', payload: { asset: a.id, name: b.name, field: f.name, value: v } },
-                  { label: `${f.label}: ${String(v)}` },
-                )
-              }
-            />
-          )}
-        </label>
-      ))}
-      {!b.fields.length && <div class="hint small">Its settings are in {b.editIn}.</div>}
     </fieldset>
   );
 }

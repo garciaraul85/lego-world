@@ -56,6 +56,46 @@ test('Built-in behaviours course: a crate that sticks after two pushes', async (
   expect(errors).toEqual([]);
 });
 
+test('Hero behaviours course: out of breath after three quick jumps', async ({ page }) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
+  await page.getByRole('menuitem', { name: /Hero behaviours course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(7);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    if (await doIt.isVisible()) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doIt.click();
+      const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+      const done = card.getByText(/✓ Done!/);
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (await rest.isVisible()) await rest.click();
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      await page.screenshot({ path: `test-results/hero-${String(i).padStart(2, '0')}.png` });
+    }
+    if (/Read about Pushable/.test(title))
+      await expect(page.locator('[data-tour="builtin-page"]')).toContainText('canPush');
+    if (/A built-in's field/.test(title))
+      await expect(page.getByRole('group', { name: 'Built-in Pushable' })).toBeVisible();
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  expect(errors).toEqual([]);
+});
+
 test('World built-ins course: a rock that takes three tries to lift', async ({ page }) => {
   test.setTimeout(900_000);
   const errors: string[] = [];

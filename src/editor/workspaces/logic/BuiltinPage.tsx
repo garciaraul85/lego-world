@@ -14,7 +14,8 @@ import { graphs, newBehaviour } from './model';
 export const BUILTIN_HELP =
   'A built-in behaviour is one of the engine’s own features (a lock, a switch, a push block…). An asset with its setting is one; its decisions (hooks) can be answered by a behaviour of the game’s own that extends it: class GemDoor extends Lock { canOpen(e) { … } }. Not answering keeps the engine’s answer (super.canOpen(e)).';
 
-export function extendBuiltin(c: ActionCtx, b: Builtin): string | null {
+// biome-ignore lint/suspicious/noExplicitAny: an asset's built-in or a character's
+export function extendBuiltin(c: ActionCtx, b: Builtin<any>): string | null {
   const { ed } = c;
   const taken = new Set(graphs(ed).map((g) => g.name));
   let name = `My ${b.name}`;
@@ -29,7 +30,8 @@ export function extendBuiltin(c: ActionCtx, b: Builtin): string | null {
   return g.id;
 }
 
-export function BuiltinPage({ c, b }: { c: ActionCtx; b: Builtin }) {
+// biome-ignore lint/suspicious/noExplicitAny: an asset's built-in or a character's
+export function BuiltinPage({ c, b }: { c: ActionCtx; b: Builtin<any> }) {
   const { ed } = c;
   const mine = graphs(ed).filter((g) => g.behaviour?.extends === b.name);
   return (
@@ -39,7 +41,11 @@ export function BuiltinPage({ c, b }: { c: ActionCtx; b: Builtin }) {
       </h2>
       <p>{b.about}</p>
       <p class="small muted">
-        An asset with this setting is a {b.name} (set in {b.editIn}, or Scene › Inspector › Behaviours).
+        {b.for === 'character'
+          ? b.fixed
+            ? `Every ${b.name === 'Hero' ? 'player character' : 'neighbour'} is one (its settings: ${b.editIn}). A behaviour that extends it goes on the character, in Characters › Behaviour.`
+            : `A character with this setting is one (${b.editIn}, or Characters › Behaviour).`
+          : `An asset with this setting is a ${b.name} (set in ${b.editIn}, or Scene › Inspector › Behaviours).`}
       </p>
       <div class="row" style={{ gap: '8px', margin: '8px 0 12px' }}>
         <button type="button" class="btn on" data-tour="builtin-extend" onClick={() => extendBuiltin(c, b)}>
