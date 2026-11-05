@@ -146,6 +146,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Hover boots and Lens course (10 steps): float over a Pit gap in the hover boots, hold up the Lens of Truth, walk through a fake wall to a hidden chest, cross an invisible bridge, then fill the magic meter from a magic jar.',
   'help.foesCourse':
     'Starts the Enemies course (10 steps): bounce a Pebblespout’s rock back at it with the shield, block a Watcher Eye’s beam, strike a fading Lanternwisp seen through the Lens of Truth, then meet a pack of Howlers that circle and strike one at a time.',
+  'help.behavioursCourse':
+    'Starts the Behaviours course (9 steps): make a behaviour (a script you attach to things) with a field and its own variables, write its update() so a lamp blinks, attach it to every Lamp post, and give one copy its own speed.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':
@@ -291,6 +293,10 @@ const MORE_COMMANDS: Record<string, string> = {
   'media.replace': 'Puts one imported file in place of another everywhere it is used (a shrunk picture for a big one).',
   'art.put': 'Adds or changes a background, icon or font (Screens → Art).',
   'art.delete': 'Deletes a background, icon or font no screen uses.',
+  // Milestone 3b (B1): behaviours
+  'script.attach': 'Attaches a behaviour (a logic file with fields) to an asset, a character or one placed copy.',
+  'script.detach': 'Removes a behaviour from an asset, a character or a copy, or switches an asset’s behaviour off on one copy.',
+  'script.setField': 'Sets one field of a behaviour where it is attached (on a copy: its own value, over its asset’s).',
 };
 
 function commandEntries(types: readonly string[]): HelpEntry[] {

@@ -7,7 +7,7 @@ import {
   type Health,
   type HitSide,
 } from '../../core/combat/damage';
-import { type Asset, type Character, type Instances, paths } from '../../core/schema';
+import { type Asset, type Character, type Instances, paths, type ScriptAttachment } from '../../core/schema';
 import type { Npc } from '../legacy/runtime-modules';
 
 /**
@@ -30,14 +30,18 @@ export function assetHealth(def: Asset): Health | null {
 
 /** A neighbour's character, by its legacy id (instances of kind npc on the map). */
 /** Milestone 2b: a map's neighbours by their v68 id, worked out once per instances file (not a walk per call) */
-const npcItems = new WeakMap<object, Map<number, { id: string; character: string }>>();
+const npcItems = new WeakMap<object, Map<number, { id: string; character: string; scripts?: ScriptAttachment[] }>>();
 /**
  * Step 11, 4c: characters put on the map while playing (Spawn character): not in the map's file, so they are
  * looked up here by their play-time id. A new play clears it.
  */
 export const spawnedNpcs = new Map<number, { id: string; character: string }>();
 
-export function npcItem(host: HealthHost, mapId: string, npcId: number): { id: string; character: string } | undefined {
+export function npcItem(
+  host: HealthHost,
+  mapId: string,
+  npcId: number,
+): { id: string; character: string; scripts?: ScriptAttachment[] } | undefined {
   const spawned = spawnedNpcs.get(npcId);
   if (spawned) return spawned;
   const inst = host.get(paths.instances(mapId)) as Instances | undefined;
@@ -46,7 +50,8 @@ export function npcItem(host: HealthHost, mapId: string, npcId: number): { id: s
   if (!m) {
     m = new Map();
     for (const i of inst.items)
-      if (i.kind === 'npc' && i.legacyId !== undefined) m.set(i.legacyId, { id: i.id, character: i.character });
+      if (i.kind === 'npc' && i.legacyId !== undefined)
+        m.set(i.legacyId, { id: i.id, character: i.character, ...(i.scripts ? { scripts: i.scripts } : {}) });
     npcItems.set(inst, m);
   }
   return m.get(npcId);

@@ -171,9 +171,33 @@ export function parseCode(code: string, prev?: Pick<LogicGraph, 'nodes' | 'edges
       return [[n.id, 'then']];
     }
     if (x.type === 'AssignmentExpression') {
-      if (x.left.type !== 'MemberExpression' || x.left.object.name !== 'vars' || x.left.computed)
-        throw new CodeError('Only game variables can be set: vars.name = …', x);
+      // Milestone 3b (B1): a behaviour's own field or variable: this.name = …
+      const mine = x.left.type === 'MemberExpression' && x.left.object.type === 'ThisExpression' && !x.left.computed;
+      if (!mine && (x.left.type !== 'MemberExpression' || x.left.object.name !== 'vars' || x.left.computed))
+        throw new CodeError(
+          'Only game variables (vars.name = …) and this behaviour’s own (this.name = …) can be set.',
+          x,
+        );
       const name = x.left.property.name;
+      if (mine) {
+        if (x.operator === '=') {
+          const n = add('self.set', p, { name });
+          wire(from, n);
+          value(x.right, n, 'value', `${p}/value`, scope);
+          return [[n.id, 'then']];
+        }
+        if (x.operator === '+=' || x.operator === '-=') {
+          const n = add('self.add', p, { name });
+          wire(from, n);
+          if (x.operator === '-=') {
+            const v = literal(x.right);
+            if (typeof v !== 'number') throw new CodeError('-= takes a number; use += with a value instead.', x.right);
+            n.args = { ...n.args, amount: -v };
+          } else value(x.right, n, 'amount', `${p}/amount`, scope);
+          return [[n.id, 'then']];
+        }
+        throw new CodeError(`${x.operator} is not supported; use =, += or -=.`, x);
+      }
       if (x.operator === '=') {
         const n = add('var.set', p, { var: name });
         wire(from, n);
@@ -266,6 +290,8 @@ export function parseCode(code: string, prev?: Pick<LogicGraph, 'nodes' | 'edges
   }
 
   function source(x: N, p: string, scope: Scope): [string, string] {
+    if (x.type === 'MemberExpression' && !x.computed && x.object.type === 'ThisExpression')
+      return [add('self.get', p, { name: x.property.name }).id, 'value'];
     if (x.type === 'MemberExpression' && !x.computed && x.object.type === 'Identifier') {
       if (x.object.name === 'e') {
         if (!nodeDef(scope.ev.type)!.outputs.some((o) => o.name === x.property.name))

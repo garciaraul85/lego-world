@@ -60,7 +60,9 @@ export type ArgKind =
   | 'time'
   | 'fog'
   /** Milestone 3, 10d part 2: one of a body's moves (roar, glide, dance…) */
-  | 'move';
+  | 'move'
+  /** Milestone 3b (B1): one of the behaviour's fields or own variables */
+  | 'field';
 export type ArgDef = {
   name: string;
   kind: ArgKind;

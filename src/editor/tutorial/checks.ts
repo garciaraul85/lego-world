@@ -37,6 +37,13 @@ import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
 import { MARK_FACING, MARK_RADIUS, markTarget } from './story';
 
+/** Milestone 3b (B1): a behaviour by name */
+const behaviourGraph = (ed: EditorState, name: string): LogicGraph | null =>
+  ed.store
+    .list('logic/')
+    .map((p) => ed.store.get<LogicGraph>(p))
+    .find((g): g is LogicGraph => !!g?.behaviour && g.name === name) ?? null;
+
 const effectNamed = (ed: EditorState, id: string | null | undefined): Effect | undefined =>
   id ? (ed.store.get<Effect>(paths.effect(id)) ?? BUILTIN_EFFECTS.find((e) => e.id === id)) : undefined;
 
@@ -146,6 +153,50 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     if (character && c?.name !== character) return false;
     const from = (c?.profile.customHair as { from?: string } | undefined)?.from;
     return !!from && ed.store.get<{ name: string }>(paths.hairstyle(from))?.name === style;
+  },
+  // Milestone 3b (B1): the Behaviours course
+  behaviourNamed: (ed, a) => openGraph(ed)?.name === a && !!openGraph(ed)?.behaviour,
+  behaviourHasField: (ed, a) => {
+    const [b, f] = String(a).split(',');
+    return !!behaviourGraph(ed, b!)?.behaviour?.fields.some((x) => x.name === f);
+  },
+  behaviourHasEvent: (ed, a) => {
+    const [b, e] = String(a).split(',');
+    const t = `event.on${e!.charAt(0).toUpperCase()}${e!.slice(1)}`;
+    const g = behaviourGraph(ed, b!);
+    return (
+      !!g?.nodes.some((n) => n.type === t) && !!g.edges.some((x) => g.nodes.find((n) => n.id === x[0])?.type === t)
+    );
+  },
+  assetHasBehaviour: (ed, a) => {
+    const [asset, b] = String(a).split(',');
+    const g = behaviourGraph(ed, b!);
+    return (
+      !!g &&
+      ed.store.list('assets/').some((p) => {
+        const x = ed.store.get<Asset>(p);
+        return x?.name === asset && !!x?.scripts?.some((s) => s.use === g.id);
+      })
+    );
+  },
+  copyHasField: (ed, a) => {
+    const [b, f] = String(a).split(',');
+    const g = behaviourGraph(ed, b!);
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return (
+      !!g &&
+      items.some((i) =>
+        (i as { scripts?: { use: string; fields?: Record<string, unknown> }[] }).scripts?.some(
+          (s) => s.use === g.id && s.fields?.[f!] !== undefined,
+        ),
+      )
+    );
+  },
+  behaviourRunning: (ed, a) => {
+    const [b, n] = String(a).split(',');
+    const g = behaviourGraph(ed, b!);
+    const s = ed.session.value;
+    return !!g && !!s && s.logic.attachedTo(g.id).length >= Number(n ?? 1) && s.clock > 1;
   },
   // P32: the treasure-chest story — logic
   graphNamed: (ed, a) => openGraph(ed)?.name === a,

@@ -16,9 +16,10 @@ import { controlMenu } from '../../genres/GenrePicker';
 import { noteRecent, prefsOf, shows, viewGenre } from '../../genres/view';
 import { PickedThumb } from '../../panels/AudioFields';
 import { keysFor } from '../../platform';
+import { BEHAVIOUR_HELP, BehaviourPanel, usedOn } from './BehaviourPanel';
 import { CodeView } from './CodeView';
 import { GraphView, toggleBreakpoint } from './GraphView';
-import { argChoices, CAT_COLOR, graphs, newGraph, nodeHeight, ownerOf, variables } from './model';
+import { argChoices, CAT_COLOR, graphs, newBehaviour, newGraph, nodeHeight, ownerOf, variables } from './model';
 import {
   assetByRef,
   assetNames,
@@ -58,10 +59,24 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
     const g = newGraph(`Logic ${list.length + 1}`, { type: 'event.onStart' });
     if (ed.exec({ type: 'logic.create', payload: { graph: g } }).ok) ed.logicGraph.value = g.id;
   };
+  // Milestone 3b (B1): a behaviour (a script to attach to things, with fields)
+  const createBehaviour = () => {
+    const n = list.filter((g) => g.behaviour).length + 1;
+    const g = newBehaviour(`Behaviour ${n}`);
+    if (ed.exec({ type: 'logic.create', payload: { graph: g } }, { label: 'New behaviour' }).ok)
+      ed.logicGraph.value = g.id;
+  };
 
   return (
     <div class="studio logic-ws">
-      <Sidebar c={c} list={list} graph={graph} onCreate={create} onAdded={(id) => setSelected(new Set([id]))} />
+      <Sidebar
+        c={c}
+        list={list}
+        graph={graph}
+        onCreate={create}
+        onCreateBehaviour={createBehaviour}
+        onAdded={(id) => setSelected(new Set([id]))}
+      />
       <section class="panel studio-main" aria-label="Logic editor">
         <div class="ptabs studio-head">
           {graph ? (
@@ -98,6 +113,16 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
             ▶ Play &amp; trace
           </button>
         </div>
+        {graph?.behaviour && (
+          <div class="lg-owner small" role="note" data-tour="behaviour-note">
+            Behaviour: attach it to things with <strong>+ Script</strong> in the Inspector. Each copy runs its own:
+            “this” is that copy, <code>this.name</code> its fields and own variables. {(() => {
+              const u = usedOn(ed, graph.id);
+              const n = u.assets.length + u.characters.length + u.copies;
+              return n ? `Used on ${n} thing${n === 1 ? '' : 's'}.` : 'Not attached to anything yet.';
+            })()}
+          </div>
+        )}
         {graph?.owner && (
           <div class="lg-owner small" role="note">
             Script on <strong>{ownerOf(ed, graph.owner)?.name}</strong>: its events about objects (used, hit, smashed,
@@ -184,12 +209,14 @@ function Sidebar({
   list,
   graph,
   onCreate,
+  onCreateBehaviour,
   onAdded,
 }: {
   c: ActionCtx;
   list: LogicGraph[];
   graph: LogicGraph | null;
   onCreate: () => void;
+  onCreateBehaviour: () => void;
   /** P32: the node just added from the list (it is selected, so its settings show at once) */
   onAdded: (node: string) => void;
 }) {
@@ -266,28 +293,70 @@ function Sidebar({
             </button>
           </span>
         </div>
-        {list.map((g) => (
-          <div class={`lib-item ${g.id === graph?.id ? 'on' : ''}`}>
-            <button type="button" class="link lg-graph-name" onClick={() => (ed.logicGraph.value = g.id)}>
-              {g.name}
-              {g.owner && <span class="small muted"> · on {ownerOf(ed, g.owner)?.name}</span>}
-            </button>
-            <span class="mono small muted">{g.nodes.length}</span>
-            <button
-              type="button"
-              class="link"
-              aria-label={`Delete ${g.name}`}
-              onClick={() => ed.exec({ type: 'logic.delete', payload: { graph: g.id } })}
-            >
-              ×
-            </button>
-          </div>
-        ))}
-        {!list.length && (
+        {list
+          .filter((g) => !g.behaviour)
+          .map((g) => (
+            <div class={`lib-item ${g.id === graph?.id ? 'on' : ''}`}>
+              <button type="button" class="link lg-graph-name" onClick={() => (ed.logicGraph.value = g.id)}>
+                {g.name}
+                {g.owner && <span class="small muted"> · on {ownerOf(ed, g.owner)?.name}</span>}
+              </button>
+              <span class="mono small muted">{g.nodes.length}</span>
+              <button
+                type="button"
+                class="link"
+                aria-label={`Delete ${g.name}`}
+                onClick={() => ed.exec({ type: 'logic.delete', payload: { graph: g.id } })}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        {!list.some((g) => !g.behaviour) && (
           <div class="hint" style={{ padding: '4px 10px' }}>
             No files yet.
           </div>
         )}
+
+        {/* Milestone 3b (B1): behaviours — scripts with fields that you attach to things */}
+        <div class="sech" style={{ padding: '12px 10px 4px' }}>
+          <span>
+            Behaviours
+            <FieldHelp label="Behaviours" text={BEHAVIOUR_HELP.what} />
+          </span>
+          <button
+            type="button"
+            class="link"
+            data-tour="behaviour-new"
+            aria-label="New behaviour"
+            onClick={onCreateBehaviour}
+          >
+            + New
+          </button>
+        </div>
+        {list
+          .filter((g) => g.behaviour)
+          .map((g) => (
+            <div class={`lib-item ${g.id === graph?.id ? 'on' : ''}`}>
+              <button type="button" class="link lg-graph-name" onClick={() => (ed.logicGraph.value = g.id)}>
+                {g.name}
+                <span class="small muted">
+                  {' '}
+                  · {g.behaviour!.fields.length} field{g.behaviour!.fields.length === 1 ? '' : 's'}
+                </span>
+              </button>
+              <span class="mono small muted">{g.nodes.length}</span>
+              <button
+                type="button"
+                class="link"
+                aria-label={`Delete ${g.name}`}
+                onClick={() => ed.exec({ type: 'logic.delete', payload: { graph: g.id } })}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        {graph?.behaviour && <BehaviourPanel c={c} graph={graph} />}
 
         <div class="sech" style={{ padding: '12px 10px 4px' }}>
           <span>

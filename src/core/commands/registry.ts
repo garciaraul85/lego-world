@@ -72,6 +72,7 @@ import {
 import { placeNpc, removeNpc } from './handlers/npcs';
 import { putProgress } from './handlers/progress';
 import { scatterAsset } from './handlers/scatter';
+import { attachScript, detachScript, setScriptField } from './handlers/scripts';
 
 /** Every command type the engine knows. Append-only: add new handlers at the end. */
 export function registerAll(bus: CommandBus): CommandBus {
@@ -139,6 +140,10 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('logic.disconnect', disconnect);
   bus.register('logic.setArgs', setArgs);
   bus.register('logic.setVariable', setVariable);
+  // Milestone 3b (B1): behaviours attached to assets, characters and placed copies
+  bus.register('script.attach', attachScript);
+  bus.register('script.detach', detachScript);
+  bus.register('script.setField', setScriptField);
   bus.register('map.addZone', addZone);
   bus.register('map.updateZone', updateZone);
   bus.register('map.removeZone', removeZone);

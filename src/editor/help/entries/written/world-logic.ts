@@ -38,7 +38,7 @@ export const WORLD: HelpEntry[] = [
   },
   {
     id: 'world.gate',
-    also: ['connect', 'maps', 'portal', 'door to another map', 'travel'],
+    also: ['connect', 'maps', 'connect two maps', 'link maps', 'portal', 'door to another map', 'travel'],
     screen: 'world',
     kind: 'button',
     name: 'Gate',

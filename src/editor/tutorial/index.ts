@@ -49,6 +49,7 @@ import shots from './content/39-bow-boomerang.json';
 import hooks from './content/40-hook-magnet.json';
 import lens from './content/41-boots-lens.json';
 import foes from './content/42-enemies.json';
+import behaviours from './content/43-behaviours.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -85,6 +86,7 @@ export type Track =
   | 'hooks'
   | 'lens'
   | 'foes'
+  | 'behaviours'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -168,6 +170,8 @@ export const HOOKS_STEPS: TrackStep[] = steps([hooks].map((c) => Chapter.parse(c
 export const LENS_STEPS: TrackStep[] = steps([lens].map((c) => Chapter.parse(c)));
 /** step 14a: the starter enemies' own ways of fighting */
 export const FOES_STEPS: TrackStep[] = steps([foes].map((c) => Chapter.parse(c)));
+/** Milestone 3b (B1): behaviours — scripts with fields attached to things */
+export const BEHAVIOURS_STEPS: TrackStep[] = steps([behaviours].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -206,6 +210,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   hooks: { title: 'Hook and magnet course', steps: HOOKS_STEPS },
   lens: { title: 'Hover boots and Lens course', steps: LENS_STEPS },
   foes: { title: 'Enemies course', steps: FOES_STEPS },
+  behaviours: { title: 'Behaviours course', steps: BEHAVIOURS_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (95 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (99 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -245,6 +245,15 @@ Runs when a burnable thing (vines, a wooden barricade, a web) has burned away: s
 - Settings: Asset (asset, optional)
 - Outputs: target (entity)
 - Code: `on("burned", { asset: … }, (e) => { … });`
+
+### On update
+
+`event.onUpdate` · event
+
+Runs every game step (60 times a second) for each thing the behaviour is attached to. dt is the seconds since the last step. Keep it short: a long update slows the game.
+
+- Outputs: dt (number)
+- Code: `on("update", (e) => { … });`
 
 ## Flow
 
@@ -922,3 +931,35 @@ Changes the fog while the game plays: a kind of fog (haze, mist, thick fog, grou
 
 - Settings: Fog (fog)
 - Code: `sky.fog(fog);`
+
+## This object
+
+### Get field
+
+`self.get` · pure
+
+The value of one of this behaviour’s fields or own variables, on the copy that runs it (this.name in code).
+
+- Settings: Field or own variable (field)
+- Outputs: value (any)
+- Code: `this(name)`
+
+### Set field
+
+`self.set` · action
+
+Gives one of this behaviour’s fields or own variables a new value, on this copy only (this.name = … in code).
+
+- Settings: Field or own variable (field)
+- Inputs: value (any)
+- Code: `this(name, value);`
+
+### Add to field
+
+`self.add` · action
+
+Adds an amount to a number field or own variable, on this copy only (this.name += … in code).
+
+- Settings: Field or own variable (field)
+- Inputs: amount (number)
+- Code: `this(name, amount);`

@@ -6777,3 +6777,37 @@ img.bw-portrait {
 .lib-pick:hover {
   background: var(--btnh);
 }
+
+/* Milestone 3b (B1): behaviours — a field's settings in Logic, a behaviour in the Inspector */
+.bhv-field,
+.bhv-attached {
+  margin: 4px 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.bhv-attached {
+  margin: 4px 0;
+}
+.bhv-field .field,
+.bhv-attached .field {
+  display: grid;
+  grid-template-columns: minmax(70px, 40%) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.bhv-field .row .field {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.bhv-field .inp,
+.bhv-attached .inp {
+  min-width: 0;
+  width: 100%;
+}
+.bhv-attached input[type='checkbox'] {
+  justify-self: start;
+}

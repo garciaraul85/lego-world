@@ -90,3 +90,38 @@ Switches, push blocks, locks and pickups do their own work (Asset studio › Puz
 ## Debugging
 
 F9 on a node sets a breakpoint that pauses Play there. While playing, the dock's Debug tab shows variables and the Console shows log() output. A graph stops a chain after 1000 steps so a loop can't freeze the game.
+
+## Behaviours: scripts you attach to things
+
+A **behaviour** is a logic file you attach to things, like a component in Unity. Make one under **Behaviours › + New** in the Logic workspace. Attach it in the Scene with **+ Script** in the Inspector: to **every copy** of an asset, or **only this copy**. A character gets one in **Characters › Behaviour tab › Behaviours**.
+
+- **Fields** are its settings. Add them under Fields (a name, a type, a label, a default and, for numbers, a range). The Inspector shows them wherever the behaviour is attached. The asset and each copy can set their own values; a copy's own value wins (↺ puts it back).
+- **Own variables** belong to each copy that runs it (a timer, how often it was used). They start again every play.
+- **this** is the copy running it. `this.name` reads or changes a field or own variable (cards: Get field, Set field, Add to field).
+- Its events run for the copy they are about (used, hit, smashed…). **On start** runs for each copy when play starts. **On update** runs every game step, with `e.dt` the seconds since the last one.
+
+In Code a behaviour is a class:
+
+```js
+class Blinker extends Behaviour {
+  seconds = field.number(1, { label: "Blinks every (seconds)", min: 0.1, max: 10 });
+  timer = 0;
+  lit = true;
+
+  update(e) {
+    this.timer += e.dt;
+    if ((this.timer >= this.seconds)) {
+      this.timer = 0;
+      if (this.lit) {
+        world.setState("this", "off");
+        this.lit = false;
+      } else {
+        world.setState("this", "on");
+        this.lit = true;
+      }
+    }
+  }
+}
+```
+
+Fields are `name = field.type(default, { label, help, min, max })` (types: number, bool, string, item, object, asset, character, sound, effect, zone, event). Own variables are `name = value`. Each method is one event, and its settings go in `e`'s default: `interact(e = { asset: "Chest" }) { … }`. The **Behaviours course** (Help › Courses…) builds this Blinker.

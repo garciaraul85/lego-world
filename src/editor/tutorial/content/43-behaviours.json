@@ -1,0 +1,243 @@
+{
+  "id": "behaviours",
+  "title": "Behaviours course",
+  "steps": [
+    {
+      "id": "bh.open",
+      "title": "Behaviours: scripts you attach to things",
+      "body": "A behaviour is a script you attach to things, like a component in Unity. Write it once, put it on an asset, and every copy runs its own: “this” is that copy, its fields are settings you fill in per copy, and its own variables belong to each copy. You will make a lamp that blinks, and put it on two lamp posts that blink at different speeds.",
+      "task": "Open the Logic workspace.",
+      "target": "[data-tour=\"ws-logic\"]",
+      "check": {
+        "kind": "state",
+        "test": "workspace",
+        "args": "Logic"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Logic"
+        }
+      ],
+      "how": [],
+      "placement": "bottom"
+    },
+    {
+      "id": "bh.new",
+      "title": "A new behaviour",
+      "body": "Under Behaviours (left), press + New. A behaviour starts with an On start card. Name it Blinker in the name box at the top.",
+      "task": "Make a behaviour named Blinker.",
+      "target": "[data-tour=\"behaviour-new\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourNamed",
+        "args": "Blinker"
+      },
+      "doItForMe": [
+        {
+          "fn": "newBehaviourNamed",
+          "args": {
+            "name": "Blinker"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Logic"
+    },
+    {
+      "id": "bh.field",
+      "title": "A field: its setting",
+      "body": "Fields are what the Inspector shows wherever the behaviour is attached. Under Fields, type seconds, keep Number and press Add field. Give it the label Blinks every (seconds), default 1, min 0.1 and max 10.",
+      "task": "Add the field seconds.",
+      "target": "[data-tour=\"behaviour-fields\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourHasField",
+        "args": "Blinker,seconds"
+      },
+      "doItForMe": [
+        {
+          "fn": "addBehaviourField",
+          "args": {
+            "behaviour": "Blinker",
+            "name": "seconds",
+            "type": "number",
+            "default": 1,
+            "label": "Blinks every (seconds)",
+            "min": 0.1,
+            "max": 10
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Logic"
+    },
+    {
+      "id": "bh.code",
+      "title": "What it does every step",
+      "body": "In Code (or Split), a behaviour is a class: fields first, then own variables (timer, lit), then a method per event. update(e) runs every game step; e.dt is the seconds since the last one. this.timer adds them up; when it reaches this.seconds the lamp switches off or on (world.setState on \"this\": the copy running it). The cards show the same.",
+      "task": "Write update() so the lamp blinks.",
+      "target": ".lg-code",
+      "check": {
+        "kind": "state",
+        "test": "behaviourHasEvent",
+        "args": "Blinker,update"
+      },
+      "doItForMe": [
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "Blinker",
+            "code": [
+              "class $NAME extends Behaviour {",
+              "  seconds = field.number(1, { label: \"Blinks every (seconds)\", min: 0.1, max: 10 });",
+              "  timer = 0;",
+              "  lit = true;",
+              "",
+              "  update(e) {",
+              "    this.timer += e.dt;",
+              "    if ((this.timer >= this.seconds)) {",
+              "      this.timer = 0;",
+              "      if (this.lit) {",
+              "        world.setState(\"this\", \"off\");",
+              "        this.lit = false;",
+              "      } else {",
+              "        world.setState(\"this\", \"on\");",
+              "        this.lit = true;",
+              "      }",
+              "    }",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Logic"
+    },
+    {
+      "id": "bh.place",
+      "title": "Two lamp posts",
+      "body": "Back in the Scene, place two Lamp posts in front of the start, a few studs apart.",
+      "task": "Place two Lamp posts.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Lamp post"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Lamp post",
+            "ahead": 6,
+            "side": -3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Lamp post",
+            "ahead": 6,
+            "side": 3,
+            "count": 2
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bh.attach",
+      "title": "+ Script",
+      "body": "Select a lamp post. In the Inspector, under Behaviours, pick Blinker, keep Every Lamp post and press + Script. Now every Lamp post runs it, each its own copy.",
+      "task": "Attach Blinker to every Lamp post.",
+      "target": "[data-tour=\"object-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetHasBehaviour",
+        "args": "Lamp post,Blinker"
+      },
+      "doItForMe": [
+        {
+          "fn": "attachBehaviour",
+          "args": {
+            "behaviour": "Blinker",
+            "asset": "Lamp post"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "bh.copy",
+      "title": "One copy, its own value",
+      "body": "Select the other lamp post. Under Blinker, set Values for: This copy, and set Blinks every to 0.25. This copy blinks four times a second; the first keeps the Lamp post's 1 second. ↺ puts it back.",
+      "task": "Make one lamp blink every 0.25 seconds.",
+      "target": "[data-tour=\"object-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "copyHasField",
+        "args": "Blinker,seconds"
+      },
+      "doItForMe": [
+        {
+          "fn": "setCopyField",
+          "args": {
+            "behaviour": "Blinker",
+            "asset": "Lamp post",
+            "copy": 1,
+            "name": "seconds",
+            "value": 0.25
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "bh.play",
+      "title": "Watch them blink",
+      "body": "Press Play. Each lamp post runs its own Blinker: one slowly, one fast. Pause and open the Logic workspace to see a breakpoint stop in one copy.",
+      "task": "Press Play and watch the lamps.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourRunning",
+        "args": "Blinker,2"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bh.done",
+      "title": "Done!",
+      "body": "You made a behaviour with a field and its own variables, attached it to every Lamp post, and gave one copy its own value. Behaviours go on characters too (Characters › Behaviour tab › Behaviours). Next, the engine's own features (push blocks, switches, enemy brains, items) become built-in behaviours you can extend.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

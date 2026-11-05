@@ -155,6 +155,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.hooksCourse': S('core'),
   'help.lensCourse': S('core'),
   'help.foesCourse': S('core'),
+  'help.behavioursCourse': S('logic'),
   'help.ai': S('ai'),
   'assets.open': S('assets'),
   'characters.fromPicture': S('characters'),
@@ -281,6 +282,11 @@ export const NODE_TAGS: Record<string, ControlTags> = {
   'event.onPickedUp': S('logic', 'collect'),
   // step 12b: fire and light
   'event.onBurned': S('logic', 'collect'),
+  // Milestone 3b (B1): behaviours
+  'event.onUpdate': S('logic'),
+  'self.get': S('logic'),
+  'self.set': S('logic'),
+  'self.add': S('logic'),
   'effect.play': S('effects', 'logic'),
   'effect.start': S('effects', 'logic'),
   'effect.stop': S('effects', 'logic'),
@@ -307,6 +313,7 @@ export const SECTION_TAGS: Record<string, ControlTags> = {
   'character.harm': S('combat'),
   'character.enemy': S('combat'),
   'object.script': S('logic'),
+  'object.behaviours': S('logic'),
   'game.saving': S('core'),
   'game.progress': S('core'),
   'asset.checkpoint': S('build'),

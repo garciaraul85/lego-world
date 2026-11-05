@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { LightDef } from '../lighting/light';
 import { MAX_BRICK_ID } from './chunk';
 import { id, Vec3 } from './common';
+import { ScriptAttachments } from './logic';
 
 export const NpcInstance = z.strictObject({
   id: id('instance'),
@@ -12,6 +13,8 @@ export const NpcInstance = z.strictObject({
   role: z.string(),
   /** legacy NPC state {x,y,z,heading,...}, kept verbatim */
   state: z.record(z.string(), z.unknown()),
+  /** Milestone 3b (B1): this copy's own behaviour scripts, and its own values for its character's */
+  scripts: ScriptAttachments.optional(),
 });
 
 export const AssetInstance = z.strictObject({
@@ -33,6 +36,8 @@ export const AssetInstance = z.strictObject({
   name: z.string().min(1).max(40).optional(),
   /** smash group name of the expanded bricks (v68 generator name such as "house-3"); default from the asset name */
   group: z.string().min(1).max(100).optional(),
+  /** Milestone 3b (B1): this copy's own behaviour scripts, and its own values for its asset's */
+  scripts: ScriptAttachments.optional(),
 });
 export type AssetInstance = z.infer<typeof AssetInstance>;
 

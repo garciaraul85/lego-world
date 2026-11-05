@@ -55,6 +55,7 @@ import { Mood, NO_MOOD, type ScreenEffect, type ScreenEvent } from '../../core/e
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosphere';
+import { attachmentsOf, startValues } from '../../core/logic/behaviours';
 import type { ExecCtx } from '../../core/logic/catalog';
 import { maxOf } from '../../core/num';
 import { switchHitBy } from '../../core/puzzles/puzzle';
@@ -1442,6 +1443,7 @@ export class PlaySession {
     this.travelLock = spawn ? { spawn: spawn.id } : null;
     this.camYaw = this.world.controller.state.heading + Math.PI;
     this.logic = this.makeLogic();
+    this.syncScripts(false);
     this.heroVars();
     this.progress = new PlayerProgress(this as unknown as ProgressHost);
     this.progress.onSettings = () => this.applySettings();
@@ -2338,6 +2340,8 @@ export class PlaySession {
       { id: 'anim', fixed: (g, dt) => g.stepAnim(dt) },
       { id: 'npcAnim', fixed: (g, dt) => g.stepNpcStates(dt) },
       { id: 'zones', fixed: (g) => g.stepZones() },
+      // Milestone 3b (B1): behaviours follow the copies on this map, and their On update runs
+      { id: 'scripts', fixed: (g, dt) => g.stepScripts(dt) },
       { id: 'logic', fixed: (g) => g.logic.step(g.clock) },
       { id: 'emitters', fixed: (g) => g.stepEmitters() },
       { id: 'effects', fixed: (g, dt) => g.stepEffects(dt) },
@@ -4505,6 +4509,53 @@ export class PlaySession {
 
   // ---------- logic (P4.2) ----------
 
+  // ---------- Milestone 3b (B1): behaviours on the copies of this map ----------
+
+  /** copies whose behaviours run now (instance ids), and what the last sync saw */
+  private scriptOwners = new Set<string>();
+  private scriptsSeen: { world: unknown; objects: number; npcs: number } | null = null;
+
+  /** behaviours follow what is on the map (a copy spawned or removed, another map), then every On update runs */
+  stepScripts(dt: number) {
+    const w = this.world;
+    const seen = this.scriptsSeen;
+    if (!seen || seen.world !== w || seen.objects !== w.instances.length || seen.npcs !== w.npcs.length)
+      this.syncScripts(!!seen);
+    this.logic.update(dt);
+  }
+
+  /**
+   * Attaches each copy's behaviours (its asset's or character's, and its own) with their field values, and lets
+   * go of copies that are gone. `start`: a copy that arrives now runs its On start at once.
+   */
+  syncScripts(start: boolean) {
+    const w = this.world;
+    this.scriptsSeen = { world: w, objects: w.instances.length, npcs: w.npcs.length };
+    const now = new Set<string>();
+    const put = (owner: string, list: ReturnType<typeof attachmentsOf>) => {
+      for (const a of list) {
+        const g = this.snapshot.get(paths.logic(a.use)) as LogicGraph | undefined;
+        if (!g?.behaviour) continue;
+        now.add(owner);
+        if (!this.scriptOwners.has(owner) || !this.logic.attachedTo(a.use).includes(owner))
+          this.logic.attach(a.use, owner, startValues(g, a.fields), start);
+      }
+    };
+    for (const i of w.instances) {
+      const list = attachmentsOf(i.def.scripts, i.inst.scripts);
+      if (list.length) put(i.inst.id, list);
+    }
+    for (const n of w.npcs) {
+      const chr = npcCharacter(this.snapshot, w.mapId, n);
+      const item = npcItem(this.snapshot, w.mapId, n.id);
+      if (!item) continue;
+      const list = attachmentsOf(chr?.scripts, item.scripts);
+      if (list.length) put(item.id, list);
+    }
+    for (const o of this.scriptOwners) if (!now.has(o)) this.logic.detach(o);
+    this.scriptOwners = now;
+  }
+
   private makeLogic(): LogicRuntime {
     const graphs: LogicGraph[] = [];
     for (const path of this.snapshot.keys())
@@ -4966,6 +5017,10 @@ export class PlaySession {
     this.zoneAudio();
     this.applyMapAudio();
     this.camYaw = this.heroState.heading + Math.PI;
+    // Milestone 3b (B1): behaviours start again from their fields
+    for (const o of this.scriptOwners) this.logic.detach(o);
+    this.scriptOwners.clear();
+    this.syncScripts(false);
     this.logic.fire({ type: 'event.onStart' });
   }
 

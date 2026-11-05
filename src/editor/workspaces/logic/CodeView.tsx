@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { parseBehaviour, printBehaviour } from '../../../core/logic/code/behaviour';
 import { nameBook, withIds, withNames } from '../../../core/logic/code/names';
 import { type ParseError, parseCode } from '../../../core/logic/code/parse';
 import { PrintError, printGraph } from '../../../core/logic/code/print';
@@ -42,7 +43,9 @@ export function CodeView({
   bookRef.current = book;
   const printed = useMemo(() => {
     try {
-      return { ok: true as const, ...printGraph(withNames(graph, book)) };
+      // Milestone 3b (B1): a behaviour reads as a class (fields, own variables, one method per event)
+      const named = withNames(graph, book);
+      return { ok: true as const, ...(graph.behaviour ? printBehaviour(named) : printGraph(named)) };
     } catch (e) {
       if (e instanceof PrintError) return { ok: false as const, message: e.message, node: e.node };
       throw e;
@@ -58,7 +61,7 @@ export function CodeView({
   const apply = (text: string) => {
     const g = graphRef.current;
     const b = bookRef.current;
-    const parsed = parseCode(text, withNames(g, b));
+    const parsed = g.behaviour ? parseBehaviour(text, withNames(g, b)) : parseCode(text, withNames(g, b));
     if ('error' in parsed) {
       const r = parsed;
       setError(r.error);
@@ -68,14 +71,12 @@ export function CodeView({
     const r = withIds(parsed, b);
     setError(null);
     cm.current?.setError(null);
-    const before = printGraph(g).code;
-    const after = printGraph(r).code;
-    if (before === after && r.edges.length === g.edges.length) return;
+    const behaviour = 'behaviour' in parsed ? (parsed.behaviour as LogicGraph['behaviour']) : undefined;
+    const next: LogicGraph = { ...g, nodes: r.nodes, edges: r.edges, ...(behaviour ? { behaviour } : {}) };
+    const show = (x: LogicGraph) => (x.behaviour ? printBehaviour(x) : printGraph(x)).code;
+    if (show(g) === show(next) && r.edges.length === g.edges.length) return;
     // keep notes and unprinted nodes the script does not mention? Script is the whole graph.
-    ed.exec(
-      { type: 'logic.replace', payload: { graph: { ...g, nodes: r.nodes, edges: r.edges } } },
-      { label: 'Edit logic as code' },
-    );
+    ed.exec({ type: 'logic.replace', payload: { graph: next } }, { label: 'Edit logic as code' });
   };
 
   useEffect(() => {

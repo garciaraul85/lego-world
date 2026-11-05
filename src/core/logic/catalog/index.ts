@@ -11,6 +11,7 @@ import { MEDIA } from './media';
 import { MISC } from './misc';
 import { PUZZLE_EVENTS } from './puzzles';
 import { PROGRESS_EVENTS, SAVE } from './save';
+import { SELF, SELF_EVENTS } from './self';
 import type { NodeDef, PinDef } from './types';
 import { VARS } from './vars';
 import { WORLD } from './world';
@@ -50,6 +51,9 @@ export const CATALOG: readonly NodeDef[] = [
   ...ADVENTURE,
   // step 12a
   ...PUZZLE_EVENTS,
+  // Milestone 3b (B1): behaviours
+  ...SELF_EVENTS,
+  ...SELF,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

@@ -17,6 +17,8 @@ type Run = {
   steps: number;
   /** pc of a breakpoint we stopped on, so Continue runs it instead of stopping again */
   resumeAt: number | null;
+  /** Milestone 3b (B1): the copy a behaviour's run belongs to ("this"); its fields and own variables */
+  owner?: string;
 };
 
 export type LogicProblem = { graph: string; node: string | null; message: string };
@@ -49,6 +51,11 @@ export class LogicRuntime {
   private gates = new Map<string, boolean>();
   private serial = 0;
   private timers: { prog: Program; at: number; every: number | null }[] = [];
+  /** Milestone 3b (B1): programs by event type (an update every step looks only at its own) */
+  private byType = new Map<string, Program[]>();
+  /** Milestone 3b (B1): behaviour files: the copies each is attached to, and each copy's fields and variables */
+  private readonly attached = new Map<string, Set<string>>();
+  private readonly selfVars = new Map<string, Map<string, unknown>>();
   now = 0;
   /** breakpoints: "graphId:nodeId" */
   readonly breakpoints = new Set<string>();
@@ -76,6 +83,11 @@ export class LogicRuntime {
       const c = compile(g);
       this.programs.push(...c.programs);
       for (const p of c.problems) this.problem(p);
+    }
+    for (const p of this.programs) {
+      const l = this.byType.get(p.type);
+      if (l) l.push(p);
+      else this.byType.set(p.type, [p]);
     }
     for (const p of this.programs)
       if (p.type === 'event.onTimer') {
@@ -112,7 +124,9 @@ export class LogicRuntime {
     if (this.paused) return;
     for (const t of this.timers) {
       if (t.at > now) continue;
-      this.start(t.prog, {});
+      if (this.graphs.get(t.prog.graph)?.behaviour)
+        for (const o of this.attached.get(t.prog.graph) ?? []) this.start(t.prog, {}, o);
+      else this.start(t.prog, {});
       t.at = t.every ? t.at + t.every : Infinity;
     }
     for (const r of [...this.runs]) if (r.waitUntil !== null && r.waitUntil <= now && !this.paused) this.resume(r);
@@ -132,17 +146,67 @@ export class LogicRuntime {
     let guard = 0;
     while (this.queue.length && !this.paused && guard++ < 200) {
       const e = this.queue.shift()!;
-      for (const p of this.programs) {
-        if (p.type !== e.type || !matches(p.args, e.match)) continue;
+      for (const p of this.byType.get(e.type) ?? []) {
+        if (!matches(p.args, e.match)) continue;
+        const g = this.graphs.get(p.graph);
+        // Milestone 3b (B1): a behaviour runs once for each copy it is attached to (an event about one copy: for it)
+        if (g?.behaviour) {
+          const on = this.attached.get(p.graph);
+          if (!on?.size) continue;
+          if (e.self !== undefined) {
+            if (on.has(e.self)) this.start(p, e.payload ?? {}, e.self);
+          } else for (const o of [...on]) this.start(p, e.payload ?? {}, o);
+          continue;
+        }
         // P9c: a script on an object hears events about that object only (and every event about nothing)
-        const owner = this.graphs.get(p.graph)?.owner;
+        const owner = g?.owner;
         if (owner && e.self !== undefined && e.self !== owner) continue;
         this.start(p, e.payload ?? {});
       }
     }
   }
 
-  private start(prog: Program, payload: Record<string, unknown>) {
+  /**
+   * Milestone 3b (B1): a behaviour file attached to one copy (an instance id), with its starting fields and own
+   * variables. `start`: its On start runs for this copy now (a copy that arrives while playing).
+   */
+  attach(graph: string, owner: string, values: Record<string, unknown>, start = false) {
+    if (!this.graphs.get(graph)?.behaviour) return;
+    let on = this.attached.get(graph);
+    if (!on) {
+      on = new Set();
+      this.attached.set(graph, on);
+    }
+    if (on.has(owner)) return;
+    on.add(owner);
+    this.selfVars.set(`${graph}@${owner}`, new Map(Object.entries(values)));
+    if (start) for (const p of this.byType.get('event.onStart') ?? []) if (p.graph === graph) this.start(p, {}, owner);
+  }
+
+  /** Milestone 3b (B1): a copy that is gone (removed, another map): its behaviours stop and forget it */
+  detach(owner: string) {
+    for (const [g, on] of this.attached)
+      if (on.delete(owner)) this.selfVars.delete(`${g}@${owner}`);
+    this.runs = this.runs.filter((r) => r.owner !== owner);
+  }
+
+  /** Milestone 3b (B1): the copies a behaviour runs on now */
+  attachedTo(graph: string): string[] {
+    return [...(this.attached.get(graph) ?? [])];
+  }
+
+  /** Milestone 3b (B1): a copy's fields and own variables (the watch panel, tests) */
+  selfOf(graph: string, owner: string): Record<string, unknown> {
+    return Object.fromEntries(this.selfVars.get(`${graph}@${owner}`) ?? []);
+  }
+
+  /** Milestone 3b (B1): every behaviour's On update, for each copy, now (dt: seconds since the last step) */
+  update(dt: number) {
+    if (this.paused || !this.byType.has('event.onUpdate')) return;
+    this.fire({ type: 'event.onUpdate', payload: { dt } }, true);
+  }
+
+  private start(prog: Program, payload: Record<string, unknown>, owner?: string) {
     const run: Run = {
       id: ++this.serial,
       prog,
@@ -155,6 +219,7 @@ export class LogicRuntime {
       outputs: new Map(),
       steps: 0,
       resumeAt: null,
+      ...(owner ? { owner } : {}),
     };
     this.runs.push(run);
     this.resume(run);
@@ -177,6 +242,12 @@ export class LogicRuntime {
     run.steps = 0;
     const code = run.prog.code;
     let cache = new Map<string, unknown>();
+    // Milestone 3b (B1): this copy's fields and own variables
+    const mine = () => {
+      const m = run.owner ? this.selfVars.get(`${run.prog.graph}@${run.owner}`) : undefined;
+      if (!m) throw new LogicError('', 'this.name works only in a behaviour (a script attached to things).');
+      return m;
+    };
     const value = (node: string, pin: string, depth = 0): unknown => {
       const key = `${node}:${pin}`;
       if (cache.has(key)) return cache.get(key);
@@ -185,6 +256,7 @@ export class LogicRuntime {
       const def = nodeDef(n.type)!;
       let v: unknown;
       if (def.kind === 'event') v = run.payload[pin];
+      else if (n.type === 'self.get') v = mine().get(String(n.args?.name ?? ''));
       else if (n.type === 'flow.forEachInZone') {
         const it = run.iters.get(node);
         v = it ? it.items[it.i - 1] : undefined;
@@ -193,8 +265,8 @@ export class LogicRuntime {
       cache.set(key, v);
       return v;
     };
-    // P9c: in a script on an object, "this" is that object
-    const owner = run.graph.owner;
+    // P9c: in a script on an object, "this" is that object (Milestone 3b: the copy a behaviour runs for)
+    const owner = run.owner ?? run.graph.owner;
     const self = (v: unknown) => (owner && typeof v === 'string' && v.trim().toLowerCase() === 'this' ? owner : v);
     const selfArgs = (a: Record<string, unknown>) =>
       owner ? Object.fromEntries(Object.entries(a).map(([k, v]) => [k, self(v)])) : a;
@@ -237,7 +309,12 @@ export class LogicRuntime {
             const n = run.graph.nodes.find((x) => x.id === i.node)!;
             const def = nodeDef(n.type)!;
             const ins = inputs(i.node);
-            if (n.type === 'world.spawn') {
+            if (n.type === 'self.set' || n.type === 'self.add') {
+              const name = String(n.args?.name ?? '');
+              const m = mine();
+              if (!m.has(name)) throw new LogicError(i.node, `This behaviour has no field or variable “${name}”.`);
+              m.set(name, n.type === 'self.set' ? ins.value : Number(m.get(name) ?? 0) + Number(ins.amount ?? 0));
+            } else if (n.type === 'world.spawn') {
               const entity = this.ctx.spawn(String(n.args?.asset), String(self(n.args?.at)));
               run.outputs.set(i.node, { entity });
             } else if (n.type === 'world.spawnNear') {

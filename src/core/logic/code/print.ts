@@ -105,6 +105,8 @@ export function printGraph(g: Pick<LogicGraph, 'nodes' | 'edges'>): Printed {
       }
       mark(n, path);
       if (n.type === 'var.get') return `vars.${String(n.args?.var)}`;
+      // Milestone 3b (B1): a behaviour's field or own variable
+      if (n.type === 'self.get') return `this.${String(n.args?.name)}`;
       const arg = (p: string) => input(n, p, `${path}/${p}`, depth + 1, scope);
       if (BINARY[n.type]) return `(${arg('a')} ${BINARY[n.type]} ${arg('b')})`;
       if (n.type === 'compare.not') return `!${arg('a')}`;
@@ -242,6 +244,12 @@ export function printGraph(g: Pick<LogicGraph, 'nodes' | 'edges'>): Printed {
             break;
           case 'var.add':
             lines.push(L(`${ind}vars.${String(a.var)} += ${input(n, 'amount', `${p}/amount`, 0, here)};`));
+            break;
+          case 'self.set':
+            lines.push(L(`${ind}this.${String(a.name)} = ${input(n, 'value', `${p}/value`, 0, here)};`));
+            break;
+          case 'self.add':
+            lines.push(L(`${ind}this.${String(a.name)} += ${input(n, 'amount', `${p}/amount`, 0, here)};`));
             break;
           default: {
             const parts = [

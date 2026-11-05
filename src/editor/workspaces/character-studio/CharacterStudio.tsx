@@ -22,6 +22,7 @@ import { ConversationList, DialogueMain, TalkSection } from '../dialogue/Charact
 import { conversations } from '../dialogue/model';
 import { BodyTab, bodyOfChr, putPlan } from './Body';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
+import { CharacterScripts } from './CharacterScripts';
 import { DrawTab } from './Draw';
 import { FaceTab, withMood } from './Face';
 import { HairEditor } from './Hair';
@@ -978,6 +979,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           {tab === 'outfits' && <OutfitsTab c={c} chr={chr} save={saveChr} />}
           {tab === 'voice' && <VoiceTab c={c} chr={chr} save={saveChr} />}
           {tab === 'behaviour' && <BehaviourTab c={c} chr={chr} save={saveChr} isHero={isHero} inProject={inProject} />}
+          {tab === 'behaviour' && shows(ed, 'section', 'object.behaviours') && <CharacterScripts c={c} chr={chr} />}
         </div>
       </section>
     </div>

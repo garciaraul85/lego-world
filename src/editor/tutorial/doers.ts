@@ -21,10 +21,12 @@ import { blankConversation, type Conversation } from '../../core/dialogue/schema
 import { parseScript } from '../../core/dialogue/script';
 import { arrivalSpot, assetSpot, reachable, surfaceOf } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
+import { className, parseBehaviour } from '../../core/logic/code/behaviour';
 import { importMedia, isBigPicture } from '../../core/media/import';
 import { allSaves, type Saving } from '../../core/save/save';
 import {
   type Asset,
+  type BehaviourField,
   type Character,
   type Clip,
   type Gates,
@@ -54,7 +56,7 @@ import type { EditorState } from '../state';
 import { settleMove } from '../viewport/settle';
 import { buildInto } from '../workspaces/asset-studio/scratch';
 import { scriptNames } from '../workspaces/dialogue/model';
-import { newGraph } from '../workspaces/logic/model';
+import { newBehaviour, newGraph } from '../workspaces/logic/model';
 import { CODING_DOERS } from './coding';
 import type { Do } from './schema';
 import { STORY_DOERS, storyText } from './story';
@@ -152,6 +154,103 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     setTimeout(() => c.ui.frameSelection(), 30);
   },
   /** P9c: selects the first placed copy of an asset (by name) on the open map and frames it */
+  // Milestone 3b (B1): the Behaviours course
+  newBehaviourNamed(c, a) {
+    // what Logic › Behaviours › + New and typing its name does
+    const name = String(a?.name ?? 'Behaviour');
+    c.ui.workspace('Logic');
+    const have = behaviourByName(c, name);
+    if (have) {
+      c.ed.logicGraph.value = have.id;
+      return;
+    }
+    const g = newBehaviour(name);
+    run(c, [{ type: 'logic.create', payload: { graph: g } }], 'New behaviour');
+    c.ed.logicGraph.value = g.id;
+  },
+  addBehaviourField(c, a) {
+    // what typing a name under Fields, picking its type, Add field, then its label, default and range does
+    const g = behaviourByName(c, String(a?.behaviour ?? ''));
+    if (!g) throw new Error(`Make the ${String(a?.behaviour)} behaviour first.`);
+    const name = String(a?.name ?? '');
+    if (g.behaviour!.fields.some((f) => f.name === name)) return;
+    const f = {
+      name,
+      type: (a?.type ?? 'number') as BehaviourField['type'],
+      default: a?.default as BehaviourField['default'],
+      label: String(a?.label ?? name),
+      ...(typeof a?.min === 'number' ? { min: a.min } : {}),
+      ...(typeof a?.max === 'number' ? { max: a.max } : {}),
+    };
+    run(
+      c,
+      [
+        {
+          type: 'logic.replace',
+          payload: { graph: { ...g, behaviour: { ...g.behaviour!, fields: [...g.behaviour!.fields, f] } } },
+        },
+      ],
+      `Add field ${name}`,
+    );
+  },
+  writeBehaviour(c, a) {
+    // what typing the class into the Code view does (Split view: the cards appear beside it)
+    const g = behaviourByName(c, String(a?.behaviour ?? ''));
+    if (!g) throw new Error(`Make the ${String(a?.behaviour)} behaviour first.`);
+    c.ed.logicGraph.value = g.id;
+    c.ed.logicView.value = 'split';
+    const code = (a?.code as string[]).join('\n').replace('$NAME', className(g.name));
+    const r = parseBehaviour(code, g);
+    if ('error' in r) throw new Error(`Line ${r.error.line}: ${r.error.message}`);
+    run(
+      c,
+      [{ type: 'logic.replace', payload: { graph: { ...g, nodes: r.nodes, edges: r.edges, behaviour: r.behaviour } } }],
+      'Edit logic as code',
+    );
+  },
+  attachBehaviour(c, a) {
+    // what selecting a placed copy and pressing + Script (Every …) in the Inspector does
+    const g = behaviourByName(c, String(a?.behaviour ?? ''));
+    if (!g) throw new Error(`Make the ${String(a?.behaviour)} behaviour first.`);
+    const asset = assetByName(c, String(a?.asset ?? ''));
+    if (!asset) throw new Error(`There is no ${String(a?.asset)}.`);
+    c.ui.workspace('Scene');
+    DOERS.selectObject!(c, { asset: asset.name });
+    const cur = c.ed.store.get<Asset>(paths.asset(asset.id))?.scripts ?? [];
+    if (cur.some((s) => s.use === g.id)) return;
+    run(
+      c,
+      [{ type: 'script.attach', payload: { target: { kind: 'asset', id: asset.id }, use: g.id } }],
+      `Attach ${g.name}`,
+    );
+  },
+  setCopyField(c, a) {
+    // what selecting one copy, choosing Values for: This copy, and typing a value does
+    const g = behaviourByName(c, String(a?.behaviour ?? ''));
+    const asset = assetByName(c, String(a?.asset ?? ''));
+    if (!g || !asset) throw new Error('Attach the behaviour first.');
+    c.ui.workspace('Scene');
+    const s = c.ed.scene.value!;
+    const copies = [...new Set(s.instanceOf.values())].filter((i) => i.def.id === asset.id);
+    const pick = copies[Number(a?.copy ?? 1)] ?? copies.at(-1);
+    if (!pick) throw new Error(`Place a ${asset.name} first.`);
+    c.ed.select(pick.bricks.map((b) => b.id));
+    run(
+      c,
+      [
+        {
+          type: 'script.setField',
+          payload: {
+            target: { kind: 'instance', map: map(c), id: pick.inst.id },
+            use: g.id,
+            name: String(a?.name),
+            value: a?.value as number,
+          },
+        },
+      ],
+      `${String(a?.name)}: ${String(a?.value)}`,
+    );
+  },
   selectObject(c, a) {
     const s = c.ed.scene.value;
     if (!s) return;
@@ -2648,6 +2747,13 @@ function standAt(s: NonNullable<Ctx['ed']['session']['value']>, x: number, z: nu
   const y = [0, 0.4, 0.8, 1.2, -0.4].map((d) => y0 + d).find((y) => c.clear(x, y, z)) ?? y0;
   s.placeAt([x, y, z], yaw);
 }
+
+/** Milestone 3b (B1): a behaviour (a logic file with fields) by name */
+const behaviourByName = (c: Ctx, name: string) =>
+  c.ed.store
+    .list('logic/')
+    .map((p) => c.ed.store.get<LogicGraph>(p)!)
+    .find((g) => g?.behaviour && g.name === name) ?? null;
 
 /** Fill `$map`, `$spawn`… in a do-list's arguments. */
 function fill(c: Ctx, v: unknown): unknown {

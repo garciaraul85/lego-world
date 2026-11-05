@@ -436,6 +436,41 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // Milestone 3b (B1): a behaviour open in Logic (its fields and own variables on the left, the class in Split)
+    id: 'logic-behaviour',
+    screen: 'logic',
+    setup: async (p) => {
+      await ws(p, 'Logic');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const id = 'lg_helpbehave';
+        if (!e.store.get(`logic/${id}.json`))
+          e.exec({
+            type: 'logic.create',
+            payload: {
+              graph: {
+                id,
+                name: 'Gem door',
+                scope: 'global',
+                behaviour: {
+                  fields: [{ name: 'gemsNeeded', type: 'number', default: 3, label: 'Gems needed', min: 1, max: 99 }],
+                  vars: { tries: 0 },
+                },
+                nodes: [
+                  { id: 'n1', type: 'event.onInteract', pos: [0, 0] },
+                  { id: 'n2', type: 'self.add', pos: [260, 0], args: { name: 'tries', amount: 1 } },
+                  { id: 'n3', type: 'event.onUpdate', pos: [0, 160] },
+                ],
+                edges: [['n1', 'then', 'n2', 'in']],
+              },
+            },
+          });
+        e.logicGraph.value = id;
+      });
+      await signals(p, { logicView: 'split' });
+    },
+  },
+  {
     id: 'logic-code',
     screen: 'logic',
     setup: async (p) => {

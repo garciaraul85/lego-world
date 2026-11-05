@@ -114,6 +114,8 @@ export function nameProblem(ed: EditorState, g: LogicGraph, nodeId: string, pin:
   const v = n.args?.[pin] ?? p.default;
   const text = typeof v === 'string' ? v.trim() : '';
   if (!text) return null;
+  // P9c / Milestone 3b: in a script on an object or a behaviour, "this" is the copy that runs it
+  if ((g.owner || g.behaviour) && text.toLowerCase() === 'this') return null;
   if (p.pick.kind === 'object')
     return placedObjects(ed).some((o) => o.value.toLowerCase() === text.toLowerCase()) || /^ins_/.test(text)
       ? null

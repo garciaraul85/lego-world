@@ -19,6 +19,7 @@ import {
 import { ActionList } from './action';
 import { BrickType } from './chunk';
 import { Color, id, Vec2, Vec3 } from './common';
+import { ScriptAttachments } from './logic';
 import { BIOMES } from './map';
 
 /** Asset bricks are local: [type, x, y, z, rot, color, flags] relative to the asset origin. */
@@ -161,6 +162,8 @@ export const Asset = z.strictObject({
   metal: z.boolean().optional(),
   /** step 13c: unseen until looked at through the Lens of Truth (still solid: an invisible platform, a hidden chest) */
   hidden: z.boolean().optional(),
+  /** Milestone 3b (B1): behaviour scripts every copy of this asset runs, with their field values */
+  scripts: ScriptAttachments.optional(),
   /** step 13c: looks solid but is not (a fake wall or floor: walked or fallen through); the Lens shows it see-through */
   fake: z.boolean().optional(),
   generator: z

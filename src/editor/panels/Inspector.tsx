@@ -34,6 +34,7 @@ import { DarknessSection } from './LightFields';
 import { MoodSection } from './MoodSection';
 import { ProgressSection } from './ProgressSection';
 import { SavingSection } from './SavingSection';
+import { BehaviourSection } from './BehaviourSection';
 import { ScriptSection } from './ScriptSection';
 
 const BIOME_NAMES = Object.fromEntries(worldGenerator().biomes);
@@ -269,6 +270,7 @@ function InspectorTab({ c }: { c: ActionCtx }) {
         </div>
       </div>
       {inst && <AssetSection c={c} />}
+      {inst && <BehaviourSection c={c} />}
       {inst && <ScriptSection c={c} />}
       {hasAsset ? null : (
         <div class="sec">
