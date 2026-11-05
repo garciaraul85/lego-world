@@ -1,0 +1,155 @@
+{
+  "id": "swimmer",
+  "title": "Swimmer course",
+  "steps": [
+    {
+      "id": "sw.hero",
+      "title": "A pearl diver",
+      "body": "Swimming, climbing and following are built-in behaviours too: Swimmer and Climber for the hero, Follower for neighbours. Here the hero becomes a pearl diver who holds its breath three times as long. First, a hero: in the Scene's Starter pack, Play as Rook.",
+      "task": "Play as Rook.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroIs",
+        "args": "Rook"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "packHero",
+          "args": {
+            "slug": "rook"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "sw.read",
+      "title": "Read about Swimmer",
+      "body": "In Logic, under Built-in, press Swimmer. Its hooks: canDive (can the hero dive now?) and breath (seconds of air, asked every step; super.breath(e) is Project › Swimming's).",
+      "task": "Open Logic › Built-in › Swimmer.",
+      "target": "[data-tour=\"builtin-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinOpen",
+        "args": "Swimmer"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBuiltin",
+          "args": {
+            "name": "Swimmer"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "right",
+      "workspace": "Logic"
+    },
+    {
+      "id": "sw.extend",
+      "title": "Three times the air",
+      "body": "Press Extend and write it: a field for how many times the air, breath returns the project's breath times it, and canDive says so in the Console before giving the engine's answer.",
+      "task": "Extend Swimmer and write breath.",
+      "target": "[data-tour=\"builtin-extend\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourHasEvent",
+        "args": "My Swimmer,breath"
+      },
+      "doItForMe": [
+        {
+          "fn": "extendBuiltinNamed",
+          "args": {
+            "name": "Swimmer"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "My Swimmer",
+            "code": [
+              "class $NAME extends Swimmer {",
+              "  lungs = field.number(3, { label: \"Times the air\", min: 1, max: 10 });",
+              "",
+              "  breath(e) {",
+              "    return (super.breath(e) * this.lungs);",
+              "  }",
+              "",
+              "  canDive(e) {",
+              "    log(\"Deep breath…\");",
+              "    return super.canDive(e);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Logic"
+    },
+    {
+      "id": "sw.attach",
+      "title": "Put it on Rook",
+      "body": "In Characters, Rook's Behaviour tab: + Script → My Swimmer. Hero, Swimmer and Climber are listed as Rook's built-ins.",
+      "task": "Attach My Swimmer to Rook.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterHasBehaviour",
+        "args": "Rook,My Swimmer"
+      },
+      "doItForMe": [
+        {
+          "fn": "attachToCharacter",
+          "args": {
+            "behaviour": "My Swimmer",
+            "character": "Rook"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "sw.play",
+      "title": "Sixty seconds of air",
+      "body": "Press Play. The hero now has 60 seconds of air (20 × 3): under water the HUD counts down from 60, and the Debug tab's variables show maxAir 60.",
+      "task": "Press Play.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "logicVar",
+        "args": "maxAir:60"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "sw.done",
+      "title": "Done!",
+      "body": "Climber.canClimbWall decides whether the hero takes hold of a wall (no climbing in the rain, or only with climbing gloves), and Follower.followGap how close a following neighbour keeps (a shy one keeps 8 studs back).",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

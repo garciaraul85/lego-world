@@ -125,7 +125,7 @@ export const HOOKS: NodeDef[] = [
     'Asked when the hook line or the rope reaches it. Return true and it catches (the hero is pulled to it), false and it bounces off.',
     [],
     'bool',
-  ),  // Milestone 3b (B4): characters
+  ), // Milestone 3b (B4): characters
   hook(
     'CanJump',
     'Can the hero jump? (Hero)',
@@ -163,6 +163,35 @@ export const HOOKS: NodeDef[] = [
     'Asked when the hero talks to a neighbour. Return false and it says nothing.',
     [],
     'bool',
+  ),
+  // Milestone 3b (B4, part 2)
+  hook(
+    'CanDive',
+    'Can the hero dive? (Swimmer)',
+    'Asked when the player holds the Action button to dive in deep water. Return false and the hero stays at the top.',
+    [],
+    'bool',
+  ),
+  hook(
+    'Breath',
+    'How long can the hero hold its breath? (Swimmer)',
+    'Asked every step: base is the seconds from Project › Swimming. Return seconds of air.',
+    [],
+    'number',
+  ),
+  hook(
+    'CanClimbWall',
+    'Can the hero climb this wall? (Climber)',
+    'Asked when the hero takes hold of a wall (with Climbing: anything, while stamina lasts). Return false and it does not.',
+    [],
+    'bool',
+  ),
+  hook(
+    'FollowGap',
+    'How close does it follow? (Follower)',
+    'Asked every step while a neighbour follows the hero: distance is how far it is now; base is 2.5 studs. Return the distance it keeps.',
+    [{ name: 'distance', type: 'number' }],
+    'number',
   ),
 ];
 

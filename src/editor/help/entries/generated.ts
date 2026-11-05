@@ -156,6 +156,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the World built-ins course (8 steps): read Liftable in Logic › Built-in, Extend it into My Liftable whose canLift makes the hero heave twice before a rock comes up (own variable tries, a Strength field), attach it to a Rock (already a Liftable), set its weight on a floor switch in the Inspector and lift it in Play.',
   'help.heroBehavioursCourse':
     'Starts the Hero behaviours course (7 steps): play as Rook, read the Hero built-in in Logic, Extend it into My Hero whose canJump leaves the hero out of breath after three quick jumps, attach it in Characters › Behaviour, set the Hero’s jump there, and jump in Play.',
+  'help.swimmerCourse':
+    'Starts the Swimmer course (6 steps): play as Rook, read the Swimmer built-in, Extend it into My Swimmer whose breath is three times Project › Swimming’s and whose canDive says so, attach it in Characters › Behaviour, and see 60 seconds of air in Play.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':

@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (151 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (155 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -1466,3 +1466,39 @@ Asked when the hero talks to a neighbour. Return false and it says nothing.
 
 - Outputs: base (bool)
 - Code: `on("canTalk", (e) => { … });`
+
+### Can the hero dive? (Swimmer)
+
+`event.onCanDive` · event
+
+Asked when the player holds the Action button to dive in deep water. Return false and the hero stays at the top.
+
+- Outputs: base (bool)
+- Code: `on("canDive", (e) => { … });`
+
+### How long can the hero hold its breath? (Swimmer)
+
+`event.onBreath` · event
+
+Asked every step: base is the seconds from Project › Swimming. Return seconds of air.
+
+- Outputs: base (number)
+- Code: `on("breath", (e) => { … });`
+
+### Can the hero climb this wall? (Climber)
+
+`event.onCanClimbWall` · event
+
+Asked when the hero takes hold of a wall (with Climbing: anything, while stamina lasts). Return false and it does not.
+
+- Outputs: base (bool)
+- Code: `on("canClimbWall", (e) => { … });`
+
+### How close does it follow? (Follower)
+
+`event.onFollowGap` · event
+
+Asked every step while a neighbour follows the hero: distance is how far it is now; base is 2.5 studs. Return the distance it keeps.
+
+- Outputs: distance (number), base (number)
+- Code: `on("followGap", (e) => { … });`

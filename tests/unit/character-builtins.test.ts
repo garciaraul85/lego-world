@@ -70,7 +70,7 @@ function game(...graphs: LogicGraph[]) {
   } as Instances);
   for (const g of graphs) {
     const base = g.behaviour!.extends;
-    const target = base === 'Hero' ? hero.id : mira.id;
+    const target = ['Hero', 'Swimmer', 'Climber'].includes(base ?? '') ? hero.id : mira.id;
     const ok = run(bus, {
       type: 'script.attach',
       payload: { target: { kind: 'character', id: target }, use: g.id },
@@ -85,9 +85,17 @@ function game(...graphs: LogicGraph[]) {
 
 describe('character built-ins', () => {
   it('each has fields that set and read back on a valid character, and its Extend code round-trips', () => {
-    expect(CHARACTER_BUILTINS.map((b) => b.name)).toEqual(['Hero', 'Neighbour', 'Damageable']);
+    expect(CHARACTER_BUILTINS.map((b) => b.name)).toEqual([
+      'Hero',
+      'Neighbour',
+      'Damageable',
+      'Swimmer',
+      'Climber',
+      'Follower',
+    ]);
     for (const b of CHARACTER_BUILTINS) {
-      let c = { ...(b.name === 'Hero' ? hero : mira), ...b.add(b.name === 'Hero' ? hero : mira) } as Character;
+      const who = b.on(hero) ? hero : mira;
+      let c = { ...who, ...b.add(who) } as Character;
       for (const f of b.fields) {
         const v = f.type === 'bool' ? !f.default : (f.max ?? 2);
         c = { ...c, ...f.set(c, v) } as Character;
@@ -251,5 +259,29 @@ describe('extending character built-ins in Play', () => {
     // two seconds' rest
     for (let i = 0; i < 150; i++) p.runtime.stepOnce();
     expect(jumped()).toBe(true);
+  });
+
+  it('a hero with short breath (Swimmer.breath), and a neighbour that follows close or far (Follower.followGap)', () => {
+    const short = behaviour(
+      'lg_shortbreat',
+      ['class Short extends Swimmer {', '  breath(e) {', '    return 3;', '  }', '}'].join('\n'),
+    );
+    const { p } = game(short);
+    p.runtime.stepOnce();
+    expect(p.logic.vars.get('maxAir')).toBe(3);
+    const far = behaviour(
+      'lg_farfollowa',
+      ['class Far extends Follower {', '  followGap(e) {', '    return 8;', '  }', '}'].join('\n'),
+    );
+    const keep = (g?: LogicGraph) => {
+      const { p } = g ? game(g) : game();
+      p.placeAt([20, 0.4, 0], 0);
+      p.setFollow('Mira', true);
+      for (let i = 0; i < 600; i++) p.runtime.stepOnce();
+      const n = p.world.npcs.find((x) => x.profile.name === 'Mira')!;
+      return Math.hypot(n.state.x - p.heroState.x, n.state.z - p.heroState.z);
+    };
+    expect(keep()).toBeLessThan(4);
+    expect(keep(far)).toBeGreaterThan(6.5);
   });
 });

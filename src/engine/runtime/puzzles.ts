@@ -70,6 +70,8 @@ export type PuzzleHost<T extends PuzzleObject = PuzzleObject> = {
   moveKeys?(): { x: number; z: number };
   /** step 12c: the game's Climbing is Anything (walls, with stamina), not only ladders and vines */
   climbAnything?(): boolean;
+  /** Milestone 3b (B4): a hook the hero's behaviour answers, or base */
+  askHero?<V>(hook: string, payload: Record<string, unknown>, base: V): V;
   /** step 12c-2: what the wind does to a placed thing (per second², across and deep: its drag over its mass) */
   windPush?(o: T, vel?: [number, number]): [number, number];
   /** step 12c: the hero's stamina now (0–its most), and some used (climbing, a climb jump) */
@@ -913,6 +915,8 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
         return;
       }
       if ((this.h.stamina?.() ?? 1) <= 0) return;
+      // Milestone 3b (B4): the hero's behaviour may say no (Climber.canClimbWall)
+      if (this.h.askHero && !this.h.askHero('canClimbWall', {}, true)) return;
       // hold on facing the wall square, the body a little off its face (the hands on it)
       const heading = Math.round(s.heading / (Math.PI / 2)) * (Math.PI / 2);
       const hx = Math.sin(heading);

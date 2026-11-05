@@ -643,6 +643,54 @@ export const CHARACTER_BUILTINS: Builtin<Character>[] = [
   },
 ];
 
+// Milestone 3b (B4, part 2): what the hero does in water and on walls, and a neighbour that follows
+CHARACTER_BUILTINS.push(
+  {
+    name: 'Swimmer',
+    for: 'character',
+    fixed: true,
+    about: 'The hero swims in deep water, dives with the Action button held, and holds its breath under water.',
+    on: (c) => c.role === 'hero',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [
+      hk('canDive', 'bool', 'Can the hero dive now?'),
+      hk('breath', 'number', 'Seconds of air under water (asked every step)'),
+    ],
+    events: [],
+    editIn: 'Project › Swimming',
+  },
+  {
+    name: 'Climber',
+    for: 'character',
+    fixed: true,
+    about:
+      'The hero climbs onto ledges, up ladders and vines, and (with Climbing: anything) up walls while stamina lasts.',
+    on: (c) => c.role === 'hero',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [hk('canClimbWall', 'bool', 'Can the hero take hold of this wall now?')],
+    events: [],
+    editIn: 'Project › Climbing',
+  },
+  {
+    name: 'Follower',
+    for: 'character',
+    fixed: true,
+    about:
+      'A neighbour told to follow the hero (Follow the hero card) walks after it, runs to catch up and jumps to it when far behind.',
+    on: (c) => c.role === 'npc',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [hk('followGap', 'number', 'How close it keeps to the hero (studs; distance: how far it is now)')],
+    events: [],
+    editIn: 'Logic › Follow',
+  },
+);
+
 export const characterBuiltinNamed = (name: string | undefined) =>
   CHARACTER_BUILTINS.find((b) => b.name === name) ?? null;
 /** any built-in by its class name (an asset's or a character's) */

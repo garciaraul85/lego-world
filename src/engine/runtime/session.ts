@@ -1823,7 +1823,10 @@ export class PlaySession {
         Object.assign(s, { x: h.x - Math.sin(h.heading) * 2, y: h.y, z: h.z - Math.cos(h.heading) * 2, vy: 0 });
         continue;
       }
-      if (d < 2.5) {
+      // Milestone 3b (B4): how close it keeps (Follower.followGap)
+      const owner = npcItem(this.snapshot, this.world.mapId, n.id)?.id;
+      const gap = owner ? Math.max(0.5, this.askHook(owner, 'followGap', { distance: d }, 2.5)) : 2.5;
+      if (d < gap) {
         n.controller.step({ x: 0, z: 0, run: false, jump: false, vertical: 0 }, dt, 0);
         continue;
       }
@@ -5588,6 +5591,7 @@ export class PlaySession {
     const self = this;
     const p = new Puzzles<PlayInstance>({
       ask: (o, hook, payload, base) => self.askHook(o.inst.id, hook, payload, base),
+      askHero: (hook, payload, base) => self.askHook('hero', hook, payload, base),
       get heroState() {
         return self.heroState;
       },
@@ -6673,7 +6677,8 @@ export class PlaySession {
   /** step 11b part 2: holding breath under water (the HUD shows {air} of {maxAir} while {underwater}) */
   private stepBreath(w: WaterBox | null, dt: number) {
     const s = this.heroState;
-    const max = this.swimming.breath;
+    // Milestone 3b (B4): how long the hero holds its breath (Swimmer.breath)
+    const max = Math.max(1, this.askHook('hero', 'breath', {}, this.swimming.breath));
     const under = headUnder(w, s.y, HERO_HEIGHT * this.L.GamePhysics.scaleOf(s));
     const r = breathe(this.breath, under && !this.god, max, dt);
     this.breath = r.breath;
@@ -6754,6 +6759,11 @@ export class PlaySession {
         }
         // step 11b part 2: held to dive or to swim up; let go and the swimmer drifts back up
         if (o.kind === 'dive') {
+          // Milestone 3b (B4): the hero's behaviour may say no (Swimmer.canDive)
+          if (down && !this.askHook('hero', 'canDive', {}, true)) {
+            this.say('Can’t dive.', 1.2);
+            return;
+          }
           this.swim.down = down;
           this.swim.up = false;
           return;
