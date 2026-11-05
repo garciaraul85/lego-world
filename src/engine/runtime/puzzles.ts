@@ -1084,6 +1084,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   /** step 12b: a mirror turned round to lean the other way (the hero holding it shoves it: the Push pose) */
   turnMirror(o: T): boolean {
     if (!o.def.mirror || o.def.mirror.turns === false || o.def.states.length < 2) return false;
+    if (this.h.ask && !this.h.ask(o, 'canTurn', {}, true)) return false;
     const i = Math.max(0, o.def.states.indexOf(o.state));
     this.h.setState(o, o.def.states[i === 0 ? 1 : 0]!);
     this.turnPose = { kind: 'push', t: TURN_POSE };

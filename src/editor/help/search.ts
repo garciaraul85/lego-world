@@ -19,6 +19,8 @@ const STOP = new Set([
   'it',
   'how',
   'do',
+  'does',
+  'did',
   'i',
   'my',
   'for',

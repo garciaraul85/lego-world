@@ -371,19 +371,17 @@ function Sidebar({
           </span>
           <span>{BUILTINS.length}</span>
         </div>
-        <div data-tour="builtin-list">
+        <div data-tour="builtin-list" class="builtin-chips">
           {BUILTINS.map((b) => (
-            <div class={`lib-item ${ed.logicGraph.value === `builtin:${b.name}` ? 'on' : ''}`}>
-              <button
-                type="button"
-                class="link lg-graph-name"
-                aria-label={`Built-in ${b.name}`}
-                onClick={() => (ed.logicGraph.value = `builtin:${b.name}`)}
-              >
-                {b.name}
-                <span class="small muted"> · built-in</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              class={`chip-btn ${ed.logicGraph.value === `builtin:${b.name}` ? 'on' : ''}`}
+              aria-label={`Built-in ${b.name}`}
+              title={b.about}
+              onClick={() => (ed.logicGraph.value = `builtin:${b.name}`)}
+            >
+              {b.name}
+            </button>
           ))}
         </div>
 

@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (140 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (146 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -1367,3 +1367,57 @@ Asked when the hero walks into it to climb. Return false and the hero does not t
 
 - Outputs: base (bool)
 - Code: `on("canClimb", (e) => { … });`
+
+### Can it catch fire? (Burnable)
+
+`event.onCanBurn` · event
+
+Asked when fire reaches it (a lit stick, a fire arrow, a bomb, fire spreading): why says how. Return false and it does not catch.
+
+- Outputs: why (string), base (bool)
+- Code: `on("canBurn", (e) => { … });`
+
+### Can it melt? (Ice)
+
+`event.onCanMelt` · event
+
+Asked when fire (or a beam of light) reaches ice: by is fire, light or thaw. Return true to start melting, false to stay frozen.
+
+- Outputs: by (string), base (bool)
+- Code: `on("canMelt", (e) => { … });`
+
+### Can it be lifted? (Liftable)
+
+`event.onCanLift` · event
+
+Asked when the hero tries to lift it (a rock, a pot). Return false and it is too heavy.
+
+- Outputs: base (bool)
+- Code: `on("canLift", (e) => { … });`
+
+### Can its bomb be picked? (Bomb plant)
+
+`event.onCanPick` · event
+
+Asked when the hero picks the bomb off it. Return false and the bomb stays.
+
+- Outputs: base (bool)
+- Code: `on("canPick", (e) => { … });`
+
+### Can it be turned? (Mirror)
+
+`event.onCanTurn` · event
+
+Asked when the hero turns a mirror. Return false and it stays as it is.
+
+- Outputs: base (bool)
+- Code: `on("canTurn", (e) => { … });`
+
+### Does the hook catch on it? (Hook target)
+
+`event.onCanCatch` · event
+
+Asked when the hook line or the rope reaches it. Return true and it catches (the hero is pulled to it), false and it bounces off.
+
+- Outputs: base (bool)
+- Code: `on("canCatch", (e) => { … });`

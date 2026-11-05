@@ -47,6 +47,8 @@ export type Line = {
 };
 
 export type HooksHost<T extends HookObject = HookObject> = {
+  /** Milestone 3b (B3): a hook answered by a behaviour on the thing (its built-in's decision), or base */
+  ask?<V>(o: T, hook: string, payload: Record<string, unknown>, base: V): V;
   readonly heroState: HeroState;
   physics(): PhysicsWorld | null;
   /** the hand the line leaves from (and comes back to) */
@@ -145,7 +147,8 @@ export class Hooks<T extends HookObject = HookObject> {
 
   /** what a hook catches on: a hook target or ring, or wood (anything that burns), a ladder or vines */
   catches(o: T): boolean {
-    return !!(o.def.hook || o.def.burn || o.def.climbable);
+    const base = !!(o.def.hook || o.def.burn || o.def.climbable);
+    return this.h.ask ? this.h.ask(o, 'canCatch', {}, base) : base;
   }
 
   // ---------- aiming ----------

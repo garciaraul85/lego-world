@@ -5,7 +5,7 @@ import { BUILTINS, extendCode } from '../../src/core/logic/builtins';
 import { parseBehaviour, printBehaviour } from '../../src/core/logic/code/behaviour';
 import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
-import { type Asset, type Instances, type LogicGraph, paths } from '../../src/core/schema';
+import { type Asset, Asset as AssetSchema, type Instances, type LogicGraph, paths } from '../../src/core/schema';
 import { RecordingAudio } from '../../src/engine/audio/port';
 import { PlaySession } from '../../src/engine/runtime/session';
 
@@ -50,6 +50,28 @@ describe('built-in behaviours', () => {
     expect(lock.on(locked)).toBe(true);
     expect(lock.fields.find((f) => f.name === 'key')!.get(locked)).toBe('small');
     expect(lock.on(lock.remove(locked))).toBe(false);
+  });
+});
+
+describe('built-in settings as fields (B3 part 2)', () => {
+  it('each built-in added to a crate is a valid asset, and every field sets and reads back', () => {
+    const crate = BUILTIN_ASSETS.find((a) => a.name === 'Wooden crate')!;
+    expect(BUILTINS.length).toBeGreaterThanOrEqual(23);
+    for (const b of BUILTINS) {
+      if (b.name === 'Interactable') continue;
+      let a = { ...crate, ...b.add(crate) } as Asset;
+      expect(b.on(a), b.name).toBe(true);
+      expect(AssetSchema.safeParse(a).success, `${b.name} added`).toBe(true);
+      for (const f of b.fields) {
+        expect(f.get(a), `${b.name}.${f.name} default`).toEqual(f.default);
+        const v = f.type === 'bool' ? !f.default : f.type === 'number' ? (f.max ?? 2) : f.default;
+        a = { ...a, ...f.set(a, v as never) } as Asset;
+        expect(f.get(a), `${b.name}.${f.name}`).toEqual(v);
+        const ok = AssetSchema.safeParse(a);
+        expect(ok.success ? null : `${b.name}.${f.name}: ${ok.error.message}`).toBeNull();
+      }
+      expect(b.on(b.remove(a)), `${b.name} removed`).toBe(false);
+    }
   });
 });
 
@@ -176,5 +198,45 @@ describe('extending built-ins in Play', () => {
     expect(push()).toBe(true);
     expect(push()).toBe(false);
     expect(p.events.some((e) => e.msg.includes('stuck fast'))).toBe(true);
+  });
+
+  const no = (id: string, base: string, method: string) =>
+    behaviour(
+      id,
+      [`class No${base} extends ${base} {`, `  ${method}(e) {`, '    return false;', '  }', '}'].join('\n'),
+    );
+
+  it('vines that will not burn (Burnable.canBurn) and ice that will not melt (Ice.canMelt)', () => {
+    const vines: Asset = { ...crate, id: 'ast_fireproofa' as Asset['id'], name: 'Fireproof vines', burn: {} };
+    const a = world(vines, no('lg_noburnaaaa', 'Burnable', 'canBurn'));
+    expect(a.p.fireLight.ignite(a.o(), 'test')).toBe(false);
+    const ice: Asset = { ...crate, id: 'ast_foreverice' as Asset['id'], name: 'Forever ice', ice: {} };
+    const b = world(ice, no('lg_nomeltaaaa', 'Ice', 'canMelt'));
+    expect(b.p.fireLight.melt(b.o(), 'fire')).toBe(false);
+    // without the behaviour, the engine's answer
+    const plain = world({ ...ice, id: 'ast_plainicebl' as Asset['id'], name: 'Plain ice' });
+    expect(plain.p.fireLight.melt(plain.o(), 'fire')).toBe(true);
+  });
+
+  it('a rock too heavy to lift, a mirror that will not turn, a ring the hook bounces off', () => {
+    const rock: Asset = { ...crate, id: 'ast_heavyrocka' as Asset['id'], name: 'Heavy rock', lift: {} };
+    const a = world(rock, no('lg_noliftaaaa', 'Liftable', 'canLift'));
+    expect(a.p.fireLight.liftThing(a.o())).toBe(false);
+    const mirror: Asset = {
+      ...crate,
+      id: 'ast_stuckmirro' as Asset['id'],
+      name: 'Stuck mirror',
+      states: ['left', 'right'],
+      initialState: 'left',
+      mirror: {},
+    };
+    const b = world(mirror, no('lg_noturnaaaa', 'Mirror', 'canTurn'));
+    expect(b.p.puzzles.turnMirror(b.o())).toBe(false);
+    expect(b.o().state).toBe('left');
+    const ring: Asset = { ...crate, id: 'ast_slipperyri' as Asset['id'], name: 'Slippery ring', hook: true };
+    const c = world(ring, no('lg_nocatchaaa', 'HookTarget', 'canCatch'));
+    expect(c.p.hooks.catches(c.o())).toBe(false);
+    const d = world({ ...ring, id: 'ast_plainringa' as Asset['id'], name: 'Ring' });
+    expect(d.p.hooks.catches(d.o())).toBe(true);
   });
 });

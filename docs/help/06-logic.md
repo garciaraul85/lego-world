@@ -140,7 +140,7 @@ The bottom dock's **Behaviours** tab lists every behaviour; drag one onto a plac
 
 ## Built-in behaviours and hooks
 
-The engine's own features are behaviours too: **Interactable, Health, Lock, Switch, Pushable, Pickup, Climbable, Checkpoint, Hidden, Fake, Light**. An asset with that setting *is* one (a door with a lock is a Lock), so older games need no change. **Logic › Built-in** (left) lists them: what each does, its fields (its settings), its **hooks** and the events it sends.
+The engine's own features are behaviours too: **Interactable, Health, Lock, Switch, Pushable, Pickup, Climbable, Checkpoint, Hidden, Fake, Light**, and for fire, ice, light beams, moving things and the hook: **Burnable, Flame, Beam, Mirror, BombPlant, Ice, Platform, Fan, Liftable, PhysicsBody, HookTarget, Magnetic**. An asset with that setting *is* one (a door with a lock is a Lock), so older games need no change. **Logic › Built-in** (left) lists them: what each does, its fields (its settings), its **hooks** and the events it sends.
 
 A hook is one of its decisions. **Extend** makes a behaviour of your own on it, with each hook answered by the engine's own answer, to change:
 
@@ -154,6 +154,6 @@ class GemDoor extends Lock {
 }
 ```
 
-`return` (the **Return** card) answers; `super.canOpen(e)` (the hook card's **base** value) is what the engine would answer. Not answering keeps the engine's answer. The hooks: Interactable `canUse`, Health `takeDamage` (a number: how much a hit takes), Lock `canOpen`, Switch `isPressed`, Pushable `canPush` (`e.dx`, `e.dz`, `e.pulled`), Pickup `canPickUp`, Climbable `canClimb`.
+`return` (the **Return** card) answers; `super.canOpen(e)` (the hook card's **base** value) is what the engine would answer. Not answering keeps the engine's answer. The hooks: Interactable `canUse`, Health `takeDamage` (a number: how much a hit takes), Lock `canOpen`, Switch `isPressed`, Pushable `canPush` (`e.dx`, `e.dz`, `e.pulled`), Pickup `canPickUp`, Climbable `canClimb`, Burnable `canBurn` (`e.why`), Ice `canMelt` (`e.by`: fire, light or thaw), Liftable `canLift`, BombPlant `canPick`, Mirror `canTurn`, HookTarget `canCatch`. Flame, Beam, Platform, Fan, PhysicsBody, Magnetic, Checkpoint, Hidden, Fake and Light have fields (their settings: a platform's far end and speed, a fan's air speed and reach, a light's brightness) but no hooks yet.
 
-Attaching a behaviour that extends a built-in to an asset makes it that built-in too. In **Scene › Inspector › Behaviours** the built-ins an asset has are listed with their fields; **+ Script** adds one (under Built-in), **Extend** makes your own on it, **×** takes it off. The **Built-in behaviours course** makes a crate that sticks after two pushes.
+Attaching a behaviour that extends a built-in to an asset makes it that built-in too. In **Scene › Inspector › Behaviours** the built-ins an asset has are listed with their fields; **+ Script** adds one (under Built-in), **Extend** makes your own on it, **×** takes it off. The **Built-in behaviours course** makes a crate that sticks after two pushes; the **World built-ins course** a rock so heavy it takes three tries to lift.

@@ -581,7 +581,8 @@ export const ACTIONS: EditorAction[] = [
   },
   {
     id: 'help.behavioursCourse',
-    label: 'Behaviours course (a script with fields you attach to things: a lamp that blinks, two copies, their own speeds)',
+    label:
+      'Behaviours course (a script with fields you attach to things: a lamp that blinks, two copies, their own speeds)',
     run: ({ ui }) => ui.tutorial('behaviours'),
   },
   {
@@ -593,6 +594,11 @@ export const ACTIONS: EditorAction[] = [
     id: 'help.builtinsCourse',
     label: 'Built-in behaviours course (extend the engine’s Pushable: a crate that sticks after two pushes)',
     run: ({ ui }) => ui.tutorial('builtins'),
+  },
+  {
+    id: 'help.builtins2Course',
+    label: 'World built-ins course (extend Liftable: a rock so heavy it takes three tries to lift)',
+    run: ({ ui }) => ui.tutorial('builtins2'),
   },
   {
     id: 'help.swim',
@@ -847,6 +853,7 @@ export const COURSE_GROUPS: [string, string[]][] = [
       'help.behavioursCourse',
       'help.engineApiCourse',
       'help.builtinsCourse',
+      'help.builtins2Course',
       'help.saving',
       'help.swim',
     ],

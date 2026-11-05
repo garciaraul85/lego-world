@@ -74,6 +74,8 @@ type Piece = {
 };
 
 export type FireHost<T extends FireObject = FireObject> = {
+  /** Milestone 3b (B3): a hook answered by a behaviour on the thing (its built-in's decision), or base */
+  ask?<V>(o: T, hook: string, payload: Record<string, unknown>, base: V): V;
   readonly clock: number;
   readonly heroState: HeroState;
   near(x: number, z: number, r: number): readonly T[];
@@ -198,6 +200,7 @@ export class FireLight<T extends FireObject = FireObject> {
   ignite(o: T, why = ''): boolean {
     const b = o.def.burn;
     if (!b || this.burning.has(o.inst.id)) return false;
+    if (this.h.ask && !this.h.ask(o, 'canBurn', { why }, true)) return false;
     const c = centre(o);
     this.burning.set(o.inst.id, {
       o,
@@ -239,7 +242,9 @@ export class FireLight<T extends FireObject = FireObject> {
   melt(o: T, by: 'fire' | 'light' | 'thaw'): boolean {
     const ice = o.def.ice;
     const m = ice?.melts ?? 'fire';
-    if (!ice || m === 'never' || (by === 'light' && m !== 'fire-or-light') || this.melting.has(o.inst.id)) return false;
+    if (!ice || this.melting.has(o.inst.id)) return false;
+    const melts = m !== 'never' && (by !== 'light' || m === 'fire-or-light');
+    if (!(this.h.ask ? this.h.ask(o, 'canMelt', { by }, melts) : melts)) return false;
     const b = boxOf(o.bricks as never);
     const fx: { stop(): void }[] = [];
     if (b) {
@@ -537,6 +542,7 @@ export class FireLight<T extends FireObject = FireObject> {
   liftThing(o: T): boolean {
     const l = o.def.lift;
     if (!l || this.held || this.carry) return false;
+    if (this.h.ask && !this.h.ask(o, 'canLift', {}, true)) return false;
     const s = this.h.heroState;
     const pot = !!l.breaks;
     const b: Bomb = {
@@ -607,6 +613,7 @@ export class FireLight<T extends FireObject = FireObject> {
   /** takes the bomb off a plant (it grows another once that one has gone off, as its setting says) */
   pick(o: T): boolean {
     if (this.held || this.carry || !o.def.bombPlant) return false;
+    if (this.h.ask && !this.h.ask(o, 'canPick', {}, true)) return false;
     this.h.setState(o, o.def.states[1] ?? o.def.states[0]!);
     return this.lift(undefined, o);
   }

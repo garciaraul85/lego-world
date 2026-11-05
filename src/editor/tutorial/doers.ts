@@ -254,6 +254,20 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       `${String(a?.field)}: ${String(a?.value)}`,
     );
   },
+  async liftUntilLogged(c, a) {
+    // what pressing the Action button at a liftable thing, again and again, does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const o = s.world.instances.find((i) => i.def.name === String(a?.name ?? 'Rock'));
+    if (!o) throw new Error(`Place a ${String(a?.name ?? 'Rock')} first.`);
+    const said = () => s.events.some((e) => e.msg.includes(String(a?.until ?? '')));
+    for (let n = 0; n < 8 && !said(); n++) {
+      faceThing(s, o, 0.1);
+      await wait(500);
+      s.fireLight.liftThing(o);
+      await wait(700);
+    }
+  },
   async pushUntilLogged(c, a) {
     // what holding Action (Grab) at a block and walking into it, again and again, does (away from the start)
     const s = c.ed.session.value;

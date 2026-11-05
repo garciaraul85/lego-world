@@ -1101,6 +1101,7 @@ export class PlaySession {
       h: { npcs(): never; hitNpc: never; hitObject: never; fetch: never; deliver: never };
     };
     return new Hooks<PlayInstance>({
+      ask: (o, hook, payload, base) => self.askHook(o.inst.id, hook, payload, base),
       get heroState() {
         return self.heroState;
       },
@@ -5725,6 +5726,7 @@ export class PlaySession {
   private makeFireLight(): FireLight<PlayInstance> {
     const self = this;
     return new FireLight<PlayInstance>({
+      ask: (o, hook, payload, base) => self.askHook(o.inst.id, hook, payload, base),
       get heroState() {
         return self.heroState;
       },

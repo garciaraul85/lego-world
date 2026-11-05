@@ -480,7 +480,7 @@ export const SCENE: HelpEntry[] = [
   },
   {
     id: 'scene.spawn',
-    also: ['start', 'begin', 'hero starts', 'respawn'],
+    also: ['start', 'begin', 'hero starts', 'hero start', 'where the hero starts', 'respawn'],
     screen: 'scene',
     kind: 'area',
     name: 'Spawn point properties',

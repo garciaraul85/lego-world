@@ -18,7 +18,12 @@ export type Builtin = {
   /** the asset without it */
   remove(a: Asset): Asset;
   /** its settings as fields: read from the asset, and written back */
-  fields: (BehaviourField & { get(a: Asset): FieldValue; set(a: Asset, v: FieldValue): Partial<Asset> })[];
+  fields: (BehaviourField & {
+    get(a: Asset): FieldValue;
+    set(a: Asset, v: FieldValue): Partial<Asset>;
+    /** a text field that is one of these (a list to pick from) */
+    choices?: readonly string[];
+  })[];
   hooks: BuiltinHook[];
   /** logic events it sends (what a behaviour on it can listen to) */
   events: string[];
@@ -86,7 +91,8 @@ export const BUILTINS: Builtin[] = [
         name: 'key',
         type: 'string',
         default: 'small',
-        label: 'Opens with (small, boss, item)',
+        label: 'Opens with',
+        choices: ['small', 'boss', 'item'],
         get: (a) => a.lock?.key ?? 'small',
         set: (a, v) => ({
           lock: { ...(a.lock ?? {}), key: (['small', 'boss', 'item'].includes(String(v)) ? v : 'small') as 'small' },
@@ -254,6 +260,268 @@ export const BUILTINS: Builtin[] = [
     editIn: 'Assets › Light',
   },
 ];
+
+/** Milestone 3b (B3, part 2): a number field of a setting object on the asset */
+type F = Builtin['fields'][number];
+function num<K extends keyof Asset>(
+  key: K,
+  name: string,
+  label: string,
+  def: number,
+  min: number,
+  max: number,
+  base: (a: Asset) => NonNullable<Asset[K]>,
+  int = false,
+): F {
+  return {
+    name,
+    type: 'number',
+    default: def,
+    label,
+    min,
+    max,
+    get: (a) => ((a[key] as Record<string, unknown> | undefined)?.[name] as number | undefined) ?? def,
+    set: (a, v) => {
+      let n = Math.max(min, Math.min(max, Number(v) || def));
+      if (int) n = Math.round(n);
+      return { [key]: { ...((a[key] ?? base(a)) as object), [name]: n } } as Partial<Asset>;
+    },
+  };
+}
+function flag<K extends keyof Asset>(
+  key: K,
+  name: string,
+  label: string,
+  def: boolean,
+  base: (a: Asset) => NonNullable<Asset[K]>,
+): F {
+  return {
+    name,
+    type: 'bool',
+    default: def,
+    label,
+    get: (a) => ((a[key] as Record<string, unknown> | undefined)?.[name] as boolean | undefined) ?? def,
+    set: (a, v) => ({ [key]: { ...((a[key] ?? base(a)) as object), [name]: !!v } }) as Partial<Asset>,
+  };
+}
+function pick<K extends keyof Asset>(
+  key: K,
+  name: string,
+  label: string,
+  choices: readonly string[],
+  base: (a: Asset) => NonNullable<Asset[K]>,
+): F {
+  return {
+    name,
+    type: 'string',
+    default: choices[0]!,
+    label,
+    choices,
+    get: (a) => ((a[key] as Record<string, unknown> | undefined)?.[name] as string | undefined) ?? choices[0]!,
+    set: (a, v) =>
+      ({
+        [key]: { ...((a[key] ?? base(a)) as object), [name]: choices.includes(String(v)) ? String(v) : choices[0] },
+      }) as Partial<Asset>,
+  };
+}
+const mid = (a: Asset, y: number): [number, number, number] => [a.footprint[0] / 2, y, a.footprint[1] / 2];
+const twoStates = (a: Asset, first: string, second: string): Partial<Asset> =>
+  a.states.length < 2 ? { states: [a.states[0] ?? first, second] } : {};
+
+const flame = (a: Asset) => ({ at: mid(a, 2) });
+const beam = (a: Asset) => ({ at: mid(a, 1) });
+const moves = () => ({ by: [0, 4, 0] as [number, number, number] });
+const wind = (a: Asset): NonNullable<Asset['wind']> => ({ at: [a.footprint[0] / 2, 0, a.footprint[1]] });
+const light = (a: Asset): NonNullable<Asset['light']> => ({
+  color: '#ffd28a',
+  brightness: 1,
+  range: 8,
+  flicker: 0,
+  shadow: false,
+  at: mid(a, 2),
+});
+
+BUILTINS.push(
+  {
+    name: 'Burnable',
+    about:
+      'It catches fire (a lit stick, a fire arrow, a bomb, fire next to it), burns a while and is gone: vines, a barricade, a web.',
+    on: (a) => !!a.burn,
+    add: () => ({ burn: {} }),
+    remove: (a) => without(a, 'burn'),
+    fields: [
+      num('burn', 'seconds', 'Burns for (seconds)', 2, 0.5, 30, () => ({})),
+      flag('burn', 'spreads', 'Sets things touching it alight', true, () => ({})),
+    ],
+    hooks: [hk('canBurn', 'bool', 'Does it catch fire now? (why: how the fire came)')],
+    events: ['event.onBurned'],
+    editIn: 'Assets › Fire and light › Burns',
+  },
+  {
+    name: 'Flame',
+    about: 'A fire burns on it (a lit torch stand), always or in one of its states.',
+    on: (a) => !!a.flame,
+    add: (a) => ({ flame: flame(a) }),
+    remove: (a) => without(a, 'flame'),
+    fields: [num('flame', 'size', 'How big', 1, 0.2, 4, flame)],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Fire and light › Flame',
+  },
+  {
+    name: 'Beam',
+    about:
+      'It shines a beam of light straight ahead (a sun stone): mirrors turn it, light sensors see it, it can melt ice.',
+    on: (a) => !!a.beam,
+    add: (a) => ({ beam: beam(a) }),
+    remove: (a) => without(a, 'beam'),
+    fields: [num('beam', 'range', 'Reach (studs)', 32, 4, 96, beam)],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Fire and light › Shines',
+  },
+  {
+    name: 'Mirror',
+    about: 'It turns a beam of light a quarter turn; the hero turns it round (two states, one leaning each way).',
+    on: (a) => !!a.mirror,
+    add: (a) => ({ mirror: {}, ...twoStates(a, 'left', 'right') }),
+    remove: (a) => without(a, 'mirror'),
+    fields: [flag('mirror', 'turns', 'The hero can turn it', true, () => ({}))],
+    hooks: [hk('canTurn', 'bool', 'Can the hero turn it now?')],
+    events: ['event.onSwitch'],
+    editIn: 'Assets › Fire and light › Mirror',
+  },
+  {
+    name: 'BombPlant',
+    about: 'It grows a bomb the hero picks, lights and throws; it grows another as its setting says.',
+    on: (a) => !!a.bombPlant,
+    add: (a) => ({ bombPlant: {}, ...twoStates(a, 'grown', 'picked') }),
+    remove: (a) => without(a, 'bombPlant'),
+    fields: [pick('bombPlant', 'regrow', 'Grows another', ['missed', 'always', 'never'], () => ({}))],
+    hooks: [hk('canPick', 'bool', 'Can the hero pick its bomb now?')],
+    events: [],
+    editIn: 'Assets › Fire and light › Grows another',
+  },
+  {
+    name: 'Ice',
+    about: 'Slippery to walk on; a push block of it slides on by itself; fire (or light) melts it.',
+    on: (a) => !!a.ice,
+    add: () => ({ ice: {} }),
+    remove: (a) => without(a, 'ice'),
+    fields: [
+      flag('ice', 'floor', 'Slippery to walk on', true, () => ({})),
+      flag('ice', 'slides', 'Slides on when pushed', false, () => ({})),
+      pick('ice', 'melts', 'Melts with', ['fire', 'fire-or-light', 'never'], () => ({})),
+      num('ice', 'seconds', 'Melts in (seconds)', 2, 0.5, 30, () => ({})),
+    ],
+    hooks: [hk('canMelt', 'bool', 'Does it start to melt now? (by: fire, light or thaw)')],
+    events: [],
+    editIn: 'Assets › Ice, moving and climbing › Ice',
+  },
+  {
+    name: 'Platform',
+    about: 'It moves back and forth (or up and down) and carries what stands on it.',
+    on: (a) => !!a.moves,
+    add: () => ({ moves: moves() }),
+    remove: (a) => without(a, 'moves'),
+    fields: [
+      ...(['x', 'y', 'z'] as const).map(
+        (k, i): F => ({
+          name: `far${k.toUpperCase()}`,
+          type: 'number',
+          default: i === 1 ? 4 : 0,
+          label: `Far end: ${k === 'y' ? 'up' : k} (studs)`,
+          min: i === 1 ? -32 : -64,
+          max: i === 1 ? 32 : 64,
+          get: (a) => a.moves?.by[i] ?? (i === 1 ? 4 : 0),
+          set: (a, v) => {
+            const by = [...(a.moves?.by ?? moves().by)] as [number, number, number];
+            by[i] = Math.max(i === 1 ? -32 : -64, Math.min(i === 1 ? 32 : 64, Number(v) || 0));
+            return { moves: { ...(a.moves ?? moves()), by } };
+          },
+        }),
+      ),
+      num('moves', 'seconds', 'Seconds end to end', 3, 0.5, 60, moves),
+      num('moves', 'pause', 'Waits at each end (seconds)', 1, 0, 30, moves),
+      flag('moves', 'whenOn', 'Only while on (its second state)', false, moves),
+    ],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Ice, moving and climbing › Moves',
+  },
+  {
+    name: 'Fan',
+    about:
+      'It blows wind straight ahead: the hero leans into it or is blown back; it turns windmills, carries the glider.',
+    on: (a) => !!a.wind,
+    add: (a) => ({ wind: wind(a) }),
+    remove: (a) => without(a, 'wind'),
+    fields: [
+      num('wind', 'speed', 'Air speed (studs a second)', 16, 2, 60, wind),
+      num('wind', 'reach', 'Reach (studs)', 16, 2, 64, wind),
+      num('wind', 'width', 'Width at the fan', 3, 1, 16, wind),
+      num('wind', 'height', 'Height at the fan', 3, 1, 16, wind),
+    ],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Wind and lifting › Blows',
+  },
+  {
+    name: 'Liftable',
+    about: 'The hero lifts it over the head, carries it, puts it down or throws it (a rock, a pot).',
+    on: (a) => !!a.lift,
+    add: () => ({ lift: {} }),
+    remove: (a) => without(a, 'lift'),
+    fields: [
+      flag('lift', 'breaks', 'Breaks where it lands', false, () => ({})),
+      num('lift', 'weight', 'Weight on a floor switch', 1, 1, 5, () => ({}), true),
+    ],
+    hooks: [hk('canLift', 'bool', 'Can the hero lift it now?')],
+    events: [],
+    editIn: 'Assets › Wind and lifting › Lift',
+  },
+  {
+    name: 'PhysicsBody',
+    about: 'A loose object: in Play it falls, tumbles, is pushed about by the hero and wind, and floats in water.',
+    on: (a) => !!a.loose,
+    add: () => ({ loose: true }),
+    remove: (a) => without(a, 'loose'),
+    fields: [],
+    hooks: [],
+    events: [],
+    editIn: 'Scene › Inspector › Loose',
+  },
+  {
+    name: 'HookTarget',
+    about:
+      'The hook line and the grapple rope catch on it (a target, a ring, a beam); wood, vines and ladders catch anyway.',
+    on: (a) => !!a.hook,
+    add: () => ({ hook: true }),
+    remove: (a) => without(a, 'hook'),
+    fields: [],
+    hooks: [hk('canCatch', 'bool', 'Does the hook catch on it now?')],
+    events: [],
+    editIn: 'Assets › Wind and lifting › Hook target',
+  },
+  {
+    name: 'Magnetic',
+    about: 'It is metal: the magnet glove pulls a loose one, and it is heavy (it sinks in water).',
+    on: (a) => !!a.metal,
+    add: () => ({ metal: true }),
+    remove: (a) => without(a, 'metal'),
+    fields: [],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Wind and lifting › Metal',
+  },
+);
+
+// Milestone 3b (B3, part 2): the Light's settings as fields
+BUILTINS.find((b) => b.name === 'Light')!.fields.push(
+  num('light', 'brightness', 'Brightness', 1, 0, 4, light),
+  num('light', 'range', 'Reach (studs)', 8, 2, 40, light),
+  num('light', 'flicker', 'Flicker', 0, 0, 1, light),
+);
 
 export const builtinNamed = (name: string | undefined) => BUILTINS.find((b) => b.name === name) ?? null;
 /** a built-in's hook by its event type */

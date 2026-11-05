@@ -56,7 +56,9 @@ export function BuiltinPage({ c, b }: { c: ActionCtx; b: Builtin }) {
                   <code>{f.name}</code>
                 </td>
                 <td>{f.label}</td>
-                <td class="muted">{FIELD_TYPES.find((t) => t.type === f.type)?.label}</td>
+                <td class="muted">
+                  {f.choices ? f.choices.join(' / ') : FIELD_TYPES.find((t) => t.type === f.type)?.label}
+                </td>
               </tr>
             ))}
           </tbody>

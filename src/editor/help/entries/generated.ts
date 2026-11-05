@@ -152,6 +152,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Engine API course (9 steps): a lamp post that switches on when the hero comes near (Distance) and, used, sends a message to a crate, which slides away (Send message, On message, Move by); one behaviour attached with + Script, the other dragged from the dock’s Behaviours tab.',
   'help.builtinsCourse':
     'Starts the Built-in behaviours course (8 steps): read the engine’s Pushable in Logic › Built-in, Extend it into My Pushable whose canPush lets a crate move twice and then sticks (return false; super.canPush otherwise), attach it to the Wooden crate (which becomes a Pushable), tick a built-in field in the Inspector and push it in Play.',
+  'help.builtins2Course':
+    'Starts the World built-ins course (8 steps): read Liftable in Logic › Built-in, Extend it into My Liftable whose canLift makes the hero heave twice before a rock comes up (own variable tries, a Strength field), attach it to a Rock (already a Liftable), set its weight on a floor switch in the Inspector and lift it in Play.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':

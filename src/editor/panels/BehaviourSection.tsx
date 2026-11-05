@@ -344,20 +344,46 @@ function BuiltinRow({ c, b, a }: { c: ActionCtx; b: Builtin; a: Asset }) {
       {b.fields.map((f) => (
         <label class="field">
           <span>{f.label}</span>
-          <ValueInput
-            ed={ed}
-            type={f.type}
-            label={`${b.name} ${f.label}`}
-            value={f.get(a)}
-            min={f.min}
-            max={f.max}
-            onCommit={(v) =>
-              ed.exec(
-                { type: 'builtin.setField', payload: { asset: a.id, name: b.name, field: f.name, value: v } },
-                { label: `${f.label}: ${String(v)}` },
-              )
-            }
-          />
+          {f.choices ? (
+            <select
+              class="inp"
+              aria-label={`${b.name} ${f.label}`}
+              value={String(f.get(a))}
+              onChange={(ev) =>
+                ed.exec(
+                  {
+                    type: 'builtin.setField',
+                    payload: {
+                      asset: a.id,
+                      name: b.name,
+                      field: f.name,
+                      value: (ev.target as HTMLSelectElement).value,
+                    },
+                  },
+                  { label: `${f.label}: ${(ev.target as HTMLSelectElement).value}` },
+                )
+              }
+            >
+              {f.choices.map((ch) => (
+                <option value={ch}>{ch}</option>
+              ))}
+            </select>
+          ) : (
+            <ValueInput
+              ed={ed}
+              type={f.type}
+              label={`${b.name} ${f.label}`}
+              value={f.get(a)}
+              min={f.min}
+              max={f.max}
+              onCommit={(v) =>
+                ed.exec(
+                  { type: 'builtin.setField', payload: { asset: a.id, name: b.name, field: f.name, value: v } },
+                  { label: `${f.label}: ${String(v)}` },
+                )
+              }
+            />
+          )}
         </label>
       ))}
       {!b.fields.length && <div class="hint small">Its settings are in {b.editIn}.</div>}

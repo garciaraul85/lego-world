@@ -83,6 +83,49 @@ export const HOOKS: NodeDef[] = [
     [],
     'bool',
   ),
+  // Milestone 3b (B3, part 2)
+  hook(
+    'CanBurn',
+    'Can it catch fire? (Burnable)',
+    'Asked when fire reaches it (a lit stick, a fire arrow, a bomb, fire spreading): why says how. Return false and it does not catch.',
+    [{ name: 'why', type: 'string' }],
+    'bool',
+  ),
+  hook(
+    'CanMelt',
+    'Can it melt? (Ice)',
+    'Asked when fire (or a beam of light) reaches ice: by is fire, light or thaw. Return true to start melting, false to stay frozen.',
+    [{ name: 'by', type: 'string' }],
+    'bool',
+  ),
+  hook(
+    'CanLift',
+    'Can it be lifted? (Liftable)',
+    'Asked when the hero tries to lift it (a rock, a pot). Return false and it is too heavy.',
+    [],
+    'bool',
+  ),
+  hook(
+    'CanPick',
+    'Can its bomb be picked? (Bomb plant)',
+    'Asked when the hero picks the bomb off it. Return false and the bomb stays.',
+    [],
+    'bool',
+  ),
+  hook(
+    'CanTurn',
+    'Can it be turned? (Mirror)',
+    'Asked when the hero turns a mirror. Return false and it stays as it is.',
+    [],
+    'bool',
+  ),
+  hook(
+    'CanCatch',
+    'Does the hook catch on it? (Hook target)',
+    'Asked when the hook line or the rope reaches it. Return true and it catches (the hero is pulled to it), false and it bounces off.',
+    [],
+    'bool',
+  ),
 ];
 
 export const RETURN: NodeDef[] = [
