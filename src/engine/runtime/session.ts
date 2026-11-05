@@ -3120,6 +3120,16 @@ export class PlaySession {
     ];
   }
 
+  /**
+   * Milestone 3b (B3): asks a placed copy's behaviours a hook (canOpen, isPressed, takeDamage…); `base` is the
+   * engine's own answer (super), kept when none answers. Yes/no hooks answer yes or no.
+   */
+  askHook<V>(owner: string, hook: string, payload: Record<string, unknown>, base: V): V {
+    const r = this.logic.ask(owner, `event.on${hook.charAt(0).toUpperCase()}${hook.slice(1)}`, { ...payload, base });
+    if (r === undefined) return base;
+    return (typeof base === 'boolean' ? !!r : typeof base === 'number' ? Number(r) : r) as V;
+  }
+
   // ---------- Milestone 3b (B2): the engine API ----------
 
   /** "" and "player" mean the hero */
@@ -3280,7 +3290,9 @@ export class PlaySession {
     const key = `i:${owner.inst.id}`;
     const before = this.health.peek(key)?.hp ?? def.hp;
     if (before <= 0) return;
-    const { dealt, wound } = this.health.hit(key, def, attack);
+    const { dealt, wound } = this.health.hit(key, def, attack, undefined, (d) =>
+      this.askHook(owner.inst.id, 'takeDamage', { amount: d, type: attack.type }, d),
+    );
     const pos: Vec3 = [
       owner.inst.pos[0] + owner.def.footprint[0] / 2,
       owner.inst.pos[1] * 0.4,
@@ -5544,6 +5556,7 @@ export class PlaySession {
     // the host's getters read the session's state (a getter has its own this)
     const self = this;
     const p = new Puzzles<PlayInstance>({
+      ask: (o, hook, payload, base) => self.askHook(o.inst.id, hook, payload, base),
       get heroState() {
         return self.heroState;
       },
@@ -6900,6 +6913,8 @@ export class PlaySession {
       return this.startConversation(sign.conversation, null, 'sign');
     const p = this.prompt;
     if (!p || this.talking) return false;
+    // Milestone 3b (B3): a behaviour extending Interactable may say it cannot be used now
+    if (!this.askHook(p.instance.inst.id, 'canUse', { socket: p.socket }, true)) return true;
     // step 12a: a lock tries the hero's key; a press switch (a lever) is used
     if (this.puzzles.press(p.instance)) {
       this.logic.fire({

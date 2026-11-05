@@ -137,3 +137,23 @@ Cards (and calls in Code) that let behaviours, and any logic file, reach into th
 - **Input and time:** Button held (`input.held("action")`), Game time (`time.now()`).
 
 The bottom dock's **Behaviours** tab lists every behaviour; drag one onto a placed object in the 3D view to attach it to that copy. The **Engine API course** builds a lamp post that sees the hero and tells a crate to slide.
+
+## Built-in behaviours and hooks
+
+The engine's own features are behaviours too: **Interactable, Health, Lock, Switch, Pushable, Pickup, Climbable, Checkpoint, Hidden, Fake, Light**. An asset with that setting *is* one (a door with a lock is a Lock), so older games need no change. **Logic › Built-in** (left) lists them: what each does, its fields (its settings), its **hooks** and the events it sends.
+
+A hook is one of its decisions. **Extend** makes a behaviour of your own on it, with each hook answered by the engine's own answer, to change:
+
+```js
+class GemDoor extends Lock {
+  needs = field.number(3, { label: "Gems needed" });
+
+  canOpen(e) {
+    return (e.have >= this.needs);
+  }
+}
+```
+
+`return` (the **Return** card) answers; `super.canOpen(e)` (the hook card's **base** value) is what the engine would answer. Not answering keeps the engine's answer. The hooks: Interactable `canUse`, Health `takeDamage` (a number: how much a hit takes), Lock `canOpen`, Switch `isPressed`, Pushable `canPush` (`e.dx`, `e.dz`, `e.pulled`), Pickup `canPickUp`, Climbable `canClimb`.
+
+Attaching a behaviour that extends a built-in to an asset makes it that built-in too. In **Scene › Inspector › Behaviours** the built-ins an asset has are listed with their fields; **+ Script** adds one (under Built-in), **Extend** makes your own on it, **×** takes it off. The **Built-in behaviours course** makes a crate that sticks after two pushes.

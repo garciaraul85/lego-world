@@ -7,6 +7,7 @@ import type { Conversation } from '../../core/dialogue/schema';
 import type { Effect } from '../../core/effects/schema';
 import type { ScreenEffect } from '../../core/effects/screen';
 import { fogPresetOf } from '../../core/lighting/atmosphere';
+import { builtinNamed } from '../../core/logic/builtins';
 import { wiresOf } from '../../core/logic/wiring';
 import { isBigPicture } from '../../core/media/import';
 import { allSaves } from '../../core/save/save';
@@ -210,6 +211,21 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     const g = behaviourGraph(ed, b!);
     const s = ed.session.value;
     return !!g && !!s && s.logic.attachedTo(g.id).length >= Number(n ?? 1) && s.clock > 1;
+  },
+  // Milestone 3b (B3): the Built-in behaviours course
+  builtinOpen: (ed, a) => ed.workspace.value === 'Logic' && ed.logicGraph.value === `builtin:${String(a)}`,
+  behaviourExtends: (ed, a) => {
+    const [b, base] = String(a).split(',');
+    return behaviourGraph(ed, b!)?.behaviour?.extends === base;
+  },
+  builtinField: (ed, a) => {
+    const [asset, b, f, v] = String(a).split(',');
+    const def = ed.store
+      .list('assets/')
+      .map((p) => ed.store.get<Asset>(p))
+      .find((x) => x?.name === asset);
+    const field = builtinNamed(b)?.fields.find((x) => x.name === f);
+    return !!def && !!field && String(field.get(def)) === v;
   },
   // P32: the treasure-chest story — logic
   graphNamed: (ed, a) => openGraph(ed)?.name === a,

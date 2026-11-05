@@ -54,7 +54,7 @@ export function printBehaviour(g: Pick<LogicGraph, 'name' | 'nodes' | 'edges' | 
   const body = printGraph(g);
   const out: string[] = [...head];
   if (body.code.trim()) out.push('');
-  for (const l of body.code.replace(/\n$/, '').split('\n')) {
+  for (const l of body.code.trim() ? body.code.replace(/\n$/, '').split('\n') : []) {
     const m = /^on\("(\w+)", (?:(\{.*\}), )?(async )?\(e\) => \{$/.exec(l);
     if (m) out.push(`  ${m[3] ?? ''}${m[1]}(e${m[2] ? ` = ${m[2]}` : ''}) {`);
     else if (l === '});') out.push('  }');
@@ -151,7 +151,11 @@ export function parseBehaviour(
     const close = fn.body.loc.end.line - 1;
     // the header (all its lines) becomes one line; the body keeps its lines; the closing brace ends the block
     for (let i = start; i <= close; i++) on[i] = '';
-    const bodyLines = code.slice(fn.body.start + 1, fn.body.end - 1).split('\n');
+    // super.<this method>(e) is the engine's own answer: e.base on the card (Milestone 3b, B3)
+    const bodyLines = code
+      .slice(fn.body.start + 1, fn.body.end - 1)
+      .replace(new RegExp(`\\bsuper\\.${name}\\(\\s*e\\s*\\)`, 'g'), 'e.base')
+      .split('\n');
     const headText = `on(${lit(name)}, ${args}${fn.async ? 'async ' : ''}(e) => {`;
     if (bodyLines.length === 1) on[open] = `${headText}${bodyLines[0]}});`;
     else {

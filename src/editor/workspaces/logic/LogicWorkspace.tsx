@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { BUILTINS, builtinNamed } from '../../../core/logic/builtins';
 import { CATALOG, nodeDef } from '../../../core/logic/catalog';
 import { fieldHelp } from '../../../core/logic/field-help';
 import { graphProblems } from '../../../core/logic/graph';
@@ -17,6 +18,7 @@ import { noteRecent, prefsOf, shows, viewGenre } from '../../genres/view';
 import { PickedThumb } from '../../panels/AudioFields';
 import { keysFor } from '../../platform';
 import { BEHAVIOUR_HELP, BehaviourPanel, usedOn } from './BehaviourPanel';
+import { BUILTIN_HELP, BuiltinPage } from './BuiltinPage';
 import { CodeView } from './CodeView';
 import { GraphView, toggleBreakpoint } from './GraphView';
 import { argChoices, CAT_COLOR, graphs, newBehaviour, newGraph, nodeHeight, ownerOf, variables } from './model';
@@ -38,7 +40,9 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
   const list = graphs(ed);
-  const graph = list.find((g) => g.id === ed.logicGraph.value) ?? list[0] ?? null;
+  // Milestone 3b (B3): a built-in behaviour's page (logicGraph "builtin:Lock")
+  const builtin = ed.logicGraph.value?.startsWith('builtin:') ? builtinNamed(ed.logicGraph.value.slice(8)) : null;
+  const graph = builtin ? null : (list.find((g) => g.id === ed.logicGraph.value) ?? list[0] ?? null);
   const mode: Mode = ed.logicView.value;
   const setMode = (m: Mode) => (ed.logicView.value = m);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -145,7 +149,9 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
               .join(', ') || 'no inputs'}
           </div>
         )}
-        {!graph ? (
+        {builtin ? (
+          <BuiltinPage c={c} b={builtin} />
+        ) : !graph ? (
           <div class="placeholder">
             <strong>No logic yet</strong>
             <span class="muted">
@@ -357,6 +363,29 @@ function Sidebar({
             </div>
           ))}
         {graph?.behaviour && <BehaviourPanel c={c} graph={graph} />}
+        {/* Milestone 3b (B3): the engine's own features, to read about and extend */}
+        <div class="sech" style={{ padding: '10px 10px 4px' }}>
+          <span>
+            Built-in
+            <FieldHelp label="Built-in behaviours" text={BUILTIN_HELP} />
+          </span>
+          <span>{BUILTINS.length}</span>
+        </div>
+        <div data-tour="builtin-list">
+          {BUILTINS.map((b) => (
+            <div class={`lib-item ${ed.logicGraph.value === `builtin:${b.name}` ? 'on' : ''}`}>
+              <button
+                type="button"
+                class="link lg-graph-name"
+                aria-label={`Built-in ${b.name}`}
+                onClick={() => (ed.logicGraph.value = `builtin:${b.name}`)}
+              >
+                {b.name}
+                <span class="small muted"> · built-in</span>
+              </button>
+            </div>
+          ))}
+        </div>
 
         <div class="sech" style={{ padding: '12px 10px 4px' }}>
           <span>

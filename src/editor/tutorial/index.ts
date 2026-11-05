@@ -51,6 +51,7 @@ import lens from './content/41-boots-lens.json';
 import foes from './content/42-enemies.json';
 import behaviours from './content/43-behaviours.json';
 import engineApi from './content/44-engine-api.json';
+import builtins from './content/45-builtins.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -89,6 +90,7 @@ export type Track =
   | 'foes'
   | 'behaviours'
   | 'engineApi'
+  | 'builtins'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -176,6 +178,7 @@ export const FOES_STEPS: TrackStep[] = steps([foes].map((c) => Chapter.parse(c))
 export const BEHAVIOURS_STEPS: TrackStep[] = steps([behaviours].map((c) => Chapter.parse(c)));
 /** Milestone 3b (B2): the engine API */
 export const ENGINE_API_STEPS: TrackStep[] = steps([engineApi].map((c) => Chapter.parse(c)));
+export const BUILTINS_STEPS: TrackStep[] = steps([builtins].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -216,6 +219,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   foes: { title: 'Enemies course', steps: FOES_STEPS },
   behaviours: { title: 'Behaviours course', steps: BEHAVIOURS_STEPS },
   engineApi: { title: 'Engine API course', steps: ENGINE_API_STEPS },
+  builtins: { title: 'Built-in behaviours course', steps: BUILTINS_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

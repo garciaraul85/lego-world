@@ -6,6 +6,7 @@ import { EFFECTS } from './effects';
 import { EVENTS } from './events';
 import { FLOW } from './flow';
 import { HEALTH, HEALTH_EVENTS } from './health';
+import { HOOKS, RETURN } from './hooks';
 import { LIGHTS } from './lights';
 import { COMPARE, MATH } from './math';
 import { MEDIA } from './media';
@@ -59,6 +60,9 @@ export const CATALOG: readonly NodeDef[] = [
   ...API_MATH,
   ...API_EVENTS,
   ...API,
+  // Milestone 3b (B3): hooks of the built-in behaviours, and their answer
+  ...HOOKS,
+  ...RETURN,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

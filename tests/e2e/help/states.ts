@@ -342,14 +342,16 @@ export const HELP_STATES: HelpState[] = [
       await p.locator('[data-tour="map-dungeon"]').scrollIntoViewIfNeeded();
     },
   },
-  ...(['pack', 'library', 'behaviours', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const).map((d) => ({
-    id: `scene-dock-${d}`,
-    screen: 'scene',
-    setup: async (p: Page) => {
-      await ws(p, 'Scene');
-      await signals(p, { left: 'hier', dock: d });
-    },
-  })),
+  ...(['pack', 'library', 'behaviours', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const).map(
+    (d) => ({
+      id: `scene-dock-${d}`,
+      screen: 'scene',
+      setup: async (p: Page) => {
+        await ws(p, 'Scene');
+        await signals(p, { left: 'hier', dock: d });
+      },
+    }),
+  ),
   ...[
     'Assets',
     'Characters',
@@ -468,6 +470,17 @@ export const HELP_STATES: HelpState[] = [
         e.logicGraph.value = id;
       });
       await signals(p, { logicView: 'split' });
+    },
+  },
+  {
+    // Milestone 3b (B3): a built-in behaviour's page (what it does, its fields, its hooks; Extend)
+    id: 'logic-builtin',
+    screen: 'logic',
+    setup: async (p) => {
+      await ws(p, 'Logic');
+      await p.evaluate(() => {
+        (window as unknown as { __editor: Ed }).__editor.logicGraph.value = 'builtin:Lock';
+      });
     },
   },
   {

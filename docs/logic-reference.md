@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (132 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (140 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -322,6 +322,15 @@ Lets execution through only while open. Open and Close change it; gates with the
 
 - Settings: Name (string), Starts open (bool)
 - Code: `gate("name", startOpen, () => { … }); gate.open("name"); gate.close("name");`
+
+### Answer
+
+`flow.return` · action
+
+Gives a hook’s answer (return in code) and ends the method: true or false, or a number for How much does a hit take.
+
+- Inputs: value (any)
+- Code: `return(value);`
 
 ## Variables
 
@@ -1293,3 +1302,68 @@ Seconds since play started (game time: it stops while paused).
 
 - Outputs: out (number)
 - Code: `time.now()`
+
+## Hooks
+
+### Can it be used? (Interactable)
+
+`event.onCanUse` · event
+
+Asked when the hero presses the Action button at it. Return false and nothing happens (its interaction does not run).
+
+- Outputs: socket (string), base (bool)
+- Code: `on("canUse", (e) => { … });`
+
+### Can it open? (Lock)
+
+`event.onCanOpen` · event
+
+Asked when the hero tries to open a lock. item is the key it takes, have how many the hero carries. Return true to open (a key is used up only if the hero has one), false to stay locked.
+
+- Outputs: item (string), have (number), base (bool)
+- Code: `on("canOpen", (e) => { … });`
+
+### Is it pressed? (Switch)
+
+`event.onIsPressed` · event
+
+Asked every step for a floor switch: weight is how much stands on it, by who (hero, block, npc, loose). Return true for down, false for up.
+
+- Outputs: weight (number), by (string), base (bool)
+- Code: `on("isPressed", (e) => { … });`
+
+### Can it be pushed? (Pushable)
+
+`event.onCanPush` · event
+
+Asked before a push block moves: dx and dz are the way it would go (−1, 0 or 1), pulled is true when the hero pulls. Return false and it stays.
+
+- Outputs: dx (number), dz (number), pulled (bool), base (bool)
+- Code: `on("canPush", (e) => { … });`
+
+### Can it be picked up? (Pickup)
+
+`event.onCanPickUp` · event
+
+Asked when the hero touches a pickup. Return false and it stays where it is.
+
+- Outputs: item (string), count (number), base (bool)
+- Code: `on("canPickUp", (e) => { … });`
+
+### How much does a hit take? (Health)
+
+`event.onTakeDamage` · event
+
+Asked when it is hit: amount is the damage after its armour and weaknesses, type the kind of hit. Return the damage it takes (0: unhurt).
+
+- Outputs: amount (number), type (string), base (number)
+- Code: `on("takeDamage", (e) => { … });`
+
+### Can it be climbed? (Climbable)
+
+`event.onCanClimb` · event
+
+Asked when the hero walks into it to climb. Return false and the hero does not take hold.
+
+- Outputs: base (bool)
+- Code: `on("canClimb", (e) => { … });`

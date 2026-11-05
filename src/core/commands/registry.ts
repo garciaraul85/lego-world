@@ -72,7 +72,14 @@ import {
 import { placeNpc, removeNpc } from './handlers/npcs';
 import { putProgress } from './handlers/progress';
 import { scatterAsset } from './handlers/scatter';
-import { attachScript, detachScript, setScriptField } from './handlers/scripts';
+import {
+  attachBuiltin,
+  attachScript,
+  detachBuiltin,
+  detachScript,
+  setBuiltinField,
+  setScriptField,
+} from './handlers/scripts';
 
 /** Every command type the engine knows. Append-only: add new handlers at the end. */
 export function registerAll(bus: CommandBus): CommandBus {
@@ -144,6 +151,10 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('script.attach', attachScript);
   bus.register('script.detach', detachScript);
   bus.register('script.setField', setScriptField);
+  // Milestone 3b (B3): built-in behaviours on assets
+  bus.register('builtin.attach', attachBuiltin);
+  bus.register('builtin.detach', detachBuiltin);
+  bus.register('builtin.setField', setBuiltinField);
   bus.register('map.addZone', addZone);
   bus.register('map.updateZone', updateZone);
   bus.register('map.removeZone', removeZone);

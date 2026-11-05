@@ -85,6 +85,11 @@ export type PuzzleHost<T extends PuzzleObject = PuzzleObject> = {
   ): void;
   /** logic and the event log */
   fire(event: 'switch' | 'pushed' | 'unlocked' | 'pickedUp', o: T, extra: Record<string, unknown>): void;
+  /**
+   * Milestone 3b (B3): a decision a behaviour on it may make itself (a hook: canOpen, isPressed, canPush,
+   * canPickUp, canClimb); `base` is the engine's own answer, given back when no behaviour answers
+   */
+  ask?<V>(o: T, hook: string, payload: Record<string, unknown>, base: V): V;
   log(text: string): void;
 };
 
@@ -427,6 +432,11 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
 
   tryMove(o: T, dx: number, dz: number, pulled: boolean, shove = ICE_SHOVE): boolean {
     if (this.slide) return false;
+    // Milestone 3b (B3): a behaviour extending Pushable may say no (only one way, only when lit…)
+    if (this.h.ask && !this.h.ask(o, 'canPush', { dx, dz, pulled }, true)) {
+      this.h.log(`${o.def.name}: won't move that way`);
+      return false;
+    }
     // step 12c: a block of ice, pushed, slides on until something stops it (a wall, a block, an edge)
     const ice = !!o.def.ice?.slides && !pulled;
     let n = ice ? ICE_SLIDE_MAX : this.stepOf(o, dx);
@@ -619,6 +629,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
     const az = s.z + fz * 0.9;
     for (const o of this.h.near(ax, az, 8)) {
       if (!o.def.climbable) continue;
+      if (this.h.ask && !this.h.ask(o, 'canClimb', {}, true)) continue;
       const b = boxOf(o.bricks);
       if (!b || b.y1 * 0.4 <= s.y + 0.6) continue;
       // just ahead, or the hero already in among it (between a ladder's rails, in the vines)
@@ -1117,7 +1128,9 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
         for (const t of others)
           if ((heavy === 'any' || t.kind === 'loose') && on(t.x0, t.x1, t.z0, t.z1, t.y0)) add(t.weight, t.kind);
       }
-      if (weight < (sw.weight ?? 1)) continue;
+      // Milestone 3b (B3): a behaviour extending Switch may decide what holds it down
+      const pressed = weight >= (sw.weight ?? 1);
+      if (!(this.h.ask ? this.h.ask(o, 'isPressed', { weight, by: by || 'none' }, pressed) : pressed)) continue;
       now.add(o.inst.id);
       // stepped on now (not still standing on it)
       if (!this.held.has(o.inst.id)) this.use(o, sw, by);
@@ -1177,7 +1190,13 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
   private unlock(o: T, l: LockDef): boolean {
     const item = lockItem(l);
     const have = this.count(item) ?? this.itemCount?.(item) ?? 0;
-    if (have <= 0) {
+    // Milestone 3b (B3): a behaviour extending Lock may decide (three keys, only at night…)
+    const opens = this.h.ask ? this.h.ask(o, 'canOpen', { item, have }, have > 0) : have > 0;
+    if (!opens && have > 0) {
+      this.h.say('It will not open yet.', 2);
+      return true;
+    }
+    if (!opens) {
       this.h.say(
         l.key === 'small'
           ? 'Locked. It needs a small key from this place.'
@@ -1188,7 +1207,7 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       );
       return true;
     }
-    if (lockUses(l) && !this.take(item, 1)) this.takeItem?.(item, 1);
+    if (have > 0 && lockUses(l) && !this.take(item, 1)) this.takeItem?.(item, 1);
     this.h.setState(o, o.def.states[1]!);
     this.h.sound('unlock', this.centre(o));
     this.h.fire('unlocked', o, { key: item });
@@ -1211,8 +1230,10 @@ export class Puzzles<T extends PuzzleObject = PuzzleObject> {
       // touching it: the hero's body (not its middle) reaches a tall pickup it cannot step onto
       if (s.x < b.x0 - 1 || s.x > b.x1 + 1 || s.z < b.z0 - 1 || s.z > b.z1 + 1) continue;
       if (feet > b.y1 + 2 || feet + 10 < b.y0) continue;
-      this.h.remove(o);
       const n = p.count ?? 1;
+      // Milestone 3b (B3): a behaviour extending Pickup may keep it there for now
+      if (this.h.ask && !this.h.ask(o, 'canPickUp', { item: p.item, count: n }, true)) continue;
+      this.h.remove(o);
       if (!this.give(p.item, n)) this.h.give(p.item, n);
       this.h.fire('pickedUp', o, { item: p.item, count: n });
     }

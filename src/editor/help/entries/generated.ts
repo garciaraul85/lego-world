@@ -150,6 +150,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Behaviours course (9 steps): make a behaviour (a script you attach to things) with a field and its own variables, write its update() so a lamp blinks, attach it to every Lamp post, and give one copy its own speed.',
   'help.engineApiCourse':
     'Starts the Engine API course (9 steps): a lamp post that switches on when the hero comes near (Distance) and, used, sends a message to a crate, which slides away (Send message, On message, Move by); one behaviour attached with + Script, the other dragged from the dock’s Behaviours tab.',
+  'help.builtinsCourse':
+    'Starts the Built-in behaviours course (8 steps): read the engine’s Pushable in Logic › Built-in, Extend it into My Pushable whose canPush lets a crate move twice and then sticks (return false; super.canPush otherwise), attach it to the Wooden crate (which becomes a Pushable), tick a built-in field in the Inspector and push it in Play.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':
@@ -297,8 +299,13 @@ const MORE_COMMANDS: Record<string, string> = {
   'art.delete': 'Deletes a background, icon or font no screen uses.',
   // Milestone 3b (B1): behaviours
   'script.attach': 'Attaches a behaviour (a logic file with fields) to an asset, a character or one placed copy.',
-  'script.detach': 'Removes a behaviour from an asset, a character or a copy, or switches an asset’s behaviour off on one copy.',
+  'script.detach':
+    'Removes a behaviour from an asset, a character or a copy, or switches an asset’s behaviour off on one copy.',
   'script.setField': 'Sets one field of a behaviour where it is attached (on a copy: its own value, over its asset’s).',
+  'builtin.attach':
+    'Makes an asset a built-in behaviour (a Lock, a Switch, a Pushable…): adds that setting at its first values.',
+  'builtin.detach': 'Takes a built-in behaviour off an asset (its setting goes).',
+  'builtin.setField': 'Sets one field of a built-in behaviour on an asset (writes that setting of the asset).',
 };
 
 function commandEntries(types: readonly string[]): HelpEntry[] {

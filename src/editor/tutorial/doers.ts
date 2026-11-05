@@ -21,6 +21,7 @@ import { blankConversation, type Conversation } from '../../core/dialogue/schema
 import { parseScript } from '../../core/dialogue/script';
 import { arrivalSpot, assetSpot, reachable, surfaceOf } from '../../core/gamegen/places';
 import { newId } from '../../core/ids';
+import { builtinNamed } from '../../core/logic/builtins';
 import { className, parseBehaviour } from '../../core/logic/code/behaviour';
 import { importMedia, isBigPicture } from '../../core/media/import';
 import { allSaves, type Saving } from '../../core/save/save';
@@ -29,6 +30,7 @@ import {
   type BehaviourField,
   type Character,
   type Clip,
+  type FieldValue,
   type Gates,
   type Instances,
   type LightInstance,
@@ -56,6 +58,7 @@ import type { EditorState } from '../state';
 import { settleMove } from '../viewport/settle';
 import { buildInto } from '../workspaces/asset-studio/scratch';
 import { scriptNames } from '../workspaces/dialogue/model';
+import { extendBuiltin } from '../workspaces/logic/BuiltinPage';
 import { newBehaviour, newGraph } from '../workspaces/logic/model';
 import { CODING_DOERS } from './coding';
 import type { Do } from './schema';
@@ -212,6 +215,79 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     const g = newBehaviour(name);
     run(c, [{ type: 'logic.create', payload: { graph: g } }], 'New behaviour');
     c.ed.logicGraph.value = g.id;
+  },
+  // Milestone 3b (B3): the Built-in behaviours course
+  openBuiltin(c, a) {
+    // what clicking a name under Logic › Built-in does
+    c.ui.workspace('Logic');
+    c.ed.logicGraph.value = `builtin:${String(a?.name)}`;
+  },
+  extendBuiltinNamed(c, a) {
+    // what the built-in page's Extend button does (one already made is opened instead)
+    const b = builtinNamed(String(a?.name));
+    if (!b) throw new Error(`There is no built-in ${String(a?.name)}.`);
+    const have = c.ed.store
+      .list('logic/')
+      .map((p) => c.ed.store.get<LogicGraph>(p)!)
+      .find((g) => g?.behaviour?.extends === b.name);
+    if (have) {
+      c.ui.workspace('Logic');
+      c.ed.logicGraph.value = have.id;
+      return;
+    }
+    extendBuiltin(c, b);
+  },
+  setBuiltinField(c, a) {
+    // what typing into a built-in's field in Scene › Inspector › Behaviours does
+    const asset = assetByName(c, String(a?.asset ?? ''));
+    if (!asset) throw new Error(`There is no ${String(a?.asset)}.`);
+    c.ui.workspace('Scene');
+    DOERS.selectObject!(c, { asset: asset.name });
+    run(
+      c,
+      [
+        {
+          type: 'builtin.setField',
+          payload: { asset: asset.id, name: String(a?.name), field: String(a?.field), value: a?.value as FieldValue },
+        },
+      ],
+      `${String(a?.field)}: ${String(a?.value)}`,
+    );
+  },
+  async pushUntilLogged(c, a) {
+    // what holding Action (Grab) at a block and walking into it, again and again, does (away from the start)
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const block = s.world.instances.find((i) => i.def.name === String(a?.block ?? 'Wooden crate'));
+    if (!block) throw new Error('Place the block first.');
+    const sp = s.world.doc.spawns[0];
+    const yaw = sp?.yaw ?? 0;
+    const dx = Math.round(Math.sin(yaw));
+    const dz = Math.round(Math.cos(yaw));
+    const said = () => s.events.some((e) => e.msg.includes(String(a?.until ?? '')));
+    const [w, d] = block.def.footprint;
+    for (let n = 0; n < 6 && !said(); n++) {
+      standAt(
+        s,
+        Number(block.inst.pos[0]) + w / 2 - dx * (w / 2 + 0.6),
+        Number(block.inst.pos[2]) + d / 2 - dz * (d / 2 + 0.6),
+        yaw,
+      );
+      s.camYaw = Math.atan2(-dx, -dz) + Number(a?.camTurn ?? 0.7);
+      const from = `${block.inst.pos[0]},${block.inst.pos[2]}`;
+      s.puzzles.setGrab(true);
+      s.input.keys.add('forward');
+      try {
+        for (let i = 0; i < 12 && !said() && `${block.inst.pos[0]},${block.inst.pos[2]}` === from; i++)
+          await new Promise((r) => setTimeout(r, 250));
+      } finally {
+        s.input.keys.delete('forward');
+        s.puzzles.setGrab(false);
+      }
+      // a slow machine: shove it
+      if (!said() && `${block.inst.pos[0]},${block.inst.pos[2]}` === from) s.puzzles.tryMove(block, dx, dz, false);
+      await new Promise((r) => setTimeout(r, 900));
+    }
   },
   addBehaviourField(c, a) {
     // what typing a name under Fields, picking its type, Add field, then its label, default and range does

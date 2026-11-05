@@ -305,6 +305,19 @@ export function stepsToView(view: string): ShowStep[] {
           },
         },
       ];
+    // Milestone 3b (B3): a built-in behaviour's page
+    case 'logic-builtin':
+      return [
+        ws('Logic'),
+        {
+          say: 'Open a built-in behaviour (Logic › Built-in, left).',
+          find: () => null,
+          run: (c) => {
+            c.ed.logicGraph.value = 'builtin:Lock';
+          },
+          done: (c) => c.ed.logicGraph.value?.startsWith('builtin:') ?? false,
+        },
+      ];
     case 'logic':
     case 'logic-code':
       return [

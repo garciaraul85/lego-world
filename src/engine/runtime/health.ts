@@ -106,10 +106,21 @@ export class HealthBook {
   }
 
   /** applies one hit; returns the damage done (0: armour, resistance or invulnerable stopped it) */
-  hit(key: string, def: Health, attack: AttackHit, side?: HitSide): { dealt: number; wound: Wound } {
+  hit(
+    key: string,
+    def: Health,
+    attack: AttackHit,
+    side?: HitSide,
+    /** Milestone 3b (B3): a behaviour's own say in how much it takes (takeDamage) */
+    adjust?: (dealt: number) => number,
+  ): { dealt: number; wound: Wound } {
     const wound = this.of(key, def);
     if (wound.hp <= 0) return { dealt: 0, wound };
-    const dealt = damageOf(attack, { ...def, invulnerable: this.invulnerable.has(key) }, side);
+    let dealt = damageOf(attack, { ...def, invulnerable: this.invulnerable.has(key) }, side);
+    if (adjust) {
+      const n = Number(adjust(dealt));
+      if (Number.isFinite(n)) dealt = Math.max(0, n);
+    }
     wound.hp = Math.max(0, Math.round((wound.hp - dealt) * 100) / 100);
     return { dealt, wound };
   }

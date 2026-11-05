@@ -5,6 +5,7 @@
  */
 import { BUILTIN_ASSETS } from '../../../builtin/assets';
 import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
+import { builtinNamed } from '../../logic/builtins';
 import type { ProjectStore } from '../../project/store';
 import {
   type Asset,
@@ -74,12 +75,28 @@ export const attachScript: CommandHandler<{ target: ScriptTarget; use: string; f
     validate(store, p) {
       const bad = noTarget(store, p.target);
       if (bad) return bad;
-      if (!behaviourOf(store, p.use)) return 'That logic file is not a behaviour.';
+      const g = behaviourOf(store, p.use);
+      if (!g) return 'That logic file is not a behaviour.';
+      // Milestone 3b (B3): one that extends a built-in goes where that built-in is (an asset gets it as well)
+      const base = builtinNamed(g.behaviour!.extends);
+      if (base && p.target.kind === 'character')
+        return `${base.name} is for assets: put it on an asset or a placed copy.`;
+      if (base && p.target.kind === 'instance') {
+        const item = store.get<Instances>(paths.instances(p.target.map))?.items.find((i) => i.id === p.target.id);
+        const asset = item?.kind === 'asset' ? assetOf(store, item.asset) : null;
+        if (!asset || !base.on(asset))
+          return `This copy is not a ${base.name}: attach it to its asset to make every copy one.`;
+      }
       const cur = read(store, p.target)?.scripts ?? [];
       if (cur.some((a) => a.use === p.use && !a.off)) return `It is already on ${where(p.target)}.`;
       return cur.length >= 16 ? 'Something can have 16 behaviours at most.' : null;
     },
     apply(store, p) {
+      const base = builtinNamed(behaviourOf(store, p.use)!.behaviour!.extends);
+      if (base && p.target.kind === 'asset') {
+        const a = assetOf(store, p.target.id)!;
+        if (!base.on(a)) store.put(paths.asset(a.id), { ...a, ...base.add(a) });
+      }
       const cur = read(store, p.target)?.scripts ?? [];
       const was = cur.find((a) => a.use === p.use);
       const next: ScriptAttachment = {
@@ -153,5 +170,54 @@ export const setScriptField: CommandHandler<{
       p.target,
       was ? cur.map((a) => (a.use === p.use ? set(a) : a)) : [...cur, set({ use: p.use as ScriptAttachment['use'] })],
     );
+  },
+};
+
+const assetOf = (store: ProjectStore, id: string): Asset | null =>
+  store.get<Asset>(paths.asset(id)) ?? (BUILTIN_ASSETS.find((a) => a.id === id) as Asset | undefined) ?? null;
+
+/** Milestone 3b (B3): a built-in behaviour (Lock, Switch, Pushable…) put on an asset: its settings, at first values */
+export const attachBuiltin: CommandHandler<{ asset: string; name: string }> = {
+  label: (p) => `Make it a ${p.name}`,
+  validate(store, p) {
+    const b = builtinNamed(p.name);
+    if (!b) return `There is no built-in behaviour ${p.name}.`;
+    const a = assetOf(store, p.asset);
+    if (!a) return 'There is no such asset.';
+    return b.on(a) ? `It is already a ${b.name}.` : null;
+  },
+  apply(store, p) {
+    const a = assetOf(store, p.asset)!;
+    store.put(paths.asset(a.id), { ...a, ...builtinNamed(p.name)!.add(a) });
+  },
+};
+
+/** Milestone 3b (B3): a built-in behaviour taken off an asset (its settings go) */
+export const detachBuiltin: CommandHandler<{ asset: string; name: string }> = {
+  label: (p) => `Not a ${p.name}`,
+  validate(store, p) {
+    const b = builtinNamed(p.name);
+    const a = assetOf(store, p.asset);
+    return !b ? `There is no built-in behaviour ${p.name}.` : !a ? 'There is no such asset.' : null;
+  },
+  apply(store, p) {
+    const a = assetOf(store, p.asset)!;
+    store.put(paths.asset(a.id), builtinNamed(p.name)!.remove(a));
+  },
+};
+
+/** Milestone 3b (B3): one setting of a built-in behaviour on an asset, through its field */
+export const setBuiltinField: CommandHandler<{ asset: string; name: string; field: string; value: FieldValue }> = {
+  label: (p) => `${p.name}: ${p.field}`,
+  validate(store, p) {
+    const b = builtinNamed(p.name);
+    const a = assetOf(store, p.asset);
+    if (!b || !a) return 'There is no such asset or built-in.';
+    return b.fields.some((f) => f.name === p.field) ? null : `${b.name} has no field ${p.field}.`;
+  },
+  apply(store, p) {
+    const a = assetOf(store, p.asset)!;
+    const f = builtinNamed(p.name)!.fields.find((x) => x.name === p.field)!;
+    store.put(paths.asset(a.id), { ...a, ...f.set(a, p.value) });
   },
 };

@@ -5,12 +5,14 @@
 import { useState } from 'preact/hooks';
 import type { ScriptTarget } from '../../core/commands/handlers/scripts';
 import { attachmentsOf, startValues } from '../../core/logic/behaviours';
-import type { FieldValue, LogicGraph, ScriptAttachment } from '../../core/schema';
+import { BUILTINS, type Builtin } from '../../core/logic/builtins';
+import type { Asset, FieldValue, LogicGraph, ScriptAttachment } from '../../core/schema';
 import type { ActionCtx } from '../actions/registry';
 import { FieldHelp } from '../components/fields';
 import { shows } from '../genres/view';
 import type { EditorState } from '../state';
 import { BEHAVIOUR_HELP, ValueInput } from '../workspaces/logic/BehaviourPanel';
+import { extendBuiltin } from '../workspaces/logic/BuiltinPage';
 import { graphs, newBehaviour } from '../workspaces/logic/model';
 
 export const SCRIPTS_HELP = {
@@ -43,9 +45,20 @@ export function BehaviourSection({ c }: { c: ActionCtx }) {
     ed.logicGraph.value = id;
     c.ui.workspace('Logic');
   };
+  const builtins = BUILTINS.filter((b) => b.on(e.def as Asset));
+  const notYet = BUILTINS.filter((b) => !b.on(e.def as Asset) && b.name !== 'Interactable');
   const attach = () => {
-    const use = pick || all[0]?.id;
+    const use = pick || all[0]?.id || (notYet[0] && `builtin:${notYet[0].name}`);
     if (!use) return;
+    // Milestone 3b (B3): a built-in is a setting of the asset, so it is on every copy
+    if (use.startsWith('builtin:')) {
+      ed.exec(
+        { type: 'builtin.attach', payload: { asset: e.def.id, name: use.slice(8) } },
+        { label: `Make it a ${use.slice(8)}` },
+      );
+      setPick('');
+      return;
+    }
     ed.exec(
       { type: 'script.attach', payload: { target: every ? asset : copy, use } },
       { label: `Attach ${all.find((g) => g.id === use)?.name ?? 'behaviour'}` },
@@ -69,8 +82,11 @@ export function BehaviourSection({ c }: { c: ActionCtx }) {
           Behaviours
           <FieldHelp label="Behaviours" text={SCRIPTS_HELP.section} />
         </span>
-        <span>{running.length}</span>
+        <span>{running.length + builtins.length}</span>
       </div>
+      {builtins.map((b) => (
+        <BuiltinRow key={`${e.def.id}:${b.name}`} c={c} b={b} a={e.def as Asset} />
+      ))}
       {running.map((a) => {
         const g = all.find((x) => x.id === a.use);
         if (!g) return null;
@@ -111,15 +127,29 @@ export function BehaviourSection({ c }: { c: ActionCtx }) {
             class="inp"
             style={{ flex: 1 }}
             aria-label="Behaviour to attach"
-            value={pick || all[0]?.id}
+            value={pick || all[0]?.id || (notYet[0] && `builtin:${notYet[0].name}`)}
             onChange={(ev) => setPick((ev.target as HTMLSelectElement).value)}
           >
-            {!all.length && <option value="">(no behaviours yet)</option>}
-            {all.map((g) => (
-              <option value={g.id}>{g.name}</option>
-            ))}
+            {all.length > 0 && (
+              <optgroup label="Yours">
+                {all.map((g) => (
+                  <option value={g.id}>{g.name}</option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="Built-in (every copy)">
+              {notYet.map((b) => (
+                <option value={`builtin:${b.name}`}>{b.name}</option>
+              ))}
+            </optgroup>
           </select>
-          <button type="button" class="btn on" disabled={!all.length} onClick={attach} data-tour="behaviour-add">
+          <button
+            type="button"
+            class="btn on"
+            disabled={!all.length && !notYet.length}
+            onClick={attach}
+            data-tour="behaviour-add"
+          >
             + Script
           </button>
         </div>
@@ -264,6 +294,73 @@ function Attached({
       {!g.behaviour!.fields.length && (
         <div class="hint small">No fields. Add some in Logic (Fields, left) to set them here.</div>
       )}
+    </fieldset>
+  );
+}
+
+/** Milestone 3b (B3): a built-in behaviour the asset has (its settings), on every copy */
+function BuiltinRow({ c, b, a }: { c: ActionCtx; b: Builtin; a: Asset }) {
+  const { ed } = c;
+  return (
+    <fieldset class="bhv-attached bhv-builtin" aria-label={`Built-in ${b.name}`}>
+      <div class="row" style={{ gap: '6px' }}>
+        <button
+          type="button"
+          class="link"
+          title="Read about it in Logic"
+          onClick={() => {
+            ed.logicGraph.value = `builtin:${b.name}`;
+            c.ui.workspace('Logic');
+          }}
+        >
+          <strong>{b.name}</strong>
+        </button>
+        <span class="small muted">built-in · every {a.name}</span>
+        <span style={{ marginLeft: 'auto' }} />
+        {b.hooks.length > 0 && (
+          <button
+            type="button"
+            class="link small"
+            title={`Make a behaviour of your own that extends ${b.name} and put it on every ${a.name}`}
+            onClick={() => {
+              const id = extendBuiltin(c, b);
+              if (id) ed.exec({ type: 'script.attach', payload: { target: { kind: 'asset', id: a.id }, use: id } });
+            }}
+          >
+            Extend
+          </button>
+        )}
+        {b.name !== 'Interactable' && (
+          <button
+            type="button"
+            class="link"
+            aria-label={`Remove ${b.name} from every ${a.name}`}
+            onClick={() => ed.exec({ type: 'builtin.detach', payload: { asset: a.id, name: b.name } })}
+          >
+            ×
+          </button>
+        )}
+      </div>
+      {b.fields.map((f) => (
+        <label class="field">
+          <span>{f.label}</span>
+          <ValueInput
+            ed={ed}
+            type={f.type}
+            label={`${b.name} ${f.label}`}
+            value={f.get(a)}
+            min={f.min}
+            max={f.max}
+            onCommit={(v) =>
+              ed.exec(
+                { type: 'builtin.setField', payload: { asset: a.id, name: b.name, field: f.name, value: v } },
+                { label: `${f.label}: ${String(v)}` },
+              )
+            }
+          />
+        </label>
+      ))}
+      {!b.fields.length && <div class="hint small">Its settings are in {b.editIn}.</div>}
     </fieldset>
   );
 }

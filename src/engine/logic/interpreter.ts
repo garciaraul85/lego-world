@@ -19,6 +19,9 @@ type Run = {
   resumeAt: number | null;
   /** Milestone 3b (B1): the copy a behaviour's run belongs to ("this"); its fields and own variables */
   owner?: string;
+  /** Milestone 3b (B3): a hook's answer (return) */
+  result?: unknown;
+  answered?: boolean;
 };
 
 export type LogicProblem = { graph: string; node: string | null; message: string };
@@ -208,7 +211,23 @@ export class LogicRuntime {
     this.fire({ type: 'event.onUpdate', payload: { dt } }, true);
   }
 
-  private start(prog: Program, payload: Record<string, unknown>, owner?: string) {
+  /**
+   * Milestone 3b (B3): a hook asked of one copy — its behaviours that answer this event (a method that
+   * extends a built-in) run now; the first answer given (return) is the answer, else undefined (the engine's).
+   * A hook cannot wait: one that does gives no answer.
+   */
+  ask(owner: string, type: string, payload: Record<string, unknown>): unknown {
+    if (this.paused) return undefined;
+    for (const p of this.byType.get(type) ?? []) {
+      if (!this.attached.get(p.graph)?.has(owner)) continue;
+      const run = this.start(p, payload, owner);
+      if (run.waitUntil !== null) this.finish(run);
+      if (run.answered) return run.result;
+    }
+    return undefined;
+  }
+
+  private start(prog: Program, payload: Record<string, unknown>, owner?: string): Run {
     const run: Run = {
       id: ++this.serial,
       prog,
@@ -225,6 +244,7 @@ export class LogicRuntime {
     };
     this.runs.push(run);
     this.resume(run);
+    return run;
   }
 
   private finish(run: Run) {
@@ -311,6 +331,13 @@ export class LogicRuntime {
             const n = run.graph.nodes.find((x) => x.id === i.node)!;
             const def = nodeDef(n.type)!;
             const ins = inputs(i.node);
+            if (n.type === 'flow.return') {
+              // Milestone 3b (B3): a hook's answer; the method ends
+              run.result = ins.value;
+              run.answered = true;
+              run.pc = code.length;
+              break;
+            }
             if (n.type === 'msg.send') {
               // Milestone 3b (B2): a message to another object's behaviours (On message, for that one)
               const ref = String(ins.target ?? '').trim();

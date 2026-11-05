@@ -115,7 +115,7 @@ export function parseCode(code: string, prev?: Pick<LogicGraph, 'nodes' | 'edges
     let at = from;
     for (let k = 0; k < stmts.length; k++) {
       const st = stmts[k];
-      if (!at.length) throw new CodeError('Nothing runs after gate.open() or gate.close().', st);
+      if (!at.length) throw new CodeError('Nothing runs after return, gate.open() or gate.close().', st);
       if (k < stmts.length - 1 && blockCall(st)) {
         // once(…)/gate(…) followed by more lines: a Sequence runs the block, then the rest
         const seq = add('flow.sequence', `${path}/${k}`);
@@ -157,6 +157,13 @@ export function parseCode(code: string, prev?: Pick<LogicGraph, 'nodes' | 'edges
       const n = actionCall(d.init, from, p, scope, d.id.name);
       scope.consts.set(d.id.name, n.id);
       return [[n.id, 'then']];
+    }
+    // Milestone 3b (B3): a hook's answer
+    if (st.type === 'ReturnStatement') {
+      const n = add('flow.return', p);
+      wire(from, n);
+      if (st.argument) value(st.argument, n, 'value', `${p}/value`, scope);
+      return [];
     }
     if (st.type !== 'ExpressionStatement')
       throw new CodeError(`${st.type.replace(/Statement$/, '')} is not part of the logic language.`, st);
