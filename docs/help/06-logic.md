@@ -125,3 +125,15 @@ class Blinker extends Behaviour {
 ```
 
 Fields are `name = field.type(default, { label, help, min, max })` (types: number, bool, string, item, object, asset, character, sound, effect, zone, event). Own variables are `name = value`. Each method is one event, and its settings go in `e`'s default: `interact(e = { asset: "Chest" }) { … }`. The **Behaviours course** (Help › Courses…) builds this Blinker.
+
+## The engine API
+
+Cards (and calls in Code) that let behaviours, and any logic file, reach into the game:
+
+- **Things:** X of, Height of, Z of, Facing of, State of, Distance (`entity.x("this")`, `entity.distance("this", "hero")`), Move by, Move to (an asset moves in whole studs), Face, Turn toward.
+- **Physics:** Push and Set speed (loose objects and the hero), Look ahead (`physics.raycast("this", 10)`: how far something solid is in front, or −1).
+- **Messages:** Send message (`msg.send("Gate", "open", 1)`) runs On message (`message(e = { name: "open" }) { … }` in a behaviour) on the other object, with `e.value` and `e.from`.
+- **Maths and text:** `/`, `%`, `>`, `<`, `!==`, `math.min`, `math.max`, `math.abs`, `math.clamp(value, low, high)`, `math.lerp(a, b, t)`, `math.sin(degrees)`, `math.cos`, `math.sqrt`, `math.round`, `math.floor`, `text.join(a, b)`.
+- **Input and time:** Button held (`input.held("action")`), Game time (`time.now()`).
+
+The bottom dock's **Behaviours** tab lists every behaviour; drag one onto a placed object in the 3D view to attach it to that copy. The **Engine API course** builds a lamp post that sees the hero and tells a crate to slide.

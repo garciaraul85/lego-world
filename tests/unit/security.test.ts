@@ -152,6 +152,17 @@ describe('game scripts are sandboxed', () => {
       'take',
       'follow',
       'spawnCharacter',
+      // Milestone 3b (B2): the engine API (things, physics, input, time, messages)
+      'entity',
+      'distance',
+      'moveThing',
+      'face',
+      'lookAt',
+      'physics',
+      'raycast',
+      'held',
+      'now',
+      'resolve',
     ];
     for (const k of allowed) expect(ctxKeys, k).toContain(k);
   });

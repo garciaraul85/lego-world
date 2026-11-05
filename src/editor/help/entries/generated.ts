@@ -148,6 +148,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Enemies course (10 steps): bounce a Pebblespout’s rock back at it with the shield, block a Watcher Eye’s beam, strike a fading Lanternwisp seen through the Lens of Truth, then meet a pack of Howlers that circle and strike one at a time.',
   'help.behavioursCourse':
     'Starts the Behaviours course (9 steps): make a behaviour (a script you attach to things) with a field and its own variables, write its update() so a lamp blinks, attach it to every Lamp post, and give one copy its own speed.',
+  'help.engineApiCourse':
+    'Starts the Engine API course (9 steps): a lamp post that switches on when the hero comes near (Distance) and, used, sends a message to a crate, which slides away (Send message, On message, Move by); one behaviour attached with + Script, the other dragged from the dock’s Behaviours tab.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':

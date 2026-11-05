@@ -35,6 +35,12 @@ export const BINARY: Record<string, string> = {
   'compare.eq': '===',
   'compare.and': '&&',
   'compare.or': '||',
+  // Milestone 3b (B2)
+  'math.div': '/',
+  'math.mod': '%',
+  'compare.gt': '>',
+  'compare.lt': '<',
+  'compare.neq': '!==',
 };
 
 /** event.onRebuildFinished -> "rebuildFinished" */
@@ -113,6 +119,9 @@ export function printGraph(g: Pick<LogicGraph, 'nodes' | 'edges'>): Printed {
       if (n.type === 'math.random') return `random(${arg('min')}, ${arg('max')})`;
       // step 11, 4c
       if (n.type === 'items.count') return `items.count(${arg('item')})`;
+      // Milestone 3b (B2): a function card: name(its inputs, in order)
+      if (d.code.style === 'call' && !d.args?.length)
+        return `${d.code.name}(${d.inputs.filter((x) => x.type !== 'exec').map((x) => arg(x.name)).join(', ')})`;
       throw new PrintError(node, `${d.title} can’t be printed as code.`);
     };
     const input = (n: LogicNode, pin: string, path: string, depth: number, scope: Scope): string => {

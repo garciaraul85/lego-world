@@ -282,6 +282,29 @@ export function stepsToView(view: string): ShowStep[] {
       return [{ say: 'Open Keyboard shortcuts.', find: control('body', 'Keyboard shortcuts', 'button'), press: true }];
     case 'world':
       return [ws('World graph')];
+    // Milestone 3b (B1): a behaviour open in Logic (its fields beside the class)
+    case 'logic-behaviour':
+      return [
+        ws('Logic'),
+        {
+          say: 'Open a behaviour (Logic › Behaviours, left).',
+          find: () => null,
+          run: (c) => {
+            for (const p of c.ed.store.list('logic/')) {
+              const g = c.ed.store.get<{ id: string; behaviour?: unknown }>(p);
+              if (g?.behaviour) {
+                c.ed.logicGraph.value = g.id;
+                break;
+              }
+            }
+            c.ed.logicView.value = 'split';
+          },
+          done: (c) => {
+            const g = c.ed.store.get<{ behaviour?: unknown }>(`logic/${c.ed.logicGraph.value}.json`);
+            return !!g?.behaviour;
+          },
+        },
+      ];
     case 'logic':
     case 'logic-code':
       return [

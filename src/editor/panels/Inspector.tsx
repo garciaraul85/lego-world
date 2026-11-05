@@ -26,6 +26,7 @@ import { makeAssetOfSelection } from '../interact/scene-menus';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { AtmosphereSection } from './AtmosphereSection';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
+import { BehaviourSection } from './BehaviourSection';
 import { BigWorldSection } from './BigWorldSection';
 import { ControlsSection } from './ControlsSection';
 import { DialogueSection } from './DialogueSection';
@@ -34,7 +35,6 @@ import { DarknessSection } from './LightFields';
 import { MoodSection } from './MoodSection';
 import { ProgressSection } from './ProgressSection';
 import { SavingSection } from './SavingSection';
-import { BehaviourSection } from './BehaviourSection';
 import { ScriptSection } from './ScriptSection';
 
 const BIOME_NAMES = Object.fromEntries(worldGenerator().biomes);

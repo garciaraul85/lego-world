@@ -130,6 +130,19 @@ export interface ExecCtx {
   follow?(who: string, on: boolean): void;
   /** step 11, 4c: a character (by name or id) put on the map at a spawn point while playing */
   spawnCharacter?(character: string, at: string): string | null;
+  /** Milestone 3b (B2): the engine API — where a thing is (x, y, z studs; heading degrees) or its state */
+  entity?(what: 'x' | 'y' | 'z' | 'heading' | 'state', target: string): number | string;
+  distance?(a: string, b: string): number;
+  moveThing?(op: 'by' | 'to', target: string, x: number, y: number, z: number): void;
+  face?(target: string, degrees: number): void;
+  lookAt?(target: string, other: string): void;
+  physics?(op: 'push' | 'velocity', target: string, x: number, y: number, z: number): void;
+  /** how far something solid is ahead of it (studs), or −1 */
+  raycast?(from: string, reach: number): number;
+  held?(button: string): boolean;
+  now?(): number;
+  /** the instance id (or "hero") a reference names, or null (messages) */
+  resolve?(ref: string): string | null;
 }
 
 export type Args = Record<string, unknown>;

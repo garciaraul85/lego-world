@@ -76,6 +76,8 @@ export class LogicRuntime {
         host.emit(event);
         this.queue.push({ type: 'event.onCustom', match: { event } });
       },
+      // Milestone 3b (B2): game time
+      now: () => this.now,
     };
     for (const [name, v] of Object.entries(variables?.vars ?? {})) this.vars.set(name, v.default);
     for (const g of graphs) {
@@ -309,7 +311,18 @@ export class LogicRuntime {
             const n = run.graph.nodes.find((x) => x.id === i.node)!;
             const def = nodeDef(n.type)!;
             const ins = inputs(i.node);
-            if (n.type === 'self.set' || n.type === 'self.add') {
+            if (n.type === 'msg.send') {
+              // Milestone 3b (B2): a message to another object's behaviours (On message, for that one)
+              const ref = String(ins.target ?? '').trim();
+              const to = ref ? (this.ctx.resolve?.(ref) ?? ref) : null;
+              if (to)
+                this.queue.push({
+                  type: 'event.onMessage',
+                  match: { name: String(ins.name ?? '') },
+                  payload: { value: ins.value, from: owner ?? '' },
+                  self: to,
+                });
+            } else if (n.type === 'self.set' || n.type === 'self.add') {
               const name = String(n.args?.name ?? '');
               const m = mine();
               if (!m.has(name)) throw new LogicError(i.node, `This behaviour has no field or variable “${name}”.`);

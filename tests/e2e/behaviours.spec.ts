@@ -24,6 +24,113 @@ type W = {
   };
 };
 
+test('Engine API course: a sentry lamp sees the hero and, used, tells a crate to slide', async ({ page }) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
+  await page.getByRole('menuitem', { name: /Engine API course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(9);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    if (await doIt.isVisible()) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doIt.click();
+      const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+      const done = card.getByText(/✓ Done!/);
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (await rest.isVisible()) await rest.click();
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      await page.screenshot({ path: `test-results/api-${String(i).padStart(2, '0')}.png` });
+    }
+    if (/Drag Slider/.test(title)) await expect(page.locator('[data-tour="dock-behaviours"]')).toBeVisible();
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  expect(errors).toEqual([]);
+});
+
+test('a behaviour dragged from the dock onto a placed object is attached to that copy', async ({ page }) => {
+  test.setTimeout(300_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  // a behaviour and a placed object to drop it on
+  await page.evaluate(() => {
+    const e = (
+      window as unknown as {
+        __editor: { exec(c: unknown): { ok: boolean }; mapId: { value: string }; dock: { value: string } };
+      }
+    ).__editor;
+    e.exec({
+      type: 'logic.create',
+      payload: {
+        graph: {
+          id: 'lg_dragtestaa',
+          name: 'Wobble',
+          scope: 'global',
+          behaviour: { fields: [] },
+          nodes: [],
+          edges: [],
+        },
+      },
+    });
+    e.dock.value = 'behaviours';
+  });
+  const card = page.getByRole('listitem', { name: 'Wobble' });
+  await expect(card).toBeVisible();
+  // a placed asset (a house the generator put on the map), selected and framed in the middle of the view
+  const target = await page.evaluate(() => {
+    type I = { inst: { id: string }; bricks: { id: number }[] };
+    type E = {
+      store: { list(p: string): string[]; get(p: string): unknown };
+      scene: { value: { instanceOf: Map<number, I> } };
+      select(ids: number[]): void;
+    };
+    const e = (window as unknown as { __editor: E }).__editor;
+    const p = e.store.list('maps/').find((x) => x.endsWith('/instances.json'))!;
+    const ids = new Set(
+      (e.store.get(p) as { items: { id: string; kind: string }[] }).items
+        .filter((i) => i.kind === 'asset')
+        .map((i) => i.id),
+    );
+    const inst = [...new Set(e.scene.value.instanceOf.values())].find((i) => ids.has(i.inst.id));
+    if (!inst) return null;
+    e.select(inst.bricks.map((b) => b.id));
+    return inst.inst.id;
+  });
+  expect(target).not.toBeNull();
+  await page.keyboard.press('f');
+  await page.waitForTimeout(800);
+  const view = page.locator('canvas').first();
+  const box = (await view.boundingBox())!;
+  // (the name tip of what is under the pointer sits in the middle: drop a little below it)
+  await card.dragTo(view, { sourcePosition: { x: 30, y: 14 }, targetPosition: { x: box.width / 2, y: box.height / 2 } });
+  await page.screenshot({ path: 'test-results/drag-after.png' });
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const e = (window as unknown as { __editor: { store: { list(p: string): string[]; get(p: string): unknown } } })
+          .__editor;
+        const p = e.store.list('maps/').find((x) => x.endsWith('/instances.json'))!;
+        const items = (e.store.get(p) as { items: { scripts?: { use: string }[] }[] }).items;
+        return items.some((i) => i.scripts?.some((s) => s.use === 'lg_dragtestaa'));
+      }),
+    )
+    .toBe(true);
+  expect(errors).toEqual([]);
+});
+
 test('Behaviours course: Do it for me makes a Blinker, attaches it to two lamp posts, and they blink at their own pace', async ({
   page,
 }) => {

@@ -342,7 +342,7 @@ export const HELP_STATES: HelpState[] = [
       await p.locator('[data-tour="map-dungeon"]').scrollIntoViewIfNeeded();
     },
   },
-  ...(['pack', 'library', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const).map((d) => ({
+  ...(['pack', 'library', 'behaviours', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const).map((d) => ({
     id: `scene-dock-${d}`,
     screen: 'scene',
     setup: async (p: Page) => {

@@ -52,6 +52,7 @@ export type DockTab =
   | 'assets'
   | 'pack'
   | 'library'
+  | 'behaviours'
   | 'console'
   | 'timeline'
   | 'profiler'

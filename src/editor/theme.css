@@ -6811,3 +6811,20 @@ img.bw-portrait {
 .bhv-attached input[type='checkbox'] {
   justify-self: start;
 }
+/* Milestone 3b (B2): the dock's Behaviours tab */
+.bhv-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 10px 10px;
+}
+.bhv-card {
+  display: grid;
+  gap: 3px;
+  width: 200px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel2, transparent);
+  cursor: grab;
+}

@@ -1,4 +1,5 @@
 import { ADVENTURE } from './adventure';
+import { API, API_EVENTS, API_MATH } from './api';
 import { BUTTON_EVENTS, BUTTONS } from './buttons';
 import { DIALOGUE, DIALOGUE_EVENTS, MOVES, SHEET, SHEET_EVENTS } from './dialogue';
 import { EFFECTS } from './effects';
@@ -54,6 +55,10 @@ export const CATALOG: readonly NodeDef[] = [
   // Milestone 3b (B1): behaviours
   ...SELF_EVENTS,
   ...SELF,
+  // Milestone 3b (B2): the engine API
+  ...API_MATH,
+  ...API_EVENTS,
+  ...API,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

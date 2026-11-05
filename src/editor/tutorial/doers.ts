@@ -154,6 +154,51 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     setTimeout(() => c.ui.frameSelection(), 30);
   },
   /** P9c: selects the first placed copy of an asset (by name) on the open map and frames it */
+  // Milestone 3b (B2): the engine API course
+  dropBehaviour(c, a) {
+    // what dragging a behaviour from the dock's Behaviours tab onto a placed copy does
+    const g = behaviourByName(c, String(a?.behaviour ?? ''));
+    const asset = assetByName(c, String(a?.asset ?? ''));
+    if (!g || !asset) throw new Error('Make the behaviour and place the object first.');
+    c.ui.workspace('Scene');
+    c.ed.dock.value = 'behaviours';
+    const s = c.ed.scene.value!;
+    const pick = [...new Set(s.instanceOf.values())].find((i) => i.def.id === asset.id);
+    if (!pick) throw new Error(`Place a ${asset.name} first.`);
+    c.ed.select(pick.bricks.map((b) => b.id));
+    if ((pick.inst.scripts ?? []).some((x) => x.use === g.id)) return;
+    run(
+      c,
+      [{ type: 'script.attach', payload: { target: { kind: 'instance', map: map(c), id: pick.inst.id }, use: g.id } }],
+      `Attach ${g.name}`,
+    );
+  },
+  async walkNear(c, a) {
+    // what walking up to a placed object does (the hero stops a couple of studs short of it)
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const o = s.world.instances.find((i) => i.def.name === String(a?.asset ?? ''));
+    if (!o) throw new Error(`Place a ${String(a?.asset)} first.`);
+    faceThing(s, o, Number(a?.gap ?? 1));
+    await wait(600);
+  },
+  async useNear(c, a) {
+    // what pressing the Action button (E) beside a placed object does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const o = s.world.instances.find((i) => i.def.name === String(a?.asset ?? ''));
+    if (!o) throw new Error(`Place a ${String(a?.asset)} first.`);
+    const so = o.sockets.find((x) => x.kind === 'interact');
+    if (so) {
+      const h = s.heroState;
+      const yaw = Math.atan2(so.world[0] - h.x, so.world[2] - h.z);
+      s.placeAt([so.world[0] - Math.sin(yaw) * 1, h.y, so.world[2] - Math.cos(yaw) * 1], yaw);
+    } else faceThing(s, o, 0.4);
+    await wait(250);
+    s.stepInteract();
+    s.interact();
+    await wait(500);
+  },
   // Milestone 3b (B1): the Behaviours course
   newBehaviourNamed(c, a) {
     // what Logic › Behaviours › + New and typing its name does

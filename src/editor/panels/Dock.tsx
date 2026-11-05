@@ -36,6 +36,7 @@ import { bodyOfChr } from '../workspaces/character-studio/Body';
 import { CharacterThumb } from '../workspaces/character-studio/thumbs';
 import { allEffects } from '../workspaces/effects/EffectsStudio';
 import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
+import { BehavioursDock } from './BehavioursDock';
 import { LightSwatch } from './LightFields';
 import { ModelCards, modelChoices } from './ModelFields';
 
@@ -127,6 +128,7 @@ export function Dock({ c }: { c: ActionCtx }) {
     ['assets', 'Assets'],
     ['pack', 'Starter pack'],
     ['library', 'My library'],
+    ['behaviours', 'Behaviours'],
     ['console', 'Console'],
     ['timeline', 'Timeline'],
     ['profiler', 'Profiler'],
@@ -156,6 +158,7 @@ export function Dock({ c }: { c: ActionCtx }) {
       {tab === 'assets' && <Assets c={c} />}
       {tab === 'pack' && <PackPanel c={c} />}
       {tab === 'library' && <LibraryPanel c={c} />}
+      {tab === 'behaviours' && <BehavioursDock c={c} />}
       {tab === 'console' && <Console ed={ed} />}
       {tab === 'timeline' && <MapTimeline c={c} />}
       {tab === 'profiler' && <Profiler ed={ed} />}
@@ -1080,6 +1083,7 @@ export const DOCK_TABS = [
   'assets',
   'pack',
   'library',
+  'behaviours',
   'console',
   'timeline',
   'profiler',

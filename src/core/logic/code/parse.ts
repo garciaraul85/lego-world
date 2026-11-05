@@ -19,6 +19,11 @@ class CodeError extends Error {
   }
 }
 
+/** Milestone 3b (B2): function cards (math.min(a, b), entity.x("this")…) by their code name */
+const PURE_CALLS = new Map(
+  CATALOG.filter((d) => d.kind === 'pure' && d.code.style === 'call' && !d.args?.length).map((d) => [d.code.name, d]),
+);
+
 const CALLS = new Map(
   CATALOG.filter((d) => d.kind === 'action' && d.code.style === 'call').map((d) => [d.code.name, d]),
 );
@@ -333,6 +338,24 @@ export function parseCode(code: string, prev?: Pick<LogicGraph, 'nodes' | 'edges
       const n = add('items.count', p);
       value(x.arguments[0], n, 'item', `${p}/item`, scope);
       return [n.id, 'out'];
+    }
+    if (x.type === 'CallExpression') {
+      const name = (() => {
+        try {
+          return calleeName(x.callee);
+        } catch {
+          return '';
+        }
+      })();
+      const d = PURE_CALLS.get(name);
+      if (d) {
+        const ins = d.inputs.filter((i) => i.type !== 'exec');
+        if (x.arguments.length > ins.length)
+          throw new CodeError(`${name}() takes ${ins.length} value${ins.length === 1 ? '' : 's'}.`, x);
+        const nd = add(d.type, p);
+        x.arguments.forEach((a: N, k: number) => value(a, nd, ins[k]!.name, `${p}/${ins[k]!.name}`, scope));
+        return [nd.id, d.outputs.find((o) => o.type !== 'exec')!.name];
+      }
     }
     throw new CodeError('This value is not part of the logic language.', x);
   }

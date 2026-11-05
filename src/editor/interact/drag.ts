@@ -9,6 +9,8 @@ export type DragPayload =
   | { kind: 'brick'; type: string; color: string; rot: number }
   /** step 11, 4a: a character from the starter pack (or the game), put on the map as a neighbour */
   | { kind: 'character'; character: string; name: string }
+  /** Milestone 3b (B2): a behaviour from the dock's Behaviours tab, attached to the copy it is dropped on */
+  | { kind: 'behaviour'; use: string; name: string }
   | MediaDrag;
 
 /** step 11 (P24 part 3): an imported file dragged from the Media library */
@@ -28,7 +30,11 @@ export function startDrag(e: DragEvent, p: DragPayload) {
   e.dataTransfer?.setData(DRAG_MIME, JSON.stringify(p));
   e.dataTransfer?.setData(
     'text/plain',
-    p.kind === 'asset' ? p.asset : p.kind === 'media' || p.kind === 'character' ? p.name : p.type,
+    p.kind === 'asset'
+      ? p.asset
+      : p.kind === 'media' || p.kind === 'character' || p.kind === 'behaviour'
+        ? p.name
+        : p.type,
   );
   if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
 }

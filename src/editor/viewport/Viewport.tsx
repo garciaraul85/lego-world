@@ -1506,6 +1506,13 @@ export function Viewport({
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
         return;
       }
+      // Milestone 3b (B2): a behaviour goes onto the placed object under the pointer
+      if (p.kind === 'behaviour') {
+        if (studio) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        return;
+      }
       // the Scene takes assets; an asset's build plate takes bricks and other assets
       if (p.kind === 'brick' ? !studio : studio && !studio.reuse) return;
       e.preventDefault();
@@ -1549,6 +1556,27 @@ export function Viewport({
         const at = s.surface(rayAt(e), (b) => !ed.isVisible(b));
         if (at) placeModelAt(ed, at, p.ref, p.name.replace(/\.[^.]+$/, ''));
         else flashTag('Drop it on the ground or a brick', local(e));
+        return;
+      }
+      if (p.kind === 'behaviour') {
+        if (studio) return;
+        e.preventDefault();
+        endDrag();
+        const hit = s.pick(rayAt(e), pickable);
+        const inst = hit ? s.ownerOf(hit.brick.id) : null;
+        if (!inst) {
+          flashTag('Drop it on a placed object', local(e));
+          return;
+        }
+        ed.select(inst.bricks.map((b) => b.id));
+        const r = ed.exec(
+          {
+            type: 'script.attach',
+            payload: { target: { kind: 'instance', map: ed.mapId.value, id: inst.inst.id }, use: p.use },
+          },
+          { label: `Attach ${p.name}` },
+        );
+        flashTag(r.ok ? `${p.name} is on this ${inst.def.name}` : (r.error ?? 'It could not be attached'), local(e));
         return;
       }
       if (p.kind === 'character') {

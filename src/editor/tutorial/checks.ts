@@ -192,6 +192,19 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
       )
     );
   },
+  copyHasBehaviour: (ed, a) => {
+    const [asset, b] = String(a).split(',');
+    const g = behaviourGraph(ed, b!);
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return (
+      !!g &&
+      items.some((i) => {
+        if (i.kind !== 'asset' || !i.scripts?.some((s) => s.use === g.id)) return false;
+        const def = ed.store.get<Asset>(paths.asset(i.asset));
+        return def?.name === asset;
+      })
+    );
+  },
   behaviourRunning: (ed, a) => {
     const [b, n] = String(a).split(',');
     const g = behaviourGraph(ed, b!);

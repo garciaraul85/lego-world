@@ -3120,6 +3120,133 @@ export class PlaySession {
     ];
   }
 
+  // ---------- Milestone 3b (B2): the engine API ----------
+
+  /** "" and "player" mean the hero */
+  private apiRef(ref: string): string {
+    const r = String(ref ?? '').trim();
+    return !r || r.toLowerCase() === 'hero' || r.toLowerCase() === 'player' ? 'hero' : r;
+  }
+
+  private apiRead(what: 'x' | 'y' | 'z' | 'heading' | 'state', ref: string): number | string {
+    const r = this.apiRef(ref);
+    if (what === 'state') return r === 'hero' ? '' : (this.resolveEntity(r)?.state ?? '');
+    if (what === 'heading') {
+      if (r === 'hero') return (this.heroState.heading * 180) / Math.PI;
+      const inst = this.resolveEntity(r);
+      if (inst) return inst.inst.rot * 90;
+      const npc = this.npcByRef(r);
+      return npc ? (npc.state.heading * 180) / Math.PI : 0;
+    }
+    const p = r === 'hero' ? [this.heroState.x, this.heroState.y, this.heroState.z] : this.positionOf(r);
+    if (!p) return 0;
+    if (what === 'y' && r !== 'hero') {
+      // an asset's height is its base, as a character's is its feet
+      const inst = this.resolveEntity(r);
+      if (inst?.bricks.length) return Math.min(...inst.bricks.map((b) => b.y)) * 0.4;
+    }
+    return p[what === 'x' ? 0 : what === 'y' ? 1 : 2]!;
+  }
+
+  private apiMove(op: 'by' | 'to', ref: string, x: number, y: number, z: number) {
+    const r = this.apiRef(ref);
+    if (![x, y, z].every(Number.isFinite)) return;
+    if (r === 'hero') {
+      const h = this.heroState;
+      this.placeAt(op === 'by' ? [h.x + x, h.y + y, h.z + z] : [x, y, z], h.heading);
+      return;
+    }
+    const inst = this.resolveEntity(r);
+    if (inst) {
+      // in whole studs (and plates up and down), like a moving platform
+      const [px, py, pz] = inst.inst.pos;
+      const base = Math.min(...inst.bricks.map((b) => b.y));
+      const dy = Math.round(y / 0.4);
+      const to: [number, number, number] =
+        op === 'by'
+          ? [px + Math.round(x), py + dy, pz + Math.round(z)]
+          : [Math.round(x - (this.instanceCenter(inst)![0] - px)), py + (dy - base), Math.round(z - (this.instanceCenter(inst)![2] - pz))];
+      if (to[0] !== px || to[1] !== py || to[2] !== pz) this.moveInstance(inst, to);
+      return;
+    }
+    const npc = this.npcByRef(r);
+    if (!npc) return;
+    const s = npc.state;
+    const at = op === 'by' ? [s.x + x, s.y + y, s.z + z] : [x, y, z];
+    Object.assign(s, { x: at[0], y: at[1], z: at[2] });
+    const c = (npc as unknown as { controller?: { state?: { x: number; y: number; z: number } } }).controller;
+    if (c?.state && c.state !== s) Object.assign(c.state, { x: at[0], y: at[1], z: at[2] });
+  }
+
+  private apiFace(ref: string, deg: number) {
+    if (!Number.isFinite(deg)) return;
+    const r = this.apiRef(ref);
+    const rad = (deg * Math.PI) / 180;
+    if (r === 'hero') {
+      this.heroState.heading = rad;
+      return;
+    }
+    const inst = this.resolveEntity(r);
+    if (inst) {
+      const rot = ((Math.round(deg / 90) % 4) + 4) % 4;
+      if (rot !== inst.inst.rot) {
+        inst.inst = { ...inst.inst, rot };
+        this.moveInstance(inst, inst.inst.pos);
+      }
+      return;
+    }
+    const npc = this.npcByRef(r);
+    if (npc) npc.state.heading = rad;
+  }
+
+  private apiPush(op: 'push' | 'velocity', ref: string, x: number, y: number, z: number) {
+    if (![x, y, z].every(Number.isFinite)) return;
+    const r = this.apiRef(ref);
+    if (r === 'hero') {
+      const h = this.heroState as HeroState & { vx?: number; vz?: number };
+      if (op === 'velocity') h.vy = y;
+      else h.vy = (h.vy ?? 0) + y;
+      // across: the hero drifts, as a gust carries it
+      this.heroDrift = op === 'velocity' ? { x, z } : { x: (this.heroDrift?.x ?? 0) + x, z: (this.heroDrift?.z ?? 0) + z };
+      if (y > 0) h.grounded = false;
+      return;
+    }
+    const inst = this.resolveEntity(r);
+    const ph = this.world.physics;
+    if (!inst || !ph) return;
+    if (op === 'velocity') ph.setObjectVelocity(inst.inst.id, [x, y, z]);
+    else {
+      const v = ph.objectVelocity(inst.inst.id);
+      if (v) ph.setObjectVelocity(inst.inst.id, [v[0] + x, v[1] + y, v[2] + z]);
+    }
+  }
+
+  private apiRaycast(ref: string, reach: number): number {
+    const r = this.apiRef(ref);
+    const p = this.positionOf(r);
+    if (!p || !(reach > 0)) return -1;
+    const deg = Number(this.apiRead('heading', r));
+    const a = (deg * Math.PI) / 180;
+    const from: [number, number, number] =
+      r === 'hero' ? [p[0], p[1] + 1, p[2]] : this.resolveEntity(r) ? [p[0], p[1], p[2]] : [p[0], p[1] + 1, p[2]];
+    // start just outside itself
+    const inst = r === 'hero' ? null : this.resolveEntity(r);
+    const skip = inst?.box ? Math.max(inst.box[2] - inst.box[0], inst.box[3] - inst.box[1]) / 2 + 0.2 : 0.6;
+    const start: [number, number, number] = [from[0] + Math.sin(a) * skip, from[1], from[2] + Math.cos(a) * skip];
+    const to: [number, number, number] = [start[0] + Math.sin(a) * reach, start[1], start[2] + Math.cos(a) * reach];
+    const ph = this.world.physics;
+    if (ph) {
+      const hit = ph.castSegment(start, to, { pad: 0.05, skipHero: r === 'hero' });
+      return hit ? Math.round((hit.t + skip) * 100) / 100 : -1;
+    }
+    for (let d = 0; d <= reach; d += 0.25) {
+      const x = start[0] + Math.sin(a) * d;
+      const z = start[2] + Math.cos(a) * d;
+      if (!this.world.controller.clear(x, start[1], z)) return Math.round((d + skip) * 100) / 100;
+    }
+    return -1;
+  }
+
   // ---------- health (P9a) ----------
 
   /** the nearest neighbour that can be harmed, in front of the hero within reach */
@@ -4642,6 +4769,38 @@ export class PlaySession {
             this.cine.stop();
             break;
         }
+      },
+      // Milestone 3b (B2): the engine API
+      entity: (what, ref) => this.apiRead(what, ref),
+      distance: (a, b) => {
+        const p = this.positionOf(this.apiRef(a));
+        const q = this.positionOf(this.apiRef(b));
+        return p && q ? Math.hypot(p[0] - q[0], p[2] - q[2]) : -1;
+      },
+      moveThing: (op, ref, x, y, z) => this.apiMove(op, ref, x, y, z),
+      face: (ref, deg) => this.apiFace(ref, deg),
+      lookAt: (ref, other) => {
+        const p = this.positionOf(this.apiRef(ref));
+        const q = this.positionOf(this.apiRef(other));
+        if (p && q) this.apiFace(ref, (Math.atan2(q[0] - p[0], q[2] - p[2]) * 180) / Math.PI);
+      },
+      physics: (op, ref, x, y, z) => this.apiPush(op, ref, x, y, z),
+      raycast: (ref, reach) => this.apiRaycast(ref, reach),
+      held: (button) => {
+        const k = this.input.keys;
+        const t = this.input.touch;
+        const key = ([...BUTTONS, ...MOVES] as string[]).includes(button)
+          ? this.buttons.keyOf(button as Bindable).toLowerCase()
+          : '';
+        return k.has(button) || t.has(button) || (!!key && k.has(key));
+      },
+      resolve: (ref) => {
+        const r = this.apiRef(ref);
+        if (r === 'hero') return 'hero';
+        const inst = this.resolveEntity(r);
+        if (inst) return inst.inst.id;
+        const npc = this.npcByRef(r);
+        return npc ? (this.npcSelf(npc).self ?? null) : null;
       },
       inZone: (zone) => {
         const z = this.world.doc.zones.find((x) => x.id === zone);

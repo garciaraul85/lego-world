@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (99 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (132 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -255,6 +255,16 @@ Runs every game step (60 times a second) for each thing the behaviour is attache
 - Outputs: dt (number)
 - Code: `on("update", (e) => { … });`
 
+### On message
+
+`event.onMessage` · event
+
+Runs when a behaviour sends this object a message (Send message). Leave Name empty to hear every message. value is what was sent; from is who sent it.
+
+- Settings: Name (string, optional)
+- Outputs: value (any), from (entity)
+- Code: `on("message", { name: … }, (e) => { … });`
+
 ## Flow
 
 ### Branch
@@ -387,6 +397,126 @@ A whole number from Min to Max (both included).
 - Outputs: out (number)
 - Code: `random(min, max)`
 
+### Divide
+
+`math.div` · pure
+
+Divides a by b (0 when b is 0).
+
+- Inputs: a (number), b (number)
+- Outputs: out (number)
+- Code: `(a / b)`
+
+### Remainder
+
+`math.mod` · pure
+
+What is left over when a is divided by b (7 % 3 is 1).
+
+- Inputs: a (number), b (number)
+- Outputs: out (number)
+- Code: `(a % b)`
+
+### Smaller
+
+`math.min` · pure
+
+The smaller of a and b.
+
+- Inputs: a (number), b (number)
+- Outputs: out (number)
+- Code: `math.min(a, b)`
+
+### Larger
+
+`math.max` · pure
+
+The larger of a and b.
+
+- Inputs: a (number), b (number)
+- Outputs: out (number)
+- Code: `math.max(a, b)`
+
+### Without sign
+
+`math.abs` · pure
+
+The number without its minus sign (−3 → 3).
+
+- Inputs: a (number)
+- Outputs: out (number)
+- Code: `math.abs(a)`
+
+### Keep between
+
+`math.clamp` · pure
+
+The value, kept between low and high.
+
+- Inputs: value (number), low (number), high (number)
+- Outputs: out (number)
+- Code: `math.clamp(value, low, high)`
+
+### Blend
+
+`math.lerp` · pure
+
+From a toward b by t (0 is a, 1 is b, 0.5 halfway).
+
+- Inputs: a (number), b (number), t (number)
+- Outputs: out (number)
+- Code: `math.lerp(a, b, t)`
+
+### Sine
+
+`math.sin` · pure
+
+The sine of an angle in degrees: goes smoothly from −1 to 1 and back (for swinging, bobbing).
+
+- Inputs: degrees (number)
+- Outputs: out (number)
+- Code: `math.sin(degrees)`
+
+### Cosine
+
+`math.cos` · pure
+
+The cosine of an angle in degrees.
+
+- Inputs: degrees (number)
+- Outputs: out (number)
+- Code: `math.cos(degrees)`
+
+### Square root
+
+`math.sqrt` · pure
+
+The square root (of 0 or more).
+
+- Inputs: a (number)
+- Outputs: out (number)
+- Code: `math.sqrt(a)`
+
+### Round
+
+`math.round` · pure
+
+The nearest whole number.
+
+- Inputs: a (number)
+- Outputs: out (number)
+- Code: `math.round(a)`
+
+### Round down
+
+`math.floor` · pure
+
+The whole number at or below it.
+
+- Inputs: a (number)
+- Outputs: out (number)
+- Code: `math.floor(a)`
+
 ## Compare
 
 ### At least
@@ -448,6 +578,36 @@ True when the input is false.
 - Inputs: a (bool)
 - Outputs: out (bool)
 - Code: `!a`
+
+### More than
+
+`compare.gt` · pure
+
+True when a > b.
+
+- Inputs: a (any), b (any)
+- Outputs: out (bool)
+- Code: `(a > b)`
+
+### Less than
+
+`compare.lt` · pure
+
+True when a < b.
+
+- Inputs: a (any), b (any)
+- Outputs: out (bool)
+- Code: `(a < b)`
+
+### Not equal
+
+`compare.neq` · pure
+
+True when a and b are different.
+
+- Inputs: a (any), b (any)
+- Outputs: out (bool)
+- Code: `(a !== b)`
 
 ## World
 
@@ -963,3 +1123,173 @@ Adds an amount to a number field or own variable, on this copy only (this.name +
 - Settings: Field or own variable (field)
 - Inputs: amount (number)
 - Code: `this(name, amount);`
+
+## Text
+
+### Join text
+
+`text.join` · pure
+
+Puts two pieces of text (or numbers) together: “Gems: ” and 3 make “Gems: 3”.
+
+- Inputs: a (any), b (any)
+- Outputs: out (string)
+- Code: `text.join(a, b)`
+
+## Things
+
+### X of
+
+`entity.x` · pure
+
+Where it is across (studs, east is +).
+
+- Inputs: target (entity)
+- Outputs: out (number)
+- Code: `entity.x(target)`
+
+### Height of
+
+`entity.y` · pure
+
+How high it stands (studs).
+
+- Inputs: target (entity)
+- Outputs: out (number)
+- Code: `entity.y(target)`
+
+### Z of
+
+`entity.z` · pure
+
+Where it is along (studs, south is +).
+
+- Inputs: target (entity)
+- Outputs: out (number)
+- Code: `entity.z(target)`
+
+### Facing of
+
+`entity.heading` · pure
+
+Which way it faces, in degrees (0 is +z, 90 is +x).
+
+- Inputs: target (entity)
+- Outputs: out (number)
+- Code: `entity.heading(target)`
+
+### State of
+
+`entity.state` · pure
+
+A placed asset’s state now (“open”, “on”…).
+
+- Inputs: target (entity)
+- Outputs: out (string)
+- Code: `entity.state(target)`
+
+### Distance
+
+`entity.distance` · pure
+
+How far apart two things are, in studs along the ground.
+
+- Inputs: From (entity), To (entity)
+- Outputs: out (number)
+- Code: `entity.distance(a, b)`
+
+### Move by
+
+`entity.moveBy` · action
+
+Moves something this many studs (a placed asset moves in whole studs, carrying whatever stands on it; a character or the hero moves smoothly). The way must be clear for an asset.
+
+- Inputs: target (entity), x (number), y (number), z (number)
+- Code: `entity.moveBy(target, x, y, z);`
+
+### Move to
+
+`entity.moveTo` · action
+
+Puts something at a place (x, y, z in studs). An asset goes to the nearest whole stud.
+
+- Inputs: target (entity), x (number), y (number), z (number)
+- Code: `entity.moveTo(target, x, y, z);`
+
+### Face
+
+`entity.face` · action
+
+Turns something to face a way, in degrees (0 is +z, 90 is +x). A placed asset turns in quarter turns.
+
+- Inputs: target (entity), degrees (number)
+- Code: `entity.face(target, degrees);`
+
+### Turn toward
+
+`entity.lookAt` · action
+
+Turns something to face another thing (a character turns smoothly; an asset in quarter turns).
+
+- Inputs: target (entity), Toward (entity)
+- Code: `entity.lookAt(target, other);`
+
+### Send message
+
+`msg.send` · action
+
+Sends a message to another object: its behaviours’ On message (with this name) run, with the value. Behaviours talk to each other this way (a switch tells a door to open).
+
+- Inputs: To (entity), name (string), value (any)
+- Code: `msg.send(target, name, value);`
+
+## Physics
+
+### Push
+
+`physics.push` · action
+
+Gives a loose object (Turn it into › Loose) or the hero a push: a change of speed in studs a second (x, y up, z). Heavier things are pushed the same way: it is a speed, not a force.
+
+- Inputs: target (entity), x (number), y (number), z (number)
+- Code: `physics.push(target, x, y, z);`
+
+### Set speed
+
+`physics.setVelocity` · action
+
+Sets how fast a loose object moves now (studs a second: x, y up, z).
+
+- Inputs: target (entity), x (number), y (number), z (number)
+- Code: `physics.setVelocity(target, x, y, z);`
+
+### Look ahead
+
+`physics.raycast` · pure
+
+How far something solid is in front of it (studs), looking from a little above its feet the way it faces; −1 when nothing is within Reach.
+
+- Inputs: From (entity), reach (number)
+- Outputs: out (number)
+- Code: `physics.raycast(from, reach)`
+
+## Input
+
+### Button held
+
+`input.held` · pure
+
+True while the player holds a button: attack, action, jump, guard, roll, lockOn, item1, item2, item3, forward, back, left or right.
+
+- Inputs: button (string)
+- Outputs: out (bool)
+- Code: `input.held(button)`
+
+### Game time
+
+`time.now` · pure
+
+Seconds since play started (game time: it stops while paused).
+
+- Outputs: out (number)
+- Code: `time.now()`
