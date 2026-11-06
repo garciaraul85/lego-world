@@ -212,9 +212,24 @@ Every template comes with its parts (Pebblespout: Eyes, Hider, Spit; Watcher Eye
 
 ### Bosses
 
-A boss is an enemy whose kind of fighter is **boss**. Its brain, **BossBrain**, extends EnemyBrain: it fights as its **1st phase**'s kind (melee, knight, pack, shooter…), and as its health falls to each mark (**2nd phase from**, **3rd phase from**, in % of its health) it roars into the next phase: another kind of fighter (or as before), its own parts, and faster (**speed**, times). Each phase is built from the same templates and parts as any enemy.
+A boss is made in Logic. Extend one of the boss templates and write its **phases** at the top of the class; attach the behaviour to a character and that character is a boss:
 
-**When it can be hurt** picks its template:
+```
+class Rage extends PhasedBoss {
+  phases = [
+    { from: 100, fights: "pack" },
+    { from: 50, fights: "shooter", speed: 1.5, name: "Wounded" },
+  ];
+
+  phase(e) {
+    log(text.join("Phase ", e.phase));
+  }
+}
+```
+
+Each phase starts when its health falls to **from** (in %; 100 is its first phase) and fights as **fights** (melee, knight, pack, shooter, ambusher… — left out: as the phase before), with its parts (**senses**, **mover**, **attack**, **hurt**: its hurt reaction), **speed** and **power** (times its own) and a **name**. The **Phases** panel beside the code in Logic shows the same list: change a box and the line in the class changes.
+
+The template it extends says when it can be hurt:
 
 | Template | It can be hurt |
 |---|---|
@@ -222,12 +237,18 @@ A boss is an enemy whose kind of fighter is **boss**. Its brain, **BossBrain**, 
 | **WeakPointBoss** | only just after it attacks (its opening); otherwise it is guarded |
 | **PuzzleBoss** | only while stunned (by what it is stunned by, a parry, or its own shot sent back); a stun hit gets through as its opening |
 
-Its hooks: `phaseFor(e)` (`e.hp`, `e.max`, `e.phase`) returns the phase to be in; `isVulnerable(e)` (`e.how`, `e.phase`) whether this hit hurts. The **On phase** event (`phase(e)`: `e.phase`, `e.from`) runs as it changes phase. The **Boss course** makes the Howler a boss that hunts as a pack hunter and, from half its health, backs off and shoots.
+A glowing part (an eye) is dull while a boss is guarded and glows when it can be hurt. Its hooks: `phaseFor(e)` (`e.hp`, `e.max`, `e.phase`) returns the phase to be in; `isVulnerable(e)` (`e.how`, `e.phase`) whether this hit hurts. The **On phase** event (`phase(e)`: `e.phase`, `e.from`) runs as it changes phase. The **Boss course** makes the Howler a boss that hunts as a pack hunter and, from half its health, backs off and shoots.
 
-**Gloomweaver**, the starter pack's boss, is built this way: a **WeakPointBoss** that bites (1st phase), climbs into the dark on a thread and drops on the hero from 66% of its health (an ambusher), and from 33% backs off and spits webs that stick the hero fast, quicker on its legs (a shooter with a Spit whose hurt reaction is stun). Its eye is dull while it is guarded and glows when it can be hurt: just after it strikes, or stunned by light. Placed from the pack, its behaviour comes with it:
+**Gloomweaver**, the starter pack's boss, is made this way; placed from the pack, its behaviour comes with it:
 
 ```
 class Gloomweaver extends WeakPointBoss {
+  phases = [
+    { from: 100, fights: "melee", attack: "bite" },
+    { from: 66, fights: "ambusher", name: "From the dark" },
+    { from: 33, fights: "shooter", attack: "spit", hurt: "stun", speed: 1.3, name: "Web storm" },
+  ];
+
   phase(e) {
     if ((e.phase === 2)) {
       say("Gloomweaver climbs into the dark! Watch above.", 3);
@@ -241,4 +262,4 @@ class Gloomweaver extends WeakPointBoss {
 }
 ```
 
-**Spawn character** takes a spawn point, or **hero** or a character's name: it comes in a few studs from them. The **Gloomweaver course** walks through it.
+It bites; from 66% it climbs into the dark on a thread and drops on the hero; from 33% it backs off and spits webs that stick the hero fast. Strike it when its eye glows: just after it bites, or stunned by light. **Spawn character** takes a spawn point, or **hero** or a character's name: it comes in a few studs from them. The **Gloomweaver course** walks through it.

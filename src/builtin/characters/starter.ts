@@ -28,10 +28,17 @@ export type PackCharacter = {
 };
 
 /**
- * Milestone 3b (14a-2): Gloomweaver's behaviour — the boss built from the brains: its phases and weak moments are
- * its BossBrain settings; this class adds what it says and does as each phase begins (its brood comes in the last).
+ * Milestone 3b (14a-2): Gloomweaver's behaviour — the boss made in Logic: its phases are written in the class, it is
+ * hurt only just after it strikes (it extends WeakPointBoss), and phase(e) says what it does as each phase begins
+ * (its brood comes in the last).
  */
 const GLOOMWEAVER = `class Gloomweaver extends WeakPointBoss {
+  phases = [
+    { from: 100, fights: "melee", attack: "bite" },
+    { from: 66, fights: "ambusher", name: "From the dark" },
+    { from: 33, fights: "shooter", attack: "spit", hurt: "stun", speed: 1.3, name: "Web storm" },
+  ];
+
   phase(e) {
     if ((e.phase === 2)) {
       say("Gloomweaver climbs into the dark! Watch above.", 3);
@@ -467,9 +474,10 @@ Glim: Lock on with Z and watch for the red “!” — that's when they strike!`
         colors: { main: '#2b1a3a', accent: '#6a1b9a', belly: '#3d2452', eye: '#ff3030' },
         params: { size: 1.8 },
       },
-      // (Milestone 3b, 14a-2: it can only be hurt in its openings now, so a blow there counts: no armour, a soft back)
+      // (Milestone 3b, 14a-2: it can only be hurt in its openings now, so a blow there counts: no armour, no hard
+      // front, a soft back)
       harm: harm(16, {
-        sides: { front: 0.5, back: 1.5, above: 2 },
+        sides: { back: 1.5, above: 2 },
         resist: { pierce: 2, fire: 1.5 },
         stunBy: ['light', 'stun'],
         stunFor: 3,
@@ -484,20 +492,9 @@ Glim: Lock on with Z and watch for the red “!” — that's when they strike!`
         speed: 0.9,
         cooldown: 2.2,
         windup: 0.9,
-        style: 'boss',
+        // (a boss by its behaviour: its phases are written in class Gloomweaver, in Logic)
+        style: 'melee',
         wits: 'smart',
-        // Milestone 3b (14a-2): three phases built from the templates and parts; it is hurt only when its eye glows
-        boss: {
-          first: 'melee',
-          phases: [
-            // two-thirds down: it climbs into the dark on a thread and drops on the hero
-            { at: 0.66, style: 'ambusher', name: 'From the dark' },
-            // one-third down: it backs off and spits webs that stick the hero fast, quicker on its legs
-            { at: 0.33, style: 'shooter', parts: { attack: 'spit', hurt: 'stun' }, speedK: 1.3, name: 'Web storm' },
-          ],
-          vulnerable: 'afterAttack',
-        },
-        parts: { attack: 'bite' },
       }),
       behaviour: { kind: 'boss', routine: 'wander' },
     },

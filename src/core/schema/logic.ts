@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PhaseDef } from '../combat/enemy';
 import { id, Vec2 } from './common';
 
 export const LogicNode = z.strictObject({
@@ -53,6 +54,8 @@ export const BehaviourDef = z.strictObject({
   vars: z.record(ident, FieldValue).optional(),
   extends: z.string().max(60).optional(),
   about: z.string().max(400).optional(),
+  /** Milestone 3b (14a-2): a boss's phases, written in its class (one extending PhasedBoss, WeakPointBoss…) */
+  phases: z.array(PhaseDef).max(5).optional(),
 });
 export type BehaviourDef = z.infer<typeof BehaviourDef>;
 

@@ -131,6 +131,11 @@ export type BossPhase = z.infer<typeof BossPhase>;
 export const BossPlan = z.strictObject({
   /** the kind it fights as in its first phase (default melee) */
   first: z.enum(PHASE_STYLES as [string, ...string[]]).optional(),
+  /** its parts in its first phase (default: its own) */
+  firstParts: EnemyParts.optional(),
+  /** times its own speed and power in its first phase */
+  firstSpeedK: z.number().min(0.2).max(4).optional(),
+  firstPowerK: z.number().min(0).max(5).optional(),
   /** the phases after the first, each from a lower health */
   phases: z.array(BossPhase).max(4),
   vulnerable: z.enum(BOSS_VULNERABLE).optional(),
@@ -152,17 +157,25 @@ export const bossPhases = (plan: BossPlan | undefined) => [...(plan?.phases ?? [
 export function bossEnemy(e: Enemy, n: number): Enemy {
   if (e.style !== 'boss') return e;
   const plan = e.boss;
-  let out: Enemy = { ...e, style: (plan?.first as EnemyStyle | undefined) ?? 'melee' };
+  // its kind and parts carry on from the phase before unless a phase sets them; its speed and power are times its
+  // own (a phase that leaves them out keeps the one before)
+  let speedK = plan?.firstSpeedK ?? 1;
+  let powerK = plan?.firstPowerK ?? 1;
+  let out: Enemy = {
+    ...e,
+    style: (plan?.first as EnemyStyle | undefined) ?? 'melee',
+    ...(plan?.firstParts ? { parts: plan.firstParts } : {}),
+  };
   for (const p of bossPhases(plan).slice(0, Math.max(0, n - 1))) {
+    speedK = p.speedK ?? speedK;
+    powerK = p.powerK ?? powerK;
     out = {
       ...out,
       style: (p.style as EnemyStyle | undefined) ?? out.style,
       parts: p.parts ? { ...(out.parts ?? {}), ...p.parts } : p.style ? undefined : out.parts,
-      speed: Math.min(3, out.speed * (p.speedK ?? 1)),
-      power: Math.min(20, out.power * (p.powerK ?? 1)),
     };
   }
-  return out;
+  return { ...out, speed: Math.min(3, e.speed * speedK), power: Math.min(20, e.power * powerK) };
 }
 
 export const ENEMY_PRESETS: Record<string, { name: string; enemy: Enemy; health: Health }> = {
@@ -182,3 +195,58 @@ export const ENEMY_PRESETS: Record<string, { name: string; enemy: Enemy; health:
     health: { hp: 2, atZero: { break: false } },
   },
 };
+
+/**
+ * Milestone 3b (14a-2): a boss's phase as its class writes it (Logic):
+ *   phases = [{ from: 100, fights: "melee", attack: "bite" }, { from: 66, fights: "ambusher" }, …];
+ * from: the health (%) it starts at (100: its first phase); fights: its kind of fighter (as before: the one before);
+ * senses, mover, attack, hurt: its parts; power, speed: times its own; name: what the phase is called.
+ */
+export const PhaseDef = z.strictObject({
+  from: z.number().int().min(1).max(100),
+  fights: z.enum(PHASE_STYLES as [string, ...string[]]).optional(),
+  senses: EnemyParts.shape.senses,
+  mover: EnemyParts.shape.mover,
+  attack: EnemyParts.shape.attack,
+  hurt: EnemyParts.shape.hurt,
+  power: z.number().min(0).max(5).optional(),
+  speed: z.number().min(0.2).max(4).optional(),
+  name: z.string().max(40).optional(),
+});
+export type PhaseDef = z.infer<typeof PhaseDef>;
+export const PHASE_KEYS = Object.keys(PhaseDef.shape) as (keyof PhaseDef)[];
+
+/** its parts as a phase writes them (none: undefined) */
+function phaseParts(p: PhaseDef): EnemyParts | undefined {
+  const parts: EnemyParts = {};
+  if (p.senses) parts.senses = p.senses;
+  if (p.mover) parts.mover = p.mover;
+  if (p.attack) parts.attack = p.attack;
+  if (p.hurt) parts.hurt = p.hurt;
+  return Object.keys(parts).length ? parts : undefined;
+}
+
+/** a class's phases as the plan the engine runs; how: when it can be hurt (by the template it extends) */
+export function planOfPhases(defs: readonly PhaseDef[], how: BossVulnerable): BossPlan {
+  const sorted = [...defs].sort((a, b) => b.from - a.from);
+  const first = sorted.find((p) => p.from >= 100);
+  const plan: BossPlan = { phases: [] };
+  if (first?.fights) plan.first = first.fights;
+  const fp = first && phaseParts(first);
+  if (fp) plan.firstParts = fp;
+  if (first?.speed !== undefined) plan.firstSpeedK = first.speed;
+  if (first?.power !== undefined) plan.firstPowerK = first.power;
+  for (const p of sorted.filter((x) => x.from < 100)) {
+    const parts = phaseParts(p);
+    plan.phases.push({
+      at: Math.max(0.01, Math.min(0.99, p.from / 100)),
+      ...(p.fights ? { style: p.fights } : {}),
+      ...(parts ? { parts } : {}),
+      ...(p.speed !== undefined ? { speedK: p.speed } : {}),
+      ...(p.power !== undefined ? { powerK: p.power } : {}),
+      ...(p.name ? { name: p.name } : {}),
+    });
+  }
+  if (how !== 'always') plan.vulnerable = how;
+  return plan;
+}

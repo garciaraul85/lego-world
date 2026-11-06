@@ -316,43 +316,67 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     }
   },
   async strikeWhenOpen(c, a) {
-    // Milestone 3b (14a-2): what fighting a guarded boss does: shield up in front of it while it strikes, then, as
-    // its eye glows, round behind it and swing hard — again until the Console says it
+    // Milestone 3b (14a-2): what fighting a guarded boss does: from a fair distance, walk up to it (never under it),
+    // shield up in front of it while it strikes; as its eye glows, step in and swing hard — again until the Console
+    // says it
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');
     const name = String(a?.name ?? '');
     const until = String(a?.until ?? '');
     const said = () => s.events.some((e) => e.msg.includes(until));
+    const foeNow = () => {
+      const f = s.world.npcs.find((x) => String(x.profile.name) === name);
+      if (!f) throw new Error(`Place ${name} first.`);
+      return f;
+    };
     const t0 = s.clock;
     try {
-      while (!said() && s.clock - t0 < Number(a?.seconds ?? 90)) {
-        const foe = s.world.npcs.find((x) => String(x.profile.name) === name);
-        if (!foe) throw new Error(`Place ${name} first.`);
-        const yaw = foe.state.heading;
-        s.camYaw = yaw + 1.1;
-        if (s.bossGuarded(foe)) {
-          // in front of it, shield up, close enough for it to strike
-          if (Math.hypot(s.heroState.x - foe.state.x, s.heroState.z - foe.state.z) > 4.5)
-            s.placeAt(
-              [foe.state.x + Math.sin(yaw) * 3.2, foe.state.y, foe.state.z + Math.cos(yaw) * 3.2],
-              yaw + Math.PI,
-            );
+      // start well in front of it, with room to walk up
+      let foe = foeNow();
+      const r0 = s.figureOf(foe).radius;
+      const yaw0 = foe.state.heading;
+      s.placeAt(
+        [foe.state.x + Math.sin(yaw0) * (r0 + 9), foe.state.y, foe.state.z + Math.cos(yaw0) * (r0 + 9)],
+        yaw0 + Math.PI,
+      );
+      s.camYaw = yaw0;
+      await wait(500);
+      while (!said() && s.clock - t0 < Number(a?.seconds ?? 120)) {
+        foe = foeNow();
+        const r = s.figureOf(foe).radius;
+        const at = (yaw: number, gap: number): [number, number] => [
+          foe.state.x + Math.sin(yaw) * (r + gap),
+          foe.state.z + Math.cos(yaw) * (r + gap),
+        ];
+        // block, then strike back: shield up toward it until it has just struck (and, guarded, until its eye glows)
+        if (s.bossGuarded(foe) || !s.enemies.justAttacked(foe, 0.9)) {
+          // in front of it, out from under it, shield up: it strikes, and its eye glows
+          // (too far: walk up to it first, shield down; near enough: turn to it, shield up, and let it come)
+          const h = s.heroState;
+          const far = Math.hypot(h.x - foe.state.x, h.z - foe.state.z) - r;
+          if (far > 4) {
+            s.input.keys.delete('q');
+            const toHero = Math.atan2(h.x - foe.state.x, h.z - foe.state.z);
+            await walkTo(s, at(toHero, 1.6), foe, 0.8);
+          }
+          s.heroState.heading = Math.atan2(foe.state.x - s.heroState.x, foe.state.z - s.heroState.z);
           s.input.keys.add('q');
-          await wait(100);
+          await wait(120);
           continue;
         }
+        // its opening: a step in to the edge of its body (still in front of it, not under it), then a hard swing
         s.input.keys.delete('q');
-        const back = yaw + Math.PI;
-        s.placeAt(
-          [foe.state.x + Math.sin(back) * 2.2, foe.state.y, foe.state.z + Math.cos(back) * 2.2],
-          back + Math.PI,
-        );
-        await wait(80);
+        const h1 = s.heroState;
+        if (Math.hypot(h1.x - foe.state.x, h1.z - foe.state.z) - r > 1)
+          await walkTo(s, at(Math.atan2(h1.x - foe.state.x, h1.z - foe.state.z), 0.5), foe, 0.4, true);
+        else s.heroState.heading = Math.atan2(foe.state.x - h1.x, foe.state.z - h1.z);
         s.strike('heavy');
-        await wait(600);
+        await wait(550);
       }
     } finally {
       s.input.keys.delete('q');
+      s.input.keys.delete('w');
+      s.input.keys.delete('shift');
     }
     if (!said()) throw new Error(`Not yet: strike ${name} when its eye glows.`);
   },
@@ -469,6 +493,41 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       c,
       [{ type: 'logic.replace', payload: { graph: { ...g, nodes: r.nodes, edges: r.edges, behaviour: r.behaviour } } }],
       'Edit logic as code',
+    );
+  },
+  // Milestone 3b (14a-2): a boss in Logic
+  openBehaviourNamed(c, a) {
+    // what clicking a behaviour's name under Logic › Behaviours does
+    const g = behaviourByName(c, String(a?.name ?? ''));
+    if (!g) throw new Error(`There is no ${String(a?.name)} behaviour yet.`);
+    c.ui.workspace('Logic');
+    c.ed.logicGraph.value = g.id;
+    c.ed.logicView.value = 'split';
+  },
+  openCharacterTab(c, a) {
+    // what picking a character in Characters and pressing one of its tabs does
+    const chr = c.ed.store
+      .list('characters/')
+      .map((p) => c.ed.store.get<Character>(p)!)
+      .find((x) => x?.name === String(a?.character));
+    if (!chr) throw new Error(`There is no ${String(a?.character)}.`);
+    c.ui.workspace('Characters');
+    c.ed.studioCharacter.value = chr.id;
+    c.ed.sheetTab.value = String(a?.tab ?? 'behaviour') as never;
+  },
+  setPhase(c, a) {
+    // what typing into a phase's box in Logic's Phases panel does (it rewrites the phases line of the class)
+    const g = behaviourByName(c, String(a?.behaviour ?? ''));
+    if (!g?.behaviour?.phases) throw new Error(`Write the ${String(a?.behaviour)} phases first.`);
+    c.ui.workspace('Logic');
+    c.ed.logicGraph.value = g.id;
+    c.ed.logicView.value = 'split';
+    const i = Number(a?.phase ?? 1) - 1;
+    const phases = g.behaviour.phases.map((p, j) => (j === i ? { ...p, [String(a?.key)]: a?.value } : p));
+    run(
+      c,
+      [{ type: 'logic.replace', payload: { graph: { ...g, behaviour: { ...g.behaviour, phases } } } }],
+      'Edit phase',
     );
   },
   attachBehaviour(c, a) {
@@ -2907,6 +2966,52 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
 
 /** waits a moment (real time) */
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Milestone 3b (14a-2): the hero walks (or runs) to a spot, as the stick does it: the camera turned to look that way,
+ * forward held; it stops within `near` studs (or after a few seconds), then faces `face`
+ */
+async function walkTo(
+  s: NonNullable<Ctx['ed']['session']['value']>,
+  to: [number, number],
+  face: { state: { x: number; z: number } } | null,
+  near = 0.5,
+  run = false,
+) {
+  const t0 = s.clock;
+  try {
+    while (s.clock - t0 < 4) {
+      const h = s.heroState;
+      const dx = to[0] - h.x;
+      const dz = to[1] - h.z;
+      if (Math.hypot(dx, dz) < near) break;
+      // backing away from what it faces: it steps back facing it (the camera stays behind the hero, not inside it)
+      const back =
+        !!face &&
+        Math.hypot(to[0] - face.state.x, to[1] - face.state.z) > Math.hypot(h.x - face.state.x, h.z - face.state.z) &&
+        Math.abs(
+          ((Math.atan2(dx, dz) - Math.atan2(h.x - face.state.x, h.z - face.state.z) + Math.PI * 3) % (Math.PI * 2)) -
+            Math.PI,
+        ) < 0.8;
+      if (back && face) {
+        s.camYaw = Math.atan2(face.state.x - h.x, face.state.z - h.z) + Math.PI;
+        s.input.keys.delete('w');
+        s.input.keys.add('s');
+      } else {
+        s.camYaw = Math.atan2(dx, dz) + Math.PI;
+        s.input.keys.delete('s');
+        s.input.keys.add('w');
+      }
+      if (run) s.input.keys.add('shift');
+      await wait(50);
+    }
+  } finally {
+    s.input.keys.delete('w');
+    s.input.keys.delete('s');
+    s.input.keys.delete('shift');
+  }
+  if (face) s.heroState.heading = Math.atan2(face.state.x - s.heroState.x, face.state.z - s.heroState.z);
+}
 
 /** the hero walks over a pickup (if it has none of its item yet) and waits for it to be taken */
 /** the stick in hand alight: its end walked into the Burning torch's flame (it catches by itself), unless it is burning */

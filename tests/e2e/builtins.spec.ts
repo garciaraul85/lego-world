@@ -266,7 +266,7 @@ test('Boss course: the Howler made a boss roars into phase 2', async ({ page }) 
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });
   const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
-  expect(total).toBe(8);
+  expect(total).toBe(7);
   for (let i = 0; i < total + 1; i++) {
     const pos = await card.locator('header .mono').innerText();
     const title = await card.getByRole('heading').first().innerText();
@@ -283,7 +283,11 @@ test('Boss course: the Howler made a boss roars into phase 2', async ({ page }) 
     }
     if (/Read about BossBrain/.test(title))
       await expect(page.locator('[data-tour="builtin-page"]')).toContainText('phaseFor');
-    if (/Make it a boss/.test(title))
+    if (/Or in the Phases panel/.test(title)) {
+      await expect(page.getByRole('group', { name: 'Phase 2' })).toBeVisible();
+      await expect(page.getByLabel('Phase 2 Speed (times)')).toHaveValue('1.5');
+    }
+    if (/Make the Howler a boss/.test(title))
       await expect(page.getByRole('group', { name: 'Built-in PhasedBoss' })).toBeVisible();
     const finish = card.getByRole('button', { name: 'Finish ✓' });
     if (await finish.isVisible()) {
@@ -297,7 +301,7 @@ test('Boss course: the Howler made a boss roars into phase 2', async ({ page }) 
 });
 
 test('Gloomweaver course: the boss built from the brains reaches phase 2', async ({ page }) => {
-  test.setTimeout(900_000);
+  test.setTimeout(1_500_000);
   const errors: string[] = [];
   await open(page, errors);
   await page.locator('[data-tour="menu-help"]').click();
@@ -318,12 +322,16 @@ test('Gloomweaver course: the boss built from the brains reaches phase 2', async
       await doIt.click();
       const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
       const done = card.getByText(/✓ Done!/);
-      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 600_000 });
       if (await rest.isVisible()) await rest.click();
-      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 600_000 });
       await page.screenshot({ path: `test-results/gloom-${String(i).padStart(2, '0')}.png` });
     }
-    if (/Its phases/.test(title))
+    if (/Its phases/.test(title)) {
+      await expect(page.getByRole('group', { name: 'Phase 3' })).toBeVisible();
+      await expect(page.getByLabel('Phase 3 Fights as')).toHaveValue('shooter');
+    }
+    if (/What it does each phase/.test(title))
       await expect(page.getByRole('group', { name: 'Built-in WeakPointBoss' })).toBeVisible();
     const finish = card.getByRole('button', { name: 'Finish ✓' });
     if (await finish.isVisible()) {

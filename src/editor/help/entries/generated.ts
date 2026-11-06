@@ -165,9 +165,9 @@ export const ACTION_HELP: Record<string, string> = {
   'help.enemyPartsCourse':
     'Starts the Enemy parts course (7 steps): place Rattlebones, read the Attack interface, swap its attack for a Spit and its mover for Wings in Characters › Behaviour, Extend Spit so it says so each time, and watch it spit from the air in Play.',
   'help.gloomweaverCourse':
-    'Starts the Gloomweaver course (5 steps): place Gloomweaver from the Starter pack (its behaviour comes with it), see its phases in Characters › Behaviour (a WeakPointBoss: a biter, then a thread-dropper from 66%, then a web-spitter from 33%), find its behaviour (class Gloomweaver extends WeakPointBoss), and fight it to phase 2: hit it when its eye glows.',
+    'Starts the Gloomweaver course (5 steps): place Gloomweaver from the Starter pack (its behaviour comes with it), open class Gloomweaver extends WeakPointBoss in Logic to see its phases (a biter, then a thread-dropper from 66%, then a web-spitter from 33%), find it attached in Characters, and fight it to phase 2: walk up, shield up as it bites, strike when its eye glows.',
   'help.bossesCourse':
-    'Starts the Boss course (8 steps): place the Howler, read BossBrain (it extends EnemyBrain; its templates PhasedBoss, WeakPointBoss and PuzzleBoss), make the Howler a boss in Characters › Behaviour that hunts as a pack hunter and from half its health shoots, Extend PhasedBoss so it says each phase, and fight it to phase 2 in Play.',
+    'Starts the Boss course (7 steps): place the Howler, read BossBrain (it extends EnemyBrain; its templates PhasedBoss, WeakPointBoss and PuzzleBoss), Extend PhasedBoss and write its phases in the class (a pack hunter, then from half its health a shooter), change one in the Phases panel, attach it to the Howler, and fight it to phase 2 in Play.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':

@@ -3,7 +3,9 @@ import { STARTER_CHARACTERS } from '../../src/builtin/characters';
 import { bossEnemy, Enemy } from '../../src/core/combat/enemy';
 import { partsOf } from '../../src/core/combat/parts';
 import { CommandBus, registerAll } from '../../src/core/commands';
+import { enemyOfCharacter } from '../../src/core/logic/boss';
 import { templateOfEnemy } from '../../src/core/logic/builtins';
+import { parseBehaviour } from '../../src/core/logic/code/behaviour';
 import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
 import { Character as CharacterSchema, type Instances, type LogicGraph, paths } from '../../src/core/schema';
@@ -11,7 +13,7 @@ import { packCharacterCommands } from '../../src/editor/pack/pack';
 import { RecordingAudio } from '../../src/engine/audio/port';
 import { PlaySession } from '../../src/engine/runtime/session';
 
-/** Milestone 3b (14a-2): Gloomweaver built from the brains — three phases, a weak moment, a behaviour that calls its brood. */
+/** Milestone 3b (14a-2): Gloomweaver made in Logic — three phases written in its class, a weak moment, its brood. */
 const item = () => {
   const c = STARTER_CHARACTERS.find((x) => x.slug === 'gloomweaver')!;
   return { ...c, id: c.id };
@@ -52,7 +54,11 @@ function arena() {
 
 describe('Gloomweaver', () => {
   it('is a WeakPointBoss: it bites, then hangs on a thread and drops, then spits sticky webs', () => {
-    const e = Enemy.parse(item().character.enemy);
+    const it = item();
+    const r = parseBehaviour(it.behaviour!);
+    if ('error' in r) throw new Error(r.error.message);
+    const g = { id: 'lg_gloomcode1', name: 'Gloomweaver', scope: 'global', ...r } as LogicGraph;
+    const e = Enemy.parse(enemyOfCharacter({ ...it.character, scripts: [{ use: g.id }] } as never, () => g));
     expect(templateOfEnemy(e)).toBe('WeakPointBoss');
     expect(partsOf(bossEnemy(e, 1))).toMatchObject({ mover: 'walker', attack: 'bite' });
     expect(partsOf(bossEnemy(e, 2))).toMatchObject({ mover: 'thread', attack: 'drop' });

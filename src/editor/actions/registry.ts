@@ -627,12 +627,12 @@ export const ACTIONS: EditorAction[] = [
   },
   {
     id: 'help.bossesCourse',
-    label: 'Boss course (the Howler made a boss: a pack hunter, then at half health a shooter)',
+    label: 'Boss course (a boss made in Logic: the Howler, a pack hunter, then at half health a shooter)',
     run: ({ ui }) => ui.tutorial('bosses'),
   },
   {
     id: 'help.gloomweaverCourse',
-    label: 'Gloomweaver course (the boss built from the brains: its phases, its glowing eye, its behaviour)',
+    label: 'Gloomweaver course (the starter boss: its phases in its class, its glowing eye)',
     run: ({ ui }) => ui.tutorial('gloomweaver'),
   },
   {

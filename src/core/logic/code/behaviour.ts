@@ -16,6 +16,7 @@
  * `on("event", …)` block, keeping its lines, so errors point at the right line.
  */
 import { parse as acornParse } from 'acorn';
+import { PHASE_KEYS, PHASE_STYLES, PhaseDef } from '../../combat/enemy';
 import { type BehaviourDef, type BehaviourField, FieldType, type LogicGraph } from '../../schema';
 import { DEFAULT_OF } from '../behaviours';
 import { type Parsed, parseCode } from './parse';
@@ -51,6 +52,15 @@ export function printBehaviour(g: Pick<LogicGraph, 'name' | 'nodes' | 'edges' | 
   const head: string[] = [`class ${className(g.name)} extends ${b.extends ?? 'Behaviour'} {`];
   for (const f of b.fields) head.push(fieldLine(f));
   for (const [k, v] of Object.entries(b.vars ?? {})) head.push(`  ${k} = ${lit(v)};`);
+  // Milestone 3b (14a-2): a boss's phases, one per line
+  if (b.phases?.length) {
+    head.push('  phases = [');
+    for (const p of b.phases) {
+      const kv = PHASE_KEYS.filter((k) => p[k] !== undefined).map((k) => `${k}: ${lit(p[k])}`);
+      head.push(`    { ${kv.join(', ')} },`);
+    }
+    head.push('  ];');
+  }
   const body = printGraph(g);
   const out: string[] = [...head];
   if (body.code.trim()) out.push('');
@@ -97,6 +107,7 @@ export function parseBehaviour(
   const cls = classes[0];
   const fields: BehaviourField[] = [];
   const vars: Record<string, number | boolean | string> = {};
+  let phases: PhaseDef[] | undefined;
   const lines = code.split('\n');
   // the methods' text as on("…") blocks, each kept on its own lines (so errors keep their line numbers)
   const on: string[] = lines.map((l) => (/^\s*\/\/ (note|group):/.test(l) ? l.trim() : ''));
@@ -127,6 +138,32 @@ export function parseBehaviour(
           ...(typeof opts.max === 'number' ? { max: opts.max } : {}),
         };
         fields.push(f);
+        continue;
+      }
+      // Milestone 3b (14a-2): phases = [{ from: 100, fights: "melee" }, { from: 50, fights: "shooter" }, …]
+      if (name === 'phases') {
+        if (v?.type !== 'ArrayExpression')
+          return fail(
+            'phases is a list: phases = [{ from: 100, fights: "melee" }, { from: 50, fights: "shooter" }];',
+            m,
+          );
+        phases = [];
+        for (const el of v.elements) {
+          const o = objectOf(el);
+          if (!o) return fail('Each phase is { from: 50, fights: "shooter", … } with plain values.', el ?? m);
+          const bad = Object.keys(o).find((k) => !(PHASE_KEYS as string[]).includes(k));
+          if (bad) return fail(`A phase has no “${bad}”. Use ${PHASE_KEYS.join(', ')}.`, el);
+          const r = PhaseDef.safeParse(o);
+          if (!r.success) {
+            const at = r.error.issues[0]!;
+            const key = String(at.path[0] ?? '');
+            return fail(`Phase ${key ? `${key}: ` : ''}${phaseHint(key)}`, el);
+          }
+          phases.push(r.data);
+        }
+        if (phases.length > 5) return fail('A boss has at most 5 phases.', v);
+        const froms = phases.map((p) => p.from);
+        if (new Set(froms).size !== froms.length) return fail('Two phases start at the same health.', v);
         continue;
       }
       const val = literalOf(v);
@@ -173,10 +210,30 @@ export function parseBehaviour(
     fields,
     ...(Object.keys(vars).length ? { vars } : {}),
     ...(cls.superClass?.name && cls.superClass.name !== 'Behaviour' ? { extends: cls.superClass.name } : {}),
+    ...(phases ? { phases } : {}),
   };
+  if (!phases) delete behaviour.phases;
   if (!Object.keys(vars).length) delete behaviour.vars;
   if (!cls.superClass || cls.superClass.name === 'Behaviour') delete behaviour.extends;
   return { ...r, behaviour };
+}
+
+/** what a phase's setting takes */
+function phaseHint(key: string): string {
+  switch (key) {
+    case 'from':
+      return 'the health it starts at, 1 to 100 (100: its first phase).';
+    case 'fights':
+      return `a kind of fighter: ${PHASE_STYLES.join(', ')}.`;
+    case 'power':
+      return 'times its power, 0 to 5.';
+    case 'speed':
+      return 'times its speed, 0.2 to 4.';
+    case 'name':
+      return 'text in quotes, up to 40 letters.';
+    default:
+      return 'one of its parts (Logic › Built-in › Parts lists them).';
+  }
 }
 
 function literalOf(x: N): unknown {

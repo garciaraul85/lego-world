@@ -4,8 +4,8 @@
   "steps": [
     {
       "id": "gw.place",
-      "title": "Gloomweaver, built from the brains",
-      "body": "The starter pack's boss, Gloomweaver, is now made like any enemy you could make: a BossBrain with three phases built from templates and parts, and a short behaviour. Place it from the Starter pack: its behaviour comes with it.",
+      "title": "Gloomweaver, made in Logic",
+      "body": "The starter pack's boss, Gloomweaver, is made like any boss you could make: a behaviour, class Gloomweaver extends WeakPointBoss, with its phases written in it. Place it from the Starter pack: its behaviour comes with it.",
       "task": "Place Gloomweaver.",
       "target": "[data-tour=\"dock\"]",
       "check": {
@@ -22,7 +22,7 @@
           "fn": "packPlaceAt",
           "args": {
             "slug": "gloomweaver",
-            "ahead": 12
+            "ahead": 16
           }
         }
       ],
@@ -32,7 +32,30 @@
     {
       "id": "gw.phases",
       "title": "Its phases",
-      "body": "In Characters \u203a Gloomweaver \u203a Behaviour, its brain row is WeakPointBoss (a BossBrain). 1st phase: a melee biter. From 66%: an ambusher that climbs into the dark on a thread and drops on you. From 33%: a shooter that spits webs that stick you fast, and is quicker. When it can be hurt: afterAttack, just after it strikes. Its eye glows then; the rest of the time it is dull.",
+      "body": "Open the Gloomweaver behaviour in Logic (Behaviours). Its phases are the list at the top: from 100% a melee biter; from 66% an ambusher that climbs into the dark on a thread and drops on you; from 33% a shooter that spits webs that stick you fast, 1.3 times quicker. The Phases panel beside the code shows the same list. It extends WeakPointBoss, so it can be hurt just after it strikes: its eye glows then, and is dull the rest of the time.",
+      "task": "Open the Gloomweaver behaviour in Logic.",
+      "target": "[data-tour=\"boss-phases\"]",
+      "check": {
+        "kind": "state",
+        "test": "logicOpenNamed",
+        "args": "Gloomweaver"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBehaviourNamed",
+          "args": {
+            "name": "Gloomweaver"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "gw.code",
+      "title": "What it does each phase",
+      "body": "Below the phases, phase(e) runs as each one begins: in phase 2 it warns you to watch above, in phase 3 it calls two Threadbacks to hang round it. In Characters \u203a Gloomweaver \u203a Behaviour it is attached, and its brain row is WeakPointBoss.",
       "task": "Open Characters \u203a Gloomweaver \u203a Behaviour.",
       "target": "[data-tour=\"char-behaviours\"]",
       "check": {
@@ -42,34 +65,11 @@
       },
       "doItForMe": [
         {
-          "fn": "setCharacterBuiltinField",
+          "fn": "openCharacterTab",
           "args": {
             "character": "Gloomweaver",
-            "name": "BossBrain",
-            "field": "vulnerable",
-            "value": "afterAttack"
+            "tab": "behaviour"
           }
-        }
-      ],
-      "how": [],
-      "placement": "left",
-      "workspace": "Characters"
-    },
-    {
-      "id": "gw.code",
-      "title": "Its behaviour",
-      "body": "Below, the Gloomweaver behaviour: class Gloomweaver extends WeakPointBoss. Its phase(e) says what happens as each phase begins: in phase 2 it warns you to watch above, in phase 3 it calls two Threadbacks to hang round it. Open it in Logic to read or change it.",
-      "task": "Find the Gloomweaver behaviour in its list.",
-      "target": "[data-tour=\"char-behaviours\"]",
-      "check": {
-        "kind": "state",
-        "test": "characterHasBehaviour",
-        "args": "Gloomweaver,Gloomweaver"
-      },
-      "doItForMe": [
-        {
-          "ui": "workspace",
-          "value": "Characters"
         }
       ],
       "how": [],
@@ -79,7 +79,7 @@
     {
       "id": "gw.fight",
       "title": "Fight it",
-      "body": "Press Play. Hits bounce off while its eye is dull. Raise your shield (Q) as it bites; when its eye glows, get behind it and swing hard. At two-thirds it climbs into the dark: walk under its thread to make it drop, then strike as it lands. (A lantern's light stuns it, and opens it up too.)",
+      "body": "Press Play and walk up to it. Hits bounce off while its eye is dull: stay out from under it, raise your shield (Q) as it bites; when its eye glows, step to its side and swing hard. At two-thirds it climbs into the dark: walk under its thread to make it drop, then strike as it lands. (A lantern's light stuns it, and opens it up too.)",
       "task": "Press Play and get it to phase 2.",
       "target": "[data-tour=\"play\"]",
       "check": {
@@ -105,7 +105,7 @@
     {
       "id": "gw.done",
       "title": "Done!",
-      "body": "Beat it for the boss key. Everything it does comes from the brains: change a phase's kind, its parts or its speed in Characters \u203a Behaviour, or extend its behaviour (isVulnerable, phaseFor) to make your own boss.",
+      "body": "Beat it for the boss key. Change its phases in Logic (the list, or the Phases panel): another kind, other parts, faster, or a 4th phase. Extend PuzzleBoss instead for a boss you must stun first.",
       "task": "Press Finish.",
       "target": "[data-tour=\"menu-help\"]",
       "check": {

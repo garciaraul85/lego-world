@@ -58,6 +58,7 @@ import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosphere';
 import { attachmentsOf, startValues } from '../../core/logic/behaviours';
+import { enemyOfCharacter } from '../../core/logic/boss';
 import type { ExecCtx } from '../../core/logic/catalog';
 import { maxOf } from '../../core/num';
 import { switchHitBy } from '../../core/puzzles/puzzle';
@@ -99,6 +100,7 @@ import {
   type Project,
   paths,
   type Screen,
+  type ScriptAttachment,
   TIMES,
   type UiInstance,
   type Variables,
@@ -4173,7 +4175,12 @@ export class PlaySession {
   enemyOf(n: Npc): Enemy | null {
     if (!this.enemyCache.has(n.id)) {
       const chr = npcCharacter(this.snapshot, this.world.mapId, n);
-      this.enemyCache.set(n.id, chr?.enemy ?? null);
+      // Milestone 3b (14a-2): a boss behaviour attached makes it a boss (its phases written in its class)
+      const copy = (npcItem(this.snapshot, this.world.mapId, n.id) as { scripts?: ScriptAttachment[] } | null)?.scripts;
+      this.enemyCache.set(
+        n.id,
+        enemyOfCharacter(chr, (id) => this.snapshot.get(paths.logic(id)) as LogicGraph | undefined, copy ?? []),
+      );
     }
     const e = this.enemyCache.get(n.id) ?? null;
     // Milestone 3b (B5c): a boss fights as its phase's kind of fighter (its parts, faster and harder)

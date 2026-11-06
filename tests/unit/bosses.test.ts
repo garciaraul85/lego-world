@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { STARTER_CHARACTERS } from '../../src/builtin/characters';
-import { type BossPlan, bossEnemy, bossPhaseAt, Enemy } from '../../src/core/combat/enemy';
+import { type BossPlan, bossEnemy, bossPhaseAt, Enemy, planOfPhases } from '../../src/core/combat/enemy';
 import { partsOf } from '../../src/core/combat/parts';
 import { CommandBus, registerAll } from '../../src/core/commands';
+import { bossHowOf, enemyOfCharacter } from '../../src/core/logic/boss';
 import { allHooksOf, CHARACTER_BUILTINS, lineageOf, templateOfEnemy } from '../../src/core/logic/builtins';
-import { parseBehaviour } from '../../src/core/logic/code/behaviour';
+import { parseBehaviour, printBehaviour } from '../../src/core/logic/code/behaviour';
 import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
 import {
@@ -17,7 +18,10 @@ import {
 import { RecordingAudio } from '../../src/engine/audio/port';
 import { PlaySession } from '../../src/engine/runtime/session';
 
-/** Milestone 3b (B5c): bosses — phases by health, each built from the templates and parts, and weak moments. */
+/**
+ * Milestone 3b (B5c, 14a-2): bosses — phases by health, each built from the templates and parts, and weak moments;
+ * made in Logic: the phases are written in the class.
+ */
 function behaviour(id: string, code: string): LogicGraph {
   const r = parseBehaviour(code);
   if ('error' in r) throw new Error(`line ${r.error.line}: ${r.error.message}`);
@@ -32,9 +36,15 @@ function behaviour(id: string, code: string): LogicGraph {
 }
 const cast = (slug: string) => STARTER_CHARACTERS.find((c) => c.slug === slug)!;
 const PLAN: BossPlan = { first: 'pack', phases: [{ at: 0.5, style: 'shooter', speedK: 1.5, name: 'Enraged' }] };
+/** the same phases as a class writes them (Logic) */
+const PHASES = `  phases = [
+    { from: 100, fights: "pack" },
+    { from: 50, fights: "shooter", speed: 1.5, name: "Enraged" },
+  ];
+`;
 
 /** the Howler made a boss (8 health, no soft sides) at (0, 0); the hero 3 studs in front */
-function boss(plan: BossPlan = PLAN, graphs: LogicGraph[] = []) {
+function boss(plan: BossPlan | undefined = PLAN, graphs: LogicGraph[] = []) {
   const s = new ProjectStore(newProjectFiles({ name: 'Boss', random: () => 0.3, noNeighbours: true }));
   const bus = registerAll(new CommandBus(s));
   const c = cast('howler');
@@ -42,7 +52,7 @@ function boss(plan: BossPlan = PLAN, graphs: LogicGraph[] = []) {
   s.put(paths.character(c.id), {
     ...chr,
     harm: { ...chr.harm!, health: { ...chr.harm!.health, hp: 8, sides: undefined } },
-    enemy: { ...chr.enemy!, style: 'boss', boss: plan },
+    enemy: plan ? { ...chr.enemy!, style: 'boss', boss: plan } : chr.enemy!,
   });
   for (const g of graphs) {
     const r = bus.execute(
@@ -108,9 +118,10 @@ describe('boss phases', () => {
   it('in Play: half its health gone, it roars into phase 2 and fights as a shooter; On phase fires', () => {
     const g = behaviour(
       'lg_bossphase1',
-      'class BossPhases extends PhasedBoss {\n  phase(e) {\n    log(text.join("Phase ", e.phase));\n  }\n}\n',
+      `class BossPhases extends PhasedBoss {\n${PHASES}\n  phase(e) {\n    log(text.join("Phase ", e.phase));\n  }\n}\n`,
     );
-    const { p, hit, foe } = boss(PLAN, [g]);
+    // (the character's own settings say nothing of phases: its class does)
+    const { p, hit, foe } = boss(undefined, [g]);
     expect(p.enemyOf(foe())!.style).toBe('pack');
     hit(3);
     expect(p.bossPhaseOf(foe())).toBe(1);
@@ -135,9 +146,9 @@ describe('boss phases', () => {
   it('phaseFor may choose its phase', () => {
     const g = behaviour(
       'lg_bossphase2',
-      'class EarlyRage extends PhasedBoss {\n  phaseFor(e) {\n    if ((e.hp < e.max)) {\n      return 2;\n    }\n    return 1;\n  }\n}\n',
+      `class EarlyRage extends PhasedBoss {\n${PHASES}\n  phaseFor(e) {\n    if ((e.hp < e.max)) {\n      return 2;\n    }\n    return 1;\n  }\n}\n`,
     );
-    const { p, hit, foe } = boss(PLAN, [g]);
+    const { p, hit, foe } = boss(undefined, [g]);
     hit(1);
     expect(p.bossPhaseOf(foe())).toBe(2);
   });
@@ -182,7 +193,7 @@ describe('weak moments', () => {
       'lg_bossopen01',
       'class Open extends PuzzleBoss {\n  isVulnerable(e) {\n    return true;\n  }\n}\n',
     );
-    const { hit, hp } = boss({ ...PLAN, vulnerable: 'stunned' }, [g]);
+    const { hit, hp } = boss(undefined, [g]);
     hit(2);
     expect(hp()).toBe(6);
   });
@@ -202,23 +213,52 @@ describe('the boss built-ins', () => {
     expect(CHARACTER_BUILTINS.find((b) => b.name === 'BossBrain')!.events).toContain('event.onPhase');
   });
 
-  it('its fields write the boss plan: phase 2 at 50% as a shooter, and when it can be hurt', () => {
-    const { bus, s, id } = boss({ phases: [] });
-    const set = (field: string, value: unknown) =>
-      bus.execute({ type: 'builtin.setField', payload: { character: id, name: 'BossBrain', field, value } } as never, {
-        source: 'user',
-      });
-    expect(set('first', 'knight').ok).toBe(true);
-    expect(set('phase2At', 50).ok).toBe(true);
-    expect(set('phase2Style', 'shooter').ok).toBe(true);
-    expect(set('vulnerable', 'afterAttack').ok).toBe(true);
-    let e = s.get<Character>(paths.character(id))!.enemy!;
-    expect(e.boss).toEqual({ first: 'knight', vulnerable: 'afterAttack', phases: [{ at: 0.5, style: 'shooter' }] });
-    // a 3rd phase made before the 2nd sits below it; 0 takes a phase away
-    expect(set('phase3At', 20).ok).toBe(true);
-    expect(set('phase2At', 0).ok).toBe(true);
-    e = s.get<Character>(paths.character(id))!.enemy!;
-    expect(e.boss!.phases).toEqual([]);
-    expect(CharacterSchema.safeParse(s.get(paths.character(id))).success).toBe(true);
+  it('a boss is made in Logic: a behaviour extending a boss template, its phases written in the class', () => {
+    const g = behaviour('lg_bossmade01', `class Rage extends WeakPointBoss {\n${PHASES}}\n`);
+    expect(g.behaviour!.phases).toEqual([
+      { from: 100, fights: 'pack' },
+      { from: 50, fights: 'shooter', speed: 1.5, name: 'Enraged' },
+    ]);
+    // it prints back as written
+    expect(printBehaviour({ ...g, name: 'Rage' }).code).toContain(PHASES);
+    expect(bossHowOf('WeakPointBoss')).toBe('afterAttack');
+    expect(bossHowOf('PuzzleBoss')).toBe('stunned');
+    expect(bossHowOf('PhasedBoss')).toBe('always');
+    expect(bossHowOf('Brawler')).toBeNull();
+    // attached, it makes a plain Howler a boss
+    const howler = cast('howler').character;
+    const e = enemyOfCharacter({ ...howler, scripts: [{ use: g.id }] }, (id) => (id === g.id ? g : undefined))!;
+    expect(e).toMatchObject({ style: 'boss', boss: { ...PLAN, vulnerable: 'afterAttack' } });
+    expect(templateOfEnemy(e)).toBe('WeakPointBoss');
+    // switched off on a placed copy: not a boss there
+    expect(enemyOfCharacter({ ...howler, scripts: [{ use: g.id }] }, () => g, [{ use: g.id, off: true }])!.style).toBe(
+      howler.enemy!.style,
+    );
+    // its phases as the engine runs them
+    expect(
+      planOfPhases(
+        [
+          { from: 100, fights: 'knight', attack: 'spit' },
+          { from: 40, mover: 'flyer' },
+        ],
+        'stunned',
+      ),
+    ).toEqual({
+      first: 'knight',
+      firstParts: { attack: 'spit' },
+      phases: [{ at: 0.4, parts: { mover: 'flyer' } }],
+      vulnerable: 'stunned',
+    });
+  });
+
+  it('a phase written wrong says what it takes', () => {
+    const err = (code: string) => {
+      const r = parseBehaviour(`class X extends PhasedBoss {\n  phases = [${code}];\n}\n`);
+      return 'error' in r ? r.error.message : '';
+    };
+    expect(err('{ from: 50, fights: "dragon" }')).toMatch(/fights: a kind of fighter: melee/);
+    expect(err('{ from: 150 }')).toMatch(/from: the health it starts at/);
+    expect(err('{ from: 50, colour: "red" }')).toMatch(/no “colour”/);
+    expect(err('{ from: 50 }, { from: 50 }')).toMatch(/same health/);
   });
 });

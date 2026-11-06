@@ -19,6 +19,7 @@ import {
 import type { ActionCtx } from '../../actions/registry';
 import { FieldHelp } from '../../components/fields';
 import type { EditorState } from '../../state';
+import { BossPhasesPanel } from './BossPhasesPanel';
 
 export const BEHAVIOUR_HELP = {
   what: 'A behaviour is a script you attach to things — an asset (every copy of it), a character, or one placed copy — like a component in Unity. Each copy runs its own: “this” is that copy, its fields are its settings, and its own variables are its own.',
@@ -283,6 +284,8 @@ export function BehaviourPanel({ c, graph }: { c: ActionCtx; graph: LogicGraph }
           Add variable
         </button>
       </fieldset>
+      {/* Milestone 3b (14a-2): a boss's phases (written in its class) */}
+      <BossPhasesPanel ed={ed} graph={graph} />
       <div class="sech" style={{ padding: '12px 10px 4px' }}>
         <span>
           Used on

@@ -3,8 +3,10 @@
  * and setting their field values. An asset or character from the built-in packs is copied into the project the
  * first time (the copy keeps its id, so everything placed from it gets the behaviour).
  */
+
 import { BUILTIN_ASSETS } from '../../../builtin/assets';
 import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
+import { bossHowOf } from '../../logic/boss';
 import { builtinNamed, characterBuiltinNamed } from '../../logic/builtins';
 import type { ProjectStore } from '../../project/store';
 import {
@@ -84,7 +86,9 @@ export const attachScript: CommandHandler<{ target: ScriptTarget; use: string; f
         if (p.target.kind !== 'character')
           return `${cbase.name} is for characters: put it on a character (Characters › Behaviour).`;
         const chr = read(store, p.target) as Character;
-        if (!cbase.on(chr) && cbase.fixed) return `${chr.name || 'This character'} is not a ${cbase.name}.`;
+        // Milestone 3b (14a-2): a boss template makes any character a boss (its phases are in the class)
+        if (!cbase.on(chr) && cbase.fixed && !bossHowOf(cbase.name))
+          return `${chr.name || 'This character'} is not a ${cbase.name}.`;
       }
       const base = builtinNamed(g.behaviour!.extends);
       if (base && p.target.kind === 'character')

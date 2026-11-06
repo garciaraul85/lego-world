@@ -4,6 +4,7 @@
  */
 import { useState } from 'preact/hooks';
 import { startValues } from '../../../core/logic/behaviours';
+import { enemyOfCharacter } from '../../../core/logic/boss';
 import { CHARACTER_BUILTINS, lineageOf } from '../../../core/logic/builtins';
 import type { Character } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
@@ -19,6 +20,11 @@ export function CharacterScripts({ c, chr }: { c: ActionCtx; chr: Character }) {
   const all = graphs(ed).filter((g) => g.behaviour);
   const target = { kind: 'character' as const, id: chr.id };
   const list = chr.scripts ?? [];
+  // Milestone 3b (14a-2): a boss behaviour attached makes it a boss (its template's row shows its brain)
+  const eff: Character = {
+    ...chr,
+    enemy: enemyOfCharacter(chr, (id) => all.find((g) => g.id === id)) ?? chr.enemy,
+  } as Character;
   return (
     <div class="sec" data-tour="char-behaviours" data-help="characters.behaviours">
       <div class="sech">
@@ -29,7 +35,7 @@ export function CharacterScripts({ c, chr }: { c: ActionCtx; chr: Character }) {
         <span>{list.length}</span>
       </div>
       {/* Milestone 3b (B4): what the character is (Hero, Neighbour) and its built-ins (Damageable) */}
-      {CHARACTER_BUILTINS.filter((b) => b.on(chr))
+      {CHARACTER_BUILTINS.filter((b) => b.on(eff))
         // Milestone 3b (B5a): one row per line (PopUp shows EnemyBrain's and Brain's fields; they get no row)
         .filter((b, _i, on) => !on.some((o) => o !== b && lineageOf(o.name).some((x) => x.name === b.name)))
         .map((b) => (
@@ -37,7 +43,7 @@ export function CharacterScripts({ c, chr }: { c: ActionCtx; chr: Character }) {
             key={`${chr.id}:${b.name}`}
             c={c}
             b={b}
-            it={chr}
+            it={eff}
             on={{ character: chr.id }}
             where={chr.name || 'this character'}
           />

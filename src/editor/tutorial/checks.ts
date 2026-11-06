@@ -228,6 +228,22 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     return !!def && !!field && String(field.get(def)) === v;
   },
   // Milestone 3b (B4): the Hero course
+  /** Milestone 3b (14a-2): “Behaviour,2”: the behaviour writes at least that many boss phases */
+  behaviourPhases: (ed, a) => {
+    const [b, n] = String(a).split(',');
+    return (behaviourGraph(ed, b!)?.behaviour?.phases?.length ?? 0) >= Number(n);
+  },
+  /** Milestone 3b (14a-2): “Behaviour,2,speed,1.5”: its 2nd phase (in order) has that setting */
+  behaviourPhase: (ed, a) => {
+    const [b, n, k, v] = String(a).split(',');
+    const p = behaviourGraph(ed, b!)?.behaviour?.phases?.[Number(n) - 1] as Record<string, unknown> | undefined;
+    return p !== undefined && String(p[k!]) === v;
+  },
+  /** Milestone 3b (14a-2): Logic shows this behaviour (its code, cards and phases) */
+  logicOpenNamed: (ed, a) => {
+    const g = behaviourGraph(ed, String(a));
+    return !!g && ed.logicGraph.value === g.id && ed.workspace.value === 'Logic';
+  },
   characterHasBehaviour: (ed, a) => {
     const [chr, b] = String(a).split(',');
     const g = behaviourGraph(ed, b!);

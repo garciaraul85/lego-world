@@ -6,7 +6,7 @@
  */
 import { DEFAULT_STATS } from '../character/sheet';
 import { DAMAGE_TYPES } from '../combat/damage';
-import { BOSS_VULNERABLE, type BossPlan, bossPhases, ENEMY_STYLES, type Enemy, PHASE_STYLES } from '../combat/enemy';
+import { ENEMY_STYLES, type Enemy } from '../combat/enemy';
 import { HURT_REACTIONS } from '../combat/hurt';
 import { ATTACKS, type EnemyParts, fightsAs, MOVERS, PART_CLASS, partsOf, SENSES, swappable } from '../combat/parts';
 import type { Asset, BehaviourField, Character, FieldValue } from '../schema';
@@ -892,65 +892,6 @@ CHARACTER_BUILTINS.push(
 
 // ---------- Milestone 3b (B5c): bosses ----------
 
-const planOf = (c: Character): BossPlan => c.enemy?.boss ?? { phases: [] };
-const bossSet = (c: Character, plan: BossPlan): Partial<Character> => ({
-  enemy: { ...(c.enemy ?? ENEMY_DEFAULT), style: 'boss', boss: plan },
-});
-/** phase n's settings (2: the first after its first), in order of health */
-const phaseField = (n: 2 | 3, what: 'at' | 'style' | 'speedK'): CharField => {
-  const nth = n === 2 ? '2nd' : '3rd';
-  const get = (c: Character) => bossPhases(planOf(c))[n - 2];
-  // set one phase's setting; a phase that isn't there yet is made (at a health below the one before)
-  const put = (c: Character, p: Partial<BossPlan['phases'][number]>): Partial<Character> => {
-    const plan = planOf(c);
-    const list = bossPhases(plan);
-    while (list.length < n - 1) list.push({ at: Math.max(0.01, (list[list.length - 1]?.at ?? 1) / 2) });
-    const next = { ...list[n - 2], ...p } as BossPlan['phases'][number];
-    for (const k of Object.keys(next) as (keyof typeof next)[]) if (next[k] === undefined) delete next[k];
-    list[n - 2] = next;
-    return bossSet(c, { ...plan, phases: list });
-  };
-  if (what === 'at')
-    return {
-      name: `phase${n}At`,
-      type: 'number',
-      default: 0,
-      label: `${nth} phase from (health %, 0: none)`,
-      min: 0,
-      max: 99,
-      get: (c) => Math.round((get(c)?.at ?? 0) * 100),
-      set: (c, v) => {
-        const pct = Math.max(0, Math.min(99, Math.round(Number(v) || 0)));
-        if (pct > 0) return put(c, { at: pct / 100 });
-        // 0: no such phase (nor the ones after it)
-        const plan = planOf(c);
-        return bossSet(c, { ...plan, phases: bossPhases(plan).slice(0, n - 2) });
-      },
-    };
-  if (what === 'style')
-    return {
-      name: `phase${n}Style`,
-      type: 'string',
-      default: 'as before',
-      label: `${nth} phase fights as`,
-      choices: ['as before', ...PHASE_STYLES],
-      get: (c) => get(c)?.style ?? 'as before',
-      set: (c, v) =>
-        (PHASE_STYLES as readonly string[]).includes(String(v))
-          ? put(c, { style: String(v) })
-          : put(c, { style: undefined }),
-    };
-  return {
-    name: `phase${n}Speed`,
-    type: 'number',
-    default: 1,
-    label: `${nth} phase speed (times)`,
-    min: 0.2,
-    max: 4,
-    get: (c) => get(c)?.speedK ?? 1,
-    set: (c, v) => put(c, { speedK: Math.max(0.2, Math.min(4, Number(v) || 1)) }),
-  };
-};
 const bossTemplate = (name: string, about: string): Builtin<Character> => ({
   name,
   for: 'character',
@@ -963,7 +904,7 @@ const bossTemplate = (name: string, about: string): Builtin<Character> => ({
   fields: [],
   hooks: [],
   events: [],
-  editIn: 'Characters › Behaviour (BossBrain: When it can be hurt)',
+  editIn: 'Logic: Extend it, write its phases, attach it to a character',
 });
 
 CHARACTER_BUILTINS.push(
@@ -973,50 +914,17 @@ CHARACTER_BUILTINS.push(
     fixed: true,
     parent: 'EnemyBrain',
     about:
-      'A boss: it fights as its first phase’s kind of fighter; as its health falls to each mark it roars into its next phase (another kind, other parts, faster), and it may only be hurt at weak moments. Each phase is built from the templates and parts.',
+      'A boss, made in Logic: extend one of its templates and write its phases in the class — phases = [{ from: 100, fights: "melee" }, { from: 50, fights: "shooter", speed: 1.3 }]. As its health falls to each phase’s mark it roars into it (another kind of fighter, other parts, faster, harder). Attached to a character, the behaviour makes it a boss.',
     on: (c) => c.enemy?.style === 'boss',
     add: () => ({}),
     remove: (c) => c,
-    fields: [
-      {
-        name: 'first',
-        type: 'string',
-        default: 'melee',
-        label: '1st phase fights as',
-        choices: PHASE_STYLES,
-        get: (c) => planOf(c).first ?? 'melee',
-        set: (c, v) =>
-          bossSet(c, {
-            ...planOf(c),
-            first: (PHASE_STYLES as readonly string[]).includes(String(v)) ? String(v) : 'melee',
-          }),
-      },
-      {
-        name: 'vulnerable',
-        type: 'string',
-        default: 'always',
-        label: 'When it can be hurt (its template)',
-        choices: BOSS_VULNERABLE,
-        get: (c) => planOf(c).vulnerable ?? 'always',
-        set: (c, v) => {
-          const { vulnerable: _v, ...plan } = planOf(c);
-          const how = (BOSS_VULNERABLE as readonly string[]).includes(String(v)) ? String(v) : 'always';
-          return bossSet(c, how === 'always' ? plan : { ...plan, vulnerable: how as BossPlan['vulnerable'] });
-        },
-      },
-      phaseField(2, 'at'),
-      phaseField(2, 'style'),
-      phaseField(2, 'speedK'),
-      phaseField(3, 'at'),
-      phaseField(3, 'style'),
-      phaseField(3, 'speedK'),
-    ],
+    fields: [],
     hooks: [
       hk('phaseFor', 'number', 'Which phase it is in (hp, max, phase): return a phase number (1 is its first)'),
       hk('isVulnerable', 'bool', 'Can it be hurt by this hit? (how: always, afterAttack, stunned; phase)'),
     ],
     events: ['event.onPhase'],
-    editIn: 'Characters › Behaviour',
+    editIn: 'Logic: Extend a template (PhasedBoss, WeakPointBoss, PuzzleBoss) and write its phases',
   },
   bossTemplate('PhasedBoss', 'A boss that can always be hurt; it changes as its health falls (phases).'),
   bossTemplate(
