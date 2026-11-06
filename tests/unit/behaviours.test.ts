@@ -69,7 +69,12 @@ describe('behaviour files', () => {
     const r = parseBehaviour(code);
     expect('error' in r ? r.error : null).toBeNull();
     if ('error' in r) return;
-    expect(r.behaviour.fields[0]).toMatchObject({ name: 'key', type: 'item', default: 'Small key', label: 'Opens with' });
+    expect(r.behaviour.fields[0]).toMatchObject({
+      name: 'key',
+      type: 'item',
+      default: 'Small key',
+      label: 'Opens with',
+    });
     expect(r.behaviour.vars).toEqual({ opened: false });
     expect(r.nodes.find((n) => n.type === 'event.onInteract')?.args).toEqual({ asset: 'Wooden door' });
     const bad = parseBehaviour(code.replace('this.opened = true;', 'this.opened = whatever;'));
@@ -108,7 +113,9 @@ describe('behaviours in Play', () => {
       { source: 'user' },
     );
     expect(ok.ok, ok.error).toBe(true);
-    const [a, b] = s.get<Instances>(paths.instances(map))!.items.filter((i) => i.kind === 'asset' && i.asset === box.id);
+    const [a, b] = s
+      .get<Instances>(paths.instances(map))!
+      .items.filter((i) => i.kind === 'asset' && i.asset === box.id);
     // the second copy counts by 5
     const set = bus.execute(
       [
@@ -207,7 +214,9 @@ describe('a behaviour written as code, on two lamp posts', () => {
     );
     expect(ok.ok, ok.error).toBe(true);
     expect(s.get<Asset>(paths.asset(lamp.id))?.scripts).toEqual([{ use: g.id }]);
-    const [, fast] = s.get<Instances>(paths.instances(map))!.items.filter((i) => i.kind === 'asset' && i.asset === lamp.id);
+    const [, fast] = s
+      .get<Instances>(paths.instances(map))!
+      .items.filter((i) => i.kind === 'asset' && i.asset === lamp.id);
     bus.execute(
       [
         {
@@ -225,7 +234,10 @@ describe('a behaviour written as code, on two lamp posts', () => {
     let last = { slow: slow.state, quick: quick.state };
     for (let i = 0; i < 120; i++) {
       p.runtime.stepOnce();
-      const now = { slow: p.world.instances.find((x) => x.inst.id === slow.inst.id)!.state, quick: p.world.instances.find((x) => x.inst.id === quick.inst.id)!.state };
+      const now = {
+        slow: p.world.instances.find((x) => x.inst.id === slow.inst.id)!.state,
+        quick: p.world.instances.find((x) => x.inst.id === quick.inst.id)!.state,
+      };
       if (now.slow !== last.slow) flips.slow++;
       if (now.quick !== last.quick) flips.quick++;
       last = now;

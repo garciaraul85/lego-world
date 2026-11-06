@@ -39,6 +39,7 @@ import {
 } from '../../core/combat/damage';
 import type { Enemy } from '../../core/combat/enemy';
 import { HURT_REACTIONS, HURT_TIME, type HurtHow, hurtReaction } from '../../core/combat/hurt';
+import { partsOf } from '../../core/combat/parts';
 import {
   ACTION_PRIORITY,
   type ActionOffer,
@@ -576,7 +577,7 @@ export class PlaySession {
     else if (r.how === 'break') this.say('Your guard broke!', 1.5);
     else if (r.how === 'dodge') this.emit('info', 'Dodged');
     if (r.taken > 0) {
-      this.hurt(r.taken, hurtReaction({ type, power, attack, then }));
+      this.hurt(r.taken, partsOf(this.enemyOf(n)).hurt ?? hurtReaction({ type, power, attack, then }));
       const h = this.heroState;
       if (then === 'burn' && !this.swim.on) {
         this.heroAlight?.fx?.stop();
@@ -3620,7 +3621,7 @@ export class PlaySession {
   /** P9c: an enemy's swing lands on the hero (through guard, parry and dodge) */
   hitHero(n: Npc, power: number, type: DamageType, attack?: string) {
     // Milestone 3b (B5b): the attack it was decides how the hero reacts (a charge knocks it down)
-    this.heroHitHow = hurtReaction({ type, power, attack });
+    this.heroHitHow = partsOf(this.enemyOf(n)).hurt ?? hurtReaction({ type, power, attack });
     this.damage('hero', power, type, `n:${n.id}`);
     this.heroHitHow = null;
   }

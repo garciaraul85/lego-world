@@ -115,7 +115,10 @@ test('a behaviour dragged from the dock onto a placed object is attached to that
   const view = page.locator('canvas').first();
   const box = (await view.boundingBox())!;
   // (the name tip of what is under the pointer sits in the middle: drop a little below it)
-  await card.dragTo(view, { sourcePosition: { x: 30, y: 14 }, targetPosition: { x: box.width / 2, y: box.height / 2 } });
+  await card.dragTo(view, {
+    sourcePosition: { x: 30, y: 14 },
+    targetPosition: { x: box.width / 2, y: box.height / 2 },
+  });
   await page.screenshot({ path: 'test-results/drag-after.png' });
   await expect
     .poll(() =>

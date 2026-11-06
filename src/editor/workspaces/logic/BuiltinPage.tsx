@@ -4,7 +4,7 @@
  */
 
 import { FIELD_TYPES } from '../../../core/logic/behaviours';
-import { type Builtin, extendCode, lineageOf } from '../../../core/logic/builtins';
+import { allHooksOf, type Builtin, CHARACTER_BUILTINS, extendCode, lineageOf } from '../../../core/logic/builtins';
 import { nodeDef } from '../../../core/logic/catalog';
 import { parseBehaviour } from '../../../core/logic/code/behaviour';
 import type { LogicGraph } from '../../../core/schema';
@@ -20,7 +20,8 @@ export function extendBuiltin(c: ActionCtx, b: Builtin<any>): string | null {
   const taken = new Set(graphs(ed).map((g) => g.name));
   let name = `My ${b.name}`;
   for (let i = 2; taken.has(name); i++) name = `My ${b.name} ${i}`;
-  const r = parseBehaviour(extendCode(b, name));
+  // a part with no hooks of its own (Eyes) is written with its interface's (canSee) to answer
+  const r = parseBehaviour(extendCode({ name: b.name, hooks: b.hooks.length ? b.hooks : allHooksOf(b.name) }, name));
   if ('error' in r) return null;
   const g: LogicGraph = { ...newBehaviour(name), nodes: r.nodes, edges: r.edges, behaviour: r.behaviour };
   if (!ed.exec({ type: 'logic.create', payload: { graph: g } }, { label: `Extend ${b.name}` }).ok) return null;
@@ -37,8 +38,18 @@ export function BuiltinPage({ c, b }: { c: ActionCtx; b: Builtin<any> }) {
   return (
     <div class="scroll builtin-page" data-tour="builtin-page" data-help="logic.builtin">
       <h2 style={{ margin: '4px 0 6px' }}>
-        {b.name} <span class="chip">built-in</span>
+        {b.name} <span class="chip">{b.isInterface ? 'interface' : 'built-in'}</span>
       </h2>
+      {/* Milestone 3b (B5b): an interface's parts (the ones that can fill it) */}
+      {b.isInterface && (
+        <p class="small" data-tour="builtin-parts">
+          Parts that fill it:{' '}
+          {CHARACTER_BUILTINS.filter((x) => x.parent === b.name)
+            .map((x) => x.name)
+            .join(', ')}
+          . Each enemy has one; swap it in Characters › Behaviour.
+        </p>
+      )}
       {/* Milestone 3b (B5a): what it extends (its class line) */}
       {lineageOf(b.name).length > 1 && (
         <p class="small" data-tour="builtin-lineage">

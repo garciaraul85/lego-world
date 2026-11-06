@@ -7,6 +7,8 @@
 import { DEFAULT_STATS } from '../character/sheet';
 import { DAMAGE_TYPES } from '../combat/damage';
 import { ENEMY_STYLES, type Enemy } from '../combat/enemy';
+import { HURT_REACTIONS } from '../combat/hurt';
+import { ATTACKS, type EnemyParts, MOVERS, PART_CLASS, partsOf, SENSES, swappable } from '../combat/parts';
 import type { Asset, BehaviourField, Character, FieldValue } from '../schema';
 
 export type BuiltinHook = { method: string; event: string; returns: 'bool' | 'number' | 'name'; doc: string };
@@ -20,6 +22,8 @@ export type Builtin<T = Asset> = {
   fixed?: boolean;
   /** Milestone 3b (B5a): the built-in it extends (PopUp extends EnemyBrain extends Brain): its hooks are this one's too */
   parent?: string;
+  /** Milestone 3b (B5b): an interface (Senses, Mover, Attack): its parts extend it, one of them fills it */
+  isInterface?: boolean;
   /** the asset has it (its setting is there) */
   on(a: T): boolean;
   /** what attaching it adds to an asset (its default settings) */
@@ -32,6 +36,8 @@ export type Builtin<T = Asset> = {
     set(a: T, v: FieldValue): Partial<T>;
     /** a text field that is one of these (a list to pick from) */
     choices?: readonly string[];
+    /** Milestone 3b (B5b): the ones this thing can take (a pop-up's Mover can't be swapped) */
+    choicesFor?: (a: T) => readonly string[];
   })[];
   hooks: BuiltinHook[];
   /** logic events it sends (what a behaviour on it can listen to) */
@@ -804,28 +810,8 @@ CHARACTER_BUILTINS.push(
       enemyPick('wits', 'Wits', ['simple', 'smart', 'pack'], 'simple'),
       enemyPick('type', 'Damage type', DAMAGE_TYPES, 'blunt'),
       enemyNum('power', 'Power', 0, 20, 1),
-      enemyNum('reach', 'Reach (studs)', 1, 6, 1.9),
-      enemyNum('sight', 'Sight (studs)', 2, 30, 10),
-      enemyNum('cone', 'Sees in a cone of (degrees, 360: all round)', 30, 360, 360),
-      enemyNum('hearing', 'Hears within (studs)', 0, 30, 0),
-      enemyNum('speed', 'Speed (1: a neighbour’s walk)', 0.2, 3, 1.4),
-      enemyNum('windup', 'Tell before each attack (seconds)', 0.1, 2, 0.6),
-      enemyNum('cooldown', 'Between attacks (seconds)', 0.3, 10, 1.8),
     ],
     hooks: [
-      { method: 'canSee', event: 'event.onCanSee', returns: 'bool', doc: 'Does it notice the hero now? (distance)' },
-      {
-        method: 'canAttack',
-        event: 'event.onCanAttack',
-        returns: 'bool',
-        doc: 'May it start this attack now? (attack, distance)',
-      },
-      {
-        method: 'attackPower',
-        event: 'event.onAttackPower',
-        returns: 'number',
-        doc: 'How hard this attack lands (attack, power)',
-      },
       {
         method: 'shouldFlee',
         event: 'event.onShouldFlee',
@@ -913,6 +899,180 @@ export function allHooksOf(name: string | undefined): BuiltinHook[] {
     .flatMap((b) => b.hooks)
     .filter((h) => !seen.has(h.method) && !!seen.add(h.method));
 }
+
+// ---------- Milestone 3b (B5b): parts (Senses, Mover, Attack) ----------
+
+const partsSet = (c: Character, p: Partial<EnemyParts>): Partial<Character> => ({
+  enemy: { ...(c.enemy ?? ENEMY_DEFAULT), parts: { ...(c.enemy?.parts ?? {}), ...p } },
+});
+const isFire = (c: Character) => c.enemy?.type === 'fire' && (c.enemy?.style ?? 'melee') === 'melee';
+type CharField = Builtin<Character>['fields'][number];
+const swapField = (slot: 'senses' | 'mover' | 'attack', all: readonly string[], label: string): CharField => ({
+  name: slot,
+  type: 'string',
+  default: PART_CLASS[all[0] as keyof typeof PART_CLASS],
+  label,
+  choices: all.map((k) => PART_CLASS[k as keyof typeof PART_CLASS]),
+  choicesFor: (c) => swappable(c.enemy?.style, isFire(c))[slot].map((k) => PART_CLASS[k]),
+  get: (c) => PART_CLASS[partsOf(c.enemy)[slot]],
+  set: (c, v) => {
+    const kind = all.find((k) => PART_CLASS[k as keyof typeof PART_CLASS] === String(v) || k === String(v));
+    // a part its template can't take is not swapped in
+    if (!kind || !(swappable(c.enemy?.style, isFire(c))[slot] as readonly string[]).includes(kind)) return {};
+    return partsSet(c, { [slot]: kind });
+  },
+});
+const iface = (
+  name: string,
+  slot: 'senses' | 'mover' | 'attack',
+  all: readonly string[],
+  about: string,
+  hooks: BuiltinHook[],
+): Builtin<Character> => ({
+  name,
+  for: 'character',
+  fixed: true,
+  isInterface: true,
+  about,
+  on: (c) => !!c.enemy,
+  add: () => ({}),
+  remove: (c) => c,
+  fields: [swapField(slot, all, `${name} part (swap for another)`)],
+  hooks,
+  events: [],
+  editIn: 'Characters › Behaviour',
+});
+const part = (
+  slot: 'senses' | 'mover' | 'attack',
+  kind: string,
+  parent: string,
+  about: string,
+  fields: CharField[] = [],
+): Builtin<Character> => ({
+  name: PART_CLASS[kind as keyof typeof PART_CLASS],
+  for: 'character',
+  fixed: true,
+  parent,
+  about,
+  on: (c) => !!c.enemy && partsOf(c.enemy)[slot] === kind,
+  add: () => ({}),
+  remove: (c) => c,
+  fields,
+  hooks: [],
+  events: [],
+  editIn: 'Characters › Behaviour',
+});
+const attackFields: CharField[] = [
+  {
+    name: 'attackPower',
+    type: 'number',
+    default: 1,
+    label: 'Power (times the enemy’s)',
+    min: 0,
+    max: 5,
+    get: (c) => partsOf(c.enemy).attackPower,
+    set: (c, v) => partsSet(c, { attackPower: Math.max(0, Math.min(5, Number(v) || 0)) }),
+  },
+  {
+    name: 'hurt',
+    type: 'string',
+    default: 'by the hit',
+    label: 'Hurt reaction it makes',
+    choices: ['by the hit', ...HURT_REACTIONS],
+    get: (c) => c.enemy?.parts?.hurt ?? 'by the hit',
+    set: (c, v) => {
+      const { hurt: _h, ...rest } = c.enemy?.parts ?? {};
+      return (HURT_REACTIONS as readonly string[]).includes(String(v))
+        ? partsSet(c, { hurt: String(v) as EnemyParts['hurt'] })
+        : { enemy: { ...(c.enemy ?? ENEMY_DEFAULT), parts: rest } };
+    },
+  },
+  enemyNum('windup', 'Tell before it (seconds)', 0.1, 2, 0.6),
+  enemyNum('cooldown', 'Between attacks (seconds)', 0.3, 10, 1.8),
+  enemyNum('reach', 'Reach up close (studs)', 1, 6, 1.9),
+];
+
+CHARACTER_BUILTINS.push(
+  iface(
+    'Senses',
+    'senses',
+    SENSES,
+    'How an enemy notices the hero. Its brain only asks “do I see the hero?”; the part answers. Every brain can take any of them.',
+    [{ method: 'canSee', event: 'event.onCanSee', returns: 'bool', doc: 'Does it notice the hero now? (distance)' }],
+  ),
+  part(
+    'senses',
+    'eyes',
+    'Senses',
+    'Sees the hero within its sight and cone, and hears it running or fighting within its hearing.',
+    [
+      enemyNum('sight', 'Sight (studs)', 2, 30, 10),
+      enemyNum('cone', 'Sees in a cone of (degrees, 360: all round)', 30, 360, 360),
+      enemyNum('hearing', 'Hears within (studs)', 0, 30, 0),
+    ],
+  ),
+  part(
+    'senses',
+    'ears',
+    'Senses',
+    'Blind: hears the hero running or fighting (9 studs at least), and feels it right beside it. Walk past it quietly.',
+    [enemyNum('hearing', 'Hears within (studs)', 0, 30, 9)],
+  ),
+  part('senses', 'allSeeing', 'Senses', 'Sees all round within its sight: it cannot be crept up on from behind.', [
+    enemyNum('sight', 'Sight (studs)', 2, 30, 10),
+  ]),
+  iface(
+    'Mover',
+    'mover',
+    MOVERS,
+    'How an enemy gets about. Its brain only says where to go; the part takes it there. A walking brain can walk, fly or stand still; a pop-up keeps hiding and a spider its thread.',
+    [],
+  ),
+  part('mover', 'walker', 'Mover', 'Walks on the ground (it climbs steps, falls off edges).', [
+    enemyNum('speed', 'Speed (1: a neighbour’s walk)', 0.2, 3, 1.4),
+  ]),
+  part('mover', 'flyer', 'Mover', 'Flies a little over the ground (over gaps and water).', [
+    enemyNum('speed', 'Speed (1: a neighbour’s walk)', 0.2, 3, 1.4),
+  ]),
+  part('mover', 'static', 'Mover', 'Stays where it was put, only turning (a sentry, a turret).'),
+  part('mover', 'hider', 'Mover', 'Hides underground or under water and comes up to attack (a pop-up’s).'),
+  part('mover', 'thread', 'Mover', 'Hangs on a thread, drops down and climbs back (a spider’s).'),
+  iface(
+    'Attack',
+    'attack',
+    ATTACKS,
+    'How an enemy attacks. Its brain decides when; the part decides how: its pose and tell, its reach, its power and the hurt reaction it makes. A close fighter can strike another way, or spit or shoot from where it stands.',
+    [
+      {
+        method: 'canAttack',
+        event: 'event.onCanAttack',
+        returns: 'bool',
+        doc: 'May it start this attack now? (attack, distance)',
+      },
+      {
+        method: 'attackPower',
+        event: 'event.onAttackPower',
+        returns: 'number',
+        doc: 'How hard this attack lands (attack, power)',
+      },
+    ],
+  ),
+  part('attack', 'swing', 'Attack', 'A weapon swung down across (or claws raked), up close.', attackFields),
+  part('attack', 'bite', 'Attack', 'A lunge and a bite, up close.', attackFields),
+  part('attack', 'pounce', 'Attack', 'A crouch and a spring at the hero (it staggers).', attackFields),
+  part(
+    'attack',
+    'spit',
+    'Attack',
+    'Puffs up and spits a rock (a fire enemy: a fireball) from a few studs away.',
+    attackFields,
+  ),
+  part('attack', 'shot', 'Attack', 'Shoots a rock from a few studs away.', attackFields),
+  part('attack', 'beam', 'Attack', 'Charges and fires a beam (it jolts: shock).', attackFields),
+  part('attack', 'breath', 'Attack', 'Breathes fire close up (it burns), and charges from afar.', attackFields),
+  part('attack', 'swoop', 'Attack', 'Dives from the air at the hero.', attackFields),
+  part('attack', 'drop', 'Attack', 'Drops from above onto the hero (it knocks down).', attackFields),
+);
 
 export const characterBuiltinNamed = (name: string | undefined) =>
   CHARACTER_BUILTINS.find((b) => b.name === name) ?? null;

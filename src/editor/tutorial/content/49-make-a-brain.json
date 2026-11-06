@@ -32,7 +32,7 @@
     {
       "id": "mb.read",
       "title": "Read about PopUp",
-      "body": "In Logic, under Built-in › Brains, press PopUp. It says what it extends (PopUp extends EnemyBrain extends Brain), its own hooks (spits, shotKind) and the ones it inherits (canSee, canAttack, attackPower, shouldFlee from EnemyBrain; nextState from Brain).",
+      "body": "In Logic, under Built-in › Brains, press PopUp. It says what it extends (PopUp extends EnemyBrain extends Brain), its own hooks (spits, shotKind) and the ones it inherits (shouldFlee, takeDamage, hurtReaction from EnemyBrain; nextState from Brain). Its abilities are parts: Senses (canSee), Mover and Attack (canAttack, attackPower).",
       "task": "Open Logic › Built-in › PopUp.",
       "target": "[data-tour=\"builtin-list\"]",
       "check": {
@@ -180,7 +180,7 @@
     {
       "id": "mb.done",
       "title": "Done!",
-      "body": "Every enemy works this way. Knight.shouldCounter, Turret.trackSpeed (a gaze you can outrun), Charger.shouldCharge, Flyer.circleTime, Ambusher.shouldDrop, Ghost.hiddenFor, PackHunter.callsPack, and from EnemyBrain canSee, canAttack, attackPower and shouldFlee for all of them. nextState can send any brain to another state.",
+      "body": "Every enemy works this way. Knight.shouldCounter, Turret.trackSpeed (a gaze you can outrun), Charger.shouldCharge, Flyer.circleTime, Ambusher.shouldDrop, Ghost.hiddenFor, PackHunter.callsPack, and from EnemyBrain shouldFlee for all of them (its parts answer canSee, canAttack and attackPower). nextState can send any brain to another state.",
       "task": "Press Finish.",
       "target": "[data-tour=\"menu-help\"]",
       "check": {

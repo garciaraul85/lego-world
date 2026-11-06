@@ -162,7 +162,7 @@ Attaching a behaviour that extends a built-in to an asset makes it that built-in
 
 ### Enemy brains
 
-Every enemy runs on a brain, and every brain is a class. **Brain** is the root: each step it senses, thinks (which state to be in: idle, chase, windup, circle, swoop, hidden, rise, spit, duck, hang, drop, fadeout, flee…) and acts; `nextState(e)` (`e.from`, `e.to`) can send it to another state, and **On state change** (`stateChange(e)` in a behaviour) hears every change. **EnemyBrain** extends it: its fields are the fight settings (kind of fighter, wits, damage type, power, reach, sight, cone, hearing, speed, the tell, time between attacks), and its hooks are `canSee` (`e.distance`), `canAttack` (`e.attack`: swing, counter, bite, pounce, spit, shot, beam, breath, charge, swoop, drop), `attackPower` (`e.attack`, `e.power`), `shouldFlee` and `takeDamage`.
+Every enemy runs on a brain, and every brain is a class. **Brain** is the root: each step it senses, thinks (which state to be in: idle, chase, windup, circle, swoop, hidden, rise, spit, duck, hang, drop, fadeout, flee…) and acts; `nextState(e)` (`e.from`, `e.to`) can send it to another state, and **On state change** (`stateChange(e)` in a behaviour) hears every change. **EnemyBrain** extends it: its fields are the kind of fighter, wits, damage type and power, and its hooks are `shouldFlee`, `takeDamage` and `hurtReaction`. Its abilities are parts (below).
 
 The kind of fighter picks the template, which extends EnemyBrain:
 
@@ -197,3 +197,15 @@ A body reacts to how it was hit — the hero, neighbours and enemies alike, mini
 | stun | a stun, a shield bash | dizzy, swaying; it cannot move |
 
 `hurtReaction(e)` (on the Hero, EnemyBrain and Damageable; `e.how` is the reaction) returns another to react that way instead. The **React to a hit** card (`react(who, how)`) makes the hero or a character react without being hurt (a trap, a cutscene's blow). The **Hurt reactions course** makes a howler that a heavy swing knocks flat.
+
+### Enemy parts
+
+An enemy's brain decides what to do; its **parts** do it. Each part fills an interface:
+
+| Interface | Parts | Its hooks | The part's fields |
+|---|---|---|---|
+| **Senses** | Eyes (sight in a cone, and hearing), Ears (blind: hears running and fighting, feels you right beside it), AllSeeing (sees all round) | `canSee` | sight, cone, hearing |
+| **Mover** | Walker, Wings (flies over the ground), Static (stays put, turns), Hider (a pop-up's), Thread (a spider's) | | speed |
+| **Attack** | Swing, Bite, Pounce, Spit, Shot, Ray (a beam), Breath, Swoop, Drop | `canAttack`, `attackPower` | power (times the enemy's), hurt reaction, the tell, time between attacks, reach |
+
+Every template comes with its parts (Pebblespout: Eyes, Hider, Spit; Watcher Eye: Eyes, Static, Ray). In **Characters › Behaviour** each part's row swaps it for another its template can take: any brain any Senses; a walking brain Walker, Wings or Static; a close fighter (Brawler, Knight, PackHunter, Ghost) any close strike, or a Spit or a Shot from a few studs away; a Shooter or a PopUp a Spit or a Shot. A pop-up keeps its Hider, a spider its Thread, a turret its Ray. A part is a built-in: `class NightEyes extends Eyes { canSee(e) { … } }`. The **Enemy parts course** gives Rattlebones wings and a spit.

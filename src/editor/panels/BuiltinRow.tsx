@@ -87,7 +87,7 @@ export function BuiltinRow<T extends { id: string; name: string }>({
               value={String(f.get(it))}
               onChange={(ev) => set(owner, f.name, f.label, (ev.target as HTMLSelectElement).value)}
             >
-              {f.choices.map((ch) => (
+              {(f.choicesFor?.(it) ?? f.choices).map((ch) => (
                 <option value={ch}>{ch}</option>
               ))}
             </select>

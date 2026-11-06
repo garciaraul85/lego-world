@@ -72,7 +72,7 @@ describe('the brain classes', () => {
   it('PopUp extends EnemyBrain extends Brain, and answers its line’s hooks', () => {
     expect(lineageOf('PopUp').map((b) => b.name)).toEqual(['PopUp', 'EnemyBrain', 'Brain']);
     const hooks = allHooksOf('PopUp').map((h) => h.method);
-    for (const m of ['spits', 'shotKind', 'canSee', 'canAttack', 'attackPower', 'shouldFlee', 'nextState'])
+    for (const m of ['spits', 'shotKind', 'shouldFlee', 'takeDamage', 'hurtReaction', 'nextState'])
       expect(hooks).toContain(m);
     const brains = CHARACTER_BUILTINS.filter((b) => b.parent === 'EnemyBrain').map((b) => b.name);
     expect(brains).toEqual([

@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'preact/hooks';
 import { anyBuiltinNamed, BUILTINS, CHARACTER_BUILTINS } from '../../../core/logic/builtins';
+
+const isBrain = (parent: string | undefined) => parent === 'Brain' || parent === 'EnemyBrain';
+const isPart = (parent: string | undefined) => parent === 'Senses' || parent === 'Mover' || parent === 'Attack';
+
 import { CATALOG, nodeDef } from '../../../core/logic/catalog';
 import { fieldHelp } from '../../../core/logic/field-help';
 import { graphProblems } from '../../../core/logic/graph';
@@ -375,8 +379,10 @@ function Sidebar({
           {(
             [
               ['Assets', BUILTINS],
-              ['Characters', CHARACTER_BUILTINS.filter((b) => !b.parent && b.name !== 'Brain')],
-              ['Brains', CHARACTER_BUILTINS.filter((b) => b.parent || b.name === 'Brain')],
+              ['Characters', CHARACTER_BUILTINS.filter((b) => !b.parent && b.name !== 'Brain' && !b.isInterface)],
+              ['Brains', CHARACTER_BUILTINS.filter((b) => b.name === 'Brain' || isBrain(b.parent))],
+              // Milestone 3b (B5b): an enemy's abilities, by interface
+              ['Parts', CHARACTER_BUILTINS.filter((b) => b.isInterface || isPart(b.parent))],
             ] as const
           ).map(([group, list]) => (
             <>

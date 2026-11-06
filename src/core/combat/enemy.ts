@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DAMAGE_TYPES, type Health } from './damage';
+import { EnemyParts } from './parts';
 
 /** step 11, 4a: the kinds of fighter (the built-in brains of step 14 are one each) */
 export const ENEMY_STYLES = [
@@ -91,6 +92,8 @@ export const Enemy = z.strictObject({
   wits: z.enum(['simple', 'smart', 'pack']).optional(),
   /** step 11, 4a: the kind of fighter it is: today a melee fighter or a turret; its full brain comes in step 14 */
   style: z.enum(ENEMY_STYLES).optional(),
+  /** Milestone 3b (B5b): its abilities swapped from its template's (Senses, Mover, Attack) */
+  parts: EnemyParts.optional(),
 });
 export type Enemy = z.infer<typeof Enemy>;
 
