@@ -5,9 +5,11 @@
  * extends it can make itself: `class GemDoor extends Lock { canOpen(e) { … } }`) and the events it sends.
  */
 import { DEFAULT_STATS } from '../character/sheet';
+import { DAMAGE_TYPES } from '../combat/damage';
+import { ENEMY_STYLES, type Enemy } from '../combat/enemy';
 import type { Asset, BehaviourField, Character, FieldValue } from '../schema';
 
-export type BuiltinHook = { method: string; event: string; returns: 'bool' | 'number'; doc: string };
+export type BuiltinHook = { method: string; event: string; returns: 'bool' | 'number' | 'name'; doc: string };
 export type Builtin<T = Asset> = {
   /** its class name (what `extends` names) */
   name: string;
@@ -16,6 +18,8 @@ export type Builtin<T = Asset> = {
   for?: 'asset' | 'character';
   /** B4: it is what the thing is (the Hero, a Neighbour): it cannot be added or taken off */
   fixed?: boolean;
+  /** Milestone 3b (B5a): the built-in it extends (PopUp extends EnemyBrain extends Brain): its hooks are this one's too */
+  parent?: string;
   /** the asset has it (its setting is there) */
   on(a: T): boolean;
   /** what attaching it adds to an asset (its default settings) */
@@ -582,7 +586,7 @@ export const CHARACTER_BUILTINS: Builtin<Character>[] = [
     for: 'character',
     fixed: true,
     about: 'A character who lives on the map: it walks about or stands where it was put, and the hero talks to it.',
-    on: (c) => c.role === 'npc',
+    on: (c) => c.role === 'npc' && !c.enemy,
     add: () => ({}),
     remove: (c) => c,
     fields: [
@@ -681,7 +685,7 @@ CHARACTER_BUILTINS.push(
     fixed: true,
     about:
       'A neighbour told to follow the hero (Follow the hero card) walks after it, runs to catch up and jumps to it when far behind.',
-    on: (c) => c.role === 'npc',
+    on: (c) => c.role === 'npc' && !c.enemy,
     add: () => ({}),
     remove: (c) => c,
     fields: [],
@@ -690,6 +694,208 @@ CHARACTER_BUILTINS.push(
     editIn: 'Logic › Follow',
   },
 );
+
+// ---------- Milestone 3b (B5a): enemy brains ----------
+
+const ENEMY_DEFAULT: Enemy = { power: 1, type: 'blunt', reach: 1.9, sight: 10, speed: 1.4, cooldown: 1.8, windup: 0.6 };
+const enemyNum = (name: keyof Enemy & string, label: string, min: number, max: number, def: number) => ({
+  name,
+  type: 'number' as const,
+  default: def,
+  label,
+  min,
+  max,
+  get: (c: Character) => ((c.enemy as Record<string, unknown> | undefined)?.[name] as number | undefined) ?? def,
+  set: (c: Character, v: FieldValue): Partial<Character> => ({
+    enemy: { ...(c.enemy ?? ENEMY_DEFAULT), [name]: Math.max(min, Math.min(max, Number(v) || def)) },
+  }),
+});
+const enemyPick = (name: 'style' | 'wits' | 'type', label: string, choices: readonly string[], def: string) => ({
+  name,
+  type: 'string' as const,
+  default: def,
+  label,
+  choices,
+  get: (c: Character) => String(c.enemy?.[name] ?? def),
+  set: (c: Character, v: FieldValue): Partial<Character> => ({
+    enemy: { ...(c.enemy ?? ENEMY_DEFAULT), [name]: choices.includes(String(v)) ? String(v) : def } as Enemy,
+  }),
+});
+/** the template an enemy's settings make it (its style; a fire fighter is a Charger) */
+export function templateOfEnemy(e: Enemy | undefined): string | null {
+  if (!e) return null;
+  const st = e.style ?? 'melee';
+  if (st === 'melee') return e.type === 'fire' ? 'Charger' : 'Brawler';
+  // (a boss's brain comes with BossBrain, in B5b)
+  const by: Partial<Record<string, string>> = {
+    knight: 'Knight',
+    turret: 'Turret',
+    shooter: 'Shooter',
+    popup: 'PopUp',
+    flyer: 'Flyer',
+    swarm: 'Swarm',
+    ambusher: 'Ambusher',
+    ghost: 'Ghost',
+    pack: 'PackHunter',
+  };
+  return by[st] ?? null;
+}
+const template = (name: string, about: string, hooks: BuiltinHook[], events: string[] = []): Builtin<Character> => ({
+  name,
+  for: 'character',
+  fixed: true,
+  parent: 'EnemyBrain',
+  about,
+  on: (c) => templateOfEnemy(c.enemy) === name,
+  add: () => ({}),
+  remove: (c) => c,
+  fields: [],
+  hooks,
+  events,
+  editIn: 'Characters › Stats › Fights the hero (Kind of fighter)',
+});
+
+CHARACTER_BUILTINS.push(
+  {
+    name: 'Brain',
+    for: 'character',
+    fixed: true,
+    about:
+      'Anything that decides on its own. Each step it senses, thinks (which state to be in: idle, chase, windup, circle, flee…) and acts. Every enemy’s brain extends it.',
+    on: (c) => !!c.enemy,
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [
+      {
+        method: 'nextState',
+        event: 'event.onNextState',
+        returns: 'name',
+        doc: 'Which state next, when it changes state (from, to): return a state name.',
+      },
+    ],
+    events: ['event.onStateChange'],
+    editIn: 'Characters › Stats › Fights the hero',
+  },
+  {
+    name: 'EnemyBrain',
+    for: 'character',
+    fixed: true,
+    parent: 'Brain',
+    about:
+      'A brain that fights the hero: it notices the hero (sight, cone, hearing), closes in or keeps away, telegraphs each attack (the tell) and strikes. Its kind of fighter picks its template (Brawler, Knight, PopUp…).',
+    on: (c) => !!c.enemy,
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [
+      enemyPick('style', 'Kind of fighter (its template)', ENEMY_STYLES, 'melee'),
+      enemyPick('wits', 'Wits', ['simple', 'smart', 'pack'], 'simple'),
+      enemyPick('type', 'Damage type', DAMAGE_TYPES, 'blunt'),
+      enemyNum('power', 'Power', 0, 20, 1),
+      enemyNum('reach', 'Reach (studs)', 1, 6, 1.9),
+      enemyNum('sight', 'Sight (studs)', 2, 30, 10),
+      enemyNum('cone', 'Sees in a cone of (degrees, 360: all round)', 30, 360, 360),
+      enemyNum('hearing', 'Hears within (studs)', 0, 30, 0),
+      enemyNum('speed', 'Speed (1: a neighbour’s walk)', 0.2, 3, 1.4),
+      enemyNum('windup', 'Tell before each attack (seconds)', 0.1, 2, 0.6),
+      enemyNum('cooldown', 'Between attacks (seconds)', 0.3, 10, 1.8),
+    ],
+    hooks: [
+      { method: 'canSee', event: 'event.onCanSee', returns: 'bool', doc: 'Does it notice the hero now? (distance)' },
+      {
+        method: 'canAttack',
+        event: 'event.onCanAttack',
+        returns: 'bool',
+        doc: 'May it start this attack now? (attack, distance)',
+      },
+      {
+        method: 'attackPower',
+        event: 'event.onAttackPower',
+        returns: 'number',
+        doc: 'How hard this attack lands (attack, power)',
+      },
+      {
+        method: 'shouldFlee',
+        event: 'event.onShouldFlee',
+        returns: 'bool',
+        doc: 'Run from the hero this step? (distance)',
+      },
+      {
+        method: 'takeDamage',
+        event: 'event.onTakeDamage',
+        returns: 'number',
+        doc: 'How much a hit takes (after armour, sides and weaknesses)',
+      },
+    ],
+    events: ['event.onDamaged', 'event.onDefeated', 'event.onStateChange'],
+    editIn: 'Characters › Stats › Fights the hero',
+  },
+  template('Brawler', 'Walks over and swings (Rattlebones’ cousins; a Grunt, a Brute).', []),
+  template('Charger', 'A fire beast: charges from afar and breathes fire close up (Cinderjaw).', [
+    { method: 'shouldCharge', event: 'event.onShouldCharge', returns: 'bool', doc: 'Charge now? (distance)' },
+  ]),
+  template(
+    'Knight',
+    'Circles at the edge of its reach, shield toward you; a swing at its front is blocked and countered (Rattlebones).',
+    [
+      {
+        method: 'shouldCounter',
+        event: 'event.onShouldCounter',
+        returns: 'bool',
+        doc: 'Counter this blocked swing? (distance)',
+      },
+    ],
+  ),
+  template('Turret', 'Stays put and sweeps its gaze; seeing you, it charges and fires a beam (Watcher Eye).', [
+    {
+      method: 'trackSpeed',
+      event: 'event.onTrackSpeed',
+      returns: 'number',
+      doc: 'How fast its gaze follows (radians a second)',
+    },
+  ]),
+  template('Shooter', 'Keeps its distance and shoots a rock or a fireball.', [
+    { method: 'keepAway', event: 'event.onKeepAway', returns: 'number', doc: 'How far from the hero it stays (studs)' },
+    { method: 'shotKind', event: 'event.onShotKind', returns: 'name', doc: 'What it shoots: rock or fireball' },
+  ]),
+  template(
+    'PopUp',
+    'Hides underground or under water, comes up to spit, ducks; it can only be hit while up (Pebblespout, Finspitter).',
+    [
+      { method: 'spits', event: 'event.onSpits', returns: 'number', doc: 'How many shots each time up (1 to 10)' },
+      { method: 'shotKind', event: 'event.onShotKind', returns: 'name', doc: 'What it spits: rock or fireball' },
+    ],
+  ),
+  template('Flyer', 'Flies, circles over you and swoops down to bite.', [
+    { method: 'circleTime', event: 'event.onCircleTime', returns: 'number', doc: 'Seconds it circles before a swoop' },
+  ]),
+  template('Swarm', 'Many weak ones that flit erratically, circle and swoop (Flitterwing, plain, fire and ice).', [
+    { method: 'circleTime', event: 'event.onCircleTime', returns: 'number', doc: 'Seconds it circles before a swoop' },
+  ]),
+  template('Ambusher', 'Hangs high on a thread, drops on you as you pass under, climbs back up (Threadback).', [
+    { method: 'shouldDrop', event: 'event.onShouldDrop', returns: 'bool', doc: 'Drop now? (distance from under it)' },
+  ]),
+  template('Ghost', 'Fades out, drifts behind you, fades in to strike; the Lens of Truth shows it (Lanternwisp).', [
+    { method: 'hiddenFor', event: 'event.onHiddenFor', returns: 'number', doc: 'Seconds it stays unseen' },
+  ]),
+  template('PackHunter', 'Howls for the others; the pack circles you and strikes one at a time (Howler).', [
+    { method: 'callsPack', event: 'event.onCallsPack', returns: 'bool', doc: 'Call the others when it sees you?' },
+  ]),
+);
+
+/** Milestone 3b (B5a): a built-in and the ones it extends, nearest first (PopUp, EnemyBrain, Brain) */
+export function lineageOf(name: string | undefined): (Builtin<Asset> | Builtin<Character>)[] {
+  const out: (Builtin<Asset> | Builtin<Character>)[] = [];
+  for (let b = anyBuiltinNamed(name); b && out.length < 8; b = anyBuiltinNamed(b.parent)) out.push(b);
+  return out;
+}
+/** Milestone 3b (B5a): its own hooks and the ones it inherits */
+export function allHooksOf(name: string | undefined): BuiltinHook[] {
+  const seen = new Set<string>();
+  return lineageOf(name)
+    .flatMap((b) => b.hooks)
+    .filter((h) => !seen.has(h.method) && !!seen.add(h.method));
+}
 
 export const characterBuiltinNamed = (name: string | undefined) =>
   CHARACTER_BUILTINS.find((b) => b.name === name) ?? null;

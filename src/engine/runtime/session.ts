@@ -441,6 +441,20 @@ export class PlaySession {
       },
       calm: () => self.calm(),
       enemyOf: (n) => self.enemyOf(n),
+      // Milestone 3b (B5a): its brain's decisions a behaviour on it may make, and its changes of state
+      ask: (n, hook, payload, base) => {
+        // (asked several times a step for every enemy: nothing to look up while no behaviour runs anywhere)
+        if (!self.scriptOwners.size) return base;
+        const owner = self.npcSelf(n).self;
+        return owner ? self.askHook(owner, hook, payload, base) : base;
+      },
+      onState: (n, from, to) =>
+        self.logic.fire({
+          type: 'event.onStateChange',
+          match: { who: String(n.profile.name ?? '') },
+          payload: { from, to },
+          ...self.npcSelf(n),
+        }),
       isStunned: (n) => self.isStunned(n),
       hitHero: (n, power, type) => self.hitHero(n, power, type),
       radiusOf: (n) => self.radiusOf(n),
@@ -459,9 +473,16 @@ export class PlaySession {
       },
       sightLine: (from, to) => self.sightLine(from, to),
       lensOn: () => self.lens.on,
-      shoot: (n, kind, from, at) => {
+      shoot: (n, kind, from, at, power) => {
         const e = self.enemyOf(n);
-        self.foeShots.fire(kind, n.id, from, at, e?.power ?? 1, kind === 'fireball' ? 'fire' : (e?.type ?? 'blunt'));
+        self.foeShots.fire(
+          kind,
+          n.id,
+          from,
+          at,
+          power ?? e?.power ?? 1,
+          kind === 'fireball' ? 'fire' : (e?.type ?? 'blunt'),
+        );
       },
       move: (n, kind) => self.moves.set(n.id, { kind, at: self.clock }),
       flame: (at, r) => {
@@ -3147,7 +3168,9 @@ export class PlaySession {
   askHook<V>(owner: string, hook: string, payload: Record<string, unknown>, base: V): V {
     const r = this.logic.ask(owner, `event.on${hook.charAt(0).toUpperCase()}${hook.slice(1)}`, { ...payload, base });
     if (r === undefined) return base;
-    return (typeof base === 'boolean' ? !!r : typeof base === 'number' ? Number(r) : r) as V;
+    return (
+      typeof base === 'boolean' ? !!r : typeof base === 'number' ? Number(r) : typeof base === 'string' ? String(r) : r
+    ) as V;
   }
 
   // ---------- Milestone 3b (B2): the engine API ----------
@@ -3195,7 +3218,11 @@ export class PlaySession {
       const to: [number, number, number] =
         op === 'by'
           ? [px + Math.round(x), py + dy, pz + Math.round(z)]
-          : [Math.round(x - (this.instanceCenter(inst)![0] - px)), py + (dy - base), Math.round(z - (this.instanceCenter(inst)![2] - pz))];
+          : [
+              Math.round(x - (this.instanceCenter(inst)![0] - px)),
+              py + (dy - base),
+              Math.round(z - (this.instanceCenter(inst)![2] - pz)),
+            ];
       if (to[0] !== px || to[1] !== py || to[2] !== pz) this.moveInstance(inst, to);
       return;
     }
@@ -3237,7 +3264,8 @@ export class PlaySession {
       if (op === 'velocity') h.vy = y;
       else h.vy = (h.vy ?? 0) + y;
       // across: the hero drifts, as a gust carries it
-      this.heroDrift = op === 'velocity' ? { x, z } : { x: (this.heroDrift?.x ?? 0) + x, z: (this.heroDrift?.z ?? 0) + z };
+      this.heroDrift =
+        op === 'velocity' ? { x, z } : { x: (this.heroDrift?.x ?? 0) + x, z: (this.heroDrift?.z ?? 0) + z };
       if (y > 0) h.grounded = false;
       return;
     }

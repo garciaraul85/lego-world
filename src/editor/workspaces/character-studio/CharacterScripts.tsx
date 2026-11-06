@@ -4,7 +4,7 @@
  */
 import { useState } from 'preact/hooks';
 import { startValues } from '../../../core/logic/behaviours';
-import { CHARACTER_BUILTINS } from '../../../core/logic/builtins';
+import { CHARACTER_BUILTINS, lineageOf } from '../../../core/logic/builtins';
 import type { Character } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
 import { FieldHelp } from '../../components/fields';
@@ -29,16 +29,19 @@ export function CharacterScripts({ c, chr }: { c: ActionCtx; chr: Character }) {
         <span>{list.length}</span>
       </div>
       {/* Milestone 3b (B4): what the character is (Hero, Neighbour) and its built-ins (Damageable) */}
-      {CHARACTER_BUILTINS.filter((b) => b.on(chr)).map((b) => (
-        <BuiltinRow
-          key={`${chr.id}:${b.name}`}
-          c={c}
-          b={b}
-          it={chr}
-          on={{ character: chr.id }}
-          where={chr.name || 'this character'}
-        />
-      ))}
+      {CHARACTER_BUILTINS.filter((b) => b.on(chr))
+        // Milestone 3b (B5a): one row per line (PopUp shows EnemyBrain's and Brain's fields; they get no row)
+        .filter((b, _i, on) => !on.some((o) => o !== b && lineageOf(o.name).some((x) => x.name === b.name)))
+        .map((b) => (
+          <BuiltinRow
+            key={`${chr.id}:${b.name}`}
+            c={c}
+            b={b}
+            it={chr}
+            on={{ character: chr.id }}
+            where={chr.name || 'this character'}
+          />
+        ))}
       {list.map((a) => {
         const g = all.find((x) => x.id === a.use);
         if (!g) return null;

@@ -1,5 +1,6 @@
 import { ADVENTURE } from './adventure';
 import { API, API_EVENTS, API_MATH } from './api';
+import { BRAIN_EVENTS, BRAIN_HOOKS } from './brains';
 import { BUTTON_EVENTS, BUTTONS } from './buttons';
 import { DIALOGUE, DIALOGUE_EVENTS, MOVES, SHEET, SHEET_EVENTS } from './dialogue';
 import { EFFECTS } from './effects';
@@ -62,6 +63,8 @@ export const CATALOG: readonly NodeDef[] = [
   ...API,
   // Milestone 3b (B3): hooks of the built-in behaviours, and their answer
   ...HOOKS,
+  ...BRAIN_HOOKS,
+  ...BRAIN_EVENTS,
   ...RETURN,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));

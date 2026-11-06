@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (155 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (171 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -264,6 +264,15 @@ Runs when a behaviour sends this object a message (Send message). Leave Name emp
 - Settings: Name (string, optional)
 - Outputs: value (any), from (entity)
 - Code: `on("message", { name: … }, (e) => { … });`
+
+### On state change
+
+`event.onStateChange` · event
+
+Runs when an enemy’s brain goes from one state to another (idle, chase, windup, circle, swoop, hidden, rise, spit, flee…): from and to name them. For a behaviour that extends an enemy brain, only its own enemy’s changes.
+
+- Outputs: from (string), to (string)
+- Code: `on("stateChange", (e) => { … });`
 
 ## Flow
 
@@ -1502,3 +1511,138 @@ Asked every step while a neighbour follows the hero: distance is how far it is n
 
 - Outputs: distance (number), base (number)
 - Code: `on("followGap", (e) => { … });`
+
+### Which state next? (Brain)
+
+`event.onNextState` · event
+
+Asked when the brain changes state: from is the state it leaves, to (and base) the one the engine chose. Return a state name to go there instead (idle, chase, windup, back, circle, swoop, climb, hidden, rise, up, spit, duck, hang, drop, ground, fadeout, faded, fadein, charge, beam, breathe, rush, counter, hop, flee).
+
+- Outputs: from (string), to (string), base (string)
+- Code: `on("nextState", (e) => { … });`
+
+### Does it see the hero? (EnemyBrain)
+
+`event.onCanSee` · event
+
+Asked while it looks out: distance is how far the hero is; base says whether its sight, cone and hearing caught the hero. Return true to notice the hero, false not to.
+
+- Outputs: distance (number), base (bool)
+- Code: `on("canSee", (e) => { … });`
+
+### Can it attack now? (EnemyBrain)
+
+`event.onCanAttack` · event
+
+Asked before each attack starts: attack is swing, counter, bite, pounce, spit, shot, beam, breath, charge, swoop or drop; distance how far the hero is. Return false and it holds back (and tries again soon).
+
+- Outputs: attack (string), distance (number), base (bool)
+- Code: `on("canAttack", (e) => { … });`
+
+### How hard does it hit? (EnemyBrain)
+
+`event.onAttackPower` · event
+
+Asked as an attack lands (a swing, bite, pounce, beam, breath, charge, swoop or drop) or a spit or shot leaves it: attack names it, power is its power. Return the power (0: it does no harm).
+
+- Outputs: attack (string), power (number), base (number)
+- Code: `on("attackPower", (e) => { … });`
+
+### Should it run away? (EnemyBrain)
+
+`event.onShouldFlee` · event
+
+Asked every step while it fights: distance is how far the hero is. Return true and it runs from the hero this step (not a turret, a pop-up or a hanging spider).
+
+- Outputs: distance (number), base (bool)
+- Code: `on("shouldFlee", (e) => { … });`
+
+### Does it call the others? (PackHunter, and any with Pack wits)
+
+`event.onCallsPack` · event
+
+Asked when it first sees the hero. Return false and it fights alone.
+
+- Outputs: base (bool)
+- Code: `on("callsPack", (e) => { … });`
+
+### Does it counter? (Knight)
+
+`event.onShouldCounter` · event
+
+Asked when the hero swings at its shield: distance is how far the hero is. Return false and it only blocks.
+
+- Outputs: distance (number), base (bool)
+- Code: `on("shouldCounter", (e) => { … });`
+
+### How many spits? (PopUp)
+
+`event.onSpits` · event
+
+Asked each time it comes up: how many shots before it ducks (1 to 10; the engine picks 1 or 2).
+
+- Outputs: base (number)
+- Code: `on("spits", (e) => { … });`
+
+### What does it shoot? (PopUp, Shooter)
+
+`event.onShotKind` · event
+
+Asked as it shoots: rock or fireball (base: a fire enemy’s fireball, the others’ rock).
+
+- Outputs: base (string)
+- Code: `on("shotKind", (e) => { … });`
+
+### How far does it keep? (Shooter)
+
+`event.onKeepAway` · event
+
+Asked every step: the distance it keeps from the hero (studs).
+
+- Outputs: base (number)
+- Code: `on("keepAway", (e) => { … });`
+
+### How fast does its gaze follow? (Turret)
+
+`event.onTrackSpeed` · event
+
+Asked as it charges and fires its beam: how fast it turns after the hero (radians a second; you can outrun a slow one).
+
+- Outputs: base (number)
+- Code: `on("trackSpeed", (e) => { … });`
+
+### Does it charge? (Charger)
+
+`event.onShouldCharge` · event
+
+Asked while it closes in: distance is how far the hero is; base is true when it is far enough for a run, near enough, and facing the hero.
+
+- Outputs: distance (number), base (bool)
+- Code: `on("shouldCharge", (e) => { … });`
+
+### How long does it circle? (Flyer, Swarm)
+
+`event.onCircleTime` · event
+
+Asked as it starts circling over the hero: seconds before it swoops.
+
+- Outputs: base (number)
+- Code: `on("circleTime", (e) => { … });`
+
+### Does it drop? (Ambusher)
+
+`event.onShouldDrop` · event
+
+Asked as it hangs on its thread: distance is how far the hero is from under it; base is true when the hero is right under it.
+
+- Outputs: distance (number), base (bool)
+- Code: `on("shouldDrop", (e) => { … });`
+
+### How long does it stay unseen? (Ghost)
+
+`event.onHiddenFor` · event
+
+Asked as it fades out: seconds before it fades in behind the hero.
+
+- Outputs: base (number)
+- Code: `on("hiddenFor", (e) => { … });`

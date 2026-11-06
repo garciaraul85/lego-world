@@ -159,3 +159,25 @@ class GemDoor extends Lock {
 Characters have built-ins too (marked ☺): **Hero** (the player character: its fields are the sheet, hearts, speed, jump, strength, defence, stamina; hooks `canJump` (`e.onGround`), `moveSpeed` (`e.base`: return a speed, 1 normal), `hitPower` (`e.power`, `e.kind`), `takeDamage`, `gainXp` (`e.amount`)), **Neighbour** (a character on the map: Stands where it was put; hook `canTalk`) and **Damageable** (one the hero can hurt: Health, Armour; hook `takeDamage`). The hero is also a **Swimmer** (`canDive`; `breath`: seconds of air, asked every step) and a **Climber** (`canClimbWall`); a neighbour is also a **Follower** (`followGap`: how close it keeps while following, 2.5 studs at first). A behaviour that extends one goes on the character, in **Characters › Behaviour**, which lists its built-ins with their fields. The **Hero behaviours course** makes a hero who is out of breath after three quick jumps; the **Swimmer course** a pearl diver with three times the air.
 
 Attaching a behaviour that extends a built-in to an asset makes it that built-in too. In **Scene › Inspector › Behaviours** the built-ins an asset has are listed with their fields; **+ Script** adds one (under Built-in), **Extend** makes your own on it, **×** takes it off. The **Built-in behaviours course** makes a crate that sticks after two pushes; the **World built-ins course** a rock so heavy it takes three tries to lift.
+
+### Enemy brains
+
+Every enemy runs on a brain, and every brain is a class. **Brain** is the root: each step it senses, thinks (which state to be in: idle, chase, windup, circle, swoop, hidden, rise, spit, duck, hang, drop, fadeout, flee…) and acts; `nextState(e)` (`e.from`, `e.to`) can send it to another state, and **On state change** (`stateChange(e)` in a behaviour) hears every change. **EnemyBrain** extends it: its fields are the fight settings (kind of fighter, wits, damage type, power, reach, sight, cone, hearing, speed, the tell, time between attacks), and its hooks are `canSee` (`e.distance`), `canAttack` (`e.attack`: swing, counter, bite, pounce, spit, shot, beam, breath, charge, swoop, drop), `attackPower` (`e.attack`, `e.power`), `shouldFlee` and `takeDamage`.
+
+The kind of fighter picks the template, which extends EnemyBrain:
+
+| Template | Its own hooks | The cast |
+|---|---|---|
+| Brawler | (EnemyBrain's) | |
+| Charger | `shouldCharge` | Cinderjaw |
+| Knight | `shouldCounter` | Rattlebones |
+| Turret | `trackSpeed` | Watcher Eye |
+| Shooter | `keepAway`, `shotKind` | |
+| PopUp | `spits`, `shotKind` | Pebblespout, Finspitter |
+| Flyer | `circleTime` | |
+| Swarm | `circleTime` | Flitterwing |
+| Ambusher | `shouldDrop` | Threadback |
+| Ghost | `hiddenFor` | Lanternwisp |
+| PackHunter | `callsPack` | Howler |
+
+A behaviour that extends a template (`class ThreeShot extends PopUp { spits(e) { return 3; } }`) answers any hook of its line: its own, EnemyBrain's and Brain's. It goes on an enemy of that template, in **Characters › Behaviour**. The **Make your own brain course** makes a pop-up that spits three fireballs. Bosses (BossBrain) come next.

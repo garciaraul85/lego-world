@@ -4,7 +4,7 @@
  */
 
 import { FIELD_TYPES } from '../../../core/logic/behaviours';
-import { type Builtin, extendCode } from '../../../core/logic/builtins';
+import { type Builtin, extendCode, lineageOf } from '../../../core/logic/builtins';
 import { nodeDef } from '../../../core/logic/catalog';
 import { parseBehaviour } from '../../../core/logic/code/behaviour';
 import type { LogicGraph } from '../../../core/schema';
@@ -39,6 +39,14 @@ export function BuiltinPage({ c, b }: { c: ActionCtx; b: Builtin<any> }) {
       <h2 style={{ margin: '4px 0 6px' }}>
         {b.name} <span class="chip">built-in</span>
       </h2>
+      {/* Milestone 3b (B5a): what it extends (its class line) */}
+      {lineageOf(b.name).length > 1 && (
+        <p class="small" data-tour="builtin-lineage">
+          {lineageOf(b.name)
+            .map((x) => x.name)
+            .join(' extends ')}
+        </p>
+      )}
       <p>{b.about}</p>
       <p class="small muted">
         {b.for === 'character'
@@ -80,7 +88,8 @@ export function BuiltinPage({ c, b }: { c: ActionCtx; b: Builtin<any> }) {
               <tr>
                 <td>
                   <code>
-                    {h.method}(e) → {h.returns === 'bool' ? 'true / false' : 'a number'}
+                    {h.method}(e) →{' '}
+                    {h.returns === 'bool' ? 'true / false' : h.returns === 'name' ? 'a name' : 'a number'}
                   </code>
                 </td>
                 <td>
@@ -100,8 +109,35 @@ export function BuiltinPage({ c, b }: { c: ActionCtx; b: Builtin<any> }) {
       ) : (
         <p class="muted small">None: it has no decisions to make. A behaviour on it can still use its events.</p>
       )}
+      {/* Milestone 3b (B5a): the hooks of the ones it extends (answerable here too) */}
+      {lineageOf(b.name)
+        .slice(1)
+        .filter((x) => x.hooks.length)
+        .map((x) => (
+          <>
+            <h3>Hooks from {x.name}</h3>
+            <table class="builtin-table">
+              <tbody>
+                {x.hooks.map((h) => (
+                  <tr>
+                    <td>
+                      <code>
+                        {h.method}(e) →{' '}
+                        {h.returns === 'bool' ? 'true / false' : h.returns === 'name' ? 'a name' : 'a number'}
+                      </code>
+                    </td>
+                    <td>{h.doc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ))}
       <h3>Events it sends</h3>
-      <p class="small">{b.events.map((e) => nodeDef(e)?.title ?? e).join(', ') || 'None.'}</p>
+      <p class="small">
+        {[...new Set(lineageOf(b.name).flatMap((x) => x.events))].map((e) => nodeDef(e)?.title ?? e).join(', ') ||
+          'None.'}
+      </p>
       {mine.length > 0 && (
         <>
           <h3>Your behaviours that extend it</h3>

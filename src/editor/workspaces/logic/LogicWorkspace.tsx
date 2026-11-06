@@ -371,18 +371,32 @@ function Sidebar({
           </span>
           <span>{BUILTINS.length + CHARACTER_BUILTINS.length}</span>
         </div>
-        <div data-tour="builtin-list" class="builtin-chips">
-          {[...BUILTINS, ...CHARACTER_BUILTINS].map((b) => (
-            <button
-              type="button"
-              class={`chip-btn ${ed.logicGraph.value === `builtin:${b.name}` ? 'on' : ''}`}
-              aria-label={`Built-in ${b.name}`}
-              title={b.about}
-              onClick={() => (ed.logicGraph.value = `builtin:${b.name}`)}
-            >
-              {b.name}
-              {b.for === 'character' && <span class="small muted"> ☺</span>}
-            </button>
+        <div data-tour="builtin-list">
+          {(
+            [
+              ['Assets', BUILTINS],
+              ['Characters', CHARACTER_BUILTINS.filter((b) => !b.parent && b.name !== 'Brain')],
+              ['Brains', CHARACTER_BUILTINS.filter((b) => b.parent || b.name === 'Brain')],
+            ] as const
+          ).map(([group, list]) => (
+            <>
+              <div class="small muted" style={{ padding: '4px 10px 0' }}>
+                {group}
+              </div>
+              <div class="builtin-chips">
+                {list.map((b) => (
+                  <button
+                    type="button"
+                    class={`chip-btn ${ed.logicGraph.value === `builtin:${b.name}` ? 'on' : ''}`}
+                    aria-label={`Built-in ${b.name}`}
+                    title={b.about}
+                    onClick={() => (ed.logicGraph.value = `builtin:${b.name}`)}
+                  >
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            </>
           ))}
         </div>
 

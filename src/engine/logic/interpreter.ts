@@ -190,8 +190,7 @@ export class LogicRuntime {
 
   /** Milestone 3b (B1): a copy that is gone (removed, another map): its behaviours stop and forget it */
   detach(owner: string) {
-    for (const [g, on] of this.attached)
-      if (on.delete(owner)) this.selfVars.delete(`${g}@${owner}`);
+    for (const [g, on] of this.attached) if (on.delete(owner)) this.selfVars.delete(`${g}@${owner}`);
     this.runs = this.runs.filter((r) => r.owner !== owner);
   }
 

@@ -295,6 +295,21 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       `${String(a?.field)}: ${String(a?.value)}`,
     );
   },
+  async waitLogged(c, a) {
+    // standing back and watching: up to `seconds` until the Console says it
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const until = String(a?.until ?? '');
+    for (let i = 0; i < Number(a?.seconds ?? 10) * 4 && !s.events.some((e) => e.msg.includes(until)); i++)
+      await wait(250);
+    // then (`watch` seconds later) back out of its sight, the way it came (a volley seen, nobody hurt much)
+    if (a?.watch) {
+      await wait(Number(a.watch) * 1000);
+      const h = s.heroState;
+      const yaw = s.world.doc.spawns[0]?.yaw ?? 0;
+      s.placeAt([h.x - Math.sin(yaw) * 16, h.y, h.z - Math.cos(yaw) * 16], yaw);
+    }
+  },
   async jumpUntilLogged(c, a) {
     // what pressing Space again and again, quickly, does
     const s = c.ed.session.value;

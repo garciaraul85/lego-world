@@ -6,7 +6,7 @@ import { EXEC_IN, EXEC_OUT } from './types';
  * answer itself. Each is a method (`canOpen(e) { … }`) that returns its answer; `super.canOpen(e)` is the
  * engine's own answer (e.base on the card). Not returning keeps the engine's answer.
  */
-const hook = (name: string, title: string, doc: string, outputs: PinDef[], base: PinDef['type']): NodeDef => ({
+export const hook = (name: string, title: string, doc: string, outputs: PinDef[], base: PinDef['type']): NodeDef => ({
   type: `event.on${name}`,
   kind: 'event',
   title,

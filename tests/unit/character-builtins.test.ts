@@ -85,7 +85,7 @@ function game(...graphs: LogicGraph[]) {
 
 describe('character built-ins', () => {
   it('each has fields that set and read back on a valid character, and its Extend code round-trips', () => {
-    expect(CHARACTER_BUILTINS.map((b) => b.name)).toEqual([
+    expect(CHARACTER_BUILTINS.filter((b) => !b.parent && b.name !== 'Brain').map((b) => b.name)).toEqual([
       'Hero',
       'Neighbour',
       'Damageable',
@@ -97,7 +97,7 @@ describe('character built-ins', () => {
       const who = b.on(hero) ? hero : mira;
       let c = { ...who, ...b.add(who) } as Character;
       for (const f of b.fields) {
-        const v = f.type === 'bool' ? !f.default : (f.max ?? 2);
+        const v = f.type === 'bool' ? !f.default : f.type === 'string' ? (f.choices?.[1] ?? f.default) : (f.max ?? 2);
         c = { ...c, ...f.set(c, v) } as Character;
         expect(f.get(c), `${b.name}.${f.name}`).toEqual(v);
         const ok = CharacterSchema.safeParse(c);

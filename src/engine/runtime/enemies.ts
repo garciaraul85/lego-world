@@ -70,7 +70,7 @@ export type EnemyHost = {
   /** step 14a: the Lens of Truth is up */
   lensOn?(): boolean;
   /** step 14a: a shot leaves `from` for `at` */
-  shoot?(n: Npc, kind: FoeShotKind, from: [number, number, number], at: [number, number, number]): void;
+  shoot?(n: Npc, kind: FoeShotKind, from: [number, number, number], at: [number, number, number], power?: number): void;
   /** step 14a: one of a body's moves (roar, charge, flap…) */
   move?(n: Npc, kind: BodyMove): void;
   /** step 14a: things burn where a breath of fire reaches */
@@ -78,7 +78,46 @@ export type EnemyHost = {
   effect?(kind: 'fire' | 'dust' | 'splash' | 'sparks' | 'frost' | 'vanish', at: [number, number, number]): void;
   sound?(id: 'roar' | 'whoosh' | 'splash' | 'zap' | 'fire' | 'flap' | 'hiss', at: [number, number, number]): void;
   log?(text: string): void;
+  /**
+   * Milestone 3b (B5a): a hook answered by a behaviour on this enemy (its brain's decision: canSee, canAttack,
+   * attackPower, shouldFlee, nextState, and its template's), or base
+   */
+  ask?<V>(n: Npc, hook: string, payload: Record<string, unknown>, base: V): V;
+  /** Milestone 3b (B5a): its brain went from one state to another (On state change) */
+  onState?(n: Npc, from: string, to: string): void;
 };
+
+/** Milestone 3b (B5a): the states a brain can be in (what nextState may answer) */
+export const BRAIN_STATES = [
+  'idle',
+  'chase',
+  'windup',
+  'back',
+  'hidden',
+  'rise',
+  'up',
+  'spit',
+  'duck',
+  'circle',
+  'swoop',
+  'climb',
+  'hang',
+  'drop',
+  'ground',
+  'fadeout',
+  'faded',
+  'fadein',
+  'charge',
+  'beam',
+  'breathe',
+  'rush',
+  'counter',
+  'hop',
+  'flee',
+] as const;
+const SHOT_KINDS = ['rock', 'fireball'] as const;
+/** the ones that stay put (they do not run): a turret, a pop-up, a hanging spider */
+const STAYS = new Set<EnemyStyle>(['turret', 'popup', 'ambusher']);
 
 type Phase =
   | 'idle'
@@ -104,7 +143,8 @@ type Phase =
   | 'breathe'
   | 'rush'
   | 'counter'
-  | 'hop';
+  | 'hop'
+  | 'flee';
 
 type Brain = {
   phase: Phase;
@@ -122,6 +162,8 @@ type Brain = {
   shots?: number;
   /** it saw the hero (and howled, or called the others) */
   seen?: boolean;
+  /** Milestone 3b (B5a): the attack it is making now (canAttack, attackPower) */
+  attack?: string;
 };
 
 /** how an enemy shows now (drawn and hit by): sunk underground or under water, faded out, a beam, a breath */
@@ -257,38 +299,103 @@ export class Enemies {
         else if (style !== 'ambusher' || b.phase === 'ground') n.controller.step(still, dt, 0);
         continue;
       }
-      switch (style) {
-        case 'popup':
-          this.popup(n, e, b, d, face, dt, away);
-          break;
-        case 'turret':
-          this.turret(n, e, b, d, face, dt, away);
-          break;
-        case 'swarm':
-        case 'flyer':
-          this.flyer(n, e, b, d, face, dt, away);
-          break;
-        case 'ambusher':
-          this.ambusher(n, e, b, d, face, dt, away);
-          break;
-        case 'ghost':
-          this.ghost(n, e, b, d, face, dt, away);
-          break;
-        default:
-          if (away) {
-            if (b.phase !== 'idle') this.lookOf(n).breath = null;
-            b.phase = 'idle';
-            continue;
-          }
-          if (style === 'knight') this.knight(n, e, b, d, face, dt, npcs);
-          else if (style === 'pack') this.pack(n, e, b, d, face, dt, npcs);
-          else if (style === 'shooter') this.shooter(n, e, b, d, face, dt, npcs);
-          else if (style === 'melee' && e.type === 'fire') this.firebreather(n, e, b, d, face, dt, npcs);
-          else this.melee(n, e, b, d, face, dt, npcs);
+      const was = b.phase;
+      // Milestone 3b (B5a): its behaviour may send it running (EnemyBrain.shouldFlee): not the ones that stay put
+      if (!away && !STAYS.has(style) && this.ask(n, 'shouldFlee', { distance: d }, false))
+        this.flee(n, e, b, style, d, dt);
+      else {
+        if (b.phase === 'flee')
+          b.phase = style === 'knight' || style === 'flyer' || style === 'swarm' ? 'circle' : 'chase';
+        this.think(n, e, b, style, d, face, dt, away, npcs);
+      }
+      // Milestone 3b (B5a): a change of state: its behaviour may choose another (Brain.nextState), and hears of it
+      if (b.phase !== was) {
+        const to = this.ask(n, 'nextState', { from: was, to: b.phase }, b.phase as string);
+        if (to !== b.phase && (BRAIN_STATES as readonly string[]).includes(to)) b.phase = to as Phase;
+        if (b.phase !== was) this.host.onState?.(n, was, b.phase);
       }
     }
     // a pack's turn passes on when it runs out
     if (this.packTurn && this.packTurn.until < this.host.clock) this.packTurn = null;
+  }
+
+  /** Milestone 3b (B5a): one step of its template's brain (the style's own code) */
+  private think(
+    n: Npc,
+    e: Enemy,
+    b: Brain,
+    style: EnemyStyle,
+    d: number,
+    face: number,
+    dt: number,
+    away: boolean,
+    npcs: readonly Npc[],
+  ) {
+    switch (style) {
+      case 'popup':
+        this.popup(n, e, b, d, face, dt, away);
+        break;
+      case 'turret':
+        this.turret(n, e, b, d, face, dt, away);
+        break;
+      case 'swarm':
+      case 'flyer':
+        this.flyer(n, e, b, d, face, dt, away);
+        break;
+      case 'ambusher':
+        this.ambusher(n, e, b, d, face, dt, away);
+        break;
+      case 'ghost':
+        this.ghost(n, e, b, d, face, dt, away);
+        break;
+      default:
+        if (away) {
+          if (b.phase !== 'idle') this.lookOf(n).breath = null;
+          b.phase = 'idle';
+          return;
+        }
+        if (style === 'knight') this.knight(n, e, b, d, face, dt, npcs);
+        else if (style === 'pack') this.pack(n, e, b, d, face, dt, npcs);
+        else if (style === 'shooter') this.shooter(n, e, b, d, face, dt, npcs);
+        else if (style === 'melee' && e.type === 'fire') this.firebreather(n, e, b, d, face, dt, npcs);
+        else this.melee(n, e, b, d, face, dt, npcs);
+    }
+  }
+
+  /** Milestone 3b (B5a): running from the hero (its behaviour said so) */
+  private flee(n: Npc, e: Enemy, b: Brain, style: EnemyStyle, d: number, dt: number) {
+    const s = n.state;
+    const h = this.host.heroState;
+    b.phase = 'flee';
+    this.lookOf(n).breath = null;
+    const away = Math.atan2(s.x - h.x, s.z - h.z);
+    if (style === 'swarm' || style === 'flyer')
+      this.flyTo(n, s.x + Math.sin(away) * 3, s.z + Math.cos(away) * 3, h.y + FLY_HEIGHT + 1.5, 4.2 * e.speed, dt);
+    else this.walk(n, s.x - h.x, s.z - h.z, 0.6 * e.speed, dt);
+    s.heading = away;
+    void d;
+  }
+
+  /** Milestone 3b (B5a): a decision its behaviour may make (a hook), or the engine's own */
+  private ask<V>(n: Npc, hook: string, payload: Record<string, unknown>, base: V): V {
+    return this.host.ask ? this.host.ask(n, hook, payload, base) : base;
+  }
+
+  /** Milestone 3b (B5a): it may start this attack now (EnemyBrain.canAttack) */
+  private may(n: Npc, attack: string, d: number): boolean {
+    return this.ask(n, 'canAttack', { attack, distance: d }, true);
+  }
+
+  /** Milestone 3b (B5a): how hard this attack lands (EnemyBrain.attackPower) */
+  private pow(n: Npc, attack: string, power: number): number {
+    return Math.max(0, this.ask(n, 'attackPower', { attack, power }, power));
+  }
+
+  /** Milestone 3b (B5a): what it shoots (PopUp, Shooter: shotKind) */
+  private shotOf(n: Npc, e: Enemy): FoeShotKind {
+    const base = e.type === 'fire' ? 'fireball' : 'rock';
+    const k = this.ask(n, 'shotKind', {}, base as string);
+    return ((SHOT_KINDS as readonly string[]).includes(k) ? k : base) as FoeShotKind;
   }
 
   /** which brain it runs */
@@ -324,7 +431,7 @@ export class Enemies {
       if (!this.notices(n, e, d, face)) return;
       b.phase = 'chase';
       // a pack hunter calls the others near it
-      if (e.wits === 'pack') this.callPack(npcs, n);
+      if (e.wits === 'pack' && this.ask(n, 'callsPack', {}, true)) this.callPack(npcs, n);
     }
     const reach = this.reachOf(n, e);
     if (b.phase === 'back') {
@@ -364,13 +471,21 @@ export class Enemies {
   }
 
   /** the swing begins: the arm goes up (a body's strike) for `windup` seconds */
-  private startSwing(n: Npc, e: Enemy, b: Brain, windup: number) {
+  private startSwing(n: Npc, e: Enemy, b: Brain, windup: number, attack = 'swing'): boolean {
+    // Milestone 3b (B5a): its behaviour may hold the attack back (EnemyBrain.canAttack)
+    const d = Math.hypot(this.host.heroState.x - n.state.x, this.host.heroState.z - n.state.z);
+    if (!this.may(n, attack, d)) {
+      b.cooldown = Math.max(b.cooldown, 0.4);
+      return false;
+    }
+    b.attack = attack;
     b.phase = 'windup';
     b.t = windup;
     const held = String(n.profile.held ?? 'None');
     // a beast of the pack pounces; one with a weapon swings it; the rest claw
     const as: AttackAs = this.styleOf(e) === 'pack' ? 'pounce' : held !== 'None' ? 'swing' : 'claw';
     tell(n, windup, 0.3, as, held);
+    return true;
   }
 
   /** winding up: it turns to the hero; then the swing lands if the hero is still in reach and in front */
@@ -380,7 +495,8 @@ export class Enemies {
     s.heading = s.heading + angleDiff(face, s.heading) * Math.min(1, dt * 4);
     n.controller.step(still, dt, 0);
     if (b.t > 0) return;
-    if (d <= reach + 0.6 && Math.abs(angleDiff(face, s.heading)) < 1.2) this.host.hitHero(n, e.power, e.type);
+    if (d <= reach + 0.6 && Math.abs(angleDiff(face, s.heading)) < 1.2)
+      this.host.hitHero(n, this.pow(n, b.attack ?? 'swing', e.power), e.type);
     b.phase = e.wits === 'smart' || this.styleOf(e) === 'knight' ? 'back' : 'chase';
     b.t = 0.7;
     b.cooldown = e.cooldown;
@@ -405,7 +521,7 @@ export class Enemies {
       if (!this.notices(n, e, d, face)) return;
       b.phase = 'circle';
       b.angle = Math.random() < 0.5 ? 1 : -1;
-      if (e.wits === 'pack') this.callPack(npcs, n);
+      if (e.wits === 'pack' && this.ask(n, 'callsPack', {}, true)) this.callPack(npcs, n);
     }
     const reach = this.reachOf(n, e);
     if (b.phase === 'windup' || b.phase === 'counter') return this.windup(n, e, b, d, face, dt, reach);
@@ -419,8 +535,15 @@ export class Enemies {
     // the hero swings at its front while close: blocked (its shield takes it: its sides say so), then a quick
     // counter
     const front = Math.abs(angleDiff(Math.atan2(h.x - s.x, h.z - s.z), s.heading)) < 0.9;
-    if (this.host.heroAttacking?.() && d <= reach + 1.2 && front && b.cooldown <= e.cooldown * 0.5) {
-      this.startSwing(n, e, b, 0.28);
+    if (
+      this.host.heroAttacking?.() &&
+      d <= reach + 1.2 &&
+      front &&
+      b.cooldown <= e.cooldown * 0.5 &&
+      // Milestone 3b (B5a): Knight.shouldCounter
+      this.ask(n, 'shouldCounter', { distance: d }, true) &&
+      this.startSwing(n, e, b, 0.28, 'counter')
+    ) {
       b.phase = 'counter';
       this.host.log?.(`${n.profile.name} blocks and counters`);
       return;
@@ -464,7 +587,8 @@ export class Enemies {
         if (b.t > 0 || away || d < POP_SHY || !this.notices(n, e, d, face)) return;
         b.phase = 'rise';
         b.t = POP_RISE;
-        b.shots = 1 + (Math.random() < 0.5 ? 1 : 0);
+        // Milestone 3b (B5a): PopUp.spits: how many shots this time up
+        b.shots = Math.max(1, Math.min(10, Math.round(this.ask(n, 'spits', {}, 1 + (Math.random() < 0.5 ? 1 : 0)))));
         s.heading = face;
         this.host.effect?.(water !== null ? 'splash' : 'dust', [s.x, water ?? s.y, s.z]);
         if (water !== null) this.host.sound?.('splash', [s.x, water, s.z]);
@@ -483,6 +607,10 @@ export class Enemies {
         s.heading = s.heading + angleDiff(face, s.heading) * Math.min(1, dt * 6);
         if (d < POP_SHY * 0.8) return this.duck(n, b, water);
         if (b.t > 0) return;
+        if (!this.may(n, 'spit', d)) {
+          b.t = 0.4;
+          return;
+        }
         // a puff of its cheeks (the tell), then the spit
         b.phase = 'spit';
         b.t = e.windup;
@@ -493,7 +621,7 @@ export class Enemies {
         s.heading = s.heading + angleDiff(face, s.heading) * Math.min(1, dt * 6);
         if (b.t > 0) return;
         const mouth = this.mouth(n);
-        this.host.shoot?.(n, e.type === 'fire' ? 'fireball' : 'rock', mouth, [h.x, h.y + 1.6, h.z]);
+        this.host.shoot?.(n, this.shotOf(n, e), mouth, [h.x, h.y + 1.6, h.z], this.pow(n, 'spit', e.power));
         b.shots = (b.shots ?? 1) - 1;
         b.phase = 'up';
         b.t = 0.9;
@@ -549,7 +677,7 @@ export class Enemies {
       l.beam = null;
       // its gaze sweeps from side to side about the way it was put
       s.heading = home.heading + Math.sin(this.host.clock * 0.6 + n.id) * 0.9;
-      if (seen && b.cooldown <= 0) {
+      if (seen && b.cooldown <= 0 && this.may(n, 'beam', d)) {
         b.phase = 'charge';
         b.t = BEAM_CHARGE;
         b.landed = false;
@@ -558,7 +686,9 @@ export class Enemies {
       return;
     }
     // charging and firing: it turns toward the hero, slowly (you can outrun its gaze)
-    const turn = Math.max(-BEAM_TRACK * dt, Math.min(BEAM_TRACK * dt, angleDiff(face, s.heading)));
+    // Milestone 3b (B5a): Turret.trackSpeed: how fast its gaze follows (radians a second)
+    const track = Math.max(0, this.ask(n, 'trackSpeed', {}, BEAM_TRACK));
+    const turn = Math.max(-track * dt, Math.min(track * dt, angleDiff(face, s.heading)));
     s.heading += turn;
     const dir: [number, number, number] = [
       Math.sin(s.heading),
@@ -595,7 +725,7 @@ export class Enemies {
       const py = eye[1] + dir[1] * along;
       if (along > 0 && reachK <= k && Math.hypot(px - h.x, pz - h.z) < 0.7 && py > h.y - 0.2 && py < h.y + 3.4) {
         b.landed = true;
-        const how = this.host.harmHero?.(n, e.power, e.type, [eye[0], eye[2]]) ?? 'hit';
+        const how = this.host.harmHero?.(n, this.pow(n, 'beam', e.power), e.type, [eye[0], eye[2]]) ?? 'hit';
         if (how === 'block' || how === 'parry') this.host.log?.('The shield blocked the beam');
       }
     }
@@ -640,7 +770,8 @@ export class Enemies {
       const dh = Math.hypot(h.x - mouth[0], h.y + 1.4 - mouth[1], h.z - mouth[2]);
       if (!b.landed && dh <= l.breath.reach + 0.4 && off < BREATH_CONE) {
         b.landed = true;
-        const how = this.host.harmHero?.(n, e.power, 'fire', [mouth[0], mouth[2]], 'burn') ?? 'hit';
+        const how =
+          this.host.harmHero?.(n, this.pow(n, 'breath', e.power), 'fire', [mouth[0], mouth[2]], 'burn') ?? 'hit';
         if (how === 'block' || how === 'parry') this.host.log?.('The shield held off the fire');
       }
       // flames along the breath (the particles), and what burns in front of it catches
@@ -669,7 +800,7 @@ export class Enemies {
       this.walk(n, Math.sin(s.heading), Math.cos(s.heading), 1.3 * e.speed, dt);
       if (d <= this.reachOf(n, e) + 0.3 && !b.landed) {
         b.landed = true;
-        if (Math.abs(angleDiff(face, s.heading)) < 0.9) this.host.hitHero(n, e.power, 'blunt');
+        if (Math.abs(angleDiff(face, s.heading)) < 0.9) this.host.hitHero(n, this.pow(n, 'charge', e.power), 'blunt');
       }
       if (b.t <= 0) {
         b.phase = 'chase';
@@ -692,13 +823,23 @@ export class Enemies {
     s.heading = s.heading + angleDiff(face, s.heading) * Math.min(1, dt * 3);
     // how far the hero is from its mouth (a big lizard's mouth is well in front of its middle)
     const dm = d - this.frontOf(n);
-    if (b.cooldown <= 0 && dm <= R - 0.5 && Math.abs(angleDiff(face, s.heading)) < 0.5) {
+    if (b.cooldown <= 0 && dm <= R - 0.5 && Math.abs(angleDiff(face, s.heading)) < 0.5 && this.may(n, 'breath', d)) {
       b.phase = 'windup';
       b.t = e.windup;
       this.host.move?.(n, 'roar');
       return;
     }
-    if (b.cooldown <= 0 && dm > R + 1 && dm < 10 && Math.abs(angleDiff(face, s.heading)) < 0.25) {
+    if (
+      b.cooldown <= 0 &&
+      // Milestone 3b (B5a): Charger.shouldCharge (the engine: far enough for a run, near enough, facing the hero)
+      this.ask(
+        n,
+        'shouldCharge',
+        { distance: d },
+        dm > R + 1 && dm < 10 && Math.abs(angleDiff(face, s.heading)) < 0.25,
+      ) &&
+      this.may(n, 'charge', d)
+    ) {
       b.phase = 'rush';
       b.t = 1.1;
       b.landed = false;
@@ -752,7 +893,8 @@ export class Enemies {
       // it flitters about where it lives
       if (!away && this.notices(n, e, d, face)) {
         b.phase = 'circle';
-        b.t = 1 + Math.random();
+        // Milestone 3b (B5a): Flyer / Swarm.circleTime: how long it circles before it swoops
+        b.t = Math.max(0, this.ask(n, 'circleTime', {}, 1 + Math.random()));
         this.host.sound?.('flap', [s.x, s.y + 1, s.z]);
       } else b.phase = 'idle';
       const r = 2.2;
@@ -772,7 +914,7 @@ export class Enemies {
       const r = 3 + Math.sin(this.host.clock * 2.3 + n.id) * 0.8;
       this.flyTo(n, h.x + Math.cos(b.angle) * r, h.z + Math.sin(b.angle) * r, h.y + FLY_HEIGHT + 0.6 + flutter, sp, dt);
       s.heading = face;
-      if (b.t <= 0 && b.cooldown <= 0) {
+      if (b.t <= 0 && b.cooldown <= 0 && this.may(n, 'swoop', d)) {
         b.phase = 'swoop';
         b.t = SWOOP_TIME;
         b.landed = false;
@@ -794,8 +936,9 @@ export class Enemies {
         // the wings sweep down and the claws strike as it reaches the hero
         tell(n, 0, 0.35, 'swoop');
         const then = e.type === 'fire' ? 'burn' : e.type === 'ice' ? 'freeze' : undefined;
-        if (this.host.harmHero) this.host.harmHero(n, e.power, e.type, [s.x, s.z], then);
-        else this.host.hitHero(n, e.power, e.type);
+        const p = this.pow(n, 'swoop', e.power);
+        if (this.host.harmHero) this.host.harmHero(n, p, e.type, [s.x, s.z], then);
+        else this.host.hitHero(n, p, e.type);
       }
       if (b.t <= 0 || b.landed) {
         b.phase = 'climb';
@@ -807,7 +950,7 @@ export class Enemies {
     this.flyTo(n, s.x - Math.sin(face) * 2, s.z - Math.cos(face) * 2, h.y + FLY_HEIGHT + 1, sp * 1.2, dt);
     if (b.t <= 0) {
       b.phase = 'circle';
-      b.t = 1.2 + Math.random() * 1.5;
+      b.t = Math.max(0, this.ask(n, 'circleTime', {}, 1.2 + Math.random() * 1.5));
       b.cooldown = e.cooldown;
     }
   }
@@ -831,7 +974,17 @@ export class Enemies {
         s.y = top + Math.sin(this.host.clock * 1.3 + n.id) * 0.15;
         // it turns slowly as it hangs, and drops when the hero comes under it
         s.heading += dt * 0.4;
-        if (!away && Math.hypot(h.x - home.x, h.z - home.z) < 2.4 + this.frontOf(n) * 0.5 && h.y < top) {
+        if (
+          !away &&
+          // Milestone 3b (B5a): Ambusher.shouldDrop (the engine: the hero is under it)
+          this.ask(
+            n,
+            'shouldDrop',
+            { distance: Math.hypot(h.x - home.x, h.z - home.z) },
+            Math.hypot(h.x - home.x, h.z - home.z) < 2.4 + this.frontOf(n) * 0.5 && h.y < top,
+          ) &&
+          this.may(n, 'drop', d)
+        ) {
           b.phase = 'drop';
           b.vy = 0;
           s.heading = face;
@@ -854,16 +1007,16 @@ export class Enemies {
             const uz = hd > 0.05 ? (h.z - s.z) / hd : Math.cos(h.heading + Math.PI);
             this.host.pushHero?.(ux * (f + 0.9 - hd), uz * (f + 0.9 - hd));
             s.heading = Math.atan2(ux, uz);
-            if (this.host.harmHero) this.host.harmHero(n, e.power, e.type, [s.x, s.z]);
-            else this.host.hitHero(n, e.power, e.type);
+            const p = this.pow(n, 'drop', e.power);
+            if (this.host.harmHero) this.host.harmHero(n, p, e.type, [s.x, s.z]);
+            else this.host.hitHero(n, p, e.type);
             b.phase = 'ground';
             b.t = GROUND_TIME;
             b.cooldown = e.cooldown;
             return;
           }
           // a bite as it lands, if the hero is there
-          if (d <= this.reachOf(n, e) + 0.4) this.startSwing(n, e, b, 0.35);
-          else b.phase = 'ground';
+          if (!(d <= this.reachOf(n, e) + 0.4 && this.startSwing(n, e, b, 0.35, 'bite'))) b.phase = 'ground';
           if (b.phase === 'ground') b.t = GROUND_TIME;
         }
         return;
@@ -951,7 +1104,8 @@ export class Enemies {
         l.fade = Math.max(0.06, b.t / GHOST_FADE);
         if (b.t <= 0) {
           b.phase = 'faded';
-          b.t = GHOST_HIDDEN;
+          // Milestone 3b (B5a): Ghost.hiddenFor: how long it stays unseen
+          b.t = Math.max(0.2, this.ask(n, 'hiddenFor', {}, GHOST_HIDDEN));
           b.angle = h.heading + Math.PI + (Math.random() - 0.5) * 1.2;
         }
         return;
@@ -1002,7 +1156,7 @@ export class Enemies {
         this.host.log?.(`${n.profile.name} howls`);
         tell(n, 0.3, 0.9, 'howl');
       }
-      this.callPack(npcs, n);
+      if (this.ask(n, 'callsPack', {}, true)) this.callPack(npcs, n);
     }
     const reach = this.reachOf(n, e);
     if (b.phase === 'windup') return this.windup(n, e, b, d, face, dt, reach);
@@ -1037,8 +1191,8 @@ export class Enemies {
       if (d <= reach) {
         n.controller.step(still, dt, 0);
         if (b.cooldown <= 0) {
-          this.startSwing(n, e, b, e.windup);
-          this.packTurn = { id: n.id, until: this.host.clock + e.windup + 0.6 };
+          if (this.startSwing(n, e, b, e.windup, 'pounce'))
+            this.packTurn = { id: n.id, until: this.host.clock + e.windup + 0.6 };
         }
         return;
       }
@@ -1064,23 +1218,24 @@ export class Enemies {
     if (b.phase === 'idle') {
       if (!this.notices(n, e, d, face)) return;
       b.phase = 'chase';
-      if (e.wits === 'pack') this.callPack(npcs, n);
+      if (e.wits === 'pack' && this.ask(n, 'callsPack', {}, true)) this.callPack(npcs, n);
     }
     s.heading = face;
     b.t -= dt;
     if (b.phase === 'spit') {
       n.controller.step(still, dt, 0);
       if (b.t > 0) return;
-      this.host.shoot?.(n, e.type === 'fire' ? 'fireball' : 'rock', this.mouth(n), [h.x, h.y + 1.6, h.z]);
+      this.host.shoot?.(n, this.shotOf(n, e), this.mouth(n), [h.x, h.y + 1.6, h.z], this.pow(n, 'shot', e.power));
       b.phase = 'chase';
       b.cooldown = e.cooldown;
       return;
     }
-    const want = Math.min(e.sight * 0.6, 8);
+    // Milestone 3b (B5a): Shooter.keepAway: how far from the hero it stays
+    const want = Math.max(1, this.ask(n, 'keepAway', {}, Math.min(e.sight * 0.6, 8)));
     if (d < want - 1.5) this.walk(n, s.x - h.x, s.z - h.z, 0.4 * e.speed, dt);
     else if (d > want + 1.5) this.walk(n, h.x - s.x, h.z - s.z, 0.4 * e.speed, dt);
     else n.controller.step(still, dt, 0);
-    if (b.cooldown <= 0 && d <= e.sight) {
+    if (b.cooldown <= 0 && d <= e.sight && this.may(n, 'shot', d)) {
       b.phase = 'spit';
       b.t = e.windup;
       tell(n, e.windup, 0.2, 'spit');
@@ -1092,10 +1247,12 @@ export class Enemies {
    * (running or fighting within its hearing)
    */
   private notices(n: Npc, e: Enemy, d: number, face: number): boolean {
-    if (e.hearing && d <= e.hearing && this.host.heroLoud()) return true;
-    if (d > e.sight) return false;
     const cone = e.cone ?? 360;
-    return cone >= 360 || Math.abs(angleDiff(face, n.state.heading)) <= ((cone / 2) * Math.PI) / 180;
+    const base =
+      !!(e.hearing && d <= e.hearing && this.host.heroLoud()) ||
+      (d <= e.sight && (cone >= 360 || Math.abs(angleDiff(face, n.state.heading)) <= ((cone / 2) * Math.PI) / 180));
+    // Milestone 3b (B5a): its behaviour may see more or less (EnemyBrain.canSee)
+    return this.ask(n, 'canSee', { distance: d }, base);
   }
 
   /** step 11, 4a: the enemies within 12 studs of a pack hunter that saw the hero join the fight */
