@@ -209,3 +209,17 @@ An enemy's brain decides what to do; its **parts** do it. Each part fills an int
 | **Attack** | Swing, Bite, Pounce, Spit, Shot, Ray (a beam), Breath, Swoop, Drop | `canAttack`, `attackPower` | power (times the enemy's), hurt reaction, the tell, time between attacks, reach |
 
 Every template comes with its parts (Pebblespout: Eyes, Hider, Spit; Watcher Eye: Eyes, Static, Ray). In **Characters › Behaviour** each part's row swaps it for another its template can take: any brain any Senses; a walking brain Walker, Wings or Static; a close fighter (Brawler, Knight, PackHunter, Ghost) any close strike, or a Spit or a Shot from a few studs away; a Shooter or a PopUp a Spit or a Shot. A pop-up keeps its Hider, a spider its Thread, a turret its Ray. A part is a built-in: `class NightEyes extends Eyes { canSee(e) { … } }`. The **Enemy parts course** gives Rattlebones wings and a spit.
+
+### Bosses
+
+A boss is an enemy whose kind of fighter is **boss**. Its brain, **BossBrain**, extends EnemyBrain: it fights as its **1st phase**'s kind (melee, knight, pack, shooter…), and as its health falls to each mark (**2nd phase from**, **3rd phase from**, in % of its health) it roars into the next phase: another kind of fighter (or as before), its own parts, and faster (**speed**, times). Each phase is built from the same templates and parts as any enemy.
+
+**When it can be hurt** picks its template:
+
+| Template | It can be hurt |
+|---|---|
+| **PhasedBoss** | always |
+| **WeakPointBoss** | only just after it attacks (its opening); otherwise it is guarded |
+| **PuzzleBoss** | only while stunned (by what it is stunned by, a parry, or its own shot sent back); a stun hit gets through as its opening |
+
+Its hooks: `phaseFor(e)` (`e.hp`, `e.max`, `e.phase`) returns the phase to be in; `isVulnerable(e)` (`e.how`, `e.phase`) whether this hit hurts. The **On phase** event (`phase(e)`: `e.phase`, `e.from`) runs as it changes phase. The **Boss course** makes the Howler a boss that hunts as a pack hunter and, from half its health, backs off and shoots.

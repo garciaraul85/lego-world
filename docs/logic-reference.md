@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (173 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (176 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -273,6 +273,15 @@ Runs when an enemy’s brain goes from one state to another (idle, chase, windup
 
 - Outputs: from (string), to (string)
 - Code: `on("stateChange", (e) => { … });`
+
+### On phase
+
+`event.onPhase` · event
+
+Runs when a boss goes into another phase (its health fell to that phase’s mark, or its phaseFor chose it): phase is the new one (1 is its first), from the one before. For a behaviour that extends a boss brain, only its own boss.
+
+- Outputs: phase (number), from (number)
+- Code: `on("phase", (e) => { … });`
 
 ## Flow
 
@@ -1664,3 +1673,21 @@ Asked as it fades out: seconds before it fades in behind the hero.
 
 - Outputs: base (number)
 - Code: `on("hiddenFor", (e) => { … });`
+
+### Which phase is it in? (BossBrain)
+
+`event.onPhaseFor` · event
+
+Asked as a hit takes a boss’s health down: hp and max are its health, phase the one it is in; base is the phase its health makes (1 is its first). Return a phase number to be in that one instead.
+
+- Outputs: hp (number), max (number), phase (number), base (number)
+- Code: `on("phaseFor", (e) => { … });`
+
+### Can it be hurt now? (BossBrain)
+
+`event.onIsVulnerable` · event
+
+Asked as the hero hits a boss: how is when it can be hurt (always, afterAttack, stunned), phase the phase it is in; base says whether it can be hurt now. Return true to take the hit, false to shrug it off.
+
+- Outputs: how (string), phase (number), base (bool)
+- Code: `on("isVulnerable", (e) => { … });`

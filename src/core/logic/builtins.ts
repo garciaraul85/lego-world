@@ -6,9 +6,9 @@
  */
 import { DEFAULT_STATS } from '../character/sheet';
 import { DAMAGE_TYPES } from '../combat/damage';
-import { ENEMY_STYLES, type Enemy } from '../combat/enemy';
+import { BOSS_VULNERABLE, type BossPlan, bossPhases, ENEMY_STYLES, type Enemy, PHASE_STYLES } from '../combat/enemy';
 import { HURT_REACTIONS } from '../combat/hurt';
-import { ATTACKS, type EnemyParts, MOVERS, PART_CLASS, partsOf, SENSES, swappable } from '../combat/parts';
+import { ATTACKS, type EnemyParts, fightsAs, MOVERS, PART_CLASS, partsOf, SENSES, swappable } from '../combat/parts';
 import type { Asset, BehaviourField, Character, FieldValue } from '../schema';
 
 export type BuiltinHook = { method: string; event: string; returns: 'bool' | 'number' | 'name'; doc: string };
@@ -744,7 +744,11 @@ export function templateOfEnemy(e: Enemy | undefined): string | null {
   if (!e) return null;
   const st = e.style ?? 'melee';
   if (st === 'melee') return e.type === 'fire' ? 'Charger' : 'Brawler';
-  // (a boss's brain comes with BossBrain, in B5b)
+  // Milestone 3b (B5c): a boss's template is by when it can be hurt
+  if (st === 'boss')
+    return { always: 'PhasedBoss', afterAttack: 'WeakPointBoss', stunned: 'PuzzleBoss' }[
+      e.boss?.vulnerable ?? 'always'
+    ];
   const by: Partial<Record<string, string>> = {
     knight: 'Knight',
     turret: 'Turret',
@@ -886,6 +890,145 @@ CHARACTER_BUILTINS.push(
   ]),
 );
 
+// ---------- Milestone 3b (B5c): bosses ----------
+
+const planOf = (c: Character): BossPlan => c.enemy?.boss ?? { phases: [] };
+const bossSet = (c: Character, plan: BossPlan): Partial<Character> => ({
+  enemy: { ...(c.enemy ?? ENEMY_DEFAULT), style: 'boss', boss: plan },
+});
+/** phase n's settings (2: the first after its first), in order of health */
+const phaseField = (n: 2 | 3, what: 'at' | 'style' | 'speedK'): CharField => {
+  const nth = n === 2 ? '2nd' : '3rd';
+  const get = (c: Character) => bossPhases(planOf(c))[n - 2];
+  // set one phase's setting; a phase that isn't there yet is made (at a health below the one before)
+  const put = (c: Character, p: Partial<BossPlan['phases'][number]>): Partial<Character> => {
+    const plan = planOf(c);
+    const list = bossPhases(plan);
+    while (list.length < n - 1) list.push({ at: Math.max(0.01, (list[list.length - 1]?.at ?? 1) / 2) });
+    const next = { ...list[n - 2], ...p } as BossPlan['phases'][number];
+    for (const k of Object.keys(next) as (keyof typeof next)[]) if (next[k] === undefined) delete next[k];
+    list[n - 2] = next;
+    return bossSet(c, { ...plan, phases: list });
+  };
+  if (what === 'at')
+    return {
+      name: `phase${n}At`,
+      type: 'number',
+      default: 0,
+      label: `${nth} phase from (health %, 0: none)`,
+      min: 0,
+      max: 99,
+      get: (c) => Math.round((get(c)?.at ?? 0) * 100),
+      set: (c, v) => {
+        const pct = Math.max(0, Math.min(99, Math.round(Number(v) || 0)));
+        if (pct > 0) return put(c, { at: pct / 100 });
+        // 0: no such phase (nor the ones after it)
+        const plan = planOf(c);
+        return bossSet(c, { ...plan, phases: bossPhases(plan).slice(0, n - 2) });
+      },
+    };
+  if (what === 'style')
+    return {
+      name: `phase${n}Style`,
+      type: 'string',
+      default: 'as before',
+      label: `${nth} phase fights as`,
+      choices: ['as before', ...PHASE_STYLES],
+      get: (c) => get(c)?.style ?? 'as before',
+      set: (c, v) =>
+        (PHASE_STYLES as readonly string[]).includes(String(v))
+          ? put(c, { style: String(v) })
+          : put(c, { style: undefined }),
+    };
+  return {
+    name: `phase${n}Speed`,
+    type: 'number',
+    default: 1,
+    label: `${nth} phase speed (times)`,
+    min: 0.2,
+    max: 4,
+    get: (c) => get(c)?.speedK ?? 1,
+    set: (c, v) => put(c, { speedK: Math.max(0.2, Math.min(4, Number(v) || 1)) }),
+  };
+};
+const bossTemplate = (name: string, about: string): Builtin<Character> => ({
+  name,
+  for: 'character',
+  fixed: true,
+  parent: 'BossBrain',
+  about,
+  on: (c) => templateOfEnemy(c.enemy) === name,
+  add: () => ({}),
+  remove: (c) => c,
+  fields: [],
+  hooks: [],
+  events: [],
+  editIn: 'Characters › Behaviour (BossBrain: When it can be hurt)',
+});
+
+CHARACTER_BUILTINS.push(
+  {
+    name: 'BossBrain',
+    for: 'character',
+    fixed: true,
+    parent: 'EnemyBrain',
+    about:
+      'A boss: it fights as its first phase’s kind of fighter; as its health falls to each mark it roars into its next phase (another kind, other parts, faster), and it may only be hurt at weak moments. Each phase is built from the templates and parts.',
+    on: (c) => c.enemy?.style === 'boss',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [
+      {
+        name: 'first',
+        type: 'string',
+        default: 'melee',
+        label: '1st phase fights as',
+        choices: PHASE_STYLES,
+        get: (c) => planOf(c).first ?? 'melee',
+        set: (c, v) =>
+          bossSet(c, {
+            ...planOf(c),
+            first: (PHASE_STYLES as readonly string[]).includes(String(v)) ? String(v) : 'melee',
+          }),
+      },
+      {
+        name: 'vulnerable',
+        type: 'string',
+        default: 'always',
+        label: 'When it can be hurt (its template)',
+        choices: BOSS_VULNERABLE,
+        get: (c) => planOf(c).vulnerable ?? 'always',
+        set: (c, v) => {
+          const { vulnerable: _v, ...plan } = planOf(c);
+          const how = (BOSS_VULNERABLE as readonly string[]).includes(String(v)) ? String(v) : 'always';
+          return bossSet(c, how === 'always' ? plan : { ...plan, vulnerable: how as BossPlan['vulnerable'] });
+        },
+      },
+      phaseField(2, 'at'),
+      phaseField(2, 'style'),
+      phaseField(2, 'speedK'),
+      phaseField(3, 'at'),
+      phaseField(3, 'style'),
+      phaseField(3, 'speedK'),
+    ],
+    hooks: [
+      hk('phaseFor', 'number', 'Which phase it is in (hp, max, phase): return a phase number (1 is its first)'),
+      hk('isVulnerable', 'bool', 'Can it be hurt by this hit? (how: always, afterAttack, stunned; phase)'),
+    ],
+    events: ['event.onPhase'],
+    editIn: 'Characters › Behaviour',
+  },
+  bossTemplate('PhasedBoss', 'A boss that can always be hurt; it changes as its health falls (phases).'),
+  bossTemplate(
+    'WeakPointBoss',
+    'A boss guarded but for a moment just after each attack (its weak point shows): strike then.',
+  ),
+  bossTemplate(
+    'PuzzleBoss',
+    'A boss too strong to hurt until stunned (by what it is stunned by, a parry or its own shot sent back): work out how.',
+  ),
+);
+
 /** Milestone 3b (B5a): a built-in and the ones it extends, nearest first (PopUp, EnemyBrain, Brain) */
 export function lineageOf(name: string | undefined): (Builtin<Asset> | Builtin<Character>)[] {
   const out: (Builtin<Asset> | Builtin<Character>)[] = [];
@@ -905,7 +1048,7 @@ export function allHooksOf(name: string | undefined): BuiltinHook[] {
 const partsSet = (c: Character, p: Partial<EnemyParts>): Partial<Character> => ({
   enemy: { ...(c.enemy ?? ENEMY_DEFAULT), parts: { ...(c.enemy?.parts ?? {}), ...p } },
 });
-const isFire = (c: Character) => c.enemy?.type === 'fire' && (c.enemy?.style ?? 'melee') === 'melee';
+const isFire = (c: Character) => c.enemy?.type === 'fire' && fightsAs(c.enemy) === 'melee';
 type CharField = Builtin<Character>['fields'][number];
 const swapField = (slot: 'senses' | 'mover' | 'attack', all: readonly string[], label: string): CharField => ({
   name: slot,
@@ -913,12 +1056,12 @@ const swapField = (slot: 'senses' | 'mover' | 'attack', all: readonly string[], 
   default: PART_CLASS[all[0] as keyof typeof PART_CLASS],
   label,
   choices: all.map((k) => PART_CLASS[k as keyof typeof PART_CLASS]),
-  choicesFor: (c) => swappable(c.enemy?.style, isFire(c))[slot].map((k) => PART_CLASS[k]),
+  choicesFor: (c) => swappable(fightsAs(c.enemy), isFire(c))[slot].map((k) => PART_CLASS[k]),
   get: (c) => PART_CLASS[partsOf(c.enemy)[slot]],
   set: (c, v) => {
     const kind = all.find((k) => PART_CLASS[k as keyof typeof PART_CLASS] === String(v) || k === String(v));
     // a part its template can't take is not swapped in
-    if (!kind || !(swappable(c.enemy?.style, isFire(c))[slot] as readonly string[]).includes(kind)) return {};
+    if (!kind || !(swappable(fightsAs(c.enemy), isFire(c))[slot] as readonly string[]).includes(kind)) return {};
     return partsSet(c, { [slot]: kind });
   },
 });

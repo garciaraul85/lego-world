@@ -30,7 +30,7 @@ import type { FoeShotKind } from './foe-shots';
  * - pack (Howler): howls to call the others, and the pack circles you, one striking at a time; it jumps back
  *   from a swing that comes at it from the front.
  * - shooter: keeps its distance and shoots (a rock, or a fireball for fire).
- * - boss: walks over and swings (its phases come in step 14a-2).
+ * - boss (B5c): fights as its phase's kind of fighter (session.enemyOf resolves it); a new phase starts afresh.
  */
 export type EnemyHost = {
   readonly heroState: HeroState;
@@ -257,6 +257,24 @@ export class Enemies {
     if (l.sink > 0.6) return false;
     if (l.fade < 0.5 && !this.host.lensOn?.()) return false;
     return true;
+  }
+
+  /** Milestone 3b (B5c): it starts thinking afresh (a boss's new phase: its new kind of fighter) */
+  forget(n: Npc) {
+    this.brains.delete(n.id);
+    this.looks.delete(n.id);
+    if (this.packTurn?.id === n.id) this.packTurn = null;
+  }
+
+  /**
+   * Milestone 3b (B5c): it attacked within the last `window` seconds (its cooldown, set as an attack ends, is
+   * still near full): an afterAttack boss's opening
+   */
+  justAttacked(n: Npc, window: number): boolean {
+    const b = this.brains.get(n.id);
+    const e = this.host.enemyOf(n);
+    if (!b || !e || b.cooldown <= 0) return false;
+    return e.cooldown - b.cooldown <= window;
   }
 
   reset() {

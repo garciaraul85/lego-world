@@ -105,11 +105,20 @@ export function swappable(
   };
 }
 
+/** Milestone 3b (B5c): the kind it fights as (a boss as made: its first phase's kind) */
+export function fightsAs(e: { style?: EnemyStyle; boss?: { first?: string } } | null | undefined): EnemyStyle {
+  const st = e?.style ?? 'melee';
+  return st === 'boss' ? ((e?.boss?.first as EnemyStyle | undefined) ?? 'melee') : st;
+}
+
 /** an enemy's parts now: its template's, with its own swaps (a swap its template can't take is left out) */
-export function partsOf(e: { style?: EnemyStyle; type?: string; parts?: EnemyParts } | null | undefined): Parts {
-  const fire = e?.type === 'fire' && (e?.style ?? 'melee') === 'melee';
-  const t = templateParts(e?.style, fire);
-  const ok = swappable(e?.style, fire);
+export function partsOf(
+  e: { style?: EnemyStyle; type?: string; parts?: EnemyParts; boss?: { first?: string } } | null | undefined,
+): Parts {
+  const style = fightsAs(e);
+  const fire = e?.type === 'fire' && style === 'melee';
+  const t = templateParts(style, fire);
+  const ok = swappable(style, fire);
   const p = e?.parts ?? {};
   return {
     senses: p.senses && ok.senses.includes(p.senses) ? p.senses : t.senses,

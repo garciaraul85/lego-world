@@ -74,7 +74,9 @@ describe('the brain classes', () => {
     const hooks = allHooksOf('PopUp').map((h) => h.method);
     for (const m of ['spits', 'shotKind', 'shouldFlee', 'takeDamage', 'hurtReaction', 'nextState'])
       expect(hooks).toContain(m);
-    const brains = CHARACTER_BUILTINS.filter((b) => b.parent === 'EnemyBrain').map((b) => b.name);
+    const brains = CHARACTER_BUILTINS.filter((b) => b.parent === 'EnemyBrain' && b.name !== 'BossBrain').map(
+      (b) => b.name,
+    );
     expect(brains).toEqual([
       'Brawler',
       'Charger',

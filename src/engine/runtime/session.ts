@@ -37,7 +37,7 @@ import {
   hitSide,
   stunsIt,
 } from '../../core/combat/damage';
-import type { Enemy } from '../../core/combat/enemy';
+import { BOSS_OPENING, bossEnemy, bossPhaseAt, bossPhases, type Enemy } from '../../core/combat/enemy';
 import { HURT_REACTIONS, HURT_TIME, type HurtHow, hurtReaction } from '../../core/combat/hurt';
 import { partsOf } from '../../core/combat/parts';
 import {
@@ -3413,6 +3413,26 @@ export class PlaySession {
     const side = hitSide(npc.state, this.heroState, this.figureOf(npc).top);
     // Milestone 3b (B4): a behaviour on the neighbour (Damageable.takeDamage) may change what the hit takes
     const owner = npcItem(this.snapshot, this.world.mapId, npc.id)?.id;
+    // Milestone 3b (B5c): a boss outside its weak moment takes no harm (a stun still gets through: its opening)
+    const boss = this.bossOf(npc);
+    if (boss && !this.bossVulnerable(npc, boss)) {
+      const pos0: Vec3 = [npc.state.x, npc.state.y, npc.state.z];
+      if (stunsIt(attack, def)) {
+        this.combat.stunNpc(npc, def.stunFor ?? 2);
+        this.hitEffect('stun', [pos0[0], pos0[1] + this.figureOf(npc).top * 0.6, pos0[2]]);
+        this.say(`${name} is stunned — strike now!`, 1.5);
+        return;
+      }
+      this.audio.play(SND.land, { pos: pos0 });
+      this.hitEffect('slash', [pos0[0], pos0[1] + 2, pos0[2]]);
+      this.say(
+        boss.boss?.vulnerable === 'stunned'
+          ? `${name} is too strong! Stun it first.`
+          : `${name} is guarded! Strike just after it attacks.`,
+        1.6,
+      );
+      return;
+    }
     const { dealt, wound } = this.health.hit(key, def, attack, side, (d) =>
       owner ? this.askHook(owner, 'takeDamage', { amount: d, type: attack.type }, d) : d,
     );
@@ -3448,6 +3468,8 @@ export class PlaySession {
         npc.state.z += (dz / d) * push.knock * 0.5;
         this.combat.stunNpc(npc, push.stun);
       }
+      // Milestone 3b (B5c): a boss's phase follows its health
+      if (boss) this.bossCheck(npc, boss, wound.hp, wound.max);
       // P23 part 4: its hurt state
       const rec = this.npcStates.get(npc.id);
       if (rec) rec.hurtAt = this.clock;
@@ -4126,7 +4148,72 @@ export class PlaySession {
       const chr = npcCharacter(this.snapshot, this.world.mapId, n);
       this.enemyCache.set(n.id, chr?.enemy ?? null);
     }
-    return this.enemyCache.get(n.id) ?? null;
+    const e = this.enemyCache.get(n.id) ?? null;
+    // Milestone 3b (B5c): a boss fights as its phase's kind of fighter (its parts, faster and harder)
+    if (e?.style !== 'boss') return e;
+    const at = this.bossPhase.get(n.id) ?? 1;
+    let r = this.bossCache.get(n.id);
+    if (!r || r.n !== at || r.of !== e) {
+      r = { n: at, of: e, e: bossEnemy(e, at) };
+      this.bossCache.set(n.id, r);
+    }
+    return r.e;
+  }
+
+  /** Milestone 3b (B5c): the phase each boss is in (1: its first), and what it fights as then */
+  private bossPhase = new Map<number, number>();
+  private bossCache = new Map<number, { n: number; of: Enemy; e: Enemy }>();
+
+  /** Milestone 3b (B5c): the boss this neighbour is (its settings as made), or null */
+  bossOf(n: Npc): Enemy | null {
+    const e = this.enemyCache.has(n.id) ? this.enemyCache.get(n.id) : (this.enemyOf(n), this.enemyCache.get(n.id));
+    return e?.style === 'boss' ? e : null;
+  }
+
+  /** Milestone 3b (B5c): the phase a boss is in now (1: its first) */
+  bossPhaseOf(n: Npc): number {
+    return this.bossPhase.get(n.id) ?? 1;
+  }
+
+  /**
+   * Milestone 3b (B5c): a hit took a boss's health down: its phase by its health (BossBrain.phaseFor may choose);
+   * a new phase roars, starts its brain afresh and fires On phase
+   */
+  private bossCheck(npc: Npc, boss: Enemy, hp: number, max: number) {
+    const was = this.bossPhaseOf(npc);
+    const count = 1 + (boss.boss?.phases.length ?? 0);
+    const base = bossPhaseAt(boss.boss, hp / max);
+    const owner = this.npcSelf(npc).self;
+    let at = owner ? this.askHook(owner, 'phaseFor', { hp, max, phase: was }, base) : base;
+    at = Math.max(1, Math.min(count, Math.round(at)));
+    if (at === was) return;
+    this.bossPhase.set(npc.id, at);
+    this.enemies.forget(npc);
+    const name = String(npc.profile.name ?? 'Boss');
+    const label = at > 1 ? bossPhases(boss.boss)[at - 2]?.name : undefined;
+    this.say(`${name}${label ? ` — ${label}` : ''}: phase ${at}!`, 2);
+    this.emit('event', `${name} enters phase ${at}`);
+    this.moves.set(npc.id, { kind: 'roar', at: this.clock });
+    this.logic.fire({
+      type: 'event.onPhase',
+      match: { who: name },
+      payload: { phase: at, from: was },
+      ...this.npcSelf(npc),
+    });
+  }
+
+  /**
+   * Milestone 3b (B5c): a boss can be hurt now: always; only just after it attacks; only while stunned
+   * (BossBrain.isVulnerable may say otherwise)
+   */
+  bossVulnerable(npc: Npc, boss: Enemy): boolean {
+    const how = boss.boss?.vulnerable ?? 'always';
+    const base =
+      how === 'always' ||
+      this.isStunned(npc) ||
+      (how === 'afterAttack' && this.enemies.justAttacked(npc, BOSS_OPENING));
+    const owner = this.npcSelf(npc).self;
+    return owner ? this.askHook(owner, 'isVulnerable', { phase: this.bossPhaseOf(npc), how }, base) : base;
   }
 
   /** P9c: the instance id of a neighbour (what a script on it is owned by) */
@@ -5246,6 +5333,8 @@ export class PlaySession {
     this.shots.reset();
     this.hooks.reset();
     this.enemies.reset();
+    this.bossPhase.clear();
+    this.bossCache.clear();
     this.foeShots.reset();
     this.heroAlight?.fx?.stop();
     this.heroAlight = null;
@@ -6250,8 +6339,7 @@ export class PlaySession {
         const b = boxOf(i.bricks);
         if (b) marks.push({ x: (b.x0 + b.x1) / 2, z: (b.z0 + b.z1) / 2, kind: 'chest' });
       }
-      for (const n of w.npcs)
-        if (this.enemyOf(n)?.style === 'boss') marks.push({ x: n.state.x, z: n.state.z, kind: 'boss' });
+      for (const n of w.npcs) if (this.bossOf(n)) marks.push({ x: n.state.x, z: n.state.z, kind: 'boss' });
     }
     return { seen, cell: SEEN_CELL, marks };
   }

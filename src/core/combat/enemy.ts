@@ -60,7 +60,11 @@ export const STYLE_INFO: Record<EnemyStyle, { label: string; about: string; now:
     about: 'circles you and calls the others',
     now: 'howls for the others; the pack circles you and strikes one at a time',
   },
-  boss: { label: 'Boss', about: 'phases and weak moments', now: 'walks over and swings (phases come in step 14a-2)' },
+  boss: {
+    label: 'Boss',
+    about: 'phases and weak moments',
+    now: 'fights as its first phase’s kind; lower on health it changes (a new kind, new parts, faster, harder); it may only be hurt at weak moments',
+  },
 };
 
 /**
@@ -94,8 +98,72 @@ export const Enemy = z.strictObject({
   style: z.enum(ENEMY_STYLES).optional(),
   /** Milestone 3b (B5b): its abilities swapped from its template's (Senses, Mover, Attack) */
   parts: EnemyParts.optional(),
+  /** Milestone 3b (B5c): a boss's phases and weak moments (style: boss) */
+  boss: z.lazy(() => BossPlan).optional(),
 });
 export type Enemy = z.infer<typeof Enemy>;
+
+// ---------- Milestone 3b (B5c): bosses ----------
+
+/** the kinds a boss's phase can fight as (any but boss) */
+export const PHASE_STYLES = ENEMY_STYLES.filter((s) => s !== 'boss') as Exclude<EnemyStyle, 'boss'>[];
+/**
+ * when a boss can be hurt: always; only just after it attacks (its opening: the weak point shows); only while
+ * stunned (by its stunBy, a parry or a bounced shot: a puzzle to work out)
+ */
+export const BOSS_VULNERABLE = ['always', 'afterAttack', 'stunned'] as const;
+export type BossVulnerable = (typeof BOSS_VULNERABLE)[number];
+/** seconds after its attack that an afterAttack boss stays open */
+export const BOSS_OPENING = 1.6;
+/** a boss phase: from `at` (its health, 0…1, at or below) it fights as `style`, with `parts`, faster and harder */
+export const BossPhase = z.strictObject({
+  at: z.number().min(0.01).max(0.99),
+  style: z.enum(PHASE_STYLES as [string, ...string[]]).optional(),
+  parts: EnemyParts.optional(),
+  /** times its speed */
+  speedK: z.number().min(0.2).max(4).optional(),
+  /** times its power */
+  powerK: z.number().min(0).max(5).optional(),
+  /** what it is called in this phase (shown and logged) */
+  name: z.string().max(40).optional(),
+});
+export type BossPhase = z.infer<typeof BossPhase>;
+export const BossPlan = z.strictObject({
+  /** the kind it fights as in its first phase (default melee) */
+  first: z.enum(PHASE_STYLES as [string, ...string[]]).optional(),
+  /** the phases after the first, each from a lower health */
+  phases: z.array(BossPhase).max(4),
+  vulnerable: z.enum(BOSS_VULNERABLE).optional(),
+});
+export type BossPlan = z.infer<typeof BossPlan>;
+
+/** its phase at this health (0…1): 1 is the first; each phase whose `at` the health is at or below adds one */
+export function bossPhaseAt(plan: BossPlan | undefined, fraction: number): number {
+  if (!plan) return 1;
+  const ats = plan.phases.map((p) => p.at).sort((a, b) => b - a);
+  return 1 + ats.filter((a) => fraction <= a + 1e-9).length;
+}
+/** the phases in order (highest health first) */
+export const bossPhases = (plan: BossPlan | undefined) => [...(plan?.phases ?? [])].sort((a, b) => b.at - a.at);
+/**
+ * the enemy a boss fights as in phase `n` (1: its first): its style becomes the phase's kind and each later phase
+ * builds on the ones before (its parts, speed and power); not a boss: as it is
+ */
+export function bossEnemy(e: Enemy, n: number): Enemy {
+  if (e.style !== 'boss') return e;
+  const plan = e.boss;
+  let out: Enemy = { ...e, style: (plan?.first as EnemyStyle | undefined) ?? 'melee' };
+  for (const p of bossPhases(plan).slice(0, Math.max(0, n - 1))) {
+    out = {
+      ...out,
+      style: (p.style as EnemyStyle | undefined) ?? out.style,
+      parts: p.parts ? { ...(out.parts ?? {}), ...p.parts } : p.style ? undefined : out.parts,
+      speed: Math.min(3, out.speed * (p.speedK ?? 1)),
+      power: Math.min(20, out.power * (p.powerK ?? 1)),
+    };
+  }
+  return out;
+}
 
 export const ENEMY_PRESETS: Record<string, { name: string; enemy: Enemy; health: Health }> = {
   grunt: {

@@ -1,0 +1,227 @@
+{
+  "id": "bosses",
+  "title": "Boss course",
+  "steps": [
+    {
+      "id": "bo.place",
+      "title": "Bosses have phases",
+      "body": "A boss is an enemy brain with phases: it fights as one kind of fighter, and as its health falls to each mark it roars into the next (another kind, other parts, faster). It may also only be hurt at weak moments. Here the Howler becomes a boss that hunts like a pack hunter, then, at half its health, backs off and shoots. First, place the Howler from the Starter pack.",
+      "task": "Place the Howler.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcCount",
+        "args": "Howler:1"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "howler",
+            "ahead": 9
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bo.read",
+      "title": "Read about BossBrain",
+      "body": "In Logic, under Built-in \u203a Brains, press BossBrain. It extends EnemyBrain (which extends Brain), so it does all an enemy does, and adds phases: its hooks phaseFor and isVulnerable, and the event On phase. Its three templates are by when it can be hurt: PhasedBoss (always), WeakPointBoss (just after it attacks), PuzzleBoss (only when stunned).",
+      "task": "Open Logic \u203a Built-in \u203a BossBrain.",
+      "target": "[data-tour=\"builtin-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinOpen",
+        "args": "BossBrain"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBuiltin",
+          "args": {
+            "name": "BossBrain"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "right",
+      "workspace": "Logic"
+    },
+    {
+      "id": "bo.boss",
+      "title": "Make it a boss",
+      "body": "In Characters, open the Howler's Behaviour tab. In its brain's row, set Kind of fighter to boss. Its brain row becomes PhasedBoss (a BossBrain), with the fields of its phases.",
+      "task": "Set the Howler's kind of fighter to boss.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterBuiltinField",
+        "args": "Howler,EnemyBrain,style,boss"
+      },
+      "doItForMe": [
+        {
+          "fn": "setCharacterBuiltinField",
+          "args": {
+            "character": "Howler",
+            "name": "EnemyBrain",
+            "field": "style",
+            "value": "boss"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "bo.first",
+      "title": "Its first phase",
+      "body": "In the PhasedBoss row, set 1st phase fights as to pack, so it starts by hunting you like before. Then set 2nd phase from to 50: at half its health, it changes.",
+      "task": "First phase pack; the 2nd from 50%.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterBuiltinField",
+        "args": "Howler,BossBrain,phase2At,50"
+      },
+      "doItForMe": [
+        {
+          "fn": "setCharacterBuiltinField",
+          "args": {
+            "character": "Howler",
+            "name": "BossBrain",
+            "field": "first",
+            "value": "pack"
+          }
+        },
+        {
+          "fn": "setCharacterBuiltinField",
+          "args": {
+            "character": "Howler",
+            "name": "BossBrain",
+            "field": "phase2At",
+            "value": 50
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "bo.second",
+      "title": "Its second phase",
+      "body": "Set 2nd phase fights as to shooter: wounded, it keeps away and shoots. Each phase is built from the same templates and parts as any enemy.",
+      "task": "Second phase: shooter.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterBuiltinField",
+        "args": "Howler,BossBrain,phase2Style,shooter"
+      },
+      "doItForMe": [
+        {
+          "fn": "setCharacterBuiltinField",
+          "args": {
+            "character": "Howler",
+            "name": "BossBrain",
+            "field": "phase2Style",
+            "value": "shooter"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "bo.extend",
+      "title": "Hear of each phase",
+      "body": "In Logic, Built-in \u203a Brains \u203a PhasedBoss, press Extend and write phase(e), the On phase event: say which phase it is in the Console. Then attach My PhasedBoss to the Howler (Characters \u203a Behaviour \u203a + Script).",
+      "task": "Extend PhasedBoss and attach it to the Howler.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterHasBehaviour",
+        "args": "Howler,My PhasedBoss"
+      },
+      "doItForMe": [
+        {
+          "fn": "extendBuiltinNamed",
+          "args": {
+            "name": "PhasedBoss"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "My PhasedBoss",
+            "code": [
+              "class $NAME extends PhasedBoss {",
+              "  phase(e) {",
+              "    log(text.join(\"Phase \", e.phase));",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "attachToCharacter",
+          "args": {
+            "behaviour": "My PhasedBoss",
+            "character": "Howler"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "bo.play",
+      "title": "Fight it",
+      "body": "Press Play and fight the Howler: get round behind it and swing hard (F while running). At half its health it roars, the Console says Phase 2, and it backs off to shoot. Raise your shield to its shots.",
+      "task": "Press Play and get it to phase 2.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Phase 2"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "heavyHitUntilLogged",
+          "args": {
+            "name": "Howler",
+            "until": "Phase 2",
+            "from": "back"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bo.done",
+      "title": "Done!",
+      "body": "A 3rd phase can follow (faster still, another kind). Set When it can be hurt to afterAttack for a WeakPointBoss (strike just after it attacks) or stunned for a PuzzleBoss (stun it first, with what it is stunned by). phaseFor can choose its phase, isVulnerable when it can be hurt.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

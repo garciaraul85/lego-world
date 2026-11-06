@@ -45,6 +45,16 @@ export const BRAIN_EVENTS: NodeDef[] = [
     outputs: [EXEC_OUT, { name: 'from', type: 'string' }, { name: 'to', type: 'string' }],
     code: { name: 'stateChange', style: 'event' },
   },
+  {
+    type: 'event.onPhase',
+    kind: 'event',
+    title: 'On phase',
+    category: 'Events',
+    doc: 'Runs when a boss goes into another phase (its health fell to that phase’s mark, or its phaseFor chose it): phase is the new one (1 is its first), from the one before. For a behaviour that extends a boss brain, only its own boss.',
+    inputs: [],
+    outputs: [EXEC_OUT, { name: 'phase', type: 'number' }, { name: 'from', type: 'number' }],
+    code: { name: 'phase', style: 'event' },
+  },
 ];
 
 export const BRAIN_HOOKS: NodeDef[] = [
@@ -169,5 +179,27 @@ export const BRAIN_HOOKS: NodeDef[] = [
     'Asked as it fades out: seconds before it fades in behind the hero.',
     [],
     'number',
+  ),
+  // Milestone 3b (B5c): bosses
+  hook(
+    'PhaseFor',
+    'Which phase is it in? (BossBrain)',
+    'Asked as a hit takes a boss’s health down: hp and max are its health, phase the one it is in; base is the phase its health makes (1 is its first). Return a phase number to be in that one instead.',
+    [
+      { name: 'hp', type: 'number' },
+      { name: 'max', type: 'number' },
+      { name: 'phase', type: 'number' },
+    ],
+    'number',
+  ),
+  hook(
+    'IsVulnerable',
+    'Can it be hurt now? (BossBrain)',
+    'Asked as the hero hits a boss: how is when it can be hurt (always, afterAttack, stunned), phase the phase it is in; base says whether it can be hurt now. Return true to take the hit, false to shrug it off.',
+    [
+      { name: 'how', type: 'string' },
+      { name: 'phase', type: 'number' },
+    ],
+    'bool',
   ),
 ];

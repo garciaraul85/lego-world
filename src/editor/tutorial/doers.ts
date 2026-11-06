@@ -305,7 +305,8 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     for (let n = 0; n < 20 && !said(); n++) {
       const foe = s.world.npcs.find((x) => String(x.profile.name) === name);
       if (!foe) throw new Error(`Place a ${name} first.`);
-      const yaw = foe.state.heading;
+      // (from: back — round behind it, where a pack hunter does not jump away and the hit counts double)
+      const yaw = foe.state.heading + (a?.from === 'back' ? Math.PI : 0);
       s.placeAt([foe.state.x + Math.sin(yaw) * 1.7, foe.state.y, foe.state.z + Math.cos(yaw) * 1.7], yaw + Math.PI);
       // seen from the side (both in view)
       s.camYaw = yaw + 1.1;

@@ -164,6 +164,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Hurt reactions course (6 steps): place a Howler, read PackHunter’s inherited hurtReaction hook, Extend it so a hit that would stagger it knocks it down instead, attach it in Characters › Behaviour, and give it a heavy hit in Play.',
   'help.enemyPartsCourse':
     'Starts the Enemy parts course (7 steps): place Rattlebones, read the Attack interface, swap its attack for a Spit and its mover for Wings in Characters › Behaviour, Extend Spit so it says so each time, and watch it spit from the air in Play.',
+  'help.bossesCourse':
+    'Starts the Boss course (8 steps): place the Howler, read BossBrain (it extends EnemyBrain; its templates PhasedBoss, WeakPointBoss and PuzzleBoss), make the Howler a boss in Characters › Behaviour that hunts as a pack hunter and from half its health shoots, Extend PhasedBoss so it says each phase, and fight it to phase 2 in Play.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':
