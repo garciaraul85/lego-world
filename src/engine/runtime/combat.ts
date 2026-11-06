@@ -133,6 +133,8 @@ export class Combat {
     return {
       power: Math.max(0, this.s.askHook ? this.s.askHook('hero', 'hitPower', { power, kind }, power) : power),
       type: kind === 'bash' ? 'blunt' : base.type,
+      // Milestone 3b (B5b): which swing it was (a heavy one staggers, a bash stuns)
+      attack: kind,
     };
   }
 

@@ -295,6 +295,25 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       `${String(a?.field)}: ${String(a?.value)}`,
     );
   },
+  async heavyHitUntilLogged(c, a) {
+    // what walking up to a character and swinging hard (F while running) does, again until the Console says it
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const name = String(a?.name ?? '');
+    const until = String(a?.until ?? '');
+    const said = () => s.events.some((e) => e.msg.includes(until));
+    for (let n = 0; n < 20 && !said(); n++) {
+      const foe = s.world.npcs.find((x) => String(x.profile.name) === name);
+      if (!foe) throw new Error(`Place a ${name} first.`);
+      const yaw = foe.state.heading;
+      s.placeAt([foe.state.x + Math.sin(yaw) * 1.7, foe.state.y, foe.state.z + Math.cos(yaw) * 1.7], yaw + Math.PI);
+      // seen from the side (both in view)
+      s.camYaw = yaw + 1.1;
+      await wait(120);
+      s.strike('heavy');
+      await wait(700);
+    }
+  },
   async waitLogged(c, a) {
     // standing back and watching: up to `seconds` until the Console says it
     const s = c.ed.session.value;

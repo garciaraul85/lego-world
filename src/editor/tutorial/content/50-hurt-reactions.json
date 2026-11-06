@@ -1,0 +1,160 @@
+{
+  "id": "hurtReactions",
+  "title": "Hurt reactions course",
+  "steps": [
+    {
+      "id": "hr.place",
+      "title": "Hits that look like hits",
+      "body": "How a body reacts depends on how it was hit: a light hit flinches, a hard one staggers, a charge, a drop or a bomb knocks it down, fire sets it hopping and patting out the flames, ice freezes it stiff, a beam jolts it, a stun leaves it dizzy. The hero, neighbours and enemies all react this way. Here you make a howler that a heavy swing knocks flat. First, place a Howler from the Starter pack.",
+      "task": "Place a Howler.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcCount",
+        "args": "Howler:1"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "howler",
+            "ahead": 7
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hr.read",
+      "title": "Read about PackHunter",
+      "body": "In Logic, under Built-in › Brains, press PackHunter. Under Hooks from EnemyBrain: hurtReaction(e) → a name. e.how is the reaction the hit makes; return another to react that way.",
+      "task": "Open Logic › Built-in › PackHunter.",
+      "target": "[data-tour=\"builtin-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinOpen",
+        "args": "PackHunter"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBuiltin",
+          "args": {
+            "name": "PackHunter"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "right",
+      "workspace": "Logic"
+    },
+    {
+      "id": "hr.extend",
+      "title": "A glass jaw",
+      "body": "Press Extend and write hurtReaction: a hit that would stagger it knocks it down instead (and says so); every other hit reacts as the engine says (super).",
+      "task": "Extend PackHunter and write hurtReaction.",
+      "target": "[data-tour=\"builtin-extend\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourHasEvent",
+        "args": "My PackHunter,hurtReaction"
+      },
+      "doItForMe": [
+        {
+          "fn": "extendBuiltinNamed",
+          "args": {
+            "name": "PackHunter"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "My PackHunter",
+            "code": [
+              "class $NAME extends PackHunter {",
+              "  hurtReaction(e) {",
+              "    if ((e.how === \"stagger\")) {",
+              "      log(\"Down it goes!\");",
+              "      return \"knockdown\";",
+              "    }",
+              "    return super.hurtReaction(e);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Logic"
+    },
+    {
+      "id": "hr.attach",
+      "title": "Give it to the Howler",
+      "body": "In Characters, the Howler's Behaviour tab: + Script → My PackHunter.",
+      "task": "Attach My PackHunter to the Howler.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterHasBehaviour",
+        "args": "Howler,My PackHunter"
+      },
+      "doItForMe": [
+        {
+          "fn": "attachToCharacter",
+          "args": {
+            "behaviour": "My PackHunter",
+            "character": "Howler"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "hr.hit",
+      "title": "Hit it hard",
+      "body": "Press Play, walk up to the Howler and swing hard (hold Shift and press F). It is knocked flat, rolls onto its side and gets up again; the Console says Down it goes! A light swing (F) only makes it flinch.",
+      "task": "Press Play and give the Howler a heavy hit.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Down it goes"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "heavyHitUntilLogged",
+          "args": {
+            "name": "Howler",
+            "until": "Down it goes"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hr.done",
+      "title": "Done!",
+      "body": "Every body reacts by the hit: Cinderjaw's charge and Threadback's drop knock the hero down (it can't move until it gets up), a breath of fire sets it burning, Watcher Eye's beam jolts it, a Flitterwing of ice freezes it. hurtReaction is on the Hero and Damageable too, and the React to a hit card (react(who, how)) makes anyone react without being hurt: a trap, a cutscene's blow.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

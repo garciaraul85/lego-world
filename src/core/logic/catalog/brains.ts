@@ -1,6 +1,7 @@
+import { HURT_REACTIONS } from '../../combat/hurt';
 import { hook } from './hooks';
 import type { NodeDef } from './types';
-import { EXEC_OUT } from './types';
+import { EXEC_IN, EXEC_OUT } from './types';
 
 /**
  * Milestone 3b (B5a): enemy brains — the decisions of Brain, EnemyBrain and its templates (Brawler, Knight, PopUp…)
@@ -8,6 +9,32 @@ import { EXEC_OUT } from './types';
  * the engine's answer (super.x(e) in code, base on the card).
  */
 export const BRAIN_EVENTS: NodeDef[] = [
+  {
+    type: 'character.react',
+    kind: 'action',
+    title: 'React to a hit',
+    category: 'Characters',
+    doc: "The hero or a character reacts as if hit, without being hurt: a flinch, a stagger, knocked down (and up again), burning, frozen stiff, jolted by a shock or dizzy from a stun. A knock-down, a freeze or a stun stops it for that long (a cutscene's blow, a trap that knocks the hero over).",
+    inputs: [
+      EXEC_IN,
+      {
+        name: 'target',
+        type: 'entity',
+        default: 'hero',
+        pick: { kind: 'object' },
+        help: 'Who: hero, this, or a character’s name.',
+      },
+      {
+        name: 'how',
+        type: 'string',
+        default: 'stagger',
+        help: `How it reacts: ${HURT_REACTIONS.join(', ')}.`,
+      },
+    ],
+    outputs: [EXEC_OUT],
+    code: { name: 'react', style: 'call' },
+    exec: (c, _a, i) => c.react?.(String(i.target ?? 'hero'), String(i.how ?? 'stagger')),
+  },
   {
     type: 'event.onStateChange',
     kind: 'event',
@@ -21,6 +48,14 @@ export const BRAIN_EVENTS: NodeDef[] = [
 ];
 
 export const BRAIN_HOOKS: NodeDef[] = [
+  // Milestone 3b (B5b): how a body reacts to a hit
+  hook(
+    'HurtReaction',
+    'How does it react to a hit? (Hero, EnemyBrain, Damageable)',
+    'Asked as it is hurt: how (and base) is the reaction the hit makes: flinch, stagger, knockdown, burn, freeze, shock or stun. Return one of them to react that way instead (a knockdown, a freeze or a stun also stops it for that long).',
+    [{ name: 'how', type: 'string' }],
+    'string',
+  ),
   hook(
     'NextState',
     'Which state next? (Brain)',

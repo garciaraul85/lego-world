@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (171 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (173 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -997,6 +997,15 @@ Puts a character on the map while the game plays, at a spawn point (a wave of en
 - Outputs: entity (entity)
 - Code: `character.spawn(character, at);`
 
+### React to a hit
+
+`character.react` · action
+
+The hero or a character reacts as if hit, without being hurt: a flinch, a stagger, knocked down (and up again), burning, frozen stiff, jolted by a shock or dizzy from a stun. A knock-down, a freeze or a stun stops it for that long (a cutscene's blow, a trap that knocks the hero over).
+
+- Inputs: target (entity), how (string)
+- Code: `react(target, how);`
+
 ## Effects
 
 ### Play effect
@@ -1511,6 +1520,15 @@ Asked every step while a neighbour follows the hero: distance is how far it is n
 
 - Outputs: distance (number), base (number)
 - Code: `on("followGap", (e) => { … });`
+
+### How does it react to a hit? (Hero, EnemyBrain, Damageable)
+
+`event.onHurtReaction` · event
+
+Asked as it is hurt: how (and base) is the reaction the hit makes: flinch, stagger, knockdown, burn, freeze, shock or stun. Return one of them to react that way instead (a knockdown, a freeze or a stun also stops it for that long).
+
+- Outputs: how (string), base (string)
+- Code: `on("hurtReaction", (e) => { … });`
 
 ### Which state next? (Brain)
 

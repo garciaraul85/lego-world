@@ -2,6 +2,7 @@ import { shapeId } from '../../core/bricks/custom';
 import type { BodyBrick, Bone } from '../../core/character/body';
 import { type BodyMove, MOVE_LENGTH } from '../../core/character/moves';
 import type { ResolvedBody } from '../../core/character/resolve';
+import type { HurtHow } from '../../core/combat/hurt';
 import { multiply } from '../render/math';
 import type { Overlay, RenderBrick } from '../render/renderer';
 
@@ -20,7 +21,13 @@ export type Motion = {
   time: number;
   /** P23 part 4: a strike or a flinch from the animation state machine, and how far through it (0…1);
    * Milestone 3, 10d part 2: any of the body's moves (roar, charge, swipe, stomp, flap…) */
-  act?: { kind: BodyMove; u: number } | null;
+  act?: {
+    kind: BodyMove;
+    u: number;
+    /** Milestone 3b (B5b): a hurt's kind (knocked down, burning, frozen…) and its seconds */
+    how?: HurtHow;
+    t?: number;
+  } | null;
 };
 export const newMotion = (): Motion => ({ gait: 0, moving: 0, time: 0 });
 
@@ -51,8 +58,10 @@ export function actAmount(m: Pick<Motion, 'act'>, kind: BodyMove): number {
     if (a.u < HIT) return -TELL + (1 + TELL) * ease((a.u - TELL_END) / (HIT - TELL_END));
     return 1 - ease((a.u - HIT) / (1 - HIT));
   }
-  const up = kind === 'hurt' || kind === 'charge' ? 0.3 : 0.18;
-  const down = kind === 'hurt' ? 0.7 : 0.25;
+  // Milestone 3b (B5b): a knock-down, a freeze, a burn or a stun is held most of its time
+  const held = kind === 'hurt' && a.how && a.how !== 'flinch' && a.how !== 'stagger';
+  const up = held ? 0.1 : kind === 'hurt' || kind === 'charge' ? 0.3 : 0.18;
+  const down = held ? 0.2 : kind === 'hurt' ? 0.7 : 0.25;
   if (a.u < up) return a.u / up;
   if (a.u > 1 - down) return (1 - a.u) / down;
   return 1;
@@ -308,15 +317,41 @@ export function bodyWorld(
     rotY(at.heading),
   );
   const acted =
-    hit || ouch
-      ? multiply(
-          placed,
-          multiply(translate(0, 0, (0.5 * hit - 0.3 * ouch) * body.scale), rotX(-0.25 * ouch + 0.1 * hit)),
-        )
-      : m
-        ? multiply(placed, moveWorld(m, body.scale))
-        : placed;
+    ouch && m?.act?.how && m.act.how !== 'flinch'
+      ? multiply(placed, hurtWorld(m.act.how, ouch, m.act.t ?? 0, body.scale))
+      : hit || ouch
+        ? multiply(
+            placed,
+            multiply(translate(0, 0, (0.5 * hit - 0.3 * ouch) * body.scale), rotX(-0.25 * ouch + 0.1 * hit)),
+          )
+        : m
+          ? multiply(placed, moveWorld(m, body.scale))
+          : placed;
   return multiply(acted, scaleM(body.scale));
+}
+
+/**
+ * Milestone 3b (B5b): how a whole body reacts to a hit (k: how far into it, 0…1…0; t: its seconds): staggered back,
+ * rolled over onto its side, hopping from the flames, jolted, swaying dizzy, or frozen (still: its motion stopped).
+ */
+function hurtWorld(how: HurtHow, k: number, t: number, s: number): Float32Array {
+  switch (how) {
+    case 'stagger':
+      return multiply(translate(0, 0, -0.6 * k * s), rotX(-0.35 * k));
+    case 'knockdown':
+      // over onto its side, pushed back, and up again
+      return multiply(translate(0.25 * k * s, -0.1 * k * s, -0.5 * k * s), rotZ(1.25 * k));
+    case 'burn':
+      return multiply(translate(0, Math.abs(Math.sin(t * 14)) * 0.35 * k * s, 0), rotY(Math.sin(t * 22) * 0.25 * k));
+    case 'shock':
+      return multiply(rotX(Math.sin(t * 80) * 0.08 * k), rotZ(Math.sin(t * 67 + 1) * 0.08 * k));
+    case 'stun':
+      return multiply(rotZ(Math.sin(t * 5) * 0.18 * k), rotY(Math.sin(t * 2.5) * 0.25 * k));
+    case 'freeze':
+      return multiply(translate(Math.sin(t * 70) * 0.02 * k * s, 0, 0), rotX(0.08 * k));
+    default:
+      return multiply(translate(0, 0, -0.3 * k * s), rotX(-0.25 * k));
+  }
 }
 
 /** Milestone 3, 10d part 2: how the whole body moves for a move: a spin, a rush forward, a hop, a lean */

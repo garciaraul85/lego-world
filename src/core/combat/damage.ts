@@ -82,7 +82,8 @@ export const Health = z.strictObject({
   atZero: AtZero,
 });
 export type Health = z.infer<typeof Health>;
-export type AttackHit = { power: number; type: DamageType };
+/** Milestone 3b (B5b): `attack` names the attack it was (light, heavy, spin, bash; charge, blast…): how a body reacts */
+export type AttackHit = { power: number; type: DamageType; attack?: string };
 
 export type HitSide = 'front' | 'back' | 'side' | 'above';
 

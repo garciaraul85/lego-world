@@ -160,6 +160,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Swimmer course (6 steps): play as Rook, read the Swimmer built-in, Extend it into My Swimmer whose breath is three times Project › Swimming’s and whose canDive says so, attach it in Characters › Behaviour, and see 60 seconds of air in Play.',
   'help.makeBrainCourse':
     'Starts the Make your own brain course (7 steps): place a Pebblespout, read the PopUp brain (PopUp extends EnemyBrain extends Brain), Extend it into My PopUp that spits three fireballs each time up and says so as it rises, attach it in Characters › Behaviour, set EnemyBrain’s power there for practice, and watch it in Play.',
+  'help.hurtReactionsCourse':
+    'Starts the Hurt reactions course (6 steps): place a Howler, read PackHunter’s inherited hurtReaction hook, Extend it so a hit that would stagger it knocks it down instead, attach it in Characters › Behaviour, and give it a heavy hit in Play.',
   'help.swim':
     'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
   'help.media':

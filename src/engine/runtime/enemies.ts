@@ -39,7 +39,7 @@ export type EnemyHost = {
   enemyOf(n: Npc): Enemy | null;
   isStunned(n: Npc): boolean;
   /** the swing lands: hurts the hero (through guard, parry, dodge) */
-  hitHero(n: Npc, power: number, type: DamageType): void;
+  hitHero(n: Npc, power: number, type: DamageType, attack?: string): void;
   /** step 11, 4a: how far its body reaches out sideways (a big spider strikes from further away) */
   radiusOf(n: Npc): number;
   /** step 11, 4a: the hero is making noise (running, fighting): heard within an enemy's hearing */
@@ -60,6 +60,7 @@ export type EnemyHost = {
     type: DamageType,
     from: [number, number],
     then?: 'burn' | 'freeze',
+    attack?: string,
   ): 'hit' | 'block' | 'parry' | 'dodge' | 'break';
   /** step 14a: v68's collision at a point (flight, a drop) */
   clear?(x: number, y: number, z: number): boolean;
@@ -496,7 +497,7 @@ export class Enemies {
     n.controller.step(still, dt, 0);
     if (b.t > 0) return;
     if (d <= reach + 0.6 && Math.abs(angleDiff(face, s.heading)) < 1.2)
-      this.host.hitHero(n, this.pow(n, b.attack ?? 'swing', e.power), e.type);
+      this.host.hitHero(n, this.pow(n, b.attack ?? 'swing', e.power), e.type, b.attack ?? 'swing');
     b.phase = e.wits === 'smart' || this.styleOf(e) === 'knight' ? 'back' : 'chase';
     b.t = 0.7;
     b.cooldown = e.cooldown;
@@ -725,7 +726,8 @@ export class Enemies {
       const py = eye[1] + dir[1] * along;
       if (along > 0 && reachK <= k && Math.hypot(px - h.x, pz - h.z) < 0.7 && py > h.y - 0.2 && py < h.y + 3.4) {
         b.landed = true;
-        const how = this.host.harmHero?.(n, this.pow(n, 'beam', e.power), e.type, [eye[0], eye[2]]) ?? 'hit';
+        const how =
+          this.host.harmHero?.(n, this.pow(n, 'beam', e.power), e.type, [eye[0], eye[2]], undefined, 'beam') ?? 'hit';
         if (how === 'block' || how === 'parry') this.host.log?.('The shield blocked the beam');
       }
     }
@@ -771,7 +773,8 @@ export class Enemies {
       if (!b.landed && dh <= l.breath.reach + 0.4 && off < BREATH_CONE) {
         b.landed = true;
         const how =
-          this.host.harmHero?.(n, this.pow(n, 'breath', e.power), 'fire', [mouth[0], mouth[2]], 'burn') ?? 'hit';
+          this.host.harmHero?.(n, this.pow(n, 'breath', e.power), 'fire', [mouth[0], mouth[2]], 'burn', 'breath') ??
+          'hit';
         if (how === 'block' || how === 'parry') this.host.log?.('The shield held off the fire');
       }
       // flames along the breath (the particles), and what burns in front of it catches
@@ -800,7 +803,8 @@ export class Enemies {
       this.walk(n, Math.sin(s.heading), Math.cos(s.heading), 1.3 * e.speed, dt);
       if (d <= this.reachOf(n, e) + 0.3 && !b.landed) {
         b.landed = true;
-        if (Math.abs(angleDiff(face, s.heading)) < 0.9) this.host.hitHero(n, this.pow(n, 'charge', e.power), 'blunt');
+        if (Math.abs(angleDiff(face, s.heading)) < 0.9)
+          this.host.hitHero(n, this.pow(n, 'charge', e.power), 'blunt', 'charge');
       }
       if (b.t <= 0) {
         b.phase = 'chase';
@@ -937,8 +941,8 @@ export class Enemies {
         tell(n, 0, 0.35, 'swoop');
         const then = e.type === 'fire' ? 'burn' : e.type === 'ice' ? 'freeze' : undefined;
         const p = this.pow(n, 'swoop', e.power);
-        if (this.host.harmHero) this.host.harmHero(n, p, e.type, [s.x, s.z], then);
-        else this.host.hitHero(n, p, e.type);
+        if (this.host.harmHero) this.host.harmHero(n, p, e.type, [s.x, s.z], then, 'swoop');
+        else this.host.hitHero(n, p, e.type, 'swoop');
       }
       if (b.t <= 0 || b.landed) {
         b.phase = 'climb';
@@ -1008,8 +1012,8 @@ export class Enemies {
             this.host.pushHero?.(ux * (f + 0.9 - hd), uz * (f + 0.9 - hd));
             s.heading = Math.atan2(ux, uz);
             const p = this.pow(n, 'drop', e.power);
-            if (this.host.harmHero) this.host.harmHero(n, p, e.type, [s.x, s.z]);
-            else this.host.hitHero(n, p, e.type);
+            if (this.host.harmHero) this.host.harmHero(n, p, e.type, [s.x, s.z], undefined, 'drop');
+            else this.host.hitHero(n, p, e.type, 'drop');
             b.phase = 'ground';
             b.t = GROUND_TIME;
             b.cooldown = e.cooldown;

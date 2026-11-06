@@ -158,6 +158,7 @@ describe('game scripts are sandboxed', () => {
       'moveThing',
       'face',
       'lookAt',
+      'react',
       'physics',
       'raycast',
       'held',

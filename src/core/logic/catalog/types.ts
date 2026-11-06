@@ -136,6 +136,8 @@ export interface ExecCtx {
   moveThing?(op: 'by' | 'to', target: string, x: number, y: number, z: number): void;
   face?(target: string, degrees: number): void;
   lookAt?(target: string, other: string): void;
+  /** Milestone 3b (B5b): the hero or a character reacts as if hit (flinch, stagger, knockdown, burn…) */
+  react?(target: string, how: string): void;
   physics?(op: 'push' | 'velocity', target: string, x: number, y: number, z: number): void;
   /** how far something solid is ahead of it (studs), or −1 */
   raycast?(from: string, reach: number): number;

@@ -38,6 +38,7 @@ import {
   stunsIt,
 } from '../../core/combat/damage';
 import type { Enemy } from '../../core/combat/enemy';
+import { HURT_REACTIONS, HURT_TIME, type HurtHow, hurtReaction } from '../../core/combat/hurt';
 import {
   ACTION_PRIORITY,
   type ActionOffer,
@@ -121,6 +122,7 @@ import { RecordingAudio } from '../audio/port';
 import { Animator, rigPose } from '../character/animator';
 import { type AttackAs, attackPose } from '../character/attack-poses';
 import { bodyBounds } from '../character/body-anim';
+import { hurtPose } from '../character/hurt-poses';
 import { type PoseParams, sampleParams } from '../character/routine';
 import { StateMachine } from '../character/states';
 import { ParticleSystem, type PlayOptions, type StreamHandle } from '../effects/particles';
@@ -456,7 +458,7 @@ export class PlaySession {
           ...self.npcSelf(n),
         }),
       isStunned: (n) => self.isStunned(n),
-      hitHero: (n, power, type) => self.hitHero(n, power, type),
+      hitHero: (n, power, type, attack) => self.hitHero(n, power, type, attack),
       radiusOf: (n) => self.radiusOf(n),
       mouthOf: (n) => self.mouthOf(n),
       heroLoud: () => self.heroLoud(),
@@ -464,7 +466,7 @@ export class PlaySession {
       pushHero: (dx, dz) => {
         self.moveHeroBy([dx, 0, dz]);
       },
-      harmHero: (n, power, type, from, then) => self.harmHero(n, power, type, from, then),
+      harmHero: (n, power, type, from, then, attack) => self.harmHero(n, power, type, from, then, attack),
       // a flyer's body: free where it is (a point at its middle and one at its feet)
       clear: (x, y, z) => !self.solidPoint(x, y + 0.2, z) && !self.solidPoint(x, y + 1, z),
       waterTop: (x, z) => {
@@ -511,7 +513,7 @@ export class PlaySession {
       },
       hitHero: (owner, power, type, from) => {
         const n = self.world.npcs.find((x) => x.id === owner);
-        return n ? self.harmHero(n, power, type, from) : 'hit';
+        return n ? self.harmHero(n, power, type, from, undefined, 'shot') : 'hit';
       },
       enemies: () =>
         self.world.npcs
@@ -563,6 +565,7 @@ export class PlaySession {
     type: DamageType,
     from: [number, number],
     then?: 'burn' | 'freeze',
+    attack?: string,
   ): 'hit' | 'block' | 'parry' | 'dodge' | 'break' {
     if (this.health.invulnerable.has('hero') || this.over) return 'dodge';
     const r = this.combat.defend({ power, type }, from);
@@ -573,7 +576,7 @@ export class PlaySession {
     else if (r.how === 'break') this.say('Your guard broke!', 1.5);
     else if (r.how === 'dodge') this.emit('info', 'Dodged');
     if (r.taken > 0) {
-      this.hurt(r.taken);
+      this.hurt(r.taken, hurtReaction({ type, power, attack, then }));
       const h = this.heroState;
       if (then === 'burn' && !this.swim.on) {
         this.heroAlight?.fx?.stop();
@@ -852,6 +855,7 @@ export class PlaySession {
         // a stun alone (a nut's flash, the boomerang): it stops for a moment and is not hurt
         if (type === 'stun' && power <= 0) {
           self.combat.stunNpc(n, opt.stun);
+          self.react(n, 'stun', opt.stun);
           self.hitEffect('stun', [n.state.x, n.state.y + self.figureOf(n).top * 0.6, n.state.z]);
           self.say(`${String(n.profile.name ?? 'It')} is stunned!`, 1.2);
           self.emit('smash', `${String(n.profile.name ?? 'Neighbour')} stunned (${opt.stun.toFixed(1)} s)`);
@@ -2986,7 +2990,7 @@ export class PlaySession {
   }
 
   /** lose hearts (falling off the world, logic); at 0 the game is over */
-  hurt(n0: number) {
+  hurt(n0: number, how?: HurtHow) {
     if (this.god) return;
     // P26: the player's difficulty scales the damage the hero takes (story: half, hard: double)
     const raw = this.progress.damage(n0);
@@ -3001,6 +3005,9 @@ export class PlaySession {
     this.screenEvent(hp > 0 ? 'hurt' : 'death');
     // P23 part 4: the hurt state shows the sheet's hurt clip
     if (hp > 0) this.heroHurtAt = this.clock;
+    // Milestone 3b (B5b): and the body reacts to how it was hit (a hard hit staggers; see harmHero, damage)
+    if (hp > 0) this.react('hero', how ?? this.heroHitHow ?? (n >= 2 ? 'stagger' : 'flinch'));
+    this.heroHitHow = null;
     // P9a: the hero's hearts are its health
     if (hp > 0)
       this.logic.fire({
@@ -3355,13 +3362,13 @@ export class PlaySession {
       );
       return;
     }
-    this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
+    this.emit('smash', `${name}: −${dealt} (${Math.round(wound.hp * 10) / 10} of ${wound.max} left)`);
     // P23: the hit's effect, by its damage type
     this.hitEffect(attack.type, [pos[0], pos[1] + 1, pos[2]]);
     this.bigHitScreen();
     if (wound.hp > 0) {
       this.audio.play(owner.def.smash.sound ?? SND.smash, { pos, volume: 0.6 });
-      this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
+      this.say(`${name}: ${Math.round(wound.hp * 10) / 10} of ${wound.max} left`, 1.2);
       this.logic.fire({
         type: 'event.onDamaged',
         match: { asset: owner.def.id, who: owner.def.name },
@@ -3429,7 +3436,7 @@ export class PlaySession {
     this.audio.play(SND.hurt, { pos });
     this.hitEffect(attack.type, [pos[0], pos[1] + 2, pos[2]]);
     this.bigHitScreen();
-    this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
+    this.emit('smash', `${name}: −${dealt} (${Math.round(wound.hp * 10) / 10} of ${wound.max} left)`);
     if (wound.hp > 0) {
       // P9b: knocked back (away from the hero) and stunned for a moment
       if (push) {
@@ -3443,7 +3450,9 @@ export class PlaySession {
       // P23 part 4: its hurt state
       const rec = this.npcStates.get(npc.id);
       if (rec) rec.hurtAt = this.clock;
-      this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
+      // Milestone 3b (B5b): and how its body reacts (a bomb knocks it down, fire sets it hopping, ice freezes it)
+      this.react(npc, hurtReaction({ type: attack.type, power: dealt, knock: push?.knock, attack: attack.attack }));
+      this.say(`${name}: ${Math.round(wound.hp * 10) / 10} of ${wound.max} left`, 1.2);
       this.logic.fire({
         type: 'event.onDamaged',
         match: { asset: '', who: name },
@@ -3609,8 +3618,11 @@ export class PlaySession {
   }
 
   /** P9c: an enemy's swing lands on the hero (through guard, parry and dodge) */
-  hitHero(n: Npc, power: number, type: DamageType) {
+  hitHero(n: Npc, power: number, type: DamageType, attack?: string) {
+    // Milestone 3b (B5b): the attack it was decides how the hero reacts (a charge knocks it down)
+    this.heroHitHow = hurtReaction({ type, power, attack });
     this.damage('hero', power, type, `n:${n.id}`);
+    this.heroHitHow = null;
   }
 
   /** P22 part 2: a neighbour whose sheet says it stands where it was put (a shopkeeper at a counter) */
@@ -4148,7 +4160,7 @@ export class PlaySession {
       } else if (r.how === 'block') this.say('Blocked', 0.8);
       else if (r.how === 'break') this.say('Your guard broke!', 1.5);
       else if (r.how === 'dodge') this.emit('info', 'Dodged');
-      if (r.taken > 0) this.hurt(r.taken);
+      if (r.taken > 0) this.hurt(r.taken, this.heroHitHow ?? hurtReaction({ type: attack.type, power: amount }));
       return;
     }
     const inst = this.resolveEntity(ref);
@@ -4853,6 +4865,12 @@ export class PlaySession {
       },
       moveThing: (op, ref, x, y, z) => this.apiMove(op, ref, x, y, z),
       face: (ref, deg) => this.apiFace(ref, deg),
+      react: (ref, how) => {
+        if (!(HURT_REACTIONS as readonly string[]).includes(how)) return;
+        const r = this.apiRef(ref);
+        const who = r === 'hero' ? 'hero' : this.npcByRef(r);
+        if (who) this.react(who, how as HurtHow);
+      },
       lookAt: (ref, other) => {
         const p = this.positionOf(this.apiRef(ref));
         const q = this.positionOf(this.apiRef(other));
@@ -6517,6 +6535,58 @@ export class PlaySession {
     const st = n.state as { attack?: number; attackDuration?: number; attackHit?: number; attackAs?: AttackAs };
     if (!st.attack || st.attack <= 0 || !st.attackAs || !st.attackDuration) return null;
     return { as: st.attackAs, t: st.attackDuration - st.attack, hit: st.attackHit ?? 0, dur: st.attackDuration };
+  }
+
+  // ---------- Milestone 3b (B5b): hurt reactions ----------
+
+  /** how the hero's next hurt reacts (set by the hit that causes it) */
+  private heroHitHow: HurtHow | null = null;
+  private hurts = new Map<number | 'hero', { how: HurtHow; at: number; dur: number }>();
+
+  /**
+   * A body reacts to a hit: `how` for its time (longer for a long stun). A knock-down, a freeze or a stun stops it
+   * for that long (the hero cannot move or swing; an enemy stops its brain).
+   */
+  react(who: Npc | 'hero', how0: HurtHow, seconds?: number) {
+    // a behaviour on it may react another way (Hero, EnemyBrain, Damageable: hurtReaction)
+    const owner = who === 'hero' ? 'hero' : this.npcSelf(who).self;
+    const asked =
+      owner && this.scriptOwners.size ? this.askHook(owner, 'hurtReaction', { how: how0 }, how0 as string) : how0;
+    const how = ((HURT_REACTIONS as readonly string[]).includes(asked) ? asked : how0) as HurtHow;
+    const dur = Math.max(HURT_TIME[how], seconds ?? 0);
+    const key = who === 'hero' ? 'hero' : who.id;
+    this.hurts.set(key, { how, at: this.clock, dur });
+    const stops = how === 'knockdown' || how === 'freeze' || how === 'stun' ? dur * 0.85 : 0;
+    if (!stops) return;
+    if (who === 'hero') this.combat.stagger = Math.max(this.combat.stagger, stops);
+    else this.combat.stunNpc(who, stops);
+  }
+
+  /** a body's reaction now (how, seconds into it, its length), or null */
+  hurtOf(who: Npc | 'hero'): { how: HurtHow; t: number; dur: number } | null {
+    const r = this.hurts.get(who === 'hero' ? 'hero' : who.id);
+    if (!r) return null;
+    const t = this.clock - r.at;
+    if (t >= r.dur) {
+      this.hurts.delete(who === 'hero' ? 'hero' : who.id);
+      return null;
+    }
+    return { how: r.how, t, dur: r.dur };
+  }
+
+  /** a minifig's reacting pose now, or null */
+  hurtPose(who: Npc | 'hero'): PoseParams | null {
+    const r = this.hurtOf(who);
+    if (!r) return null;
+    // a reaction held longer than its own length (a long stun) holds its middle, then finishes
+    const base = HURT_TIME[r.how];
+    const t =
+      r.dur <= base
+        ? r.t
+        : r.t < r.dur - base * 0.2
+          ? Math.min(r.t, base * 0.8)
+          : base * 0.8 + (r.t - (r.dur - base * 0.2));
+    return hurtPose(r.how, t, r.t);
   }
 
   /** step 14a fix: a minifig enemy's attack pose (the tell, the blow, back), or null when it is not attacking */

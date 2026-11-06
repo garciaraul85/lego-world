@@ -181,3 +181,19 @@ The kind of fighter picks the template, which extends EnemyBrain:
 | PackHunter | `callsPack` | Howler |
 
 A behaviour that extends a template (`class ThreeShot extends PopUp { spits(e) { return 3; } }`) answers any hook of its line: its own, EnemyBrain's and Brain's. It goes on an enemy of that template, in **Characters › Behaviour**. The **Make your own brain course** makes a pop-up that spits three fireballs. Bosses (BossBrain) come next.
+
+### Hurt reactions
+
+A body reacts to how it was hit — the hero, neighbours and enemies alike, minifigs and creature bodies:
+
+| Reaction | What causes it | What it looks like |
+|---|---|---|
+| flinch | a light hit | rocks back |
+| stagger | a heavy swing, a pounce, a swoop, a hit of 2 or more | steps back, arms out |
+| knockdown | a charge, a drop, a bomb (explosive), a big knock-back, a hit of 4 or more | falls flat (a creature rolls onto its side), gets up; it cannot move until it does |
+| burn | fire, a breath of fire | hops, patting out the flames |
+| freeze | ice | stiff and shivering; it cannot move |
+| shock | a beam, light or electric | jolted, arms flung out |
+| stun | a stun, a shield bash | dizzy, swaying; it cannot move |
+
+`hurtReaction(e)` (on the Hero, EnemyBrain and Damageable; `e.how` is the reaction) returns another to react that way instead. The **React to a hit** card (`react(who, how)`) makes the hero or a character react without being hurt (a trap, a cutscene's blow). The **Hurt reactions course** makes a howler that a heavy swing knocks flat.

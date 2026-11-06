@@ -56,6 +56,7 @@ import builtins2 from './content/46-world-builtins.json';
 import heroBehaviours from './content/47-hero-behaviours.json';
 import swimmer from './content/48-swimmer.json';
 import makeBrain from './content/49-make-a-brain.json';
+import hurtReactions from './content/50-hurt-reactions.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -99,6 +100,7 @@ export type Track =
   | 'heroBehaviours'
   | 'swimmer'
   | 'makeBrain'
+  | 'hurtReactions'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -191,6 +193,7 @@ export const BUILTINS2_STEPS: TrackStep[] = steps([builtins2].map((c) => Chapter
 export const HERO_BEHAVIOURS_STEPS: TrackStep[] = steps([heroBehaviours].map((c) => Chapter.parse(c)));
 export const SWIMMER_STEPS: TrackStep[] = steps([swimmer].map((c) => Chapter.parse(c)));
 export const MAKE_BRAIN_STEPS: TrackStep[] = steps([makeBrain].map((c) => Chapter.parse(c)));
+export const HURT_REACTIONS_STEPS: TrackStep[] = steps([hurtReactions].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -236,6 +239,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   heroBehaviours: { title: 'Hero behaviours course', steps: HERO_BEHAVIOURS_STEPS },
   swimmer: { title: 'Swimmer course', steps: SWIMMER_STEPS },
   makeBrain: { title: 'Make your own brain course', steps: MAKE_BRAIN_STEPS },
+  hurtReactions: { title: 'Hurt reactions course', steps: HURT_REACTIONS_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

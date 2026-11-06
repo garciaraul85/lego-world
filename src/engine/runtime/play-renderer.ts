@@ -968,8 +968,9 @@ export class PlayRenderer {
       const look = cast?.profile ?? n.profile;
       // P23 part 4: a neighbour's state clip (walk, attack, hurt…) poses it
       const sp = cast ? null : s.npcPose(n);
-      // step 14a fix: an enemy's attack (its tell, the blow) poses it over anything else
-      const ap = cast ? null : s.enemyPose(n);
+      // step 14a fix: an enemy's attack (its tell, the blow) poses it over anything else;
+      // Milestone 3b (B5b): and its reaction to a hit over that (knocked down, burning, frozen…)
+      const ap = cast ? null : (s.hurtPose(n) ?? s.enemyPose(n));
       // step 14a: an enemy down under the water or the ground is drawn sunk (and not at all, all the way down)
       const lk = cast ? null : s.enemies.look(n);
       if (lk && lk.sink > 0.97) continue;
@@ -997,8 +998,10 @@ export class PlayRenderer {
     const shot = s.poseOver();
     // under it, the body's own move (13c fix: the built-in walk when v68's own motion walks, so the legs step)
     const fight = shot ? { ...(s.baseParams() ?? {}), ...shot } : s.combat.pose();
-    const heroPose = fight ?? s.heroAnim.params();
-    const poseClip = fight ? s.combat.anim.clip : s.heroAnim.clip;
+    // Milestone 3b (B5b): the hero's reaction to a hit shows over everything
+    const ouch = s.hurtPose('hero');
+    const heroPose = ouch ?? fight ?? s.heroAnim.params();
+    const poseClip = ouch ? null : fight ? s.combat.anim.clip : s.heroAnim.clip;
     const heroCast = s.cine.drawFor('hero', s.hero, s.heroState);
     if (creatures.drawn.has('hero')) {
       /* drawn as a body plan (overlays) */
@@ -1122,14 +1125,17 @@ export class PlayRenderer {
         this.motions.set(key, mo);
       }
       const dist = Math.hypot(st.x - mo.x, st.z - mo.z);
+      // Milestone 3b (B5b): how it reacts to a hit (frozen stiff: its motion stops)
+      const ouch = s.hurtOf(who);
       // a jump across the map (a teleport, a respawn) is not a step
-      advance(mo.m, body, dist < 3 ? dist : 0, dt);
+      advance(mo.m, body, dist < 3 ? dist : 0, ouch?.how === 'freeze' ? 0 : dt);
       // P23 part 4: the state machine's strike and flinch
       const state = s.animStateOf(who);
       // step 14a fix: an enemy's attack is timed by its brain: the tell through its windup, the blow as it lands
       const atk = who === 'hero' ? null : s.attackOf(who);
-      mo.m.act =
-        atk && atk.as !== 'howl'
+      mo.m.act = ouch
+        ? { kind: 'hurt', u: Math.min(0.999, ouch.t / ouch.dur), how: ouch.how, t: ouch.t }
+        : atk && atk.as !== 'howl'
           ? { kind: 'attack', u: attackU(atk.t, atk.hit, atk.dur) }
           : atk
             ? s.moveOf(who)
