@@ -315,6 +315,47 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       await wait(700);
     }
   },
+  async strikeWhenOpen(c, a) {
+    // Milestone 3b (14a-2): what fighting a guarded boss does: shield up in front of it while it strikes, then, as
+    // its eye glows, round behind it and swing hard — again until the Console says it
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const name = String(a?.name ?? '');
+    const until = String(a?.until ?? '');
+    const said = () => s.events.some((e) => e.msg.includes(until));
+    const t0 = s.clock;
+    try {
+      while (!said() && s.clock - t0 < Number(a?.seconds ?? 90)) {
+        const foe = s.world.npcs.find((x) => String(x.profile.name) === name);
+        if (!foe) throw new Error(`Place ${name} first.`);
+        const yaw = foe.state.heading;
+        s.camYaw = yaw + 1.1;
+        if (s.bossGuarded(foe)) {
+          // in front of it, shield up, close enough for it to strike
+          if (Math.hypot(s.heroState.x - foe.state.x, s.heroState.z - foe.state.z) > 4.5)
+            s.placeAt(
+              [foe.state.x + Math.sin(yaw) * 3.2, foe.state.y, foe.state.z + Math.cos(yaw) * 3.2],
+              yaw + Math.PI,
+            );
+          s.input.keys.add('q');
+          await wait(100);
+          continue;
+        }
+        s.input.keys.delete('q');
+        const back = yaw + Math.PI;
+        s.placeAt(
+          [foe.state.x + Math.sin(back) * 2.2, foe.state.y, foe.state.z + Math.cos(back) * 2.2],
+          back + Math.PI,
+        );
+        await wait(80);
+        s.strike('heavy');
+        await wait(600);
+      }
+    } finally {
+      s.input.keys.delete('q');
+    }
+    if (!said()) throw new Error(`Not yet: strike ${name} when its eye glows.`);
+  },
   async waitLogged(c, a) {
     // standing back and watching: up to `seconds` until the Console says it
     const s = c.ed.session.value;

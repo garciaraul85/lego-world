@@ -1875,9 +1875,33 @@ export class PlaySession {
       [...own, ...BUILTIN_CHARACTERS].find((c) => c.id === character.trim()) ??
       [...own, ...BUILTIN_CHARACTERS].find((c) => c.name.toLowerCase() === want);
     const w = this.world;
-    const sp = w.doc.spawns.find((x) => x.id === at || x.name.toLowerCase() === at.trim().toLowerCase());
+    const where = at.trim().toLowerCase();
+    let sp: { pos: readonly [number, number, number]; yaw: number; name: string } | undefined = w.doc.spawns.find(
+      (x) => x.id === at || x.name.toLowerCase() === where,
+    );
+    // Milestone 3b (14a-2): or beside the hero or a character (a boss calls its brood round it), a little apart each time
+    if (!sp && where) {
+      const by =
+        where === 'hero'
+          ? { x: this.heroState.x, y: this.heroState.y, z: this.heroState.z, name: 'the hero' }
+          : (() => {
+              const n = w.npcs.find((m) => String(m.profile.name ?? '').toLowerCase() === where);
+              return n ? { x: n.state.x, y: n.state.y, z: n.state.z, name: String(n.profile.name) } : null;
+            })();
+      if (by) {
+        const a = (this.charSerial * 2.39996) % (Math.PI * 2);
+        sp = {
+          pos: [by.x + Math.sin(a) * 3, Math.max(0, by.y) + 0.05, by.z + Math.cos(a) * 3],
+          yaw: a + Math.PI,
+          name: by.name,
+        };
+      }
+    }
     if (!chr || !sp) {
-      this.emit('info', `Spawn character: ${!chr ? `no character “${character}”` : `no spawn point “${at}” here`}`);
+      this.emit(
+        'info',
+        `Spawn character: ${!chr ? `no character “${character}”` : `no spawn point or character “${at}” here`}`,
+      );
       return null;
     }
     const id = 900_000 + ++this.charSerial;
@@ -1901,7 +1925,10 @@ export class PlaySession {
     w.npcs.push(n);
     this.L.NPCWorld.connect(w.npcs, w.controller);
     this.eventEffect('defeat', [sp.pos[0], sp.pos[1] + 1, sp.pos[2]]);
-    this.emit('info', `${chr.name} came in at ${sp.name}`);
+    this.emit(
+      'info',
+      `${chr.name} came in ${sp.name.startsWith('the ') || w.npcs.some((m) => m.profile.name === sp.name) ? 'beside' : 'at'} ${sp.name}`,
+    );
     return chr.name;
   }
 
@@ -4170,6 +4197,20 @@ export class PlaySession {
     return e?.style === 'boss' ? e : null;
   }
 
+  /** Milestone 3b (B5c): a boss can be hurt now, as the engine sees it (its isVulnerable hook not asked) */
+  private bossOpen(npc: Npc, boss: Enemy): boolean {
+    const how = boss.boss?.vulnerable ?? 'always';
+    return (
+      how === 'always' || this.isStunned(npc) || (how === 'afterAttack' && this.enemies.justAttacked(npc, BOSS_OPENING))
+    );
+  }
+
+  /** Milestone 3b (14a-2): a boss that cannot be hurt now (its eye is dull); not a boss: false */
+  bossGuarded(npc: Npc): boolean {
+    const boss = this.bossOf(npc);
+    return !!boss && !this.bossOpen(npc, boss);
+  }
+
   /** Milestone 3b (B5c): the phase a boss is in now (1: its first) */
   bossPhaseOf(n: Npc): number {
     return this.bossPhase.get(n.id) ?? 1;
@@ -4208,10 +4249,7 @@ export class PlaySession {
    */
   bossVulnerable(npc: Npc, boss: Enemy): boolean {
     const how = boss.boss?.vulnerable ?? 'always';
-    const base =
-      how === 'always' ||
-      this.isStunned(npc) ||
-      (how === 'afterAttack' && this.enemies.justAttacked(npc, BOSS_OPENING));
+    const base = this.bossOpen(npc, boss);
     const owner = this.npcSelf(npc).self;
     return owner ? this.askHook(owner, 'isVulnerable', { phase: this.bossPhaseOf(npc), how }, base) : base;
   }

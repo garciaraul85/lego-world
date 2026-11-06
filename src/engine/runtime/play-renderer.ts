@@ -1144,7 +1144,9 @@ export class PlayRenderer {
               : s.moveOf(who);
       mo.x = st.x;
       mo.z = st.z;
-      overlays.push(...bodyOverlays(body, bodyPose(body, mo.m), bodyWorld(body, st, mo.m)));
+      // Milestone 3b (14a-2): a guarded boss's eye is dull; it glows when it can be hurt
+      const dim = who !== 'hero' && s.bossGuarded(who);
+      overlays.push(...bodyOverlays(body, bodyPose(body, mo.m), bodyWorld(body, st, mo.m), 1, dim));
     };
     for (const n of s.world.npcs) {
       const cast = s.cine.drawFor(n, n.profile, n.state);

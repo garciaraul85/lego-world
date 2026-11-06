@@ -164,6 +164,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Hurt reactions course (6 steps): place a Howler, read PackHunter’s inherited hurtReaction hook, Extend it so a hit that would stagger it knocks it down instead, attach it in Characters › Behaviour, and give it a heavy hit in Play.',
   'help.enemyPartsCourse':
     'Starts the Enemy parts course (7 steps): place Rattlebones, read the Attack interface, swap its attack for a Spit and its mover for Wings in Characters › Behaviour, Extend Spit so it says so each time, and watch it spit from the air in Play.',
+  'help.gloomweaverCourse':
+    'Starts the Gloomweaver course (5 steps): place Gloomweaver from the Starter pack (its behaviour comes with it), see its phases in Characters › Behaviour (a WeakPointBoss: a biter, then a thread-dropper from 66%, then a web-spitter from 33%), find its behaviour (class Gloomweaver extends WeakPointBoss), and fight it to phase 2: hit it when its eye glows.',
   'help.bossesCourse':
     'Starts the Boss course (8 steps): place the Howler, read BossBrain (it extends EnemyBrain; its templates PhasedBoss, WeakPointBoss and PuzzleBoss), make the Howler a boss in Characters › Behaviour that hunts as a pack hunter and from half its health shoots, Extend PhasedBoss so it says each phase, and fight it to phase 2 in Play.',
   'help.swim':

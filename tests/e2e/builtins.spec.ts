@@ -296,6 +296,46 @@ test('Boss course: the Howler made a boss roars into phase 2', async ({ page }) 
   expect(errors).toEqual([]);
 });
 
+test('Gloomweaver course: the boss built from the brains reaches phase 2', async ({ page }) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
+  await page.getByRole('menuitem', { name: /Gloomweaver course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(5);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    // (a step already done, as its phases are when placed: nothing to do)
+    await page.waitForTimeout(600);
+    if ((await doIt.isVisible()) && !(await card.getByText(/✓ Done!/).isVisible())) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doIt.click();
+      const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+      const done = card.getByText(/✓ Done!/);
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (await rest.isVisible()) await rest.click();
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      await page.screenshot({ path: `test-results/gloom-${String(i).padStart(2, '0')}.png` });
+    }
+    if (/Its phases/.test(title))
+      await expect(page.getByRole('group', { name: 'Built-in WeakPointBoss' })).toBeVisible();
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  expect(errors).toEqual([]);
+});
+
 test('World built-ins course: a rock that takes three tries to lift', async ({ page }) => {
   test.setTimeout(900_000);
   const errors: string[] = [];

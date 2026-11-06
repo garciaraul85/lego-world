@@ -59,6 +59,7 @@ import makeBrain from './content/49-make-a-brain.json';
 import hurtReactions from './content/50-hurt-reactions.json';
 import enemyParts from './content/51-enemy-parts.json';
 import bosses from './content/52-bosses.json';
+import gloomweaver from './content/53-gloomweaver.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -105,6 +106,7 @@ export type Track =
   | 'hurtReactions'
   | 'enemyParts'
   | 'bosses'
+  | 'gloomweaver'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -200,6 +202,7 @@ export const MAKE_BRAIN_STEPS: TrackStep[] = steps([makeBrain].map((c) => Chapte
 export const HURT_REACTIONS_STEPS: TrackStep[] = steps([hurtReactions].map((c) => Chapter.parse(c)));
 export const ENEMY_PARTS_STEPS: TrackStep[] = steps([enemyParts].map((c) => Chapter.parse(c)));
 export const BOSSES_STEPS: TrackStep[] = steps([bosses].map((c) => Chapter.parse(c)));
+export const GLOOMWEAVER_STEPS: TrackStep[] = steps([gloomweaver].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -248,6 +251,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   hurtReactions: { title: 'Hurt reactions course', steps: HURT_REACTIONS_STEPS },
   enemyParts: { title: 'Enemy parts course', steps: ENEMY_PARTS_STEPS },
   bosses: { title: 'Boss course', steps: BOSSES_STEPS },
+  gloomweaver: { title: 'Gloomweaver course', steps: GLOOMWEAVER_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

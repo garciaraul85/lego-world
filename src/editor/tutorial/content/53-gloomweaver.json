@@ -1,0 +1,120 @@
+{
+  "id": "gloomweaver",
+  "title": "Gloomweaver course",
+  "steps": [
+    {
+      "id": "gw.place",
+      "title": "Gloomweaver, built from the brains",
+      "body": "The starter pack's boss, Gloomweaver, is now made like any enemy you could make: a BossBrain with three phases built from templates and parts, and a short behaviour. Place it from the Starter pack: its behaviour comes with it.",
+      "task": "Place Gloomweaver.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcCount",
+        "args": "Gloomweaver:1"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "gloomweaver",
+            "ahead": 12
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "gw.phases",
+      "title": "Its phases",
+      "body": "In Characters \u203a Gloomweaver \u203a Behaviour, its brain row is WeakPointBoss (a BossBrain). 1st phase: a melee biter. From 66%: an ambusher that climbs into the dark on a thread and drops on you. From 33%: a shooter that spits webs that stick you fast, and is quicker. When it can be hurt: afterAttack, just after it strikes. Its eye glows then; the rest of the time it is dull.",
+      "task": "Open Characters \u203a Gloomweaver \u203a Behaviour.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterNamed",
+        "args": "Gloomweaver"
+      },
+      "doItForMe": [
+        {
+          "fn": "setCharacterBuiltinField",
+          "args": {
+            "character": "Gloomweaver",
+            "name": "BossBrain",
+            "field": "vulnerable",
+            "value": "afterAttack"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "gw.code",
+      "title": "Its behaviour",
+      "body": "Below, the Gloomweaver behaviour: class Gloomweaver extends WeakPointBoss. Its phase(e) says what happens as each phase begins: in phase 2 it warns you to watch above, in phase 3 it calls two Threadbacks to hang round it. Open it in Logic to read or change it.",
+      "task": "Find the Gloomweaver behaviour in its list.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterHasBehaviour",
+        "args": "Gloomweaver,Gloomweaver"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Characters"
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "gw.fight",
+      "title": "Fight it",
+      "body": "Press Play. Hits bounce off while its eye is dull. Raise your shield (Q) as it bites; when its eye glows, get behind it and swing hard. At two-thirds it climbs into the dark: walk under its thread to make it drop, then strike as it lands. (A lantern's light stuns it, and opens it up too.)",
+      "task": "Press Play and get it to phase 2.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Gloomweaver enters phase 2"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "strikeWhenOpen",
+          "args": {
+            "name": "Gloomweaver",
+            "until": "Gloomweaver enters phase 2"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "gw.done",
+      "title": "Done!",
+      "body": "Beat it for the boss key. Everything it does comes from the brains: change a phase's kind, its parts or its speed in Characters \u203a Behaviour, or extend its behaviour (isVulnerable, phaseFor) to make your own boss.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

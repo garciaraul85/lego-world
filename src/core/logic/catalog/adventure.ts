@@ -92,7 +92,7 @@ export const ADVENTURE: NodeDef[] = [
         name: 'at',
         kind: 'spawn',
         label: 'At spawn',
-        help: 'A spawn point on the current map (Scene › Spawn tool).',
+        help: 'A spawn point on the current map (Scene › Spawn tool), or hero or a character’s name: a few studs from them.',
       },
     ],
     code: { name: 'character.spawn', style: 'call' },

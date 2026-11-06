@@ -3,7 +3,8 @@ import type { TerrainStyle } from '../../builtin/packs/adventure';
 import type { Command } from '../../core/commands';
 import { parseScript } from '../../core/dialogue/script';
 import { newId } from '../../core/ids';
-import { type Character, type EffectInstance, type MapDoc, paths } from '../../core/schema';
+import { parseBehaviour } from '../../core/logic/code/behaviour';
+import { type Character, type EffectInstance, type LogicGraph, type MapDoc, paths } from '../../core/schema';
 import { standingSpot } from '../interact/ground';
 import type { EditorState } from '../state';
 
@@ -30,6 +31,26 @@ export function packCharacterCommands(ed: EditorState, item: Item): Command[] {
     );
     out.push({ type: 'dialogue.put', payload: { conversation } });
     chr.talk = [{ conversation: conv as never, note: 'from the starter pack' }];
+  }
+  // Milestone 3b (14a-2): its behaviour, made in the project and attached (one per project: placed again, it is reused)
+  if (item.behaviour) {
+    const r = parseBehaviour(item.behaviour);
+    if (!('error' in r)) {
+      const name = item.character.name;
+      const have = ed.store
+        .list('logic/')
+        .map((p) => ed.store.get<LogicGraph>(p))
+        .find((g) => g?.behaviour && g.name === name);
+      const gid = (have?.id ?? newId('logic')) as LogicGraph['id'];
+      if (!have)
+        out.push({
+          type: 'logic.create',
+          payload: {
+            graph: { id: gid, name, scope: 'global', behaviour: r.behaviour, nodes: r.nodes, edges: r.edges },
+          },
+        });
+      chr.scripts = [{ use: gid }];
+    }
   }
   out.unshift({ type: 'character.create', payload: { character: chr } });
   return out;

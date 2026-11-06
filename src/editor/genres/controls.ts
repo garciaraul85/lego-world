@@ -165,6 +165,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.hurtReactionsCourse': S('combat', 'logic'),
   'help.enemyPartsCourse': S('combat', 'logic'),
   'help.bossesCourse': S('combat', 'logic'),
+  'help.gloomweaverCourse': S('combat', 'logic'),
   'help.ai': S('ai'),
   'assets.open': S('assets'),
   'characters.fromPicture': S('characters'),

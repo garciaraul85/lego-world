@@ -223,3 +223,22 @@ A boss is an enemy whose kind of fighter is **boss**. Its brain, **BossBrain**, 
 | **PuzzleBoss** | only while stunned (by what it is stunned by, a parry, or its own shot sent back); a stun hit gets through as its opening |
 
 Its hooks: `phaseFor(e)` (`e.hp`, `e.max`, `e.phase`) returns the phase to be in; `isVulnerable(e)` (`e.how`, `e.phase`) whether this hit hurts. The **On phase** event (`phase(e)`: `e.phase`, `e.from`) runs as it changes phase. The **Boss course** makes the Howler a boss that hunts as a pack hunter and, from half its health, backs off and shoots.
+
+**Gloomweaver**, the starter pack's boss, is built this way: a **WeakPointBoss** that bites (1st phase), climbs into the dark on a thread and drops on the hero from 66% of its health (an ambusher), and from 33% backs off and spits webs that stick the hero fast, quicker on its legs (a shooter with a Spit whose hurt reaction is stun). Its eye is dull while it is guarded and glows when it can be hurt: just after it strikes, or stunned by light. Placed from the pack, its behaviour comes with it:
+
+```
+class Gloomweaver extends WeakPointBoss {
+  phase(e) {
+    if ((e.phase === 2)) {
+      say("Gloomweaver climbs into the dark! Watch above.", 3);
+    }
+    if ((e.phase === 3)) {
+      say("Gloomweaver calls its brood!", 3);
+      character.spawn("Threadback", "Gloomweaver");
+      character.spawn("Threadback", "Gloomweaver");
+    }
+  }
+}
+```
+
+**Spawn character** takes a spawn point, or **hero** or a character's name: it comes in a few studs from them. The **Gloomweaver course** walks through it.

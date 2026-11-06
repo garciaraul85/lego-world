@@ -631,6 +631,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('bosses'),
   },
   {
+    id: 'help.gloomweaverCourse',
+    label: 'Gloomweaver course (the boss built from the brains: its phases, its glowing eye, its behaviour)',
+    run: ({ ui }) => ui.tutorial('gloomweaver'),
+  },
+  {
     id: 'help.swim',
     label: 'Swimming course (dive, breath, the Action button)',
     run: ({ ui }) => ui.tutorial('swim'),
@@ -890,6 +895,7 @@ export const COURSE_GROUPS: [string, string[]][] = [
       'help.hurtReactionsCourse',
       'help.enemyPartsCourse',
       'help.bossesCourse',
+      'help.gloomweaverCourse',
       'help.saving',
       'help.swim',
     ],

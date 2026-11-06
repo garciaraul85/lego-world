@@ -410,6 +410,24 @@ function grouped(body: ResolvedBody): Group[] {
   return g;
 }
 
+/** Milestone 3b (14a-2): a glowing set gone dull: its colours a third as bright (made once per set) */
+const dulled = new WeakMap<Group, RenderBrick[]>();
+function dullOf(g: Group): RenderBrick[] {
+  let d = dulled.get(g);
+  if (!d) {
+    d = g.bricks.map((b) => ({ ...b, color: darker(b.color, 0.35) }));
+    dulled.set(g, d);
+  }
+  return d;
+}
+function darker(hex: string, k: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const v = Number.parseInt(m[1]!, 16);
+  const c = (sh: number) => Math.round(((v >> sh) & 255) * k);
+  return `#${((c(16) << 16) | (c(8) << 8) | c(0)).toString(16).padStart(6, '0')}`;
+}
+
 /** a body brick as the renderer draws it: a box, or one of the custom brick shapes */
 export function renderBrick(b: BodyBrick & { color: string }): RenderBrick {
   const out: RenderBrick = { id: 0, w: b.w, d: b.d, kind: b.kind, x: b.x, y: b.y, z: b.z, color: b.color };
@@ -426,12 +444,20 @@ export function bodyOverlays(
   pose: Map<string, Float32Array>,
   world: Float32Array,
   alpha = 1,
+  /** Milestone 3b (14a-2): its glowing parts go dull (a guarded boss: its eye glows only when it can be hurt) */
+  dimGlow = false,
 ): Overlay[] {
   const out: Overlay[] = [];
   for (const g of grouped(body)) {
     const m = pose.get(g.bone);
     if (!m) continue;
-    out.push({ bricks: g.bricks, alpha: alpha * g.alpha, flat: g.glow, model: multiply(world, m) });
+    const dull = dimGlow && g.glow;
+    out.push({
+      bricks: dull ? dullOf(g) : g.bricks,
+      alpha: alpha * g.alpha,
+      flat: g.glow && !dimGlow,
+      model: multiply(world, m),
+    });
   }
   // solid first, so see-through parts blend over them
   return out.sort((a, b) => b.alpha - a.alpha);
