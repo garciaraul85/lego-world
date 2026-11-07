@@ -59,6 +59,7 @@ import type { LegacyPiece } from '../../core/legacy/types';
 import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosphere';
 import { attachmentsOf, startValues } from '../../core/logic/behaviours';
 import { enemyOfCharacter } from '../../core/logic/boss';
+import { itemClassOf, itemsOfBehaviour } from '../../core/logic/builtins';
 import type { ExecCtx } from '../../core/logic/catalog';
 import { maxOf } from '../../core/num';
 import { switchHitBy } from '../../core/puzzles/puzzle';
@@ -531,6 +532,7 @@ export class PlaySession {
               bottom: f.bottom,
               top: f.top,
               radius: f.radius,
+              name: String(n.profile.name ?? ''),
             };
           }),
       hitEnemy: (id, power, type, stun) => {
@@ -662,7 +664,17 @@ export class PlaySession {
   );
   /** step 13c: the Lens of Truth (held up, it shows hidden things and sees through fake ones) */
   readonly lens = new Lens({
-    drain: (r, dt) => this.magic.drain(r, dt),
+    // Milestone 3b (B6): LensOfTruth.magicCost (each second it is up); run dry: On magic empty
+    drain: (r, dt) => {
+      const ok = this.magic.drain(Math.max(0, this.askItem('Lens of Truth', 'magicCost', {}, r)), dt);
+      if (!ok)
+        this.logic.fire({
+          type: 'event.onMagicEmpty',
+          match: { item: 'Lens of Truth' },
+          payload: { item: 'Lens of Truth' },
+        });
+      return ok;
+    },
     has: () => !this.magic.on || this.magic.now > 0,
     say: (t, sec) => this.say(t, sec),
     log: (t) => this.emit('info', t),
@@ -837,6 +849,8 @@ export class PlaySession {
       launchPoint: () => self.launchPoint(),
       near: (x, z, r) => self.objs().near(x, z, r),
       byId: (id) => self.objs().byId(id),
+      // Milestone 3b (B6): Projectile hooks (the hero's item behaviours)
+      askItem: (item, hook, payload, base) => self.askItem(item, hook, payload, base),
       npcs: () =>
         self.world.npcs
           .filter((n) => self.enemies.hittable(n))
@@ -3210,6 +3224,42 @@ export class PlaySession {
     ) as V;
   }
 
+  /**
+   * Milestone 3b (B6): asks the hero's item behaviours a hook about one item (canUseItem, shotSpeed…): only those
+   * about that item answer (a behaviour extending Bow is about Bow, Fire arrows and Ice arrows; one extending Item
+   * itself, about the item of its own name)
+   */
+  askItem<V>(item: string, hook: string, payload: Record<string, unknown>, base: V): V {
+    const k = item.trim().toLowerCase();
+    const r = this.logic.ask(
+      'hero',
+      `event.on${hook.charAt(0).toUpperCase()}${hook.slice(1)}`,
+      { ...payload, item, base },
+      (gid) => this.itemsOfGraph(gid).some((i) => i.toLowerCase() === k),
+    );
+    if (r === undefined) return base;
+    return (
+      typeof base === 'boolean' ? !!r : typeof base === 'number' ? Number(r) : typeof base === 'string' ? String(r) : r
+    ) as V;
+  }
+  /** Milestone 3b (B6): one of the hero's item behaviours is about this item (a Whistle behaviour: the Whistle) */
+  ownItem(item: string): boolean {
+    const k = item.trim().toLowerCase();
+    return (this.heroChr?.scripts ?? []).some(
+      (a) => !a.off && this.itemsOfGraph(a.use).some((i) => i.toLowerCase() === k),
+    );
+  }
+  private itemGraphs = new Map<string, string[]>();
+  private itemsOfGraph(gid: string): string[] {
+    let v = this.itemGraphs.get(gid);
+    if (!v) {
+      const g = this.snapshot.get(paths.logic(gid)) as LogicGraph | undefined;
+      v = (g?.behaviour && itemsOfBehaviour(g.behaviour.extends, g.name)) || [];
+      this.itemGraphs.set(gid, v);
+    }
+    return v;
+  }
+
   // ---------- Milestone 3b (B2): the engine API ----------
 
   /** "" and "player" mean the hero */
@@ -3594,9 +3644,11 @@ export class PlaySession {
     // step 12b: a tool (Bomb, Torch) goes into an empty item button, ready to use (13a: and the shooting things)
     if (
       count > 0 &&
-      /^(bombs?|torch|branch|gust leaf|bow|fire arrows|ice arrows|slingshot|stun nuts?|boomerang|whirl boomerang|hook line|grapple rope|magnet glove|hover boots|lens of truth)$/i.test(
+      (/^(bombs?|torch|branch|gust leaf|bow|fire arrows|ice arrows|slingshot|stun nuts?|boomerang|whirl boomerang|hook line|grapple rope|magnet glove|hover boots|lens of truth)$/i.test(
         item.trim(),
-      ) &&
+      ) ||
+        // Milestone 3b (B6): an item of the game's own (an Item behaviour on the hero is about it)
+        this.ownItem(item)) &&
       !this.buttons.slots.includes(item)
     ) {
       // an empty item button; with none empty (step 13c fix), the one whose item was used longest ago: a new tool is
@@ -7072,10 +7124,24 @@ export class PlaySession {
       this.say(`No ${item} left.`, 1.5);
       return;
     }
+    // Milestone 3b (B6): its class may say no, ask for magic, or do the using itself
+    if (!this.askItem(item, 'canUseItem', { slot }, true)) return;
+    // (the Lens of Truth's is each second it is up, not a use)
+    const lens = itemClassOf(item)?.name === 'LensOfTruth';
+    const cost = lens ? 0 : Math.max(0, this.askItem(item, 'magicCost', { slot }, 0));
+    if (cost > 0 && this.magic.on) {
+      if (!this.magic.has) this.magic.grant();
+      if (!this.magic.spend(cost)) {
+        this.say(`Not enough magic for the ${item} (it takes ${cost}).`, 2);
+        this.logic.fire({ type: 'event.onMagicEmpty', match: { item }, payload: { item } });
+        return;
+      }
+    }
     this.emit('info', `Item ${slot}: ${item}`);
     this.usedAt.set(item, this.clock);
+    const own = this.askItem(item, 'useItem', { slot }, true);
     // step 12b: a Bomb and a Torch do something by themselves (logic hears them as well)
-    if (!this.talking && !this.talks.active && !this.over) this.useTool(item);
+    if (own && !this.talking && !this.talks.active && !this.over) this.useTool(item);
     this.logic.fire({ type: 'event.onItemUsed', match: { item }, payload: { item, slot } });
   }
 

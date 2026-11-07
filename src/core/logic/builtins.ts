@@ -24,6 +24,11 @@ export type Builtin<T = Asset> = {
   parent?: string;
   /** Milestone 3b (B5b): an interface (Senses, Mover, Attack): its parts extend it, one of them fills it */
   isInterface?: boolean;
+  /**
+   * Milestone 3b (B6): an item's class: the items it is (Bow: Bow, Fire arrows, Ice arrows); [] for Item and
+   * Projectile themselves (a behaviour extending them is the item of its own name). Item classes go on the hero.
+   */
+  items?: readonly string[];
   /** the asset has it (its setting is there) */
   on(a: T): boolean;
   /** what attaching it adds to an asset (its default settings) */
@@ -936,6 +941,156 @@ CHARACTER_BUILTINS.push(
     'A boss too strong to hurt until stunned (by what it is stunned by, a parry or its own shot sent back): work out how.',
   ),
 );
+
+// ---------- Milestone 3b (B6): items and projectiles ----------
+
+/** an item's class: on the hero (a behaviour extending it, attached to the hero, changes that item) */
+const itemClass = (
+  name: string,
+  parent: string | undefined,
+  items: readonly string[],
+  about: string,
+  hooks: BuiltinHook[] = [],
+  events: string[] = [],
+): Builtin<Character> => ({
+  name,
+  for: 'character',
+  ...(parent ? { parent } : {}),
+  items,
+  about,
+  // (no row on a character: its behaviour shows where it is attached, on the hero)
+  on: () => false,
+  add: () => ({}),
+  remove: (c) => c,
+  fields: [],
+  hooks,
+  events,
+  editIn: 'Logic: Extend it and attach it to the hero (Characters › hero › Behaviour)',
+});
+
+CHARACTER_BUILTINS.push(
+  itemClass(
+    'Item',
+    undefined,
+    [],
+    'Something the hero carries and uses from an item button. Extend it for an item of your own: the behaviour’s name is the item’s (a Whistle behaviour is the Whistle); attach it to the hero, give the hero one (a pickup, or world.give) and put it on a button. useItem(e) runs as it is used. The built-in items extend it: extend one of them to change that item.',
+    [
+      hk('canUseItem', 'bool', 'Can the hero use it now? (item, slot) — false: nothing happens'),
+      hk(
+        'useItem',
+        'bool',
+        'It is used (item, slot): do what it does here; return false to keep the engine’s own use from running',
+      ),
+      hk(
+        'magicCost',
+        'number',
+        'How much magic a use takes (item; the Lens of Truth: each second it is up); not enough magic: it is not used',
+      ),
+    ],
+    ['event.onItemUsed'],
+  ),
+  itemClass(
+    'Projectile',
+    'Item',
+    [],
+    'An item that flies: shot, thrown or let go. It flies at its speed, and what it strikes takes its power; hits(e) says whether it harms what it struck.',
+    [
+      hk('shotSpeed', 'number', 'How fast it flies, in studs a second (item, speed)'),
+      hk('shotPower', 'number', 'How hard it hits what it strikes (item, power, type: pierce, blunt, fire, ice, stun)'),
+      hk(
+        'hits',
+        'bool',
+        'It struck something (item, target: the character’s name, or the object’s): false and it does no harm',
+      ),
+    ],
+  ),
+  itemClass(
+    'Bow',
+    'Projectile',
+    ['Bow', 'Fire arrows', 'Ice arrows'],
+    'Out in the left hand: Attack held draws it, let go shoots an arrow (a fire arrow burns, an ice arrow freezes). It needs arrows.',
+  ),
+  itemClass('Slingshot', 'Projectile', ['Slingshot'], 'Out in the hand: Attack held draws it, let go shoots a seed.'),
+  itemClass(
+    'Boomerang',
+    'Projectile',
+    ['Boomerang', 'Whirl boomerang'],
+    'Thrown at once: it curves out, stuns what it strikes, fetches what it touches and comes back to the hand.',
+  ),
+  itemClass(
+    'StunNut',
+    'Projectile',
+    ['Stun nuts', 'Stun nut'],
+    'Thrown at once: its flash stuns the foes near where it bursts.',
+  ),
+  itemClass(
+    'Bomb',
+    'Item',
+    ['Bomb', 'Bombs'],
+    'Lit and held up over the head: Action throws it (walking) or puts it down (standing still); it bursts after its fuse.',
+  ),
+  itemClass(
+    'HoverBoots',
+    'Item',
+    ['Hover boots'],
+    'On or off: worn, the hero floats level for a moment when it walks off an edge.',
+  ),
+  itemClass(
+    'LensOfTruth',
+    'Item',
+    ['Lens of Truth'],
+    'Up to the eye or down: hidden things show and fake walls look see-through. It uses magic each second it is up (magicCost).',
+  ),
+  itemClass(
+    'HookLine',
+    'Item',
+    ['Hook line'],
+    'Out in the hand: it shoots a hook that pulls the hero to what it bites.',
+  ),
+  itemClass('GrappleRope', 'Item', ['Grapple rope'], 'Out in the hand: thrown at a post, the hero swings from it.'),
+  itemClass('MagnetGlove', 'Item', ['Magnet glove'], 'Out in the hand: it pulls metal things (or the hero to them).'),
+  itemClass(
+    'Torch',
+    'Item',
+    ['Torch'],
+    'A burst of fire in front of the hero: it lights torches and burns what burns.',
+  ),
+  itemClass('Branch', 'Item', ['Branch'], 'A stick, out or put away: Attack swings it; held into a fire it catches.'),
+  itemClass('GustLeaf', 'Item', ['Gust leaf'], 'Out in the hand: Attack swings a gust of wind ahead.'),
+  {
+    name: 'MagicMeter',
+    for: 'character',
+    fixed: true,
+    about:
+      'The hero’s magic: a green bar under the hearts once it has something that uses magic (or a magic jar). Items take from it (their magicCost); jars fill it. In code it is vars.magic and vars.maxMagic.',
+    on: (c) => c.role === 'hero',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [],
+    events: ['event.onMagicEmpty'],
+    editIn: 'Project › Movement › Magic (whether the game has it, and how much a full meter holds)',
+  },
+);
+
+/** Milestone 3b (B6): an item's class (a built-in one, or Item and Projectile) */
+export const ITEM_CLASSES = () => CHARACTER_BUILTINS.filter((b) => b.items !== undefined);
+/** Milestone 3b (B6): the class an item is (Fire arrows: Bow); not one of the built-in items: null */
+export function itemClassOf(item: string): Builtin<Character> | null {
+  const k = item.trim().toLowerCase();
+  return ITEM_CLASSES().find((b) => b.items!.some((i) => i.toLowerCase() === k)) ?? null;
+}
+/**
+ * Milestone 3b (B6): the items a behaviour that extends `ext` is about: a built-in item's (Bow: its three), or, for
+ * Item or Projectile themselves (or a class of its own on them), the item of the behaviour's own name; not an item
+ * class: null
+ */
+export function itemsOfBehaviour(ext: string | undefined, behaviourName: string): string[] | null {
+  const line = lineageOf(ext);
+  if (!line.some((b) => b.name === 'Item')) return null;
+  const own = line.find((b) => b.items?.length);
+  return own ? [...own.items!] : [behaviourName];
+}
 
 /** Milestone 3b (B5a): a built-in and the ones it extends, nearest first (PopUp, EnemyBrain, Brain) */
 export function lineageOf(name: string | undefined): (Builtin<Asset> | Builtin<Character>)[] {

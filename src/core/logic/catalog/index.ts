@@ -8,6 +8,7 @@ import { EVENTS } from './events';
 import { FLOW } from './flow';
 import { HEALTH, HEALTH_EVENTS } from './health';
 import { HOOKS, RETURN } from './hooks';
+import { ITEM_EVENTS, ITEM_HOOKS } from './items';
 import { LIGHTS } from './lights';
 import { COMPARE, MATH } from './math';
 import { MEDIA } from './media';
@@ -65,6 +66,8 @@ export const CATALOG: readonly NodeDef[] = [
   ...HOOKS,
   ...BRAIN_HOOKS,
   ...BRAIN_EVENTS,
+  ...ITEM_HOOKS,
+  ...ITEM_EVENTS,
   ...RETURN,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));

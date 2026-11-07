@@ -164,6 +164,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Hurt reactions course (6 steps): place a Howler, read PackHunter’s inherited hurtReaction hook, Extend it so a hit that would stagger it knocks it down instead, attach it in Characters › Behaviour, and give it a heavy hit in Play.',
   'help.enemyPartsCourse':
     'Starts the Enemy parts course (7 steps): place Rattlebones, read the Attack interface, swap its attack for a Spit and its mover for Wings in Characters › Behaviour, Extend Spit so it says so each time, and watch it spit from the air in Play.',
+  'help.itemsCourse':
+    'Starts the Items course (8 steps): play as Rook, read Item (its hooks canUseItem, useItem, magicCost; Projectile adds shotSpeed, shotPower, hits), write class Whistle extends Item (an item of your own, 4 magic a use), extend Boomerang so it flies half as fast again, attach both to Rook, and use them in Play.',
   'help.gloomweaverCourse':
     'Starts the Gloomweaver course (5 steps): place Gloomweaver from the Starter pack (its behaviour comes with it), open class Gloomweaver extends WeakPointBoss in Logic to see its phases (a biter, then a thread-dropper from 66%, then a web-spitter from 33%), find it attached in Characters, and fight it to phase 2: walk up, shield up as it bites, strike when its eye glows.',
   'help.bossesCourse':

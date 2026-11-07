@@ -263,3 +263,32 @@ class Gloomweaver extends WeakPointBoss {
 ```
 
 It bites; from 66% it climbs into the dark on a thread and drops on the hero; from 33% it backs off and spits webs that stick the hero fast. Strike it when its eye glows: just after it bites, or stunned by light. **Spawn character** takes a spawn point, or **hero** or a character's name: it comes in a few studs from them. The **Gloomweaver course** walks through it.
+
+### Items
+
+Everything the hero carries is a class. **Item** is something used from an item button; **Projectile** extends it for things that fly (shot, thrown or let go). Each built-in item extends one of them: **Bow** (Bow, Fire arrows, Ice arrows), **Slingshot**, **Boomerang** (and the Whirl boomerang) and **StunNut** are Projectiles; **Bomb**, **HoverBoots**, **LensOfTruth**, **HookLine**, **GrappleRope**, **MagnetGlove**, **Torch**, **Branch** and **GustLeaf** are Items. Item behaviours go on the hero (Characters › hero › Behaviour), and each is asked only about its own item.
+
+| Hook | Class | What it decides |
+|---|---|---|
+| `canUseItem(e)` | Item | Can it be used now? false: nothing happens |
+| `useItem(e)` | Item | It is used: do what it does here; return false to keep the engine’s own use from running |
+| `magicCost(e)` | Item | How much magic a use takes (the Lens of Truth: each second it is up); without enough it is not used |
+| `shotSpeed(e)` | Projectile | How fast it flies (studs a second) |
+| `shotPower(e)` | Projectile | How hard it hits (`e.type`: its damage type) |
+| `hits(e)` | Projectile | It struck `e.target`: false and it does no harm |
+
+**An item of your own:** extend Item (or Projectile) itself: the behaviour’s name is the item’s. A Whistle behaviour is the Whistle; given to the hero (a pickup, or `world.give("Whistle", 1)`) it goes into an item button:
+
+```
+class Whistle extends Item {
+  useItem(e) {
+    say("Tweet! The birds fly up.", 2);
+  }
+
+  magicCost(e) {
+    return 4;
+  }
+}
+```
+
+**MagicMeter** is the hero’s magic: a bar under the hearts once it has something that uses magic. Items take from it (their magicCost), jars fill it; in code it is `vars.magic` and `vars.maxMagic`. **On magic empty** runs when an item finds too little. The **Items course** walks through it.

@@ -1,0 +1,230 @@
+{
+  "id": "items",
+  "title": "Items course",
+  "steps": [
+    {
+      "id": "it.hero",
+      "title": "Items are classes",
+      "body": "Everything the hero carries is a class you can extend: Item (used from an item button) and Projectile (an item that flies), and each built-in item (Bow, Boomerang, Lens of Truth\u2026) extends one of them. Item behaviours go on the hero. First, a hero to play: in the Scene's Starter pack, Play as Rook.",
+      "task": "Play as Rook.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroIs",
+        "args": "Rook"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "packHero",
+          "args": {
+            "slug": "rook"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "it.read",
+      "title": "Read about Item",
+      "body": "In Logic, under Built-in \u203a Items, press Item. Its hooks: canUseItem (can it be used now?), useItem (what it does) and magicCost (how much magic a use takes). Projectile adds shotSpeed, shotPower and hits. The built-in items below extend them.",
+      "task": "Open Logic \u203a Built-in \u203a Item.",
+      "target": "[data-tour=\"builtin-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinOpen",
+        "args": "Item"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBuiltin",
+          "args": {
+            "name": "Item"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "right",
+      "workspace": "Logic"
+    },
+    {
+      "id": "it.own",
+      "title": "An item of your own",
+      "body": "Make a behaviour named Whistle that extends Item: the behaviour's name is the item's. useItem says what it does; magicCost makes each use take 4 magic (without enough, nothing happens).",
+      "task": "Write class Whistle extends Item.",
+      "target": "[data-tour=\"behaviour-fields\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourExtends",
+        "args": "Whistle,Item"
+      },
+      "doItForMe": [
+        {
+          "fn": "newBehaviourNamed",
+          "args": {
+            "name": "Whistle"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "Whistle",
+            "code": [
+              "class $NAME extends Item {",
+              "  useItem(e) {",
+              "    say(\"Tweet! The birds fly up.\", 2);",
+              "    log(\"Tweet!\");",
+              "  }",
+              "",
+              "  magicCost(e) {",
+              "    return 4;",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "it.change",
+      "title": "Change a built-in item",
+      "body": "Under Built-in \u203a Items, press Boomerang, then Extend. Write shotSpeed: it flies half as fast again (e.base is the engine's speed).",
+      "task": "Extend Boomerang with shotSpeed.",
+      "target": "[data-tour=\"behaviour-fields\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourExtends",
+        "args": "My Boomerang,Boomerang"
+      },
+      "doItForMe": [
+        {
+          "fn": "extendBuiltinNamed",
+          "args": {
+            "name": "Boomerang"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "My Boomerang",
+            "code": [
+              "class $NAME extends Boomerang {",
+              "  shotSpeed(e) {",
+              "    log(\"Whoosh! A quick boomerang\");",
+              "    return e.base * 1.5;",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "it.attach",
+      "title": "Give them to the hero",
+      "body": "Items are the hero's: attach Whistle and My Boomerang to Rook (Characters \u203a Rook \u203a Behaviour \u203a + Script).",
+      "task": "Attach both to Rook.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterHasBehaviour",
+        "args": "Rook,My Boomerang"
+      },
+      "doItForMe": [
+        {
+          "fn": "attachToCharacter",
+          "args": {
+            "behaviour": "Whistle",
+            "character": "Rook"
+          }
+        },
+        {
+          "fn": "attachToCharacter",
+          "args": {
+            "behaviour": "My Boomerang",
+            "character": "Rook"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "it.whistle",
+      "title": "Blow the whistle",
+      "body": "Press Play. A Whistle picked up (a pickup that gives it, or world.give in a script) goes into an item button; press it. The hero gets a magic meter, and each blow takes 4.",
+      "task": "Press Play and use the Whistle.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Tweet!"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "giveAndUse",
+          "args": {
+            "item": "Whistle",
+            "until": "Tweet!"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "it.boom",
+      "title": "Throw the boomerang",
+      "body": "Pick up a Boomerang and throw it from its button: it flies out and back half as fast again, and the Console says Whoosh.",
+      "task": "Throw the Boomerang.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Whoosh"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "giveAndUse",
+          "args": {
+            "item": "Boomerang",
+            "until": "Whoosh"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "it.done",
+      "title": "Done!",
+      "body": "Extend Projectile for a thing of your own that flies, or any built-in item: canUseItem false keeps it from being used, useItem false keeps the engine's own use from running, hits false keeps a shot from harming what it strikes, shotPower makes it hit harder. LensOfTruth.magicCost is what it takes each second.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

@@ -379,10 +379,17 @@ function Sidebar({
           {(
             [
               ['Assets', BUILTINS],
-              ['Characters', CHARACTER_BUILTINS.filter((b) => !b.parent && b.name !== 'Brain' && !b.isInterface)],
+              [
+                'Characters',
+                CHARACTER_BUILTINS.filter(
+                  (b) => !b.parent && b.name !== 'Brain' && !b.isInterface && b.items === undefined,
+                ),
+              ],
               ['Brains', CHARACTER_BUILTINS.filter((b) => b.name === 'Brain' || isBrain(b.parent))],
               // Milestone 3b (B5b): an enemy's abilities, by interface
               ['Parts', CHARACTER_BUILTINS.filter((b) => b.isInterface || isPart(b.parent))],
+              // Milestone 3b (B6): the hero's items (Item, Projectile and the built-in ones)
+              ['Items', CHARACTER_BUILTINS.filter((b) => b.items !== undefined)],
             ] as const
           ).map(([group, list]) => (
             <>

@@ -31,7 +31,17 @@ export type ShotObject = {
   state: string;
 };
 
-export type ShotNpc = { id: number; x: number; y: number; z: number; bottom: number; top: number; radius: number };
+export type ShotNpc = {
+  id: number;
+  x: number;
+  y: number;
+  z: number;
+  bottom: number;
+  top: number;
+  radius: number;
+  /** Milestone 3b (B6): its name (what a projectile's hits(e) is told it struck) */
+  name?: string;
+};
 
 export type Shot = {
   kind: ShotKind;
@@ -74,6 +84,8 @@ export type Boomer = {
   vel: [number, number, number];
   spin: number;
   hit: Set<string>;
+  /** Milestone 3b (B6): its speed (Boomerang.shotSpeed) */
+  sp: number;
   /** a pickup it touched, carried back: its item, count and what it looked like */
   carried?: { item: string; count: number; name: string; pieces: readonly unknown[]; origin: [number, number, number] };
 };
@@ -141,6 +153,11 @@ export type ShotsHost<T extends ShotObject = ShotObject> = {
   aimTargets(throwing?: boolean): readonly [number, number, number][];
   say(text: string, seconds?: number): void;
   log(text: string): void;
+  /**
+   * Milestone 3b (B6): asks the item's behaviours (on the hero) a projectile's hook: shotSpeed, shotPower, hits;
+   * `base` is the engine's own answer
+   */
+  askItem?<V>(item: string, hook: string, payload: Record<string, unknown>, base: V): V;
 };
 
 // ---------- numbers ----------
@@ -377,8 +394,30 @@ export class Shots<T extends ShotObject = ShotObject> {
     this.landing = null;
   }
 
+  /** Milestone 3b (B6): the item a shot is (an arrow is the Bow's, or Fire arrows', or Ice arrows') */
+  itemOf(kind: ShotKind | 'boomerang', el: ArrowElement = 'plain', whirl = false): string {
+    if (kind === 'arrow') return el === 'fire' ? 'Fire arrows' : el === 'ice' ? 'Ice arrows' : 'Bow';
+    if (kind === 'seed') return 'Slingshot';
+    if (kind === 'nut') return 'Stun nuts';
+    return whirl ? 'Whirl boomerang' : 'Boomerang';
+  }
+  /** Milestone 3b (B6): an item's hook, or the engine's own answer */
+  private ask<V>(item: string, hook: string, payload: Record<string, unknown>, base: V): V {
+    return this.h.askItem ? this.h.askItem(item, hook, payload, base) : base;
+  }
+  /** Milestone 3b (B6): a shot struck a foe or an object: does it harm it (Projectile.hits)? */
+  private harms(item: string, target: string): boolean {
+    return this.ask(item, 'hits', { target }, true);
+  }
+  /** Milestone 3b (B6): how hard it hits (Projectile.shotPower) */
+  private powerOf(item: string, power: number, type: DamageType): number {
+    return Math.max(0, this.ask(item, 'shotPower', { power, type }, power));
+  }
+
   /** a shot sent off from the hero's launch point */
-  launch(kind: ShotKind, el: ArrowElement, dir: [number, number, number], speed: number, from = this.h.launchPoint()) {
+  launch(kind: ShotKind, el: ArrowElement, dir: [number, number, number], speed0: number, from = this.h.launchPoint()) {
+    // Milestone 3b (B6): Projectile.shotSpeed
+    const speed = Math.max(0.5, Math.min(80, this.ask(this.itemOf(kind, el), 'shotSpeed', { speed: speed0 }, speed0)));
     const ball: Ball = {
       x: from[0],
       y: from[1],
@@ -518,6 +557,11 @@ export class Shots<T extends ShotObject = ShotObject> {
     // a right-handed throw curves to the left on its way out
     const left: [number, number, number] = norm3([dir[2], 0, -dir[0]]);
     const span = Math.min(d, BOOM_RANGE);
+    // Milestone 3b (B6): Boomerang.shotSpeed
+    const sp = Math.max(
+      2,
+      Math.min(60, this.ask(this.itemOf('boomerang', 'plain', whirl), 'shotSpeed', { speed: BOOM_SPEED }, BOOM_SPEED)),
+    );
     this.boomer = {
       whirl,
       phase: 'out',
@@ -527,7 +571,8 @@ export class Shots<T extends ShotObject = ShotObject> {
       to,
       bulge: [left[0] * span * 0.18, 0, left[2] * span * 0.18],
       u: 0,
-      vel: [dir[0] * BOOM_SPEED, dir[1] * BOOM_SPEED, dir[2] * BOOM_SPEED],
+      vel: [dir[0] * sp, dir[1] * sp, dir[2] * sp],
+      sp,
       spin: 0,
       hit: new Set(),
     };
@@ -546,7 +591,7 @@ export class Shots<T extends ShotObject = ShotObject> {
     if (b.phase === 'out') {
       // along a curve (a quadratic: from, to, and a bulge to the left between), at its speed
       const span = Math.max(1, len3([b.to[0] - b.from[0], b.to[1] - b.from[1], b.to[2] - b.from[2]]) * 1.1);
-      b.u = Math.min(1, b.u + (BOOM_SPEED * dt) / span);
+      b.u = Math.min(1, b.u + (b.sp * dt) / span);
       const u = b.u;
       const mid = [
         (b.from[0] + b.to[0]) / 2 + b.bulge[0],
@@ -563,7 +608,7 @@ export class Shots<T extends ShotObject = ShotObject> {
       const v = norm3(b.vel);
       const k = Math.min(1, dt * 7);
       const nv = norm3([v[0] + (want[0] - v[0]) * k, v[1] + (want[1] - v[1]) * k, v[2] + (want[2] - v[2]) * k]);
-      const sp = BOOM_SPEED * 1.05;
+      const sp = b.sp * 1.05;
       b.vel = [nv[0] * sp, nv[1] * sp, nv[2] * sp];
       for (let i = 0; i < 3; i++) b.pos[i]! += b.vel[i]! * dt;
       if (Math.hypot(hand[0] - b.pos[0], hand[1] - b.pos[1], hand[2] - b.pos[2]) <= BOOM_CATCH || b.t > BOOM_LIFE) {
@@ -598,7 +643,13 @@ export class Shots<T extends ShotObject = ShotObject> {
       if (b.hit.has(key)) continue;
       if (segToNpc(was, b.pos, n) > n.radius + 0.5) continue;
       b.hit.add(key);
-      this.h.hitNpc(n.id, 'stun', 0, { knock: 1.5, stun: BOOM_STUN, from: [was[0], was[2]] });
+      const bi = this.itemOf('boomerang', 'plain', b.whirl);
+      if (this.harms(bi, n.name ?? ''))
+        this.h.hitNpc(n.id, 'stun', this.powerOf(bi, 0, 'stun'), {
+          knock: 1.5,
+          stun: BOOM_STUN,
+          from: [was[0], was[2]],
+        });
       this.h.effect('hit', b.pos);
       if (b.phase === 'out') b.phase = 'back';
     }
@@ -850,10 +901,17 @@ export class Shots<T extends ShotObject = ShotObject> {
     s.hit.add(n.id);
     const from: [number, number] = [b.x - b.vx, b.z - b.vz];
     if (s.kind === 'nut') return this.flash(s, at);
+    // Milestone 3b (B6): Projectile.hits (false: no harm) and shotPower
+    const item = this.itemOf(s.kind, s.el);
+    if (!this.harms(item, n.name ?? '')) {
+      this.h.effect('spark', at);
+      this.remove(s);
+      return;
+    }
     if (s.kind === 'seed') {
-      this.h.hitNpc(n.id, 'blunt', 0.5, { knock: 1, stun: 0.6, from });
+      this.h.hitNpc(n.id, 'blunt', this.powerOf(item, 0.5, 'blunt'), { knock: 1, stun: 0.6, from });
     } else {
-      const power = 1 + speed / ARROW_MAX;
+      const power = this.powerOf(item, 1 + speed / ARROW_MAX, 'pierce');
       this.h.hitNpc(n.id, 'pierce', power, { knock: 1.5 + speed * 0.04, stun: 0.3, from });
       if (s.el === 'fire') this.h.hitNpc(n.id, 'fire', 1, { knock: 0, stun: 0.3, from });
       if (s.el === 'ice') {
@@ -878,7 +936,10 @@ export class Shots<T extends ShotObject = ShotObject> {
     if (s.kind === 'nut') return this.flash(s, hit.point);
     // what it strikes takes the hit: a switch turns, a thing with health is hurt
     const type: DamageType = s.kind === 'seed' ? 'blunt' : 'pierce';
-    if (o) this.h.hitObject(o, type, s.kind === 'seed' ? 0.5 : 1 + speed / ARROW_MAX, hit.point);
+    // Milestone 3b (B6): Projectile.hits and shotPower (an object: told its asset's name)
+    const item = this.itemOf(s.kind, s.el);
+    if (o && this.harms(item, o.def.name))
+      this.h.hitObject(o, type, this.powerOf(item, s.kind === 'seed' ? 0.5 : 1 + speed / ARROW_MAX, type), hit.point);
     // its element: fire lights and burns, ice puts small flames out
     if (s.el === 'fire') this.h.flame(hit.point, 1.1);
     if (s.el === 'ice') {
@@ -940,7 +1001,12 @@ export class Shots<T extends ShotObject = ShotObject> {
       if (Math.hypot(mid[0] - at[0], mid[1] - at[1], mid[2] - at[2]) > NUT_RADIUS) continue;
       const wall = ph?.castSegment(at, mid);
       if (wall && wall.t < Math.hypot(mid[0] - at[0], mid[1] - at[1], mid[2] - at[2]) - f.radius - 0.2) continue;
-      this.h.hitNpc(f.id, 'stun', 0, { knock: 0, stun: NUT_STUN, from: [at[0], at[2]] });
+      if (!this.harms('Stun nuts', f.name ?? '')) continue;
+      this.h.hitNpc(f.id, 'stun', this.powerOf('Stun nuts', 0, 'stun'), {
+        knock: 0,
+        stun: NUT_STUN,
+        from: [at[0], at[2]],
+      });
       n++;
     }
     this.h.log(`The stun nut flashed${n ? ` (${n} stunned)` : ''}`);

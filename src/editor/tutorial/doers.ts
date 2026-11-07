@@ -504,6 +504,22 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     c.ed.logicGraph.value = g.id;
     c.ed.logicView.value = 'split';
   },
+  // Milestone 3b (B6): the Items course
+  async giveAndUse(c, a) {
+    // what picking an item up (or a script giving it) and pressing its item button does; then until the Console says it
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const item = String(a?.item ?? '');
+    // biome-ignore lint/suspicious/noExplicitAny: a pickup gives the hero the item (as walking over one does)
+    if ((s.inventory.get(item) ?? 0) <= 0) (s as any).give(item, Number(a?.count ?? 1));
+    await wait(300);
+    const until = String(a?.until ?? '');
+    for (let tries = 0; tries < 4 && (!until || !logged(s, until)); tries++) {
+      s.useItem(item, slotOf(s, item));
+      for (let i = 0; i < 20 && until && !logged(s, until); i++) await wait(150);
+      if (!until) break;
+    }
+  },
   openCharacterTab(c, a) {
     // what picking a character in Characters and pressing one of its tabs does
     const chr = c.ed.store

@@ -86,6 +86,9 @@ export const attachScript: CommandHandler<{ target: ScriptTarget; use: string; f
         if (p.target.kind !== 'character')
           return `${cbase.name} is for characters: put it on a character (Characters › Behaviour).`;
         const chr = read(store, p.target) as Character;
+        // Milestone 3b (B6): an item's class goes on the hero (items are the hero's)
+        if (cbase.items !== undefined && chr.role !== 'hero' && store.manifest.hero !== chr.id)
+          return `${g.name} is an item (it extends ${cbase.name}): put it on the hero (the character the player plays).`;
         // Milestone 3b (14a-2): a boss template makes any character a boss (its phases are in the class)
         if (!cbase.on(chr) && cbase.fixed && !bossHowOf(cbase.name))
           return `${chr.name || 'This character'} is not a ${cbase.name}.`;

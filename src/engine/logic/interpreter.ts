@@ -215,10 +215,12 @@ export class LogicRuntime {
    * extends a built-in) run now; the first answer given (return) is the answer, else undefined (the engine's).
    * A hook cannot wait: one that does gives no answer.
    */
-  ask(owner: string, type: string, payload: Record<string, unknown>): unknown {
+  ask(owner: string, type: string, payload: Record<string, unknown>, only?: (graph: string) => boolean): unknown {
     if (this.paused) return undefined;
     for (const p of this.byType.get(type) ?? []) {
       if (!this.attached.get(p.graph)?.has(owner)) continue;
+      // Milestone 3b (B6): only the behaviours this question is about (an item's)
+      if (only && !only(p.graph)) continue;
       const run = this.start(p, payload, owner);
       if (run.waitUntil !== null) this.finish(run);
       if (run.answered) return run.result;

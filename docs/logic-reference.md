@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (176 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (183 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -282,6 +282,15 @@ Runs when a boss goes into another phase (its health fell to that phase’s mark
 
 - Outputs: phase (number), from (number)
 - Code: `on("phase", (e) => { … });`
+
+### On magic empty
+
+`event.onMagicEmpty` · event
+
+Runs when the hero’s magic runs out as an item uses it (item: which one; the Lens of Truth goes down).
+
+- Outputs: item (string)
+- Code: `on("magicEmpty", (e) => { … });`
 
 ## Flow
 
@@ -1691,3 +1700,57 @@ Asked as the hero hits a boss: how is when it can be hurt (always, afterAttack, 
 
 - Outputs: how (string), phase (number), base (bool)
 - Code: `on("isVulnerable", (e) => { … });`
+
+### Can it be used now? (Item)
+
+`event.onCanUseItem` · event
+
+Asked as the hero presses an item’s button: item is its name, slot its button. Return false and nothing happens.
+
+- Outputs: item (string), slot (number), base (bool)
+- Code: `on("canUseItem", (e) => { … });`
+
+### It is used (Item)
+
+`event.onUseItem` · event
+
+Runs as the hero uses the item (item, slot): what it does goes here. Return false to keep the engine’s own use (the bow coming out, the boots going on) from running.
+
+- Outputs: item (string), slot (number), base (bool)
+- Code: `on("useItem", (e) => { … });`
+
+### How much magic? (Item)
+
+`event.onMagicCost` · event
+
+Asked as an item is used: how much magic it takes (the Lens of Truth: each second it is up). Without enough, it is not used. base is the engine’s (0 for most items).
+
+- Outputs: item (string), base (number)
+- Code: `on("magicCost", (e) => { … });`
+
+### How fast does it fly? (Projectile)
+
+`event.onShotSpeed` · event
+
+Asked as an arrow, a seed, a nut or a boomerang leaves the hand: its speed in studs a second.
+
+- Outputs: item (string), speed (number), base (number)
+- Code: `on("shotSpeed", (e) => { … });`
+
+### How hard does it hit? (Projectile)
+
+`event.onShotPower` · event
+
+Asked as a shot strikes a foe or an object: power is how hard, type its damage type (pierce, blunt, fire, ice, stun).
+
+- Outputs: item (string), power (number), type (string), base (number)
+- Code: `on("shotPower", (e) => { … });`
+
+### Does it harm what it struck? (Projectile)
+
+`event.onHits` · event
+
+Runs as a shot strikes something: target is the character’s name or the object’s. Do something here (a sound, a message); return false and it does no harm.
+
+- Outputs: item (string), target (string), base (bool)
+- Code: `on("hits", (e) => { … });`
