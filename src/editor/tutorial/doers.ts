@@ -259,10 +259,13 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     // what Characters › (the character) › Behaviour › + Script does
     const g = behaviourByName(c, String(a?.behaviour ?? ''));
     if (!g) throw new Error(`Make the ${String(a?.behaviour)} behaviour first.`);
-    const chr = c.ed.store
-      .list('characters/')
-      .map((p) => c.ed.store.get<Character>(p)!)
-      .find((x) => x?.name === String(a?.character));
+    // (orHero: the game's hero when there is no such character: items go on whoever the player plays)
+    const chr =
+      c.ed.store
+        .list('characters/')
+        .map((p) => c.ed.store.get<Character>(p)!)
+        .find((x) => x?.name === String(a?.character)) ??
+      (a?.orHero ? c.ed.store.get<Character>(paths.character(c.ed.store.manifest.hero ?? '')) : undefined);
     if (!chr) throw new Error(`There is no ${String(a?.character)}.`);
     c.ui.workspace('Characters');
     c.ed.studioCharacter.value = chr.id;
@@ -505,6 +508,15 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     c.ed.logicView.value = 'split';
   },
   // Milestone 3b (B6): the Items course
+  ensureBehaviour(c, a) {
+    // a step done before (by hand or for you) is not done again: only a behaviour that is not there yet is written
+    if (behaviourByName(c, String(a?.name ?? ''))) return;
+    if (a?.extend) {
+      DOERS.extendBuiltinNamed!(c, { name: a.extend });
+      if (!behaviourByName(c, String(a?.name ?? ''))) throw new Error(`Extend ${String(a.extend)} first.`);
+    } else DOERS.newBehaviourNamed!(c, { name: a?.name });
+    DOERS.writeBehaviour!(c, { behaviour: a?.name, code: a?.code });
+  },
   async giveAndUse(c, a) {
     // what picking an item up (or a script giving it) and pressing its item button does; then until the Console says it
     const s = c.ed.session.value;
@@ -3137,7 +3149,8 @@ const behaviourByName = (c: Ctx, name: string) =>
   c.ed.store
     .list('logic/')
     .map((p) => c.ed.store.get<LogicGraph>(p)!)
-    .find((g) => g?.behaviour && g.name === name) ?? null;
+    // (as the name is typed: a whistle is the Whistle)
+    .find((g) => g?.behaviour && g.name.trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
 
 /** Fill `$map`, `$spawn`… in a do-list's arguments. */
 function fill(c: Ctx, v: unknown): unknown {

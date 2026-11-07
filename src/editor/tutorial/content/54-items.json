@@ -132,27 +132,62 @@
     {
       "id": "it.attach",
       "title": "Give them to the hero",
-      "body": "Items are the hero's: attach Whistle and My Boomerang to Rook (Characters \u203a Rook \u203a Behaviour \u203a + Script).",
+      "body": "Items are the hero's: attach Whistle and My Boomerang to Rook, or whoever your hero is (Characters \u203a Rook \u203a Behaviour \u203a + Script).",
       "task": "Attach both to Rook.",
       "target": "[data-tour=\"char-behaviours\"]",
       "check": {
         "kind": "state",
-        "test": "characterHasBehaviour",
-        "args": "Rook,My Boomerang"
+        "test": "heroHasBehaviours",
+        "args": "Whistle,My Boomerang"
       },
       "doItForMe": [
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "Whistle",
+            "code": [
+              "class $NAME extends Item {",
+              "  useItem(e) {",
+              "    say(\"Tweet! The birds fly up.\", 2);",
+              "    log(\"Tweet!\");",
+              "  }",
+              "",
+              "  magicCost(e) {",
+              "    return 4;",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "My Boomerang",
+            "extend": "Boomerang",
+            "code": [
+              "class $NAME extends Boomerang {",
+              "  shotSpeed(e) {",
+              "    log(\"Whoosh! A quick boomerang\");",
+              "    return e.base * 1.5;",
+              "  }",
+              "}"
+            ]
+          }
+        },
         {
           "fn": "attachToCharacter",
           "args": {
             "behaviour": "Whistle",
-            "character": "Rook"
+            "character": "Rook",
+            "orHero": true
           }
         },
         {
           "fn": "attachToCharacter",
           "args": {
             "behaviour": "My Boomerang",
-            "character": "Rook"
+            "character": "Rook",
+            "orHero": true
           }
         }
       ],

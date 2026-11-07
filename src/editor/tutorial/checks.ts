@@ -43,7 +43,7 @@ const behaviourGraph = (ed: EditorState, name: string): LogicGraph | null =>
   ed.store
     .list('logic/')
     .map((p) => ed.store.get<LogicGraph>(p))
-    .find((g): g is LogicGraph => !!g?.behaviour && g.name === name) ?? null;
+    .find((g): g is LogicGraph => !!g?.behaviour && g.name.trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
 
 const effectNamed = (ed: EditorState, id: string | null | undefined): Effect | undefined =>
   id ? (ed.store.get<Effect>(paths.effect(id)) ?? BUILTIN_EFFECTS.find((e) => e.id === id)) : undefined;
@@ -243,6 +243,16 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   logicOpenNamed: (ed, a) => {
     const g = behaviourGraph(ed, String(a));
     return !!g && ed.logicGraph.value === g.id && ed.workspace.value === 'Logic';
+  },
+  /** Milestone 3b (B6): the game's hero has all these behaviours (“Whistle,My Boomerang”) */
+  heroHasBehaviours: (ed, a) => {
+    const hero = ed.store.get<Character>(paths.character(ed.store.manifest.hero ?? ''));
+    return String(a)
+      .split(',')
+      .every((name) => {
+        const g = behaviourGraph(ed, name.trim());
+        return !!g && !!hero?.scripts?.some((x) => x.use === g.id);
+      });
   },
   characterHasBehaviour: (ed, a) => {
     const [chr, b] = String(a).split(',');
