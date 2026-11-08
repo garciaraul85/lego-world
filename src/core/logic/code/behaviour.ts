@@ -17,6 +17,7 @@
  */
 import { parse as acornParse } from 'acorn';
 import { PHASE_KEYS, PHASE_STYLES, PhaseDef } from '../../combat/enemy';
+import { MAX_STEPS, QuestStepDef, STEP_KEYS, stepHint, stepsProblem } from '../../quests/quest';
 import { type BehaviourDef, type BehaviourField, FieldType, type LogicGraph } from '../../schema';
 import { DEFAULT_OF } from '../behaviours';
 import { type Parsed, parseCode } from './parse';
@@ -57,6 +58,15 @@ export function printBehaviour(g: Pick<LogicGraph, 'name' | 'nodes' | 'edges' | 
     head.push('  phases = [');
     for (const p of b.phases) {
       const kv = PHASE_KEYS.filter((k) => p[k] !== undefined).map((k) => `${k}: ${lit(p[k])}`);
+      head.push(`    { ${kv.join(', ')} },`);
+    }
+    head.push('  ];');
+  }
+  // Milestone 3b (B7a-2): a quest's steps, one per line
+  if (b.steps?.length) {
+    head.push('  steps = [');
+    for (const st of b.steps) {
+      const kv = STEP_KEYS.filter((k) => st[k] !== undefined).map((k) => `${k}: ${lit(st[k])}`);
       head.push(`    { ${kv.join(', ')} },`);
     }
     head.push('  ];');
@@ -108,6 +118,7 @@ export function parseBehaviour(
   const fields: BehaviourField[] = [];
   const vars: Record<string, number | boolean | string> = {};
   let phases: PhaseDef[] | undefined;
+  let steps: QuestStepDef[] | undefined;
   const lines = code.split('\n');
   // the methods' text as on("…") blocks, each kept on its own lines (so errors keep their line numbers)
   const on: string[] = lines.map((l) => (/^\s*\/\/ (note|group):/.test(l) ? l.trim() : ''));
@@ -166,6 +177,28 @@ export function parseBehaviour(
         if (new Set(froms).size !== froms.length) return fail('Two phases start at the same health.', v);
         continue;
       }
+      // Milestone 3b (B7a-2): steps = [{ name: "Talk to Mossbeard", do: "talk", at: "Mossbeard" }, …]
+      if (name === 'steps') {
+        if (v?.type !== 'ArrayExpression')
+          return fail('steps is a list: steps = [{ name: "Talk to Mossbeard", do: "talk", at: "Mossbeard" }];', m);
+        steps = [];
+        for (const el of v.elements) {
+          const o = objectOf(el);
+          if (!o) return fail('Each step is { name: "…", do: "reach", at: "…" } with plain values.', el ?? m);
+          const bad = Object.keys(o).find((k) => !(STEP_KEYS as readonly string[]).includes(k));
+          if (bad) return fail(`A step has no “${bad}”. Use ${STEP_KEYS.join(', ')}.`, el);
+          const r = QuestStepDef.safeParse(o);
+          if (!r.success) {
+            const key = String(r.error.issues[0]?.path[0] ?? '');
+            return fail(`Step ${key ? `${key}: ` : ''}${stepHint(key)}`, el);
+          }
+          steps.push(r.data);
+        }
+        if (steps.length > MAX_STEPS) return fail(`A quest has at most ${MAX_STEPS} steps.`, v);
+        const problem = steps.length ? stepsProblem(steps) : null;
+        if (problem) return fail(problem, v);
+        continue;
+      }
       const val = literalOf(v);
       if (val === undefined || val === null || typeof val === 'object')
         return fail(`${name} needs a starting value: a number, true or false, or text in quotes.`, m);
@@ -211,8 +244,10 @@ export function parseBehaviour(
     ...(Object.keys(vars).length ? { vars } : {}),
     ...(cls.superClass?.name && cls.superClass.name !== 'Behaviour' ? { extends: cls.superClass.name } : {}),
     ...(phases ? { phases } : {}),
+    ...(steps ? { steps } : {}),
   };
   if (!phases) delete behaviour.phases;
+  if (!steps) delete behaviour.steps;
   if (!Object.keys(vars).length) delete behaviour.vars;
   if (!cls.superClass || cls.superClass.name === 'Behaviour') delete behaviour.extends;
   return { ...r, behaviour };

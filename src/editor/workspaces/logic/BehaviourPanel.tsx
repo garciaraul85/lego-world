@@ -6,6 +6,7 @@ import { useState } from 'preact/hooks';
 import { BUILTIN_ASSETS } from '../../../builtin/assets';
 import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
 import { coerce, DEFAULT_OF, FIELD_TYPES } from '../../../core/logic/behaviours';
+import { isGameClass } from '../../../core/logic/builtins';
 import {
   type Asset,
   type BehaviourField,
@@ -20,6 +21,7 @@ import type { ActionCtx } from '../../actions/registry';
 import { FieldHelp } from '../../components/fields';
 import type { EditorState } from '../../state';
 import { BossPhasesPanel } from './BossPhasesPanel';
+import { QuestStepsPanel } from './QuestStepsPanel';
 
 export const BEHAVIOUR_HELP = {
   what: 'A behaviour is a script you attach to things — an asset (every copy of it), a character, or one placed copy — like a component in Unity. Each copy runs its own: “this” is that copy, its fields are its settings, and its own variables are its own.',
@@ -286,6 +288,8 @@ export function BehaviourPanel({ c, graph }: { c: ActionCtx; graph: LogicGraph }
       </fieldset>
       {/* Milestone 3b (14a-2): a boss's phases (written in its class) */}
       <BossPhasesPanel ed={ed} graph={graph} />
+      {/* Milestone 3b (B7a-2): a quest's steps (written in its class) */}
+      <QuestStepsPanel ed={ed} graph={graph} />
       <div class="sech" style={{ padding: '12px 10px 4px' }}>
         <span>
           Used on
@@ -293,7 +297,9 @@ export function BehaviourPanel({ c, graph }: { c: ActionCtx; graph: LogicGraph }
         </span>
       </div>
       <div class="hint" style={{ padding: '0 10px 8px' }} data-tour="behaviour-used">
-        {whereText || 'Nothing yet. Select a placed object and press + Script in the Inspector.'}
+        {isGameClass(b.extends)
+          ? 'The whole game: it is in the game as written (nothing to attach).'
+          : whereText || 'Nothing yet. Select a placed object and press + Script in the Inspector.'}
       </div>
     </div>
   );

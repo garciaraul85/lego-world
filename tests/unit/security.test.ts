@@ -164,6 +164,11 @@ describe('game scripts are sandboxed', () => {
       'held',
       'now',
       'resolve',
+      // Milestone 3b (B7a-2)
+      'quest',
+      'questRead',
+      'mapOp',
+      'mapRead',
     ];
     for (const k of allowed) expect(ctxKeys, k).toContain(k);
   });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CommandBus, registerAll } from '../../src/core/commands';
-import { CHARACTER_BUILTINS, extendCode } from '../../src/core/logic/builtins';
+import { CHARACTER_BUILTINS, extendCode, isGameClass } from '../../src/core/logic/builtins';
 import { parseBehaviour, printBehaviour } from '../../src/core/logic/code/behaviour';
 import { newProjectFiles } from '../../src/core/project/new-project';
 import { ProjectStore } from '../../src/core/project/store';
@@ -86,9 +86,9 @@ function game(...graphs: LogicGraph[]) {
 describe('character built-ins', () => {
   it('each has fields that set and read back on a valid character, and its Extend code round-trips', () => {
     expect(
-      CHARACTER_BUILTINS.filter((b) => !b.parent && b.name !== 'Brain' && !b.isInterface && b.items === undefined).map(
-        (b) => b.name,
-      ),
+      CHARACTER_BUILTINS.filter(
+        (b) => !b.parent && b.name !== 'Brain' && !b.isInterface && b.items === undefined && !isGameClass(b.name),
+      ).map((b) => b.name),
     ).toEqual(['Hero', 'Neighbour', 'Damageable', 'Swimmer', 'Climber', 'Follower', 'MagicMeter']);
     for (const b of CHARACTER_BUILTINS) {
       const who = b.on(hero) ? hero : mira;

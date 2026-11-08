@@ -1,4 +1,5 @@
 import SHOTS from '../../../docs/help/shots/index.json';
+import { isQuestClass } from '../../core/logic/builtins';
 import type { ActionCtx } from '../actions/registry';
 import { helpEntry, SCREENS } from '../help/entries';
 import { findControl } from '../help/show';
@@ -302,6 +303,30 @@ export function stepsToView(view: string): ShowStep[] {
           done: (c) => {
             const g = c.ed.store.get<{ behaviour?: unknown }>(`logic/${c.ed.logicGraph.value}.json`);
             return !!g?.behaviour;
+          },
+        },
+      ];
+    // Milestone 3b (B7a-2): a quest open in Logic (its Steps panel beside its class)
+    case 'logic-quest':
+      return [
+        ws('Logic'),
+        {
+          say: 'Open a quest (a behaviour that extends Quest, MainQuest or SideQuest), or extend SideQuest under Built-in › Quests.',
+          find: () => null,
+          run: (c) => {
+            for (const p of c.ed.store.list('logic/')) {
+              const g = c.ed.store.get<{ id: string; behaviour?: { extends?: string } }>(p);
+              if (g?.behaviour && isQuestClass(g.behaviour.extends)) {
+                c.ed.logicGraph.value = g.id;
+                c.ed.logicView.value = 'split';
+                return;
+              }
+            }
+            c.ed.logicGraph.value = 'builtin:SideQuest';
+          },
+          done: (c) => {
+            const g = c.ed.store.get<{ behaviour?: { extends?: string } }>(`logic/${c.ed.logicGraph.value}.json`);
+            return isQuestClass(g?.behaviour?.extends) || c.ed.logicGraph.value === 'builtin:SideQuest';
           },
         },
       ];

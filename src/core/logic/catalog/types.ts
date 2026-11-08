@@ -145,6 +145,17 @@ export interface ExecCtx {
   now?(): number;
   /** the instance id (or "hero") a reference names, or null (messages) */
   resolve?(ref: string): string | null;
+  /** Milestone 3b (B7a-2): start, move on, set the step of, finish, fail or track a quest (by name; this, empty) */
+  quest?(op: 'start' | 'advance' | 'step' | 'finish' | 'fail' | 'track', quest: string, step?: number): void;
+  questRead?(what: 'step' | 'status' | 'isActive' | 'isDone', quest: string): number | string | boolean;
+  /** Milestone 3b (B7a-2): the maps: open or close, their looks, a mark put down or taken up, shown whole or not */
+  mapOp?(
+    op: 'open' | 'close' | 'look' | 'mark' | 'unmark' | 'reveal' | 'hide',
+    a?: string,
+    b?: string,
+    c?: string,
+  ): void;
+  mapRead?(): boolean;
 }
 
 export type Args = Record<string, unknown>;

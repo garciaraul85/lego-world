@@ -14,6 +14,7 @@ import { COMPARE, MATH } from './math';
 import { MEDIA } from './media';
 import { MISC } from './misc';
 import { PUZZLE_EVENTS } from './puzzles';
+import { MAP_EVENTS, MAP_HOOKS, MAPS, QUEST_EVENTS, QUEST_HOOKS, QUESTS } from './quests';
 import { PROGRESS_EVENTS, SAVE } from './save';
 import { SELF, SELF_EVENTS } from './self';
 import type { NodeDef, PinDef } from './types';
@@ -69,6 +70,13 @@ export const CATALOG: readonly NodeDef[] = [
   ...ITEM_HOOKS,
   ...ITEM_EVENTS,
   ...RETURN,
+  // Milestone 3b (B7a-2): quests and the maps
+  ...QUEST_HOOKS,
+  ...QUEST_EVENTS,
+  ...QUESTS,
+  ...MAP_HOOKS,
+  ...MAP_EVENTS,
+  ...MAPS,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

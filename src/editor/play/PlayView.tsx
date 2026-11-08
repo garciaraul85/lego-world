@@ -182,6 +182,14 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
           return;
         }
       }
+      // Milestone 3b (B7a-2): J opens and closes the quest log (unless the game's keys use J)
+      if (k === 'j' && !e.repeat && !buttonForKey(s.buttons.c, k, s.buttons.playerKeys) && !s.talks.active) {
+        if (s.questsOpen || !s.screenPaused || s.mapOpen) {
+          e.preventDefault();
+          s.openQuests();
+          return;
+        }
+      }
       // while a menu screen is up the keyboard drives its buttons (Tab, arrows, Enter)
       if (s.screenPaused) return;
       // P22: in a conversation: Enter, Space, E or T move on; arrows (or W/S) pick; 1–6 choose

@@ -115,6 +115,23 @@ In a **dungeon** the pause map is a room plan of the floor the hero is on. The o
 
 Each type has its own colours, frame, icons (round, pixel, stamp) and fog (dark, paper, cloud, none), and you can change any of them, and which markers show. A map can choose its own in its **Map** tab, under **Maps**. The **Maps course** walks through it.
 
+## Quests and where to go next
+
+A **quest** is a behaviour that extends **Quest** — **MainQuest** for the story, **SideQuest** for the rest — with its steps written in the class. Logic's **Steps** panel edits the same list. Each step says what the quest log shows and what finishes it by itself:
+
+- **Reach** a place: a zone, an object or a character, by name;
+- **Talk to** a character, **Use** an object (its asset's name);
+- **Get** so many of an item, **Beat** so many of a character (counted from when the step began);
+- **By logic**: a script calls `quest.advance("Lost Lamp")`.
+
+A quest is in the game as written: nothing to attach. Start it with `quest.start("this")` in its own `start(e)`, or from a talk or a zone. It says **New quest**, and a main quest is tracked at once.
+
+Press **J** (or **Quests** on the pause screen) for the **quest log**: main quests first, then side quests, then those finished or failed. A quest shows its steps done, the one it is on (with how many so far), and that more lie ahead. **Track** puts its goal on both maps as a diamond. Off the map in play, an arrow at its edge points the way. The HUD says the tracked step above the map in play. The quest log is kept in saves.
+
+In code, a quest's hooks are `canStartQuest` (can it start now?), `stepDone` (is this step done? `e.base` is the engine's answer) and `goalOf` (where its goal shows). Its events — `questStart`, `questStep`, `questDone`, `questFail` — reach its own class and every other script (name the quest: `questDone(e = { quest: "Lost Lamp" })`). `quest.step`, `quest.status`, `quest.isActive` and `quest.isDone` read how one stands.
+
+**The maps in logic:** a behaviour that extends **GameMap** decides what the maps show. `showMarker` hides markers, `markerLabel` renames them, and `canOpenMap` keeps the map shut. Its events are `mapOpen`, `mapClose`, `mapPin` and `regionSeen` (the first time the hero comes into a region). Any script can use `map.open`, `map.setLook` (a sea chart once the hero has a boat), `map.mark` and `map.unmark` (a stamp and a note where something is), and `map.reveal` (the whole map, as from a lookout). The **Quests course** walks through it.
+
 ## Rebuilding
 
 Smashed bricks are real physical pieces: they fly off, tumble, bounce off the bricks around them, stack and come to rest, and the hero pushes them aside when walking through. In water they float and drift with its current, as loose objects do (see Scene › Water and loose things).

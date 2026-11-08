@@ -7,7 +7,7 @@
 import { BUILTIN_ASSETS } from '../../../builtin/assets';
 import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
 import { bossHowOf } from '../../logic/boss';
-import { builtinNamed, characterBuiltinNamed } from '../../logic/builtins';
+import { builtinNamed, characterBuiltinNamed, isMapClass, isQuestClass } from '../../logic/builtins';
 import type { ProjectStore } from '../../project/store';
 import {
   type Asset,
@@ -79,6 +79,11 @@ export const attachScript: CommandHandler<{ target: ScriptTarget; use: string; f
       if (bad) return bad;
       const g = behaviourOf(store, p.use);
       if (!g) return 'That logic file is not a behaviour.';
+      // Milestone 3b (B7a-2): a quest, or the maps' behaviour, is in the game as written
+      if (isQuestClass(g.behaviour!.extends))
+        return `${g.name} is a quest (it extends ${g.behaviour!.extends}): it is in the game as written, nothing to attach. Start it with quest.start().`;
+      if (isMapClass(g.behaviour!.extends))
+        return `${g.name} is about the maps (it extends ${g.behaviour!.extends}): it is in the game as written, nothing to attach.`;
       // Milestone 3b (B3): one that extends a built-in goes where that built-in is (an asset gets it as well)
       // Milestone 3b (B4): one that extends a character's built-in goes on a character that is one
       const cbase = characterBuiltinNamed(g.behaviour!.extends);

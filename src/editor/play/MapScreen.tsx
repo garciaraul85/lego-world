@@ -89,6 +89,7 @@ export function MapScreen({ s, tick }: { s: PlaySession; tick: number }) {
           {PAUSE_TYPE_INFO[pause.type].label}
           {model.dungeon && pause.type === 'floors' ? ` · ${floorName(shown)}` : ''}
         </span>
+        <TrackedGoal s={s} />
         <button type="button" class="bw-mapscreen-close" onClick={() => s.openMap(false)} aria-label="Close the map">
           Close (M)
         </button>
@@ -118,6 +119,28 @@ export function MapScreen({ s, tick }: { s: PlaySession; tick: number }) {
         <span class="muted small">Click: put down · Right-click or Shift-click: take up</span>
       </footer>
     </div>
+  );
+}
+
+/** Milestone 3b (B7a-2): the tracked quest and its step (where the diamond on the map is) */
+function TrackedGoal({ s }: { s: PlaySession }) {
+  const d = s.quests.trackedQuest();
+  const st = d ? s.quests.stepOf(d) : null;
+  if (!s.quests.begun().length) return null;
+  return (
+    <span class="bw-mapscreen-goal" data-tour="map-goal">
+      {d && st ? (
+        <span>
+          <span aria-hidden="true">◆ </span>
+          <strong>{d.name}</strong>: {st.name}
+        </span>
+      ) : (
+        <span class="muted">No quest tracked</span>
+      )}
+      <button type="button" onClick={() => s.openQuests(true)}>
+        Quests (J)
+      </button>
+    </span>
   );
 }
 

@@ -68,7 +68,7 @@
           {
             "type": "text",
             "id": "gear",
-            "text": "⚒ {hero.gear}",
+            "text": "\u2692 {hero.gear}",
             "style": {
               "fontSize": 18,
               "color": "#e8ecf4"
@@ -115,6 +115,21 @@
           "fontSize": 16,
           "color": "#f7c900",
           "bg": "#0b1020a0",
+          "pad": 8,
+          "radius": 10,
+          "hideEmpty": 1
+        }
+      },
+      {
+        "type": "text",
+        "id": "quest",
+        "anchor": [1, 1],
+        "offset": [-24, -186],
+        "text": "{quest.line}",
+        "style": {
+          "fontSize": 15,
+          "color": "#ffe9a8",
+          "bg": "#0b1020b0",
           "pad": 8,
           "radius": 10,
           "hideEmpty": 1
@@ -180,7 +195,7 @@
         "id": "pause",
         "anchor": [0.5, 0],
         "offset": [0, 16],
-        "label": "❚❚",
+        "label": "\u275a\u275a",
         "touchOnly": true,
         "onPress": [
           {

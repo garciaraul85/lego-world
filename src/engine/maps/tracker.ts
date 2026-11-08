@@ -86,6 +86,16 @@ export class MapTracker {
     return best < 0 ? null : (n.pins.splice(best, 1)[0] ?? null);
   }
 
+  /** Milestone 3b (B7a-2): the pins with this note taken up (a script's mark moved or taken off) */
+  unpinLabel(map: string, label: string): number {
+    const n = this.of(map);
+    const k = label.trim().toLowerCase();
+    if (!k) return 0;
+    const before = n.pins.length;
+    n.pins = n.pins.filter((p) => (p.label ?? '').trim().toLowerCase() !== k);
+    return before - n.pins.length;
+  }
+
   reset() {
     this.maps.clear();
   }

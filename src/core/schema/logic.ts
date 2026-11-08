@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PhaseDef } from '../combat/enemy';
+import { MAX_STEPS, QuestStepDef } from '../quests/quest';
 import { id, Vec2 } from './common';
 
 export const LogicNode = z.strictObject({
@@ -56,6 +57,8 @@ export const BehaviourDef = z.strictObject({
   about: z.string().max(400).optional(),
   /** Milestone 3b (14a-2): a boss's phases, written in its class (one extending PhasedBoss, WeakPointBoss…) */
   phases: z.array(PhaseDef).max(5).optional(),
+  /** Milestone 3b (B7a-2): a quest's steps, written in its class (one extending Quest, MainQuest, SideQuest) */
+  steps: z.array(QuestStepDef).max(MAX_STEPS).optional(),
 });
 export type BehaviourDef = z.infer<typeof BehaviourDef>;
 

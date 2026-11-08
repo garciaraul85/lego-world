@@ -680,6 +680,19 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   mapPinned: (ed, a) =>
     !!ed.session.value?.mapTrack.pins(ed.session.value.world.mapId).some((p) => p.stamp === String(a)),
   playLogged: (ed, a) => !!ed.session.value?.events.some((e) => e.msg.includes(String(a))),
+  /** Milestone 3b (B7a-2): “Quest,3”: the quest's class writes at least that many steps */
+  questSteps: (ed, a) => {
+    const [b, n] = String(a).split(',');
+    return (behaviourGraph(ed, b!)?.behaviour?.steps?.length ?? 0) >= Number(n);
+  },
+  /** Milestone 3b (B7a-2): the quest log is open in Play */
+  questLogOpen: (ed) => !!ed.session.value?.questsOpen,
+  /** Milestone 3b (B7a-2): this quest is tracked and the pause map is open */
+  questOnMap: (ed, a) =>
+    !!ed.session.value?.mapOpen &&
+    ed.session.value.quests.trackedQuest()?.name.toLowerCase() === String(a).toLowerCase(),
+  /** Milestone 3b (B7a-2): this quest is done in Play */
+  questDone: (ed, a) => ed.session.value?.questRead('status', String(a)) === 'done',
   /** “Name:stays”: the project's copy of the asset is a switch that stays that way (timed, toggle…) */
   switchStays: (ed, a) => {
     const [name, stays] = String(a).split(':');

@@ -1,5 +1,12 @@
 import { useMemo, useState } from 'preact/hooks';
-import { anyBuiltinNamed, BUILTINS, CHARACTER_BUILTINS } from '../../../core/logic/builtins';
+import {
+  anyBuiltinNamed,
+  BUILTINS,
+  CHARACTER_BUILTINS,
+  isGameClass,
+  isMapClass,
+  isQuestClass,
+} from '../../../core/logic/builtins';
 
 const isBrain = (parent: string | undefined) => parent === 'Brain' || parent === 'EnemyBrain';
 const isPart = (parent: string | undefined) => parent === 'Senses' || parent === 'Mover' || parent === 'Attack';
@@ -121,7 +128,24 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
             ▶ Play &amp; trace
           </button>
         </div>
-        {graph?.behaviour && (
+        {/* Milestone 3b (B7a-2): a quest, or the maps' behaviour, is in the game as written */}
+        {graph?.behaviour && isGameClass(graph.behaviour.extends) && (
+          <div class="lg-owner small" role="note" data-tour="behaviour-note">
+            {isQuestClass(graph.behaviour.extends) ? (
+              <>
+                Quest: it is in the game as written (nothing to attach). Start it with{' '}
+                <code>quest.start("{graph.name}")</code>; its steps are in the class and in the Steps panel. In its
+                methods, “this” is the quest.
+              </>
+            ) : (
+              <>
+                The maps: it is in the game as written (nothing to attach). Its hooks decide what both maps show; its
+                events say when the map opens, closes or gets a pin.
+              </>
+            )}
+          </div>
+        )}
+        {graph?.behaviour && !isGameClass(graph.behaviour.extends) && (
           <div class="lg-owner small" role="note" data-tour="behaviour-note">
             Behaviour: attach it to things with <strong>+ Script</strong> in the Inspector. Each copy runs its own:
             “this” is that copy, <code>this.name</code> its fields and own variables. {(() => {
@@ -382,7 +406,8 @@ function Sidebar({
               [
                 'Characters',
                 CHARACTER_BUILTINS.filter(
-                  (b) => !b.parent && b.name !== 'Brain' && !b.isInterface && b.items === undefined,
+                  (b) =>
+                    !b.parent && b.name !== 'Brain' && !b.isInterface && b.items === undefined && !isGameClass(b.name),
                 ),
               ],
               ['Brains', CHARACTER_BUILTINS.filter((b) => b.name === 'Brain' || isBrain(b.parent))],
@@ -390,6 +415,9 @@ function Sidebar({
               ['Parts', CHARACTER_BUILTINS.filter((b) => b.isInterface || isPart(b.parent))],
               // Milestone 3b (B6): the hero's items (Item, Projectile and the built-in ones)
               ['Items', CHARACTER_BUILTINS.filter((b) => b.items !== undefined)],
+              // Milestone 3b (B7a-2): quests and the maps (in the game as written)
+              ['Quests', CHARACTER_BUILTINS.filter((b) => isQuestClass(b.name))],
+              ['Maps', CHARACTER_BUILTINS.filter((b) => isMapClass(b.name))],
             ] as const
           ).map(([group, list]) => (
             <>

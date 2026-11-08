@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (183 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (213 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -291,6 +291,81 @@ Runs when the hero’s magic runs out as an item uses it (item: which one; the L
 
 - Outputs: item (string)
 - Code: `on("magicEmpty", (e) => { … });`
+
+### On quest start
+
+`event.onQuestStart` · event
+
+Runs when a quest starts (its first step is the one it is on).
+
+- Settings: Quest (string, optional)
+- Outputs: quest (string), step (number), stepName (string)
+- Code: `on("questStart", { quest: … }, (e) => { … });`
+
+### On quest step
+
+`event.onQuestStep` · event
+
+Runs when a quest moves on to its next step (step is the new one; its stepName what the quest log says).
+
+- Settings: Quest (string, optional)
+- Outputs: quest (string), step (number), stepName (string)
+- Code: `on("questStep", { quest: … }, (e) => { … });`
+
+### On quest done
+
+`event.onQuestDone` · event
+
+Runs when a quest is finished: its last step done, or quest.finish().
+
+- Settings: Quest (string, optional)
+- Outputs: quest (string), step (number), stepName (string)
+- Code: `on("questDone", { quest: … }, (e) => { … });`
+
+### On quest failed
+
+`event.onQuestFail` · event
+
+Runs when a quest fails (quest.fail()): it stays in the log, crossed out.
+
+- Settings: Quest (string, optional)
+- Outputs: quest (string), step (number), stepName (string)
+- Code: `on("questFail", { quest: … }, (e) => { … });`
+
+### On map open
+
+`event.onMapOpen` · event
+
+Runs when the pause map opens (the game holds while it is open).
+
+- Code: `on("mapOpen", (e) => { … });`
+
+### On map close
+
+`event.onMapClose` · event
+
+Runs when the pause map closes.
+
+- Code: `on("mapClose", (e) => { … });`
+
+### On map pin
+
+`event.onMapPin` · event
+
+Runs when the player puts a pin on the pause map: where (x, z in studs), its stamp and its note.
+
+- Outputs: x (number), z (number), stamp (string), label (string)
+- Code: `on("mapPin", (e) => { … });`
+
+### On region seen
+
+`event.onRegionSeen` · event
+
+Runs the first time in a play the hero comes into a region (a zone marked “Show its name on the maps”).
+
+- Settings: Region (string, optional)
+- Outputs: region (string)
+- Code: `on("regionSeen", { region: … }, (e) => { … });`
 
 ## Flow
 
@@ -1754,3 +1829,209 @@ Runs as a shot strikes something: target is the character’s name or the object
 
 - Outputs: item (string), target (string), base (bool)
 - Code: `on("hits", (e) => { … });`
+
+### Can it start now? (Quest)
+
+`event.onCanStartQuest` · event
+
+Asked as quest.start() is called for this quest. Return false and it does not start (not yet: the hero is too young, the bridge is down).
+
+- Outputs: quest (string), base (bool)
+- Code: `on("canStartQuest", (e) => { … });`
+
+### Is the step done? (Quest)
+
+`event.onStepDone` · event
+
+Asked a few times a second about the step the quest is on: do and at are the step’s, have how many the hero has of it (get, beat), count how many it needs. base is the engine’s answer. Return true to move on.
+
+- Outputs: quest (string), step (number), stepName (string), do (string), at (string), have (number), count (number), base (bool)
+- Code: `on("stepDone", (e) => { … });`
+
+### Where is the goal? (Quest)
+
+`event.onGoalOf` · event
+
+Asked for the step the quest is on while it is tracked: where its goal shows on both maps — a zone, an object or a character, by name, or hero. Return "" for no goal on the maps.
+
+- Outputs: quest (string), step (number), stepName (string), at (string), base (string)
+- Code: `on("goalOf", (e) => { … });`
+
+### Can the map open? (GameMap)
+
+`event.onCanOpenMap` · event
+
+Asked as the player opens the pause map (M, or Map on the pause screen). Return false and it stays shut (no map in this dungeon yet).
+
+- Outputs: base (bool)
+- Code: `on("canOpenMap", (e) => { … });`
+
+### Does this marker show? (GameMap)
+
+`event.onShowMarker` · event
+
+Asked about each marker on the maps: kind (chest, key, boss-key, boss, door, boss-door, exit, name, person, foe, pin, goal), its label and whether it is done (a chest opened, a boss beaten). Return false to hide it.
+
+- Outputs: kind (string), label (string), done (bool), base (bool)
+- Code: `on("showMarker", (e) => { … });`
+
+### What does the marker say? (GameMap)
+
+`event.onMarkerLabel` · event
+
+Asked about each marker’s name on the maps (a region, a way out, a pin’s note, a boss): return other words, or "" for none.
+
+- Outputs: kind (string), label (string), base (string)
+- Code: `on("markerLabel", (e) => { … });`
+
+## Quests
+
+### Start quest
+
+`quest.start` · action
+
+Starts a quest (once: one already going, finished or failed is left as it is). It goes in the quest log, and is tracked if it is a main quest or nothing else is.
+
+- Inputs: quest (string)
+- Code: `quest.start(quest);`
+
+### Next quest step
+
+`quest.advance` · action
+
+Moves a quest on to its next step (a step done by logic: do "script"); after its last step, the quest is done.
+
+- Inputs: quest (string)
+- Code: `quest.advance(quest);`
+
+### Set quest step
+
+`quest.setStep` · action
+
+Puts a quest on one of its steps (1 is its first): to skip ahead, or go back. A quest not going yet starts.
+
+- Inputs: quest (string), step (number)
+- Code: `quest.setStep(quest, step);`
+
+### Finish quest
+
+`quest.finish` · action
+
+Finishes a quest now, whatever step it is on.
+
+- Inputs: quest (string)
+- Code: `quest.finish(quest);`
+
+### Fail quest
+
+`quest.fail` · action
+
+A quest fails (the escort was lost, time ran out): it stays in the log, crossed out.
+
+- Inputs: quest (string)
+- Code: `quest.fail(quest);`
+
+### Track quest
+
+`quest.track` · action
+
+Tracks a quest: its goal shows on both maps (with an arrow at the edge of the map in play when it is off it).
+
+- Inputs: quest (string)
+- Code: `quest.track(quest);`
+
+### Quest step
+
+`quest.step` · pure
+
+The step a quest is on (1 is its first); 0 if it has not started.
+
+- Inputs: quest (string)
+- Outputs: out (number)
+- Code: `quest.step(quest)`
+
+### Quest status
+
+`quest.status` · pure
+
+How a quest stands: "" (not started), "active", "done" or "failed".
+
+- Inputs: quest (string)
+- Outputs: out (string)
+- Code: `quest.status(quest)`
+
+### Quest is going
+
+`quest.isActive` · pure
+
+True while a quest is going (started, not done or failed).
+
+- Inputs: quest (string)
+- Outputs: out (bool)
+- Code: `quest.isActive(quest)`
+
+### Quest is done
+
+`quest.isDone` · pure
+
+True once a quest is finished.
+
+- Inputs: quest (string)
+- Outputs: out (bool)
+- Code: `quest.isDone(quest)`
+
+## Maps
+
+### Open the map
+
+`map.open` · action
+
+Opens the pause map (the game holds while it is open), or closes it.
+
+- Inputs: on (bool)
+- Code: `map.open(on);`
+
+### Set map look
+
+`map.setLook` · action
+
+Changes the maps’ looks while the game plays (a sea chart once the hero has a boat; no map in play in a dark cave). Empty keeps the look it has; "default" goes back to the game’s (Project › Maps).
+
+- Inputs: pause (string), mini (string)
+- Code: `map.setLook(pause, mini);`
+
+### Mark the map
+
+`map.mark` · action
+
+Puts a mark on the maps where something is (a stamp and a note, like a pin the player puts down): a treasure a neighbour told of, a cave to come back to. One of the same note is moved there.
+
+- Inputs: at (string), stamp (string), label (string)
+- Code: `map.mark(at, stamp, label);`
+
+### Take a mark off
+
+`map.unmark` · action
+
+Takes the marks with this note off the maps (put down by Mark the map, or by the player).
+
+- Inputs: label (string)
+- Code: `map.unmark(label);`
+
+### Reveal the map
+
+`map.reveal` · action
+
+Shows the whole of the map the hero is on, as if it had been everywhere (a lookout tower, a map bought from a shop); off hides again what it has not seen.
+
+- Inputs: on (bool)
+- Code: `map.reveal(on);`
+
+### Map is open
+
+`map.isOpen` · pure
+
+True while the pause map is open.
+
+- Outputs: out (bool)
+- Code: `map.isOpen()`

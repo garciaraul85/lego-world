@@ -34,6 +34,8 @@ export type EventInfo = {
   payload?: Record<string, unknown>;
   /** P9c: the placed object or neighbour (instance id) the event is about; scripts on another one ignore it */
   self?: string;
+  /** Milestone 3b (B7a-2): only these programs hear it (a quest's own events: that quest's class), by file and filter */
+  only?: (graph: string, args: Record<string, unknown>) => boolean;
 };
 
 /**
@@ -113,6 +115,11 @@ export class LogicRuntime {
     this.changed.add(name);
   };
 
+  /** Milestone 3b (B7a-2): some logic file listens to this event type (or answers this hook) */
+  has(type: string): boolean {
+    return !!this.byType.get(type)?.length;
+  }
+
   /** Queue an event; runs start on the next step (or now, with `immediate`). */
   fire(e: EventInfo, immediate = false) {
     this.queue.push(e);
@@ -153,6 +160,7 @@ export class LogicRuntime {
       const e = this.queue.shift()!;
       for (const p of this.byType.get(e.type) ?? []) {
         if (!matches(p.args, e.match)) continue;
+        if (e.only && !e.only(p.graph, p.args)) continue;
         const g = this.graphs.get(p.graph);
         // Milestone 3b (B1): a behaviour runs once for each copy it is attached to (an event about one copy: for it)
         if (g?.behaviour) {

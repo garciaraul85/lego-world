@@ -1073,6 +1073,96 @@ CHARACTER_BUILTINS.push(
   },
 );
 
+// ---------- Milestone 3b (B7a-2): quests and the maps ----------
+
+/** a class that is in the game as written (a quest, the maps): it is not attached to anything */
+const gameClass = (
+  name: string,
+  parent: string | undefined,
+  about: string,
+  hooks: BuiltinHook[],
+  events: string[],
+  editIn: string,
+): Builtin<Character> => ({
+  name,
+  for: 'character',
+  ...(parent ? { parent } : {}),
+  about,
+  on: () => false,
+  add: () => ({}),
+  remove: (c) => c,
+  fields: [],
+  hooks,
+  events,
+  editIn,
+});
+
+const QUEST_EDIT = 'Logic: Extend it and write its steps (no need to attach it: it is in the game as written)';
+
+CHARACTER_BUILTINS.push(
+  gameClass(
+    'Quest',
+    undefined,
+    'A quest, made in Logic: extend it and write its steps in the class — steps = [{ name: "Talk to Mossbeard", do: "talk", at: "Mossbeard" }, { name: "Find the old well", do: "reach", at: "Old well" }]. Each step is done by itself when its do is (reach, talk, get, beat, use) or by logic (script: quest.advance()). Start it with quest.start() (a talk, a zone, On start); the quest log on the pause screen lists it, and tracking it shows where to go next on both maps.',
+    [
+      hk('canStartQuest', 'bool', 'Can it start now? (quest) — false: quest.start() does nothing'),
+      hk(
+        'stepDone',
+        'bool',
+        'Is the step it is on done? (quest, step, stepName, do, at, have, count) — asked a few times a second; base is the engine’s answer',
+      ),
+      hk(
+        'goalOf',
+        'name',
+        'Where its goal shows on the maps (quest, step, stepName, at): a place, an object or a character by name; "" for none',
+      ),
+    ],
+    ['event.onQuestStart', 'event.onQuestStep', 'event.onQuestDone', 'event.onQuestFail'],
+    QUEST_EDIT,
+  ),
+  gameClass(
+    'MainQuest',
+    'Quest',
+    'The story’s quest: listed first in the quest log, its goal in the main colour, and tracked as soon as it starts.',
+    [],
+    [],
+    QUEST_EDIT,
+  ),
+  gameClass(
+    'SideQuest',
+    'Quest',
+    'A quest on the side (an errand, a favour, a hunt): listed after the main ones; tracked when nothing else is.',
+    [],
+    [],
+    QUEST_EDIT,
+  ),
+  gameClass(
+    'GameMap',
+    undefined,
+    'The maps (the pause map and the map in play), in Logic: extend it to decide what they show — which markers, with what names — and whether the map can open now. Its events say when the map opens, closes, gets a pin, and when the hero first comes into a region. Set its looks in Project › Maps (or with map.setLook).',
+    [
+      hk('canOpenMap', 'bool', 'Can the pause map open now? — false: it stays shut'),
+      hk(
+        'showMarker',
+        'bool',
+        'Does this marker show? (kind: chest, key, boss-key, boss, door, boss-door, exit, name, person, foe, pin, goal; label; done)',
+      ),
+      hk('markerLabel', 'name', 'The name a marker shows with (kind, label): return other words, or "" for none'),
+    ],
+    ['event.onMapOpen', 'event.onMapClose', 'event.onMapPin', 'event.onRegionSeen'],
+    'Logic: Extend it (no need to attach it); its looks in Project › Maps',
+  ),
+);
+
+/** Milestone 3b (B7a-2): a behaviour extending this is a quest */
+export const isQuestClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'Quest');
+/** Milestone 3b (B7a-2): a quest that is the story's (MainQuest) */
+export const isMainQuestClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'MainQuest');
+/** Milestone 3b (B7a-2): a behaviour extending this decides about the maps */
+export const isMapClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'GameMap');
+/** Milestone 3b (B7a-2): a class that is in the game as written (not attached to anything) */
+export const isGameClass = (ext: string | undefined) => isQuestClass(ext) || isMapClass(ext);
+
 /** Milestone 3b (B6): an item's class (a built-in one, or Item and Projectile) */
 export const ITEM_CLASSES = () => CHARACTER_BUILTINS.filter((b) => b.items !== undefined);
 /** Milestone 3b (B6): the class an item is (Fire arrows: Bow); not one of the built-in items: null */
@@ -1296,7 +1386,19 @@ export const hookOf = (event: string) => {
 /** a new behaviour that extends a built-in: each of its hooks answered with the engine's own answer, to change */
 export function extendCode(b: Pick<Builtin<unknown>, 'name' | 'hooks'>, name: string): string {
   const cls = name.replace(/[^A-Za-z0-9]/g, '') || `My${b.name}`;
-  const lines = [`class ${cls} extends ${b.name} {`, ...(b.hooks.length ? [''] : [])];
+  const lines = [`class ${cls} extends ${b.name} {`];
+  // Milestone 3b (B7a-2): a new quest starts with a step to fill in, and starts when play does
+  if (isQuestClass(b.name))
+    lines.push(
+      '  steps = [',
+      '    { name: "Talk to someone who needs a hand", do: "script" },',
+      '  ];',
+      '',
+      '  start(e) {',
+      '    quest.start("this");',
+      '  }',
+    );
+  if (b.hooks.length) lines.push('');
   b.hooks.forEach((h, i) => {
     if (i) lines.push('');
     lines.push(`  ${h.method}(e) {`, `    return super.${h.method}(e);`, '  }');

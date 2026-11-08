@@ -6928,6 +6928,173 @@ img.bw-portrait {
   width: 160px;
 }
 
+/* Milestone 3b (B7a-2): the quest log, and the tracked quest on the pause map */
+.bw-questlog {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: #07090f;
+  color: #f4efe2;
+}
+.bw-questlog-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #2a2f40;
+}
+.bw-questlog-head strong {
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+.bw-questlog-empty {
+  padding: 40px;
+  text-align: center;
+}
+.bw-questlog-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) 1fr;
+}
+.bw-questlog-list {
+  overflow: auto;
+  border-right: 1px solid #2a2f40;
+  padding: 8px;
+}
+.bw-questlog-list h4 {
+  margin: 10px 6px 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #a99f86;
+}
+.bw-questlog-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: inherit;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.bw-questlog-item:hover {
+  background: #161b29;
+}
+.bw-questlog-item.on {
+  background: #1c2233;
+  border-color: #c9a74a;
+}
+.bw-questlog-item.failed .bw-questlog-name {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.bw-questlog-mark.main {
+  color: #ffd23f;
+}
+.bw-questlog-mark.side {
+  color: #8fd0ff;
+}
+.bw-questlog-name {
+  flex: 1;
+}
+.bw-questlog-tag {
+  font-size: 11px;
+  background: #c9a74a;
+  color: #1a1a1a;
+  border-radius: 99px;
+  padding: 1px 7px;
+}
+.bw-questlog-detail {
+  overflow: auto;
+  padding: 16px 22px;
+}
+.bw-questlog-detail h3 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+.bw-questlog-about {
+  color: #cfc7b2;
+  max-width: 60ch;
+}
+.bw-questlog-steps {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bw-questlog-steps li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.bw-questlog-steps li.done {
+  color: #8d887a;
+}
+.bw-questlog-steps li.done > span:last-child {
+  text-decoration: line-through;
+}
+.bw-questlog-steps li.now .bw-questlog-tick {
+  color: #ffd23f;
+}
+.bw-questlog-goal {
+  display: block;
+  color: #a99f86;
+}
+.bw-questlog-btn {
+  background: #2a2412;
+  color: #ffe9a8;
+  border: 1px solid #c9a74a;
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.bw-questlog-btn[aria-pressed="true"] {
+  background: #c9a74a;
+  color: #1a1a1a;
+}
+.bw-questlog-state {
+  font-weight: 700;
+  color: #9be29b;
+}
+.bw-questlog-state.failed {
+  color: #ff8a7a;
+}
+.bw-mapscreen-goal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #ffe9a8;
+}
+.bw-mapscreen-goal button {
+  background: transparent;
+  color: #ffe9a8;
+  border: 1px solid #5a4f2e;
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+@media (max-width: 560px) {
+  .bw-questlog-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .bw-questlog-list {
+    border-right: 0;
+    border-bottom: 1px solid #2a2f40;
+    max-height: 40%;
+  }
+}
+
 /* Milestone 3b (B7a-1): Project › Maps */
 .map-look {
   border: 1px solid var(--line, #2a3146);

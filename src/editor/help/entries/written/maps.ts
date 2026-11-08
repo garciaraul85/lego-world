@@ -63,6 +63,50 @@ export const MAPS: HelpEntry[] = [
       'Press Play, walk about, then press **M**.',
       'Pick a stamp and click the map to put down a pin; right-click to take it up.',
     ],
-    related: ['project.maps', 'scene.map.dungeon'],
+    related: ['project.maps', 'scene.map.dungeon', 'play.quests'],
+  },
+  // Milestone 3b (B7a-2): quests, where to go next, and the maps in logic
+  {
+    id: 'logic.quest.steps',
+    also: [
+      'quest',
+      'quests',
+      'quest steps',
+      'objective',
+      'side quest',
+      'main quest',
+      'mission',
+      'errand',
+      'where to go next',
+      'SideQuest',
+      'MainQuest',
+    ],
+    screen: 'logic',
+    kind: 'setting',
+    name: 'Quest steps',
+    purpose:
+      'A quest is a behaviour that extends **Quest** (or **MainQuest** for the story, **SideQuest** for the rest). Its steps are written in the class — steps = [{ name: "Find 3 glowcaps", do: "get", at: "Glowcap", count: 3 }, …] — and this panel edits the same list. Each step **Says** what the quest log shows and is **Done when**: the hero **reaches** a place (a zone, an object or a character, by name), **talks to** a character, **gets** so many of an item, **beats** so many of a character, **uses** an object, or **by logic** (a script calls quest.advance()). **Goal on the maps** is where its diamond shows when tracked, if not where the step points (a get: where the item lies; empty: its pickup on the map). A quest is in the game as written: nothing to attach; start it with quest.start() (its own start(e), a talk, a zone). Its hooks: canStartQuest, stepDone, goalOf; its events: questStart, questStep, questDone, questFail.',
+    steps: [
+      'In Logic, open **Built-in › Quests** and press **SideQuest**, then **Extend** (or write class MyQuest extends SideQuest).',
+      'Press **+ Step** for each step: what it says, what finishes it, and its place, character, item or object.',
+      'Start it with quest.start("this") in its start(e), then press Play and **J** for the quest log.',
+    ],
+    commands: ['logic.replace'],
+    match: [{ in: '[data-help="logic.quest.steps"]' }],
+    related: ['play.quests', 'play.map', 'logic.behaviour'],
+  },
+  {
+    id: 'play.quests',
+    also: ['quest log', 'journal', 'j key', 'track quest', 'tracking', 'objective marker', 'waypoint', 'goal arrow'],
+    screen: 'play',
+    kind: 'view',
+    name: 'The quest log in Play',
+    purpose:
+      'Press **J** (or **Quests** on the pause screen, shown once a quest has begun) for the quest log; J or Esc closes it. Main quests are listed first, then side quests, then those finished or failed. The chosen quest shows the steps done (ticked off), the one it is on (with how many so far) and that more lie ahead. **Track** shows its goal as a diamond on both maps; off the map in play, an arrow at its edge points the way. **Show on the map** opens the pause map. The HUD says the tracked step above the map in play (the {quest.line} text; also {quest.tracked}, {quest.step} and quests.any for screens). The quest log is kept in saves.',
+    steps: [
+      'Press Play; a quest that starts says New quest.',
+      'Press **J**, pick a quest and press **Track** or **Show on the map**.',
+    ],
+    related: ['logic.quest.steps', 'play.map'],
   },
 ];

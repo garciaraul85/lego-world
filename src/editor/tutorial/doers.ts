@@ -3019,6 +3019,72 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       String(a?.note ?? '') || undefined,
     );
   },
+  // Milestone 3b (B7a-2): the Quests course
+  addQuestStep(c, a) {
+    // what + Step in Logic's Steps panel, then typing into its boxes, does (it rewrites the steps line of the class)
+    const g = behaviourByName(c, String(a?.behaviour ?? ''));
+    if (!g?.behaviour) throw new Error(`Write the ${String(a?.behaviour)} quest first.`);
+    c.ui.workspace('Logic');
+    c.ed.logicGraph.value = g.id;
+    c.ed.logicView.value = 'split';
+    const step = a?.step as { name: string };
+    const steps = g.behaviour.steps ?? [];
+    if (steps.some((x) => x.name === step.name)) return;
+    run(
+      c,
+      [{ type: 'logic.replace', payload: { graph: { ...g, behaviour: { ...g.behaviour, steps: [...steps, step] } } } }],
+      'Add step',
+    );
+  },
+  playFresh(c, a) {
+    // what pressing ■ Stop then ▶ Play does, when the game playing began before this quest was written
+    const s = c.ed.session.value;
+    const want = String(a?.quest ?? '');
+    if (s && want && !s.quests.find(want)) c.ui.stopPlay();
+    if (!c.ed.session.value) c.ui.play('engine');
+  },
+  async openQuestLog(c) {
+    // a moment of play, then J
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    await wait(600);
+    if (s.mapOpen) s.openMap(false);
+    s.openQuests(true);
+  },
+  async trackAndShow(c, a) {
+    // (a short walk away from the goal first), then what Show on the map in the quest log does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    if (a?.walk) {
+      if (s.questsOpen) s.openQuests(false);
+      s.input.keys.add('w');
+      await wait(2400);
+      s.input.keys.delete('w');
+    }
+    s.trackQuest(String(a?.quest ?? ''));
+    s.openMap(true);
+  },
+  async finishQuest(c, a) {
+    // what doing each step does: the items it asks for picked up, a step done by logic (quest.advance) run
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    if (s.mapOpen) s.openMap(false);
+    if (s.questsOpen) s.openQuests(false);
+    const q = String(a?.quest ?? '');
+    for (let i = 0; i < 12 && s.questRead('status', q) === 'active'; i++) {
+      const d = s.quests.find(q);
+      const st = d ? s.quests.stepOf(d) : null;
+      if (!st) break;
+      if (st.do === 'get' && st.at) {
+        // biome-ignore lint/suspicious/noExplicitAny: a pickup gives the hero the item (as walking over one does)
+        (s as any).give(st.at, Math.max(0, (st.count ?? 1) - s.itemCount(st.at)));
+        await wait(700);
+      } else {
+        s.questOp('advance', q);
+        await wait(500);
+      }
+    }
+  },
   async walkHero(c) {
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');

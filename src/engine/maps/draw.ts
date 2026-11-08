@@ -543,6 +543,16 @@ export function drawPause(g: G, W: number, H: number, m: MapModel, look: FullPau
       g.fillStyle = c.ink;
       g.fillText(mk.label, x, y + r + 12);
     }
+    // Milestone 3b (B7a-2): where to go next says what to do there
+    if (mk.kind === 'goal' && mk.label) {
+      g.font = '700 13px system-ui, sans-serif';
+      g.textAlign = 'center';
+      g.lineWidth = 4;
+      g.strokeStyle = alpha(c.back, 0.9);
+      g.fillStyle = c.ink;
+      g.strokeText(mk.label, x, y - r * 1.6 - 4);
+      g.fillText(mk.label, x, y - r * 1.6 - 4);
+    }
   }
   if (m.hero && (!m.dungeon || look.type !== 'floors' || floorOf(m.hero.y) === floor)) {
     const [x, y] = toScreen(m.hero.x, m.hero.z);
@@ -825,8 +835,16 @@ export function drawMini(g: G, size: number, m: MapModel, look: FullMini, camYaw
     for (const mk of m.markers) {
       if (mk.kind === 'name' || !showsKind(look.markers, mk) || !m.showsMarker(mk, floor)) continue;
       const [x, y] = toScreen(mk.x, mk.z);
-      const far = Math.hypot(x, y) > size / 2 - 8;
+      const far = round ? Math.hypot(x, y) > size / 2 - 20 : Math.max(Math.abs(x), Math.abs(y)) > size / 2 - 8;
       if (far && mk.kind !== 'goal') continue;
+      if (far && !round) {
+        // a square map: the arrow at its edge
+        g.save();
+        g.translate(-size / 2, -size / 2);
+        edgeArrow(g, size, x, y, c);
+        g.restore();
+        continue;
+      }
       g.save();
       g.translate(x, y);
       g.rotate(-turn);
@@ -834,7 +852,8 @@ export function drawMini(g: G, size: number, m: MapModel, look: FullMini, camYaw
         // where to go next, off the map: an arrow at its edge, pointing to it
         g.restore();
         const a = Math.atan2(y, x);
-        const rr = size / 2 - 10;
+        // (inside the compass ring, clear of its N, E, S and W)
+        const rr = size / 2 - 24;
         g.save();
         g.translate(Math.cos(a) * rr, Math.sin(a) * rr);
         g.rotate(a + Math.PI / 2);
@@ -892,7 +911,35 @@ function miniScreens(g: G, size: number, m: MapModel, st: Style, floor: number, 
   }
   const px = 2 * tile + ((h.x - hx * SCREEN) / SCREEN) * tile;
   const py = 2 * tile + ((h.z - hz * SCREEN) / SCREEN) * tile;
+  // Milestone 3b (B7a-2): where to go next — on its screen, or an arrow at the edge pointing to it
+  const goal = m.markers.find((mk) => mk.kind === 'goal');
+  if (goal && showsKind(st.markers, goal)) {
+    const gx = 2 * tile + ((goal.x - hx * SCREEN) / SCREEN) * tile;
+    const gy = 2 * tile + ((goal.z - hz * SCREEN) / SCREEN) * tile;
+    if (gx >= 8 && gy >= 8 && gx <= size - 8 && gy <= size - 8) icon(g, goal, gx, gy, 5.5, st, t);
+    else edgeArrow(g, size, gx - size / 2, gy - size / 2, st.colors);
+  }
   hero(g, px, py, h.heading, 4.5, st.colors, t, false);
+}
+
+/** an arrow at the edge of a square map, pointing the way (dx, dy) from its middle */
+function edgeArrow(g: G, size: number, dx: number, dy: number, c: MapColors) {
+  const a = Math.atan2(dy, dx);
+  const half = size / 2 - 10;
+  const k = half / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a)));
+  g.save();
+  g.translate(size / 2 + Math.cos(a) * k, size / 2 + Math.sin(a) * k);
+  g.rotate(a + Math.PI / 2);
+  g.beginPath();
+  g.moveTo(0, -8);
+  g.lineTo(6, 5);
+  g.lineTo(-6, 5);
+  g.closePath();
+  g.fillStyle = c.accent;
+  g.strokeStyle = '#000000';
+  g.fill();
+  g.stroke();
+  g.restore();
 }
 
 function compassRing(g: G, size: number, turn: number, c: MapColors) {

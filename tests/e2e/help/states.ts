@@ -473,6 +473,55 @@ export const HELP_STATES: HelpState[] = [
     },
   },
   {
+    // Milestone 3b (B7a-2): a quest open in Logic (its steps beside its class)
+    id: 'logic-quest',
+    screen: 'logic',
+    setup: async (p) => {
+      await ws(p, 'Logic');
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const id = 'lg_helpquests';
+        if (!e.store.get(`logic/${id}.json`))
+          e.exec({
+            type: 'logic.create',
+            payload: {
+              graph: {
+                id,
+                name: 'Lost Lamp',
+                scope: 'global',
+                behaviour: {
+                  fields: [],
+                  extends: 'SideQuest',
+                  about: 'Mossbeard lost his lamp near the old well.',
+                  steps: [
+                    { name: 'Find 3 glowcaps', do: 'get', at: 'Glowcap', count: 3 },
+                    { name: 'Light the lamp', do: 'script', where: 'hero' },
+                  ],
+                },
+                nodes: [
+                  { id: 'n1', type: 'event.onStart', pos: [0, 0] },
+                  { id: 'n2', type: 'quest.start', pos: [260, 0] },
+                ],
+                edges: [['n1', 'then', 'n2', 'in']],
+              },
+            },
+          });
+        e.logicGraph.value = id;
+      });
+      await signals(p, { logicView: 'split' });
+      // the Steps panel scrolled into view in its own column (not the page)
+      await p.evaluate(() => {
+        const el = document.querySelector<HTMLElement>('[data-tour="quest-steps"]');
+        let box = el?.parentElement ?? null;
+        while (box && box !== document.body && box.scrollHeight <= box.clientHeight + 4) box = box.parentElement;
+        if (el && box && box !== document.body)
+          box.scrollTop += el.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+      });
+    },
+  },
+  {
     // Milestone 3b (B3): a built-in behaviour's page (what it does, its fields, its hooks; Extend)
     id: 'logic-builtin',
     screen: 'logic',

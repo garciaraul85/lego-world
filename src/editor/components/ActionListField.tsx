@@ -357,6 +357,7 @@ function ActionArgs({
           <option value="finish">Finish the game</option>
           <option value="newGamePlus">New game plus</option>
           <option value="map">Open the map</option>
+          <option value="quests">Open the quest log</option>
           <option value="settingsMenu">Open Settings</option>
           <option value="achievementsMenu">Open Achievements</option>
         </select>

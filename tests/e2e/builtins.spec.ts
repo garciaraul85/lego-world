@@ -426,6 +426,65 @@ test('Maps course: a sea chart, a round map in play and a pin', async ({ page })
   expect(errors).toEqual([]);
 });
 
+test('Quests course: a quest with steps, the quest log, where to go next, the maps in logic', async ({ page }) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
+  await page.getByRole('menuitem', { name: /Quests course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(8);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    await page.waitForTimeout(600);
+    if ((await doIt.isVisible()) && !(await card.getByText(/✓ Done!/).isVisible())) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doIt.click();
+      const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+      const done = card.getByText(/✓ Done!/);
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (await rest.isVisible()) await rest.click();
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      await page.screenshot({ path: `test-results/quests-${String(i).padStart(2, '0')}.png` });
+    }
+    if (/The Steps panel/.test(title)) {
+      const steps = page.locator('[data-tour="quest-steps"]');
+      await expect(steps).toBeVisible();
+      await expect(steps.getByRole('group', { name: 'Step 3' })).toBeVisible();
+    }
+    if (/The quest log/.test(title)) {
+      const log = page.getByRole('dialog', { name: 'Quest log' });
+      await expect(log).toBeVisible();
+      await expect(log.getByText('Find 3 glowcaps')).toBeVisible();
+    }
+    if (/Where to go next/.test(title)) {
+      const map = page.getByRole('dialog', { name: 'Map' });
+      await expect(map).toBeVisible();
+      await expect(map.getByText('Lost Lamp')).toBeVisible();
+      // where to go next: the goal (at the Arrival spawn point) and Treasure Map's camp flag
+      const marks = await page.evaluate(() => {
+        // biome-ignore lint/suspicious/noExplicitAny: the editor's live Play session
+        const s = (window as any).__editor.session.value;
+        return s.mapModel().markers.map((m: { kind: string; label?: string }) => `${m.kind}:${m.label ?? ''}`);
+      });
+      expect(marks).toEqual(expect.arrayContaining(['goal:Go here!', 'pin:Camp']));
+    }
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  expect(errors).toEqual([]);
+});
+
 test('World built-ins course: a rock that takes three tries to lift', async ({ page }) => {
   test.setTimeout(900_000);
   const errors: string[] = [];

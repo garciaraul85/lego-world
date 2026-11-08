@@ -14,6 +14,7 @@ import { projectPoint, WorldUI } from '../../engine/ui/WorldUI';
 import { MapThumb } from '../components/previews';
 import type { EditorState } from '../state';
 import { MapScreen } from './MapScreen';
+import { QuestLog } from './QuestLog';
 
 /**
  * The game's screens (HUD, title, pause, dialogue, game over…) and world UI over the Play view
@@ -134,6 +135,7 @@ export function GameScreens({
       )}
       {s.loading && <LoadingScreen ed={ed} s={s} />}
       {s.mapOpen && <MapScreen s={s} tick={t} />}
+      {s.questsOpen && <QuestLog s={s} tick={t} />}
     </>
   );
 }
@@ -166,6 +168,7 @@ export const LOADING_TIPS = [
   'Talk to people with T: they may have something for you.',
   'The minimap shows the area around you.',
   'M opens the map: put down pins and stamps where you want to go back to.',
+  'J opens the quest log: track a quest to see where to go next on the maps.',
 ];
 
 /** P27 part 3c: the built-in loading screen: where you are going, a tip, its picture and real progress */

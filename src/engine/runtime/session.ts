@@ -59,11 +59,13 @@ import type { LegacyPiece } from '../../core/legacy/types';
 import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosphere';
 import { attachmentsOf, startValues } from '../../core/logic/behaviours';
 import { enemyOfCharacter } from '../../core/logic/boss';
-import { itemClassOf, itemsOfBehaviour } from '../../core/logic/builtins';
+import { isMainQuestClass, isMapClass, isQuestClass, itemClassOf, itemsOfBehaviour } from '../../core/logic/builtins';
 import type { ExecCtx } from '../../core/logic/catalog';
-import { type MapLooks, miniLookOf, pauseLookOf } from '../../core/maps/look';
+import { type MapLooks, MINI_TYPES, miniLookOf, PAUSE_TYPES, pauseLookOf } from '../../core/maps/look';
+import { STAMPS } from '../../core/maps/notes';
 import { maxOf } from '../../core/num';
 import { switchHitBy } from '../../core/puzzles/puzzle';
+import { doOf, goalNameOf } from '../../core/quests/quest';
 import {
   AutoQuality,
   type DeviceInfo,
@@ -152,6 +154,7 @@ import { MapTracker } from '../maps/tracker';
 import { type MediaSource, modelMatrix, prepareModel, readyModel } from '../model/prepare';
 import { HERO_GRAVITY, HERO_HEIGHT, HERO_RADIUS, walkHero } from '../physics/hero';
 import { dragAccel, ICE_FRICTION, ICE_GRIP, PhysicsWorld, physicsReady, WATER_DENSITY } from '../physics/physics';
+import { QuestBook, type QuestDef } from '../quests/book';
 import { type ModelUpload, placedTriangles } from '../render/model-draw';
 import { portrait } from '../render/portraits';
 import type { PointLight } from '../render/renderer';
@@ -653,6 +656,12 @@ export class PlaySession {
   readonly mapTrack = new MapTracker();
   /** Milestone 3b (B7a-1): the pause map is open (it holds the game) */
   mapOpen = false;
+  /** Milestone 3b (B7a-2): the quest log (the game's quests, how far each has gone, the one tracked) */
+  quests: QuestBook = new QuestBook([]);
+  /** Milestone 3b (B7a-2): the quest log is open on the pause screen (it holds the game) */
+  questsOpen = false;
+  /** Milestone 3b (B7a-2): the maps' looks as logic set them while playing (map.setLook) */
+  private lookOverride: { pause?: (typeof PAUSE_TYPES)[number]; mini?: (typeof MINI_TYPES)[number] } = {};
   /** step 12b: things burning, bombs fizzing, beams of light */
   readonly fireLight: FireLight<PlayInstance> = this.makeFireLight();
   /** step 12c: moving platforms (and lifts), and what the hero rides */
@@ -1493,6 +1502,7 @@ export class PlaySession {
     this.travelLock = spawn ? { spawn: spawn.id } : null;
     this.camYaw = this.world.controller.state.heading + Math.PI;
     this.logic = this.makeLogic();
+    this.quests = this.makeQuests();
     this.syncScripts(false);
     this.heroVars();
     this.progress = new PlayerProgress(this as unknown as ProgressHost);
@@ -2335,6 +2345,8 @@ export class PlaySession {
       this.say(`${String(npc.profile.name ?? 'They')} has nothing to say.`, 1.5);
       return;
     }
+    // Milestone 3b (B7a-2): a quest's talk step counts it
+    this.quests.note('talk', String(npc.profile.name ?? ''));
     // P22: the neighbour's character has conversations: the first whose condition holds plays
     const chr = npcCharacter(this.snapshot, this.world.mapId, npc);
     const conv = chr ? this.talks.pick(chr) : null;
@@ -2416,6 +2428,8 @@ export class PlaySession {
           g.mapTrack.visit(g.world.mapId, h.x, h.y, h.z, !!g.world.doc.dungeon);
         },
       },
+      // Milestone 3b (B7a-2): quests' steps done by themselves, regions first seen (a few times a second)
+      { id: 'quests', fixed: (g, dt) => g.stepQuests(dt) },
       {
         id: 'fire',
         fixed: (g, dt) => {
@@ -3582,6 +3596,8 @@ export class PlaySession {
     this.world.npcs = this.world.npcs.filter((n) => n !== npc);
     // Milestone 3b (B7a-1): a boss beaten: its mark on the maps is crossed out
     if (boss) this.mapTrack.beat(this.world.mapId, String(npc.profile.name ?? 'Boss'), pos[0], pos[1], pos[2]);
+    // Milestone 3b (B7a-2): a quest's beat step counts it
+    this.quests.note('beat', String(npc.profile.name ?? ''));
     if (def.atZero.respawn !== undefined) this.world.defeated.push({ npc, at: this.clock, after: def.atZero.respawn });
     if (this.talking === npc) this.talking = null;
     if (def.atZero.drop) this.drop(def.atZero.drop, { at: pos });
@@ -4967,6 +4983,10 @@ export class PlaySession {
     }
     const heroList = attachmentsOf(this.heroChr?.scripts, undefined);
     if (heroList.length) put('hero', heroList);
+    // Milestone 3b (B7a-2): each quest runs as itself ("quest:<file>"); the maps' behaviours as "gamemap"
+    const gg = this.gameGraphs();
+    for (const g of gg.quests) put(`quest:${g.id}`, [{ use: g.id }] as ReturnType<typeof attachmentsOf>);
+    if (gg.maps.length) put('gamemap', gg.maps.map((g) => ({ use: g.id })) as ReturnType<typeof attachmentsOf>);
     for (const o of this.scriptOwners) if (!now.has(o)) this.logic.detach(o);
     this.scriptOwners = now;
   }
@@ -4998,6 +5018,11 @@ export class PlaySession {
       heal: (target, amount) => this.heal(target, amount),
       setInvulnerable: (target, on) => this.setInvulnerable(target, on),
       saving: (op, slot) => this.savingOp(op, slot),
+      // Milestone 3b (B7a-2): quests and the maps
+      quest: (op, ref, step) => this.questOp(op, ref, step),
+      questRead: (what, ref) => this.questRead(what, ref),
+      mapOp: (op, a, b, c) => this.mapOp(op, a, b, c),
+      mapRead: () => this.mapOpen,
       progress: (op, id) => {
         if (op === 'achieve') this.progress.unlock(id);
         else this.gameOp('finish');
@@ -5207,7 +5232,7 @@ export class PlaySession {
   /** true while a screen (title, pause, game over) holds the game */
   get screenPaused(): boolean {
     // P27 part 3c: the game holds while a map loads
-    return this.screens.pausesGame || !!this.loading || this.mapOpen;
+    return this.screens.pausesGame || !!this.loading || this.mapOpen || this.questsOpen;
   }
 
   private screensChanged() {
@@ -5293,6 +5318,9 @@ export class PlaySession {
         break;
       case 'map':
         this.openMap(true);
+        break;
+      case 'quests':
+        this.openQuests(true);
         break;
       case 'pause': {
         const p = screenOfKind(this.snapshot, 'pause');
@@ -5446,6 +5474,10 @@ export class PlaySession {
     this.puzzles.restore(undefined);
     this.mapTrack.reset();
     this.mapOpen = false;
+    this.quests.reset();
+    this.questsOpen = false;
+    this.lookOverride = {};
+    this.goalCache = null;
     this.fireLight.reset();
     this.platforms.reset();
     this.wind.reset();
@@ -5632,6 +5664,7 @@ export class PlaySession {
     }
     // Milestone 3b (B7a-1): Esc closes the pause map
     if (this.mapOpen) return this.openMap(false);
+    if (this.questsOpen) return this.openQuests(false);
     // P22: Esc ends a conversation
     if (this.talks.active) return this.endTalk();
     const top = this.screens.top();
@@ -5688,6 +5721,14 @@ export class PlaySession {
     }
     if (name.startsWith('inventory.')) return this.itemCount(name.slice(10));
     if (name.startsWith('save.')) return this.saveValue(name);
+    // Milestone 3b (B7a-2): quests.any (a quest has begun), quest.tracked (its name), quest.step (what to do now)
+    if (name === 'quests.any') return this.quests.begun().length > 0;
+    if (name === 'quest.tracked') return this.quests.trackedQuest()?.name ?? '';
+    if (name === 'quest.step' || name === 'quest.line') {
+      const d = this.quests.trackedQuest();
+      const st = d ? (this.quests.stepOf(d)?.name ?? '') : '';
+      return name === 'quest.line' ? (st ? `◆ ${st}` : '') : st;
+    }
     if (/^(progress|achievements|collections|collection|bests|best|settings)\./.test(name))
       return this.progress.value(name);
     return this.logic.vars.get(name);
@@ -6449,7 +6490,15 @@ export class PlaySession {
   /** the pause map opened or closed (it holds the game while open) */
   openMap(on = !this.mapOpen) {
     if (on && (this.over || this.cine.active)) return;
+    // Milestone 3b (B7a-2): a behaviour extending GameMap may keep it shut
+    if (on && !this.mapOpen && !this.askHook('gamemap', 'canOpenMap', {}, true)) {
+      this.say('The map won’t open here.', 1.5);
+      return;
+    }
+    const was = this.mapOpen;
+    if (on) this.questsOpen = false;
     this.mapOpen = on;
+    if (was !== on) this.logic.fire({ type: on ? 'event.onMapOpen' : 'event.onMapClose' });
     if (on) for (const sc of this.screens.screens()) if (sc.kind === 'pause') this.screens.hide(sc.id);
     this.audio.play(SND.pickup, { volume: 0.4 } as never);
     this.emit('info', on ? 'Map opened' : 'Map closed');
@@ -6458,7 +6507,17 @@ export class PlaySession {
   /** the game's and this map's looks for the pause map and the map in play */
   mapLooks() {
     const game = (this.snapshot.get(paths.settings) as { maps?: MapLooks } | undefined)?.maps;
-    const own = this.world.doc.mapLook;
+    const doc = this.world.doc.mapLook;
+    const o = this.lookOverride;
+    // Milestone 3b (B7a-2): what logic set while playing goes over the map's own
+    const own =
+      o.pause || o.mini
+        ? {
+            ...doc,
+            ...(o.pause ? { pause: { ...doc?.pause, type: o.pause } } : {}),
+            ...(o.mini ? { mini: { ...doc?.mini, type: o.mini } } : {}),
+          }
+        : doc;
     const dungeon = !!this.world.doc.dungeon;
     return { pause: pauseLookOf(game, own, dungeon), mini: miniLookOf(game, own) };
   }
@@ -6516,6 +6575,9 @@ export class PlaySession {
     }
     for (const p of this.mapTrack.pins(id))
       markers.push({ kind: 'pin', x: p.x, z: p.z, y: p.y, stamp: p.stamp, label: p.label });
+    // Milestone 3b (B7a-2): where to go next (the tracked quest's goal)
+    const goal = this.questGoal();
+    if (goal) markers.push(goal);
     const h = this.heroState;
     // the land stays worked out while the bricks are the same
     const tkey = `${id}:${w.pieces.length}:${w.brokenSerial}:${w.windowAt ?? ''}`;
@@ -6529,7 +6591,7 @@ export class PlaySession {
         seen,
         hasMap: !!rec?.map,
         hasCompass: !!rec?.compass,
-        markers,
+        markers: this.markersByMapHooks(markers),
         hero: { x: h.x, y: h.y, z: h.z, heading: h.heading },
       },
       this.mapTops.tops,
@@ -6548,11 +6610,332 @@ export class PlaySession {
       ...(label ? { label } : {}),
     });
     if (!ok) this.say('The map holds no more pins.', 1.5);
+    else this.logic.fire({ type: 'event.onMapPin', payload: { x, z, stamp, label: label ?? '' } });
     return ok;
   }
   /** the pin nearest a spot taken up */
   unpinMap(x: number, z: number, r = 4) {
     return this.mapTrack.unpin(this.world.mapId, x, z, r);
+  }
+
+  // ---------- Milestone 3b (B7a-2): quests, and the maps in logic ----------
+
+  private gameGraphCache: { quests: LogicGraph[]; maps: LogicGraph[]; ids: Set<string> } | null = null;
+  /** the behaviours that are in the game as written: the quests and the maps' */
+  private gameGraphs() {
+    if (!this.gameGraphCache) {
+      const quests: LogicGraph[] = [];
+      const maps: LogicGraph[] = [];
+      for (const path of this.snapshot.keys()) {
+        if (!/^logic\/lg_[0-9a-z]{10}\.json$/.test(path)) continue;
+        const g = this.snapshot.get(path) as LogicGraph;
+        if (!g.behaviour) continue;
+        if (isQuestClass(g.behaviour.extends)) quests.push(g);
+        else if (isMapClass(g.behaviour.extends)) maps.push(g);
+      }
+      this.gameGraphCache = { quests, maps, ids: new Set(quests.map((g) => g.id)) };
+    }
+    return this.gameGraphCache;
+  }
+  private makeQuests(): QuestBook {
+    return new QuestBook(
+      this.gameGraphs()
+        .quests.filter((g) => g.behaviour?.steps?.length)
+        .map((g) => ({
+          id: g.id,
+          name: g.name,
+          main: isMainQuestClass(g.behaviour!.extends),
+          steps: g.behaviour!.steps!,
+          ...(g.behaviour!.about ? { about: g.behaviour!.about } : {}),
+        })),
+    );
+  }
+
+  /** asks a quest's own class a hook (canStartQuest, stepDone, goalOf) */
+  private askQuest<V>(d: QuestDef, hook: string, payload: Record<string, unknown>, base: V): V {
+    return this.askHook(`quest:${d.id}`, hook, { ...payload, quest: d.name }, base);
+  }
+  /**
+   * a quest's event: its own class hears it (its methods are about itself), and everyone else (a neighbour, a door,
+   * a logic file, another quest's method that names it)
+   */
+  private questEvent(d: QuestDef, kind: 'Start' | 'Step' | 'Done' | 'Fail') {
+    const p = this.quests.of(d);
+    const i = Math.max(0, Math.min(p?.step ?? 0, d.steps.length - 1));
+    const payload = { quest: d.name, step: i + 1, stepName: d.steps[i]?.name ?? '' };
+    const type = `event.onQuest${kind}`;
+    const quests = this.gameGraphs().ids;
+    this.logic.fire({ type, match: { quest: d.name }, payload, self: `quest:${d.id}`, only: (g) => g === d.id });
+    this.logic.fire({
+      type,
+      match: { quest: d.name },
+      payload,
+      only: (g, a) => g !== d.id && (!quests.has(g) || !!String(a.quest ?? '').trim()),
+    });
+  }
+  private questBanner(text: string) {
+    this.say(text, 2.6);
+    this.emit('info', text);
+  }
+  /** what moving a quest did: told to its class and everyone, and on screen */
+  private questMoved(d: QuestDef, r: 'step' | 'done' | 'start' | null) {
+    if (r === 'start') {
+      this.questEvent(d, 'Start');
+      this.questBanner(`New quest: ${d.name}`);
+    } else if (r === 'step') {
+      this.questEvent(d, 'Step');
+      this.audio.play(SND.pickup, { volume: 0.5 } as never);
+      this.questBanner(`${d.name}: ${this.quests.stepOf(d)?.name ?? ''}`);
+    } else if (r === 'done') {
+      this.questEvent(d, 'Done');
+      this.audio.play(SND.keyget);
+      this.questBanner(`Quest complete: ${d.name}`);
+    }
+    this.goalCache = null;
+  }
+
+  /** logic's quest.start, advance, setStep, finish, fail, track */
+  questOp(op: 'start' | 'advance' | 'step' | 'finish' | 'fail' | 'track', ref: string, step?: number) {
+    const d = this.quests.find(ref);
+    if (!d) {
+      this.emit('info', `Quest: ${ref.trim() && ref.trim() !== 'this' ? `no quest called “${ref}”` : 'none tracked'}`);
+      return;
+    }
+    switch (op) {
+      case 'start':
+        if (this.quests.of(d) || !this.askQuest(d, 'canStartQuest', {}, true)) return;
+        if (this.quests.start(d)) this.questMoved(d, 'start');
+        return;
+      case 'advance':
+        return this.questMoved(d, this.quests.advance(d));
+      case 'step':
+        return this.questMoved(d, this.quests.setStep(d, Math.round(step ?? 1) - 1));
+      case 'finish':
+        if (this.quests.finish(d)) this.questMoved(d, 'done');
+        return;
+      case 'fail':
+        if (this.quests.fail(d)) {
+          this.questEvent(d, 'Fail');
+          this.questBanner(`Quest failed: ${d.name}`);
+          this.goalCache = null;
+        }
+        return;
+      case 'track':
+        this.quests.track(d);
+        this.goalCache = null;
+        return;
+    }
+  }
+  /** logic's quest.step, status, isActive, isDone */
+  questRead(what: 'step' | 'status' | 'isActive' | 'isDone', ref: string): number | string | boolean {
+    const d = this.quests.find(ref);
+    const p = d ? this.quests.of(d) : null;
+    switch (what) {
+      case 'step':
+        return p ? Math.min(p.step, d!.steps.length - 1) + 1 : 0;
+      case 'status':
+        return p?.status ?? '';
+      case 'isActive':
+        return p?.status === 'active';
+      case 'isDone':
+        return p?.status === 'done';
+    }
+  }
+  /** the quest log opened or closed (from the pause screen; it holds the game while open) */
+  openQuests(on = !this.questsOpen) {
+    if (on && (this.over || this.cine.active)) return;
+    this.questsOpen = on;
+    if (on) {
+      this.mapOpen = false;
+      for (const sc of this.screens.screens()) if (sc.kind === 'pause') this.screens.hide(sc.id);
+    }
+    this.audio.play(SND.pickup, { volume: 0.4 } as never);
+  }
+  /** a quest tracked from the quest log (null: none) */
+  trackQuest(name: string | null) {
+    this.quests.track(name ? this.quests.find(name) : null);
+    this.goalCache = null;
+  }
+
+  /** a zone by its name (its first tag) or id, on this map */
+  private zoneNamed(name: string) {
+    const k = name.trim().toLowerCase();
+    if (!k) return null;
+    return this.world.doc.zones.find((z) => z.id === name || (z.tags[0] ?? '').toLowerCase() === k) ?? null;
+  }
+  /** where a thing named in a quest or a map mark is: a zone, hero, an object or a character */
+  private placeOf(name: string): [number, number, number] | null {
+    const zn = this.zoneNamed(name);
+    if (zn) return [(zn.min[0] + zn.max[0]) / 2, zn.min[1], (zn.min[2] + zn.max[2]) / 2];
+    const at = this.positionOf(this.apiRef(name));
+    if (at) return at;
+    // a spawn point, by its name
+    const k = name.trim().toLowerCase();
+    const sp = this.world.doc.spawns.find((x) => x.name.toLowerCase() === k);
+    return sp ? [sp.pos[0], sp.pos[1], sp.pos[2]] : null;
+  }
+  /** the hero is at a place: inside a zone of that name, or within a few studs of the thing */
+  private heroAt(name: string): boolean {
+    const h = this.heroState;
+    const zn = this.zoneNamed(name);
+    if (zn)
+      return (
+        h.x >= zn.min[0] &&
+        h.x <= zn.max[0] + 1 &&
+        h.z >= zn.min[2] &&
+        h.z <= zn.max[2] + 1 &&
+        h.y >= zn.min[1] - 1 &&
+        h.y <= zn.max[1] + 2
+      );
+    const p = this.placeOf(name);
+    return !!p && Math.hypot(p[0] - h.x, p[2] - h.z) <= 3.5 && Math.abs(p[1] - h.y) < 4;
+  }
+
+  private questTick = 0;
+  /** a few times a second: each quest's step done by itself (or as its stepDone says), regions first seen */
+  stepQuests(dt: number) {
+    this.questTick += dt;
+    if (this.questTick < 0.25) return;
+    this.questTick = 0;
+    for (const d of this.quests.going()) {
+      const s = this.quests.stepOf(d);
+      const p = this.quests.of(d);
+      if (!s || !p) continue;
+      const k = doOf(s);
+      const at = (s.at ?? '').trim();
+      const need = s.count ?? 1;
+      const have = this.quests.haveOf(d, (item) => this.itemCount(item));
+      const base = k === 'reach' ? this.heroAt(at) : k === 'script' ? false : have >= need;
+      const done = this.askQuest(
+        d,
+        'stepDone',
+        { step: p.step + 1, stepName: s.name, do: k, at, have: Math.max(0, have), count: need },
+        base,
+      );
+      if (done) this.questMoved(d, this.quests.advance(d));
+    }
+    // regions: the first time in a play the hero comes into one
+    const h = this.heroState;
+    for (const zn of this.world.doc.zones) {
+      const name = zn.tags[0];
+      if (!zn.tags.includes('region') || !name || name === 'region') continue;
+      if (this.quests.countOf('region', name) > 0) continue;
+      if (h.x < zn.min[0] || h.x > zn.max[0] + 1 || h.z < zn.min[2] || h.z > zn.max[2] + 1) continue;
+      this.quests.note('region', name);
+      this.logic.fire({ type: 'event.onRegionSeen', match: { region: name }, payload: { region: name } });
+    }
+  }
+
+  private goalCache: { at: number; mark: MapMarker | null; map: string } | null = null;
+  /** where to go next: the tracked quest's goal on this map (worked out a few times a second) */
+  private questGoal(): MapMarker | null {
+    const c = this.goalCache;
+    if (c && c.map === this.world.mapId && Math.abs(this.clock - c.at) < 0.25) return c.mark;
+    let mark: MapMarker | null = null;
+    const d = this.quests.trackedQuest();
+    const s = d ? this.quests.stepOf(d) : null;
+    const p = d ? this.quests.of(d) : null;
+    if (d && s && p) {
+      const name = String(
+        this.askQuest(d, 'goalOf', { step: p.step + 1, stepName: s.name, at: s.at ?? '' }, goalNameOf(s)),
+      ).trim();
+      let pos = name ? this.placeOf(name) : null;
+      // a get with nowhere written: where that item lies on this map (the nearest of its pickups)
+      if (!name && doOf(s) === 'get' && s.at) {
+        const k = s.at.trim().toLowerCase();
+        let best = Infinity;
+        for (const i of this.world.instances) {
+          if (i.def.pickup?.item.toLowerCase() !== k) continue;
+          const q = this.instanceCenter(i);
+          if (!q) continue;
+          const dd = Math.hypot(q[0] - this.heroState.x, q[2] - this.heroState.z);
+          if (dd < best) {
+            best = dd;
+            pos = q;
+          }
+        }
+      }
+      if (pos) mark = { kind: 'goal', x: pos[0], y: pos[1], z: pos[2], label: s.name };
+    }
+    this.goalCache = { at: this.clock, mark, map: this.world.mapId };
+    return mark;
+  }
+
+  private markerHookCache = new Map<string, { show: boolean; label: string | undefined }>();
+  private markerHookAt = -1;
+  /** a behaviour extending GameMap decides which markers show, and with what names */
+  private markersByMapHooks(markers: MapMarker[]): MapMarker[] {
+    const show = this.logic.has('event.onShowMarker');
+    const named = this.logic.has('event.onMarkerLabel');
+    if (!show && !named) return markers;
+    if (Math.abs(this.clock - this.markerHookAt) > 0.5) {
+      this.markerHookCache.clear();
+      this.markerHookAt = this.clock;
+    }
+    const out: MapMarker[] = [];
+    for (const m of markers) {
+      const k = `${m.kind}|${m.label ?? ''}|${m.done ? 1 : 0}`;
+      let r = this.markerHookCache.get(k);
+      if (!r) {
+        const label = m.label ?? '';
+        r = {
+          show: show ? this.askHook('gamemap', 'showMarker', { kind: m.kind, label, done: !!m.done }, true) : true,
+          label: named ? this.askHook('gamemap', 'markerLabel', { kind: m.kind, label }, label) : m.label,
+        };
+        if (this.markerHookCache.size < 400) this.markerHookCache.set(k, r);
+      }
+      if (!r.show) continue;
+      const { label: _was, ...rest } = m;
+      out.push(r.label ? { ...rest, label: r.label } : rest);
+    }
+    return out;
+  }
+
+  /** logic's map nodes: open or close, looks, marks, shown whole */
+  mapOp(op: 'open' | 'close' | 'look' | 'mark' | 'unmark' | 'reveal' | 'hide', a = '', b = '', c = '') {
+    const id = this.world.mapId;
+    switch (op) {
+      case 'open':
+        return this.openMap(true);
+      case 'close':
+        return this.openMap(false);
+      case 'look': {
+        const set = <T extends string>(v: string, all: readonly T[], k: 'pause' | 'mini') => {
+          const t = v.trim().toLowerCase();
+          if (!t) return;
+          if (t === 'default') delete this.lookOverride[k];
+          else if ((all as readonly string[]).includes(t)) (this.lookOverride as Record<string, string>)[k] = t;
+          else this.emit('info', `Set map look: no ${k === 'pause' ? 'pause map' : 'map in play'} “${v}”`);
+        };
+        set(a, PAUSE_TYPES, 'pause');
+        set(b, MINI_TYPES, 'mini');
+        return;
+      }
+      case 'mark': {
+        const pos = this.placeOf(a.trim() || 'hero');
+        if (!pos) return this.emit('info', `Mark the map: nothing called “${a}” here`);
+        const stamp = (STAMPS as readonly string[]).includes(b.trim().toLowerCase())
+          ? (b.trim().toLowerCase() as Stamp)
+          : 'star';
+        const label = c.trim().slice(0, 40);
+        if (label) this.mapTrack.unpinLabel(id, label);
+        this.mapTrack.pin(id, {
+          x: pos[0],
+          z: pos[2],
+          ...(this.world.doc.dungeon ? { y: pos[1] } : {}),
+          stamp,
+          ...(label ? { label } : {}),
+        });
+        return;
+      }
+      case 'unmark':
+        this.mapTrack.unpinLabel(id, a.trim());
+        return;
+      case 'reveal':
+      case 'hide':
+        this.mapTrack.reveal(id, op === 'reveal');
+        return;
+    }
   }
 
   /**
@@ -7390,6 +7773,8 @@ export class PlaySession {
     if (!p || this.talking) return false;
     // Milestone 3b (B3): a behaviour extending Interactable may say it cannot be used now
     if (!this.askHook(p.instance.inst.id, 'canUse', { socket: p.socket }, true)) return true;
+    // Milestone 3b (B7a-2): a quest's use step counts it
+    this.quests.note('use', p.instance.def.name);
     // step 12a: a lock tries the hero's key; a press switch (a lever) is used
     if (this.puzzles.press(p.instance)) {
       this.logic.fire({

@@ -469,7 +469,7 @@ export function WidgetProps({
           {/* P26: shown only while a value is on (Continue only when there is a save) */}
           <label
             class="row small"
-            title="Shown only while this value is on: a variable, or save.any (a save exists), save.canSave (Pause may save). Empty: always shown."
+            title="Shown only while this value is on: a variable, or save.any (a save exists), save.canSave (Pause may save), quests.any (a quest has begun). Empty: always shown."
           >
             Shown when
             <select
@@ -481,7 +481,8 @@ export function WidgetProps({
               <option value="">always</option>
               <option value="save.any">there is a save (save.any)</option>
               <option value="save.canSave">Pause may save (save.canSave)</option>
-              {w.showIf && !['save.any', 'save.canSave'].includes(w.showIf) && (
+              <option value="quests.any">a quest has begun (quests.any)</option>
+              {w.showIf && !['save.any', 'save.canSave', 'quests.any'].includes(w.showIf) && (
                 <option value={w.showIf}>{w.showIf}</option>
               )}
             </select>
