@@ -14,6 +14,7 @@ import { hash64 } from '../../hash';
 import { type Id, newId } from '../../ids';
 import { Magic } from '../../items/magic';
 import { Ambient, DayLength, Fog } from '../../lighting/atmosphere';
+import { MapLookOverride, MapLooks } from '../../maps/look';
 import type { ProjectStore } from '../../project/store';
 import { QUALITY_CHOICES, type QualityChoice } from '../../render/quality';
 import { type Saving, Saving as SavingSchema } from '../../save/save';
@@ -128,6 +129,26 @@ export const setDungeon: CommandHandler<SetDungeon> = {
   apply(store, p) {
     const { dungeon: _d, ...rest } = getMap(store, p.map);
     store.put(paths.map(p.map), { ...rest, ...(p.dungeon ? { dungeon: true } : {}) });
+  },
+};
+
+/** Milestone 3b (B7a-1): a map's own pause map and map in play (null: the game's) */
+export type SetMapLook = { map: string; look: MapLookOverride | null };
+export const setMapLook: CommandHandler<SetMapLook> = {
+  label: () => 'Map look',
+  validate: (store, p) => {
+    const miss = mapMissing(store, p.map);
+    if (miss) return miss;
+    if (p.look === null) return null;
+    const r = MapLookOverride.safeParse(p.look);
+    return r.success
+      ? null
+      : `Map look: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
+  },
+  apply(store, p) {
+    const { mapLook: _l, ...rest } = getMap(store, p.map);
+    const has = p.look && (p.look.pause || p.look.mini);
+    store.put(paths.map(p.map), { ...rest, ...(has ? { mapLook: p.look } : {}) });
   },
 };
 
@@ -345,6 +366,7 @@ export type UpdateProject = {
   swimming?: Swimming;
   /** step 13c: the game's magic */
   magic?: Magic;
+  maps?: MapLooks;
   /** step 11b part 1: the game's buttons (null: back to the defaults) */
   controls?: Controls | null;
   /** step 11, 4b: how the game's screens and menus look */
@@ -422,6 +444,10 @@ export const updateProject: CommandHandler<UpdateProject> = {
       return 'Swimming: can (true or false) and breath (3 to 300 seconds).';
     if (p.magic !== undefined && !Magic.safeParse(p.magic).success)
       return 'Magic: can (true or false) and max (4 to 200).';
+    if (p.maps !== undefined) {
+      const r = MapLooks.safeParse(p.maps);
+      if (!r.success) return `Maps: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
+    }
     if (p.controls) {
       const r = Controls.safeParse(p.controls);
       if (!r.success)
@@ -458,6 +484,11 @@ export const updateProject: CommandHandler<UpdateProject> = {
     if (p.magic !== undefined) {
       const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
       store.put(paths.settings, { ...settings, magic: p.magic });
+    }
+    // Milestone 3b (B7a-1): how the maps look
+    if (p.maps !== undefined) {
+      const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
+      store.put(paths.settings, { ...settings, maps: p.maps });
     }
     if (p.controls !== undefined) {
       const { controls: _old, ...settings } = store.get<Settings>(paths.settings) ?? { quality: 'auto' as const };

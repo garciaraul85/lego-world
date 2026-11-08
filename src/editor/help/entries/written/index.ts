@@ -10,6 +10,7 @@ import { HOOKS } from './hooks';
 import { ICE_MOVE } from './icemove';
 import { LENS } from './lens';
 import { LIGHTS } from './lights';
+import { MAPS } from './maps';
 import { PHYSICS } from './physics';
 import { PUZZLES } from './puzzles';
 import { SCENE } from './scene';
@@ -38,6 +39,7 @@ export const WRITTEN: HelpEntry[] = [
   ...FIRE_LIGHT,
   ...ICE_MOVE,
   ...WIND,
+  ...MAPS,
   ...SHOTS,
   ...HOOKS,
   ...LENS,

@@ -356,6 +356,7 @@ function ActionArgs({
           <option value="loadMenu">Open the save slots (load)</option>
           <option value="finish">Finish the game</option>
           <option value="newGamePlus">New game plus</option>
+          <option value="map">Open the map</option>
           <option value="settingsMenu">Open Settings</option>
           <option value="achievementsMenu">Open Achievements</option>
         </select>

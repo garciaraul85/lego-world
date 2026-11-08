@@ -4,6 +4,7 @@ import { DialogueLook } from '../dialogue/schema';
 import { EffectHooks } from '../effects/schema';
 import { ScreenHooks } from '../effects/screen';
 import { Magic } from '../items/magic';
+import { MapLooks } from '../maps/look';
 import { Saving } from '../save/save';
 import { Swimming } from '../water/swim';
 import { IsoDate, id } from './common';
@@ -54,6 +55,8 @@ export const Settings = z.strictObject({
   magic: Magic.optional(),
   /** step 11b part 1: the game's buttons: its layout, item buttons, where jumping is, its keys and gamepad buttons */
   controls: Controls.optional(),
+  /** Milestone 3b (B7a-1): how the pause map and the map in play look (types, colours, frame, markers) */
+  maps: MapLooks.optional(),
   /** legacy activeCharacterId etc. that has no v5 home yet */
   legacy: z.record(z.string(), z.unknown()).optional(),
 });

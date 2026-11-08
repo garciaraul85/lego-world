@@ -90,6 +90,31 @@ Walk into **vines** or a **ladder** and keep walking to climb it: forward climbs
 
 **Throwing**: face a Rock or a Clay pot and press Action to lift it; walking, Action throws it (it flies in an arc and rolls to rest), standing, puts it down. What it strikes is hit (a crystal switch turns); a rock lying on a floor switch holds it down; a pot breaks where it lands.
 
+## Maps
+
+Press **M** (or **Map** on the pause screen) for the **pause map**; M or Esc closes it, and the game holds while it is open. The **map in play** is the HUD's minimap. Both fill in where the hero has been.
+
+They show the markers the game turns on in Project › Maps:
+
+- chests (opened ones greyed) and small keys and the boss key;
+- the boss (crossed out once beaten) and locked doors;
+- ways out: zones that travel to another map;
+- region names: zones with **Show its name on the maps** ticked;
+- people and foes;
+- the player's pins, and where to go next.
+
+In a **dungeon** the pause map is a room plan of the floor the hero is on. The other floors are down the side, and the small keys, boss key, map and compass found there are listed under it. The **Dungeon map** shows the whole dungeon; the **Compass** shows its chests, keys and boss.
+
+**Pins:** pick a stamp under the map (star, heart, flag, cross, skull, chest, eye, leaf), type a note if you like, and click the map. Right-click, or Shift-click, takes one up. Pins are kept in saves.
+
+**How they look** is set in the Inspector's **Project** tab, under **Maps**. Each type is after a Zelda game:
+
+- **Pause map:** Grid of screens, Parchment, Sea chart, Contour, or Room plan.
+- **Pause map in dungeons:** a room plan by default.
+- **Map in play:** Square, Round with compass (it can turn with the camera), Grid of screens, or None.
+
+Each type has its own colours, frame, icons (round, pixel, stamp) and fog (dark, paper, cloud, none), and you can change any of them, and which markers show. A map can choose its own in its **Map** tab, under **Maps**. The **Maps course** walks through it.
+
 ## Rebuilding
 
 Smashed bricks are real physical pieces: they fly off, tumble, bounce off the bricks around them, stack and come to rest, and the hero pushes them aside when walking through. In water they float and drift with its current, as loose objects do (see Scene › Water and loose things).

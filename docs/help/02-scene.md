@@ -100,7 +100,7 @@ Drag a neighbour or an enemy onto the map, or press **Place** (it stands in fron
 
 ## Dungeons
 
-Tick **This map is a dungeon** in the Map tab (Dungeon) and the map keeps its own small keys, boss key, map and compass: keys found here open only this map's locked doors. In Play its minimap shows only where the hero has been until the **Dungeon map** is picked up here, and the **Compass** marks the chests not yet opened (yellow) and the boss (red). The HUD shows the small keys (🗝) while the hero is in a dungeon. The line under the box counts the locks, keys, switches and blocks on the map and warns when there are more locks than keys.
+Tick **This map is a dungeon** in the Map tab (Dungeon) and the map keeps its own small keys, boss key, map and compass: keys found here open only this map's locked doors. In Play its maps show only where the hero has been until the **Dungeon map** is picked up here, and the **Compass** shows its chests, keys and boss; its pause map is a room plan, floor by floor (see Play › Maps). The HUD shows the small keys (🗝) while the hero is in a dungeon. The line under the box counts the locks, keys, switches and blocks on the map and warns when there are more locks than keys.
 
 ## Sky, weather and lighting
 

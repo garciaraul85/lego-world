@@ -47,6 +47,17 @@
           },
           {
             "type": "button",
+            "id": "map",
+            "label": "Map",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "map"
+              }
+            ]
+          },
+          {
+            "type": "button",
             "id": "items",
             "label": "Items",
             "onPress": [

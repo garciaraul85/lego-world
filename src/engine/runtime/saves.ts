@@ -60,6 +60,8 @@ export interface SaveHost {
   moveInstance?(o: SaveWorld['instances'][number], pos: [number, number, number]): void;
   /** step 12a: each dungeon's keys, map and compass */
   readonly puzzles?: { capture(): NonNullable<SaveGame['dungeons']>; restore(d: SaveGame['dungeons']): void };
+  /** Milestone 3b (B7a-1): what the maps remember (where the hero has been, pins, bosses beaten) */
+  readonly mapTrack?: { capture(): NonNullable<SaveGame['mapNotes']>; restore(d: SaveGame['mapNotes']): void };
 }
 
 const near = (a: number, b: number) => Math.abs(a - b) < 0.01;
@@ -107,7 +109,11 @@ export function captureMap(w: SaveWorld): MapSave {
 
 const dungeonsOf = (h: SaveHost) => {
   const d = h.puzzles?.capture();
-  return d && Object.keys(d).length ? { dungeons: d } : {};
+  const m = h.mapTrack?.capture();
+  return {
+    ...(d && Object.keys(d).length ? { dungeons: d } : {}),
+    ...(m && Object.keys(m).length ? { mapNotes: m } : {}),
+  };
 };
 
 /** The whole game as it stands now, ready to keep in a slot. */
@@ -282,6 +288,7 @@ export function applySave(h: SaveHost, save: SaveGame): LoadResult {
   h.inventory.clear();
   for (const [k, v] of Object.entries(save.inventory)) h.inventory.set(k, v);
   h.puzzles?.restore(save.dungeons);
+  h.mapTrack?.restore(save.mapNotes);
   h.logic.vars.clear();
   for (const [k, v] of Object.entries(save.vars)) h.logic.vars.set(k, v);
   h.health.clear();

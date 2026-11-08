@@ -61,6 +61,7 @@ import { attachmentsOf, startValues } from '../../core/logic/behaviours';
 import { enemyOfCharacter } from '../../core/logic/boss';
 import { itemClassOf, itemsOfBehaviour } from '../../core/logic/builtins';
 import type { ExecCtx } from '../../core/logic/catalog';
+import { type MapLooks, miniLookOf, pauseLookOf } from '../../core/maps/look';
 import { maxOf } from '../../core/num';
 import { switchHitBy } from '../../core/puzzles/puzzle';
 import {
@@ -146,6 +147,8 @@ import {
 import { type Atmosphere, atmosphere } from '../lighting/atmosphere';
 import { findLight, gatherLights, type LightSource, pointLights } from '../lighting/lights';
 import { LogicRuntime } from '../logic/interpreter';
+import { type MapMarker, type MapModel, mapModel, type Stamp, type Top } from '../maps/model';
+import { MapTracker } from '../maps/tracker';
 import { type MediaSource, modelMatrix, prepareModel, readyModel } from '../model/prepare';
 import { HERO_GRAVITY, HERO_HEIGHT, HERO_RADIUS, walkHero } from '../physics/hero';
 import { dragAccel, ICE_FRICTION, ICE_GRIP, PhysicsWorld, physicsReady, WATER_DENSITY } from '../physics/physics';
@@ -646,6 +649,10 @@ export class PlaySession {
   readonly combat: Combat = new Combat(this);
   /** step 12a: push blocks, switches, locks, pickups and each dungeon's keys, map and compass */
   readonly puzzles: Puzzles<PlayInstance> = this.makePuzzles();
+  /** Milestone 3b (B7a-1): what the maps remember: where the hero has been, pins, bosses beaten */
+  readonly mapTrack = new MapTracker();
+  /** Milestone 3b (B7a-1): the pause map is open (it holds the game) */
+  mapOpen = false;
   /** step 12b: things burning, bombs fizzing, beams of light */
   readonly fireLight: FireLight<PlayInstance> = this.makeFireLight();
   /** step 12c: moving platforms (and lifts), and what the hero rides */
@@ -2401,6 +2408,14 @@ export class PlaySession {
       { id: 'gates', fixed: (g) => g.stepGates() },
       { id: 'interact', fixed: (g) => g.stepInteract() },
       { id: 'puzzles', fixed: (g, dt) => g.puzzles.step(dt) },
+      // Milestone 3b (B7a-1): the maps fill in where the hero goes
+      {
+        id: 'maps',
+        fixed: (g) => {
+          const h = g.heroState;
+          g.mapTrack.visit(g.world.mapId, h.x, h.y, h.z, !!g.world.doc.dungeon);
+        },
+      },
       {
         id: 'fire',
         fixed: (g, dt) => {
@@ -3565,6 +3580,8 @@ export class PlaySession {
     }
     // at zero the neighbour leaves this play (puff of bricks where it stood); P27 part 3d: some come back
     this.world.npcs = this.world.npcs.filter((n) => n !== npc);
+    // Milestone 3b (B7a-1): a boss beaten: its mark on the maps is crossed out
+    if (boss) this.mapTrack.beat(this.world.mapId, String(npc.profile.name ?? 'Boss'), pos[0], pos[1], pos[2]);
     if (def.atZero.respawn !== undefined) this.world.defeated.push({ npc, at: this.clock, after: def.atZero.respawn });
     if (this.talking === npc) this.talking = null;
     if (def.atZero.drop) this.drop(def.atZero.drop, { at: pos });
@@ -5190,7 +5207,7 @@ export class PlaySession {
   /** true while a screen (title, pause, game over) holds the game */
   get screenPaused(): boolean {
     // P27 part 3c: the game holds while a map loads
-    return this.screens.pausesGame || !!this.loading;
+    return this.screens.pausesGame || !!this.loading || this.mapOpen;
   }
 
   private screensChanged() {
@@ -5273,6 +5290,9 @@ export class PlaySession {
       case 'newGamePlus':
         this.newGamePlus();
         this.startGame();
+        break;
+      case 'map':
+        this.openMap(true);
         break;
       case 'pause': {
         const p = screenOfKind(this.snapshot, 'pause');
@@ -5424,6 +5444,8 @@ export class PlaySession {
     this.inventory.clear();
     this.usedAt.clear();
     this.puzzles.restore(undefined);
+    this.mapTrack.reset();
+    this.mapOpen = false;
     this.fireLight.reset();
     this.platforms.reset();
     this.wind.reset();
@@ -5608,6 +5630,8 @@ export class PlaySession {
       this.cine.skip();
       return;
     }
+    // Milestone 3b (B7a-1): Esc closes the pause map
+    if (this.mapOpen) return this.openMap(false);
     // P22: Esc ends a conversation
     if (this.talks.active) return this.endTalk();
     const top = this.screens.top();
@@ -6418,6 +6442,117 @@ export class PlaySession {
       const dz = Math.max(b.z0 - z, 0, z - b.z1);
       if (Math.hypot(dx, dz) <= r) this.puzzles.hit(i, 'fire', true);
     }
+  }
+
+  // ---------- Milestone 3b (B7a-1): the maps ----------
+
+  /** the pause map opened or closed (it holds the game while open) */
+  openMap(on = !this.mapOpen) {
+    if (on && (this.over || this.cine.active)) return;
+    this.mapOpen = on;
+    if (on) for (const sc of this.screens.screens()) if (sc.kind === 'pause') this.screens.hide(sc.id);
+    this.audio.play(SND.pickup, { volume: 0.4 } as never);
+    this.emit('info', on ? 'Map opened' : 'Map closed');
+  }
+
+  /** the game's and this map's looks for the pause map and the map in play */
+  mapLooks() {
+    const game = (this.snapshot.get(paths.settings) as { maps?: MapLooks } | undefined)?.maps;
+    const own = this.world.doc.mapLook;
+    const dungeon = !!this.world.doc.dungeon;
+    return { pause: pauseLookOf(game, own, dungeon), mini: miniLookOf(game, own) };
+  }
+
+  /**
+   * what the maps show of the map the hero is on: its land, where the hero has been, and its markers — chests
+   * (opened or not), keys on the ground, the boss (beaten: crossed out), locked doors, ways out, region names,
+   * people, the player's pins and where to go next
+   */
+  mapModel(): MapModel {
+    const w = this.world;
+    const id = w.mapId;
+    const dungeon = !!w.doc.dungeon;
+    const rec = this.puzzles.dungeons.get(id);
+    const revealed = this.mapTrack.revealed(id);
+    let seen: Set<string> | null = new Set(this.mapTrack.seen(id));
+    if (revealed) seen = null;
+    // (a dungeon remembered from before maps kept their own notes)
+    else if (rec) for (const k of rec.seen) seen.add(k);
+    const markers: MapMarker[] = [];
+    for (const i of w.instances) {
+      const b = boxOf(i.bricks);
+      if (!b) continue;
+      const at = { x: (b.x0 + b.x1) / 2, z: (b.z0 + b.z1) / 2, y: b.y0 * 0.4 };
+      if (/chest/i.test(i.def.name) && i.def.states.length >= 2)
+        markers.push({ kind: 'chest', ...at, done: i.state !== i.def.states[0], label: i.def.name });
+      else if (i.def.pickup && /^(small key|boss key)$/i.test(i.def.pickup.item))
+        markers.push({ kind: /boss/i.test(i.def.pickup.item) ? 'boss-key' : 'key', ...at, label: i.def.pickup.item });
+      else if (i.def.lock && i.def.lock.key !== 'item')
+        markers.push({
+          kind: i.def.lock.key === 'boss' ? 'boss-door' : 'door',
+          ...at,
+          done: this.puzzles.isOn(i),
+          label: i.def.name,
+        });
+    }
+    for (const n of w.npcs) {
+      const at = { x: n.state.x, z: n.state.z, y: n.state.y };
+      if (this.bossOf(n)) markers.push({ kind: 'boss', ...at, label: String(n.profile.name ?? 'Boss') });
+      else markers.push({ kind: this.enemyOf(n) ? 'foe' : 'person', ...at, label: String(n.profile.name ?? '') });
+    }
+    for (const b of this.mapTrack.beaten(id))
+      markers.push({ kind: 'boss', x: b.x, z: b.z, y: b.y, done: true, label: b.name });
+    for (const zn of w.doc.zones) {
+      const mid = { x: (zn.min[0] + zn.max[0]) / 2, z: (zn.min[2] + zn.max[2]) / 2, y: zn.min[1] };
+      // a region: a zone marked to show its name on the maps
+      if (zn.tags.includes('region') && zn.tags[0] && zn.tags[0] !== 'region')
+        markers.push({ kind: 'name', ...mid, label: zn.tags[0] });
+      // a way out: a zone that takes the hero to another map
+      const out = (zn.onEnter ?? []).find((a) => a.do === 'travel') as { map?: string } | undefined;
+      if (out) {
+        const to = this.snapshot.get(paths.map(String(out.map))) as { name?: string } | undefined;
+        markers.push({ kind: 'exit', ...mid, label: to?.name ?? 'Way out' });
+      }
+    }
+    for (const p of this.mapTrack.pins(id))
+      markers.push({ kind: 'pin', x: p.x, z: p.z, y: p.y, stamp: p.stamp, label: p.label });
+    const h = this.heroState;
+    // the land stays worked out while the bricks are the same
+    const tkey = `${id}:${w.pieces.length}:${w.brokenSerial}:${w.windowAt ?? ''}`;
+    if (this.mapTops.key !== tkey) this.mapTops = { key: tkey, tops: new Map() };
+    return mapModel(
+      {
+        mapId: id,
+        name: String(w.doc.name ?? 'Map'),
+        pieces: w.big ? w.controller.pieces : w.pieces,
+        dungeon,
+        seen,
+        hasMap: !!rec?.map,
+        hasCompass: !!rec?.compass,
+        markers,
+        hero: { x: h.x, y: h.y, z: h.z, heading: h.heading },
+      },
+      this.mapTops.tops,
+    );
+  }
+  private mapTops: { key: string; tops: Map<string, Top> } = { key: '', tops: new Map() };
+
+  /** a pin put down on the pause map (a stamp, maybe a note); false: the map holds no more */
+  pinMap(x: number, z: number, stamp: Stamp, label?: string): boolean {
+    const y = this.world.doc.dungeon ? this.heroState.y : undefined;
+    const ok = this.mapTrack.pin(this.world.mapId, {
+      x,
+      z,
+      ...(y !== undefined ? { y } : {}),
+      stamp,
+      ...(label ? { label } : {}),
+    });
+    if (!ok) this.say('The map holds no more pins.', 1.5);
+    return ok;
+  }
+  /** the pin nearest a spot taken up */
+  unpinMap(x: number, z: number, r = 4) {
+    return this.mapTrack.unpin(this.world.mapId, x, z, r);
   }
 
   /**

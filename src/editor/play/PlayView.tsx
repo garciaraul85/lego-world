@@ -174,6 +174,14 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
         e.preventDefault();
         return;
       }
+      // Milestone 3b (B7a-1): M opens and closes the pause map (unless the game's keys use M)
+      if (k === 'm' && !e.repeat && !buttonForKey(s.buttons.c, k, s.buttons.playerKeys) && !s.talks.active) {
+        if (s.mapOpen || !s.screenPaused) {
+          e.preventDefault();
+          s.openMap();
+          return;
+        }
+      }
       // while a menu screen is up the keyboard drives its buttons (Tab, arrows, Enter)
       if (s.screenPaused) return;
       // P22: in a conversation: Enter, Space, E or T move on; arrows (or W/S) pick; 1–6 choose

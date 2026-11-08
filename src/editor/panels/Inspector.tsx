@@ -32,6 +32,7 @@ import { ControlsSection } from './ControlsSection';
 import { DialogueSection } from './DialogueSection';
 import { DungeonSection } from './DungeonSection';
 import { DarknessSection } from './LightFields';
+import { MapLookSection, MapsSection } from './MapsSection';
 import { MoodSection } from './MoodSection';
 import { ProgressSection } from './ProgressSection';
 import { SavingSection } from './SavingSection';
@@ -613,6 +614,7 @@ function MapTab({ c }: { c: ActionCtx }) {
       </div>
       <DarknessSection c={c} m={m} />
       <DungeonSection c={c} m={m} />
+      <MapLookSection c={c} m={m} />
       <AtmosphereSection c={c} m={m} />
       <BigWorldSection c={c} m={m} />
       <MoodSection c={c} m={m} />
@@ -931,6 +933,7 @@ function ProjectTab({ c }: { c: ActionCtx }) {
       <SavingSection c={c} />
       <ProgressSection c={c} />
       <DialogueSection c={c} />
+      <MapsSection c={c} />
       <div class="sec">
         <div class="sech">
           <span>Limits</span>
@@ -1024,6 +1027,21 @@ function ZoneInspector({ c, id }: { c: ActionCtx; id: string }) {
             />
           ))}
         </div>
+      </div>
+      <div class="sec">
+        <label class="check">
+          <input
+            type="checkbox"
+            aria-label="Show its name on the maps"
+            checked={z.tags.includes('region')}
+            onChange={(e) => {
+              const on = (e.target as HTMLInputElement).checked;
+              const rest = z.tags.filter((t, i) => i === 0 || t !== 'region');
+              patch({ tags: on ? [...rest, 'region'] : rest });
+            }}
+          />
+          Show its name on the maps (a region)
+        </label>
       </div>
       <ZoneAudio c={c} map={map} zone={z} />
       <div class="sec">

@@ -26,6 +26,7 @@ import { Effect, EffectHooks } from '../effects/schema';
 import { Mood, ScreenEffect, ScreenHooks } from '../effects/screen';
 import type { idPattern } from '../ids';
 import { Ambient, Fog } from '../lighting/atmosphere';
+import { MapLookOverride, MapLooks } from '../maps/look';
 import { QUALITY_CHOICES } from '../render/quality';
 import { ProgressDoc } from '../save/progress';
 import { Saving } from '../save/save';
@@ -213,6 +214,15 @@ export const AI_COMMANDS: AiCommand[] = [
     'Scene',
     'Makes a map a dungeon (or not): in play its minimap shows only where the hero has been until the Dungeon map is picked up there, the Compass marks its unopened chests and its boss, and small keys, the boss key, the map and the compass found there belong to it (they open only its own doors).',
     { map: M1, dungeon: true },
+  ),
+  def(
+    'map.setLook',
+    M.setMapLook,
+    z.strictObject({ map, look: MapLookOverride.nullable() }),
+    ['map'],
+    'Scene',
+    'A map’s own pause map and map in play ({pause?: {type, …as project.update maps.pause}, mini?: {type, …}}), over the game’s; null: the game’s.',
+    { map: M1, look: { pause: { type: 'chart' } } },
   ),
   def(
     'map.addSpawn',
@@ -593,10 +603,11 @@ export const AI_COMMANDS: AiCommand[] = [
       quality: z.enum(QUALITY_CHOICES).optional(),
       movement: z.enum(['classic', 'physics']).optional(),
       uiLook: z.enum(['classic', 'adventure']).optional(),
+      maps: MapLooks.optional(),
     }),
     ['map', 'character', 'screen'],
     'Scene',
-    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}), effects ({hits: {slash: fx_…}, events: {levelUp: fx_…}}; "none" plays nothing), screenEffects ({events: {hurt | bigHit | levelUp | defeat | death | land | smash: sce_… or "none"}, lowHealth: true/false}), quality (graphics the game starts at: auto | low | medium | high; players can change it in Settings), movement (how the hero moves: classic, v68’s original walking, or physics: slides along walls, pushes loose things and rides them), uiLook (how screens and menus look: classic, or adventure: parchment panels, gold-framed buttons, a storybook font, framed hearts).',
+    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}), effects ({hits: {slash: fx_…}, events: {levelUp: fx_…}}; "none" plays nothing), screenEffects ({events: {hurt | bigHit | levelUp | defeat | death | land | smash: sce_… or "none"}, lowHealth: true/false}), quality (graphics the game starts at: auto | low | medium | high; players can change it in Settings), movement (how the hero moves: classic, v68’s original walking, or physics: slides along walls, pushes loose things and rides them), uiLook (how screens and menus look: classic, or adventure: parchment panels, gold-framed buttons, a storybook font, framed hearts), maps (how the maps look: {pause: {type: screens | parchment | chart | contour | floors, colors?: {back, water, wall, fog, ink, accent}, frame?: none | thin | wood | stone | gold | slate, icons?: round | pixel | stamp, fog?: dark | paper | cloud | none, grid?, markers?: {chests, keys, boss, doors, exits, names, people, pins, goal: true/false}}, dungeon: the same for dungeons (default floors), mini: {type: square | round | screens | off, size? 90–320 px, span? studs across, turns?, and the rest as pause}}).',
     { name: 'Coin Quest', hero: 'chr_hhhhhhhhhh' },
   ),
   def(

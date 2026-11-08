@@ -1,8 +1,8 @@
 import type { Signal } from '@preact/signals';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
-import { LEGACY_COLORS } from '../../core/legacy/constants';
 import { mediaCredits } from '../../core/media/uses';
 import { type MediaIndex, paths } from '../../core/schema';
+import { drawMini } from '../../engine/maps/draw';
 import type { PlayRenderer } from '../../engine/runtime/play-renderer';
 import type { PlaySession } from '../../engine/runtime/session';
 import { artUrl, fontCss } from '../../engine/ui/art';
@@ -13,6 +13,7 @@ import { type ScreenHost, ScreenLayer } from '../../engine/ui/ScreenRenderer';
 import { projectPoint, WorldUI } from '../../engine/ui/WorldUI';
 import { MapThumb } from '../components/previews';
 import type { EditorState } from '../state';
+import { MapScreen } from './MapScreen';
 
 /**
  * The game's screens (HUD, title, pause, dialogue, game over…) and world UI over the Play view
@@ -132,99 +133,27 @@ export function GameScreens({
         />
       )}
       {s.loading && <LoadingScreen ed={ed} s={s} />}
+      {s.mapOpen && <MapScreen s={s} tick={t} />}
     </>
   );
 }
 
-/** Top-down map of the current world: bricks cached per world/damage, hero and neighbours live. */
+/**
+ * Milestone 3b (B7a-1): the map in play (the HUD's Minimap widget): drawn in the game's look for it (Project ›
+ * Maps: square, round with a compass ring, grid of screens, or none)
+ */
 function minimapDrawer(s: PlaySession) {
-  let cache: { key: string; img: HTMLCanvasElement; x0: number; z0: number; k: number } | null = null;
   return (canvas: HTMLCanvasElement) => {
-    const w = s.world;
-    // P27 part 3: a big map's minimap shows the window around the hero
-    const src = w.big ? w.controller.pieces : w.pieces;
-    const key = `${w.mapId}:${w.pieces.length}:${w.brokenSerial}:${w.windowAt ?? ''}`;
-    const W = canvas.width;
-    if (!cache || cache.key !== key) {
-      let x0 = Infinity;
-      let x1 = -Infinity;
-      let z0 = Infinity;
-      let z1 = -Infinity;
-      for (const p of src) {
-        x0 = Math.min(x0, p.x);
-        x1 = Math.max(x1, p.x + 2);
-        z0 = Math.min(z0, p.z);
-        z1 = Math.max(z1, p.z + 2);
-      }
-      if (!Number.isFinite(x0)) [x0, x1, z0, z1] = [-16, 16, -16, 16];
-      const k = W / Math.max(8, x1 - x0, z1 - z0);
-      const img = document.createElement('canvas');
-      img.width = W;
-      img.height = W;
-      const g = img.getContext('2d');
-      if (g) {
-        g.fillStyle = '#0b1020';
-        g.fillRect(0, 0, W, W);
-        const top = new Map<string, { y: number; c: number }>();
-        for (const p of src) {
-          const kk = `${Math.floor(p.x)},${Math.floor(p.z)}`;
-          const cur = top.get(kk);
-          if (!cur || p.y >= cur.y) top.set(kk, { y: p.y, c: p.color });
-        }
-        for (const [kk, v] of top) {
-          const [x, z] = kk.split(',').map(Number) as [number, number];
-          g.fillStyle = LEGACY_COLORS[v.c]?.[1] ?? '#888';
-          g.fillRect((x - x0) * k, (z - z0) * k, Math.max(1, k * 2), Math.max(1, k * 2));
-        }
-      }
-      cache = { key, img, x0, z0, k };
+    const { mini } = s.mapLooks();
+    const size = mini.size;
+    if (canvas.width !== size) {
+      canvas.width = size;
+      canvas.height = size;
     }
+    canvas.style.display = mini.type === 'off' ? 'none' : '';
     const g = canvas.getContext('2d');
-    if (!g) return;
-    // step 12a: a dungeon shows only where the hero has been until its map is found
-    const view = s.minimapView();
-    if (view.seen) {
-      g.fillStyle = '#05070d';
-      g.fillRect(0, 0, W, W);
-      const c = view.cell * cache.k;
-      for (const key of view.seen) {
-        const [cx, cz] = key.split(',').map(Number) as [number, number];
-        const sx = (cx * view.cell - cache.x0) * cache.k;
-        const sz = (cz * view.cell - cache.z0) * cache.k;
-        if (sx + c < 0 || sz + c < 0 || sx > W || sz > W) continue;
-        g.drawImage(cache.img, sx, sz, c, c, sx, sz, c, c);
-      }
-    } else g.drawImage(cache.img, 0, 0);
-    g.fillStyle = '#ffffff';
-    for (const n of w.npcs) {
-      if (view.seen && !view.seen.has(`${Math.floor(n.state.x / view.cell)},${Math.floor(n.state.z / view.cell)}`))
-        continue;
-      g.fillRect((n.state.x - cache.x0) * cache.k - 1.5, (n.state.z - cache.z0) * cache.k - 1.5, 3, 3);
-    }
-    // the compass: chests not yet opened, and the boss
-    for (const m of view.marks) {
-      const mx = (m.x - cache.x0) * cache.k;
-      const mz = (m.z - cache.z0) * cache.k;
-      g.fillStyle = m.kind === 'boss' ? '#ff3b3b' : '#f7c900';
-      g.strokeStyle = '#000000';
-      g.beginPath();
-      if (m.kind === 'boss') g.arc(mx, mz, 5, 0, Math.PI * 2);
-      else g.rect(mx - 4, mz - 3, 8, 6);
-      g.fill();
-      g.stroke();
-    }
-    const h = s.heroState;
-    const hx = (h.x - cache.x0) * cache.k;
-    const hz = (h.z - cache.z0) * cache.k;
-    g.fillStyle = '#f7c900';
-    g.beginPath();
-    g.arc(hx, hz, 4, 0, Math.PI * 2);
-    g.fill();
-    g.strokeStyle = '#f7c900';
-    g.beginPath();
-    g.moveTo(hx, hz);
-    g.lineTo(hx + Math.sin(h.heading) * 9, hz + Math.cos(h.heading) * 9);
-    g.stroke();
+    if (!g || mini.type === 'off') return;
+    drawMini(g, size, s.mapModel(), mini, s.camYaw, s.clock);
   };
 }
 
@@ -236,6 +165,7 @@ export const LOADING_TIPS = [
   'Shift runs. Space jumps.',
   'Talk to people with T: they may have something for you.',
   'The minimap shows the area around you.',
+  'M opens the map: put down pins and stamps where you want to go back to.',
 ];
 
 /** P27 part 3c: the built-in loading screen: where you are going, a tip, its picture and real progress */

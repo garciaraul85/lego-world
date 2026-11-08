@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MapNotes } from '../maps/notes';
 
 /**
  * P26: saving. A save is the player's progress in one game: where the hero is, what they carry, the game's
@@ -107,6 +108,8 @@ export const SaveGame = z.strictObject({
       }),
     )
     .optional(),
+  /** Milestone 3b (B7a-1): each map's notes: where the hero has been, pins, bosses beaten, revealed */
+  mapNotes: z.record(z.string(), MapNotes).optional(),
 });
 export type SaveGame = z.infer<typeof SaveGame>;
 

@@ -40,6 +40,7 @@ import {
   type Mixer,
   paths,
   type Screen,
+  type Settings,
   type Variables,
   type Widget,
 } from '../../core/schema';
@@ -2983,6 +2984,41 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   ...CODING_DOERS,
   ...STORY_DOERS,
+  // Milestone 3b (B7a-1): the Maps course
+  setMapLook(c, a) {
+    // what picking in Project › Maps does
+    const which = String(a?.which ?? 'pause') as 'pause' | 'dungeon' | 'mini';
+    const cur = c.ed.store.get<Settings>(paths.settings)?.maps ?? {};
+    const base = cur[which] ?? { type: which === 'mini' ? 'square' : which === 'dungeon' ? 'floors' : 'parchment' };
+    c.ed.right.value = 'project';
+    run(
+      c,
+      [{ type: 'project.update', payload: { maps: { ...cur, [which]: { ...base, ...(a?.patch as object) } } } }],
+      'Maps',
+    );
+  },
+  async openPlayMap(c) {
+    // a walk, then M
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    s.input.keys.add('w');
+    await wait(1500);
+    s.input.keys.delete('w');
+    s.openMap(true);
+  },
+  pinOnMap(c, a) {
+    // what picking a stamp and clicking the map does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    if (!s.mapOpen) s.openMap(true);
+    const h = s.heroState;
+    s.pinMap(
+      h.x + Number(a?.dx ?? 8),
+      h.z + Number(a?.dz ?? -6),
+      (a?.stamp ?? 'heart') as never,
+      String(a?.note ?? '') || undefined,
+    );
+  },
   async walkHero(c) {
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');

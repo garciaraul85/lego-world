@@ -38,6 +38,8 @@ export const Action = z.discriminatedUnion('do', [
       'newGamePlus',
       'settingsMenu',
       'achievementsMenu',
+      // Milestone 3b (B7a-1): the pause map
+      'map',
     ]),
   }),
   /** P26: save the game (to a slot; none: the slot in use) — a save point's “Save” runs this */

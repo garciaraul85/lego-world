@@ -88,6 +88,9 @@ test('Play from the first screen: splash → title → Play → HUD; Esc pauses,
   await slow(pause).toBeVisible();
   await slow(pause.getByRole('button', { name: 'Resume' })).toBeFocused();
   // step 11b: Items comes next (the item menu, to put items in the item buttons)
+  // (Milestone 3b, B7a-1: the pause map)
+  await page.keyboard.press('ArrowDown');
+  await slow(pause.getByRole('button', { name: 'Map' })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await slow(pause.getByRole('button', { name: 'Items' })).toBeFocused();
   // P26: Save game comes next (this game saves anywhere); Load game shows only once there is a save

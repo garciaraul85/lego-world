@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { Mood } from '../effects/screen';
 import { Ambient, DayLength, Fog } from '../lighting/atmosphere';
 import { Darkness } from '../lighting/light';
+import { MapLookOverride } from '../maps/look';
 import { ActionList } from './action';
 import { id, LegacyBlob, Vec3 } from './common';
 
@@ -80,6 +81,8 @@ export const MapDoc = z.strictObject({
    * Compass marks its chests and boss, and its small keys open only its own doors
    */
   dungeon: z.boolean().optional(),
+  /** Milestone 3b (B7a-1): this map's own pause map and map in play (over the game's, Project › Maps) */
+  mapLook: MapLookOverride.optional(),
   music: id('music').nullable(),
   ambience: id('sound').nullable(),
   spawns: z.array(Spawn).max(32),

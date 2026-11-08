@@ -15,6 +15,7 @@ export const COMMAND_TYPES = [
   'bricks.update',
   'map.setEnvironment',
   'map.setDungeon',
+  'map.setLook',
   'map.generate',
   'map.create',
   'map.rename',

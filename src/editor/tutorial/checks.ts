@@ -24,6 +24,7 @@ import {
   type MediaIndex,
   paths,
   type Screen,
+  type Settings,
   type Variables,
 } from '../../core/schema';
 import { SWIM_DEFAULTS } from '../../core/water/swim';
@@ -665,6 +666,19 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     (ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? []).some(
       (i) => i.kind === 'water' && i.body === String(a),
     ),
+  /** Milestone 3b (B7a-1): “pause,type,chart”: Project › Maps has that (pause, dungeon or mini; a field) */
+  mapLook: (ed, a) => {
+    const [which, field, value] = String(a).split(',');
+    const l = (
+      ed.store.get<Settings>(paths.settings)?.maps as Record<string, Record<string, unknown> | undefined> | undefined
+    )?.[which!];
+    return String(l?.[field!]) === value;
+  },
+  /** Milestone 3b (B7a-1): the pause map is open in Play */
+  mapOpen: (ed) => !!ed.session.value?.mapOpen,
+  /** Milestone 3b (B7a-1): a pin with this stamp is on the map in Play */
+  mapPinned: (ed, a) =>
+    !!ed.session.value?.mapTrack.pins(ed.session.value.world.mapId).some((p) => p.stamp === String(a)),
   playLogged: (ed, a) => !!ed.session.value?.events.some((e) => e.msg.includes(String(a))),
   /** “Name:stays”: the project's copy of the asset is a switch that stays that way (timed, toggle…) */
   switchStays: (ed, a) => {

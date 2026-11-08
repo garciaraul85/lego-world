@@ -641,6 +641,11 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('items'),
   },
   {
+    id: 'help.mapsCourse',
+    label: 'Maps course (a sea chart for the pause map, a round map in play, pins)',
+    run: ({ ui }) => ui.tutorial('maps'),
+  },
+  {
     id: 'help.swim',
     label: 'Swimming course (dive, breath, the Action button)',
     run: ({ ui }) => ui.tutorial('swim'),
@@ -902,6 +907,7 @@ export const COURSE_GROUPS: [string, string[]][] = [
       'help.bossesCourse',
       'help.gloomweaverCourse',
       'help.itemsCourse',
+      'help.mapsCourse',
       'help.saving',
       'help.swim',
     ],
