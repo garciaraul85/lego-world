@@ -156,6 +156,10 @@ export interface ExecCtx {
     c?: string,
   ): void;
   mapRead?(): boolean;
+  /** Milestone 3b (B7a-3): game over now, come back now, or set where the hero comes back (a spawn's name, here) */
+  game?(op: 'lose' | 'respawn' | 'setRespawn', at?: string): void;
+  /** Milestone 3b (B7a-3): the foes still on this map */
+  foesLeft?(): number;
 }
 
 export type Args = Record<string, unknown>;

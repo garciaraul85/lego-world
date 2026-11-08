@@ -109,4 +109,48 @@ export const MAPS: HelpEntry[] = [
     ],
     related: ['logic.quest.steps', 'play.map'],
   },
+  // Milestone 3b (B7a-3): a map's own behaviours, and the game's rules
+  {
+    id: 'scene.map.scripts',
+    also: ['map script', 'map behaviour', 'MapScript', 'on enter map', 'room clear', 'foes cleared', 'level script'],
+    screen: 'scene',
+    kind: 'setting',
+    name: 'Map › Behaviours',
+    purpose:
+      'This map’s own behaviours. One that extends **MapScript** (or a plain behaviour) runs while the hero is on this map: **mapEnter(e)** as the hero arrives (e.from is where it came from), **mapLeave(e)** as it goes (e.to), **foesCleared(e)** when the last foe on the map is beaten (the doors open, a chest appears), and any other event. Its own variables start again each visit: keep what must last in game variables. **+ New map script** makes one with mapEnter and foesCleared to fill in; **+ Script** attaches one you have; × takes it off. map.foesLeft() says how many foes are still here.',
+    steps: [
+      'Open the **Map** tab of the Inspector and find **Behaviours**.',
+      'Press **+ New map script**, or pick one and press **+ Script**.',
+      'Write what happens in mapEnter or foesCleared, then press Play.',
+    ],
+    commands: ['script.attach', 'script.detach', 'script.setField'],
+    match: [{ in: '[data-help="scene.map.scripts"]' }],
+    related: ['logic.gamemode', 'logic.behaviour'],
+  },
+  {
+    id: 'logic.gamemode',
+    also: [
+      'game rules',
+      'GameMode',
+      'game over',
+      'respawn',
+      'retry',
+      'win condition',
+      'fairy',
+      'extra life',
+      'can save',
+      'new game plus',
+    ],
+    screen: 'logic',
+    kind: 'view',
+    name: 'Game rules (GameMode)',
+    purpose:
+      'The rules of the whole game are a behaviour that extends **GameMode** (Logic › Built-in › Game). It is in the game as written: nothing to attach. Its hooks: **isGameOver** (return false and the hero hangs on: a fairy), **hasWon** (asked a few times a second: true finishes the game), **respawnAt** (where the hero comes back after game over: a spawn point’s name on any map, start or checkpoint), **respawnHearts** (how many hearts), **keepOnRespawn** (each item it carries: false loses it), **canSave** (false: “You can’t save here.”) and **keepOnNewGamePlus**. Its events: gameOver, respawn, gameWon, saved and loaded. Any script can call game.lose(), game.respawn() and game.setRespawn("Cave mouth").',
+    steps: [
+      'In Logic, open **Built-in › Game** and press **GameMode**, then **Extend**.',
+      'Answer the hooks you want (return e.base keeps the engine’s answer).',
+      'Press Play and run out of hearts to try it.',
+    ],
+    related: ['scene.map.scripts', 'play.quests'],
+  },
 ];

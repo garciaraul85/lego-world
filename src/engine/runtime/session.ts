@@ -59,14 +59,21 @@ import type { LegacyPiece } from '../../core/legacy/types';
 import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosphere';
 import { attachmentsOf, startValues } from '../../core/logic/behaviours';
 import { enemyOfCharacter } from '../../core/logic/boss';
-import { isMainQuestClass, isMapClass, isQuestClass, itemClassOf, itemsOfBehaviour } from '../../core/logic/builtins';
+import {
+  isMainQuestClass,
+  isMapClass,
+  isModeClass,
+  isQuestClass,
+  itemClassOf,
+  itemsOfBehaviour,
+} from '../../core/logic/builtins';
 import type { ExecCtx } from '../../core/logic/catalog';
 import { type MapLooks, MINI_TYPES, miniLookOf, PAUSE_TYPES, pauseLookOf } from '../../core/maps/look';
 import { STAMPS } from '../../core/maps/notes';
 import { maxOf } from '../../core/num';
 import { switchHitBy } from '../../core/puzzles/puzzle';
 import { doOf, goalNameOf } from '../../core/quests/quest';
-import { type MapLink, mapLinks, mapNamed, mapsOfPlace, nextLink, placeIndex } from '../../core/quests/route';
+import { gameMaps, type MapLink, mapLinks, mapNamed, mapsOfPlace, nextLink, placeIndex } from '../../core/quests/route';
 import {
   AutoQuality,
   type DeviceInfo,
@@ -1518,6 +1525,7 @@ export class PlaySession {
       /* splash / title shown over the paused world */
     } else this.startGame();
     this.logic.fire({ type: 'event.onStart' });
+    this.mapEvent('Enter', this.world.doc.name, '');
     this.emit(
       'start',
       `Playing ${this.world.doc.name}${spawn ? ` from ${spawn.name}` : ''}. WASD moves, Space jumps, F attacks (hold to charge), Q guards, C rolls, Z locks on, hold E rebuilds, T talks.`,
@@ -3106,9 +3114,16 @@ export class PlaySession {
     if (!this.over && hp <= 0) this.gameOver();
   }
 
-  gameOver() {
+  gameOver(cause: 'hearts' | 'logic' = 'hearts') {
     if (this.over) return;
+    // Milestone 3b (B7a-3): the game's rules may say it is not (a fairy in a bottle); the hero hangs on
+    if (!this.askHook('gamemode', 'isGameOver', { cause }, true)) {
+      if (Number(this.logic.vars.get('hp') ?? 1) <= 0) this.logic.setVar('hp', 1);
+      this.lastHp = Number(this.logic.vars.get('hp') ?? 1);
+      return;
+    }
     this.over = true;
+    this.logic.fire({ type: 'event.onGameOver', payload: { cause } });
     this.emit('screen', 'Game over');
     const go = screenOfKind(this.snapshot, 'gameover');
     if (go) this.screens.push(go.id);
@@ -3599,6 +3614,13 @@ export class PlaySession {
     if (boss) this.mapTrack.beat(this.world.mapId, String(npc.profile.name ?? 'Boss'), pos[0], pos[1], pos[2]);
     // Milestone 3b (B7a-2): a quest's beat step counts it
     this.quests.note('beat', String(npc.profile.name ?? ''));
+    // Milestone 3b (B7a-3): the last foe on the map beaten: the room is cleared
+    if (this.enemyOf(npc) && this.foesLeft() === 0)
+      this.logic.fire({
+        type: 'event.onFoesCleared',
+        match: { map: this.world.doc.name },
+        payload: { map: this.world.doc.name },
+      });
     if (def.atZero.respawn !== undefined) this.world.defeated.push({ npc, at: this.clock, after: def.atZero.respawn });
     if (this.talking === npc) this.talking = null;
     if (def.atZero.drop) this.drop(def.atZero.drop, { at: pos });
@@ -4988,6 +5010,10 @@ export class PlaySession {
     const gg = this.gameGraphs();
     for (const g of gg.quests) put(`quest:${g.id}`, [{ use: g.id }] as ReturnType<typeof attachmentsOf>);
     if (gg.maps.length) put('gamemap', gg.maps.map((g) => ({ use: g.id })) as ReturnType<typeof attachmentsOf>);
+    // Milestone 3b (B7a-3): the game's rules as "gamemode"; the map the hero is on runs its own as "map:<id>"
+    if (gg.modes.length) put('gamemode', gg.modes.map((g) => ({ use: g.id })) as ReturnType<typeof attachmentsOf>);
+    const mapList = attachmentsOf(w.doc.scripts, undefined);
+    if (mapList.length) put(`map:${w.mapId}`, mapList);
     for (const o of this.scriptOwners) if (!now.has(o)) this.logic.detach(o);
     this.scriptOwners = now;
   }
@@ -5024,6 +5050,9 @@ export class PlaySession {
       questRead: (what, ref) => this.questRead(what, ref),
       mapOp: (op, a, b, c) => this.mapOp(op, a, b, c),
       mapRead: () => this.mapOpen,
+      // Milestone 3b (B7a-3): the game's rules
+      game: (op, at) => this.gameRule(op, at ?? ''),
+      foesLeft: () => this.foesLeft(),
       progress: (op, id) => {
         if (op === 'achieve') this.progress.unlock(id);
         else this.gameOp('finish');
@@ -5298,6 +5327,8 @@ export class PlaySession {
       case 'finish': {
         if (this.over) break;
         this.progress.finish();
+        // Milestone 3b (B7a-3)
+        this.logic.fire({ type: 'event.onGameWon' }, true);
         const pct = this.progress.percent();
         this.emit(
           'screen',
@@ -5333,7 +5364,14 @@ export class PlaySession {
         break;
       case 'retry': {
         this.over = false;
-        this.logic.setVar('hp', this.logic.vars.get('maxHp') ?? 3);
+        // Milestone 3b (B7a-3): the game's rules say where the hero comes back, with how many hearts and what
+        const max = Number(this.logic.vars.get('maxHp') ?? 3);
+        const hearts = this.askHook('gamemode', 'respawnHearts', { max }, max);
+        this.logic.setVar('hp', Math.max(0.5, Math.min(max, Number.isFinite(hearts) ? hearts : max)));
+        for (const [item, count] of [...this.inventory])
+          if (!this.askHook('gamemode', 'keepOnRespawn', { item, count }, true)) this.inventory.delete(item);
+        const at = this.askHook('gamemode', 'respawnAt', { map: this.world.doc.name }, 'checkpoint');
+        this.respawnTo(at);
         const cp = this.checkpoint;
         if (cp.map !== this.world.mapId && (cp.spawn || cp.pos)) {
           this.travel(cp.map, cp.spawn ?? '');
@@ -5347,6 +5385,7 @@ export class PlaySession {
         }
         this.emit('screen', 'Retry from the last checkpoint');
         this.startGame();
+        this.logic.fire({ type: 'event.onRespawn', payload: { map: this.world.doc.name, at: String(at) } });
         break;
       }
       case 'quit': {
@@ -5384,6 +5423,11 @@ export class PlaySession {
   saveGame(slot: number, quiet = false) {
     if (this.over) return;
     const n = Math.max(0, Math.min(this.saving.slots, slot));
+    // Milestone 3b (B7a-3): the game's rules may say not now (an autosave just does not happen)
+    if (!this.askHook('gamemode', 'canSave', { slot: n }, true)) {
+      if (!quiet) this.say('You can’t save here.', 2);
+      return;
+    }
     this.saves.write(captureSave(this as unknown as SaveHost, n));
     if (n !== AUTO_SLOT) this.slot = n;
     if (!quiet) {
@@ -5391,6 +5435,7 @@ export class PlaySession {
       this.say(n === AUTO_SLOT ? 'Autosaved' : `Game saved · ${slotName(n)}`, 2);
       this.audio.play(SND.pickup);
     }
+    this.logic.fire({ type: 'event.onSaved', payload: { slot: n } });
   }
 
   /** Loads a slot: the world, the hero and everything carried come back as they were saved. */
@@ -5401,6 +5446,7 @@ export class PlaySession {
       return false;
     }
     this.putBack(save, slot);
+    this.logic.fire({ type: 'event.onLoaded', payload: { slot } });
     return true;
   }
 
@@ -5515,13 +5561,21 @@ export class PlaySession {
     this.scriptOwners.clear();
     this.syncScripts(false);
     this.logic.fire({ type: 'event.onStart' });
+    this.mapEvent('Enter', this.world.doc.name, '');
   }
 
   /** P26: a new game that keeps what Project › Progress › New game plus says (items, chosen variables) */
   newGamePlus() {
     const ng = this.progress.doc.newGamePlus;
-    const items = ng.keepItems ? new Map(this.inventory) : new Map<string, number>();
-    const vars = new Map(ng.keepVars.map((k) => [k, this.logic.vars.get(k)] as const));
+    // Milestone 3b (B7a-3): the game's rules may keep more, or less, than Project › Progress says
+    const asks = this.logic.has('event.onKeepOnNewGamePlus');
+    const keep = (kind: 'item' | 'var', name: string, base: boolean) =>
+      asks ? this.askHook('gamemode', 'keepOnNewGamePlus', { kind, name }, base) : base;
+    const items = new Map([...this.inventory].filter(([k]) => keep('item', k, ng.keepItems)));
+    const names = asks ? [...this.logic.vars.keys()] : ng.keepVars;
+    const vars = new Map(
+      names.filter((k) => keep('var', k, ng.keepVars.includes(k))).map((k) => [k, this.logic.vars.get(k)] as const),
+    );
     this.newGame();
     for (const [k, v] of items) this.inventory.set(k, v);
     for (const [k, v] of vars) if (v !== undefined) this.logic.vars.set(k, v);
@@ -6622,22 +6676,86 @@ export class PlaySession {
     return this.mapTrack.unpin(this.world.mapId, x, z, r);
   }
 
+  // ---------- Milestone 3b (B7a-3): the game's rules, and a map's own behaviour ----------
+
+  /** a map's arrive or leave event: its own behaviour (and every script) hears it */
+  private mapEvent(kind: 'Enter' | 'Leave', map: string, other: string, now = false) {
+    this.logic.fire(
+      {
+        type: `event.onMap${kind}`,
+        match: { map },
+        payload: kind === 'Enter' ? { map, from: other } : { map, to: other },
+      },
+      now,
+    );
+  }
+  /** the foes still on this map */
+  foesLeft(): number {
+    return this.world.npcs.filter((n) => this.enemyOf(n)).length;
+  }
+  /** logic's Game over, Respawn and Set respawn point */
+  gameRule(op: 'lose' | 'respawn' | 'setRespawn', at: string) {
+    if (op === 'lose') return this.gameOver('logic');
+    if (op === 'respawn') {
+      this.over = true;
+      for (const sc of this.screens.screens()) if (sc.kind === 'gameover') this.screens.hide(sc.id);
+      return this.gameOp('retry');
+    }
+    const a = at.trim();
+    if (!a || a.toLowerCase() === 'here') return this.setCheckpoint();
+    const sp = this.spawnNamed(a);
+    if (sp) this.checkpoint = { map: sp.map, spawn: sp.id };
+    else this.emit('info', `Set respawn point: no spawn point called “${a}”`);
+  }
+  /** a spawn point by its name (this map first, then any map), or null */
+  private spawnNamed(name: string): { map: string; id: string } | null {
+    const k = name.trim().toLowerCase();
+    const here = this.world.doc.spawns.find((x) => x.name.toLowerCase() === k || x.id === name);
+    if (here) return { map: this.world.mapId, id: here.id };
+    for (const m of gameMaps(this.snapshot)) {
+      const sp = m.spawns.find((x) => x.name.toLowerCase() === k || x.id === name);
+      if (sp) return { map: m.id, id: sp.id };
+    }
+    return null;
+  }
+  /** where respawnAt sends the hero: checkpoint (as it is), start, or a spawn point's name — the checkpoint moves */
+  private respawnTo(at: unknown) {
+    const a = String(at ?? '').trim();
+    if (!a || a.toLowerCase() === 'checkpoint') return;
+    if (a.toLowerCase() === 'start') {
+      const map = this.project.entry.map;
+      const doc = this.snapshot.get(paths.map(map)) as MapDoc | undefined;
+      const sp = doc?.spawns.find((x) => x.id === this.project.entry.spawn) ?? doc?.spawns[0];
+      if (sp) this.checkpoint = { map, spawn: sp.id };
+      return;
+    }
+    const sp = this.spawnNamed(a);
+    if (sp) this.checkpoint = { map: sp.map, spawn: sp.id };
+  }
+
   // ---------- Milestone 3b (B7a-2): quests, and the maps in logic ----------
 
-  private gameGraphCache: { quests: LogicGraph[]; maps: LogicGraph[]; ids: Set<string> } | null = null;
+  private gameGraphCache: {
+    quests: LogicGraph[];
+    maps: LogicGraph[];
+    modes: LogicGraph[];
+    ids: Set<string>;
+  } | null = null;
   /** the behaviours that are in the game as written: the quests and the maps' */
   private gameGraphs() {
     if (!this.gameGraphCache) {
       const quests: LogicGraph[] = [];
       const maps: LogicGraph[] = [];
+      const modes: LogicGraph[] = [];
       for (const path of this.snapshot.keys()) {
         if (!/^logic\/lg_[0-9a-z]{10}\.json$/.test(path)) continue;
         const g = this.snapshot.get(path) as LogicGraph;
         if (!g.behaviour) continue;
         if (isQuestClass(g.behaviour.extends)) quests.push(g);
         else if (isMapClass(g.behaviour.extends)) maps.push(g);
+        else if (isModeClass(g.behaviour.extends)) modes.push(g);
       }
-      this.gameGraphCache = { quests, maps, ids: new Set(quests.map((g) => g.id)) };
+      this.gameGraphCache = { quests, maps, modes, ids: new Set(quests.map((g) => g.id)) };
     }
     return this.gameGraphCache;
   }
@@ -6803,6 +6921,17 @@ export class PlaySession {
     this.questTick += dt;
     if (this.questTick < 0.25) return;
     this.questTick = 0;
+    // Milestone 3b (B7a-3): the game's rules say when it is won
+    // (once finished, it is not asked again until a new game)
+    if (
+      !this.over &&
+      !this.quitToTitle &&
+      this.logic.has('event.onHasWon') &&
+      this.askHook('gamemode', 'hasWon', {}, false)
+    ) {
+      this.gameOp('finish');
+      return;
+    }
     for (const d of this.quests.going()) {
       const s = this.quests.stepOf(d);
       const p = this.quests.of(d);
@@ -7991,6 +8120,9 @@ export class PlaySession {
   /** Switch to another map (each map keeps its own damage while playing, as in v68). */
   travel(mapId: string, spawnId: string, gateId?: string) {
     const from = this.world;
+    // Milestone 3b (B7a-3): the map's own behaviour hears the hero go (before it goes)
+    const toName = (this.snapshot.get(paths.map(mapId)) as MapDoc | undefined)?.name ?? '';
+    if (from.mapId !== mapId) this.mapEvent('Leave', from.doc.name, toName, true);
     const keep = { ...this.heroState };
     this.cancelRebuild();
     this.pendingSmash = null;
@@ -8017,6 +8149,11 @@ export class PlaySession {
       ? (this.snapshot.get(paths.gates) as Gates | undefined)?.gates.find((g) => g.id === gateId)
       : undefined;
     if (gate?.onArrive?.length) this.actions.run(gate.onArrive, this.clock);
+    // Milestone 3b (B7a-3): the new map's own behaviours start, and hear the hero arrive
+    if (from.mapId !== mapId && this.logic) {
+      this.syncScripts(true);
+      this.mapEvent('Enter', this.world.doc.name, from.doc.name);
+    }
     // P26: a new map is a good place to autosave (not while a cinematic travels)
     if (this.saving.autosave && !this.cine.active) this.saveGame(AUTO_SLOT, true);
   }

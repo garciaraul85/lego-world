@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (214 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (233 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -366,6 +366,80 @@ Runs the first time in a play the hero comes into a region (a zone marked “Sho
 - Settings: Region (string, optional)
 - Outputs: region (string)
 - Code: `on("regionSeen", { region: … }, (e) => { … });`
+
+### On game over
+
+`event.onGameOver` · event
+
+Runs as the game is over (the Game over screen shows): cause is hearts or logic.
+
+- Outputs: cause (string)
+- Code: `on("gameOver", (e) => { … });`
+
+### On respawn
+
+`event.onRespawn` · event
+
+Runs as the hero comes back after game over (Retry), where it came back (map, at).
+
+- Outputs: map (string), at (string)
+- Code: `on("respawn", (e) => { … });`
+
+### On game won
+
+`event.onGameWon` · event
+
+Runs as the game is finished (won): Finish game, or GameMode’s hasWon.
+
+- Code: `on("gameWon", (e) => { … });`
+
+### On saved
+
+`event.onSaved` · event
+
+Runs after the game is saved (slot 0 is the autosave).
+
+- Outputs: slot (number)
+- Code: `on("saved", (e) => { … });`
+
+### On loaded
+
+`event.onLoaded` · event
+
+Runs after a save is loaded (slot 0 is the autosave).
+
+- Outputs: slot (number)
+- Code: `on("loaded", (e) => { … });`
+
+### On map enter
+
+`event.onMapEnter` · event
+
+Runs as the hero arrives on a map (and on the first map as play starts): from is the map it came from ("" at the start).
+
+- Settings: Map (string, optional)
+- Outputs: map (string), from (string)
+- Code: `on("mapEnter", { map: … }, (e) => { … });`
+
+### On map leave
+
+`event.onMapLeave` · event
+
+Runs as the hero leaves a map, before it goes: to is the map it goes to.
+
+- Settings: Map (string, optional)
+- Outputs: map (string), to (string)
+- Code: `on("mapLeave", { map: … }, (e) => { … });`
+
+### On foes cleared
+
+`event.onFoesCleared` · event
+
+Runs when the last foe on the map is beaten (a room cleared: the doors open, a chest appears).
+
+- Settings: Map (string, optional)
+- Outputs: map (string)
+- Code: `on("foesCleared", { map: … }, (e) => { … });`
 
 ## Flow
 
@@ -1021,6 +1095,31 @@ The player finished the game: it counts as finished (best scores are kept, new g
 From now on, Retry (after game over) and falling off the world bring the hero back to where they stand now.
 
 - Code: `game.setCheckpoint();`
+
+### Game over
+
+`game.lose` · action
+
+Ends the game now (the Game over screen shows, Retry brings the hero back), unless GameMode’s isGameOver says no.
+
+- Code: `game.lose();`
+
+### Respawn
+
+`game.respawn` · action
+
+Brings the hero back now, as Retry after game over does (where GameMode’s respawnAt says, with its hearts).
+
+- Code: `game.respawn();`
+
+### Set respawn point
+
+`game.setRespawn` · action
+
+From now on, Retry (after game over) brings the hero back to this spawn point (on any map), or where it stands (here).
+
+- Inputs: at (string)
+- Code: `game.setRespawn(at);`
 
 ## Dialogue
 
@@ -1884,6 +1983,69 @@ Asked about each marker’s name on the maps (a region, a way out, a pin’s not
 - Outputs: kind (string), label (string), base (string)
 - Code: `on("markerLabel", (e) => { … });`
 
+### Is it game over? (GameMode)
+
+`event.onIsGameOver` · event
+
+Asked as the hero’s hearts run out (cause: hearts) or a script ends the game (cause: logic). Return false and it is not: the hero hangs on with at least one heart (heal it here: a fairy in a bottle).
+
+- Outputs: cause (string), base (bool)
+- Code: `on("isGameOver", (e) => { … });`
+
+### Has the game been won? (GameMode)
+
+`event.onHasWon` · event
+
+Asked a few times a second. Return true and the game is finished (as Finish game does): every boss beaten, the main quest done, a score reached.
+
+- Outputs: base (bool)
+- Code: `on("hasWon", (e) => { … });`
+
+### Where does the hero come back? (GameMode)
+
+`event.onRespawnAt` · event
+
+Asked as the hero comes back after game over (Retry): a spawn point’s name (on any map), start (where the game begins) or checkpoint (base: where it last was set). A dungeon can send the hero back to its entrance.
+
+- Outputs: map (string), base (string)
+- Code: `on("respawnAt", (e) => { … });`
+
+### How many hearts back? (GameMode)
+
+`event.onRespawnHearts` · event
+
+Asked as the hero comes back after game over: how many hearts it has (base: all of them; 3 is the classic).
+
+- Outputs: max (number), base (number)
+- Code: `on("respawnHearts", (e) => { … });`
+
+### Keep this item? (GameMode)
+
+`event.onKeepOnRespawn` · event
+
+Asked about each item the hero carries as it comes back after game over (item, count). Return false and it is lost (half its money, its bombs).
+
+- Outputs: item (string), count (number), base (bool)
+- Code: `on("keepOnRespawn", (e) => { … });`
+
+### Can it save now? (GameMode)
+
+`event.onCanSave` · event
+
+Asked as the game is saved (a save point, the pause screen, Save game; slot 0 is the autosave). Return false and it is not: “You can’t save here.” (not in a boss fight, not in a dungeon).
+
+- Outputs: slot (number), base (bool)
+- Code: `on("canSave", (e) => { … });`
+
+### Keep this in new game plus? (GameMode)
+
+`event.onKeepOnNewGamePlus` · event
+
+Asked about each item (kind: item) and game variable (kind: var) as new game plus begins. base is what Project › Progress › New game plus says.
+
+- Outputs: kind (string), name (string), base (bool)
+- Code: `on("keepOnNewGamePlus", (e) => { … });`
+
 ## Quests
 
 ### Start quest
@@ -2045,3 +2207,12 @@ True while the pause map is open.
 
 - Outputs: out (bool)
 - Code: `map.isOpen()`
+
+### Foes left
+
+`map.foesLeft` · pure
+
+How many foes are still on the map the hero is on (beaten ones are gone).
+
+- Outputs: out (number)
+- Code: `map.foesLeft()`

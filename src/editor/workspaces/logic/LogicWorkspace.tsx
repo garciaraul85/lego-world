@@ -5,6 +5,7 @@ import {
   CHARACTER_BUILTINS,
   isGameClass,
   isMapClass,
+  isMapScriptClass,
   isQuestClass,
 } from '../../../core/logic/builtins';
 
@@ -137,15 +138,30 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
                 <code>quest.start("{graph.name}")</code>; its steps are in the class and in the Steps panel. In its
                 methods, “this” is the quest.
               </>
-            ) : (
+            ) : isMapClass(graph.behaviour.extends) ? (
               <>
                 The maps: it is in the game as written (nothing to attach). Its hooks decide what both maps show; its
                 events say when the map opens, closes or gets a pin.
               </>
+            ) : (
+              <>
+                The game’s rules: it is in the game as written (nothing to attach). Its hooks decide game over, winning,
+                where and how the hero comes back, saving and new game plus.
+              </>
             )}
           </div>
         )}
-        {graph?.behaviour && !isGameClass(graph.behaviour.extends) && (
+        {/* Milestone 3b (B7a-3): a map's own behaviour */}
+        {graph?.behaviour && isMapScriptClass(graph.behaviour.extends) && (
+          <div class="lg-owner small" role="note" data-tour="behaviour-note">
+            Map behaviour: attach it to a map in the Inspector’s <strong>Map</strong> tab › Behaviours; it runs while
+            the hero is on that map. {(() => {
+              const n = usedOn(ed, graph.id).maps.length;
+              return n ? `On ${usedOn(ed, graph.id).maps.join(', ')}.` : 'Not on a map yet.';
+            })()}
+          </div>
+        )}
+        {graph?.behaviour && !isGameClass(graph.behaviour.extends) && !isMapScriptClass(graph.behaviour.extends) && (
           <div class="lg-owner small" role="note" data-tour="behaviour-note">
             Behaviour: attach it to things with <strong>+ Script</strong> in the Inspector. Each copy runs its own:
             “this” is that copy, <code>this.name</code> its fields and own variables. {(() => {
@@ -407,7 +423,12 @@ function Sidebar({
                 'Characters',
                 CHARACTER_BUILTINS.filter(
                   (b) =>
-                    !b.parent && b.name !== 'Brain' && !b.isInterface && b.items === undefined && !isGameClass(b.name),
+                    !b.parent &&
+                    b.name !== 'Brain' &&
+                    !b.isInterface &&
+                    b.items === undefined &&
+                    !isGameClass(b.name) &&
+                    b.name !== 'MapScript',
                 ),
               ],
               ['Brains', CHARACTER_BUILTINS.filter((b) => b.name === 'Brain' || isBrain(b.parent))],
@@ -418,6 +439,8 @@ function Sidebar({
               // Milestone 3b (B7a-2): quests and the maps (in the game as written)
               ['Quests', CHARACTER_BUILTINS.filter((b) => isQuestClass(b.name))],
               ['Maps', CHARACTER_BUILTINS.filter((b) => isMapClass(b.name))],
+              // Milestone 3b (B7a-3): the game's rules, and a map's own behaviour
+              ['Game', CHARACTER_BUILTINS.filter((b) => b.name === 'GameMode' || b.name === 'MapScript')],
             ] as const
           ).map(([group, list]) => (
             <>

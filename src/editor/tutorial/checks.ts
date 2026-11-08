@@ -687,6 +687,12 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   },
   /** Milestone 3b (B7a-2): the quest log is open in Play */
   questLogOpen: (ed) => !!ed.session.value?.questsOpen,
+  /** Milestone 3b (B7a-3): the map open in the editor runs this behaviour */
+  mapHasScript: (ed, a) => {
+    const g = behaviourGraph(ed, String(a));
+    const m = ed.store.get<MapDoc>(paths.map(ed.mapId.value));
+    return !!g && !!m?.scripts?.some((x) => x.use === g.id && !x.off);
+  },
   /** v141: the game has a map of this name joined to the start map by a gate (“Old Well Cave”) */
   mapLinked: (ed, a) => {
     const g = ed.store.get<Gates>(paths.gates);

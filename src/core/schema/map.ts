@@ -5,6 +5,7 @@ import { Darkness } from '../lighting/light';
 import { MapLookOverride } from '../maps/look';
 import { ActionList } from './action';
 import { id, LegacyBlob, Vec3 } from './common';
+import { ScriptAttachments } from './logic';
 
 export const BIOMES = [
   'forest',
@@ -83,6 +84,8 @@ export const MapDoc = z.strictObject({
   dungeon: z.boolean().optional(),
   /** Milestone 3b (B7a-1): this map's own pause map and map in play (over the game's, Project › Maps) */
   mapLook: MapLookOverride.optional(),
+  /** Milestone 3b (B7a-3): the map's own behaviours (MapScript): they run while the hero is on it */
+  scripts: ScriptAttachments.optional(),
   music: id('music').nullable(),
   ambience: id('sound').nullable(),
   spawns: z.array(Spawn).max(32),

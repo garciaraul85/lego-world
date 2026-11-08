@@ -7,7 +7,14 @@
 import { BUILTIN_ASSETS } from '../../../builtin/assets';
 import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
 import { bossHowOf } from '../../logic/boss';
-import { builtinNamed, characterBuiltinNamed, isMapClass, isQuestClass } from '../../logic/builtins';
+import {
+  builtinNamed,
+  characterBuiltinNamed,
+  isMapClass,
+  isMapScriptClass,
+  isModeClass,
+  isQuestClass,
+} from '../../logic/builtins';
 import type { ProjectStore } from '../../project/store';
 import {
   type Asset,
@@ -15,6 +22,7 @@ import {
   type FieldValue,
   type Instances,
   type LogicGraph,
+  type MapDoc,
   paths,
   type ScriptAttachment,
 } from '../../schema';
@@ -24,7 +32,9 @@ export type ScriptTarget =
   | { kind: 'asset'; id: string }
   | { kind: 'character'; id: string }
   /** one placed copy (an asset or a neighbour) on a map */
-  | { kind: 'instance'; map: string; id: string };
+  | { kind: 'instance'; map: string; id: string }
+  /** Milestone 3b (B7a-3): a map itself (its MapScript behaviours) */
+  | { kind: 'map'; id: string };
 
 type Holder = { scripts?: ScriptAttachment[] };
 
@@ -39,15 +49,19 @@ function read(store: ProjectStore, t: ScriptTarget): Holder | null {
     return store.get<Asset>(paths.asset(t.id)) ?? BUILTIN_ASSETS.find((a) => a.id === t.id) ?? null;
   if (t.kind === 'character')
     return store.get<Character>(paths.character(t.id)) ?? BUILTIN_CHARACTERS.find((c) => c.id === t.id) ?? null;
+  if (t.kind === 'map') return store.get<MapDoc>(paths.map(t.id)) ?? null;
   return (store.get<Instances>(paths.instances(t.map))?.items.find((i) => i.id === t.id) as Holder | undefined) ?? null;
 }
 
 function write(store: ProjectStore, t: ScriptTarget, scripts: ScriptAttachment[]) {
   const tidy = scripts.length ? { scripts } : {};
-  if (t.kind === 'asset' || t.kind === 'character') {
+  if (t.kind === 'asset' || t.kind === 'character' || t.kind === 'map') {
     const cur = read(store, t)! as Record<string, unknown>;
     const { scripts: _old, ...rest } = cur;
-    store.put(t.kind === 'asset' ? paths.asset(t.id) : paths.character(t.id), { ...rest, ...tidy });
+    store.put(t.kind === 'asset' ? paths.asset(t.id) : t.kind === 'map' ? paths.map(t.id) : paths.character(t.id), {
+      ...rest,
+      ...tidy,
+    });
     return;
   }
   const doc = store.get<Instances>(paths.instances(t.map))!;
@@ -84,10 +98,19 @@ export const attachScript: CommandHandler<{ target: ScriptTarget; use: string; f
         return `${g.name} is a quest (it extends ${g.behaviour!.extends}): it is in the game as written, nothing to attach. Start it with quest.start().`;
       if (isMapClass(g.behaviour!.extends))
         return `${g.name} is about the maps (it extends ${g.behaviour!.extends}): it is in the game as written, nothing to attach.`;
+      if (isModeClass(g.behaviour!.extends))
+        return `${g.name} is the game’s rules (it extends ${g.behaviour!.extends}): it is in the game as written, nothing to attach.`;
+      // Milestone 3b (B7a-3): a map takes a map's behaviour (MapScript, or a plain one); a MapScript goes on a map
+      if (p.target.kind === 'map') {
+        const ext = g.behaviour!.extends;
+        if (ext && !isMapScriptClass(ext))
+          return `${g.name} extends ${ext}: a map takes a behaviour that extends MapScript (or a plain one).`;
+      } else if (isMapScriptClass(g.behaviour!.extends))
+        return `${g.name} is a map’s behaviour (it extends MapScript): attach it to a map (Inspector › Map › Behaviours).`;
       // Milestone 3b (B3): one that extends a built-in goes where that built-in is (an asset gets it as well)
       // Milestone 3b (B4): one that extends a character's built-in goes on a character that is one
       const cbase = characterBuiltinNamed(g.behaviour!.extends);
-      if (cbase) {
+      if (cbase && p.target.kind !== 'map') {
         if (p.target.kind !== 'character')
           return `${cbase.name} is for characters: put it on a character (Characters › Behaviour).`;
         const chr = read(store, p.target) as Character;

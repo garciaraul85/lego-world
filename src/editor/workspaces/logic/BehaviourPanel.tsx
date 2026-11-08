@@ -15,6 +15,7 @@ import {
   type FieldValue,
   type Instances,
   type LogicGraph,
+  type MapDoc,
   paths,
 } from '../../../core/schema';
 import type { ActionCtx } from '../../actions/registry';
@@ -34,8 +35,12 @@ export const BEHAVIOUR_HELP = {
 const IDENT = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 /** where a behaviour is attached: assets, characters and single placed copies */
-export function usedOn(ed: EditorState, id: string): { assets: string[]; characters: string[]; copies: number } {
+export function usedOn(
+  ed: EditorState,
+  id: string,
+): { assets: string[]; characters: string[]; copies: number; maps: string[] } {
   const assets: string[] = [];
+  const maps: string[] = [];
   const characters: string[] = [];
   let copies = 0;
   for (const p of ed.store.list('assets/')) {
@@ -47,13 +52,19 @@ export function usedOn(ed: EditorState, id: string): { assets: string[]; charact
     if (c?.scripts?.some((s) => s.use === id && !s.off)) characters.push(c.name);
   }
   for (const p of ed.store.list('maps/')) {
+    // Milestone 3b (B7a-3): a map's own behaviours
+    if (p.endsWith('/map.json')) {
+      const m = ed.store.get<MapDoc>(p);
+      if (m?.scripts?.some((s) => s.use === id && !s.off)) maps.push(m.name);
+      continue;
+    }
     if (!p.endsWith('/instances.json')) continue;
     for (const i of ed.store.get<Instances>(p)?.items ?? []) {
       const s = (i as { scripts?: { use: string; off?: boolean }[] }).scripts;
       if (s?.some((x) => x.use === id && !x.off)) copies++;
     }
   }
-  return { assets, characters, copies };
+  return { assets, characters, copies, maps };
 }
 
 /** the asset or character from the project, else the built-in one */
@@ -100,6 +111,7 @@ export function BehaviourPanel({ c, graph }: { c: ActionCtx; graph: LogicGraph }
     where.assets.length ? `${where.assets.join(', ')} (every copy)` : '',
     where.characters.length ? where.characters.join(', ') : '',
     where.copies ? `${where.copies} placed cop${where.copies === 1 ? 'y' : 'ies'}` : '',
+    where.maps.length ? `the map${where.maps.length === 1 ? '' : 's'} ${where.maps.join(', ')}` : '',
   ]
     .filter(Boolean)
     .join(' · ');

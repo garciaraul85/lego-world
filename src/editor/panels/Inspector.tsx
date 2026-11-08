@@ -32,6 +32,7 @@ import { ControlsSection } from './ControlsSection';
 import { DialogueSection } from './DialogueSection';
 import { DungeonSection } from './DungeonSection';
 import { DarknessSection } from './LightFields';
+import { MapScriptsSection } from './MapScriptsSection';
 import { MapLookSection, MapsSection } from './MapsSection';
 import { MoodSection } from './MoodSection';
 import { ProgressSection } from './ProgressSection';
@@ -615,6 +616,8 @@ function MapTab({ c }: { c: ActionCtx }) {
       <DarknessSection c={c} m={m} />
       <DungeonSection c={c} m={m} />
       <MapLookSection c={c} m={m} />
+      {/* Milestone 3b (B7a-3): the map's own behaviours */}
+      <MapScriptsSection c={c} m={m} />
       <AtmosphereSection c={c} m={m} />
       <BigWorldSection c={c} m={m} />
       <MoodSection c={c} m={m} />

@@ -106,6 +106,8 @@ Tick **This map is a dungeon** in the Map tab (Dungeon) and the map keeps its ow
 
 The Map tab also sets the time of day, sky and weather, the map's music and ambience loop.
 
+**Behaviours** (Map tab) are the map's own scripts: one that extends MapScript runs while the hero is on this map — `mapEnter(e)` as it arrives, `mapLeave(e)` as it goes, `foesCleared(e)` when the last foe here is beaten. **+ New map script** makes one; **+ Script** attaches one you have (see Play › Game rules and map behaviours).
+
 ## Lights and darkness
 
 **Darkness** (Map tab) is how dark the map is without its lights: 0 lit by its sky as usual, 1 pitch black, the sky darkened too. A dark map shows only what its lights reach, so a dungeon or a cave is lit by its torches.

@@ -1,0 +1,266 @@
+{
+  "id": "gameRules",
+  "title": "Game rules course",
+  "steps": [
+    {
+      "id": "gr.read",
+      "title": "Read about GameMode",
+      "body": "The rules of the whole game are a class too. In Logic, under Built-in \u203a Game, press GameMode. Its hooks decide game over (isGameOver), winning (hasWon), where and how the hero comes back (respawnAt, respawnHearts, keepOnRespawn), saving (canSave) and new game plus. MapScript, beside it, is a map's own behaviour.",
+      "task": "Open Logic \u203a Built-in \u203a GameMode.",
+      "target": "[data-tour=\"builtin-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinOpen",
+        "args": "GameMode"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBuiltin",
+          "args": {
+            "name": "GameMode"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "right",
+      "workspace": "Logic"
+    },
+    {
+      "id": "gr.mode",
+      "title": "House rules",
+      "body": "Make a behaviour named House Rules that extends GameMode. isGameOver: once, a fairy saves the hero (three hearts back; return false). respawnHearts: after game over the hero comes back with two. respawn(e) runs as it does. Like quests, the game's rules are in the game as written: nothing to attach.",
+      "task": "Write class HouseRules extends GameMode.",
+      "target": "[data-tour=\"behaviour-fields\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourExtends",
+        "args": "House Rules,GameMode"
+      },
+      "doItForMe": [
+        {
+          "fn": "newBehaviourNamed",
+          "args": {
+            "name": "House Rules"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "House Rules",
+            "code": [
+              "class $NAME extends GameMode {",
+              "  fairy = 1;",
+              "",
+              "  isGameOver(e) {",
+              "    if (this.fairy > 0) {",
+              "      this.fairy -= 1;",
+              "      vars.hp = 3;",
+              "      say(\"A fairy saves you!\", 2);",
+              "      log(\"A fairy saves you\");",
+              "      return false;",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "",
+              "  respawnHearts(e) {",
+              "    return 2;",
+              "  }",
+              "",
+              "  respawn(e) {",
+              "    log(\"Back again\");",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "gr.map",
+      "title": "A map's own behaviour",
+      "body": "Make a behaviour named Map Rules that extends MapScript: mapEnter(e) runs as the hero arrives on the map, foesCleared(e) when its last foe is beaten. Then attach it to this map: the Inspector's Map tab \u203a Behaviours \u203a + Script (or + New map script for a fresh one).",
+      "task": "Attach Map Rules to this map.",
+      "target": "[data-tour=\"map-scripts\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapHasScript",
+        "args": "Map Rules"
+      },
+      "doItForMe": [
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "Map Rules",
+            "code": [
+              "class $NAME extends MapScript {",
+              "  mapEnter(e) {",
+              "    say(\"The air is still here.\", 2);",
+              "    log(\"Into the map\");",
+              "  }",
+              "",
+              "  foesCleared(e) {",
+              "    say(\"The doors open!\", 2);",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "attachToMap",
+          "args": {
+            "behaviour": "Map Rules"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Scene"
+    },
+    {
+      "id": "gr.play",
+      "title": "Arrive",
+      "body": "Press Play: the map's behaviour hears the hero arrive (\u201cThe air is still here.\u201d). It runs only while the hero is on this map: going to another map, mapLeave(e) runs and it stops.",
+      "task": "Press Play.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Into the map"
+      },
+      "doItForMe": [
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "House Rules",
+            "code": [
+              "class $NAME extends GameMode {",
+              "  fairy = 1;",
+              "",
+              "  isGameOver(e) {",
+              "    if (this.fairy > 0) {",
+              "      this.fairy -= 1;",
+              "      vars.hp = 3;",
+              "      say(\"A fairy saves you!\", 2);",
+              "      log(\"A fairy saves you\");",
+              "      return false;",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "",
+              "  respawnHearts(e) {",
+              "    return 2;",
+              "  }",
+              "",
+              "  respawn(e) {",
+              "    log(\"Back again\");",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "Map Rules",
+            "code": [
+              "class $NAME extends MapScript {",
+              "  mapEnter(e) {",
+              "    say(\"The air is still here.\", 2);",
+              "    log(\"Into the map\");",
+              "  }",
+              "",
+              "  foesCleared(e) {",
+              "    say(\"The doors open!\", 2);",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "attachToMap",
+          "args": {
+            "behaviour": "Map Rules"
+          }
+        },
+        {
+          "fn": "playFresh",
+          "args": {
+            "behaviour": "House Rules",
+            "mapScript": true
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "gr.fairy",
+      "title": "A fairy",
+      "body": "Lose all your hearts. It is not game over: isGameOver said no, and the fairy gave three hearts back.",
+      "task": "Run out of hearts.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "A fairy saves you"
+      },
+      "doItForMe": [
+        {
+          "fn": "playFresh",
+          "args": {
+            "behaviour": "House Rules",
+            "mapScript": true
+          }
+        },
+        {
+          "fn": "loseHearts"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "gr.over",
+      "title": "Game over, and back",
+      "body": "Run out of hearts again: no fairy this time, so it is game over. Press Retry: the hero comes back at the checkpoint with two hearts (respawnHearts), and respawn(e) says Back again.",
+      "task": "Lose, then Retry.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Back again"
+      },
+      "doItForMe": [
+        {
+          "fn": "playFresh",
+          "args": {
+            "behaviour": "House Rules",
+            "mapScript": true
+          }
+        },
+        {
+          "fn": "retryGame"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "gr.done",
+      "title": "Done!",
+      "body": "respawnAt can send the hero to a dungeon's entrance (a spawn point's name on any map, or start), keepOnRespawn can take its bombs, hasWon finishes the game when you say, canSave keeps it from saving in a boss room. Any script can use game.lose(), game.respawn() and game.setRespawn(\"Cave mouth\"), and map.foesLeft() for a room's doors.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

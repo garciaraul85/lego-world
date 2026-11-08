@@ -134,6 +134,19 @@ In code, a quest's hooks are `canStartQuest` (can it start now?), `stepDone` (is
 
 **The maps in logic:** a behaviour that extends **GameMap** decides what the maps show. `showMarker` hides markers, `markerLabel` renames them, and `canOpenMap` keeps the map shut. Its events are `mapOpen`, `mapClose`, `mapPin` and `regionSeen` (the first time the hero comes into a region). Any script can use `map.open`, `map.setLook` (a sea chart once the hero has a boat), `map.mark` and `map.unmark` (a stamp and a note where something is), and `map.reveal` (the whole map, as from a lookout). The **Quests course** walks through it.
 
+## Game rules and map behaviours
+
+**The game's rules** are a behaviour that extends **GameMode** (Logic › Built-in › Game). Like a quest, it is in the game as written: nothing to attach. Its hooks decide:
+
+- **game over:** `isGameOver` (return false and the hero hangs on with at least one heart: a fairy in a bottle);
+- **winning:** `hasWon`, asked a few times a second (true finishes the game, as Finish game does);
+- **coming back after game over:** `respawnAt` (a spawn point's name on any map, `start`, or `checkpoint`), `respawnHearts`, and `keepOnRespawn` for each item carried;
+- **saving:** `canSave` (false: “You can't save here.”) and `keepOnNewGamePlus` (each item and game variable).
+
+Its events are `gameOver`, `respawn`, `gameWon`, `saved` and `loaded`. Any script can call `game.lose()`, `game.respawn()` and `game.setRespawn("Cave mouth")`.
+
+**A map's own behaviour** extends **MapScript** and is attached to the map in the Inspector's **Map** tab › **Behaviours**. It runs while the hero is on that map: `mapEnter(e)` as the hero arrives, `mapLeave(e)` as it goes, `foesCleared(e)` when the last foe there is beaten, and any other event. Its own variables start again each visit. `map.foesLeft()` says how many foes are left. The **Game rules course** walks through both.
+
 ## Rebuilding
 
 Smashed bricks are real physical pieces: they fly off, tumble, bounce off the bricks around them, stack and come to rest, and the hero pushes them aside when walking through. In water they float and drift with its current, as loose objects do (see Scene › Water and loose things).

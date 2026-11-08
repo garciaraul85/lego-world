@@ -6,6 +6,7 @@ import { DIALOGUE, DIALOGUE_EVENTS, MOVES, SHEET, SHEET_EVENTS } from './dialogu
 import { EFFECTS } from './effects';
 import { EVENTS } from './events';
 import { FLOW } from './flow';
+import { GAME, GAME_EVENTS, GAME_HOOKS } from './game';
 import { HEALTH, HEALTH_EVENTS } from './health';
 import { HOOKS, RETURN } from './hooks';
 import { ITEM_EVENTS, ITEM_HOOKS } from './items';
@@ -77,6 +78,10 @@ export const CATALOG: readonly NodeDef[] = [
   ...MAP_HOOKS,
   ...MAP_EVENTS,
   ...MAPS,
+  // Milestone 3b (B7a-3): the game's rules and a map's own behaviour
+  ...GAME_HOOKS,
+  ...GAME_EVENTS,
+  ...GAME,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

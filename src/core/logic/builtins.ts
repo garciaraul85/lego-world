@@ -1154,6 +1154,57 @@ CHARACTER_BUILTINS.push(
   ),
 );
 
+// ---------- Milestone 3b (B7a-3): the game's rules, and a map's own behaviour ----------
+
+CHARACTER_BUILTINS.push(
+  gameClass(
+    'GameMode',
+    undefined,
+    'The rules of the whole game, in Logic: extend it to decide what counts as game over (a fairy can save the hero), when the game is won, where and how the hero comes back after game over (which spawn point, how many hearts, which items it keeps), whether it can save now, and what new game plus keeps. Its events say when the game is over, won, saved or loaded, and when the hero comes back.',
+    [
+      hk(
+        'isGameOver',
+        'bool',
+        'Is it game over? (cause: hearts, logic) — false: the hero hangs on (with at least one heart)',
+      ),
+      hk('hasWon', 'bool', 'Has the game been won? — asked a few times a second; true finishes the game'),
+      hk(
+        'respawnAt',
+        'name',
+        'Where the hero comes back after game over (checkpoint): a spawn point’s name (on any map), start, or checkpoint',
+      ),
+      hk('respawnHearts', 'number', 'How many hearts it comes back with (base: all of them)'),
+      hk('keepOnRespawn', 'bool', 'Does the hero keep this item when it comes back? (item, count)'),
+      hk('canSave', 'bool', 'Can the game be saved now? (slot) — false: “You can’t save here.”'),
+      hk(
+        'keepOnNewGamePlus',
+        'bool',
+        'Does new game plus keep this? (kind: item or var, name) — base: Project › Progress › New game plus',
+      ),
+    ],
+    ['event.onGameOver', 'event.onRespawn', 'event.onGameWon', 'event.onSaved', 'event.onLoaded'],
+    'Logic: Extend it (no need to attach it: it is the game’s)',
+  ),
+  {
+    name: 'MapScript',
+    for: 'character',
+    about:
+      'A map’s own behaviour: attach it to a map (the Inspector’s Map tab › Behaviours) and it runs while the hero is on that map — mapEnter(e) as the hero arrives (music, a title, a quest to start), mapLeave(e) as it goes, foesCleared(e) when the last foe on the map is beaten (the doors open), and every other event too. Its own variables start again each visit: keep what must last in game variables.',
+    on: () => false,
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [],
+    events: ['event.onMapEnter', 'event.onMapLeave', 'event.onFoesCleared'],
+    editIn: 'Logic: Extend it, then attach it to a map (Inspector › Map › Behaviours)',
+  },
+);
+
+/** Milestone 3b (B7a-3): a behaviour extending this sets the game's rules */
+export const isModeClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'GameMode');
+/** Milestone 3b (B7a-3): a behaviour extending this goes on a map */
+export const isMapScriptClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'MapScript');
+
 /** Milestone 3b (B7a-2): a behaviour extending this is a quest */
 export const isQuestClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'Quest');
 /** Milestone 3b (B7a-2): a quest that is the story's (MainQuest) */
@@ -1161,7 +1212,7 @@ export const isMainQuestClass = (ext: string | undefined) => lineageOf(ext).some
 /** Milestone 3b (B7a-2): a behaviour extending this decides about the maps */
 export const isMapClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'GameMap');
 /** Milestone 3b (B7a-2): a class that is in the game as written (not attached to anything) */
-export const isGameClass = (ext: string | undefined) => isQuestClass(ext) || isMapClass(ext);
+export const isGameClass = (ext: string | undefined) => isQuestClass(ext) || isMapClass(ext) || isModeClass(ext);
 
 /** Milestone 3b (B6): an item's class (a built-in one, or Item and Projectile) */
 export const ITEM_CLASSES = () => CHARACTER_BUILTINS.filter((b) => b.items !== undefined);
@@ -1396,6 +1447,18 @@ export function extendCode(b: Pick<Builtin<unknown>, 'name' | 'hooks'>, name: st
       '',
       '  start(e) {',
       '    quest.start("this");',
+      '  }',
+    );
+  // Milestone 3b (B7a-3): a new map script hears the hero arrive and the room cleared
+  if (isMapScriptClass(b.name))
+    lines.push(
+      '',
+      '  mapEnter(e) {',
+      '    say("Welcome!", 2);',
+      '  }',
+      '',
+      '  foesCleared(e) {',
+      '    say("All clear!", 2);',
       '  }',
     );
   if (b.hooks.length) lines.push('');

@@ -3037,10 +3037,15 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     );
   },
   playFresh(c, a) {
-    // what pressing ■ Stop then ▶ Play does, when the game playing began before this quest was written
+    // what pressing ■ Stop then ▶ Play does, when the game playing began before this quest (or behaviour) was written
     const s = c.ed.session.value;
     const want = String(a?.quest ?? '');
     if (s && want && !s.quests.find(want)) c.ui.stopPlay();
+    const b = a?.behaviour ? behaviourByName(c, String(a.behaviour)) : null;
+    const stale = (g: LogicGraph) => JSON.stringify(s?.snapshot.get(paths.logic(g.id))) !== JSON.stringify(g);
+    if (c.ed.session.value && b && stale(b)) c.ui.stopPlay();
+    // (and a map behaviour attached since)
+    if (c.ed.session.value && a?.mapScript && !c.ed.session.value.world.doc.scripts?.length) c.ui.stopPlay();
     if (!c.ed.session.value) c.ui.play('engine');
   },
   async openQuestLog(c) {
@@ -3177,6 +3182,38 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     if (!zn) throw new Error(`There is no ${String(a?.name)} on this map.`);
     s.placeAt([(zn.min[0] + zn.max[0]) / 2, zn.min[1] + 0.4, (zn.min[2] + zn.max[2]) / 2], s.heroState.heading);
     await wait(800);
+  },
+  // Milestone 3b (B7a-3): the Game rules course
+  attachToMap(c, a) {
+    // what the Map tab's Behaviours › + Script does
+    const g = behaviourByName(c, String(a?.behaviour ?? ''));
+    if (!g) throw new Error(`Write the ${String(a?.behaviour)} behaviour first.`);
+    c.ui.workspace('Scene');
+    c.ed.right.value = 'map';
+    if (mapDoc(c).scripts?.some((x) => x.use === g.id)) return;
+    run(
+      c,
+      [{ type: 'script.attach', payload: { target: { kind: 'map', id: map(c) }, use: g.id } }],
+      'Attach map script',
+    );
+  },
+  async loseHearts(c) {
+    // what a hit too many does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    s.logic.setVar('hp', 0);
+    await wait(500);
+  },
+  async retryGame(c) {
+    // what Retry on the Game over screen does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    if (!s.over) {
+      s.logic.setVar('hp', 0);
+      await wait(500);
+    }
+    s.gameOp('retry');
+    await wait(500);
   },
   async walkHero(c) {
     const s = c.ed.session.value;

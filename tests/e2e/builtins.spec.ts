@@ -538,6 +538,53 @@ test('Quests across maps course: the way to a goal on another map, there and bac
   expect(errors).toEqual([]);
 });
 
+test('Game rules course: a fairy saves the hero once, game over and back, a map’s own behaviour', async ({ page }) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
+  await page.getByRole('menuitem', { name: /Game rules course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(7);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    await page.waitForTimeout(600);
+    if ((await doIt.isVisible()) && !(await card.getByText(/✓ Done!/).isVisible())) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doIt.click();
+      const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+      const done = card.getByText(/✓ Done!/);
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (await rest.isVisible()) await rest.click();
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      await page.screenshot({ path: `test-results/rules-${String(i).padStart(2, '0')}.png` });
+    }
+    if (/A map's own behaviour/.test(title)) {
+      const sec = page.locator('[data-tour="map-scripts"]');
+      await expect(sec).toBeVisible();
+      await expect(sec.getByRole('group', { name: 'Map behaviour Map Rules' })).toBeVisible();
+    }
+    if (/Game over, and back/.test(title)) {
+      // biome-ignore lint/suspicious/noExplicitAny: the editor's live Play session
+      const hp = await page.evaluate(() => (window as any).__editor.session.value.logic.vars.get('hp'));
+      expect(hp).toBe(2);
+    }
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  expect(errors).toEqual([]);
+});
+
 test('World built-ins course: a rock that takes three tries to lift', async ({ page }) => {
   test.setTimeout(900_000);
   const errors: string[] = [];
