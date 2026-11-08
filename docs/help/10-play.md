@@ -124,11 +124,13 @@ A **quest** is a behaviour that extends **Quest** — **MainQuest** for the stor
 - **Get** so many of an item, **Beat** so many of a character (counted from when the step began);
 - **By logic**: a script calls `quest.advance("Lost Lamp")`.
 
+**Goals on other maps:** a step's goal can be on any map. Without **On map** (`map:` in code) its name is looked for on the hero's map first, then on every other. When it is elsewhere, the diamond goes on the way out that leads toward it: the gate or travel zone that starts the shortest road through the World graph. The HUD, quest log and pause map say **— in Old Well Cave**. The **Quests across maps course** walks through it.
+
 A quest is in the game as written: nothing to attach. Start it with `quest.start("this")` in its own `start(e)`, or from a talk or a zone. It says **New quest**, and a main quest is tracked at once.
 
 Press **J** (or **Quests** on the pause screen) for the **quest log**: main quests first, then side quests, then those finished or failed. A quest shows its steps done, the one it is on (with how many so far), and that more lie ahead. **Track** puts its goal on both maps as a diamond. Off the map in play, an arrow at its edge points the way. The HUD says the tracked step above the map in play. The quest log is kept in saves.
 
-In code, a quest's hooks are `canStartQuest` (can it start now?), `stepDone` (is this step done? `e.base` is the engine's answer) and `goalOf` (where its goal shows). Its events — `questStart`, `questStep`, `questDone`, `questFail` — reach its own class and every other script (name the quest: `questDone(e = { quest: "Lost Lamp" })`). `quest.step`, `quest.status`, `quest.isActive` and `quest.isDone` read how one stands.
+In code, a quest's hooks are `canStartQuest` (can it start now?), `stepDone` (is this step done? `e.base` is the engine's answer) and `goalOf` (where its goal shows). Its events — `questStart`, `questStep`, `questDone`, `questFail` — reach its own class and every other script (name the quest: `questDone(e = { quest: "Lost Lamp" })`). `quest.step`, `quest.status`, `quest.isActive`, `quest.isDone` and `quest.goalMap` (the map its goal is on) read how one stands.
 
 **The maps in logic:** a behaviour that extends **GameMap** decides what the maps show. `showMarker` hides markers, `markerLabel` renames them, and `canOpenMap` keeps the map shut. Its events are `mapOpen`, `mapClose`, `mapPin` and `regionSeen` (the first time the hero comes into a region). Any script can use `map.open`, `map.setLook` (a sea chart once the hero has a boat), `map.mark` and `map.unmark` (a stamp and a note where something is), and `map.reveal` (the whole map, as from a lookout). The **Quests course** walks through it.
 

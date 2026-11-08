@@ -166,6 +166,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Enemy parts course (7 steps): place Rattlebones, read the Attack interface, swap its attack for a Spit and its mover for Wings in Characters › Behaviour, Extend Spit so it says so each time, and watch it spit from the air in Play.',
   'help.mapsCourse':
     'Starts the Maps course (6 steps): in Project › Maps make the pause map a Sea chart with a wooden frame and the map in play round with a compass ring, then in Play walk, press M for the pause map and put down a heart pin.',
+  'help.questMapsCourse':
+    'Starts the Quests across maps course (7 steps): add a map, Old Well Cave, joined to this one by a gate; write class IntoTheCave extends MainQuest whose first goal is on the cave (map: "Old Well Cave"); then in Play the diamond is on the gate that leads there, the HUD says in Old Well Cave; go through, reach the well, and come back out.',
   'help.questsCourse':
     'Starts the Quests course (8 steps): read Quest (steps in the class; hooks canStartQuest, stepDone, goalOf), write class LostLamp extends SideQuest (find 3 glowcaps, light the lamp), add a step in the Steps panel, write class TreasureMap extends GameMap (a flag on the maps, the goal named Go here!), then in Play open the quest log (J), show the quest on the map and finish it.',
   'help.itemsCourse':

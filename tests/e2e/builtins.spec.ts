@@ -485,6 +485,59 @@ test('Quests course: a quest with steps, the quest log, where to go next, the ma
   expect(errors).toEqual([]);
 });
 
+test('Quests across maps course: the way to a goal on another map, there and back', async ({ page }) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
+  await page.getByRole('menuitem', { name: /Quests across maps course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(7);
+  // biome-ignore lint/suspicious/noExplicitAny: the editor's live Play session
+  const goal = () =>
+    page.evaluate(
+      () =>
+        (window as any).__editor.session.value?.mapModel().markers.find((m: { kind: string }) => m.kind === 'goal') ??
+        null,
+    );
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    await page.waitForTimeout(600);
+    if ((await doIt.isVisible()) && !(await card.getByText(/✓ Done!/).isVisible())) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doIt.click();
+      const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+      const done = card.getByText(/✓ Done!/);
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (await rest.isVisible()) await rest.click();
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      await page.screenshot({ path: `test-results/questmaps-${String(i).padStart(2, '0')}.png` });
+    }
+    if (/The way there/.test(title)) {
+      await page.waitForTimeout(500);
+      expect((await goal())?.label).toBe('Find the old well → Old Well Cave');
+      await expect(page.locator('[data-widget="quest"]')).toHaveText('◆ Find the old well — in Old Well Cave');
+    }
+    if (/Through the gate/.test(title)) {
+      await page.waitForTimeout(500);
+      expect((await goal())?.label).toBe('Find the old well');
+    }
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  expect(errors).toEqual([]);
+});
+
 test('World built-ins course: a rock that takes three tries to lift', async ({ page }) => {
   test.setTimeout(900_000);
   const errors: string[] = [];

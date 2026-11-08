@@ -3085,6 +3085,99 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
       }
     }
   },
+  // v141: the Quests across maps course
+  addQuestMaps(c) {
+    // what World › Add map, a spawn point, a gate in the World graph and a zone in the new map do
+    const here = map(c);
+    const has = (n: string) =>
+      (c.ed.store.get<Gates>(paths.gates)?.mapOrder ?? [])
+        .map((id) => c.ed.store.get<MapDoc>(paths.map(id)))
+        .find((m) => m?.name === n);
+    let cave = has('Old Well Cave');
+    if (!cave) {
+      run(
+        c,
+        {
+          type: 'map.create',
+          payload: {
+            id: newId('map'),
+            name: 'Old Well Cave',
+            generate: { environments: ['prairie'], size: 24, seed: 41 },
+          },
+        },
+        'Add map Old Well Cave',
+      );
+      cave = has('Old Well Cave')!;
+      const pos = arrivalSpot(c.ed.store, cave.id);
+      const sp0 = cave.spawns[0];
+      if (pos && sp0)
+        run(c, { type: 'map.updateSpawn', payload: { map: cave.id, spawn: sp0.id, pos } }, 'Move the arrival');
+      cave = has('Old Well Cave')!;
+    }
+    const caveSpawn = cave.spawns[0]!;
+    const doc = mapDoc(c, here);
+    let path = doc.spawns.find((x) => x.name === 'Cave path');
+    if (!path) {
+      const a = doc.spawns[0]?.pos ?? [0, 0.4, 0];
+      run(
+        c,
+        { type: 'map.addSpawn', payload: { map: here, name: 'Cave path', pos: [a[0] + 8, a[1], a[2] - 8] } },
+        'Add spawn point Cave path',
+      );
+      path = mapDoc(c, here).spawns.find((x) => x.name === 'Cave path')!;
+    }
+    const gates = c.ed.store.get<Gates>(paths.gates)?.gates ?? [];
+    if (!gates.some((g) => g.from.spawn === path!.id || g.to.spawn === path!.id))
+      run(
+        c,
+        {
+          type: 'gate.connect',
+          payload: { from: { map: here, spawn: path.id }, to: { map: cave.id, spawn: caveSpawn.id }, twoWay: true },
+        },
+        'Connect gate',
+      );
+    if (!mapDoc(c, cave.id).zones.some((z) => z.tags[0] === 'Old well')) {
+      const q = caveSpawn.pos;
+      run(
+        c,
+        {
+          type: 'map.addZone',
+          payload: {
+            map: cave.id,
+            zone: { min: [q[0] + 4, q[1], q[2] - 2], max: [q[0] + 8, q[1] + 4, q[2] + 2], tags: ['Old well'] },
+          },
+        },
+        'Add trigger zone Old well',
+      );
+    }
+  },
+  async walkThroughGate(c, a) {
+    // what walking onto a gate's spawn point does (a step away first: one just arrived on does not send back)
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const to = String(a?.to ?? '').toLowerCase();
+    const out = s.outbound().find((o) => {
+      const m = c.ed.store.get<MapDoc>(paths.map(o.toMap));
+      return !to || m?.name.toLowerCase() === to;
+    });
+    if (!out) throw new Error('There is no way out of this map to there.');
+    const sp = s.world.doc.spawns.find((x) => x.id === out.from)!;
+    const from = s.world.mapId;
+    s.placeAt([sp.pos[0] + 4, sp.pos[1] + 0.2, sp.pos[2] + 4], s.heroState.heading);
+    await wait(500);
+    s.placeAt([sp.pos[0], sp.pos[1] + 0.2, sp.pos[2]], s.heroState.heading);
+    for (let i = 0; i < 40 && s.world.mapId === from; i++) await wait(150);
+  },
+  async reachPlace(c, a) {
+    // what walking into a zone (or up to a thing) does
+    const s = c.ed.session.value;
+    if (!s) throw new Error('Press Play first.');
+    const k = String(a?.name ?? '').toLowerCase();
+    const zn = s.world.doc.zones.find((z) => (z.tags[0] ?? '').toLowerCase() === k);
+    if (!zn) throw new Error(`There is no ${String(a?.name)} on this map.`);
+    s.placeAt([(zn.min[0] + zn.max[0]) / 2, zn.min[1] + 0.4, (zn.min[2] + zn.max[2]) / 2], s.heroState.heading);
+    await wait(800);
+  },
   async walkHero(c) {
     const s = c.ed.session.value;
     if (!s) throw new Error('Press Play first.');

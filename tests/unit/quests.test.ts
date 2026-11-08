@@ -423,3 +423,106 @@ describe('the maps in logic', () => {
     expect(p2.mapModel().markers.some((m) => m.kind === 'boss')).toBe(false);
   });
 });
+
+describe('goals on other maps (v141)', () => {
+  /** three maps in a row: Start ⇄ Woods (a gate), Woods → Old Well Cave (a zone that travels); the well in the cave */
+  function world(code: string) {
+    const s = new ProjectStore(newProjectFiles({ name: 'Maps', random: () => 0.3, noNeighbours: true }));
+    const bus = registerAll(new CommandBus(s));
+    const start = s.manifest.entry.map;
+    const gen = (seed: number) => ({ environments: ['prairie'], size: 24, seed });
+    const r = run(bus, [
+      { type: 'map.rename', payload: { map: start, name: 'Start' } },
+      { type: 'map.create', payload: { id: 'map_woodsaaaaa', name: 'Woods', generate: gen(5) } },
+      { type: 'map.create', payload: { id: 'map_caveaaaaaa', name: 'Old Well Cave', generate: gen(6) } },
+      { type: 'map.addSpawn', payload: { map: start, id: 'sp_tothewoods', name: 'Woods path', pos: [8, 0.4, 0] } },
+      {
+        type: 'map.addSpawn',
+        payload: { map: 'map_woodsaaaaa', id: 'sp_woodsenter', name: 'Woods edge', pos: [0, 0.4, 0] },
+      },
+      {
+        type: 'gate.connect',
+        payload: {
+          from: { map: start, spawn: 'sp_tothewoods' },
+          to: { map: 'map_woodsaaaaa', spawn: 'sp_woodsenter' },
+          twoWay: true,
+        },
+      },
+      { type: 'logic.create', payload: { graph: behaviour('Into the Cave', code) } },
+    ]);
+    expect(r.ok, r.error).toBe(true);
+    const woods = s.get<MapDoc>(paths.map('map_woodsaaaaa'))!;
+    const cave = s.get<MapDoc>(paths.map('map_caveaaaaaa'))!;
+    s.put(paths.map('map_woodsaaaaa'), {
+      ...woods,
+      zones: [
+        {
+          id: 'zn_cavedooraa',
+          shape: 'box',
+          min: [-4, 0, -12],
+          max: [0, 4, -8],
+          tags: ['Cave door'],
+          onEnter: [{ do: 'travel', map: 'map_caveaaaaaa', spawn: cave.spawns[0]!.id }],
+        },
+      ],
+    } as MapDoc);
+    s.put(paths.map('map_caveaaaaaa'), {
+      ...cave,
+      zones: [{ id: 'zn_oldwellaaa', shape: 'box', min: [2, 0, 2], max: [6, 4, 6], tags: ['Old well'] }],
+    } as MapDoc);
+    const p = new PlaySession(s.snapshot(), { audio: new RecordingAudio() });
+    p.placeAt([0, 0.4, 0], 0);
+    const step = (sec: number) => {
+      for (let t = 0; t < sec; t += 1 / 60) p.runtime.stepOnce();
+    };
+    step(0.1);
+    return { s, p, step, start };
+  }
+  const CAVE = `class IntoTheCave extends MainQuest {
+  steps = [
+    { name: "Find the old well", do: "reach", at: "Old well" },
+    { name: "Back to the Woods path", do: "reach", at: "Woods path" },
+  ];
+  start(e) {
+    quest.start("this");
+  }
+}`;
+
+  it('the way: two maps away, the goal points at the gate out; in the next map at the zone that travels', () => {
+    const { p, step } = world(CAVE);
+    const goal = () => p.mapModel().markers.find((m) => m.kind === 'goal');
+    expect(goal()).toMatchObject({ x: 8, z: 0, label: 'Find the old well → Old Well Cave' });
+    expect(p.questRead('goalMap', 'Into the Cave')).toBe('Old Well Cave');
+    expect(p.lookup('quest.line')).toBe('◆ Find the old well — in Old Well Cave');
+    p.travel('map_woodsaaaaa', 'sp_woodsenter');
+    step(0.4);
+    expect(goal()).toMatchObject({ x: -2, z: -10 });
+    p.travel('map_caveaaaaaa', '');
+    step(0.4);
+    expect(goal()).toMatchObject({ x: 4, z: 4, label: 'Find the old well' });
+    expect(p.lookup('quest.line')).toBe('◆ Find the old well');
+    // reaching it there; the next step's goal is back on the first map, through the woods
+    p.placeAt([4, 0.4, 4], 0);
+    step(0.5);
+    expect(p.questRead('step', 'Into the Cave')).toBe(2);
+    expect(p.questRead('goalMap', 'Into the Cave')).toBe('Start');
+    // (no way back from the cave: no marker, but the quest log still knows where)
+    expect(goal()).toBeUndefined();
+  });
+
+  it('a step can name its map; reaching the same name on another map does not count', () => {
+    const { p, step } = world(`class IntoTheCave extends MainQuest {
+  steps = [
+    { name: "Stand at the woods path", do: "reach", at: "Woods path", map: "Woods" },
+  ];
+  start(e) {
+    quest.start("this");
+  }
+}`);
+    // a spawn of that name is on Start, not on Woods: the goal is on Woods (where nothing of the name is)
+    expect(p.questRead('goalMap', 'Into the Cave')).toBe('Woods');
+    p.placeAt([8, 0.4, 0], 0);
+    step(0.5);
+    expect(p.questRead('step', 'Into the Cave')).toBe(1);
+  });
+});

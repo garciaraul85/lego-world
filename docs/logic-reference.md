@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (213 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (214 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -1979,6 +1979,16 @@ True once a quest is finished.
 - Inputs: quest (string)
 - Outputs: out (bool)
 - Code: `quest.isDone(quest)`
+
+### Quest goal’s map
+
+`quest.goalMap` · pure
+
+The name of the map the step a quest is on has its goal on ("" when it has none, or none is known). When it is not the map the hero is on, the maps show the way there.
+
+- Inputs: quest (string)
+- Outputs: out (string)
+- Code: `quest.goalMap(quest)`
 
 ## Maps
 

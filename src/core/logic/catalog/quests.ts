@@ -109,7 +109,7 @@ const questAction = (op: 'start' | 'advance' | 'finish' | 'fail' | 'track', titl
 });
 
 const questRead = (
-  what: 'step' | 'status' | 'isActive' | 'isDone',
+  what: 'step' | 'status' | 'isActive' | 'isDone' | 'goalMap',
   title: string,
   doc: string,
   out: PinDef['type'],
@@ -162,6 +162,13 @@ export const QUESTS: NodeDef[] = [
   questRead('status', 'Quest status', 'How a quest stands: "" (not started), "active", "done" or "failed".', 'string'),
   questRead('isActive', 'Quest is going', 'True while a quest is going (started, not done or failed).', 'bool'),
   questRead('isDone', 'Quest is done', 'True once a quest is finished.', 'bool'),
+  // v141: goals on other maps
+  questRead(
+    'goalMap',
+    'Quest goal’s map',
+    'The name of the map the step a quest is on has its goal on ("" when it has none, or none is known). When it is not the map the hero is on, the maps show the way there.',
+    'string',
+  ),
 ];
 
 // ---------- the maps ----------

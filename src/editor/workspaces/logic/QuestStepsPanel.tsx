@@ -15,6 +15,7 @@ import {
   type QuestStepDef,
   stepsProblem,
 } from '../../../core/quests/quest';
+import { gameMaps } from '../../../core/quests/route';
 import type { Asset, Character, LogicGraph } from '../../../core/schema';
 import { FieldHelp } from '../../components/fields';
 import type { EditorState } from '../../state';
@@ -84,6 +85,7 @@ export function QuestStepsPanel({ ed, graph }: { ed: EditorState; graph: LogicGr
     put(next, `Move step ${i + 1}`);
   };
   const problem = list.length ? stepsProblem(list) : null;
+  const maps = gameMaps(ed.store).map((m) => m.name);
   const listId = (i: number) => `quest-at-${graph.id}-${i}`;
   return (
     <div data-tour="quest-steps" data-help="logic.quest.steps">
@@ -248,6 +250,25 @@ export function QuestStepsPanel({ ed, graph }: { ed: EditorState; graph: LogicGr
                 value={st.where ?? ''}
                 onChange={(e) => set(i, 'where', (e.target as HTMLInputElement).value.trim().slice(0, 60))}
               />
+            </label>
+            {/* v141: the map its goal is on (another map: the maps show the way there) */}
+            <label
+              class="field"
+              title="The map its goal is on. Any map: wherever its name is found (this map first). On another map, the maps show the way there."
+            >
+              On map
+              <select
+                class="inp"
+                aria-label={`Step ${i + 1} on map`}
+                value={st.map ?? ''}
+                onChange={(e) => set(i, 'map', (e.target as HTMLSelectElement).value)}
+              >
+                <option value="">Any (where it is found)</option>
+                {maps.map((m) => (
+                  <option value={m}>{m}</option>
+                ))}
+                {st.map && !maps.includes(st.map) && <option value={st.map}>{st.map} (no such map)</option>}
+              </select>
             </label>
           </fieldset>
         );

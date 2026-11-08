@@ -1,0 +1,201 @@
+{
+  "id": "questMaps",
+  "title": "Quests across maps course",
+  "steps": [
+    {
+      "id": "qm.maps",
+      "title": "A second map",
+      "body": "A quest often leads to another map. Add a map named Old Well Cave, a spawn point named Cave path on this map, a gate joining them in the World graph, and a zone named Old well in the cave.",
+      "task": "Join Old Well Cave to this map.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapLinked",
+        "args": "Old Well Cave"
+      },
+      "doItForMe": [
+        {
+          "fn": "addQuestMaps"
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "qm.write",
+      "title": "A goal on another map",
+      "body": "Write a quest named Into the Cave that extends MainQuest. Its first step's goal, the Old well, is on Old Well Cave: map names the map (On map in the Steps panel). Without map, a name is looked for on this map first, then on every other.",
+      "task": "Write class IntoTheCave extends MainQuest.",
+      "target": "[data-tour=\"behaviour-fields\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourExtends",
+        "args": "Into the Cave,MainQuest"
+      },
+      "doItForMe": [
+        {
+          "fn": "newBehaviourNamed",
+          "args": {
+            "name": "Into the Cave"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "Into the Cave",
+            "code": [
+              "class $NAME extends MainQuest {",
+              "  steps = [",
+              "    { name: \"Find the old well\", do: \"reach\", at: \"Old well\", map: \"Old Well Cave\" },",
+              "    { name: \"Back out of the cave\", do: \"reach\", at: \"Cave path\" },",
+              "  ];",
+              "",
+              "  start(e) {",
+              "    quest.start(\"this\");",
+              "  }",
+              "",
+              "  questDone(e) {",
+              "    log(\"Out of the cave\");",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "qm.play",
+      "title": "The way there",
+      "body": "Press Play. The goal is not on this map, so the diamond goes on the way out that leads to it: the Cave path gate (through several maps, the first gate or zone of the shortest road). The HUD says Find the old well \u2014 in Old Well Cave, and so do the quest log and the pause map.",
+      "task": "Press Play.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "questGoalMap",
+        "args": "Into the Cave,Old Well Cave"
+      },
+      "doItForMe": [
+        {
+          "fn": "addQuestMaps"
+        },
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "Into the Cave",
+            "code": [
+              "class $NAME extends MainQuest {",
+              "  steps = [",
+              "    { name: \"Find the old well\", do: \"reach\", at: \"Old well\", map: \"Old Well Cave\" },",
+              "    { name: \"Back out of the cave\", do: \"reach\", at: \"Cave path\" },",
+              "  ];",
+              "",
+              "  start(e) {",
+              "    quest.start(\"this\");",
+              "  }",
+              "",
+              "  questDone(e) {",
+              "    log(\"Out of the cave\");",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "playFresh",
+          "args": {
+            "quest": "Into the Cave"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "qm.go",
+      "title": "Through the gate",
+      "body": "Walk onto the Cave path. In Old Well Cave the diamond is on the well itself.",
+      "task": "Go to Old Well Cave.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroOnMap",
+        "args": "Old Well Cave"
+      },
+      "doItForMe": [
+        {
+          "fn": "playFresh",
+          "args": {
+            "quest": "Into the Cave"
+          }
+        },
+        {
+          "fn": "walkThroughGate",
+          "args": {
+            "to": "Old Well Cave"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "qm.well",
+      "title": "Reach the well",
+      "body": "Walk into the Old well. The next step, Back out of the cave, has its goal on the first map: the diamond moves to the gate back.",
+      "task": "Reach the Old well.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "questStepAt",
+        "args": "Into the Cave,2"
+      },
+      "doItForMe": [
+        {
+          "fn": "reachPlace",
+          "args": {
+            "name": "Old well"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "qm.back",
+      "title": "Out again",
+      "body": "Go back through the gate: arriving on the Cave path finishes the quest.",
+      "task": "Finish Into the Cave.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Out of the cave"
+      },
+      "doItForMe": [
+        {
+          "fn": "walkThroughGate"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "qm.done",
+      "title": "Done!",
+      "body": "Any step can lead anywhere in the game: name its map when the same name is on several. In code, quest.goalMap(\"Into the Cave\") says which map a quest's goal is on, and goalOf can return a place on another map.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

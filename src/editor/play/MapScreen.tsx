@@ -126,6 +126,7 @@ export function MapScreen({ s, tick }: { s: PlaySession; tick: number }) {
 function TrackedGoal({ s }: { s: PlaySession }) {
   const d = s.quests.trackedQuest();
   const st = d ? s.quests.stepOf(d) : null;
+  const goal = d ? s.goalOfQuest(d) : null;
   if (!s.quests.begun().length) return null;
   return (
     <span class="bw-mapscreen-goal" data-tour="map-goal">
@@ -133,6 +134,7 @@ function TrackedGoal({ s }: { s: PlaySession }) {
         <span>
           <span aria-hidden="true">◆ </span>
           <strong>{d.name}</strong>: {st.name}
+          {goal && !goal.here && goal.mapName ? ` — in ${goal.mapName}` : ''}
         </span>
       ) : (
         <span class="muted">No quest tracked</span>

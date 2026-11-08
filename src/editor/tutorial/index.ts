@@ -63,6 +63,7 @@ import gloomweaver from './content/53-gloomweaver.json';
 import items from './content/54-items.json';
 import maps from './content/55-maps.json';
 import quests from './content/56-quests.json';
+import questMaps from './content/57-quest-maps.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -113,6 +114,7 @@ export type Track =
   | 'items'
   | 'maps'
   | 'quests'
+  | 'questMaps'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -213,6 +215,8 @@ export const ITEMS_STEPS: TrackStep[] = steps([items].map((c) => Chapter.parse(c
 export const MAPS_STEPS: TrackStep[] = steps([maps].map((c) => Chapter.parse(c)));
 /** Milestone 3b (B7a-2): quests and the maps in logic */
 export const QUESTS_STEPS: TrackStep[] = steps([quests].map((c) => Chapter.parse(c)));
+/** v141: quests whose goals are on other maps */
+export const QUEST_MAPS_STEPS: TrackStep[] = steps([questMaps].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -265,6 +269,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   items: { title: 'Items course', steps: ITEMS_STEPS },
   maps: { title: 'Maps course', steps: MAPS_STEPS },
   quests: { title: 'Quests course', steps: QUESTS_STEPS },
+  questMaps: { title: 'Quests across maps course', steps: QUEST_MAPS_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),

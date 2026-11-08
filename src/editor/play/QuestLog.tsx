@@ -20,6 +20,8 @@ export function QuestLog({ s, tick }: { s: PlaySession; tick: number }) {
     ['Finished', all.filter((d) => b.statusOf(d) !== 'active')],
   ];
   const p = chosen ? b.of(chosen) : null;
+  // v141: a goal on another map
+  const goal = chosen && b.statusOf(chosen) === 'active' ? s.goalOfQuest(chosen) : null;
   const status = chosen ? b.statusOf(chosen) : '';
   const tracked = b.trackedQuest()?.name ?? null;
   return (
@@ -102,6 +104,12 @@ export function QuestLog({ s, tick }: { s: PlaySession; tick: number }) {
                         {now && st.at && k !== 'script' && (
                           <span class="bw-questlog-goal small">
                             {QUEST_DO_INFO[k].label} {st.at}
+                          </span>
+                        )}
+                        {now && goal && !goal.here && goal.mapName && (
+                          <span class="bw-questlog-goal small">
+                            In {goal.mapName}
+                            {goal.pos ? ' — the maps show the way there' : ''}
                           </span>
                         )}
                       </span>

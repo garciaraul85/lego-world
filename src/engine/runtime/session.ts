@@ -66,6 +66,7 @@ import { STAMPS } from '../../core/maps/notes';
 import { maxOf } from '../../core/num';
 import { switchHitBy } from '../../core/puzzles/puzzle';
 import { doOf, goalNameOf } from '../../core/quests/quest';
+import { type MapLink, mapLinks, mapNamed, mapsOfPlace, nextLink, placeIndex } from '../../core/quests/route';
 import {
   AutoQuality,
   type DeviceInfo,
@@ -5727,7 +5728,10 @@ export class PlaySession {
     if (name === 'quest.step' || name === 'quest.line') {
       const d = this.quests.trackedQuest();
       const st = d ? (this.quests.stepOf(d)?.name ?? '') : '';
-      return name === 'quest.line' ? (st ? `◆ ${st}` : '') : st;
+      if (name !== 'quest.line' || !st) return st;
+      // v141: a goal on another map says which
+      const g = this.goalOfQuest(d!);
+      return g && !g.here && g.mapName ? `◆ ${st} — in ${g.mapName}` : `◆ ${st}`;
     }
     if (/^(progress|achievements|collections|collection|bests|best|settings)\./.test(name))
       return this.progress.value(name);
@@ -6727,10 +6731,12 @@ export class PlaySession {
     }
   }
   /** logic's quest.step, status, isActive, isDone */
-  questRead(what: 'step' | 'status' | 'isActive' | 'isDone', ref: string): number | string | boolean {
+  questRead(what: 'step' | 'status' | 'isActive' | 'isDone' | 'goalMap', ref: string): number | string | boolean {
     const d = this.quests.find(ref);
     const p = d ? this.quests.of(d) : null;
     switch (what) {
+      case 'goalMap':
+        return d ? (this.goalOfQuest(d)?.mapName ?? '') : '';
       case 'step':
         return p ? Math.min(p.step, d!.steps.length - 1) + 1 : 0;
       case 'status':
@@ -6805,7 +6811,9 @@ export class PlaySession {
       const at = (s.at ?? '').trim();
       const need = s.count ?? 1;
       const have = this.quests.haveOf(d, (item) => this.itemCount(item));
-      const base = k === 'reach' ? this.heroAt(at) : k === 'script' ? false : have >= need;
+      // (a step whose goal is on another map is reached only there)
+      const onMap = !s.map?.trim() || this.stepMap(s) === this.world.mapId;
+      const base = k === 'reach' ? onMap && this.heroAt(at) : k === 'script' ? false : have >= need;
       const done = this.askQuest(
         d,
         'stepDone',
@@ -6827,22 +6835,70 @@ export class PlaySession {
   }
 
   private goalCache: { at: number; mark: MapMarker | null; map: string } | null = null;
-  /** where to go next: the tracked quest's goal on this map (worked out a few times a second) */
+  /** where to go next: the tracked quest's goal on this map, or the way toward it (a few times a second) */
   private questGoal(): MapMarker | null {
     const c = this.goalCache;
     if (c && c.map === this.world.mapId && Math.abs(this.clock - c.at) < 0.25) return c.mark;
     let mark: MapMarker | null = null;
     const d = this.quests.trackedQuest();
+    const g = d ? this.goalOfQuest(d) : null;
     const s = d ? this.quests.stepOf(d) : null;
-    const p = d ? this.quests.of(d) : null;
-    if (d && s && p) {
-      const name = String(
-        this.askQuest(d, 'goalOf', { step: p.step + 1, stepName: s.name, at: s.at ?? '' }, goalNameOf(s)),
-      ).trim();
-      let pos = name ? this.placeOf(name) : null;
+    if (g?.pos && s)
+      mark = {
+        kind: 'goal',
+        x: g.pos[0],
+        y: g.pos[1],
+        z: g.pos[2],
+        label: g.here ? s.name : `${s.name} → ${g.mapName}`,
+      };
+    this.goalCache = { at: this.clock, mark, map: this.world.mapId };
+    return mark;
+  }
+
+  private routeCache: { links: MapLink[]; idx: Map<string, string[]> } | null = null;
+  /** v141: how the maps link up, and which maps each named thing is on (worked out once a play) */
+  private questRoutes() {
+    this.routeCache ??= { links: mapLinks(this.snapshot), idx: placeIndex(this.snapshot) };
+    return this.routeCache;
+  }
+  /** v141: where a way out of this map is */
+  private linkSpot(l: MapLink): [number, number, number] | null {
+    if (l.at.kind === 'spawn') {
+      const id = l.at.id;
+      const sp = this.world.doc.spawns.find((x) => x.id === id);
+      return sp ? [sp.pos[0], sp.pos[1], sp.pos[2]] : null;
+    }
+    const id = l.at.id;
+    const zn = this.world.doc.zones.find((z) => z.id === id);
+    return zn ? [(zn.min[0] + zn.max[0]) / 2, zn.min[1], (zn.min[2] + zn.max[2]) / 2] : null;
+  }
+  /** v141: the map a step's goal is on, when its step names one (null: wherever it is found) */
+  private stepMap(st: { map?: string }): string | null {
+    return st.map?.trim() ? (mapNamed(this.snapshot, st.map)?.id ?? null) : null;
+  }
+
+  /**
+   * where a quest's goal is now: which map (null: nowhere known), and where to show it on this map — the goal
+   * itself, or on another map the way out that leads toward it (the fewest maps through the world graph)
+   */
+  goalOfQuest(
+    d: QuestDef,
+  ): { map: string | null; mapName: string; here: boolean; pos: [number, number, number] | null } | null {
+    const s = this.quests.stepOf(d);
+    const p = this.quests.of(d);
+    if (!s || !p) return null;
+    const name = String(
+      this.askQuest(d, 'goalOf', { step: p.step + 1, stepName: s.name, at: s.at ?? '' }, goalNameOf(s)),
+    ).trim();
+    const here = this.world.mapId;
+    const get = doOf(s) === 'get' && !!s.at && !name;
+    let target = this.stepMap(s);
+    let pos: [number, number, number] | null = null;
+    if (!target || target === here) {
+      pos = name ? this.placeOf(name) : null;
       // a get with nowhere written: where that item lies on this map (the nearest of its pickups)
-      if (!name && doOf(s) === 'get' && s.at) {
-        const k = s.at.trim().toLowerCase();
+      if (get) {
+        const k = s.at!.trim().toLowerCase();
         let best = Infinity;
         for (const i of this.world.instances) {
           if (i.def.pickup?.item.toLowerCase() !== k) continue;
@@ -6855,10 +6911,20 @@ export class PlaySession {
           }
         }
       }
-      if (pos) mark = { kind: 'goal', x: pos[0], y: pos[1], z: pos[2], label: s.name };
+      if (pos) target = here;
     }
-    this.goalCache = { at: this.clock, mark, map: this.world.mapId };
-    return mark;
+    // not on this map: the other maps it is on
+    if (!target) {
+      const { idx } = this.questRoutes();
+      const on = name ? mapsOfPlace(idx, name) : get ? (idx.get(`item:${s.at!.trim().toLowerCase()}`) ?? []) : [];
+      target = on.find((m) => m !== here) ?? null;
+    }
+    if (target && target !== here) {
+      const l = nextLink(this.questRoutes().links, here, target);
+      pos = l ? this.linkSpot(l) : null;
+    }
+    const doc = target ? (this.snapshot.get(paths.map(target)) as MapDoc | undefined) : undefined;
+    return { map: target, mapName: doc?.name ?? '', here: target === here, pos };
   }
 
   private markerHookCache = new Map<string, { show: boolean; label: string | undefined }>();

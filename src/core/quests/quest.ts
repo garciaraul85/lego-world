@@ -11,7 +11,8 @@
  *     ];
  *   }
  *
- * Each step has a goal — where to go next — shown on both maps while the quest is tracked; it is done by itself
+ * Each step has a goal — where to go next — shown on both maps while the quest is tracked (on another map: the way
+ * there, through the world graph's gates); it is done by itself
  * when its `do` is (reach a place, talk to a character, get items, beat foes, use an object), or by logic
  * (`do: "script"`: quest.advance()).
  */
@@ -30,7 +31,7 @@ export const QUEST_DO_INFO: Record<QuestDo, { label: string; at: string; about: 
   script: { label: 'By logic', at: 'Goal', about: 'only logic finishes it: quest.advance()' },
 };
 
-export const STEP_KEYS = ['name', 'do', 'at', 'count', 'where'] as const;
+export const STEP_KEYS = ['name', 'do', 'at', 'count', 'where', 'map'] as const;
 export type StepKey = (typeof STEP_KEYS)[number];
 
 export const QuestStepDef = z.strictObject({
@@ -44,6 +45,8 @@ export const QuestStepDef = z.strictObject({
   count: z.number().int().min(1).max(99).optional(),
   /** where the goal shows on the maps, when not where `at` is (a get: where the item is found) */
   where: z.string().max(60).optional(),
+  /** v141: the map its goal is on, by name (when the same name is on several maps; else it is found on any) */
+  map: z.string().max(80).optional(),
 });
 export type QuestStepDef = z.infer<typeof QuestStepDef>;
 
@@ -84,6 +87,8 @@ export function stepHint(key: string): string {
       return 'how many, 1 to 99.';
     case 'where':
       return 'the name of where its goal shows on the maps, in quotes.';
+    case 'map':
+      return 'the name of the map its goal is on, in quotes.';
     default:
       return `use ${STEP_KEYS.join(', ')}.`;
   }

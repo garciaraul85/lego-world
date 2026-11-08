@@ -687,6 +687,24 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   },
   /** Milestone 3b (B7a-2): the quest log is open in Play */
   questLogOpen: (ed) => !!ed.session.value?.questsOpen,
+  /** v141: the game has a map of this name joined to the start map by a gate (“Old Well Cave”) */
+  mapLinked: (ed, a) => {
+    const g = ed.store.get<Gates>(paths.gates);
+    const m = (g?.mapOrder ?? []).map((id) => ed.store.get<MapDoc>(paths.map(id))).find((x) => x?.name === String(a));
+    return !!m && !!g?.gates.some((x) => x.from.map === m.id || x.to.map === m.id);
+  },
+  /** v141: “Quest,Map”: in Play, the quest's goal is on that map */
+  questGoalMap: (ed, a) => {
+    const [q, m] = String(a).split(',');
+    return ed.session.value?.questRead('goalMap', q!) === m;
+  },
+  /** v141: in Play the hero is on the map of this name */
+  heroOnMap: (ed, a) => ed.session.value?.world.doc.name === String(a),
+  /** v141: “Quest,2”: in Play, the quest is on that step */
+  questStepAt: (ed, a) => {
+    const [q, n] = String(a).split(',');
+    return ed.session.value?.questRead('step', q!) === Number(n);
+  },
   /** Milestone 3b (B7a-2): this quest is tracked and the pause map is open */
   questOnMap: (ed, a) =>
     !!ed.session.value?.mapOpen &&
