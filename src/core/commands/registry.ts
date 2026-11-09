@@ -42,6 +42,7 @@ import { deleteEffect, deleteScreenEffect, putEffect, putScreenEffect } from './
 import { deleteFile, putFile } from './handlers/file';
 import { connectGate, deleteGate, deleteMap, updateGate } from './handlers/gates';
 import { deleteHairStyle, putHairStyle } from './handlers/hairstyles';
+import { applyHudStyle } from './handlers/hud';
 import { addItem, removeItem, setMapAudio, updateItem } from './handlers/items';
 import {
   addNode,
@@ -91,6 +92,8 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('map.setEnvironment', setEnvironment);
   bus.register('map.setDungeon', setDungeon);
   bus.register('map.setLook', setMapLook);
+  // Milestone 3b (B7b)
+  bus.register('hud.applyStyle', applyHudStyle);
   bus.register('file.put', putFile);
   bus.register('file.delete', deleteFile);
   bus.register('map.generate', generateTerrain);

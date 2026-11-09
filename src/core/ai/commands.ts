@@ -14,6 +14,7 @@ import * as Dl from '../commands/handlers/dialogue';
 import * as Fx from '../commands/handlers/effects';
 import * as G from '../commands/handlers/gates';
 import * as Hs from '../commands/handlers/hairstyles';
+import * as Hd from '../commands/handlers/hud';
 import * as I from '../commands/handlers/items';
 import * as L from '../commands/handlers/logic';
 import * as M from '../commands/handlers/map';
@@ -21,6 +22,7 @@ import * as Np from '../commands/handlers/npcs';
 import * as Pr from '../commands/handlers/progress';
 import * as Sc from '../commands/handlers/scatter';
 import type { CommandHandler } from '../commands/types';
+import { HUD_STYLES } from '../controls/hud-styles';
 import { Conversation } from '../dialogue/schema';
 import { Effect, EffectHooks } from '../effects/schema';
 import { Mood, ScreenEffect, ScreenHooks } from '../effects/screen';
@@ -223,6 +225,15 @@ export const AI_COMMANDS: AiCommand[] = [
     'Scene',
     'A map’s own pause map and map in play ({pause?: {type, …as project.update maps.pause}, mini?: {type, …}}), over the game’s; null: the game’s.',
     { map: M1, look: { pause: { type: 'chart' } } },
+  ),
+  def(
+    'hud.applyStyle',
+    Hd.applyHudStyle,
+    z.strictObject({ style: z.enum(HUD_STYLES).nullable() }),
+    [],
+    'Scene',
+    'A HUD style after an era of 3D adventure games: corner64 (corner buttons: green Attack, blue Action, three yellow item buttons), cube (big-button cluster around a big green Action), pointer (a remote-shaped strip; hold the item button for the item wheel), tablet (a second screen along the bottom with the map, buttons and touchable items), openair (small hints, a stamina wheel, a jump button). Sets the button layout and arranges the HUD screen; null: the plain look and built-in HUD.',
+    { style: 'corner64' },
   ),
   def(
     'map.addSpawn',

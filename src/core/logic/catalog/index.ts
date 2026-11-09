@@ -9,6 +9,7 @@ import { FLOW } from './flow';
 import { GAME, GAME_EVENTS, GAME_HOOKS } from './game';
 import { HEALTH, HEALTH_EVENTS } from './health';
 import { HOOKS, RETURN } from './hooks';
+import { INPUT, INPUT_EVENTS, INPUT_HOOKS } from './input';
 import { ITEM_EVENTS, ITEM_HOOKS } from './items';
 import { LIGHTS } from './lights';
 import { COMPARE, MATH } from './math';
@@ -82,6 +83,10 @@ export const CATALOG: readonly NodeDef[] = [
   ...GAME_HOOKS,
   ...GAME_EVENTS,
   ...GAME,
+  // Milestone 3b (B7b): the player's buttons and the HUD
+  ...INPUT_HOOKS,
+  ...INPUT_EVENTS,
+  ...INPUT,
 ];
 const BY_TYPE = new Map(CATALOG.map((d) => [d.type, d]));
 

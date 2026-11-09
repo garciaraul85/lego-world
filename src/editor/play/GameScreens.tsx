@@ -1,5 +1,6 @@
 import type { Signal } from '@preact/signals';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
+import type { Bindable } from '../../core/controls/controls';
 import { mediaCredits } from '../../core/media/uses';
 import { type MediaIndex, paths } from '../../core/schema';
 import { drawMini } from '../../engine/maps/draw';
@@ -51,6 +52,14 @@ export function GameScreens({
       slots: () => s.slotViews(),
       equip: (slot, item) => s.equip(slot, item),
       bindings: () => s.bindingViews(),
+      // Milestone 3b (B7b): the HUD style, GameHud's decisions, the second screen's touched items
+      hudStyle: () => s.hudStyle(),
+      shown: (screen, widget) => s.hudShows(screen, widget),
+      hudText: (screen, widget, text) => s.hudText(screen, widget, text),
+      tap: (b) => {
+        s.buttons.press(b as Bindable);
+        setTimeout(() => s.buttons.release(b as Bindable), 90);
+      },
       rebind: (id, key) => s.rebind(id, key),
       resetBindings: () => s.resetBindings(),
       art: (id) => artUrl(ed.store, ed.media, id),

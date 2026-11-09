@@ -7,6 +7,7 @@ import { FIRE_LIGHT } from './firelight';
 import { FOES } from './foes';
 import { GUIDES } from './guides';
 import { HOOKS } from './hooks';
+import { HUD } from './hud';
 import { ICE_MOVE } from './icemove';
 import { LENS } from './lens';
 import { LIGHTS } from './lights';
@@ -40,6 +41,7 @@ export const WRITTEN: HelpEntry[] = [
   ...ICE_MOVE,
   ...WIND,
   ...MAPS,
+  ...HUD,
   ...SHOTS,
   ...HOOKS,
   ...LENS,

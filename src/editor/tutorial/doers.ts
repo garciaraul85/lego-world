@@ -46,6 +46,7 @@ import {
 } from '../../core/schema';
 import { fromBase64, modelMatrix, prepareModel } from '../../engine/model/prepare';
 import { drawBox } from '../../engine/render/model-draw';
+import type { PlaySession } from '../../engine/runtime/session';
 import { BrowserSaveStore } from '../../platform/saves';
 import { type ActionCtx, action, runAction } from '../actions/registry';
 import { assetLibrary, newAssetDef, placeCommands } from '../assets';
@@ -179,8 +180,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async walkNear(c, a) {
     // what walking up to a placed object does (the hero stops a couple of studs short of it)
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const o = s.world.instances.find((i) => i.def.name === String(a?.asset ?? ''));
     if (!o) throw new Error(`Place a ${String(a?.asset)} first.`);
     faceThing(s, o, Number(a?.gap ?? 1));
@@ -188,8 +188,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async useNear(c, a) {
     // what pressing the Action button (E) beside a placed object does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const o = s.world.instances.find((i) => i.def.name === String(a?.asset ?? ''));
     if (!o) throw new Error(`Place a ${String(a?.asset)} first.`);
     const so = o.sockets.find((x) => x.kind === 'interact');
@@ -301,8 +300,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async heavyHitUntilLogged(c, a) {
     // what walking up to a character and swinging hard (F while running) does, again until the Console says it
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const name = String(a?.name ?? '');
     const until = String(a?.until ?? '');
     const said = () => s.events.some((e) => e.msg.includes(until));
@@ -323,8 +321,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     // Milestone 3b (14a-2): what fighting a guarded boss does: from a fair distance, walk up to it (never under it),
     // shield up in front of it while it strikes; as its eye glows, step in and swing hard — again until the Console
     // says it
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const name = String(a?.name ?? '');
     const until = String(a?.until ?? '');
     const said = () => s.events.some((e) => e.msg.includes(until));
@@ -386,8 +383,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async waitLogged(c, a) {
     // standing back and watching: up to `seconds` until the Console says it
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const until = String(a?.until ?? '');
     for (let i = 0; i < Number(a?.seconds ?? 10) * 4 && !s.events.some((e) => e.msg.includes(until)); i++)
       await wait(250);
@@ -401,8 +397,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async jumpUntilLogged(c, a) {
     // what pressing Space again and again, quickly, does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const said = () => s.events.some((e) => e.msg.includes(String(a?.until ?? '')));
     for (let n = 0; n < 10 && !said(); n++) {
       for (let i = 0; i < 30 && !s.heroState.grounded; i++) await wait(50);
@@ -412,8 +407,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async liftUntilLogged(c, a) {
     // what pressing the Action button at a liftable thing, again and again, does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const o = s.world.instances.find((i) => i.def.name === String(a?.name ?? 'Rock'));
     if (!o) throw new Error(`Place a ${String(a?.name ?? 'Rock')} first.`);
     const said = () => s.events.some((e) => e.msg.includes(String(a?.until ?? '')));
@@ -426,8 +420,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async pushUntilLogged(c, a) {
     // what holding Action (Grab) at a block and walking into it, again and again, does (away from the start)
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const block = s.world.instances.find((i) => i.def.name === String(a?.block ?? 'Wooden crate'));
     if (!block) throw new Error('Place the block first.');
     const sp = s.world.doc.spawns[0];
@@ -520,8 +513,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async giveAndUse(c, a) {
     // what picking an item up (or a script giving it) and pressing its item button does; then until the Console says it
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const item = String(a?.item ?? '');
     // biome-ignore lint/suspicious/noExplicitAny: a pickup gives the hero the item (as walking over one does)
     if ((s.inventory.get(item) ?? 0) <= 0) (s as any).give(item, Number(a?.count ?? 1));
@@ -1783,8 +1775,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async bounceRock(c) {
     // what standing in front of the Pebblespout with the shield up (Q held, facing it) does when it spits
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const n = s.world.npcs.find((x) => String(x.profile.name ?? '') === 'Pebblespout');
     if (!n) throw new Error('Place a Pebblespout first.');
     const face = (x: number, z: number) => Math.atan2(x - s.heroState.x, z - s.heroState.z);
@@ -1806,8 +1797,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async blockBeam(c) {
     // what standing in the Watcher Eye's sight, shield up toward it, does when it fires
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const n = s.world.npcs.find((x) => String(x.profile.name ?? '') === 'Watcher Eye');
     if (!n) throw new Error('Place a Watcher Eye first.');
     const h = n.state.heading;
@@ -1827,8 +1817,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async lensStrike(c, a) {
     // what holding up the Lens of Truth, walking up behind the faded ghost and swinging the sword does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const name = String(a?.name ?? 'Lanternwisp');
     await takePickup(s, 'Lens of Truth', 'Lens of Truth');
     if (!s.lens.on) s.useItem('Lens of Truth', slotOf(s, 'Lens of Truth'));
@@ -1850,8 +1839,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async meetPack(c) {
     // what walking toward the Howlers does: one sees you and howls, and the pack comes round you
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const n = s.world.npcs.find((x) => String(x.profile.name ?? '') === 'Howler');
     if (!n) throw new Error('Place the Howlers first.');
     standAt(s, n.state.x, n.state.z + 8, Math.PI);
@@ -1920,8 +1908,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async winArena(c) {
     // what walking into the arena and beating every wave does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const z = s.world.doc.zones.find((x) => x.tags[0] === 'Arena');
     if (!z) throw new Error('Make the Arena zone first.');
     s.placeAt([(z.min[0] + z.max[0]) / 2, z.min[1], (z.min[2] + z.max[2]) / 2], s.heroState.heading);
@@ -2013,8 +2000,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async pushOntoSwitch(c, a) {
     // what holding Action (Grab) and walking into the block does, until it slides onto the switch: the hero leans in
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const block = s.world.instances.find((i) => i.def.name === String(a?.block ?? 'Push block'));
     const sw = s.world.instances.find((i) => i.def.name === String(a?.switch ?? 'Weight switch'));
     if (!block || !sw) throw new Error('Place the block and the switch first.');
@@ -2041,8 +2027,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async pullBlock(c, a) {
     // what holding Action (Grab) at the block and stepping back (S) does: the hero sits back and pulls
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const block = s.world.instances.find((i) => i.def.name === String(a?.block ?? 'Push block'));
     if (!block) throw new Error('Place the block first.');
     const sp = s.world.doc.spawns[0];
@@ -2073,8 +2058,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   async burnVines(c) {
     // what walking over a Branch (it comes out in the hand), walking its end into the Burning torch's flame (it
     // catches) and then up to the vines (they catch, and the stick burns up with them) does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await takePickup(s, 'Branch', 'Branch');
     await lightBranch(s);
     const vines = s.world.instances.find((i) => i.def.name === 'Vines');
@@ -2088,8 +2072,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async lightTorch(c) {
     // what taking the other Branch, lighting it at the Burning torch and walking its end into the torch stand does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await takePickup(s, 'Branch', 'Branch');
     await lightBranch(s);
     const stand = s.world.instances.find((i) => i.def.name === 'Torch stand');
@@ -2105,8 +2088,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   // step 12c: the Ice, platforms and climbing course
   async slideIceBlock(c) {
     // what holding Action (Grab) at the ice block and pushing it (W) does: it slides on by itself
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const b = s.world.instances.find((i) => i.def.name === 'Ice block');
     if (!b) throw new Error('Place an Ice block first.');
     const yaw = s.world.doc.spawns[0]?.yaw ?? 0;
@@ -2125,8 +2107,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   // step 12c-2: the Wind, water and throwing course
   async walkIntoWind(c) {
     // what walking (W) from the start straight toward the fan does: into its wind, leaning into it
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const fan = s.world.instances.find((i) => i.def.wind);
     if (!fan) throw new Error('Place a Fan first.');
     const b = fan.bricks;
@@ -2149,8 +2130,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async gustAt(c, a) {
     // what picking up the Gust leaf, taking it out (its button) and swinging it (F) at a thing does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await takePickup(s, 'Gust leaf', 'Gust leaf');
     if (!s.leafOut) s.useItem('Gust leaf', slotOf(s, 'Gust leaf'));
     const name = String(a?.name ?? 'Pinwheel');
@@ -2166,8 +2146,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async throwRockAt(c, a) {
     // what lifting the Rock (Action), walking and pressing Action again at the target does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const target = s.world.instances.find((i) => i.def.name === String(a?.target ?? 'Crystal switch'));
     if (!target) throw new Error('Place the Crystal switch first.');
     const fl = s.fireLight;
@@ -2193,8 +2172,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   async swimRiver(c) {
     // what walking into the river does (it is deep: the hero swims, and the current carries it), then holding
     // Action (Dive) a moment to go under
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const w = s.waterBoxes().find((b) => b.current[0] || b.current[1]);
     if (!w) throw new Error('Place a River first.');
     // at its near bank, upstream, facing it
@@ -2234,8 +2212,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   async shootAt(c, a) {
     // what walking over the Bow (it goes into an item button), pressing its button (or Fire or Ice arrows'), facing
     // the target, holding Attack (F) to draw and letting go does; `through`: stood so the shot passes that first
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await takePickup(s, 'Bow', 'Bow');
     const arrows = String(a?.arrows ?? 'Bow');
     if (arrows !== 'Bow') await takePickup(s, arrows, arrows);
@@ -2258,8 +2235,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async freezeWater(c) {
     // what pressing the Ice arrows' button, facing the water and drawing and letting go does: a floe of ice
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await takePickup(s, 'Bow', 'Bow');
     await takePickup(s, 'Ice arrows', 'Ice arrows');
     if (s.shots.out !== 'bow' || s.shots.arrow !== 'ice') s.useItem('Ice arrows', slotOf(s, 'Ice arrows'));
@@ -2286,8 +2262,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async throwBoomerangAt(c, a) {
     // what walking over the Boomerang, facing the target and pressing its item button does: out and back
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const item = String(a?.item ?? 'Boomerang');
     await takePickup(s, item, item);
     const name = String(a?.name ?? 'Crystal switch');
@@ -2306,8 +2281,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   async hookTo(c, a) {
     // what walking over the Hook line, pressing its button, facing the thing, holding Attack (F) to aim and letting go
     // does: the hook flies out, catches, and pulls (the hero to a target, a light crate to the hero)
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await takePickup(s, 'Hook line', 'Hook line');
     if (s.hooks.out !== 'hook') s.useItem('Hook line', slotOf(s, 'Hook line'));
     const name = String(a?.name ?? 'Hook target');
@@ -2327,8 +2301,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   async swingRope(c) {
     // what walking over the Grapple rope, aiming it up at the beam, climbing (Shift and W), swinging (W) and letting go
     // (Space) does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await takePickup(s, 'Grapple rope', 'Grapple rope');
     if (s.hooks.out !== 'rope') s.useItem('Grapple rope', slotOf(s, 'Grapple rope'));
     const beam = s.world.instances.find((i) => i.def.name === 'Swing beam');
@@ -2370,8 +2343,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   async hoverAcross(c) {
     // what walking over the hover boots, pressing their button (on), and walking off the Pit gap's first ledge
     // toward the other does: the boots float the hero across
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await takePickup(s, 'Hover boots', 'Hover boots');
     if (!s.boots.worn) s.useItem('Hover boots', slotOf(s, 'Hover boots'));
     const gap = s.world.instances.find((i) => i.def.name === 'Pit gap');
@@ -2396,8 +2368,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async takePickupNamed(c, a) {
     // what walking over a pickup does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const name = String(a?.name ?? '');
     const o = s.world.instances.find((i) => i.def.name === name);
     if (!o) throw new Error(`Place a ${name} first.`);
@@ -2406,8 +2377,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async lensLook(c) {
     // what walking over the Lens of Truth and pressing its button does: up to the eye, the view turns purple
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await takePickup(s, 'Lens of Truth', 'Lens of Truth');
     if (!s.lens.on) s.useItem('Lens of Truth', slotOf(s, 'Lens of Truth'));
     for (let i = 0; i < 10 && s.lens.amount < 1; i++) await wait(100);
@@ -2415,8 +2385,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   async openHiddenChest(c) {
     // what walking through the fake wall (it only looks solid) into the alcove and pressing Action at the hidden
     // chest does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const wall = s.world.instances.find((i) => i.def.name === 'Fake wall');
     const chest = s.world.instances.find((i) => i.def.name === 'Hidden chest');
     if (!wall || !chest) throw new Error('Place the Fake wall and the Hidden chest first.');
@@ -2456,8 +2425,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async crossBridge(c) {
     // what walking from one ledge of the second Pit gap over the Invisible bridge to the other does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     if (s.boots.worn) s.useItem('Hover boots', slotOf(s, 'Hover boots'));
     const bridge = s.world.instances.find((i) => i.def.name === 'Invisible bridge');
     if (!bridge) throw new Error('Place an Invisible bridge first.');
@@ -2480,8 +2448,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   async magnetOnto(c, a) {
     // what walking over the Magnet glove, pressing its button, holding Attack at the iron crate, walking it over to the
     // switch and letting go does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await takePickup(s, 'Magnet glove', 'Magnet glove');
     if (s.hooks.out !== 'magnet') s.useItem('Magnet glove', slotOf(s, 'Magnet glove'));
     const crate = s.world.instances.find((i) => i.def.name === String(a?.thing ?? 'Iron crate'));
@@ -2523,8 +2490,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async meltIceWall(c) {
     // what picking up the Branch, holding its end in the Burning torch's flame and touching the ice wall with it does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await takePickup(s, 'Branch', 'Branch');
     for (let i = 0; i < 10 && !s.stickOut; i++) await wait(150);
     await lightBranch(s);
@@ -2540,8 +2506,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async ridePlatform(c) {
     // what jumping onto the moving platform does: the hero rides it there and back
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const p = s.world.instances.find((i) => i.def.name === 'Moving platform');
     if (!p) throw new Error('Place a Moving platform first.');
     const xs = p.bricks.map((b) => b.x);
@@ -2570,8 +2535,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async climbWall(c) {
     // what walking into the rock face and holding W does (Climbing: Anything): up, and over the top
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const r = s.world.instances.find((i) => i.def.name === 'Rock face');
     if (!r) throw new Error('Place a Rock face first.');
     faceThing(s, r, 0.05);
@@ -2586,8 +2550,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   async blastWall(c) {
     // what pressing Action at the Bomb flower (a lit bomb held up), facing the wall from a few studs away and
     // throwing it (Action while walking) does — again with the bomb the flower grows after a miss, until the wall breaks
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const wall = s.world.instances.find((i) => i.def.name === 'Cracked wall');
     const plant = s.world.instances.find((i) => i.def.name === 'Bomb flower');
     if (!wall || !plant) throw new Error('Place a Cracked wall and a Bomb flower first.');
@@ -2678,8 +2641,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async turnMirror(c) {
     // what holding the mirror (Grab, Action held) and pushing it (W) does, once or twice until the sensor lights
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const m = s.world.instances.find((i) => i.def.name === 'Mirror');
     const sensor = s.world.instances.find((i) => i.def.name === 'Light sensor');
     if (!m || !sensor) throw new Error('Place the Mirror and the Light sensor first.');
@@ -2826,8 +2788,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async standOnModel(c) {
     // what jumping onto the model does: the hero lands on top of it
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     if (!s.physicsMovement) throw new Error('Set Project › Movement to Physics first, then play again.');
     const m = [...modelItems(c.ed)].reverse().find((x) => x.solid !== false);
     if (!m) throw new Error('Place a solid 3D model first.');
@@ -2999,8 +2960,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async openPlayMap(c) {
     // a walk, then M
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     s.input.keys.add('w');
     await wait(1500);
     s.input.keys.delete('w');
@@ -3040,26 +3000,33 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     // what pressing ■ Stop then ▶ Play does, when the game playing began before this quest (or behaviour) was written
     const s = c.ed.session.value;
     const want = String(a?.quest ?? '');
-    if (s && want && !s.quests.find(want)) c.ui.stopPlay();
     const b = a?.behaviour ? behaviourByName(c, String(a.behaviour)) : null;
     const stale = (g: LogicGraph) => JSON.stringify(s?.snapshot.get(paths.logic(g.id))) !== JSON.stringify(g);
-    if (c.ed.session.value && b && stale(b)) c.ui.stopPlay();
-    // (and a map behaviour attached since)
-    if (c.ed.session.value && a?.mapScript && !c.ed.session.value.world.doc.scripts?.length) c.ui.stopPlay();
+    const restart =
+      !!s &&
+      ((want && !s.quests.find(want)) ||
+        (b && stale(b)) ||
+        // (and a map behaviour attached since)
+        (a?.mapScript && !s.world.doc.scripts?.length) ||
+        // (and a HUD style picked since)
+        (a?.hud && s.hudStyle() !== String(a.hud)));
+    if (restart) {
+      c.ui.stopPlay();
+      // the old game is going: Play again now (the editor forgets it at once, so what comes next waits for the new one)
+      c.ed.session.value = null;
+    }
     if (!c.ed.session.value) c.ui.play('engine');
   },
   async openQuestLog(c) {
     // a moment of play, then J
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     await wait(600);
     if (s.mapOpen) s.openMap(false);
     s.openQuests(true);
   },
   async trackAndShow(c, a) {
     // (a short walk away from the goal first), then what Show on the map in the quest log does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     if (a?.walk) {
       if (s.questsOpen) s.openQuests(false);
       s.input.keys.add('w');
@@ -3071,8 +3038,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async finishQuest(c, a) {
     // what doing each step does: the items it asks for picked up, a step done by logic (quest.advance) run
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     if (s.mapOpen) s.openMap(false);
     if (s.questsOpen) s.openQuests(false);
     const q = String(a?.quest ?? '');
@@ -3158,8 +3124,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async walkThroughGate(c, a) {
     // what walking onto a gate's spawn point does (a step away first: one just arrived on does not send back)
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const to = String(a?.to ?? '').toLowerCase();
     const out = s.outbound().find((o) => {
       const m = c.ed.store.get<MapDoc>(paths.map(o.toMap));
@@ -3175,8 +3140,7 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async reachPlace(c, a) {
     // what walking into a zone (or up to a thing) does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     const k = String(a?.name ?? '').toLowerCase();
     const zn = s.world.doc.zones.find((z) => (z.tags[0] ?? '').toLowerCase() === k);
     if (!zn) throw new Error(`There is no ${String(a?.name)} on this map.`);
@@ -3199,15 +3163,13 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
   },
   async loseHearts(c) {
     // what a hit too many does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     s.logic.setVar('hp', 0);
     await wait(500);
   },
   async retryGame(c) {
     // what Retry on the Game over screen does
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     if (!s.over) {
       s.logic.setVar('hp', 0);
       await wait(500);
@@ -3215,9 +3177,24 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     s.gameOp('retry');
     await wait(500);
   },
+  // Milestone 3b (B7b): the HUD styles course
+  applyHudStyle(c, a) {
+    // what pressing a card in Project › Controls › HUD style does
+    c.ed.right.value = 'project';
+    run(c, [{ type: 'hud.applyStyle', payload: { style: a?.style ?? null } }], 'HUD style');
+  },
+  async pressButton(c, a) {
+    // a button pressed (and held for a while), then let go (Play may still be starting)
+    const s = await playing(c);
+    await wait(800);
+    const b = String(a?.button ?? 'action') as Parameters<typeof s.buttons.press>[0];
+    s.buttons.press(b);
+    await wait(Math.round(Number(a?.seconds ?? 0.1) * 1000));
+    s.buttons.release(b);
+    await wait(300);
+  },
   async walkHero(c) {
-    const s = c.ed.session.value;
-    if (!s) throw new Error('Press Play first.');
+    const s = await playing(c);
     s.input.keys.add('w');
     await new Promise((r) => setTimeout(r, 1200));
     s.input.keys.delete('w');
@@ -3226,6 +3203,14 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
 
 /** waits a moment (real time) */
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** the game playing (when Play is just starting, it waits a moment for it) */
+async function playing(c: Ctx): Promise<PlaySession> {
+  for (let t = 0; t < 240 && !c.ed.session.value; t++) await wait(250);
+  const s = c.ed.session.value;
+  if (!s) throw new Error('Press Play first.');
+  return s;
+}
 
 /**
  * Milestone 3b (14a-2): the hero walks (or runs) to a spot, as the stick does it: the camera turned to look that way,

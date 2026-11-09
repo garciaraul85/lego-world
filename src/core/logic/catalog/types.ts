@@ -160,6 +160,11 @@ export interface ExecCtx {
   game?(op: 'lose' | 'respawn' | 'setRespawn', at?: string): void;
   /** Milestone 3b (B7a-3): the foes still on this map */
   foesLeft?(): number;
+  /** Milestone 3b (B7b): a button held (seconds; 0: up) */
+  inputRead?(what: 'held' | 'heldFor', button: string): number;
+  /** Milestone 3b (B7b): controls on or off, a rumble, the HUD style */
+  inputOp?(op: 'on' | 'off' | 'rumble' | 'style', strength?: number, seconds?: number, style?: string): void;
+  hudRead?(): string;
 }
 
 export type Args = Record<string, unknown>;

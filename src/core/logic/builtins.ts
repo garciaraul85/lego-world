@@ -1200,6 +1200,50 @@ CHARACTER_BUILTINS.push(
   },
 );
 
+// ---------- Milestone 3b (B7b): the player's buttons, and the HUD ----------
+
+CHARACTER_BUILTINS.push(
+  gameClass(
+    'PlayerInput',
+    undefined,
+    'The player’s buttons, in Logic: extend it to decide what the Action button says and does (“Peek” instead of “Open”, “Pray” at a shrine), whether a button works now (no item buttons in the water, no attack in a village), and to hear every press and let-go with how long it was held. In the game as written: nothing to attach.',
+    [
+      hk(
+        'actionLabel',
+        'name',
+        'What the Action button says now (kind: talk, lift, use, read, grab, climb, dive, jump…; label) — return other words',
+      ),
+      hk(
+        'canPress',
+        'bool',
+        'Does this button work now? (button: action, attack, jump, guard, roll, lock, item1…item4, wheel, menu)',
+      ),
+    ],
+    ['event.onButtonDown', 'event.onButtonUp'],
+    'Logic: Extend it (no need to attach it: it is the game’s)',
+  ),
+  gameClass(
+    'GameHud',
+    undefined,
+    'The HUD, in Logic: extend it to decide which of its widgets show now (no map in a dark cave, the money only in towns) and what a text widget says. Its style — corner buttons, big-button cluster, pointer, second screen, open air — is set in Project › Controls › HUD style, or while playing with hud.setStyle.',
+    [
+      hk(
+        'showWidget',
+        'bool',
+        'Does this HUD widget show now? (widget: its id — hearts, minimap, buttons, money…; screen)',
+      ),
+      hk('widgetText', 'name', 'What this text widget says (widget, text: what it would say) — return other words'),
+    ],
+    ['event.onHudStyle'],
+    'Logic: Extend it (no need to attach it: it is the game’s)',
+  ),
+);
+
+/** Milestone 3b (B7b): a behaviour extending this decides about the player's buttons */
+export const isInputClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'PlayerInput');
+/** Milestone 3b (B7b): a behaviour extending this decides about the HUD */
+export const isHudClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'GameHud');
+
 /** Milestone 3b (B7a-3): a behaviour extending this sets the game's rules */
 export const isModeClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'GameMode');
 /** Milestone 3b (B7a-3): a behaviour extending this goes on a map */
@@ -1212,7 +1256,8 @@ export const isMainQuestClass = (ext: string | undefined) => lineageOf(ext).some
 /** Milestone 3b (B7a-2): a behaviour extending this decides about the maps */
 export const isMapClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'GameMap');
 /** Milestone 3b (B7a-2): a class that is in the game as written (not attached to anything) */
-export const isGameClass = (ext: string | undefined) => isQuestClass(ext) || isMapClass(ext) || isModeClass(ext);
+export const isGameClass = (ext: string | undefined) =>
+  isQuestClass(ext) || isMapClass(ext) || isModeClass(ext) || isInputClass(ext) || isHudClass(ext);
 
 /** Milestone 3b (B6): an item's class (a built-in one, or Item and Projectile) */
 export const ITEM_CLASSES = () => CHARACTER_BUILTINS.filter((b) => b.items !== undefined);

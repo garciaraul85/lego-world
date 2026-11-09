@@ -16,6 +16,7 @@ export const COMMAND_TYPES = [
   'map.setEnvironment',
   'map.setDungeon',
   'map.setLook',
+  'hud.applyStyle',
   'map.generate',
   'map.create',
   'map.rename',

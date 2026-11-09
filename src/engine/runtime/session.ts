@@ -52,6 +52,7 @@ import {
   keyName,
   MOVES,
 } from '../../core/controls/controls';
+import { faceOf, HUD_STYLES, type HudStyle } from '../../core/controls/hud-styles';
 import type { Effect, EffectEvent } from '../../core/effects/schema';
 import { Mood, NO_MOOD, type ScreenEffect, type ScreenEvent } from '../../core/effects/screen';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
@@ -60,6 +61,8 @@ import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosp
 import { attachmentsOf, startValues } from '../../core/logic/behaviours';
 import { enemyOfCharacter } from '../../core/logic/boss';
 import {
+  isHudClass,
+  isInputClass,
   isMainQuestClass,
   isMapClass,
   isModeClass,
@@ -2427,7 +2430,7 @@ export class PlaySession {
       { id: 'cleanup', fixed: (g, dt) => g.stepCleanup(dt) },
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
       { id: 'gates', fixed: (g) => g.stepGates() },
-      { id: 'interact', fixed: (g) => g.stepInteract() },
+      { id: 'interact', fixed: (g, dt) => g.stepInteract(dt) },
       { id: 'puzzles', fixed: (g, dt) => g.puzzles.step(dt) },
       // Milestone 3b (B7a-1): the maps fill in where the hero goes
       {
@@ -2502,7 +2505,7 @@ export class PlaySession {
       this.input.jump = false;
       return;
     }
-    const still = this.talking || this.talks.active || this.over || this.cine.active;
+    const still = this.talking || this.talks.active || this.over || this.cine.active || this.inputOff;
     // P9b: guard (Q held), charging, moves and lock-on
     const c = this.combat;
     // step 12c-2: a leaf does not guard (the Gust leaf out, Q does nothing)
@@ -5012,6 +5015,9 @@ export class PlaySession {
     if (gg.maps.length) put('gamemap', gg.maps.map((g) => ({ use: g.id })) as ReturnType<typeof attachmentsOf>);
     // Milestone 3b (B7a-3): the game's rules as "gamemode"; the map the hero is on runs its own as "map:<id>"
     if (gg.modes.length) put('gamemode', gg.modes.map((g) => ({ use: g.id })) as ReturnType<typeof attachmentsOf>);
+    // Milestone 3b (B7b): the player's buttons as "input", the HUD as "hud"
+    if (gg.inputs.length) put('input', gg.inputs.map((g) => ({ use: g.id })) as ReturnType<typeof attachmentsOf>);
+    if (gg.huds.length) put('hud', gg.huds.map((g) => ({ use: g.id })) as ReturnType<typeof attachmentsOf>);
     const mapList = attachmentsOf(w.doc.scripts, undefined);
     if (mapList.length) put(`map:${w.mapId}`, mapList);
     for (const o of this.scriptOwners) if (!now.has(o)) this.logic.detach(o);
@@ -5053,6 +5059,13 @@ export class PlaySession {
       // Milestone 3b (B7a-3): the game's rules
       game: (op, at) => this.gameRule(op, at ?? ''),
       foesLeft: () => this.foesLeft(),
+      // Milestone 3b (B7b): the player's buttons and the HUD
+      inputRead: (what, button) => {
+        const t = this.buttons.down.get(button as Bindable);
+        return what === 'held' ? (t === undefined ? 0 : 1) : (t ?? 0);
+      },
+      inputOp: (op, strength, seconds, style) => this.inputOp(op, strength ?? 0, seconds ?? 0, style ?? ''),
+      hudRead: () => this.hudStyle(),
       progress: (op, id) => {
         if (op === 'achieve') this.progress.unlock(id);
         else this.gameOp('finish');
@@ -6676,6 +6689,76 @@ export class PlaySession {
     return this.mapTrack.unpin(this.world.mapId, x, z, r);
   }
 
+  // ---------- Milestone 3b (B7b): the player's buttons, and the HUD ----------
+
+  /** the player's buttons are off (input.enable false): no presses, no moving */
+  inputOff = false;
+  /** a rumble asked for (Play shakes the gamepad, then clears it) */
+  rumble: { strength: number; seconds: number } | null = null;
+  /** the HUD style logic set while playing (hud.setStyle); undefined: the game's */
+  private hudOverride: HudStyle | '' | undefined;
+  /** the HUD style now: what logic set, else Project › Controls (""; the plain look) */
+  hudStyle(): HudStyle | '' {
+    if (this.hudOverride !== undefined) return this.hudOverride;
+    return (this.snapshot.get(paths.settings) as { controls?: Controls } | undefined)?.controls?.hud ?? '';
+  }
+  /** logic's Controls on or off, Rumble and Set HUD style */
+  inputOp(op: 'on' | 'off' | 'rumble' | 'style', strength: number, seconds: number, style: string) {
+    if (op === 'on' || op === 'off') {
+      this.inputOff = op === 'off';
+      if (this.inputOff) {
+        for (const b of [...this.buttons.down.keys()]) this.buttons.release(b);
+        this.input.keys.clear();
+        this.input.touch.clear();
+      }
+      return;
+    }
+    if (op === 'rumble') {
+      this.rumble = { strength, seconds };
+      return;
+    }
+    const k = style.trim().toLowerCase();
+    const next =
+      k === 'default' || !k ? undefined : (HUD_STYLES as readonly string[]).includes(k) ? (k as HudStyle) : null;
+    if (next === null) return this.emit('info', `Set HUD style: no style “${style}”`);
+    this.hudOverride = next;
+    this.logic.fire({ type: 'event.onHudStyle', payload: { style: this.hudStyle() } });
+  }
+
+  private hudHookCache = new Map<string, { show: boolean; text?: string }>();
+  private hudHookAt = -1;
+  /** GameHud's showWidget: does this HUD widget show now (a few times a second) */
+  hudShows(screen: string, widget: string): boolean {
+    if (!this.logic.has('event.onShowWidget')) return true;
+    return this.hudAsk(screen, widget, '').show;
+  }
+  /** GameHud's widgetText: what this text widget says (undefined: what it would) */
+  hudText(screen: string, widget: string, text: string): string | undefined {
+    if (!this.logic.has('event.onWidgetText')) return undefined;
+    return this.hudAsk(screen, widget, text).text;
+  }
+  private hudAsk(screen: string, widget: string, text: string) {
+    if (Math.abs(this.clock - this.hudHookAt) > 0.25) {
+      this.hudHookCache.clear();
+      this.hudHookAt = this.clock;
+    }
+    const k = `${screen}|${widget}|${text}`;
+    let r = this.hudHookCache.get(k);
+    if (!r) {
+      const name = (this.snapshot.get(paths.screen(screen)) as { name?: string } | undefined)?.name ?? screen;
+      r = {
+        show: this.logic.has('event.onShowWidget')
+          ? this.askHook('hud', 'showWidget', { widget, screen: name }, true)
+          : true,
+        ...(text && this.logic.has('event.onWidgetText')
+          ? { text: String(this.askHook('hud', 'widgetText', { widget, text }, text)) }
+          : {}),
+      };
+      if (this.hudHookCache.size < 300) this.hudHookCache.set(k, r);
+    }
+    return r;
+  }
+
   // ---------- Milestone 3b (B7a-3): the game's rules, and a map's own behaviour ----------
 
   /** a map's arrive or leave event: its own behaviour (and every script) hears it */
@@ -6739,6 +6822,8 @@ export class PlaySession {
     quests: LogicGraph[];
     maps: LogicGraph[];
     modes: LogicGraph[];
+    inputs: LogicGraph[];
+    huds: LogicGraph[];
     ids: Set<string>;
   } | null = null;
   /** the behaviours that are in the game as written: the quests and the maps' */
@@ -6747,6 +6832,8 @@ export class PlaySession {
       const quests: LogicGraph[] = [];
       const maps: LogicGraph[] = [];
       const modes: LogicGraph[] = [];
+      const inputs: LogicGraph[] = [];
+      const huds: LogicGraph[] = [];
       for (const path of this.snapshot.keys()) {
         if (!/^logic\/lg_[0-9a-z]{10}\.json$/.test(path)) continue;
         const g = this.snapshot.get(path) as LogicGraph;
@@ -6754,8 +6841,10 @@ export class PlaySession {
         if (isQuestClass(g.behaviour.extends)) quests.push(g);
         else if (isMapClass(g.behaviour.extends)) maps.push(g);
         else if (isModeClass(g.behaviour.extends)) modes.push(g);
+        else if (isInputClass(g.behaviour.extends)) inputs.push(g);
+        else if (isHudClass(g.behaviour.extends)) huds.push(g);
       }
-      this.gameGraphCache = { quests, maps, modes, ids: new Set(quests.map((g) => g.id)) };
+      this.gameGraphCache = { quests, maps, modes, inputs, huds, ids: new Set(quests.map((g) => g.id)) };
     }
     return this.gameGraphCache;
   }
@@ -7513,7 +7602,7 @@ export class PlaySession {
   }
 
   /** Nearest interact/sign socket within 2 studs of the hero (plus a little for big heroes). */
-  stepInteract() {
+  stepInteract(dt = 1 / 60) {
     const s = this.heroState;
     let best: Prompt | null = null;
     let bestD = 2 + 0.4 * this.L.GamePhysics.scaleOf(s);
@@ -7552,7 +7641,13 @@ export class PlaySession {
     }
     this.signPrompt = sign;
     this.actions.step(this.clock);
-    this.buttons.update();
+    this.buttons.update(dt);
+    // Milestone 3b (B7b): PlayerInput's actionLabel says what the Action button says
+    const now = this.buttons.now;
+    if (now && this.logic.has('event.onActionLabel')) {
+      const label = String(this.askHook('input', 'actionLabel', { kind: now.kind, label: now.label }, now.label));
+      if (label && label !== now.label) this.buttons.now = { ...now, label };
+    }
   }
 
   /** step 11b part 2: the game's swimming (Project › Movement) */
@@ -7819,6 +7914,17 @@ export class PlaySession {
       useItem: (item, slot) => this.useItem(item, slot),
       itemMenu: () => this.openItemMenu(),
       count: (item) => this.inventory.get(item) ?? 0,
+      // Milestone 3b (B7b): controls off, PlayerInput's canPress; presses heard by logic
+      canPress: (b) => !this.inputOff && (!this.logic || this.askHook('input', 'canPress', { button: b }, true)),
+      pressed: (b, down, held) => {
+        if (!this.logic) return;
+        const face = faceOf(this.hudStyle() || undefined, b)?.glyph ?? '';
+        this.logic.fire({
+          type: down ? 'event.onButtonDown' : 'event.onButtonUp',
+          match: { button: b },
+          payload: down ? { button: b, face } : { button: b, held },
+        });
+      },
     };
   }
 
@@ -7869,6 +7975,12 @@ export class PlaySession {
   buttonViews(): { id: string; name: string; key: string; label: string; count?: number }[] {
     const b = this.buttons;
     const out: { id: string; name: string; key: string; label: string; count?: number }[] = [
+      // Milestone 3b (B7b): the HUD styles show the other buttons too (Guard, Lock on, the item wheel)
+      ...(this.hudStyle()
+        ? (['guard', 'lock', 'roll', 'wheel'] as const)
+            .filter((x) => buttonsOf({ layout: b.c.layout, items: b.c.items, jump: b.c.jump }).includes(x))
+            .map((x) => ({ id: x, name: BUTTON_NAME[x], key: b.keyOf(x), label: BUTTON_NAME[x] }))
+        : []),
       { id: 'attack', name: 'Attack', key: b.keyOf('attack'), label: 'Attack' },
       { id: 'action', name: 'Action', key: b.keyOf('action'), label: b.now?.label ?? '' },
     ];

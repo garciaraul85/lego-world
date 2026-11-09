@@ -276,9 +276,12 @@ export function PlayView({ ed, start, onStop }: { ed: EditorState; start: PlaySt
       unBp();
       unQ();
       ed.logicBreak.value = null;
-      ed.session.value = null;
-      ed.playing.value = false;
-      ed.paused.value = false;
+      // (a new game started at once — the tutorial's Stop then Play — keeps its own)
+      if (ed.session.value === s || !ed.session.value) {
+        ed.session.value = null;
+        ed.playing.value = false;
+        ed.paused.value = false;
+      }
       ed.log('INFO', `Stopped playing after ${s.runtime.time.toFixed(1)} s. The project is unchanged.`);
     };
   }, []);
@@ -426,8 +429,22 @@ const pads = new Map<number, boolean[]>();
 /** Gamepad: Start / B = back, d-pad moves between menu buttons, A presses the focused one (P5.7). */
 function pollGamepad(s: PlaySession) {
   const list = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+  // Milestone 3b (B7b): logic's Rumble shakes the gamepads that can
+  const rumble = s.rumble;
+  s.rumble = null;
   for (const gp of list) {
     if (!gp) continue;
+    if (rumble) {
+      const act = (gp as unknown as { vibrationActuator?: { playEffect?(t: string, p: object): Promise<unknown> } })
+        .vibrationActuator;
+      act
+        ?.playEffect?.('dual-rumble', {
+          duration: Math.round(rumble.seconds * 1000),
+          strongMagnitude: rumble.strength,
+          weakMagnitude: rumble.strength * 0.6,
+        })
+        ?.catch(() => {});
+    }
     const prev = pads.get(gp.index) ?? [];
     const now = gp.buttons.map((b) => b.pressed);
     const hit = (i: number) => now[i] && !prev[i];

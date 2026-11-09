@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (233 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (246 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -440,6 +440,35 @@ Runs when the last foe on the map is beaten (a room cleared: the doors open, a c
 - Settings: Map (string, optional)
 - Outputs: map (string)
 - Code: `on("foesCleared", { map: … }, (e) => { … });`
+
+### On button down
+
+`event.onButtonDown` · event
+
+Runs as the player presses a button (keys, gamepad or touch, whichever is bound to it): button is its name (action, attack, item1…), face what it wears in the HUD style (A, B, ◀…).
+
+- Settings: Button (string, optional)
+- Outputs: button (string), face (string)
+- Code: `on("buttonDown", { button: … }, (e) => { … });`
+
+### On button up
+
+`event.onButtonUp` · event
+
+Runs as the player lets go of a button: held is how many seconds it was down (a charged attack, a long press).
+
+- Settings: Button (string, optional)
+- Outputs: button (string), held (number)
+- Code: `on("buttonUp", { button: … }, (e) => { … });`
+
+### On HUD style
+
+`event.onHudStyle` · event
+
+Runs when the HUD style changes while playing (hud.setStyle): style is the new one.
+
+- Outputs: style (string)
+- Code: `on("hudStyle", (e) => { … });`
 
 ## Flow
 
@@ -1513,6 +1542,62 @@ Seconds since play started (game time: it stops while paused).
 - Outputs: out (number)
 - Code: `time.now()`
 
+### Button is held
+
+`input.isHeld` · pure
+
+True while the player holds this button down.
+
+- Inputs: button (string)
+- Outputs: out (bool)
+- Code: `input.isHeld(button)`
+
+### Button held for
+
+`input.heldFor` · pure
+
+How many seconds the player has held this button down (0 when it is up).
+
+- Inputs: button (string)
+- Outputs: out (number)
+- Code: `input.heldFor(button)`
+
+### Controls on or off
+
+`input.enable` · action
+
+Turns the player’s buttons off (a cutscene of your own, a fall, a stun) or back on. Moving stops too while they are off.
+
+- Inputs: on (bool)
+- Code: `input.enable(on);`
+
+### Rumble
+
+`input.rumble` · action
+
+Shakes the player’s gamepad (where it can): a hit, a chest’s lid, a boss stomping.
+
+- Inputs: strength (number), seconds (number)
+- Code: `input.rumble(strength, seconds);`
+
+### Set HUD style
+
+`hud.setStyle` · action
+
+Changes how the HUD’s buttons look while playing (corner64, cube, pointer, tablet, openair; default: the game’s, from Project › Controls). The buttons themselves stay as Project › Controls has them.
+
+- Inputs: style (string)
+- Code: `hud.setStyle(style);`
+
+### HUD style
+
+`hud.style` · pure
+
+The HUD style now (corner64, cube, pointer, tablet, openair, or "" for the plain look).
+
+- Outputs: out (string)
+- Code: `hud.style()`
+
 ## Hooks
 
 ### Can it be used? (Interactable)
@@ -2045,6 +2130,42 @@ Asked about each item (kind: item) and game variable (kind: var) as new game plu
 
 - Outputs: kind (string), name (string), base (bool)
 - Code: `on("keepOnNewGamePlus", (e) => { … });`
+
+### What does Action say? (PlayerInput)
+
+`event.onActionLabel` · event
+
+Asked each moment about what the Action button would do (kind: talk, lift, use, read, grab, climb, dive, swimUp, rebuild, jump, custom; label: what it says). Return other words for the HUD and touch button (“Peek”, “Chat”); base is its own label.
+
+- Outputs: kind (string), label (string), base (string)
+- Code: `on("actionLabel", (e) => { … });`
+
+### Does this button work? (PlayerInput)
+
+`event.onCanPress` · event
+
+Asked as a button is pressed. Return false and nothing happens (no item buttons underwater, no attacking in a village, no menu in a cutscene).
+
+- Outputs: button (string), base (bool)
+- Code: `on("canPress", (e) => { … });`
+
+### Does this widget show? (GameHud)
+
+`event.onShowWidget` · event
+
+Asked about each HUD widget a few times a second (widget: its id, such as hearts, minimap, buttons, quest; screen: the HUD’s name). Return false to hide it.
+
+- Outputs: widget (string), screen (string), base (bool)
+- Code: `on("showWidget", (e) => { … });`
+
+### What does this widget say? (GameHud)
+
+`event.onWidgetText` · event
+
+Asked about each text widget of the HUD a few times a second (widget: its id; text: what it would say). Return other words.
+
+- Outputs: widget (string), text (string), base (string)
+- Code: `on("widgetText", (e) => { … });`
 
 ## Quests
 

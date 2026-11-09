@@ -704,6 +704,10 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     const [q, m] = String(a).split(',');
     return ed.session.value?.questRead('goalMap', q!) === m;
   },
+  /** Milestone 3b (B7b): the game's HUD style (Project › Controls); “plain” for none */
+  hudStyle: (ed, a) => (ed.store.get<Settings>(paths.settings)?.controls?.hud ?? 'plain') === String(a),
+  /** Milestone 3b (B7b): in Play, the HUD style now (hud.setStyle changes it) */
+  playHudStyle: (ed, a) => ed.session.value?.hudStyle() === String(a),
   /** v141: in Play the hero is on the map of this name */
   heroOnMap: (ed, a) => ed.session.value?.world.doc.name === String(a),
   /** v141: “Quest,2”: in Play, the quest is on that step */

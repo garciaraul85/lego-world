@@ -2071,6 +2071,269 @@ select.inp {
   font-size: 0.75em;
   opacity: 0.85;
 }
+/* Milestone 3b (B7b): HUD styles after each era. The cluster is a fixed box; each button sits where that era's
+   HUD put it, wearing its face (--face: its colour). Drawn here, original. */
+.bw-buttons[class*="bw-hud-"] {
+  display: block;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.bw-era {
+  position: relative;
+  font-family: system-ui, sans-serif;
+  color: #fff;
+}
+.bw-era-btn {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    color-mix(in srgb, var(--face) 65%, #fff),
+    var(--face) 60%,
+    color-mix(in srgb, var(--face) 70%, #000)
+  );
+  border: 3px solid #0b1020d0;
+  box-shadow:
+    0 3px 0 #0006,
+    0 0 0 2px color-mix(in srgb, var(--face) 50%, #fff4);
+}
+.bw-era-btn.big {
+  width: 70px;
+  height: 70px;
+}
+.bw-era-btn.small {
+  width: 34px;
+  height: 34px;
+}
+.bw-era-face {
+  font-weight: 900;
+  font-size: 22px;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 2px 0 #0008;
+}
+.bw-era-btn.big .bw-era-face {
+  font-size: 28px;
+}
+.bw-era-btn.small .bw-era-face {
+  font-size: 13px;
+}
+.bw-era-label {
+  position: absolute;
+  top: 100%;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-shadow:
+    0 1px 2px #000,
+    0 0 3px #000;
+}
+.bw-era-label:empty {
+  display: none;
+}
+.bw-era-count {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  min-width: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #0b1020;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+.bw-era-key {
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: #0b1020c0;
+  font-size: 9px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+.bw-era-btn.live {
+  animation: bw-era-live 1.4s ease-in-out infinite;
+}
+@keyframes bw-era-live {
+  50% {
+    filter: brightness(1.18);
+  }
+}
+/* the 64-bit era: Attack and Action side by side, three triangle item buttons beside them, Z and R small */
+.bw-era[data-look="corner64"] {
+  width: 310px;
+  height: 160px;
+}
+.bw-era[data-look="corner64"] .bw-era-attack {
+  left: 0;
+  top: 44px;
+}
+.bw-era[data-look="corner64"] .bw-era-action {
+  left: 78px;
+  top: 4px;
+}
+.bw-era[data-look="corner64"] .bw-era-item1 {
+  left: 170px;
+  top: 40px;
+}
+.bw-era[data-look="corner64"] .bw-era-item2 {
+  left: 222px;
+  top: 86px;
+}
+.bw-era[data-look="corner64"] .bw-era-item3 {
+  left: 274px;
+  top: 40px;
+}
+.bw-era[data-look="corner64"] .bw-era-lock {
+  left: 0;
+  top: 126px;
+}
+.bw-era[data-look="corner64"] .bw-era-guard {
+  left: 42px;
+  top: 126px;
+}
+.bw-era[data-look="corner64"] .bw-era-btn.item {
+  border-radius: 10px 10px 50% 50%;
+}
+/* the cube era: one big Action button and its satellites; Z is a bar */
+.bw-era[data-look="cube"] {
+  width: 270px;
+  height: 190px;
+}
+.bw-era[data-look="cube"] .bw-era-action {
+  left: 110px;
+  top: 60px;
+  width: 82px;
+  height: 82px;
+}
+.bw-era[data-look="cube"] .bw-era-attack {
+  left: 56px;
+  top: 128px;
+}
+.bw-era[data-look="cube"] .bw-era-item1 {
+  left: 206px;
+  top: 66px;
+  border-radius: 45% 55% 50% 50% / 60% 60% 40% 40%;
+}
+.bw-era[data-look="cube"] .bw-era-item2 {
+  left: 126px;
+  top: 0;
+  border-radius: 55% 45% 50% 50% / 60% 60% 40% 40%;
+}
+.bw-era[data-look="cube"] .bw-era-item3 {
+  left: 208px;
+  top: 10px;
+  width: 52px;
+  height: 26px;
+  border-radius: 13px;
+}
+.bw-era[data-look="cube"] .bw-era-guard {
+  left: 0;
+  top: 10px;
+}
+.bw-era[data-look="cube"] .bw-era-lock {
+  left: 42px;
+  top: 10px;
+}
+/* the motion era: a tall remote-shaped strip */
+.bw-era[data-look="pointer"] {
+  width: 96px;
+  height: 300px;
+  border-radius: 40px;
+  background: #f2f4f8d8;
+  box-shadow: inset 0 0 0 3px #0b102030;
+}
+.bw-era[data-look="pointer"] .bw-era-btn {
+  --text: #1a2233;
+}
+.bw-era[data-look="pointer"] .bw-era-face {
+  color: #1a2233;
+  text-shadow: none;
+}
+.bw-era[data-look="pointer"] .bw-era-label {
+  color: #fff;
+}
+.bw-era[data-look="pointer"] .bw-era-action {
+  left: 13px;
+  top: 18px;
+}
+.bw-era[data-look="pointer"] .bw-era-item1 {
+  left: 22px;
+  top: 112px;
+}
+.bw-era[data-look="pointer"] .bw-era-attack {
+  left: 22px;
+  top: 192px;
+}
+.bw-era[data-look="pointer"] .bw-era-wheel {
+  left: 8px;
+  top: 258px;
+}
+.bw-era[data-look="pointer"] .bw-era-guard {
+  left: 54px;
+  top: 258px;
+}
+.bw-era[data-look="pointer"] .bw-era-lock {
+  left: 31px;
+  top: 300px;
+}
+/* the tablet era: a second screen — its buttons and items big and touchable in a row */
+.bw-era[data-look="tablet"] {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding-bottom: 18px;
+}
+.bw-era[data-look="tablet"] .bw-era-btn {
+  position: relative;
+}
+.bw-era[data-look="tablet"] .bw-era-btn.item {
+  width: 76px;
+  height: 76px;
+  border-radius: 16px;
+  cursor: pointer;
+}
+/* the open-air era: small hints down the bottom right corner, each its name and its button */
+.bw-era[data-look="openair"] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+.bw-era[data-look="openair"] .bw-era-btn {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  background: #0b1020c0;
+  border: 2px solid #ffffffd0;
+  box-shadow: none;
+}
+.bw-era[data-look="openair"] .bw-era-face {
+  font-size: 12px;
+}
+.bw-era[data-look="openair"] .bw-era-label {
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  margin: 0 8px 0 0;
+  transform: translateY(-50%);
+  font-size: 14px;
+}
+.bw-era[data-look="openair"] .bw-era-key {
+  display: none;
+}
+.bw-bar-ring {
+  border-radius: 50%;
+}
 .bw-items {
   display: flex;
   flex-direction: column;
@@ -7156,4 +7419,74 @@ img.bw-portrait {
   display: grid;
   grid-template-columns: 1fr;
   gap: 2px;
+}
+
+/* Milestone 3b (B7b): Project › Controls › HUD style cards */
+.hud-style-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.hud-style-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--line, #2a2f40);
+  background: #0e1420;
+  color: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+.hud-style-card.on {
+  border-color: #f7c900;
+  box-shadow: 0 0 0 1px #f7c900;
+}
+.hud-style-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 84px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: linear-gradient(#5e8fc4, #9cc3e4 60%, #6c9a4c 60%);
+}
+.hud-style-preview > .bw-buttons {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(var(--fit, 0.4));
+  transform-origin: center;
+}
+.hud-style-preview > .bw-hud-corner64 {
+  --fit: 0.36;
+}
+.hud-style-preview > .bw-hud-cube {
+  --fit: 0.36;
+}
+.hud-style-preview > .bw-hud-pointer {
+  --fit: 0.22;
+}
+.hud-style-preview > .bw-hud-tablet {
+  --fit: 0.3;
+}
+.hud-style-preview > .bw-hud-openair {
+  --fit: 0.22;
+}
+.hud-plain {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}
+.hud-plain {
+  font-size: 11px;
+  font-weight: 700;
+  background: #0b1020c8;
+  padding: 4px 6px;
+  border-radius: 6px;
 }

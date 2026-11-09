@@ -585,6 +585,61 @@ test('Game rules course: a fairy saves the hero once, game over and back, a map�
   expect(errors).toEqual([]);
 });
 
+test('HUD styles course: an era’s HUD, the item wheel, the buttons and the HUD in logic', async ({ page }) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
+  await page.getByRole('menuitem', { name: /HUD styles course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(9);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    await page.waitForTimeout(600);
+    if ((await doIt.isVisible()) && !(await card.getByText(/✓ Done!/).isVisible())) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doIt.click();
+      const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+      const done = card.getByText(/✓ Done!/);
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (await rest.isVisible()) await rest.click();
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      await page.screenshot({ path: `test-results/hud-${String(i).padStart(2, '0')}.png` });
+    }
+    if (/An era's HUD/.test(title)) {
+      const picker = page.locator('[data-tour="hud-styles"]');
+      await expect(picker.getByRole('button', { name: /Corner buttons/ })).toHaveAttribute('aria-pressed', 'true');
+    }
+    if (/Play it/.test(title)) {
+      // the era's buttons on the HUD: a B, an A and three yellow item buttons
+      const era = page.locator('.bw-layer .bw-era[data-look="corner64"]');
+      await expect(era).toBeVisible({ timeout: 30_000 });
+      await expect(era.locator('.bw-era-btn')).toHaveCount(7);
+    }
+    if (/Hold for the wheel/.test(title))
+      await expect(page.locator('.bw-layer .bw-era[data-look="pointer"]')).toBeVisible();
+    if (/A new look while playing/.test(title)) {
+      await expect(page.locator('.bw-layer .bw-era[data-look="openair"]')).toBeVisible({ timeout: 30_000 });
+      // biome-ignore lint/suspicious/noExplicitAny: the editor's live Play session
+      const logged = await page.evaluate(() => (window as any).__editor.session.value.events.map((e: any) => e.msg));
+      expect(logged.some((m: string) => m.includes('The HUD changed'))).toBe(true);
+    }
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  expect(errors).toEqual([]);
+});
+
 test('World built-ins course: a rock that takes three tries to lift', async ({ page }) => {
   test.setTimeout(900_000);
   const errors: string[] = [];

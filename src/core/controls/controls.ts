@@ -6,7 +6,7 @@ import { z } from 'zod';
  * Jump…), and **item buttons** do whatever item is put in them. Every button is bound to keys, gamepad buttons and
  * a touch button; the maker sets the game's bindings and a player can change them on their own device.
  */
-export const LAYOUTS = ['ocarina', 'classic', 'modern', 'custom'] as const;
+export const LAYOUTS = ['ocarina', 'classic', 'modern', 'cube', 'pointer', 'tablet', 'custom'] as const;
 export type Layout = (typeof LAYOUTS)[number];
 
 /** every button a layout can have */
@@ -41,6 +41,8 @@ export const Controls = z.strictObject({
   /** the game's keys and gamepad buttons, where they differ from the defaults */
   keys: z.partialRecord(z.enum([...BUTTONS, ...MOVES]), z.array(z.string().min(1).max(20)).max(3)).optional(),
   pad: z.partialRecord(z.enum([...BUTTONS, ...MOVES]), z.array(z.number().int().min(0).max(31)).max(2)).optional(),
+  /** Milestone 3b (B7b): the HUD style (an era's look and button faces); none: the plain look */
+  hud: z.enum(['corner64', 'cube', 'pointer', 'tablet', 'openair']).optional(),
 });
 export type Controls = z.infer<typeof Controls>;
 
@@ -68,6 +70,26 @@ export const LAYOUT_INFO: Record<
     about: 'Attack, Action, a Jump button, 2 item buttons and an item wheel',
     items: 2,
     jump: 'button',
+  },
+  // Milestone 3b (B7b): the eras' layouts
+  cube: {
+    name: 'Big buttons',
+    about: 'A big Action button, Attack and 3 item buttons; jumping happens on its own at ledges (no jump button)',
+    items: 3,
+    jump: 'none',
+  },
+  pointer: {
+    name: 'Pointer',
+    about:
+      'Action, a swing to attack and 1 item button: hold it for the item wheel; jumping happens on its own at ledges',
+    items: 1,
+    jump: 'none',
+  },
+  tablet: {
+    name: 'Second screen',
+    about: 'Attack, Action and 3 item buttons, the items also touched on the second screen; no jump button',
+    items: 3,
+    jump: 'none',
   },
   custom: {
     name: 'Custom',
@@ -194,7 +216,7 @@ export function buttonsOf(c: Controls | undefined): Button[] {
   if (o.jump === 'button') out.push('jump');
   out.push('guard', 'roll', 'lock');
   out.push(...ITEM_BUTTONS.slice(0, o.items));
-  if (o.layout === 'modern') out.push('wheel');
+  if (o.layout === 'modern' || o.layout === 'pointer') out.push('wheel');
   out.push('menu');
   return out;
 }

@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { faceOf, HUD_STYLES, type HudStyle } from '../../../core/controls/hud-styles';
 import type { Action, Widget } from '../../../core/schema';
 import { asLines, asNumber, interpolate, type Lookup } from '../bindings';
 import { effectiveWidget, widgetCss } from '../layout';
@@ -40,6 +41,13 @@ export type ScreenHost = {
   bindings?(): { id: string; name: string; keys: string; pad: string }[];
   rebind?(id: string, key: string): void;
   resetBindings?(): void;
+  /** Milestone 3b (B7b): the HUD style (an era's look for the buttons); "" or none: plain */
+  hudStyle?(): string;
+  /** Milestone 3b (B7b): GameHud's showWidget and widgetText */
+  shown?(screen: string, widget: string): boolean;
+  hudText?(screen: string, widget: string, text: string): string | undefined;
+  /** Milestone 3b (B7b): a button pressed and let go from the HUD (the second screen's items, by touch) */
+  tap?(button: string): void;
   /** step 11 (P24 part 3): who made the game's imported files (the Credits widget lists them) */
   credits?(): { name: string; kind: string; author: string; license: string; link?: string }[];
 };
@@ -50,7 +58,9 @@ const CLICK = 'snd_uiclick000';
 
 function textOf(p: WidgetProps, raw: string | undefined): string {
   const over = p.w.id ? p.host.text?.(p.screen, p.w.id) : undefined;
-  return interpolate(over ?? raw ?? '', p.host.lookup);
+  const out = interpolate(over ?? raw ?? '', p.host.lookup);
+  // Milestone 3b (B7b): GameHud's widgetText
+  return (p.w.id && !p.host.preview ? p.host.hudText?.(p.screen, p.w.id, out) : undefined) ?? out;
 }
 
 function frame(p: WidgetProps, cls: string, children: ComponentChildren, extra: Record<string, string | number> = {}) {
@@ -113,6 +123,8 @@ export function WidgetView(props: WidgetProps) {
     const v = host.lookup(w.showIf);
     if (!v || v === 'false' || v === '0') return null;
   }
+  // Milestone 3b (B7b): GameHud's showWidget
+  if (w.id && !host.preview && host.shown && !host.shown(p.screen, w.id)) return null;
   switch (w.type) {
     case 'panel':
       return frame(
@@ -191,6 +203,30 @@ export function WidgetView(props: WidgetProps) {
       // P9c: a bar that only shows while it is not full (stamina while guarding)
       if (w.style?.hideFull && k >= 1 && !host.preview) return null;
       const color = typeof w.style?.color === 'string' ? w.style.color : '#4ade80';
+      // Milestone 3b (B7b): a ring (the open-air era's stamina wheel beside the hero)
+      if (w.style?.shape === 'ring') {
+        const r = 16;
+        const c = 2 * Math.PI * r;
+        return frame(
+          p,
+          'bw-bar-ring',
+          <svg viewBox="0 0 40 40" width="100%" height="100%" aria-label={w.label ?? 'ring'} role="img">
+            <circle cx="20" cy="20" r={r} fill="none" stroke="#00000066" stroke-width="6" />
+            <circle
+              cx="20"
+              cy="20"
+              r={r}
+              fill="none"
+              stroke={color}
+              stroke-width="6"
+              stroke-linecap="round"
+              stroke-dasharray={`${(c * k).toFixed(2)} ${c.toFixed(2)}`}
+              transform="rotate(-90 20 20)"
+            />
+          </svg>,
+          { background: 'transparent' },
+        );
+      }
       return frame(
         p,
         '',
@@ -246,6 +282,10 @@ export function WidgetView(props: WidgetProps) {
               { id: 'item2', name: 'Item 2', key: 'K', label: '' },
             ]
           : []);
+      // Milestone 3b (B7b): an era's look — each button wears its face, laid out like that era's HUD
+      const look = String(w.style?.look ?? host.hudStyle?.() ?? '');
+      if ((HUD_STYLES as readonly string[]).includes(look))
+        return frame(p, `bw-hud-${look}`, <EraButtons look={look as HudStyle} list={list} host={host} />);
       return frame(
         p,
         '',
@@ -328,6 +368,56 @@ export function WidgetView(props: WidgetProps) {
       ]);
     }
   }
+}
+
+/**
+ * Milestone 3b (B7b): the buttons in an era's look. Each wears its face (letter or shape, colour, size); the
+ * Action button says what it does; item buttons show their item and count; under each, small, the key it is on.
+ * The second screen's item buttons can be touched.
+ */
+export function EraButtons({
+  look,
+  list,
+  host,
+}: {
+  look: HudStyle;
+  list: { id: string; name: string; key: string; label: string; count?: number }[];
+  host: ScreenHost;
+}) {
+  const shown = list.filter((b) => faceOf(look, b.id));
+  return (
+    <div class="bw-era" data-look={look}>
+      {shown.map((b) => {
+        const f = faceOf(look, b.id)!;
+        const item = /^item\d$/.test(b.id);
+        const touch = look === 'tablet' && item && !host.preview;
+        return (
+          <div
+            class={`bw-era-btn bw-era-${b.id} ${f.size ?? 'mid'}${item ? ' item' : ''}${b.id === 'action' && b.label ? ' live' : ''}`}
+            data-button={b.id}
+            style={{ '--face': f.color } as Record<string, string>}
+            {...(touch
+              ? {
+                  role: 'button',
+                  'aria-label': `${b.name}: ${b.label || 'empty'}`,
+                  onPointerDown: (e: PointerEvent) => {
+                    e.stopPropagation();
+                    host.tap?.(b.id);
+                  },
+                }
+              : {})}
+          >
+            <span class="bw-era-face">{f.glyph}</span>
+            {(b.id === 'action' || item || look === 'openair') && (
+              <span class="bw-era-label">{b.label || (item ? '' : '')}</span>
+            )}
+            {b.count !== undefined && b.count > 0 && <span class="bw-era-count">{b.count}</span>}
+            {b.key && <span class="bw-era-key">{b.key}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 /** step 11b part 1: every button and its keys; click one, then press the key it should be */

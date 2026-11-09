@@ -35,7 +35,14 @@ export type ButtonHost = {
   /** the item menu (pick what goes in each item button) */
   itemMenu(): void;
   count(item: string): number;
+  /** Milestone 3b (B7b): may this button work now (controls off, a PlayerInput's canPress)? */
+  canPress?(b: Bindable): boolean;
+  /** Milestone 3b (B7b): a button went down or up (held: seconds it was down) — logic hears it */
+  pressed?(b: Bindable, down: boolean, held: number): void;
 };
+
+/** Milestone 3b (B7b): the pointer era's item button opens the item wheel when held this long */
+export const HOLD_FOR_WHEEL = 0.35;
 
 export class GameButtons {
   readonly c: ReturnType<typeof controlsOf>;
@@ -47,6 +54,10 @@ export class GameButtons {
   slots: (string | null)[] = [null, null, null, null];
   /** the offer a held Action press started (released with it) */
   private held: ActionOffer | null = null;
+  /** Milestone 3b (B7b): the buttons down now, and for how long (seconds) */
+  readonly down = new Map<Bindable, number>();
+  /** the pointer era: the item wheel opened by holding the item button (its press is not a use) */
+  private wheelByHold = false;
   /** a player's own keys and gamepad buttons (on this device) */
   playerKeys: Partial<Record<Bindable, string[]>> = {};
   playerPad: Partial<Record<Bindable, number[]>> = {};
@@ -59,7 +70,13 @@ export class GameButtons {
   }
 
   /** picks what the Action button does (call every step) */
-  update() {
+  update(dt = 1 / 60) {
+    for (const [b, t] of this.down) this.down.set(b, t + dt);
+    // the pointer era: holding the item button opens the item wheel
+    if (this.c.layout === 'pointer' && !this.wheelByHold && (this.down.get('item1') ?? 0) >= HOLD_FOR_WHEEL) {
+      this.wheelByHold = true;
+      this.host.itemMenu();
+    }
     const offers = this.host.offers();
     if (this.custom) offers.push({ kind: 'custom', label: this.custom, priority: ACTION_PRIORITY.custom });
     if (this.c.jump === 'action') offers.push({ kind: 'jump', label: 'Jump', priority: ACTION_PRIORITY.jump });
@@ -68,6 +85,12 @@ export class GameButtons {
 
   press(b: Bindable) {
     const h = this.host;
+    if (this.down.has(b)) return;
+    if (h.canPress && !h.canPress(b)) return;
+    this.down.set(b, 0);
+    h.pressed?.(b, true, 0);
+    // the pointer era: the item button is used when let go quickly (held: the wheel opens)
+    if (this.c.layout === 'pointer' && b === 'item1') return;
     switch (b) {
       case 'action':
         if (!this.now) return;
@@ -105,6 +128,15 @@ export class GameButtons {
 
   release(b: Bindable) {
     const h = this.host;
+    const held = this.down.get(b);
+    if (held === undefined) return;
+    this.down.delete(b);
+    h.pressed?.(b, false, held);
+    if (this.c.layout === 'pointer' && b === 'item1') {
+      if (!this.wheelByHold) h.useItem(this.slots[0] ?? null, 1);
+      this.wheelByHold = false;
+      return;
+    }
     switch (b) {
       case 'action':
         if (this.held) h.act(this.held, false);
