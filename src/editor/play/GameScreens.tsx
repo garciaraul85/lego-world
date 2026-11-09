@@ -54,6 +54,7 @@ export function GameScreens({
       bindings: () => s.bindingViews(),
       // Milestone 3b (B7b): the HUD style, GameHud's decisions, the second screen's touched items
       hudStyle: () => s.hudStyle(),
+      hudDef: (id) => s.customHud(id),
       shown: (screen, widget) => s.hudShows(screen, widget),
       hudText: (screen, widget, text) => s.hudText(screen, widget, text),
       tap: (b) => {

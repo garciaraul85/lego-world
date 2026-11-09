@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { faceOf, HUD_STYLES, type HudStyle } from '../../../core/controls/hud-styles';
+import { type CustomHud, faceInLook, HUD_SIZE_PX, type HudLook, hudLookOf } from '../../../core/controls/hud-custom';
+import { plainFace } from '../../../core/controls/hud-styles';
 import type { Action, Widget } from '../../../core/schema';
 import { asLines, asNumber, interpolate, type Lookup } from '../bindings';
 import { effectiveWidget, widgetCss } from '../layout';
@@ -41,8 +42,11 @@ export type ScreenHost = {
   bindings?(): { id: string; name: string; keys: string; pad: string }[];
   rebind?(id: string, key: string): void;
   resetBindings?(): void;
-  /** Milestone 3b (B7b): the HUD style (an era's look for the buttons); "" or none: plain */
+  /** Milestone 3b (B7b): the HUD style (an era's look for the buttons, or v144 a style of the game's own by id);
+   *  none: the open-air look */
   hudStyle?(): string;
+  /** v144: a HUD style of the game's own, by id */
+  hudDef?(id: string): CustomHud | undefined;
   /** Milestone 3b (B7b): GameHud's showWidget and widgetText */
   shown?(screen: string, widget: string): boolean;
   hudText?(screen: string, widget: string, text: string): string | undefined;
@@ -282,20 +286,13 @@ export function WidgetView(props: WidgetProps) {
               { id: 'item2', name: 'Item 2', key: 'K', label: '' },
             ]
           : []);
-      // Milestone 3b (B7b): an era's look — each button wears its face, laid out like that era's HUD
-      const look = String(w.style?.look ?? host.hudStyle?.() ?? '');
-      if ((HUD_STYLES as readonly string[]).includes(look))
-        return frame(p, `bw-hud-${look}`, <EraButtons look={look as HudStyle} list={list} host={host} />);
+      // Milestone 3b (B7b): an era's look — each button wears its face, laid out like that era's HUD; v144: or a
+      // style of the game's own; there is no plain look any more (a game that has not picked plays with open air)
+      const look = hudLookOf(String(w.style?.look ?? host.hudStyle?.() ?? ''), (id) => host.hudDef?.(id));
       return frame(
         p,
-        '',
-        list.map((b) => (
-          <div class={`bw-btn-slot bw-btn-${b.id.replace(/\d$/, '')}`} data-button={b.id}>
-            <span class="bw-btn-key">{b.key}</span>
-            <span class="bw-btn-label">{b.label || '—'}</span>
-            {b.count !== undefined && <span class="bw-btn-count">{b.count}</span>}
-          </div>
-        )),
+        `bw-hud-${look.custom ? 'custom' : look.era}`,
+        <EraButtons look={look} list={list} host={host} />,
       );
     }
     case 'items': {
@@ -380,42 +377,65 @@ export function EraButtons({
   list,
   host,
 }: {
-  look: HudStyle;
+  look: HudLook;
   list: { id: string; name: string; key: string; label: string; count?: number }[];
   host: ScreenHost;
 }) {
-  const shown = list.filter((b) => faceOf(look, b.id));
+  const own = look.custom;
+  const id = own ? 'custom' : look.era!;
+  // a style of your own shows only the buttons it gave a face; an era shows the rest plainly, in a row below
+  const faced = list.filter((b) => faceInLook(look, b.id));
+  const extra = own ? [] : list.filter((b) => !faceInLook(look, b.id) && b.id !== 'menu');
+  const one = (
+    b: (typeof list)[number],
+    f: { glyph: string; color: string; size?: 'big' | 'mid' | 'small'; x?: number; y?: number },
+  ) => {
+    const item = /^item\d$/.test(b.id);
+    const touch = (id === 'tablet' || !!own) && item && !host.preview;
+    const px = HUD_SIZE_PX[f.size ?? 'mid'];
+    const at =
+      own && f.x !== undefined ? { left: `${f.x}px`, top: `${f.y}px`, width: `${px}px`, height: `${px}px` } : {};
+    // the words under a button: what Action does, an item's name (a style of your own can leave them out)
+    const labelled = own ? own.labels && (b.id === 'action' || item) : b.id === 'action' || item || id === 'openair';
+    return (
+      <div
+        class={`bw-era-btn bw-era-${b.id} ${f.size ?? 'mid'}${item ? ' item' : ''}${b.id === 'action' && b.label ? ' live' : ''}`}
+        data-button={b.id}
+        style={{ '--face': f.color, ...at } as Record<string, string>}
+        {...(touch
+          ? {
+              role: 'button',
+              'aria-label': `${b.name}: ${b.label || 'empty'}`,
+              onPointerDown: (e: PointerEvent) => {
+                e.stopPropagation();
+                host.tap?.(b.id);
+              },
+            }
+          : {})}
+      >
+        <span class="bw-era-face">{f.glyph}</span>
+        {labelled && <span class="bw-era-label">{b.label}</span>}
+        {b.count !== undefined && b.count > 0 && <span class="bw-era-count">{b.count}</span>}
+        {b.key && <span class="bw-era-key">{b.key}</span>}
+      </div>
+    );
+  };
   return (
-    <div class="bw-era" data-look={look}>
-      {shown.map((b) => {
-        const f = faceOf(look, b.id)!;
-        const item = /^item\d$/.test(b.id);
-        const touch = look === 'tablet' && item && !host.preview;
-        return (
-          <div
-            class={`bw-era-btn bw-era-${b.id} ${f.size ?? 'mid'}${item ? ' item' : ''}${b.id === 'action' && b.label ? ' live' : ''}`}
-            data-button={b.id}
-            style={{ '--face': f.color } as Record<string, string>}
-            {...(touch
-              ? {
-                  role: 'button',
-                  'aria-label': `${b.name}: ${b.label || 'empty'}`,
-                  onPointerDown: (e: PointerEvent) => {
-                    e.stopPropagation();
-                    host.tap?.(b.id);
-                  },
-                }
-              : {})}
-          >
-            <span class="bw-era-face">{f.glyph}</span>
-            {(b.id === 'action' || item || look === 'openair') && (
-              <span class="bw-era-label">{b.label || (item ? '' : '')}</span>
-            )}
-            {b.count !== undefined && b.count > 0 && <span class="bw-era-count">{b.count}</span>}
-            {b.key && <span class="bw-era-key">{b.key}</span>}
-          </div>
-        );
-      })}
+    <div
+      class="bw-era"
+      data-look={id}
+      data-plate={own?.plate ? '' : undefined}
+      style={
+        own
+          ? ({ width: `${own.w}px`, height: `${own.h}px`, ...(own.plate ? { '--plate': own.plate } : {}) } as Record<
+              string,
+              string
+            >)
+          : undefined
+      }
+    >
+      {faced.map((b) => one(b, faceInLook(look, b.id)!))}
+      {extra.length > 0 && <div class="bw-era-extra">{extra.map((b) => one(b, plainFace(b.id)))}</div>}
     </div>
   );
 }

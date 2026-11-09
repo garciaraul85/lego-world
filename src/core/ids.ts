@@ -26,6 +26,8 @@ export const ID_PREFIX = {
   hairstyle: 'hst',
   /** step 11 (P24 part 2): a custom brick shape */
   custombrick: 'cbk',
+  /** Milestone 3b (v144): a HUD style of the maker's own */
+  hudstyle: 'hsy',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

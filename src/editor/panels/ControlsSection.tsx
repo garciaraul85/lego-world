@@ -13,11 +13,10 @@ import {
   MOVES,
   PAD_NAME,
 } from '../../core/controls/controls';
-import { HUD_STYLE_INFO, HUD_STYLES, type HudStyle } from '../../core/controls/hud-styles';
 import { paths, type Settings } from '../../core/schema';
-import { EraButtons } from '../../engine/ui/widgets';
 import type { ActionCtx } from '../actions/registry';
 import { FieldHelp } from '../components/fields';
+import { HudStylesSection } from './HudStylesSection';
 
 export const CONTROLS_HELP =
   'The game’s buttons, like Zelda’s. No action has a fixed key: the Action button does whatever fits where the hero stands (Talk, Open, Read, Rebuild, Jump…, and later Grab, Climb, Dive), and the item buttons use the item the player puts in each from the item menu. Pick a layout: Ocarina (Attack, Action and 3 item buttons, no jump button), Classic (2 item buttons, Action jumps when nothing else fits), Modern (a Jump button, 2 item buttons and an item wheel) or Custom. Keys and gamepad buttons can be changed here for the game, and players can change their own in Settings › Controls.';
@@ -58,7 +57,7 @@ export function ControlsSection({ c }: { c: ActionCtx }) {
           <FieldHelp label="Controls" text={CONTROLS_HELP} />
         </span>
       </div>
-      <HudStylePicker c={c} cur={cur.hud ?? null} />
+      <HudStylesSection c={c} />
       <label class="field">
         Layout
         <select
@@ -142,95 +141,6 @@ export function ControlsSection({ c }: { c: ActionCtx }) {
       <button type="button" class="btn small" disabled={!raw} onClick={() => save(null, 'Controls: defaults')}>
         Back to the default controls
       </button>
-    </div>
-  );
-}
-
-export const HUD_STYLE_HELP =
-  'HUD styles after each era of 3D adventure games, oldest first. Corner buttons (64-bit era): a green Attack, a blue Action that says what it does, three yellow item buttons in the top right, money bottom left, no jump button. Big-button cluster (cube era): a big green Action with a red Attack, two grey item buttons and a purple one. Pointer (motion era): a remote-shaped strip — tap the item button to use it, hold it for the item wheel; the attack is a swing. Second screen (tablet era): a tablet along the bottom with the map, the buttons and the items, touched to use them. Open air (today): small hints, a stamina wheel by the hero, a jump button and a quick menu. Applying one sets the button layout and arranges the HUD screen (Undo brings back what was); its looks are drawn here, original.';
-
-/** the buttons a preview shows, as Play would (an item, its count, a live Action label) */
-const PREVIEW = [
-  { id: 'attack', name: 'Attack', key: 'F', label: 'Attack' },
-  { id: 'action', name: 'Action', key: 'E', label: 'Open' },
-  { id: 'jump', name: 'Jump', key: 'Space', label: 'Jump' },
-  { id: 'item1', name: 'Item 1', key: 'J', label: 'Bow', count: 12 },
-  { id: 'item2', name: 'Item 2', key: 'K', label: 'Bomb', count: 5 },
-  { id: 'item3', name: 'Item 3', key: 'L', label: '' },
-  { id: 'guard', name: 'Guard', key: 'Q', label: 'Guard' },
-  { id: 'lock', name: 'Lock on', key: 'Z', label: 'Lock on' },
-  { id: 'roll', name: 'Roll', key: 'C', label: 'Roll' },
-  { id: 'wheel', name: 'Item wheel', key: 'R', label: 'Items' },
-];
-
-/** Milestone 3b (B7b): Project › Controls › HUD style — one card per era, each with its buttons drawn */
-function HudStylePicker({ c, cur }: { c: ActionCtx; cur: HudStyle | null }) {
-  const { ed } = c;
-  const apply = (style: HudStyle | null) => {
-    const r = ed.exec({ type: 'hud.applyStyle', payload: { style } });
-    if (r.ok)
-      ed.notify(
-        style
-          ? `HUD style: ${HUD_STYLE_INFO[style].name}. The HUD screen is arranged for it (Undo brings back what was).`
-          : 'HUD style: plain',
-      );
-  };
-  return (
-    <div data-tour="hud-styles" data-help="project.hudStyle" role="group" aria-label="HUD style">
-      <div class="sech" style={{ padding: '6px 0 4px' }}>
-        <span>
-          HUD style
-          <FieldHelp label="HUD style" text={HUD_STYLE_HELP} />
-        </span>
-        <span class="small muted">{cur ? HUD_STYLE_INFO[cur].name : 'Plain'}</span>
-      </div>
-      <div class="hud-style-cards">
-        {HUD_STYLES.map((st) => {
-          const info = HUD_STYLE_INFO[st];
-          return (
-            <button
-              type="button"
-              class={`hud-style-card${cur === st ? ' on' : ''}`}
-              aria-pressed={cur === st}
-              aria-label={`HUD style ${info.name} (${info.era})`}
-              title={info.about}
-              onClick={() => apply(st)}
-            >
-              <span class="hud-style-preview" aria-hidden="true">
-                <span class={`bw-w bw-buttons bw-hud-${st}`}>
-                  <EraButtons
-                    look={st}
-                    list={PREVIEW}
-                    host={{
-                      lookup: () => undefined,
-                      run: () => {},
-                      sound: () => {},
-                      touch: false,
-                      preview: { selected: null, select: () => {} },
-                    }}
-                  />
-                </span>
-              </span>
-              <strong>{info.name}</strong>
-              <span class="small muted">{info.era}</span>
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          class={`hud-style-card plain${cur === null ? ' on' : ''}`}
-          aria-pressed={cur === null}
-          aria-label="HUD style Plain"
-          onClick={() => apply(null)}
-        >
-          <span class="hud-style-preview" aria-hidden="true">
-            <span class="hud-plain">Attack · Open · Bow</span>
-          </span>
-          <strong>Plain</strong>
-          <span class="small muted">the built-in HUD</span>
-        </button>
-      </div>
-      {cur && <p class="hint">{HUD_STYLE_INFO[cur].feel}</p>}
     </div>
   );
 }

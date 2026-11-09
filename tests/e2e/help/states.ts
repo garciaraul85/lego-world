@@ -1473,6 +1473,53 @@ export const HELP_STATES: HelpState[] = [
         .waitFor({ timeout: 30_000 });
     },
   },
+  // v144: a HUD style of your own, its editor open in Project › Controls (near the end: the game keeps the style)
+  {
+    id: 'scene-hud-own',
+    screen: 'scene',
+    setup: async (p) => {
+      await p.keyboard.press('Escape');
+      if (await p.getByLabel('Game view').isVisible()) await p.keyboard.press('F5');
+      await ws(p, 'Scene');
+      await signals(p, { right: 'project' });
+      await p.evaluate(() => {
+        const e = (window as unknown as { __editor: Ed }).__editor;
+        const id = 'hsy_helpshots1';
+        if (!e.store.get(`hudstyles/${id}.json`))
+          e.exec([
+            {
+              type: 'hudstyle.put',
+              payload: {
+                style: {
+                  id,
+                  name: 'Star pad',
+                  layout: 'ocarina',
+                  base: 'corner64',
+                  w: 260,
+                  h: 150,
+                  labels: true,
+                  faces: {
+                    action: { glyph: '★', color: '#f3c233', size: 'big', x: 95, y: 0 },
+                    attack: { glyph: '✕', color: '#d8483c', size: 'mid', x: 20, y: 60 },
+                    item1: { glyph: '◀', color: '#3f74e6', size: 'mid', x: 60, y: 92 },
+                    item2: { glyph: '▼', color: '#3f74e6', size: 'mid', x: 120, y: 92 },
+                    item3: { glyph: '▶', color: '#3f74e6', size: 'mid', x: 180, y: 92 },
+                  },
+                },
+              },
+            },
+            { type: 'hud.applyStyle', payload: { style: id } },
+          ]);
+      });
+      await p.locator('[data-tour="hud-editor"]').waitFor();
+      await p.evaluate(() => {
+        const el = document.querySelector('[data-tour="hud-editor"]');
+        let sc = el?.parentElement ?? null;
+        while (sc && sc.scrollHeight <= sc.clientHeight + 4) sc = sc.parentElement;
+        if (el && sc) sc.scrollTop += el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 8;
+      });
+    },
+  },
   // P18: a genre view (last: it changes which tabs show), with More open and a hidden feature in use
   {
     id: 'genre-explore',

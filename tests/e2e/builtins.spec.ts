@@ -619,7 +619,7 @@ test('HUD styles course: an era’s HUD, the item wheel, the buttons and the HUD
       // the era's buttons on the HUD: a B, an A and three yellow item buttons
       const era = page.locator('.bw-layer .bw-era[data-look="corner64"]');
       await expect(era).toBeVisible({ timeout: 30_000 });
-      await expect(era.locator('.bw-era-btn')).toHaveCount(7);
+      await expect(era.locator(':scope > .bw-era-btn')).toHaveCount(7);
     }
     if (/Hold for the wheel/.test(title))
       await expect(page.locator('.bw-layer .bw-era[data-look="pointer"]')).toBeVisible();
@@ -637,6 +637,123 @@ test('HUD styles course: an era’s HUD, the item wheel, the buttons and the HUD
     await card.getByRole('button', { name: 'Next ▶' }).click();
     await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
   }
+  expect(errors).toEqual([]);
+});
+
+test('Custom HUD course: a HUD style of your own, its faces and places, in Play, in My library', async ({ page }) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
+  await page.getByRole('menuitem', { name: /Custom HUD course/ }).click();
+  const card = page.getByRole('complementary', { name: 'Tutorial' });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
+  expect(total).toBe(6);
+  for (let i = 0; i < total + 1; i++) {
+    const pos = await card.locator('header .mono').innerText();
+    const title = await card.getByRole('heading').first().innerText();
+    const doIt = card.getByRole('button', { name: 'Do it for me' });
+    await page.waitForTimeout(600);
+    if ((await doIt.isVisible()) && !(await card.getByText(/✓ Done!/).isVisible())) {
+      await expect(doIt).toBeEnabled({ timeout: 30_000 });
+      await doIt.click();
+      const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
+      const done = card.getByText(/✓ Done!/);
+      await expect(rest.or(done), `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      if (await rest.isVisible()) await rest.click();
+      await expect(done, `${pos} ${title}`).toBeVisible({ timeout: 200_000 });
+      await page.screenshot({ path: `test-results/own-${String(i).padStart(2, '0')}.png` });
+    }
+    if (/A style of your own/.test(title)) {
+      const picker = page.locator('[data-tour="hud-styles"]');
+      await expect(picker.getByRole('button', { name: 'HUD style Star pad (your own)' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await expect(page.locator('[data-tour="hud-editor"]')).toBeVisible();
+      // there is no plain look to pick any more
+      await expect(picker.getByRole('button', { name: /Plain/ })).toHaveCount(0);
+    }
+    if (/A face of your own/.test(title)) await expect(page.getByLabel('Attack letter or shape')).toHaveValue('✕');
+    if (/Play with it/.test(title)) {
+      const own = page.locator('.bw-layer .bw-era[data-look="custom"]');
+      await expect(own).toBeVisible({ timeout: 30_000 });
+      await expect(own.locator('[data-button="attack"] .bw-era-face')).toHaveText('✕');
+    }
+    const finish = card.getByRole('button', { name: 'Finish ✓' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await card.getByRole('button', { name: 'Next ▶' }).click();
+    await expect(card.locator('header .mono')).not.toHaveText(pos, { timeout: 60_000 });
+  }
+  expect(errors).toEqual([]);
+});
+
+test('a HUD style of your own made by hand: + New style, drag a button, change a face, the Look in Screens', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const errors: string[] = [];
+  await open(page, errors);
+  // biome-ignore lint/suspicious/noExplicitAny: the editor in the page
+  await page.evaluate(() => ((window as any).__editor.right.value = 'project'));
+  const picker = page.locator('[data-tour="hud-styles"]');
+  await picker.scrollIntoViewIfNeeded();
+  // a game that has not picked shows Open air as its style
+  await expect(picker.getByRole('button', { name: /HUD style Open air/ })).toHaveAttribute('aria-pressed', 'true');
+  await picker.getByRole('button', { name: /HUD style Big-button cluster/ }).click();
+  await picker.getByRole('button', { name: 'New HUD style of your own' }).click();
+  const editor = page.locator('[data-tour="hud-editor"]');
+  await expect(editor).toBeVisible();
+  // its faces came from the cube era
+  await expect(page.getByLabel('Action letter or shape')).toHaveValue('A');
+  const grip = editor.locator('[data-grip="action"]');
+  await grip.scrollIntoViewIfNeeded();
+  // biome-ignore lint/suspicious/noExplicitAny: the editor's store
+  const at = () =>
+    page.evaluate(() => {
+      const e = (window as any).__editor;
+      const id = e.store.get('settings.json').controls.hud;
+      return e.store.get(`hudstyles/${id}.json`).faces.action;
+    });
+  const before = await at();
+  const box = (await grip.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2 + 20, { steps: 6 });
+  await page.mouse.up();
+  const after = await at();
+  expect(after.x).toBeLessThan(before.x - 20);
+  expect(after.y).toBeGreaterThan(before.y);
+  // a new face: a star, small
+  await page.getByLabel('Action letter or shape').fill('★');
+  await page.getByLabel('Action letter or shape').press('Enter');
+  await page.getByLabel('Action size').selectOption('small');
+  await expect.poll(async () => (await at()).glyph).toBe('★');
+  await expect.poll(async () => (await at()).size).toBe('small');
+  await page.screenshot({ path: 'test-results/own-editor.png' });
+  // Undo puts the size back
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect.poll(async () => (await at()).size).toBe('big');
+  // in Screens the HUD's buttons widget can wear any look
+  await page.locator('[data-tour="ws-screens"]').click();
+  // biome-ignore lint/suspicious/noExplicitAny: the editor in the page
+  await page.evaluate(() => {
+    const e = (window as any).__editor;
+    e.screenId.value = 'scr_hud0000000';
+  });
+  const own = page.locator('.sc-device .bw-era[data-look="custom"]');
+  await expect(own).toBeVisible({ timeout: 30_000 });
+  await own.click();
+  const look = page.getByLabel('Buttons look');
+  await expect(look).toBeVisible();
+  await look.selectOption('corner64');
+  await expect(page.locator('.sc-device .bw-era[data-look="corner64"]')).toBeVisible();
+  await page.screenshot({ path: 'test-results/own-screens.png' });
   expect(errors).toEqual([]);
 });
 

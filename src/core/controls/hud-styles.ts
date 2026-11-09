@@ -11,6 +11,8 @@ import type { Button, Layout } from './controls';
  */
 export const HUD_STYLES = ['corner64', 'cube', 'pointer', 'tablet', 'openair'] as const;
 export type HudStyle = (typeof HUD_STYLES)[number];
+/** v144: a game that has not picked a style plays with the open-air look (there is no plain look any more) */
+export const DEFAULT_HUD_STYLE: HudStyle = 'openair';
 
 export type ButtonFace = {
   /** what it wears: a letter, or a shape (▲ ▼ ◀ ▶ ✚ 〰) */
@@ -18,7 +20,7 @@ export type ButtonFace = {
   /** its colour */
   color: string;
   /** its size on the HUD: big for the main buttons */
-  size?: 'big' | 'small';
+  size?: 'big' | 'mid' | 'small';
 };
 
 export type HudStyleInfo = {
@@ -128,6 +130,13 @@ export const HUD_STYLE_INFO: Record<HudStyle, HudStyleInfo> = {
     feel: 'A jump button of its own; the quick menu (✚) picks what goes in the two item buttons; the stamina wheel shows only while it is used.',
   },
 };
+
+/** v144: the face of a button an era does not draw (a layout with more item buttons than the era had) */
+export const plainFace = (b: string): ButtonFace => ({
+  glyph: /^item(\d)$/.test(b) ? b.slice(4) : (b[0] ?? '?').toUpperCase(),
+  color: '#8a93a6',
+  size: 'small',
+});
 
 /** the face a button wears in a style (none: shown plainly) */
 export const faceOf = (style: HudStyle | undefined, b: string): ButtonFace | null =>

@@ -166,6 +166,8 @@ export const ACTION_HELP: Record<string, string> = {
     'Starts the Enemy parts course (7 steps): place Rattlebones, read the Attack interface, swap its attack for a Spit and its mover for Wings in Characters › Behaviour, Extend Spit so it says so each time, and watch it spit from the air in Play.',
   'help.mapsCourse':
     'Starts the Maps course (6 steps): in Project › Maps make the pause map a Sea chart with a wooden frame and the map in play round with a compass ring, then in Play walk, press M for the pause map and put down a heart pin.',
+  'help.customHudCourse':
+    'Starts the Custom HUD course (6 steps): in Project › Controls › HUD style make a style of your own from Corner buttons named Star pad, give Attack a big red ✕, drag Action to the bottom of its box, play with it, and save it to My library.',
   'help.hudStylesCourse':
     'Starts the HUD styles course (9 steps): in Project › Controls pick the Corner buttons HUD style and Play it, switch to Pointer and motion and hold the item button for the item wheel, read PlayerInput, write class MyButtons extends PlayerInput (no attacking in a village, Action says Chat, a long press changes the HUD to open air) and class MyHud extends GameHud, then in Play press Action and hold Guard.',
   'help.gameRulesCourse':

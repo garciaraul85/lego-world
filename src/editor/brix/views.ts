@@ -252,6 +252,7 @@ export function stepsToView(view: string): ShowStep[] {
     case 'scene-swimming':
     case 'scene-controls':
     case 'scene-look':
+    case 'scene-hud-own':
       return [ws('Scene'), right('project', 'Project')];
     case 'scene-layers':
       return [ws('Scene'), left('layers', 'Layers')];

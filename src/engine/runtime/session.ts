@@ -52,7 +52,8 @@ import {
   keyName,
   MOVES,
 } from '../../core/controls/controls';
-import { faceOf, HUD_STYLES, type HudStyle } from '../../core/controls/hud-styles';
+import { type CustomHud, faceInLook, type HudLook, hudLookOf } from '../../core/controls/hud-custom';
+import { plainFace } from '../../core/controls/hud-styles';
 import type { Effect, EffectEvent } from '../../core/effects/schema';
 import { Mood, NO_MOOD, type ScreenEffect, type ScreenEvent } from '../../core/effects/screen';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
@@ -6696,11 +6697,20 @@ export class PlaySession {
   /** a rumble asked for (Play shakes the gamepad, then clears it) */
   rumble: { strength: number; seconds: number } | null = null;
   /** the HUD style logic set while playing (hud.setStyle); undefined: the game's */
-  private hudOverride: HudStyle | '' | undefined;
-  /** the HUD style now: what logic set, else Project › Controls (""; the plain look) */
-  hudStyle(): HudStyle | '' {
-    if (this.hudOverride !== undefined) return this.hudOverride;
-    return (this.snapshot.get(paths.settings) as { controls?: Controls } | undefined)?.controls?.hud ?? '';
+  private hudOverride: string | undefined;
+  /** Milestone 3b (B7b): the HUD style now — hud.setStyle's, else the game's (Project › Controls); v144: an era's
+   *  id or the id of a style of the game's own; a game that has not picked plays with the open-air look */
+  hudStyle(): string {
+    return this.hudLook().id;
+  }
+  /** v144: the HUD style now, resolved (an era, or a style of the game's own) */
+  hudLook(): HudLook {
+    const set = (this.snapshot.get(paths.settings) as { controls?: Controls } | undefined)?.controls?.hud;
+    return hudLookOf(this.hudOverride ?? set, (id) => this.customHud(id));
+  }
+  /** v144: a HUD style of the game's own, by id */
+  customHud(id: string): CustomHud | undefined {
+    return this.snapshot.get(paths.hudStyle(id)) as CustomHud | undefined;
   }
   /** logic's Controls on or off, Rumble and Set HUD style */
   inputOp(op: 'on' | 'off' | 'rumble' | 'style', strength: number, seconds: number, style: string) {
@@ -6717,9 +6727,18 @@ export class PlaySession {
       this.rumble = { strength, seconds };
       return;
     }
+    // an era's id, the name or id of a style of the game's own, or default (the game's)
     const k = style.trim().toLowerCase();
-    const next =
-      k === 'default' || !k ? undefined : (HUD_STYLES as readonly string[]).includes(k) ? (k as HudStyle) : null;
+    let next: string | undefined | null = null;
+    if (k === 'default' || !k) next = undefined;
+    else if (hudLookOf(style.trim(), (id) => this.customHud(id)).id === style.trim()) next = style.trim();
+    else {
+      for (const p of this.snapshot.keys()) {
+        if (!p.startsWith(paths.hudStyleDir)) continue;
+        const c = this.snapshot.get(p) as CustomHud | undefined;
+        if (c?.name.trim().toLowerCase() === k) next = c.id;
+      }
+    }
     if (next === null) return this.emit('info', `Set HUD style: no style “${style}”`);
     this.hudOverride = next;
     this.logic.fire({ type: 'event.onHudStyle', payload: { style: this.hudStyle() } });
@@ -7918,7 +7937,7 @@ export class PlaySession {
       canPress: (b) => !this.inputOff && (!this.logic || this.askHook('input', 'canPress', { button: b }, true)),
       pressed: (b, down, held) => {
         if (!this.logic) return;
-        const face = faceOf(this.hudStyle() || undefined, b)?.glyph ?? '';
+        const face = faceInLook(this.hudLook(), b)?.glyph ?? plainFace(b).glyph;
         this.logic.fire({
           type: down ? 'event.onButtonDown' : 'event.onButtonUp',
           match: { button: b },
@@ -7976,11 +7995,9 @@ export class PlaySession {
     const b = this.buttons;
     const out: { id: string; name: string; key: string; label: string; count?: number }[] = [
       // Milestone 3b (B7b): the HUD styles show the other buttons too (Guard, Lock on, the item wheel)
-      ...(this.hudStyle()
-        ? (['guard', 'lock', 'roll', 'wheel'] as const)
-            .filter((x) => buttonsOf({ layout: b.c.layout, items: b.c.items, jump: b.c.jump }).includes(x))
-            .map((x) => ({ id: x, name: BUTTON_NAME[x], key: b.keyOf(x), label: BUTTON_NAME[x] }))
-        : []),
+      ...(['guard', 'lock', 'roll', 'wheel'] as const)
+        .filter((x) => buttonsOf({ layout: b.c.layout, items: b.c.items, jump: b.c.jump }).includes(x))
+        .map((x) => ({ id: x, name: BUTTON_NAME[x], key: b.keyOf(x), label: BUTTON_NAME[x] })),
       { id: 'attack', name: 'Attack', key: b.keyOf('attack'), label: 'Attack' },
       { id: 'action', name: 'Action', key: b.keyOf('action'), label: b.now?.label ?? '' },
     ];

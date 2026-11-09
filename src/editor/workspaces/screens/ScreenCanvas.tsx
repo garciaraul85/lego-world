@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import type { CustomHud } from '../../../core/controls/hud-custom';
 import { mediaCredits } from '../../../core/media/uses';
-import { type MediaIndex, paths, type Screen, type Widget } from '../../../core/schema';
+import { type MediaIndex, paths, type Screen, type Settings, type Widget } from '../../../core/schema';
 import { effectiveWidget } from '../../../engine/ui/layout';
 import type { ScreenHost } from '../../../engine/ui/ScreenRenderer';
 import { resolveScreen, screenOfKind } from '../../../engine/ui/screens';
@@ -88,6 +89,9 @@ export function ScreenCanvas({
     font: artFont,
     touch: dev.id !== 'desktop' && dev.id !== 'laptop',
     preview: { selected: path, select: (p) => (ed.widgetPath.value = p) },
+    // v144: the buttons in the game's HUD style (or a style of its own)
+    hudStyle: () => ed.store.get<Settings>(paths.settings)?.controls?.hud ?? '',
+    hudDef: (id) => ed.store.get<CustomHud>(paths.hudStyle(id)),
   };
   const hud = screenOfKind(ed.store, 'hud');
   const under = overHud && hud && hud.id !== screen.id ? [resolveScreen(ed.store, hud.id)!] : [];

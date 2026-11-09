@@ -83,7 +83,7 @@ test('the Action button opens a chest; an item button uses its item; Ocarina has
   await expect.poll(() => ses(page, (s) => (s.buttons.now?.kind === 'use' ? s.buttons.now.label : ''))).not.toBe('');
   const label = await ses(page, (s) => s.buttons.now!.label);
   expect(label).not.toBe('');
-  await expect(page.locator('.bw-buttons [data-button="action"] .bw-btn-label')).toHaveText(label);
+  await expect(page.locator('.bw-layer .bw-buttons [data-button="action"] .bw-era-label')).toHaveText(label);
   await page.screenshot({ path: 'test-results/controls-action.png' });
   await page.keyboard.press('e');
   await expect.poll(() => ses(page, (s) => s.events.some((x) => /Treasure chest/.test(x.msg)))).toBe(true);
@@ -125,7 +125,7 @@ test('the Action button opens a chest; an item button uses its item; Ocarina has
   await page.keyboard.press(' ');
   await page.waitForTimeout(120);
   expect(await ses(page, (s) => s.heroState.vy)).toBeLessThanOrEqual(0.01);
-  await expect(page.locator('.bw-buttons [data-button="item3"]')).toHaveCount(1);
+  await expect(page.locator('.bw-layer .bw-buttons [data-button="item3"]')).toHaveCount(1);
   await page.keyboard.press('F5');
   expect(errors).toEqual([]);
 });
@@ -207,7 +207,7 @@ test('swimming: afloat in a pool, E dives (held), the view turns blue and Air sh
   type W = S & { swim: { on: boolean; under: boolean }; heroStates: { state: string } };
   await expect.poll(() => ses(page, (s) => (s as W).swim.on), { timeout: 30_000 }).toBe(true);
   await expect.poll(() => ses(page, (s) => s.buttons.now?.label), { timeout: 30_000 }).toBe('Dive');
-  await expect(page.locator('.bw-buttons [data-button="action"] .bw-btn-label')).toHaveText('Dive');
+  await expect(page.locator('.bw-layer .bw-buttons [data-button="action"] .bw-era-label')).toHaveText('Dive');
   // swim forward: the crawl
   await page.keyboard.down('w');
   await expect.poll(() => ses(page, (s) => (s as W).heroStates.state)).toBe('swim');
