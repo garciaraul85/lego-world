@@ -6,6 +6,7 @@ import { ActionListField } from '../../components/ActionListField';
 import { BRICK_HEXES, ColorField } from '../../components/ColorPicker';
 import { PreviewPicker } from '../../components/PreviewPicker';
 import { actionChoices, MusicSelect, SoundSelect } from '../../panels/AudioFields';
+import { hudStyleChoices } from '../../panels/HudStylesSection';
 import { openLogicFor } from '../logic/createFromContext';
 import { ArtThumb, allArt } from './art/ArtLibrary';
 import { artUrl } from './art/render';
@@ -448,6 +449,37 @@ export function WidgetProps({
             />
             Hide when empty
           </label>
+          {w.type === 'bar' && (
+            <label class="field">
+              Shape
+              <select
+                class="inp"
+                aria-label="Bar shape"
+                value={w.style?.shape === 'ring' ? 'ring' : ''}
+                onChange={(e) => style('shape', (e.target as HTMLSelectElement).value || undefined)}
+              >
+                <option value="">Bar</option>
+                <option value="ring">Ring (a wheel by the hero)</option>
+              </select>
+            </label>
+          )}
+          {/* v144: the buttons' look — the game's HUD style, an era's, or a style of the game's own */}
+          {w.type === 'buttons' && (
+            <label class="field">
+              Look
+              <select
+                class="inp"
+                aria-label="Buttons look"
+                value={typeof w.style?.look === 'string' ? w.style.look : ''}
+                onChange={(e) => style('look', (e.target as HTMLSelectElement).value || undefined)}
+              >
+                <option value="">The game’s HUD style</option>
+                {hudStyleChoices(c).map(([id, name]) => (
+                  <option value={id}>{name}</option>
+                ))}
+              </select>
+            </label>
+          )}
           {w.type === 'bar' && (
             <label class="row small">
               <input

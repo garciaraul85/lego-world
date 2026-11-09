@@ -1584,7 +1584,7 @@ Shakes the player’s gamepad (where it can): a hit, a chest’s lid, a boss sto
 
 `hud.setStyle` · action
 
-Changes how the HUD’s buttons look while playing (corner64, cube, pointer, tablet, openair; default: the game’s, from Project › Controls). The buttons themselves stay as Project › Controls has them.
+Changes how the HUD’s buttons look while playing: corner64, cube, pointer, tablet, openair, the name of a style of the game’s own (Project › Controls › HUD style), or default (the game’s). The buttons themselves stay as Project › Controls has them.
 
 - Inputs: style (string)
 - Code: `hud.setStyle(style);`
@@ -1593,7 +1593,7 @@ Changes how the HUD’s buttons look while playing (corner64, cube, pointer, tab
 
 `hud.style` · pure
 
-The HUD style now (corner64, cube, pointer, tablet, openair, or "" for the plain look).
+The HUD style now: corner64, cube, pointer, tablet, openair, or the id of a style of the game’s own (openair when the game has not picked).
 
 - Outputs: out (string)
 - Code: `hud.style()`

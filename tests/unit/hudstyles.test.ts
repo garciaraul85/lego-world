@@ -3,7 +3,9 @@ import { BUILTIN_SCREENS } from '../../src/builtin/screens';
 import { hudScreenFor } from '../../src/builtin/screens/hud-styles';
 import { CommandBus, registerAll } from '../../src/core/commands';
 import { buttonsOf, Controls, LAYOUTS } from '../../src/core/controls/controls';
-import { faceOf, HUD_STYLE_INFO, HUD_STYLES } from '../../src/core/controls/hud-styles';
+import { CustomHud, customFromEra, faceInLook, HUD_SIZE_PX, hudLookOf } from '../../src/core/controls/hud-custom';
+import { DEFAULT_HUD_STYLE, faceOf, HUD_STYLE_INFO, HUD_STYLES, plainFace } from '../../src/core/controls/hud-styles';
+import { gatherItem, importCommands } from '../../src/core/library/library';
 import { allHooksOf, isGameClass } from '../../src/core/logic/builtins';
 import { parseBehaviour } from '../../src/core/logic/code/behaviour';
 import { newProjectFiles } from '../../src/core/project/new-project';
@@ -54,18 +56,116 @@ describe('the HUD styles', () => {
     expect(hudScreenFor('corner64', HUD).root.children!.find((w) => w.id === 'buttons')?.anchor).toEqual([1, 0]);
   });
 
-  it('hud.applyStyle sets the layout and arranges the HUD; null goes back to the plain look; Undo', () => {
+  it('hud.applyStyle sets the layout and arranges the HUD; there is no plain look (null is refused); Undo', () => {
     const s = new ProjectStore(newProjectFiles({ name: 'Hud', random: () => 0.3, noNeighbours: true }));
     const bus = registerAll(new CommandBus(s));
     expect(run(bus, { type: 'hud.applyStyle', payload: { style: 'cube' } }).ok).toBe(true);
     expect(s.get<Settings>(paths.settings)?.controls).toMatchObject({ layout: 'cube', hud: 'cube' });
     expect(s.get<Screen>(paths.screen('scr_hud0000000'))?.root.children?.some((w) => w.id === 'money')).toBe(true);
     expect(run(bus, { type: 'hud.applyStyle', payload: { style: 'glasses' } }).ok).toBe(false);
-    expect(run(bus, { type: 'hud.applyStyle', payload: { style: null } }).ok).toBe(true);
-    expect(s.get<Settings>(paths.settings)?.controls?.hud).toBeUndefined();
-    expect(s.get(paths.screen('scr_hud0000000'))).toBeUndefined();
+    expect(run(bus, { type: 'hud.applyStyle', payload: { style: null } }).ok).toBe(false);
+    expect(run(bus, { type: 'hud.applyStyle', payload: { style: 'tablet' } }).ok).toBe(true);
     bus.undo();
     expect(s.get<Settings>(paths.settings)?.controls?.hud).toBe('cube');
+  });
+
+  it('a game that has not picked plays with Open air; every button of its layout still shows (the extra ones plainly)', () => {
+    expect(DEFAULT_HUD_STYLE).toBe('openair');
+    expect(hudLookOf(undefined, () => undefined)).toMatchObject({ id: 'openair', era: 'openair' });
+    expect(hudLookOf('hsy_gonegonego', () => undefined).id).toBe('openair');
+    // Open air draws no third item button: it is shown plainly, with its number
+    expect(
+      faceInLook(
+        hudLookOf('openair', () => undefined),
+        'item3',
+      ),
+    ).toBeNull();
+    expect(plainFace('item3')).toMatchObject({ glyph: '3', size: 'small' });
+    const { p } = (() => {
+      const st = new ProjectStore(newProjectFiles({ name: 'Hud', random: () => 0.3, noNeighbours: true }));
+      return { p: new PlaySession(st.snapshot(), { audio: new RecordingAudio() }) };
+    })();
+    expect(p.hudStyle()).toBe('openair');
+    expect(p.buttonViews().map((b) => b.id)).toEqual(expect.arrayContaining(['guard', 'lock', 'attack', 'action']));
+  });
+});
+
+describe('HUD styles of your own', () => {
+  const mk = () => {
+    const s = new ProjectStore(newProjectFiles({ name: 'Hud', random: () => 0.3, noNeighbours: true }));
+    return { s, bus: registerAll(new CommandBus(s)) };
+  };
+
+  it('one started from an era keeps that era’s faces, placed as it places them, inside its box', () => {
+    for (const era of HUD_STYLES) {
+      const c = customFromEra(era, 'hsy_aaaaaaaaaa', 'Mine');
+      expect(CustomHud.safeParse(c).success, era).toBe(true);
+      expect(c.layout).toBe(HUD_STYLE_INFO[era].layout);
+      for (const [b, f] of Object.entries(c.faces)) {
+        expect(f!.glyph, `${era} ${b}`).toBe(faceOf(era, b)!.glyph);
+        expect(f!.x + HUD_SIZE_PX[f!.size], `${era} ${b} x`).toBeLessThanOrEqual(c.w + 30);
+        expect(f!.y + HUD_SIZE_PX[f!.size], `${era} ${b} y`).toBeLessThanOrEqual(c.h + 30);
+      }
+    }
+    expect(customFromEra('corner64', 'hsy_aaaaaaaaaa', 'Mine').faces.action).toMatchObject({
+      x: 78,
+      y: 4,
+      size: 'big',
+    });
+  });
+
+  it('hudstyle.put saves one (checked); hud.applyStyle plays with it: its layout, its era’s arrangement; delete goes back to Open air', () => {
+    const { s, bus } = mk();
+    const st: CustomHud = {
+      id: 'hsy_triangle01',
+      name: 'Triangle pad',
+      layout: 'ocarina',
+      base: 'cube',
+      w: 200,
+      h: 150,
+      labels: false,
+      plate: '#223344',
+      faces: {
+        action: { glyph: '▲', color: '#e04848', size: 'big', x: 65, y: 0 },
+        attack: { glyph: '◀', color: '#3f74e6', size: 'mid', x: 0, y: 80 },
+      },
+    };
+    expect(run(bus, { type: 'hudstyle.put', payload: { style: { ...st, faces: {} } } }).ok).toBe(false);
+    expect(run(bus, { type: 'hudstyle.put', payload: { style: { ...st, w: 5 } } }).ok).toBe(false);
+    expect(run(bus, { type: 'hudstyle.put', payload: { style: st } }).ok).toBe(true);
+    expect(s.get(paths.hudStyle(st.id))).toEqual(st);
+    expect(run(bus, { type: 'hud.applyStyle', payload: { style: 'hsy_nothere00' } }).ok).toBe(false);
+    expect(run(bus, { type: 'hud.applyStyle', payload: { style: st.id } }).ok).toBe(true);
+    expect(s.get<Settings>(paths.settings)?.controls).toMatchObject({ layout: 'ocarina', hud: st.id });
+    // the cube era's arrangement: its map has a gold frame
+    const hud = s.get<Screen>(paths.screen('scr_hud0000000'))!;
+    expect(hud.root.children!.find((w) => w.id === 'minimap')?.style?.border).toBe('#c9a74a');
+    // in Play: its faces, and only its buttons (a button with no face is left out)
+    const p = new PlaySession(s.snapshot(), { audio: new RecordingAudio() });
+    expect(p.hudStyle()).toBe(st.id);
+    expect(faceInLook(p.hudLook(), 'action')?.glyph).toBe('▲');
+    expect(faceInLook(p.hudLook(), 'item1')).toBeNull();
+    // logic changes to it by name, and back
+    p.inputOp('style', 0, 0, 'cube');
+    expect(p.hudStyle()).toBe('cube');
+    p.inputOp('style', 0, 0, 'triangle pad');
+    expect(p.hudStyle()).toBe(st.id);
+    expect(run(bus, { type: 'hudstyle.delete', payload: { id: st.id } }).ok).toBe(true);
+    expect(s.get<Settings>(paths.settings)?.controls?.hud).toBeUndefined();
+    bus.undo();
+    expect(s.get<Settings>(paths.settings)?.controls?.hud).toBe(st.id);
+  });
+
+  it('a HUD style goes to My library and comes into another game', () => {
+    const { s, bus } = mk();
+    const st = customFromEra('pointer', 'hsy_remote0001', 'Remote');
+    expect(run(bus, { type: 'hudstyle.put', payload: { style: st } }).ok).toBe(true);
+    const item = gatherItem(s, 'hudstyle', st.id, { from: 'Hud' })!;
+    expect(item).toMatchObject({ kind: 'hudstyle', name: 'Remote', main: 'hudstyles/hsy_remote0001.json' });
+    const other = mk();
+    const r = importCommands(other.s, item);
+    expect(run(other.bus, r.commands).ok).toBe(true);
+    expect(other.s.get<CustomHud>(paths.hudStyle(st.id))?.name).toBe('Remote');
   });
 });
 

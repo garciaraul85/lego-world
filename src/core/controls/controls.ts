@@ -41,8 +41,11 @@ export const Controls = z.strictObject({
   /** the game's keys and gamepad buttons, where they differ from the defaults */
   keys: z.partialRecord(z.enum([...BUTTONS, ...MOVES]), z.array(z.string().min(1).max(20)).max(3)).optional(),
   pad: z.partialRecord(z.enum([...BUTTONS, ...MOVES]), z.array(z.number().int().min(0).max(31)).max(2)).optional(),
-  /** Milestone 3b (B7b): the HUD style (an era's look and button faces); none: the plain look */
-  hud: z.enum(['corner64', 'cube', 'pointer', 'tablet', 'openair']).optional(),
+  /** Milestone 3b (B7b): the HUD style — an era's look and button faces, or (v144) one of the maker's own
+   *  (hudstyles/<id>.json); none: the open-air look */
+  hud: z
+    .union([z.enum(['corner64', 'cube', 'pointer', 'tablet', 'openair']), z.string().regex(/^hsy_[0-9a-z]{10}$/)])
+    .optional(),
 });
 export type Controls = z.infer<typeof Controls>;
 

@@ -1,0 +1,169 @@
+{
+  "id": "customHud",
+  "title": "Custom HUD course",
+  "steps": [
+    {
+      "id": "ch.new",
+      "title": "A style of your own",
+      "body": "Project \u203a Controls \u203a HUD style: pick Corner buttons, then press + New style. It makes a style of your own from the one in use \u2014 the same faces in the same places \u2014 and the game plays with it. Name it Star pad.",
+      "task": "Make a style named Star pad.",
+      "target": "[data-tour=\"hud-styles\"]",
+      "check": {
+        "kind": "state",
+        "test": "hudOwn",
+        "args": "Star pad"
+      },
+      "doItForMe": [
+        {
+          "fn": "newHudStyle",
+          "args": {
+            "from": "corner64",
+            "name": "Star pad"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Scene"
+    },
+    {
+      "id": "ch.face",
+      "title": "A face of your own",
+      "body": "Each button has a row below the box: shown or not, its letter or shape, colour and size. Give Attack a big red \u2715 (shapes to paste are listed under the rows).",
+      "task": "Make Attack a red \u2715.",
+      "target": "[data-tour=\"hud-editor\"]",
+      "check": {
+        "kind": "state",
+        "test": "hudFace",
+        "args": "attack,\u2715"
+      },
+      "doItForMe": [
+        {
+          "fn": "ensureHudStyle",
+          "args": {
+            "from": "corner64",
+            "name": "Star pad"
+          }
+        },
+        {
+          "fn": "setHudFace",
+          "args": {
+            "button": "attack",
+            "glyph": "\u2715",
+            "color": "#d8483c",
+            "size": "big"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Scene"
+    },
+    {
+      "id": "ch.move",
+      "title": "Put it where you want",
+      "body": "Drag a button in the box to move it. Move Action down to the bottom of the box, between the small buttons and the item buttons.",
+      "task": "Drag Action.",
+      "target": "[data-tour=\"hud-editor\"]",
+      "check": {
+        "kind": "state",
+        "test": "hudFaceMoved",
+        "args": "action"
+      },
+      "doItForMe": [
+        {
+          "fn": "ensureHudStyle",
+          "args": {
+            "from": "corner64",
+            "name": "Star pad"
+          }
+        },
+        {
+          "fn": "setHudFace",
+          "args": {
+            "button": "action",
+            "x": 110,
+            "y": 96
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Scene"
+    },
+    {
+      "id": "ch.play",
+      "title": "Play with it",
+      "body": "Press Play: the buttons wear your faces where you put them, in the corner the Corner buttons era uses (HUD like). Logic can switch to it with hud.setStyle(\"Star pad\").",
+      "task": "Press Play.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playHudOwn",
+        "args": "Star pad"
+      },
+      "doItForMe": [
+        {
+          "fn": "ensureHudStyle",
+          "args": {
+            "from": "corner64",
+            "name": "Star pad"
+          }
+        },
+        {
+          "fn": "playFresh",
+          "args": {
+            "hudOwn": true
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "ch.lib",
+      "title": "Keep it for other games",
+      "body": "Stop, then press Save to My library under the style. Every project in this browser can use it now (My library \u203a HUD styles \u203a Use), and a library pack carries it to other people.",
+      "task": "Save Star pad to My library.",
+      "target": "[data-tour=\"hud-library\"]",
+      "check": {
+        "kind": "state",
+        "test": "inLibrary",
+        "args": "Star pad"
+      },
+      "doItForMe": [
+        {
+          "fn": "ensureHudStyle",
+          "args": {
+            "from": "corner64",
+            "name": "Star pad"
+          }
+        },
+        {
+          "fn": "saveToLibrary",
+          "args": {
+            "kind": "hudstyle",
+            "name": "Star pad"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Scene"
+    },
+    {
+      "id": "ch.done",
+      "title": "Done!",
+      "body": "Layout picks which buttons there are; HUD like picks where the hearts, map and money sit. In Screens, a buttons widget's Look can show any style (one widget in the cube look, another in yours), and a bar's Shape can be a ring.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

@@ -51,6 +51,8 @@ export const COMMAND_TYPES = [
   'figure.make',
   'bodyplan.delete',
   'hairstyle.put',
+  'hudstyle.put',
+  'hudstyle.delete',
   'hairstyle.delete',
   'brick.put',
   'brick.delete',

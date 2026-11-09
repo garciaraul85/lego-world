@@ -22,6 +22,8 @@ import * as Np from '../commands/handlers/npcs';
 import * as Pr from '../commands/handlers/progress';
 import * as Sc from '../commands/handlers/scatter';
 import type { CommandHandler } from '../commands/types';
+import { BUTTONS, LAYOUTS } from '../controls/controls';
+import { CustomHud } from '../controls/hud-custom';
 import { HUD_STYLES } from '../controls/hud-styles';
 import { Conversation } from '../dialogue/schema';
 import { Effect, EffectHooks } from '../effects/schema';
@@ -229,11 +231,44 @@ export const AI_COMMANDS: AiCommand[] = [
   def(
     'hud.applyStyle',
     Hd.applyHudStyle,
-    z.strictObject({ style: z.enum(HUD_STYLES).nullable() }),
+    z.strictObject({ style: z.union([z.enum(HUD_STYLES), ids('hudstyle')]) }),
     [],
     'Scene',
-    'A HUD style after an era of 3D adventure games: corner64 (corner buttons: green Attack, blue Action, three yellow item buttons), cube (big-button cluster around a big green Action), pointer (a remote-shaped strip; hold the item button for the item wheel), tablet (a second screen along the bottom with the map, buttons and touchable items), openair (small hints, a stamina wheel, a jump button). Sets the button layout and arranges the HUD screen; null: the plain look and built-in HUD.',
+    'A HUD style after an era of 3D adventure games: corner64 (corner buttons: green Attack, blue Action, three yellow item buttons), cube (big-button cluster around a big green Action), pointer (a remote-shaped strip; hold the item button for the item wheel), tablet (a second screen along the bottom with the map, buttons and touchable items), openair (small hints, a stamina wheel, a jump button; the look of a game that has not picked) — or the id of a style of the game’s own (hudstyle.put). Sets the button layout and arranges the HUD screen.',
     { style: 'corner64' },
+  ),
+  def(
+    'hudstyle.put',
+    Hd.putHudStyle,
+    z.strictObject({ style: CustomHud }),
+    [],
+    'Scene',
+    `Adds or replaces a HUD style of the game’s own: name, layout (${LAYOUTS.join('/')}), base (the era whose HUD arrangement it takes: ${HUD_STYLES.join('/')}), w and h (the box its buttons sit in, px), labels (true: Action’s word and item names under the buttons), optional plate (#hex backing), faces: for each button shown (${BUTTONS.join(', ')}) its glyph (1-3 characters), color (#hex), size (big/mid/small) and x, y in the box. Buttons with no face are not shown. hud.applyStyle with its id plays with it.`,
+    {
+      style: {
+        id: 'hsy_aaaaaaaaaa',
+        name: 'Triangle pad',
+        layout: 'ocarina',
+        base: 'corner64',
+        w: 200,
+        h: 150,
+        labels: true,
+        faces: {
+          action: { glyph: '▲', color: '#e04848', size: 'big', x: 65, y: 0 },
+          attack: { glyph: '◀', color: '#3f74e6', size: 'mid', x: 0, y: 80 },
+          item1: { glyph: '▶', color: '#2fae4e', size: 'mid', x: 140, y: 80 },
+        },
+      },
+    },
+  ),
+  def(
+    'hudstyle.delete',
+    Hd.deleteHudStyle,
+    z.strictObject({ id: ids('hudstyle') }),
+    [],
+    'Scene',
+    'Deletes a HUD style of the game’s own; a game playing with it goes back to the open-air look.',
+    { id: 'hsy_aaaaaaaaaa' },
   ),
   def(
     'map.addSpawn',

@@ -1,0 +1,21 @@
+{
+  "path": "hudstyles/hsy_triangle01.json",
+  "value": {
+    "id": "hsy_triangle01",
+    "name": "Triangle pad",
+    "layout": "ocarina",
+    "base": "gamepad",
+    "w": 200,
+    "h": 150,
+    "labels": true,
+    "faces": {
+      "action": {
+        "glyph": "▲▲▲▲",
+        "color": "red",
+        "size": "huge",
+        "x": -5,
+        "y": 0
+      }
+    }
+  }
+}

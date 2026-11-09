@@ -17,6 +17,9 @@ import { rewardScene } from '../../core/cinematic/templates';
 import type { Command } from '../../core/commands';
 import type { NewBrick } from '../../core/commands/handlers/bricks';
 import { progressOf } from '../../core/commands/handlers/progress';
+import type { Button } from '../../core/controls/controls';
+import { type CustomHud, customFromEra, type HudSize, isEra } from '../../core/controls/hud-custom';
+import type { HudStyle } from '../../core/controls/hud-styles';
 import { blankConversation, type Conversation } from '../../core/dialogue/schema';
 import { parseScript } from '../../core/dialogue/script';
 import { arrivalSpot, assetSpot, reachable, surfaceOf } from '../../core/gamegen/places';
@@ -3009,7 +3012,13 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
         // (and a map behaviour attached since)
         (a?.mapScript && !s.world.doc.scripts?.length) ||
         // (and a HUD style picked since)
-        (a?.hud && s.hudStyle() !== String(a.hud)));
+        (a?.hud && s.hudStyle() !== String(a.hud)) ||
+        // (and a style of its own changed since)
+        (a?.hudOwn &&
+          JSON.stringify(s.hudLook().custom) !==
+            JSON.stringify(
+              c.ed.store.get(paths.hudStyle(String(c.ed.store.get<Settings>(paths.settings)?.controls?.hud ?? ''))),
+            )));
     if (restart) {
       c.ui.stopPlay();
       // the old game is going: Play again now (the editor forgets it at once, so what comes next waits for the new one)
@@ -3183,6 +3192,46 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
     c.ed.right.value = 'project';
     run(c, [{ type: 'hud.applyStyle', payload: { style: a?.style ?? null } }], 'HUD style');
   },
+  // v144: the Custom HUD course
+  newHudStyle(c, a) {
+    // what pressing + New style in Project › Controls › HUD style does (from an era), with the name typed in
+    c.ed.right.value = 'project';
+    const st = customFromEra((a?.from as HudStyle) ?? 'corner64', newId('hudstyle'), String(a?.name ?? 'My style'));
+    run(
+      c,
+      [
+        { type: 'hudstyle.put', payload: { style: st } },
+        { type: 'hud.applyStyle', payload: { style: st.id } },
+      ],
+      'New HUD style',
+    );
+  },
+  ensureHudStyle(c, a) {
+    // a style of its own of this name, in use (made when it is not there)
+    const own = c.ed.store
+      .list(paths.hudStyleDir)
+      .map((p) => c.ed.store.get<CustomHud>(p))
+      .find((h) => h?.name === String(a?.name));
+    if (!own) return DOERS.newHudStyle!(c, a);
+    c.ed.right.value = 'project';
+    if (c.ed.store.get<Settings>(paths.settings)?.controls?.hud !== own.id)
+      run(c, [{ type: 'hud.applyStyle', payload: { style: own.id } }], 'HUD style');
+  },
+  setHudFace(c, a) {
+    // what changing a button's letter, colour or size in the style's editor does
+    const h = ownHudOf(c);
+    const b = String(a?.button ?? 'action') as Button;
+    const f = h.faces[b];
+    if (!f) throw new Error(`${b} is not shown in ${h.name}.`);
+    const next = {
+      ...f,
+      ...(a?.glyph ? { glyph: String(a.glyph) } : {}),
+      ...(a?.color ? { color: String(a.color) } : {}),
+      ...(a?.size ? { size: a.size as HudSize } : {}),
+      ...(a?.x !== undefined ? { x: Number(a.x), y: Number(a.y) } : {}),
+    };
+    run(c, [{ type: 'hudstyle.put', payload: { style: { ...h, faces: { ...h.faces, [b]: next } } } }], 'HUD face');
+  },
   async pressButton(c, a) {
     // a button pressed (and held for a while), then let go (Play may still be starting)
     const s = await playing(c);
@@ -3203,6 +3252,14 @@ export const DOERS: Record<string, (c: Ctx, args: Record<string, unknown>) => vo
 
 /** waits a moment (real time) */
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** v144: the style of its own the game plays with */
+function ownHudOf(c: Ctx): CustomHud {
+  const id = c.ed.store.get<Settings>(paths.settings)?.controls?.hud;
+  const h = id && !isEra(id) ? c.ed.store.get<CustomHud>(paths.hudStyle(id)) : undefined;
+  if (!h) throw new Error('Make a style of your own first (+ New style).');
+  return h;
+}
 
 /** the game playing (when Play is just starting, it waits a moment for it) */
 async function playing(c: Ctx): Promise<PlaySession> {

@@ -54,6 +54,7 @@ const screenEffectNamed = (ed: EditorState, id: string | null | undefined): Scre
     ? (ed.store.get<ScreenEffect>(paths.screenEffect(id)) ?? BUILTIN_SCREEN_EFFECTS.find((e) => e.id === id))
     : undefined;
 
+import { type CustomHud, customFromEra, isEra } from '../../core/controls/hud-custom';
 /** Named tests for `state` checks (P7.3). They read the editor; none of them changes anything. */
 import { library } from '../library/store';
 export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boolean> = {
@@ -705,7 +706,28 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     return ed.session.value?.questRead('goalMap', q!) === m;
   },
   /** Milestone 3b (B7b): the game's HUD style (Project › Controls); “plain” for none */
-  hudStyle: (ed, a) => (ed.store.get<Settings>(paths.settings)?.controls?.hud ?? 'plain') === String(a),
+  hudStyle: (ed, a) => (ed.store.get<Settings>(paths.settings)?.controls?.hud ?? 'openair') === String(a),
+  /** v144: the game plays with a style of its own of this name */
+  hudOwn: (ed, a) => ownHud(ed)?.name === String(a),
+  /** v144: “attack,✕”: in the style of its own the game plays with, that button wears that face */
+  hudFace: (ed, a) => {
+    const [b, glyph] = String(a).split(',');
+    return (ownHud(ed)?.faces as Record<string, { glyph: string } | undefined> | undefined)?.[b!]?.glyph === glyph;
+  },
+  /** v144: in the style of its own, this button is no longer where its era put it */
+  hudFaceMoved: (ed, a) => {
+    const h = ownHud(ed);
+    const f = (h?.faces as Record<string, { x: number; y: number } | undefined> | undefined)?.[String(a)];
+    const was = h
+      ? (customFromEra(h.base, h.id, h.name).faces as Record<string, { x: number; y: number }>)[String(a)]
+      : null;
+    return !!f && !!was && (f.x !== was.x || f.y !== was.y);
+  },
+  /** v144: in Play, the HUD is the style of the game's own of this name, as it is now */
+  playHudOwn: (ed, a) => {
+    const c = ed.session.value?.hudLook().custom;
+    return !!c && c.name === String(a) && JSON.stringify(c) === JSON.stringify(ownHud(ed));
+  },
   /** Milestone 3b (B7b): in Play, the HUD style now (hud.setStyle changes it) */
   playHudStyle: (ed, a) => ed.session.value?.hudStyle() === String(a),
   /** v141: in Play the hero is on the map of this name */
@@ -952,4 +974,10 @@ export function matches(payload: unknown, where: Record<string, unknown> | undef
 
 export function commandMatches(cmds: readonly Command[], type: string, where?: Record<string, unknown>) {
   return cmds.some((c) => c.type === type && matches(c.payload, where));
+}
+
+/** v144: the style of its own the game plays with (none: an era's) */
+function ownHud(ed: EditorState): CustomHud | undefined {
+  const id = ed.store.get<Settings>(paths.settings)?.controls?.hud;
+  return id && !isEra(id) ? ed.store.get<CustomHud>(paths.hudStyle(id)) : undefined;
 }

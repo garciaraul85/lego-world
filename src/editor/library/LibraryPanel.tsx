@@ -50,6 +50,7 @@ export function useLibraryItem(ed: EditorState, item: LibraryItem): string {
     brick: 'the brick list',
     bodyplan: 'the Body tab of the Characters workspace',
     hairstyle: 'Look › Hair › My library',
+    hudstyle: 'Project › Controls › HUD style',
   };
   return `“${item.name}” is in this game${r.copied ? ' as a copy (the game had another under the same id)' : ''}: find it in ${where[item.kind]}.`;
 }

@@ -10,7 +10,17 @@ import { paths } from '../schema';
  * files that game is missing; when the game already has something different under the same id, the item comes
  * in as a copy. A pack file (.bwlib) carries items between people and devices.
  */
-export const LIB_KINDS = ['asset', 'character', 'clip', 'effect', 'script', 'brick', 'bodyplan', 'hairstyle'] as const;
+export const LIB_KINDS = [
+  'asset',
+  'character',
+  'clip',
+  'effect',
+  'script',
+  'brick',
+  'bodyplan',
+  'hairstyle',
+  'hudstyle',
+] as const;
 export type LibKind = (typeof LIB_KINDS)[number];
 
 export const LIB_INFO: Record<LibKind, { label: string; plural: string; dir: string; prefix: string }> = {
@@ -22,6 +32,8 @@ export const LIB_INFO: Record<LibKind, { label: string; plural: string; dir: str
   brick: { label: 'Custom brick', plural: 'Custom bricks', dir: 'bricks/', prefix: ID_PREFIX.custombrick },
   bodyplan: { label: 'Body plan', plural: 'Body plans', dir: 'bodyplans/', prefix: ID_PREFIX.bodyplan },
   hairstyle: { label: 'Hairstyle', plural: 'Hairstyles', dir: 'hairstyles/', prefix: ID_PREFIX.hairstyle },
+  // Milestone 3b (v144): HUD styles of the maker's own
+  hudstyle: { label: 'HUD style', plural: 'HUD styles', dir: 'hudstyles/', prefix: ID_PREFIX.hudstyle },
 };
 
 export type VarDef = { type: 'number' | 'bool' | 'string'; default: number | boolean | string; scope: string };
@@ -65,6 +77,7 @@ export const mainPath = (kind: LibKind, id: string): string =>
     brick: paths.customBrick,
     bodyplan: paths.bodyplan,
     hairstyle: paths.hairstyle,
+    hudstyle: paths.hudStyle,
   })[kind](id);
 
 const idsIn = (data: unknown, prefix: string): string[] => {

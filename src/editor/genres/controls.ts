@@ -172,6 +172,7 @@ export const ACTION_TAGS: Record<string, ControlTags> = {
   'help.questMapsCourse': S('world', 'logic'),
   'help.gameRulesCourse': S('world', 'logic'),
   'help.hudStylesCourse': S('screens', 'logic'),
+  'help.customHudCourse': S('screens'),
   'help.ai': S('ai'),
   'assets.open': S('assets'),
   'characters.fromPicture': S('characters'),

@@ -66,6 +66,7 @@ import quests from './content/56-quests.json';
 import questMaps from './content/57-quest-maps.json';
 import gameRules from './content/58-game-rules.json';
 import hudStyles from './content/59-hud-styles.json';
+import customHud from './content/60-custom-hud.json';
 import { screenCourses } from './courses';
 import { Chapter, type Step } from './schema';
 
@@ -119,6 +120,7 @@ export type Track =
   | 'questMaps'
   | 'gameRules'
   | 'hudStyles'
+  | 'customHud'
   | `course.${string}`;
 export type TrackStep = Step & { chapter: string; chapterTitle: string };
 
@@ -224,6 +226,7 @@ export const QUEST_MAPS_STEPS: TrackStep[] = steps([questMaps].map((c) => Chapte
 /** Milestone 3b (B7a-3): the game's rules and a map's own behaviour */
 export const GAME_RULES_STEPS: TrackStep[] = steps([gameRules].map((c) => Chapter.parse(c)));
 export const HUD_STYLES_STEPS: TrackStep[] = steps([hudStyles].map((c) => Chapter.parse(c)));
+export const CUSTOM_HUD_STEPS: TrackStep[] = steps([customHud].map((c) => Chapter.parse(c)));
 
 /** P32: a short course for every screen (tour of its areas, then its hands-on steps). */
 export const COURSES = screenCourses([...CHAPTERS, Chapter.parse(effects)]);
@@ -279,6 +282,7 @@ export const TRACKS: Record<string, { title: string; steps: TrackStep[] }> = {
   questMaps: { title: 'Quests across maps course', steps: QUEST_MAPS_STEPS },
   gameRules: { title: 'Game rules course', steps: GAME_RULES_STEPS },
   hudStyles: { title: 'HUD styles course', steps: HUD_STYLES_STEPS },
+  customHud: { title: 'Custom HUD course', steps: CUSTOM_HUD_STEPS },
   ...Object.fromEntries(
     Object.entries(COURSES).map(([screen, ch]) => [`course.${screen}`, { title: ch.title, steps: steps([ch]) }]),
   ),
