@@ -35,6 +35,12 @@ export const BINARY: Record<string, string> = {
   'compare.eq': '===',
   'compare.and': '&&',
   'compare.or': '||',
+  // Milestone 3b (B2)
+  'math.div': '/',
+  'math.mod': '%',
+  'compare.gt': '>',
+  'compare.lt': '<',
+  'compare.neq': '!==',
 };
 
 /** event.onRebuildFinished -> "rebuildFinished" */
@@ -97,7 +103,9 @@ export function printGraph(g: Pick<LogicGraph, 'nodes' | 'edges'>): Printed {
       if (depth > 40) throw new PrintError(node, 'These values feed into each other in a circle.');
       const n = byId.get(node)!;
       const d = nodeDef(n.type)!;
-      if (d.kind === 'event') return `e.${pin}`;
+      // Milestone 3b (B3): a hook's engine answer is super.<method>(e)
+      if (d.kind === 'event')
+        return pin === 'base' && d.category === 'Hooks' ? `super.${eventName(n.type)}(e)` : `e.${pin}`;
       if (n.type === 'flow.forEachInZone') return scope.items.get(node) ?? 'item';
       if (d.kind !== 'pure') {
         if (!scope.consts.has(node)) throw new PrintError(node, 'A value is used before the action that makes it.');
@@ -105,10 +113,20 @@ export function printGraph(g: Pick<LogicGraph, 'nodes' | 'edges'>): Printed {
       }
       mark(n, path);
       if (n.type === 'var.get') return `vars.${String(n.args?.var)}`;
+      // Milestone 3b (B1): a behaviour's field or own variable
+      if (n.type === 'self.get') return `this.${String(n.args?.name)}`;
       const arg = (p: string) => input(n, p, `${path}/${p}`, depth + 1, scope);
       if (BINARY[n.type]) return `(${arg('a')} ${BINARY[n.type]} ${arg('b')})`;
       if (n.type === 'compare.not') return `!${arg('a')}`;
       if (n.type === 'math.random') return `random(${arg('min')}, ${arg('max')})`;
+      // step 11, 4c
+      if (n.type === 'items.count') return `items.count(${arg('item')})`;
+      // Milestone 3b (B2): a function card: name(its inputs, in order)
+      if (d.code.style === 'call' && !d.args?.length)
+        return `${d.code.name}(${d.inputs
+          .filter((x) => x.type !== 'exec')
+          .map((x) => arg(x.name))
+          .join(', ')})`;
       throw new PrintError(node, `${d.title} can’t be printed as code.`);
     };
     const input = (n: LogicNode, pin: string, path: string, depth: number, scope: Scope): string => {
@@ -240,6 +258,17 @@ export function printGraph(g: Pick<LogicGraph, 'nodes' | 'edges'>): Printed {
             break;
           case 'var.add':
             lines.push(L(`${ind}vars.${String(a.var)} += ${input(n, 'amount', `${p}/amount`, 0, here)};`));
+            break;
+          case 'flow.return':
+            lines.push(L(`${ind}return ${input(n, 'value', `${p}/value`, 0, here)};`));
+            at = null;
+            scope = here;
+            continue;
+          case 'self.set':
+            lines.push(L(`${ind}this.${String(a.name)} = ${input(n, 'value', `${p}/value`, 0, here)};`));
+            break;
+          case 'self.add':
+            lines.push(L(`${ind}this.${String(a.name)} += ${input(n, 'amount', `${p}/amount`, 0, here)};`));
             break;
           default: {
             const parts = [

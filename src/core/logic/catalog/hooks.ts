@@ -1,0 +1,211 @@
+import type { NodeDef, PinDef } from './types';
+import { EXEC_IN, EXEC_OUT } from './types';
+
+/**
+ * Milestone 3b (B3): hooks — the decisions a built-in behaviour makes, which a behaviour that extends it can
+ * answer itself. Each is a method (`canOpen(e) { … }`) that returns its answer; `super.canOpen(e)` is the
+ * engine's own answer (e.base on the card). Not returning keeps the engine's answer.
+ */
+export const hook = (name: string, title: string, doc: string, outputs: PinDef[], base: PinDef['type']): NodeDef => ({
+  type: `event.on${name}`,
+  kind: 'event',
+  title,
+  category: 'Hooks',
+  doc,
+  inputs: [],
+  outputs: [EXEC_OUT, ...outputs, { name: 'base', type: base, help: 'What the engine would answer (super in code).' }],
+  code: { name: name.charAt(0).toLowerCase() + name.slice(1), style: 'event' },
+});
+
+export const HOOKS: NodeDef[] = [
+  hook(
+    'CanUse',
+    'Can it be used? (Interactable)',
+    'Asked when the hero presses the Action button at it. Return false and nothing happens (its interaction does not run).',
+    [{ name: 'socket', type: 'string' }],
+    'bool',
+  ),
+  hook(
+    'CanOpen',
+    'Can it open? (Lock)',
+    'Asked when the hero tries to open a lock. item is the key it takes, have how many the hero carries. Return true to open (a key is used up only if the hero has one), false to stay locked.',
+    [
+      { name: 'item', type: 'string' },
+      { name: 'have', type: 'number' },
+    ],
+    'bool',
+  ),
+  hook(
+    'IsPressed',
+    'Is it pressed? (Switch)',
+    'Asked every step for a floor switch: weight is how much stands on it, by who (hero, block, npc, loose). Return true for down, false for up.',
+    [
+      { name: 'weight', type: 'number' },
+      { name: 'by', type: 'string' },
+    ],
+    'bool',
+  ),
+  hook(
+    'CanPush',
+    'Can it be pushed? (Pushable)',
+    'Asked before a push block moves: dx and dz are the way it would go (−1, 0 or 1), pulled is true when the hero pulls. Return false and it stays.',
+    [
+      { name: 'dx', type: 'number' },
+      { name: 'dz', type: 'number' },
+      { name: 'pulled', type: 'bool' },
+    ],
+    'bool',
+  ),
+  hook(
+    'CanPickUp',
+    'Can it be picked up? (Pickup)',
+    'Asked when the hero touches a pickup. Return false and it stays where it is.',
+    [
+      { name: 'item', type: 'string' },
+      { name: 'count', type: 'number' },
+    ],
+    'bool',
+  ),
+  hook(
+    'TakeDamage',
+    'How much does a hit take? (Health)',
+    'Asked when it is hit: amount is the damage after its armour and weaknesses, type the kind of hit. Return the damage it takes (0: unhurt).',
+    [
+      { name: 'amount', type: 'number' },
+      { name: 'type', type: 'string' },
+    ],
+    'number',
+  ),
+  hook(
+    'CanClimb',
+    'Can it be climbed? (Climbable)',
+    'Asked when the hero walks into it to climb. Return false and the hero does not take hold.',
+    [],
+    'bool',
+  ),
+  // Milestone 3b (B3, part 2)
+  hook(
+    'CanBurn',
+    'Can it catch fire? (Burnable)',
+    'Asked when fire reaches it (a lit stick, a fire arrow, a bomb, fire spreading): why says how. Return false and it does not catch.',
+    [{ name: 'why', type: 'string' }],
+    'bool',
+  ),
+  hook(
+    'CanMelt',
+    'Can it melt? (Ice)',
+    'Asked when fire (or a beam of light) reaches ice: by is fire, light or thaw. Return true to start melting, false to stay frozen.',
+    [{ name: 'by', type: 'string' }],
+    'bool',
+  ),
+  hook(
+    'CanLift',
+    'Can it be lifted? (Liftable)',
+    'Asked when the hero tries to lift it (a rock, a pot). Return false and it is too heavy.',
+    [],
+    'bool',
+  ),
+  hook(
+    'CanPick',
+    'Can its bomb be picked? (Bomb plant)',
+    'Asked when the hero picks the bomb off it. Return false and the bomb stays.',
+    [],
+    'bool',
+  ),
+  hook(
+    'CanTurn',
+    'Can it be turned? (Mirror)',
+    'Asked when the hero turns a mirror. Return false and it stays as it is.',
+    [],
+    'bool',
+  ),
+  hook(
+    'CanCatch',
+    'Does the hook catch on it? (Hook target)',
+    'Asked when the hook line or the rope reaches it. Return true and it catches (the hero is pulled to it), false and it bounces off.',
+    [],
+    'bool',
+  ), // Milestone 3b (B4): characters
+  hook(
+    'CanJump',
+    'Can the hero jump? (Hero)',
+    'Asked when the player presses Jump. onGround is true when the hero stands on something. Return false and the hero does not jump.',
+    [{ name: 'onGround', type: 'bool' }],
+    'bool',
+  ),
+  hook(
+    'MoveSpeed',
+    'How fast does the hero move? (Hero)',
+    'Asked every step: base is the speed from the sheet and outfit (1: normal). Return a speed (2: twice as fast, 0: stands still).',
+    [],
+    'number',
+  ),
+  hook(
+    'HitPower',
+    'How hard does this swing hit? (Hero)',
+    'Asked when the hero swings: power is the hit after strength and moves, kind is light, heavy, charged, spin or bash. Return the power.',
+    [
+      { name: 'power', type: 'number' },
+      { name: 'kind', type: 'string' },
+    ],
+    'number',
+  ),
+  hook(
+    'GainXp',
+    'How much experience? (Hero)',
+    'Asked when the hero gains experience: amount is what it would get. Return the experience it gets.',
+    [{ name: 'amount', type: 'number' }],
+    'number',
+  ),
+  hook(
+    'CanTalk',
+    'Will it talk? (Neighbour)',
+    'Asked when the hero talks to a neighbour. Return false and it says nothing.',
+    [],
+    'bool',
+  ),
+  // Milestone 3b (B4, part 2)
+  hook(
+    'CanDive',
+    'Can the hero dive? (Swimmer)',
+    'Asked when the player holds the Action button to dive in deep water. Return false and the hero stays at the top.',
+    [],
+    'bool',
+  ),
+  hook(
+    'Breath',
+    'How long can the hero hold its breath? (Swimmer)',
+    'Asked every step: base is the seconds from Project › Swimming. Return seconds of air.',
+    [],
+    'number',
+  ),
+  hook(
+    'CanClimbWall',
+    'Can the hero climb this wall? (Climber)',
+    'Asked when the hero takes hold of a wall (with Climbing: anything, while stamina lasts). Return false and it does not.',
+    [],
+    'bool',
+  ),
+  hook(
+    'FollowGap',
+    'How close does it follow? (Follower)',
+    'Asked every step while a neighbour follows the hero: distance is how far it is now; base is 2.5 studs. Return the distance it keeps.',
+    [{ name: 'distance', type: 'number' }],
+    'number',
+  ),
+];
+
+export const RETURN: NodeDef[] = [
+  {
+    type: 'flow.return',
+    kind: 'action',
+    title: 'Answer',
+    category: 'Flow',
+    doc: 'Gives a hook’s answer (return in code) and ends the method: true or false, or a number for How much does a hit take.',
+    inputs: [EXEC_IN, { name: 'value', type: 'any', default: true }],
+    outputs: [],
+    code: { name: 'return', style: 'stmt' },
+    // the interpreter keeps the answer (it knows which call asked)
+    exec: () => {},
+  },
+];

@@ -1,0 +1,425 @@
+{
+  "id": "water",
+  "title": "Water and physics course",
+  "steps": [
+    {
+      "id": "water.crate",
+      "title": "A crate to float",
+      "body": "Water and loose things are moved by the physics engine while the game plays. Start with something that can float: a Wooden crate on the map.",
+      "task": "In the dock, under Assets, pick the Wooden crate and click on the map near the start.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "placedAsset",
+        "args": "Wooden crate"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "assets"
+        },
+        {
+          "ui": "assetCat",
+          "value": "Assets"
+        },
+        {
+          "fn": "pickAsset",
+          "args": {
+            "name": "Wooden crate"
+          }
+        },
+        {
+          "fn": "placeAsset",
+          "args": {
+            "name": "Wooden crate"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Scene” in the workspace tabs at the top.",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Scene"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            }
+          ]
+        },
+        {
+          "text": "In the dock at the bottom, click Assets and pick the Wooden crate.",
+          "check": {
+            "kind": "state",
+            "test": "assetBrush",
+            "args": "Wooden crate"
+          },
+          "do": [
+            {
+              "ui": "dock",
+              "value": "assets"
+            },
+            {
+              "ui": "assetCat",
+              "value": "Assets"
+            },
+            {
+              "fn": "pickAsset",
+              "args": {
+                "name": "Wooden crate"
+              },
+              "say": "Wooden crate"
+            }
+          ]
+        },
+        {
+          "text": "Click on the ground near where the player starts: the crate is set down there.",
+          "check": {
+            "kind": "state",
+            "test": "placedAsset",
+            "args": "Wooden crate"
+          },
+          "do": [
+            {
+              "fn": "placeAsset",
+              "args": {
+                "name": "Wooden crate"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "water.loose",
+      "title": "Make it loose",
+      "body": "Most assets stay where you put them: a house, a tree. A loose asset is a body the physics engine moves: it falls, tips over when the hero pushes it, and floats in water.",
+      "task": "Open the Wooden crate in the Assets screen and tick Loose.",
+      "target": "[data-tour=\"asset-loose\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetLoose",
+        "args": "Wooden crate"
+      },
+      "doItForMe": [
+        {
+          "fn": "editAsset",
+          "args": {
+            "name": "Wooden crate"
+          }
+        },
+        {
+          "fn": "looseAsset",
+          "args": {
+            "name": "Wooden crate"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Right-click the crate and pick Edit asset (or open the Assets screen and click the Wooden crate).",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Assets"
+          },
+          "do": [
+            {
+              "fn": "editAsset",
+              "args": {
+                "name": "Wooden crate"
+              }
+            }
+          ]
+        },
+        {
+          "text": "In the asset's properties, tick “Loose (falls, tips over and floats in play)”.",
+          "check": {
+            "kind": "state",
+            "test": "assetLoose",
+            "args": "Wooden crate"
+          },
+          "do": [
+            {
+              "show": "[data-tour=\"asset-loose\"]"
+            },
+            {
+              "fn": "looseAsset",
+              "args": {
+                "name": "Wooden crate"
+              },
+              "say": "Loose"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "water.add",
+      "title": "Water around it",
+      "body": "Water fills a box up to its surface. In Play, loose things and smashed bricks float in it.",
+      "task": "Back in the Scene, right-click the ground beside the crate and pick Add water here, so the pool covers the crate.",
+      "target": "[data-tour=\"viewport\"]",
+      "check": {
+        "kind": "state",
+        "test": "looseInWater"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "waterAroundLoose"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Scene” in the workspace tabs at the top.",
+          "check": {
+            "kind": "state",
+            "test": "workspace",
+            "args": "Scene"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            }
+          ]
+        },
+        {
+          "text": "Right-click the ground right beside the crate and pick “Add water here”. A see-through blue pool appears, and the Inspector shows it.",
+          "check": {
+            "kind": "state",
+            "test": "looseInWater"
+          },
+          "do": [
+            {
+              "fn": "waterAroundLoose",
+              "say": "Add water here"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "water.river",
+      "title": "A river",
+      "body": "Pool, River, Lake and Sea set the water's colour. A river flows.",
+      "task": "In the Inspector, set Kind to River.",
+      "target": "[data-tour=\"water-kind\"]",
+      "check": {
+        "kind": "state",
+        "test": "waterKind",
+        "args": "river"
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "inspect"
+        },
+        {
+          "choose": "[data-tour=\"water-kind\"]",
+          "value": "river"
+        }
+      ],
+      "how": []
+    },
+    {
+      "id": "water.current",
+      "title": "Make it flow",
+      "body": "Current is which way the water flows and how fast, in studs a second. Things floating in it drift along.",
+      "task": "Set Current across to 3.",
+      "target": "[data-tour=\"water-current\"]",
+      "check": {
+        "kind": "state",
+        "test": "waterFlows"
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "inspect"
+        },
+        {
+          "fill": "[aria-label=\"Current across\"]",
+          "value": "3"
+        }
+      ],
+      "how": []
+    },
+    {
+      "id": "water.movement",
+      "title": "Physics movement",
+      "body": "Classic movement is v68's original walking: it stops dead at bricks and can't stand on loose things. Physics movement walks the hero with the physics engine: the same speeds and jump, but it slides along walls, pushes loose things and rides them.",
+      "task": "On the Project tab, check that Movement is Physics (new projects start with it).",
+      "target": "[data-tour=\"project-movement\"]",
+      "check": {
+        "kind": "state",
+        "test": "projectMovement",
+        "args": "physics"
+      },
+      "doItForMe": [
+        {
+          "ui": "right",
+          "value": "project"
+        },
+        {
+          "choose": "[data-tour=\"project-movement\"] select",
+          "value": "physics"
+        }
+      ],
+      "how": [
+        {
+          "text": "On the right, click the Project tab.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"project-movement\"]"
+          },
+          "do": [
+            {
+              "ui": "right",
+              "value": "project"
+            },
+            {
+              "show": "[data-tour=\"project-movement\"]"
+            }
+          ]
+        },
+        {
+          "text": "Pick Physics in Movement.",
+          "check": {
+            "kind": "state",
+            "test": "projectMovement",
+            "args": "physics"
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"project-movement\"] select",
+              "value": "physics",
+              "say": "Physics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "water.play",
+      "title": "Watch it float",
+      "body": "Press Play: the crate rises to the surface and drifts with the current. Walk into it to push it.",
+      "task": "Press Play and watch the crate drift.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "looseMovedInPlay",
+        "args": 1
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        }
+      ],
+      "how": []
+    },
+    {
+      "id": "water.ride",
+      "title": "Ride it",
+      "body": "With physics movement the hero can stand on loose things. Jump onto the crate as it floats: it carries the hero down the river.",
+      "task": "Walk up to the crate and jump on it (Space).",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroOnLoose"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "standOnLoose"
+        }
+      ],
+      "how": []
+    },
+    {
+      "id": "water.mirror",
+      "title": "See it shine",
+      "body": "Water's surface ripples — a river's ripples move with its current — and mirrors what is above it, more so seen flat on, with the sun glinting on it. Drawn with WebGPU it is a true reflection of the bricks, the characters and the sky (at Graphics quality Medium or High); WebGL mirrors the sky's colours.",
+      "task": "Stop the game, then in the corner of the 3D view set Draw with to WebGPU and look at the river. (If your browser can't show WebGPU, WebGL draws and a message says so.)",
+      "target": "[data-tour=\"draw-with\"]",
+      "check": {
+        "kind": "state",
+        "test": "drawWithIs",
+        "args": "webgpu"
+      },
+      "doItForMe": [
+        {
+          "ui": "stop"
+        },
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "choose": "[data-tour=\"draw-with\"]",
+          "value": "webgpu"
+        }
+      ],
+      "how": [
+        {
+          "text": "Stop the game (Esc), then click “Scene” in the workspace tabs at the top.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"draw-with\"]"
+          },
+          "do": [
+            {
+              "ui": "stop"
+            },
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            }
+          ]
+        },
+        {
+          "text": "In the 3D view's corner, open Draw with and pick WebGPU.",
+          "check": {
+            "kind": "state",
+            "test": "drawWithIs",
+            "args": "webgpu"
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"draw-with\"]",
+              "value": "webgpu",
+              "say": "WebGPU"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene"
+    },
+    {
+      "id": "water.done",
+      "title": "Done!",
+      "body": "You made a loose crate float down a river, set the hero to physics movement, rode the crate and saw the water mirror the world. Loose things also fall when nothing holds them up and tip over when the hero walks into them, and smashed bricks float too. Help › Water properties, Loose and Movement say more.",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "workspace": "Scene",
+      "placement": "bottom"
+    }
+  ]
+}

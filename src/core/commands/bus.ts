@@ -10,11 +10,24 @@ type Step = HistoryEntry & {
 export type BusOptions = { maxSteps?: number; maxBytes?: number; now?: () => number };
 
 /** Rough size of a before/after image, for the 64 MB history cap. Chunks are estimated, not stringified. */
+const sized = new WeakMap<object, number>();
 function approxBytes(v: unknown): number {
   if (v === undefined) return 0;
+  // Milestone 2b: a big file (100,000 placed objects) is sized once, roughly, not written out as text each time
+  if (typeof v === 'object' && v !== null) {
+    const hit = sized.get(v);
+    if (hit !== undefined) return hit;
+    const items = (v as { items?: unknown }).items;
+    if (Array.isArray(items)) {
+      const n = 64 + items.length * 120;
+      sized.set(v, n);
+      return n;
+    }
+  }
   const bricks = (v as { bricks?: unknown[] }).bricks;
-  if (Array.isArray(bricks)) return 64 + bricks.length * 40;
-  return JSON.stringify(v).length;
+  const n = Array.isArray(bricks) ? 64 + bricks.length * 40 : JSON.stringify(v).length;
+  if (typeof v === 'object' && v !== null) sized.set(v, n);
+  return n;
 }
 
 /**

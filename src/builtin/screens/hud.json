@@ -12,17 +12,68 @@
         "id": "status",
         "anchor": [0, 0],
         "offset": [24, 20],
-        "style": { "layout": "row", "gap": 14, "bg": "#0b1020b0", "pad": 10, "radius": 12 },
+        "style": {
+          "layout": "row",
+          "gap": 14,
+          "bg": "#0b1020b0",
+          "pad": 10,
+          "radius": 12
+        },
         "children": [
-          { "type": "hearts", "id": "hearts", "bind": ["hp", "maxHp"] },
+          {
+            "type": "hearts",
+            "id": "hearts",
+            "bind": ["hp", "maxHp"]
+          },
           {
             "type": "bar",
             "id": "stamina",
             "bind": ["stamina", "maxStamina"],
             "label": "Stamina",
-            "style": { "w": 110, "h": 18, "color": "#7dd3fc", "radius": 9, "fontSize": 12, "hideFull": 1 }
+            "style": {
+              "w": 110,
+              "h": 18,
+              "color": "#7dd3fc",
+              "radius": 9,
+              "fontSize": 12,
+              "hideFull": 1
+            }
           },
-          { "type": "text", "id": "gear", "text": "⚒ {hero.gear}", "style": { "fontSize": 18, "color": "#e8ecf4" } }
+          {
+            "type": "bar",
+            "id": "magic",
+            "bind": ["magic", "maxMagic"],
+            "label": "Magic",
+            "showIf": "hasMagic",
+            "style": {
+              "w": 120,
+              "h": 14,
+              "color": "#4ade80",
+              "radius": 7,
+              "fontSize": 11
+            }
+          },
+          {
+            "type": "bar",
+            "id": "air",
+            "bind": ["air", "maxAir"],
+            "label": "Air",
+            "showIf": "underwater",
+            "style": {
+              "w": 180,
+              "h": 12,
+              "color": "#5bc0eb"
+            }
+          },
+          {
+            "type": "text",
+            "id": "gear",
+            "text": "\u2692 {hero.gear}",
+            "style": {
+              "fontSize": 18,
+              "color": "#e8ecf4"
+            }
+          }
         ]
       },
       {
@@ -31,7 +82,28 @@
         "anchor": [1, 0],
         "offset": [-24, 20],
         "text": "{map.name}",
-        "style": { "fontSize": 18, "color": "#e8ecf4", "bg": "#0b1020b0", "pad": 10, "radius": 12 }
+        "style": {
+          "fontSize": 18,
+          "color": "#e8ecf4",
+          "bg": "#0b1020b0",
+          "pad": 10,
+          "radius": 12
+        }
+      },
+      {
+        "type": "text",
+        "id": "dungeon",
+        "anchor": [0, 0],
+        "offset": [24, 76],
+        "text": "{dungeon}",
+        "style": {
+          "fontSize": 17,
+          "color": "#f7c900",
+          "bg": "#0b1020b0",
+          "pad": 8,
+          "radius": 10,
+          "hideEmpty": 1
+        }
       },
       {
         "type": "list",
@@ -39,14 +111,41 @@
         "anchor": [1, 0],
         "offset": [-24, 70],
         "bind": ["inventory"],
-        "style": { "fontSize": 16, "color": "#f7c900", "bg": "#0b1020a0", "pad": 8, "radius": 10, "hideEmpty": 1 }
+        "style": {
+          "fontSize": 16,
+          "color": "#f7c900",
+          "bg": "#0b1020a0",
+          "pad": 8,
+          "radius": 10,
+          "hideEmpty": 1
+        }
+      },
+      {
+        "type": "text",
+        "id": "quest",
+        "anchor": [1, 1],
+        "offset": [-24, -186],
+        "text": "{quest.line}",
+        "style": {
+          "fontSize": 15,
+          "color": "#ffe9a8",
+          "bg": "#0b1020b0",
+          "pad": 8,
+          "radius": 10,
+          "hideEmpty": 1
+        }
       },
       {
         "type": "minimap",
         "id": "minimap",
         "anchor": [1, 1],
         "offset": [-24, -24],
-        "style": { "w": 150, "h": 150, "radius": 12, "border": "#ffffff40" }
+        "style": {
+          "w": 150,
+          "h": 150,
+          "radius": 12,
+          "border": "#ffffff40"
+        }
       },
       {
         "type": "text",
@@ -81,13 +180,29 @@
         }
       },
       {
+        "type": "buttons",
+        "id": "buttons",
+        "anchor": [0, 1],
+        "offset": [24, -24],
+        "style": {
+          "fontSize": 18,
+          "color": "#ffffff",
+          "gap": 6
+        }
+      },
+      {
         "type": "button",
         "id": "pause",
         "anchor": [0.5, 0],
         "offset": [0, 16],
-        "label": "❚❚",
+        "label": "\u275a\u275a",
         "touchOnly": true,
-        "onPress": [{ "do": "game", "op": "pause" }]
+        "onPress": [
+          {
+            "do": "game",
+            "op": "pause"
+          }
+        ]
       }
     ]
   }

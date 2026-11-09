@@ -8,7 +8,7 @@ import type { ProjectStore } from '../../project/store';
 import { type Asset, type AssetInstance, BUILD_HALF, type Instances, paths } from '../../schema';
 import type { CommandHandler } from '../types';
 import { brickCount } from './assets';
-import { MAX_ITEMS_PER_MAP } from './items';
+import { MAX_ASSETS_PER_MAP } from './items';
 
 /** P27 part 3b: most copies one scatter places */
 export const MAX_SCATTER = 5000;
@@ -131,8 +131,8 @@ export const scatterAsset: CommandHandler<Scatter> = {
     if (p.area.length !== 4 || p.area.some((v) => !Number.isFinite(v) || Math.abs(v) > BUILD_HALF))
       return 'The area is outside the build area.';
     const items = store.get<Instances>(paths.instances(p.map))?.items ?? [];
-    if (items.filter((i) => i.kind === 'asset').length + p.count > MAX_ITEMS_PER_MAP)
-      return `A map holds at most ${MAX_ITEMS_PER_MAP.toLocaleString('en-US')} placed assets.`;
+    if (items.filter((i) => i.kind === 'asset').length + p.count > MAX_ASSETS_PER_MAP)
+      return `A map holds at most ${MAX_ASSETS_PER_MAP.toLocaleString('en-US')} placed assets.`;
     if (scatterRoom(store, p.map, def) < 1)
       return `The map is full: it holds ${MAX_BRICKS_PER_MAP.toLocaleString('en-US')} bricks, and ${def.name} would go over.`;
     return null;

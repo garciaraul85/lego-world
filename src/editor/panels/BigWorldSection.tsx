@@ -3,7 +3,7 @@ import { builtinAsset } from '../../builtin/assets';
 import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import type { Command } from '../../core/commands';
 import { brickCount } from '../../core/commands/handlers/assets';
-import { MAX_ITEMS_PER_MAP } from '../../core/commands/handlers/items';
+import { MAX_ASSETS_PER_MAP } from '../../core/commands/handlers/items';
 import { MAX_SCATTER } from '../../core/commands/handlers/scatter';
 import { LEGACY_MAX_PIECES } from '../../core/legacy/constants';
 import { type Instances, type MapDoc, paths } from '../../core/schema';
@@ -20,7 +20,7 @@ export const BIG_WORLD_HELP = {
   size: `How big this map is: its bricks (a map holds up to ${MAX_BRICKS_PER_MAP.toLocaleString('en-US')}) and its chunks (32 × 32 studs each). Maps of more than ${STREAM_FROM_CHUNKS} chunks are big maps: the view and the game load the chunks around where you look or play, the nearest first, and the fog closes in where they end. In the game a big map plays the area around the hero (more than ${WINDOW_FROM.toLocaleString('en-US')} pieces): neighbours further away sleep until the hero comes near.`,
   view: 'How far a big map is drawn, in studs from where you look (the hero, in the game). Further shows more but costs more to draw; the fog hides where it ends. Small maps are always drawn whole.',
   scatter:
-    'Sets down many copies of one build at once around where the Scene view looks (a forest of trees, a field of flowers): each on flat ground with studs, clear of the others and of every brick, turned at random. Copies that do not fit are left out. One undo step takes them all away. Up to 5,000 at a time; a map holds 10,000 placed assets. Copies count toward the map’s 1,000,000 bricks: when the map is full, Scatter stops and says so.',
+    'Sets down many copies of one build at once around where the Scene view looks (a forest of trees, a field of flowers): each on flat ground with studs, clear of the others and of every brick, turned at random. Copies that do not fit are left out. One undo step takes them all away. Up to 5,000 at a time; a map holds 100,000 placed assets. Copies count toward the map’s 1,000,000 bricks: when the map is full, Scatter stops and says so.',
   land: 'Makes a new map of rolling grass and hills of bricks, with a flat clearing in the middle where the player starts. 2048 studs across is about 950,000 bricks; room for 50,000 more is left for building. One undo step removes it.',
 };
 
@@ -191,7 +191,7 @@ export function BigWorldSection({ c, m }: { c: ActionCtx; m: MapDoc }) {
       <div class="field">
         Placed assets
         <span class="mono" data-tour="map-assets">
-          {assetCount(ed, m.id).toLocaleString('en-US')} / {MAX_ITEMS_PER_MAP.toLocaleString('en-US')}
+          {assetCount(ed, m.id).toLocaleString('en-US')} / {MAX_ASSETS_PER_MAP.toLocaleString('en-US')}
         </span>
       </div>
       <div class="field">

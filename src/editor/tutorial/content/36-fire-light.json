@@ -1,0 +1,246 @@
+{
+  "id": "firelight",
+  "title": "Fire and light course",
+  "steps": [
+    {
+      "id": "fl.open",
+      "title": "Fire and light",
+      "body": "Vines that burn away, torches to light, bombs that break cracked walls, and beams of light that mirrors turn onto a sensor: they are under Starter pack › Fire and light, and each works by itself.",
+      "task": "Open Starter pack in the bottom dock.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "dockIs",
+        "args": "pack"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "pack"
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "fl.place",
+      "title": "Vines, two branches and two torches",
+      "body": "Place Vines across the way 6 studs in front of the start, two Branches on the ground to the left (one 3 studs ahead, one level with the start), a Burning torch (already alight) 2 studs ahead to the right, and a Torch stand (not lit) further to the right. A branch is a stick: each one is used up once it has burned something, so the course has two.",
+      "task": "Place Vines, two Branches, a Burning torch and a Torch stand.",
+      "target": "[aria-label=\"Fire and light\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Vines,Branch,Burning torch,Torch stand"
+      },
+      "doItForMe": [
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Vines",
+            "ahead": 6
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Branch",
+            "ahead": 3,
+            "side": 4
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Branch",
+            "ahead": 0,
+            "side": 5,
+            "count": 2
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Burning torch",
+            "ahead": 2,
+            "side": -3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Torch stand",
+            "ahead": 3,
+            "side": -6
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fl.burn",
+      "title": "Light the stick, burn the vines",
+      "body": "Press Play and walk over a Branch: the hero bends down for it and holds it in the right hand as a stick (its item button, J, puts it away and takes it out again). Walk the stick's end into the Burning torch's flame: it catches by itself, and burns for 10 seconds before it is gone. Walk up to the vines with it: they catch, and the stick burns up with them. F swings the stick (as a sword): a plain stick breaks on anything hard, a burning one burns up on whatever it hits. The vines are tall: you can also climb them (walk into them; W up, S down, Space lets go).",
+      "task": "Press Play, light the stick at the Burning torch and burn the vines.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Vines burned away"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "burnVines"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fl.light",
+      "title": "Light the torch stand",
+      "body": "Take the other Branch, light it at the Burning torch, and walk its burning end into the unlit torch stand: the stand lights and stays lit (touching a torch does not use the stick up; swinging it does). Be quick: it burns for 10 seconds. A torch stand only answers fire. A Timed torch goes out again after its seconds; Light all the torches (Scripts and cutscenes) opens a gate when they all burn.",
+      "task": "Light the torch stand with a burning stick.",
+      "target": "[aria-label=\"Play view\"]",
+      "check": {
+        "kind": "state",
+        "test": "stateInPlay",
+        "args": "Torch stand:lit"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "lightTorch"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fl.bombs",
+      "title": "A cracked wall and a bomb flower",
+      "body": "Stop the game. Place a Cracked wall to the left of the start, and a Bomb flower in front of it, a few studs away. Only an explosion breaks a cracked wall. The flower grows a bomb; if a bomb misses, it grows another.",
+      "task": "Place a Cracked wall and a Bomb flower.",
+      "target": "[aria-label=\"Fire and light\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Cracked wall,Bomb flower"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Cracked wall",
+            "ahead": 3,
+            "side": 9
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Bomb flower",
+            "ahead": -2,
+            "side": 7
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fl.blast",
+      "title": "Blow it up",
+      "body": "Press Play. Walk up to the Bomb flower and press E (Pick up): the hero lifts a lit bomb and holds it up in front. Walk toward the wall and press E: the bomb is thrown (Action throws while you walk). Or stand still by the wall and press E to put it down, then step back. It goes off after 4 seconds and the wall breaks. Missed? The flower grows a new bomb: try again.",
+      "task": "Press Play, pick a bomb from the flower and break the wall.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Cracked wall defeated"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "blastWall"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fl.beam",
+      "title": "A beam, a mirror and a sensor",
+      "body": "Stop the game. About 9 studs ahead of the start, off to the right: place a Mirror 12 studs right of the way the start looks, and a Sun crest 8 studs to its left, turned (T) so it shines right into the mirror. Put a Light sensor 6 studs beyond the mirror (further from the start). The beam is a bright yellow line at waist height, running straight from the crest until something stops it.",
+      "task": "Place a Sun crest, a Mirror and a Light sensor ahead and to the right.",
+      "target": "[aria-label=\"Fire and light\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Sun crest,Mirror,Light sensor"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placeBeamPuzzle"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fl.turn",
+      "title": "Turn the mirror",
+      "body": "Press Play. To see the whole puzzle, drag up in the play view to look down from above, and scroll to zoom out. The beam crosses from the crest into the mirror, and the mirror sends it back toward you, away from the sensor. Walk up against the mirror, hold Action (E · Grab) and push (W, ▲ push it round): it turns round where it stands to lean the other way, the beam turns on past the mirror onto the sensor, and the sensor lights up gold. Anything in the beam's way stops it: you, a neighbour, a crate or a bomb. Wire the sensor to a gate with Switch opens a gate.",
+      "task": "Press Play, hold the mirror and push it round until the sensor lights.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "stateInPlay",
+        "args": "Light sensor:lit"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "turnMirror"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "fl.done",
+      "title": "Done!",
+      "body": "You lit a stick at a burning torch and burned the vines with it, lit a torch stand, threw a bomb from a bomb flower at a cracked wall, and pushed a mirror round to bring a beam of light onto a sensor. Make your own in the Asset studio: Fire and light › Burns, Shines a beam, Flame, Grows bombs, Mirror; a switch Lit by a beam, or Hit by Fire.",
+      "task": "Press Finish.",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "target": "[data-tour=\"menu-help\"]",
+      "workspace": "Scene"
+    }
+  ]
+}

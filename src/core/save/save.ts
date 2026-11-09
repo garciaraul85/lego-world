@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { MapNotes } from '../maps/notes';
+import { QuestLogSave } from '../quests/quest';
 
 /**
  * P26: saving. A save is the player's progress in one game: where the hero is, what they carry, the game's
@@ -62,6 +64,8 @@ export const MapSave = z.strictObject({
   npcsGone: z.array(z.number().int()),
   /** P27 part 3d: bricks of broken things gone for good, beyond those still remembered as breaks (ids only) */
   gone: z.array(z.number().int()).optional(),
+  /** step 12a: push blocks moved in play: where each stands now */
+  moved: z.record(z.string(), Vec3).optional(),
 });
 export type MapSave = z.infer<typeof MapSave>;
 
@@ -92,6 +96,23 @@ export const SaveGame = z.strictObject({
   /** cinematics marked Once that were already shown */
   seen: z.array(z.string()),
   maps: z.record(z.string(), MapSave),
+  /** step 12a: each dungeon's small keys, boss key, map and compass, and where the hero has been (minimap cells) */
+  dungeons: z
+    .record(
+      z.string(),
+      z.strictObject({
+        keys: z.number().int().min(0),
+        boss: z.boolean(),
+        map: z.boolean(),
+        compass: z.boolean(),
+        seen: z.array(z.string()).max(20000),
+      }),
+    )
+    .optional(),
+  /** Milestone 3b (B7a-1): each map's notes: where the hero has been, pins, bosses beaten, revealed */
+  mapNotes: z.record(z.string(), MapNotes).optional(),
+  /** Milestone 3b (B7a-2): the quest log: each quest begun and how far, the one tracked, what steps count */
+  quests: QuestLogSave.optional(),
 });
 export type SaveGame = z.infer<typeof SaveGame>;
 

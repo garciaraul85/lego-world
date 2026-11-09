@@ -11,6 +11,7 @@ import {
   paths,
 } from '../schema';
 import { type Brick, chunkKey, decodeChunk, encodeChunks } from './codec';
+import { customBrick, customIdOf, customType } from './custom';
 
 /** P27 part 3: was 12,000 (v68's cap, which Play in v68 still has) */
 export const MAX_BRICKS_PER_MAP = 1_000_000;
@@ -19,6 +20,12 @@ export const MAX_BRICKS_PER_MAP = 1_000_000;
 export const brickHeight = (type: string) => (type.startsWith('brick') ? 3 : 1);
 
 export function validBrickType(type: string): boolean {
+  // step 11: a custom brick is valid while the project has it, at the size it was made
+  const cid = customIdOf(type);
+  if (cid) {
+    const c = customBrick(cid);
+    return !!c && customType(c) === type;
+  }
   const m = /^(brick|plate|tile)(\d+)x(\d+)$/.exec(type);
   if (!m || !BRICK_KINDS.includes(m[1] as never)) return false;
   const r = Number(m[2]);

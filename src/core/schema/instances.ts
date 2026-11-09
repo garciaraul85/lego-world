@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { LightDef } from '../lighting/light';
 import { MAX_BRICK_ID } from './chunk';
 import { id, Vec3 } from './common';
+import { ScriptAttachments } from './logic';
 
 export const NpcInstance = z.strictObject({
   id: id('instance'),
@@ -12,6 +13,8 @@ export const NpcInstance = z.strictObject({
   role: z.string(),
   /** legacy NPC state {x,y,z,heading,...}, kept verbatim */
   state: z.record(z.string(), z.unknown()),
+  /** Milestone 3b (B1): this copy's own behaviour scripts, and its own values for its character's */
+  scripts: ScriptAttachments.optional(),
 });
 
 export const AssetInstance = z.strictObject({
@@ -33,6 +36,8 @@ export const AssetInstance = z.strictObject({
   name: z.string().min(1).max(40).optional(),
   /** smash group name of the expanded bricks (v68 generator name such as "house-3"); default from the asset name */
   group: z.string().min(1).max(100).optional(),
+  /** Milestone 3b (B1): this copy's own behaviour scripts, and its own values for its asset's */
+  scripts: ScriptAttachments.optional(),
 });
 export type AssetInstance = z.infer<typeof AssetInstance>;
 
@@ -86,6 +91,51 @@ export const LightInstance = z.strictObject({
 });
 export type LightInstance = z.infer<typeof LightInstance>;
 
+/** Milestone 2b: the kinds of water (they look and behave the same; a river has a current, the sea waves) */
+export const WATER_KINDS = ['pool', 'river', 'lake', 'sea'] as const;
+
+/**
+ * Milestone 2b: a body of water on a map: a box from `pos` (its lower corner: studs across, world height, studs
+ * deep) `size` big (studs, world units high, studs). Its surface is the top. Loose things float in it and a
+ * current carries them; P13 adds swimming.
+ */
+export const WaterInstance = z.strictObject({
+  id: id('instance'),
+  kind: z.literal('water'),
+  name: z.string().min(1).max(60).optional(),
+  pos: Vec3,
+  size: z.tuple([z.number().min(1).max(2048), z.number().min(0.4).max(120), z.number().min(1).max(2048)]),
+  body: z.enum(WATER_KINDS),
+  /** which way and how fast it flows (studs a second, across and deep) */
+  current: z.tuple([z.number().min(-20).max(20), z.number().min(-20).max(20)]).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
+});
+export type WaterInstance = z.infer<typeof WaterInstance>;
+
+/**
+ * Milestone 2b, 10c part 5: a 3D model placed on a map — a built-in one (`builtin:<id>`) or one imported into the
+ * project (its media ref, a .glb or .gltf file). It stands on `pos` (the middle of its base), turned about its
+ * upright axis and sized; solid ones stop the hero in Play.
+ */
+export const MODEL_REF = /^(builtin:[a-z0-9-]{1,40}|sha256:[0-9a-f]{64})$/;
+export const ModelInstance = z.strictObject({
+  id: id('instance'),
+  kind: z.literal('model'),
+  name: z.string().min(1).max(60).optional(),
+  model: z.string().regex(MODEL_REF, 'expected builtin:<id> or sha256:<hex>'),
+  pos: Vec3,
+  /** degrees about the upright axis */
+  turn: z.number().min(-180).max(180).optional(),
+  /** how big: 1 is the size it was made at (studs) */
+  size: z.number().min(0.05).max(50).optional(),
+  /** false: the hero and loose things go through it (decoration) */
+  solid: z.boolean().optional(),
+});
+export type ModelInstance = z.infer<typeof ModelInstance>;
+
 /** World UI placed in a map (P5.9): a sign, a label or a bar drawn over the 3D view at pos. */
 export const UiInstance = z.strictObject({
   id: id('instance'),
@@ -114,6 +164,8 @@ export const InstanceItem = z.discriminatedUnion('kind', [
   UiInstance,
   EffectInstance,
   LightInstance,
+  WaterInstance,
+  ModelInstance,
 ]);
 
 export const Instances = z.strictObject({

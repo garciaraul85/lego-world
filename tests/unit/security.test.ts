@@ -139,11 +139,43 @@ describe('game scripts are sandboxed', () => {
       'saving',
       'progress',
       'talk',
+      'move',
       'sheet',
       'effect',
       'screen',
       'light',
       'sky',
+      'buttons',
+      // step 11, 4c: messages, items, followers and characters spawned by logic
+      'say',
+      'count',
+      'take',
+      'follow',
+      'spawnCharacter',
+      // Milestone 3b (B2): the engine API (things, physics, input, time, messages)
+      'entity',
+      'distance',
+      'moveThing',
+      'face',
+      'lookAt',
+      'react',
+      'physics',
+      'raycast',
+      'held',
+      'now',
+      'resolve',
+      // Milestone 3b (B7a-2)
+      'quest',
+      'questRead',
+      'mapOp',
+      'mapRead',
+      // Milestone 3b (B7a-3)
+      'game',
+      'foesLeft',
+      // Milestone 3b (B7b)
+      'inputRead',
+      'inputOp',
+      'hudRead',
     ];
     for (const k of allowed) expect(ctxKeys, k).toContain(k);
   });

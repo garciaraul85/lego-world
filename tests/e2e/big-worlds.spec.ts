@@ -166,7 +166,7 @@ test('many objects: Scatter places a forest as one undo step; a big asset librar
   await expect.poll(count, { timeout: 60_000 }).toBeGreaterThan(10);
   const n = await count();
   expect(n).toBeLessThanOrEqual(100);
-  await expect(page.locator('[data-tour="map-assets"]')).toContainText(`${n} / 10,000`);
+  await expect(page.locator('[data-tour="map-assets"]')).toContainText(`${n} / 100,000`);
   // one undo takes the forest away (the Birch tree stays in the project)
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('Control+z');
@@ -270,16 +270,17 @@ test('Big worlds course: Do it for me makes big land, sets how far you see and p
   const errors: string[] = [];
   await open(page, errors);
   await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
   await page.getByRole('menuitem', { name: /Big worlds course/ }).click();
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });
   const total = Number((await card.locator('header .mono').innerText()).split('/')[1]);
-  expect(total).toBe(10);
+  expect(total).toBe(11);
   for (let i = 0; i < total; i++) {
     const pos = await card.locator('header .mono').innerText();
     const title = await card.getByRole('heading').first().innerText();
     const doIt = card.getByRole('button', { name: 'Do it for me' });
-    if (await doIt.isVisible()) {
+    if ((await doIt.isVisible()) && (await doIt.isEnabled())) {
       await doIt.click();
       const rest = card.getByRole('button', { name: 'Do the rest ▶▶' });
       const done = card.getByText(/✓ Done!/);

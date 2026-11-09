@@ -6,7 +6,26 @@ import { z } from 'zod';
  * plays the clip the character sheet sets for it (or the built-in motion when none is set). The rules are fixed
  * and checked in order, so the first one that holds wins; a character only tunes the numbers.
  */
-export const ANIM_STATES = ['hurt', 'attack', 'jump', 'run', 'walk', 'idle'] as const;
+export const ANIM_STATES = [
+  'hurt',
+  'attack',
+  'swim',
+  'tread',
+  'climb',
+  'ladder',
+  'lift',
+  'throw',
+  'drop',
+  'pick',
+  'carry',
+  'hold',
+  'push',
+  'pull',
+  'jump',
+  'run',
+  'walk',
+  'idle',
+] as const;
 export type AnimState = (typeof ANIM_STATES)[number];
 
 export const StateSettings = z.strictObject({
@@ -35,6 +54,14 @@ export type StateInput = {
   attacking: boolean;
   /** seconds since it was last hurt (Infinity: never) */
   hurtAgo: number;
+  /** step 11b: in deep water (swim when moving, tread water when still) */
+  swimming?: boolean;
+  /** step 12a: leaning into a block to push it, or holding one to pull it */
+  pushing?: 'push' | 'pull' | 'climb' | null;
+  /** step 12b: climbing a ladder or vines */
+  ladder?: boolean;
+  /** step 12b: picking a bomb up over its head, throwing it, putting it down, or holding it up; picking a thing up off the floor */
+  carrying?: 'lift' | 'throw' | 'drop' | 'hold' | 'pick' | null;
 };
 
 /** The state the rules pick (the first that holds, in the order of ANIM_STATES). */
@@ -42,6 +69,12 @@ export function pickState(i: StateInput, s: StateSettings | undefined): AnimStat
   const o = settingsOf(s);
   if (i.hurtAgo >= 0 && i.hurtAgo < o.hurtFor) return 'hurt';
   if (i.attacking) return 'attack';
+  if (i.swimming) return i.speed > MOVING_AT ? 'swim' : 'tread';
+  if (i.pushing === 'climb') return 'climb';
+  if (i.ladder) return 'ladder';
+  if (i.carrying === 'hold') return i.speed > MOVING_AT ? 'carry' : 'hold';
+  if (i.carrying) return i.carrying;
+  if (i.pushing && i.grounded) return i.pushing;
   if (!i.grounded) return 'jump';
   if (i.speed >= o.runAt) return 'run';
   if (i.speed > MOVING_AT) return 'walk';
@@ -50,19 +83,33 @@ export function pickState(i: StateInput, s: StateSettings | undefined): AnimStat
 
 /** how fast a state's clip plays (1: its own speed) */
 export function clipRate(state: AnimState, speed: number, s: StateSettings | undefined): number {
+  // step 12b: on a ladder or vines the hands and feet move only while it climbs (still: it holds on)
+  if (state === 'ladder') return speed > MOVING_AT ? 1 : 0;
   const o = settingsOf(s);
   if (!o.matchSpeed) return 1;
-  const ref = state === 'walk' ? WALK_REF : state === 'run' ? RUN_REF : 0;
+  const ref = state === 'walk' || state === 'carry' ? WALK_REF : state === 'run' ? RUN_REF : state === 'swim' ? 3.2 : 0;
   if (!ref) return 1;
   return Math.max(0.5, Math.min(2, speed / ref));
 }
 
 /** states whose clip plays once each time the state starts (the others loop) */
-export const ONCE: readonly AnimState[] = ['hurt', 'attack', 'jump'];
+export const ONCE: readonly AnimState[] = ['hurt', 'attack', 'jump', 'climb', 'lift', 'throw', 'drop', 'pick'];
 
 export const STATE_LABEL: Record<AnimState, string> = {
   hurt: 'Hurt',
   attack: 'Attack',
+  swim: 'Swim',
+  tread: 'Tread water',
+  climb: 'Climb',
+  ladder: 'Ladder',
+  lift: 'Lift',
+  throw: 'Throw',
+  drop: 'Put down',
+  pick: 'Pick up',
+  carry: 'Carry',
+  hold: 'Hold up',
+  push: 'Push',
+  pull: 'Pull',
   jump: 'Jump',
   run: 'Run',
   walk: 'Walk',
@@ -77,6 +124,30 @@ export function stateRule(state: AnimState, s: StateSettings | undefined): strin
       return `for ${o.hurtFor} s after a hit`;
     case 'attack':
       return 'while it swings or strikes';
+    case 'swim':
+      return 'while it moves in deep water';
+    case 'tread':
+      return 'while it stays still in deep water';
+    case 'climb':
+      return 'while it climbs onto a ledge';
+    case 'ladder':
+      return 'while it climbs a ladder or vines';
+    case 'lift':
+      return 'while it picks something up over its head';
+    case 'throw':
+      return 'while it throws what it holds';
+    case 'drop':
+      return 'while it puts what it holds down';
+    case 'pick':
+      return 'while it picks something up off the floor';
+    case 'carry':
+      return 'while it walks holding something up';
+    case 'hold':
+      return 'while it stands holding something up';
+    case 'push':
+      return 'while it leans into a push block';
+    case 'pull':
+      return 'while it holds a block to pull it';
     case 'jump':
       return 'while its feet are off the ground';
     case 'run':

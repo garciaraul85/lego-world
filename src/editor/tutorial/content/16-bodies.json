@@ -251,6 +251,58 @@
       "placement": "left"
     },
     {
+      "id": "bodies.moves",
+      "title": "His moves",
+      "body": "Rex also has moves, worked out from his parts: a jaw makes his strike a Bite, his head roars and charges, his tail swipes, his legs stomp, and like everything he can spin, dance and sleep. A dragon's wings would flap and glide; a figure made from words gets the moves of whatever it has. In Play the strike and the flinch come by themselves; logic starts the rest with Do a move.",
+      "task": "Press Tail swipe, then Roar.",
+      "target": "[data-tour=\"body-moves\"]",
+      "check": {
+        "kind": "state",
+        "test": "bodyMove",
+        "args": "roar"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"body-move-swipe\"]"
+        },
+        {
+          "click": "[data-tour=\"body-move-roar\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the row of moves under the preview, press “Tail swipe”. Rex whips his tail round.",
+          "check": {
+            "kind": "state",
+            "test": "bodyMove",
+            "args": "swipe"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"body-move-swipe\"]",
+              "say": "Tail swipe: he has a tail."
+            }
+          ]
+        },
+        {
+          "text": "Press “Roar”: he rears his head and opens his jaw.",
+          "check": {
+            "kind": "state",
+            "test": "bodyMove",
+            "args": "roar"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"body-move-roar\"]",
+              "say": "Roar: a head with a jaw."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
       "id": "bodies.skeleton",
       "title": "A skeleton of your own",
       "body": "The family's skeleton follows the sliders. To add bones or change how they move, make it a body plan of your own: it is kept in the game, and any character can wear it (it shows beside the families).",
@@ -420,6 +472,59 @@
               "fill": "[aria-label=\"Swing°\"]",
               "value": "45",
               "say": "Swing 45°: a big wag."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "bodies.sculpt",
+      "title": "Paint the horn",
+      "body": "Paint and sculpt, in the Body tab, works on the creature itself: 🎨 Paint colours the brick you click, ➕ Add puts a brick against the side you click (a green outline shows where), ➖ Remove takes one away. Drag to turn the view. Each click is one undo step.",
+      "task": "Paint Rex's horn red.",
+      "target": "[data-tour=\"body-sculpt\"]",
+      "check": {
+        "kind": "state",
+        "test": "boneColor",
+        "args": {
+          "bone": "horn",
+          "color": "#c91a09"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "bodyPaintBone",
+          "args": {
+            "bone": "horn",
+            "color": "#c91a09"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Paint and sculpt, click “🎨 Paint”, pick red beside Colour, then click the horn in the preview.",
+          "check": {
+            "kind": "state",
+            "test": "boneColor",
+            "args": {
+              "bone": "horn",
+              "color": "#c91a09"
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sculpt-paint\"]",
+              "say": "🎨 Paint."
+            },
+            {
+              "fn": "bodyPaintBone",
+              "args": {
+                "bone": "horn",
+                "color": "#c91a09"
+              },
+              "say": "The horn, painted red."
             }
           ]
         }

@@ -1,8 +1,12 @@
 import { z } from 'zod';
+import { Controls } from '../controls/controls';
 import { DialogueLook } from '../dialogue/schema';
 import { EffectHooks } from '../effects/schema';
 import { ScreenHooks } from '../effects/screen';
+import { Magic } from '../items/magic';
+import { MapLooks } from '../maps/look';
 import { Saving } from '../save/save';
+import { Swimming } from '../water/swim';
 import { IsoDate, id } from './common';
 
 export const FileEntry = z.strictObject({ hash: z.string().regex(/^[0-9a-f]{16}$/), bytes: z.number().int().min(0) });
@@ -32,6 +36,8 @@ export const Project = z.strictObject({
   effects: EffectHooks.optional(),
   /** P23 part 2: which screen effect plays when things happen (hurt, a charged hit, level up…) */
   screenEffects: ScreenHooks.optional(),
+  /** step 11, 4b: how the game's screens and menus look (missing: classic) */
+  uiLook: z.enum(['classic', 'adventure']).optional(),
   /** Every non-.editor file except project.json itself, with xxhash64 (16 hex) and byte size. */
   files: z.record(z.string(), FileEntry),
 });
@@ -39,6 +45,18 @@ export type Project = z.infer<typeof Project>;
 
 export const Settings = z.strictObject({
   quality: z.enum(['auto', 'low', 'medium', 'high']),
+  /** Milestone 2b: how the hero moves — v68's own code (classic), or walked by the physics engine */
+  movement: z.enum(['classic', 'physics']).optional(),
+  /** step 12c: what the hero climbs — ladders and vines only (Ocarina), or anything while stamina lasts (Breath of the Wild) */
+  climbing: z.enum(['ladders', 'anything']).optional(),
+  /** step 11b: can the hero swim, and how long a breath lasts under water (missing: swims, 20 seconds) */
+  swimming: Swimming.optional(),
+  /** step 13c: does the game have magic, and how much a full meter holds (missing: yes, 48) */
+  magic: Magic.optional(),
+  /** step 11b part 1: the game's buttons: its layout, item buttons, where jumping is, its keys and gamepad buttons */
+  controls: Controls.optional(),
+  /** Milestone 3b (B7a-1): how the pause map and the map in play look (types, colours, frame, markers) */
+  maps: MapLooks.optional(),
   /** legacy activeCharacterId etc. that has no v5 home yet */
   legacy: z.record(z.string(), z.unknown()).optional(),
 });

@@ -1,0 +1,142 @@
+{
+  "id": "maps",
+  "title": "Maps course",
+  "steps": [
+    {
+      "id": "mp.pause",
+      "title": "The pause map",
+      "body": "Every game has two maps: the pause map (a full screen, M in Play) and the map in play (the HUD's minimap). Each comes in several types, each after a Zelda game. In the Inspector's Project tab, find Maps and pick Sea chart for the pause map: a blue chart cut into lettered squares, each drawn in as you go.",
+      "task": "Make the pause map a Sea chart.",
+      "target": "[data-tour=\"maps-pause\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapLook",
+        "args": "pause,type,chart"
+      },
+      "doItForMe": [
+        {
+          "fn": "setMapLook",
+          "args": {
+            "which": "pause",
+            "patch": {
+              "type": "chart"
+            }
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Scene"
+    },
+    {
+      "id": "mp.style",
+      "title": "Its look",
+      "body": "Each type starts with its own colours, frame, icons and fog, and you can change any of them. Give the chart a wooden frame. The colours, the icons (round, pixel or stamp), the fog and which markers show are below it.",
+      "task": "Set the pause map's frame to wood.",
+      "target": "[data-tour=\"maps-pause\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapLook",
+        "args": "pause,frame,wood"
+      },
+      "doItForMe": [
+        {
+          "fn": "setMapLook",
+          "args": {
+            "which": "pause",
+            "patch": {
+              "frame": "wood"
+            }
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Scene"
+    },
+    {
+      "id": "mp.mini",
+      "title": "The map in play",
+      "body": "Under Map in play, pick Round with compass: a round map with N, E, S and W on a ring that turns with the camera, so the way you look is always up.",
+      "task": "Make the map in play round.",
+      "target": "[data-tour=\"maps-mini\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapLook",
+        "args": "mini,type,round"
+      },
+      "doItForMe": [
+        {
+          "fn": "setMapLook",
+          "args": {
+            "which": "mini",
+            "patch": {
+              "type": "round"
+            }
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Scene"
+    },
+    {
+      "id": "mp.open",
+      "title": "Open it in Play",
+      "body": "Press Play and walk a little: the map fills in where you go. Then press M for the pause map; the game holds while it is open. It shows chests (opened ones greyed), keys, the boss (crossed out once beaten), locked doors, ways out and region names.",
+      "task": "Press Play, walk, and press M.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapOpen"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "openPlayMap"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "mp.pin",
+      "title": "Put down a pin",
+      "body": "Pick a stamp under the map (star, heart, flag, cross, skull, chest, eye or leaf), type a note if you like, and click the map where you want to go back. Right-click takes a pin up. Pins are kept in saves.",
+      "task": "Put down a heart pin.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "mapPinned",
+        "args": "heart"
+      },
+      "doItForMe": [
+        {
+          "fn": "pinOnMap",
+          "args": {
+            "stamp": "heart",
+            "note": "Fairy fountain"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "mp.done",
+      "title": "Done!",
+      "body": "Dungeons have their own pause map: a room plan, floor by floor, filled in as you go. Its Dungeon map shows all of it, and its Compass shows the chests, keys and boss. Tick Show its name on the maps on a zone to name a region. A map can choose its own maps in its Map tab.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

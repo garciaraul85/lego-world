@@ -53,7 +53,7 @@ test('quality levels: the game’s setting, a live preview beside Play, and the 
   await expect(field.locator('option[value="auto"]')).toHaveText(/Auto \(here: (Low|Medium|High)\)/);
   await field.getByRole('combobox', { name: 'Graphics quality' }).selectOption('low');
   await expect(page.locator('[data-tour="project-quality-note"]')).toHaveText(
-    /2 lights, no shadows, 50% view distance, 600 particles/,
+    /2 lights, no shadows, water mirrors the sky, 50% view distance, 600 particles/,
   );
   expect(await get(page, (e) => (e.store.get('settings.json') as { quality: string } | undefined)?.quality)).toBe(
     'low',

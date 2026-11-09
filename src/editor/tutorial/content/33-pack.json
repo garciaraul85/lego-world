@@ -1,0 +1,270 @@
+{
+  "id": "pack",
+  "title": "Starter pack course",
+  "steps": [
+    {
+      "id": "pack.open",
+      "title": "The starter pack",
+      "body": "A ready cast and set for an adventure: a hero, ten neighbours, ten kinds of enemy, twenty buildings and props, and three terrain styles. It is in the bottom dock.",
+      "task": "Open Starter pack in the bottom dock.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "dockIs",
+        "args": "pack"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "pack"
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “Scene” at the top, then “Starter pack” in the bottom dock.",
+          "check": {
+            "kind": "state",
+            "test": "dockIs",
+            "args": "pack"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            },
+            {
+              "ui": "dock",
+              "value": "pack"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene",
+      "placement": "top"
+    },
+    {
+      "id": "pack.hero",
+      "title": "Your hero",
+      "body": "Rook is an adventurer of the engine's own, with a sword, a shield and a quiver for the bow to come. Play as makes Rook the player character (Rook comes into your game, to change in the Character studio).",
+      "task": "Press Play as on Rook.",
+      "target": "[data-tour=\"pack-rook\"]",
+      "check": {
+        "kind": "state",
+        "test": "heroIs",
+        "args": "Rook"
+      },
+      "doItForMe": [
+        {
+          "fn": "packHero",
+          "args": {
+            "slug": "rook"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Hero, press Play as.",
+          "check": {
+            "kind": "state",
+            "test": "heroIs",
+            "args": "Rook"
+          },
+          "do": [
+            {
+              "fn": "packHero",
+              "args": {
+                "slug": "rook"
+              },
+              "say": "Rook is the player character."
+            }
+          ]
+        }
+      ],
+      "placement": "top"
+    },
+    {
+      "id": "pack.elder",
+      "title": "Someone to talk to",
+      "body": "Each neighbour comes with a sample conversation. Elder Maren gives the opening quest.",
+      "task": "Drag Elder Maren onto the map, or press her Place.",
+      "target": "[data-tour=\"pack-elder-maren\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcPlaced",
+        "args": "Elder Maren"
+      },
+      "doItForMe": [
+        {
+          "fn": "packPlace",
+          "args": {
+            "slug": "elder-maren"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Neighbours, press Place on Elder Maren (or drag her onto the ground).",
+          "check": {
+            "kind": "state",
+            "test": "npcPlaced",
+            "args": "Elder Maren"
+          },
+          "do": [
+            {
+              "fn": "packPlace",
+              "args": {
+                "slug": "elder-maren"
+              },
+              "say": "Elder Maren, with her conversation."
+            }
+          ]
+        }
+      ],
+      "placement": "top"
+    },
+    {
+      "id": "pack.foe",
+      "title": "A foe with a weakness",
+      "body": "Rattlebones is a skeleton knight: his shield blocks hits from the front, and his back takes double. Each enemy in the pack has its own weakness (see its Health in the Character studio).",
+      "task": "Place Rattlebones on the map.",
+      "target": "[data-tour=\"pack-rattlebones\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcPlaced",
+        "args": "Rattlebones"
+      },
+      "doItForMe": [
+        {
+          "fn": "packPlace",
+          "args": {
+            "slug": "rattlebones"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Enemies, press Place on Rattlebones (or drag him in).",
+          "check": {
+            "kind": "state",
+            "test": "npcPlaced",
+            "args": "Rattlebones"
+          },
+          "do": [
+            {
+              "fn": "packPlace",
+              "args": {
+                "slug": "rattlebones"
+              },
+              "say": "Rattlebones."
+            }
+          ]
+        }
+      ],
+      "placement": "top"
+    },
+    {
+      "id": "pack.pot",
+      "title": "A pot to break",
+      "body": "Buildings and props work like any asset: click one, then click the ground. Clay pots break at the first hit and may leave a heart.",
+      "task": "Put a Clay pot on the map.",
+      "target": "[data-tour=\"pack-asset-clay-pot\"]",
+      "check": {
+        "kind": "state",
+        "test": "placedAsset",
+        "args": "Clay pot"
+      },
+      "doItForMe": [
+        {
+          "fn": "placeAsset",
+          "args": {
+            "name": "Clay pot"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Buildings and props, click the Clay pot, then click the ground.",
+          "check": {
+            "kind": "state",
+            "test": "placedAsset",
+            "args": "Clay pot"
+          },
+          "do": [
+            {
+              "fn": "placeAsset",
+              "args": {
+                "name": "Clay pot"
+              },
+              "say": "A clay pot."
+            }
+          ]
+        }
+      ],
+      "placement": "top"
+    },
+    {
+      "id": "pack.look",
+      "title": "The adventure look",
+      "body": "Scroll to Look and sound at the end of the pack. The Screen look switch dresses every screen and menu at once: parchment panels, gold-framed buttons, a storybook font and framed hearts. Next to it are the pack's effects, sounds and music (▶ listens).",
+      "task": "Under Look and sound, pick Adventure.",
+      "target": "[data-tour=\"pack-screen-look\"]",
+      "check": {
+        "kind": "state",
+        "test": "lookIs",
+        "args": "adventure"
+      },
+      "doItForMe": [
+        {
+          "fn": "packLook",
+          "args": {
+            "look": "adventure"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "pack.fight",
+      "title": "Hit him from behind",
+      "body": "Press Play. From the front his shield clangs (“Blocked! Try its back.”); walk round behind him, or roll past, and strike.",
+      "task": "Press Play and hit Rattlebones from behind.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "foeHurt",
+        "args": "Rattlebones"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "strikeFromBehind",
+          "args": {
+            "name": "Rattlebones"
+          }
+        }
+      ],
+      "how": []
+    },
+    {
+      "id": "pack.done",
+      "title": "Done!",
+      "body": "You played as Rook, placed a neighbour with a conversation, an enemy with a weakness and a pot, gave the game the adventure look, and hit the knight where it hurts. The terrain styles at the bottom of the pack make the map again in their style. Help › Starter pack, Screen look, Can be harmed and Fights the hero say more.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "workspace": "Scene",
+      "placement": "bottom"
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 import { signal } from '@preact/signals';
 import type { OrbitCamera } from '../../engine/render/camera';
-import type { Renderer } from '../../engine/render/renderer';
+import type { SceneRenderer } from '../../engine/render/scene-renderer';
 
 export type ViewportApi = {
   camera: OrbitCamera;
-  renderer: Renderer | null;
+  renderer: SceneRenderer | null;
   redraw(): void;
   /** P32: hands every brick to the renderer again and draws (after a change it must show at once) */
   resync(): void;

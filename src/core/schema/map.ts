@@ -2,8 +2,10 @@ import { z } from 'zod';
 import { Mood } from '../effects/screen';
 import { Ambient, DayLength, Fog } from '../lighting/atmosphere';
 import { Darkness } from '../lighting/light';
+import { MapLookOverride } from '../maps/look';
 import { ActionList } from './action';
 import { id, LegacyBlob, Vec3 } from './common';
+import { ScriptAttachments } from './logic';
 
 export const BIOMES = [
   'forest',
@@ -75,6 +77,15 @@ export const MapDoc = z.strictObject({
   dayLength: DayLength.optional(),
   /** P27 part 3: how far the map is drawn on big maps (studs; the fog closes in before it). Default 256. */
   viewDistance: ViewDistance.optional(),
+  /**
+   * step 12a: a dungeon: its minimap shows only where the hero has been until the Dungeon map is found here, the
+   * Compass marks its chests and boss, and its small keys open only its own doors
+   */
+  dungeon: z.boolean().optional(),
+  /** Milestone 3b (B7a-1): this map's own pause map and map in play (over the game's, Project › Maps) */
+  mapLook: MapLookOverride.optional(),
+  /** Milestone 3b (B7a-3): the map's own behaviours (MapScript): they run while the hero is on it */
+  scripts: ScriptAttachments.optional(),
   music: id('music').nullable(),
   ambience: id('sound').nullable(),
   spawns: z.array(Spawn).max(32),

@@ -1,0 +1,490 @@
+{
+  "id": "shape",
+  "title": "Shape and draw course",
+  "steps": [
+    {
+      "id": "shape.make",
+      "title": "Meet Nova",
+      "body": "The old studio could shape a figure — a sculpted chest, curvier hips, a deeper neckline — and draw on it: a face, tattoos, a printed shirt. Both are in the Character studio now. This course makes Nova and does both.",
+      "task": "Make Nova, a neighbour on the map, with a Female body.",
+      "target": "[data-tour=\"char-new\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterWears",
+        "args": {
+          "field": "gender",
+          "value": "Female"
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "lookMake",
+          "args": {
+            "name": "Nova",
+            "profile": {
+              "gender": "Female"
+            }
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Make a character called Nova and put her on the map, beside where the player starts (Brix's helper does both).",
+          "check": {
+            "kind": "state",
+            "test": "characterNamed",
+            "args": "Nova"
+          },
+          "do": [
+            {
+              "fn": "lookMake",
+              "args": {
+                "name": "Nova"
+              },
+              "say": "Nova, a neighbour on the map."
+            }
+          ]
+        },
+        {
+          "text": "Click the button “Gender” (it shows a picture of what she has now). A panel of pictures opens.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"pick-gender-list\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-gender\"]",
+              "say": "The button “Gender”."
+            }
+          ]
+        },
+        {
+          "text": "Click the picture “Female”.",
+          "check": {
+            "kind": "state",
+            "test": "characterWears",
+            "args": {
+              "field": "gender",
+              "value": "Female"
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-gender-list\"] [data-value=\"Female\"]",
+              "say": "Female: the Body shape section shows the chest."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "shape.chest",
+      "title": "Her shape",
+      "body": "Body shape is in the Look tab, under Body. The chest can be Sculpted (shaped in 3D), Printed (drawn on the torso) or Comic, in eight shapes. Breast size goes from 0 to 150: drag it and the preview follows; letting go keeps it, one undo step.",
+      "task": "Make her chest Sculpted, Natural, and size 70.",
+      "target": "[data-tour=\"breastSize\"]",
+      "check": {
+        "kind": "state",
+        "test": "lookAtLeast",
+        "args": {
+          "field": "breastSize",
+          "atLeast": 65
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "lookSet",
+          "args": {
+            "breastMode": "Sculpted",
+            "breastShape": "Natural",
+            "breastSize": 70
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Drag the slider “Breast size” to 70 (the number beside its name shows where it is).",
+          "check": {
+            "kind": "state",
+            "test": "lookAtLeast",
+            "args": {
+              "field": "breastSize",
+              "atLeast": 65
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"breastSize\"]",
+              "value": "70",
+              "say": "Breast size 70."
+            }
+          ]
+        },
+        {
+          "text": "Click the button “Breast shape” (it shows a picture of what she has now). A panel of pictures opens.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"pick-breastShape-list\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-breastShape\"]",
+              "say": "The button “Breast shape”."
+            }
+          ]
+        },
+        {
+          "text": "Click the picture “Natural”.",
+          "check": {
+            "kind": "state",
+            "test": "characterWears",
+            "args": {
+              "field": "breastShape",
+              "value": "Natural"
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-breastShape-list\"] [data-value=\"Natural\"]",
+              "say": "Natural."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "shape.hips",
+      "title": "Her hips",
+      "body": "Every figure has a butt shape — Rounded, Athletic, Wide, Compact or Pear — and a Butt size from 0 to 100.",
+      "task": "Make her butt Athletic, size 45.",
+      "target": "[data-tour=\"buttSize\"]",
+      "check": {
+        "kind": "state",
+        "test": "lookAtLeast",
+        "args": {
+          "field": "buttSize",
+          "atLeast": 40
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "lookSet",
+          "args": {
+            "buttShape": "Athletic",
+            "buttSize": 45
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Drag the slider “Butt size” to 45.",
+          "check": {
+            "kind": "state",
+            "test": "lookAtLeast",
+            "args": {
+              "field": "buttSize",
+              "atLeast": 40
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"buttSize\"]",
+              "value": "45",
+              "say": "Butt size 45."
+            }
+          ]
+        },
+        {
+          "text": "Click the button “Butt shape” (it shows a picture of what she has now). A panel of pictures opens.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"pick-buttShape-list\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-buttShape\"]",
+              "say": "The button “Butt shape”."
+            }
+          ]
+        },
+        {
+          "text": "Click the picture “Athletic”.",
+          "check": {
+            "kind": "state",
+            "test": "characterWears",
+            "args": {
+              "field": "buttShape",
+              "value": "Athletic"
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-buttShape-list\"] [data-value=\"Athletic\"]",
+              "say": "Athletic."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "shape.neck",
+      "title": "Her neckline",
+      "body": "The neckline is with the clothes, under Outfit: Closed, V-neck, Scoop, Sweetheart, Keyhole or Asymmetric, with how deep and how wide it is.",
+      "task": "Give her a V-neck, depth 60.",
+      "target": "[data-tour=\"necklineDepth\"]",
+      "check": {
+        "kind": "state",
+        "test": "lookAtLeast",
+        "args": {
+          "field": "necklineDepth",
+          "atLeast": 55
+        }
+      },
+      "doItForMe": [
+        {
+          "fn": "lookSet",
+          "args": {
+            "neckline": "V-neck",
+            "necklineDepth": 60
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Drag the slider “Neckline depth” to 60.",
+          "check": {
+            "kind": "state",
+            "test": "lookAtLeast",
+            "args": {
+              "field": "necklineDepth",
+              "atLeast": 55
+            }
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"necklineDepth\"]",
+              "value": "60",
+              "say": "Neckline depth 60."
+            }
+          ]
+        },
+        {
+          "text": "Click the button “Neckline” (it shows a picture of what she has now). A panel of pictures opens.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"pick-neckline-list\"]"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-neckline\"]",
+              "say": "The button “Neckline”."
+            }
+          ]
+        },
+        {
+          "text": "Click the picture “V-neck”.",
+          "check": {
+            "kind": "state",
+            "test": "characterWears",
+            "args": {
+              "field": "neckline",
+              "value": "V-neck"
+            }
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"pick-neckline-list\"] [data-value=\"V-neck\"]",
+              "say": "V-neck."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "shape.draw",
+      "title": "The Draw tab",
+      "body": "The Draw tab draws on the figure, as the old studio's paint did. Pick a part (head, torso, a leg, the hat…) and a side of it; the preview turns to that side.",
+      "task": "Open the Draw tab, pick Head / face, Front.",
+      "target": "[data-tour=\"sheet-draw\"]",
+      "check": {
+        "kind": "state",
+        "test": "drawAt",
+        "args": {
+          "part": "head",
+          "side": 0
+        }
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"sheet-draw\"]"
+        },
+        {
+          "choose": "[data-tour=\"draw-part\"]",
+          "value": "head"
+        },
+        {
+          "click": "[data-tour=\"draw-side-front\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "In the character sheet on the right, click the tab “Draw”.",
+          "check": {
+            "kind": "state",
+            "test": "sheetTab",
+            "args": "draw"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"sheet-draw\"]",
+              "say": "The Draw tab."
+            }
+          ]
+        },
+        {
+          "text": "In the list “Part”, choose “Head / face”.",
+          "check": {
+            "kind": "state",
+            "test": "drawAt",
+            "args": {
+              "part": "head",
+              "side": 0
+            }
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"draw-part\"]",
+              "value": "head",
+              "say": "Head / face."
+            },
+            {
+              "click": "[data-tour=\"draw-side-front\"]",
+              "say": "Front."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "shape.star",
+      "title": "A star on her cheek",
+      "body": "Draw on the square: it is the front of her head, her face over it. The pen draws, the eraser rubs out (her face shows again), Fill fills an area of one colour, Pick takes a colour off her. Each stroke shows on the figure as you draw and is one undo step.",
+      "task": "Draw a red star on her cheek (Do it for me draws one).",
+      "target": "[data-tour=\"draw-canvas\"]",
+      "check": {
+        "kind": "state",
+        "test": "drawnOn",
+        "args": "head"
+      },
+      "doItForMe": [
+        {
+          "fn": "drawMark",
+          "args": {
+            "part": "head",
+            "side": 0,
+            "mark": "star",
+            "color": "#c91a09"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Click the colour box under the square and pick red, then draw a star on her cheek with the mouse.",
+          "check": {
+            "kind": "state",
+            "test": "drawnOn",
+            "args": "head"
+          },
+          "do": [
+            {
+              "fn": "drawMark",
+              "args": {
+                "part": "head",
+                "side": 0,
+                "mark": "star",
+                "color": "#c91a09"
+              },
+              "say": "A red star on her cheek."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "shape.shirt",
+      "title": "A printed shirt",
+      "body": "Any part can be drawn on, on any side. Fill colours a whole area at once: one click on the front of her torso makes it a new colour, ready for a logo on top.",
+      "task": "Choose Torso / shirt, Front, the Fill tool and a blue, then click the square.",
+      "target": "[data-tour=\"draw-tool-fill\"]",
+      "check": {
+        "kind": "state",
+        "test": "drawnOn",
+        "args": "torso"
+      },
+      "doItForMe": [
+        {
+          "fn": "drawMark",
+          "args": {
+            "part": "torso",
+            "side": 0,
+            "mark": "fill",
+            "color": "#0055bf"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "In “Part” choose “Torso / shirt”, click 🪣 Fill, pick a blue and click the square.",
+          "check": {
+            "kind": "state",
+            "test": "drawnOn",
+            "args": "torso"
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"draw-part\"]",
+              "value": "torso",
+              "say": "Torso / shirt."
+            },
+            {
+              "fn": "drawMark",
+              "args": {
+                "part": "torso",
+                "side": 0,
+                "mark": "fill",
+                "color": "#0055bf"
+              },
+              "say": "Filled blue."
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "shape.done",
+      "title": "You can shape and draw a figure",
+      "body": "Body shape is in Look (the chest for a Female body, the hips and nipples for any, the neckline under Outfit); the Draw tab draws on any part and side. From a picture's prints land in the Draw tab too, ready to touch up. Help › Help guide › Characters has every part.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "placement": "bottom"
+    }
+  ]
+}

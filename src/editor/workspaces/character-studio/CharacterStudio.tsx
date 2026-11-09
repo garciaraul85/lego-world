@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { BUILTIN_CHARACTERS } from '../../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../../builtin/clips';
+import type { BodyPlan } from '../../../core/character/body';
+import type { CustomHair } from '../../../core/character/hair';
+import { minifigExtras, planOf } from '../../../core/character/resolve';
 import type { Command } from '../../../core/commands';
 import { newId } from '../../../core/ids';
 import { type Character, type Clip, paths } from '../../../core/schema';
@@ -17,17 +20,25 @@ import { shows } from '../../genres/view';
 import { actionChoices } from '../../panels/AudioFields';
 import { ConversationList, DialogueMain, TalkSection } from '../dialogue/CharacterTalk';
 import { conversations } from '../dialogue/model';
-import { BodyTab, bodyOfChr } from './Body';
+import { BodyTab, bodyOfChr, putPlan } from './Body';
 import { CharacterPreview, type PreviewInput } from './CharacterPreview';
+import { CharacterScripts } from './CharacterScripts';
+import { DrawTab } from './Draw';
 import { FaceTab, withMood } from './Face';
-import { FromPicture } from './FromPicture';
+import { HairEditor } from './Hair';
 import { PosePanel } from './Posing';
 import { AnimationsTab, BehaviourTab, MovesTab, OutfitsTab, SHEET_TABS, StatsTab, VoiceTab } from './Sheet';
+import { type BrickHit, sculptPlan } from './sculpt';
 import { CharacterThumb, ClipThumb, peakTime, type ThumbView, trackPose } from './thumbs';
 
 /** Look fields grouped the way v68's character builder groups them. */
 const SECTIONS: [string, string[]][] = [
   ['Body', ['height', 'gender', 'head', 'skinColor']],
+  // Milestone 3, 10d: v68's body shaping — the chest (sculpted, printed or comic), its shape and size, the butt
+  [
+    'Body shape',
+    ['breastMode', 'breastShape', 'breastSize', 'nippleStyle', 'nippleSize', 'nippleColor', 'buttShape', 'buttSize'],
+  ],
   [
     'Face & hair',
     [
@@ -56,6 +67,9 @@ const SECTIONS: [string, string[]][] = [
       'dress',
       'dressColor',
       'heroCut',
+      'neckline',
+      'necklineDepth',
+      'necklineWidth',
       'swimwear',
       'underwear',
       'lingerie',
@@ -69,19 +83,45 @@ const SECTIONS: [string, string[]][] = [
   ['Gear & powers', ['held', 'power', 'spell']],
 ];
 
+/** Milestone 3, 10d: a v68 size (breast size 0–150, the others 0–100): live while dragged, saved on letting go */
+function RangeField(p: { k: string; max: number; value: number; onDrag(v: number): void; onDone(v: number): void }) {
+  return (
+    <label class="field">
+      <span>
+        {pretty(p.k)} <span class="mono muted">{p.value}</span>
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={p.max}
+        step={1}
+        value={p.value}
+        data-tour={p.k}
+        aria-valuetext={`${p.value} of ${p.max}`}
+        onInput={(e) => p.onDrag(Number((e.target as HTMLInputElement).value))}
+        onChange={(e) => p.onDone(Number((e.target as HTMLInputElement).value))}
+      />
+    </label>
+  );
+}
+
 /** where a choice is worn, so its picture is a close-up of that part */
 const viewOf = (k: string): ThumbView =>
   ['head', 'hair', 'face', 'eyes', 'expression', 'facialHair', 'glasses', 'hat', 'ears'].includes(k)
     ? 'head'
     : ['pants', 'shoes', 'underwear', 'swimwear'].includes(k)
       ? 'legs'
-      : ['back', 'cape'].includes(k)
+      : ['back', 'cape', 'buttShape'].includes(k)
         ? 'back'
         : [
               'shirt',
               'outfit',
               'dress',
               'heroCut',
+              'neckline',
+              'breastMode',
+              'breastShape',
+              'nippleStyle',
               'lingerie',
               'pattern',
               'gloves',
@@ -96,8 +136,8 @@ const viewOf = (k: string): ThumbView =>
 const pretty = (k: string) =>
   k
     .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, (c) => c.toUpperCase())
-    .replace('Color', 'color');
+    .toLowerCase()
+    .replace(/^./, (c) => c.toUpperCase());
 
 /** P22 part 2: moves to try on the preview */
 const TRY_CLIPS: [string, string][] = [
@@ -148,6 +188,9 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     ed.clipPlaying.value = v;
   };
   const [turntable, setTurntable] = useState(false);
+  // Milestone 3, 10d: a slider being dragged shows on the preview at once; letting go saves it (one undo step)
+  const [draft, setDraft] = useState<Record<string, unknown>>({});
+  useEffect(() => setDraft({}), [chr.id]);
   // P32: the timeline's picked track, ringed on the preview
   const [part, setPart] = useState<PreviewInput['part']>(null);
   const preview = useRef<PreviewInput>({
@@ -162,7 +205,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
   const faceOn = ed.sheetTab.value === 'face' && !body;
   // P23 part 3: while a line is heard (Voice or Face tab) the figure's mouth moves, seen close up
   const mouth = body ? 0 : ed.talkMouth.value;
-  const studioLook = { ...wornProfile(chr), offHand: chr.gear?.offHand ?? 'None' };
+  const studioLook = { ...wornProfile(chr), ...draft, offHand: chr.gear?.offHand ?? 'None' };
   const shown = faceOn ? withMood(studioLook, chr.faces, ed.faceMood.value) : studioLook;
   preview.current = {
     profile: mouth ? { ...shown, mouthOpen: mouth } : shown,
@@ -173,8 +216,34 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
     part: clip && !body ? part : null,
     body,
     bones: body && ed.bodyBones.value ? { selected: ed.bodyBone.value } : null,
+    extras: body ? [] : minifigExtras(chr.body),
     walking: !!body && ed.bodyWalk.value,
     act: body ? ed.bodyAct.value : null,
+    draw: !body && ed.sheetTab.value === 'draw' ? { part: ed.drawPart.value, side: ed.drawSide.value } : null,
+    // 10d part 3: painting and sculpting a body plan on the preview, in the Body tab
+    sculpt: (() => {
+      const tool = ed.bodySculpt.value;
+      const planId = chr.body?.plan;
+      const plan = planId ? planOf(planId, (p) => ed.store.get(p)) : undefined;
+      if (!tool || !plan || !body || body.fromAsset || ed.sheetTab.value !== 'body') return null;
+      return {
+        tool,
+        plan,
+        onHit: (hit: BrickHit) => {
+          const next = sculptPlan(plan, hit, tool);
+          if (typeof next === 'string') {
+            if (tool.mode !== 'paint') ed.notify(next, true);
+            return;
+          }
+          putPlan(
+            ed,
+            chr,
+            next,
+            tool.mode === 'paint' ? 'Paint a brick' : tool.mode === 'add' ? 'Add a brick' : 'Remove a brick',
+          );
+        },
+      };
+    })(),
     paint:
       body?.fromAsset && ed.bodyPaint.value
         ? (src: number) => {
@@ -244,6 +313,18 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           `Change ${pretty(k).toLowerCase()}`,
         );
 
+  /** Milestone 3, 10d: several look fields as one undo step (the Draw tab's drawings, a part put on to draw on) */
+  const setFields = (patch: Record<string, unknown>, label: string) =>
+    worn
+      ? saveChr(
+          {
+            ...chr,
+            outfits: (chr.outfits ?? []).map((o) => (o === worn ? { ...o, look: { ...o.look, ...patch } } : o)),
+          },
+          `${worn.name}: ${label.charAt(0).toLowerCase()}${label.slice(1)}`,
+        )
+      : saveChr({ ...chr, profile: { ...chr.profile, ...patch } }, label);
+
   const saveClip = (next: Clip, label: string) => ed.exec({ type: 'clip.update', payload: { clip: next } }, { label });
   const duplicate = (src: Clip) => {
     const copy: Clip = { ...src, id: newId('clip'), name: `${src.name ?? 'Clip'} (copy)`.slice(0, 60) };
@@ -307,11 +388,13 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
             class="btn"
             data-tour="char-from-picture"
             data-help="characters.fromPicture"
-            onClick={() => (ed.fromPicture.value = true)}
+            onClick={() => {
+              ed.makeKind.value = 'character';
+              ed.fromPicture.value = true;
+            }}
           >
             ✨ From a picture…
           </button>
-          {ed.fromPicture.value && <FromPicture c={c} onClose={() => (ed.fromPicture.value = false)} />}
           {picking && <SearchBox label="presets" value={presetQ} onInput={setPresetQ} tour="char-preset-search" />}
           {picking && (
             <div class="char-presets" role="listbox" aria-label="New character from a preset">
@@ -721,7 +804,10 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           {tab === 'face' && !body && (
             <FaceTab c={c} chr={chr} save={saveChr} profile={wornProfile(chr)} setField={setField} />
           )}
-          {body && ['look', 'face', 'outfits', 'animations'].includes(tab) && (
+          {tab === 'draw' && !body && (
+            <DrawTab c={c} chr={chr} save={saveChr} profile={wornProfile(chr)} setFields={setFields} />
+          )}
+          {body && ['look', 'face', 'draw', 'outfits', 'animations'].includes(tab) && (
             <div class="sec">
               <p class="hint" data-tour="body-note">
                 {chr.name} has a {body.name.toLowerCase()} body: its shape and colours are in the{' '}
@@ -729,8 +815,8 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                   Body tab
                 </button>
                 , and it moves by itself ({body.move}).{' '}
-                {tab === 'look' || tab === 'face'
-                  ? 'The minifig look is kept for when it is a minifig again.'
+                {tab === 'look' || tab === 'face' || tab === 'draw'
+                  ? 'The minifig look (and its drawings) is kept for when it is a minifig again.'
                   : tab === 'outfits'
                     ? 'Outfits are for minifigs.'
                     : 'Clips are for minifigs; the clips below play only on a minifig.'}
@@ -810,17 +896,49 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
                 </div>
                 {keys
                   .filter((k) => k in L.CharacterCatalog.defaults)
+                  .filter((k) => !/^breast/.test(k) || chr.profile.gender === 'Female')
                   .map((k) =>
                     L.CharacterCatalog.colorFields.includes(k) ? (
-                      <label class="field">
-                        {pretty(k)}
-                        <input
-                          type="color"
-                          class="inp"
-                          value={String(chr.profile[k] ?? '#888888')}
-                          onChange={(e) => setField(k, (e.target as HTMLInputElement).value)}
-                        />
-                      </label>
+                      <>
+                        <label class="field">
+                          {pretty(k)}
+                          <input
+                            type="color"
+                            class="inp"
+                            value={String(chr.profile[k] ?? '#888888')}
+                            onChange={(e) => setField(k, (e.target as HTMLInputElement).value)}
+                          />
+                        </label>
+                        {/* Milestone 3, 10d part 3: custom hair, under the hair's colour */}
+                        {k === 'hairColor' && (
+                          <HairEditor
+                            ed={ed}
+                            profile={chr.profile}
+                            draft={(draft.customHair as CustomHair | undefined) ?? null}
+                            setDraft={(h) =>
+                              setDraft((d) => {
+                                const { customHair: _, ...rest } = d;
+                                return h ? { ...rest, customHair: h, hair: 'Custom' } : rest;
+                              })
+                            }
+                            setFields={setFields}
+                          />
+                        )}
+                      </>
+                    ) : L.CharacterCatalog.rangeFields[k] ? (
+                      <RangeField
+                        k={k}
+                        max={L.CharacterCatalog.rangeFields[k]!.max}
+                        value={Number(draft[k] ?? chr.profile[k] ?? L.CharacterCatalog.defaults[k] ?? 0)}
+                        onDrag={(v) => setDraft((d) => ({ ...d, [k]: v }))}
+                        onDone={(v) => {
+                          setField(k, v);
+                          setDraft((d) => {
+                            const { [k]: _, ...rest } = d;
+                            return rest;
+                          });
+                        }}
+                      />
                     ) : L.CharacterCatalog.choices[k] ? (
                       // P32: each choice is a picture of this character wearing it, close up where it is worn
                       <div class="field">
@@ -861,6 +979,7 @@ export function CharacterStudio({ c }: { c: ActionCtx }) {
           {tab === 'outfits' && <OutfitsTab c={c} chr={chr} save={saveChr} />}
           {tab === 'voice' && <VoiceTab c={c} chr={chr} save={saveChr} />}
           {tab === 'behaviour' && <BehaviourTab c={c} chr={chr} save={saveChr} isHero={isHero} inProject={inProject} />}
+          {tab === 'behaviour' && shows(ed, 'section', 'object.behaviours') && <CharacterScripts c={c} chr={chr} />}
         </div>
       </section>
     </div>

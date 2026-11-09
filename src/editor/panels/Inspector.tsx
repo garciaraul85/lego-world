@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import { MAX_MAPS } from '../../core/commands/handlers/map';
+import { MAGIC_DEFAULTS } from '../../core/items/magic';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import { worldGenerator } from '../../core/legacy/modules';
 import { minOf } from '../../core/num';
@@ -12,6 +13,7 @@ import {
   type QualityChoice,
 } from '../../core/render/quality';
 import { BIOMES, paths, type Settings, TIMES } from '../../core/schema';
+import { SWIM_DEFAULTS } from '../../core/water/swim';
 import type { GenerateConfig } from '../../core/worldgen/generate';
 import { browserDevice } from '../../engine/runtime/device';
 import { type ActionCtx, action, runAction } from '../actions/registry';
@@ -24,9 +26,14 @@ import { makeAssetOfSelection } from '../interact/scene-menus';
 import { openLogicFor } from '../workspaces/logic/createFromContext';
 import { AtmosphereSection } from './AtmosphereSection';
 import { actionChoices, ItemInspector, MapAudioSection, MapCinematics, ScreenSelect, ZoneAudio } from './AudioFields';
+import { BehaviourSection } from './BehaviourSection';
 import { BigWorldSection } from './BigWorldSection';
+import { ControlsSection } from './ControlsSection';
 import { DialogueSection } from './DialogueSection';
+import { DungeonSection } from './DungeonSection';
 import { DarknessSection } from './LightFields';
+import { MapScriptsSection } from './MapScriptsSection';
+import { MapLookSection, MapsSection } from './MapsSection';
 import { MoodSection } from './MoodSection';
 import { ProgressSection } from './ProgressSection';
 import { SavingSection } from './SavingSection';
@@ -265,6 +272,7 @@ function InspectorTab({ c }: { c: ActionCtx }) {
         </div>
       </div>
       {inst && <AssetSection c={c} />}
+      {inst && <BehaviourSection c={c} />}
       {inst && <ScriptSection c={c} />}
       {hasAsset ? null : (
         <div class="sec">
@@ -606,6 +614,10 @@ function MapTab({ c }: { c: ActionCtx }) {
         </div>
       </div>
       <DarknessSection c={c} m={m} />
+      <DungeonSection c={c} m={m} />
+      <MapLookSection c={c} m={m} />
+      {/* Milestone 3b (B7a-3): the map's own behaviours */}
+      <MapScriptsSection c={c} m={m} />
       <AtmosphereSection c={c} m={m} />
       <BigWorldSection c={c} m={m} />
       <MoodSection c={c} m={m} />
@@ -621,7 +633,7 @@ function MapTab({ c }: { c: ActionCtx }) {
 }
 
 export const QUALITY_HELP =
-  'How good the game looks, and how hard it works the computer. Low: 2 lights, no shadows, half the view distance and fewer particles, for phones and old computers. Medium: 4 lights with shadows. High: 8 lights, sharper shadows, the full view distance. Auto picks one from the device and steps down while the game runs slowly. Players can change it in the game’s Settings; this is what they start with.';
+  'How good the game looks, and how hard it works the computer. Low: 2 lights, no shadows, half the view distance and fewer particles, for phones and old computers. Medium: 4 lights, 2 of them casting shadows. High: 8 lights, 4 of them casting sharper shadows, the full view distance. Auto picks one from the device and steps down while the game runs slowly. Players can change it in the game’s Settings; this is what they start with.';
 
 /** P27 part 4: the game's graphics quality before the player picks one */
 function QualityField({ c }: { c: ActionCtx }) {
@@ -654,8 +666,201 @@ function QualityField({ c }: { c: ActionCtx }) {
         ))}
       </select>
       <span class="muted small" data-tour="project-quality-note">
-        {q.lights} lights{q.shadows ? ', shadows' : ', no shadows'}, {Math.round(q.viewScale * 100)}% view distance,{' '}
+        {q.lights} lights{q.shadows ? `, ${q.shadowLights} with shadows` : ', no shadows'},{' '}
+        {q.reflections ? 'mirroring water' : 'water mirrors the sky'}, {Math.round(q.viewScale * 100)}% view distance,{' '}
         {q.particles.toLocaleString('en-US')} particles
+      </span>
+    </div>
+  );
+}
+
+export const MOVEMENT_HELP =
+  'How the hero moves. Classic is v68’s original walking: it stops dead at bricks in the way. Physics walks the hero with the physics engine: the same speeds and jump, but it slides along walls instead of snagging, steps up plates, pushes loose things and stands on them, riding a crate as it floats down a river. New projects start with Physics; projects made before keep Classic. Try both in Play.';
+
+/** Milestone 2b, 10b part 3: how the hero moves (classic v68, or walked by the physics engine) */
+function MovementField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = ed.store.get<Settings>(paths.settings)?.movement ?? 'classic';
+  return (
+    <div class="field" data-tour="project-movement" data-help="project.movement">
+      <span>
+        Movement
+        <FieldHelp label="Movement" text={MOVEMENT_HELP} />
+      </span>
+      <select
+        class="inp"
+        aria-label="Movement"
+        value={cur}
+        onChange={(e) =>
+          ed.exec(
+            {
+              type: 'project.update',
+              payload: { movement: (e.target as HTMLSelectElement).value as 'classic' | 'physics' },
+            },
+            { label: 'Movement' },
+          )
+        }
+      >
+        <option value="classic">Classic (v68)</option>
+        <option value="physics">Physics (pushes and rides loose things)</option>
+      </select>
+    </div>
+  );
+}
+
+const CLIMBING_HELP =
+  'What the hero climbs. Ladders and vines: only those (like Ocarina of Time); walls stop it, though it climbs onto low ledges. Anything: almost any wall too (like Breath of the Wild), while its stamina lasts: walk into a wall to hold on, W/S climb, A/D move along it, Space is a climb jump (a quarter of the stamina), Space while pulling back lets go. Out of stamina it lets go and falls. Assets ticked Not climbable (Asset studio) cannot be climbed; ladders and vines cost no stamina.';
+
+/** step 12c: what the hero climbs (ladders and vines only, or anything with stamina) */
+function ClimbingField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = ed.store.get<Settings>(paths.settings)?.climbing ?? 'ladders';
+  return (
+    <div class="field" data-tour="project-climbing" data-help="project.climbing">
+      <span>
+        Climbing
+        <FieldHelp label="Climbing" text={CLIMBING_HELP} />
+      </span>
+      <select
+        class="inp"
+        aria-label="Climbing"
+        value={cur}
+        onChange={(e) =>
+          ed.exec(
+            {
+              type: 'project.update',
+              payload: { climbing: (e.target as HTMLSelectElement).value as 'ladders' | 'anything' },
+            },
+            { label: 'Climbing' },
+          )
+        }
+      >
+        <option value="ladders">Ladders and vines only</option>
+        <option value="anything">Anything, with stamina</option>
+      </select>
+    </div>
+  );
+}
+
+export const LOOK_HELP =
+  'How the game’s screens and menus look. Classic uses each widget’s own colours. Adventure dresses every screen at once: parchment panels with a gold and wood frame, gold-framed buttons, a storybook font and framed hearts (the starter pack’s look). Widgets keep their places and texts; switch back any time.';
+
+/** step 11, 4b: the screen look (classic or the starter pack's adventure look) */
+function ScreenLookField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = ed.store.manifest.uiLook ?? 'classic';
+  return (
+    <div class="field" data-tour="project-look" data-help="project.look">
+      <span>
+        Screen look
+        <FieldHelp label="Screen look" text={LOOK_HELP} />
+      </span>
+      <select
+        class="inp"
+        aria-label="Screen look"
+        value={cur}
+        onChange={(e) =>
+          ed.exec({
+            type: 'project.update',
+            payload: { uiLook: (e.target as HTMLSelectElement).value as 'classic' | 'adventure' },
+          })
+        }
+      >
+        <option value="classic">Classic</option>
+        <option value="adventure">Adventure (parchment and gold)</option>
+      </select>
+    </div>
+  );
+}
+
+export const SWIM_HELP =
+  'In water deeper than about half the hero, the hero swims: afloat with the head out, the Action button says Dive (hold it to go down) and, under water, Swim up. Currents carry the swimmer; pushing against a low shore climbs out, and Jump at the surface leaps out. Under water the hero holds their breath: the HUD shows Air, and with none left a heart is lost every 2 seconds. Shallow water only slows walking. Off: the hero sinks and walks along the bottom.';
+
+/** step 11b part 2: can the hero swim, and how long a breath lasts */
+function SwimField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = { ...SWIM_DEFAULTS, ...(ed.store.get<Settings>(paths.settings)?.swimming ?? {}) };
+  const save = (p: Partial<typeof cur>) =>
+    ed.exec({ type: 'project.update', payload: { swimming: { ...cur, ...p } } }, { label: 'Swimming' });
+  return (
+    <div class="field" data-tour="project-swimming" data-help="project.swimming">
+      <span>
+        Swimming
+        <FieldHelp label="Swimming" text={SWIM_HELP} />
+      </span>
+      <span class="row" style={{ gap: '8px' }}>
+        <label class="row small">
+          <input
+            type="checkbox"
+            checked={cur.can}
+            aria-label="Hero can swim"
+            onChange={(e) => save({ can: (e.target as HTMLInputElement).checked })}
+          />
+          Hero can swim
+        </label>
+        <label class="row small">
+          Breath
+          <input
+            class="inp mono"
+            type="number"
+            min={3}
+            max={300}
+            style={{ width: '64px' }}
+            aria-label="Breath (seconds)"
+            value={cur.breath}
+            onChange={(e) => {
+              const v = Math.max(3, Math.min(300, Math.round(Number((e.target as HTMLInputElement).value) || 20)));
+              save({ breath: v });
+            }}
+          />
+          s
+        </label>
+      </span>
+    </div>
+  );
+}
+
+export const MAGIC_HELP =
+  'The magic meter (as in Zelda): the hero has none until it gets something that uses magic (the Lens of Truth) or picks up a magic jar; then a green bar shows under the hearts. The Lens takes 4 a second while it is up; a Magic jar gives back 12, a Big magic jar fills it. Logic sees it as the variables magic, maxMagic and hasMagic (Set or Add variable changes it). Off: items that use magic need none, and no meter shows.';
+
+/** step 13c: does the game have magic, and how much a full meter holds */
+function MagicField({ c }: { c: ActionCtx }) {
+  const { ed } = c;
+  const cur = { ...MAGIC_DEFAULTS, ...(ed.store.get<Settings>(paths.settings)?.magic ?? {}) };
+  const save = (p: Partial<typeof cur>) =>
+    ed.exec({ type: 'project.update', payload: { magic: { ...cur, ...p } } }, { label: 'Magic' });
+  return (
+    <div class="field" data-tour="project-magic" data-help="project.magic">
+      <span>
+        Magic
+        <FieldHelp label="Magic" text={MAGIC_HELP} />
+      </span>
+      <span class="row" style={{ gap: '8px' }}>
+        <label class="row small">
+          <input
+            type="checkbox"
+            checked={cur.can}
+            aria-label="The game has magic"
+            onChange={(e) => save({ can: (e.target as HTMLInputElement).checked })}
+          />
+          The game has magic
+        </label>
+        <label class="row small">
+          Full meter
+          <input
+            class="inp mono"
+            type="number"
+            min={4}
+            max={200}
+            style={{ width: '64px' }}
+            aria-label="Full magic meter"
+            value={cur.max}
+            onChange={(e) => {
+              const v = Math.max(4, Math.min(200, Math.round(Number((e.target as HTMLInputElement).value) || 48)));
+              save({ max: v });
+            }}
+          />
+        </label>
       </span>
     </div>
   );
@@ -721,10 +926,17 @@ function ProjectTab({ c }: { c: ActionCtx }) {
           />
         </div>
         <QualityField c={c} />
+        <MovementField c={c} />
+        <ClimbingField c={c} />
+        <ScreenLookField c={c} />
+        <SwimField c={c} />
+        <MagicField c={c} />
       </div>
+      <ControlsSection c={c} />
       <SavingSection c={c} />
       <ProgressSection c={c} />
       <DialogueSection c={c} />
+      <MapsSection c={c} />
       <div class="sec">
         <div class="sech">
           <span>Limits</span>
@@ -818,6 +1030,21 @@ function ZoneInspector({ c, id }: { c: ActionCtx; id: string }) {
             />
           ))}
         </div>
+      </div>
+      <div class="sec">
+        <label class="check">
+          <input
+            type="checkbox"
+            aria-label="Show its name on the maps"
+            checked={z.tags.includes('region')}
+            onChange={(e) => {
+              const on = (e.target as HTMLInputElement).checked;
+              const rest = z.tags.filter((t, i) => i === 0 || t !== 'region');
+              patch({ tags: on ? [...rest, 'region'] : rest });
+            }}
+          />
+          Show its name on the maps (a region)
+        </label>
       </div>
       <ZoneAudio c={c} map={map} zone={z} />
       <div class="sec">

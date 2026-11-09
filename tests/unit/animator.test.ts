@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUILTIN_CHARACTERS } from '../../src/builtin/characters';
+import { V68_CHARACTERS } from '../../src/builtin/characters';
 import { BUILTIN_CLIPS } from '../../src/builtin/clips';
 import { sampleParams } from '../../src/engine/character/routine';
 import { legacyRuntime } from '../../src/engine/legacy/runtime-modules';
@@ -22,8 +22,8 @@ const close = (a: unknown, b: unknown) => {
 describe('characters and clips as data (P3.5)', () => {
   it('every v68 preset is a built-in character with the same validated profile', () => {
     const names = Object.keys(L.CharacterCatalog.presets);
-    expect(BUILTIN_CHARACTERS).toHaveLength(names.length);
-    for (const c of BUILTIN_CHARACTERS) expect(c.profile).toEqual(L.CharacterCatalog.preset(c.name));
+    expect(V68_CHARACTERS).toHaveLength(names.length);
+    for (const c of V68_CHARACTERS) expect(c.profile).toEqual(L.CharacterCatalog.preset(c.name));
   });
 
   it('every v68 routine sampled from its keyframe clip gives exactly v68’s pose parameters', () => {

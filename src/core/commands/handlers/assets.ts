@@ -1,6 +1,14 @@
 import { bricksToAsset, expandAsset, type InstanceLike } from '../../assets/expand';
 import { hasFree } from '../../assets/free';
-import { assetInstances, expandInstances, instanceBricks, maxBrickId } from '../../assets/instances';
+import {
+  assetInstances,
+  assetItems,
+  type ExpandedInstance,
+  expandCached,
+  expandInstances,
+  instanceBricks,
+  maxBrickId,
+} from '../../assets/instances';
 import { bricksBox, hasScale, hasTilt, isFree, normalizeScale, normalizeTilt } from '../../assets/tilt';
 import { type Brick, chunkKey, decodeChunk } from '../../bricks/codec';
 import { footprint, inspectBricks } from '../../bricks/inspect';
@@ -9,6 +17,7 @@ import { type Id, newId } from '../../ids';
 import type { ProjectStore } from '../../project/store';
 import { Asset, type AssetInstance, type Chunk, type Instances, type MapDoc, paths } from '../../schema';
 import type { CommandHandler } from '../types';
+import { MAX_ASSETS_PER_MAP } from './items';
 
 const getInstances = (store: ProjectStore, map: string): Instances =>
   store.get<Instances>(paths.instances(map)) ?? { npcsSaved: false, items: [] };
@@ -86,9 +95,21 @@ function localBricks(
   }
   const bricks: Brick[] = [];
   for (const k of chunks) for (const b of mb.inChunk(k)) if (meets(b, inner, 1)) bricks.push(b);
-  for (const e of exp)
-    if (e.bricks.some((b) => chunks.has(chunkKey(b.x, b.z))))
-      for (const b of e.bricks) if (meets(b, inner, 1)) bricks.push(b);
+  // Milestone 2b: a copy's box (worked out once per copy) says at once whether it reaches the area
+  const outer = new Set<number>();
+  for (const c of inner) {
+    const cx = Math.floor(c / 8192) - 4096;
+    const cz = (c % 8192) - 4096;
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) outer.add(cellOf(cx + dx, cz + dz));
+  }
+  const reaches = (box: ExpandedInstance['box']) => {
+    if (!box) return true;
+    for (let cx = Math.floor(box[0] / CELL); cx <= Math.floor((box[2] - 1) / CELL); cx++)
+      for (let cz = Math.floor(box[1] / CELL); cz <= Math.floor((box[3] - 1) / CELL); cz++)
+        if (outer.has(cellOf(cx, cz))) return true;
+    return false;
+  };
+  for (const e of exp) if (reaches(e.box)) for (const b of e.bricks) if (meets(b, inner, 1)) bricks.push(b);
   return { bricks, anchored: (b) => !meets(b, inner, 0) };
 }
 
@@ -118,23 +139,54 @@ function touchedBricks(store: ProjectStore, map: string, exp: ReturnType<typeof 
     if (m) changedAssets.add(m[1]!);
   }
   const instPath = paths.instances(map);
-  const now = new Map(exp.map((e) => [e.inst.id, e]));
-  for (const e of exp) if (changedAssets.has(e.inst.asset)) out.push(...e.bricks);
+  if (changedAssets.size) for (const e of exp) if (changedAssets.has(e.inst.asset)) out.push(...e.bricks);
   if (tx.has(instPath)) {
-    const before = ((tx.get(instPath) as Instances | undefined)?.items ?? []).filter(
-      (i): i is AssetInstance => i.kind === 'asset',
-    );
-    const beforeIds = new Set(before.map((i) => i.id));
-    for (const i of before) {
-      const cur = now.get(i.id);
-      // unchanged copies are the very same object (files change by replacement)
-      if (cur && (cur.inst === i || JSON.stringify(cur.inst) === JSON.stringify(i))) continue;
-      // where it was
-      const def = store.get<Asset>(paths.asset(i.asset));
-      if (def) out.push(...expandAsset(def, i).bricks);
-      if (cur) out.push(...cur.bricks);
+    // Milestone 2b: the copies that came, went or changed, found by walking the old and new lists side by side
+    // (files change by replacement: an unchanged copy is the very same object), not by maps of every copy
+    const before = assetItems(tx.get(instPath) as Instances | undefined);
+    const now = assetInstances(store, map);
+    const gone: AssetInstance[] = [];
+    const came: AssetInstance[] = [];
+    let ids: Map<string, number> | null = null;
+    let i = 0;
+    let j = 0;
+    while (i < before.length && j < now.length) {
+      const b = before[i]!;
+      const n = now[j]!;
+      if (b === n) {
+        i++;
+        j++;
+      } else if (b.id === n.id) {
+        if (JSON.stringify(b) !== JSON.stringify(n)) {
+          gone.push(b);
+          came.push(n);
+        }
+        i++;
+        j++;
+      } else {
+        ids ??= new Map(now.map((x, k) => [x.id, k]));
+        const at = ids.get(b.id);
+        // the old copy is gone (or further on in the new list): the new one at this place came
+        if (at === undefined || at < j) {
+          gone.push(b);
+          i++;
+        } else {
+          came.push(n);
+          j++;
+        }
+      }
     }
-    for (const e of exp) if (!beforeIds.has(e.inst.id)) out.push(...e.bricks);
+    for (; i < before.length; i++) gone.push(before[i]!);
+    for (; j < now.length; j++) came.push(now[j]!);
+    for (const g of gone) {
+      // where it was
+      const def = store.get<Asset>(paths.asset(g.asset));
+      if (def) out.push(...expandCached(def, g).bricks);
+    }
+    for (const c of came) {
+      const def = store.get<Asset>(paths.asset(c.asset));
+      if (def) out.push(...expandCached(def, c).bricks);
+    }
   }
   return out;
 }
@@ -176,6 +228,8 @@ export const placeAsset: CommandHandler<PlaceAsset> = {
     if (e) return e;
     const def = store.get<Asset>(paths.asset(p.asset));
     if (!def) return 'That asset does not exist in this project.';
+    if (assetInstances(store, p.map).length >= MAX_ASSETS_PER_MAP)
+      return `A map holds at most ${MAX_ASSETS_PER_MAP.toLocaleString('en-US')} placed assets.`;
     if (brickCount(store, p.map) + def.bricks.length > MAX_BRICKS_PER_MAP)
       return `A map can hold ${MAX_BRICKS_PER_MAP.toLocaleString('en-US')} bricks.`;
     if (p.state && !def.states.includes(p.state)) return `${def.name} has no state "${p.state}".`;

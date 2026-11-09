@@ -1,0 +1,272 @@
+{
+  "id": "hooks",
+  "title": "Hook and magnet course",
+  "steps": [
+    {
+      "id": "hm.open",
+      "title": "Hook and magnet",
+      "body": "Things that pull and hold, as in Zelda: a hook line (the hookshot), a grapple rope to hang and swing from, and a magnet glove (Breath of the Wild’s Magnesis). They are under Starter pack › Hook and magnet. Each one works by the physics: on a line the lighter end moves, a hanging hero is a pendulum, and the glove holds a thing up with a spring.",
+      "task": "Open Starter pack in the bottom dock.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "dockIs",
+        "args": "pack"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "pack"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hm.wall",
+      "title": "A wall with a hook target",
+      "body": "Place the Hook line beside the start, a Smooth wall 16 studs ahead (too smooth to climb), and a Hook target on top of the wall. The hook catches on hook targets and on wood; on stone it clinks and comes back.",
+      "task": "Place the Hook line, a Smooth wall and a Hook target on it.",
+      "target": "[aria-label=\"Hook and magnet\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Hook line,Smooth wall,Hook target"
+      },
+      "doItForMe": [
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Hook line",
+            "ahead": 1,
+            "side": 3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Smooth wall",
+            "ahead": 16
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Hook target",
+            "ahead": 16
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hm.pull",
+      "title": "Up the wall",
+      "body": "Press Play and walk over the hook line; press its button (J). Face the target and hold F: the hero stands and aims, dots show the line, and the mark turns green on something it will catch. Let go: the chain shoots out, the hook catches, and you are pulled up along it (the chain holds your weight), then climb onto the top of the wall.",
+      "task": "Press Play and hook yourself up the wall.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Pulled to the hook"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "hookTo",
+          "args": {
+            "name": "Hook target",
+            "from": 10
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hm.crate",
+      "title": "Pull a light crate to you",
+      "body": "Stop the game. Place a Light crate to the left of the start, about 8 studs ahead. Press Play, take out the hook line and shoot it at the crate: it is lighter than you (3.8 against your 6), so it comes to you instead of you going to it.",
+      "task": "Place a Light crate, press Play and hook it to you.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "came to the hero"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Light crate",
+            "ahead": 8,
+            "side": -6
+          }
+        },
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "hookTo",
+          "args": {
+            "name": "Light crate",
+            "from": 8,
+            "until": "came to the hero"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hm.beam",
+      "title": "A beam to swing from",
+      "body": "Stop the game. Place the Grapple rope beside the start and a Swing beam to the right, about 8 studs ahead.",
+      "task": "Place the Grapple rope and a Swing beam.",
+      "target": "[aria-label=\"Hook and magnet\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Grapple rope,Swing beam"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Grapple rope",
+            "ahead": -2,
+            "side": 3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Swing beam",
+            "ahead": 8,
+            "side": 12
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hm.swing",
+      "title": "Swing",
+      "body": "Press Play, walk over the grapple rope and press its button. Stand under the beam, hold F to aim up at it and let go: the claw catches the beam and you hang from the rope. Hold Shift and W to climb up off the ground, then W and S to swing (push as the swing goes, as on a playground swing). Press Space to let go: you fly on with the swing’s speed.",
+      "task": "Press Play, hang from the beam, swing and let go.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Let go of the rope"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "swingRope"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hm.magnet",
+      "title": "Metal and a switch",
+      "body": "Stop the game. Place the Magnet glove beside the start, an Iron crate 6 studs ahead to the left, and a Floor switch 6 studs further left.",
+      "task": "Place the Magnet glove, an Iron crate and a Floor switch.",
+      "target": "[aria-label=\"Hook and magnet\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Magnet glove,Iron crate,Floor switch"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Magnet glove",
+            "ahead": -2,
+            "side": -3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Iron crate",
+            "ahead": 6,
+            "side": -10
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Floor switch",
+            "ahead": 6,
+            "side": -16
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hm.lift",
+      "title": "Lift it onto the switch",
+      "body": "Press Play, walk over the magnet glove and press its button. Face the iron crate and hold F: it rises and floats in front of you (W and S move it out and in, A and D turn). Walk until it hangs over the floor switch and let go of F: it drops and holds the switch down. Only metal answers the glove, and iron is heavy: the hook line will not pull it.",
+      "task": "Press Play and drop the iron crate on the switch.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Floor switch on"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "magnetOnto",
+          "args": {
+            "thing": "Iron crate",
+            "onto": "Floor switch"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hm.done",
+      "title": "Done!",
+      "body": "You hooked yourself up a wall, pulled a light crate to you, swung on a rope and let go, and carried an iron crate with the magnet glove. Make your own: in the Asset studio’s Wind and lifting section, tick The hook catches on it (a ring, a beam) or Metal (the glove lifts a loose one).",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

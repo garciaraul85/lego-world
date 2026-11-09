@@ -1,4 +1,5 @@
 import SHOTS from '../../../docs/help/shots/index.json';
+import { isQuestClass } from '../../core/logic/builtins';
 import type { ActionCtx } from '../actions/registry';
 import { helpEntry, SCREENS } from '../help/entries';
 import { findControl } from '../help/show';
@@ -95,6 +96,8 @@ type SceneLike = {
 const scene = (c: ActionCtx) => c.ed.scene.value as unknown as SceneLike | null;
 
 const DOCK: Record<string, string> = {
+  pack: 'Starter pack',
+  library: 'My library',
   console: 'Console',
   timeline: 'Timeline',
   profiler: 'Profiler',
@@ -109,6 +112,7 @@ const CATS: Record<string, string> = {
   'ui-screens': 'UI screens',
   effects: 'Effects',
   lights: 'Lights',
+  water: 'Water',
   sounds: 'Sounds',
   music: 'Music',
 };
@@ -134,7 +138,18 @@ export function stepsToView(view: string): ShowStep[] {
   const left = (id: 'hier' | 'layers' | 'search', label: string) =>
     tab('Outliner', label, (c) => c.ed.left.value === id);
   if (view.startsWith('scene-dock-')) {
-    const d = view.slice(11);
+    // step 12a/12b: Puzzle pieces and Fire and light are sections of the Starter pack tab
+    const v = view.slice(11);
+    const d =
+      v === 'puzzles' ||
+      v === 'firelight' ||
+      v === 'icemove' ||
+      v === 'wind' ||
+      v === 'shots' ||
+      v === 'hooks' ||
+      v === 'lens'
+        ? 'pack'
+        : v;
     return [ws('Scene'), tab('Bottom dock', DOCK[d] ?? d, (c) => c.ed.dock.value === d)];
   }
   if (view.startsWith('scene-cat-')) {
@@ -226,6 +241,7 @@ export function stepsToView(view: string): ShowStep[] {
         right('inspect', 'Inspector'),
       ];
     case 'scene-map':
+    case 'scene-map-dungeon':
     case 'scene-atmosphere':
     case 'scene-bigworld':
       return [ws('Scene'), right('map', 'Map')];
@@ -233,6 +249,9 @@ export function stepsToView(view: string): ShowStep[] {
     case 'scene-saving':
     case 'scene-progress':
     case 'scene-dialogue':
+    case 'scene-swimming':
+    case 'scene-controls':
+    case 'scene-look':
       return [ws('Scene'), right('project', 'Project')];
     case 'scene-layers':
       return [ws('Scene'), left('layers', 'Layers')];
@@ -264,6 +283,66 @@ export function stepsToView(view: string): ShowStep[] {
       return [{ say: 'Open Keyboard shortcuts.', find: control('body', 'Keyboard shortcuts', 'button'), press: true }];
     case 'world':
       return [ws('World graph')];
+    // Milestone 3b (B1): a behaviour open in Logic (its fields beside the class)
+    case 'logic-behaviour':
+      return [
+        ws('Logic'),
+        {
+          say: 'Open a behaviour (Logic › Behaviours, left).',
+          find: () => null,
+          run: (c) => {
+            for (const p of c.ed.store.list('logic/')) {
+              const g = c.ed.store.get<{ id: string; behaviour?: unknown }>(p);
+              if (g?.behaviour) {
+                c.ed.logicGraph.value = g.id;
+                break;
+              }
+            }
+            c.ed.logicView.value = 'split';
+          },
+          done: (c) => {
+            const g = c.ed.store.get<{ behaviour?: unknown }>(`logic/${c.ed.logicGraph.value}.json`);
+            return !!g?.behaviour;
+          },
+        },
+      ];
+    // Milestone 3b (B7a-2): a quest open in Logic (its Steps panel beside its class)
+    case 'logic-quest':
+      return [
+        ws('Logic'),
+        {
+          say: 'Open a quest (a behaviour that extends Quest, MainQuest or SideQuest), or extend SideQuest under Built-in › Quests.',
+          find: () => null,
+          run: (c) => {
+            for (const p of c.ed.store.list('logic/')) {
+              const g = c.ed.store.get<{ id: string; behaviour?: { extends?: string } }>(p);
+              if (g?.behaviour && isQuestClass(g.behaviour.extends)) {
+                c.ed.logicGraph.value = g.id;
+                c.ed.logicView.value = 'split';
+                return;
+              }
+            }
+            c.ed.logicGraph.value = 'builtin:SideQuest';
+          },
+          done: (c) => {
+            const g = c.ed.store.get<{ behaviour?: { extends?: string } }>(`logic/${c.ed.logicGraph.value}.json`);
+            return isQuestClass(g?.behaviour?.extends) || c.ed.logicGraph.value === 'builtin:SideQuest';
+          },
+        },
+      ];
+    // Milestone 3b (B3): a built-in behaviour's page
+    case 'logic-builtin':
+      return [
+        ws('Logic'),
+        {
+          say: 'Open a built-in behaviour (Logic › Built-in, left).',
+          find: () => null,
+          run: (c) => {
+            c.ed.logicGraph.value = 'builtin:Lock';
+          },
+          done: (c) => c.ed.logicGraph.value?.startsWith('builtin:') ?? false,
+        },
+      ];
     case 'logic':
     case 'logic-code':
       return [
@@ -291,6 +370,18 @@ export function stepsToView(view: string): ShowStep[] {
             ]
           : []),
       ];
+    case 'logic-templates':
+      return [
+        ws('Logic'),
+        {
+          say: 'Open the script templates.',
+          find: () => null,
+          run: (c) => {
+            c.ed.templates.value = { kind: 'script', id: 'boss' };
+          },
+          done: (c) => !!c.ed.templates.value,
+        },
+      ];
     case 'characters':
       return [ws('Characters')];
     case 'characters-outfits':
@@ -311,6 +402,49 @@ export function stepsToView(view: string): ShowStep[] {
         },
       ];
     }
+    case 'characters-shape':
+      // Milestone 3, 10d: body shaping is in the Look tab
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Look tab of the sheet; Body shape is under Body.',
+          find: control('[aria-label="Character sheet"]', /^Look$/),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === 'look',
+        },
+      ];
+    case 'characters-sculpt':
+      // 10d part 3: Paint and sculpt is in the Body tab of a creature
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Body tab of the sheet; Paint and sculpt is below the body’s settings (a creature, not a minifig).',
+          find: control('[aria-label="Character sheet"]', /^Body$/),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === 'body',
+        },
+      ];
+    case 'characters-hair':
+      // Milestone 3, 10d part 3: custom hair is in the Look tab, under Hair color
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Look tab of the sheet; custom hair is under Hair color in Face & hair.',
+          find: control('[aria-label="Character sheet"]', /^Look$/),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === 'look',
+        },
+      ];
+    case 'characters-draw':
+      return [
+        ws('Characters'),
+        {
+          say: 'Open the Draw tab of the sheet.',
+          find: control('[aria-label="Character sheet"]', /^Draw$/),
+          press: true,
+          done: (c) => c.ed.sheetTab.value === 'draw',
+        },
+      ];
     case 'characters-face':
       return [
         ws('Characters'),
@@ -331,6 +465,27 @@ export function stepsToView(view: string): ShowStep[] {
           done: (c) => c.ed.fromPicture.value,
         },
       ];
+    case 'assets-from-picture':
+      return [
+        ws('Assets'),
+        {
+          say: 'Press ✨ From a picture… under + New asset.',
+          find: control('[data-tour="asset-from-picture"]', /From a picture/),
+          press: true,
+          done: (c) => c.ed.fromPicture.value && c.ed.makeKind.value === 'asset',
+        },
+      ];
+    case 'world-from-picture':
+      return [
+        ws('Scene'),
+        { say: 'Open the World menu.', find: control('nav[aria-label="Menu"]', /^World$/), press: true },
+        {
+          say: 'Choose New map from a picture or words…',
+          find: control('[role="menu"]', /from a picture/),
+          press: true,
+          done: (c) => c.ed.fromPicture.value && c.ed.makeKind.value === 'map',
+        },
+      ];
     case 'characters-poses':
       // P23 part 4: a clip open in the Poses view
       return [
@@ -349,8 +504,10 @@ export function stepsToView(view: string): ShowStep[] {
         },
       ];
     case 'characters-body':
+    case 'characters-body-moves':
     case 'characters-skeleton':
-      // P22 part 3: the Body tab (the skeleton editor is in it, below the shape and colours)
+    case 'characters-extras':
+      // P22 part 3: the Body tab (the skeleton editor is in it, below the shape and colours; 10d part 2: its moves under the preview)
       return [
         ws('Characters'),
         {
@@ -385,6 +542,10 @@ export function stepsToView(view: string): ShowStep[] {
       return [ws('Assets')];
     case 'assets-open':
     case 'assets-checkpoint':
+    case 'assets-puzzle':
+    case 'assets-firelight':
+    case 'assets-icemove':
+    case 'assets-wind':
       return [
         ws('Assets'),
         {
@@ -398,6 +559,21 @@ export function stepsToView(view: string): ShowStep[] {
       return [
         ws('Assets'),
         { say: 'Open the Bricks tab.', find: control('[aria-label="Asset library"]', 'Bricks'), press: true },
+      ];
+    case 'assets-custom-brick':
+      return [
+        ws('Assets'),
+        { say: 'Open the Bricks tab.', find: control('[aria-label="Asset library"]', 'Bricks'), press: true },
+        {
+          say: 'Press Custom.',
+          find: control('[aria-label="Asset library"]', /Custom/, '[data-tour="brick-kind-custom"]'),
+          press: true,
+        },
+        {
+          say: 'Press New brick… to open the brick editor.',
+          find: control('[aria-label="Asset library"]', /New brick/, '[data-tour="brick-new"]'),
+          press: true,
+        },
       ];
     case 'screens':
       return [ws('Screens')];
@@ -466,6 +642,34 @@ export function stepsToView(view: string): ShowStep[] {
         }),
         right('inspect', 'Inspector'),
       ];
+    case 'scene-water':
+      // Milestone 2b: water placed on the map
+      return [
+        ws('Scene'),
+        select('Select water on the map (Dock › Water › Place, or right-click the ground: Add water here).', (c) => {
+          const items =
+            c.ed.store.get<{ items: { id: string; kind: string }[] }>(`maps/${c.ed.mapId.value}/instances.json`)
+              ?.items ?? [];
+          const it = items.find((x) => x.kind === 'water');
+          if (it) c.ed.selectedItem.value = it.id;
+          return !!it;
+        }),
+        right('inspect', 'Inspector'),
+      ];
+    case 'scene-model':
+      // Milestone 2b, 10c part 5: a 3D model placed on the map
+      return [
+        ws('Scene'),
+        select('Select a 3D model on the map (Dock › 3D models › Place, if there is none).', (c) => {
+          const items =
+            c.ed.store.get<{ items: { id: string; kind: string }[] }>(`maps/${c.ed.mapId.value}/instances.json`)
+              ?.items ?? [];
+          const it = items.find((x) => x.kind === 'model');
+          if (it) c.ed.selectedItem.value = it.id;
+          return !!it;
+        }),
+        right('inspect', 'Inspector'),
+      ];
     case 'audio-music':
       return [
         ws('Audio'),
@@ -498,6 +702,26 @@ export function stepsToView(view: string): ShowStep[] {
         ws('Scene'),
         { say: 'Open the File menu.', find: control('nav[aria-label="Menu"]', /^File$/), press: true },
         { say: 'Choose New project…', find: control('body', 'New project', '[role="menuitem"]') },
+      ];
+    case 'media-library':
+      return [
+        { say: 'Open the File menu.', find: control('nav[aria-label="Menu"]', /^File$/), press: true },
+        {
+          say: 'Choose Media library…',
+          find: control('body', /^Media library/, '[role="menuitem"]'),
+          press: true,
+          done: (c) => c.ed.mediaLibrary.value,
+        },
+      ];
+    case 'screens-video':
+    case 'screens-credits':
+      return [
+        ws('Screens'),
+        { say: 'Open the Screens tab.', find: control('body', /^Screens$/, '[role="tab"]'), press: true },
+        {
+          say: `Under Add, click ${view === 'screens-video' ? 'Video' : 'Credits'} (or select one on the screen).`,
+          find: control('[aria-label="Add widget"]', view === 'screens-video' ? 'Add Video' : 'Add Credits'),
+        },
       ];
     default:
       return [];

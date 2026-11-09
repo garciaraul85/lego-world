@@ -1,4 +1,17 @@
 import { useMemo, useState } from 'preact/hooks';
+import {
+  anyBuiltinNamed,
+  BUILTINS,
+  CHARACTER_BUILTINS,
+  isGameClass,
+  isMapClass,
+  isMapScriptClass,
+  isQuestClass,
+} from '../../../core/logic/builtins';
+
+const isBrain = (parent: string | undefined) => parent === 'Brain' || parent === 'EnemyBrain';
+const isPart = (parent: string | undefined) => parent === 'Senses' || parent === 'Mover' || parent === 'Attack';
+
 import { CATALOG, nodeDef } from '../../../core/logic/catalog';
 import { fieldHelp } from '../../../core/logic/field-help';
 import { graphProblems } from '../../../core/logic/graph';
@@ -16,9 +29,11 @@ import { controlMenu } from '../../genres/GenrePicker';
 import { noteRecent, prefsOf, shows, viewGenre } from '../../genres/view';
 import { PickedThumb } from '../../panels/AudioFields';
 import { keysFor } from '../../platform';
+import { BEHAVIOUR_HELP, BehaviourPanel, usedOn } from './BehaviourPanel';
+import { BUILTIN_HELP, BuiltinPage } from './BuiltinPage';
 import { CodeView } from './CodeView';
 import { GraphView, toggleBreakpoint } from './GraphView';
-import { argChoices, CAT_COLOR, graphs, newGraph, nodeHeight, ownerOf, variables } from './model';
+import { argChoices, CAT_COLOR, graphs, newBehaviour, newGraph, nodeHeight, ownerOf, variables } from './model';
 import {
   assetByRef,
   assetNames,
@@ -37,7 +52,9 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
   const list = graphs(ed);
-  const graph = list.find((g) => g.id === ed.logicGraph.value) ?? list[0] ?? null;
+  // Milestone 3b (B3): a built-in behaviour's page (logicGraph "builtin:Lock")
+  const builtin = ed.logicGraph.value?.startsWith('builtin:') ? anyBuiltinNamed(ed.logicGraph.value.slice(8)) : null;
+  const graph = builtin ? null : (list.find((g) => g.id === ed.logicGraph.value) ?? list[0] ?? null);
   const mode: Mode = ed.logicView.value;
   const setMode = (m: Mode) => (ed.logicView.value = m);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -58,10 +75,24 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
     const g = newGraph(`Logic ${list.length + 1}`, { type: 'event.onStart' });
     if (ed.exec({ type: 'logic.create', payload: { graph: g } }).ok) ed.logicGraph.value = g.id;
   };
+  // Milestone 3b (B1): a behaviour (a script to attach to things, with fields)
+  const createBehaviour = () => {
+    const n = list.filter((g) => g.behaviour).length + 1;
+    const g = newBehaviour(`Behaviour ${n}`);
+    if (ed.exec({ type: 'logic.create', payload: { graph: g } }, { label: 'New behaviour' }).ok)
+      ed.logicGraph.value = g.id;
+  };
 
   return (
     <div class="studio logic-ws">
-      <Sidebar c={c} list={list} graph={graph} onCreate={create} onAdded={(id) => setSelected(new Set([id]))} />
+      <Sidebar
+        c={c}
+        list={list}
+        graph={graph}
+        onCreate={create}
+        onCreateBehaviour={createBehaviour}
+        onAdded={(id) => setSelected(new Set([id]))}
+      />
       <section class="panel studio-main" aria-label="Logic editor">
         <div class="ptabs studio-head">
           {graph ? (
@@ -98,6 +129,48 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
             ▶ Play &amp; trace
           </button>
         </div>
+        {/* Milestone 3b (B7a-2): a quest, or the maps' behaviour, is in the game as written */}
+        {graph?.behaviour && isGameClass(graph.behaviour.extends) && (
+          <div class="lg-owner small" role="note" data-tour="behaviour-note">
+            {isQuestClass(graph.behaviour.extends) ? (
+              <>
+                Quest: it is in the game as written (nothing to attach). Start it with{' '}
+                <code>quest.start("{graph.name}")</code>; its steps are in the class and in the Steps panel. In its
+                methods, “this” is the quest.
+              </>
+            ) : isMapClass(graph.behaviour.extends) ? (
+              <>
+                The maps: it is in the game as written (nothing to attach). Its hooks decide what both maps show; its
+                events say when the map opens, closes or gets a pin.
+              </>
+            ) : (
+              <>
+                The game’s rules: it is in the game as written (nothing to attach). Its hooks decide game over, winning,
+                where and how the hero comes back, saving and new game plus.
+              </>
+            )}
+          </div>
+        )}
+        {/* Milestone 3b (B7a-3): a map's own behaviour */}
+        {graph?.behaviour && isMapScriptClass(graph.behaviour.extends) && (
+          <div class="lg-owner small" role="note" data-tour="behaviour-note">
+            Map behaviour: attach it to a map in the Inspector’s <strong>Map</strong> tab › Behaviours; it runs while
+            the hero is on that map. {(() => {
+              const n = usedOn(ed, graph.id).maps.length;
+              return n ? `On ${usedOn(ed, graph.id).maps.join(', ')}.` : 'Not on a map yet.';
+            })()}
+          </div>
+        )}
+        {graph?.behaviour && !isGameClass(graph.behaviour.extends) && !isMapScriptClass(graph.behaviour.extends) && (
+          <div class="lg-owner small" role="note" data-tour="behaviour-note">
+            Behaviour: attach it to things with <strong>+ Script</strong> in the Inspector. Each copy runs its own:
+            “this” is that copy, <code>this.name</code> its fields and own variables. {(() => {
+              const u = usedOn(ed, graph.id);
+              const n = u.assets.length + u.characters.length + u.copies;
+              return n ? `Used on ${n} thing${n === 1 ? '' : 's'}.` : 'Not attached to anything yet.';
+            })()}
+          </div>
+        )}
         {graph?.owner && (
           <div class="lg-owner small" role="note">
             Script on <strong>{ownerOf(ed, graph.owner)?.name}</strong>: its events about objects (used, hit, smashed,
@@ -120,14 +193,24 @@ export function LogicWorkspace({ c }: { c: ActionCtx }) {
               .join(', ') || 'no inputs'}
           </div>
         )}
-        {!graph ? (
+        {builtin ? (
+          <BuiltinPage c={c} b={builtin} />
+        ) : !graph ? (
           <div class="placeholder">
             <strong>No logic yet</strong>
             <span class="muted">
               Logic graphs react to events (start, entering a zone, opening a chest, rebuilding) and change the game.
             </span>
-            <button type="button" class="btn on" onClick={create}>
+            <button type="button" class="btn on" data-help="logic.graphs" onClick={create}>
               + New logic graph
+            </button>
+            <button
+              type="button"
+              class="btn"
+              data-help="pack.templates"
+              onClick={() => (ed.templates.value = { kind: 'script' })}
+            >
+              + From a template…
             </button>
           </div>
         ) : (
@@ -176,12 +259,14 @@ function Sidebar({
   list,
   graph,
   onCreate,
+  onCreateBehaviour,
   onAdded,
 }: {
   c: ActionCtx;
   list: LogicGraph[];
   graph: LogicGraph | null;
   onCreate: () => void;
+  onCreateBehaviour: () => void;
   /** P32: the node just added from the list (it is selected, so its settings show at once) */
   onAdded: (node: string) => void;
 }) {
@@ -242,32 +327,142 @@ function Sidebar({
               }
             />
           </span>
-          <button type="button" class="link" data-tour="logic-new" aria-label="New file" onClick={onCreate}>
-            + New
-          </button>
-        </div>
-        {list.map((g) => (
-          <div class={`lib-item ${g.id === graph?.id ? 'on' : ''}`}>
-            <button type="button" class="link lg-graph-name" onClick={() => (ed.logicGraph.value = g.id)}>
-              {g.name}
-              {g.owner && <span class="small muted"> · on {ownerOf(ed, g.owner)?.name}</span>}
+          <span class="row">
+            <button type="button" class="link" data-tour="logic-new" aria-label="New file" onClick={onCreate}>
+              + New
             </button>
-            <span class="mono small muted">{g.nodes.length}</span>
             <button
               type="button"
               class="link"
-              aria-label={`Delete ${g.name}`}
-              onClick={() => ed.exec({ type: 'logic.delete', payload: { graph: g.id } })}
+              data-tour="logic-template"
+              data-help="pack.templates"
+              title="Ready-made logic from the starter pack: a locked door, a shop, a boss fight…"
+              onClick={() => (ed.templates.value = { kind: 'script' })}
             >
-              ×
+              + From a template…
             </button>
-          </div>
-        ))}
-        {!list.length && (
+          </span>
+        </div>
+        {list
+          .filter((g) => !g.behaviour)
+          .map((g) => (
+            <div class={`lib-item ${g.id === graph?.id ? 'on' : ''}`}>
+              <button type="button" class="link lg-graph-name" onClick={() => (ed.logicGraph.value = g.id)}>
+                {g.name}
+                {g.owner && <span class="small muted"> · on {ownerOf(ed, g.owner)?.name}</span>}
+              </button>
+              <span class="mono small muted">{g.nodes.length}</span>
+              <button
+                type="button"
+                class="link"
+                aria-label={`Delete ${g.name}`}
+                onClick={() => ed.exec({ type: 'logic.delete', payload: { graph: g.id } })}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        {!list.some((g) => !g.behaviour) && (
           <div class="hint" style={{ padding: '4px 10px' }}>
             No files yet.
           </div>
         )}
+
+        {/* Milestone 3b (B1): behaviours — scripts with fields that you attach to things */}
+        <div class="sech" style={{ padding: '12px 10px 4px' }}>
+          <span>
+            Behaviours
+            <FieldHelp label="Behaviours" text={BEHAVIOUR_HELP.what} />
+          </span>
+          <button
+            type="button"
+            class="link"
+            data-tour="behaviour-new"
+            aria-label="New behaviour"
+            onClick={onCreateBehaviour}
+          >
+            + New
+          </button>
+        </div>
+        {list
+          .filter((g) => g.behaviour)
+          .map((g) => (
+            <div class={`lib-item ${g.id === graph?.id ? 'on' : ''}`}>
+              <button type="button" class="link lg-graph-name" onClick={() => (ed.logicGraph.value = g.id)}>
+                {g.name}
+                <span class="small muted">
+                  {' '}
+                  · {g.behaviour!.fields.length} field{g.behaviour!.fields.length === 1 ? '' : 's'}
+                </span>
+              </button>
+              <span class="mono small muted">{g.nodes.length}</span>
+              <button
+                type="button"
+                class="link"
+                aria-label={`Delete ${g.name}`}
+                onClick={() => ed.exec({ type: 'logic.delete', payload: { graph: g.id } })}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        {graph?.behaviour && <BehaviourPanel c={c} graph={graph} />}
+        {/* Milestone 3b (B3): the engine's own features, to read about and extend */}
+        <div class="sech" style={{ padding: '10px 10px 4px' }}>
+          <span>
+            Built-in
+            <FieldHelp label="Built-in behaviours" text={BUILTIN_HELP} />
+          </span>
+          <span>{BUILTINS.length + CHARACTER_BUILTINS.length}</span>
+        </div>
+        <div data-tour="builtin-list">
+          {(
+            [
+              ['Assets', BUILTINS],
+              [
+                'Characters',
+                CHARACTER_BUILTINS.filter(
+                  (b) =>
+                    !b.parent &&
+                    b.name !== 'Brain' &&
+                    !b.isInterface &&
+                    b.items === undefined &&
+                    !isGameClass(b.name) &&
+                    b.name !== 'MapScript',
+                ),
+              ],
+              ['Brains', CHARACTER_BUILTINS.filter((b) => b.name === 'Brain' || isBrain(b.parent))],
+              // Milestone 3b (B5b): an enemy's abilities, by interface
+              ['Parts', CHARACTER_BUILTINS.filter((b) => b.isInterface || isPart(b.parent))],
+              // Milestone 3b (B6): the hero's items (Item, Projectile and the built-in ones)
+              ['Items', CHARACTER_BUILTINS.filter((b) => b.items !== undefined)],
+              // Milestone 3b (B7a-2): quests and the maps (in the game as written)
+              ['Quests', CHARACTER_BUILTINS.filter((b) => isQuestClass(b.name))],
+              ['Maps', CHARACTER_BUILTINS.filter((b) => isMapClass(b.name))],
+              // Milestone 3b (B7a-3): the game's rules, and a map's own behaviour
+              ['Game', CHARACTER_BUILTINS.filter((b) => b.name === 'GameMode' || b.name === 'MapScript')],
+            ] as const
+          ).map(([group, list]) => (
+            <>
+              <div class="small muted" style={{ padding: '4px 10px 0' }}>
+                {group}
+              </div>
+              <div class="builtin-chips">
+                {list.map((b) => (
+                  <button
+                    type="button"
+                    class={`chip-btn ${ed.logicGraph.value === `builtin:${b.name}` ? 'on' : ''}`}
+                    aria-label={`Built-in ${b.name}`}
+                    title={b.about}
+                    onClick={() => (ed.logicGraph.value = `builtin:${b.name}`)}
+                  >
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          ))}
+        </div>
 
         <div class="sech" style={{ padding: '12px 10px 4px' }}>
           <span>

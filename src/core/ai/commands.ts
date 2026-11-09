@@ -1,14 +1,20 @@
 import { z } from 'zod';
+import { CUSTOM_SHAPES, CustomBrick } from '../bricks/custom';
 import { BodyPlan } from '../character/body';
+import { CREATURE_EXTRAS, CREATURE_SHAPES } from '../character/compose';
+import { HAIR_BEARDS, HAIR_FRINGES, HAIR_PARTINGS, HAIR_TIES, HAIR_TOPS, HairStyle } from '../character/hair';
 import * as A from '../commands/handlers/assets';
 import * as Au from '../commands/handlers/audio';
 import * as Bp from '../commands/handlers/bodyplans';
 import * as B from '../commands/handlers/bricks';
 import * as Ch from '../commands/handlers/characters';
 import * as Ci from '../commands/handlers/cinematics';
+import * as Cb from '../commands/handlers/custombricks';
 import * as Dl from '../commands/handlers/dialogue';
 import * as Fx from '../commands/handlers/effects';
 import * as G from '../commands/handlers/gates';
+import * as Hs from '../commands/handlers/hairstyles';
+import * as Hd from '../commands/handlers/hud';
 import * as I from '../commands/handlers/items';
 import * as L from '../commands/handlers/logic';
 import * as M from '../commands/handlers/map';
@@ -16,11 +22,13 @@ import * as Np from '../commands/handlers/npcs';
 import * as Pr from '../commands/handlers/progress';
 import * as Sc from '../commands/handlers/scatter';
 import type { CommandHandler } from '../commands/types';
+import { HUD_STYLES } from '../controls/hud-styles';
 import { Conversation } from '../dialogue/schema';
 import { Effect, EffectHooks } from '../effects/schema';
 import { Mood, ScreenEffect, ScreenHooks } from '../effects/screen';
 import type { idPattern } from '../ids';
 import { Ambient, Fog } from '../lighting/atmosphere';
+import { MapLookOverride, MapLooks } from '../maps/look';
 import { QUALITY_CHOICES } from '../render/quality';
 import { ProgressDoc } from '../save/progress';
 import { Saving } from '../save/save';
@@ -37,12 +45,14 @@ import {
   LogicGraph,
   LogicNode,
   Mixer,
+  ModelInstance,
   Music,
   Screen,
   SoundEvents,
   TIMES,
   UiInstance,
   VarType,
+  WaterInstance,
   Zone,
 } from '../schema';
 
@@ -89,7 +99,7 @@ const Generate = z.strictObject({
   snowing: z.boolean().optional(),
 });
 const NewBrick = z.strictObject({
-  type: z.string().regex(/^(brick|plate|tile)\d+x\d+$/),
+  type: z.string().regex(/^(brick|plate|tile)(:cbk_[0-9a-z]{10}:)?\d+x\d+$/),
   x: z.number().int(),
   y: z.number().int().min(0),
   z: z.number().int(),
@@ -102,7 +112,7 @@ const NewBrick = z.strictObject({
 const BrickIds = z.strictObject({ map, ids: z.array(z.number().int()).min(1) });
 const SpawnInput = { name: z.string().min(1).max(60).optional(), pos: xyz.optional(), yaw: z.number().optional() };
 const ZoneShape = Zone.shape;
-const Item = z.discriminatedUnion('kind', [EmitterInstance, UiInstance, LightInstance]);
+const Item = z.discriminatedUnion('kind', [EmitterInstance, UiInstance, LightInstance, WaterInstance, ModelInstance]);
 const Edge = z.tuple([z.string(), z.string(), z.string(), z.string()]);
 const VarDef = z.strictObject({
   type: VarType,
@@ -197,6 +207,33 @@ export const AI_COMMANDS: AiCommand[] = [
     'Scene',
     'Time of day and weather of a map, and its mood ({grade: none | warm | cold | night | dream | oldFilm | mono | toxic, vignette 0–1, drift: none | rain | snow | fog | dust | embers | leaves, amount 0–1}; null: none), and its darkness without lights (0 as its sky lights it … 1 pitch black; lights are item.add {kind:"light"}), its fog ({near, far studs, thickness 0–1, color?, height? ground fog below it, groundThickness?}; null none), ambient (the shadows’ colour {color, strength 0–2}; null as the sky gives) and dayLength (minutes a day takes in play, 0 time stands still; null 20), and viewDistance (studs a big map is drawn to, 64–2048; null 256).',
     { map: M1, time: 'evening', rain: true },
+  ),
+  def(
+    'map.setDungeon',
+    M.setDungeon,
+    z.strictObject({ map, dungeon: z.boolean() }),
+    ['map'],
+    'Scene',
+    'Makes a map a dungeon (or not): in play its minimap shows only where the hero has been until the Dungeon map is picked up there, the Compass marks its unopened chests and its boss, and small keys, the boss key, the map and the compass found there belong to it (they open only its own doors).',
+    { map: M1, dungeon: true },
+  ),
+  def(
+    'map.setLook',
+    M.setMapLook,
+    z.strictObject({ map, look: MapLookOverride.nullable() }),
+    ['map'],
+    'Scene',
+    'A map’s own pause map and map in play ({pause?: {type, …as project.update maps.pause}, mini?: {type, …}}), over the game’s; null: the game’s.',
+    { map: M1, look: { pause: { type: 'chart' } } },
+  ),
+  def(
+    'hud.applyStyle',
+    Hd.applyHudStyle,
+    z.strictObject({ style: z.enum(HUD_STYLES).nullable() }),
+    [],
+    'Scene',
+    'A HUD style after an era of 3D adventure games: corner64 (corner buttons: green Attack, blue Action, three yellow item buttons), cube (big-button cluster around a big green Action), pointer (a remote-shaped strip; hold the item button for the item wheel), tablet (a second screen along the bottom with the map, buttons and touchable items), openair (small hints, a stamina wheel, a jump button). Sets the button layout and arranges the HUD screen; null: the plain look and built-in HUD.',
+    { style: 'corner64' },
   ),
   def(
     'map.addSpawn',
@@ -495,7 +532,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ asset: Asset }),
     ['asset'],
     'Assets',
-    'Replaces an asset definition: states, sockets, interactions, smash, generator rules. Send the whole asset.',
+    'Replaces an asset definition: states, sockets, interactions, smash, generator rules, loose (true: copies fall, tip over and float in play), and the puzzle parts: push ({pull?, step?}: the hero shoves it square along the floor; pull: hold Action and step back), switch ({by: step | hit | press | light, stays: on | held | timed | toggle, seconds?, hitBy?: damage types (fire: a torch stand), heavy?: any | hero | block, weight?: 1-10}; off and on are its first two states; light: a beam reaching it), lock ({key: small | boss | item, item?, keep?}; locked and open are its first two states) and pickup ({item, count?}: touched, it is gone and the hero has the item: Small key, Boss key, Dungeon map, Compass, Heart, Bomb, Torch or any item), and fire and light: burn ({seconds?, spreads?}: fire sets it alight and it burns away), beam ({at: [x,y,z], when?: state, range?, color?}: a beam of light straight out of its front) and mirror ({turns?}: turns a beam a quarter turn; two states lean each way). Send the whole asset.',
     { asset: { $read: 'assets/<id>.json' } } as never,
   ),
   def(
@@ -522,7 +559,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ character: Character }),
     ['character'],
     'Characters',
-    'Replaces a character: name, look (profile), gear, and its sheet — stats (health, stamina, speed, jump, strength, defence, level, xpCurve), outfits (name, look overrides, stat bonuses) and outfit (worn), moves (style balanced/swift/heavy/defensive, power, speed), animations (a clip id for each state of its animation state machine: idle, walk, run, jump, attack, hurt, plus victory), states (runAt studs a second, hurtFor seconds, matchSpeed), voice (pitch, blip, footsteps, grunt sounds), behaviour (kind: villager, shopkeeper, questGiver, companion, enemy, boss…; routine: wander or stand), talk (conversations by condition) and barks. Send the whole character (read it first).',
+    'Replaces a character: name, look (profile; custom hair: profile.hair "Custom" with profile.customHair { top, length 0-100, volume 0-100, parting, fringe, tie, tieLength, beard, beardLength, tips, band, beardColor }), gear, and its sheet — stats (health, stamina, speed, jump, strength, defence, level, xpCurve), outfits (name, look overrides, stat bonuses) and outfit (worn), moves (style balanced/swift/heavy/defensive, power, speed), animations (a clip id for each state of its animation state machine: idle, walk, run, jump, attack, hurt, plus victory), states (runAt studs a second, hurtFor seconds, matchSpeed), voice (pitch, blip, footsteps, grunt sounds), behaviour (kind: villager, shopkeeper, questGiver, companion, enemy, boss…; routine: wander or stand), talk (conversations by condition) and barks. Send the whole character (read it first).',
     { character: { $read: 'characters/<id>.json' } } as never,
   ),
   def(
@@ -575,10 +612,13 @@ export const AI_COMMANDS: AiCommand[] = [
       effects: EffectHooks.nullable().optional(),
       screenEffects: ScreenHooks.nullable().optional(),
       quality: z.enum(QUALITY_CHOICES).optional(),
+      movement: z.enum(['classic', 'physics']).optional(),
+      uiLook: z.enum(['classic', 'adventure']).optional(),
+      maps: MapLooks.optional(),
     }),
     ['map', 'character', 'screen'],
     'Scene',
-    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}), effects ({hits: {slash: fx_…}, events: {levelUp: fx_…}}; "none" plays nothing), screenEffects ({events: {hurt | bigHit | levelUp | defeat | death | land | smash: sce_… or "none"}, lowHealth: true/false}), quality (graphics the game starts at: auto | low | medium | high; players can change it in Settings).',
+    'Game name, start map and spawn, hero character, first screen, genre (what the editor shows: open or explore), saving ({mode: anywhere | savePoints | checkpoints, slots 1–3, autosave}), effects ({hits: {slash: fx_…}, events: {levelUp: fx_…}}; "none" plays nothing), screenEffects ({events: {hurt | bigHit | levelUp | defeat | death | land | smash: sce_… or "none"}, lowHealth: true/false}), quality (graphics the game starts at: auto | low | medium | high; players can change it in Settings), movement (how the hero moves: classic, v68’s original walking, or physics: slides along walls, pushes loose things and rides them), uiLook (how screens and menus look: classic, or adventure: parchment panels, gold-framed buttons, a storybook font, framed hearts), maps (how the maps look: {pause: {type: screens | parchment | chart | contour | floors, colors?: {back, water, wall, fog, ink, accent}, frame?: none | thin | wood | stone | gold | slate, icons?: round | pixel | stamp, fog?: dark | paper | cloud | none, grid?, markers?: {chests, keys, boss, doors, exits, names, people, pins, goal: true/false}}, dungeon: the same for dungeons (default floors), mini: {type: square | round | screens | off, size? 90–320 px, span? studs across, turns?, and the rest as pause}}).',
     { name: 'Coin Quest', hero: 'chr_hhhhhhhhhh' },
   ),
   def(
@@ -623,7 +663,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ map, item: Item }),
     ['map', 'audio', 'screen'],
     'Scene',
-    'Places a sound emitter (kind emitter), a world UI sign/label/bar (kind ui) or a light (kind light: pos, on, light {color, brightness 0–4, range 2–40 studs, flicker 0–1, shadow}) on a map.',
+    'Places a sound emitter (kind emitter), a world UI sign/label/bar (kind ui) or a light (kind light: pos, on, light {color, brightness 0–4, range 2–40 studs, flicker 0–1, shadow}) or water (kind water: pos its lowest corner, size [width, depth to the surface, length] studs, body pool | river | lake | sea, current? [across, deep] studs a second; loose assets float in it) or a 3D model (kind model: model builtin:lantern-post | builtin:barrel | builtin:round-tree | builtin:boulder | builtin:crystal | builtin:toadstool | builtin:stone-ring | builtin:vase, or the sha256 ref of a .glb the project imported; pos the middle of its base in studs, turn? degrees about the upright axis, size? 1 = as made (the hero is about 4 studs tall), solid? false to walk through) on a map.',
     {
       map: M1,
       item: {
@@ -646,7 +686,7 @@ export const AI_COMMANDS: AiCommand[] = [
     }),
     ['map', 'audio', 'screen'],
     'Scene',
-    'Changes fields of an emitter or sign.',
+    'Changes fields of a placed item: an emitter, sign, light, water or 3D model (for a model: model, pos, turn, size, solid).',
     { map: M1, id: 'ins_kkkkkkkkkk', patch: { text: 'Gems: {gems}' } },
   ),
   def(
@@ -655,7 +695,7 @@ export const AI_COMMANDS: AiCommand[] = [
     z.strictObject({ map, id: ids('instance') }),
     ['map', 'audio', 'screen'],
     'Scene',
-    'Removes an emitter or sign.',
+    'Removes a placed item (emitter, sign, light, water or 3D model).',
     { map: M1, id: 'ins_kkkkkkkkkk' },
   ),
   def(
@@ -829,6 +869,34 @@ export const AI_COMMANDS: AiCommand[] = [
     { id: 'dlg_aaaaaaaaaa' },
   ),
   def(
+    'figure.make',
+    Bp.makeFigure,
+    z.strictObject({
+      character: ids('character'),
+      plan: ids('bodyplan'),
+      name: z.string().min(1).max(40),
+      spec: z.record(z.string(), z.unknown()),
+    }),
+    ['character'],
+    'Characters',
+    `Makes ANY figure, however wild (a walking teapot, a three-headed robot snake, an octopus chef, a living cloud, a T-rex), from a short description of its parts: the engine builds a body plan and a character wearing it. spec: { shape: ${CREATURE_SHAPES.join('/')}, size 2-10 studs (a dog 3, a horse 5, a giant 9), heads 0-5 (0: the face is on the body), eyes 0-8 per head, legs 0-8, arms 0-6, tentacles 0-8, wings 0/2/4, tail 0-8 pieces, wheels 0-6, horns 0-6, neck 0-12 plates, extras [${CREATURE_EXTRAS.join(', ')}], move walk/fly/swim/slither/hop, colors { main, accent, belly, eye } as #hex }. Place it with npc.place. For a person use character.create with a v68 profile instead.`,
+    {
+      character: 'chr_aaaaaaaaaa',
+      plan: 'bpl_aaaaaaaaaa',
+      name: 'Teapot Tom',
+      spec: {
+        shape: 'teapot',
+        size: 4,
+        heads: 0,
+        eyes: 2,
+        legs: 2,
+        arms: 0,
+        extras: ['spout', 'handle', 'lid'],
+        colors: { main: '#f4f4f4', accent: '#0055bf', belly: '#9fc3e9', eye: '#1b1b1b' },
+      },
+    },
+  ),
+  def(
     'bodyplan.put',
     Bp.putBodyPlan,
     z.strictObject({ plan: BodyPlan }),
@@ -919,6 +987,57 @@ export const AI_COMMANDS: AiCommand[] = [
     'Effects',
     'Deletes a game screen effect that nothing uses (take it out of the game screen effects and cinematics first).',
     { id: 'sce_aaaaaaaaaa' },
+  ),
+  def(
+    'hairstyle.put',
+    Hs.putHairStyle,
+    z.strictObject({ style: HairStyle }),
+    ['character'],
+    'Characters',
+    `Adds or replaces a hairstyle in My library: name, color (#hex), top ${HAIR_TOPS.join('/')}, length 0-100 (0 short, 100 waist), volume 0-100, parting ${HAIR_PARTINGS.join('/')}, fringe ${HAIR_FRINGES.join('/')}, tie ${HAIR_TIES.join('/')}, tieLength 0-100, beard ${HAIR_BEARDS.join('/')}, beardLength 0-100, optional tips/band/beardColor (#hex). A character wears one as profile.hair "Custom" with the settings (no id, name or color) copied into profile.customHair plus from: the hairstyle id, and its colour as profile.hairColor.`,
+    {
+      style: {
+        id: 'hst_aaaaaaaaaa',
+        name: 'Space buns',
+        color: '#8a4fbf',
+        top: 'Smooth',
+        length: 30,
+        volume: 40,
+        parting: 'Middle',
+        fringe: 'None',
+        tie: 'Two buns',
+        tieLength: 45,
+        beard: 'None',
+        beardLength: 40,
+      },
+    },
+  ),
+  def(
+    'brick.put',
+    Cb.putCustomBrick,
+    z.strictObject({ brick: CustomBrick }),
+    ['asset'],
+    'Assets',
+    `Adds or replaces a custom brick shape: name, base brick/plate/tile (its height), w and d (studs, 1-8, before it is turned), shape ${CUSTOM_SHAPES.join('/')}, studs flat/none. Its bricks have the type name <base>:<id>:<d>x<w> (like brick:cbk_aaaaaaaaaa:2x4) and are placed like any brick (bricks.place) or used in assets. Once used, its base and size stay.`,
+    { brick: { id: 'cbk_aaaaaaaaaa', name: 'Roof slope', base: 'brick', w: 2, d: 2, shape: 'slope', studs: 'flat' } },
+  ),
+  def(
+    'brick.delete',
+    Cb.deleteCustomBrick,
+    z.strictObject({ id: ids('custombrick') }),
+    ['asset'],
+    'Assets',
+    'Deletes a custom brick no map or asset uses.',
+    { id: 'cbk_aaaaaaaaaa' },
+  ),
+  def(
+    'hairstyle.delete',
+    Hs.deleteHairStyle,
+    z.strictObject({ id: ids('hairstyle') }),
+    ['character'],
+    'Characters',
+    'Deletes a hairstyle from My library (characters wearing it keep their copy).',
+    { id: 'hst_aaaaaaaaaa' },
   ),
   def(
     'bodyplan.delete',

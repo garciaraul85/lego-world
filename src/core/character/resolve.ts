@@ -1,7 +1,16 @@
+import { builtinBodyPlan } from '../../builtin/bodyplans';
 import { expandAsset } from '../assets/expand';
 import { footprint } from '../bricks/inspect';
 import type { Asset } from '../schema/asset';
-import { type Body, type BodyBrick, type BodyPlan, type Bone, nearestBone, restPositions } from './body';
+import {
+  type Body,
+  type BodyBrick,
+  type BodyPlan,
+  type Bone,
+  isMinifigJoint,
+  nearestBone,
+  restPositions,
+} from './body';
 import { FAMILY_INFO, makeFamily, slotColors } from './families';
 
 /** A body ready to draw and move: bones, bricks with their colours, how it moves, its scale. */
@@ -25,9 +34,13 @@ const P = 0.4;
  * The body a character has (null: the minifig). `get` reads project files (body plans, assets); a body
  * plan or asset that is missing falls back to the family's own bricks.
  */
+/** a body plan: the project's own, else one of the engine's (step 11, 4a) */
+export const planOf = (id: string, get: (path: string) => unknown): BodyPlan | undefined =>
+  (get(`bodyplans/${id}.json`) as BodyPlan | undefined) ?? builtinBodyPlan(id);
+
 export function resolveBody(body: Body | undefined, get: (path: string) => unknown): ResolvedBody | null {
   if (!body) return null;
-  const own = body.plan ? (get(`bodyplans/${body.plan}.json`) as BodyPlan | undefined) : undefined;
+  const own = body.plan ? planOf(body.plan, get) : undefined;
   const family = body.family ?? (own ? undefined : 'minifig');
   if (!own && (!family || family === 'minifig')) return null;
   const made = own ?? makeFamily(family!, body.params);
@@ -104,4 +117,18 @@ export function attachAsset(
       src: b.index,
     };
   });
+}
+
+/**
+ * Step 11, 4a: a minifig's extra parts, coloured (slots take the body's colours, or the four-legged family's), and
+ * only on joints the minifig has. Empty for a creature body: its bricks are its plan's.
+ */
+export const EXTRA_SIZE = 0.5;
+export function minifigExtras(body: Body | undefined): (BodyBrick & { color: string; size: number })[] {
+  if (!body?.extras?.length || body.plan || (body.family && body.family !== 'minifig')) return [];
+  const size = body.extraSize ?? EXTRA_SIZE;
+  const colors = slotColors({ family: 'fourLegs', colors: body.colors });
+  return body.extras
+    .filter((b) => isMinifigJoint(b.bone))
+    .map((b) => ({ ...b, size, color: b.color.startsWith('#') ? b.color : (colors[b.color] ?? '#ff00ff') }));
 }

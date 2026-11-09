@@ -82,7 +82,32 @@ describe('posing', () => {
     expect(Object.keys(movedJoints(poseAt(c, 1))).sort()).toEqual(['head.turn', 'leftLeg.x', 'rightArm.z']);
   });
   it('the built-in moves are made of whole poses and are valid clips', () => {
-    expect(MOVE_CLIPS.map((c) => c.name)).toEqual(['Walk', 'Run', 'Jump', 'Swing', 'Flinch', 'Breathe']);
+    expect(MOVE_CLIPS.map((c) => c.name)).toEqual([
+      'Walk',
+      'Run',
+      'Jump',
+      'Swing',
+      'Flinch',
+      'Breathe',
+      'Swim',
+      'Tread water',
+      'Push',
+      'Pull',
+      'Climb',
+      'Ladder',
+      'Wall climb',
+      'Pull up',
+      'Slide',
+      'Brace',
+      'Into the wind',
+      'Blown back',
+      'Lift',
+      'Hold up',
+      'Carry',
+      'Throw',
+      'Put down',
+      'Pick up',
+    ]);
     for (const c of MOVE_CLIPS) {
       expect(Clip.safeParse(c).success, c.name).toBe(true);
       expect(BUILTIN_CLIPS.some((b) => b.id === c.id)).toBe(true);
@@ -169,9 +194,14 @@ describe('the animation state machine', () => {
   it('a body plan strikes and flinches: the body lunges forward or rocks back', () => {
     const m = newMotion();
     expect(actAmount(m, 'attack')).toBe(0);
-    m.act = { kind: 'attack', u: 0.3 };
+    // step 14a fix: a tell first (drawn back, held), then the blow at 0.6
+    m.act = { kind: 'attack', u: 0.4 };
+    expect(actAmount(m, 'attack')).toBeLessThan(-0.3);
+    const tell = bodyWorld({ move: 'walk' as const, hover: 0, scale: 1 }, { x: 0, y: 0, z: 0, heading: 0 }, m);
+    m.act = { kind: 'attack', u: 0.6 };
     expect(actAmount(m, 'attack')).toBeCloseTo(1);
     expect(actAmount(m, 'hurt')).toBe(0);
+    expect(tell[14]!).toBeLessThan(0);
     const body = { move: 'walk' as const, hover: 0, scale: 1 };
     const rest = bodyWorld(body, { x: 0, y: 0, z: 0, heading: 0 }, newMotion());
     const lunge = bodyWorld(body, { x: 0, y: 0, z: 0, heading: 0 }, m);

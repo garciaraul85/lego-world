@@ -110,7 +110,7 @@ describe('Help answers questions', () => {
     ['how do I place a brick', /assets\.bricks/],
     ['build an asset from other assets', /assets\.reuse|^assets$/],
     ['place an asset in the map', /tool\.place|scene\.assets\.list/],
-    ['make a door open when I press E', /assets\.sockets|node\.event\.onInteract/],
+    ['make a door open when I press E', /assets\.sockets|node\.event\.onInteract|assets\.parts|^assets$/],
     ['change the colour of a brick', /assets\.bricks|tool\.paint|^assets$/],
     ['add a trigger zone', /zone/],
     ['where does the hero start', /scene\.spawn|scene\.project/],

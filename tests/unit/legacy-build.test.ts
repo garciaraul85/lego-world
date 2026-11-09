@@ -13,7 +13,16 @@ describe('legacy build', () => {
     expect(sha(html)).toBe(sha(readFileSync('dist/index.html', 'utf8')));
   });
 
-  it('is byte-identical to LEGO World v68 (P0.3 guard; a later card that edits src/legacy replaces this check)', () => {
-    expect(sha(html)).toBe(sha(readFileSync('tests/fixtures/legacy/index.v68.html', 'utf8')));
+  it('is LEGO World v68 but for step 12b’s arm proportions (P0.3 guard, replaced by the one card that edits src/legacy)', () => {
+    // undo exactly the recorded edit: what is left must be byte-identical to v68
+    const fix = JSON.parse(readFileSync('tests/fixtures/legacy/arm-proportions.json', 'utf8')) as {
+      pairs: [string, string][];
+    };
+    let back = html;
+    for (const [now, was] of fix.pairs) {
+      expect(back.split(now).length - 1, now.slice(0, 80)).toBe(1);
+      back = back.replace(now, () => was);
+    }
+    expect(sha(back)).toBe(sha(readFileSync('tests/fixtures/legacy/index.v68.html', 'utf8')));
   });
 });

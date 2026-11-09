@@ -1,7 +1,9 @@
 import { builtinAsset } from '../../builtin/assets';
+import { stampOf } from '../../core/bricks/build-tools';
 import type { Brick } from '../../core/bricks/codec';
 import { rotateQuarter } from '../../core/bricks/transform';
 import { checkPlayable } from '../../core/checks/playable';
+import { foundationsPark } from '../../core/gamegen/foundations-park';
 import { trainingYard } from '../../core/gamegen/training-yard';
 import { maxOf, minOf } from '../../core/num';
 import { changedBuiltins, newAssetDef } from '../assets';
@@ -42,6 +44,8 @@ export interface EditorUi {
   workspace(id: string): void;
   showShortcuts(): void;
   about(): void;
+  /** every course in one scrollable window (Help › Courses…) */
+  courses?(): void;
   /** P7: the Start hub, the guided tutorial and the help guide */
   startHub(): void;
   /** editor, coding, or a screen course: course.<screen> (P32) */
@@ -133,6 +137,13 @@ export const ACTIONS: EditorAction[] = [
   { id: 'file.save', label: 'Save now', key: 'Ctrl S', run: ({ ed }) => void ed.autosave.flush() },
   { id: 'file.import', label: 'Import project or LEGO World save…', run: ({ ui }) => ui.importFile() },
   {
+    id: 'file.mediaLibrary',
+    label: 'Media library (pictures, videos, sounds, credits)…',
+    run: ({ ed }) => {
+      ed.mediaLibrary.value = true;
+    },
+  },
+  {
     id: 'file.exportProject',
     label: 'Save project file (.bwproj)',
     key: 'Ctrl Shift S',
@@ -190,7 +201,38 @@ export const ACTIONS: EditorAction[] = [
       );
     },
   },
-  { id: 'edit.selectNone', label: 'Deselect', key: 'Escape', run: ({ ed }) => ed.select([]) },
+  // step 11 (P24 part 1a): copy bricks on a build plate and stamp them down again with the Place tool
+  {
+    id: 'edit.copy',
+    label: 'Copy bricks (to stamp)',
+    key: 'Ctrl C',
+    when: ({ ed }) => ed.buildsBricks && ed.selectedBricks.value.length > 0,
+    run: ({ ed }) => {
+      const stamp = stampOf(ed.selectedBricks.value);
+      ed.stamp.value = stamp;
+      ed.notify(`Copied ${stamp.length} brick${stamp.length === 1 ? '' : 's'}: Ctrl V, then click to stamp them.`);
+    },
+  },
+  {
+    id: 'edit.paste',
+    label: 'Stamp copied bricks',
+    key: 'Ctrl V',
+    when: ({ ed }) => ed.buildsBricks && !!ed.stamp.value?.length,
+    run: ({ ed }) => {
+      ed.select([]);
+      ed.tool.value = 'place';
+      ed.notify('Click to stamp the copied bricks; each click puts down another. Escape stops.');
+    },
+  },
+  {
+    id: 'edit.selectNone',
+    label: 'Deselect',
+    key: 'Escape',
+    run: ({ ed }) => {
+      ed.stamp.value = null;
+      ed.select([]);
+    },
+  },
   {
     id: 'edit.selectGroup',
     label: 'Select whole object',
@@ -332,6 +374,21 @@ export const ACTIONS: EditorAction[] = [
       }
     },
   },
+  {
+    // Milestone 2b gate: a sample map with water, loose crates, smashable bricks, 3D models and shadowed lights
+    id: 'world.foundationsPark',
+    label: 'Add the Foundations park',
+    run: ({ ed }) => {
+      const p = foundationsPark();
+      const r = ed.exec(p.commands, { label: 'Add the Foundations park' });
+      if (r.ok) {
+        ed.openMap(p.map);
+        ed.notify(
+          'The Foundations park: a river that carries a crate, a pond, a brick wall to smash, 3D models (a stone ring, lantern posts, trees, a boulder to climb) and lanterns casting shadows at dusk. Play › Play this map tries it; Project › Movement: Physics lets the hero ride the crate and climb the boulder.',
+        );
+      }
+    },
+  },
   { id: 'world.generate', label: 'Generate terrain…', run: ({ ed }) => (ed.right.value = 'map') },
   { id: 'world.graph', label: 'World graph', run: ({ ui }) => ui.workspace('World graph') },
   {
@@ -419,6 +476,7 @@ export const ACTIONS: EditorAction[] = [
   { id: 'help.shortcuts', label: 'Keyboard shortcuts', key: '?', run: ({ ui }) => ui.showShortcuts() },
   { id: 'help.about', label: 'About Brick Worlds Engine', run: ({ ui }) => ui.about() },
   { id: 'help.tutorial', label: 'Guided tutorial (every feature, step by step)', run: ({ ui }) => ui.tutorial() },
+  { id: 'help.courses', label: 'Courses…', run: ({ ui }) => ui.courses?.() },
   {
     id: 'help.coding',
     label: 'Coding course (the logic language, line by line)',
@@ -457,6 +515,177 @@ export const ACTIONS: EditorAction[] = [
     run: ({ ui }) => ui.tutorial('faces'),
   },
   {
+    id: 'help.make',
+    label: 'Make anything course (assets and maps from words)',
+    run: ({ ui }) => ui.tutorial('make'),
+  },
+  {
+    id: 'help.buildFaster',
+    label: 'Build faster course (mirror, stamp, moving parts)',
+    run: ({ ui }) => ui.tutorial('build'),
+  },
+  {
+    id: 'help.customBricks',
+    label: 'Custom bricks course (slopes, curves, the brick editor)',
+    run: ({ ui }) => ui.tutorial('bricks'),
+  },
+  {
+    id: 'help.pack',
+    label: 'Starter pack course (hero, neighbours, enemies and their weaknesses)',
+    run: ({ ui }) => ui.tutorial('pack'),
+  },
+  {
+    id: 'help.templatesCourse',
+    label: 'Scripts and scenes course (templates, My library)',
+    run: ({ ui }) => ui.tutorial('templates'),
+  },
+  {
+    id: 'help.puzzlesCourse',
+    label: 'Puzzles course (push blocks, switches, locks and keys, dungeons)',
+    run: ({ ui }) => ui.tutorial('puzzles'),
+  },
+  {
+    id: 'help.fireLightCourse',
+    label: 'Fire and light course (burning vines, torch stands, bombs, beams and mirrors)',
+    run: ({ ui }) => ui.tutorial('firelight'),
+  },
+  {
+    id: 'help.iceCourse',
+    label: 'Ice, platforms and climbing course (icy floors, ice blocks, moving platforms, climbing walls)',
+    run: ({ ui }) => ui.tutorial('ice'),
+  },
+  {
+    id: 'help.windCourse',
+    label: 'Wind, water and throwing course (fans, the Gust leaf, pinwheels, rocks, currents)',
+    run: ({ ui }) => ui.tutorial('wind'),
+  },
+  {
+    id: 'help.shotsCourse',
+    label: 'Bow and boomerang course (arrows, fire and ice arrows, the slingshot, the boomerang)',
+    run: ({ ui }) => ui.tutorial('shots'),
+  },
+  {
+    id: 'help.hooksCourse',
+    label: 'Hook and magnet course (the hook line, a grapple rope to swing on, the magnet glove)',
+    run: ({ ui }) => ui.tutorial('hooks'),
+  },
+  {
+    id: 'help.lensCourse',
+    label: 'Hover boots and Lens course (float over a gap, the Lens of Truth, fake walls, an invisible bridge, magic)',
+    run: ({ ui }) => ui.tutorial('lens'),
+  },
+  {
+    id: 'help.foesCourse',
+    label: 'Enemies course (bounce a rock back, block a beam, strike a ghost through the Lens, a hunting pack)',
+    run: ({ ui }) => ui.tutorial('foes'),
+  },
+  {
+    id: 'help.behavioursCourse',
+    label:
+      'Behaviours course (a script with fields you attach to things: a lamp that blinks, two copies, their own speeds)',
+    run: ({ ui }) => ui.tutorial('behaviours'),
+  },
+  {
+    id: 'help.engineApiCourse',
+    label: 'Engine API course (behaviours that see the hero, move things and send each other messages)',
+    run: ({ ui }) => ui.tutorial('engineApi'),
+  },
+  {
+    id: 'help.builtinsCourse',
+    label: 'Built-in behaviours course (extend the engine’s Pushable: a crate that sticks after two pushes)',
+    run: ({ ui }) => ui.tutorial('builtins'),
+  },
+  {
+    id: 'help.builtins2Course',
+    label: 'World built-ins course (extend Liftable: a rock so heavy it takes three tries to lift)',
+    run: ({ ui }) => ui.tutorial('builtins2'),
+  },
+  {
+    id: 'help.heroBehavioursCourse',
+    label: 'Hero behaviours course (extend the Hero: out of breath after three quick jumps)',
+    run: ({ ui }) => ui.tutorial('heroBehaviours'),
+  },
+  {
+    id: 'help.swimmerCourse',
+    label: 'Swimmer course (extend Swimmer: a pearl diver with three times the air)',
+    run: ({ ui }) => ui.tutorial('swimmer'),
+  },
+  {
+    id: 'help.makeBrainCourse',
+    label: 'Make your own brain course (extend PopUp: a pop-up that spits three fireballs)',
+    run: ({ ui }) => ui.tutorial('makeBrain'),
+  },
+  {
+    id: 'help.hurtReactionsCourse',
+    label: 'Hurt reactions course (hits look like what they were; a howler a heavy swing knocks flat)',
+    run: ({ ui }) => ui.tutorial('hurtReactions'),
+  },
+  {
+    id: 'help.enemyPartsCourse',
+    label: 'Enemy parts course (swap Rattlebones’ attack and mover: it flies and spits)',
+    run: ({ ui }) => ui.tutorial('enemyParts'),
+  },
+  {
+    id: 'help.bossesCourse',
+    label: 'Boss course (a boss made in Logic: the Howler, a pack hunter, then at half health a shooter)',
+    run: ({ ui }) => ui.tutorial('bosses'),
+  },
+  {
+    id: 'help.gloomweaverCourse',
+    label: 'Gloomweaver course (the starter boss: its phases in its class, its glowing eye)',
+    run: ({ ui }) => ui.tutorial('gloomweaver'),
+  },
+  {
+    id: 'help.itemsCourse',
+    label: 'Items course (an item of your own, a Whistle; a quicker Boomerang)',
+    run: ({ ui }) => ui.tutorial('items'),
+  },
+  {
+    id: 'help.mapsCourse',
+    label: 'Maps course (a sea chart for the pause map, a round map in play, pins)',
+    run: ({ ui }) => ui.tutorial('maps'),
+  },
+  {
+    id: 'help.questsCourse',
+    label: 'Quests course (a quest with steps, the quest log, where to go next, the maps in logic)',
+    run: ({ ui }) => ui.tutorial('quests'),
+  },
+  {
+    id: 'help.questMapsCourse',
+    label: 'Quests across maps course (a goal on another map, the way there through a gate)',
+    run: ({ ui }) => ui.tutorial('questMaps'),
+  },
+  {
+    id: 'help.gameRulesCourse',
+    label: 'Game rules course (a fairy that saves the hero, game over and back, a map’s own behaviour)',
+    run: ({ ui }) => ui.tutorial('gameRules'),
+  },
+  {
+    id: 'help.hudStylesCourse',
+    label: 'HUD styles course (an era’s buttons and HUD, the item wheel, your own buttons and HUD in logic)',
+    run: ({ ui }) => ui.tutorial('hudStyles'),
+  },
+  {
+    id: 'help.swim',
+    label: 'Swimming course (dive, breath, the Action button)',
+    run: ({ ui }) => ui.tutorial('swim'),
+  },
+  {
+    id: 'help.media',
+    label: 'Your own media course (pictures, video, credits)',
+    run: ({ ui }) => ui.tutorial('media'),
+  },
+  {
+    id: 'help.hair',
+    label: 'Custom hair course (hairstyles, My library)',
+    run: ({ ui }) => ui.tutorial('hair'),
+  },
+  {
+    id: 'help.shape',
+    label: 'Shape and draw course (body shape, drawing on the figure)',
+    run: ({ ui }) => ui.tutorial('shape'),
+  },
+  {
     id: 'help.effects',
     label: 'Effects course (fire, colours, game effects)',
     run: ({ ui }) => ui.tutorial('course.effects'),
@@ -480,6 +709,16 @@ export const ACTIONS: EditorAction[] = [
     id: 'help.bigworlds',
     label: 'Big worlds course (a million bricks, how far you see)',
     run: ({ ui }) => ui.tutorial('bigworlds'),
+  },
+  {
+    id: 'help.water',
+    label: 'Water and physics course (loose things, rivers, physics movement)',
+    run: ({ ui }) => ui.tutorial('water'),
+  },
+  {
+    id: 'help.models',
+    label: '3D models course (place, import a glTF model, stand on it)',
+    run: ({ ui }) => ui.tutorial('models'),
   },
   {
     id: 'help.posing',
@@ -512,6 +751,25 @@ ACTIONS.push(
     label: 'New character from a picture…',
     run: ({ ed, ui }) => {
       ui.workspace('Characters');
+      ed.makeKind.value = 'character';
+      ed.fromPicture.value = true;
+    },
+  },
+  {
+    // Milestone 3, 10d part 5
+    id: 'world.fromPicture',
+    label: 'New map from a picture or words…',
+    run: ({ ed }) => {
+      ed.makeKind.value = 'map';
+      ed.fromPicture.value = true;
+    },
+  },
+  {
+    // Milestone 3, 10d part 4
+    id: 'assets.fromPicture',
+    label: 'New asset from a picture or words…',
+    run: ({ ed }) => {
+      ed.makeKind.value = 'asset';
       ed.fromPicture.value = true;
     },
   },
@@ -557,6 +815,7 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'file.save',
     '-',
     'file.import',
+    'file.mediaLibrary',
     'file.exportProject',
     'file.exportLegacy',
     'file.exportGame',
@@ -565,6 +824,8 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'edit.undo',
     'edit.redo',
     '-',
+    'edit.copy',
+    'edit.paste',
     'edit.duplicate',
     'edit.delete',
     'edit.rotate',
@@ -573,10 +834,12 @@ export const MENUS: Record<string, (string | '-')[]> = {
     '-',
     'view.palette',
   ],
-  Assets: ['assets.open', 'assets.new', 'characters.fromPicture', '-', 'assets.resetBuiltins'],
+  Assets: ['assets.open', 'assets.new', 'assets.fromPicture', 'characters.fromPicture', '-', 'assets.resetBuiltins'],
   World: [
     'world.addMap',
+    'world.fromPicture',
     'world.trainingYard',
+    'world.foundationsPark',
     'world.generate',
     'world.graph',
     'world.validate',
@@ -618,20 +881,8 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.guide',
     'help.brix',
     'help.tutorial',
-    'help.coding',
-    'help.combat',
-    'help.saving',
-    'help.dialogue',
-    'help.sheet',
-    'help.bodies',
-    'help.faces',
-    'help.effects',
-    'help.screenfx',
-    'help.posing',
-    'help.lights',
-    'help.atmosphere',
-    'help.bigworlds',
-    'help.brixCourse',
+    'help.courses',
+    '-',
     'help.build',
     'help.shortcuts',
     'help.ai',
@@ -639,6 +890,55 @@ export const MENUS: Record<string, (string | '-')[]> = {
     'help.about',
   ],
 };
+
+/**
+ * The courses, by topic: they live in the Courses window (Help › Courses…), which scrolls, so the Help menu stays
+ * short as courses are added.
+ */
+export const COURSE_GROUPS: [string, string[]][] = [
+  ['Getting started', ['help.brixCourse', 'help.make', 'help.pack', 'help.templatesCourse']],
+  ['Building and worlds', ['help.buildFaster', 'help.customBricks', 'help.models', 'help.water', 'help.bigworlds']],
+  [
+    'Characters',
+    ['help.sheet', 'help.bodies', 'help.faces', 'help.shape', 'help.hair', 'help.posing', 'help.dialogue'],
+  ],
+  [
+    'Playing and logic',
+    [
+      'help.coding',
+      'help.combat',
+      'help.puzzlesCourse',
+      'help.fireLightCourse',
+      'help.iceCourse',
+      'help.windCourse',
+      'help.shotsCourse',
+      'help.hooksCourse',
+      'help.lensCourse',
+      'help.foesCourse',
+      'help.behavioursCourse',
+      'help.engineApiCourse',
+      'help.builtinsCourse',
+      'help.builtins2Course',
+      'help.heroBehavioursCourse',
+      'help.swimmerCourse',
+      'help.makeBrainCourse',
+      'help.hurtReactionsCourse',
+      'help.enemyPartsCourse',
+      'help.bossesCourse',
+      'help.gloomweaverCourse',
+      'help.itemsCourse',
+      'help.mapsCourse',
+      'help.questsCourse',
+      'help.questMapsCourse',
+      'help.gameRulesCourse',
+      'help.hudStylesCourse',
+      'help.saving',
+      'help.swim',
+    ],
+  ],
+  ['Look and feel', ['help.effects', 'help.screenfx', 'help.lights', 'help.atmosphere', 'help.media']],
+];
+export const COURSE_IDS = new Set(COURSE_GROUPS.flatMap(([, ids]) => ids));
 
 /** Normalizes a keyboard event to the `key` notation used above. */
 export function keyOf(e: KeyboardEvent): string {

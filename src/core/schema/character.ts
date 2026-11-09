@@ -7,6 +7,7 @@ import { Health } from '../combat/damage';
 import { Enemy } from '../combat/enemy';
 import { Bark, TalkEntry } from '../dialogue/schema';
 import { id } from './common';
+import { ScriptAttachments } from './logic';
 
 /**
  * characters/<charId>.json.
@@ -51,5 +52,7 @@ export const Character = z.strictObject({
   body: Body.optional(),
   /** P22 part 4: its face for each mood (dialogue moods): an expression and eyes */
   faces: Faces.optional(),
+  /** Milestone 3b (B1): behaviour scripts every copy of this character runs, with their field values */
+  scripts: ScriptAttachments.optional(),
 });
 export type Character = z.infer<typeof Character>;

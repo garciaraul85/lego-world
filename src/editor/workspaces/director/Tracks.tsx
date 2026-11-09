@@ -2,7 +2,9 @@ import { useRef, useState } from 'preact/hooks';
 import type { Cinematic, Track } from '../../../core/schema';
 import { audioData } from '../../../engine/audio/data';
 import type { CinematicPlayer } from '../../../engine/cinematic/CinematicPlayer';
+import { dragPayload, endDrag } from '../../interact/drag';
 import type { EditorState } from '../../state';
+import { newSoundEvent } from '../audio/model';
 import {
   type Item,
   itemLabel,
@@ -97,7 +99,32 @@ export function Tracks({
   const seconds = Array.from({ length: Math.floor(L) + 1 }, (_, i) => i);
   const rows = rowsOf(view);
   return (
-    <div class="dr-tracks" role="group" aria-label="Timeline">
+    <div
+      class="dr-tracks"
+      role="group"
+      aria-label="Timeline"
+      onDragOver={(e) => {
+        const m = dragPayload.value;
+        if (m?.kind === 'media' && m.media === 'audio') e.preventDefault();
+      }}
+      onDrop={(e) => {
+        // step 11 (P24 part 3): a sound from the Media library plays at the time it was let go
+        const m = dragPayload.value;
+        if (m?.kind !== 'media' || m.media !== 'audio' || !lanes.current) return;
+        e.preventDefault();
+        endDrag();
+        const ev = newSoundEvent(ed, m.name.replace(/\.[^.]+$/, ''), [m.ref]);
+        if (!ev) return;
+        const t = Math.round(tAt(e.clientX) * 10) / 10;
+        const item = { t, event: ev.id as never };
+        const i = cin.tracks.findIndex((tr) => tr.kind === 'sfx');
+        const tracks: Track[] =
+          i >= 0
+            ? cin.tracks.map((tr, j) => (j === i ? ({ ...tr, items: [...tr.items, item] } as Track) : tr))
+            : [...cin.tracks, { kind: 'sfx', items: [item] }];
+        onChange({ ...cin, tracks }, `Sound ${ev.event.name} at ${t} s`);
+      }}
+    >
       <div class="dr-row dr-ruler-row">
         <span class="dr-label mono small">{time.toFixed(1)} s</span>
         <div

@@ -249,8 +249,11 @@ describe('Art commands and imports', () => {
 
   it('imports pictures and fonts', async () => {
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
-    const img = await importMedia('sky.webp', png, { index: undefined });
+    const img = await importMedia('sky.png', png, { index: undefined });
     expect(img.ok && img.entry.kind).toBe('image');
+    // step 11 (P24 part 3): a picture named for another kind is caught
+    const wrong = await importMedia('sky.webp', png, { index: undefined });
+    expect(!wrong.ok && wrong.error).toMatch(/really a \.png/);
     const font = await importMedia('Pixel.woff2', png, { index: undefined });
     expect(font.ok && font.entry.kind).toBe('font');
     expect(ACCEPT_OF('font')).toContain('.ttf');

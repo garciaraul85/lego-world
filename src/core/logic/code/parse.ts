@@ -19,6 +19,11 @@ class CodeError extends Error {
   }
 }
 
+/** Milestone 3b (B2): function cards (math.min(a, b), entity.x("this")…) by their code name */
+const PURE_CALLS = new Map(
+  CATALOG.filter((d) => d.kind === 'pure' && d.code.style === 'call' && !d.args?.length).map((d) => [d.code.name, d]),
+);
+
 const CALLS = new Map(
   CATALOG.filter((d) => d.kind === 'action' && d.code.style === 'call').map((d) => [d.code.name, d]),
 );
@@ -110,7 +115,7 @@ export function parseCode(code: string, prev?: Pick<LogicGraph, 'nodes' | 'edges
     let at = from;
     for (let k = 0; k < stmts.length; k++) {
       const st = stmts[k];
-      if (!at.length) throw new CodeError('Nothing runs after gate.open() or gate.close().', st);
+      if (!at.length) throw new CodeError('Nothing runs after return, gate.open() or gate.close().', st);
       if (k < stmts.length - 1 && blockCall(st)) {
         // once(…)/gate(…) followed by more lines: a Sequence runs the block, then the rest
         const seq = add('flow.sequence', `${path}/${k}`);
@@ -153,6 +158,13 @@ export function parseCode(code: string, prev?: Pick<LogicGraph, 'nodes' | 'edges
       scope.consts.set(d.id.name, n.id);
       return [[n.id, 'then']];
     }
+    // Milestone 3b (B3): a hook's answer
+    if (st.type === 'ReturnStatement') {
+      const n = add('flow.return', p);
+      wire(from, n);
+      if (st.argument) value(st.argument, n, 'value', `${p}/value`, scope);
+      return [];
+    }
     if (st.type !== 'ExpressionStatement')
       throw new CodeError(`${st.type.replace(/Statement$/, '')} is not part of the logic language.`, st);
     const x = st.expression;
@@ -171,9 +183,33 @@ export function parseCode(code: string, prev?: Pick<LogicGraph, 'nodes' | 'edges
       return [[n.id, 'then']];
     }
     if (x.type === 'AssignmentExpression') {
-      if (x.left.type !== 'MemberExpression' || x.left.object.name !== 'vars' || x.left.computed)
-        throw new CodeError('Only game variables can be set: vars.name = …', x);
+      // Milestone 3b (B1): a behaviour's own field or variable: this.name = …
+      const mine = x.left.type === 'MemberExpression' && x.left.object.type === 'ThisExpression' && !x.left.computed;
+      if (!mine && (x.left.type !== 'MemberExpression' || x.left.object.name !== 'vars' || x.left.computed))
+        throw new CodeError(
+          'Only game variables (vars.name = …) and this behaviour’s own (this.name = …) can be set.',
+          x,
+        );
       const name = x.left.property.name;
+      if (mine) {
+        if (x.operator === '=') {
+          const n = add('self.set', p, { name });
+          wire(from, n);
+          value(x.right, n, 'value', `${p}/value`, scope);
+          return [[n.id, 'then']];
+        }
+        if (x.operator === '+=' || x.operator === '-=') {
+          const n = add('self.add', p, { name });
+          wire(from, n);
+          if (x.operator === '-=') {
+            const v = literal(x.right);
+            if (typeof v !== 'number') throw new CodeError('-= takes a number; use += with a value instead.', x.right);
+            n.args = { ...n.args, amount: -v };
+          } else value(x.right, n, 'amount', `${p}/amount`, scope);
+          return [[n.id, 'then']];
+        }
+        throw new CodeError(`${x.operator} is not supported; use =, += or -=.`, x);
+      }
       if (x.operator === '=') {
         const n = add('var.set', p, { var: name });
         wire(from, n);
@@ -266,6 +302,8 @@ export function parseCode(code: string, prev?: Pick<LogicGraph, 'nodes' | 'edges
   }
 
   function source(x: N, p: string, scope: Scope): [string, string] {
+    if (x.type === 'MemberExpression' && !x.computed && x.object.type === 'ThisExpression')
+      return [add('self.get', p, { name: x.property.name }).id, 'value'];
     if (x.type === 'MemberExpression' && !x.computed && x.object.type === 'Identifier') {
       if (x.object.name === 'e') {
         if (!nodeDef(scope.ev.type)!.outputs.some((o) => o.name === x.property.name))
@@ -301,6 +339,30 @@ export function parseCode(code: string, prev?: Pick<LogicGraph, 'nodes' | 'edges
       value(x.arguments[0], n, 'min', `${p}/min`, scope);
       value(x.arguments[1], n, 'max', `${p}/max`, scope);
       return [n.id, 'out'];
+    }
+    // step 11, 4c: how many of an item the hero carries
+    if (x.type === 'CallExpression' && calleeName(x.callee) === 'items.count' && x.arguments.length === 1) {
+      const n = add('items.count', p);
+      value(x.arguments[0], n, 'item', `${p}/item`, scope);
+      return [n.id, 'out'];
+    }
+    if (x.type === 'CallExpression') {
+      const name = (() => {
+        try {
+          return calleeName(x.callee);
+        } catch {
+          return '';
+        }
+      })();
+      const d = PURE_CALLS.get(name);
+      if (d) {
+        const ins = d.inputs.filter((i) => i.type !== 'exec');
+        if (x.arguments.length > ins.length)
+          throw new CodeError(`${name}() takes ${ins.length} value${ins.length === 1 ? '' : 's'}.`, x);
+        const nd = add(d.type, p);
+        x.arguments.forEach((a: N, k: number) => value(a, nd, ins[k]!.name, `${p}/${ins[k]!.name}`, scope));
+        return [nd.id, d.outputs.find((o) => o.type !== 'exec')!.name];
+      }
     }
     throw new CodeError('This value is not part of the logic language.', x);
   }

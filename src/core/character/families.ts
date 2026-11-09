@@ -108,10 +108,10 @@ export const FAMILY_INFO: Record<BodyFamily, FamilyInfo> = {
   },
 };
 
-const P = 0.4;
-const BRICK = 1.2;
+export const P = 0.4;
+export const BRICK = 1.2;
 
-class Maker {
+export class Maker {
   bones: Bone[] = [];
   bricks: BodyBrick[] = [];
   bone(
@@ -180,14 +180,14 @@ const round2 = (v: number) => Math.round(v * 100) / 100;
  * Two eyes on a face `faceW` studs wide whose front is at z = front: on the front when it is wide enough to
  * leave a gap between them, otherwise one on each side near the front. Each just shows through the face.
  */
-function eyes(m: Maker, bone: string, faceW: number, y: number, front: number) {
+export function eyes(m: Maker, bone: string, faceW: number, y: number, front: number) {
   for (const s of [-1, 1]) {
     if (faceW >= 3) m.tile(bone, s * (faceW / 2 - 0.5), y, front - 0.4, 'eye');
     else m.tile(bone, s * (faceW / 2 - 0.4), y, front - 0.6, 'eye');
   }
 }
 
-type Made = Pick<BodyPlan, 'move' | 'bones' | 'bricks' | 'stride' | 'hover'>;
+export type Made = Pick<BodyPlan, 'move' | 'bones' | 'bricks' | 'stride' | 'hover'>;
 
 function param(p: BodyParams | undefined, k: ParamKey): number {
   const v = p?.[k];
@@ -220,7 +220,14 @@ function head(
   return { w, top };
 }
 
-function tailChain(m: Maker, parent: string, at: [number, number, number], n: number, width: number, swing = 22) {
+export function tailChain(
+  m: Maker,
+  parent: string,
+  at: [number, number, number],
+  n: number,
+  width: number,
+  swing = 22,
+) {
   let prev = parent;
   for (let i = 0; i < n; i++) {
     const name = m.bone(`tail ${i + 1}`, prev, i === 0 ? at : [0, 0, -1], 'tail', swing, { phase: (i * 0.12) % 1 });
@@ -266,7 +273,7 @@ function fourLegs(p: BodyParams | undefined, dragon: boolean): Made {
   return { move: dragon ? 'fly' : 'walk', bones: m.bones, bricks: m.bricks, stride: legH * 1.6, hover: dragon ? 2 : 0 };
 }
 
-function wings(m: Maker, body: string, bodyW: number, span: number, y: number, z: number) {
+export function wings(m: Maker, body: string, bodyW: number, span: number, y: number, z: number) {
   const sw = Math.round(3 * span);
   if (sw < 1) return;
   for (const s of [-1, 1] as const) {

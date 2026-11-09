@@ -1,0 +1,262 @@
+{
+  "id": "engineApi",
+  "title": "Engine API course",
+  "steps": [
+    {
+      "id": "api.open",
+      "title": "Behaviours that reach into the game",
+      "body": "Behaviours can read and move things, use physics, and talk to each other. Here a lamp post sees the hero coming (it switches on when you are close) and, when you use it, sends a message to a crate, which slides away.",
+      "task": "Open the Logic workspace.",
+      "target": "[data-tour=\"ws-logic\"]",
+      "check": {
+        "kind": "state",
+        "test": "workspace",
+        "args": "Logic"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Logic"
+        }
+      ],
+      "how": [],
+      "placement": "bottom"
+    },
+    {
+      "id": "api.sentry",
+      "title": "A lamp that watches",
+      "body": "Make a behaviour named Sentry and write it in Code. update(e) asks entity.distance(\"this\", \"hero\") (Things › Distance): closer than this.range, the lamp is on. interact(e) runs when the hero uses it: msg.send (Things › Send message) tells the object in its Tells field to slide, by 3.",
+      "task": "Make Sentry: on when the hero is near; used, it sends “slide”.",
+      "target": ".lg-code",
+      "check": {
+        "kind": "state",
+        "test": "behaviourHasEvent",
+        "args": "Sentry,interact"
+      },
+      "doItForMe": [
+        {
+          "fn": "newBehaviourNamed",
+          "args": {
+            "name": "Sentry"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "Sentry",
+            "code": [
+              "class $NAME extends Behaviour {",
+              "  range = field.number(4, { label: \"Sees the hero within (studs)\", min: 1, max: 30 });",
+              "  target = field.object(\"Wooden crate\", { label: \"Tells\" });",
+              "",
+              "  update(e) {",
+              "    if ((entity.distance(\"this\", \"hero\") < this.range)) {",
+              "      world.setState(\"this\", \"on\");",
+              "    } else {",
+              "      world.setState(\"this\", \"off\");",
+              "    }",
+              "  }",
+              "",
+              "  interact(e) {",
+              "    msg.send(this.target, \"slide\", 3);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Logic"
+    },
+    {
+      "id": "api.slider",
+      "title": "A crate that listens",
+      "body": "Make a behaviour named Slider. message(e = { name: \"slide\" }) runs when a “slide” message arrives: entity.moveBy moves this crate by e.value studs east, this.slid keeps count, and log writes to the Console (text.join puts the words and the number together).",
+      "task": "Make Slider: it moves when it is told to slide.",
+      "target": ".lg-code",
+      "check": {
+        "kind": "state",
+        "test": "behaviourHasEvent",
+        "args": "Slider,message"
+      },
+      "doItForMe": [
+        {
+          "fn": "newBehaviourNamed",
+          "args": {
+            "name": "Slider"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "Slider",
+            "code": [
+              "class $NAME extends Behaviour {",
+              "  slid = 0;",
+              "",
+              "  message(e = { name: \"slide\" }) {",
+              "    entity.moveBy(\"this\", e.value, 0, 0);",
+              "    this.slid += e.value;",
+              "    log(text.join(\"The crate slides; it has gone \", this.slid));",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Logic"
+    },
+    {
+      "id": "api.place",
+      "title": "A lamp post and a crate",
+      "body": "In the Scene, place a Lamp post ahead of the start and a Wooden crate beside it.",
+      "task": "Place a Lamp post and a Wooden crate.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Lamp post,Wooden crate"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Lamp post",
+            "ahead": 6,
+            "side": -2
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Wooden crate",
+            "ahead": 6,
+            "side": 3
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "api.attach",
+      "title": "Sentry on the lamp",
+      "body": "Select the lamp post and attach Sentry with + Script (Every Lamp post).",
+      "task": "Attach Sentry to the Lamp post.",
+      "target": "[data-tour=\"object-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetHasBehaviour",
+        "args": "Lamp post,Sentry"
+      },
+      "doItForMe": [
+        {
+          "fn": "attachBehaviour",
+          "args": {
+            "behaviour": "Sentry",
+            "asset": "Lamp post"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "api.drag",
+      "title": "Drag Slider onto the crate",
+      "body": "Open the dock's Behaviours tab. Drag Slider from it onto the crate in the 3D view: it goes on that copy only (or select the crate and press Attach).",
+      "task": "Put Slider on the crate.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "copyHasBehaviour",
+        "args": "Wooden crate,Slider"
+      },
+      "doItForMe": [
+        {
+          "fn": "dropBehaviour",
+          "args": {
+            "behaviour": "Slider",
+            "asset": "Wooden crate"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "api.near",
+      "title": "Walk up to the lamp",
+      "body": "Press Play and walk toward the lamp post: within 4 studs it switches on, and off again when you walk away.",
+      "task": "Press Play and walk up to the lamp.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "stateInPlay",
+        "args": "Lamp post:on"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "walkNear",
+          "args": {
+            "asset": "Lamp post",
+            "gap": 1
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "api.use",
+      "title": "Use it",
+      "body": "Press the Action button (E) at the lamp post. Its interact sends “slide” to the crate, which moves 3 studs; the Console says how far it has gone. Use it again and it goes further.",
+      "task": "Use the lamp post.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "The crate slides"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "useNear",
+          "args": {
+            "asset": "Lamp post"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "api.done",
+      "title": "Done!",
+      "body": "Your behaviours read the world (Distance), changed it (Set state, Move by) and talked to each other (Send message, On message). Logic's Nodes list has the rest under Things, Physics, Input, Math and Text: where things are, Push and Look ahead for physics, Button held and Game time, Sine, Keep between, Blend and Join text. Next, the engine's own features become built-in behaviours you can extend.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

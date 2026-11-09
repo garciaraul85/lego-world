@@ -1,0 +1,68 @@
+import type { HelpEntry } from '../types';
+
+/** Milestone 3b (B7b): HUD styles after each era, and the player's buttons and the HUD in logic. */
+export const HUD: HelpEntry[] = [
+  {
+    id: 'project.hudStyle',
+    also: [
+      'hud style',
+      'hud',
+      'era',
+      'retro hud',
+      'button layout',
+      'corner buttons',
+      'c buttons',
+      'big button',
+      'pointer',
+      'motion controls',
+      'item wheel',
+      'second screen',
+      'tablet',
+      'open air',
+      'stamina wheel',
+      'controller style',
+    ],
+    screen: 'scene',
+    kind: 'setting',
+    name: 'Controls › HUD style',
+    purpose:
+      'A card for each era of 3D adventure games, oldest first. Each sets the button layout, the face each button wears on the HUD (its letter or shape and colour) and arranges the HUD screen like the games of its time — all drawn here, original. **Corner buttons** (64-bit era): a green B for Attack, a blue A that says what it does and three yellow item buttons in the top right corner, a square map bottom right, no jump button. **Big-button cluster** (cube era): one big green A ringed by a red B, two grey item buttons and a purple one, a sea-chart map. **Pointer and motion**: a tall remote on the right — tap the B item button to use its item, hold it and the item wheel opens; the attack is a swing; a stamina ring by the hero. **Second screen** (tablet era): little on the game itself and a second screen along the bottom with the map and the items, touched to use them. **Open air**: small button hints down the bottom right (Action says what it does), a stamina wheel that shows while it is used, a jump button of its own and a quick menu (✚) for items. **Plain** goes back to the built-in HUD. The HUD screen stays yours to change in Screens; Undo brings back what was.',
+    steps: [
+      'Open the **Project** tab of the Inspector and find **Controls › HUD style**.',
+      'Press a card. The layout below changes to match, and the HUD screen is arranged.',
+      'Press ▶ Play to see it.',
+    ],
+    commands: ['hud.applyStyle'],
+    match: [{ in: '[data-help="project.hudStyle"]' }],
+    related: ['project.controls', 'logic.playerinput'],
+  },
+  {
+    id: 'logic.playerinput',
+    also: [
+      'PlayerInput',
+      'GameHud',
+      'button down',
+      'button up',
+      'charged attack',
+      'long press',
+      'disable controls',
+      'rumble',
+      'vibration',
+      'hide widget',
+      'hud text',
+      'action label',
+      'set hud style',
+    ],
+    screen: 'logic',
+    kind: 'view',
+    name: 'Buttons and HUD in logic (PlayerInput, GameHud)',
+    purpose:
+      'The player’s buttons and the HUD are classes too (Logic › Built-in › Game), in the game as written: nothing to attach. A behaviour that extends **PlayerInput** answers **canPress** (false: the button does nothing — no attacking in a village, no items underwater) and **actionLabel** (other words for the Action button: “Chat” to people), and hears **buttonDown(e)** (e.button, and e.face: what it wears in the HUD style, such as A or ◀) and **buttonUp(e)** (e.held: how many seconds it was down). One that extends **GameHud** answers **showWidget** (false hides a HUD widget by its id: hearts, minimap, buttons, quest…) and **widgetText** (other words for a text widget), and hears **hudStyle(e)**. Any script can ask input.isHeld("attack") and input.heldFor("attack"), turn the buttons off with input.enable(false), shake the gamepad with input.rumble(0.6, 0.3), change the look with hud.setStyle("openair") and read hud.style().',
+    steps: [
+      'In Logic, open **Built-in › Game** and press **PlayerInput** (or **GameHud**), then **Extend**.',
+      'Answer the hooks you want (return e.base keeps the engine’s answer).',
+      'Press Play and press the buttons.',
+    ],
+    related: ['project.hudStyle', 'project.controls', 'logic.gamemode'],
+  },
+];

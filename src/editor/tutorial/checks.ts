@@ -1,3 +1,4 @@
+import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_EFFECTS } from '../../builtin/effects';
 import { BUILTIN_SCREEN_EFFECTS } from '../../builtin/screen-effects';
 import { cleanupOf } from '../../core/assets/cleanup';
@@ -6,7 +7,9 @@ import type { Conversation } from '../../core/dialogue/schema';
 import type { Effect } from '../../core/effects/schema';
 import type { ScreenEffect } from '../../core/effects/screen';
 import { fogPresetOf } from '../../core/lighting/atmosphere';
+import { builtinNamed, characterBuiltinNamed } from '../../core/logic/builtins';
 import { wiresOf } from '../../core/logic/wiring';
+import { isBigPicture } from '../../core/media/import';
 import { allSaves } from '../../core/save/save';
 import {
   type Asset,
@@ -18,17 +21,30 @@ import {
   type LightInstance,
   type LogicGraph,
   type MapDoc,
+  type MediaIndex,
   paths,
   type Screen,
+  type Settings,
   type Variables,
 } from '../../core/schema';
+import { SWIM_DEFAULTS } from '../../core/water/swim';
 import { easeAt, poseAt, poseTimes } from '../../engine/character/posing';
+import { modelMatrix, readyModel } from '../../engine/model/prepare';
+import { drawBox } from '../../engine/render/model-draw';
 import { BrowserSaveStore } from '../../platform/saves';
 import { assetLibrary } from '../assets';
+import { inWater, looseCopies, modelItems, waterItems } from '../interact/place';
 import { savingOf } from '../panels/SavingSection';
 import type { EditorState } from '../state';
 import { CODING_TESTS } from './coding';
 import { MARK_FACING, MARK_RADIUS, markTarget } from './story';
+
+/** Milestone 3b (B1): a behaviour by name */
+const behaviourGraph = (ed: EditorState, name: string): LogicGraph | null =>
+  ed.store
+    .list('logic/')
+    .map((p) => ed.store.get<LogicGraph>(p))
+    .find((g): g is LogicGraph => !!g?.behaviour && g.name.trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
 
 const effectNamed = (ed: EditorState, id: string | null | undefined): Effect | undefined =>
   id ? (ed.store.get<Effect>(paths.effect(id)) ?? BUILTIN_EFFECTS.find((e) => e.id === id)) : undefined;
@@ -39,6 +55,7 @@ const screenEffectNamed = (ed: EditorState, id: string | null | undefined): Scre
     : undefined;
 
 /** Named tests for `state` checks (P7.3). They read the editor; none of them changes anything. */
+import { library } from '../library/store';
 export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boolean> = {
   menuOpen: (ed, a) => ed.menu.value === a,
   paletteOpen: (ed) => ed.palette.value,
@@ -104,6 +121,159 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   characterWears: (ed, a) => {
     const { field, value } = a as { field: string; value: string };
     return studioCharacter(ed)?.profile[field] === value;
+  },
+  // Milestone 3, 10d: a body shape size at least so big; a part drawn on; the Draw tab at a part and side
+  lookAtLeast: (ed, a) => {
+    const { field, atLeast } = a as { field: string; atLeast: number };
+    return Number(studioCharacter(ed)?.profile[field] ?? 0) >= atLeast;
+  },
+  drawnOn: (ed, a) => !!(studioCharacter(ed)?.profile.paint as Record<string, string> | undefined)?.[String(a)],
+  drawAt: (ed, a) => {
+    const { part, side } = a as { part: string; side: number };
+    return ed.sheetTab.value === 'draw' && ed.drawPart.value === part && ed.drawSide.value === side;
+  },
+  // Milestone 3, 10d part 3: custom hair — settings worn, a size at least so big, a hairstyle in My library and worn
+  hairIs: (ed, a) => {
+    const c = studioCharacter(ed);
+    const h = c?.profile.customHair as Record<string, unknown> | undefined;
+    return (
+      c?.profile.hair === 'Custom' &&
+      !!h &&
+      Object.entries(a as Record<string, unknown>).every(([k, v]) => (v === '*' ? h[k] !== undefined : h[k] === v))
+    );
+  },
+  hairAtLeast: (ed, a) => {
+    const { field, atLeast } = a as { field: string; atLeast: number };
+    return (
+      Number((studioCharacter(ed)?.profile.customHair as Record<string, unknown> | undefined)?.[field] ?? 0) >= atLeast
+    );
+  },
+  libraryHair: (ed, a) => ed.store.list(paths.hairstyleDir).some((p) => ed.store.get<{ name: string }>(p)?.name === a),
+  wearsLibraryHair: (ed, a) => {
+    const { style, character } = (typeof a === 'string' ? { style: a } : a) as { style: string; character?: string };
+    const c = studioCharacter(ed);
+    if (character && c?.name !== character) return false;
+    const from = (c?.profile.customHair as { from?: string } | undefined)?.from;
+    return !!from && ed.store.get<{ name: string }>(paths.hairstyle(from))?.name === style;
+  },
+  // Milestone 3b (B1): the Behaviours course
+  behaviourNamed: (ed, a) => openGraph(ed)?.name === a && !!openGraph(ed)?.behaviour,
+  behaviourHasField: (ed, a) => {
+    const [b, f] = String(a).split(',');
+    return !!behaviourGraph(ed, b!)?.behaviour?.fields.some((x) => x.name === f);
+  },
+  behaviourHasEvent: (ed, a) => {
+    const [b, e] = String(a).split(',');
+    const t = `event.on${e!.charAt(0).toUpperCase()}${e!.slice(1)}`;
+    const g = behaviourGraph(ed, b!);
+    return (
+      !!g?.nodes.some((n) => n.type === t) && !!g.edges.some((x) => g.nodes.find((n) => n.id === x[0])?.type === t)
+    );
+  },
+  assetHasBehaviour: (ed, a) => {
+    const [asset, b] = String(a).split(',');
+    const g = behaviourGraph(ed, b!);
+    return (
+      !!g &&
+      ed.store.list('assets/').some((p) => {
+        const x = ed.store.get<Asset>(p);
+        return x?.name === asset && !!x?.scripts?.some((s) => s.use === g.id);
+      })
+    );
+  },
+  copyHasField: (ed, a) => {
+    const [b, f] = String(a).split(',');
+    const g = behaviourGraph(ed, b!);
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return (
+      !!g &&
+      items.some((i) =>
+        (i as { scripts?: { use: string; fields?: Record<string, unknown> }[] }).scripts?.some(
+          (s) => s.use === g.id && s.fields?.[f!] !== undefined,
+        ),
+      )
+    );
+  },
+  copyHasBehaviour: (ed, a) => {
+    const [asset, b] = String(a).split(',');
+    const g = behaviourGraph(ed, b!);
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return (
+      !!g &&
+      items.some((i) => {
+        if (i.kind !== 'asset' || !i.scripts?.some((s) => s.use === g.id)) return false;
+        const def = ed.store.get<Asset>(paths.asset(i.asset));
+        return def?.name === asset;
+      })
+    );
+  },
+  behaviourRunning: (ed, a) => {
+    const [b, n] = String(a).split(',');
+    const g = behaviourGraph(ed, b!);
+    const s = ed.session.value;
+    return !!g && !!s && s.logic.attachedTo(g.id).length >= Number(n ?? 1) && s.clock > 1;
+  },
+  // Milestone 3b (B3): the Built-in behaviours course
+  builtinOpen: (ed, a) => ed.workspace.value === 'Logic' && ed.logicGraph.value === `builtin:${String(a)}`,
+  behaviourExtends: (ed, a) => {
+    const [b, base] = String(a).split(',');
+    return behaviourGraph(ed, b!)?.behaviour?.extends === base;
+  },
+  builtinField: (ed, a) => {
+    const [asset, b, f, v] = String(a).split(',');
+    const def = ed.store
+      .list('assets/')
+      .map((p) => ed.store.get<Asset>(p))
+      .find((x) => x?.name === asset);
+    const field = builtinNamed(b)?.fields.find((x) => x.name === f);
+    return !!def && !!field && String(field.get(def)) === v;
+  },
+  // Milestone 3b (B4): the Hero course
+  /** Milestone 3b (14a-2): “Behaviour,2”: the behaviour writes at least that many boss phases */
+  behaviourPhases: (ed, a) => {
+    const [b, n] = String(a).split(',');
+    return (behaviourGraph(ed, b!)?.behaviour?.phases?.length ?? 0) >= Number(n);
+  },
+  /** Milestone 3b (14a-2): “Behaviour,2,speed,1.5”: its 2nd phase (in order) has that setting */
+  behaviourPhase: (ed, a) => {
+    const [b, n, k, v] = String(a).split(',');
+    const p = behaviourGraph(ed, b!)?.behaviour?.phases?.[Number(n) - 1] as Record<string, unknown> | undefined;
+    return p !== undefined && String(p[k!]) === v;
+  },
+  /** Milestone 3b (14a-2): Logic shows this behaviour (its code, cards and phases) */
+  logicOpenNamed: (ed, a) => {
+    const g = behaviourGraph(ed, String(a));
+    return !!g && ed.logicGraph.value === g.id && ed.workspace.value === 'Logic';
+  },
+  /** Milestone 3b (B6): the game's hero has all these behaviours (“Whistle,My Boomerang”) */
+  heroHasBehaviours: (ed, a) => {
+    const hero = ed.store.get<Character>(paths.character(ed.store.manifest.hero ?? ''));
+    return String(a)
+      .split(',')
+      .every((name) => {
+        const g = behaviourGraph(ed, name.trim());
+        return !!g && !!hero?.scripts?.some((x) => x.use === g.id);
+      });
+  },
+  characterHasBehaviour: (ed, a) => {
+    const [chr, b] = String(a).split(',');
+    const g = behaviourGraph(ed, b!);
+    return (
+      !!g &&
+      ed.store.list('characters/').some((p) => {
+        const x = ed.store.get<Character>(p);
+        return x?.name === chr && !!x?.scripts?.some((s) => s.use === g.id);
+      })
+    );
+  },
+  characterBuiltinField: (ed, a) => {
+    const [chr, b, f, v] = String(a).split(',');
+    const c = ed.store
+      .list('characters/')
+      .map((p) => ed.store.get<Character>(p))
+      .find((x) => x?.name === chr);
+    const field = characterBuiltinNamed(b)?.fields.find((x) => x.name === f);
+    return !!c && !!field && String(field.get(c)) === v;
   },
   // P32: the treasure-chest story — logic
   graphNamed: (ed, a) => openGraph(ed)?.name === a,
@@ -219,6 +389,11 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   },
   // P9c: the combat course
   mapNamed: (ed, a) => ed.mapDoc.value?.name === a,
+  // Milestone 3, 10d: an asset of this name placed on the open map (made from words)
+  assetOnMap: (ed, a) =>
+    (ed.store.get<{ items: { kind: string; asset?: string }[] }>(paths.instances(ed.mapId.value))?.items ?? []).some(
+      (i) => i.kind === 'asset' && ed.store.get<{ name: string }>(paths.asset(i.asset ?? ''))?.name === a,
+    ),
   enemyStat: (ed, a) => {
     const { stat, value } = a as { stat: string; value: number };
     const e = studioCharacter(ed)?.enemy as Record<string, unknown> | undefined;
@@ -274,10 +449,20 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
     );
   },
   bodyWalking: (ed) => ed.bodyWalk.value,
+  // Milestone 3, 10d part 2: the last move pressed in the Body tab
+  bodyMove: (ed, a) => ed.bodyAct.value?.kind === a,
   bodyBonesShown: (ed) => ed.bodyBones.value,
   ownPlan: (ed) => {
     const p = studioCharacter(ed)?.body?.plan;
     return !!p && !!ed.store.get(`bodyplans/${p}.json`);
+  },
+  // 10d part 3: every brick on a bone of the creature's own plan is that colour
+  boneColor: (ed, a) => {
+    const { bone, color } = a as { bone: string; color: string };
+    const p = studioCharacter(ed)?.body?.plan;
+    const plan = p ? ed.store.get<{ bricks: { bone: string; color: string }[] }>(`bodyplans/${p}.json`) : null;
+    const on = plan?.bricks.filter((k) => k.bone === bone) ?? [];
+    return on.length > 0 && on.every((k) => k.color.toLowerCase() === color);
   },
   planHasBone: (ed, a) => {
     const p = studioCharacter(ed)?.body?.plan;
@@ -295,6 +480,17 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   levelAtLeast: (ed, a) => Number(ed.session.value?.logic.vars.get('level') ?? 0) >= Number(a),
   // P22: the dialogue course
   characterExists: (ed, a) => ed.store.list('characters/').some((p) => ed.store.get<{ name: string }>(p)?.name === a),
+  // Milestone 3, 10d: a character of that name stands on the open map
+  characterPlaced: (ed, a) => {
+    const id = ed.store
+      .list('characters/')
+      .map((p) => ed.store.get<{ id: string; name: string }>(p))
+      .find((c) => c?.name === a)?.id;
+    const inst = ed.store.get<{ items: { kind: string; character?: string }[] }>(
+      `maps/${ed.mapId.value}/instances.json`,
+    );
+    return !!id && !!inst?.items.some((i) => i.kind === 'npc' && i.character === id);
+  },
   talksWith: (ed, a) =>
     ed.store
       .list('characters/')
@@ -313,8 +509,257 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   },
   dialogueStyleIs: (ed, a) => (ed.store.manifest.dialogue?.style ?? 'adventure') === a,
   inConversation: (ed) => !!ed.session.value?.talks.active,
+  // step 11 (P24 part 1): the Build faster course — the open asset's plate and the asset itself
+  plateMirror: (_ed, a) => {
+    const p = (globalThis as unknown as { __plate?: { mirror: { value: Record<string, number | null> } } }).__plate;
+    return !!p && p.mirror.value[String(a)] !== null;
+  },
+  plateStamp: () =>
+    !!(globalThis as unknown as { __plate?: { stamp: { value: unknown[] | null } } }).__plate?.stamp.value?.length,
+  assetBricksAtLeast: (ed, a) => {
+    const id = ed.studioAsset.value;
+    return !!id && (ed.store.get<Asset>(paths.asset(id))?.bricks.length ?? 0) >= Number(a);
+  },
+  assetHasMover: (ed, a) => {
+    const id = ed.studioAsset.value;
+    const def = id ? ed.store.get<Asset>(paths.asset(id)) : undefined;
+    return !!def?.parts?.some((p) => p.name === a && !!p.pose && !!p.hinge) && def.interactions.length > 0;
+  },
+  // step 11 (P24 part 2): the Custom bricks course
+  customBrickIs: (ed, a) => {
+    const want = a as { name: string; shape: string };
+    return ed.store.list('bricks/').some((p) => {
+      const b = ed.store.get<{ name: string; shape: string }>(p);
+      return b?.name === want.name && b.shape === want.shape;
+    });
+  },
+  assetUsesCustom: (ed, a) => {
+    const want = a as { name: string; count: number };
+    const id = ed.studioAsset.value;
+    const def = id ? ed.store.get<Asset>(paths.asset(id)) : undefined;
+    const cb = ed.store
+      .list('bricks/')
+      .map((p) => ed.store.get<{ id: string; name: string }>(p))
+      .find((b) => b?.name === want.name);
+    if (!def || !cb) return false;
+    return def.bricks.filter((b) => def.palette.types[b[0] as number]?.includes(`:${cb.id}:`)).length >= want.count;
+  },
+  // step 11 (P24 part 3): the Your own media course
+  mediaLibraryOpen: (ed) => ed.mediaLibrary.value,
+  mediaHas: (ed, a) => {
+    const want = a as Record<string, number>;
+    const items = Object.values(ed.store.get<MediaIndex>(paths.media)?.items ?? {});
+    return Object.entries(want).every(([k, n]) => items.filter((m) => m.kind === k).length >= n);
+  },
+  mediaCredited: (ed, a) =>
+    Object.values(ed.store.get<MediaIndex>(paths.media)?.items ?? {}).filter((m) => m.credit).length >= Number(a ?? 1),
+  noBigPictures: (ed) => {
+    const items = Object.values(ed.store.get<MediaIndex>(paths.media)?.items ?? {});
+    return items.some((m) => m.kind === 'image') && !items.some(isBigPicture);
+  },
+  screenHasWidget: (ed, a) => {
+    const want = a as { screen: string; type: string };
+    const s = ed.store
+      .list('screens/')
+      .map((p) => ed.store.get<{ name: string; root: unknown }>(p))
+      .find((x) => x?.name === want.screen);
+    return !!s && JSON.stringify(s.root).includes(`"type":"${want.type}"`);
+  },
   // P26: the saving course
   savingIs: (ed, a) => matches(savingOf(ed.store.manifest), a as Record<string, unknown>),
+  // Milestone 2b: the water and physics course
+  assetLoose: (ed, a) =>
+    assetLibrary(ed).some((x) => x.asset.name === a && !!ed.store.get<Asset>(paths.asset(x.asset.id))?.loose),
+  looseInWater: (ed) => {
+    const water = waterItems(ed);
+    return looseCopies(ed).some((c) => water.some((w) => inWater(w, c.x, c.y * 0.4 + 0.2, c.z)));
+  },
+  waterKind: (ed, a) => waterItems(ed).some((w) => w.body === a),
+  waterFlows: (ed) => waterItems(ed).some((w) => !!w.current && Math.hypot(w.current[0], w.current[1]) > 0),
+  drawWithIs: (ed, a) => ed.drawWith.value === a,
+  projectMovement: (ed, a) => (ed.store.get<{ movement?: string }>(paths.settings)?.movement ?? 'classic') === a,
+  heroOnLoose: (ed) => !!ed.session.value?.world.physics?.standingOnLoose,
+  // step 11b part 2: the swimming course
+  deepWater: (ed, a) => waterItems(ed).some((w) => w.size[1] >= Number(a ?? 2.5)),
+  assetInWater: (ed, a) => {
+    const water = waterItems(ed);
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return items.some(
+      (i) =>
+        i.kind === 'asset' &&
+        (ed.store.get<Asset>(paths.asset(i.asset))?.name ?? '') === String(a) &&
+        water.some((w) => inWater(w, i.pos[0] + 0.5, i.pos[1] * 0.4 + 0.2, i.pos[2] + 0.5)),
+    );
+  },
+  swimmingIs: (ed, a) =>
+    matches(
+      { ...SWIM_DEFAULTS, ...(ed.store.get<{ swimming?: object }>(paths.settings)?.swimming ?? {}) },
+      a as Record<string, unknown>,
+    ),
+  heroUnderwater: (ed) => !!ed.session.value?.swim.under,
+  playSaid: (ed, a) => !!ed.session.value?.events.some((x) => x.msg.includes(String(a))),
+  // Milestone 2b, 10c part 5: 3D models
+  modelsShown: (ed) => ed.dock.value === 'assets' && ed.assetCat.value === '3D models',
+  modelPlaced: (ed, a) =>
+    modelItems(ed).some((m) => (a === 'own' ? m.model.startsWith('sha256:') : !a || m.model === a)),
+  modelSizeAtLeast: (ed, a) => modelItems(ed).some((m) => (m.size ?? 1) >= Number(a)),
+  modelsImported: (ed, a) =>
+    Object.values(ed.store.get<MediaIndex>(paths.media)?.items ?? {}).filter((e) => e.kind === 'model').length >=
+    Number(a ?? 1),
+  heroOnModel: (ed) => {
+    const s = ed.session.value;
+    if (!s) return false;
+    const h = s.heroState;
+    return s.world.models.some((m) => {
+      const up = m.solid !== false && readyModel(m.model);
+      if (!up) return false;
+      const b = drawBox(modelMatrix(m), up.data.min, up.data.max);
+      const over = h.x > b.min[0] && h.x < b.max[0] && h.z > b.min[2] && h.z < b.max[2];
+      return over && h.y > b.min[1] + (b.max[1] - b.min[1]) * 0.4 && h.y < b.max[1] + 0.8;
+    });
+  },
+  looseMovedInPlay: (ed, a) => {
+    const w = ed.session.value?.world;
+    const ph = w?.physics;
+    if (!w || !ph) return false;
+    return w.looseObjects.some((o) => {
+      const p = ph.objectPose(o.inst.inst.id);
+      return !!p && Math.hypot(p.pos[0] - o.origin[0], p.pos[2] - o.origin[2]) >= Number(a ?? 1);
+    });
+  },
+  // step 11, 4a: the starter pack course
+  dockIs: (ed, a) => ed.dock.value === a,
+  // step 11, 4c: the Scripts and scenes course
+  npcCount: (ed, a) => {
+    const [name, n] = String(a).split(':');
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    const nameOf = (id: string) =>
+      ed.store.get<{ name: string }>(paths.character(id))?.name ?? BUILTIN_CHARACTERS.find((c) => c.id === id)?.name;
+    return items.filter((i) => i.kind === 'npc' && nameOf(i.character) === name).length >= Number(n ?? 1);
+  },
+  logicNamed: (ed, a) => ed.store.list('logic/').some((p) => ed.store.get<{ name: string }>(p)?.name === String(a)),
+  cinematicNamed: (ed, a) =>
+    ed.store.list('cinematics/').some((p) => ed.store.get<{ name: string }>(p)?.name === String(a)),
+  assetInPlay: (ed, a) => !!ed.session.value?.resolveEntity(String(a)),
+  // step 12a: the Puzzles course
+  assetsOnMap: (ed, a) => {
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    const names = new Set(
+      items.flatMap((i) =>
+        i.kind === 'asset' ? [assetLibrary(ed).find((x) => x.asset.id === i.asset)?.asset.name ?? ''] : [],
+      ),
+    );
+    return String(a)
+      .split(',')
+      .every((n) => names.has(n.trim()));
+  },
+  /** “Name:state”: a copy of that asset is in that state in the running game */
+  stateInPlay: (ed, a) => {
+    const [name, state] = String(a).split(':');
+    return !!ed.session.value?.world.instances.some((i) => i.def.name === name && i.state === state);
+  },
+  /** the running game's log has this line (Push block pulled…) */
+  /** step 12c: Project › Climbing is this (ladders, anything) */
+  climbingIs: (ed, a) => (ed.store.get<{ climbing?: string }>(paths.settings)?.climbing ?? 'ladders') === a,
+  /** step 12c-2: a body of water of this kind (river, pool…) is on the map */
+  waterOnMap: (ed, a) =>
+    (ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? []).some(
+      (i) => i.kind === 'water' && i.body === String(a),
+    ),
+  /** Milestone 3b (B7a-1): “pause,type,chart”: Project › Maps has that (pause, dungeon or mini; a field) */
+  mapLook: (ed, a) => {
+    const [which, field, value] = String(a).split(',');
+    const l = (
+      ed.store.get<Settings>(paths.settings)?.maps as Record<string, Record<string, unknown> | undefined> | undefined
+    )?.[which!];
+    return String(l?.[field!]) === value;
+  },
+  /** Milestone 3b (B7a-1): the pause map is open in Play */
+  mapOpen: (ed) => !!ed.session.value?.mapOpen,
+  /** Milestone 3b (B7a-1): a pin with this stamp is on the map in Play */
+  mapPinned: (ed, a) =>
+    !!ed.session.value?.mapTrack.pins(ed.session.value.world.mapId).some((p) => p.stamp === String(a)),
+  playLogged: (ed, a) => !!ed.session.value?.events.some((e) => e.msg.includes(String(a))),
+  /** Milestone 3b (B7a-2): “Quest,3”: the quest's class writes at least that many steps */
+  questSteps: (ed, a) => {
+    const [b, n] = String(a).split(',');
+    return (behaviourGraph(ed, b!)?.behaviour?.steps?.length ?? 0) >= Number(n);
+  },
+  /** Milestone 3b (B7a-2): the quest log is open in Play */
+  questLogOpen: (ed) => !!ed.session.value?.questsOpen,
+  /** Milestone 3b (B7a-3): the map open in the editor runs this behaviour */
+  mapHasScript: (ed, a) => {
+    const g = behaviourGraph(ed, String(a));
+    const m = ed.store.get<MapDoc>(paths.map(ed.mapId.value));
+    return !!g && !!m?.scripts?.some((x) => x.use === g.id && !x.off);
+  },
+  /** v141: the game has a map of this name joined to the start map by a gate (“Old Well Cave”) */
+  mapLinked: (ed, a) => {
+    const g = ed.store.get<Gates>(paths.gates);
+    const m = (g?.mapOrder ?? []).map((id) => ed.store.get<MapDoc>(paths.map(id))).find((x) => x?.name === String(a));
+    return !!m && !!g?.gates.some((x) => x.from.map === m.id || x.to.map === m.id);
+  },
+  /** v141: “Quest,Map”: in Play, the quest's goal is on that map */
+  questGoalMap: (ed, a) => {
+    const [q, m] = String(a).split(',');
+    return ed.session.value?.questRead('goalMap', q!) === m;
+  },
+  /** Milestone 3b (B7b): the game's HUD style (Project › Controls); “plain” for none */
+  hudStyle: (ed, a) => (ed.store.get<Settings>(paths.settings)?.controls?.hud ?? 'plain') === String(a),
+  /** Milestone 3b (B7b): in Play, the HUD style now (hud.setStyle changes it) */
+  playHudStyle: (ed, a) => ed.session.value?.hudStyle() === String(a),
+  /** v141: in Play the hero is on the map of this name */
+  heroOnMap: (ed, a) => ed.session.value?.world.doc.name === String(a),
+  /** v141: “Quest,2”: in Play, the quest is on that step */
+  questStepAt: (ed, a) => {
+    const [q, n] = String(a).split(',');
+    return ed.session.value?.questRead('step', q!) === Number(n);
+  },
+  /** Milestone 3b (B7a-2): this quest is tracked and the pause map is open */
+  questOnMap: (ed, a) =>
+    !!ed.session.value?.mapOpen &&
+    ed.session.value.quests.trackedQuest()?.name.toLowerCase() === String(a).toLowerCase(),
+  /** Milestone 3b (B7a-2): this quest is done in Play */
+  questDone: (ed, a) => ed.session.value?.questRead('status', String(a)) === 'done',
+  /** “Name:stays”: the project's copy of the asset is a switch that stays that way (timed, toggle…) */
+  switchStays: (ed, a) => {
+    const [name, stays] = String(a).split(':');
+    return ed.store.list('assets/').some((p) => {
+      const x = ed.store.get<Asset>(p);
+      return x?.name === name && x?.switch?.stays === stays;
+    });
+  },
+  mapDungeon: (ed) => !!ed.mapDoc.value?.dungeon,
+  inLibrary: (_ed, a) => library().items.value.some((i) => i.name === String(a)),
+  logicUses: (ed, a) => {
+    const types = new Set(
+      ed.store.list('logic/').flatMap((p) => ed.store.get<LogicGraph>(p)?.nodes?.map((n) => n.type) ?? []),
+    );
+    return String(a)
+      .split(',')
+      .every((t) => types.has(t.trim()));
+  },
+  logicVar: (ed, a) => {
+    const [name, v] = String(a).split(':');
+    return String(ed.session.value?.logic.vars.get(name!)) === v;
+  },
+  following: (ed) => (ed.session.value?.followers.size ?? 0) > 0,
+  libraryUsed: (_ed, a) => library().lastUsed.value === String(a),
+  libraryExported: () => library().exported.value,
+  // step 11, 4b
+  lookIs: (ed, a) => (ed.store.manifest.uiLook ?? 'classic') === a,
+  heroIs: (ed, a) => ed.store.get<{ name: string }>(paths.character(ed.store.manifest.hero ?? ''))?.name === a,
+  npcPlaced: (ed, a) => {
+    const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
+    return items.some(
+      (i) => i.kind === 'npc' && ed.store.get<{ name: string }>(paths.character(i.character))?.name === String(a),
+    );
+  },
+  foeHurt: (ed, a) => {
+    const s = ed.session.value;
+    const n = s?.world.npcs.find((x) => String(x.profile.name ?? '') === String(a));
+    return !!s && !!n && (s.health.peek(`n:${n.id}`)?.hp ?? Infinity) < (s.health.peek(`n:${n.id}`)?.max ?? 0);
+  },
   placedAsset: (ed, a) => {
     const items = ed.store.get<Instances>(paths.instances(ed.mapId.value))?.items ?? [];
     return items.some(
@@ -401,7 +846,8 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   // P27 part 4: quality levels
   projectQuality: (ed, a) => (ed.store.get<{ quality?: string }>(paths.settings)?.quality ?? 'auto') === a,
   previewQuality: (ed, a) => ed.previewQuality.value === a,
-  playingAtQuality: (ed, a) => ed.session.value?.quality === a,
+  // picked on the Play bar (a game whose own level is already Low still waits for the pick)
+  playingAtQuality: (ed, a) => ed.previewQuality.value === a && ed.session.value?.quality === a,
   playOnFirstMap: (ed) =>
     !!ed.session.value &&
     !ed.session.value.loading &&
@@ -428,6 +874,7 @@ export const STATE_TESTS: Record<string, (ed: EditorState, args: unknown) => boo
   lightColor: (ed, a) => lightsOf(ed).some((l) => l.light.color.toLowerCase() === String(a).toLowerCase()),
   lightRange: (ed, a) => lightsOf(ed).some((l) => l.light.range >= Number(a)),
   lightsAtLeast: (ed, a) => lightsOf(ed).length >= Number(a),
+  shadowLightsAtLeast: (ed, a) => lightsOf(ed).filter((l) => l.light.shadow).length >= Number(a),
   lightOff: (ed) => lightsOf(ed).some((l) => !l.on),
   zoneLightsOn: (ed) => (ed.mapDoc.value?.zones ?? []).some((z) => (z.onEnter ?? []).some((x) => x.do === 'lightOn')),
   lightOnInPlay: (ed, a) =>

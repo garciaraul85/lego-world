@@ -1,0 +1,4 @@
+{
+  "path": "bricks/cbk_0000000002.json",
+  "value": { "id": "cbk_0000000002", "name": "Too big", "base": "brick", "w": 9, "d": 3, "shape": "star", "studs": "flat" }
+}

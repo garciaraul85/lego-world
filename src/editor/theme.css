@@ -758,6 +758,94 @@ select.inp {
   flex-direction: column;
   gap: 10px;
 }
+.modal:has(.courses-list) {
+  width: min(640px, 100%);
+}
+/* step 11, 4c: the template window */
+.modal:has(.tpl) {
+  width: min(820px, 100%);
+}
+.tpl {
+  display: grid;
+  grid-template-columns: minmax(180px, 230px) minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+}
+.tpl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 62vh;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  padding-right: 8px;
+}
+.tpl-item {
+  text-align: left;
+  width: 100%;
+}
+.tpl-item.on {
+  background: var(--accbg);
+  color: var(--acc2);
+}
+.tpl-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 62vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.tpl-name {
+  margin: 0;
+  font-size: 15px;
+}
+.tpl-form p {
+  margin: 0;
+}
+.tpl-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  text-align: left;
+}
+.tpl-error {
+  color: var(--err);
+}
+@media (max-width: 640px) {
+  .tpl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tpl-list {
+    border-right: 0;
+    max-height: 26vh;
+  }
+}
+/* Help › Courses…: grouped, and it scrolls however many courses there are */
+.courses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+.courses-title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  padding: 0 10px 4px;
+}
+.course-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
 .palette-list {
   display: flex;
   flex-direction: column;
@@ -1826,6 +1914,71 @@ select.inp {
 .bw-heart:not(.on) {
   color: #ffffff60;
 }
+/* step 11, 4b: the Adventure screen look (project uiLook): parchment panels, gold-framed buttons, a storybook font,
+   framed hearts. It wins over a widget's own colours so one switch changes every screen. */
+.bw-look-adventure {
+  --adv-ink: #3b2a14;
+  --adv-parch: #f3e3bf;
+  --adv-parch2: #e2c992;
+  --adv-gold: #c9962b;
+  --adv-gold2: #f5d77a;
+  --adv-wood: #5a3a1a;
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, "URW Palladio L", Georgia, serif;
+}
+.bw-look-adventure .bw-panel[style*="background"]:not(.bw-screen > .bw-panel) {
+  background: radial-gradient(ellipse at 50% 40%, var(--adv-parch) 55%, var(--adv-parch2) 100%) !important;
+  border: 3px solid var(--adv-gold) !important;
+  outline: 2px solid var(--adv-wood);
+  outline-offset: -7px;
+  border-radius: 10px !important;
+  box-shadow:
+    0 6px 18px #0009,
+    inset 0 0 24px #b8904a55;
+  color: var(--adv-ink) !important;
+}
+.bw-look-adventure .bw-panel[style*="background"]:not(.bw-screen > .bw-panel) .bw-text {
+  color: var(--adv-ink) !important;
+  text-shadow: none !important;
+}
+.bw-look-adventure .bw-text {
+  letter-spacing: 0.02em;
+}
+.bw-look-adventure .bw-button {
+  font-family: inherit;
+  color: var(--adv-ink) !important;
+  background: linear-gradient(180deg, #fbefcd 0%, var(--adv-parch2) 100%) !important;
+  border: 3px solid var(--adv-gold) !important;
+  border-radius: 6px !important;
+  box-shadow:
+    0 0 0 2px var(--adv-wood),
+    0 4px 0 2px var(--adv-wood);
+  letter-spacing: 0.03em;
+}
+.bw-look-adventure .bw-button:focus-visible,
+.bw-look-adventure .bw-button:hover {
+  border-color: var(--adv-gold2) !important;
+  filter: brightness(1.06);
+}
+.bw-look-adventure .bw-button:focus-visible {
+  outline: 3px solid var(--adv-gold2);
+}
+.bw-look-adventure .bw-button:active {
+  box-shadow:
+    0 0 0 2px var(--adv-wood),
+    0 2px 0 2px var(--adv-wood);
+}
+.bw-look-adventure .bw-hearts {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #2a1a0bcc;
+  border: 2px solid var(--adv-gold);
+  box-shadow: 0 0 0 2px var(--adv-wood);
+  color: #e8323c;
+}
+.bw-look-adventure .bw-bar {
+  border: 2px solid var(--adv-gold) !important;
+  box-shadow: 0 0 0 2px var(--adv-wood);
+}
 .bw-bar {
   position: relative;
   width: 220px;
@@ -1861,6 +2014,385 @@ select.inp {
   align-self: flex-end;
   font-size: 13px;
   opacity: 0.6;
+}
+.bw-video-el {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: #000;
+}
+.bw-credits {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: auto;
+}
+.bw-credit-line {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.bw-buttons {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+.bw-btn-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 58px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: #0b1020c8;
+  border: 2px solid #ffffff40;
+  position: relative;
+}
+.bw-btn-action {
+  border-color: #3fb950;
+  min-width: 76px;
+}
+.bw-btn-attack {
+  border-color: #e5484d;
+}
+.bw-btn-item {
+  border-color: #f7c900;
+}
+.bw-btn-key {
+  font-size: 0.75em;
+  opacity: 0.8;
+  font-weight: 700;
+}
+.bw-btn-label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bw-btn-count {
+  font-size: 0.75em;
+  opacity: 0.85;
+}
+/* Milestone 3b (B7b): HUD styles after each era. The cluster is a fixed box; each button sits where that era's
+   HUD put it, wearing its face (--face: its colour). Drawn here, original. */
+.bw-buttons[class*="bw-hud-"] {
+  display: block;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.bw-era {
+  position: relative;
+  font-family: system-ui, sans-serif;
+  color: #fff;
+}
+.bw-era-btn {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    color-mix(in srgb, var(--face) 65%, #fff),
+    var(--face) 60%,
+    color-mix(in srgb, var(--face) 70%, #000)
+  );
+  border: 3px solid #0b1020d0;
+  box-shadow:
+    0 3px 0 #0006,
+    0 0 0 2px color-mix(in srgb, var(--face) 50%, #fff4);
+}
+.bw-era-btn.big {
+  width: 70px;
+  height: 70px;
+}
+.bw-era-btn.small {
+  width: 34px;
+  height: 34px;
+}
+.bw-era-face {
+  font-weight: 900;
+  font-size: 22px;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 2px 0 #0008;
+}
+.bw-era-btn.big .bw-era-face {
+  font-size: 28px;
+}
+.bw-era-btn.small .bw-era-face {
+  font-size: 13px;
+}
+.bw-era-label {
+  position: absolute;
+  top: 100%;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-shadow:
+    0 1px 2px #000,
+    0 0 3px #000;
+}
+.bw-era-label:empty {
+  display: none;
+}
+.bw-era-count {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  min-width: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #0b1020;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+.bw-era-key {
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: #0b1020c0;
+  font-size: 9px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+.bw-era-btn.live {
+  animation: bw-era-live 1.4s ease-in-out infinite;
+}
+@keyframes bw-era-live {
+  50% {
+    filter: brightness(1.18);
+  }
+}
+/* the 64-bit era: Attack and Action side by side, three triangle item buttons beside them, Z and R small */
+.bw-era[data-look="corner64"] {
+  width: 310px;
+  height: 160px;
+}
+.bw-era[data-look="corner64"] .bw-era-attack {
+  left: 0;
+  top: 44px;
+}
+.bw-era[data-look="corner64"] .bw-era-action {
+  left: 78px;
+  top: 4px;
+}
+.bw-era[data-look="corner64"] .bw-era-item1 {
+  left: 170px;
+  top: 40px;
+}
+.bw-era[data-look="corner64"] .bw-era-item2 {
+  left: 222px;
+  top: 86px;
+}
+.bw-era[data-look="corner64"] .bw-era-item3 {
+  left: 274px;
+  top: 40px;
+}
+.bw-era[data-look="corner64"] .bw-era-lock {
+  left: 0;
+  top: 126px;
+}
+.bw-era[data-look="corner64"] .bw-era-guard {
+  left: 42px;
+  top: 126px;
+}
+.bw-era[data-look="corner64"] .bw-era-btn.item {
+  border-radius: 10px 10px 50% 50%;
+}
+/* the cube era: one big Action button and its satellites; Z is a bar */
+.bw-era[data-look="cube"] {
+  width: 270px;
+  height: 190px;
+}
+.bw-era[data-look="cube"] .bw-era-action {
+  left: 110px;
+  top: 60px;
+  width: 82px;
+  height: 82px;
+}
+.bw-era[data-look="cube"] .bw-era-attack {
+  left: 56px;
+  top: 128px;
+}
+.bw-era[data-look="cube"] .bw-era-item1 {
+  left: 206px;
+  top: 66px;
+  border-radius: 45% 55% 50% 50% / 60% 60% 40% 40%;
+}
+.bw-era[data-look="cube"] .bw-era-item2 {
+  left: 126px;
+  top: 0;
+  border-radius: 55% 45% 50% 50% / 60% 60% 40% 40%;
+}
+.bw-era[data-look="cube"] .bw-era-item3 {
+  left: 208px;
+  top: 10px;
+  width: 52px;
+  height: 26px;
+  border-radius: 13px;
+}
+.bw-era[data-look="cube"] .bw-era-guard {
+  left: 0;
+  top: 10px;
+}
+.bw-era[data-look="cube"] .bw-era-lock {
+  left: 42px;
+  top: 10px;
+}
+/* the motion era: a tall remote-shaped strip */
+.bw-era[data-look="pointer"] {
+  width: 96px;
+  height: 300px;
+  border-radius: 40px;
+  background: #f2f4f8d8;
+  box-shadow: inset 0 0 0 3px #0b102030;
+}
+.bw-era[data-look="pointer"] .bw-era-btn {
+  --text: #1a2233;
+}
+.bw-era[data-look="pointer"] .bw-era-face {
+  color: #1a2233;
+  text-shadow: none;
+}
+.bw-era[data-look="pointer"] .bw-era-label {
+  color: #fff;
+}
+.bw-era[data-look="pointer"] .bw-era-action {
+  left: 13px;
+  top: 18px;
+}
+.bw-era[data-look="pointer"] .bw-era-item1 {
+  left: 22px;
+  top: 112px;
+}
+.bw-era[data-look="pointer"] .bw-era-attack {
+  left: 22px;
+  top: 192px;
+}
+.bw-era[data-look="pointer"] .bw-era-wheel {
+  left: 8px;
+  top: 258px;
+}
+.bw-era[data-look="pointer"] .bw-era-guard {
+  left: 54px;
+  top: 258px;
+}
+.bw-era[data-look="pointer"] .bw-era-lock {
+  left: 31px;
+  top: 300px;
+}
+/* the tablet era: a second screen — its buttons and items big and touchable in a row */
+.bw-era[data-look="tablet"] {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding-bottom: 18px;
+}
+.bw-era[data-look="tablet"] .bw-era-btn {
+  position: relative;
+}
+.bw-era[data-look="tablet"] .bw-era-btn.item {
+  width: 76px;
+  height: 76px;
+  border-radius: 16px;
+  cursor: pointer;
+}
+/* the open-air era: small hints down the bottom right corner, each its name and its button */
+.bw-era[data-look="openair"] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+.bw-era[data-look="openair"] .bw-era-btn {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  background: #0b1020c0;
+  border: 2px solid #ffffffd0;
+  box-shadow: none;
+}
+.bw-era[data-look="openair"] .bw-era-face {
+  font-size: 12px;
+}
+.bw-era[data-look="openair"] .bw-era-label {
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  margin: 0 8px 0 0;
+  transform: translateY(-50%);
+  font-size: 14px;
+}
+.bw-era[data-look="openair"] .bw-era-key {
+  display: none;
+}
+.bw-bar-ring {
+  border-radius: 50%;
+}
+.bw-items {
+  display: flex;
+  flex-direction: column;
+}
+.bw-items-slots {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.bw-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid #ffffff20;
+}
+.bw-item-name {
+  flex: 1;
+}
+.bw-item-put,
+.bw-bind-key,
+.bw-bind-reset {
+  font: inherit;
+  color: inherit;
+  background: #ffffff18;
+  border: 1px solid #ffffff40;
+  border-radius: 8px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.bw-item-put.on,
+.bw-bind-key.on {
+  background: #f7c900;
+  color: #111;
+}
+.bw-controls {
+  display: flex;
+  flex-direction: column;
+}
+.bw-bind-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 90px;
+  align-items: center;
+  gap: 8px;
+}
+.bw-bind-pad {
+  opacity: 0.7;
+}
+.tbtn-count {
+  font-size: 10px;
+  margin-left: 3px;
+  opacity: 0.8;
+}
+.tbtn-action.on {
+  background: #3fb950;
+  color: #fff;
+}
+.bw-credit-license {
+  opacity: 0.7;
 }
 .bw-minimap {
   display: block;
@@ -5510,6 +6042,22 @@ body.brix-explain * {
   width: 46px;
   padding: 2px 4px;
 }
+/* step 11, 4a: a brick's two lines (size and place; shape, see-through, glow) */
+.brick-row-wrap {
+  border-bottom: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+.brick-row.small {
+  font-size: 11px;
+}
+.brick-row input[type="checkbox"] {
+  width: auto;
+}
+.brick-row input[type="color"] {
+  width: 28px;
+  padding: 0;
+}
 .body-presets {
   display: flex;
   flex-wrap: wrap;
@@ -6126,4 +6674,819 @@ img.bw-portrait {
   height: 100%;
   background: var(--acc, #f2b632);
   transition: width 0.15s;
+}
+
+/* Milestone 2b: water swatches in the dock */
+.water-swatch {
+  display: inline-block;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #8fd3ff 0%, #4fa3d9 45%, #2f6ea8 100%);
+}
+.water-swatch.small {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+.water-swatch[data-body="river"] {
+  background: repeating-linear-gradient(100deg, #6cc0f0 0 6px, #3f8cc8 6px 12px);
+}
+.water-swatch[data-body="lake"] {
+  background: linear-gradient(180deg, #5aa0d0 0%, #336fa6 100%);
+}
+.water-swatch[data-body="sea"] {
+  background: linear-gradient(180deg, #3b7fb8 0%, #1f4f86 60%, #173a66 100%);
+}
+
+/* Milestone 2b, 10c: what draws the views (WebGL or WebGPU) */
+.vc.vc-draw {
+  width: 86px;
+  padding: 0 4px;
+  font: 600 11px var(--mono);
+  background: transparent;
+  color: #d6dce5;
+}
+.vc.vc-draw option {
+  color: #111;
+}
+
+/* Milestone 2b, 10c part 5: 3D model pictures in the dock */
+.model-thumb {
+  display: inline-block;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: radial-gradient(circle at 50% 35%, #3a4656 0%, #232b36 75%);
+}
+.model-thumb.small {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+/* step 11 follow-up: a big preview of a From a picture match (turn, zoom, try it) before it is used */
+.fp {
+  position: relative;
+}
+.fp-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-radius: 10px;
+  min-height: 560px;
+}
+.fp-preview-head {
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--bd);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.fp-preview-name {
+  font-size: 15px;
+}
+.fp-preview-tools {
+  gap: 6px;
+  padding: 6px 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.fp-preview-view {
+  position: relative;
+  flex: 1;
+  min-height: 420px;
+  margin: 0 10px 10px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.fp-preview-view > * {
+  position: absolute;
+  inset: 0;
+}
+.fp-thumb-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  align-self: flex-start;
+}
+
+/* step 11 (P24 part 2): the brick editor */
+.brick-editor {
+  width: min(900px, 100%);
+}
+.brick-editor-body {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  flex-wrap: wrap;
+}
+.brick-editor-view {
+  flex: 1;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.brick-editor-view .fp-preview-view {
+  margin: 0;
+  min-height: 380px;
+}
+.brick-shapes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.brick-custom-card .brick-edit {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+.brick-custom-card {
+  position: relative;
+}
+
+/* step 11 (P24 part 3): the Media library */
+.media-lib {
+  width: min(1100px, 96vw);
+  height: min(780px, 92vh);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.media-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.media-budget-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg2, #1b2233);
+  border: 1px solid var(--line, #2a3347);
+}
+.media-seg {
+  height: 100%;
+  min-width: 2px;
+}
+.media-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.media-image {
+  background: #4f8cff;
+}
+.media-video {
+  background: #e5484d;
+}
+.media-audio {
+  background: #46a758;
+}
+.media-model {
+  background: #f5a623;
+}
+.media-font {
+  background: #a78bfa;
+}
+.media-warn {
+  color: var(--danger, #e5484d);
+}
+.media-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 12px;
+}
+.media-list {
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--line, #2a3347);
+  border-radius: 8px;
+  padding: 4px;
+}
+.media-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.media-row:hover {
+  background: var(--bg2, #1b2233);
+}
+.media-row.on {
+  border-color: var(--accent, #f7c900);
+  background: var(--bg2, #1b2233);
+}
+.media-row-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1;
+}
+.media-row-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.media-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.media-thumb {
+  object-fit: cover;
+  border-radius: 6px;
+  background: #0006;
+  flex: none;
+}
+.media-thumb.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.media-tag {
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--bg2, #1b2233);
+  opacity: 0.85;
+}
+.media-tag.big {
+  background: #f5a62333;
+  color: #f5a623;
+}
+.media-tag.credit {
+  background: #46a75833;
+  color: #7fd28d;
+}
+.media-detail {
+  overflow: auto;
+  border: 1px solid var(--line, #2a3347);
+  border-radius: 8px;
+  padding: 10px;
+}
+.media-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  max-height: 220px;
+  background: #0008;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.media-preview img,
+.media-preview video {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+}
+.media-preview audio {
+  width: 95%;
+}
+.media-credit {
+  border: 1px solid var(--line, #2a3347);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.media-uses {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+@media (max-width: 760px) {
+  .media-body {
+    grid-template-columns: 1fr;
+  }
+}
+/* while a file is dragged out of the Media library, it steps aside so what is behind takes the drop */
+.media-lib-away {
+  opacity: 0;
+  pointer-events: none;
+}
+/* step 11b part 1: Project › Controls */
+.ctl-binds {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 6px 0;
+}
+.ctl-bind {
+  display: grid;
+  grid-template-columns: 1fr 110px 96px;
+  gap: 6px;
+  align-items: center;
+}
+
+/* step 11, 4a: the starter pack panel in the bottom dock */
+.pack-panel {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pack-title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.pack-card {
+  cursor: grab;
+}
+.pack-card .thumb {
+  height: 60px;
+}
+.pack-card .btn {
+  align-self: flex-start;
+}
+.pack-style {
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  border: 1px solid #2a313c;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+/* step 11, 4c: My library */
+.lib-pick {
+  gap: 8px;
+  padding: 4px 10px;
+  align-items: center;
+  cursor: pointer;
+}
+.lib-pick:hover {
+  background: var(--btnh);
+}
+
+/* Milestone 3b (B1): behaviours — a field's settings in Logic, a behaviour in the Inspector */
+.bhv-field,
+.bhv-attached {
+  margin: 4px 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.bhv-attached {
+  margin: 4px 0;
+}
+.bhv-field .field,
+.bhv-attached .field {
+  display: grid;
+  grid-template-columns: minmax(70px, 40%) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.bhv-field .row .field {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.bhv-field .inp,
+.bhv-attached .inp {
+  min-width: 0;
+  width: 100%;
+}
+.bhv-attached input[type="checkbox"] {
+  justify-self: start;
+}
+/* Milestone 3b (B2): the dock's Behaviours tab */
+.bhv-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 10px 10px;
+}
+.bhv-card {
+  display: grid;
+  gap: 3px;
+  width: 200px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel2, transparent);
+  cursor: grab;
+}
+/* Milestone 3b (B3): a built-in behaviour's page */
+.builtin-page {
+  padding: 12px 16px;
+  max-width: 820px;
+}
+.builtin-page h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--mut);
+  margin: 14px 0 6px;
+}
+.builtin-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.builtin-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 5px 8px;
+  vertical-align: top;
+}
+/* Milestone 3b (B3, part 2): the built-ins as a wrap of small buttons (23 of them) */
+.builtin-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 10px 8px;
+}
+.builtin-chips .chip-btn {
+  font-size: 11.5px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+.builtin-chips .chip-btn:hover {
+  border-color: var(--acc, #e0b04a);
+}
+.builtin-chips .chip-btn.on {
+  background: var(--acc, #e0b04a);
+  color: #1a1a1a;
+  border-color: transparent;
+}
+
+/* Milestone 3b (B7a-1): the pause map */
+.bw-mapscreen {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: rgba(3, 5, 10, 0.92);
+  color: #fff;
+}
+.bw-mapscreen-head,
+.bw-mapscreen-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  flex-wrap: wrap;
+}
+.bw-mapscreen-close {
+  margin-left: auto;
+  background: #1d2436;
+  color: #fff;
+  border: 1px solid #3a4560;
+  border-radius: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.bw-mapscreen-canvas {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  cursor: crosshair;
+}
+.bw-stamp {
+  background: #141a2b;
+  border: 1px solid #2c3550;
+  border-radius: 6px;
+  padding: 2px;
+  line-height: 0;
+  cursor: pointer;
+}
+.bw-stamp.on {
+  border-color: #ffd23f;
+  box-shadow: 0 0 0 1px #ffd23f;
+}
+.bw-mapscreen-note {
+  background: #0d1220;
+  color: #fff;
+  border: 1px solid #2c3550;
+  border-radius: 6px;
+  padding: 3px 8px;
+  width: 160px;
+}
+
+/* Milestone 3b (B7a-2): the quest log, and the tracked quest on the pause map */
+.bw-questlog {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: #07090f;
+  color: #f4efe2;
+}
+.bw-questlog-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #2a2f40;
+}
+.bw-questlog-head strong {
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+.bw-questlog-empty {
+  padding: 40px;
+  text-align: center;
+}
+.bw-questlog-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) 1fr;
+}
+.bw-questlog-list {
+  overflow: auto;
+  border-right: 1px solid #2a2f40;
+  padding: 8px;
+}
+.bw-questlog-list h4 {
+  margin: 10px 6px 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #a99f86;
+}
+.bw-questlog-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: inherit;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.bw-questlog-item:hover {
+  background: #161b29;
+}
+.bw-questlog-item.on {
+  background: #1c2233;
+  border-color: #c9a74a;
+}
+.bw-questlog-item.failed .bw-questlog-name {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.bw-questlog-mark.main {
+  color: #ffd23f;
+}
+.bw-questlog-mark.side {
+  color: #8fd0ff;
+}
+.bw-questlog-name {
+  flex: 1;
+}
+.bw-questlog-tag {
+  font-size: 11px;
+  background: #c9a74a;
+  color: #1a1a1a;
+  border-radius: 99px;
+  padding: 1px 7px;
+}
+.bw-questlog-detail {
+  overflow: auto;
+  padding: 16px 22px;
+}
+.bw-questlog-detail h3 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+.bw-questlog-about {
+  color: #cfc7b2;
+  max-width: 60ch;
+}
+.bw-questlog-steps {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bw-questlog-steps li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.bw-questlog-steps li.done {
+  color: #8d887a;
+}
+.bw-questlog-steps li.done > span:last-child {
+  text-decoration: line-through;
+}
+.bw-questlog-steps li.now .bw-questlog-tick {
+  color: #ffd23f;
+}
+.bw-questlog-goal {
+  display: block;
+  color: #a99f86;
+}
+.bw-questlog-btn {
+  background: #2a2412;
+  color: #ffe9a8;
+  border: 1px solid #c9a74a;
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.bw-questlog-btn[aria-pressed="true"] {
+  background: #c9a74a;
+  color: #1a1a1a;
+}
+.bw-questlog-state {
+  font-weight: 700;
+  color: #9be29b;
+}
+.bw-questlog-state.failed {
+  color: #ff8a7a;
+}
+.bw-mapscreen-goal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #ffe9a8;
+}
+.bw-mapscreen-goal button {
+  background: transparent;
+  color: #ffe9a8;
+  border: 1px solid #5a4f2e;
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+@media (max-width: 560px) {
+  .bw-questlog-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .bw-questlog-list {
+    border-right: 0;
+    border-bottom: 1px solid #2a2f40;
+    max-height: 40%;
+  }
+}
+
+/* Milestone 3b (B7a-1): Project › Maps */
+.map-look {
+  border: 1px solid var(--line, #2a3146);
+  border-radius: 10px;
+  padding: 8px 10px 10px;
+  margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.map-look legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+.map-look-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.map-look-type {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: transparent;
+  border: 1px solid var(--line, #2a3146);
+  border-radius: 8px;
+  padding: 4px;
+  cursor: pointer;
+  color: inherit;
+}
+.map-look-type.on {
+  border-color: var(--accent, #f7c900);
+  box-shadow: 0 0 0 1px var(--accent, #f7c900);
+}
+.map-look-preview {
+  border-radius: 6px;
+  max-width: 100%;
+}
+.map-look-colors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 8px;
+  align-items: center;
+}
+.map-look-color {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.map-look-color input[type="color"] {
+  width: 26px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+}
+.map-look-markers {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+
+/* Milestone 3b (B7b): Project › Controls › HUD style cards */
+.hud-style-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.hud-style-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--line, #2a2f40);
+  background: #0e1420;
+  color: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+.hud-style-card.on {
+  border-color: #f7c900;
+  box-shadow: 0 0 0 1px #f7c900;
+}
+.hud-style-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 84px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: linear-gradient(#5e8fc4, #9cc3e4 60%, #6c9a4c 60%);
+}
+.hud-style-preview > .bw-buttons {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(var(--fit, 0.4));
+  transform-origin: center;
+}
+.hud-style-preview > .bw-hud-corner64 {
+  --fit: 0.36;
+}
+.hud-style-preview > .bw-hud-cube {
+  --fit: 0.36;
+}
+.hud-style-preview > .bw-hud-pointer {
+  --fit: 0.22;
+}
+.hud-style-preview > .bw-hud-tablet {
+  --fit: 0.3;
+}
+.hud-style-preview > .bw-hud-openair {
+  --fit: 0.22;
+}
+.hud-plain {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}
+.hud-plain {
+  font-size: 11px;
+  font-weight: 700;
+  background: #0b1020c8;
+  padding: 4px 6px;
+  border-radius: 6px;
 }

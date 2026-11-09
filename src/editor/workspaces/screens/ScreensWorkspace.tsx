@@ -5,6 +5,8 @@ import { allScreens, isBuiltinScreen } from '../../../engine/ui/screens';
 import type { ActionCtx } from '../../actions/registry';
 import { ScreenThumb } from '../../components/previews';
 import { matches, NoMatch, SearchBox } from '../../components/SearchBox';
+import type { MediaDrag } from '../../interact/drag';
+import { newSoundEvent } from '../audio/model';
 import { ArtEditor } from './art/ArtEditor';
 import { ArtLibrary, ArtStart } from './art/ArtLibrary';
 import { artFont, artUrl } from './art/render';
@@ -40,7 +42,11 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
   const setRoot = (root: Widget, label?: string) => save({ ...screen, root }, label);
   const own = ed.store.has(paths.screen(screen.id));
   const builtin = isBuiltinScreen(screen.id);
-  const add = (type: Widget['type'], at?: { anchor: [number, number]; offset: [number, number] }) => {
+  const add = (
+    type: Widget['type'],
+    at?: { anchor: [number, number]; offset: [number, number] },
+    extra?: Record<string, string | number>,
+  ) => {
     let n = 1;
     const ids = new Set<string>();
     const walk = (w: Widget) => {
@@ -49,13 +55,52 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
     };
     walk(screen.root);
     while (ids.has(`${type}${n}`)) n++;
-    const t = template(type, n);
+    const base = template(type, n);
+    const t = extra ? { ...base, style: { ...(base.style ?? {}), ...extra } } : base;
     // dropped on the canvas: on the screen where it was let go; on the root, new widgets are anchored in the
     // middle; inside a panel they flow
     const r = at
       ? addChild(screen.root, '', { ...t, anchor: at.anchor, offset: at.offset })
       : addChild(screen.root, path, path === '' && !t.anchor ? { ...t, anchor: [0.5, 0.5] } : t);
     if (setRoot(r.root, `Add ${type}`).ok) ed.widgetPath.value = r.path;
+  };
+  /**
+   * step 11 (P24 part 3): a file from the Media library dropped on the screen — a picture fills the image widget it
+   * lands on (a button's icon, or any other widget's background, the screen's own when let go on it); a video fills
+   * a Video widget or makes one where it was let go; a sound becomes a button's sound
+   */
+  const dropMedia = (p: string, m: MediaDrag, anchor: [number, number], offset: [number, number]) => {
+    const w = widgetAt(screen.root, p) ?? screen.root;
+    const style = (k: string) => ({ ...w, style: { ...(w.style ?? {}), [k]: m.ref } });
+    const name = w.id ?? (p === '' ? 'the screen' : w.type);
+    const put = (next: Widget, label: string) => {
+      if (setRoot(replaceAt(screen.root, p, next), label).ok) ed.widgetPath.value = p;
+    };
+    if (m.media === 'image') {
+      if (w.type === 'image') put({ ...style('src'), text: undefined }, `Picture on ${name}`);
+      else if (w.type === 'button') put(style('icon'), `Icon on ${name}`);
+      else put(style('bgArt'), `Background on ${name}`);
+      return;
+    }
+    if (m.media === 'video') {
+      if (w.type === 'video') put(style('src'), `Video on ${name}`);
+      else add('video', { anchor, offset }, { src: m.ref });
+      return;
+    }
+    if (m.media === 'audio') {
+      if (w.type !== 'button') {
+        ed.notify('Drop a sound on a button (it plays when pressed), or on a cutscene’s timeline.');
+        return;
+      }
+      const ev = newSoundEvent(ed, m.name.replace(/\.[^.]+$/, ''), [m.ref]);
+      if (ev) put({ ...w, sound: ev.id as Widget['sound'] }, `Sound on ${name}`);
+      return;
+    }
+    ed.notify(
+      m.media === 'font'
+        ? 'Fonts are picked in a widget’s Font (Art › Import a font).'
+        : 'Drop 3D models on the Scene.',
+    );
   };
   const create = () => {
     const id = newId('screen');
@@ -198,6 +243,7 @@ export function ScreensWorkspace({ c }: { c: ActionCtx }) {
             onPlay={() => c.ui.play('engine', { fromEntry: true })}
             onChange={(p, w, label) => setRoot(replaceAt(screen.root, p, w), label)}
             onDrop={(type, anchor, offset) => add(type, { anchor, offset })}
+            onMediaDrop={dropMedia}
             artUrl={(id) => artUrl(ed, id)}
             artFont={(ref) => artFont(ed, ref)}
           />

@@ -8,9 +8,13 @@ export const CATEGORIES = [
 ] as const;
 export type CategoryId = (typeof CATEGORIES)[number]['id'];
 
-const BUILDINGS = /^(skyscraper|house|tower|castle-wall|castle|shop|stall)/;
-const NATURE = /^(tree|palm|flower|shrub|mushroom|fern|cactus|bush|rock)/;
-const VEHICLES = /^(car|truck|bus|boat)/;
+// the kind's word anywhere in the name: v68's “house-3”, and things made from words (“red-house-7”, “stone-castle-2”)
+const word = (w: string) => new RegExp(`(^|[-\\s])(${w})s?($|[-\\s\\d])`, 'i');
+const BUILDINGS = word(
+  'skyscraper|house|tower|castle-wall|castle|shop|stall|cottage|barn|hut|tent|temple|lighthouse|windmill|pyramid|bakery|inn|tavern|church|mansion|cabin',
+);
+const NATURE = word('tree|palm|flower|shrub|mushroom|fern|cactus|bush|rock|boulder|oak|pine');
+const VEHICLES = word('car|truck|bus|boat|ship|train|plane|cart|taxi|van');
 
 export function categoryOf(group: string | undefined): CategoryId {
   if (!group) return 'terrain';

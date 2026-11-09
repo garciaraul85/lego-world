@@ -2,33 +2,81 @@ import { BUILTIN_ASSETS } from '../../builtin/assets';
 import { SND } from '../../builtin/audio';
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
 import { BUILTIN_CLIPS } from '../../builtin/clips';
-import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS } from '../../builtin/effects';
+import { iceSlide, ledgePull, MOVE_FOR, wallClimb, windBlown, windBrace, windWalk } from '../../builtin/clips/moves';
+import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS, FX } from '../../builtin/effects';
 import { genreById } from '../../builtin/genres';
 import { BUILTIN_SCREEN_EFFECTS, DEFAULT_SCREEN_EVENTS } from '../../builtin/screen-effects';
+import { SCR } from '../../builtin/screens';
 import { type Cleanup, cleanupOf, DEBRIS_FADE, MAX_BROKEN, RUBBLE_BRICKS } from '../../core/assets/cleanup';
-import { expandAsset } from '../../core/assets/expand';
+import { expandAsset, localToWorld } from '../../core/assets/expand';
 import { freeGroups } from '../../core/assets/free';
 import { type ExpandedInstance, expandInstances, instanceBricks } from '../../core/assets/instances';
+import { customIdOf } from '../../core/bricks/custom';
+import { footprint } from '../../core/bricks/inspect';
+import { brickHeight } from '../../core/bricks/map-bricks';
 import {
   brickToPiece,
+  chunkCustomShapes,
   chunkExactColors,
   chunkPieces,
   type FileSource,
   mapToLegacyBuild,
 } from '../../core/bridge/legacy-bridge';
 import { moodFace } from '../../core/character/faces';
-import { type ResolvedBody, resolveBody } from '../../core/character/resolve';
+import { lookForV68 } from '../../core/character/hair';
+import { BODY_MOVES, type BodyMove, movesOf as bodyMovesOf, MOVE_LENGTH } from '../../core/character/moves';
+import { minifigExtras, type ResolvedBody, resolveBody } from '../../core/character/resolve';
 import { levelOf, xpFor } from '../../core/character/sheet';
-import { type AnimState, MOVING_AT } from '../../core/character/states';
-import { type AttackHit, type DamageType, damageOf, type Health, heldAttack } from '../../core/combat/damage';
-import type { Enemy } from '../../core/combat/enemy';
+import { type AnimState, MOVING_AT, RUN_REF, WALK_REF } from '../../core/character/states';
+import {
+  type AttackHit,
+  type DamageType,
+  damageOf,
+  type Health,
+  heldAttack,
+  hitSide,
+  stunsIt,
+} from '../../core/combat/damage';
+import { BOSS_OPENING, bossEnemy, bossPhaseAt, bossPhases, type Enemy } from '../../core/combat/enemy';
+import { HURT_REACTIONS, HURT_TIME, type HurtHow, hurtReaction } from '../../core/combat/hurt';
+import { partsOf } from '../../core/combat/parts';
+import {
+  ACTION_PRIORITY,
+  type ActionOffer,
+  type Bindable,
+  BUTTON_NAME,
+  BUTTONS,
+  buttonsOf,
+  type Controls,
+  ITEM_BUTTONS,
+  keyName,
+  MOVES,
+} from '../../core/controls/controls';
+import { faceOf, HUD_STYLES, type HudStyle } from '../../core/controls/hud-styles';
 import type { Effect, EffectEvent } from '../../core/effects/schema';
 import { Mood, NO_MOOD, type ScreenEffect, type ScreenEvent } from '../../core/effects/screen';
 import { LEGACY_COLORS } from '../../core/legacy/constants';
 import type { LegacyPiece } from '../../core/legacy/types';
 import { FOG_PRESET, type Fog, type FogPreset } from '../../core/lighting/atmosphere';
+import { attachmentsOf, startValues } from '../../core/logic/behaviours';
+import { enemyOfCharacter } from '../../core/logic/boss';
+import {
+  isHudClass,
+  isInputClass,
+  isMainQuestClass,
+  isMapClass,
+  isModeClass,
+  isQuestClass,
+  itemClassOf,
+  itemsOfBehaviour,
+} from '../../core/logic/builtins';
 import type { ExecCtx } from '../../core/logic/catalog';
+import { type MapLooks, MINI_TYPES, miniLookOf, PAUSE_TYPES, pauseLookOf } from '../../core/maps/look';
+import { STAMPS } from '../../core/maps/notes';
 import { maxOf } from '../../core/num';
+import { switchHitBy } from '../../core/puzzles/puzzle';
+import { doOf, goalNameOf } from '../../core/quests/quest';
+import { gameMaps, type MapLink, mapLinks, mapNamed, mapsOfPlace, nextLink, placeIndex } from '../../core/quests/route';
 import {
   AutoQuality,
   type DeviceInfo,
@@ -63,31 +111,62 @@ import {
   type LogicGraph,
   type MapDoc,
   type MapState,
+  type ModelInstance,
   type Project,
   paths,
   type Screen,
+  type ScriptAttachment,
   TIMES,
   type UiInstance,
   type Variables,
+  type WaterInstance,
 } from '../../core/schema';
+import {
+  type Breath,
+  breathe,
+  DROWN_EVERY,
+  floatY,
+  headUnder,
+  SWIM_DEFAULTS,
+  type Swimming,
+  swimStep,
+  type WaterBox,
+  type WaterMode,
+  waterAt,
+  waterMode,
+} from '../../core/water/swim';
 import type { AudioPort, Vec3 } from '../audio/port';
 import { RecordingAudio } from '../audio/port';
-import { Animator } from '../character/animator';
+import { Animator, rigPose } from '../character/animator';
+import { type AttackAs, attackPose } from '../character/attack-poses';
+import { bodyBounds } from '../character/body-anim';
+import { hurtPose } from '../character/hurt-poses';
+import { type PoseParams, sampleParams } from '../character/routine';
 import { StateMachine } from '../character/states';
 import { ParticleSystem, type PlayOptions, type StreamHandle } from '../effects/particles';
 import { ScreenFx } from '../effects/screen';
 import {
   type Controller,
   type Debris,
+  HAND_DROP,
   type HeroState,
   type LegacyRuntime,
   type LegacyWorldMeta,
   legacyRuntime,
+  type MoveInput,
   type Npc,
+  STICK_LENGTH,
 } from '../legacy/runtime-modules';
 import { type Atmosphere, atmosphere } from '../lighting/atmosphere';
 import { findLight, gatherLights, type LightSource, pointLights } from '../lighting/lights';
 import { LogicRuntime } from '../logic/interpreter';
+import { type MapMarker, type MapModel, mapModel, type Stamp, type Top } from '../maps/model';
+import { MapTracker } from '../maps/tracker';
+import { type MediaSource, modelMatrix, prepareModel, readyModel } from '../model/prepare';
+import { HERO_GRAVITY, HERO_HEIGHT, HERO_RADIUS, walkHero } from '../physics/hero';
+import { dragAccel, ICE_FRICTION, ICE_GRIP, PhysicsWorld, physicsReady, WATER_DENSITY } from '../physics/physics';
+import { QuestBook, type QuestDef } from '../quests/book';
+import { type ModelUpload, placedTriangles } from '../render/model-draw';
 import { portrait } from '../render/portraits';
 import type { PointLight } from '../render/renderer';
 import { CinematicSystem } from '../systems/cinematic';
@@ -96,15 +175,36 @@ import { formatValue, interpolate } from '../ui/bindings';
 import { ScreenStack } from '../ui/ScreenStack';
 import { resolveScreen, screenOfKind } from '../ui/screens';
 import { ActionRunner, type GameOp } from './actions';
-import { ATTACKS, type AttackKind, Combat, hasShield, LOCK_RELEASE, type LockTarget, MAX_STAMINA } from './combat';
+import { HOVER_FRICTION, HOVER_GRIP, HOVER_WALK, HoverBoots } from './boots';
+import { type ButtonHost, GameButtons } from './buttons';
+import {
+  ATTACKS,
+  type AttackKind,
+  angleDiff,
+  Combat,
+  hasShield,
+  LOCK_RELEASE,
+  type LockTarget,
+  MAX_STAMINA,
+} from './combat';
 import { Enemies } from './enemies';
-import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter } from './health';
+import { BOMB_R, type Bomb, BRANCH_SECONDS, FireLight } from './firelight';
+import { FoeShots } from './foe-shots';
+import { asDamageType, assetHealth, HealthBook, hurtBy, npcCharacter, npcItem, spawnedNpcs } from './health';
+import { type Gear, Hooks } from './hooks';
+import { Lens } from './lens';
+import { MAGIC_DEFAULTS, MAGIC_JAR, MagicMeter } from './magic';
+import { ObjectIndex } from './objects';
 import { chunkKeyOf, indexByChunk, inspectPieces, localArea, piecesAround, WINDOW_RADIUS } from './pieces';
+import { Platforms } from './platforms';
 import { isSettingKey, PlayerProgress, type ProgressHost } from './progress';
+import { boxOf, type PuzzleHost, Puzzles, SEEN_CELL } from './puzzles';
 import { Runtime, type System } from './runtime';
 import { applySave, captureMap, captureSave, loadMessage, restoreMap, type SaveHost, type SaveWorld } from './saves';
 import { afterDefence, movesOf, statsOf, wornProfile } from './sheet';
+import { type ArrowElement, Shots, type Weapon } from './shots';
 import { TalkSystem } from './talk';
+import { FLAME_OUT_SPEED, Wind } from './wind';
 
 type AssetInstanceId = import('../../core/schema').AssetInstance['id'];
 
@@ -171,6 +271,20 @@ export type MapWorld = {
   fullArea: unknown;
   /** P27 part 3d: bricks of broken things gone for good that are no longer remembered as breaks (ids) */
   goneIds: number[];
+  /** Milestone 2b: the placed objects' indexes (by id, name, brick and place) */
+  objects: ObjectIndex<PlayInstance>;
+  /** Milestone 2b: the physics core for this map (null until the engine has loaded: v68's debris then) */
+  physics: PhysicsWorld | null;
+  /** Milestone 2b: bodies of water */
+  water: WaterInstance[];
+  /** Milestone 2b, 10c part 5: the 3D models placed on the map */
+  models: ModelInstance[];
+  /** Milestone 2b: loose objects (assets marked loose): their copy, and the middle of their bricks as placed */
+  looseObjects: { inst: PlayInstance; origin: [number, number, number]; pieces: LegacyPiece[] }[];
+  /** Milestone 2b: the bricks of loose objects, by id (not among the map's solid pieces) */
+  loosePieces: Map<number, LegacyPiece>;
+  /** step 13c: the bricks of fake things, by id (drawn, but not among the map's solid pieces) */
+  fakePieces: Map<number, LegacyPiece>;
   /** P27 part 3d: neighbours beaten that come back (after seconds; 0: when the player comes back) */
   defeated: { npc: Npc; at: number; after: number }[];
 };
@@ -178,8 +292,13 @@ export type MapWorld = {
 /** P27 part 3: maps with more pieces than this play in a window of chunks around the hero */
 export const WINDOW_FROM = 40_000;
 
-/** P32: an item made only of moving parts floats — drawn, but outside the brick rules (a rising sword) */
+/**
+ * P32: an item made only of moving parts floats — drawn, but outside the brick rules (a rising sword). Step 12a: so
+ * does a push block: it rests on whatever it is pushed onto (a switch's smooth top, a tiled floor) without clicking
+ * onto studs, and must not make every later change on the map fail the rules (a gate that will not open).
+ */
 const floating = (def: Asset) => {
+  if (def.push) return true;
   const moving = new Set((def.parts ?? []).filter((p) => p.pose).flatMap((p) => p.bricks));
   return def.bricks.length > 0 && def.bricks.every((_, i) => moving.has(i));
 };
@@ -204,10 +323,19 @@ const rgb = (i: number) => [1, 3, 5].map((k) => (parseInt(COLOR_OF(i).slice(k, k
  * drops the session and the project is exactly as it was. Movement, collision, NPCs and debris use
  * v68's own modules; smash, rebuild and gate travel are ports of v68's character-game / map-network code.
  */
+/** states v68's own motion already shows (the others play their built-in clip when the sheet sets none) */
+/** step 12c-2: how well the hero's feet hold on the ground (boots on stone, μ), against a push */
+const HERO_GRIP = 0.6;
+/** step 13a: the floe of ice an ice arrow freezes on water */
+const ICE_FLOE_ID = BUILTIN_ASSETS.find((a) => a.name === 'Ice floe')?.id ?? '';
+const OWN_MOTION = new Set(['walk', 'run', 'jump', 'attack', 'hurt', 'idle']);
+
 export class PlaySession {
   readonly L: LegacyRuntime;
   readonly runtime: Runtime<PlaySession>;
   readonly worlds = new Map<string, MapWorld>();
+  /** Milestone 2b, 10c part 5: where imported model files come from (the editor's media) */
+  mediaSource: MediaSource | null = null;
   /** P27 part 3c: maps left in this play that are no longer loaded: what changed on them (as a save keeps it) */
   readonly parked = new Map<string, MapSave>();
   /** loaded maps, least recently used first */
@@ -236,6 +364,10 @@ export class PlaySession {
   private standing = new Map<number, boolean>();
   /** P22 part 3: bodies other than the minifig, by NPC id ('hero' for the player) */
   private bodies = new Map<number | 'hero', ResolvedBody | null>();
+  /** step 11, 4a: the size of each body (see figureOf) */
+  private figures = new WeakMap<ResolvedBody, { bottom: number; top: number; radius: number }>();
+  /** step 11, 4a: minifigs' extra parts, by NPC id */
+  private extraParts = new Map<number | 'hero', ReturnType<typeof minifigExtras>>();
   rebuildHeld = false;
   rebuildEntry: BrokenEntry | null = null;
   private pendingSmash: {
@@ -251,6 +383,17 @@ export class PlaySession {
   /** the interaction the hero can use right now (E), shown as a prompt */
   prompt: Prompt | null = null;
   readonly inventory = new Map<string, number>();
+  /**
+   * step 11b part 1: the game's buttons — what the Action button does here and now, and the item in each item
+   * button (Play turns keys, gamepad buttons and touches into presses through the game's bindings)
+   */
+  readonly buttons: GameButtons;
+  /** step 11b: more things the Action button can offer (swimming, puzzles and items add theirs) */
+  readonly actionOffers: (() => ActionOffer[])[] = [];
+  /** step 11b part 2: swimming now (in deep water), diving or rising (the Action button held), and breath */
+  swim = { on: false, down: false, up: false, under: false };
+  breath: Breath = { air: 20, drownIn: DROWN_EVERY };
+  private waterCache: { map: string; list: WaterBox[]; of: unknown } | null = null;
   readonly actions: ActionRunner;
   /** keyframe clips on the hero (emotes, keys 1-4) */
   readonly heroAnim = new Animator();
@@ -285,11 +428,924 @@ export class PlaySession {
   /** P27 part 2: the time of day logic set (and when), and the fog it set (undefined: the map's; null: none) */
   private timeSet: { time: MapDoc['sky']['time']; at: number } | null = null;
   private fogSet: Fog | null | undefined = undefined;
-  private smashedCache: { world: MapWorld; rev: number; ids: Set<string> } | null = null;
+  private smashedCache: { world: MapWorld; rev: number; key: string; ids: Set<string> } | null = null;
   /** P9c: neighbours that fight the hero */
-  readonly enemies: Enemies = new Enemies(this);
+  readonly enemies: Enemies = this.makeEnemies();
+  /** step 14a: what enemies shoot (rocks, fireballs) */
+  readonly foeShots: FoeShots = this.makeFoeShots();
+  /** step 14a: the hero on fire (a fire bat's bite, a breath of fire): until when, and its flame */
+  private heroAlight: { until: number; fx: { stop(): void; move?(p: Vec3): void } | null } | null = null;
+
+  private makeEnemies(): Enemies {
+    const self = this;
+    const fxOf = {
+      fire: FX.fire,
+      dust: FX.dust,
+      splash: FX.splash,
+      sparks: FX.sparks,
+      frost: FX.frost,
+      vanish: FX.vanish,
+    } as const;
+    const sndOf = {
+      roar: SND.bossroar,
+      whoosh: SND.whoosh,
+      splash: SND.splash,
+      zap: SND.zap,
+      fire: SND.ignite,
+      flap: SND.flap,
+      hiss: SND.hiss,
+    } as const;
+    return new Enemies({
+      get heroState() {
+        return self.heroState;
+      },
+      get clock() {
+        return self.clock;
+      },
+      calm: () => self.calm(),
+      enemyOf: (n) => self.enemyOf(n),
+      // Milestone 3b (B5a): its brain's decisions a behaviour on it may make, and its changes of state
+      ask: (n, hook, payload, base) => {
+        // (asked several times a step for every enemy: nothing to look up while no behaviour runs anywhere)
+        if (!self.scriptOwners.size) return base;
+        const owner = self.npcSelf(n).self;
+        return owner ? self.askHook(owner, hook, payload, base) : base;
+      },
+      onState: (n, from, to) =>
+        self.logic.fire({
+          type: 'event.onStateChange',
+          match: { who: String(n.profile.name ?? '') },
+          payload: { from, to },
+          ...self.npcSelf(n),
+        }),
+      isStunned: (n) => self.isStunned(n),
+      hitHero: (n, power, type, attack) => self.hitHero(n, power, type, attack),
+      radiusOf: (n) => self.radiusOf(n),
+      mouthOf: (n) => self.mouthOf(n),
+      heroLoud: () => self.heroLoud(),
+      heroAttacking: () => Number(self.heroState.attack) > 0,
+      pushHero: (dx, dz) => {
+        self.moveHeroBy([dx, 0, dz]);
+      },
+      harmHero: (n, power, type, from, then, attack) => self.harmHero(n, power, type, from, then, attack),
+      // a flyer's body: free where it is (a point at its middle and one at its feet)
+      clear: (x, y, z) => !self.solidPoint(x, y + 0.2, z) && !self.solidPoint(x, y + 1, z),
+      waterTop: (x, z) => {
+        for (const w of self.waterBoxes()) if (x >= w.x0 && x <= w.x1 && z >= w.z0 && z <= w.z1) return w.y1;
+        return null;
+      },
+      sightLine: (from, to) => self.sightLine(from, to),
+      lensOn: () => self.lens.on,
+      shoot: (n, kind, from, at, power) => {
+        const e = self.enemyOf(n);
+        self.foeShots.fire(
+          kind,
+          n.id,
+          from,
+          at,
+          power ?? e?.power ?? 1,
+          kind === 'fireball' ? 'fire' : (e?.type ?? 'blunt'),
+        );
+      },
+      move: (n, kind) => self.moves.set(n.id, { kind, at: self.clock }),
+      flame: (at, r) => {
+        self.fireLight.flameAt(at[0], at[2], at[1], r, 'a breath of fire');
+        self.flameSwitches(at[0], at[2], r);
+      },
+      effect: (kind, at) => {
+        self.playEffect(fxOf[kind], at);
+      },
+      sound: (id, at) => self.audio.play(sndOf[id], { pos: at }),
+      log: (t) => self.emit('info', t),
+    });
+  }
+
+  private makeFoeShots(): FoeShots {
+    const self = this;
+    return new FoeShots({
+      get heroState() {
+        return self.heroState;
+      },
+      physics: () => self.world.physics ?? null,
+      clear: (x, y, z) => self.world.controller.clear(x, y, z),
+      heroSize: () => {
+        const k = self.L.GamePhysics.scaleOf(self.heroState);
+        return { radius: 0.5 * k, height: 3.3 * k };
+      },
+      hitHero: (owner, power, type, from) => {
+        const n = self.world.npcs.find((x) => x.id === owner);
+        return n ? self.harmHero(n, power, type, from, undefined, 'shot') : 'hit';
+      },
+      enemies: () =>
+        self.world.npcs
+          .filter((n) => !!self.enemyOf(n) && self.enemies.hittable(n))
+          .map((n) => {
+            const f = self.figureOf(n);
+            return {
+              id: n.id,
+              x: n.state.x,
+              y: n.state.y,
+              z: n.state.z,
+              bottom: f.bottom,
+              top: f.top,
+              radius: f.radius,
+              name: String(n.profile.name ?? ''),
+            };
+          }),
+      hitEnemy: (id, power, type, stun) => {
+        const n = self.world.npcs.find((x) => x.id === id);
+        if (!n || !self.canHarm(n)) return;
+        self.hitNpc(n, { power, type }, { knock: 2, stun });
+        self.combat.stunNpc(n, stun);
+      },
+      flame: (at, r) => {
+        self.fireLight.flameAt(at[0], at[2], at[1], r, 'a fireball');
+        self.flameSwitches(at[0], at[2], r);
+      },
+      effect: (kind, at) => {
+        self.playEffect(
+          kind === 'fire' ? FX.fire : kind === 'sparks' ? FX.sparks : kind === 'smoke' ? FX.smoke : FX.dust,
+          at,
+        );
+      },
+      trail: (at) => {
+        const h = self.playEffect(FX.fire, at, { scale: 0.6 });
+        return h ? { stop: () => self.effects.stop(h), move: (p) => self.effects.move(h, p) } : null;
+      },
+      sound: (id, at) => self.audio.play(SND[id], { pos: at }),
+      log: (t) => self.emit('info', t),
+    });
+  }
+
+  /**
+   * Step 14a: something strikes the hero from a point (a shot, a beam, a breath, a bite): through the guard, as a
+   * swing is (a shield toward it blocks it); a hit by fire sets the hero alight a moment, by ice freezes it
+   */
+  harmHero(
+    n: Npc,
+    power: number,
+    type: DamageType,
+    from: [number, number],
+    then?: 'burn' | 'freeze',
+    attack?: string,
+  ): 'hit' | 'block' | 'parry' | 'dodge' | 'break' {
+    if (this.health.invulnerable.has('hero') || this.over) return 'dodge';
+    const r = this.combat.defend({ power, type }, from);
+    if (r.how === 'parry') {
+      this.say('Parry!', 1.2);
+      this.emit('smash', 'Parried');
+    } else if (r.how === 'block') this.say('Blocked', 0.8);
+    else if (r.how === 'break') this.say('Your guard broke!', 1.5);
+    else if (r.how === 'dodge') this.emit('info', 'Dodged');
+    if (r.taken > 0) {
+      this.hurt(r.taken, partsOf(this.enemyOf(n)).hurt ?? hurtReaction({ type, power, attack, then }));
+      const h = this.heroState;
+      if (then === 'burn' && !this.swim.on) {
+        this.heroAlight?.fx?.stop();
+        const fx = this.playEffect(FX.fire, [h.x, h.y + 1.6, h.z], { scale: 0.8 });
+        this.heroAlight = {
+          until: this.clock + 1.6,
+          fx: fx ? { stop: () => this.effects.stop(fx), move: (p) => this.effects.move(fx, p) } : null,
+        };
+        this.say('You’re on fire!', 1.4);
+        this.emit('info', `${n.profile.name} set the hero alight`);
+      }
+      if (then === 'freeze') {
+        this.combat.stagger = Math.max(this.combat.stagger, 1.2);
+        this.playEffect(FX.frost, [h.x, h.y + 1.6, h.z]);
+        this.audio.play(SND.freeze, { pos: [h.x, h.y, h.z] });
+        this.say('Frozen!', 1.2);
+        this.emit('info', `${n.profile.name} froze the hero`);
+      }
+    }
+    return r.how;
+  }
+
+  /** step 14a: the hero's flame burns down (water puts it out at once), lighting what burns as it goes */
+  private stepAlight() {
+    const a = this.heroAlight;
+    if (!a) return;
+    const h = this.heroState;
+    a.fx?.move?.([h.x, h.y + 1.6, h.z]);
+    const wet = this.swim.on || this.waterHere().mode === 'wade';
+    if (wet || this.clock >= a.until) {
+      a.fx?.stop();
+      this.heroAlight = null;
+      if (wet) this.say('The water puts the fire out.', 1.2);
+      return;
+    }
+    if (Math.random() < 0.05) this.fireLight.flameAt(h.x, h.z, h.y + 0.5, 1, 'the burning hero');
+  }
+
+  /** step 14a: how far along a line from `from` to `to` it gets before a wall (0…1; 1: it is clear) */
+  sightLine(from: [number, number, number], to: [number, number, number]): number {
+    const ph = this.world.physics;
+    if (ph) {
+      const hit = ph.castSegment(from, to, { skipHero: true });
+      // (its t is how far along, in studs)
+      const len = Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]) || 1;
+      return hit ? Math.max(0, Math.min(1, hit.t / len)) : 1;
+    }
+    for (let i = 1; i <= 48; i++) {
+      const k = i / 48;
+      if (
+        this.solidPoint(
+          from[0] + (to[0] - from[0]) * k,
+          from[1] + (to[1] - from[1]) * k,
+          from[2] + (to[2] - from[2]) * k,
+        )
+      )
+        return (i - 1) / 48;
+    }
+    return 1;
+  }
   /** P9b: attacks, guarding, moves and lock-on */
   readonly combat: Combat = new Combat(this);
+  /** step 12a: push blocks, switches, locks, pickups and each dungeon's keys, map and compass */
+  readonly puzzles: Puzzles<PlayInstance> = this.makePuzzles();
+  /** Milestone 3b (B7a-1): what the maps remember: where the hero has been, pins, bosses beaten */
+  readonly mapTrack = new MapTracker();
+  /** Milestone 3b (B7a-1): the pause map is open (it holds the game) */
+  mapOpen = false;
+  /** Milestone 3b (B7a-2): the quest log (the game's quests, how far each has gone, the one tracked) */
+  quests: QuestBook = new QuestBook([]);
+  /** Milestone 3b (B7a-2): the quest log is open on the pause screen (it holds the game) */
+  questsOpen = false;
+  /** Milestone 3b (B7a-2): the maps' looks as logic set them while playing (map.setLook) */
+  private lookOverride: { pause?: (typeof PAUSE_TYPES)[number]; mini?: (typeof MINI_TYPES)[number] } = {};
+  /** step 12b: things burning, bombs fizzing, beams of light */
+  readonly fireLight: FireLight<PlayInstance> = this.makeFireLight();
+  /** step 12c: moving platforms (and lifts), and what the hero rides */
+  readonly platforms: Platforms<PlayInstance> = this.makePlatforms();
+  /** step 12c-2: fans and gusts blowing, pinwheels turning, small flames blown out */
+  readonly wind: Wind<PlayInstance> = this.makeWind();
+  /** step 13a: the bow, the slingshot, stun nuts and the boomerang: what is in the air, stuck, frozen */
+  readonly shots: Shots<PlayInstance> = this.makeShots();
+  /** step 13b: the hook line, the grapple rope and the magnet glove */
+  readonly hooks: Hooks<PlayInstance> = this.makeHooks();
+  /** step 13c: the magic meter (it lives in logic's magic, maxMagic and hasMagic) */
+  readonly magic = new MagicMeter(
+    () => this.logic.vars,
+    (k, v) => this.logic.setVar(k, v as never),
+    () => this.magicSettings,
+  );
+  /** step 13c: the Lens of Truth (held up, it shows hidden things and sees through fake ones) */
+  readonly lens = new Lens({
+    // Milestone 3b (B6): LensOfTruth.magicCost (each second it is up); run dry: On magic empty
+    drain: (r, dt) => {
+      const ok = this.magic.drain(Math.max(0, this.askItem('Lens of Truth', 'magicCost', {}, r)), dt);
+      if (!ok)
+        this.logic.fire({
+          type: 'event.onMagicEmpty',
+          match: { item: 'Lens of Truth' },
+          payload: { item: 'Lens of Truth' },
+        });
+      return ok;
+    },
+    has: () => !this.magic.on || this.magic.now > 0,
+    say: (t, sec) => this.say(t, sec),
+    log: (t) => this.emit('info', t),
+    sound: (id) => this.audio.play(SND[id], { pos: [this.heroState.x, this.heroState.y + 3.5, this.heroState.z] }),
+  });
+  /** step 13c: the hover boots (worn: the hero floats for a moment when it walks off an edge) */
+  readonly boots = new HoverBoots({
+    log: (t) => this.emit('info', t),
+    sound: (id) => this.audio.play(SND[id], { pos: [this.heroState.x, this.heroState.y, this.heroState.z] }),
+  });
+  /** the shoes the hero wore before the hover boots went on */
+  private shoesBefore: { shoes: unknown; shoeColor: unknown } | null = null;
+  /** the Lens's look is in the hand */
+  private lensLook = false;
+
+  /** step 13c: the game's magic (Project › Movement) */
+  get magicSettings() {
+    const v = (this.snapshot.get(paths.settings) as { magic?: Partial<typeof MAGIC_DEFAULTS> } | undefined)?.magic;
+    return { ...MAGIC_DEFAULTS, ...(v ?? {}) };
+  }
+
+  /** step 13c: the hover boots on, or off (the hero's shoes become the boots: silver, with white wings) */
+  wearBoots(on: boolean) {
+    if (on === this.boots.worn) return;
+    this.boots.worn = on;
+    const h = this.hero as Record<string, unknown>;
+    if (on) {
+      this.shoesBefore = { shoes: h.shoes, shoeColor: h.shoeColor };
+      this.hero = { ...this.hero, shoes: 'Armored boots', shoeColor: '#d6dbe3' } as typeof this.hero;
+    } else if (this.shoesBefore) {
+      this.hero = { ...this.hero, ...this.shoesBefore } as typeof this.hero;
+      this.shoesBefore = null;
+      this.boots.hover = null;
+    }
+  }
+
+  /** step 13c: the Lens up or down; while up it is in the right hand at the eye (other things put away) */
+  private toggleLens() {
+    if (this.lens.on) {
+      this.lensDown();
+      return;
+    }
+    this.putAwayStick();
+    this.lens.toggle();
+    this.syncLensLook();
+  }
+
+  /** the Lens down, and the hand as it was (at once: another tool may be coming out) */
+  private lensDown() {
+    this.lens.put();
+    this.syncLensLook();
+  }
+
+  private stepLens(dt: number) {
+    this.lens.step(dt);
+    this.syncLensLook();
+    // standing on something hidden (an invisible bridge): said once each time the hero gets onto it
+    const on = this.heroState.grounded ? this.hiddenUnderfoot() : null;
+    const hid = on ? on.inst.id : null;
+    if (hid !== this.onHidden) {
+      this.onHidden = hid;
+      if (hid && on) this.emit('info', `Standing on the ${on.def.name}${this.lens.on ? '' : ' (unseen)'}`);
+    }
+  }
+  private onHidden: string | null = null;
+
+  /** the hidden thing the hero stands on (its top under the hero's feet), or null */
+  private hiddenUnderfoot(): PlayInstance | null {
+    const s = this.heroState;
+    for (const o of this.objs().near(s.x, s.z, 12)) {
+      if (!o.def.hidden) continue;
+      const b = boxOf(o.bricks);
+      if (!b || s.x < b.x0 - 0.3 || s.x > b.x1 + 0.3 || s.z < b.z0 - 0.3 || s.z > b.z1 + 0.3) continue;
+      if (Math.abs(b.y1 * 0.4 - s.y) < 0.3) return o;
+    }
+    return null;
+  }
+
+  private syncLensLook() {
+    const want = this.lens.on;
+    if (want === this.lensLook) return;
+    this.lensLook = want;
+    if (want) {
+      this.heldBefore = String(this.hero.held ?? 'None');
+      this.hero = { ...this.hero, held: 'None', heldLook: 'Lens of Truth' };
+    } else {
+      const { heldLook: _, ...rest } = this.hero as Record<string, unknown>;
+      this.hero = { ...rest, held: this.heldBefore ?? 'None' } as typeof this.hero;
+      this.heldBefore = null;
+    }
+  }
+
+  /**
+   * Step 13c fix: the body's own move under an item's pose. A clip the state machine plays (or a combat move) as
+   * ever; but walking, running or standing on v68's own motion there are no parameters to put the item's arms on,
+   * and a pose over nothing stands the legs still (the hero glided along). There the built-in Walk, Run or Breathe
+   * clip stands in for v68's motion, its step timed by the distance walked (the feet keep up with the ground).
+   */
+  baseParams(): PoseParams | null {
+    const own = this.combat.pose() ?? this.heroAnim.params();
+    if (own) return own;
+    const st = this.heroStates.state;
+    const id = st === 'run' ? MOVE_FOR.run : st === 'walk' ? MOVE_FOR.walk : st === 'idle' ? MOVE_FOR.idle : null;
+    const clip = id ? BUILTIN_CLIPS.find((c) => c.id === id) : null;
+    if (!clip) return null;
+    const len = clip.length || 1;
+    return sampleParams(clip, ((this.ownPhase % len) + len) % len);
+  }
+  /** the built-in stand-in clip's time: walking it moves with the stride, standing with the clock */
+  private ownPhase = 0;
+  private stepOwnPhase(dt: number) {
+    const st = this.heroStates.state;
+    const sp = Number(this.heroState.speed) || 0;
+    this.ownPhase += st === 'run' ? (dt * sp) / RUN_REF : st === 'walk' ? (dt * sp) / WALK_REF : dt;
+  }
+
+  /**
+   * What the items pose on top of the body's own move (the arms drawing a bow, hanging from the rope, the lens at
+   * the eye, the hover boots' paddling), or null: the renderer and gripPoints use the same.
+   */
+  poseOver(): PoseParams | null {
+    const hang = this.hooks.pose() ?? this.shots.pose();
+    const boots = this.boots.pose();
+    const lens = this.lens.pose();
+    if (!hang && !boots && !lens) return null;
+    return { ...(boots ?? {}), ...(hang ?? {}), ...(lens ?? {}) } as PoseParams;
+  }
+
+  private makeWind(): Wind<PlayInstance> {
+    const self = this;
+    return new Wind<PlayInstance>({
+      get heroState() {
+        return self.heroState;
+      },
+      near: (x, z, r) => self.objs().near(x, z, r),
+      wallAlong: (from, dir, max) => {
+        const ph = self.world.physics;
+        if (ph) return ph.raycastFixed(from, [dir[0], 0, dir[1]], max);
+        // no physics engine: the bricks, a step at a time
+        const solid = (x: number, y: number, z: number) => self.solidPoint(x, y, z);
+        for (let d = 0.5; d <= max; d += 0.5) if (solid(from[0] + dir[0] * d, from[1], from[2] + dir[1] * d)) return d;
+        return null;
+      },
+      blow: (o, on) => self.puzzles.blow(o, on),
+      blowOut: (o) => {
+        if (!self.puzzles.isOn(o)) return;
+        self.puzzles.turn(o, false, 'blown out');
+        self.emit('info', `${o.def.name}: the wind blew it out`);
+      },
+      log: (t) => self.emit('info', t),
+    });
+  }
+
+  private makeShots(): Shots<PlayInstance> {
+    const self = this;
+    const fxOf = {
+      hit: FX.hitFlash,
+      splash: FX.splash,
+      flash: FX.nutFlash,
+      frost: FX.frost,
+      spark: FX.sparks,
+      whirl: FX.gust,
+    };
+    return new Shots<PlayInstance>({
+      get heroState() {
+        return self.heroState;
+      },
+      get clock() {
+        return self.clock;
+      },
+      physics: () => self.world.physics ?? null,
+      launchPoint: () => self.launchPoint(),
+      near: (x, z, r) => self.objs().near(x, z, r),
+      byId: (id) => self.objs().byId(id),
+      // Milestone 3b (B6): Projectile hooks (the hero's item behaviours)
+      askItem: (item, hook, payload, base) => self.askItem(item, hook, payload, base),
+      npcs: () =>
+        self.world.npcs
+          .filter((n) => self.enemies.hittable(n))
+          .map((n) => {
+            const f = self.figureOf(n);
+            return {
+              id: n.id,
+              x: n.state.x,
+              y: n.state.y,
+              z: n.state.z,
+              bottom: f.bottom,
+              top: f.top,
+              radius: f.radius,
+            };
+          }),
+      hitNpc: (id, type, power, opt) => {
+        const n = self.world.npcs.find((x) => x.id === id);
+        if (!n || !self.canHarm(n)) return;
+        // a stun alone (a nut's flash, the boomerang): it stops for a moment and is not hurt
+        if (type === 'stun' && power <= 0) {
+          self.combat.stunNpc(n, opt.stun);
+          self.react(n, 'stun', opt.stun);
+          self.hitEffect('stun', [n.state.x, n.state.y + self.figureOf(n).top * 0.6, n.state.z]);
+          self.say(`${String(n.profile.name ?? 'It')} is stunned!`, 1.2);
+          self.emit('smash', `${String(n.profile.name ?? 'Neighbour')} stunned (${opt.stun.toFixed(1)} s)`);
+          return;
+        }
+        self.hitNpc(n, { power, type }, { knock: opt.knock, stun: opt.stun });
+      },
+      hitObject: (o, type, power, at) => {
+        if (o.def.switch?.by === 'hit') {
+          const was = self.puzzles.isOn(o);
+          self.puzzles.hit(o, type, true);
+          if (self.puzzles.isOn(o) !== was) self.emit('info', `${o.def.name} was hit (${type})`);
+          return true;
+        }
+        if (o.def.health) {
+          self.hitInstance(o, { power, type });
+          self.hitEffect(type, at);
+          return true;
+        }
+        return false;
+      },
+      flame: (at, r) => {
+        self.fireLight.flameAt(at[0], at[2], at[1], r, 'a fire arrow');
+        self.flameSwitches(at[0], at[2], r);
+      },
+      fireNear: (at, r) => self.fireLight.fireNear(at[0], at[2], r, at[1], 0.9),
+      putOut: (at, r) => {
+        let out = false;
+        for (const o of self.objs().near(at[0], at[2], r + 6)) {
+          const fl = o.def.flame;
+          if (!fl || !o.def.switch || !self.puzzles.isOn(o) || (fl.when && o.state !== fl.when)) continue;
+          const p = localToWorld(o.def, o.inst, fl.at);
+          if (Math.hypot(p[0] - at[0], p[1] - at[1], p[2] - at[2]) > r + 0.6) continue;
+          self.puzzles.turn(o, false, 'put out by ice');
+          self.emit('info', `${o.def.name}: the ice arrow put it out`);
+          out = true;
+        }
+        return out;
+      },
+      waterAt: (x, y, z) => waterAt(self.waterBoxes(), x, y, z),
+      freeze: (at) => self.freezeWater(at),
+      thaw: (id) => {
+        const o = self.objs().byId(id);
+        if (o) self.fireLight.melt(o, 'thaw');
+      },
+      fetch: (o) => {
+        const p = o.def.pickup;
+        if (!p) return null;
+        const pieces: LegacyPiece[] = [];
+        for (let id = o.inst.idBase; id < o.inst.idBase + o.def.bricks.length; id++) {
+          const q = self.pieceById(self.world, id);
+          if (q) pieces.push({ ...q });
+        }
+        const b = boxOf(o.bricks);
+        const origin: [number, number, number] = b
+          ? [(b.x0 + b.x1) / 2, ((b.y0 + b.y1) / 2) * 0.4, (b.z0 + b.z1) / 2]
+          : [0, 0, 0];
+        self.despawn(o.inst.id, true);
+        return { item: p.item, count: p.count ?? 1, name: o.def.name, pieces, origin };
+      },
+      deliver: (c) => {
+        self.give(c.item, c.count);
+        self.audio.play(SND.pickup, { pos: [self.heroState.x, self.heroState.y + 1, self.heroState.z] });
+        self.logic.fire({
+          type: 'event.onPickedUp',
+          match: { item: c.item },
+          payload: { item: c.item, count: c.count },
+        });
+      },
+      gust: (field, life) => self.wind.gust(field, life),
+      flames: (at, scale) => {
+        const h = self.playEffect(FX.fire, at, { scale });
+        return h ? { stop: () => self.effects.stop(h), move: (p) => self.effects.move(h, p) } : null;
+      },
+      effect: (kind, at, forward) => {
+        self.playEffect(fxOf[kind], at, forward ? { forward } : {});
+      },
+      sound: (id, at) => self.audio.play(SND[id], { pos: at }),
+      solidAt: (x, y, z) => self.solidPoint(x, y, z),
+      lockPos: () => self.combat.targetPos(),
+      aimTargets: (throwing) => self.aimTargets(throwing),
+      lightTorches: (at, r) => {
+        for (const o of self.objs().near(at[0], at[2], r + 6)) {
+          const fl = o.def.flame;
+          if (!fl || o.def.switch?.by !== 'hit' || self.puzzles.isOn(o) || !switchHitBy(o.def.switch, 'fire')) continue;
+          const p = localToWorld(o.def, o.inst, fl.at);
+          if (Math.hypot(p[0] - at[0], p[1] + 0.3 - at[1], p[2] - at[2]) <= r) self.puzzles.hit(o, 'fire', true);
+        }
+      },
+      say: (t, sec) => self.say(t, sec),
+      log: (t) => self.emit('info', t),
+    });
+  }
+
+  /** step 13a: where shots leave the hero: the bow's grip in the left hand, held up ahead at the shoulder */
+  launchPoint(): [number, number, number] {
+    const h = this.heroState;
+    const k = this.L.GamePhysics.scaleOf(h);
+    const fx = Math.sin(h.heading);
+    const fz = Math.cos(h.heading);
+    // (the archer stands side-on, the bow out on the line of the aim at the chin)
+    return [h.x + fx * 1.2 * k, h.y + 2.9 * k, h.z + fz * 1.2 * k];
+  }
+
+  /** step 13a: what is worth aiming at: foes, switches to hit (targets, crystals, torch stands), pinwheels, pickups */
+  private aimTargets(throwing = false): [number, number, number][] {
+    const h = this.heroState;
+    const out: [number, number, number][] = [];
+    for (const n of this.world.npcs) {
+      if (!this.canHarm(n)) continue;
+      const f = this.figureOf(n);
+      out.push([n.state.x, n.state.y + f.bottom + 0.55 * (f.top - f.bottom), n.state.z]);
+    }
+    for (const o of this.objs().near(h.x, h.z, 46)) {
+      const sw = o.def.switch?.by;
+      const fetch = throwing && !!o.def.pickup;
+      if (sw !== 'hit' && sw !== 'wind' && !o.def.health && !o.def.lockOn && !fetch) continue;
+      // a switch already on for good (a lit torch, a struck eye) is not worth aiming at again
+      if (sw === 'hit' && o.def.switch?.stays !== 'toggle' && this.puzzles.isOn(o)) continue;
+      const b = boxOf(o.bricks);
+      if (!b) continue;
+      const fl = o.def.flame;
+      const mid: [number, number, number] = [(b.x0 + b.x1) / 2, ((b.y0 + b.y1) / 2) * 0.4, (b.z0 + b.z1) / 2];
+      // a torch stand is aimed just over its bowl (through its flame); a pinwheel at its sails; a pickup a little
+      // over it (the boomerang dips to it); the rest at their middle (an eye target's eye)
+      if (fl && sw === 'hit') {
+        const p = localToWorld(o.def, o.inst, fl.at);
+        out.push([p[0], p[1] + 0.35, p[2]]);
+      } else if (sw === 'wind') out.push([mid[0], b.y1 * 0.4 - 0.7, mid[2]]);
+      else if (fetch) out.push([mid[0], b.y1 * 0.4 + 0.5, mid[2]]);
+      else out.push(mid);
+    }
+    // step 13a: with ice arrows, the water ahead (a little way in from where the way ahead meets it) is worth aiming at
+    if (!throwing && this.shots.out === 'bow' && this.shots.arrow === 'ice') {
+      const fx = Math.sin(h.heading);
+      const fz = Math.cos(h.heading);
+      for (const w of this.waterBoxes()) {
+        for (let d = 3; d <= 30; d += 0.5) {
+          const x = h.x + fx * d;
+          const z = h.z + fz * d;
+          if (x < w.x0 + 1 || x > w.x1 - 1 || z < w.z0 + 1 || z > w.z1 - 1) continue;
+          out.push([x + fx * 2, w.y1, z + fz * 2]);
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
+  /** step 13a: an ice arrow freezes the water where it goes in: a floe of ice on the surface (slippery; it melts) */
+  private freezeWater(at: [number, number, number]): string | null {
+    const def =
+      (this.snapshot.get(paths.asset(ICE_FLOE_ID)) as Asset | undefined) ??
+      BUILTIN_ASSETS.find((a) => a.id === ICE_FLOE_ID);
+    const wet = waterAt(this.waterBoxes(), at[0], at[1] - 0.05, at[2]);
+    if (!def || !wet) return null;
+    const [fw, fd] = def.footprint;
+    // its top two plates over the surface: it floats as ice does, most of it under
+    // (all of it on the water: a shot in at the edge freezes the water along the edge)
+    const inside = (v: number, lo: number, hi: number, n: number) =>
+      Math.max(Math.ceil(lo), Math.min(Math.floor(hi) - n, v));
+    const pos: [number, number, number] = [
+      inside(Math.round(at[0] - fw / 2), wet.x0, wet.x1, fw),
+      Math.round((wet.y1 - 0.4) / 0.4),
+      inside(Math.round(at[2] - fd / 2), wet.z0, wet.z1, fd),
+    ];
+    return this.placeCopy(def, pos, 0, undefined, { unchecked: true });
+  }
+
+  // ---------- step 13a: the bow and the slingshot in hand ----------
+
+  /** the bow (with these arrows) or the slingshot comes out in the left hand; what the right hand held is put away */
+  takeOutWeapon(w: Weapon, arrow: ArrowElement = 'plain') {
+    if (this.fireLight.held || this.fireLight.busy) return;
+    if (this.shots.out !== w) {
+      this.putAwayStick();
+      this.heldBefore = String(this.hero.held ?? 'None');
+    }
+    this.shots.out = w;
+    this.shots.arrow = arrow;
+    this.syncWeaponLook();
+  }
+
+  /** the bow or slingshot is put away (a draw is dropped): the hand holds what it held before */
+  putAwayWeapon() {
+    if (!this.shots.out) return;
+    this.shots.cancel();
+    this.shots.out = null;
+    const { heldLook: _, heldDraw: _d, heldArrow: _a, ...rest } = this.hero as Record<string, unknown>;
+    this.hero = { ...rest, held: this.heldBefore ?? 'None' } as typeof this.hero;
+    this.heldBefore = null;
+  }
+
+  /** the hand's look follows the bow: carried, or drawn (how far, with which arrow) */
+  private syncWeaponLook() {
+    const s = this.shots;
+    if (!s.out) return;
+    const look = s.out === 'bow' ? 'Bow' : 'Sling';
+    const draw = s.aiming ? Math.round(s.drawn * 5) : null;
+    const arrow = s.out === 'bow' ? s.arrow : null;
+    const h = this.hero as Record<string, unknown>;
+    if (h.heldLook === look && h.held === 'None' && (h.heldDraw ?? null) === draw && (h.heldArrow ?? null) === arrow)
+      return;
+    const { heldDraw: _d, heldArrow: _a, ...rest } = h;
+    this.hero = {
+      ...rest,
+      held: 'None',
+      heldLook: look,
+      ...(draw !== null ? { heldDraw: draw } : {}),
+      ...(arrow ? { heldArrow: arrow } : {}),
+    } as typeof this.hero;
+  }
+
+  /** the item a shot uses up: arrows (of the bow's kind) or seeds */
+  private ammoItem(): string {
+    const s = this.shots;
+    return s.out === 'sling'
+      ? 'Seeds'
+      : s.arrow === 'fire'
+        ? 'Fire arrows'
+        : s.arrow === 'ice'
+          ? 'Ice arrows'
+          : 'Arrows';
+  }
+
+  /** Attack held with the bow or slingshot out: it is drawn (if there is something to shoot) */
+  private startDrawing() {
+    const s = this.shots;
+    if (!s.out || s.aiming || this.swim.on || this.puzzles.ladder || this.puzzles.wall || this.puzzles.climbing) return;
+    const item = this.ammoItem();
+    if ((this.inventory.get(this.itemKey(item)) ?? 0) <= 0) {
+      this.say(`No ${item.toLowerCase()} left.`, 1.5);
+      return;
+    }
+    s.startDraw();
+    this.syncWeaponLook();
+    this.emit('info', `Drawing the ${s.out === 'bow' ? 'bow' : 'slingshot'}${s.aimAt ? ' (aimed at a target)' : ''}`);
+  }
+
+  /** Attack let go: the shot flies */
+  private releaseDrawing() {
+    const s = this.shots;
+    if (!s.aiming) return;
+    const item = this.ammoItem();
+    s.release(() => {
+      if ((this.inventory.get(this.itemKey(item)) ?? 0) <= 0) return false;
+      this.takeItem(item, 1);
+      return true;
+    });
+    this.syncWeaponLook();
+  }
+
+  /** step 13a: each step: the shots fly (their paths looked along before the physics engine moves them) */
+  /** step 14a: enemies' shots fly, and a burning hero burns down */
+  stepFoeShots(dt: number) {
+    this.foeShots.step(dt * this.slowmo);
+    this.stepAlight();
+  }
+
+  stepShots(dt: number) {
+    this.shots.step(dt * this.slowmo);
+    this.syncWeaponLook();
+  }
+
+  private makeHooks(): Hooks<PlayInstance> {
+    const self = this;
+    const sh = this.shots as unknown as {
+      h: { npcs(): never; hitNpc: never; hitObject: never; fetch: never; deliver: never };
+    };
+    return new Hooks<PlayInstance>({
+      ask: (o, hook, payload, base) => self.askHook(o.inst.id, hook, payload, base),
+      get heroState() {
+        return self.heroState;
+      },
+      physics: () => self.world.physics ?? null,
+      hand: () => self.handPoint(),
+      near: (x, z, r) => self.objs().near(x, z, r),
+      byId: (id) => self.objs().byId(id),
+      // the same as the shots' (foes, hits, fetching a pickup and handing it over)
+      npcs: () => sh.h.npcs(),
+      hitNpc: (...a) => (sh.h.hitNpc as unknown as (...x: unknown[]) => void)(...a),
+      hitObject: (...a) => (sh.h.hitObject as unknown as (...x: unknown[]) => boolean)(...a),
+      fetch: (o) => (sh.h.fetch as unknown as (o: PlayInstance) => never)(o),
+      deliver: (c) => (sh.h.deliver as unknown as (c: unknown) => void)(c),
+      moveHero: (d) => self.moveHeroBy(d),
+      pullUp: (at, way) => self.pullUpAt(at, way),
+      lockPos: () => self.combat.targetPos(),
+      sound: (id, at) => self.audio.play(SND[id], { pos: at }),
+      effect: (kind, at) => {
+        self.playEffect(kind === 'spark' ? FX.sparks : FX.hitFlash, at);
+      },
+      solidAt: (x, y, z) => self.solidPoint(x, y, z),
+      say: (t, sec) => self.say(t, sec),
+      log: (t) => self.emit('info', t),
+    });
+  }
+
+  /** step 13b: the right hand held out ahead at the shoulder (where a line leaves and comes back to) */
+  handPoint(): [number, number, number] {
+    const h = this.heroState;
+    const k = this.L.GamePhysics.scaleOf(h);
+    const fx = Math.sin(h.heading);
+    const fz = Math.cos(h.heading);
+    // hanging on the rope by one hand: its fist as it is drawn (the body tips with the rope), else straight over the
+    // middle of the body
+    if (this.hooks?.swing) return this.gripPoints()?.[1] ?? [h.x + fx * 0.09 * k, h.y + 4.64 * k, h.z + fz * 0.09 * k];
+    // the hero's right is -x when facing +z
+    return [h.x + fx * 1.1 * k - fz * 0.5 * k, h.y + 2.8 * k, h.z + fz * 1.1 * k + fx * 0.5 * k];
+  }
+
+  /** step 13b: the hero moved through the world by this much (a pull along a line, a swing): bricks stop it */
+  moveHeroBy(d: [number, number, number]): { blocked: [boolean, boolean, boolean]; grounded: boolean } {
+    const s = this.heroState;
+    const k = this.L.GamePhysics.scaleOf(s);
+    const ph = this.physicsMovement ? this.world.physics : null;
+    const was = [s.x, s.y, s.z];
+    if (ph) {
+      const r = ph.walk({ x: s.x, y: s.y, z: s.z }, { x: d[0], y: d[1], z: d[2] }, HERO_RADIUS * k, HERO_HEIGHT * k, {
+        noSnap: true,
+      });
+      s.x = r.x;
+      s.y = r.y;
+      s.z = r.z;
+      s.grounded = r.grounded;
+    } else {
+      const c = this.world.controller;
+      const at = [s.x, s.y, s.z];
+      for (let i = 0; i < 3; i++) {
+        const next = [...at];
+        next[i]! += d[i]!;
+        if (c.clear(next[0]!, next[1]! + (i === 1 ? 0 : 0.05), next[2]!)) at[i] = next[i]!;
+      }
+      [s.x, s.y, s.z] = at as [number, number, number];
+      s.grounded = !c.clear(s.x, s.y - 0.06, s.z);
+    }
+    const now = [s.x, s.y, s.z];
+    const blocked = [0, 1, 2].map(
+      (i) => Math.abs(d[i]!) > 1e-4 && Math.abs(now[i]! - was[i]!) < Math.abs(d[i]!) * 0.5,
+    ) as [boolean, boolean, boolean];
+    return { blocked, grounded: s.grounded };
+  }
+
+  /**
+   * step 13b: at a hook, the hero climbs onto a floor next to it or just past it (the top of the wall it is on), its
+   * feet no more than a step over the hand's reach; the nearest such spot (true: there was one)
+   */
+  pullUpAt(at: [number, number, number], way: [number, number, number]): boolean {
+    const c = this.world.controller;
+    const s = this.heroState;
+    const fx = way[0];
+    const fz = way[2];
+    const l = Math.hypot(fx, fz) || 1;
+    const ux = fx / l;
+    const uz = fz / l;
+    let best: { x: number; y: number; z: number; cost: number } | null = null;
+    for (const along of [0.4, 1.0, 1.6, 2.2])
+      for (const side of [0, 0.9, -0.9, 1.7, -1.7])
+        for (let y = at[1] - 3.6; y <= at[1] + 0.8; y += 0.2) {
+          const x = at[0] + ux * along - uz * side;
+          const z = at[2] + uz * along + ux * side;
+          if (!c.clear(x, y, z) || c.clear(x, y - 0.25, z)) continue;
+          const cost = Math.abs(side) * 2 + along + Math.abs(y - (at[1] - 2.6)) * 0.3;
+          if (!best || cost < best.cost) best = { x, y, z, cost };
+          break;
+        }
+    if (!best || best.y < s.y + 0.3) return false;
+    this.placeAt([best.x, best.y + 0.02, best.z], s.heading);
+    return true;
+  }
+
+  /** step 13b: the hook line, the grapple rope or the magnet glove comes out in the right hand (or is put away) */
+  takeOutGear(g: Gear) {
+    if (this.fireLight.held || this.fireLight.busy) return;
+    if (this.hooks.out === g) {
+      this.putAwayGear();
+      return;
+    }
+    this.putAwayStick();
+    this.heldBefore = String(this.hero.held ?? 'None');
+    this.hooks.out = g;
+    this.hero = {
+      ...this.hero,
+      held: 'None',
+      heldLook: g === 'hook' ? 'Hook line' : g === 'rope' ? 'Grapple rope' : 'Magnet glove',
+    };
+    const k = this.buttons.keyOf('attack').toUpperCase();
+    this.say(
+      g === 'magnet'
+        ? `The magnet glove! Hold ${k} at something metal to lift it (forward and back move it, left and right turn); let go to drop it.`
+        : g === 'rope'
+          ? `The grapple rope! Hold ${k} to aim at a ring or a beam over you, let go to shoot. Hanging: the move keys swing, with Shift held forward and back climb; Jump lets go.`
+          : `The hook line! Hold ${k} to aim, let go to shoot: it pulls you to wood and hook targets, and light things to you.`,
+      3,
+    );
+  }
+
+  putAwayGear() {
+    if (!this.hooks.out) return;
+    this.hooks.letGo();
+    this.hooks.out = null;
+    const { heldLook: _, ...rest } = this.hero as Record<string, unknown>;
+    this.hero = { ...rest, held: this.heldBefore ?? 'None' } as typeof this.hero;
+    this.heldBefore = null;
+  }
+
+  /** step 13b: each step: the lines fly and reel, the glove holds; a let-go swing flies on */
+  stepHooks(dt: number) {
+    this.hooks.step(dt * this.slowmo);
+    const f = this.hooks.flung;
+    if (f) {
+      this.heroDrift = { x: f[0], z: f[1] };
+      this.hooks.flung = null;
+    }
+  }
+
+  /** a brick (or a placed thing's brick) fills this point */
+  solidPoint(x: number, y: number, z: number): boolean {
+    const c = this.world.controller as unknown as {
+      nearby?(
+        x: number,
+        z: number,
+      ): { b: { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number } }[];
+    };
+    return (c.nearby?.(x, z) ?? []).some(
+      ({ b }) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && y >= b.y0 && y < b.y1,
+    );
+  }
+
+  private moversOf: { all: readonly PlayInstance[]; movers: PlayInstance[] } | null = null;
+
+  private makePlatforms(): Platforms<PlayInstance> {
+    const self = this;
+    return new Platforms<PlayInstance>({
+      movers: () => {
+        // the list is made again only when the map's things change (a platform moving changes it too)
+        const all = self.world.instances;
+        if (self.moversOf?.all !== all) self.moversOf = { all, movers: all.filter((i) => !!i.def.moves) };
+        return self.moversOf.movers;
+      },
+      get heroState() {
+        return self.heroState;
+      },
+      moveTo: (o, pos) => self.moveInstance(o, pos),
+      log: (t) => self.emit('info', t),
+    });
+  }
   private lastStamina = -1;
   onBreak: ((b: NonNullable<LogicRuntime['paused']>) => void) | null = null;
   emotes: Clip[] = [];
@@ -339,11 +1395,18 @@ export class PlaySession {
       quality?: QualityLevel;
       /** P27 part 4: the device, for Auto quality (none: a mid-range one) */
       device?: DeviceInfo;
+      /** Milestone 2b, 10c part 5: where imported model files come from */
+      media?: MediaSource;
     } = {},
   ) {
     this.L = legacyRuntime();
+    this.mediaSource = opts.media ?? null;
     this.saves = opts.saves ?? new MemorySaveStore();
     this.audio = opts.audio ?? new RecordingAudio();
+    this.buttons = new GameButtons(
+      (snapshot.get(paths.settings) as { controls?: Controls } | undefined)?.controls,
+      this.buttonHost(),
+    );
     const self = this;
     const host = {
       setState: (state: string, target: string | undefined, me: string | undefined) =>
@@ -371,6 +1434,7 @@ export class PlaySession {
         else if (isSettingKey(key)) this.progress.setSetting(key, value);
       },
       gave: () => this.audio.play(SND.pickup),
+      dungeonGive: (item: string, count: number) => this.puzzles.give(item, count),
       spawn: (asset: string, at: string) => void this.spawnAsset(asset, at),
       despawn: (target: string) => this.despawn(target),
       message: (text: string, seconds: number) => this.say(text, seconds),
@@ -387,6 +1451,8 @@ export class PlaySession {
     this.uiActions = new ActionRunner(host);
     const project = snapshot.get(paths.project) as Project;
     this.project = project;
+    // step 11, 4c: characters spawned in an earlier play are gone
+    spawnedNpcs.clear();
     this.saving = project.saving ?? genreById(project.genre).saving ?? DEFAULT_SAVING;
     this.talks = new TalkSystem({
       get: (p) => this.snapshot.get(p),
@@ -447,6 +1513,8 @@ export class PlaySession {
     this.travelLock = spawn ? { spawn: spawn.id } : null;
     this.camYaw = this.world.controller.state.heading + Math.PI;
     this.logic = this.makeLogic();
+    this.quests = this.makeQuests();
+    this.syncScripts(false);
     this.heroVars();
     this.progress = new PlayerProgress(this as unknown as ProgressHost);
     this.progress.onSettings = () => this.applySettings();
@@ -460,6 +1528,7 @@ export class PlaySession {
       /* splash / title shown over the paused world */
     } else this.startGame();
     this.logic.fire({ type: 'event.onStart' });
+    this.mapEvent('Enter', this.world.doc.name, '');
     this.emit(
       'start',
       `Playing ${this.world.doc.name}${spawn ? ` from ${spawn.name}` : ''}. WASD moves, Space jumps, F attacks (hold to charge), Q guards, C rolls, Z locks on, hold E rebuilds, T talks.`,
@@ -494,25 +1563,53 @@ export class PlaySession {
     const decoded: LegacyPiece[] = [];
     // any-colour bricks keep their exact colour in Play (v68 saves keep the nearest v68 colour)
     const exact = new Map<number, string>();
+    // step 11: custom bricks keep their shape in Play
+    const shapes = new Map<number, string>();
     for (let i = 0; i < chunkPaths.length; i++) {
       const c = this.snapshot.get(chunkPaths[i]!) as Chunk;
       chunkPieces(c, decoded);
       chunkExactColors(c, exact);
+      chunkCustomShapes(c, shapes);
       if (i % 8 === 7) yield (0.7 * (i + 1)) / chunkPaths.length;
     }
     for (const b of instanceBricks(this.snapshot, mapId)) {
       decoded.push(brickToPiece(b));
       if (!LEGACY_HEX.has(b.color.toLowerCase())) exact.set(b.id, b.color.toLowerCase());
+      const shape = customIdOf(b.type);
+      if (shape) shapes.set(b.id, shape);
     }
     yield 0.75;
     decoded.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
     yield 0.8;
     const build = mapToLegacyBuild(this.snapshot, mapId, { pieces: decoded });
     const meta = (build.world ?? null) as LegacyWorldMeta;
-    const pieces = build.pieces.map((p) =>
-      p.id !== undefined && exact.has(p.id) ? { ...p, hex: exact.get(p.id)! } : { ...p },
-    );
+    const pieces = build.pieces.map((p) => {
+      const q: LegacyPiece = p.id !== undefined && exact.has(p.id) ? { ...p, hex: exact.get(p.id)! } : { ...p };
+      if (p.id !== undefined && shapes.has(p.id)) q.shape = shapes.get(p.id)!;
+      return q;
+    });
     yield 0.85;
+    // Milestone 2b: loose objects are bodies in the physics core, not solid bricks of the map
+    const expanded = expandInstances(this.snapshot, mapId);
+    const looseIds = new Set<number>();
+    if (physicsReady()) for (const e of expanded) if (e.def.loose) for (const b of e.bricks) looseIds.add(b.id);
+    const loosePieces = new Map<number, LegacyPiece>();
+    if (looseIds.size) {
+      for (const p of pieces) if (p.id !== undefined && looseIds.has(p.id)) loosePieces.set(p.id, p);
+      const kept = pieces.filter((p) => p.id === undefined || !looseIds.has(p.id));
+      pieces.length = 0;
+      pieces.push(...kept);
+    }
+    // step 13c: fake things (a wall or floor that only looks solid) are drawn, never solid: out of the map's pieces
+    const fakeIds = new Set<number>();
+    for (const e of expanded) if (e.def.fake && !e.def.loose) for (const b of e.bricks) fakeIds.add(b.id);
+    const fakePieces = new Map<number, LegacyPiece>();
+    if (fakeIds.size) {
+      for (const p of pieces) if (p.id !== undefined && fakeIds.has(p.id)) fakePieces.set(p.id, p);
+      const kept = pieces.filter((p) => p.id === undefined || !fakeIds.has(p.id));
+      pieces.length = 0;
+      pieces.push(...kept);
+    }
     const state = (this.snapshot.get(paths.state(mapId)) as MapState | undefined) ?? { broken: [], player: null };
     // P27 part 3: a big map starts with the window around where the hero arrives
     const big = pieces.length > WINDOW_FROM;
@@ -543,7 +1640,7 @@ export class PlaySession {
       controller,
       dirtyChunks: new Set(),
       brokenSerial: Math.max(0, ...state.broken.map((b) => b.id)) + 1,
-      instances: expandInstances(this.snapshot, mapId).map((e) => ({
+      instances: expanded.map((e) => ({
         ...e,
         state: e.inst.state ?? e.def.initialState,
       })),
@@ -551,16 +1648,25 @@ export class PlaySession {
       emitters: (inst?.items ?? []).filter((i): i is EmitterInstance => i.kind === 'emitter'),
       effects: (inst?.items ?? []).filter((i): i is EffectInstance => i.kind === 'effect'),
       lights: (inst?.items ?? []).filter((i): i is LightInstance => i.kind === 'light'),
+      water: (inst?.items ?? []).filter((i): i is WaterInstance => i.kind === 'water'),
+      models: (inst?.items ?? []).filter((i): i is ModelInstance => i.kind === 'model'),
+      looseObjects: [],
+      loosePieces,
+      fakePieces,
       worldUi: (inst?.items ?? []).filter((i): i is UiInstance => i.kind === 'ui'),
       big,
       byChunk,
       windowAt: startKey,
       fullArea,
       goneIds: [],
+      objects: new ObjectIndex<PlayInstance>(),
+      physics: physicsReady() ? new PhysicsWorld() : null,
       defeated: [],
       start: { instances: new Map(), npcs: npcs.map((n) => n.id) },
     };
     for (const i of w.instances) w.start.instances.set(i.inst.id, i.state);
+    this.physicsBricks(w, null);
+    this.physicsLoose(w);
     this.worlds.set(mapId, w);
     this.lru.add(mapId);
     // a map left earlier in this play: back as the player left it
@@ -589,6 +1695,8 @@ export class PlaySession {
         continue;
       }
       this.parked.set(id, captureMap(w as unknown as SaveWorld));
+      w.physics?.free();
+      w.physics = null;
       this.worlds.delete(id);
       this.lru.delete(id);
     }
@@ -668,6 +1776,16 @@ export class PlaySession {
 
   /** Put the hero at a spawn (v68 arrival: keep clear of scenery, fall back to the map's safe spawn). */
   placeAt(pos: [number, number, number], heading: number) {
+    // step 13c: a hero put somewhere (a respawn, a checkpoint, a door) has not walked off an edge: no float
+    this.boots?.placed();
+    // step 12b: a hero put somewhere else lets go of a ladder (and is not mid-climb)
+    if (this.puzzles) {
+      this.puzzles.ladder = null;
+      this.puzzles.wall = null;
+      this.puzzles.climbing = null;
+    }
+    // step 12c-2: put somewhere else, the hero stands still (no drift)
+    if (this.heroDrift) this.heroDrift = { x: 0, z: 0 };
     const c = this.world.controller;
     Object.assign(c.state, {
       x: pos[0],
@@ -705,6 +1823,160 @@ export class PlaySession {
     this.messageUntil = this.clock + seconds;
   }
 
+  // ---------- step 11, 4c: items, followers and characters put on the map by logic ----------
+
+  /** the inventory's key for an item name, whatever its capitals */
+  private itemKey(item: string): string {
+    const t = item.trim();
+    if (this.inventory.has(t)) return t;
+    for (const k of this.inventory.keys()) if (k.toLowerCase() === t.toLowerCase()) return k;
+    return t;
+  }
+
+  itemCount(item: string): number {
+    return this.puzzles.count(item) ?? this.inventory.get(this.itemKey(item)) ?? 0;
+  }
+
+  takeItem(item: string, count: number) {
+    if (this.puzzles.take(item, count)) {
+      this.emit('info', `Took ${count} × ${item} (this map)`);
+      return;
+    }
+    const k = this.itemKey(item);
+    const n = Math.max(0, (this.inventory.get(k) ?? 0) - count);
+    if (n) this.inventory.set(k, n);
+    else this.inventory.delete(k);
+    this.emit('info', `Took ${count} × ${k} (${n} left)`);
+  }
+
+  /** neighbours (by play id) following the hero */
+  readonly followers = new Set<number>();
+
+  /** the nearest character of this name on the open map */
+  npcNamed(who: string): Npc | null {
+    const w = who.trim().toLowerCase();
+    if (!w) return null;
+    return (
+      this.world.npcs
+        .filter((n) => String(n.profile.name ?? '').toLowerCase() === w)
+        .sort(
+          (a, b) =>
+            Math.hypot(a.state.x - this.heroState.x, a.state.z - this.heroState.z) -
+            Math.hypot(b.state.x - this.heroState.x, b.state.z - this.heroState.z),
+        )[0] ?? null
+    );
+  }
+
+  setFollow(who: string, on: boolean) {
+    const n = this.npcNamed(who);
+    if (!n) {
+      this.emit('info', `Follow: nobody called “${who}” here`);
+      return;
+    }
+    if (on) this.followers.add(n.id);
+    else {
+      this.followers.delete(n.id);
+      // it settles where it stands
+      (n as Npc & { home?: { x: number; y: number; z: number } }).home = { x: n.state.x, y: n.state.y, z: n.state.z };
+    }
+  }
+
+  /** followers walk after the hero, keep about 2.5 studs away, run to catch up and jump to it when far behind */
+  private stepFollowers(npcs: readonly Npc[], dt: number) {
+    const h = this.heroState;
+    for (const n of npcs) {
+      if (!this.followers.has(n.id)) continue;
+      const s = n.state;
+      const dx = h.x - s.x;
+      const dz = h.z - s.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 30 || Math.abs(h.y - s.y) > 8) {
+        Object.assign(s, { x: h.x - Math.sin(h.heading) * 2, y: h.y, z: h.z - Math.cos(h.heading) * 2, vy: 0 });
+        continue;
+      }
+      // Milestone 3b (B4): how close it keeps (Follower.followGap)
+      const owner = npcItem(this.snapshot, this.world.mapId, n.id)?.id;
+      const gap = owner ? Math.max(0.5, this.askHook(owner, 'followGap', { distance: d }, 2.5)) : 2.5;
+      if (d < gap) {
+        n.controller.step({ x: 0, z: 0, run: false, jump: false, vertical: 0 }, dt, 0);
+        continue;
+      }
+      const k = d > 7 ? 0.62 : 0.42;
+      n.controller.step({ x: (dx / d) * k, z: -(dz / d) * k, run: d > 7, jump: false, vertical: 0 }, dt, 0);
+      s.heading = Math.atan2(dx, dz);
+    }
+  }
+
+  private charSerial = 0;
+
+  /** a character (by name or id; the game's, else the starter pack's) put on the open map at a spawn point */
+  spawnCharacter(character: string, at: string): string | null {
+    const want = character.trim().toLowerCase();
+    const own = [...this.snapshot.keys()]
+      .filter((p) => p.startsWith('characters/'))
+      .map((p) => this.snapshot.get(p) as Character | undefined)
+      .filter((c): c is Character => !!c?.name);
+    const chr =
+      [...own, ...BUILTIN_CHARACTERS].find((c) => c.id === character.trim()) ??
+      [...own, ...BUILTIN_CHARACTERS].find((c) => c.name.toLowerCase() === want);
+    const w = this.world;
+    const where = at.trim().toLowerCase();
+    let sp: { pos: readonly [number, number, number]; yaw: number; name: string } | undefined = w.doc.spawns.find(
+      (x) => x.id === at || x.name.toLowerCase() === where,
+    );
+    // Milestone 3b (14a-2): or beside the hero or a character (a boss calls its brood round it), a little apart each time
+    if (!sp && where) {
+      const by =
+        where === 'hero'
+          ? { x: this.heroState.x, y: this.heroState.y, z: this.heroState.z, name: 'the hero' }
+          : (() => {
+              const n = w.npcs.find((m) => String(m.profile.name ?? '').toLowerCase() === where);
+              return n ? { x: n.state.x, y: n.state.y, z: n.state.z, name: String(n.profile.name) } : null;
+            })();
+      if (by) {
+        const a = (this.charSerial * 2.39996) % (Math.PI * 2);
+        sp = {
+          pos: [by.x + Math.sin(a) * 3, Math.max(0, by.y) + 0.05, by.z + Math.cos(a) * 3],
+          yaw: a + Math.PI,
+          name: by.name,
+        };
+      }
+    }
+    if (!chr || !sp) {
+      this.emit(
+        'info',
+        `Spawn character: ${!chr ? `no character “${character}”` : `no spawn point or character “${at}” here`}`,
+      );
+      return null;
+    }
+    const id = 900_000 + ++this.charSerial;
+    const entry = {
+      id,
+      biome: 'city',
+      role: 'Explorer',
+      profile: lookForV68(chr.profile as Record<string, unknown>),
+      state: { x: sp.pos[0], y: sp.pos[1], z: sp.pos[2], heading: sp.yaw },
+    };
+    let made: Npc[] = [];
+    try {
+      made = this.L.NPCWorld.restore([entry], w.pieces, w.meta);
+    } catch (e) {
+      this.emit('info', `Spawn character: ${(e as Error).message}`);
+      return null;
+    }
+    const n = made[0];
+    if (!n) return null;
+    spawnedNpcs.set(id, { id: `ins_spawn${String(id).slice(-5)}`, character: chr.id });
+    w.npcs.push(n);
+    this.L.NPCWorld.connect(w.npcs, w.controller);
+    this.eventEffect('defeat', [sp.pos[0], sp.pos[1] + 1, sp.pos[2]]);
+    this.emit(
+      'info',
+      `${chr.name} came in ${sp.name.startsWith('the ') || w.npcs.some((m) => m.profile.name === sp.name) ? 'beside' : 'at'} ${sp.name}`,
+    );
+    return chr.name;
+  }
+
   // ---------- actions (keyboard / touch / cheats) ----------
 
   /** F (a light attack: the touch button, and what a quick tap of F does) */
@@ -739,11 +2011,250 @@ export class PlaySession {
   setHero(chr: Character | undefined) {
     this.heroChr = chr;
     this.bodies.delete('hero');
+    this.extraParts.delete('hero');
     this.hero = this.L.CharacterCatalog.validate({ ...this.L.CharacterCatalog.defaults, ...wornProfile(chr) });
     // P9b: the off hand (a shield) lives beside v68's profile, which only knows a right-hand item
     this.hero.offHand = chr?.gear?.offHand ?? 'None';
     this.emotes = this.resolveEmotes(chr);
     this.staminaMax = chr?.stats ? statsOf(chr).stamina : MAX_STAMINA;
+    this.stickOut = false;
+    this.heldBefore = null;
+    // Milestone 3b (B4): another hero (the party's next) runs its own behaviours
+    if (this.logic && this.scriptOwners) this.syncScripts(true);
+  }
+
+  // ---------- step 12b: a stick (a branch) in hand ----------
+
+  /** the stick is out in the hero's right hand (it swings as a sword, and is what Attack uses) */
+  stickOut = false;
+  /** the item the hand held before the stick came out (it goes back when the stick is put away or is gone) */
+  private heldBefore: string | null = null;
+  /** seconds left of the pick-up move (bending down for something off the floor) */
+  private pickT = 0;
+  /** a branch picked up comes out in the hand when the pick-up move reaches the floor */
+  private stickAfterPick = false;
+
+  /** the stick comes out: the hand shows it, and it swings as a sword */
+  takeOutStick(): boolean {
+    if (this.stickOut || (this.inventory.get('Branch') ?? 0) <= 0 || this.fireLight.held || this.fireLight.busy)
+      return false;
+    this.putAwayLeaf();
+    this.heldBefore = String(this.hero.held ?? 'None');
+    this.stickOut = true;
+    this.syncStick();
+    return true;
+  }
+
+  private thingCount = 0;
+
+  /** step 12c-2: the Gust leaf is in the hero's hand (swung like the sword, it blows a gust) */
+  leafOut = false;
+
+  /** the Gust leaf is put away: the hand holds what it held before */
+  putAwayLeaf() {
+    if (!this.leafOut) return;
+    this.leafOut = false;
+    const { heldLook: _, ...rest } = this.hero as Record<string, unknown>;
+    this.hero = { ...rest, held: this.heldBefore ?? 'None' } as typeof this.hero;
+    this.heldBefore = null;
+  }
+
+  /**
+   * step 12c-2: a swing of the Gust leaf: a gust of wind for a moment ahead of the hero (as the Korok Leaf in Breath
+   * of the Wild): it pushes light things and the others, turns pinwheels and blows small flames out
+   */
+  leafGust() {
+    const h = this.heroState;
+    const fx = Math.sin(h.heading);
+    const fz = Math.cos(h.heading);
+    const k = this.L.GamePhysics.scaleOf(h);
+    this.wind.gust(
+      {
+        from: [h.x + fx * 0.8, h.y + 0.6 * k, h.z + fz * 0.8],
+        dir: [fx, fz],
+        reach: 10,
+        half: 1.3,
+        height: 4.4 * k,
+        speed: 22,
+      },
+      0.4,
+    );
+    const at: [number, number, number] = [h.x + fx * 1.2, h.y + 2.4 * k, h.z + fz * 1.2];
+    this.playEffect(FX.gust, at, { forward: [fx, 0, fz] });
+    this.audio.play(SND.gust, { pos: at });
+    this.emit('info', 'A gust of wind');
+  }
+
+  /** the stick is put away (or is gone): its fire goes out, and the hand holds what it held before */
+  putAwayStick() {
+    this.lensDown();
+    this.putAwayLeaf();
+    this.putAwayWeapon();
+    this.putAwayGear();
+    if (!this.stickOut) return;
+    this.stickOut = false;
+    this.fireLight.putOutBranch();
+    const { heldLook: _, ...rest } = this.hero as Record<string, unknown>;
+    this.hero = { ...rest, held: this.heldBefore ?? 'None' } as typeof this.hero;
+    this.heldBefore = null;
+  }
+
+  /** the hand's look follows the stick (plain, or alight) */
+  private syncStick() {
+    if (!this.stickOut) return;
+    const look = this.fireLight.litBranch ? 'Lit stick' : 'Stick';
+    if (this.hero.heldLook === look && this.hero.held === 'Sword') return;
+    this.hero = { ...this.hero, held: 'Sword', heldLook: look };
+  }
+
+  private stepStick(dt: number) {
+    this.pickT = Math.max(0, this.pickT - dt);
+    if (this.stickAfterPick && this.pickT <= 0.25) {
+      this.stickAfterPick = false;
+      this.takeOutStick();
+    }
+    if (this.stickOut && (this.inventory.get('Branch') ?? 0) <= 0) this.putAwayStick();
+    this.syncStick();
+  }
+
+  /** the hero bends down for something off the floor (a branch, a key) */
+  pickUpMove() {
+    if (this.fireLight.held || this.fireLight.busy || this.puzzles.ladder || this.puzzles.wall || this.swim.on) return;
+    this.pickT = 0.5;
+  }
+
+  /**
+   * Where both hands grip (left, right) in the world, from the pose as the renderer draws it now (or the pose given):
+   * the rope hangs from between them, and tests check the hands are on it.
+   */
+  gripPoints(over?: Record<string, unknown>): [number, number, number][] | undefined {
+    const M = this.L.CharacterModel;
+    return this.jointPoints(
+      [
+        ['leftForearm', null, M.handGrip(-1)],
+        ['rightForearm', null, M.handGrip(1)],
+      ],
+      over,
+    );
+  }
+
+  /**
+   * Step 13c: points on the hero's joints as the renderer draws it now: each [joint, a point of the model (its
+   * rest pose, studs) or null, else one from the joint's pivot]. The hover boots' wings and jet are drawn at the
+   * soles this way.
+   */
+  jointPoints(
+    pts: [string, number[] | null, number[]?][],
+    over?: Record<string, unknown>,
+  ): [number, number, number][] | undefined {
+    const M = this.L.CharacterModel;
+    try {
+      const shot = (over as never) ?? this.poseOver();
+      const base = (this.baseParams() ?? {}) as Record<string, unknown>;
+      const params = shot ? { ...base, ...(shot as Record<string, unknown>) } : this.heroAnim.params();
+      const clip = shot ? this.combat.anim.clip : this.heroAnim.clip;
+      const s = this.heroState;
+      const st = params
+        ? {
+            ...s,
+            x: 0,
+            y: 0,
+            z: 0,
+            heading: 0,
+            studioPose: rigPose(params as never, clip),
+            studioProgress: 0,
+            studioFist: false,
+          }
+        : { ...s, x: 0, y: 0, z: 0, heading: 0 };
+      const pose = M.jointPose(st, false, this.hero);
+      const world = M.matrix(s.x, s.y, s.z, s.heading);
+      return pts.map(([j, model, local]) => {
+        const pv = M.pivots[j] ?? [0, 0, 0];
+        const l = model ? model.map((v, i) => v - (pv[i] ?? 0)) : (local ?? [0, 0, 0]);
+        const m = M.scaledMatrix(pose[j]!, st, this.hero);
+        const p = M.transform(world, M.transform(m, l));
+        return [p[0]!, p[1]!, p[2]!] as [number, number, number];
+      });
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** step 13c: the soles (left, right), the middles of their heels, and a point a little above each heel */
+  solePoints(): { sole: [number, number, number]; heel: [number, number, number] }[] | undefined {
+    const M = this.L.CharacterModel;
+    const out: { sole: [number, number, number]; heel: [number, number, number] }[] = [];
+    for (const j of ['leftShin', 'rightShin'] as const) {
+      const pv = M.pivots[j];
+      if (!pv) return undefined;
+      const pts = this.jointPoints([
+        [j, [pv[0]!, 0.02, 0.09]],
+        [j, [pv[0]!, 0.42, -0.36]],
+      ]);
+      if (!pts) return undefined;
+      out.push({ sole: pts[0]!, heel: pts[1]! });
+    }
+    return out;
+  }
+
+  /** where the stick's end is, from the hand as it is posed now (as the renderer draws it) */
+  stickTip(): [number, number, number] | undefined {
+    if (!this.stickOut) return undefined;
+    const M = this.L.CharacterModel as unknown as {
+      jointPose(s: unknown, n: boolean, p: unknown): Record<string, Float32Array>;
+      heldPose(pose: unknown, s: unknown, p: unknown): Float32Array;
+      scaledMatrix(m: Float32Array, s: unknown, p: unknown): Float32Array;
+      transform(m: Float32Array, v: number[]): number[];
+      matrix(x: number, y: number, z: number, h: number): Float32Array;
+      pivots: Record<string, number[]>;
+    };
+    try {
+      const fight = this.combat.pose();
+      const params = fight ?? this.heroAnim.params();
+      const clip = fight ? this.combat.anim.clip : this.heroAnim.clip;
+      const s = this.heroState;
+      const st = params ? { ...s, studioPose: rigPose(params, clip), studioProgress: 0, studioFist: false } : s;
+      const pose = M.jointPose(st, false, this.hero);
+      const held = M.scaledMatrix(M.heldPose(pose, st, this.hero), st, this.hero);
+      // a held item is built at the hand (1.10, 1.94, 0.34), moved down with the longer forearm (HAND_DROP), and
+      // posed from the forearm's pivot with its grip in the hand
+      const fa = M.pivots.rightForearm!;
+      let p = M.transform(held, [1.1 - fa[0]!, 1.94 + HAND_DROP + STICK_LENGTH - fa[1]!, 0.34 - fa[2]!]);
+      if (params && (s.x || s.y || s.z || s.heading)) p = M.transform(M.matrix(s.x, s.y, s.z, s.heading), p);
+      if (p.every((v) => Number.isFinite(v))) return [p[0]!, p[1]!, p[2]!];
+    } catch {
+      /* the fallback below */
+    }
+    return undefined;
+  }
+
+  /**
+   * A swing with the stick (it swings as a sword): alight, it sets what it reaches burning and burns up with it, and
+   * it is used up on anything it hits; plain, it breaks on anything sturdy (a wall, a foe), as a Deku stick does.
+   */
+  private stickSwing(reach: number) {
+    const fl = this.fireLight;
+    const lit = !!fl.litBranch;
+    const tip = fl.branchTip();
+    const h = this.heroState;
+    const npc = this.npcInReach(reach + 0.8);
+    const hit = npc ? null : this.world.controller.target(reach);
+    const owner = hit ? this.instanceOfPiece(hit.id) : null;
+    // vines and other soft, burnable things are not sturdy: a plain stick passes through them
+    const sturdy = !!npc || (!!hit && !owner?.def.burn && !owner?.def.climbable);
+    if (lit) {
+      const caught = fl.flameAt(tip[0], tip[2], tip[1], 1.3, 'a burning stick');
+      this.flame(
+        (tip[0] + h.x + Math.sin(h.heading) * 1.4) / 2,
+        (tip[2] + h.z + Math.cos(h.heading) * 1.4) / 2,
+        tip[1],
+        1.3,
+      );
+      if (caught > 0 || sturdy || owner) {
+        fl.useUpBranch('used');
+        return;
+      }
+    } else if (sturdy) fl.useUpBranch('broke');
   }
 
   /** hearts, stamina, level and experience from the hero's sheet (variables the game defines itself win) */
@@ -762,7 +2273,9 @@ export class PlaySession {
   }
 
   /** P22 part 2: experience for the hero; reaching a level says so (and plays its victory clip) */
-  giveXp(n: number) {
+  giveXp(n0: number) {
+    // Milestone 3b (B4): the hero's behaviour may change how much it gets
+    const n = this.askHook('hero', 'gainXp', { amount: n0 }, n0);
     const st = statsOf(this.heroChr);
     const xp = Math.max(0, Number(this.logic.vars.get('xp') ?? 0) + n);
     this.logic.setVar('xp', xp);
@@ -838,6 +2351,14 @@ export class PlaySession {
       this.say('Nobody close enough to talk to.', 1.5);
       return;
     }
+    // Milestone 3b (B4): a behaviour on the neighbour may say no (Neighbour.canTalk)
+    const talker = npcItem(this.snapshot, this.world.mapId, npc.id)?.id;
+    if (talker && !this.askHook(talker, 'canTalk', {}, true)) {
+      this.say(`${String(npc.profile.name ?? 'They')} has nothing to say.`, 1.5);
+      return;
+    }
+    // Milestone 3b (B7a-2): a quest's talk step counts it
+    this.quests.note('talk', String(npc.profile.name ?? ''));
     // P22: the neighbour's character has conversations: the first whose condition holds plays
     const chr = npcCharacter(this.snapshot, this.world.mapId, npc);
     const conv = chr ? this.talks.pick(chr) : null;
@@ -894,15 +2415,40 @@ export class PlaySession {
 
   private systems(): System<PlaySession>[] {
     return [
+      { id: 'platforms', fixed: (g, dt) => g.platforms.step(dt) },
+      { id: 'wind', fixed: (g, dt) => g.stepWind(dt) },
       { id: 'hero', fixed: (g, dt) => g.moveHero(dt) },
       { id: 'cinematic', fixed: (g, dt) => g.cine.step(dt) },
       { id: 'combat', fixed: (g, dt) => g.stepSmash(dt) },
       { id: 'rebuild', fixed: (g, dt) => g.stepRebuild(dt) },
+      // step 13a: shots look ahead along their path before the physics engine moves them (in debris)
+      { id: 'shots', fixed: (g, dt) => g.stepShots(dt) },
+      { id: 'hooks', fixed: (g, dt) => g.stepHooks(dt) },
+      { id: 'foeShots', fixed: (g, dt) => g.stepFoeShots(dt) },
+      { id: 'lens', fixed: (g, dt) => g.stepLens(dt) },
       { id: 'debris', fixed: (g, dt) => g.stepDebris(dt) },
       { id: 'cleanup', fixed: (g, dt) => g.stepCleanup(dt) },
       { id: 'npc', fixed: (g, dt) => g.stepNpcs(dt) },
       { id: 'gates', fixed: (g) => g.stepGates() },
-      { id: 'interact', fixed: (g) => g.stepInteract() },
+      { id: 'interact', fixed: (g, dt) => g.stepInteract(dt) },
+      { id: 'puzzles', fixed: (g, dt) => g.puzzles.step(dt) },
+      // Milestone 3b (B7a-1): the maps fill in where the hero goes
+      {
+        id: 'maps',
+        fixed: (g) => {
+          const h = g.heroState;
+          g.mapTrack.visit(g.world.mapId, h.x, h.y, h.z, !!g.world.doc.dungeon);
+        },
+      },
+      // Milestone 3b (B7a-2): quests' steps done by themselves, regions first seen (a few times a second)
+      { id: 'quests', fixed: (g, dt) => g.stepQuests(dt) },
+      {
+        id: 'fire',
+        fixed: (g, dt) => {
+          g.stepStick(dt);
+          g.fireLight.step(dt);
+        },
+      },
       { id: 'barks', fixed: (g) => g.runtime.ticks % 30 === 0 && g.stepBarks() },
       {
         id: 'talk',
@@ -918,6 +2464,8 @@ export class PlaySession {
       { id: 'anim', fixed: (g, dt) => g.stepAnim(dt) },
       { id: 'npcAnim', fixed: (g, dt) => g.stepNpcStates(dt) },
       { id: 'zones', fixed: (g) => g.stepZones() },
+      // Milestone 3b (B1): behaviours follow the copies on this map, and their On update runs
+      { id: 'scripts', fixed: (g, dt) => g.stepScripts(dt) },
       { id: 'logic', fixed: (g) => g.logic.step(g.clock) },
       { id: 'emitters', fixed: (g) => g.stepEmitters() },
       { id: 'effects', fixed: (g, dt) => g.stepEffects(dt) },
@@ -940,8 +2488,10 @@ export class PlaySession {
     const t = this.input.touch;
     const has = (...names: string[]) => names.some((n) => k.has(n) || t.has(n));
     return {
-      x: (has('d', 'arrowright', 'right') ? 1 : 0) - (has('a', 'arrowleft', 'left') ? 1 : 0),
-      z: (has('w', 'arrowup', 'forward') ? 1 : 0) - (has('s', 'arrowdown', 'back') ? 1 : 0),
+      // step 11b: Play's keys arrive as the buttons they are bound to (forward, back, left, right); pad- is the
+      // stick; the plain key names still move the hero when something sets them directly (tests, courses)
+      x: (has('right', 'pad-right', 'd', 'arrowright') ? 1 : 0) - (has('left', 'pad-left', 'a', 'arrowleft') ? 1 : 0),
+      z: (has('forward', 'pad-forward', 'w', 'arrowup') ? 1 : 0) - (has('back', 'pad-back', 's', 'arrowdown') ? 1 : 0),
       run: has('shift', 'run'),
       jump: this.input.jump,
       vertical: 0,
@@ -955,16 +2505,59 @@ export class PlaySession {
       this.input.jump = false;
       return;
     }
-    const still = this.talking || this.talks.active || this.over || this.cine.active;
+    const still = this.talking || this.talks.active || this.over || this.cine.active || this.inputOff;
     // P9b: guard (Q held), charging, moves and lock-on
     const c = this.combat;
-    c.stepGuard(dt, !still && (this.input.keys.has('q') || this.input.touch.has('guard')));
+    // step 12c-2: a leaf does not guard (the Gust leaf out, Q does nothing)
+    c.stepGuard(dt, !still && !this.leafOut && (this.input.keys.has('q') || this.input.touch.has('guard')));
     let input: ReturnType<PlaySession['inputVector']> & { speedScale?: number; jumpSpeed?: number } =
       still || c.stagger > 0 ? { x: 0, z: 0, run: false, jump: false, vertical: 0 } : this.inputVector();
     if (input.jump && c.lockedJump(input.x, input.z)) input = { ...input, jump: false };
+    // step 13b: pulled along a line to its hook, or swinging on the rope: the hooks move the hero
+    if (this.hooks.movesHero) {
+      const done = this.hooks.stepHero(input, this.camYaw, dt);
+      this.input.jump = false;
+      if (done) {
+        this.keepOutOfParts();
+        return;
+      }
+    }
+    // step 13b: aiming a line, or holding something with the glove: the hero stands, the move keys aim (or move it)
+    if (this.hooks.aiming || this.hooks.held) {
+      this.hooks.steer(input.x, input.z, dt);
+      input = { ...input, x: 0, z: 0, run: false, jump: false };
+    }
+    // step 12b: on a ladder or vines: up and down with the move keys
+    if (this.puzzles.ladder) {
+      this.puzzles.stepLadder(dt, input.jump);
+      this.input.jump = false;
+      return;
+    }
+    // step 12c: on a wall (Climbing: Anything), while stamina lasts
+    if (this.puzzles.wall) {
+      this.puzzles.stepWall(dt, input.jump);
+      this.input.jump = false;
+      this.syncStamina();
+      return;
+    }
+    // step 12a: climbing onto a ledge: the climb moves the hero
+    if (this.puzzles.climbing) {
+      this.puzzles.stepClimb(dt);
+      this.input.jump = false;
+      return;
+    }
+    // holding on to a block, or sliding one: the hero stays put (the push or pull carries it); so while lifting,
+    // throwing or putting down a bomb (12b), and it walks a little slower holding one up
+    if (this.puzzles.grab || this.puzzles.sliding || this.fireLight.busy) input = { ...input, x: 0, z: 0, jump: false };
+    else if (this.fireLight.held) input = { ...input, run: false, jump: false, speedScale: 0.8 };
     const moving = c.moveInput();
     if (moving) input = moving;
     else if (c.guard || c.charge !== null) input = { ...input, run: false, speedScale: 0.45 };
+    // step 13a: drawing a bow the hero stands, and the move keys aim (left and right turn, forward and back tilt)
+    if (this.shots.aiming) {
+      this.shots.steer(input.x, input.z, dt);
+      input = { ...input, x: 0, z: 0, run: false, jump: false };
+    }
     this.input.jump = false;
     // P26: a fall off the world comes back to the checkpoint (v68's controller would use its safe spot)
     if (this.heroState.y < -14) return this.fellOff();
@@ -973,30 +2566,486 @@ export class PlaySession {
     const fallSpeed = before.vy;
     // P27 part 3: a big map's window follows the hero
     this.moveWindow(this.world);
-    // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
-    this.world.controller.step(
-      {
-        ...input,
-        // P22 part 2: the sheet's speed and jump
-        speedScale: (input.speedScale ?? 1) * this.heroStats.speed,
-        jumpSpeed:
-          (input.jumpSpeed ?? (this.hero.power === 'Super jumping' ? 19 : 9.5)) * Math.sqrt(this.heroStats.jump),
-      },
-      dt,
-      this.camYaw,
-    );
+    // Milestone 3b (B4): the hero's behaviour may say no to a jump, and set how fast it moves
+    if (input.jump && !this.askHook('hero', 'canJump', { onGround: before.grounded }, true))
+      input = { ...input, jump: false };
+    const speed = this.askHook('hero', 'moveSpeed', {}, this.heroStats.speed);
+    const move = {
+      ...input,
+      // P22 part 2: the sheet's speed and jump
+      speedScale: (input.speedScale ?? 1) * Math.max(0, speed),
+      jumpSpeed: (input.jumpSpeed ?? (this.hero.power === 'Super jumping' ? 19 : 9.5)) * Math.sqrt(this.heroStats.jump),
+    };
+    // step 11b part 2: deep water: the hero swims (shallow water only slows walking)
+    const water = this.waterHere();
+    if (water.mode === 'swim') {
+      this.swimStep(water.box!, move, dt);
+      // step 13c: in the water the boots do not float
+      this.boots.step({ y: 0, vy: 0, grounded: true }, dt, false);
+    } else {
+      if (this.swim.on) this.leaveWater();
+      if (water.mode === 'wade') move.speedScale *= 0.6;
+      // step 12c-2: what the wind (and a current, wading) pushes the hero with; walking into it is slower
+      this.flowOnHero(water.mode === 'wade' ? water.box : null, move);
+      // step 12c: on ice the hero slides: its speed follows the keys slowly, and it slides on after letting go
+      const ice = this.iceMove(move, dt);
+      const yaw = ice ? 0 : this.camYaw;
+      const from = { x: this.heroState.x, z: this.heroState.z, heading: this.heroState.heading };
+      if (this.physicsMovement) this.walkWithPhysics(move, dt, yaw);
+      // v68 heroMovement without powers: the controller does walking, running, jumping and collision.
+      else this.world.controller.step(move, dt, yaw);
+      if (ice) this.afterIce(ice, from, dt);
+      else this.driftHero(dt);
+      this.rideOn();
+      // step 13c: floating on the hover boots: held at the height it walked off
+      const s = this.heroState;
+      const hy = this.boots.step(s, dt, !this.fireLight.held);
+      if (hy !== null) {
+        s.y = hy;
+        s.vy = 0;
+      }
+    }
+    this.stepBreath(water.box, dt);
     c.stepMove(dt);
     if (this.god) c.stamina = MAX_STAMINA;
     this.keepOutOfParts();
     if (c.target) c.stepLock();
     else c.stepHint();
-    const st = Math.round(c.stamina);
+    if (this.hooks.aiming) {
+      const h = this.heroState;
+      h.heading += angleDiff(this.hooks.aimYaw, h.heading) * Math.min(1, dt * 14);
+      if (!c.target) this.camYaw += angleDiff(this.hooks.aimYaw + Math.PI, this.camYaw) * Math.min(1, dt * 6);
+    }
+    // step 13a: drawn, the hero turns to where it aims, and the camera comes round behind its shoulder
+    if (this.shots.aiming) {
+      const h = this.heroState;
+      h.heading += angleDiff(this.shots.aimYaw, h.heading) * Math.min(1, dt * 14);
+      if (!c.target) this.camYaw += angleDiff(this.shots.aimYaw + Math.PI, this.camYaw) * Math.min(1, dt * 6);
+    }
+    this.syncStamina();
+    this.movementSounds(dt, wasGrounded, fallSpeed);
+    if (this.heroState.y < -14) this.fellOff();
+  }
+
+  /** the stamina the HUD's bar shows (logic's stamina), when it changed */
+  private syncStamina() {
+    const st = Math.round(this.combat.stamina);
     if (st !== this.lastStamina) {
       this.lastStamina = st;
       this.logic.vars.set('stamina', st);
     }
-    this.movementSounds(dt, wasGrounded, fallSpeed);
-    if (this.heroState.y < -14) this.fellOff();
+  }
+
+  // ---------- step 12c: moving platforms ----------
+
+  /** standing on a moving platform: carried as far as it moved, and held on its top (unless jumping off) */
+  private rideOn() {
+    const r = this.platforms.ride;
+    if (!r) return;
+    const s = this.heroState;
+    const x = s.x + r.dx;
+    const z = s.z + r.dz;
+    if (this.world.controller.clear(x, Math.max(s.y, r.top) + 0.1, z)) {
+      s.x = x;
+      s.z = z;
+    }
+    if (s.vy <= 0.5 && Math.abs(s.y - r.top) < 0.6) {
+      s.y = r.top;
+      s.vy = 0;
+      s.grounded = true;
+    }
+  }
+
+  // ---------- step 12c: ice ----------
+
+  /** the hero's sliding speed on ice (studs a second, world x and z), while it is on ice */
+  iceVel: { x: number; z: number } | null = null;
+
+  /** the placed thing the hero stands on (its top under the hero's feet), or null */
+  standingOn(): PlayInstance | null {
+    const s = this.heroState;
+    if (!s.grounded) return null;
+    for (const o of this.objs().near(s.x, s.z, 12)) {
+      // step 13c: a fake floor holds nothing up
+      if (o.def.fake) continue;
+      const b = boxOf(o.bricks);
+      if (!b || s.x < b.x0 - 0.3 || s.x > b.x1 + 0.3 || s.z < b.z0 - 0.3 || s.z > b.z1 + 0.3) continue;
+      if (Math.abs(b.y1 * 0.4 - s.y) < 0.3) return o;
+    }
+    return null;
+  }
+
+  /**
+   * On an icy floor (an asset with Ice › Slippery) the hero moves by friction, as on real ice (a = μg). Its feet can
+   * push off only so hard before they slip (ICE_GRIP): pressing the keys it speeds up, slows down or turns at most
+   * that fast. Letting go, nothing pushes: sliding friction (ICE_FRICTION, as the physics engine's icy tops) slows it
+   * a little at a time, and it glides on. The move is turned into that speed, in world directions (the controller is
+   * then given no camera turn), and walked through the world as ever (the physics engine's walker, in new projects).
+   * Null: not on ice.
+   */
+  private iceMove(move: MoveInput & { speedScale: number }, dt: number): { want: boolean } | null {
+    const on = this.standingOn();
+    const ice = on?.def.ice;
+    const s = this.heroState;
+    // step 13c: floating on the hover boots, the feet push on the air as weakly as on ice (falling after it, the
+    // speed carries on: the branch below); on the ground the boots walk and run as any shoes
+    const boots = !!this.boots.hover && !this.swim.on;
+    if (!boots && (!ice || ice.floor === false)) {
+      // in the air the slide carries on; on anything else it stops
+      if (this.iceVel && !s.grounded) return this.slideOn(move, false);
+      this.iceVel = null;
+      this.iceSlip = false;
+      return null;
+    }
+    const yaw = this.camYaw;
+    let mx = move.x || 0;
+    let mz = move.z || 0;
+    const l = Math.hypot(mx, mz);
+    if (l > 1) {
+      mx /= l;
+      mz /= l;
+    }
+    // floating, the feet push toward walking speed, but do not brake a faster run off the edge
+    const carried = this.iceVel ? Math.hypot(this.iceVel.x, this.iceVel.z) : Number(s.speed) || 0;
+    const speed = (boots ? Math.max(HOVER_WALK, carried) : move.run ? 7.8 : 4) * (move.speedScale ?? 1);
+    const grip = boots && !(ice && ice.floor !== false) ? HOVER_GRIP : ICE_GRIP;
+    const friction = boots && !(ice && ice.floor !== false) ? HOVER_FRICTION : ICE_FRICTION;
+    const tx = (Math.cos(yaw) * mx - Math.sin(yaw) * mz) * speed;
+    const tz = (-Math.sin(yaw) * mx - Math.cos(yaw) * mz) * speed;
+    if (!this.iceVel)
+      this.iceVel = {
+        x: Math.sin(s.heading) * (Number(s.speed) || 0),
+        z: Math.cos(s.heading) * (Number(s.speed) || 0),
+      };
+    const v = this.iceVel;
+    const want = l > 0.05;
+    // step 12c-2: the wind on ice (nothing holds the hero but the ice's little friction)
+    v.x += this.heroFlow.ax * dt;
+    v.z += this.heroFlow.az * dt;
+    const vl = Math.hypot(v.x, v.z);
+    if (want) {
+      // the feet push toward the speed wanted, no harder than they grip
+      const dx = tx - v.x;
+      const dz = tz - v.z;
+      const dl = Math.hypot(dx, dz);
+      const most = grip * HERO_GRAVITY * dt;
+      const k = dl > most ? most / dl : 1;
+      v.x += dx * k;
+      v.z += dz * k;
+      // slipping: going a good deal faster than, or another way from, where the feet push
+      const tl = Math.hypot(tx, tz);
+      const along = vl > 0.01 && tl > 0.01 ? (v.x * tx + v.z * tz) / (vl * tl) : 1;
+      this.iceSlip = vl > 1 && (along < 0.75 || vl > tl + 1.2);
+    } else {
+      // gliding: sliding friction takes a little of the speed at a time
+      const drop = friction * HERO_GRAVITY * dt;
+      const k = vl > drop ? (vl - drop) / vl : 0;
+      v.x *= k;
+      v.z *= k;
+      this.iceSlip = vl > 0.4;
+    }
+    return this.slideOn(move, want);
+  }
+
+  // ---------- step 12c-2: wind and currents ----------
+
+  /** the speed wind or a current has given the hero beyond its walking (studs a second, across and deep) */
+  heroDrift = { x: 0, z: 0 };
+  /** what pushes the hero now (per second², across and deep: drag of the wind and of a current it wades in), and
+   * how hard its feet can hold against it (μg) */
+  heroFlow = { ax: 0, az: 0, grip: HERO_GRIP * HERO_GRAVITY };
+  private windFx = new Map<string, { stop(): void; move?(at: [number, number, number]): void }>();
+  private windPoseWas: string | null = null;
+  private wadingIn: WaterBox | null = null;
+  private npcDrift = new WeakMap<object, { x: number; z: number }>();
+
+  /**
+   * The drag on the hero: the wind at its chest and, wading, the current on what is under water. The body's speed
+   * against them is its walking plus its drift. Walking into it, the feet push no harder than they grip: the hero
+   * is slower (stopped in a strong enough wind); with it behind, a little faster.
+   */
+  private flowOnHero(water: WaterBox | null, move: MoveInput & { speedScale: number }) {
+    const s = this.heroState;
+    const k = this.L.GamePhysics.scaleOf(s);
+    const h = HERO_HEIGHT * k;
+    const vx = Math.sin(s.heading) * (Number(s.speed) || 0) + this.heroDrift.x;
+    const vz = Math.cos(s.heading) * (Number(s.speed) || 0) + this.heroDrift.z;
+    const wind = this.wind.fields.length ? this.wind.at(s.x, s.y + h * 0.6, s.z) : ([0, 0] as [number, number]);
+    // Cd·A / m of a person, standing (about 1 × 0.9 × the height, against a body of the water's density)
+    const cdA = (1.0 * 0.9 * h) / (2.0 * k * k * k);
+    let [ax, az] = wind[0] || wind[1] ? dragAccel(wind, [vx, vz], cdA) : [0, 0];
+    if (water !== this.wadingIn) {
+      this.wadingIn = water;
+      if (water && (water.current[0] || water.current[1])) this.emit('info', 'Wading in a current');
+    }
+    if (water && (water.current[0] || water.current[1])) {
+      // the part of the body under the water, in the current
+      const under = Math.max(0, Math.min(h, water.y1 - s.y));
+      const [wx, wz] = dragAccel(water.current, [vx, vz], (1.0 * 0.9 * under) / (2.0 * k * k * k), WATER_DENSITY);
+      ax += wx;
+      az += wz;
+    }
+    const grip = (this.standingOn()?.def.ice ? ICE_FRICTION : HERO_GRIP) * HERO_GRAVITY;
+    this.heroFlow = { ax, az, grip };
+    const a = Math.hypot(ax, az);
+    if (a < 0.05 || !s.grounded) return;
+    // walking: how much of the way it walks the wind pushes against
+    const v = this.inputVector();
+    if (!v.x && !v.z) return;
+    const yaw = this.camYaw;
+    const wx = Math.cos(yaw) * v.x - Math.sin(yaw) * v.z;
+    const wz = -Math.sin(yaw) * v.x - Math.cos(yaw) * v.z;
+    const wl = Math.hypot(wx, wz) || 1;
+    const along = (ax * wx + az * wz) / wl;
+    move.speedScale *= along < 0 ? Math.max(0.12, 1 + along / grip) : 1 + Math.min(0.35, (along / grip) * 0.35);
+  }
+
+  /**
+   * The drift: in the air nothing holds the hero, so the push builds it up; on the ground the feet hold against
+   * the push up to their grip, and past it the hero is pushed back, sliding; out of the wind the feet stop it.
+   * The hero is moved by it (the physics engine's walker or v68's checks stop it at walls).
+   */
+  private driftHero(dt: number) {
+    const s = this.heroState;
+    const d = this.heroDrift;
+    const { ax, az, grip } = this.heroFlow;
+    const a = Math.hypot(ax, az);
+    if (!s.grounded) {
+      d.x += ax * dt;
+      d.z += az * dt;
+    } else if (a > grip) {
+      d.x += (ax / a) * (a - grip) * dt;
+      d.z += (az / a) * (a - grip) * dt;
+    } else {
+      const dl = Math.hypot(d.x, d.z);
+      const stop = (grip - a) * dt;
+      const k = dl > stop ? (dl - stop) / dl : 0;
+      d.x *= k;
+      d.z *= k;
+    }
+    if (Math.hypot(d.x, d.z) < 1e-3) return;
+    const k = this.L.GamePhysics.scaleOf(s);
+    const ph = this.physicsMovement ? this.world.physics : null;
+    if (ph) {
+      const r = ph.walk(
+        { x: s.x, y: s.y, z: s.z },
+        { x: d.x * dt, y: 0, z: d.z * dt },
+        HERO_RADIUS * k,
+        HERO_HEIGHT * k,
+      );
+      if (Math.abs(r.x - s.x) < Math.abs(d.x * dt) * 0.5) d.x = 0;
+      if (Math.abs(r.z - s.z) < Math.abs(d.z * dt) * 0.5) d.z = 0;
+      s.x = r.x;
+      s.z = r.z;
+      return;
+    }
+    const c = this.world.controller;
+    const nx = s.x + d.x * dt;
+    if (c.clear(nx, s.y + 0.05, s.z)) s.x = nx;
+    else d.x = 0;
+    const nz = s.z + d.z * dt;
+    if (c.clear(s.x, s.y + 0.05, nz)) s.z = nz;
+    else d.z = 0;
+  }
+
+  /**
+   * Step 12c-2, each step: fans and gusts; the physics engine gets the wind (it pushes the loose things); the fans'
+   * streaks of air; a stick's flame blown out (or put out in water); bombs that fall in water go out; neighbours and
+   * enemies pushed as the hero is; an ice block in a strong wind slides off.
+   */
+  stepWind(dt: number) {
+    const w = this.wind;
+    w.step(dt);
+    const ph = this.world.physics;
+    if (ph) ph.wind = w.fields;
+    // a fan's air, as streaks along it
+    const on = new Set<string>();
+    for (const f of w.fans) {
+      const id = f.o.inst.id;
+      on.add(id);
+      if (this.windFx.has(id)) continue;
+      const fl = f.field;
+      const h = this.playEffect(FX.wind, [fl.from[0], fl.from[1] + fl.height / 2, fl.from[2]], {
+        forward: [fl.dir[0], 0, fl.dir[1]],
+        scale: Math.max(0.6, fl.half / 1.5),
+      });
+      if (h) this.windFx.set(id, { stop: () => this.effects.stop(h) });
+    }
+    for (const [id, fx] of this.windFx)
+      if (!on.has(id)) {
+        fx.stop();
+        this.windFx.delete(id);
+      }
+    const fl = this.fireLight;
+    // the stick's flame: blown out in a strong enough wind, put out in water
+    if (fl.litBranch) {
+      const tip = fl.branchTip();
+      const wet = !!waterAt(this.waterBoxes(), tip[0], tip[1], tip[2]);
+      if (wet || (w.fields.length && w.speedAt(tip[0], tip[1], tip[2]) >= FLAME_OUT_SPEED)) {
+        fl.putOutBranch();
+        this.say(wet ? 'The water put the stick’s fire out.' : 'The wind blew the stick’s fire out.', 1.8);
+        this.emit('info', wet ? 'The stick’s fire went out in the water' : 'The wind blew the stick’s fire out');
+      }
+    }
+    // a lit bomb in water: its fuse goes out
+    for (const b of [...fl.bombs]) {
+      if (b === fl.held || b.thing) continue;
+      if (waterAt(this.waterBoxes(), b.x, b.y + 0.5, b.z)) fl.douse(b);
+    }
+    if (w.fields.length) this.windOnOthers(dt);
+  }
+
+  /** neighbours and enemies in the wind: pushed as the hero is (held by their feet up to their grip) */
+  private windOnOthers(dt: number) {
+    const grip = HERO_GRIP * HERO_GRAVITY;
+    for (const n of this.world.npcs) {
+      const st = n.state;
+      const wind = this.wind.at(st.x, st.y + 2.4, st.z);
+      let d = this.npcDrift.get(n);
+      if (!wind[0] && !wind[1] && !d) continue;
+      d ??= { x: 0, z: 0 };
+      const [ax, az] = dragAccel(wind, [d.x, d.z], (0.9 * HERO_HEIGHT) / 2.0);
+      const a = Math.hypot(ax, az);
+      if (a > grip) {
+        d.x += (ax / a) * (a - grip) * dt;
+        d.z += (az / a) * (a - grip) * dt;
+      } else {
+        const dl = Math.hypot(d.x, d.z);
+        const k = dl > (grip - a) * dt ? (dl - (grip - a) * dt) / dl : 0;
+        d.x *= k;
+        d.z *= k;
+      }
+      if (Math.hypot(d.x, d.z) < 1e-3) {
+        this.npcDrift.delete(n);
+        continue;
+      }
+      this.npcDrift.set(n, d);
+      const nx = st.x + d.x * dt;
+      const nz = st.z + d.z * dt;
+      if (!this.solidPoint(nx, st.y + 1, st.z) && !this.solidPoint(nx, st.y + 2.5, st.z)) st.x = nx;
+      else d.x = 0;
+      if (!this.solidPoint(st.x, st.y + 1, nz) && !this.solidPoint(st.x, st.y + 2.5, nz)) st.z = nz;
+      else d.z = 0;
+    }
+  }
+
+  /**
+   * step 12c-2: how the hero stands in the wind now: blown back (its feet slipping), walking into it, bracing
+   * (standing, turned to face it), or nothing (a breeze). Bracing turns the hero to face the wind, a little at a time.
+   */
+  private windPose(walking: boolean): 'blown' | 'into' | 'brace' | null {
+    const { ax, az, grip } = this.heroFlow;
+    const a = Math.hypot(ax, az);
+    const d = Math.hypot(this.heroDrift.x, this.heroDrift.z);
+    const was = this.windPoseWas;
+    // a little slack either way, so the moves do not flicker at the edges of the wind or of a gust
+    if (d > (was === 'blown' ? 0.4 : 0.8)) return 'blown';
+    if (a < (was ? 0.3 : 0.4) * grip) return null;
+    const s = this.heroState;
+    if (walking) {
+      const into = Math.sin(s.heading) * ax + Math.cos(s.heading) * az;
+      return into < (was === 'into' ? -0.1 : -0.3) * a ? 'into' : null;
+    }
+    const want = Math.atan2(-ax, -az);
+    const diff = Math.atan2(Math.sin(want - s.heading), Math.cos(want - s.heading));
+    s.heading += Math.max(-0.08, Math.min(0.08, diff));
+    return 'brace';
+  }
+
+  /** the hero is sliding on ice rather than walking (the Slide move plays) */
+  iceSlip = false;
+
+  /** the move given to the controller: the sliding speed, in world directions */
+  private slideOn(move: MoveInput & { speedScale: number }, want: boolean): { want: boolean } {
+    const v = this.iceVel!;
+    const vl = Math.hypot(v.x, v.z);
+    if (vl < 0.02) {
+      move.x = 0;
+      move.z = 0;
+    } else {
+      // with no camera turn the controller walks (x, -z): see v68's step
+      move.x = v.x / vl;
+      move.z = -v.z / vl;
+      move.speedScale = vl / 4;
+    }
+    move.run = false;
+    return { want };
+  }
+
+  /** step 12c: the icy floors' tops go into the physics engine, slippery (when the placed things change) */
+  private iceOf: { all: readonly PlayInstance[]; ph: PhysicsWorld } | null = null;
+  private syncIce(w: MapWorld) {
+    const ph = w.physics;
+    if (!ph || (this.iceOf?.all === w.instances && this.iceOf.ph === ph)) return;
+    this.iceOf = { all: w.instances, ph };
+    const tops: { key: string; x0: number; x1: number; z0: number; z1: number; y: number }[] = [];
+    for (const i of w.instances) {
+      if (!i.def.ice || i.def.ice.floor === false || i.def.push || i.def.moves) continue;
+      const b = boxOf(i.bricks);
+      if (b) tops.push({ key: i.inst.id, x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, y: b.y1 * 0.4 + 0.005 });
+    }
+    ph.setIce(tops);
+  }
+
+  /** after a slide: a wall took the speed it stopped; letting go, the hero keeps facing where it faced */
+  private afterIce(ice: { want: boolean }, from: { x: number; z: number; heading: number }, dt: number) {
+    const s = this.heroState;
+    const v = this.iceVel;
+    if (!v || dt <= 0) return;
+    const ax = (s.x - from.x) / dt;
+    const az = (s.z - from.z) / dt;
+    // against a wall the speed into it is lost (along it, it slides on); the physics walker's own easing is not a wall
+    const c = this.world.controller;
+    if (Math.abs(ax) < Math.abs(v.x) - 0.01 && !c.clear(s.x + Math.sign(v.x) * 0.25, s.y + 0.2, s.z)) v.x = ax;
+    if (Math.abs(az) < Math.abs(v.z) - 0.01 && !c.clear(s.x, s.y + 0.2, s.z + Math.sign(v.z) * 0.25)) v.z = az;
+    if (!ice.want) s.heading = from.heading;
+  }
+
+  /** step 12c: what the hero climbs (Project › Climbing): ladders and vines only, or anything with stamina */
+  get climbingChoice(): 'ladders' | 'anything' {
+    return (
+      (this.snapshot.get(paths.settings) as { climbing?: 'ladders' | 'anything' } | undefined)?.climbing ?? 'ladders'
+    );
+  }
+
+  /** Milestone 2b, 10b part 3: the project's movement (Project › Movement), when the physics engine is loaded */
+  get movementChoice(): 'classic' | 'physics' {
+    return (
+      (this.snapshot.get(paths.settings) as { movement?: 'classic' | 'physics' } | undefined)?.movement ?? 'classic'
+    );
+  }
+
+  /** the hero is walked by the physics engine now (else by v68's controller) */
+  get physicsMovement(): boolean {
+    return this.movementChoice === 'physics' && !!this.world.physics;
+  }
+
+  /** Milestone 2b, 10b part 3: the hero walked by the physics engine, the other characters solid to it */
+  private walkWithPhysics(
+    move: MoveInput & { speedScale?: number; jumpSpeed?: number },
+    dt: number,
+    yaw = this.camYaw,
+  ) {
+    const w = this.world;
+    this.physicsFlush(w);
+    this.syncIce(w);
+    const ph = w.physics!;
+    const c = w.controller;
+    const s = c.state;
+    const G = this.L.GamePhysics;
+    const k = G.scaleOf(s);
+    ph.setActors(
+      w.npcs.map((n) => {
+        const ks = G.scaleOf(n.state);
+        return { key: n, x: n.state.x, y: n.state.y, z: n.state.z, radius: 0.8 * ks, height: 4.4 * ks };
+      }),
+    );
+    const weapon = s.attack > 0 ? (this.L.GameWeapons.get(String(s.attackWeapon ?? '')) as never) : null;
+    walkHero(ph, s, move, dt, yaw, { scale: k, weapon });
+    // kept inside the map, as v68 keeps it
+    const p = G.containPoint(c.area, s.x, s.z, G.characterMargin * k);
+    s.x = p.x;
+    s.z = p.z;
   }
 
   /** back on solid ground after a fall: at the checkpoint touched on this map, else the map's safe spot */
@@ -1026,12 +3075,14 @@ export class PlaySession {
   }
 
   /** lose hearts (falling off the world, logic); at 0 the game is over */
-  hurt(n0: number) {
+  hurt(n0: number, how?: HurtHow) {
     if (this.god) return;
     // P26: the player's difficulty scales the damage the hero takes (story: half, hard: double)
     const raw = this.progress.damage(n0);
     // P22 part 2: the sheet's defence (and a defensive fighter's guard)
-    const n = this.heroChr?.stats ? afterDefence(raw, this.heroStats.defence) : raw;
+    const def = this.heroChr?.stats ? afterDefence(raw, this.heroStats.defence) : raw;
+    // Milestone 3b (B4): the hero's behaviour may change what a hit takes
+    const n = Math.max(0, this.askHook('hero', 'takeDamage', { amount: def, type: 'any' }, def));
     if (n <= 0 || this.health.invulnerable.has('hero') || this.over) return;
     const hp = Math.max(0, Number(this.logic.vars.get('hp') ?? 0) - n);
     this.logic.setVar('hp', hp);
@@ -1039,11 +3090,18 @@ export class PlaySession {
     this.screenEvent(hp > 0 ? 'hurt' : 'death');
     // P23 part 4: the hurt state shows the sheet's hurt clip
     if (hp > 0) this.heroHurtAt = this.clock;
+    // Milestone 3b (B5b): and the body reacts to how it was hit (a hard hit staggers; see harmHero, damage)
+    if (hp > 0) this.react('hero', how ?? this.heroHitHow ?? (n >= 2 ? 'stagger' : 'flinch'));
+    this.heroHitHow = null;
     // P9a: the hero's hearts are its health
     if (hp > 0)
-      this.logic.fire({ type: 'event.onDamaged', match: { asset: '' }, payload: { target: 'hero', amount: n, hp } });
+      this.logic.fire({
+        type: 'event.onDamaged',
+        match: { asset: '', who: 'hero' },
+        payload: { target: 'hero', amount: n, hp },
+      });
     else {
-      this.logic.fire({ type: 'event.onDefeated', match: { asset: '' }, payload: { target: 'hero' } });
+      this.logic.fire({ type: 'event.onDefeated', match: { asset: '', who: 'hero' }, payload: { target: 'hero' } });
       this.gameOver();
     }
   }
@@ -1059,9 +3117,16 @@ export class PlaySession {
     if (!this.over && hp <= 0) this.gameOver();
   }
 
-  gameOver() {
+  gameOver(cause: 'hearts' | 'logic' = 'hearts') {
     if (this.over) return;
+    // Milestone 3b (B7a-3): the game's rules may say it is not (a fairy in a bottle); the hero hangs on
+    if (!this.askHook('gamemode', 'isGameOver', { cause }, true)) {
+      if (Number(this.logic.vars.get('hp') ?? 1) <= 0) this.logic.setVar('hp', 1);
+      this.lastHp = Number(this.logic.vars.get('hp') ?? 1);
+      return;
+    }
     this.over = true;
+    this.logic.fire({ type: 'event.onGameOver', payload: { cause } });
     this.emit('screen', 'Game over');
     const go = screenOfKind(this.snapshot, 'gameover');
     if (go) this.screens.push(go.id);
@@ -1083,11 +3148,19 @@ export class PlaySession {
     aim: { id: number | null; group?: string | undefined } | null,
   ) {
     this.strikeKind = kind;
+    // step 12b: a stick sees what it reaches before the hit (a broken or burned-up stick is gone after it)
+    const stick = this.stickOut && kind !== 'bash';
+    // step 12c-2: a swing of the Gust leaf blows a gust (a leaf hurts nothing)
+    if (this.leafOut && kind !== 'bash') {
+      this.leafGust();
+      return;
+    }
     try {
       this.resolveStrikeAt(kind, reach, aim);
     } finally {
       this.strikeKind = null;
     }
+    if (stick && this.stickOut) this.stickSwing(reach);
   }
 
   private resolveStrikeAt(
@@ -1099,6 +3172,14 @@ export class PlaySession {
     const how = ATTACKS[kind];
     const push = { knock: how.knock, stun: how.stun };
     const h = this.heroState;
+    // step 11, 4b: a blade swings with a swish
+    if (attack.type === 'slash') this.audio.play(SND.swish, { pos: [h.x, h.y, h.z] });
+    // step 12b: a fire hit (a torch) sets burnable things in front (or all around) alight
+    if (attack.type === 'fire') {
+      const r = how.around ? reach + 1.2 : 1.2;
+      const f = how.around ? 0 : reach * 0.7;
+      this.fireLight.flameAt(h.x + Math.sin(h.heading) * f, h.z + Math.cos(h.heading) * f, h.y + 1, r, 'a torch');
+    }
     if (how.around) {
       const r = reach + 1.2;
       let any = false;
@@ -1107,11 +3188,14 @@ export class PlaySession {
           this.hitNpc(n, attack, push);
           any = true;
         }
-      for (const i of [...this.world.instances]) {
-        if (!i.def.health) continue;
+      // Milestone 2b: the objects within reach of the swing (the widest objects are 48 studs), not every object
+      for (const i of this.objs().near(h.x, h.z, r + 26)) {
+        const sw = i.def.switch?.by === 'hit';
+        if (!i.def.health && !sw) continue;
         const c = this.instanceCenter(i);
         if (c && Math.hypot(c[0] - h.x, c[2] - h.z) <= r + Math.max(i.def.footprint[0], i.def.footprint[1]) / 2) {
-          this.hitInstance(i, attack);
+          if (sw) this.puzzles.hit(i, attack.type);
+          else this.hitInstance(i, attack);
           any = true;
         }
       }
@@ -1128,17 +3212,32 @@ export class PlaySession {
     if (!hit || (aim && aim.id !== null && hit.id !== aim.id && (!aim.group || hit.group !== aim.group))) return;
     // P9a: an object with health loses some; it breaks only when its health reaches zero
     const owner = this.instanceOfPiece(hit.id);
+    // step 12a: a switch that is hit (a crystal) is used, not broken
+    if (owner?.def.switch?.by === 'hit') {
+      this.puzzles.hit(owner, attack.type);
+      return;
+    }
     if (owner?.def.health) {
       this.hitInstance(owner, attack, hit);
       return;
     }
     // a shield bash only shoves: it does not break plain bricks
     if (kind === 'bash') return;
+    // step 12b: things that burn (vines, a web, a barricade) are only got rid of with fire, not knocked down
+    if (owner?.def.burn || owner?.def.ice) {
+      // step 12c: ice melts with fire (a fire hit melts it) and is not knocked down either
+      if (owner.def.ice && attack.type === 'fire') this.fireLight.melt(owner, 'fire');
+      else if (attack.type !== 'fire')
+        this.say(`Swinging does nothing to it: it only ${owner.def.burn ? 'burns' : 'melts'}.`, 1.6);
+      return;
+    }
     this.breakHit(hit, { heading: this.heroState.heading, impulse: 2 * how.mult, mass: 1 });
   }
 
   /** a neighbour the hero's hits hurt (its character has Can be harmed on) */
   canHarm(n: Npc): boolean {
+    // step 14a: not while it is out of reach of blows (sunk underground, faded out without the Lens)
+    if (this.enemies && !this.enemies.hittable(n)) return false;
     return !!npcCharacter(this.snapshot, this.world.mapId, n)?.harm?.canBeHarmed;
   }
 
@@ -1161,6 +3260,186 @@ export class PlaySession {
     ];
   }
 
+  /**
+   * Milestone 3b (B3): asks a placed copy's behaviours a hook (canOpen, isPressed, takeDamage…); `base` is the
+   * engine's own answer (super), kept when none answers. Yes/no hooks answer yes or no.
+   */
+  askHook<V>(owner: string, hook: string, payload: Record<string, unknown>, base: V): V {
+    const r = this.logic.ask(owner, `event.on${hook.charAt(0).toUpperCase()}${hook.slice(1)}`, { ...payload, base });
+    if (r === undefined) return base;
+    return (
+      typeof base === 'boolean' ? !!r : typeof base === 'number' ? Number(r) : typeof base === 'string' ? String(r) : r
+    ) as V;
+  }
+
+  /**
+   * Milestone 3b (B6): asks the hero's item behaviours a hook about one item (canUseItem, shotSpeed…): only those
+   * about that item answer (a behaviour extending Bow is about Bow, Fire arrows and Ice arrows; one extending Item
+   * itself, about the item of its own name)
+   */
+  askItem<V>(item: string, hook: string, payload: Record<string, unknown>, base: V): V {
+    const k = item.trim().toLowerCase();
+    const r = this.logic.ask(
+      'hero',
+      `event.on${hook.charAt(0).toUpperCase()}${hook.slice(1)}`,
+      { ...payload, item, base },
+      (gid) => this.itemsOfGraph(gid).some((i) => i.toLowerCase() === k),
+    );
+    if (r === undefined) return base;
+    return (
+      typeof base === 'boolean' ? !!r : typeof base === 'number' ? Number(r) : typeof base === 'string' ? String(r) : r
+    ) as V;
+  }
+  /** Milestone 3b (B6): one of the hero's item behaviours is about this item (a Whistle behaviour: the Whistle) */
+  ownItem(item: string): boolean {
+    const k = item.trim().toLowerCase();
+    return (this.heroChr?.scripts ?? []).some(
+      (a) => !a.off && this.itemsOfGraph(a.use).some((i) => i.toLowerCase() === k),
+    );
+  }
+  private itemGraphs = new Map<string, string[]>();
+  private itemsOfGraph(gid: string): string[] {
+    let v = this.itemGraphs.get(gid);
+    if (!v) {
+      const g = this.snapshot.get(paths.logic(gid)) as LogicGraph | undefined;
+      v = (g?.behaviour && itemsOfBehaviour(g.behaviour.extends, g.name)) || [];
+      this.itemGraphs.set(gid, v);
+    }
+    return v;
+  }
+
+  // ---------- Milestone 3b (B2): the engine API ----------
+
+  /** "" and "player" mean the hero */
+  private apiRef(ref: string): string {
+    const r = String(ref ?? '').trim();
+    return !r || r.toLowerCase() === 'hero' || r.toLowerCase() === 'player' ? 'hero' : r;
+  }
+
+  private apiRead(what: 'x' | 'y' | 'z' | 'heading' | 'state', ref: string): number | string {
+    const r = this.apiRef(ref);
+    if (what === 'state') return r === 'hero' ? '' : (this.resolveEntity(r)?.state ?? '');
+    if (what === 'heading') {
+      if (r === 'hero') return (this.heroState.heading * 180) / Math.PI;
+      const inst = this.resolveEntity(r);
+      if (inst) return inst.inst.rot * 90;
+      const npc = this.npcByRef(r);
+      return npc ? (npc.state.heading * 180) / Math.PI : 0;
+    }
+    const p = r === 'hero' ? [this.heroState.x, this.heroState.y, this.heroState.z] : this.positionOf(r);
+    if (!p) return 0;
+    if (what === 'y' && r !== 'hero') {
+      // an asset's height is its base, as a character's is its feet
+      const inst = this.resolveEntity(r);
+      if (inst?.bricks.length) return Math.min(...inst.bricks.map((b) => b.y)) * 0.4;
+    }
+    return p[what === 'x' ? 0 : what === 'y' ? 1 : 2]!;
+  }
+
+  private apiMove(op: 'by' | 'to', ref: string, x: number, y: number, z: number) {
+    const r = this.apiRef(ref);
+    if (![x, y, z].every(Number.isFinite)) return;
+    if (r === 'hero') {
+      const h = this.heroState;
+      this.placeAt(op === 'by' ? [h.x + x, h.y + y, h.z + z] : [x, y, z], h.heading);
+      return;
+    }
+    const inst = this.resolveEntity(r);
+    if (inst) {
+      // in whole studs (and plates up and down), like a moving platform
+      const [px, py, pz] = inst.inst.pos;
+      const base = Math.min(...inst.bricks.map((b) => b.y));
+      const dy = Math.round(y / 0.4);
+      const to: [number, number, number] =
+        op === 'by'
+          ? [px + Math.round(x), py + dy, pz + Math.round(z)]
+          : [
+              Math.round(x - (this.instanceCenter(inst)![0] - px)),
+              py + (dy - base),
+              Math.round(z - (this.instanceCenter(inst)![2] - pz)),
+            ];
+      if (to[0] !== px || to[1] !== py || to[2] !== pz) this.moveInstance(inst, to);
+      return;
+    }
+    const npc = this.npcByRef(r);
+    if (!npc) return;
+    const s = npc.state;
+    const at = op === 'by' ? [s.x + x, s.y + y, s.z + z] : [x, y, z];
+    Object.assign(s, { x: at[0], y: at[1], z: at[2] });
+    const c = (npc as unknown as { controller?: { state?: { x: number; y: number; z: number } } }).controller;
+    if (c?.state && c.state !== s) Object.assign(c.state, { x: at[0], y: at[1], z: at[2] });
+  }
+
+  private apiFace(ref: string, deg: number) {
+    if (!Number.isFinite(deg)) return;
+    const r = this.apiRef(ref);
+    const rad = (deg * Math.PI) / 180;
+    if (r === 'hero') {
+      this.heroState.heading = rad;
+      return;
+    }
+    const inst = this.resolveEntity(r);
+    if (inst) {
+      const rot = ((Math.round(deg / 90) % 4) + 4) % 4;
+      if (rot !== inst.inst.rot) {
+        inst.inst = { ...inst.inst, rot };
+        this.moveInstance(inst, inst.inst.pos);
+      }
+      return;
+    }
+    const npc = this.npcByRef(r);
+    if (npc) npc.state.heading = rad;
+  }
+
+  private apiPush(op: 'push' | 'velocity', ref: string, x: number, y: number, z: number) {
+    if (![x, y, z].every(Number.isFinite)) return;
+    const r = this.apiRef(ref);
+    if (r === 'hero') {
+      const h = this.heroState as HeroState & { vx?: number; vz?: number };
+      if (op === 'velocity') h.vy = y;
+      else h.vy = (h.vy ?? 0) + y;
+      // across: the hero drifts, as a gust carries it
+      this.heroDrift =
+        op === 'velocity' ? { x, z } : { x: (this.heroDrift?.x ?? 0) + x, z: (this.heroDrift?.z ?? 0) + z };
+      if (y > 0) h.grounded = false;
+      return;
+    }
+    const inst = this.resolveEntity(r);
+    const ph = this.world.physics;
+    if (!inst || !ph) return;
+    if (op === 'velocity') ph.setObjectVelocity(inst.inst.id, [x, y, z]);
+    else {
+      const v = ph.objectVelocity(inst.inst.id);
+      if (v) ph.setObjectVelocity(inst.inst.id, [v[0] + x, v[1] + y, v[2] + z]);
+    }
+  }
+
+  private apiRaycast(ref: string, reach: number): number {
+    const r = this.apiRef(ref);
+    const p = this.positionOf(r);
+    if (!p || !(reach > 0)) return -1;
+    const deg = Number(this.apiRead('heading', r));
+    const a = (deg * Math.PI) / 180;
+    const from: [number, number, number] =
+      r === 'hero' ? [p[0], p[1] + 1, p[2]] : this.resolveEntity(r) ? [p[0], p[1], p[2]] : [p[0], p[1] + 1, p[2]];
+    // start just outside itself
+    const inst = r === 'hero' ? null : this.resolveEntity(r);
+    const skip = inst?.box ? Math.max(inst.box[2] - inst.box[0], inst.box[3] - inst.box[1]) / 2 + 0.2 : 0.6;
+    const start: [number, number, number] = [from[0] + Math.sin(a) * skip, from[1], from[2] + Math.cos(a) * skip];
+    const to: [number, number, number] = [start[0] + Math.sin(a) * reach, start[1], start[2] + Math.cos(a) * reach];
+    const ph = this.world.physics;
+    if (ph) {
+      const hit = ph.castSegment(start, to, { pad: 0.05, skipHero: r === 'hero' });
+      return hit ? Math.round((hit.t + skip) * 100) / 100 : -1;
+    }
+    for (let d = 0; d <= reach; d += 0.25) {
+      const x = start[0] + Math.sin(a) * d;
+      const z = start[2] + Math.cos(a) * d;
+      if (!this.world.controller.clear(x, start[1], z)) return Math.round((d + skip) * 100) / 100;
+    }
+    return -1;
+  }
+
   // ---------- health (P9a) ----------
 
   /** the nearest neighbour that can be harmed, in front of the hero within reach */
@@ -1172,7 +3451,9 @@ export class PlaySession {
       const dx = n.state.x - h.x;
       const dz = n.state.z - h.z;
       const d = Math.hypot(dx, dz);
-      if (d > bd || Math.abs(n.state.y - h.y) > 2) continue;
+      // step 11, 4a: a big body is hit from further away, a tall or hovering one at any height along it
+      const f = this.figureOf(n);
+      if (d > bd + Math.max(0, f.radius - 0.6) || h.y < n.state.y + f.bottom - 2 || h.y > n.state.y + f.top) continue;
       const off = Math.abs(((Math.atan2(dx, dz) - h.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
       if (off > 1 || !this.canHarm(n)) continue;
       best = n;
@@ -1192,7 +3473,9 @@ export class PlaySession {
     const key = `i:${owner.inst.id}`;
     const before = this.health.peek(key)?.hp ?? def.hp;
     if (before <= 0) return;
-    const { dealt, wound } = this.health.hit(key, def, attack);
+    const { dealt, wound } = this.health.hit(key, def, attack, undefined, (d) =>
+      this.askHook(owner.inst.id, 'takeDamage', { amount: d, type: attack.type }, d),
+    );
     const pos: Vec3 = [
       owner.inst.pos[0] + owner.def.footprint[0] / 2,
       owner.inst.pos[1] * 0.4,
@@ -1207,16 +3490,16 @@ export class PlaySession {
       );
       return;
     }
-    this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
+    this.emit('smash', `${name}: −${dealt} (${Math.round(wound.hp * 10) / 10} of ${wound.max} left)`);
     // P23: the hit's effect, by its damage type
     this.hitEffect(attack.type, [pos[0], pos[1] + 1, pos[2]]);
     this.bigHitScreen();
     if (wound.hp > 0) {
       this.audio.play(owner.def.smash.sound ?? SND.smash, { pos, volume: 0.6 });
-      this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
+      this.say(`${name}: ${Math.round(wound.hp * 10) / 10} of ${wound.max} left`, 1.2);
       this.logic.fire({
         type: 'event.onDamaged',
-        match: { asset: owner.def.id },
+        match: { asset: owner.def.id, who: owner.def.name },
         payload: { target: owner.inst.id, amount: dealt, hp: wound.hp },
         self: owner.inst.id,
       });
@@ -1234,7 +3517,12 @@ export class PlaySession {
     if (def.atZero.drop) this.drop(def.atZero.drop, { near: at });
     if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
     this.emit('smash', `${owner.def.name} defeated`);
-    this.logic.fire({ type: 'event.onDefeated', match: { asset: owner.def.id }, payload: { target: at }, self: at });
+    this.logic.fire({
+      type: 'event.onDefeated',
+      match: { asset: owner.def.id, who: owner.def.name },
+      payload: { target: at },
+      self: at,
+    });
   }
 
   /** a hit on a neighbour that can be harmed */
@@ -1248,16 +3536,55 @@ export class PlaySession {
     const key = `n:${npc.id}`;
     const def = chr.harm.health;
     if ((this.health.peek(key)?.hp ?? def.hp) <= 0) return;
-    const { dealt, wound } = this.health.hit(key, def, attack);
+    // step 11, 4a: where the hit comes from (a shield in front, a soft back), and whether it stuns
+    const side = hitSide(npc.state, this.heroState, this.figureOf(npc).top);
+    // Milestone 3b (B4): a behaviour on the neighbour (Damageable.takeDamage) may change what the hit takes
+    const owner = npcItem(this.snapshot, this.world.mapId, npc.id)?.id;
+    // Milestone 3b (B5c): a boss outside its weak moment takes no harm (a stun still gets through: its opening)
+    const boss = this.bossOf(npc);
+    if (boss && !this.bossVulnerable(npc, boss)) {
+      const pos0: Vec3 = [npc.state.x, npc.state.y, npc.state.z];
+      if (stunsIt(attack, def)) {
+        this.combat.stunNpc(npc, def.stunFor ?? 2);
+        this.hitEffect('stun', [pos0[0], pos0[1] + this.figureOf(npc).top * 0.6, pos0[2]]);
+        this.say(`${name} is stunned — strike now!`, 1.5);
+        return;
+      }
+      this.audio.play(SND.land, { pos: pos0 });
+      this.hitEffect('slash', [pos0[0], pos0[1] + 2, pos0[2]]);
+      this.say(
+        boss.boss?.vulnerable === 'stunned'
+          ? `${name} is too strong! Stun it first.`
+          : `${name} is guarded! Strike just after it attacks.`,
+        1.6,
+      );
+      return;
+    }
+    const { dealt, wound } = this.health.hit(key, def, attack, side, (d) =>
+      owner ? this.askHook(owner, 'takeDamage', { amount: d, type: attack.type }, d) : d,
+    );
     const pos: Vec3 = [npc.state.x, npc.state.y, npc.state.z];
+    const stun = stunsIt(attack, def);
+    if (stun) {
+      this.combat.stunNpc(npc, def.stunFor ?? 2);
+      this.hitEffect('stun', [pos[0], pos[1] + this.figureOf(npc).top * 0.6, pos[2]]);
+    }
     if (dealt <= 0) {
-      this.say(this.health.invulnerable.has(key) ? `${name} can’t be hurt right now.` : `${name} shrugs it off.`, 1.5);
+      if (stun) this.say(`${name} is stunned!`, 1.2);
+      else if (this.health.invulnerable.has(key)) this.say(`${name} can’t be hurt right now.`, 1.5);
+      else if (def.sides?.[side] === 0) {
+        // blocked: a clang, and a word on where to hit instead
+        this.audio.play(SND.land, { pos });
+        this.hitEffect('slash', [pos[0], pos[1] + 2, pos[2]]);
+        const weak = (['back', 'side', 'above'] as const).find((x) => (def.sides?.[x] ?? 1) > 1);
+        this.say(weak ? `Blocked! Try its ${weak === 'above' ? 'head, from above' : weak}.` : 'Blocked!', 1.5);
+      } else this.say(`${name} shrugs it off.`, 1.5);
       return;
     }
     this.audio.play(SND.hurt, { pos });
     this.hitEffect(attack.type, [pos[0], pos[1] + 2, pos[2]]);
     this.bigHitScreen();
-    this.emit('smash', `${name}: −${dealt} (${wound.hp} of ${wound.max} left)`);
+    this.emit('smash', `${name}: −${dealt} (${Math.round(wound.hp * 10) / 10} of ${wound.max} left)`);
     if (wound.hp > 0) {
       // P9b: knocked back (away from the hero) and stunned for a moment
       if (push) {
@@ -1268,13 +3595,17 @@ export class PlaySession {
         npc.state.z += (dz / d) * push.knock * 0.5;
         this.combat.stunNpc(npc, push.stun);
       }
+      // Milestone 3b (B5c): a boss's phase follows its health
+      if (boss) this.bossCheck(npc, boss, wound.hp, wound.max);
       // P23 part 4: its hurt state
       const rec = this.npcStates.get(npc.id);
       if (rec) rec.hurtAt = this.clock;
-      this.say(`${name}: ${wound.hp} of ${wound.max} left`, 1.2);
+      // Milestone 3b (B5b): and how its body reacts (a bomb knocks it down, fire sets it hopping, ice freezes it)
+      this.react(npc, hurtReaction({ type: attack.type, power: dealt, knock: push?.knock, attack: attack.attack }));
+      this.say(`${name}: ${Math.round(wound.hp * 10) / 10} of ${wound.max} left`, 1.2);
       this.logic.fire({
         type: 'event.onDamaged',
-        match: { asset: '' },
+        match: { asset: '', who: name },
         payload: { target: name, amount: dealt, hp: wound.hp },
         ...this.npcSelf(npc),
       });
@@ -1282,9 +3613,22 @@ export class PlaySession {
     }
     // at zero the neighbour leaves this play (puff of bricks where it stood); P27 part 3d: some come back
     this.world.npcs = this.world.npcs.filter((n) => n !== npc);
+    // Milestone 3b (B7a-1): a boss beaten: its mark on the maps is crossed out
+    if (boss) this.mapTrack.beat(this.world.mapId, String(npc.profile.name ?? 'Boss'), pos[0], pos[1], pos[2]);
+    // Milestone 3b (B7a-2): a quest's beat step counts it
+    this.quests.note('beat', String(npc.profile.name ?? ''));
+    // Milestone 3b (B7a-3): the last foe on the map beaten: the room is cleared
+    if (this.enemyOf(npc) && this.foesLeft() === 0)
+      this.logic.fire({
+        type: 'event.onFoesCleared',
+        match: { map: this.world.doc.name },
+        payload: { map: this.world.doc.name },
+      });
     if (def.atZero.respawn !== undefined) this.world.defeated.push({ npc, at: this.clock, after: def.atZero.respawn });
     if (this.talking === npc) this.talking = null;
     if (def.atZero.drop) this.drop(def.atZero.drop, { at: pos });
+    // step 11, 4a: its loot, each by its chance
+    for (const l of def.atZero.loot ?? []) if (Math.random() < l.chance) this.drop(l, { at: pos });
     if (def.atZero.emit) this.logic.fire({ type: 'event.onCustom', match: { event: def.atZero.emit } });
     this.say(`${name} is defeated.`, 2);
     this.eventEffect('defeat', [pos[0], pos[1] + 1.5, pos[2]]);
@@ -1292,7 +3636,7 @@ export class PlaySession {
     this.emit('smash', `${name} defeated`);
     this.logic.fire({
       type: 'event.onDefeated',
-      match: { asset: '' },
+      match: { asset: '', who: name },
       payload: { target: name },
       ...this.npcSelf(npc),
     });
@@ -1312,12 +3656,90 @@ export class PlaySession {
   }
 
   private give(item: string, count: number) {
+    // step 12a: a small key, the boss key, the map and the compass belong to this map (the dungeon)
+    if (this.puzzles.give(item, count)) return;
+    // step 13c: a magic jar fills some of the meter (a big one all of it), at once
+    if (/^(big )?magic jars?$/i.test(item.trim())) {
+      const big = /^big/i.test(item.trim());
+      const had = this.magic.has;
+      if (!this.magic.on) return;
+      this.magic.fill(big ? this.magic.max : MAGIC_JAR * count);
+      this.audio.play(SND.magic);
+      this.eventEffect('heal', [this.heroState.x, this.heroState.y + 3, this.heroState.z]);
+      this.say(
+        had ? `+${big ? 'full' : MAGIC_JAR * count} magic` : 'A magic meter! Items that use magic draw on it.',
+        2,
+      );
+      this.emit(
+        'info',
+        `Picked up a ${big ? 'big magic jar' : 'magic jar'}: magic ${this.magic.now} of ${this.magic.max}`,
+      );
+      return;
+    }
+    // step 13c: the Lens of Truth comes with a magic meter (full), as the Great Fairy's gift does in Ocarina
+    if (/^lens of truth$/i.test(item.trim()) && count > 0) this.magic.grant();
+    // step 11, 4a: a heart heals at once, like Zelda's
+    if (/^hearts?$/i.test(item.trim())) {
+      this.heal('hero', count);
+      this.eventEffect('heal', [this.heroState.x, this.heroState.y + 3, this.heroState.z]);
+      this.say(`+${count} ♥`, 1.2);
+      this.audio.play(SND.pickup);
+      return;
+    }
     const n = (this.inventory.get(item) ?? 0) + count;
     this.inventory.set(item, n);
     this.emit('info', `Got ${count} × ${item} (${n} in total)`);
+    // step 12b: a branch picked up comes out at once, in the hand
+    if (count > 0 && /^branch$/i.test(item.trim()) && !this.stickOut) {
+      // bending down for it, the hand has it at the bottom of the move
+      if (this.pickT > 0) this.stickAfterPick = true;
+      else this.takeOutStick();
+      this.stickHint();
+    }
+    // step 13a: a bow comes with a quiver of arrows, a slingshot with a bag of seeds (when there are none yet)
+    if (count > 0 && /^bow$/i.test(item.trim()) && (this.inventory.get('Arrows') ?? 0) <= 0) this.give('Arrows', 10);
+    if (count > 0 && /^slingshot$/i.test(item.trim()) && (this.inventory.get('Seeds') ?? 0) <= 0)
+      this.give('Seeds', 20);
+    // step 12b: a tool (Bomb, Torch) goes into an empty item button, ready to use (13a: and the shooting things)
+    if (
+      count > 0 &&
+      (/^(bombs?|torch|branch|gust leaf|bow|fire arrows|ice arrows|slingshot|stun nuts?|boomerang|whirl boomerang|hook line|grapple rope|magnet glove|hover boots|lens of truth)$/i.test(
+        item.trim(),
+      ) ||
+        // Milestone 3b (B6): an item of the game's own (an Item behaviour on the hero is about it)
+        this.ownItem(item)) &&
+      !this.buttons.slots.includes(item)
+    ) {
+      // an empty item button; with none empty (step 13c fix), the one whose item was used longest ago: a new tool is
+      // always ready to use, and the item menu puts the old one back
+      const n = this.buttons.c.items;
+      const all = Array.from({ length: n }, (_, i) => i);
+      const free = all.find((i) => !this.buttons.slots[i]);
+      const slot =
+        free ??
+        all.reduce((a, b) =>
+          this.lastTouched(this.buttons.slots[b]) < this.lastTouched(this.buttons.slots[a]) ? b : a,
+        );
+      if (n > 0) {
+        const was = this.buttons.slots[slot];
+        this.equip(slot + 1, item);
+        const key = this.buttons.keyOf(ITEM_BUTTONS[slot]!).toUpperCase();
+        const menu = this.buttons.keyOf('menu').toUpperCase();
+        if (count > 0) this.eventEffect('coin', [this.heroState.x, this.heroState.y + 3, this.heroState.z]);
+        this.say(
+          was
+            ? `+${count} ${item}: it is on item button ${slot + 1} (${key}) in place of the ${was}. The item menu (${menu}) changes it.`
+            : `+${count} ${item}: it is on item button ${slot + 1} (${key}).`,
+          3,
+        );
+        this.audio.play(SND.pickup);
+        return;
+      }
+    }
     if (count > 0) this.eventEffect('coin', [this.heroState.x, this.heroState.y + 3, this.heroState.z]);
     this.say(`+${count} ${item}`, 1.5);
-    this.audio.play(SND.pickup);
+    // step 11, 4b: a key jingles
+    this.audio.play(/\bkeys?\b/i.test(item) ? SND.keyget : SND.pickup);
   }
 
   /** the neighbour called this (by name, or n:<id>) */
@@ -1329,7 +3751,8 @@ export class PlaySession {
     const h = this.heroState;
     const out: { pos: Vec3; k: number }[] = [];
     const near = (x: number, z: number) => Math.hypot(x - h.x, z - h.z) <= 25;
-    for (const i of this.world.instances) {
+    // Milestone 2b: the objects near the hero only
+    for (const i of this.objs().near(h.x, h.z, 26)) {
       const w = this.health.peek(`i:${i.inst.id}`);
       if (!w || w.hp <= 0 || w.hp >= w.max) continue;
       const c = this.instanceCenter(i);
@@ -1343,7 +3766,7 @@ export class PlaySession {
       if (w && w.hp <= 0) continue;
       if (!near(n.state.x, n.state.z)) continue;
       const max = w?.max ?? npcCharacter(this.snapshot, this.world.mapId, n)?.harm?.health.hp ?? 1;
-      out.push({ pos: [n.state.x, n.state.y + 5.8, n.state.z], k: (w?.hp ?? max) / max });
+      out.push({ pos: [n.state.x, n.state.y + this.figureOf(n).top + 1.4, n.state.z], k: (w?.hp ?? max) / max });
     }
     return out;
   }
@@ -1358,8 +3781,11 @@ export class PlaySession {
   }
 
   /** P9c: an enemy's swing lands on the hero (through guard, parry and dodge) */
-  hitHero(n: Npc, power: number, type: DamageType) {
+  hitHero(n: Npc, power: number, type: DamageType, attack?: string) {
+    // Milestone 3b (B5b): the attack it was decides how the hero reacts (a charge knocks it down)
+    this.heroHitHow = partsOf(this.enemyOf(n)).hurt ?? hurtReaction({ type, power, attack });
     this.damage('hero', power, type, `n:${n.id}`);
+    this.heroHitHow = null;
   }
 
   /** P22 part 2: a neighbour whose sheet says it stands where it was put (a shopkeeper at a counter) */
@@ -1592,14 +4018,17 @@ export class PlaySession {
   /** asset copies of this map smashed now (their light goes out) */
   private smashedIds(): Set<string> {
     const w = this.world;
-    if (this.smashedCache?.world === w && this.smashedCache.rev === w.rev) return this.smashedCache.ids;
+    // a break or a rebuild changes the list of breaks, not always the map's revision
+    const key = `${w.brokenSerial}:${w.broken.length}`;
+    const c = this.smashedCache;
+    if (c?.world === w && c.rev === w.rev && c.key === key) return c.ids;
     const ids = new Set<string>();
     for (const b of w.broken)
       for (const p of b.originals) {
         const i = this.instanceOfPiece(p.id);
         if (i) ids.add(i.inst.id);
       }
-    this.smashedCache = { world: w, rev: w.rev, ids };
+    this.smashedCache = { world: w, rev: w.rev, key, ids };
     return ids;
   }
 
@@ -1743,6 +4172,7 @@ export class PlaySession {
   /** NPC ids belong to one map: a new map (or a restart) looks bodies up again */
   private forgetBodies() {
     this.bodies?.clear();
+    this.extraParts?.clear();
     this.npcStates?.clear();
     // P27: a new map is as dark as it was made, with its own fog
     this.darknessNow = null;
@@ -1772,6 +4202,59 @@ export class PlaySession {
     return this.bodies.get(key)!;
   }
 
+  /**
+   * Step 11, 4a: how big a character stands, from where it stands (its feet): the bottom and top of its body, and how
+   * far it reaches out sideways. A minifig is about 4.4 tall; a creature is measured from its bricks (a hovering bat's
+   * bottom is above the ground, a spider boss is wide). Markers, health bars, lock-on and hits use it.
+   */
+  figureOf(who: Npc | 'hero'): { bottom: number; top: number; radius: number } {
+    const st = who === 'hero' ? this.heroState : who.state;
+    const body = this.bodyOf(who);
+    if (!body) {
+      const k = this.L.GamePhysics.scaleOf(st);
+      return { bottom: 0, top: 4.4 * k, radius: 0.6 * k };
+    }
+    let f = this.figures.get(body);
+    if (!f) {
+      const { min, max } = bodyBounds(body);
+      f = {
+        bottom: Math.max(0, min[1]),
+        top: Math.max(1, max[1]),
+        radius: Math.max(
+          0.5,
+          ...min.filter((_, i) => i !== 1).map(Math.abs),
+          ...max.filter((_, i) => i !== 1).map(Math.abs),
+        ),
+      };
+      this.figures.set(body, f);
+    }
+    return f;
+  }
+
+  /** step 14a: how far in front of its middle a character's front is, and how high its head (its mouth, an eye) */
+  mouthOf(who: Npc | 'hero'): { front: number; height: number } {
+    const st = who === 'hero' ? this.heroState : who.state;
+    const body = this.bodyOf(who);
+    if (!body) {
+      const k = this.L.GamePhysics.scaleOf(st);
+      return { front: 0.5 * k, height: 3.6 * k };
+    }
+    const { min, max } = bodyBounds(body);
+    return { front: Math.max(0.5, max[2]), height: Math.max(0.6, min[1] + (max[1] - min[1]) * 0.62) };
+  }
+
+  /** step 11, 4a: a minifig's extra parts (a tail, a snout…), coloured */
+  extrasOf(who: Npc | 'hero') {
+    const key = who === 'hero' ? 'hero' : who.id;
+    let e = this.extraParts.get(key);
+    if (!e) {
+      const chr = who === 'hero' ? this.heroChr : npcCharacter(this.snapshot, this.world.mapId, who);
+      e = minifigExtras(chr?.body);
+      this.extraParts.set(key, e);
+    }
+    return e;
+  }
+
   standsStill(n: Npc): boolean {
     if (!this.standing.has(n.id))
       this.standing.set(n.id, npcCharacter(this.snapshot, this.world.mapId, n)?.behaviour?.routine === 'stand');
@@ -1789,18 +4272,109 @@ export class PlaySession {
 
   /** P9c: what a neighbour fights with (null: it does not fight) — from its character, looked up once */
   private enemyCache = new Map<number, Enemy | null>();
+  /** step 11, 4a (enemies): how far a neighbour's body reaches out sideways */
+  radiusOf(n: Npc): number {
+    return this.figureOf(n).radius;
+  }
+
+  /** step 11, 4a (enemies): the hero is running or fighting, so enemies with hearing notice */
+  heroLoud(): boolean {
+    const h = this.heroState as typeof this.heroState & { attack?: number };
+    return !!h.attack || this.input.keys.has('shift') || !!this.combat.pose();
+  }
+
   enemyOf(n: Npc): Enemy | null {
     if (!this.enemyCache.has(n.id)) {
       const chr = npcCharacter(this.snapshot, this.world.mapId, n);
-      this.enemyCache.set(n.id, chr?.enemy ?? null);
+      // Milestone 3b (14a-2): a boss behaviour attached makes it a boss (its phases written in its class)
+      const copy = (npcItem(this.snapshot, this.world.mapId, n.id) as { scripts?: ScriptAttachment[] } | null)?.scripts;
+      this.enemyCache.set(
+        n.id,
+        enemyOfCharacter(chr, (id) => this.snapshot.get(paths.logic(id)) as LogicGraph | undefined, copy ?? []),
+      );
     }
-    return this.enemyCache.get(n.id) ?? null;
+    const e = this.enemyCache.get(n.id) ?? null;
+    // Milestone 3b (B5c): a boss fights as its phase's kind of fighter (its parts, faster and harder)
+    if (e?.style !== 'boss') return e;
+    const at = this.bossPhase.get(n.id) ?? 1;
+    let r = this.bossCache.get(n.id);
+    if (!r || r.n !== at || r.of !== e) {
+      r = { n: at, of: e, e: bossEnemy(e, at) };
+      this.bossCache.set(n.id, r);
+    }
+    return r.e;
+  }
+
+  /** Milestone 3b (B5c): the phase each boss is in (1: its first), and what it fights as then */
+  private bossPhase = new Map<number, number>();
+  private bossCache = new Map<number, { n: number; of: Enemy; e: Enemy }>();
+
+  /** Milestone 3b (B5c): the boss this neighbour is (its settings as made), or null */
+  bossOf(n: Npc): Enemy | null {
+    const e = this.enemyCache.has(n.id) ? this.enemyCache.get(n.id) : (this.enemyOf(n), this.enemyCache.get(n.id));
+    return e?.style === 'boss' ? e : null;
+  }
+
+  /** Milestone 3b (B5c): a boss can be hurt now, as the engine sees it (its isVulnerable hook not asked) */
+  private bossOpen(npc: Npc, boss: Enemy): boolean {
+    const how = boss.boss?.vulnerable ?? 'always';
+    return (
+      how === 'always' || this.isStunned(npc) || (how === 'afterAttack' && this.enemies.justAttacked(npc, BOSS_OPENING))
+    );
+  }
+
+  /** Milestone 3b (14a-2): a boss that cannot be hurt now (its eye is dull); not a boss: false */
+  bossGuarded(npc: Npc): boolean {
+    const boss = this.bossOf(npc);
+    return !!boss && !this.bossOpen(npc, boss);
+  }
+
+  /** Milestone 3b (B5c): the phase a boss is in now (1: its first) */
+  bossPhaseOf(n: Npc): number {
+    return this.bossPhase.get(n.id) ?? 1;
+  }
+
+  /**
+   * Milestone 3b (B5c): a hit took a boss's health down: its phase by its health (BossBrain.phaseFor may choose);
+   * a new phase roars, starts its brain afresh and fires On phase
+   */
+  private bossCheck(npc: Npc, boss: Enemy, hp: number, max: number) {
+    const was = this.bossPhaseOf(npc);
+    const count = 1 + (boss.boss?.phases.length ?? 0);
+    const base = bossPhaseAt(boss.boss, hp / max);
+    const owner = this.npcSelf(npc).self;
+    let at = owner ? this.askHook(owner, 'phaseFor', { hp, max, phase: was }, base) : base;
+    at = Math.max(1, Math.min(count, Math.round(at)));
+    if (at === was) return;
+    this.bossPhase.set(npc.id, at);
+    this.enemies.forget(npc);
+    const name = String(npc.profile.name ?? 'Boss');
+    const label = at > 1 ? bossPhases(boss.boss)[at - 2]?.name : undefined;
+    this.say(`${name}${label ? ` — ${label}` : ''}: phase ${at}!`, 2);
+    this.emit('event', `${name} enters phase ${at}`);
+    this.moves.set(npc.id, { kind: 'roar', at: this.clock });
+    this.logic.fire({
+      type: 'event.onPhase',
+      match: { who: name },
+      payload: { phase: at, from: was },
+      ...this.npcSelf(npc),
+    });
+  }
+
+  /**
+   * Milestone 3b (B5c): a boss can be hurt now: always; only just after it attacks; only while stunned
+   * (BossBrain.isVulnerable may say otherwise)
+   */
+  bossVulnerable(npc: Npc, boss: Enemy): boolean {
+    const how = boss.boss?.vulnerable ?? 'always';
+    const base = this.bossOpen(npc, boss);
+    const owner = this.npcSelf(npc).self;
+    return owner ? this.askHook(owner, 'isVulnerable', { phase: this.bossPhaseOf(npc), how }, base) : base;
   }
 
   /** P9c: the instance id of a neighbour (what a script on it is owned by) */
   npcSelf(n: Npc): { self?: string } {
-    const inst = this.snapshot.get(paths.instances(this.world.mapId)) as Instances | undefined;
-    const item = inst?.items.find((i) => i.kind === 'npc' && i.legacyId === n.id);
+    const item = npcItem(this.snapshot, this.world.mapId, n.id);
     return item ? { self: item.id } : {};
   }
 
@@ -1830,7 +4404,7 @@ export class PlaySession {
       } else if (r.how === 'block') this.say('Blocked', 0.8);
       else if (r.how === 'break') this.say('Your guard broke!', 1.5);
       else if (r.how === 'dodge') this.emit('info', 'Dodged');
-      if (r.taken > 0) this.hurt(r.taken);
+      if (r.taken > 0) this.hurt(r.taken, this.heroHitHow ?? hurtReaction({ type: attack.type, power: amount }));
       return;
     }
     const inst = this.resolveEntity(ref);
@@ -1853,7 +4427,7 @@ export class PlaySession {
       });
       return;
     }
-    const i = this.world.instances.find((x) => x.inst.id === t.id);
+    const i = this.objs().byId(t.id);
     if (!i) return;
     this.logic.fire({
       type: 'event.onLockedOn',
@@ -2041,7 +4615,38 @@ export class PlaySession {
         if (e.mode && e.mode !== 'rebuild' && this.clock - (e.at ?? 0) > DEBRIS_FADE) fade.add(e.id);
       if (fade.size) w.debris = w.debris.filter((d) => d.keep || !fade.has(d.entryId));
     }
+    // Milestone 2b: loose bricks are rigid bodies in the physics core: they tumble, stack and come to rest on the
+    // bricks, and the hero pushes them (a brick being rebuilt flies back to its place by hand, as before)
+    const ph = w.physics;
+    if (ph) {
+      this.physicsFlush(w);
+      this.syncIce(w);
+      const rebuilding = this.rebuildEntry?.id;
+      ph.syncLoose(w.debris, (d) => (d as Debris).entryId === rebuilding);
+      // loose objects keep the simulation going even with no loose bricks about
+      // (and the hero walked by it: what it pushes and stands on moves every step)
+      if (w.debris.length || ph.objectCount || ph.walking || ph.shotCount) {
+        const s = this.heroState;
+        const k = this.L.GamePhysics.scaleOf(s);
+        ph.moveHero(s.x, s.y, s.z, 0.8 * k, 4.4 * k);
+        ph.step(dt);
+        ph.readLoose();
+        for (const d of w.debris) {
+          if (d.entryId === rebuilding) continue;
+          d.age += dt;
+          // kept inside the map, as v68 keeps them
+          const x = d.x;
+          const z = d.z;
+          this.L.GamePhysics.confineDebris(d, w.controller);
+          if (d.x !== x || d.z !== z) ph.place(d, d.x, d.y, d.z, d.vx, d.vz);
+          // fell through the world's floor: it is gone
+          if (d.y < -20) d.keep = false;
+        }
+        w.debris = w.debris.filter((d) => d.y >= -20);
+      }
+    }
     for (const d of w.debris) {
+      if (ph && this.rebuildEntry?.id !== d.entryId) continue;
       if (this.rebuildEntry?.id === d.entryId) {
         const t = this.rebuildEntry.progress;
         d.age += dt;
@@ -2067,7 +4672,7 @@ export class PlaySession {
     if (w.npcsStale && w.byChunk && w.windowAt) {
       w.npcsStale = false;
       const near = piecesAround(w.byChunk, w.windowAt);
-      this.L.NPCWorld.sync(w.npcs, near, w.meta);
+      this.syncNpcs(w, near);
       for (const n of w.npcs) n.controller.area = w.fullArea;
     }
     for (const e of [...w.broken])
@@ -2351,6 +4956,74 @@ export class PlaySession {
 
   // ---------- logic (P4.2) ----------
 
+  // ---------- Milestone 3b (B1): behaviours on the copies of this map ----------
+
+  /** copies whose behaviours run now (instance ids), and what the last sync saw */
+  private scriptOwners = new Set<string>();
+  private scriptsSeen: { world: unknown; objects: number; npcs: number } | null = null;
+
+  /** behaviours follow what is on the map (a copy spawned or removed, another map), then every On update runs */
+  stepScripts(dt: number) {
+    const w = this.world;
+    const seen = this.scriptsSeen;
+    if (!seen || seen.world !== w || seen.objects !== w.instances.length || seen.npcs !== w.npcs.length)
+      this.syncScripts(!!seen);
+    this.logic.update(dt);
+  }
+
+  /**
+   * Attaches each copy's behaviours (its asset's or character's, and its own) with their field values, and lets
+   * go of copies that are gone. `start`: a copy that arrives now runs its On start at once.
+   */
+  /** Milestone 3b (B4): the character whose behaviours run as the hero now */
+  private heroScriptsOf: string | null = null;
+  syncScripts(start: boolean) {
+    const w = this.world;
+    this.scriptsSeen = { world: w, objects: w.instances.length, npcs: w.npcs.length };
+    const now = new Set<string>();
+    const put = (owner: string, list: ReturnType<typeof attachmentsOf>) => {
+      for (const a of list) {
+        const g = this.snapshot.get(paths.logic(a.use)) as LogicGraph | undefined;
+        if (!g?.behaviour) continue;
+        now.add(owner);
+        if (!this.scriptOwners.has(owner) || !this.logic.attachedTo(a.use).includes(owner))
+          this.logic.attach(a.use, owner, startValues(g, a.fields), start);
+      }
+    };
+    for (const i of w.instances) {
+      const list = attachmentsOf(i.def.scripts, i.inst.scripts);
+      if (list.length) put(i.inst.id, list);
+    }
+    for (const n of w.npcs) {
+      const chr = npcCharacter(this.snapshot, w.mapId, n);
+      const item = npcItem(this.snapshot, w.mapId, n.id);
+      if (!item) continue;
+      const list = attachmentsOf(chr?.scripts, item.scripts);
+      if (list.length) put(item.id, list);
+    }
+    // Milestone 3b (B4): the hero's character's behaviours run as "hero" (a switch of hero starts the new one's)
+    if (this.heroScriptsOf !== (this.heroChr?.id ?? null)) {
+      this.logic.detach('hero');
+      this.scriptOwners.delete('hero');
+      this.heroScriptsOf = this.heroChr?.id ?? null;
+    }
+    const heroList = attachmentsOf(this.heroChr?.scripts, undefined);
+    if (heroList.length) put('hero', heroList);
+    // Milestone 3b (B7a-2): each quest runs as itself ("quest:<file>"); the maps' behaviours as "gamemap"
+    const gg = this.gameGraphs();
+    for (const g of gg.quests) put(`quest:${g.id}`, [{ use: g.id }] as ReturnType<typeof attachmentsOf>);
+    if (gg.maps.length) put('gamemap', gg.maps.map((g) => ({ use: g.id })) as ReturnType<typeof attachmentsOf>);
+    // Milestone 3b (B7a-3): the game's rules as "gamemode"; the map the hero is on runs its own as "map:<id>"
+    if (gg.modes.length) put('gamemode', gg.modes.map((g) => ({ use: g.id })) as ReturnType<typeof attachmentsOf>);
+    // Milestone 3b (B7b): the player's buttons as "input", the HUD as "hud"
+    if (gg.inputs.length) put('input', gg.inputs.map((g) => ({ use: g.id })) as ReturnType<typeof attachmentsOf>);
+    if (gg.huds.length) put('hud', gg.huds.map((g) => ({ use: g.id })) as ReturnType<typeof attachmentsOf>);
+    const mapList = attachmentsOf(w.doc.scripts, undefined);
+    if (mapList.length) put(`map:${w.mapId}`, mapList);
+    for (const o of this.scriptOwners) if (!now.has(o)) this.logic.detach(o);
+    this.scriptOwners = now;
+  }
+
   private makeLogic(): LogicRuntime {
     const graphs: LogicGraph[] = [];
     for (const path of this.snapshot.keys())
@@ -2378,15 +5051,35 @@ export class PlaySession {
       heal: (target, amount) => this.heal(target, amount),
       setInvulnerable: (target, on) => this.setInvulnerable(target, on),
       saving: (op, slot) => this.savingOp(op, slot),
+      // Milestone 3b (B7a-2): quests and the maps
+      quest: (op, ref, step) => this.questOp(op, ref, step),
+      questRead: (what, ref) => this.questRead(what, ref),
+      mapOp: (op, a, b, c) => this.mapOp(op, a, b, c),
+      mapRead: () => this.mapOpen,
+      // Milestone 3b (B7a-3): the game's rules
+      game: (op, at) => this.gameRule(op, at ?? ''),
+      foesLeft: () => this.foesLeft(),
+      // Milestone 3b (B7b): the player's buttons and the HUD
+      inputRead: (what, button) => {
+        const t = this.buttons.down.get(button as Bindable);
+        return what === 'held' ? (t === undefined ? 0 : 1) : (t ?? 0);
+      },
+      inputOp: (op, strength, seconds, style) => this.inputOp(op, strength ?? 0, seconds ?? 0, style ?? ''),
+      hudRead: () => this.hudStyle(),
       progress: (op, id) => {
         if (op === 'achieve') this.progress.unlock(id);
         else this.gameOp('finish');
       },
       talk: (conversation) => void this.startConversation(conversation, null, 'other'),
+      move: (who, kind) => void this.doMove(who, kind),
       effect: (op, a, at) => this.effectOp(op, a, at),
       screen: (op, a) => this.screenFxOp(op, a),
       light: (op, name, value) => this.lightOp(op, name, undefined, value),
       sky: (op, value) => this.skyOp(op, value),
+      buttons: (op, value, slot) => {
+        if (op === 'label') this.buttons.custom = value.trim() || null;
+        else this.equip(Math.max(1, Math.min(4, Math.round(slot ?? 1))), value || null);
+      },
       sheet: (op, value) =>
         op === 'outfit'
           ? this.setOutfit(String(value))
@@ -2395,6 +5088,12 @@ export class PlaySession {
             : this.switchHero(),
       spawn: (asset, at) => this.spawnAsset(asset, at),
       spawnNear: (item, near) => this.spawnNear(item, near),
+      // step 11, 4c: what the script templates need
+      say: (text, seconds) => this.say(text, seconds),
+      count: (item) => this.itemCount(item),
+      take: (item, count) => this.takeItem(item, count),
+      follow: (who, on) => this.setFollow(who, on),
+      spawnCharacter: (character, at) => this.spawnCharacter(character, at),
       despawn: (target) => {
         const inst = this.resolveEntity(target);
         if (inst) this.despawn(inst.inst.id);
@@ -2427,13 +5126,52 @@ export class PlaySession {
             break;
         }
       },
+      // Milestone 3b (B2): the engine API
+      entity: (what, ref) => this.apiRead(what, ref),
+      distance: (a, b) => {
+        const p = this.positionOf(this.apiRef(a));
+        const q = this.positionOf(this.apiRef(b));
+        return p && q ? Math.hypot(p[0] - q[0], p[2] - q[2]) : -1;
+      },
+      moveThing: (op, ref, x, y, z) => this.apiMove(op, ref, x, y, z),
+      face: (ref, deg) => this.apiFace(ref, deg),
+      react: (ref, how) => {
+        if (!(HURT_REACTIONS as readonly string[]).includes(how)) return;
+        const r = this.apiRef(ref);
+        const who = r === 'hero' ? 'hero' : this.npcByRef(r);
+        if (who) this.react(who, how as HurtHow);
+      },
+      lookAt: (ref, other) => {
+        const p = this.positionOf(this.apiRef(ref));
+        const q = this.positionOf(this.apiRef(other));
+        if (p && q) this.apiFace(ref, (Math.atan2(q[0] - p[0], q[2] - p[2]) * 180) / Math.PI);
+      },
+      physics: (op, ref, x, y, z) => this.apiPush(op, ref, x, y, z),
+      raycast: (ref, reach) => this.apiRaycast(ref, reach),
+      held: (button) => {
+        const k = this.input.keys;
+        const t = this.input.touch;
+        const key = ([...BUTTONS, ...MOVES] as string[]).includes(button)
+          ? this.buttons.keyOf(button as Bindable).toLowerCase()
+          : '';
+        return k.has(button) || t.has(button) || (!!key && k.has(key));
+      },
+      resolve: (ref) => {
+        const r = this.apiRef(ref);
+        if (r === 'hero') return 'hero';
+        const inst = this.resolveEntity(r);
+        if (inst) return inst.inst.id;
+        const npc = this.npcByRef(r);
+        return npc ? (this.npcSelf(npc).self ?? null) : null;
+      },
       inZone: (zone) => {
         const z = this.world.doc.zones.find((x) => x.id === zone);
         if (!z) return [];
         const out: string[] = [];
         const s = this.heroState;
         if (inBox(z, s.x, s.y + 1, s.z)) out.push('hero');
-        for (const i of this.world.instances) {
+        // Milestone 2b: objects whose centre is in or near the zone's ground plan, then the exact test
+        for (const i of this.objs().inBox(z.min[0] - 8, z.min[2] - 8, z.max[0] + 8, z.max[2] + 8)) {
           let cx = 0;
           let cy = 0;
           let cz = 0;
@@ -2513,7 +5251,7 @@ export class PlaySession {
 
   /** a sound event at the hero, or at the instance an asset action belongs to */
   playSound(event: string, self: string | undefined) {
-    const inst = self ? this.world.instances.find((i) => i.inst.id === self) : undefined;
+    const inst = self ? this.objs().byId(self) : undefined;
     const so = inst?.sockets[0];
     const s = this.heroState;
     this.audio.play(event, { pos: so ? (so.world as Vec3) : [s.x, s.y + 1, s.z] });
@@ -2537,7 +5275,7 @@ export class PlaySession {
   /** true while a screen (title, pause, game over) holds the game */
   get screenPaused(): boolean {
     // P27 part 3c: the game holds while a map loads
-    return this.screens.pausesGame || !!this.loading;
+    return this.screens.pausesGame || !!this.loading || this.mapOpen || this.questsOpen;
   }
 
   private screensChanged() {
@@ -2602,6 +5340,8 @@ export class PlaySession {
       case 'finish': {
         if (this.over) break;
         this.progress.finish();
+        // Milestone 3b (B7a-3)
+        this.logic.fire({ type: 'event.onGameWon' }, true);
         const pct = this.progress.percent();
         this.emit(
           'screen',
@@ -2621,6 +5361,12 @@ export class PlaySession {
         this.newGamePlus();
         this.startGame();
         break;
+      case 'map':
+        this.openMap(true);
+        break;
+      case 'quests':
+        this.openQuests(true);
+        break;
       case 'pause': {
         const p = screenOfKind(this.snapshot, 'pause');
         if (p && !this.screens.has(p.id)) this.screens.push(p.id);
@@ -2631,7 +5377,14 @@ export class PlaySession {
         break;
       case 'retry': {
         this.over = false;
-        this.logic.setVar('hp', this.logic.vars.get('maxHp') ?? 3);
+        // Milestone 3b (B7a-3): the game's rules say where the hero comes back, with how many hearts and what
+        const max = Number(this.logic.vars.get('maxHp') ?? 3);
+        const hearts = this.askHook('gamemode', 'respawnHearts', { max }, max);
+        this.logic.setVar('hp', Math.max(0.5, Math.min(max, Number.isFinite(hearts) ? hearts : max)));
+        for (const [item, count] of [...this.inventory])
+          if (!this.askHook('gamemode', 'keepOnRespawn', { item, count }, true)) this.inventory.delete(item);
+        const at = this.askHook('gamemode', 'respawnAt', { map: this.world.doc.name }, 'checkpoint');
+        this.respawnTo(at);
         const cp = this.checkpoint;
         if (cp.map !== this.world.mapId && (cp.spawn || cp.pos)) {
           this.travel(cp.map, cp.spawn ?? '');
@@ -2645,6 +5398,7 @@ export class PlaySession {
         }
         this.emit('screen', 'Retry from the last checkpoint');
         this.startGame();
+        this.logic.fire({ type: 'event.onRespawn', payload: { map: this.world.doc.name, at: String(at) } });
         break;
       }
       case 'quit': {
@@ -2682,6 +5436,11 @@ export class PlaySession {
   saveGame(slot: number, quiet = false) {
     if (this.over) return;
     const n = Math.max(0, Math.min(this.saving.slots, slot));
+    // Milestone 3b (B7a-3): the game's rules may say not now (an autosave just does not happen)
+    if (!this.askHook('gamemode', 'canSave', { slot: n }, true)) {
+      if (!quiet) this.say('You can’t save here.', 2);
+      return;
+    }
     this.saves.write(captureSave(this as unknown as SaveHost, n));
     if (n !== AUTO_SLOT) this.slot = n;
     if (!quiet) {
@@ -2689,6 +5448,7 @@ export class PlaySession {
       this.say(n === AUTO_SLOT ? 'Autosaved' : `Game saved · ${slotName(n)}`, 2);
       this.audio.play(SND.pickup);
     }
+    this.logic.fire({ type: 'event.onSaved', payload: { slot: n } });
   }
 
   /** Loads a slot: the world, the hero and everything carried come back as they were saved. */
@@ -2699,6 +5459,7 @@ export class PlaySession {
       return false;
     }
     this.putBack(save, slot);
+    this.logic.fire({ type: 'event.onLoaded', payload: { slot } });
     return true;
   }
 
@@ -2769,6 +5530,32 @@ export class PlaySession {
     this.checkpoint = { map: this.world.mapId, spawn: sp?.id ?? null };
     this.travelLock = sp ? { spawn: sp.id } : null;
     this.inventory.clear();
+    this.usedAt.clear();
+    this.puzzles.restore(undefined);
+    this.mapTrack.reset();
+    this.mapOpen = false;
+    this.quests.reset();
+    this.questsOpen = false;
+    this.lookOverride = {};
+    this.goalCache = null;
+    this.fireLight.reset();
+    this.platforms.reset();
+    this.wind.reset();
+    this.shots.reset();
+    this.hooks.reset();
+    this.enemies.reset();
+    this.bossPhase.clear();
+    this.bossCache.clear();
+    this.foeShots.reset();
+    this.heroAlight?.fx?.stop();
+    this.heroAlight = null;
+    this.lens.reset();
+    this.lensLook = false;
+    this.wearBoots(false);
+    this.boots.reset();
+    this.magic.reset();
+    this.windFx.clear();
+    this.heroDrift = { x: 0, z: 0 };
     this.health.clear();
     this.cine.seen.clear();
     this.logic.vars.clear();
@@ -2782,14 +5569,26 @@ export class PlaySession {
     this.zoneAudio();
     this.applyMapAudio();
     this.camYaw = this.heroState.heading + Math.PI;
+    // Milestone 3b (B1): behaviours start again from their fields
+    for (const o of this.scriptOwners) this.logic.detach(o);
+    this.scriptOwners.clear();
+    this.syncScripts(false);
     this.logic.fire({ type: 'event.onStart' });
+    this.mapEvent('Enter', this.world.doc.name, '');
   }
 
   /** P26: a new game that keeps what Project › Progress › New game plus says (items, chosen variables) */
   newGamePlus() {
     const ng = this.progress.doc.newGamePlus;
-    const items = ng.keepItems ? new Map(this.inventory) : new Map<string, number>();
-    const vars = new Map(ng.keepVars.map((k) => [k, this.logic.vars.get(k)] as const));
+    // Milestone 3b (B7a-3): the game's rules may keep more, or less, than Project › Progress says
+    const asks = this.logic.has('event.onKeepOnNewGamePlus');
+    const keep = (kind: 'item' | 'var', name: string, base: boolean) =>
+      asks ? this.askHook('gamemode', 'keepOnNewGamePlus', { kind, name }, base) : base;
+    const items = new Map([...this.inventory].filter(([k]) => keep('item', k, ng.keepItems)));
+    const names = asks ? [...this.logic.vars.keys()] : ng.keepVars;
+    const vars = new Map(
+      names.filter((k) => keep('var', k, ng.keepVars.includes(k))).map((k) => [k, this.logic.vars.get(k)] as const),
+    );
     this.newGame();
     for (const [k, v] of items) this.inventory.set(k, v);
     for (const [k, v] of vars) if (v !== undefined) this.logic.vars.set(k, v);
@@ -2865,8 +5664,8 @@ export class PlaySession {
   stepCheckpoints() {
     if (this.cine.active || this.over) return;
     const s = this.heroState;
-    for (const i of this.world.instances) {
-      if (!i.def.checkpoint) continue;
+    // Milestone 2b: the map's checkpoints only (a short list), not every object
+    for (const i of this.objs().checkpoints) {
       const c = this.instanceCenter(i);
       if (!c || Math.hypot(c[0] - s.x, c[2] - s.z) > 2.6 || Math.abs(c[1] - s.y) > 4) continue;
       const cp = this.checkpoint;
@@ -2874,9 +5673,8 @@ export class PlaySession {
       if (here) continue;
       this.checkpoint = { map: this.world.mapId, spawn: null, pos: [s.x, s.y, s.z], heading: s.heading };
       // its last state means “touched” (a flag up); every other checkpoint here goes back to its first state
-      for (const o of this.world.instances)
-        if (o.def.checkpoint && o !== i && o.state !== o.def.initialState)
-          this.setInstanceState(o.inst.id, o.def.initialState);
+      for (const o of this.objs().checkpoints)
+        if (o !== i && o.state !== o.def.initialState) this.setInstanceState(o.inst.id, o.def.initialState);
       const up = i.def.states[i.def.states.length - 1]!;
       if (i.state !== up) this.setInstanceState(i.inst.id, up);
       this.emit('info', `Checkpoint: ${i.inst.name ?? i.def.name}`);
@@ -2932,6 +5730,9 @@ export class PlaySession {
       this.cine.skip();
       return;
     }
+    // Milestone 3b (B7a-1): Esc closes the pause map
+    if (this.mapOpen) return this.openMap(false);
+    if (this.questsOpen) return this.openQuests(false);
     // P22: Esc ends a conversation
     if (this.talks.active) return this.endTalk();
     const top = this.screens.top();
@@ -2945,21 +5746,31 @@ export class PlaySession {
 
   /** values for {bindings} in screens and world UI */
   lookup = (name: string): unknown => {
+    // step 11b part 1: {action}, {action.key}, {slot1}, {slot1.count}, {button.attack}…
+    const fromButtons = this.buttons.lookup(name);
+    if (fromButtons !== undefined) return fromButtons;
     switch (name) {
       case 'hero.gear':
-        return `${String(this.hero.held ?? 'hands')}${hasShield(this.hero) ? ' + Shield' : ''}`;
+        return `${String(this.hero.heldLook ?? this.hero.held ?? 'hands')}${hasShield(this.hero) ? ' + Shield' : ''}`;
       case 'hero.name':
         return String(this.hero.name ?? 'Hero');
       case 'map.name':
         return this.world.doc.name;
       case 'game.name':
         return this.project.name;
-      case 'prompt':
+      case 'prompt': {
         if (this.talking || this.talks.active) return '';
-        if (this.prompt) return `E · ${this.prompt.label}`;
-        if (this.signPrompt) return 'E · Read';
-        // P9c: standing where a smashed thing can be rebuilt
-        return this.nearestBroken() ? 'Hold E · Rebuild' : '';
+        // step 12a: holding a block: which way pushes and which pulls, with the keys
+        const g = this.puzzles.grabView();
+        if (g?.o.def.mirror) {
+          const p = this.grabPrompt(g.dx, g.dz, false).split(' ');
+          return `${p[0]} ${p[1]} push it round`;
+        }
+        if (g) return this.grabPrompt(g.dx, g.dz, g.pull);
+        // step 11b: the Action button's key and what it does here (not a plain jump: the HUD shows that anyway)
+        const now = this.buttons.now;
+        return now && now.kind !== 'jump' ? this.buttons.prompt() : '';
+      }
       case 'message':
         return this.clock < this.messageUntil ? this.message : '';
       case 'dialogue.speaker':
@@ -2968,11 +5779,27 @@ export class PlaySession {
         return this.talks.view?.text ?? this.dialogue?.text ?? '';
       case 'inventory':
         return this.inventory;
+      // step 12a: this dungeon's small keys, and a line with its keys, boss key, map and compass
+      case 'keys':
+        return this.puzzles.count('Small key') ?? 0;
+      case 'dungeon':
+        return this.puzzles.hudLine();
       case 'time':
         return Math.floor(this.clock);
     }
-    if (name.startsWith('inventory.')) return this.inventory.get(name.slice(10)) ?? 0;
+    if (name.startsWith('inventory.')) return this.itemCount(name.slice(10));
     if (name.startsWith('save.')) return this.saveValue(name);
+    // Milestone 3b (B7a-2): quests.any (a quest has begun), quest.tracked (its name), quest.step (what to do now)
+    if (name === 'quests.any') return this.quests.begun().length > 0;
+    if (name === 'quest.tracked') return this.quests.trackedQuest()?.name ?? '';
+    if (name === 'quest.step' || name === 'quest.line') {
+      const d = this.quests.trackedQuest();
+      const st = d ? (this.quests.stepOf(d)?.name ?? '') : '';
+      if (name !== 'quest.line' || !st) return st;
+      // v141: a goal on another map says which
+      const g = this.goalOfQuest(d!);
+      return g && !g.here && g.mapName ? `◆ ${st} — in ${g.mapName}` : `◆ ${st}`;
+    }
     if (/^(progress|achievements|collections|collection|bests|best|settings)\./.test(name))
       return this.progress.value(name);
     return this.logic.vars.get(name);
@@ -2980,6 +5807,11 @@ export class PlaySession {
 
   /** Stop: silence everything this session started. */
   dispose() {
+    // Milestone 2b: the physics worlds' memory goes back
+    for (const w of this.worlds.values()) {
+      w.physics?.free();
+      w.physics = null;
+    }
     // the editor's own sounds go back to full volume
     this.audio.playerVolume?.(1, 1);
     this.emitterSystem.reset(this.audio);
@@ -3007,11 +5839,11 @@ export class PlaySession {
   resolveEntity(ref: string | null | undefined): PlayInstance | null {
     if (!ref) return null;
     const w = this.world;
-    const exact = w.instances.find((i) => i.inst.id === ref);
+    const exact = this.objs(w).byId(ref);
     if (exact) return exact;
     const low = ref.trim().toLowerCase();
     // P9c: a copy's own name (“Gate switch”)
-    const named = w.instances.find((i) => i.inst.name?.toLowerCase() === low);
+    const named = this.objs(w).byName(low);
     if (named) return named;
     const h = this.heroState;
     let best: PlayInstance | null = null;
@@ -3082,6 +5914,8 @@ export class PlaySession {
     pos: [number, number, number],
     rot: number,
     as?: { id: string; idBase: number },
+    /** step 13a: a thing made in play where no brick holds it (an ice floe on water): not checked */
+    opts: { unchecked?: boolean } = {},
   ): string | null {
     const w = this.world;
     const idBase =
@@ -3105,7 +5939,8 @@ export class PlaySession {
     const added = exp.bricks.map((b) => brickToPiece(b, true));
     const pieces = [...w.pieces, ...added];
     // a floating item (every brick in a moving part) is drawn only: it does not have to fit
-    const check = floating(def) ? { ok: true as const, reason: '' } : this.layoutCheck(w, pieces, added);
+    const check =
+      floating(def) || opts.unchecked ? { ok: true as const, reason: '' } : this.layoutCheck(w, pieces, added);
     if (!check.ok) {
       this.emit('info', `Spawn ${def.name}: ${check.reason}`);
       return null;
@@ -3119,21 +5954,1342 @@ export class PlaySession {
   }
 
   /** world.despawn: removes a placed asset for this play (refused if others stand on it). */
-  despawn(target: string) {
+  /** step 12a: the puzzle parts' view of the game */
+  private makePuzzles(): Puzzles<PlayInstance> {
+    // the host's getters read the session's state (a getter has its own this)
+    const self = this;
+    const p = new Puzzles<PlayInstance>({
+      ask: (o, hook, payload, base) => self.askHook(o.inst.id, hook, payload, base),
+      askHero: (hook, payload, base) => self.askHook('hero', hook, payload, base),
+      get heroState() {
+        return self.heroState;
+      },
+      get clock() {
+        return self.clock;
+      },
+      mapId: () => this.world.mapId,
+      dungeon: () => !!this.world.doc.dungeon,
+      near: (x, z, r) => this.objs().near(x, z, r),
+      pieces: () => this.world.pieces,
+      moveWish: () => {
+        const v = this.inputVector();
+        if (!v.x && !v.z) return { x: 0, z: 0 };
+        const l = Math.min(1, Math.hypot(v.x, v.z)) / (Math.hypot(v.x, v.z) || 1);
+        const yaw = this.camYaw;
+        return {
+          x: (Math.cos(yaw) * v.x - Math.sin(yaw) * v.z) * l,
+          z: (-Math.sin(yaw) * v.x - Math.cos(yaw) * v.z) * l,
+        };
+      },
+      free: () => !this.talking && !this.talks.active && !this.over && !this.cine.active && !this.heroState.building,
+      someoneAt: (x0, z0, x1, z1, y0, y1) =>
+        this.world.npcs.some(
+          (n) =>
+            n.state.x > x0 - 0.4 &&
+            n.state.x < x1 + 0.4 &&
+            n.state.z > z0 - 0.4 &&
+            n.state.z < z1 + 0.4 &&
+            n.state.y < y1 &&
+            n.state.y + 3 > y0,
+        ),
+      setState: (o, state) => this.setInstanceState(o.inst.id, state, true),
+      moveTo: (o, pos) => this.moveInstance(o, pos),
+      placeHero: (x, z) => {
+        const s = this.heroState;
+        s.x = x;
+        s.z = z;
+      },
+      heroFits: (x, z) => {
+        const s = this.heroState;
+        return this.world.controller.clear(x, s.y, z);
+      },
+      heroClear: (x, y, z) => this.world.controller.clear(x, y, z),
+      climbAnything: () => this.climbingChoice === 'anything',
+      windPush: (o, vel) => {
+        if (!this.wind.fields.length) return [0, 0];
+        const b = boxOf(o.bricks);
+        if (!b) return [0, 0];
+        const h = (b.y1 - b.y0) * 0.4;
+        const wind = this.wind.at((b.x0 + b.x1) / 2, b.y0 * 0.4 + h / 2, (b.z0 + b.z1) / 2);
+        if (!wind[0] && !wind[1]) return [0, 0];
+        // a block of ice (0.9 as dense as water): the face it shows the wind against its mass
+        const cdA = 1.05 * Math.max(b.x1 - b.x0, b.z1 - b.z0) * h;
+        const m = 0.9 * (b.x1 - b.x0) * (b.z1 - b.z0) * h;
+        return dragAccel(wind, vel ?? [0, 0], cdA / Math.max(1e-3, m));
+      },
+      moveKeys: () => {
+        const v = this.inputVector();
+        return { x: v.x, z: v.z };
+      },
+      stamina: () => (this.god ? MAX_STAMINA : this.combat.stamina),
+      spendStamina: (n) => {
+        if (!this.god) this.combat.spend(n);
+      },
+      weighing: () => {
+        const w = this.world;
+        const out: ReturnType<NonNullable<PuzzleHost['weighing']>> = [];
+        for (const n of w.npcs) {
+          const st = n.state;
+          out.push({
+            kind: 'npc',
+            x0: st.x - 0.3,
+            x1: st.x + 0.3,
+            z0: st.z - 0.3,
+            z1: st.z + 0.3,
+            y0: st.y / 0.4,
+            weight: 1,
+          });
+        }
+        // step 12c-2: a rock, a pot or a bomb lying (thrown or put down) weighs on a floor switch
+        for (const b of this.fireLight.bombs) {
+          if (b === this.fireLight.held) continue;
+          const r = b.thing?.r ?? BOMB_R;
+          out.push({
+            kind: 'loose',
+            x0: b.x - r * 0.7,
+            x1: b.x + r * 0.7,
+            z0: b.z - r * 0.7,
+            z1: b.z + r * 0.7,
+            y0: b.y / 0.4,
+            weight: b.thing?.weight ?? 1,
+          });
+        }
+        // loose things where the physics engine has them now (moved from where they were placed)
+        const ph = w.physics;
+        if (ph)
+          for (const o of w.looseObjects) {
+            const pose = ph.objectPose(o.inst.inst.id);
+            const b = boxOf(o.inst.bricks);
+            if (!pose || !b) continue;
+            const dx = pose.pos[0] - o.origin[0];
+            const dy = (pose.pos[1] - o.origin[1]) / 0.4;
+            const dz = pose.pos[2] - o.origin[2];
+            out.push({
+              kind: 'loose',
+              x0: b.x0 + dx,
+              x1: b.x1 + dx,
+              z0: b.z0 + dz,
+              z1: b.z1 + dz,
+              y0: b.y0 + dy,
+              weight: Math.max(1, Math.min(3, Math.round(o.inst.bricks.length / 8))),
+            });
+          }
+        return out;
+      },
+      placeHeroAt: (x, y, z) => {
+        const s = this.heroState;
+        Object.assign(s, { x, y, z, vy: 0, grounded: true });
+      },
+      // a pickup taken stays gone (saves remember)
+      remove: (o) => this.despawn(o.inst.id, true),
+      give: (item, n) => {
+        // step 12b: a pickup taken off the floor: the hero bends down for it
+        if (n > 0) this.pickUpMove();
+        this.give(item, n);
+      },
+      say: (t, sec) => this.say(t, sec),
+      sound: (id, at) => this.audio.play(SND[id], at ? { pos: at } : {}),
+      fire: (event, o, extra) => {
+        const asset = o.def.id;
+        if (event === 'switch')
+          this.logic.fire({
+            type: 'event.onSwitch',
+            match: { asset, to: extra.on ? 'on' : 'off' },
+            payload: { target: o.inst.id, on: extra.on },
+            self: o.inst.id,
+          });
+        else if (event === 'pushed')
+          this.logic.fire({
+            type: 'event.onPushed',
+            match: { asset },
+            payload: { target: o.inst.id },
+            self: o.inst.id,
+          });
+        else if (event === 'unlocked')
+          this.logic.fire({
+            type: 'event.onUnlocked',
+            match: { asset },
+            payload: { target: o.inst.id, key: extra.key },
+            self: o.inst.id,
+          });
+        else
+          this.logic.fire({
+            type: 'event.onPickedUp',
+            match: { item: String(extra.item) },
+            payload: { item: extra.item, count: extra.count },
+          });
+      },
+      log: (t) => this.emit('info', t),
+    });
+    p.itemCount = (item) => this.inventory.get(this.itemKey(item)) ?? 0;
+    p.takeItem = (item, n) => this.takeItem(item, n);
+    return p;
+  }
+
+  private makeFireLight(): FireLight<PlayInstance> {
+    const self = this;
+    return new FireLight<PlayInstance>({
+      ask: (o, hook, payload, base) => self.askHook(o.inst.id, hook, payload, base),
+      get heroState() {
+        return self.heroState;
+      },
+      get clock() {
+        return self.clock;
+      },
+      near: (x, z, r) => this.objs().near(x, z, r),
+      pieces: () => this.world.pieces,
+      objectOfPiece: (id) => this.instanceOfPiece(id) ?? undefined,
+      remove: (o) => this.despawn(o.inst.id, true),
+      flames: (at, scale, effect) => {
+        const h = this.playEffect(effect || FX.fire, at, scale ? { scale } : {});
+        return h ? { stop: () => this.effects.stop(h), move: (p) => this.effects.move(h, p) } : null;
+      },
+      // the stick is gone (burned down, burned up with what it lit, or broken): one Branch fewer, the hand empty
+      branchBurnedUp: (why) => {
+        this.takeItem('Branch', 1);
+        this.putAwayStick();
+        const h = this.heroState;
+        if (why === 'broke') {
+          this.hitEffect('blunt', [h.x + Math.sin(h.heading) * 1.4, h.y + 2, h.z + Math.cos(h.heading) * 1.4]);
+          this.say('The stick broke.', 2);
+        } else this.say(why === 'used' ? 'The stick burned up with it.' : 'The stick burned away.', 2);
+      },
+      stickOut: () => this.stickOut,
+      stickTip: () => this.stickTip(),
+      // a burning stick touched to a fire switch that is not lit yet (a torch stand) lights it
+      touchFire: (at) => this.flameSwitches(at[0], at[2], 1.0, true),
+      sound: (id, at) => this.audio.play(SND[id], at ? { pos: at } : {}),
+      blast: (at, r) => this.blastAt(at, r),
+      floor: (x, z, y) => this.world.controller.floor(x, z, y),
+      heroHeight: () => HERO_HEIGHT * this.L.GamePhysics.scaleOf(this.heroState),
+      beamBlock: (from, dir, max) => {
+        let best: number | null = null;
+        const ph = this.world.physics;
+        // loose things (crates, debris, bombs) the physics engine moves
+        if (ph) {
+          // start a little out, so a thing the beam leaves does not stop it
+          const t = ph.raycastMoving(
+            [from[0] + dir[0] * 0.05, from[1], from[2] + dir[1] * 0.05],
+            [dir[0], 0, dir[1]],
+            max,
+          );
+          if (t !== null) best = t + 0.05;
+        }
+        // people: the hero, neighbours and enemies (a body about a stud and a half across, as tall as they are)
+        const body = (x: number, y: number, z: number, r: number, h: number) => {
+          if (from[1] < y - 0.1 || from[1] > y + h) return;
+          const along = (x - from[0]) * dir[0] + (z - from[2]) * dir[1];
+          const side = Math.abs((x - from[0]) * dir[1] - (z - from[2]) * dir[0]);
+          if (along <= 0 || side > r) return;
+          const t = along - Math.sqrt(r * r - side * side);
+          if (t < (best ?? max)) best = Math.max(0, t);
+        };
+        const k = this.L.GamePhysics.scaleOf(this.heroState);
+        body(this.heroState.x, this.heroState.y, this.heroState.z, 0.75 * k, HERO_HEIGHT * k);
+        for (const n of this.world.npcs) body(n.state.x, n.state.y, n.state.z, 0.75, HERO_HEIGHT);
+        return best !== null && best < max ? best : null;
+      },
+      // a thrown or put-down bomb rolls, bounces and comes to rest in the physics engine (when it is running)
+      ball: (b, on) => {
+        const ph = this.world.physics;
+        if (!ph) return false;
+        // step 12c-2: a rock or pot is its own bricks: a body of their boxes that tumbles as it flies and lands
+        const t = b.thing;
+        if (t?.pieces && t.origin && t.half) {
+          if (!on) {
+            if (t.key) ph.removeObject(t.key);
+            t.key = undefined;
+            return true;
+          }
+          t.key ??= `thing:${++this.thingCount}`;
+          const G = this.L.GamePhysics;
+          const [cx, cy, cz] = t.origin;
+          // where it is now: its bottom at b, its middle half its height above
+          const dx = b.x - cx;
+          const dy = b.y + t.half[1] - cy;
+          const dz = b.z - cz;
+          const boxes = (t.pieces as LegacyPiece[]).map((p) => {
+            const q = G.bounds(p);
+            return { x0: q.x0 + dx, x1: q.x1 + dx, y0: q.y0 + dy, y1: q.y1 + dy, z0: q.z0 + dz, z1: q.z1 + dz };
+          });
+          // a rock is stone (about 2.6 times as dense as water), a clay pot thin-walled and hollow (about 0.9)
+          ph.addObject(t.key, boxes, t.look === 'pot' ? 0.9 : 2.6);
+          // thrown, it turns over forward as it flies (the hands let go of its back edge last)
+          const h = this.heroState;
+          const spin = Math.hypot(b.vx, b.vz) > 1 ? 4 : 0;
+          ph.setObjectVelocity(t.key, [b.vx, b.vy, b.vz], [Math.cos(h.heading) * spin, 0, -Math.sin(h.heading) * spin]);
+          return true;
+        }
+        if (on) ph.addBall(b, b.thing?.r ?? BOMB_R, b.thing ? (b.thing.look === 'pot' ? 1.2 : 2.6) : 3);
+        else ph.removeBall(b);
+        return true;
+      },
+      solidAt: (x, y, z) => {
+        const c = this.world.controller as unknown as {
+          nearby?(
+            x: number,
+            z: number,
+          ): { b: { x0: number; x1: number; z0: number; z1: number; y0: number; y1: number } }[];
+        };
+        return (c.nearby?.(x, z) ?? []).some(
+          ({ b }) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && y >= b.y0 && y < b.y1,
+        );
+      },
+      setState: (o, st) => this.setInstanceState(o.inst.id, st, true),
+      // step 12c-2: a rock or pot lifted leaves its place (it comes back next play), its bricks carried with it
+      takeUp: (o, b) => {
+        const w = this.world;
+        const lo = o.inst.idBase;
+        const hi = lo + o.def.bricks.length;
+        const pieces = w.pieces.filter((p) => p.id !== undefined && p.id >= lo && p.id < hi).map((p) => ({ ...p }));
+        const G = this.L.GamePhysics;
+        const box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, z0: Infinity, z1: -Infinity };
+        for (const p of pieces) {
+          const q = G.bounds(p);
+          box.x0 = Math.min(box.x0, q.x0);
+          box.x1 = Math.max(box.x1, q.x1);
+          box.y0 = Math.min(box.y0, q.y0);
+          box.y1 = Math.max(box.y1, q.y1);
+          box.z0 = Math.min(box.z0, q.z0);
+          box.z1 = Math.max(box.z1, q.z1);
+        }
+        if (b.thing && pieces.length) {
+          b.thing.pieces = pieces;
+          b.thing.origin = [(box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2, (box.z0 + box.z1) / 2];
+          b.thing.half = [(box.x1 - box.x0) / 2, (box.y1 - box.y0) / 2, (box.z1 - box.z0) / 2];
+          b.thing.r = Math.max(b.thing.half[0], b.thing.half[2]);
+        }
+        this.despawn(o.inst.id);
+      },
+      thingPose: (b) => {
+        const ph = this.world.physics;
+        const key = b.thing?.key;
+        if (!ph || !key) return null;
+        const p = ph.objectPose(key);
+        const v = ph.objectVelocity(key);
+        return p && v ? { pos: p.pos, rot: p.rot, vel: v } : null;
+      },
+      strike: (b, at, speed) => this.thrownStrike(b, at, speed),
+      shatter: (b) => {
+        const at: [number, number, number] = [b.x, b.y + 0.4, b.z];
+        this.playEffect(FX.splinters, at);
+        this.audio.play(SND.shatter, { pos: at });
+        for (const l of b.thing?.loot ?? []) if (Math.random() < l.chance) this.drop(l as never, { at });
+      },
+      lightSensor: (o, lit) => this.puzzles.light(o, lit),
+      burned: (o) =>
+        this.logic.fire({
+          type: 'event.onBurned',
+          match: { asset: o.def.id },
+          payload: { target: o.inst.id },
+          self: o.inst.id,
+        }),
+      log: (t) => this.emit('info', t),
+    });
+  }
+
+  /**
+   * Step 12b: a bomb's blast. Neighbours and enemies in it are hurt and thrown back, things with health take
+   * explosive damage (a cracked wall breaks), switches that answer explosions flip, and the hero, if too close,
+   * loses a heart. Plain bricks are not broken.
+   */
+  blastAt(at: [number, number, number], r: number): number {
+    let hit = 0;
+    this.hitEffect('explosive', at);
+    const attack = { power: 3, type: 'explosive' as const };
+    for (const n of [...this.world.npcs])
+      if (Math.hypot(n.state.x - at[0], n.state.z - at[2]) <= r + 0.6 && this.canHarm(n))
+        this.hitNpc(n, attack, { knock: 6, stun: 0.6 });
+    for (const i of this.objs().near(at[0], at[2], r + 26)) {
+      const sw = i.def.switch?.by === 'hit';
+      if (!i.def.health && !sw) continue;
+      const b = boxOf(i.bricks);
+      if (!b) continue;
+      const dx = Math.max(b.x0 - at[0], 0, at[0] - b.x1);
+      const dz = Math.max(b.z0 - at[2], 0, at[2] - b.z1);
+      if (Math.hypot(dx, dz) > r) continue;
+      if (sw) this.puzzles.hit(i, 'explosive', true);
+      else this.hitInstance(i, attack);
+      hit++;
+    }
+    const h = this.heroState;
+    if (Math.hypot(h.x - at[0], h.z - at[2]) <= r - 0.8 && Math.abs(h.y - at[1]) < 3) {
+      this.hurt(1);
+      this.say('Too close to the blast!', 1.5);
+    }
+    return hit;
+  }
+
+  /**
+   * Step 12b: the built-in tools. A Bomb is put down in front of the hero, lit (one fewer); a Torch waves a flame
+   * in front: burnable things catch, torches and other fire switches light, and what fire hurts is hurt.
+   * (true: it was a tool)
+   */
+  private useTool(item: string): boolean {
+    const name = item.trim().toLowerCase();
+    const h = this.heroState;
+    const fx = Math.sin(h.heading);
+    const fz = Math.cos(h.heading);
+    if (name === 'bomb' || name === 'bombs') {
+      // holding one up: throw it; else a lit one in reach is picked up; else a new one comes out of the bag, lit
+      const fl = this.fireLight;
+      if (fl.busy) return true;
+      if (fl.held) {
+        this.releaseBomb();
+        return true;
+      }
+      this.putAwayStick();
+      if (this.pickUpBomb()) return true;
+      this.takeItem(item, 1);
+      fl.lift();
+      this.bombHint();
+      return true;
+    }
+    // step 13c: the hover boots go on (or come off); the Lens of Truth goes up to the eye (or down)
+    if (name === 'hover boots') {
+      this.wearBoots(!this.boots.worn);
+      this.say(
+        this.boots.worn
+          ? 'Hover boots on! Walk off an edge (a jump does not float): they hold you level in the air for a moment, and you sail on with the speed you had.'
+          : 'Hover boots off.',
+        this.boots.worn ? 3.2 : 1.2,
+      );
+      return true;
+    }
+    if (name === 'lens of truth') {
+      if (this.fireLight.held || this.fireLight.busy) return true;
+      this.toggleLens();
+      if (this.lens.on)
+        this.say(
+          this.magic.on
+            ? 'The Lens of Truth! Hidden things show, and fake walls and floors look see-through. It uses magic while it is up.'
+            : 'The Lens of Truth! Hidden things show, and fake walls and floors look see-through.',
+          3,
+        );
+      return true;
+    }
+    // step 12b: a branch is a stick: its button takes it out (shown in the hand) or puts it away; out, Attack swings
+    // it, and held into a fire it catches by itself
+    if (name === 'branch') {
+      if (this.fireLight.held || this.fireLight.busy) return true;
+      if (this.stickOut) {
+        this.putAwayStick();
+        this.say('Stick put away.', 1.2);
+      } else if (this.takeOutStick()) this.stickHint();
+      return true;
+    }
+    // step 12c-2: the Gust leaf is taken out (held in the hand) or put away; out, Attack swings it: a gust
+    if (name === 'gust leaf') {
+      if (this.fireLight.held || this.fireLight.busy) return true;
+      if (this.leafOut) {
+        this.putAwayLeaf();
+        this.say('Gust leaf put away.', 1.2);
+      } else {
+        this.putAwayStick();
+        this.leafOut = true;
+        this.heldBefore = String(this.hero.held ?? 'None');
+        this.hero = { ...this.hero, held: 'Sword', heldLook: 'Leaf' };
+        const k = this.buttons.keyOf('attack').toUpperCase();
+        this.say(`A Gust leaf! ${k} swings it: a gust of wind blows ahead.`, 2.5);
+      }
+      return true;
+    }
+    // step 13a: the bow (its button takes it out with plain arrows; Fire arrows and Ice arrows take it out with
+    // theirs), the slingshot: out in the left hand, or put away; out, Attack held draws it and let go shoots
+    if (name === 'bow' || name === 'fire arrows' || name === 'ice arrows' || name === 'slingshot') {
+      if (this.fireLight.held || this.fireLight.busy) return true;
+      const w: Weapon = name === 'slingshot' ? 'sling' : 'bow';
+      const el: ArrowElement = name === 'fire arrows' ? 'fire' : name === 'ice arrows' ? 'ice' : 'plain';
+      if (w === 'bow' && (this.inventory.get(this.itemKey('Bow')) ?? 0) <= 0) {
+        this.say(`${item} need a bow to shoot them.`, 2);
+        return true;
+      }
+      if (this.shots.out === w && (w === 'sling' || this.shots.arrow === el)) {
+        this.putAwayWeapon();
+        this.say(`${w === 'bow' ? 'Bow' : 'Slingshot'} put away.`, 1.2);
+        return true;
+      }
+      this.takeOutWeapon(w, el);
+      const k = this.buttons.keyOf('attack').toUpperCase();
+      const what =
+        w === 'sling' ? 'The slingshot' : el === 'plain' ? 'The bow' : el === 'fire' ? 'Fire arrows' : 'Ice arrows';
+      this.say(`${what}! Hold ${k} to draw (the move keys aim), let go to shoot.`, 2.6);
+      return true;
+    }
+    // step 13b: the hook line, the grapple rope and the magnet glove: out in the right hand, or put away
+    if (name === 'hook line' || name === 'grapple rope' || name === 'magnet glove') {
+      if (this.fireLight.held || this.fireLight.busy) return true;
+      this.takeOutGear(name === 'hook line' ? 'hook' : name === 'grapple rope' ? 'rope' : 'magnet');
+      return true;
+    }
+    // step 13a: a stun nut is thrown at once (its flash stuns foes near where it bursts)
+    if (name === 'stun nut' || name === 'stun nuts') {
+      if (this.fireLight.held || this.fireLight.busy || this.shots.aiming) return true;
+      this.takeItem(item, 1);
+      this.shots.throwNut();
+      return true;
+    }
+    // step 13a: the boomerang is thrown at once (and comes back to the hand)
+    if (name === 'boomerang' || name === 'whirl boomerang') {
+      if (this.fireLight.held || this.fireLight.busy || this.shots.aiming) return true;
+      if (this.shots.boomer) {
+        this.say('It is still flying.', 1);
+        return true;
+      }
+      this.shots.throwBoomerang(name === 'whirl boomerang');
+      return true;
+    }
+    if (name === 'torch') {
+      const x = h.x + fx * 1.4;
+      const z = h.z + fz * 1.4;
+      this.hitEffect('fire', [x, h.y + 1.6, z]);
+      this.audio.play(SND.ignite, { pos: [x, h.y + 1, z] });
+      this.flame(x, z, h.y + 1, 1.4);
+      return true;
+    }
+    return false;
+  }
+
+  /** step 12b: what a stick does */
+  private stickHint() {
+    const k = this.buttons.keyOf('attack').toUpperCase();
+    this.say(
+      `A stick! ${k} swings it (it breaks on hard things). Hold it into a fire to light it: it burns ${BRANCH_SECONDS} seconds.`,
+      3,
+    );
+  }
+
+  /** step 12b: how to get rid of a lit bomb held up */
+  private bombHint() {
+    const k = this.buttons.keyOf('action').toUpperCase();
+    this.say(`A lit bomb! Walking, ${k} throws it; standing still, ${k} puts it down.`, 2.5);
+  }
+
+  /** step 12b: the hero is walking (a move key held): Action throws a held bomb then, else it puts it down */
+  private walking(): boolean {
+    const v = this.inputVector();
+    return Math.hypot(v.x, v.z) > 0.2;
+  }
+
+  /** step 12b: a held bomb thrown (walking) or put down (standing still) */
+  private releaseBomb() {
+    if (this.walking()) this.fireLight.throwHeld();
+    else this.fireLight.dropHeld();
+  }
+
+  /** step 12b: a lit bomb lying in reach, or a bomb plant's bomb, up over the hero's head (true: one was) */
+  private pickUpBomb(): boolean {
+    const fl = this.fireLight;
+    if (fl.held || fl.busy) return false;
+    // one thing in the hands at a time: the stick is put away for a bomb
+    const b = fl.bombAhead();
+    if (b) {
+      this.putAwayStick();
+      return fl.lift(b);
+    }
+    const p = fl.plantAhead();
+    if (p) {
+      this.putAwayStick();
+      fl.pick(p);
+      this.bombHint();
+      return true;
+    }
+    // step 12c-2: a rock or a pot to lift
+    const t = fl.thingAhead();
+    if (t) {
+      this.putAwayStick();
+      fl.liftThing(t);
+      const k = this.buttons.keyOf('action').toUpperCase();
+      this.say(`Walking, ${k} throws it; standing still, ${k} puts it down.`, 2.2);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * step 12c-2: a thrown rock, pot or bomb flying fast reaches a point: a switch it strikes is hit (a blunt blow:
+   * a crystal switch, a target), each once on the way; the ids it hit
+   */
+  private thrownStrike(b: Bomb, at: [number, number, number], speed: number): string[] {
+    const out: string[] = [];
+    // the thing's own box (a rock's, a pot's: half its size each way round its middle; a bomb's ball), a little
+    // grown: what it touches
+    const hx = (b.thing?.half?.[0] ?? b.thing?.r ?? BOMB_R) + 0.35;
+    const hy = (b.thing?.half?.[1] ?? b.thing?.r ?? BOMB_R) + 0.35;
+    const hz = (b.thing?.half?.[2] ?? b.thing?.r ?? BOMB_R) + 0.35;
+    const cy = b.y + (b.thing?.half?.[1] ?? b.thing?.r ?? BOMB_R);
+    for (const i of this.objs().near(at[0], at[2], 8)) {
+      if (i.def.switch?.by !== 'hit' || b.flying?.has(i.inst.id)) continue;
+      const q = boxOf(i.bricks);
+      if (!q) continue;
+      if (b.x + hx < q.x0 || b.x - hx > q.x1 || b.z + hz < q.z0 || b.z - hz > q.z1) continue;
+      if (cy + hy < q.y0 * 0.4 || cy - hy > q.y1 * 0.4) continue;
+      this.puzzles.hit(i, 'blunt', true);
+      this.hitEffect('blunt', at);
+      this.emit(
+        'info',
+        `${b.thing ? `The ${b.thing.name}` : 'The bomb'} hit ${i.def.name} (${speed.toFixed(1)} studs a second)`,
+      );
+      out.push(i.inst.id);
+    }
+    return out;
+  }
+
+  /** step 12b: fire at a point (a torch's flame, a fire hit): burnables catch, fire switches light, foes burn */
+  private flame(x: number, z: number, y: number, r: number) {
+    this.fireLight.flameAt(x, z, y, r, 'a flame');
+    this.flameSwitches(x, z, r);
+    const npc = this.npcInReach(r + 0.6);
+    if (npc) this.hitNpc(npc, { power: 1, type: 'fire' }, { knock: 2, stun: 0.3 });
+  }
+
+  /** fire switches (a torch stand) within r of a point light */
+  private flameSwitches(x: number, z: number, r: number, unlitOnly = false) {
+    for (const i of this.objs().near(x, z, r + 8)) {
+      if (i.def.switch?.by !== 'hit') continue;
+      if (unlitOnly && (this.puzzles.isOn(i) || !switchHitBy(i.def.switch, 'fire'))) continue;
+      const b = boxOf(i.bricks);
+      if (!b) continue;
+      const dx = Math.max(b.x0 - x, 0, x - b.x1);
+      const dz = Math.max(b.z0 - z, 0, z - b.z1);
+      if (Math.hypot(dx, dz) <= r) this.puzzles.hit(i, 'fire', true);
+    }
+  }
+
+  // ---------- Milestone 3b (B7a-1): the maps ----------
+
+  /** the pause map opened or closed (it holds the game while open) */
+  openMap(on = !this.mapOpen) {
+    if (on && (this.over || this.cine.active)) return;
+    // Milestone 3b (B7a-2): a behaviour extending GameMap may keep it shut
+    if (on && !this.mapOpen && !this.askHook('gamemap', 'canOpenMap', {}, true)) {
+      this.say('The map won’t open here.', 1.5);
+      return;
+    }
+    const was = this.mapOpen;
+    if (on) this.questsOpen = false;
+    this.mapOpen = on;
+    if (was !== on) this.logic.fire({ type: on ? 'event.onMapOpen' : 'event.onMapClose' });
+    if (on) for (const sc of this.screens.screens()) if (sc.kind === 'pause') this.screens.hide(sc.id);
+    this.audio.play(SND.pickup, { volume: 0.4 } as never);
+    this.emit('info', on ? 'Map opened' : 'Map closed');
+  }
+
+  /** the game's and this map's looks for the pause map and the map in play */
+  mapLooks() {
+    const game = (this.snapshot.get(paths.settings) as { maps?: MapLooks } | undefined)?.maps;
+    const doc = this.world.doc.mapLook;
+    const o = this.lookOverride;
+    // Milestone 3b (B7a-2): what logic set while playing goes over the map's own
+    const own =
+      o.pause || o.mini
+        ? {
+            ...doc,
+            ...(o.pause ? { pause: { ...doc?.pause, type: o.pause } } : {}),
+            ...(o.mini ? { mini: { ...doc?.mini, type: o.mini } } : {}),
+          }
+        : doc;
+    const dungeon = !!this.world.doc.dungeon;
+    return { pause: pauseLookOf(game, own, dungeon), mini: miniLookOf(game, own) };
+  }
+
+  /**
+   * what the maps show of the map the hero is on: its land, where the hero has been, and its markers — chests
+   * (opened or not), keys on the ground, the boss (beaten: crossed out), locked doors, ways out, region names,
+   * people, the player's pins and where to go next
+   */
+  mapModel(): MapModel {
     const w = this.world;
-    const inst = w.instances.find((i) => i.inst.id === target);
+    const id = w.mapId;
+    const dungeon = !!w.doc.dungeon;
+    const rec = this.puzzles.dungeons.get(id);
+    const revealed = this.mapTrack.revealed(id);
+    let seen: Set<string> | null = new Set(this.mapTrack.seen(id));
+    if (revealed) seen = null;
+    // (a dungeon remembered from before maps kept their own notes)
+    else if (rec) for (const k of rec.seen) seen.add(k);
+    const markers: MapMarker[] = [];
+    for (const i of w.instances) {
+      const b = boxOf(i.bricks);
+      if (!b) continue;
+      const at = { x: (b.x0 + b.x1) / 2, z: (b.z0 + b.z1) / 2, y: b.y0 * 0.4 };
+      if (/chest/i.test(i.def.name) && i.def.states.length >= 2)
+        markers.push({ kind: 'chest', ...at, done: i.state !== i.def.states[0], label: i.def.name });
+      else if (i.def.pickup && /^(small key|boss key)$/i.test(i.def.pickup.item))
+        markers.push({ kind: /boss/i.test(i.def.pickup.item) ? 'boss-key' : 'key', ...at, label: i.def.pickup.item });
+      else if (i.def.lock && i.def.lock.key !== 'item')
+        markers.push({
+          kind: i.def.lock.key === 'boss' ? 'boss-door' : 'door',
+          ...at,
+          done: this.puzzles.isOn(i),
+          label: i.def.name,
+        });
+    }
+    for (const n of w.npcs) {
+      const at = { x: n.state.x, z: n.state.z, y: n.state.y };
+      if (this.bossOf(n)) markers.push({ kind: 'boss', ...at, label: String(n.profile.name ?? 'Boss') });
+      else markers.push({ kind: this.enemyOf(n) ? 'foe' : 'person', ...at, label: String(n.profile.name ?? '') });
+    }
+    for (const b of this.mapTrack.beaten(id))
+      markers.push({ kind: 'boss', x: b.x, z: b.z, y: b.y, done: true, label: b.name });
+    for (const zn of w.doc.zones) {
+      const mid = { x: (zn.min[0] + zn.max[0]) / 2, z: (zn.min[2] + zn.max[2]) / 2, y: zn.min[1] };
+      // a region: a zone marked to show its name on the maps
+      if (zn.tags.includes('region') && zn.tags[0] && zn.tags[0] !== 'region')
+        markers.push({ kind: 'name', ...mid, label: zn.tags[0] });
+      // a way out: a zone that takes the hero to another map
+      const out = (zn.onEnter ?? []).find((a) => a.do === 'travel') as { map?: string } | undefined;
+      if (out) {
+        const to = this.snapshot.get(paths.map(String(out.map))) as { name?: string } | undefined;
+        markers.push({ kind: 'exit', ...mid, label: to?.name ?? 'Way out' });
+      }
+    }
+    for (const p of this.mapTrack.pins(id))
+      markers.push({ kind: 'pin', x: p.x, z: p.z, y: p.y, stamp: p.stamp, label: p.label });
+    // Milestone 3b (B7a-2): where to go next (the tracked quest's goal)
+    const goal = this.questGoal();
+    if (goal) markers.push(goal);
+    const h = this.heroState;
+    // the land stays worked out while the bricks are the same
+    const tkey = `${id}:${w.pieces.length}:${w.brokenSerial}:${w.windowAt ?? ''}`;
+    if (this.mapTops.key !== tkey) this.mapTops = { key: tkey, tops: new Map() };
+    return mapModel(
+      {
+        mapId: id,
+        name: String(w.doc.name ?? 'Map'),
+        pieces: w.big ? w.controller.pieces : w.pieces,
+        dungeon,
+        seen,
+        hasMap: !!rec?.map,
+        hasCompass: !!rec?.compass,
+        markers: this.markersByMapHooks(markers),
+        hero: { x: h.x, y: h.y, z: h.z, heading: h.heading },
+      },
+      this.mapTops.tops,
+    );
+  }
+  private mapTops: { key: string; tops: Map<string, Top> } = { key: '', tops: new Map() };
+
+  /** a pin put down on the pause map (a stamp, maybe a note); false: the map holds no more */
+  pinMap(x: number, z: number, stamp: Stamp, label?: string): boolean {
+    const y = this.world.doc.dungeon ? this.heroState.y : undefined;
+    const ok = this.mapTrack.pin(this.world.mapId, {
+      x,
+      z,
+      ...(y !== undefined ? { y } : {}),
+      stamp,
+      ...(label ? { label } : {}),
+    });
+    if (!ok) this.say('The map holds no more pins.', 1.5);
+    else this.logic.fire({ type: 'event.onMapPin', payload: { x, z, stamp, label: label ?? '' } });
+    return ok;
+  }
+  /** the pin nearest a spot taken up */
+  unpinMap(x: number, z: number, r = 4) {
+    return this.mapTrack.unpin(this.world.mapId, x, z, r);
+  }
+
+  // ---------- Milestone 3b (B7b): the player's buttons, and the HUD ----------
+
+  /** the player's buttons are off (input.enable false): no presses, no moving */
+  inputOff = false;
+  /** a rumble asked for (Play shakes the gamepad, then clears it) */
+  rumble: { strength: number; seconds: number } | null = null;
+  /** the HUD style logic set while playing (hud.setStyle); undefined: the game's */
+  private hudOverride: HudStyle | '' | undefined;
+  /** the HUD style now: what logic set, else Project › Controls (""; the plain look) */
+  hudStyle(): HudStyle | '' {
+    if (this.hudOverride !== undefined) return this.hudOverride;
+    return (this.snapshot.get(paths.settings) as { controls?: Controls } | undefined)?.controls?.hud ?? '';
+  }
+  /** logic's Controls on or off, Rumble and Set HUD style */
+  inputOp(op: 'on' | 'off' | 'rumble' | 'style', strength: number, seconds: number, style: string) {
+    if (op === 'on' || op === 'off') {
+      this.inputOff = op === 'off';
+      if (this.inputOff) {
+        for (const b of [...this.buttons.down.keys()]) this.buttons.release(b);
+        this.input.keys.clear();
+        this.input.touch.clear();
+      }
+      return;
+    }
+    if (op === 'rumble') {
+      this.rumble = { strength, seconds };
+      return;
+    }
+    const k = style.trim().toLowerCase();
+    const next =
+      k === 'default' || !k ? undefined : (HUD_STYLES as readonly string[]).includes(k) ? (k as HudStyle) : null;
+    if (next === null) return this.emit('info', `Set HUD style: no style “${style}”`);
+    this.hudOverride = next;
+    this.logic.fire({ type: 'event.onHudStyle', payload: { style: this.hudStyle() } });
+  }
+
+  private hudHookCache = new Map<string, { show: boolean; text?: string }>();
+  private hudHookAt = -1;
+  /** GameHud's showWidget: does this HUD widget show now (a few times a second) */
+  hudShows(screen: string, widget: string): boolean {
+    if (!this.logic.has('event.onShowWidget')) return true;
+    return this.hudAsk(screen, widget, '').show;
+  }
+  /** GameHud's widgetText: what this text widget says (undefined: what it would) */
+  hudText(screen: string, widget: string, text: string): string | undefined {
+    if (!this.logic.has('event.onWidgetText')) return undefined;
+    return this.hudAsk(screen, widget, text).text;
+  }
+  private hudAsk(screen: string, widget: string, text: string) {
+    if (Math.abs(this.clock - this.hudHookAt) > 0.25) {
+      this.hudHookCache.clear();
+      this.hudHookAt = this.clock;
+    }
+    const k = `${screen}|${widget}|${text}`;
+    let r = this.hudHookCache.get(k);
+    if (!r) {
+      const name = (this.snapshot.get(paths.screen(screen)) as { name?: string } | undefined)?.name ?? screen;
+      r = {
+        show: this.logic.has('event.onShowWidget')
+          ? this.askHook('hud', 'showWidget', { widget, screen: name }, true)
+          : true,
+        ...(text && this.logic.has('event.onWidgetText')
+          ? { text: String(this.askHook('hud', 'widgetText', { widget, text }, text)) }
+          : {}),
+      };
+      if (this.hudHookCache.size < 300) this.hudHookCache.set(k, r);
+    }
+    return r;
+  }
+
+  // ---------- Milestone 3b (B7a-3): the game's rules, and a map's own behaviour ----------
+
+  /** a map's arrive or leave event: its own behaviour (and every script) hears it */
+  private mapEvent(kind: 'Enter' | 'Leave', map: string, other: string, now = false) {
+    this.logic.fire(
+      {
+        type: `event.onMap${kind}`,
+        match: { map },
+        payload: kind === 'Enter' ? { map, from: other } : { map, to: other },
+      },
+      now,
+    );
+  }
+  /** the foes still on this map */
+  foesLeft(): number {
+    return this.world.npcs.filter((n) => this.enemyOf(n)).length;
+  }
+  /** logic's Game over, Respawn and Set respawn point */
+  gameRule(op: 'lose' | 'respawn' | 'setRespawn', at: string) {
+    if (op === 'lose') return this.gameOver('logic');
+    if (op === 'respawn') {
+      this.over = true;
+      for (const sc of this.screens.screens()) if (sc.kind === 'gameover') this.screens.hide(sc.id);
+      return this.gameOp('retry');
+    }
+    const a = at.trim();
+    if (!a || a.toLowerCase() === 'here') return this.setCheckpoint();
+    const sp = this.spawnNamed(a);
+    if (sp) this.checkpoint = { map: sp.map, spawn: sp.id };
+    else this.emit('info', `Set respawn point: no spawn point called “${a}”`);
+  }
+  /** a spawn point by its name (this map first, then any map), or null */
+  private spawnNamed(name: string): { map: string; id: string } | null {
+    const k = name.trim().toLowerCase();
+    const here = this.world.doc.spawns.find((x) => x.name.toLowerCase() === k || x.id === name);
+    if (here) return { map: this.world.mapId, id: here.id };
+    for (const m of gameMaps(this.snapshot)) {
+      const sp = m.spawns.find((x) => x.name.toLowerCase() === k || x.id === name);
+      if (sp) return { map: m.id, id: sp.id };
+    }
+    return null;
+  }
+  /** where respawnAt sends the hero: checkpoint (as it is), start, or a spawn point's name — the checkpoint moves */
+  private respawnTo(at: unknown) {
+    const a = String(at ?? '').trim();
+    if (!a || a.toLowerCase() === 'checkpoint') return;
+    if (a.toLowerCase() === 'start') {
+      const map = this.project.entry.map;
+      const doc = this.snapshot.get(paths.map(map)) as MapDoc | undefined;
+      const sp = doc?.spawns.find((x) => x.id === this.project.entry.spawn) ?? doc?.spawns[0];
+      if (sp) this.checkpoint = { map, spawn: sp.id };
+      return;
+    }
+    const sp = this.spawnNamed(a);
+    if (sp) this.checkpoint = { map: sp.map, spawn: sp.id };
+  }
+
+  // ---------- Milestone 3b (B7a-2): quests, and the maps in logic ----------
+
+  private gameGraphCache: {
+    quests: LogicGraph[];
+    maps: LogicGraph[];
+    modes: LogicGraph[];
+    inputs: LogicGraph[];
+    huds: LogicGraph[];
+    ids: Set<string>;
+  } | null = null;
+  /** the behaviours that are in the game as written: the quests and the maps' */
+  private gameGraphs() {
+    if (!this.gameGraphCache) {
+      const quests: LogicGraph[] = [];
+      const maps: LogicGraph[] = [];
+      const modes: LogicGraph[] = [];
+      const inputs: LogicGraph[] = [];
+      const huds: LogicGraph[] = [];
+      for (const path of this.snapshot.keys()) {
+        if (!/^logic\/lg_[0-9a-z]{10}\.json$/.test(path)) continue;
+        const g = this.snapshot.get(path) as LogicGraph;
+        if (!g.behaviour) continue;
+        if (isQuestClass(g.behaviour.extends)) quests.push(g);
+        else if (isMapClass(g.behaviour.extends)) maps.push(g);
+        else if (isModeClass(g.behaviour.extends)) modes.push(g);
+        else if (isInputClass(g.behaviour.extends)) inputs.push(g);
+        else if (isHudClass(g.behaviour.extends)) huds.push(g);
+      }
+      this.gameGraphCache = { quests, maps, modes, inputs, huds, ids: new Set(quests.map((g) => g.id)) };
+    }
+    return this.gameGraphCache;
+  }
+  private makeQuests(): QuestBook {
+    return new QuestBook(
+      this.gameGraphs()
+        .quests.filter((g) => g.behaviour?.steps?.length)
+        .map((g) => ({
+          id: g.id,
+          name: g.name,
+          main: isMainQuestClass(g.behaviour!.extends),
+          steps: g.behaviour!.steps!,
+          ...(g.behaviour!.about ? { about: g.behaviour!.about } : {}),
+        })),
+    );
+  }
+
+  /** asks a quest's own class a hook (canStartQuest, stepDone, goalOf) */
+  private askQuest<V>(d: QuestDef, hook: string, payload: Record<string, unknown>, base: V): V {
+    return this.askHook(`quest:${d.id}`, hook, { ...payload, quest: d.name }, base);
+  }
+  /**
+   * a quest's event: its own class hears it (its methods are about itself), and everyone else (a neighbour, a door,
+   * a logic file, another quest's method that names it)
+   */
+  private questEvent(d: QuestDef, kind: 'Start' | 'Step' | 'Done' | 'Fail') {
+    const p = this.quests.of(d);
+    const i = Math.max(0, Math.min(p?.step ?? 0, d.steps.length - 1));
+    const payload = { quest: d.name, step: i + 1, stepName: d.steps[i]?.name ?? '' };
+    const type = `event.onQuest${kind}`;
+    const quests = this.gameGraphs().ids;
+    this.logic.fire({ type, match: { quest: d.name }, payload, self: `quest:${d.id}`, only: (g) => g === d.id });
+    this.logic.fire({
+      type,
+      match: { quest: d.name },
+      payload,
+      only: (g, a) => g !== d.id && (!quests.has(g) || !!String(a.quest ?? '').trim()),
+    });
+  }
+  private questBanner(text: string) {
+    this.say(text, 2.6);
+    this.emit('info', text);
+  }
+  /** what moving a quest did: told to its class and everyone, and on screen */
+  private questMoved(d: QuestDef, r: 'step' | 'done' | 'start' | null) {
+    if (r === 'start') {
+      this.questEvent(d, 'Start');
+      this.questBanner(`New quest: ${d.name}`);
+    } else if (r === 'step') {
+      this.questEvent(d, 'Step');
+      this.audio.play(SND.pickup, { volume: 0.5 } as never);
+      this.questBanner(`${d.name}: ${this.quests.stepOf(d)?.name ?? ''}`);
+    } else if (r === 'done') {
+      this.questEvent(d, 'Done');
+      this.audio.play(SND.keyget);
+      this.questBanner(`Quest complete: ${d.name}`);
+    }
+    this.goalCache = null;
+  }
+
+  /** logic's quest.start, advance, setStep, finish, fail, track */
+  questOp(op: 'start' | 'advance' | 'step' | 'finish' | 'fail' | 'track', ref: string, step?: number) {
+    const d = this.quests.find(ref);
+    if (!d) {
+      this.emit('info', `Quest: ${ref.trim() && ref.trim() !== 'this' ? `no quest called “${ref}”` : 'none tracked'}`);
+      return;
+    }
+    switch (op) {
+      case 'start':
+        if (this.quests.of(d) || !this.askQuest(d, 'canStartQuest', {}, true)) return;
+        if (this.quests.start(d)) this.questMoved(d, 'start');
+        return;
+      case 'advance':
+        return this.questMoved(d, this.quests.advance(d));
+      case 'step':
+        return this.questMoved(d, this.quests.setStep(d, Math.round(step ?? 1) - 1));
+      case 'finish':
+        if (this.quests.finish(d)) this.questMoved(d, 'done');
+        return;
+      case 'fail':
+        if (this.quests.fail(d)) {
+          this.questEvent(d, 'Fail');
+          this.questBanner(`Quest failed: ${d.name}`);
+          this.goalCache = null;
+        }
+        return;
+      case 'track':
+        this.quests.track(d);
+        this.goalCache = null;
+        return;
+    }
+  }
+  /** logic's quest.step, status, isActive, isDone */
+  questRead(what: 'step' | 'status' | 'isActive' | 'isDone' | 'goalMap', ref: string): number | string | boolean {
+    const d = this.quests.find(ref);
+    const p = d ? this.quests.of(d) : null;
+    switch (what) {
+      case 'goalMap':
+        return d ? (this.goalOfQuest(d)?.mapName ?? '') : '';
+      case 'step':
+        return p ? Math.min(p.step, d!.steps.length - 1) + 1 : 0;
+      case 'status':
+        return p?.status ?? '';
+      case 'isActive':
+        return p?.status === 'active';
+      case 'isDone':
+        return p?.status === 'done';
+    }
+  }
+  /** the quest log opened or closed (from the pause screen; it holds the game while open) */
+  openQuests(on = !this.questsOpen) {
+    if (on && (this.over || this.cine.active)) return;
+    this.questsOpen = on;
+    if (on) {
+      this.mapOpen = false;
+      for (const sc of this.screens.screens()) if (sc.kind === 'pause') this.screens.hide(sc.id);
+    }
+    this.audio.play(SND.pickup, { volume: 0.4 } as never);
+  }
+  /** a quest tracked from the quest log (null: none) */
+  trackQuest(name: string | null) {
+    this.quests.track(name ? this.quests.find(name) : null);
+    this.goalCache = null;
+  }
+
+  /** a zone by its name (its first tag) or id, on this map */
+  private zoneNamed(name: string) {
+    const k = name.trim().toLowerCase();
+    if (!k) return null;
+    return this.world.doc.zones.find((z) => z.id === name || (z.tags[0] ?? '').toLowerCase() === k) ?? null;
+  }
+  /** where a thing named in a quest or a map mark is: a zone, hero, an object or a character */
+  private placeOf(name: string): [number, number, number] | null {
+    const zn = this.zoneNamed(name);
+    if (zn) return [(zn.min[0] + zn.max[0]) / 2, zn.min[1], (zn.min[2] + zn.max[2]) / 2];
+    const at = this.positionOf(this.apiRef(name));
+    if (at) return at;
+    // a spawn point, by its name
+    const k = name.trim().toLowerCase();
+    const sp = this.world.doc.spawns.find((x) => x.name.toLowerCase() === k);
+    return sp ? [sp.pos[0], sp.pos[1], sp.pos[2]] : null;
+  }
+  /** the hero is at a place: inside a zone of that name, or within a few studs of the thing */
+  private heroAt(name: string): boolean {
+    const h = this.heroState;
+    const zn = this.zoneNamed(name);
+    if (zn)
+      return (
+        h.x >= zn.min[0] &&
+        h.x <= zn.max[0] + 1 &&
+        h.z >= zn.min[2] &&
+        h.z <= zn.max[2] + 1 &&
+        h.y >= zn.min[1] - 1 &&
+        h.y <= zn.max[1] + 2
+      );
+    const p = this.placeOf(name);
+    return !!p && Math.hypot(p[0] - h.x, p[2] - h.z) <= 3.5 && Math.abs(p[1] - h.y) < 4;
+  }
+
+  private questTick = 0;
+  /** a few times a second: each quest's step done by itself (or as its stepDone says), regions first seen */
+  stepQuests(dt: number) {
+    this.questTick += dt;
+    if (this.questTick < 0.25) return;
+    this.questTick = 0;
+    // Milestone 3b (B7a-3): the game's rules say when it is won
+    // (once finished, it is not asked again until a new game)
+    if (
+      !this.over &&
+      !this.quitToTitle &&
+      this.logic.has('event.onHasWon') &&
+      this.askHook('gamemode', 'hasWon', {}, false)
+    ) {
+      this.gameOp('finish');
+      return;
+    }
+    for (const d of this.quests.going()) {
+      const s = this.quests.stepOf(d);
+      const p = this.quests.of(d);
+      if (!s || !p) continue;
+      const k = doOf(s);
+      const at = (s.at ?? '').trim();
+      const need = s.count ?? 1;
+      const have = this.quests.haveOf(d, (item) => this.itemCount(item));
+      // (a step whose goal is on another map is reached only there)
+      const onMap = !s.map?.trim() || this.stepMap(s) === this.world.mapId;
+      const base = k === 'reach' ? onMap && this.heroAt(at) : k === 'script' ? false : have >= need;
+      const done = this.askQuest(
+        d,
+        'stepDone',
+        { step: p.step + 1, stepName: s.name, do: k, at, have: Math.max(0, have), count: need },
+        base,
+      );
+      if (done) this.questMoved(d, this.quests.advance(d));
+    }
+    // regions: the first time in a play the hero comes into one
+    const h = this.heroState;
+    for (const zn of this.world.doc.zones) {
+      const name = zn.tags[0];
+      if (!zn.tags.includes('region') || !name || name === 'region') continue;
+      if (this.quests.countOf('region', name) > 0) continue;
+      if (h.x < zn.min[0] || h.x > zn.max[0] + 1 || h.z < zn.min[2] || h.z > zn.max[2] + 1) continue;
+      this.quests.note('region', name);
+      this.logic.fire({ type: 'event.onRegionSeen', match: { region: name }, payload: { region: name } });
+    }
+  }
+
+  private goalCache: { at: number; mark: MapMarker | null; map: string } | null = null;
+  /** where to go next: the tracked quest's goal on this map, or the way toward it (a few times a second) */
+  private questGoal(): MapMarker | null {
+    const c = this.goalCache;
+    if (c && c.map === this.world.mapId && Math.abs(this.clock - c.at) < 0.25) return c.mark;
+    let mark: MapMarker | null = null;
+    const d = this.quests.trackedQuest();
+    const g = d ? this.goalOfQuest(d) : null;
+    const s = d ? this.quests.stepOf(d) : null;
+    if (g?.pos && s)
+      mark = {
+        kind: 'goal',
+        x: g.pos[0],
+        y: g.pos[1],
+        z: g.pos[2],
+        label: g.here ? s.name : `${s.name} → ${g.mapName}`,
+      };
+    this.goalCache = { at: this.clock, mark, map: this.world.mapId };
+    return mark;
+  }
+
+  private routeCache: { links: MapLink[]; idx: Map<string, string[]> } | null = null;
+  /** v141: how the maps link up, and which maps each named thing is on (worked out once a play) */
+  private questRoutes() {
+    this.routeCache ??= { links: mapLinks(this.snapshot), idx: placeIndex(this.snapshot) };
+    return this.routeCache;
+  }
+  /** v141: where a way out of this map is */
+  private linkSpot(l: MapLink): [number, number, number] | null {
+    if (l.at.kind === 'spawn') {
+      const id = l.at.id;
+      const sp = this.world.doc.spawns.find((x) => x.id === id);
+      return sp ? [sp.pos[0], sp.pos[1], sp.pos[2]] : null;
+    }
+    const id = l.at.id;
+    const zn = this.world.doc.zones.find((z) => z.id === id);
+    return zn ? [(zn.min[0] + zn.max[0]) / 2, zn.min[1], (zn.min[2] + zn.max[2]) / 2] : null;
+  }
+  /** v141: the map a step's goal is on, when its step names one (null: wherever it is found) */
+  private stepMap(st: { map?: string }): string | null {
+    return st.map?.trim() ? (mapNamed(this.snapshot, st.map)?.id ?? null) : null;
+  }
+
+  /**
+   * where a quest's goal is now: which map (null: nowhere known), and where to show it on this map — the goal
+   * itself, or on another map the way out that leads toward it (the fewest maps through the world graph)
+   */
+  goalOfQuest(
+    d: QuestDef,
+  ): { map: string | null; mapName: string; here: boolean; pos: [number, number, number] | null } | null {
+    const s = this.quests.stepOf(d);
+    const p = this.quests.of(d);
+    if (!s || !p) return null;
+    const name = String(
+      this.askQuest(d, 'goalOf', { step: p.step + 1, stepName: s.name, at: s.at ?? '' }, goalNameOf(s)),
+    ).trim();
+    const here = this.world.mapId;
+    const get = doOf(s) === 'get' && !!s.at && !name;
+    let target = this.stepMap(s);
+    let pos: [number, number, number] | null = null;
+    if (!target || target === here) {
+      pos = name ? this.placeOf(name) : null;
+      // a get with nowhere written: where that item lies on this map (the nearest of its pickups)
+      if (get) {
+        const k = s.at!.trim().toLowerCase();
+        let best = Infinity;
+        for (const i of this.world.instances) {
+          if (i.def.pickup?.item.toLowerCase() !== k) continue;
+          const q = this.instanceCenter(i);
+          if (!q) continue;
+          const dd = Math.hypot(q[0] - this.heroState.x, q[2] - this.heroState.z);
+          if (dd < best) {
+            best = dd;
+            pos = q;
+          }
+        }
+      }
+      if (pos) target = here;
+    }
+    // not on this map: the other maps it is on
+    if (!target) {
+      const { idx } = this.questRoutes();
+      const on = name ? mapsOfPlace(idx, name) : get ? (idx.get(`item:${s.at!.trim().toLowerCase()}`) ?? []) : [];
+      target = on.find((m) => m !== here) ?? null;
+    }
+    if (target && target !== here) {
+      const l = nextLink(this.questRoutes().links, here, target);
+      pos = l ? this.linkSpot(l) : null;
+    }
+    const doc = target ? (this.snapshot.get(paths.map(target)) as MapDoc | undefined) : undefined;
+    return { map: target, mapName: doc?.name ?? '', here: target === here, pos };
+  }
+
+  private markerHookCache = new Map<string, { show: boolean; label: string | undefined }>();
+  private markerHookAt = -1;
+  /** a behaviour extending GameMap decides which markers show, and with what names */
+  private markersByMapHooks(markers: MapMarker[]): MapMarker[] {
+    const show = this.logic.has('event.onShowMarker');
+    const named = this.logic.has('event.onMarkerLabel');
+    if (!show && !named) return markers;
+    if (Math.abs(this.clock - this.markerHookAt) > 0.5) {
+      this.markerHookCache.clear();
+      this.markerHookAt = this.clock;
+    }
+    const out: MapMarker[] = [];
+    for (const m of markers) {
+      const k = `${m.kind}|${m.label ?? ''}|${m.done ? 1 : 0}`;
+      let r = this.markerHookCache.get(k);
+      if (!r) {
+        const label = m.label ?? '';
+        r = {
+          show: show ? this.askHook('gamemap', 'showMarker', { kind: m.kind, label, done: !!m.done }, true) : true,
+          label: named ? this.askHook('gamemap', 'markerLabel', { kind: m.kind, label }, label) : m.label,
+        };
+        if (this.markerHookCache.size < 400) this.markerHookCache.set(k, r);
+      }
+      if (!r.show) continue;
+      const { label: _was, ...rest } = m;
+      out.push(r.label ? { ...rest, label: r.label } : rest);
+    }
+    return out;
+  }
+
+  /** logic's map nodes: open or close, looks, marks, shown whole */
+  mapOp(op: 'open' | 'close' | 'look' | 'mark' | 'unmark' | 'reveal' | 'hide', a = '', b = '', c = '') {
+    const id = this.world.mapId;
+    switch (op) {
+      case 'open':
+        return this.openMap(true);
+      case 'close':
+        return this.openMap(false);
+      case 'look': {
+        const set = <T extends string>(v: string, all: readonly T[], k: 'pause' | 'mini') => {
+          const t = v.trim().toLowerCase();
+          if (!t) return;
+          if (t === 'default') delete this.lookOverride[k];
+          else if ((all as readonly string[]).includes(t)) (this.lookOverride as Record<string, string>)[k] = t;
+          else this.emit('info', `Set map look: no ${k === 'pause' ? 'pause map' : 'map in play'} “${v}”`);
+        };
+        set(a, PAUSE_TYPES, 'pause');
+        set(b, MINI_TYPES, 'mini');
+        return;
+      }
+      case 'mark': {
+        const pos = this.placeOf(a.trim() || 'hero');
+        if (!pos) return this.emit('info', `Mark the map: nothing called “${a}” here`);
+        const stamp = (STAMPS as readonly string[]).includes(b.trim().toLowerCase())
+          ? (b.trim().toLowerCase() as Stamp)
+          : 'star';
+        const label = c.trim().slice(0, 40);
+        if (label) this.mapTrack.unpinLabel(id, label);
+        this.mapTrack.pin(id, {
+          x: pos[0],
+          z: pos[2],
+          ...(this.world.doc.dungeon ? { y: pos[1] } : {}),
+          stamp,
+          ...(label ? { label } : {}),
+        });
+        return;
+      }
+      case 'unmark':
+        this.mapTrack.unpinLabel(id, a.trim());
+        return;
+      case 'reveal':
+      case 'hide':
+        this.mapTrack.reveal(id, op === 'reveal');
+        return;
+    }
+  }
+
+  /**
+   * Step 12a, for the minimap: in a dungeon without its map, the cells the hero has seen (null: show it all);
+   * with its compass, the chests not yet opened and the boss.
+   */
+  minimapView(): { seen: Set<string> | null; cell: number; marks: { x: number; z: number; kind: 'chest' | 'boss' }[] } {
+    const w = this.world;
+    const r = this.puzzles.dungeons.get(w.mapId);
+    const dungeon = !!w.doc.dungeon;
+    const seen = dungeon && !r?.map ? (r?.seen ?? new Set<string>()) : null;
+    const marks: { x: number; z: number; kind: 'chest' | 'boss' }[] = [];
+    if (dungeon && r?.compass) {
+      for (const i of w.instances) {
+        if (!/chest/i.test(i.def.name) || i.def.states.length < 2 || i.state !== i.def.states[0]) continue;
+        const b = boxOf(i.bricks);
+        if (b) marks.push({ x: (b.x0 + b.x1) / 2, z: (b.z0 + b.z1) / 2, kind: 'chest' });
+      }
+      for (const n of w.npcs) if (this.bossOf(n)) marks.push({ x: n.state.x, z: n.state.z, kind: 'boss' });
+    }
+    return { seen, cell: SEEN_CELL, marks };
+  }
+
+  /**
+   * Step 12a: moves a placed object to pos (a push block sliding): its bricks, prompts and solidity follow. It
+   * is not checked against the brick rules here: the puzzle checked the way was clear.
+   */
+  moveInstance(o: PlayInstance, pos: [number, number, number]) {
+    const w = this.world;
+    const lo = o.inst.idBase;
+    const hi = lo + o.def.bricks.length;
+    const gone = w.pieces.filter((q) => q.id! >= lo && q.id! < hi);
+    const inst = { ...o.inst, pos };
+    const next = expandAsset(o.def, { ...inst, state: o.state });
+    const added = next.bricks.map((b) => brickToPiece(b, true));
+    for (const q of gone) w.dirtyChunks.add(chunkKeyOf(q));
+    for (const q of added) w.dirtyChunks.add(chunkKeyOf(q));
+    w.pieces = [...w.pieces.filter((q) => q.id! < lo || q.id! >= hi), ...added].sort((a, b) => a.id! - b.id!);
+    o.inst = inst;
+    o.bricks = next.bricks;
+    o.sockets = next.sockets;
+    delete o.box;
+    // the object index keeps centres: a new list builds it again
+    w.instances = [...w.instances];
+    w.rev++;
+    this.syncPhysics(w, { gone, added });
+  }
+
+  /** forGood: it stays gone in saves (burnt away) and nothing on it stops it going */
+  despawn(target: string, forGood = false) {
+    const w = this.world;
+    const inst = this.objs(w).byId(target);
     if (!inst) return;
     const lo = inst.inst.idBase;
     const hi = lo + inst.def.bricks.length;
     const pieces = w.pieces.filter((p) => p.id! < lo || p.id! >= hi);
-    const check = this.layoutCheck(
-      w,
-      pieces,
-      w.pieces.filter((p) => p.id! >= lo && p.id! < hi),
-    );
+    const check = forGood
+      ? { ok: true as const, reason: '' }
+      : this.layoutCheck(
+          w,
+          pieces,
+          w.pieces.filter((p) => p.id! >= lo && p.id! < hi),
+        );
     if (!check.ok) {
       this.emit('info', `Remove ${inst.def.name}: ${check.reason}`);
       return;
+    }
+    if (forGood) {
+      w.goneIds ??= [];
+      for (let id = lo; id < hi; id++) w.goneIds.push(id);
     }
     for (const p of w.pieces) if (p.id! >= lo && p.id! < hi) w.dirtyChunks.add(chunkKeyOf(p));
     w.pieces = pieces;
@@ -3174,23 +7330,69 @@ export class PlaySession {
   stepAnim(dt: number) {
     const s = this.heroState;
     const sm = this.heroStates;
+    this.stepOwnPhase(dt);
     if (s.building) {
       sm.stop();
       this.heroAnim.step(dt);
       return;
     }
     const v = this.inputVector();
-    const going = !!(v.x || v.z) && !this.talks.active;
+    // step 12c: sliding on ice counts as moving (it slides rather than walks)
+    const slipping = this.iceSlip && !!this.iceVel && s.grounded;
+    const going = (!!(v.x || v.z) || slipping) && !this.talks.active;
+    // step 12c-2: in a strong wind: bracing against it, walking into it, or blown back
+    const gust = slipping || this.swim.on || !s.grounded ? null : this.windPose(!!(v.x || v.z));
+    if (gust !== this.windPoseWas) {
+      this.windPoseWas = gust;
+      if (gust)
+        this.emit(
+          'info',
+          gust === 'blown'
+            ? 'Blown back by the wind'
+            : gust === 'into'
+              ? 'Walking into the wind'
+              : 'Bracing against the wind',
+        );
+    }
+    // bracing or blown back plays its move at its own pace (as a walk at walking speed)
+    const held = gust === 'brace' || gust === 'blown';
     const attacking = (s.attack as number) > 0;
     const events = sm.step(
       {
-        speed: going ? Math.max(MOVING_AT + 0.01, Number(s.speed) || 0) : 0,
+        speed: held ? 4 : going ? Math.max(MOVING_AT + 0.01, Number(s.speed) || 0) : 0,
         grounded: s.grounded && !v.jump,
         attacking,
         hurtAgo: this.clock - this.heroHurtAt,
+        swimming: this.swim.on,
+        pushing: this.puzzles.pose,
+        ladder: !!this.puzzles.ladder || !!this.puzzles.wall,
+        carrying: this.fireLight.carryPose ?? (this.pickT > 0 ? 'pick' : null),
       },
       this.heroChr?.states,
-      (st) => (this.bodyOf('hero') ? undefined : this.sheetClip(this.heroChr, st)),
+      (st) =>
+        this.bodyOf('hero')
+          ? undefined
+          : // step 12c: sliding on ice (not walking): its own built-in move, whatever the sheet sets for walking
+            slipping && (st === 'walk' || st === 'run' || st === 'idle')
+            ? iceSlide
+            : gust && (st === 'walk' || st === 'run' || st === 'idle')
+              ? gust === 'blown'
+                ? windBlown
+                : gust === 'into'
+                  ? windWalk
+                  : windBrace
+              : (this.sheetClip(this.heroChr, st) ??
+                // step 11b: v68's own motion is a walk, so swimming always has a clip (the built-in crawl and tread);
+                // step 12a: so do pushing, pulling and climbing; 12b: ladders, and lifting, carrying and throwing
+                (OWN_MOTION.has(st)
+                  ? undefined
+                  : // step 12c: holding a wall (Climbing: Anything) climbs with its own built-in move
+                    st === 'ladder' && this.puzzles.wall
+                    ? wallClimb
+                    : // and pulls up over its top with its own (the hands on the edge)
+                      st === 'climb' && this.puzzles.climbing?.mantle
+                      ? ledgePull
+                      : BUILTIN_CLIPS.find((c) => c.id === MOVE_FOR[st as keyof typeof MOVE_FOR]))),
       dt,
       1.5,
     );
@@ -3200,6 +7402,22 @@ export class PlaySession {
       else if ('sound' in e) this.audio.play(e.sound, { pos: [s.x, s.y + 1, s.z] });
       else this.cine.play(e.cinematic);
     }
+  }
+
+  /** step 12a: "▲ W push · ▼ S pull": the move key (and its arrow) that walks the way a push goes, and back */
+  grabPrompt(dx: number, dz: number, pull: boolean): string {
+    const yaw = this.camYaw;
+    // the way each move key walks, as moveWish turns them by the camera
+    const keys = [
+      { key: 'W', arrow: '▲', x: -Math.sin(yaw), z: -Math.cos(yaw) },
+      { key: 'S', arrow: '▼', x: Math.sin(yaw), z: Math.cos(yaw) },
+      { key: 'D', arrow: '▶', x: Math.cos(yaw), z: -Math.sin(yaw) },
+      { key: 'A', arrow: '◀', x: -Math.cos(yaw), z: Math.sin(yaw) },
+    ];
+    const best = (x: number, z: number) => keys.reduce((a, b) => (b.x * x + b.z * z > a.x * x + a.z * z ? b : a));
+    const p = best(dx, dz);
+    const b = best(-dx, -dz);
+    return pull ? `${p.arrow} ${p.key} push · ${b.arrow} ${b.key} pull` : `${p.arrow} ${p.key} push (it does not pull)`;
   }
 
   /** the clip a character sheet sets for a state (a project clip or a built-in one) */
@@ -3250,6 +7468,46 @@ export class PlaySession {
     return this.npcStates.get(who.id)?.sm.state ?? null;
   }
 
+  /** Milestone 3, 10d part 2: a move a character is doing (a roar, a spin, a dance…) and when it began (game clock) */
+  private moves = new Map<number | 'hero', { kind: BodyMove; at: number }>();
+
+  /**
+   * Milestone 3, 10d part 2: a character does one of its body's moves — `who` is “hero” or a character's name
+   * (the nearest neighbour with that name). Moves its body can't do are left out; minifigs have none yet.
+   */
+  doMove(who: string, kind: string): boolean {
+    if (!BODY_MOVES.includes(kind as BodyMove)) return false;
+    const npc =
+      who === 'hero' || !who
+        ? null
+        : this.world.npcs
+            .filter((n) => n.profile.name?.toLowerCase() === who.toLowerCase())
+            .sort(
+              (a, b) =>
+                Math.hypot(a.state.x - this.heroState.x, a.state.z - this.heroState.z) -
+                Math.hypot(b.state.x - this.heroState.x, b.state.z - this.heroState.z),
+            )[0];
+    const target: Npc | 'hero' = npc ?? 'hero';
+    if (who && who !== 'hero' && !npc) return false;
+    const body = this.bodyOf(target);
+    if (!body || !bodyMovesOf(body.bones).some((m) => m.move === kind)) return false;
+    this.moves.set(target === 'hero' ? 'hero' : target.id, { kind: kind as BodyMove, at: this.clock });
+    return true;
+  }
+
+  /** the move a character is doing now and how far through it (0…1), if any */
+  moveOf(who: Npc | 'hero'): { kind: BodyMove; u: number } | null {
+    const key = who === 'hero' ? 'hero' : who.id;
+    const m = this.moves.get(key);
+    if (!m) return null;
+    const u = (this.clock - m.at) / MOVE_LENGTH[m.kind];
+    if (u >= 1 || u < 0) {
+      this.moves.delete(key);
+      return null;
+    }
+    return { kind: m.kind, u };
+  }
+
   /** P23 part 4: how far into its state a character is (seconds) */
   animSinceOf(who: Npc | 'hero'): number {
     if (who === 'hero') return this.heroStates.since;
@@ -3257,6 +7515,74 @@ export class PlaySession {
   }
 
   /** P23 part 4: a neighbour's pose from its state's clip (null: its own motion) */
+  /**
+   * step 14a fix: how far through its attack an enemy is: seconds since it began (`t`), when the blow lands (`hit`)
+   * and how long it all takes (`dur`), and what kind of attack it is — or null when it is not attacking
+   */
+  attackOf(n: Npc): { as: AttackAs; t: number; hit: number; dur: number } | null {
+    const st = n.state as { attack?: number; attackDuration?: number; attackHit?: number; attackAs?: AttackAs };
+    if (!st.attack || st.attack <= 0 || !st.attackAs || !st.attackDuration) return null;
+    return { as: st.attackAs, t: st.attackDuration - st.attack, hit: st.attackHit ?? 0, dur: st.attackDuration };
+  }
+
+  // ---------- Milestone 3b (B5b): hurt reactions ----------
+
+  /** how the hero's next hurt reacts (set by the hit that causes it) */
+  private heroHitHow: HurtHow | null = null;
+  private hurts = new Map<number | 'hero', { how: HurtHow; at: number; dur: number }>();
+
+  /**
+   * A body reacts to a hit: `how` for its time (longer for a long stun). A knock-down, a freeze or a stun stops it
+   * for that long (the hero cannot move or swing; an enemy stops its brain).
+   */
+  react(who: Npc | 'hero', how0: HurtHow, seconds?: number) {
+    // a behaviour on it may react another way (Hero, EnemyBrain, Damageable: hurtReaction)
+    const owner = who === 'hero' ? 'hero' : this.npcSelf(who).self;
+    const asked =
+      owner && this.scriptOwners.size ? this.askHook(owner, 'hurtReaction', { how: how0 }, how0 as string) : how0;
+    const how = ((HURT_REACTIONS as readonly string[]).includes(asked) ? asked : how0) as HurtHow;
+    const dur = Math.max(HURT_TIME[how], seconds ?? 0);
+    const key = who === 'hero' ? 'hero' : who.id;
+    this.hurts.set(key, { how, at: this.clock, dur });
+    const stops = how === 'knockdown' || how === 'freeze' || how === 'stun' ? dur * 0.85 : 0;
+    if (!stops) return;
+    if (who === 'hero') this.combat.stagger = Math.max(this.combat.stagger, stops);
+    else this.combat.stunNpc(who, stops);
+  }
+
+  /** a body's reaction now (how, seconds into it, its length), or null */
+  hurtOf(who: Npc | 'hero'): { how: HurtHow; t: number; dur: number } | null {
+    const r = this.hurts.get(who === 'hero' ? 'hero' : who.id);
+    if (!r) return null;
+    const t = this.clock - r.at;
+    if (t >= r.dur) {
+      this.hurts.delete(who === 'hero' ? 'hero' : who.id);
+      return null;
+    }
+    return { how: r.how, t, dur: r.dur };
+  }
+
+  /** a minifig's reacting pose now, or null */
+  hurtPose(who: Npc | 'hero'): PoseParams | null {
+    const r = this.hurtOf(who);
+    if (!r) return null;
+    // a reaction held longer than its own length (a long stun) holds its middle, then finishes
+    const base = HURT_TIME[r.how];
+    const t =
+      r.dur <= base
+        ? r.t
+        : r.t < r.dur - base * 0.2
+          ? Math.min(r.t, base * 0.8)
+          : base * 0.8 + (r.t - (r.dur - base * 0.2));
+    return hurtPose(r.how, t, r.t);
+  }
+
+  /** step 14a fix: a minifig enemy's attack pose (the tell, the blow, back), or null when it is not attacking */
+  enemyPose(n: Npc): PoseParams | null {
+    const a = this.attackOf(n);
+    return a ? attackPose(a.as, a.t, a.hit, a.dur) : null;
+  }
+
   npcPose(n: Npc): { params: ReturnType<Animator['params']>; clip: Clip | null } | null {
     const a = this.npcStates.get(n.id)?.sm.anim;
     const params = a?.params();
@@ -3265,23 +7591,34 @@ export class PlaySession {
 
   // ---------- asset instances: interactions and states (P3.1) ----------
 
+  /** Milestone 2b: a map's placed objects, indexed (kept in step with its list) */
+  objs(w: MapWorld = this.world): ObjectIndex<PlayInstance> {
+    return w.objects.sync(w.instances);
+  }
+
   instanceOfPiece(id: number | undefined): PlayInstance | null {
     if (id === undefined) return null;
-    return this.world.instances.find((i) => id >= i.inst.idBase && id < i.inst.idBase + i.def.bricks.length) ?? null;
+    return this.objs().byPiece(id);
   }
 
   /** Nearest interact/sign socket within 2 studs of the hero (plus a little for big heroes). */
-  stepInteract() {
+  stepInteract(dt = 1 / 60) {
     const s = this.heroState;
     let best: Prompt | null = null;
     let bestD = 2 + 0.4 * this.L.GamePhysics.scaleOf(s);
-    for (const inst of this.world.instances) {
-      if (!inst.def.interactions.length) continue;
-      const smashed = this.world.broken.some((b) => b.originals.some((p) => this.instanceOfPiece(p.id) === inst));
-      if (smashed) continue;
+    // Milestone 2b: only the objects with interactions near the hero, not every object on the map
+    const objs = this.objs();
+    const smashed = this.smashedIds();
+    for (const inst of objs.near(s.x, s.z, bestD + objs.interactiveReach + 1)) {
+      const usable = inst.def.switch?.by === 'press' || (!!inst.def.lock && inst.state === inst.def.states[0]);
+      if (!inst.def.interactions.length && !usable) continue;
+      if (smashed.has(inst.inst.id)) continue;
       for (const so of inst.sockets) {
         if (so.kind !== 'interact' && so.kind !== 'sign') continue;
-        if (!inst.def.interactions.some((i) => i.socket === so.id && (!i.when || i.when.state === inst.state)))
+        if (
+          !usable &&
+          !inst.def.interactions.some((i) => i.socket === so.id && (!i.when || i.when.state === inst.state))
+        )
           continue;
         const d = Math.hypot(so.world[0] - s.x, so.world[2] - s.z);
         if (d < bestD && Math.abs(so.world[1] - (s.y + 1)) < 3) {
@@ -3304,6 +7641,413 @@ export class PlaySession {
     }
     this.signPrompt = sign;
     this.actions.step(this.clock);
+    this.buttons.update(dt);
+    // Milestone 3b (B7b): PlayerInput's actionLabel says what the Action button says
+    const now = this.buttons.now;
+    if (now && this.logic.has('event.onActionLabel')) {
+      const label = String(this.askHook('input', 'actionLabel', { kind: now.kind, label: now.label }, now.label));
+      if (label && label !== now.label) this.buttons.now = { ...now, label };
+    }
+  }
+
+  /** step 11b part 2: the game's swimming (Project › Movement) */
+  get swimming(): Swimming {
+    const v = (this.snapshot.get(paths.settings) as { swimming?: Swimming } | undefined)?.swimming;
+    return { ...SWIM_DEFAULTS, ...(v ?? {}) };
+  }
+
+  /** the map's water as boxes (its water items) */
+  waterBoxes(): WaterBox[] {
+    const w = this.world;
+    if (this.waterCache?.map === w.mapId && this.waterCache.of === w.water) return this.waterCache.list;
+    const list = w.water.map((it) => ({
+      x0: it.pos[0],
+      y0: it.pos[1],
+      z0: it.pos[2],
+      x1: it.pos[0] + it.size[0],
+      y1: it.pos[1] + it.size[1],
+      z1: it.pos[2] + it.size[2],
+      current: (it.current ?? [0, 0]) as [number, number],
+    }));
+    this.waterCache = { map: w.mapId, list, of: w.water };
+    return list;
+  }
+
+  /** the water the hero is in, and what it means: none, wading, or swimming */
+  waterHere(): { box: WaterBox | null; mode: WaterMode } {
+    const s = this.heroState;
+    const list = this.waterBoxes();
+    if (!list.length) return { box: null, mode: 'none' };
+    const box = waterAt(list, s.x, s.y + 0.05, s.z);
+    const h = HERO_HEIGHT * this.L.GamePhysics.scaleOf(s);
+    return { box, mode: waterMode(box, s.y, h, this.swimming.can, this.swim.on) };
+  }
+
+  /** step 11b part 2: one step of swimming: across, up and down (the Action button), the current, the shore */
+  private swimStep(w: WaterBox, move: { x: number; z: number; speedScale?: number; jump?: boolean }, dt: number) {
+    const s = this.heroState;
+    const st = s as typeof s & Record<string, unknown>;
+    const k = this.L.GamePhysics.scaleOf(s);
+    const h = HERO_HEIGHT * k;
+    if (!this.swim.on) {
+      this.swim.on = true;
+      // step 12c-2: a river's current carries the swimmer along
+      if (w.current[0] || w.current[1]) this.emit('info', 'Swimming in a current');
+      // falling in: the splash, then afloat
+      if (s.vy < -3) this.playSound(SND.splash, undefined);
+      s.vy = 0;
+    }
+    // a jump at the surface leaps out (onto a low shore)
+    if (move.jump && s.y >= floatY(w, h) - 0.2) {
+      this.leaveWater();
+      s.vy = 7.5;
+      s.y += 0.3;
+      return;
+    }
+    const step = swimStep(
+      s,
+      { x: move.x, z: move.z, up: this.swim.up, down: this.swim.down, speed: move.speedScale },
+      w,
+      h,
+      this.camYaw,
+      dt,
+    );
+    const c = this.world.controller;
+    const ph = this.physicsMovement ? this.world.physics : null;
+    let nx = s.x + step.dx;
+    let ny = s.y + step.dy;
+    let nz = s.z + step.dz;
+    if (ph) {
+      const r = ph.walk({ x: s.x, y: s.y, z: s.z }, { x: step.dx, y: step.dy, z: step.dz }, HERO_RADIUS * k, h, {
+        noSnap: true,
+      });
+      nx = r.x;
+      ny = r.y;
+      nz = r.z;
+    } else if (c.clear(s.x, s.y, s.z) && !c.clear(nx, ny, nz)) {
+      // (stuck in something already, e.g. dropped into the water at the bottom: it may move out of it)
+      // blocked: slide along one axis, else stay
+      if (c.clear(nx, s.y, s.z)) [ny, nz] = [s.y, s.z];
+      else if (c.clear(s.x, s.y, nz)) [nx, ny] = [s.x, s.y];
+      else [nx, ny, nz] = [s.x, s.y, s.z];
+    }
+    // pushing into a low shore at the surface climbs out onto it
+    const pushed =
+      Math.hypot(step.dx, step.dz) > 0.001 && Math.hypot(nx - s.x, nz - s.z) < 0.3 * Math.hypot(step.dx, step.dz);
+    if (pushed && s.y >= floatY(w, h) - 0.3) {
+      const fx = s.x + Math.sin(s.heading) * 0.9;
+      const fz = s.z + Math.cos(s.heading) * 0.9;
+      for (let up = w.y1 - s.y; up < w.y1 - s.y + 1.4; up += 0.2) {
+        if (c.clear(fx, s.y + up, fz)) {
+          s.x = fx;
+          s.z = fz;
+          s.y += up + 0.05;
+          this.leaveWater();
+          return;
+        }
+      }
+    }
+    s.x = nx;
+    s.y = ny;
+    s.z = nz;
+    if (step.heading !== null) s.heading = step.heading;
+    s.speed = step.speed;
+    s.vy = 0;
+    s.grounded = true;
+    st.swimming = true;
+    st.diving = step.diving;
+  }
+
+  /** out of the water: walking again */
+  private leaveWater() {
+    const st = this.heroState as typeof this.heroState & Record<string, unknown>;
+    this.swim = { on: false, down: false, up: false, under: false };
+    st.swimming = false;
+    st.diving = false;
+  }
+
+  /** step 11b part 2: holding breath under water (the HUD shows {air} of {maxAir} while {underwater}) */
+  private stepBreath(w: WaterBox | null, dt: number) {
+    const s = this.heroState;
+    // Milestone 3b (B4): how long the hero holds its breath (Swimmer.breath)
+    const max = Math.max(1, this.askHook('hero', 'breath', {}, this.swimming.breath));
+    const under = headUnder(w, s.y, HERO_HEIGHT * this.L.GamePhysics.scaleOf(s));
+    const r = breathe(this.breath, under && !this.god, max, dt);
+    this.breath = r.breath;
+    if (r.hearts) {
+      this.say('Out of air! Swim up.', 1.5);
+      this.hurt(r.hearts);
+    }
+    if (under !== this.swim.under) {
+      this.swim.under = under;
+      this.logic.setVar('underwater', under);
+      if (!under && this.breath.air < max) this.playSound(SND.splash, undefined);
+    }
+    const air = Math.ceil(this.breath.air);
+    if (this.logic.vars.get('air') !== air) this.logic.vars.set('air', air);
+    if (this.logic.vars.get('maxAir') !== max) this.logic.vars.set('maxAir', max);
+    this.logic.vars.set('swimming', this.swim.on);
+  }
+
+  /** step 11b part 1: what the Action button can do here (the first that fits wins, see ACTION_PRIORITY) */
+  private offersNow(): ActionOffer[] {
+    if (this.over || this.cine.active || this.talks.active || this.talking) return [];
+    const out: ActionOffer[] = [];
+    const s = this.heroState;
+    // a neighbour close by and in front (or locked on to), like Zelda: not one across the square
+    const locked = this.combat.lockedNpc();
+    const npc = locked ?? this.L.NPCWorld.nearest(this.world.npcs, s);
+    // step 14a: an enemy is fought, not talked to
+    if (npc && !this.enemyOf(npc)) {
+      const dx = npc.state.x - s.x;
+      const dz = npc.state.z - s.z;
+      const d = Math.hypot(dx, dz);
+      const facing = d < 0.5 || (dx * Math.sin(s.heading) + dz * Math.cos(s.heading)) / d > 0.2;
+      if (locked || (d < 3.5 && facing)) out.push({ kind: 'talk', label: 'Talk', priority: ACTION_PRIORITY.talk });
+    }
+    if (this.prompt) out.push({ kind: 'use', label: this.prompt.label, priority: ACTION_PRIORITY.use });
+    else if (this.signPrompt) out.push({ kind: 'read', label: 'Read', priority: ACTION_PRIORITY.read });
+    if (this.nearestBroken()) out.push({ kind: 'rebuild', label: 'Rebuild', priority: ACTION_PRIORITY.rebuild });
+    // step 11b part 2: in deep water the Action button dives, and under it swims up (held)
+    if (this.swim.on) {
+      const s2 = this.heroState;
+      const w = waterAt(this.waterBoxes(), s2.x, s2.y + 0.05, s2.z);
+      const atTop = w && s2.y >= floatY(w, HERO_HEIGHT * this.L.GamePhysics.scaleOf(s2)) - 0.2;
+      out.push(
+        atTop
+          ? { kind: 'dive', label: 'Dive', priority: ACTION_PRIORITY.dive }
+          : { kind: 'swimUp', label: 'Swim up', priority: ACTION_PRIORITY.swimUp },
+      );
+    }
+    // step 12b: holding a bomb up: throw it (walking) or put it down (standing); a lit bomb or a bomb plant's bomb
+    // in reach: pick it up
+    if (this.fireLight.held && !this.fireLight.busy)
+      out.push({ kind: 'drop', label: this.walking() ? 'Throw' : 'Put down', priority: ACTION_PRIORITY.drop });
+    else if (
+      !this.fireLight.held &&
+      !this.fireLight.busy &&
+      (this.fireLight.bombAhead() || this.fireLight.plantAhead() || this.fireLight.thingAhead())
+    )
+      out.push({
+        kind: 'lift',
+        label: !this.fireLight.bombAhead() && !this.fireLight.plantAhead() ? 'Lift' : 'Pick up',
+        priority: ACTION_PRIORITY.lift,
+      });
+    // step 12a: a block that can be pulled, right in front
+    if (this.puzzles.canGrab() || this.puzzles.grab)
+      out.push({ kind: 'grab', label: 'Grab', priority: ACTION_PRIORITY.grab });
+    for (const f of this.actionOffers) out.push(...f());
+    return out;
+  }
+
+  /** step 11b part 1: what each button does in this game */
+  private buttonHost(): ButtonHost {
+    return {
+      offers: () => this.offersNow(),
+      act: (o, down) => {
+        if (o.kind === 'rebuild') {
+          this.rebuildHeld = down;
+          return;
+        }
+        // step 11b part 2: held to dive or to swim up; let go and the swimmer drifts back up
+        if (o.kind === 'dive') {
+          // Milestone 3b (B4): the hero's behaviour may say no (Swimmer.canDive)
+          if (down && !this.askHook('hero', 'canDive', {}, true)) {
+            this.say('Can’t dive.', 1.2);
+            return;
+          }
+          this.swim.down = down;
+          this.swim.up = false;
+          return;
+        }
+        if (o.kind === 'swimUp') {
+          this.swim.up = down;
+          this.swim.down = false;
+          return;
+        }
+        // step 12a: held to hold on to a block; step back to pull it
+        if (o.kind === 'grab') {
+          this.puzzles.setGrab(down);
+          return;
+        }
+        if (!down) return;
+        if (o.kind === 'drop') this.releaseBomb();
+        else if (o.kind === 'lift') this.pickUpBomb();
+        else if (o.kind === 'talk') this.talk();
+        else if (o.kind === 'use' || o.kind === 'read') this.interact();
+        else if (o.kind === 'jump') this.input.jump = true;
+        this.logic.fire({ type: 'event.onActionPressed', match: { action: o.label }, payload: { action: o.label } });
+      },
+      // step 12b: no swinging while holding a bomb up (Action throws or puts it down)
+      attack: (down) => {
+        if (this.fireLight.held || this.fireLight.busy) return;
+        // step 13b: the hook line or rope out: held, it aims; let go, it shoots (the glove: held, it holds)
+        if (this.hooks.out) {
+          if (down) this.hooks.press();
+          else this.hooks.release();
+          return;
+        }
+        // step 13a: the bow or slingshot out: held, it draws; let go, it shoots
+        if (this.shots.out) {
+          if (down) this.startDrawing();
+          else this.releaseDrawing();
+          return;
+        }
+        // step 12c-2: the Gust leaf swings at once (no charging, no spin: it is a leaf, not a sword)
+        if (this.leafOut) {
+          if (down) {
+            this.combat.press();
+            this.combat.release();
+          }
+          return;
+        }
+        if (down) this.combat.press();
+        else this.combat.release();
+      },
+      jump: () => {
+        this.input.jump = true;
+      },
+      guard: (down) => (down ? this.input.keys.add('q') : this.input.keys.delete('q')),
+      roll: () => this.combat.roll(),
+      lock: () => this.combat.toggleLock(),
+      move: (dir, down) => (down ? this.input.keys.add(dir) : this.input.keys.delete(dir)),
+      useItem: (item, slot) => this.useItem(item, slot),
+      itemMenu: () => this.openItemMenu(),
+      count: (item) => this.inventory.get(item) ?? 0,
+      // Milestone 3b (B7b): controls off, PlayerInput's canPress; presses heard by logic
+      canPress: (b) => !this.inputOff && (!this.logic || this.askHook('input', 'canPress', { button: b }, true)),
+      pressed: (b, down, held) => {
+        if (!this.logic) return;
+        const face = faceOf(this.hudStyle() || undefined, b)?.glyph ?? '';
+        this.logic.fire({
+          type: down ? 'event.onButtonDown' : 'event.onButtonUp',
+          match: { button: b },
+          payload: down ? { button: b, face } : { button: b, held },
+        });
+      },
+    };
+  }
+
+  /** the Attack button pressed (true) or let go: what the buttons do (a course's Do it for me presses it too) */
+  attackButton(down: boolean) {
+    this.buttonHost().attack(down);
+  }
+
+  /** step 11b part 1: an item button pressed: its item is used (logic: On item used) */
+  useItem(item: string | null, slot: number) {
+    if (!item) {
+      this.say(`Nothing in item button ${slot} yet: put an item in it from the item menu.`, 2.5);
+      return;
+    }
+    if ((this.inventory.get(item) ?? 0) <= 0) {
+      this.say(`No ${item} left.`, 1.5);
+      return;
+    }
+    // Milestone 3b (B6): its class may say no, ask for magic, or do the using itself
+    if (!this.askItem(item, 'canUseItem', { slot }, true)) return;
+    // (the Lens of Truth's is each second it is up, not a use)
+    const lens = itemClassOf(item)?.name === 'LensOfTruth';
+    const cost = lens ? 0 : Math.max(0, this.askItem(item, 'magicCost', { slot }, 0));
+    if (cost > 0 && this.magic.on) {
+      if (!this.magic.has) this.magic.grant();
+      if (!this.magic.spend(cost)) {
+        this.say(`Not enough magic for the ${item} (it takes ${cost}).`, 2);
+        this.logic.fire({ type: 'event.onMagicEmpty', match: { item }, payload: { item } });
+        return;
+      }
+    }
+    this.emit('info', `Item ${slot}: ${item}`);
+    this.usedAt.set(item, this.clock);
+    const own = this.askItem(item, 'useItem', { slot }, true);
+    // step 12b: a Bomb and a Torch do something by themselves (logic hears them as well)
+    if (own && !this.talking && !this.talks.active && !this.over) this.useTool(item);
+    this.logic.fire({ type: 'event.onItemUsed', match: { item }, payload: { item, slot } });
+  }
+
+  /** when each item was last used from its button, or put on it (a new tool takes the one touched longest ago) */
+  private usedAt = new Map<string, number>();
+  private equipCount = 0;
+  private lastTouched(item: string | null | undefined): number {
+    return item ? (this.usedAt.get(item) ?? -1) : -2;
+  }
+
+  /** step 11b part 1: the buttons as the HUD shows them (key, and what each does now) */
+  buttonViews(): { id: string; name: string; key: string; label: string; count?: number }[] {
+    const b = this.buttons;
+    const out: { id: string; name: string; key: string; label: string; count?: number }[] = [
+      // Milestone 3b (B7b): the HUD styles show the other buttons too (Guard, Lock on, the item wheel)
+      ...(this.hudStyle()
+        ? (['guard', 'lock', 'roll', 'wheel'] as const)
+            .filter((x) => buttonsOf({ layout: b.c.layout, items: b.c.items, jump: b.c.jump }).includes(x))
+            .map((x) => ({ id: x, name: BUTTON_NAME[x], key: b.keyOf(x), label: BUTTON_NAME[x] }))
+        : []),
+      { id: 'attack', name: 'Attack', key: b.keyOf('attack'), label: 'Attack' },
+      { id: 'action', name: 'Action', key: b.keyOf('action'), label: b.now?.label ?? '' },
+    ];
+    if (b.c.jump === 'button') out.push({ id: 'jump', name: 'Jump', key: b.keyOf('jump'), label: 'Jump' });
+    for (let i = 0; i < b.c.items; i++) {
+      const item = b.slots[i] ?? null;
+      out.push({
+        id: `item${i + 1}`,
+        name: `Item ${i + 1}`,
+        key: b.keyOf(ITEM_BUTTONS[i]!),
+        label: item ?? '',
+        ...(item ? { count: this.inventory.get(item) ?? 0 } : {}),
+      });
+    }
+    return out;
+  }
+  itemViews(): { name: string; count: number }[] {
+    return [...this.inventory].filter(([, n]) => n > 0).map(([name, count]) => ({ name, count }));
+  }
+  slotViews(): { slot: number; key: string; item: string | null }[] {
+    const b = this.buttons;
+    return Array.from({ length: b.c.items }, (_, i) => ({
+      slot: i + 1,
+      key: b.keyOf(ITEM_BUTTONS[i]!),
+      item: b.slots[i] ?? null,
+    }));
+  }
+  /** step 11b part 1: an item put in an item button (logic: Put item in slot does the same) */
+  equip(slot: number, item: string | null) {
+    this.buttons.equip(slot, item);
+    if (item) this.usedAt.set(item, this.clock + this.equipCount++ * 1e-6);
+    this.emit('info', `Item button ${slot}: ${item ?? 'empty'}`);
+  }
+  /** step 11b part 1: the player's own keys changed (Play keeps them on the device) */
+  onBindings: ((keys: Partial<Record<Bindable, string[]>>) => void) | null = null;
+  bindingViews(): { id: string; name: string; keys: string; pad: string }[] {
+    const b = this.buttons;
+    return [...buttonsOf({ layout: b.c.layout, items: b.c.items, jump: b.c.jump }), ...MOVES].map((id) => ({
+      id,
+      name: BUTTON_NAME[id],
+      keys: (b.playerKeys[id] ?? b.c.keys[id]).map(keyName).join(', '),
+      pad: b.keyOf(id, true),
+    }));
+  }
+  rebind(id: string, key: string) {
+    const b = this.buttons;
+    const k = key.toLowerCase();
+    const next: Partial<Record<Bindable, string[]>> = {};
+    // the key leaves any other button that had it
+    for (const x of [...BUTTONS, ...MOVES]) {
+      const cur = b.playerKeys[x] ?? b.c.keys[x];
+      if (x !== id && cur.includes(k)) next[x] = cur.filter((y) => y !== k);
+      else if (b.playerKeys[x]) next[x] = b.playerKeys[x];
+    }
+    next[id as Bindable] = [k];
+    b.playerKeys = next;
+    this.onBindings?.(next);
+  }
+  resetBindings() {
+    this.buttons.playerKeys = {};
+    this.onBindings?.({});
+  }
+
+  /** step 11b part 1: the item menu (the Items screen: pick what goes in each item button) */
+  openItemMenu() {
+    if (this.screens.top()?.id === SCR.items) this.screenOp('hide', SCR.items, false);
+    else this.screenOp('show', SCR.items, false);
   }
 
   /** P22: a neighbour close to the hero says one of its barks (its character's short lines) */
@@ -3334,6 +8078,21 @@ export class PlaySession {
       return this.startConversation(sign.conversation, null, 'sign');
     const p = this.prompt;
     if (!p || this.talking) return false;
+    // Milestone 3b (B3): a behaviour extending Interactable may say it cannot be used now
+    if (!this.askHook(p.instance.inst.id, 'canUse', { socket: p.socket }, true)) return true;
+    // Milestone 3b (B7a-2): a quest's use step counts it
+    this.quests.note('use', p.instance.def.name);
+    // step 12a: a lock tries the hero's key; a press switch (a lever) is used
+    if (this.puzzles.press(p.instance)) {
+      this.logic.fire({
+        type: 'event.onInteract',
+        match: { asset: p.instance.def.id },
+        payload: { target: p.instance.inst.id, socket: p.socket },
+        self: p.instance.inst.id,
+      });
+      this.stepInteract();
+      return true;
+    }
     const list = p.instance.def.interactions.filter(
       (i) => i.socket === p.socket && (!i.when || i.when.state === p.instance.state),
     );
@@ -3351,9 +8110,9 @@ export class PlaySession {
   }
 
   /** Changes an instance's state in play: its state-only bricks swap (refused if they would not fit). */
-  setInstanceState(instanceId: string | undefined, state: string) {
+  setInstanceState(instanceId: string | undefined, state: string, anyway = false) {
     const w = this.world;
-    const inst = w.instances.find((i) => i.inst.id === instanceId);
+    const inst = instanceId ? this.objs(w).byId(instanceId) : undefined;
     if (!inst || !inst.def.states.includes(state) || inst.state === state) return;
     const lo = inst.inst.idBase;
     const hi = lo + inst.def.bricks.length;
@@ -3362,12 +8121,14 @@ export class PlaySession {
       ...w.pieces.filter((p) => p.id! < lo || p.id! >= hi),
       ...next.bricks.map((b) => brickToPiece(b, true)),
     ];
-    const check = floating(inst.def)
-      ? { ok: true as const, reason: '' }
-      : this.layoutCheck(w, pieces, [
-          ...w.pieces.filter((p) => p.id! >= lo && p.id! < hi),
-          ...next.bricks.map((b) => brickToPiece(b)),
-        ]);
+    // step 12a: a switch or a lock changes state whatever rests on it (a block on a switch, a door opening)
+    const check =
+      floating(inst.def) || anyway
+        ? { ok: true as const, reason: '' }
+        : this.layoutCheck(w, pieces, [
+            ...w.pieces.filter((p) => p.id! >= lo && p.id! < hi),
+            ...next.bricks.map((b) => brickToPiece(b)),
+          ]);
     if (!check.ok) {
       this.say(`Something is in the way: ${check.reason}`, 2);
       return;
@@ -3395,7 +8156,11 @@ export class PlaySession {
     const acting = this.cine.active ? awake.filter((n) => !this.cine.isCast(n)) : awake;
     // P9c: enemies in a fight move themselves; P9b: stunned neighbours stand still for a moment
     this.enemies.step(acting, dt * this.slowmo);
-    const free = acting.filter((n) => !this.combat.isStunned(n) && !this.enemies.engaged(n) && !this.standsStill(n));
+    // step 11, 4c: followers walk after the hero
+    if (this.followers.size) this.stepFollowers(acting, dt * this.slowmo);
+    const free = acting.filter(
+      (n) => !this.combat.isStunned(n) && !this.enemies.engaged(n) && !this.standsStill(n) && !this.followers.has(n.id),
+    );
     this.L.NPCWorld.step(free, dt * this.slowmo, this.heroState, this.talking?.id ?? null);
     // a talk ends when the hero walks away (further, when they are locked on to the one they talk to)
     const reach = this.talking && this.combat.lockedNpc() === this.talking ? LOCK_RELEASE : 4.5;
@@ -3404,6 +8169,35 @@ export class PlaySession {
       Math.hypot(this.talking.state.x - this.heroState.x, this.talking.state.z - this.heroState.z) > reach
     )
       this.endTalk();
+  }
+
+  /**
+   * Step 11, 4c: the characters follow a change of bricks. v68's sync sent one whose spot was not clear to the
+   * map's first open corner, and "not clear" counted the hero standing against it, so an enemy in a fight
+   * vanished when a swing broke a brick. Now other characters do not count, and one caught in bricks steps to the
+   * nearest open spot instead.
+   */
+  syncNpcs(w: MapWorld, pieces: LegacyPiece[]) {
+    if (!w.npcs.length) return;
+    const was = w.npcs.map((n) => ({ x: n.state.x, y: n.state.y, z: n.state.z }));
+    for (const n of w.npcs) n.controller.setActors([]);
+    this.L.NPCWorld.sync(w.npcs, pieces, w.meta);
+    w.npcs.forEach((n, i) => {
+      const k = was[i]!;
+      if (Math.hypot(n.state.x - k.x, n.state.z - k.z) < 1.5) return;
+      const c = n.controller;
+      for (let r = 0.5; r <= 8; r += 0.5)
+        for (let a = 0; a < 16; a++) {
+          const x = k.x + Math.sin((a / 16) * Math.PI * 2) * r;
+          const z = k.z + Math.cos((a / 16) * Math.PI * 2) * r;
+          const y = c.floor(x, z, k.y + 1.3);
+          if (y === null || Math.abs(y - k.y) > 2.5 || !c.clear(x, y, z)) continue;
+          Object.assign(n.state, { x, y, z, vy: 0, grounded: true });
+          (n as Npc & { home?: unknown }).home = { x, y, z };
+          return;
+        }
+    });
+    this.L.NPCWorld.connect(w.npcs, w.controller);
   }
 
   /** Gates that leave the current map: [spawn here, destination map, destination spawn]. */
@@ -3438,6 +8232,9 @@ export class PlaySession {
   /** Switch to another map (each map keeps its own damage while playing, as in v68). */
   travel(mapId: string, spawnId: string, gateId?: string) {
     const from = this.world;
+    // Milestone 3b (B7a-3): the map's own behaviour hears the hero go (before it goes)
+    const toName = (this.snapshot.get(paths.map(mapId)) as MapDoc | undefined)?.name ?? '';
+    if (from.mapId !== mapId) this.mapEvent('Leave', from.doc.name, toName, true);
     const keep = { ...this.heroState };
     this.cancelRebuild();
     this.pendingSmash = null;
@@ -3464,6 +8261,11 @@ export class PlaySession {
       ? (this.snapshot.get(paths.gates) as Gates | undefined)?.gates.find((g) => g.id === gateId)
       : undefined;
     if (gate?.onArrive?.length) this.actions.run(gate.onArrive, this.clock);
+    // Milestone 3b (B7a-3): the new map's own behaviours start, and hear the hero arrive
+    if (from.mapId !== mapId && this.logic) {
+      this.syncScripts(true);
+      this.mapEvent('Enter', this.world.doc.name, from.doc.name);
+    }
     // P26: a new map is a good place to autosave (not while a cinematic travels)
     if (this.saving.autosave && !this.cine.active) this.saveGame(AUTO_SLOT, true);
   }
@@ -3516,9 +8318,13 @@ export class PlaySession {
    * only the window around the hero (the chunk index is rebuilt first).
    */
   syncPhysics(w: MapWorld, change?: { gone?: readonly LegacyPiece[]; added?: readonly LegacyPiece[] }) {
+    // Milestone 2b: the chunks the change touched become solid again in the physics core (all of them without one)
+    const touched = change ? new Set([...(change.gone ?? []), ...(change.added ?? [])].map(chunkKeyOf)) : null;
     if (!w.big) {
       w.controller.replace(w.pieces, w.meta);
-      this.L.NPCWorld.sync(w.npcs, w.pieces, w.meta);
+      this.syncNpcs(w, w.pieces);
+      if (touched) this.physicsLater(w, touched);
+      else this.physicsBricks(w, null);
       return;
     }
     // P27 part 3d: a small change updates only its chunks of the index, and the neighbours catch up twice a second
@@ -3542,10 +8348,104 @@ export class PlaySession {
       }
       w.npcsStale = true;
       this.moveWindow(w, true, true);
+      this.physicsLater(w, touched!);
       return;
     }
     w.byChunk = indexByChunk(w.pieces);
     this.moveWindow(w, true);
+    this.physicsBricks(w, null);
+  }
+
+  /** Milestone 2b: the map's water and its loose objects go into the physics core */
+  private physicsLoose(w: MapWorld) {
+    const ph = w.physics;
+    if (!ph) return;
+    // 10c part 5: solid placed models (each as soon as its file has been read)
+    for (const it of w.models) {
+      if (it.solid === false) continue;
+      const solid = (up: ModelUpload) => {
+        if (w.physics === ph) ph.setSolidMesh(`model:${it.id}`, placedTriangles(up.data, modelMatrix(it)));
+      };
+      const up = readyModel(it.model);
+      if (up) solid(up);
+      else void prepareModel(it.model, this.mediaSource).then(solid, () => {});
+    }
+    ph.setWater(
+      w.water.map((it) => ({
+        x0: it.pos[0],
+        y0: it.pos[1],
+        z0: it.pos[2],
+        x1: it.pos[0] + it.size[0],
+        y1: it.pos[1] + it.size[1],
+        z1: it.pos[2] + it.size[2],
+        current: it.current ?? [0, 0],
+      })),
+    );
+    for (const i of w.instances) {
+      if (!i.def.loose || !i.bricks.length) continue;
+      const boxes = i.bricks.map((b) => {
+        const [bw, bd] = footprint(b);
+        return { x0: b.x, x1: b.x + bw, y0: b.y * 0.4, y1: (b.y + brickHeight(b.type)) * 0.4, z0: b.z, z1: b.z + bd };
+      });
+      // step 13b: a metal thing is iron (7.8 times as dense as water would be very heavy for a minifig: 2.5 here)
+      const { origin } = ph.addObject(i.inst.id, boxes, i.def.metal ? 2.5 : undefined);
+      const pieces = i.bricks.flatMap((b) => {
+        const p = w.loosePieces.get(b.id);
+        return p ? [p] : [];
+      });
+      w.looseObjects.push({ inst: i, origin, pieces });
+    }
+  }
+
+  private smallChunks: { pieces: unknown; index: Map<string, LegacyPiece[]> } | null = null;
+  /**
+   * Milestone 2b: the bricks the physics core treats as solid: a big map's window around the hero, a small map
+   * whole. `changed` names chunks to build again (null: every chunk in the window).
+   */
+  /** chunks whose solid bricks must be built again, at the next physics step (many breaks in a row: once) */
+  private physicsDirty = new WeakMap<MapWorld, Set<string>>();
+
+  private physicsLater(w: MapWorld, touched: Set<string>) {
+    if (!w.physics) return;
+    const set = this.physicsDirty.get(w) ?? new Set<string>();
+    for (const k of touched) set.add(k);
+    this.physicsDirty.set(w, set);
+  }
+
+  /** builds again the chunks changed since the last physics step */
+  private physicsFlush(w: MapWorld) {
+    const set = this.physicsDirty.get(w);
+    if (!set?.size) return;
+    this.physicsDirty.delete(w);
+    this.physicsBricks(w, set);
+  }
+
+  physicsBricks(w: MapWorld, changed: Set<string> | null) {
+    const ph = w.physics;
+    if (!ph) return;
+    let index: Map<string, LegacyPiece[]>;
+    const want = new Set<string>();
+    if (w.big && w.byChunk) {
+      index = w.byChunk;
+      const at = w.windowAt;
+      if (at) {
+        const [cx, cz] = at.split('_').map(Number) as [number, number];
+        for (let dx = -WINDOW_RADIUS; dx <= WINDOW_RADIUS; dx++)
+          for (let dz = -WINDOW_RADIUS; dz <= WINDOW_RADIUS; dz++) {
+            const k = `${cx + dx}_${cz + dz}`;
+            if (index.has(k)) want.add(k);
+          }
+      }
+    } else {
+      if (this.smallChunks?.pieces !== w.pieces) this.smallChunks = { pieces: w.pieces, index: indexByChunk(w.pieces) };
+      index = this.smallChunks.index;
+      for (const k of index.keys()) want.add(k);
+    }
+    const have = ph.chunkKeys();
+    const bounds = (p: LegacyPiece) => this.L.GamePhysics.bounds(p);
+    for (const k of have) if (!want.has(k) || (changed?.has(k) && !index.has(k))) ph.dropChunk(k);
+    for (const k of want)
+      if (!have.has(k) || changed === null || changed.has(k)) ph.setChunk(k, index.get(k) ?? [], bounds);
   }
 
   private ids: { pieces: LegacyPiece[]; map: Map<number, LegacyPiece> } | null = null;
@@ -3569,9 +8469,10 @@ export class PlaySession {
     const near = piecesAround(w.byChunk, key);
     w.controller.replace(near, w.meta);
     w.controller.area = w.fullArea;
+    this.physicsBricks(w, new Set());
     if (heroOnly) return;
     w.npcsStale = false;
-    this.L.NPCWorld.sync(w.npcs, near, w.meta);
+    this.syncNpcs(w, near);
     for (const n of w.npcs) n.controller.area = w.fullArea;
   }
 

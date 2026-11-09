@@ -46,7 +46,7 @@ test('the Effects screen: preview a built-in, copy and change it, place it, hook
   await open(page, errors);
   await ws(page, 'Effects');
   const lib = page.getByRole('listbox', { name: 'Effects' });
-  await expect(lib.getByRole('option')).toHaveCount(22);
+  await expect(lib.getByRole('option')).toHaveCount(27);
   await lib.locator('[data-name="Fire"]').click();
   // the preview plays it: particles are alive
   const canvas = page.locator('canvas[aria-label="Effect preview"]');
@@ -103,6 +103,7 @@ test('Effects course: Do it for me makes Blue fire, places it and makes it the l
   const errors: string[] = [];
   await open(page, errors);
   await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
   await page.getByRole('menuitem', { name: /Effects course/ }).click();
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });

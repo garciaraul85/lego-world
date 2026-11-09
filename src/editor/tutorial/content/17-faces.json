@@ -463,9 +463,109 @@
       "placement": "left"
     },
     {
+      "id": "faces.wild",
+      "title": "Anything at all",
+      "body": "Not only people and animals: describe anything, however wild — a walking teapot, a three-headed robot snake, an octopus chef. It becomes a figure of its own, with its own bones and bricks, that walks, flies, swims, slithers or hops. Count things in the words: three-headed, six legs, four eyes.",
+      "task": "Press ✨ From a picture… again, type a walking teapot and press Create.",
+      "target": "[data-tour=\"char-from-picture\"]",
+      "check": {
+        "kind": "dom",
+        "selector": "[data-tour=\"fp-place-0\"]"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Characters"
+        },
+        {
+          "click": "[data-tour=\"char-from-picture\"]"
+        },
+        {
+          "fill": "[data-tour=\"fp-words\"]",
+          "value": "a walking teapot"
+        },
+        {
+          "click": "[data-tour=\"fp-create\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under + New character press “✨ From a picture…”.",
+          "check": {
+            "kind": "dom",
+            "selector": "[aria-label=\"Character from a picture\"]"
+          },
+          "do": [
+            {
+              "ui": "workspace",
+              "value": "Characters"
+            },
+            {
+              "click": "[data-tour=\"char-from-picture\"]",
+              "say": "From a picture"
+            }
+          ]
+        },
+        {
+          "text": "Type a walking teapot and press “Create”. The closest match is a teapot on legs.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"fp-place-0\"]"
+          },
+          "do": [
+            {
+              "fill": "[data-tour=\"fp-words\"]",
+              "value": "a walking teapot",
+              "say": "A walking teapot"
+            },
+            {
+              "click": "[data-tour=\"fp-create\"]",
+              "say": "Create"
+            }
+          ]
+        }
+      ],
+      "workspace": "Characters",
+      "placement": "left"
+    },
+    {
+      "id": "faces.place",
+      "title": "Put it in the game",
+      "body": "Use and place on the map makes the character and stands it on the open map, in front of the start, in one step (one Undo takes it away). Its body plan opens in the Body tab and the skeleton editor, to change bone by bone.",
+      "task": "Press Use and place on the map on the closest match.",
+      "target": "[data-tour=\"fp-place-0\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterPlaced",
+        "args": "Walking Teapot"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"fp-place-0\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "On the first match, press “Use and place on the map”.",
+          "check": {
+            "kind": "state",
+            "test": "characterPlaced",
+            "args": "Walking Teapot"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"fp-place-0\"]",
+              "say": "Use and place on the map"
+            }
+          ]
+        }
+      ],
+      "placement": "left"
+    },
+    {
       "id": "faces.done",
-      "title": "You can make faces and characters from pictures",
-      "body": "The Face tab has the resting face and one for each mood; lines with a mood show it in Play. ✨ From a picture is also in the Assets menu. Help › Help guide › Characters has every part.",
+      "title": "You can make faces and any character from pictures or words",
+      "body": "The Face tab has the resting face and one for each mood; lines with a mood show it in Play. ✨ From a picture makes people (with v68's own body and outfit choices, coloured by part from a photo), animals and anything at all. It is also in the Assets menu. Help › Help guide › Characters has every part.",
       "task": "Press Finish.",
       "target": "[data-tour=\"workspaces\"]",
       "check": {

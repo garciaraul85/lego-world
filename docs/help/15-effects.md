@@ -6,7 +6,7 @@ Effects are clouds of tiny pieces: fire, smoke, sparks, dust, magic, confetti. T
 
 ## The library
 
-**Mine** lists the effects of this game; **Built-in** has the 22 that come with the editor (Fire, Smoke, Sparks, Magic sparkles, Explosion, Dust, Splash, Bubbles, Snow flurry, Falling leaves, Hit flash, Healing glow, Level-up burst, Portal swirl, Glowing aura, Dragon breath, Exhaust, Muzzle flash, Coin pop, Electric zap, Splinters and Confetti). Click one and it plays in the preview, over and over, on a floor of studs; drag to turn it, the wheel zooms. **▶ Play again** starts it over.
+**Mine** lists the effects of this game; **Built-in** has the 27 that come with the editor (Fire, Smoke, Sparks, Magic sparkles, Explosion, Dust, Splash, Bubbles, Snow flurry, Falling leaves, Hit flash, Healing glow, Level-up burst, Portal swirl, Glowing aura, Dragon breath, Exhaust, Muzzle flash, Coin pop, Electric zap, Splinters and Confetti, plus the adventure pack's Fairy sparkle, Item get, Torch embers, Dungeon dust and Boss vanish). Click one and it plays in the preview, over and over, on a floor of studs; drag to turn it, the wheel zooms. **▶ Play again** starts it over.
 
 ## Your own effects
 

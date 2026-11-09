@@ -1,3 +1,4 @@
+import { type CustomBrick, registerCustomBrick, unregisterCustomBrick } from '../bricks/custom';
 import { upgradeManifest } from '../migrate/v5to6';
 import type { Project } from '../schema';
 import { type Chunk, packChunk, paths, validateFile } from '../schema';
@@ -70,6 +71,7 @@ export class ProjectStore {
       if (v !== v0) this.dirtySet.add(p);
       if (opts.validateInitial ?? true) this.check(p, v);
       this.files.set(p, this.freeze ? deepFreeze(v) : v);
+      syncCustomBrick(p, v);
     }
   }
 
@@ -101,6 +103,7 @@ export class ProjectStore {
     this.hook?.(path, this.files.get(path));
     if (this.txBefore && !this.txBefore.has(path)) this.txBefore.set(path, this.files.get(path));
     this.files.set(path, this.freeze ? deepFreeze(data) : data);
+    syncCustomBrick(path, data);
     this.touch(path);
   }
 
@@ -109,6 +112,7 @@ export class ProjectStore {
     this.hook?.(path, this.files.get(path));
     if (this.txBefore && !this.txBefore.has(path)) this.txBefore.set(path, this.files.get(path));
     this.files.delete(path);
+    syncCustomBrick(path, undefined);
     this.touch(path);
   }
 
@@ -197,4 +201,12 @@ export class ProjectStore {
     const issues = validateFile(path, data);
     if (issues.length) throw new StoreValidationError(path, issues);
   }
+}
+
+/** step 11: the custom bricks every project knows (the renderer and brick rules read shapes by type name) */
+function syncCustomBrick(path: string, v: unknown) {
+  const m = /^bricks\/(cbk_[0-9a-z]{10})\.json$/.exec(path);
+  if (!m) return;
+  if (v && typeof v === 'object') registerCustomBrick(v as CustomBrick);
+  else unregisterCustomBrick(m[1]!);
 }

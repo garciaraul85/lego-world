@@ -6,6 +6,8 @@ Games ask for named sound events, never files. [Open Audio](open:Audio)
 
 Each event (smash, jump, chest, coin…) picks one of its clips at random or in order, varies the pitch, and limits how many play at once. ▶ previews it. Editing a built-in keeps a project copy.
 
+The adventure starter pack adds Item get, Key, Secret found, Sword swish and Boss roar, and the Village, Dungeon and Boss music. Every game has them. The swish plays on each blade swing, and the key jingle when the hero is given a key.
+
 ## Import sounds
 
 Import sounds adds your own .wav, .mp3, .ogg or .m4a files to the project (up to 20 MB each).

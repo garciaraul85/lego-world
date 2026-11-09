@@ -1,6 +1,6 @@
 import { useRef, useState } from 'preact/hooks';
 import { BUILTIN_EFFECTS, DEFAULT_EFFECT_EVENTS, DEFAULT_HITS } from '../../../builtin/effects';
-import { DAMAGE_TYPES } from '../../../core/combat/damage';
+import { DAMAGE_INFO, DAMAGE_TYPES } from '../../../core/combat/damage';
 import {
   DIRECTIONS,
   EFFECT_EVENTS,
@@ -39,14 +39,9 @@ export const EFFECTS_HELP = {
 } as const;
 
 const SHAPE_LABEL: Record<Effect['shape'], string> = { brick: 'Bricks', plate: 'Plates', tile: 'Tiles', stud: 'Studs' };
-const DAMAGE_LABEL: Record<(typeof DAMAGE_TYPES)[number], string> = {
-  slash: 'Slash (swords, axes)',
-  blunt: 'Blunt (hammers, fists)',
-  pierce: 'Pierce (arrows, spears)',
-  fire: 'Fire',
-  explosive: 'Explosive',
-  electric: 'Electric',
-};
+const DAMAGE_LABEL = Object.fromEntries(
+  DAMAGE_TYPES.map((t) => [t, `${DAMAGE_INFO[t].label} (${DAMAGE_INFO[t].about})`]),
+) as Record<(typeof DAMAGE_TYPES)[number], string>;
 
 export function allEffects(store: { list(p: string): string[]; get<T>(p: string): T | undefined }) {
   const own = store

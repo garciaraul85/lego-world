@@ -26,6 +26,8 @@ export interface ActionHost {
   /** P26 part 2: unlock an achievement, or step / set a player setting */
   progress?(op: 'achieve' | 'setting', key: string, value?: unknown): void;
   gave?(item: string, count: number): void;
+  /** step 12a: a dungeon's own item (a small key from a chest) is given here; true: done */
+  dungeonGive?(item: string, count: number): boolean;
   spawn?(asset: string, at: string): void;
   cinematic?(id: string, once: boolean): void;
   despawn?(target: string): void;
@@ -109,6 +111,7 @@ export class ActionRunner {
           else h.log('info', a.text);
           break;
         case 'give': {
+          if (h.dungeonGive?.(a.item, a.count ?? 1)) break;
           const n = (h.inventory.get(a.item) ?? 0) + (a.count ?? 1);
           h.inventory.set(a.item, n);
           h.log('info', `Got ${a.count ?? 1} × ${a.item} (${n} in total)`);

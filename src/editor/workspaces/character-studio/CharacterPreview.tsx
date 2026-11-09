@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks';
-import type { ResolvedBody } from '../../../core/character/resolve';
+import type { BodyPlan } from '../../../core/character/body';
+import type { minifigExtras, ResolvedBody } from '../../../core/character/resolve';
 import type { Clip } from '../../../core/schema';
 import { rigPose } from '../../../engine/character/animator';
 import {
@@ -12,13 +13,15 @@ import {
   boneLines,
   newMotion,
 } from '../../../engine/character/body-anim';
+import { extrasOverlays } from '../../../engine/character/extras';
 import { sampleParams } from '../../../engine/character/routine';
-import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
+import { type CharacterRenderer, legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import { OrbitCamera } from '../../../engine/render/camera';
 import { drawCharacter, placement } from '../../../engine/render/place-character';
 import { Renderer } from '../../../engine/render/renderer';
 import { V68_FRAGMENT } from '../../../engine/render/shaders';
 import { BONE_NAMES, trackLabel } from '../../components/timeline/Timeline';
+import { type BrickHit, brickAgainst, brickHeight, mul4, pickBrick, type SculptTool } from './sculpt';
 
 export type PreviewInput = {
   profile: Record<string, unknown>;
@@ -37,10 +40,38 @@ export type PreviewInput = {
   /** walk on the spot, to see the generated movement */
   walking?: boolean;
   /** P23 part 4: a body plan's strike or flinch, from when it started (performance.now) */
-  act?: { kind: 'attack' | 'hurt'; at: number } | null;
+  act?: { kind: import('../../../core/character/moves').BodyMove; at: number } | null;
   /** painting bricks onto a bone: a click on a brick calls this with its index in the asset */
   paint?: ((brick: number) => void) | null;
+  /** Milestone 3, 10d: the Draw tab's part and side: the preview stops turning and looks at that side */
+  draw?: { part: string; side: number } | null;
+  /** 10d part 3: painting and brick-sculpting a body plan: the brick under the pointer is outlined, a click is a hit */
+  sculpt?: { tool: SculptTool; plan: BodyPlan; onHit(hit: BrickHit): void } | null;
+  /** step 11, 4a: a minifig's extra parts (a tail, a snout…) on its joints */
+  extras?: ReturnType<typeof minifigExtras>;
 };
+
+/** Milestone 3, 10d: the open preview's figure renderer, which the Draw tab draws through (live paint, a part's own look) */
+export const previewArt: { current: CharacterRenderer | null } = { current: null };
+
+/** where to look from for each side drawn on: [yaw, pitch] (yaw 0 looks at the front) */
+const SIDE_VIEW: [number, number][] = [
+  [0, 0.1],
+  [Math.PI, 0.1],
+  [-Math.PI / 2, 0.1],
+  [Math.PI / 2, 0.1],
+  [0, 1.45],
+  [0, -1.25],
+];
+/** what to look at for a part: [target height, distance] */
+const partFrame = (part: string): [number, number] =>
+  /^(head|hair|hat|glasses)$/.test(part)
+    ? [3.75, 4.8]
+    : /Leg$|Foot$/.test(part)
+      ? [0.9, 5.5]
+      : /Hand$|Arm$/.test(part)
+        ? [2.2, 5.5]
+        : [1.7, 7.5];
 
 const SIDE: Record<string, number> = { left: -1, right: 1 };
 /**
@@ -94,6 +125,7 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     renderer.floor = true;
     renderer.skySample = L.SkyCycle.sample('day', 0, false, false);
     const chars = L.CharacterModel.create(renderer.gl, V68_FRAGMENT);
+    previewArt.current = chars;
     const cam = new OrbitCamera();
     cam.target = [0, 1.7, 0];
     cam.baseDistance = 7.5;
@@ -102,6 +134,7 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     cam.fov = 0.8;
     let heading = 0;
     let wasClose = false;
+    let wasDraw = '';
     let raf = 0;
     let last = performance.now();
     const frame = (now: number) => {
@@ -111,12 +144,21 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
       const { profile, clip, time, turntable } = input.current;
       // the Face tab looks at the head; leaving it goes back to the whole figure
       const close = !!input.current.closeUp && !input.current.body;
-      if (close !== wasClose) {
+      // Milestone 3, 10d: drawing, the figure faces front and the camera turns to the part and side drawn on
+      const draw = input.current.body ? null : (input.current.draw ?? null);
+      const drawKey = draw ? `${draw.part}/${draw.side}` : '';
+      if (close !== wasClose || drawKey !== wasDraw) {
         wasClose = close;
-        cam.target = close ? [0, 3.75, 0] : [0, 1.7, 0];
-        cam.baseDistance = close ? 4.8 : 7.5;
+        const [h, d] = draw ? partFrame(draw.part) : close ? [3.75, 4.8] : [1.7, 7.5];
+        cam.target = [0, h, 0];
+        cam.baseDistance = d;
+        if (draw) [cam.yaw, cam.pitch] = SIDE_VIEW[draw.side] ?? [0, 0.1];
+        else if (wasDraw) [cam.yaw, cam.pitch] = [0.5, 0.22];
+        wasDraw = drawKey;
       }
-      if (turntable) heading += dt * 0.6;
+      renderer.floor = draw?.side !== 5;
+      if (draw) heading = 0;
+      else if (turntable) heading += dt * 0.6;
       const base = L.StudioAnimations.sample('still', 0, profile).state;
       const state = clip
         ? {
@@ -135,7 +177,10 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
         return;
       }
       try {
-        renderer.render(cam.frame(), cam.target, [], [], [], (mvp, eye) => {
+        const extras = input.current.extras?.length
+          ? extrasOverlays(L, input.current.extras, profile, state as never, !!clip)
+          : [];
+        renderer.render(cam.frame(), cam.target, extras, [], [], (mvp, eye) => {
           view = mvp;
           chars.begin(mvp, eye, renderer.skySample);
           // a clip pose turns with the turntable too
@@ -158,6 +203,17 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     const motion = newMotion();
     let framed: ResolvedBody | null = null;
     let lastPicks: { src: number; x: number; y: number }[] = [];
+    // 10d part 3: the last frame's camera and pose, for finding the brick under the pointer
+    let lastFrame: { mvp: Float32Array; world: Float32Array; pose: Map<string, Float32Array> } | null = null;
+    let hover: BrickHit | null = null;
+    const hitAt = (e: { clientX: number; clientY: number }): BrickHit | null => {
+      const sc = input.current.sculpt;
+      if (!sc || !lastFrame) return null;
+      const r = canvas.getBoundingClientRect();
+      const nx = ((e.clientX - r.left) / r.width) * 2 - 1;
+      const ny = 1 - ((e.clientY - r.top) / r.height) * 2;
+      return pickBrick(nx, ny, lastFrame.mvp, lastFrame.world, lastFrame.pose, sc.plan.bricks);
+    };
     const drawBody = (body: ResolvedBody, dt: number, heading: number) => {
       if (framed !== body) {
         // frame the camera on the body when it changes size or family
@@ -209,6 +265,43 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
           lines.push({ lines: [...cross, ...to], color: [0.2, 1, 1], onTop: true });
         }
       }
+      // 10d part 3: outline the brick under the pointer (Add: where the new brick goes)
+      const sc = input.current.sculpt;
+      if (sc && hover && sc.plan.bricks[hover.index]) {
+        const of = sc.plan.bricks[hover.index]!;
+        const k = sc.tool.mode === 'add' ? brickAgainst(of, hover, sc.tool) : of;
+        const bm = pose.get(k.bone);
+        if (bm) {
+          const m = mul4(world, bm);
+          const h = brickHeight(k.kind);
+          const c = (x: number, y: number, z: number) =>
+            [0, 1, 2].map((i) => m[i]! * x + m[4 + i]! * y + m[8 + i]! * z + m[12 + i]!);
+          const x0 = k.x;
+          const x1 = k.x + k.w;
+          const y0 = k.y * 0.4;
+          const y1 = y0 + h;
+          const z0 = k.z;
+          const z1 = k.z + k.d;
+          const corners = [
+            [x0, y0, z0],
+            [x1, y0, z0],
+            [x1, y0, z1],
+            [x0, y0, z1],
+            [x0, y1, z0],
+            [x1, y1, z0],
+            [x1, y1, z1],
+            [x0, y1, z1],
+          ].map(([x, y, z]) => c(x!, y!, z!));
+          const edges = [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7];
+          const seg: number[] = [];
+          for (const i of edges) seg.push(...corners[i]!);
+          lines.push({
+            lines: seg,
+            color: sc.tool.mode === 'remove' ? [1, 0.3, 0.3] : sc.tool.mode === 'add' ? [0.3, 1, 0.4] : [1, 1, 1],
+            onTop: true,
+          });
+        }
+      }
       let mvp: Float32Array | null = null;
       try {
         renderer.render(cam.frame(), cam.target, overlays, lines, [], (m) => {
@@ -217,6 +310,7 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
       } catch {
         /* a body mid-edit can be invalid for one frame */
       }
+      lastFrame = mvp ? { mvp: mvp as Float32Array, world, pose } : null;
       // where each brick of a worn build is on screen, for painting
       lastPicks = [];
       if (input.current.paint && mvp) {
@@ -242,6 +336,13 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     };
     /** a click (not a drag) while painting: the brick nearest the pointer goes to the painted bone */
     const pick = (e: PointerEvent) => {
+      const sc = input.current.sculpt;
+      if (sc) {
+        const hit = hitAt(e);
+        if (hit) sc.onHit(hit);
+        hover = null;
+        return;
+      }
       const paint = input.current.paint;
       if (!paint || !lastPicks.length) return;
       const r = canvas.getBoundingClientRect();
@@ -301,7 +402,10 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
       canvas.setPointerCapture(e.pointerId);
     };
     const move = (e: PointerEvent) => {
-      if (!drag) return;
+      if (!drag) {
+        hover = hitAt(e);
+        return;
+      }
       cam.orbit(e.clientX - drag.x, e.clientY - drag.y);
       drag = { x: e.clientX, y: e.clientY };
     };
@@ -320,6 +424,7 @@ export function CharacterPreview({ input }: { input: { current: PreviewInput } }
     canvas.addEventListener('wheel', wheel, { passive: false });
     return () => {
       cancelAnimationFrame(raf);
+      if (previewArt.current === chars) previewArt.current = null;
       renderer.dispose();
     };
   }, []);

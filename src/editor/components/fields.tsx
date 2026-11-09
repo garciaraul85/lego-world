@@ -14,9 +14,11 @@ export function Num({
   step?: number;
 }) {
   const [v, setV] = useState(String(value));
+  const box = useRef<HTMLInputElement>(null);
   useEffect(() => setV(String(value)), [value]);
   const commit = () => {
-    const n = Number(v);
+    // what the box holds now (typed text that has not re-rendered yet counts too)
+    const n = Number(box.current?.value ?? v);
     if (Number.isFinite(n) && n !== value) onCommit(n);
     else setV(String(value));
   };
@@ -24,6 +26,7 @@ export function Num({
     <label>
       {label}
       <input
+        ref={box}
         class="inp mono"
         inputMode="numeric"
         value={v}

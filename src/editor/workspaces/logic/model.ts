@@ -1,6 +1,8 @@
+import { BODY_MOVES } from '../../../core/character/moves';
 import { DRIFT_INFO, DRIFTS, GRADE_INFO, GRADES } from '../../../core/effects/screen';
 import { newId } from '../../../core/ids';
 import { FOG_PRESET, FOG_PRESETS } from '../../../core/lighting/atmosphere';
+import { selfNames } from '../../../core/logic/behaviours';
 import type { ArgKind, NodeDef, PinType } from '../../../core/logic/catalog';
 import { NAME_KINDS, type NameKind, namedThings } from '../../../core/logic/code/names';
 import { type Asset, type LogicGraph, paths, TIMES, type Variables } from '../../../core/schema';
@@ -23,6 +25,7 @@ export const CAT_COLOR: Record<string, string> = {
   Misc: '#9aa4b2',
   Notes: '#ffd277',
   Health: '#ff8a7a',
+  'This object': '#ffcb6b',
 };
 
 export const PIN_COLOR: Record<PinType, string> = {
@@ -62,6 +65,12 @@ export function pinPos(
   return [n.pos[0] + (side === 'in' ? 0 : NODE_W), n.pos[1] + HEAD + 4 + i * ROW + ROW / 2];
 }
 
+const MOVE_NAME: Record<string, string> = { attack: 'Strike (bite, punch…)', hurt: 'Flinch', swipe: 'Tail swipe' };
+const MOVE_CHOICES = BODY_MOVES.map((m) => ({
+  value: m,
+  label: MOVE_NAME[m] ?? m.charAt(0).toUpperCase() + m.slice(1),
+}));
+
 export const graphs = (ed: EditorState) =>
   ed.store
     .list('logic/')
@@ -77,6 +86,12 @@ export const variables = (ed: EditorState) => ed.store.get<Variables>(paths.vari
  */
 export function argChoices(ed: EditorState, kind: ArgKind): { value: string; label: string; note?: string }[] | null {
   if (kind === 'var') return Object.keys(variables(ed)).map((v) => ({ value: v, label: v }));
+  // Milestone 3b (B1): the open behaviour's fields and own variables
+  if (kind === 'field') {
+    const g = graphs(ed).find((x) => x.id === ed.logicGraph.value);
+    const fields = new Set((g?.behaviour?.fields ?? []).map((f) => f.name));
+    return selfNames(g).map((n) => ({ value: n, label: n, note: fields.has(n) ? 'field' : 'own variable' }));
+  }
   if (kind === 'asset')
     return ed.store
       .list('assets/')
@@ -88,6 +103,8 @@ export function argChoices(ed: EditorState, kind: ArgKind): { value: string; lab
   if (kind === 'drift') return DRIFTS.map((d) => ({ value: d, label: DRIFT_INFO[d] }));
   // P27 part 2: a time of day, and a fog
   if (kind === 'time') return TIMES.map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }));
+  // Milestone 3, 10d part 2: a body's moves
+  if (kind === 'move') return MOVE_CHOICES;
   if (kind === 'fog')
     return [
       { value: 'map', label: 'The map’s own' },
@@ -131,5 +148,13 @@ export function newGraph(name: string, event?: { type: string; args?: Record<str
     scope: 'global',
     nodes: event ? [{ id: 'n1', type: event.type, pos: [40, 60], ...(event.args ? { args: event.args } : {}) }] : [],
     edges: [],
+  };
+}
+
+/** Milestone 3b (B1): a new behaviour (a logic file to attach to things), starting with On start */
+export function newBehaviour(name: string): LogicGraph {
+  return {
+    ...newGraph(name, { type: 'event.onStart' }),
+    behaviour: { fields: [] },
   };
 }

@@ -10,6 +10,18 @@ Drag to orbit, right-drag or Shift-drag to pan, wheel to zoom. On touch: one fin
 
 The buttons in the top-right corner of the 3D view: ◎ focuses on the selection (F), then + and − zoom (or the + and − keys) and ⟲ ⟳ turn the view around it (Alt and the arrow keys). ⤢ shows everything (Home). ⛶ makes the scene full screen (Ctrl Shift F): the menus and side panels hide so you can concentrate on building, ▤ opens the assets as a drawer to drag things in, and Esc comes back. The same buttons are in the Asset studio.
 
+## Drawing with WebGPU or WebGL
+
+**Draw with**, in the corner of the 3D view, picks what draws the views on this computer:
+
+- **WebGL** — the long-standing way. It works in every browser.
+- **WebGPU** — the newer way to use the graphics card. The picture is the same, except that water truly mirrors the bricks, characters and sky above it (WebGL mirrors only the sky's colours). Later it brings faster big maps.
+- **Auto** — uses WebGL for now, until WebGPU has been tried on more computers.
+
+WebGPU draws the Scene and Play, characters included. The Director's previews and the studios still use WebGL for now.
+
+The choice is kept in this browser, not in the project. If WebGPU can't show the view on this computer, WebGL draws it instead and a message says so.
+
 ## Selecting
 
 With the Select tool (V), click an object to select all of it (a house, a tree). Shift-click adds to the selection, G selects the whole group, Esc deselects. The Hierarchy lists every object by type (terrain, buildings, nature, spawn points, zones, sounds, signs) with a filter box; Layers and Find are next to it.
@@ -46,9 +58,55 @@ To change the bricks or colours of something, double-click its card in the dock,
 
 Map tab › Terrain generator: tick environments (forest, city, prairie, mountains, volcanoes and more), choose a size and Generate. New seed rolls a different world. Generated houses, trees and cars become asset instances you can move, smash and edit.
 
+## The starter pack
+
+The **Starter pack** tab of the bottom dock holds the adventure starter pack, ready to use:
+
+- **Rook**, the hero: **Play as** makes Rook the player character.
+- **Ten neighbours**, each with a sample conversation: Elder Maren (the opening quest), Pip the shopkeeper, Brann the blacksmith, Tess the gate guard, Coral the fisherwoman, Nim the kid, Ozzie the travelling merchant, Sela the healer, Lio the bard, and Glim, a lantern-bug companion.
+- **Ten kinds of enemy**, each with its own weaknesses:
+  - Pebblespout pops up and spits rocks.
+  - Rattlebones, a skeleton knight, blocks in front: hit it from behind.
+  - Gloomweaver, the one-eyed spider boss: hit its eye when it glows.
+  - Finspitter, a fish-folk, spits fire.
+  - The Watcher Eye is a stone sentinel that swords can't hurt: use a bomb, or sneak behind it.
+  - Cinderjaw, a fire lizard, has a soft tail.
+  - Flitterwing bats come plain, fire and ice; the boomerang stuns them.
+  - Threadback, a hanging spider, has an armoured front.
+  - Lanternwisp is a lantern ghost.
+  - Howler, a wolf-man pack hunter, calls the others.
+- **Buildings and props**:
+  - Dungeon: walls, a pillar, an archway, a barred gate, a locked door, wall torches and a brazier (they light up), clay pots (they break and may leave a heart), a boss chest, a cracked wall (only bombs break it), a spike trap, stairs and a guardian statue.
+  - Village: a cottage, a well, a barrel, grass to cut and a plank bridge.
+- **Puzzle pieces**: the **Push block** (push it, or hold Action and step back to pull it), the **Floor switch** (stays down), the **Weight switch** (down only while something heavy stands on it: a push block or a big crate, not the hero alone), the **Timer switch** (back up after 10 seconds), the **Crystal switch** (hit it to flip it), the **Lever** (Action), the **Locked door** (a small key opens it), the **Boss door** (the boss key), the **Small key**, **Boss key**, **Dungeon map** and **Compass** to pick up, and a **Small chest** with a small key in it.
+- **Three terrain styles**: Green Vale, Shrine Highlands and Misty Woods.
+- **Fire and light**: **Vines** (they can be climbed too), a **Wooden barricade** and a **Spider web** that burn away, a **Torch stand** (fire lights it) and a **Timed torch** (out again after 12 seconds), a **Bomb bag** (five bombs) and a **Hand torch** (the Torch) to pick up, a **Bomb flower** that grows a bomb to pick (another after a miss), a **Branch** (a stick to swing and to light at a fire), a **Burning torch** (alight from the start), a **Sun crest** that shines a beam, a **Mirror** to push round, and a **Light sensor** that turns on while a beam reaches it.
+- **Ice, platforms and climbing**: an **Icy floor** to slide on, an **Ice block** that slides on when pushed, an **Ice wall** that fire or a beam of light melts, a **Moving platform** (8 studs and back), a **Lift** (6 studs up and down) and a **Switch lift** (only while it is on), a **Rock face** to climb and a **Smooth wall** that cannot be climbed (with Project › Climbing: Anything).
+- **Wind and throwing**: a **Fan**, a **Switch fan** (blows only while on) and a **Gale fan** (strong enough to blow the hero back), a **Pinwheel** the wind turns (a switch), a **Rock** to lift and throw, the **Clay pot** (lift it and throw it: it breaks where it lands) and the **Gust leaf** (swung, it blows a gust).
+- **Bow and boomerang**: the **Bow** (with 10 arrows), a **Quiver** of arrows, **Fire arrows** and **Ice arrows**, the **Slingshot** (with 20 seeds) and a **Seed bag**, **Stun nuts**, the **Boomerang** and the **Whirl boomerang**, an **Eye target** (an arrow or seed in its eye turns it on for good), an **Archery target** (on for a few seconds when hit) and the **Ice floe** an ice arrow freezes on water.
+- **Hook and magnet**: the **Hook line** (pulls you to wood and hook targets, light things to you), the **Grapple rope** (hang and swing from a beam), the **Magnet glove** (lifts metal), a **Hook target**, a **Swing beam**, a **Light crate** and an **Iron crate**.
+- **Boots and Lens**: the **Hover boots** (walk off an edge and they float you for a moment), the **Lens of Truth** (shows hidden things, sees through fake ones), a **Magic jar** and a **Big magic jar**, a **Pit gap**, an **Invisible bridge**, a **Fake wall**, a **Fake floor**, a **Stone alcove** and a **Hidden chest**. Any asset can be made Hidden or Fake in the Asset studio (Wind and lifting).
+- **Scripts and cutscenes**: eleven script templates and three cutscene templates. **Use…** opens a short form; **Make it** turns it into an ordinary logic file or scene (see Logic › Templates).
+- **Look and sound**:
+  - The **Adventure screen look**: parchment panels, gold-framed buttons, a storybook font and framed hearts on every screen and menu. **Classic** brings the plain look back. The same switch is **Screen look** in the Project tab.
+  - Five effects: Fairy sparkle, Item get, Torch embers, Dungeon dust and Boss vanish. **Place** puts one in front of the start.
+  - Sounds (Item get, Key, Secret found, Sword swish, Boss roar) and music (Village, Dungeon, Boss). They are in every game already: ▶ listens. The sword swish plays on every blade swing and the key jingle when the hero is given a key.
+
+Drag a neighbour or an enemy onto the map, or press **Place** (it stands in front of the first spawn). A character comes into your game the first time it is used, with its conversation, so you can change it in the Character studio. Click a building or prop, then the ground (T turns it), or drag it in. **Use on this map** makes the open map again in a terrain style; Undo brings the old map back.
+
+## My library
+
+**My library** in the bottom dock keeps your own things for every project in this browser: assets, characters, clips, effects, scripts, custom bricks, body plans and hairstyles. **+ Add from this game…** saves copies of what you tick, each with what it needs (an asset's custom bricks; a character's body plan, clips and conversations; a script's variables and the assets it names). **Use in this game** brings one into the open project; when the game already has something different under the same id, it comes in as a copy named "… (from library)". **Export pack** saves the library, or what the search shows, as a `.bwlib` file to share or to move to another device, and **Import pack…** adds one. Pictures, sounds and 3D models you imported stay with their game, and removing an item from the library never changes a game that uses it.
+
+## Dungeons
+
+Tick **This map is a dungeon** in the Map tab (Dungeon) and the map keeps its own small keys, boss key, map and compass: keys found here open only this map's locked doors. In Play its maps show only where the hero has been until the **Dungeon map** is picked up here, and the **Compass** shows its chests, keys and boss; its pause map is a room plan, floor by floor (see Play › Maps). The HUD shows the small keys (🗝) while the hero is in a dungeon. The line under the box counts the locks, keys, switches and blocks on the map and warns when there are more locks than keys.
+
 ## Sky, weather and lighting
 
 The Map tab also sets the time of day, sky and weather, the map's music and ambience loop.
+
+**Behaviours** (Map tab) are the map's own scripts: one that extends MapScript runs while the hero is on this map — `mapEnter(e)` as it arrives, `mapLeave(e)` as it goes, `foesCleared(e)` when the last foe here is beaten. **+ New map script** makes one; **+ Script** attaches one you have (see Play › Game rules and map behaviours).
 
 ## Lights and darkness
 
@@ -59,7 +117,7 @@ A **light** lights the bricks and characters around it, in the Scene view as in 
 - **Kind** starts it again from a preset; **Colour** and **Brightness** (0–4) set its glow.
 - **Reaches** is how far it lights, in studs; a picked light shows it as a ring.
 - **Flicker** makes it waver like a flame; 0 is steady.
-- **Bricks cast shadows from it**: the nearest light that casts shadows draws them (a torch on a wall throws the shadows of what stands in front of it).
+- **Bricks cast shadows from it**: the nearest lights that cast shadows draw them: up to 4 at once on High graphics, 2 on Medium, none on Low; characters cast shadows too (a torch on a wall throws the shadows of what stands in front of it).
 - **Height** lifts it; drag it in the view to move it.
 - **On from the start** off: it stays dark until logic's **Light on** or the action **Switch a light on or off** switches it on by its name.
 
@@ -77,13 +135,41 @@ The Map tab sets a map's atmosphere, one undo step per change:
 
 Logic's **Set time of day** and **Set fog** (Sky) change them while the game plays. [Atmosphere course](action:help.atmosphere)
 
+## Water and loose things
+
+Water fills a box on the map up to its surface; it is see-through in the Scene and in the game. Its surface ripples (a river's ripples move with its current) and mirrors what is above it: with WebGPU at Graphics quality Medium or High it is a true reflection of the bricks, characters and sky; otherwise it mirrors the sky's colours. Add it with **right-click › Add water here** or **Dock › Water › Place** (Pool, River, Lake, Sea). Pick it to change it in the Inspector:
+
+- **Kind** — Pool, River, Lake or Sea: its colour and starting size.
+- **Corner** and **Size** — where its lowest corner is and how wide, deep (up to the surface) and long it is, in studs.
+- **Current** — which way it flows and how fast (studs a second, across and deep). 0, 0 is still water.
+- **Colour** — a tint of your own.
+
+In Play, water deeper than about half the hero's height is swum and dived in (see Play › Swimming); shallower water slows walking.
+
+An asset ticked **Loose** in the asset studio is not fixed to the map: in Play each copy falls if nothing holds it up, tips over when the hero walks into it, floats in water and drifts with the current. Smashed bricks float too. The **Water and physics course** (Help menu) walks through it.
+
+## 3D models
+
+Bricks make blocky things; **3D models** are smooth ones — a round lantern, a barrel, a leafy tree, a stone ring — made in a modelling tool such as Blender and saved as **glTF** (a `.glb` file, or a `.gltf` file with its data inside it). They stand on the map beside the bricks and are lit by the same sun, lights, fog and shadows, in WebGPU and WebGL.
+
+- **Dock › 3D models** lists the built-in models (Lantern post, Barrel, Round tree, Boulder, Crystal, Toadstool, Stone ring, Vase) and the ones you imported, each with a small picture. **Place** puts one beside where the player starts; **right-click the ground › Add a 3D model here** puts the last one you placed where you clicked.
+- **Import a model…** adds `.glb` or `.gltf` files to the project (up to 20 MB and 200,000 triangles each). A file that can't be used says why: one that keeps its data in other files, one compressed with Draco or meshopt, or one that isn't glTF 2.0 — export it again as one `.glb` file.
+- Pick a placed model to change it in the Inspector: **Model** (which one), **Position** (the middle of its base, in studs), **Turn** (degrees about its upright axis), **Size** (1 is the size it was made at; the hero is about 4 studs tall) and **Solid in Play**.
+- With **Physics** movement (Project tab), a solid model stops the hero, who can stand on it. Untick **Solid** for things to walk through, such as tall grass.
+
+Models that animate (characters with skeletons) stand still in their rest pose for now; moving models, FBX files, and painting and sculpting come in a later milestone. The **3D models course** (Help menu) walks through it.
+
+## The Foundations park
+
+**World › Add the Foundations park** adds a sample map of everything the engine's foundations do, to look at and play: a river that carries a loose crate along (with Physics movement, jump on and ride it), a still pond with another crate floating in it, an old brick wall whose bricks tumble and come to rest when you smash it, the built-in 3D models (a stone ring, lantern posts, round trees, a boulder to climb, crystals, toadstools, barrels and a vase) and, at dusk, the lanterns' lights casting shadows, all mirrored in the water. Tips show in the HUD as you walk up to each spot. Play › Play this map tries it; one undo takes it away.
+
 ## Big worlds
 
 A map holds up to **1,000,000 bricks** across a build area of ±2048 studs. The Map tab's **Big worlds** section shows the map's bricks and chunks (32 × 32 studs each):
 
 - A map of more than 64 chunks is a **big map**. The Scene view loads the chunks around where you look, the nearest first, and the fog closes in where they end; the counter at the top of the view shows how many are loaded. Bricks whose studs are all under other bricks are drawn as plain boxes.
 - **How far you see** (64–1024 studs, default 256) sets how far a big map is drawn, in the Scene and in the game.
-- **Scatter** sets down many copies of one build at once around where the view looks: pick it from the pictures, set **How many** (up to 5,000) and how far **Around the view**, and press **Scatter**. Each copy stands on flat studded ground, clear of everything else, turned at random; copies that don't fit are left out, and one undo takes them all away. **Placed assets** counts them (a map holds 10,000). Copies count toward the map's 1,000,000 bricks: on a full big land Scatter sets down as many as there is room for and says the map is now full.
+- **Scatter** sets down many copies of one build at once around where the view looks: pick it from the pictures, set **How many** (up to 5,000) and how far **Around the view**, and press **Scatter**. Each copy stands on flat studded ground, clear of everything else, turned at random; copies that don't fit are left out, and one undo takes them all away. **Placed assets** counts them (a map holds 100,000). Copies count toward the map's 1,000,000 bricks: on a full big land Scatter sets down as many as there is room for and says the map is now full.
 - **New big land** makes a map of rolling grass and hills of bricks with a flat clearing at the start: 256, 512, 1024 or 2048 studs across (2048 is about 950,000 bricks, leaving room for 50,000 more). One undo step removes it.
 - In the game a big map plays the area around the hero (7 × 7 chunks): its bricks are solid and its neighbours walk about; further away they sleep until the hero comes near. Edits on a big map check the brick rules only around what changed, so placing a brick stays quick.
 - Maps of more than 12,000 pieces play with ▶ Play; Play in v68 can't load them.

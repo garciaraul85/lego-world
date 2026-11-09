@@ -1,6 +1,13 @@
 import { BUILTIN_CHARACTERS } from '../../builtin/characters';
-import { type AttackHit, DAMAGE_TYPES, type DamageType, damageOf, type Health } from '../../core/combat/damage';
-import { type Asset, type Character, type Instances, paths } from '../../core/schema';
+import {
+  type AttackHit,
+  DAMAGE_TYPES,
+  type DamageType,
+  damageOf,
+  type Health,
+  type HitSide,
+} from '../../core/combat/damage';
+import { type Asset, type Character, type Instances, paths, type ScriptAttachment } from '../../core/schema';
 import type { Npc } from '../legacy/runtime-modules';
 
 /**
@@ -22,10 +29,36 @@ export function assetHealth(def: Asset): Health | null {
 }
 
 /** A neighbour's character, by its legacy id (instances of kind npc on the map). */
-export function npcCharacter(host: HealthHost, mapId: string, npc: Npc): Character | null {
+/** Milestone 2b: a map's neighbours by their v68 id, worked out once per instances file (not a walk per call) */
+const npcItems = new WeakMap<object, Map<number, { id: string; character: string; scripts?: ScriptAttachment[] }>>();
+/**
+ * Step 11, 4c: characters put on the map while playing (Spawn character): not in the map's file, so they are
+ * looked up here by their play-time id. A new play clears it.
+ */
+export const spawnedNpcs = new Map<number, { id: string; character: string }>();
+
+export function npcItem(
+  host: HealthHost,
+  mapId: string,
+  npcId: number,
+): { id: string; character: string; scripts?: ScriptAttachment[] } | undefined {
+  const spawned = spawnedNpcs.get(npcId);
+  if (spawned) return spawned;
   const inst = host.get(paths.instances(mapId)) as Instances | undefined;
-  const item = inst?.items.find((i) => i.kind === 'npc' && i.legacyId === npc.id) as { character: string } | undefined;
-  const id = item?.character;
+  if (!inst) return undefined;
+  let m = npcItems.get(inst);
+  if (!m) {
+    m = new Map();
+    for (const i of inst.items)
+      if (i.kind === 'npc' && i.legacyId !== undefined)
+        m.set(i.legacyId, { id: i.id, character: i.character, ...(i.scripts ? { scripts: i.scripts } : {}) });
+    npcItems.set(inst, m);
+  }
+  return m.get(npcId);
+}
+
+export function npcCharacter(host: HealthHost, mapId: string, npc: Npc): Character | null {
+  const id = npcItem(host, mapId, npc.id)?.character;
   if (!id) return null;
   return (
     (host.get(paths.character(id)) as Character | undefined) ?? BUILTIN_CHARACTERS.find((c) => c.id === id) ?? null
@@ -73,10 +106,21 @@ export class HealthBook {
   }
 
   /** applies one hit; returns the damage done (0: armour, resistance or invulnerable stopped it) */
-  hit(key: string, def: Health, attack: AttackHit): { dealt: number; wound: Wound } {
+  hit(
+    key: string,
+    def: Health,
+    attack: AttackHit,
+    side?: HitSide,
+    /** Milestone 3b (B3): a behaviour's own say in how much it takes (takeDamage) */
+    adjust?: (dealt: number) => number,
+  ): { dealt: number; wound: Wound } {
     const wound = this.of(key, def);
     if (wound.hp <= 0) return { dealt: 0, wound };
-    const dealt = damageOf(attack, { ...def, invulnerable: this.invulnerable.has(key) });
+    let dealt = damageOf(attack, { ...def, invulnerable: this.invulnerable.has(key) }, side);
+    if (adjust) {
+      const n = Number(adjust(dealt));
+      if (Number.isFinite(n)) dealt = Math.max(0, n);
+    }
     wound.hp = Math.max(0, Math.round((wound.hp - dealt) * 100) / 100);
     return { dealt, wound };
   }
@@ -97,6 +141,8 @@ export const asDamageType = (t: string): DamageType =>
 
 /** “only explosive hurts it” — the types that get through a target's resistances, in words */
 export function hurtBy(def: Health): string {
-  const through = DAMAGE_TYPES.filter((t) => (def.resist?.[t] ?? 1) > 0);
-  return through.length === DAMAGE_TYPES.length ? 'any hit' : through.length ? through.join(' or ') : 'nothing';
+  // (a stun does no damage of its own: it is not counted)
+  const types = DAMAGE_TYPES.filter((t) => t !== 'stun');
+  const through = types.filter((t) => (def.resist?.[t] ?? 1) > 0);
+  return through.length === types.length ? 'any hit' : through.length ? through.join(' or ') : 'nothing';
 }

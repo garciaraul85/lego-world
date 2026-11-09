@@ -1,6 +1,7 @@
 import { effect } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { expandAsset, rotatedFootprint } from '../../core/assets/expand';
+import { ADVENTURE_PACK } from '../../builtin/packs/adventure';
+import { expandAsset, localToWorld, rotatedFootprint } from '../../core/assets/expand';
 import { type FreeGroup, freeGroupsOf } from '../../core/assets/free';
 import {
   affineModel,
@@ -11,18 +12,22 @@ import {
   shiftAffine,
   transformOf,
 } from '../../core/assets/tilt';
+import { brickAt, fillFrom, mirrorOf, overlaps, type Stamp, stampAt, stampSize } from '../../core/bricks/build-tools';
 import type { Brick } from '../../core/bricks/codec';
 import { footprint } from '../../core/bricks/inspect';
 import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import type { Command } from '../../core/commands';
+import type { NewBrick } from '../../core/commands/handlers/bricks';
 import { skyCycle } from '../../core/legacy/modules';
 import { wiresOf } from '../../core/logic/wiring';
 import { maxOf } from '../../core/num';
-import type { Asset, LogicGraph } from '../../core/schema';
+import type { Asset, LogicGraph, ModelInstance, WaterInstance } from '../../core/schema';
 import { atmosphere } from '../../engine/lighting/atmosphere';
 import { pointLights } from '../../engine/lighting/lights';
+import { feedModels, modelMatrix, readyModel } from '../../engine/model/prepare';
 import { OrbitCamera } from '../../engine/render/camera';
 import type { Vec3 } from '../../engine/render/math';
+import { drawBox } from '../../engine/render/model-draw';
 import {
   brickRgb,
   type LineSet,
@@ -30,9 +35,15 @@ import {
   type Overlay,
   type PointLight,
   type RenderBrick,
-  Renderer,
 } from '../../engine/render/renderer';
+import {
+  createSceneRenderer,
+  type RendererChoice,
+  rendererFor,
+  type SceneRenderer,
+} from '../../engine/render/scene-renderer';
 import { ChunkStream, DEFAULT_VIEW_DISTANCE } from '../../engine/render/stream';
+import { waterSurface } from '../../engine/render/water';
 import { ScreenFxOverlay } from '../../engine/ui/ScreenFxOverlay';
 import { placeCommands, resolveAsset } from '../assets';
 import { groupLabel } from '../categories';
@@ -40,15 +51,20 @@ import { dragPayload, endDrag, sceneHover } from '../interact/drag';
 import {
   assetCorner,
   mapItems,
+  modelItems,
   placeAssetAt,
   placeItemAt,
+  placeModelAt,
   placeSpawnAt,
   type SceneTarget,
   selectOnly,
+  waterItems,
 } from '../interact/place';
-import { rayBox } from '../scene';
+import { placePackCharacter } from '../pack/pack';
+import { customRender, rayBox, type SceneModel } from '../scene';
 import type { EditorState } from '../state';
 import { fullscreenDock, sceneFullscreen, setActiveView, type ViewOp, type ViewportApi, viewOp } from './active';
+import { characterLayer, placedCharacters } from './characters';
 import {
   changeFor,
   dragAmount,
@@ -124,12 +140,22 @@ export function Viewport({
   studioRef.current = studio;
   /** bumps when the browser takes the 3D drawing away (too many views, the GPU reset): the view starts again */
   const [gen, setGen] = useState(0);
+  // Milestone 2b, 10c: a new canvas when the view is drawn with something else (a canvas keeps its first kind)
+  const drawWith = ed.drawWith.value;
 
   useEffect(() => {
     const canvas = canvasRef.current!;
-    let renderer: Renderer;
+    let renderer: SceneRenderer;
     try {
-      renderer = new Renderer(canvas);
+      // Milestone 2b, 10c: WebGPU or WebGL, as picked in the view's corner (WebGL where WebGPU is missing)
+      renderer = createSceneRenderer(canvas, ed.drawWith.value);
+      if (renderer.kind === 'webgpu')
+        renderer.onFail = (why) => {
+          console.warn('WebGPU could not show the view:', why);
+          ed.notify('WebGPU could not show the 3D view in this browser, so WebGL draws it.', true);
+          ed.gpuWorks.value = false;
+          setGen((g) => g + 1);
+        };
     } catch (e) {
       ed.notify(e instanceof Error ? e.message : String(e), true);
       return;
@@ -162,6 +188,9 @@ export function Viewport({
     let preview: Brick[] | null = null;
     let zoneDraft: { x0: number; z0: number; x1: number; z1: number; y: number } | null = null;
     let assetGhost: Brick[] | null = null;
+    // step 11 (P24 part 1a): the mirror images of the brick about to be placed, and a stamp about to be put down
+    let mirrorGhosts: RenderBrick[] = [];
+    let stampGhost: { bricks: NewBrick[]; bad: string | null } | null = null;
     let assetAt: [number, number, number] | null = null;
     // P31 transform gizmo: the handle under the pointer, and the drag in progress
     let hot: HandleId | null = null;
@@ -206,6 +235,43 @@ export function Viewport({
     };
     const plates = (dy: number) =>
       dy ? ` · ${dy < 0 ? 'down' : 'up'} ${Math.abs(dy)} plate${Math.abs(dy) === 1 ? '' : 's'} to stand` : '';
+    /** on a build plate with a mirror on: the bricks and their mirror images that don't cut into each other */
+    const withMirror = (list: NewBrick[]): NewBrick[] => {
+      const m = ed.mirror.value;
+      if (!studio || (m.x === null && m.z === null)) return list;
+      const out = [...list];
+      for (const b of list) for (const c of mirrorOf(b, m)) if (!out.some((o) => overlaps(o, c))) out.push(c);
+      return out;
+    };
+    /** a held stamp (Ctrl C, Ctrl V) about to be put down: centred on the pointer, going up until it fits */
+    const fitStamp = (stamp: Stamp, hit: { x: number; y: number; z: number }) => {
+      const [w, d] = stampSize(stamp);
+      const x = Math.round(hit.x - w / 2);
+      const z = Math.round(hit.z - d / 2);
+      const at = (dy: number) => withMirror(stampAt(stamp, x, hit.y + dy, z));
+      const check = (dy: number) =>
+        ed.bus.check({ type: 'bricks.place', payload: { map: ed.mapId.value, bricks: at(dy) } });
+      const first = check(0);
+      if (!first) return { bricks: at(0), bad: null };
+      for (let dy = 1; dy <= 36; dy++) if (!check(dy)) return { bricks: at(dy), bad: null };
+      return { bricks: at(0), bad: first };
+    };
+    /** the plate's bricks that are the mirror images of these (for painting and erasing in mirror) */
+    const mirrorIds = (s: SceneModel, ids: number[]): number[] => {
+      const m = ed.mirror.value;
+      if (!studio || (m.x === null && m.z === null)) return [];
+      const all = s.all();
+      const out: number[] = [];
+      for (const id of ids) {
+        const b = s.get(id);
+        if (!b) continue;
+        for (const c of mirrorOf(b, m)) {
+          const o = brickAt(all, c);
+          if (o && !ids.includes(o.id) && !out.includes(o.id)) out.push(o.id);
+        }
+      }
+      return out;
+    };
     /**
      * The brick about to be placed (Place tool or a card dragged in): it sits on what is under it, going up
      * until it fits instead of cutting into a neighbour; `bad` says why it can't go there at all (red ghost).
@@ -247,6 +313,7 @@ export function Viewport({
           y: hit.y + ghostFit.dy,
           z,
           color: ghostFit.bad ? '#ff3b30' : br.color,
+          ...customRender(br),
         },
       };
     };
@@ -472,7 +539,7 @@ export function Viewport({
 
     const brickRender = (b: Brick): RenderBrick => {
       const [w, d] = footprint(b);
-      return { id: b.id, w, d, kind: kindOf(b.type), x: b.x, y: b.y, z: b.z, color: b.color };
+      return { id: b.id, w, d, kind: kindOf(b.type), x: b.x, y: b.y, z: b.z, color: b.color, ...customRender(b) };
     };
 
     const drawGizmo = (lines: LineSet[], markers: Marker[]) => {
@@ -571,6 +638,7 @@ export function Viewport({
       const overlays: Overlay[] = [];
       const lines: LineSet[] = [];
       const markers: Marker[] = [];
+      let charExtra: ((mvp: Float32Array, eye: Vec3) => void) | undefined;
       if (s && mode === 'scene') {
         const sel = ed.selectedBricks.value;
         // freely turned or resized assets and parts are drawn here, each group with its own transform;
@@ -663,6 +731,26 @@ export function Viewport({
           }
         }
         if (ghost) overlays.push({ bricks: [ghost], alpha: 0.6, flat: false });
+        if (ghost && mirrorGhosts.length) overlays.push({ bricks: mirrorGhosts, alpha: 0.35, flat: false });
+        if (stampGhost)
+          overlays.push({
+            bricks: stampGhost.bricks.map((b, i) =>
+              brickRender({ ...b, id: -1 - i, flags: 0, color: stampGhost!.bad ? '#ff3b30' : b.color }),
+            ),
+            alpha: 0.55,
+            flat: false,
+          });
+        // step 11: the mirror planes on the build plate, as lines across it
+        if (studio) {
+          const m = ed.mirror.value;
+          const R = 24;
+          const at: number[] = [];
+          for (const y of [0.02, 6]) if (m.x !== null) at.push(m.x, y, -R, m.x, y, R);
+          for (const y of [0.02, 6]) if (m.z !== null) at.push(-R, y, m.z, R, y, m.z);
+          if (m.x !== null) at.push(m.x, 0.02, -R, m.x, 6, -R, m.x, 0.02, R, m.x, 6, R);
+          if (m.z !== null) at.push(-R, 0.02, m.z, -R, 6, m.z, R, 0.02, m.z, R, 6, m.z);
+          if (at.length) lines.push({ lines: at, color: [0.35, 0.85, 1], onTop: false });
+        }
         if (assetGhost) overlays.push({ bricks: assetGhost.map(brickRender), alpha: 0.6, flat: false });
         if (sel.length && !live)
           for (const [k, list] of byGroup(sel)) {
@@ -727,6 +815,28 @@ export function Viewport({
               color: sel ? [1, 0.72, 0.2] : [0.55, 0.45, 1],
             });
         }
+        // Milestone 2b: water (a picked one outlined)
+        const waters = studio ? [] : waterItems(ed);
+        renderer.water = waters.map(waterSurface);
+        // Milestone 2b, 10c part 5: placed 3D models (each read once; the view draws again when one is ready)
+        const models = studio ? [] : modelItems(ed);
+        feedModels(renderer, models, ed.media ? (ref) => ed.media!.get(ref) : null, redraw);
+        for (const m of models) {
+          if (m.id !== ed.selectedItem.value) continue;
+          const box = modelBox(m);
+          if (box) lines.push({ lines: boxLines(...box.min, ...box.max), color: [1, 0.72, 0.2], onTop: true });
+        }
+        for (const wt of waters) {
+          if (wt.id === ed.selectedItem.value)
+            lines.push({ lines: boxLines(...(wt.pos as Vec3), ...waterTop(wt)), color: [1, 0.72, 0.2], onTop: true });
+        }
+        // step 11, 4c: placed characters, where they stand (they used to show only in Play)
+        if (!studio) {
+          const layer = characterLayer(renderer, placedCharacters(ed));
+          overlays.push(...layer.overlays);
+          markers.push(...layer.markers);
+          charExtra = layer.extra;
+        }
         for (const sp of studio ? [] : s.map.spawns)
           markers.push({
             pos: [sp.pos[0], sp.pos[1] + 0.9, sp.pos[2]],
@@ -736,6 +846,34 @@ export function Viewport({
           });
         for (const sp of studio ? [] : s.map.spawns)
           lines.push({ lines: facingLine(sp.pos as Vec3, sp.yaw), color: [0.31, 0.82, 0.77] });
+        // step 12b: an asset's Flame (a hand torch's tip, a lit torch stand) as a small flame shape: in Play it is a
+        // fire effect, which the Scene view does not run
+        for (const e of studio ? [] : s.instances) {
+          const f = e.def.flame;
+          if (!f || (f.when && (e.inst.state ?? e.def.initialState) !== f.when)) continue;
+          const p = localToWorld(e.def, e.inst, f.at);
+          const k = f.size ?? 1;
+          markers.push({ pos: p, size: [0.55 * k, 1.0 * k, 0], color: [1, 0.42, 0.08], alpha: 0.85, cone: 'y' });
+          markers.push({ pos: p, size: [0.3 * k, 0.6 * k, 0], color: [1, 0.88, 0.35], cone: 'y' });
+        }
+        // step 12c: a moving platform: a line to where it goes, and its outline there
+        for (const e of studio ? [] : s.instances) {
+          const mv = e.def.moves;
+          if (!mv) continue;
+          const turned = (e.inst.rot ?? 0) % 2 === 1;
+          const w = turned ? e.def.footprint[1] : e.def.footprint[0];
+          const d = turned ? e.def.footprint[0] : e.def.footprint[1];
+          const x = Number(e.inst.pos[0]);
+          const y = Number(e.inst.pos[1]) * 0.4;
+          const z = Number(e.inst.pos[2]);
+          const [bx, by, bz] = mv.by;
+          const c: Vec3 = [x + w / 2, y + 0.9, z + d / 2];
+          lines.push({ lines: [...c, c[0] + bx, c[1] + by, c[2] + bz], color: [0.31, 0.82, 0.77], onTop: true });
+          lines.push({
+            lines: boxLines(x + bx, y + by, z + bz, x + bx + w, y + by + 0.8, z + bz + d),
+            color: [0.31, 0.82, 0.77],
+          });
+        }
       }
       if (s) drawGizmo(lines, markers);
       // P27: the map's lights and darkness, as in the game (asset studio: none)
@@ -756,7 +894,7 @@ export function Viewport({
       if (!studio) ed.viewCentre = [camera.target[0], camera.target[2]];
       if (streaming) dirty = true;
       const t0 = performance.now();
-      const st = renderer.render(cam, camera.target, overlays, lines, markers);
+      const st = renderer.render(cam, camera.target, overlays, lines, markers, charExtra);
       const ms = performance.now() - t0;
       const times = [...ed.frameTimes.value.slice(-59), ms];
       ed.frameTimes.value = times;
@@ -852,6 +990,8 @@ export function Viewport({
       assetGhost = null;
       assetAt = null;
       ghostBad = null;
+      mirrorGhosts = [];
+      stampGhost = null;
       if (tool === 'asset') {
         const def = resolveAsset(ed, ed.assetBrush.value.asset);
         const hit = def && s.surface(r, (b) => !ed.isVisible(b));
@@ -873,10 +1013,20 @@ export function Viewport({
         hover = null;
       } else if (tool === 'place') {
         const hit = s.surface(r, (b) => !ed.isVisible(b));
-        if (hit) {
+        const stamp = studio ? ed.stamp.value : null;
+        if (hit && stamp) {
+          stampGhost = fitStamp(stamp, hit);
+          ed.cursor.value = { x: Math.round(hit.x), z: Math.round(hit.z), y: hit.y };
+        } else if (hit) {
           const fit = fitBrick(hit, ed.brush.value);
           ghost = fit.ghost;
           ghostBad = fit.bad;
+          const br = ed.brush.value;
+          mirrorGhosts = withMirror([
+            { type: br.type, x: ghost.x, y: ghost.y, z: ghost.z, rot: br.rot, color: br.color },
+          ])
+            .slice(1)
+            .map((m) => ({ ...ghost!, x: m.x, z: m.z }));
           ed.cursor.value = { x: ghost.x, z: ghost.z, y: ghost.y };
         }
         hover = null;
@@ -911,19 +1061,28 @@ export function Viewport({
         }
         return;
       }
+      if (tool === 'place' && stampGhost) {
+        if (stampGhost.bad) flashTag(`Can't put the stamp here: ${stampGhost.bad}`, local(e));
+        else ed.exec({ type: 'bricks.place', payload: { map, bricks: stampGhost.bricks } }, { label: 'Stamp' });
+        ghostKey = '';
+        updateHover(e);
+        return;
+      }
       if (tool === 'place' && ghost && ghostBad) {
         flashTag(`Can't place it here: ${ghostBad}`, local(e));
         return;
       }
       if (tool === 'place' && ghost) {
         const br = ed.brush.value;
-        ed.exec({
-          type: 'bricks.place',
-          payload: {
-            map,
-            bricks: [{ type: br.type, x: ghost.x, y: ghost.y, z: ghost.z, rot: br.rot, color: br.color }],
-          },
-        });
+        const one: NewBrick = { type: br.type, x: ghost.x, y: ghost.y, z: ghost.z, rot: br.rot, color: br.color };
+        const both = withMirror([one]);
+        // the mirror side may be blocked: then only this side is placed, and the tag says so
+        const mirrored = both.length > 1 && !ed.bus.check({ type: 'bricks.place', payload: { map, bricks: both } });
+        if (both.length > 1 && !mirrored) flashTag('The mirror side is blocked: placed on this side only', local(e));
+        ed.exec(
+          { type: 'bricks.place', payload: { map, bricks: mirrored ? both : [one] } },
+          { label: mirrored ? 'Place bricks (mirrored)' : 'Place brick' },
+        );
         // the see-through brick moves on at once (on top of the one just placed), so it never sits over it
         ghostKey = '';
         updateHover(e);
@@ -948,8 +1107,11 @@ export function Viewport({
       // emitters and world UI are selectable with any other tool
       const item = studio
         ? null
-        : mapItems(ed)
-            .map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) }))
+        : [
+            ...mapItems(ed).map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) })),
+            ...waterItems(ed).map((it) => ({ it, t: rayBox(r, it.pos as Vec3, waterTop(it)) })),
+            ...modelHits(ed, r),
+          ]
             .filter((x) => x.t !== null)
             .sort((a, b) => a.t! - b.t!)[0];
       if (item) {
@@ -996,14 +1158,22 @@ export function Viewport({
       }
       const b = hit.brick;
       if (tool === 'paint') {
-        ed.exec({
-          type: 'bricks.paint',
-          payload: {
-            map,
-            ids: e.altKey ? [b.id] : b.group ? (s.groups.get(b.group) ?? [b.id]) : [b.id],
-            color: ed.brush.value.color,
-          },
-        });
+        // step 11: on a build plate, Fill (or Shift) paints every joined brick of that colour; a mirror paints both sides
+        const fill = studio && (ed.paintFill.value || e.shiftKey);
+        const base = fill
+          ? fillFrom(s.all(), b.id)
+          : e.altKey
+            ? [b.id]
+            : b.group
+              ? (s.groups.get(b.group) ?? [b.id])
+              : [b.id];
+        const twins = mirrorIds(s, [b.id]);
+        const more = fill ? twins.flatMap((id) => fillFrom(s.all(), id)) : mirrorIds(s, base);
+        const ids = [...new Set([...base, ...more])];
+        ed.exec(
+          { type: 'bricks.paint', payload: { map, ids, color: ed.brush.value.color } },
+          fill ? { label: `Fill ${ids.length} bricks` } : {},
+        );
         return;
       }
       if (tool === 'erase') {
@@ -1013,11 +1183,12 @@ export function Viewport({
           flashTag('Erase removes whole objects here. Loose bricks: select them and Make asset, or Delete.', local(e));
           return;
         }
-        const ids = owner
+        const one = owner
           ? owner.bricks.map((x) => x.id)
           : (e.shiftKey || !studio) && b.group
             ? (s.groups.get(b.group) ?? [b.id])
             : [b.id];
+        const ids = owner ? one : [...one, ...mirrorIds(s, one)];
         if (ed.exec({ type: 'bricks.remove', payload: { map, ids } }).ok) ed.pruneSelection();
         return;
       }
@@ -1030,8 +1201,11 @@ export function Viewport({
       if (!s) return null;
       const r = rayAt(e);
       const hit = s.pick(r, pickable);
-      const item = mapItems(ed)
-        .map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) }))
+      const item = [
+        ...mapItems(ed).map((it) => ({ it, t: rayBoxAt(r, [it.pos[0], it.pos[1] - 0.9, it.pos[2]] as Vec3) })),
+        ...waterItems(ed).map((it) => ({ it, t: rayBox(r, it.pos as Vec3, waterTop(it)) })),
+        ...modelHits(ed, r),
+      ]
         .filter((x) => x.t !== null)
         .sort((a, b) => a.t! - b.t!)[0];
       if (item && (!hit || item.t! < hit.t)) return { kind: 'item', id: item.it.id };
@@ -1318,6 +1492,27 @@ export function Viewport({
       const p = dragPayload.value;
       const s = ed.scene.value;
       if (!p || !s || mode !== 'scene') return;
+      // step 11 (P24 part 3): an imported 3D model file from the Media library goes into the Scene
+      if (p.kind === 'media') {
+        if (p.media !== 'model' || studio) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        return;
+      }
+      // step 11, 4a: a character from the starter pack goes onto the map as a neighbour
+      if (p.kind === 'character') {
+        if (studio) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        return;
+      }
+      // Milestone 3b (B2): a behaviour goes onto the placed object under the pointer
+      if (p.kind === 'behaviour') {
+        if (studio) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        return;
+      }
       // the Scene takes assets; an asset's build plate takes bricks and other assets
       if (p.kind === 'brick' ? !studio : studio && !studio.reuse) return;
       e.preventDefault();
@@ -1354,6 +1549,56 @@ export function Viewport({
       const p = dragPayload.value;
       const s = ed.scene.value;
       if (!p || !s || mode !== 'scene') return;
+      if (p.kind === 'media') {
+        if (p.media !== 'model' || studio) return;
+        e.preventDefault();
+        endDrag();
+        const at = s.surface(rayAt(e), (b) => !ed.isVisible(b));
+        if (at) placeModelAt(ed, at, p.ref, p.name.replace(/\.[^.]+$/, ''));
+        else flashTag('Drop it on the ground or a brick', local(e));
+        return;
+      }
+      if (p.kind === 'behaviour') {
+        if (studio) return;
+        e.preventDefault();
+        endDrag();
+        const hit = s.pick(rayAt(e), pickable);
+        const inst = hit ? s.ownerOf(hit.brick.id) : null;
+        if (!inst) {
+          flashTag('Drop it on a placed object', local(e));
+          return;
+        }
+        ed.select(inst.bricks.map((b) => b.id));
+        const r = ed.exec(
+          {
+            type: 'script.attach',
+            payload: { target: { kind: 'instance', map: ed.mapId.value, id: inst.inst.id }, use: p.use },
+          },
+          { label: `Attach ${p.name}` },
+        );
+        flashTag(r.ok ? `${p.name} is on this ${inst.def.name}` : (r.error ?? 'It could not be attached'), local(e));
+        return;
+      }
+      if (p.kind === 'character') {
+        if (studio) return;
+        e.preventDefault();
+        endDrag();
+        const at = s.surface(rayAt(e), (b) => !ed.isVisible(b));
+        if (!at) {
+          flashTag('Drop it on the ground or a brick', local(e));
+          return;
+        }
+        // (the surface point is in studs and plates; neighbours stand in world units)
+        const pos: [number, number, number] = [at.x, at.y * 0.4, at.z];
+        const item = ADVENTURE_PACK.cast.find((x) => x.id === p.character);
+        if (item) placePackCharacter(ed, item, pos);
+        else
+          ed.exec(
+            { type: 'npc.place', payload: { map: ed.mapId.value, character: p.character, pos, heading: 0 } },
+            { label: `Place ${p.name}` },
+          );
+        return;
+      }
       if (p.kind === 'brick' ? !studio : studio && !studio.reuse) return;
       e.preventDefault();
       const hit = s.surface(rayAt(e), (b) => !ed.isVisible(b));
@@ -1425,16 +1670,17 @@ export function Viewport({
       ro.disconnect();
       unsubScene?.();
       for (const d of disposers) d();
-      // a build plate is closed for good when another asset opens: give its drawing context back at once
-      // (browsers keep only about 16, and a plate opened many times would use them up)
-      renderer.dispose(!!studioRef.current);
+      // the view's canvas goes with it (a build plate when another asset opens; the Scene when it is drawn with
+      // something else or starts again): give its drawing context back at once (browsers keep only about 16, and
+      // views opened many times would use them up)
+      renderer.dispose(true);
     };
-  }, [ed, mode, gen]);
+  }, [ed, mode, gen, drawWith]);
 
   return (
     <div class="viewport-wrap">
       <canvas
-        key={`${mode}|${editorKey(ed)}|${gen}`}
+        key={`${mode}|${editorKey(ed)}|${gen}|${drawWith}`}
         ref={canvasRef}
         class="viewport-canvas"
         data-tour="viewport"
@@ -1446,12 +1692,31 @@ export function Viewport({
       )}
       <div class="vp-hud mono" ref={hudRef} />
       <div class="gizmo-tag" ref={tagRef} hidden />
-      {mode === 'scene' && <ViewControls view={viewRef} studio={!!studio} />}
+      {mode === 'scene' && <ViewControls ed={ed} view={viewRef} studio={!!studio} />}
     </div>
   );
 }
 
 export { mapItems };
+
+/** Milestone 2b: the far top corner of a body of water */
+const waterTop = (w: WaterInstance): Vec3 => [w.pos[0] + w.size[0], w.pos[1] + w.size[1], w.pos[2] + w.size[2]];
+
+/** Milestone 2b, 10c part 5: the box a placed model fills (once it has been read) */
+function modelBox(m: ModelInstance) {
+  const up = readyModel(m.model);
+  if (!up) return null;
+  const b = drawBox(modelMatrix(m), up.data.min, up.data.max);
+  return { min: b.min as Vec3, max: b.max as Vec3 };
+}
+
+/** the placed models a ray goes through, by distance */
+function modelHits(ed: EditorState, r: { o: Vec3; d: Vec3 }) {
+  return modelItems(ed).flatMap((it) => {
+    const b = modelBox(it);
+    return b ? [{ it, t: rayBox(r, b.min, b.max) }] : [];
+  });
+}
 
 const editorKeys = new WeakMap<EditorState, number>();
 let editorCount = 0;
@@ -1554,7 +1819,15 @@ function boxLines(x0: number, y0: number, z0: number, x1: number, y1: number, z1
  * P31 view buttons in the corner of the 3D view: focus on the selection, zoom, turn the view, fit, and
  * full screen. Each has a key, shown in its tip.
  */
-function ViewControls({ view, studio }: { view: { current: ViewportApi | null }; studio: boolean }) {
+function ViewControls({
+  ed,
+  view,
+  studio,
+}: {
+  ed: EditorState;
+  view: { current: ViewportApi | null };
+  studio: boolean;
+}) {
   const op = (o: ViewOp) => () => viewOp(o, view.current);
   const full = sceneFullscreen.value;
   const btn = (label: string, tip: string, glyph: string, run: () => void, extra = '') => (
@@ -1589,6 +1862,24 @@ function ViewControls({ view, studio }: { view: { current: ViewportApi | null };
           () => window.dispatchEvent(new CustomEvent('bw:fullscreen')),
           full ? 'on' : '',
         )}
+      {/* Milestone 2b, 10c: what draws the views on this computer */}
+      {!studio && (
+        <select
+          class="vc vc-draw"
+          aria-label="Draw with"
+          data-tour="draw-with"
+          data-help="scene.view.drawWith"
+          data-tip={`Draws the 3D views with ${rendererFor(ed.drawWith.value) === 'webgpu' ? 'WebGPU' : 'WebGL'} now`}
+          value={ed.drawWith.value}
+          onChange={(e) => ed.setDrawWith((e.target as HTMLSelectElement).value as RendererChoice)}
+        >
+          <option value="auto">Auto (WebGL)</option>
+          <option value="webgpu" disabled={!ed.gpuWorks.value}>
+            {ed.gpuWorks.value ? 'WebGPU' : 'WebGPU (unavailable)'}
+          </option>
+          <option value="webgl">WebGL</option>
+        </select>
+      )}
     </div>
   );
 }

@@ -6,12 +6,15 @@ import { maxBrickId } from '../../assets/instances';
 import { generatedInstanceId, instancify } from '../../assets/instancify';
 import { encodeChunks } from '../../bricks/codec';
 import { footprint, inspectBricks } from '../../bricks/inspect';
+import { Controls } from '../../controls/controls';
 import { DialogueLook } from '../../dialogue/schema';
 import { EffectHooks } from '../../effects/schema';
 import { Mood, ScreenHooks } from '../../effects/screen';
 import { hash64 } from '../../hash';
 import { type Id, newId } from '../../ids';
+import { Magic } from '../../items/magic';
 import { Ambient, DayLength, Fog } from '../../lighting/atmosphere';
+import { MapLookOverride, MapLooks } from '../../maps/look';
 import type { ProjectStore } from '../../project/store';
 import { QUALITY_CHOICES, type QualityChoice } from '../../render/quality';
 import { type Saving, Saving as SavingSchema } from '../../save/save';
@@ -30,6 +33,7 @@ import {
   TIMES,
   ViewDistance,
 } from '../../schema';
+import { Swimming } from '../../water/swim';
 import { type GenerateConfig, generateConfigError, generateMap } from '../../worldgen/generate';
 import { generateLand, LAND_SIZES, type LandConfig } from '../../worldgen/land';
 import type { CommandHandler } from '../types';
@@ -113,6 +117,38 @@ export const setEnvironment: CommandHandler<SetEnvironment> = {
         snowing: p.snowing ?? m.weather.snowing,
       },
     });
+  },
+};
+
+/** step 12a: the map is a dungeon (or not): its minimap, compass and keys */
+export type SetDungeon = { map: string; dungeon: boolean };
+export const setDungeon: CommandHandler<SetDungeon> = {
+  label: (p) => (p.dungeon ? 'Make the map a dungeon' : 'Not a dungeon'),
+  validate: (store, p) =>
+    mapMissing(store, p.map) ?? (typeof p.dungeon === 'boolean' ? null : 'Dungeon is true or false.'),
+  apply(store, p) {
+    const { dungeon: _d, ...rest } = getMap(store, p.map);
+    store.put(paths.map(p.map), { ...rest, ...(p.dungeon ? { dungeon: true } : {}) });
+  },
+};
+
+/** Milestone 3b (B7a-1): a map's own pause map and map in play (null: the game's) */
+export type SetMapLook = { map: string; look: MapLookOverride | null };
+export const setMapLook: CommandHandler<SetMapLook> = {
+  label: () => 'Map look',
+  validate: (store, p) => {
+    const miss = mapMissing(store, p.map);
+    if (miss) return miss;
+    if (p.look === null) return null;
+    const r = MapLookOverride.safeParse(p.look);
+    return r.success
+      ? null
+      : `Map look: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
+  },
+  apply(store, p) {
+    const { mapLook: _l, ...rest } = getMap(store, p.map);
+    const has = p.look && (p.look.pause || p.look.mini);
+    store.put(paths.map(p.map), { ...rest, ...(has ? { mapLook: p.look } : {}) });
   },
 };
 
@@ -322,6 +358,19 @@ export type UpdateProject = {
   screenEffects?: ScreenHooks | null;
   /** P27 part 4: the game's graphics quality before the player picks one (auto: from the device) */
   quality?: QualityChoice;
+  /** Milestone 2b: how the hero moves (classic: v68's own code; physics: walked by the physics engine) */
+  movement?: 'classic' | 'physics';
+  /** step 12c: what the hero climbs: ladders and vines only, or anything while its stamina lasts */
+  climbing?: 'ladders' | 'anything';
+  /** step 11b: swimming and breath */
+  swimming?: Swimming;
+  /** step 13c: the game's magic */
+  magic?: Magic;
+  maps?: MapLooks;
+  /** step 11b part 1: the game's buttons (null: back to the defaults) */
+  controls?: Controls | null;
+  /** step 11, 4b: how the game's screens and menus look */
+  uiLook?: 'classic' | 'adventure';
 };
 
 export const updateProject: CommandHandler<UpdateProject> = {
@@ -338,7 +387,19 @@ export const updateProject: CommandHandler<UpdateProject> = {
               ? 'Game screen effects'
               : p.quality !== undefined && Object.keys(p).length === 1
                 ? 'Graphics quality'
-                : 'Edit project settings',
+                : p.movement !== undefined && Object.keys(p).length === 1
+                  ? `Movement: ${p.movement}`
+                  : p.climbing !== undefined && Object.keys(p).length === 1
+                    ? `Climbing: ${p.climbing}`
+                    : p.swimming !== undefined && Object.keys(p).length === 1
+                      ? 'Swimming'
+                      : p.magic !== undefined && Object.keys(p).length === 1
+                        ? 'Magic'
+                        : p.controls !== undefined && Object.keys(p).length === 1
+                          ? 'Controls'
+                          : p.uiLook !== undefined && Object.keys(p).length === 1
+                            ? `Screen look: ${p.uiLook}`
+                            : 'Edit project settings',
   validate(store, p) {
     if (p.name !== undefined && !p.name.trim()) return 'Give the game a name.';
     if (p.saving && !SavingSchema.safeParse(p.saving).success)
@@ -373,6 +434,25 @@ export const updateProject: CommandHandler<UpdateProject> = {
       if (missing) return `There is no screen effect ${missing}.`;
     }
     if (p.quality !== undefined && !QUALITY_CHOICES.includes(p.quality)) return 'Quality is auto, low, medium or high.';
+    if (p.climbing !== undefined && p.climbing !== 'ladders' && p.climbing !== 'anything')
+      return 'Climbing is ladders (ladders and vines only) or anything (with stamina).';
+    if (p.movement !== undefined && p.movement !== 'classic' && p.movement !== 'physics')
+      return 'Movement is classic or physics.';
+    if (p.uiLook !== undefined && p.uiLook !== 'classic' && p.uiLook !== 'adventure')
+      return 'The screen look is classic or adventure.';
+    if (p.swimming !== undefined && !Swimming.safeParse(p.swimming).success)
+      return 'Swimming: can (true or false) and breath (3 to 300 seconds).';
+    if (p.magic !== undefined && !Magic.safeParse(p.magic).success)
+      return 'Magic: can (true or false) and max (4 to 200).';
+    if (p.maps !== undefined) {
+      const r = MapLooks.safeParse(p.maps);
+      if (!r.success) return `Maps: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
+    }
+    if (p.controls) {
+      const r = Controls.safeParse(p.controls);
+      if (!r.success)
+        return `Controls: ${r.error.issues[0]?.path.join('.')} ${r.error.issues[0]?.message ?? ''}`.trim();
+    }
     if (p.hero && !store.has(paths.character(p.hero))) return 'That character does not exist.';
     if (p.entryMap !== undefined && !store.has(paths.map(p.entryMap))) return 'Start map not found.';
     if (p.entryScreen && !/^scr_[0-9a-z]{10}$/.test(p.entryScreen)) return 'Pick a screen.';
@@ -388,6 +468,31 @@ export const updateProject: CommandHandler<UpdateProject> = {
     if (p.quality !== undefined) {
       const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
       store.put(paths.settings, { ...settings, quality: p.quality });
+    }
+    if (p.movement !== undefined) {
+      const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
+      store.put(paths.settings, { ...settings, movement: p.movement });
+    }
+    if (p.climbing !== undefined) {
+      const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
+      store.put(paths.settings, { ...settings, climbing: p.climbing });
+    }
+    if (p.swimming !== undefined) {
+      const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
+      store.put(paths.settings, { ...settings, swimming: p.swimming });
+    }
+    if (p.magic !== undefined) {
+      const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
+      store.put(paths.settings, { ...settings, magic: p.magic });
+    }
+    // Milestone 3b (B7a-1): how the maps look
+    if (p.maps !== undefined) {
+      const settings = store.get<Settings>(paths.settings) ?? { quality: 'auto' };
+      store.put(paths.settings, { ...settings, maps: p.maps });
+    }
+    if (p.controls !== undefined) {
+      const { controls: _old, ...settings } = store.get<Settings>(paths.settings) ?? { quality: 'auto' as const };
+      store.put(paths.settings, p.controls ? { ...settings, controls: p.controls } : settings);
     }
     const cur = store.manifest;
     const entryMap = (p.entryMap ?? cur.entry.map) as Project['entry']['map'];
@@ -409,6 +514,12 @@ export const updateProject: CommandHandler<UpdateProject> = {
       ...(p.hero !== undefined ? { hero: p.hero as Project['hero'] } : {}),
       ...(p.genre !== undefined ? { genre: p.genre } : {}),
     });
+    if (p.uiLook !== undefined) {
+      const next = { ...store.manifest };
+      if (p.uiLook === 'adventure') next.uiLook = 'adventure';
+      else delete next.uiLook;
+      store.put(paths.project, next);
+    }
     if (p.saving !== undefined) {
       const next = { ...store.manifest } as Project & { saving?: Saving };
       if (p.saving) next.saving = { ...p.saving };

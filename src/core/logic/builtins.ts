@@ -1,0 +1,1516 @@
+/**
+ * Milestone 3b (B3): the engine's own asset features as built-in behaviours (base classes). Each keeps its engine
+ * code and its settings on the asset (so older projects already have them: an asset with a lock *is* a Lock); here
+ * each is described as a behaviour: what it does, its settings as fields, its hooks (decisions a behaviour that
+ * extends it can make itself: `class GemDoor extends Lock { canOpen(e) { … } }`) and the events it sends.
+ */
+import { DEFAULT_STATS } from '../character/sheet';
+import { DAMAGE_TYPES } from '../combat/damage';
+import { ENEMY_STYLES, type Enemy } from '../combat/enemy';
+import { HURT_REACTIONS } from '../combat/hurt';
+import { ATTACKS, type EnemyParts, fightsAs, MOVERS, PART_CLASS, partsOf, SENSES, swappable } from '../combat/parts';
+import type { Asset, BehaviourField, Character, FieldValue } from '../schema';
+
+export type BuiltinHook = { method: string; event: string; returns: 'bool' | 'number' | 'name'; doc: string };
+export type Builtin<T = Asset> = {
+  /** its class name (what `extends` names) */
+  name: string;
+  about: string;
+  /** Milestone 3b (B4): what it goes on: an asset (and its copies), or a character */
+  for?: 'asset' | 'character';
+  /** B4: it is what the thing is (the Hero, a Neighbour): it cannot be added or taken off */
+  fixed?: boolean;
+  /** Milestone 3b (B5a): the built-in it extends (PopUp extends EnemyBrain extends Brain): its hooks are this one's too */
+  parent?: string;
+  /** Milestone 3b (B5b): an interface (Senses, Mover, Attack): its parts extend it, one of them fills it */
+  isInterface?: boolean;
+  /**
+   * Milestone 3b (B6): an item's class: the items it is (Bow: Bow, Fire arrows, Ice arrows); [] for Item and
+   * Projectile themselves (a behaviour extending them is the item of its own name). Item classes go on the hero.
+   */
+  items?: readonly string[];
+  /** the asset has it (its setting is there) */
+  on(a: T): boolean;
+  /** what attaching it adds to an asset (its default settings) */
+  add(a: T): Partial<T>;
+  /** the asset without it */
+  remove(a: T): T;
+  /** its settings as fields: read from the asset, and written back */
+  fields: (BehaviourField & {
+    get(a: T): FieldValue;
+    set(a: T, v: FieldValue): Partial<T>;
+    /** a text field that is one of these (a list to pick from) */
+    choices?: readonly string[];
+    /** Milestone 3b (B5b): the ones this thing can take (a pop-up's Mover can't be swapped) */
+    choicesFor?: (a: T) => readonly string[];
+  })[];
+  hooks: BuiltinHook[];
+  /** logic events it sends (what a behaviour on it can listen to) */
+  events: string[];
+  /** where its settings are edited besides here */
+  editIn: string;
+};
+
+const without = (a: Asset, key: keyof Asset): Asset => {
+  const { [key]: _gone, ...rest } = a;
+  return rest as Asset;
+};
+const hk = (method: string, returns: BuiltinHook['returns'], doc: string): BuiltinHook => ({
+  method,
+  event: `event.on${method.charAt(0).toUpperCase()}${method.slice(1)}`,
+  returns,
+  doc,
+});
+
+export const BUILTINS: Builtin[] = [
+  {
+    name: 'Interactable',
+    about:
+      'The hero uses it with the Action button at one of its sockets: its interactions run (a door opens, a chest gives its item).',
+    on: (a) => a.interactions.length > 0,
+    add: () => ({}),
+    remove: (a) => ({ ...a, interactions: [] }),
+    fields: [],
+    hooks: [hk('canUse', 'bool', 'Can the hero use it now? false: nothing happens.')],
+    events: ['event.onInteract'],
+    editIn: 'Assets › Interactions',
+  },
+  {
+    name: 'Health',
+    about: 'It can be hit and hurt; at 0 it breaks (or is defeated), drops its loot, and may come back.',
+    on: (a) => !!a.health,
+    add: () => ({ health: { hp: 3, atZero: { break: true } } }),
+    remove: (a) => without(a, 'health'),
+    fields: [
+      {
+        name: 'hp',
+        type: 'number',
+        default: 3,
+        label: 'Health',
+        min: 1,
+        max: 999,
+        get: (a) => a.health?.hp ?? 3,
+        set: (a, v) => ({ health: { ...(a.health ?? { atZero: { break: true } }), hp: Math.max(1, Number(v) || 1) } }),
+      },
+    ],
+    hooks: [hk('takeDamage', 'number', 'How much a hit takes (after armour and weaknesses).')],
+    events: ['event.onDamaged', 'event.onDefeated'],
+    editIn: 'Assets › Health',
+  },
+  {
+    name: 'Lock',
+    about: 'Locked until the hero opens it with a key: a small key of this dungeon, the boss key, or an item.',
+    on: (a) => !!a.lock,
+    add: (a) => ({
+      lock: { key: 'small' },
+      ...(a.states.length < 2 ? { states: [a.states[0] ?? 'closed', 'open'] } : {}),
+    }),
+    remove: (a) => without(a, 'lock'),
+    fields: [
+      {
+        name: 'key',
+        type: 'string',
+        default: 'small',
+        label: 'Opens with',
+        choices: ['small', 'boss', 'item'],
+        get: (a) => a.lock?.key ?? 'small',
+        set: (a, v) => ({
+          lock: { ...(a.lock ?? {}), key: (['small', 'boss', 'item'].includes(String(v)) ? v : 'small') as 'small' },
+        }),
+      },
+      {
+        name: 'item',
+        type: 'item',
+        default: '',
+        label: 'The item (key: item)',
+        get: (a) => a.lock?.item ?? '',
+        set: (a, v) => ({ lock: { ...(a.lock ?? { key: 'item' }), ...(v ? { item: String(v) } : {}) } }),
+      },
+    ],
+    hooks: [hk('canOpen', 'bool', 'Does it open now? (the key is used up only if the hero has one)')],
+    events: ['event.onUnlocked'],
+    editIn: 'Assets › Puzzle › Lock',
+  },
+  {
+    name: 'Switch',
+    about:
+      'A switch: stepped on (a floor switch, by weight), hit (a crystal), pressed (a lever) or lit (a light sensor). It stays on, is held, runs on a timer or toggles.',
+    on: (a) => !!a.switch,
+    add: (a) => ({
+      switch: { by: 'step', stays: 'held' },
+      ...(a.states.length < 2 ? { states: [a.states[0] ?? 'off', 'on'] } : {}),
+    }),
+    remove: (a) => without(a, 'switch'),
+    fields: [
+      {
+        name: 'weight',
+        type: 'number',
+        default: 1,
+        label: 'Weight needed (floor switch)',
+        min: 1,
+        max: 10,
+        get: (a) => a.switch?.weight ?? 1,
+        set: (a, v) => ({
+          switch: {
+            ...(a.switch ?? { by: 'step', stays: 'held' }),
+            weight: Math.max(1, Math.min(10, Math.round(Number(v) || 1))),
+          },
+        }),
+      },
+    ],
+    hooks: [hk('isPressed', 'bool', 'Is a floor switch down? (weight on it, and who)')],
+    events: ['event.onSwitch'],
+    editIn: 'Assets › Puzzle › Switch',
+  },
+  {
+    name: 'Pushable',
+    about:
+      'A block the hero grabs (Action held) and pushes or pulls square along the floor, a stud or its size at a time.',
+    on: (a) => !!a.push,
+    add: () => ({ push: {} }),
+    remove: (a) => without(a, 'push'),
+    fields: [
+      {
+        name: 'pull',
+        type: 'bool',
+        default: false,
+        label: 'Can be pulled too',
+        get: (a) => !!a.push?.pull,
+        set: (a, v) => ({ push: { ...(a.push ?? {}), pull: !!v } }),
+      },
+    ],
+    hooks: [hk('canPush', 'bool', 'Can it move this way now? (dx, dz, pulled)')],
+    events: ['event.onPushed'],
+    editIn: 'Assets › Puzzle › Push',
+  },
+  {
+    name: 'Pickup',
+    about: 'Touched, it is gone and the hero has its item (a key, a heart, rupees, the dungeon map…).',
+    on: (a) => !!a.pickup,
+    add: () => ({ pickup: { item: 'rupee', count: 1 } }),
+    remove: (a) => without(a, 'pickup'),
+    fields: [
+      {
+        name: 'item',
+        type: 'item',
+        default: 'rupee',
+        label: 'Gives',
+        get: (a) => a.pickup?.item ?? 'rupee',
+        set: (a, v) => ({ pickup: { ...(a.pickup ?? { count: 1 }), item: String(v || 'rupee') } }),
+      },
+      {
+        name: 'count',
+        type: 'number',
+        default: 1,
+        label: 'How many',
+        min: 1,
+        max: 99,
+        get: (a) => a.pickup?.count ?? 1,
+        set: (a, v) => ({
+          pickup: { ...(a.pickup ?? { item: 'rupee' }), count: Math.max(1, Math.round(Number(v) || 1)) },
+        }),
+      },
+    ],
+    hooks: [hk('canPickUp', 'bool', 'Can the hero take it now?')],
+    events: ['event.onPickedUp'],
+    editIn: 'Assets › Puzzle › Pickup',
+  },
+  {
+    name: 'Climbable',
+    about: 'Vines or a ladder: walk into it to take hold and climb.',
+    on: (a) => !!a.climbable,
+    add: () => ({ climbable: true }),
+    remove: (a) => without(a, 'climbable'),
+    fields: [],
+    hooks: [hk('canClimb', 'bool', 'Can the hero take hold now?')],
+    events: [],
+    editIn: 'Assets › Fire and light › Climbable',
+  },
+  {
+    name: 'Checkpoint',
+    about: 'Touched, it is where the hero comes back after a fall or defeat.',
+    on: (a) => !!a.checkpoint,
+    add: () => ({ checkpoint: true }),
+    remove: (a) => without(a, 'checkpoint'),
+    fields: [],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Checkpoint',
+  },
+  {
+    name: 'Hidden',
+    about: 'Unseen until the hero looks through the Lens of Truth; still solid.',
+    on: (a) => !!a.hidden,
+    add: () => ({ hidden: true }),
+    remove: (a) => without(a, 'hidden'),
+    fields: [],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Wind and lifting › Hidden',
+  },
+  {
+    name: 'Fake',
+    about: 'Looks solid but is not: the hero walks or falls through it (see-through through the Lens).',
+    on: (a) => !!a.fake,
+    add: () => ({ fake: true }),
+    remove: (a) => without(a, 'fake'),
+    fields: [],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Wind and lifting › Fake',
+  },
+  {
+    name: 'Light',
+    about: 'It shines a light (a lamp, a torch): colour, how far, only at night.',
+    on: (a) => !!a.light,
+    add: (a) => ({
+      light: {
+        color: '#ffd28a',
+        brightness: 1,
+        range: 8,
+        flicker: 0,
+        shadow: false,
+        at: [a.footprint[0] / 2, 2, a.footprint[1] / 2],
+      },
+    }),
+    remove: (a) => without(a, 'light'),
+    fields: [],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Light',
+  },
+];
+
+/** Milestone 3b (B3, part 2): a number field of a setting object on the asset */
+type F = Builtin['fields'][number];
+function num<K extends keyof Asset>(
+  key: K,
+  name: string,
+  label: string,
+  def: number,
+  min: number,
+  max: number,
+  base: (a: Asset) => NonNullable<Asset[K]>,
+  int = false,
+): F {
+  return {
+    name,
+    type: 'number',
+    default: def,
+    label,
+    min,
+    max,
+    get: (a) => ((a[key] as Record<string, unknown> | undefined)?.[name] as number | undefined) ?? def,
+    set: (a, v) => {
+      let n = Math.max(min, Math.min(max, Number(v) || def));
+      if (int) n = Math.round(n);
+      return { [key]: { ...((a[key] ?? base(a)) as object), [name]: n } } as Partial<Asset>;
+    },
+  };
+}
+function flag<K extends keyof Asset>(
+  key: K,
+  name: string,
+  label: string,
+  def: boolean,
+  base: (a: Asset) => NonNullable<Asset[K]>,
+): F {
+  return {
+    name,
+    type: 'bool',
+    default: def,
+    label,
+    get: (a) => ((a[key] as Record<string, unknown> | undefined)?.[name] as boolean | undefined) ?? def,
+    set: (a, v) => ({ [key]: { ...((a[key] ?? base(a)) as object), [name]: !!v } }) as Partial<Asset>,
+  };
+}
+function pick<K extends keyof Asset>(
+  key: K,
+  name: string,
+  label: string,
+  choices: readonly string[],
+  base: (a: Asset) => NonNullable<Asset[K]>,
+): F {
+  return {
+    name,
+    type: 'string',
+    default: choices[0]!,
+    label,
+    choices,
+    get: (a) => ((a[key] as Record<string, unknown> | undefined)?.[name] as string | undefined) ?? choices[0]!,
+    set: (a, v) =>
+      ({
+        [key]: { ...((a[key] ?? base(a)) as object), [name]: choices.includes(String(v)) ? String(v) : choices[0] },
+      }) as Partial<Asset>,
+  };
+}
+const mid = (a: Asset, y: number): [number, number, number] => [a.footprint[0] / 2, y, a.footprint[1] / 2];
+const twoStates = (a: Asset, first: string, second: string): Partial<Asset> =>
+  a.states.length < 2 ? { states: [a.states[0] ?? first, second] } : {};
+
+const flame = (a: Asset) => ({ at: mid(a, 2) });
+const beam = (a: Asset) => ({ at: mid(a, 1) });
+const moves = () => ({ by: [0, 4, 0] as [number, number, number] });
+const wind = (a: Asset): NonNullable<Asset['wind']> => ({ at: [a.footprint[0] / 2, 0, a.footprint[1]] });
+const light = (a: Asset): NonNullable<Asset['light']> => ({
+  color: '#ffd28a',
+  brightness: 1,
+  range: 8,
+  flicker: 0,
+  shadow: false,
+  at: mid(a, 2),
+});
+
+BUILTINS.push(
+  {
+    name: 'Burnable',
+    about:
+      'It catches fire (a lit stick, a fire arrow, a bomb, fire next to it), burns a while and is gone: vines, a barricade, a web.',
+    on: (a) => !!a.burn,
+    add: () => ({ burn: {} }),
+    remove: (a) => without(a, 'burn'),
+    fields: [
+      num('burn', 'seconds', 'Burns for (seconds)', 2, 0.5, 30, () => ({})),
+      flag('burn', 'spreads', 'Sets things touching it alight', true, () => ({})),
+    ],
+    hooks: [hk('canBurn', 'bool', 'Does it catch fire now? (why: how the fire came)')],
+    events: ['event.onBurned'],
+    editIn: 'Assets › Fire and light › Burns',
+  },
+  {
+    name: 'Flame',
+    about: 'A fire burns on it (a lit torch stand), always or in one of its states.',
+    on: (a) => !!a.flame,
+    add: (a) => ({ flame: flame(a) }),
+    remove: (a) => without(a, 'flame'),
+    fields: [num('flame', 'size', 'How big', 1, 0.2, 4, flame)],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Fire and light › Flame',
+  },
+  {
+    name: 'Beam',
+    about:
+      'It shines a beam of light straight ahead (a sun stone): mirrors turn it, light sensors see it, it can melt ice.',
+    on: (a) => !!a.beam,
+    add: (a) => ({ beam: beam(a) }),
+    remove: (a) => without(a, 'beam'),
+    fields: [num('beam', 'range', 'Reach (studs)', 32, 4, 96, beam)],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Fire and light › Shines',
+  },
+  {
+    name: 'Mirror',
+    about: 'It turns a beam of light a quarter turn; the hero turns it round (two states, one leaning each way).',
+    on: (a) => !!a.mirror,
+    add: (a) => ({ mirror: {}, ...twoStates(a, 'left', 'right') }),
+    remove: (a) => without(a, 'mirror'),
+    fields: [flag('mirror', 'turns', 'The hero can turn it', true, () => ({}))],
+    hooks: [hk('canTurn', 'bool', 'Can the hero turn it now?')],
+    events: ['event.onSwitch'],
+    editIn: 'Assets › Fire and light › Mirror',
+  },
+  {
+    name: 'BombPlant',
+    about: 'It grows a bomb the hero picks, lights and throws; it grows another as its setting says.',
+    on: (a) => !!a.bombPlant,
+    add: (a) => ({ bombPlant: {}, ...twoStates(a, 'grown', 'picked') }),
+    remove: (a) => without(a, 'bombPlant'),
+    fields: [pick('bombPlant', 'regrow', 'Grows another', ['missed', 'always', 'never'], () => ({}))],
+    hooks: [hk('canPick', 'bool', 'Can the hero pick its bomb now?')],
+    events: [],
+    editIn: 'Assets › Fire and light › Grows another',
+  },
+  {
+    name: 'Ice',
+    about: 'Slippery to walk on; a push block of it slides on by itself; fire (or light) melts it.',
+    on: (a) => !!a.ice,
+    add: () => ({ ice: {} }),
+    remove: (a) => without(a, 'ice'),
+    fields: [
+      flag('ice', 'floor', 'Slippery to walk on', true, () => ({})),
+      flag('ice', 'slides', 'Slides on when pushed', false, () => ({})),
+      pick('ice', 'melts', 'Melts with', ['fire', 'fire-or-light', 'never'], () => ({})),
+      num('ice', 'seconds', 'Melts in (seconds)', 2, 0.5, 30, () => ({})),
+    ],
+    hooks: [hk('canMelt', 'bool', 'Does it start to melt now? (by: fire, light or thaw)')],
+    events: [],
+    editIn: 'Assets › Ice, moving and climbing › Ice',
+  },
+  {
+    name: 'Platform',
+    about: 'It moves back and forth (or up and down) and carries what stands on it.',
+    on: (a) => !!a.moves,
+    add: () => ({ moves: moves() }),
+    remove: (a) => without(a, 'moves'),
+    fields: [
+      ...(['x', 'y', 'z'] as const).map(
+        (k, i): F => ({
+          name: `far${k.toUpperCase()}`,
+          type: 'number',
+          default: i === 1 ? 4 : 0,
+          label: `Far end: ${k === 'y' ? 'up' : k} (studs)`,
+          min: i === 1 ? -32 : -64,
+          max: i === 1 ? 32 : 64,
+          get: (a) => a.moves?.by[i] ?? (i === 1 ? 4 : 0),
+          set: (a, v) => {
+            const by = [...(a.moves?.by ?? moves().by)] as [number, number, number];
+            by[i] = Math.max(i === 1 ? -32 : -64, Math.min(i === 1 ? 32 : 64, Number(v) || 0));
+            return { moves: { ...(a.moves ?? moves()), by } };
+          },
+        }),
+      ),
+      num('moves', 'seconds', 'Seconds end to end', 3, 0.5, 60, moves),
+      num('moves', 'pause', 'Waits at each end (seconds)', 1, 0, 30, moves),
+      flag('moves', 'whenOn', 'Only while on (its second state)', false, moves),
+    ],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Ice, moving and climbing › Moves',
+  },
+  {
+    name: 'Fan',
+    about:
+      'It blows wind straight ahead: the hero leans into it or is blown back; it turns windmills, carries the glider.',
+    on: (a) => !!a.wind,
+    add: (a) => ({ wind: wind(a) }),
+    remove: (a) => without(a, 'wind'),
+    fields: [
+      num('wind', 'speed', 'Air speed (studs a second)', 16, 2, 60, wind),
+      num('wind', 'reach', 'Reach (studs)', 16, 2, 64, wind),
+      num('wind', 'width', 'Width at the fan', 3, 1, 16, wind),
+      num('wind', 'height', 'Height at the fan', 3, 1, 16, wind),
+    ],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Wind and lifting › Blows',
+  },
+  {
+    name: 'Liftable',
+    about: 'The hero lifts it over the head, carries it, puts it down or throws it (a rock, a pot).',
+    on: (a) => !!a.lift,
+    add: () => ({ lift: {} }),
+    remove: (a) => without(a, 'lift'),
+    fields: [
+      flag('lift', 'breaks', 'Breaks where it lands', false, () => ({})),
+      num('lift', 'weight', 'Weight on a floor switch', 1, 1, 5, () => ({}), true),
+    ],
+    hooks: [hk('canLift', 'bool', 'Can the hero lift it now?')],
+    events: [],
+    editIn: 'Assets › Wind and lifting › Lift',
+  },
+  {
+    name: 'PhysicsBody',
+    about: 'A loose object: in Play it falls, tumbles, is pushed about by the hero and wind, and floats in water.',
+    on: (a) => !!a.loose,
+    add: () => ({ loose: true }),
+    remove: (a) => without(a, 'loose'),
+    fields: [],
+    hooks: [],
+    events: [],
+    editIn: 'Scene › Inspector › Loose',
+  },
+  {
+    name: 'HookTarget',
+    about:
+      'The hook line and the grapple rope catch on it (a target, a ring, a beam); wood, vines and ladders catch anyway.',
+    on: (a) => !!a.hook,
+    add: () => ({ hook: true }),
+    remove: (a) => without(a, 'hook'),
+    fields: [],
+    hooks: [hk('canCatch', 'bool', 'Does the hook catch on it now?')],
+    events: [],
+    editIn: 'Assets › Wind and lifting › Hook target',
+  },
+  {
+    name: 'Magnetic',
+    about: 'It is metal: the magnet glove pulls a loose one, and it is heavy (it sinks in water).',
+    on: (a) => !!a.metal,
+    add: () => ({ metal: true }),
+    remove: (a) => without(a, 'metal'),
+    fields: [],
+    hooks: [],
+    events: [],
+    editIn: 'Assets › Wind and lifting › Metal',
+  },
+);
+
+// Milestone 3b (B3, part 2): the Light's settings as fields
+BUILTINS.find((b) => b.name === 'Light')!.fields.push(
+  num('light', 'brightness', 'Brightness', 1, 0, 4, light),
+  num('light', 'range', 'Reach (studs)', 8, 2, 40, light),
+  num('light', 'flicker', 'Flicker', 0, 0, 1, light),
+);
+
+export const builtinNamed = (name: string | undefined) => BUILTINS.find((b) => b.name === name) ?? null;
+
+// ---------- Milestone 3b (B4): characters ----------
+
+const stat = (name: keyof typeof DEFAULT_STATS & string, label: string, min: number, max: number, int = false) => ({
+  name,
+  type: 'number' as const,
+  default: DEFAULT_STATS[name] as number,
+  label,
+  min,
+  max,
+  get: (c: Character) => (c.stats?.[name] as number | undefined) ?? (DEFAULT_STATS[name] as number),
+  set: (c: Character, v: FieldValue): Partial<Character> => {
+    let n = Math.max(min, Math.min(max, Number(v) || (DEFAULT_STATS[name] as number)));
+    if (int) n = Math.round(n);
+    return { stats: { ...DEFAULT_STATS, ...(c.stats ?? {}), [name]: n } };
+  },
+});
+const harmOf = (c: Character): NonNullable<Character['harm']> =>
+  c.harm ?? { canBeHarmed: true, health: { hp: 3, atZero: { break: false } } };
+
+export const CHARACTER_BUILTINS: Builtin<Character>[] = [
+  {
+    name: 'Hero',
+    for: 'character',
+    fixed: true,
+    about:
+      'The character the player plays: it walks, runs and jumps with the sheet’s speed and jump, hits with its strength, takes hits after its defence, and gains experience.',
+    on: (c) => c.role === 'hero',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [
+      stat('health', 'Hearts', 1, 99, true),
+      stat('speed', 'Speed (1: normal)', 0.5, 2),
+      stat('jump', 'Jump (1: normal)', 0.5, 2),
+      stat('strength', 'Strength (1: normal)', 0.5, 3),
+      stat('defence', 'Defence (8% less a point)', 0, 10, true),
+      stat('stamina', 'Stamina', 10, 500, true),
+    ],
+    hooks: [
+      hk('canJump', 'bool', 'Can the hero jump now? (onGround: standing on something)'),
+      hk('moveSpeed', 'number', 'How fast the hero walks or runs now (1: normal; asked every step)'),
+      hk('hitPower', 'number', 'How hard this swing hits (power, kind: light, heavy, charged, spin, bash)'),
+      hk('takeDamage', 'number', 'How much a hit takes from the hero’s hearts (after defence)'),
+      hk('gainXp', 'number', 'How much experience the hero gets (amount)'),
+      hk(
+        'hurtReaction',
+        'name',
+        'How the hero reacts to this hit (how: flinch, stagger, knockdown, burn, freeze, shock, stun)',
+      ),
+    ],
+    events: ['event.onDamaged', 'event.onDefeated', 'event.onLevelUp'],
+    editIn: 'Characters › Stats',
+  },
+  {
+    name: 'Neighbour',
+    for: 'character',
+    fixed: true,
+    about: 'A character who lives on the map: it walks about or stands where it was put, and the hero talks to it.',
+    on: (c) => c.role === 'npc' && !c.enemy,
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [
+      {
+        name: 'stands',
+        type: 'bool',
+        default: false,
+        label: 'Stands where it was put',
+        get: (c) => c.behaviour?.routine === 'stand',
+        set: (c, v) => ({ behaviour: { kind: c.behaviour?.kind ?? 'villager', routine: v ? 'stand' : 'wander' } }),
+      },
+    ],
+    hooks: [hk('canTalk', 'bool', 'Will it talk to the hero now?')],
+    events: ['event.onConversationEnd', 'event.onChoice'],
+    editIn: 'Characters › Behaviour',
+  },
+  {
+    name: 'Damageable',
+    for: 'character',
+    about: 'The hero can hit and hurt it; at 0 it is defeated (and drops its loot).',
+    on: (c) => !!c.harm?.canBeHarmed,
+    add: (c) => ({ harm: { ...harmOf(c), canBeHarmed: true } }),
+    remove: (c) => {
+      const { harm: _gone, ...rest } = c;
+      return rest as Character;
+    },
+    fields: [
+      {
+        name: 'hp',
+        type: 'number',
+        default: 3,
+        label: 'Health',
+        min: 1,
+        max: 999,
+        get: (c) => c.harm?.health.hp ?? 3,
+        set: (c, v) => {
+          const h = harmOf(c);
+          return { harm: { ...h, health: { ...h.health, hp: Math.max(1, Math.min(999, Number(v) || 1)) } } };
+        },
+      },
+      {
+        name: 'armor',
+        type: 'number',
+        default: 0,
+        label: 'Armour (taken off every hit)',
+        min: 0,
+        max: 99,
+        get: (c) => c.harm?.health.armor ?? 0,
+        set: (c, v) => {
+          const h = harmOf(c);
+          return { harm: { ...h, health: { ...h.health, armor: Math.max(0, Math.min(99, Number(v) || 0)) } } };
+        },
+      },
+    ],
+    hooks: [
+      hk('takeDamage', 'number', 'How much a hit takes (after armour, its sides and weaknesses).'),
+      hk(
+        'hurtReaction',
+        'name',
+        'How it reacts to this hit (how: flinch, stagger, knockdown, burn, freeze, shock, stun)',
+      ),
+    ],
+    events: ['event.onDamaged', 'event.onDefeated'],
+    editIn: 'Characters › Stats › Can be harmed',
+  },
+];
+
+// Milestone 3b (B4, part 2): what the hero does in water and on walls, and a neighbour that follows
+CHARACTER_BUILTINS.push(
+  {
+    name: 'Swimmer',
+    for: 'character',
+    fixed: true,
+    about: 'The hero swims in deep water, dives with the Action button held, and holds its breath under water.',
+    on: (c) => c.role === 'hero',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [
+      hk('canDive', 'bool', 'Can the hero dive now?'),
+      hk('breath', 'number', 'Seconds of air under water (asked every step)'),
+    ],
+    events: [],
+    editIn: 'Project › Swimming',
+  },
+  {
+    name: 'Climber',
+    for: 'character',
+    fixed: true,
+    about:
+      'The hero climbs onto ledges, up ladders and vines, and (with Climbing: anything) up walls while stamina lasts.',
+    on: (c) => c.role === 'hero',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [hk('canClimbWall', 'bool', 'Can the hero take hold of this wall now?')],
+    events: [],
+    editIn: 'Project › Climbing',
+  },
+  {
+    name: 'Follower',
+    for: 'character',
+    fixed: true,
+    about:
+      'A neighbour told to follow the hero (Follow the hero card) walks after it, runs to catch up and jumps to it when far behind.',
+    on: (c) => c.role === 'npc' && !c.enemy,
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [hk('followGap', 'number', 'How close it keeps to the hero (studs; distance: how far it is now)')],
+    events: [],
+    editIn: 'Logic › Follow',
+  },
+);
+
+// ---------- Milestone 3b (B5a): enemy brains ----------
+
+const ENEMY_DEFAULT: Enemy = { power: 1, type: 'blunt', reach: 1.9, sight: 10, speed: 1.4, cooldown: 1.8, windup: 0.6 };
+const enemyNum = (name: keyof Enemy & string, label: string, min: number, max: number, def: number) => ({
+  name,
+  type: 'number' as const,
+  default: def,
+  label,
+  min,
+  max,
+  get: (c: Character) => ((c.enemy as Record<string, unknown> | undefined)?.[name] as number | undefined) ?? def,
+  set: (c: Character, v: FieldValue): Partial<Character> => ({
+    enemy: { ...(c.enemy ?? ENEMY_DEFAULT), [name]: Math.max(min, Math.min(max, Number(v) || def)) },
+  }),
+});
+const enemyPick = (name: 'style' | 'wits' | 'type', label: string, choices: readonly string[], def: string) => ({
+  name,
+  type: 'string' as const,
+  default: def,
+  label,
+  choices,
+  get: (c: Character) => String(c.enemy?.[name] ?? def),
+  set: (c: Character, v: FieldValue): Partial<Character> => ({
+    enemy: { ...(c.enemy ?? ENEMY_DEFAULT), [name]: choices.includes(String(v)) ? String(v) : def } as Enemy,
+  }),
+});
+/** the template an enemy's settings make it (its style; a fire fighter is a Charger) */
+export function templateOfEnemy(e: Enemy | undefined): string | null {
+  if (!e) return null;
+  const st = e.style ?? 'melee';
+  if (st === 'melee') return e.type === 'fire' ? 'Charger' : 'Brawler';
+  // Milestone 3b (B5c): a boss's template is by when it can be hurt
+  if (st === 'boss')
+    return { always: 'PhasedBoss', afterAttack: 'WeakPointBoss', stunned: 'PuzzleBoss' }[
+      e.boss?.vulnerable ?? 'always'
+    ];
+  const by: Partial<Record<string, string>> = {
+    knight: 'Knight',
+    turret: 'Turret',
+    shooter: 'Shooter',
+    popup: 'PopUp',
+    flyer: 'Flyer',
+    swarm: 'Swarm',
+    ambusher: 'Ambusher',
+    ghost: 'Ghost',
+    pack: 'PackHunter',
+  };
+  return by[st] ?? null;
+}
+const template = (name: string, about: string, hooks: BuiltinHook[], events: string[] = []): Builtin<Character> => ({
+  name,
+  for: 'character',
+  fixed: true,
+  parent: 'EnemyBrain',
+  about,
+  on: (c) => templateOfEnemy(c.enemy) === name,
+  add: () => ({}),
+  remove: (c) => c,
+  fields: [],
+  hooks,
+  events,
+  editIn: 'Characters › Stats › Fights the hero (Kind of fighter)',
+});
+
+CHARACTER_BUILTINS.push(
+  {
+    name: 'Brain',
+    for: 'character',
+    fixed: true,
+    about:
+      'Anything that decides on its own. Each step it senses, thinks (which state to be in: idle, chase, windup, circle, flee…) and acts. Every enemy’s brain extends it.',
+    on: (c) => !!c.enemy,
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [
+      {
+        method: 'nextState',
+        event: 'event.onNextState',
+        returns: 'name',
+        doc: 'Which state next, when it changes state (from, to): return a state name.',
+      },
+    ],
+    events: ['event.onStateChange'],
+    editIn: 'Characters › Stats › Fights the hero',
+  },
+  {
+    name: 'EnemyBrain',
+    for: 'character',
+    fixed: true,
+    parent: 'Brain',
+    about:
+      'A brain that fights the hero: it notices the hero (sight, cone, hearing), closes in or keeps away, telegraphs each attack (the tell) and strikes. Its kind of fighter picks its template (Brawler, Knight, PopUp…).',
+    on: (c) => !!c.enemy,
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [
+      enemyPick('style', 'Kind of fighter (its template)', ENEMY_STYLES, 'melee'),
+      enemyPick('wits', 'Wits', ['simple', 'smart', 'pack'], 'simple'),
+      enemyPick('type', 'Damage type', DAMAGE_TYPES, 'blunt'),
+      enemyNum('power', 'Power', 0, 20, 1),
+    ],
+    hooks: [
+      {
+        method: 'shouldFlee',
+        event: 'event.onShouldFlee',
+        returns: 'bool',
+        doc: 'Run from the hero this step? (distance)',
+      },
+      {
+        method: 'takeDamage',
+        event: 'event.onTakeDamage',
+        returns: 'number',
+        doc: 'How much a hit takes (after armour, sides and weaknesses)',
+      },
+      hk(
+        'hurtReaction',
+        'name',
+        'How it reacts to this hit (how: flinch, stagger, knockdown, burn, freeze, shock, stun)',
+      ),
+    ],
+    events: ['event.onDamaged', 'event.onDefeated', 'event.onStateChange'],
+    editIn: 'Characters › Stats › Fights the hero',
+  },
+  template('Brawler', 'Walks over and swings (Rattlebones’ cousins; a Grunt, a Brute).', []),
+  template('Charger', 'A fire beast: charges from afar and breathes fire close up (Cinderjaw).', [
+    { method: 'shouldCharge', event: 'event.onShouldCharge', returns: 'bool', doc: 'Charge now? (distance)' },
+  ]),
+  template(
+    'Knight',
+    'Circles at the edge of its reach, shield toward you; a swing at its front is blocked and countered (Rattlebones).',
+    [
+      {
+        method: 'shouldCounter',
+        event: 'event.onShouldCounter',
+        returns: 'bool',
+        doc: 'Counter this blocked swing? (distance)',
+      },
+    ],
+  ),
+  template('Turret', 'Stays put and sweeps its gaze; seeing you, it charges and fires a beam (Watcher Eye).', [
+    {
+      method: 'trackSpeed',
+      event: 'event.onTrackSpeed',
+      returns: 'number',
+      doc: 'How fast its gaze follows (radians a second)',
+    },
+  ]),
+  template('Shooter', 'Keeps its distance and shoots a rock or a fireball.', [
+    { method: 'keepAway', event: 'event.onKeepAway', returns: 'number', doc: 'How far from the hero it stays (studs)' },
+    { method: 'shotKind', event: 'event.onShotKind', returns: 'name', doc: 'What it shoots: rock or fireball' },
+  ]),
+  template(
+    'PopUp',
+    'Hides underground or under water, comes up to spit, ducks; it can only be hit while up (Pebblespout, Finspitter).',
+    [
+      { method: 'spits', event: 'event.onSpits', returns: 'number', doc: 'How many shots each time up (1 to 10)' },
+      { method: 'shotKind', event: 'event.onShotKind', returns: 'name', doc: 'What it spits: rock or fireball' },
+    ],
+  ),
+  template('Flyer', 'Flies, circles over you and swoops down to bite.', [
+    { method: 'circleTime', event: 'event.onCircleTime', returns: 'number', doc: 'Seconds it circles before a swoop' },
+  ]),
+  template('Swarm', 'Many weak ones that flit erratically, circle and swoop (Flitterwing, plain, fire and ice).', [
+    { method: 'circleTime', event: 'event.onCircleTime', returns: 'number', doc: 'Seconds it circles before a swoop' },
+  ]),
+  template('Ambusher', 'Hangs high on a thread, drops on you as you pass under, climbs back up (Threadback).', [
+    { method: 'shouldDrop', event: 'event.onShouldDrop', returns: 'bool', doc: 'Drop now? (distance from under it)' },
+  ]),
+  template('Ghost', 'Fades out, drifts behind you, fades in to strike; the Lens of Truth shows it (Lanternwisp).', [
+    { method: 'hiddenFor', event: 'event.onHiddenFor', returns: 'number', doc: 'Seconds it stays unseen' },
+  ]),
+  template('PackHunter', 'Howls for the others; the pack circles you and strikes one at a time (Howler).', [
+    { method: 'callsPack', event: 'event.onCallsPack', returns: 'bool', doc: 'Call the others when it sees you?' },
+  ]),
+);
+
+// ---------- Milestone 3b (B5c): bosses ----------
+
+const bossTemplate = (name: string, about: string): Builtin<Character> => ({
+  name,
+  for: 'character',
+  fixed: true,
+  parent: 'BossBrain',
+  about,
+  on: (c) => templateOfEnemy(c.enemy) === name,
+  add: () => ({}),
+  remove: (c) => c,
+  fields: [],
+  hooks: [],
+  events: [],
+  editIn: 'Logic: Extend it, write its phases, attach it to a character',
+});
+
+CHARACTER_BUILTINS.push(
+  {
+    name: 'BossBrain',
+    for: 'character',
+    fixed: true,
+    parent: 'EnemyBrain',
+    about:
+      'A boss, made in Logic: extend one of its templates and write its phases in the class — phases = [{ from: 100, fights: "melee" }, { from: 50, fights: "shooter", speed: 1.3 }]. As its health falls to each phase’s mark it roars into it (another kind of fighter, other parts, faster, harder). Attached to a character, the behaviour makes it a boss.',
+    on: (c) => c.enemy?.style === 'boss',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [
+      hk('phaseFor', 'number', 'Which phase it is in (hp, max, phase): return a phase number (1 is its first)'),
+      hk('isVulnerable', 'bool', 'Can it be hurt by this hit? (how: always, afterAttack, stunned; phase)'),
+    ],
+    events: ['event.onPhase'],
+    editIn: 'Logic: Extend a template (PhasedBoss, WeakPointBoss, PuzzleBoss) and write its phases',
+  },
+  bossTemplate('PhasedBoss', 'A boss that can always be hurt; it changes as its health falls (phases).'),
+  bossTemplate(
+    'WeakPointBoss',
+    'A boss guarded but for a moment just after each attack (its weak point shows): strike then.',
+  ),
+  bossTemplate(
+    'PuzzleBoss',
+    'A boss too strong to hurt until stunned (by what it is stunned by, a parry or its own shot sent back): work out how.',
+  ),
+);
+
+// ---------- Milestone 3b (B6): items and projectiles ----------
+
+/** an item's class: on the hero (a behaviour extending it, attached to the hero, changes that item) */
+const itemClass = (
+  name: string,
+  parent: string | undefined,
+  items: readonly string[],
+  about: string,
+  hooks: BuiltinHook[] = [],
+  events: string[] = [],
+): Builtin<Character> => ({
+  name,
+  for: 'character',
+  ...(parent ? { parent } : {}),
+  items,
+  about,
+  // (no row on a character: its behaviour shows where it is attached, on the hero)
+  on: () => false,
+  add: () => ({}),
+  remove: (c) => c,
+  fields: [],
+  hooks,
+  events,
+  editIn: 'Logic: Extend it and attach it to the hero (Characters › hero › Behaviour)',
+});
+
+CHARACTER_BUILTINS.push(
+  itemClass(
+    'Item',
+    undefined,
+    [],
+    'Something the hero carries and uses from an item button. Extend it for an item of your own: the behaviour’s name is the item’s (a Whistle behaviour is the Whistle); attach it to the hero, give the hero one (a pickup, or world.give) and put it on a button. useItem(e) runs as it is used. The built-in items extend it: extend one of them to change that item.',
+    [
+      hk('canUseItem', 'bool', 'Can the hero use it now? (item, slot) — false: nothing happens'),
+      hk(
+        'useItem',
+        'bool',
+        'It is used (item, slot): do what it does here; return false to keep the engine’s own use from running',
+      ),
+      hk(
+        'magicCost',
+        'number',
+        'How much magic a use takes (item; the Lens of Truth: each second it is up); not enough magic: it is not used',
+      ),
+    ],
+    ['event.onItemUsed'],
+  ),
+  itemClass(
+    'Projectile',
+    'Item',
+    [],
+    'An item that flies: shot, thrown or let go. It flies at its speed, and what it strikes takes its power; hits(e) says whether it harms what it struck.',
+    [
+      hk('shotSpeed', 'number', 'How fast it flies, in studs a second (item, speed)'),
+      hk('shotPower', 'number', 'How hard it hits what it strikes (item, power, type: pierce, blunt, fire, ice, stun)'),
+      hk(
+        'hits',
+        'bool',
+        'It struck something (item, target: the character’s name, or the object’s): false and it does no harm',
+      ),
+    ],
+  ),
+  itemClass(
+    'Bow',
+    'Projectile',
+    ['Bow', 'Fire arrows', 'Ice arrows'],
+    'Out in the left hand: Attack held draws it, let go shoots an arrow (a fire arrow burns, an ice arrow freezes). It needs arrows.',
+  ),
+  itemClass('Slingshot', 'Projectile', ['Slingshot'], 'Out in the hand: Attack held draws it, let go shoots a seed.'),
+  itemClass(
+    'Boomerang',
+    'Projectile',
+    ['Boomerang', 'Whirl boomerang'],
+    'Thrown at once: it curves out, stuns what it strikes, fetches what it touches and comes back to the hand.',
+  ),
+  itemClass(
+    'StunNut',
+    'Projectile',
+    ['Stun nuts', 'Stun nut'],
+    'Thrown at once: its flash stuns the foes near where it bursts.',
+  ),
+  itemClass(
+    'Bomb',
+    'Item',
+    ['Bomb', 'Bombs'],
+    'Lit and held up over the head: Action throws it (walking) or puts it down (standing still); it bursts after its fuse.',
+  ),
+  itemClass(
+    'HoverBoots',
+    'Item',
+    ['Hover boots'],
+    'On or off: worn, the hero floats level for a moment when it walks off an edge.',
+  ),
+  itemClass(
+    'LensOfTruth',
+    'Item',
+    ['Lens of Truth'],
+    'Up to the eye or down: hidden things show and fake walls look see-through. It uses magic each second it is up (magicCost).',
+  ),
+  itemClass(
+    'HookLine',
+    'Item',
+    ['Hook line'],
+    'Out in the hand: it shoots a hook that pulls the hero to what it bites.',
+  ),
+  itemClass('GrappleRope', 'Item', ['Grapple rope'], 'Out in the hand: thrown at a post, the hero swings from it.'),
+  itemClass('MagnetGlove', 'Item', ['Magnet glove'], 'Out in the hand: it pulls metal things (or the hero to them).'),
+  itemClass(
+    'Torch',
+    'Item',
+    ['Torch'],
+    'A burst of fire in front of the hero: it lights torches and burns what burns.',
+  ),
+  itemClass('Branch', 'Item', ['Branch'], 'A stick, out or put away: Attack swings it; held into a fire it catches.'),
+  itemClass('GustLeaf', 'Item', ['Gust leaf'], 'Out in the hand: Attack swings a gust of wind ahead.'),
+  {
+    name: 'MagicMeter',
+    for: 'character',
+    fixed: true,
+    about:
+      'The hero’s magic: a green bar under the hearts once it has something that uses magic (or a magic jar). Items take from it (their magicCost); jars fill it. In code it is vars.magic and vars.maxMagic.',
+    on: (c) => c.role === 'hero',
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [],
+    events: ['event.onMagicEmpty'],
+    editIn: 'Project › Movement › Magic (whether the game has it, and how much a full meter holds)',
+  },
+);
+
+// ---------- Milestone 3b (B7a-2): quests and the maps ----------
+
+/** a class that is in the game as written (a quest, the maps): it is not attached to anything */
+const gameClass = (
+  name: string,
+  parent: string | undefined,
+  about: string,
+  hooks: BuiltinHook[],
+  events: string[],
+  editIn: string,
+): Builtin<Character> => ({
+  name,
+  for: 'character',
+  ...(parent ? { parent } : {}),
+  about,
+  on: () => false,
+  add: () => ({}),
+  remove: (c) => c,
+  fields: [],
+  hooks,
+  events,
+  editIn,
+});
+
+const QUEST_EDIT = 'Logic: Extend it and write its steps (no need to attach it: it is in the game as written)';
+
+CHARACTER_BUILTINS.push(
+  gameClass(
+    'Quest',
+    undefined,
+    'A quest, made in Logic: extend it and write its steps in the class — steps = [{ name: "Talk to Mossbeard", do: "talk", at: "Mossbeard" }, { name: "Find the old well", do: "reach", at: "Old well" }]. Each step is done by itself when its do is (reach, talk, get, beat, use) or by logic (script: quest.advance()). Start it with quest.start() (a talk, a zone, On start); the quest log on the pause screen lists it, and tracking it shows where to go next on both maps.',
+    [
+      hk('canStartQuest', 'bool', 'Can it start now? (quest) — false: quest.start() does nothing'),
+      hk(
+        'stepDone',
+        'bool',
+        'Is the step it is on done? (quest, step, stepName, do, at, have, count) — asked a few times a second; base is the engine’s answer',
+      ),
+      hk(
+        'goalOf',
+        'name',
+        'Where its goal shows on the maps (quest, step, stepName, at): a place, an object or a character by name; "" for none',
+      ),
+    ],
+    ['event.onQuestStart', 'event.onQuestStep', 'event.onQuestDone', 'event.onQuestFail'],
+    QUEST_EDIT,
+  ),
+  gameClass(
+    'MainQuest',
+    'Quest',
+    'The story’s quest: listed first in the quest log, its goal in the main colour, and tracked as soon as it starts.',
+    [],
+    [],
+    QUEST_EDIT,
+  ),
+  gameClass(
+    'SideQuest',
+    'Quest',
+    'A quest on the side (an errand, a favour, a hunt): listed after the main ones; tracked when nothing else is.',
+    [],
+    [],
+    QUEST_EDIT,
+  ),
+  gameClass(
+    'GameMap',
+    undefined,
+    'The maps (the pause map and the map in play), in Logic: extend it to decide what they show — which markers, with what names — and whether the map can open now. Its events say when the map opens, closes, gets a pin, and when the hero first comes into a region. Set its looks in Project › Maps (or with map.setLook).',
+    [
+      hk('canOpenMap', 'bool', 'Can the pause map open now? — false: it stays shut'),
+      hk(
+        'showMarker',
+        'bool',
+        'Does this marker show? (kind: chest, key, boss-key, boss, door, boss-door, exit, name, person, foe, pin, goal; label; done)',
+      ),
+      hk('markerLabel', 'name', 'The name a marker shows with (kind, label): return other words, or "" for none'),
+    ],
+    ['event.onMapOpen', 'event.onMapClose', 'event.onMapPin', 'event.onRegionSeen'],
+    'Logic: Extend it (no need to attach it); its looks in Project › Maps',
+  ),
+);
+
+// ---------- Milestone 3b (B7a-3): the game's rules, and a map's own behaviour ----------
+
+CHARACTER_BUILTINS.push(
+  gameClass(
+    'GameMode',
+    undefined,
+    'The rules of the whole game, in Logic: extend it to decide what counts as game over (a fairy can save the hero), when the game is won, where and how the hero comes back after game over (which spawn point, how many hearts, which items it keeps), whether it can save now, and what new game plus keeps. Its events say when the game is over, won, saved or loaded, and when the hero comes back.',
+    [
+      hk(
+        'isGameOver',
+        'bool',
+        'Is it game over? (cause: hearts, logic) — false: the hero hangs on (with at least one heart)',
+      ),
+      hk('hasWon', 'bool', 'Has the game been won? — asked a few times a second; true finishes the game'),
+      hk(
+        'respawnAt',
+        'name',
+        'Where the hero comes back after game over (checkpoint): a spawn point’s name (on any map), start, or checkpoint',
+      ),
+      hk('respawnHearts', 'number', 'How many hearts it comes back with (base: all of them)'),
+      hk('keepOnRespawn', 'bool', 'Does the hero keep this item when it comes back? (item, count)'),
+      hk('canSave', 'bool', 'Can the game be saved now? (slot) — false: “You can’t save here.”'),
+      hk(
+        'keepOnNewGamePlus',
+        'bool',
+        'Does new game plus keep this? (kind: item or var, name) — base: Project › Progress › New game plus',
+      ),
+    ],
+    ['event.onGameOver', 'event.onRespawn', 'event.onGameWon', 'event.onSaved', 'event.onLoaded'],
+    'Logic: Extend it (no need to attach it: it is the game’s)',
+  ),
+  {
+    name: 'MapScript',
+    for: 'character',
+    about:
+      'A map’s own behaviour: attach it to a map (the Inspector’s Map tab › Behaviours) and it runs while the hero is on that map — mapEnter(e) as the hero arrives (music, a title, a quest to start), mapLeave(e) as it goes, foesCleared(e) when the last foe on the map is beaten (the doors open), and every other event too. Its own variables start again each visit: keep what must last in game variables.',
+    on: () => false,
+    add: () => ({}),
+    remove: (c) => c,
+    fields: [],
+    hooks: [],
+    events: ['event.onMapEnter', 'event.onMapLeave', 'event.onFoesCleared'],
+    editIn: 'Logic: Extend it, then attach it to a map (Inspector › Map › Behaviours)',
+  },
+);
+
+// ---------- Milestone 3b (B7b): the player's buttons, and the HUD ----------
+
+CHARACTER_BUILTINS.push(
+  gameClass(
+    'PlayerInput',
+    undefined,
+    'The player’s buttons, in Logic: extend it to decide what the Action button says and does (“Peek” instead of “Open”, “Pray” at a shrine), whether a button works now (no item buttons in the water, no attack in a village), and to hear every press and let-go with how long it was held. In the game as written: nothing to attach.',
+    [
+      hk(
+        'actionLabel',
+        'name',
+        'What the Action button says now (kind: talk, lift, use, read, grab, climb, dive, jump…; label) — return other words',
+      ),
+      hk(
+        'canPress',
+        'bool',
+        'Does this button work now? (button: action, attack, jump, guard, roll, lock, item1…item4, wheel, menu)',
+      ),
+    ],
+    ['event.onButtonDown', 'event.onButtonUp'],
+    'Logic: Extend it (no need to attach it: it is the game’s)',
+  ),
+  gameClass(
+    'GameHud',
+    undefined,
+    'The HUD, in Logic: extend it to decide which of its widgets show now (no map in a dark cave, the money only in towns) and what a text widget says. Its style — corner buttons, big-button cluster, pointer, second screen, open air — is set in Project › Controls › HUD style, or while playing with hud.setStyle.',
+    [
+      hk(
+        'showWidget',
+        'bool',
+        'Does this HUD widget show now? (widget: its id — hearts, minimap, buttons, money…; screen)',
+      ),
+      hk('widgetText', 'name', 'What this text widget says (widget, text: what it would say) — return other words'),
+    ],
+    ['event.onHudStyle'],
+    'Logic: Extend it (no need to attach it: it is the game’s)',
+  ),
+);
+
+/** Milestone 3b (B7b): a behaviour extending this decides about the player's buttons */
+export const isInputClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'PlayerInput');
+/** Milestone 3b (B7b): a behaviour extending this decides about the HUD */
+export const isHudClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'GameHud');
+
+/** Milestone 3b (B7a-3): a behaviour extending this sets the game's rules */
+export const isModeClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'GameMode');
+/** Milestone 3b (B7a-3): a behaviour extending this goes on a map */
+export const isMapScriptClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'MapScript');
+
+/** Milestone 3b (B7a-2): a behaviour extending this is a quest */
+export const isQuestClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'Quest');
+/** Milestone 3b (B7a-2): a quest that is the story's (MainQuest) */
+export const isMainQuestClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'MainQuest');
+/** Milestone 3b (B7a-2): a behaviour extending this decides about the maps */
+export const isMapClass = (ext: string | undefined) => lineageOf(ext).some((b) => b.name === 'GameMap');
+/** Milestone 3b (B7a-2): a class that is in the game as written (not attached to anything) */
+export const isGameClass = (ext: string | undefined) =>
+  isQuestClass(ext) || isMapClass(ext) || isModeClass(ext) || isInputClass(ext) || isHudClass(ext);
+
+/** Milestone 3b (B6): an item's class (a built-in one, or Item and Projectile) */
+export const ITEM_CLASSES = () => CHARACTER_BUILTINS.filter((b) => b.items !== undefined);
+/** Milestone 3b (B6): the class an item is (Fire arrows: Bow); not one of the built-in items: null */
+export function itemClassOf(item: string): Builtin<Character> | null {
+  const k = item.trim().toLowerCase();
+  return ITEM_CLASSES().find((b) => b.items!.some((i) => i.toLowerCase() === k)) ?? null;
+}
+/**
+ * Milestone 3b (B6): the items a behaviour that extends `ext` is about: a built-in item's (Bow: its three), or, for
+ * Item or Projectile themselves (or a class of its own on them), the item of the behaviour's own name; not an item
+ * class: null
+ */
+export function itemsOfBehaviour(ext: string | undefined, behaviourName: string): string[] | null {
+  const line = lineageOf(ext);
+  if (!line.some((b) => b.name === 'Item')) return null;
+  const own = line.find((b) => b.items?.length);
+  return own ? [...own.items!] : [behaviourName];
+}
+
+/** Milestone 3b (B5a): a built-in and the ones it extends, nearest first (PopUp, EnemyBrain, Brain) */
+export function lineageOf(name: string | undefined): (Builtin<Asset> | Builtin<Character>)[] {
+  const out: (Builtin<Asset> | Builtin<Character>)[] = [];
+  for (let b = anyBuiltinNamed(name); b && out.length < 8; b = anyBuiltinNamed(b.parent)) out.push(b);
+  return out;
+}
+/** Milestone 3b (B5a): its own hooks and the ones it inherits */
+export function allHooksOf(name: string | undefined): BuiltinHook[] {
+  const seen = new Set<string>();
+  return lineageOf(name)
+    .flatMap((b) => b.hooks)
+    .filter((h) => !seen.has(h.method) && !!seen.add(h.method));
+}
+
+// ---------- Milestone 3b (B5b): parts (Senses, Mover, Attack) ----------
+
+const partsSet = (c: Character, p: Partial<EnemyParts>): Partial<Character> => ({
+  enemy: { ...(c.enemy ?? ENEMY_DEFAULT), parts: { ...(c.enemy?.parts ?? {}), ...p } },
+});
+const isFire = (c: Character) => c.enemy?.type === 'fire' && fightsAs(c.enemy) === 'melee';
+type CharField = Builtin<Character>['fields'][number];
+const swapField = (slot: 'senses' | 'mover' | 'attack', all: readonly string[], label: string): CharField => ({
+  name: slot,
+  type: 'string',
+  default: PART_CLASS[all[0] as keyof typeof PART_CLASS],
+  label,
+  choices: all.map((k) => PART_CLASS[k as keyof typeof PART_CLASS]),
+  choicesFor: (c) => swappable(fightsAs(c.enemy), isFire(c))[slot].map((k) => PART_CLASS[k]),
+  get: (c) => PART_CLASS[partsOf(c.enemy)[slot]],
+  set: (c, v) => {
+    const kind = all.find((k) => PART_CLASS[k as keyof typeof PART_CLASS] === String(v) || k === String(v));
+    // a part its template can't take is not swapped in
+    if (!kind || !(swappable(fightsAs(c.enemy), isFire(c))[slot] as readonly string[]).includes(kind)) return {};
+    return partsSet(c, { [slot]: kind });
+  },
+});
+const iface = (
+  name: string,
+  slot: 'senses' | 'mover' | 'attack',
+  all: readonly string[],
+  about: string,
+  hooks: BuiltinHook[],
+): Builtin<Character> => ({
+  name,
+  for: 'character',
+  fixed: true,
+  isInterface: true,
+  about,
+  on: (c) => !!c.enemy,
+  add: () => ({}),
+  remove: (c) => c,
+  fields: [swapField(slot, all, `${name} part (swap for another)`)],
+  hooks,
+  events: [],
+  editIn: 'Characters › Behaviour',
+});
+const part = (
+  slot: 'senses' | 'mover' | 'attack',
+  kind: string,
+  parent: string,
+  about: string,
+  fields: CharField[] = [],
+): Builtin<Character> => ({
+  name: PART_CLASS[kind as keyof typeof PART_CLASS],
+  for: 'character',
+  fixed: true,
+  parent,
+  about,
+  on: (c) => !!c.enemy && partsOf(c.enemy)[slot] === kind,
+  add: () => ({}),
+  remove: (c) => c,
+  fields,
+  hooks: [],
+  events: [],
+  editIn: 'Characters › Behaviour',
+});
+const attackFields: CharField[] = [
+  {
+    name: 'attackPower',
+    type: 'number',
+    default: 1,
+    label: 'Power (times the enemy’s)',
+    min: 0,
+    max: 5,
+    get: (c) => partsOf(c.enemy).attackPower,
+    set: (c, v) => partsSet(c, { attackPower: Math.max(0, Math.min(5, Number(v) || 0)) }),
+  },
+  {
+    name: 'hurt',
+    type: 'string',
+    default: 'by the hit',
+    label: 'Hurt reaction it makes',
+    choices: ['by the hit', ...HURT_REACTIONS],
+    get: (c) => c.enemy?.parts?.hurt ?? 'by the hit',
+    set: (c, v) => {
+      const { hurt: _h, ...rest } = c.enemy?.parts ?? {};
+      return (HURT_REACTIONS as readonly string[]).includes(String(v))
+        ? partsSet(c, { hurt: String(v) as EnemyParts['hurt'] })
+        : { enemy: { ...(c.enemy ?? ENEMY_DEFAULT), parts: rest } };
+    },
+  },
+  enemyNum('windup', 'Tell before it (seconds)', 0.1, 2, 0.6),
+  enemyNum('cooldown', 'Between attacks (seconds)', 0.3, 10, 1.8),
+  enemyNum('reach', 'Reach up close (studs)', 1, 6, 1.9),
+];
+
+CHARACTER_BUILTINS.push(
+  iface(
+    'Senses',
+    'senses',
+    SENSES,
+    'How an enemy notices the hero. Its brain only asks “do I see the hero?”; the part answers. Every brain can take any of them.',
+    [{ method: 'canSee', event: 'event.onCanSee', returns: 'bool', doc: 'Does it notice the hero now? (distance)' }],
+  ),
+  part(
+    'senses',
+    'eyes',
+    'Senses',
+    'Sees the hero within its sight and cone, and hears it running or fighting within its hearing.',
+    [
+      enemyNum('sight', 'Sight (studs)', 2, 30, 10),
+      enemyNum('cone', 'Sees in a cone of (degrees, 360: all round)', 30, 360, 360),
+      enemyNum('hearing', 'Hears within (studs)', 0, 30, 0),
+    ],
+  ),
+  part(
+    'senses',
+    'ears',
+    'Senses',
+    'Blind: hears the hero running or fighting (9 studs at least), and feels it right beside it. Walk past it quietly.',
+    [enemyNum('hearing', 'Hears within (studs)', 0, 30, 9)],
+  ),
+  part('senses', 'allSeeing', 'Senses', 'Sees all round within its sight: it cannot be crept up on from behind.', [
+    enemyNum('sight', 'Sight (studs)', 2, 30, 10),
+  ]),
+  iface(
+    'Mover',
+    'mover',
+    MOVERS,
+    'How an enemy gets about. Its brain only says where to go; the part takes it there. A walking brain can walk, fly or stand still; a pop-up keeps hiding and a spider its thread.',
+    [],
+  ),
+  part('mover', 'walker', 'Mover', 'Walks on the ground (it climbs steps, falls off edges).', [
+    enemyNum('speed', 'Speed (1: a neighbour’s walk)', 0.2, 3, 1.4),
+  ]),
+  part('mover', 'flyer', 'Mover', 'Flies a little over the ground (over gaps and water).', [
+    enemyNum('speed', 'Speed (1: a neighbour’s walk)', 0.2, 3, 1.4),
+  ]),
+  part('mover', 'static', 'Mover', 'Stays where it was put, only turning (a sentry, a turret).'),
+  part('mover', 'hider', 'Mover', 'Hides underground or under water and comes up to attack (a pop-up’s).'),
+  part('mover', 'thread', 'Mover', 'Hangs on a thread, drops down and climbs back (a spider’s).'),
+  iface(
+    'Attack',
+    'attack',
+    ATTACKS,
+    'How an enemy attacks. Its brain decides when; the part decides how: its pose and tell, its reach, its power and the hurt reaction it makes. A close fighter can strike another way, or spit or shoot from where it stands.',
+    [
+      {
+        method: 'canAttack',
+        event: 'event.onCanAttack',
+        returns: 'bool',
+        doc: 'May it start this attack now? (attack, distance)',
+      },
+      {
+        method: 'attackPower',
+        event: 'event.onAttackPower',
+        returns: 'number',
+        doc: 'How hard this attack lands (attack, power)',
+      },
+    ],
+  ),
+  part('attack', 'swing', 'Attack', 'A weapon swung down across (or claws raked), up close.', attackFields),
+  part('attack', 'bite', 'Attack', 'A lunge and a bite, up close.', attackFields),
+  part('attack', 'pounce', 'Attack', 'A crouch and a spring at the hero (it staggers).', attackFields),
+  part(
+    'attack',
+    'spit',
+    'Attack',
+    'Puffs up and spits a rock (a fire enemy: a fireball) from a few studs away.',
+    attackFields,
+  ),
+  part('attack', 'shot', 'Attack', 'Shoots a rock from a few studs away.', attackFields),
+  part('attack', 'beam', 'Attack', 'Charges and fires a beam (it jolts: shock).', attackFields),
+  part('attack', 'breath', 'Attack', 'Breathes fire close up (it burns), and charges from afar.', attackFields),
+  part('attack', 'swoop', 'Attack', 'Dives from the air at the hero.', attackFields),
+  part('attack', 'drop', 'Attack', 'Drops from above onto the hero (it knocks down).', attackFields),
+);
+
+export const characterBuiltinNamed = (name: string | undefined) =>
+  CHARACTER_BUILTINS.find((b) => b.name === name) ?? null;
+/** any built-in by its class name (an asset's or a character's) */
+export const anyBuiltinNamed = (name: string | undefined): Builtin<Asset> | Builtin<Character> | null =>
+  builtinNamed(name) ?? characterBuiltinNamed(name);
+
+/** a built-in's hook by its event type */
+export const hookOf = (event: string) => {
+  for (const b of [...BUILTINS, ...CHARACTER_BUILTINS])
+    for (const h of b.hooks) if (h.event === event) return { builtin: b, hook: h };
+  return null;
+};
+
+/** a new behaviour that extends a built-in: each of its hooks answered with the engine's own answer, to change */
+export function extendCode(b: Pick<Builtin<unknown>, 'name' | 'hooks'>, name: string): string {
+  const cls = name.replace(/[^A-Za-z0-9]/g, '') || `My${b.name}`;
+  const lines = [`class ${cls} extends ${b.name} {`];
+  // Milestone 3b (B7a-2): a new quest starts with a step to fill in, and starts when play does
+  if (isQuestClass(b.name))
+    lines.push(
+      '  steps = [',
+      '    { name: "Talk to someone who needs a hand", do: "script" },',
+      '  ];',
+      '',
+      '  start(e) {',
+      '    quest.start("this");',
+      '  }',
+    );
+  // Milestone 3b (B7a-3): a new map script hears the hero arrive and the room cleared
+  if (isMapScriptClass(b.name))
+    lines.push(
+      '',
+      '  mapEnter(e) {',
+      '    say("Welcome!", 2);',
+      '  }',
+      '',
+      '  foesCleared(e) {',
+      '    say("All clear!", 2);',
+      '  }',
+    );
+  if (b.hooks.length) lines.push('');
+  b.hooks.forEach((h, i) => {
+    if (i) lines.push('');
+    lines.push(`  ${h.method}(e) {`, `    return super.${h.method}(e);`, '  }');
+  });
+  lines.push('}');
+  return lines.join('\n');
+}

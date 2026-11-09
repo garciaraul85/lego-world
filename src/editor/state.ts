@@ -1,4 +1,5 @@
 import { batch, computed, effect, signal } from '@preact/signals';
+import type { Mirror, Stamp } from '../core/bricks/build-tools';
 import type { Brick } from '../core/bricks/codec';
 import type { PlayIssue } from '../core/checks/playable';
 import type { Command, CommandBus, ExecuteResult, Source } from '../core/commands';
@@ -12,10 +13,21 @@ import { type Gates, type MapDoc, paths } from '../core/schema';
 import { AudioEngine } from '../engine/audio/AudioEngine';
 import { audioData } from '../engine/audio/data';
 import type { FrameStats } from '../engine/render/renderer';
+import { RENDERER_CHOICES, type RendererChoice } from '../engine/render/scene-renderer';
 import type { DebugDraw } from '../engine/runtime/play-renderer';
 import type { PlaySession } from '../engine/runtime/session';
 import { CATEGORIES, type CategoryId } from './categories';
 import { SceneModel } from './scene';
+
+const DRAW_KEY = 'brickworlds.editor.drawWith';
+function readDrawWith(): RendererChoice {
+  try {
+    const v = localStorage.getItem(DRAW_KEY);
+    return (RENDERER_CHOICES as readonly string[]).includes(v ?? '') ? (v as RendererChoice) : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
 
 export type ToolId =
   | 'select'
@@ -36,7 +48,17 @@ export type LogLine = { t: string; level: LogLevel; msg: string };
 export type ViewTab = 'scene' | 'game' | 'graph' | 'nav';
 export type LeftTab = 'hier' | 'layers' | 'search';
 export type RightTab = 'inspect' | 'map' | 'project';
-export type DockTab = 'assets' | 'console' | 'timeline' | 'profiler' | 'problems' | 'debug' | 'audio';
+export type DockTab =
+  | 'assets'
+  | 'pack'
+  | 'library'
+  | 'behaviours'
+  | 'console'
+  | 'timeline'
+  | 'profiler'
+  | 'problems'
+  | 'debug'
+  | 'audio';
 export type PlayStats = { fps: number; ticks: number; steps: number; ms: number };
 export type Layer = { visible: boolean; locked: boolean };
 
@@ -76,6 +98,11 @@ export class EditorState {
   readonly selectedSpawn = signal<string | null>(null);
   readonly tool = signal<ToolId>('select');
   readonly brush = signal<{ type: string; color: string; rot: number }>({ type: 'brick2x4', color: '#d20c20', rot: 0 });
+  /** step 11 (P24 part 1a): building faster on a build plate — mirror planes (studs; null off), fill painting, and
+   * bricks copied for stamping (the Place tool puts the whole stamp down while one is held) */
+  readonly mirror = signal<Mirror>({ x: null, z: null });
+  readonly paintFill = signal(false);
+  readonly stamp = signal<Stamp | null>(null);
   /** the asset the Place asset tool puts down (project or built-in id) and its turn */
   readonly assetBrush = signal<{ asset: string | null; rot: number }>({ asset: null, rot: 0 });
   /** the asset open in the Asset studio */
@@ -120,14 +147,29 @@ export class EditorState {
   readonly dialogueId = signal<string | null>(null);
   /** P22 part 2: the character sheet's open tab */
   readonly sheetTab = signal<
-    'look' | 'body' | 'face' | 'outfits' | 'stats' | 'moves' | 'animations' | 'voice' | 'dialogue' | 'behaviour'
+    | 'look'
+    | 'body'
+    | 'face'
+    | 'draw'
+    | 'outfits'
+    | 'stats'
+    | 'moves'
+    | 'animations'
+    | 'voice'
+    | 'dialogue'
+    | 'behaviour'
   >('look');
+  /** Milestone 3, 10d: the Draw tab's part (v68 paint part) and side (0 front, 1 back, 2 left, 3 right, 4 top, 5 bottom) */
+  readonly drawPart = signal('torso');
+  readonly drawSide = signal(0);
   /** P22 part 3: the Body tab — the bone picked in the skeleton, the bone bricks are painted onto (none: off),
    * walking on the spot in the preview, and the skeleton drawn over the bricks */
   readonly bodyBone = signal<string | null>(null);
   readonly bodyPaint = signal<string | null>(null);
   readonly bodyWalk = signal(false);
   readonly bodyBones = signal(false);
+  /** 10d part 3: painting and brick-sculpting a body plan on the preview (null: off) */
+  readonly bodySculpt = signal<import('./workspaces/character-studio/sculpt').SculptTool | null>(null);
   /** P22 part 4: the mood picked in the Face tab (the preview shows its face) */
   /** P23: the effect open in the Effects screen, and whether every setting shows (Advanced) */
   readonly effectId = signal<string | null>(null);
@@ -143,6 +185,10 @@ export class EditorState {
   readonly talkHeard = signal(0);
   /** P22 part 4: the “A character from a picture” dialog is open */
   readonly fromPicture = signal(false);
+  /** step 11 (P24 part 3): the Media library dialog is open */
+  readonly mediaLibrary = signal(false);
+  /** Milestone 3, 10d part 4: what From a picture makes */
+  readonly makeKind = signal<'character' | 'asset' | 'map'>('character');
   readonly faceMood = signal<'neutral' | 'happy' | 'angry' | 'sad' | 'scared' | 'surprised'>('neutral');
   /** P22: how the open conversation is shown (a list, a graph or a script) */
   readonly dialogueView = signal<'list' | 'graph' | 'script'>('list');
@@ -166,7 +212,8 @@ export class EditorState {
   readonly skyPreview = signal<number | null>(null);
   /** P27 part 3b: where the Scene view looks (x, z studs), kept by the view as it draws; not a signal */
   viewCentre: [number, number] = [0, 0];
-  readonly bodyAct = signal<{ kind: 'attack' | 'hurt'; at: number } | null>(null);
+  /** Milestone 3, 10d part 2: any of the body's moves, previewed in the studio */
+  readonly bodyAct = signal<{ kind: import('../core/character/moves').BodyMove; at: number } | null>(null);
   readonly view = signal<ViewTab>('scene');
   readonly left = signal<LeftTab>('hier');
   readonly right = signal<RightTab>('inspect');
@@ -192,6 +239,8 @@ export class EditorState {
   readonly cursor = signal<{ x: number; z: number; y: number } | null>(null);
   readonly menu = signal<string | null>(null);
   readonly palette = signal(false);
+  /** step 11, 4c: the template window (script or cutscene templates, opened at one of them) */
+  readonly templates = signal<{ kind: 'script' | 'cutscene'; id?: string } | null>(null);
   readonly playing = signal(false);
   /** the running engine Play session (P2); null while editing */
   readonly session = signal<PlaySession | null>(null);
@@ -203,6 +252,18 @@ export class EditorState {
   readonly debugDraw = signal<DebugDraw>({ colliders: false, spawns: true });
   /** P27 part 4: Play at this quality to see how the game looks there (null: the game's own settings) */
   readonly previewQuality = signal<QualityLevel | null>(null);
+  /** Milestone 2b, 10c: what draws the 3D views on this computer (kept in this browser, not in the project) */
+  readonly drawWith = signal<RendererChoice>(readDrawWith());
+  /** WebGPU can draw the views in this browser (false: none, or it could not show a picture here) */
+  readonly gpuWorks = signal(false);
+  setDrawWith(c: RendererChoice) {
+    this.drawWith.value = c;
+    try {
+      localStorage.setItem(DRAW_KEY, c);
+    } catch {
+      /* storage unavailable */
+    }
+  }
   /**
    * P32: true for the Asset studio's build plate, where bricks are placed, painted and erased one by one. The
    * Scene places whole assets, characters and events, so its Place tool puts down assets.
@@ -271,7 +332,14 @@ export class EditorState {
     if (ui.layers && typeof ui.layers === 'object')
       this.layers.value = { ...this.layers.value, ...(ui.layers as object) };
     if (ui.brush && typeof ui.brush === 'object') this.brush.value = { ...this.brush.value, ...(ui.brush as object) };
-    this.store.subscribe('', () => this.revision.value++);
+    this.store.subscribe('', () => {
+      this.revision.value++;
+      // Milestone 3, 10d: the open map was taken away (an Undo of a map just made): open another one
+      if (!this.store.has(paths.map(this.mapId.peek())) && this.maps.peek().length)
+        queueMicrotask(() => {
+          if (!this.store.has(paths.map(this.mapId.peek()))) this.openMap(this.store.manifest.entry.map);
+        });
+    });
     this.bus.onChange(() => this.revision.value++);
     this.autosave.onStatus((s) => {
       this.save.value = s;

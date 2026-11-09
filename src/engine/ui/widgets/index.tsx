@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { faceOf, HUD_STYLES, type HudStyle } from '../../../core/controls/hud-styles';
 import type { Action, Widget } from '../../../core/schema';
 import { asLines, asNumber, interpolate, type Lookup } from '../bindings';
 import { effectiveWidget, widgetCss } from '../layout';
@@ -7,6 +8,8 @@ import { effectiveWidget, widgetCss } from '../layout';
 /** What widgets need from the game (or from the editor preview). */
 export type ScreenHost = {
   lookup: Lookup;
+  /** step 11, 4b: the game's screen look (project uiLook; missing: classic) */
+  look?: 'classic' | 'adventure';
   /** run a button's actions */
   run(actions: readonly Action[], screen: string): void;
   sound(event: string): void;
@@ -27,6 +30,26 @@ export type ScreenHost = {
   art?(id: string): string | undefined;
   /** P31: CSS font-family for style.font (a built-in key or art:<id>) */
   font?(ref: string): string | undefined;
+  /** step 11b part 1: the game's buttons now: name, key, what each does (the Action button's live label) */
+  buttons?(): { id: string; name: string; key: string; label: string; count?: number }[];
+  /** step 11b part 1: the items the hero has, and the item buttons (what is in each) */
+  items?(): { name: string; count: number }[];
+  slots?(): { slot: number; key: string; item: string | null }[];
+  /** put an item in an item button */
+  equip?(slot: number, item: string): void;
+  /** step 11b part 1: every button's keys and gamepad buttons, and changing one (on this device) */
+  bindings?(): { id: string; name: string; keys: string; pad: string }[];
+  rebind?(id: string, key: string): void;
+  resetBindings?(): void;
+  /** Milestone 3b (B7b): the HUD style (an era's look for the buttons); "" or none: plain */
+  hudStyle?(): string;
+  /** Milestone 3b (B7b): GameHud's showWidget and widgetText */
+  shown?(screen: string, widget: string): boolean;
+  hudText?(screen: string, widget: string, text: string): string | undefined;
+  /** Milestone 3b (B7b): a button pressed and let go from the HUD (the second screen's items, by touch) */
+  tap?(button: string): void;
+  /** step 11 (P24 part 3): who made the game's imported files (the Credits widget lists them) */
+  credits?(): { name: string; kind: string; author: string; license: string; link?: string }[];
 };
 
 export type WidgetProps = { w: Widget; path: string; screen: string; host: ScreenHost };
@@ -35,7 +58,9 @@ const CLICK = 'snd_uiclick000';
 
 function textOf(p: WidgetProps, raw: string | undefined): string {
   const over = p.w.id ? p.host.text?.(p.screen, p.w.id) : undefined;
-  return interpolate(over ?? raw ?? '', p.host.lookup);
+  const out = interpolate(over ?? raw ?? '', p.host.lookup);
+  // Milestone 3b (B7b): GameHud's widgetText
+  return (p.w.id && !p.host.preview ? p.host.hudText?.(p.screen, p.w.id, out) : undefined) ?? out;
 }
 
 function frame(p: WidgetProps, cls: string, children: ComponentChildren, extra: Record<string, string | number> = {}) {
@@ -98,6 +123,8 @@ export function WidgetView(props: WidgetProps) {
     const v = host.lookup(w.showIf);
     if (!v || v === 'false' || v === '0') return null;
   }
+  // Milestone 3b (B7b): GameHud's showWidget
+  if (w.id && !host.preview && host.shown && !host.shown(p.screen, w.id)) return null;
   switch (w.type) {
     case 'panel':
       return frame(
@@ -176,6 +203,30 @@ export function WidgetView(props: WidgetProps) {
       // P9c: a bar that only shows while it is not full (stamina while guarding)
       if (w.style?.hideFull && k >= 1 && !host.preview) return null;
       const color = typeof w.style?.color === 'string' ? w.style.color : '#4ade80';
+      // Milestone 3b (B7b): a ring (the open-air era's stamina wheel beside the hero)
+      if (w.style?.shape === 'ring') {
+        const r = 16;
+        const c = 2 * Math.PI * r;
+        return frame(
+          p,
+          'bw-bar-ring',
+          <svg viewBox="0 0 40 40" width="100%" height="100%" aria-label={w.label ?? 'ring'} role="img">
+            <circle cx="20" cy="20" r={r} fill="none" stroke="#00000066" stroke-width="6" />
+            <circle
+              cx="20"
+              cy="20"
+              r={r}
+              fill="none"
+              stroke={color}
+              stroke-width="6"
+              stroke-linecap="round"
+              stroke-dasharray={`${(c * k).toFixed(2)} ${c.toFixed(2)}`}
+              transform="rotate(-90 20 20)"
+            />
+          </svg>,
+          { background: 'transparent' },
+        );
+      }
       return frame(
         p,
         '',
@@ -217,7 +268,254 @@ export function WidgetView(props: WidgetProps) {
         '',
         host.slot?.(w.label ?? w.id ?? '') ?? (host.preview ? <span>slot · {w.label ?? w.id}</span> : null),
       );
+    case 'video':
+      return frame(p, '', <VideoView p={p} />);
+    case 'buttons': {
+      // step 11b part 1: the game's buttons, like Zelda's corner of the screen
+      const list =
+        host.buttons?.() ??
+        (host.preview
+          ? [
+              { id: 'attack', name: 'Attack', key: 'F', label: 'Attack' },
+              { id: 'action', name: 'Action', key: 'E', label: 'Open' },
+              { id: 'item1', name: 'Item 1', key: 'J', label: 'Bow', count: 12 },
+              { id: 'item2', name: 'Item 2', key: 'K', label: '' },
+            ]
+          : []);
+      // Milestone 3b (B7b): an era's look — each button wears its face, laid out like that era's HUD
+      const look = String(w.style?.look ?? host.hudStyle?.() ?? '');
+      if ((HUD_STYLES as readonly string[]).includes(look))
+        return frame(p, `bw-hud-${look}`, <EraButtons look={look as HudStyle} list={list} host={host} />);
+      return frame(
+        p,
+        '',
+        list.map((b) => (
+          <div class={`bw-btn-slot bw-btn-${b.id.replace(/\d$/, '')}`} data-button={b.id}>
+            <span class="bw-btn-key">{b.key}</span>
+            <span class="bw-btn-label">{b.label || '—'}</span>
+            {b.count !== undefined && <span class="bw-btn-count">{b.count}</span>}
+          </div>
+        )),
+      );
+    }
+    case 'items': {
+      // step 11b part 1: the item menu: each item the hero has, and a button to put it in each item button
+      const items =
+        host.items?.() ??
+        (host.preview
+          ? [
+              { name: 'Bow', count: 12 },
+              { name: 'Bomb', count: 5 },
+            ]
+          : []);
+      const slots =
+        host.slots?.() ??
+        (host.preview
+          ? [
+              { slot: 1, key: 'J', item: 'Bow' },
+              { slot: 2, key: 'K', item: null },
+            ]
+          : []);
+      return frame(p, '', [
+        <div class="bw-items-slots">
+          {slots.map((sl) => (
+            <span class="bw-btn-slot">
+              <span class="bw-btn-key">{sl.key}</span>
+              <span class="bw-btn-label">{sl.item ?? '—'}</span>
+            </span>
+          ))}
+        </div>,
+        items.length ? (
+          items.map((it) => (
+            <div class="bw-item-row">
+              <span class="bw-item-name">
+                {it.name} <span class="bw-btn-count">×{it.count}</span>
+              </span>
+              {slots.map((sl) => (
+                <button
+                  type="button"
+                  class={`bw-item-put${sl.item === it.name ? ' on' : ''}`}
+                  aria-label={`Put ${it.name} in item button ${sl.slot} (${sl.key})`}
+                  onClick={() => !host.preview && host.equip?.(sl.slot, it.name)}
+                >
+                  {sl.key}
+                </button>
+              ))}
+            </div>
+          ))
+        ) : (
+          <div class="bw-item-row">Nothing yet: items the hero finds show here.</div>
+        ),
+      ]);
+    }
+    case 'controls':
+      return frame(p, '', <ControlsList host={host} />);
+    case 'credits': {
+      const rows = host.credits?.() ?? [];
+      const lines = (w.text ?? '').split('\n').filter((x) => x.trim());
+      return frame(p, '', [
+        ...lines.map((l) => <div class="bw-credit-line">{interpolate(l, host.lookup)}</div>),
+        ...rows.map((r) => (
+          <div class="bw-credit">
+            <b>{r.name}</b>
+            {r.author ? ` by ${r.author}` : ''}
+            {r.license ? <span class="bw-credit-license"> · {r.license}</span> : null}
+          </div>
+        )),
+        !rows.length && host.preview ? (
+          <div class="bw-credit muted">Imported files with a credit (File › Media library) are listed here.</div>
+        ) : null,
+      ]);
+    }
   }
+}
+
+/**
+ * Milestone 3b (B7b): the buttons in an era's look. Each wears its face (letter or shape, colour, size); the
+ * Action button says what it does; item buttons show their item and count; under each, small, the key it is on.
+ * The second screen's item buttons can be touched.
+ */
+export function EraButtons({
+  look,
+  list,
+  host,
+}: {
+  look: HudStyle;
+  list: { id: string; name: string; key: string; label: string; count?: number }[];
+  host: ScreenHost;
+}) {
+  const shown = list.filter((b) => faceOf(look, b.id));
+  return (
+    <div class="bw-era" data-look={look}>
+      {shown.map((b) => {
+        const f = faceOf(look, b.id)!;
+        const item = /^item\d$/.test(b.id);
+        const touch = look === 'tablet' && item && !host.preview;
+        return (
+          <div
+            class={`bw-era-btn bw-era-${b.id} ${f.size ?? 'mid'}${item ? ' item' : ''}${b.id === 'action' && b.label ? ' live' : ''}`}
+            data-button={b.id}
+            style={{ '--face': f.color } as Record<string, string>}
+            {...(touch
+              ? {
+                  role: 'button',
+                  'aria-label': `${b.name}: ${b.label || 'empty'}`,
+                  onPointerDown: (e: PointerEvent) => {
+                    e.stopPropagation();
+                    host.tap?.(b.id);
+                  },
+                }
+              : {})}
+          >
+            <span class="bw-era-face">{f.glyph}</span>
+            {(b.id === 'action' || item || look === 'openair') && (
+              <span class="bw-era-label">{b.label || (item ? '' : '')}</span>
+            )}
+            {b.count !== undefined && b.count > 0 && <span class="bw-era-count">{b.count}</span>}
+            {b.key && <span class="bw-era-key">{b.key}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** step 11b part 1: every button and its keys; click one, then press the key it should be */
+function ControlsList({ host }: { host: ScreenHost }) {
+  const [wait, setWait] = useState<string | null>(null);
+  useEffect(() => {
+    if (!wait) return;
+    const key = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key !== 'Escape') host.rebind?.(wait, e.key.toLowerCase());
+      setWait(null);
+    };
+    window.addEventListener('keydown', key, true);
+    return () => window.removeEventListener('keydown', key, true);
+  }, [wait]);
+  const list =
+    host.bindings?.() ??
+    (host.preview
+      ? [
+          { id: 'action', name: 'Action', keys: 'E', pad: 'A' },
+          { id: 'attack', name: 'Attack', keys: 'F', pad: 'X' },
+        ]
+      : []);
+  return (
+    <>
+      {list.map((b) => (
+        <div class="bw-bind-row">
+          <span class="bw-bind-name">{b.name}</span>
+          <button
+            type="button"
+            class={`bw-bind-key${wait === b.id ? ' on' : ''}`}
+            aria-label={`${b.name}: ${b.keys}. Press to change`}
+            onClick={() => !host.preview && setWait(b.id)}
+          >
+            {wait === b.id ? 'Press a key…' : b.keys}
+          </button>
+          <span class="bw-bind-pad">{b.pad}</span>
+        </div>
+      ))}
+      <button type="button" class="bw-bind-reset" onClick={() => !host.preview && host.resetBindings?.()}>
+        Back to the game’s keys
+      </button>
+    </>
+  );
+}
+
+/**
+ * Step 11 (P24 part 3): an imported video (style.src). It plays when the screen shows; with style.loop it repeats,
+ * otherwise its "when it ends" actions run (also when skipped with a click, Enter, Space or Escape, if style.skip).
+ * Sound is off unless style.sound; a browser that blocks sound before the first click plays it muted.
+ */
+function VideoView({ p }: { p: WidgetProps }) {
+  const { w, host } = p;
+  const ref = useRef<HTMLVideoElement>(null);
+  const ended = useRef(false);
+  const src = typeof w.style?.src === 'string' ? host.media?.(w.style.src) : undefined;
+  const loop = !!w.style?.loop;
+  const end = () => {
+    if (ended.current || host.preview) return;
+    ended.current = true;
+    if (w.onEnd?.length) host.run(w.onEnd, p.screen);
+  };
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || !src) return;
+    ended.current = false;
+    v.muted = !w.style?.sound || !!host.preview;
+    const play = v.play();
+    play?.catch(() => {
+      v.muted = true;
+      void v.play().catch(() => {});
+    });
+  }, [src, w.style?.sound]);
+  useEffect(() => {
+    if (!w.style?.skip || host.preview) return;
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') end();
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [w.style?.skip]);
+  if (!src) return <span class="bw-icon">{host.preview ? '🎬' : ''}</span>;
+  return (
+    <video
+      ref={ref}
+      class="bw-video-el"
+      src={src}
+      loop={loop}
+      playsInline
+      muted
+      autoPlay
+      aria-label={w.label ?? 'Video'}
+      style={{ objectFit: w.style?.fit === 'fit' ? 'contain' : 'cover' }}
+      onEnded={loop ? undefined : end}
+      onClick={w.style?.skip ? end : undefined}
+    />
+  );
 }
 
 function Minimap({ host }: { host: ScreenHost }) {

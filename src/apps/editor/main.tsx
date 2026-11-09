@@ -1,3 +1,5 @@
+import { BUILTIN_CHARACTERS } from '../../builtin/characters';
+import { BUILTIN_MODEL_FILES } from '../../builtin/models/data';
 import {
   accessibleName,
   entryForElement,
@@ -6,6 +8,7 @@ import {
   roleOf,
   visibleControls,
 } from '../../editor/help/entries';
+import { fromBase64, prepareModel } from '../../engine/model/prepare';
 /**
  * Editor entry (dist/editor.html, and the claude.ai artifact).
  * Opens the last project from IndexedDB, or imports an existing LEGO World v68 autosave,
@@ -30,6 +33,10 @@ import { App, type AppHost } from '../../editor/App';
 import { placeCommands } from '../../editor/assets';
 import { hubAtStartup, readIntent, writeIntent } from '../../editor/start/intent';
 import { EditorState } from '../../editor/state';
+import { activeView } from '../../editor/viewport/active';
+import { initPhysics } from '../../engine/physics/physics';
+import { gpuReady, initGpu, setGpuOffscreen } from '../../engine/render/gpu/gpu-renderer';
+import { PlayRenderer } from '../../engine/runtime/play-renderer';
 import '../../editor/theme.css';
 import { saveFile } from '../../platform/downloads';
 import { IdbBackend } from '../../platform/idb-backend';
@@ -56,6 +63,12 @@ const DEFAULT_WORLD = { environments: ['forest', 'city', 'mountains'], size: 24 
 
 async function boot() {
   const root = document.getElementById('app')!;
+  // Milestone 2b: the physics core (WebAssembly) loads while the project opens; Play uses it once it is ready
+  const physics = initPhysics().catch((e) => console.warn('Physics engine did not load; v68 debris is used.', e));
+  // Milestone 2b, 10c: a WebGPU device, if this browser has one (WebGL draws otherwise)
+  // (tests: ?gpu=offscreen draws WebGPU into a picture of its own, where a browser cannot show it on the page)
+  if (new URLSearchParams(location.search).get('gpu') === 'offscreen') setGpuOffscreen(true);
+  const gpu = initGpu();
   const backend = new IdbBackend();
   let store: ProjectStore | null = null;
   let problems: Problem[] = [];
@@ -154,7 +167,22 @@ async function boot() {
               mapName: 'Code island',
               generate: { environments: ['forest', 'prairie'], size: 16, seed: 2024 },
             })
-          : newProjectFiles({ name: 'Tutorial sandbox', mapName: 'Practice map' }),
+          : track === 'pack' || track === 'templates' || track === 'puzzles' || track === 'firelight'
+            ? // step 11, 4a: the Starter pack courses need ground for their neighbours and enemies to stand on
+              // (4c: room for an arena and waves too)
+              newProjectFiles({
+                name: 'Tutorial sandbox',
+                mapName: 'Practice map',
+                generate: { environments: ['prairie'], size: track === 'pack' ? 16 : 32, seed: 2024 },
+                // no shrub or mushroom where the enemies go (12b: nor round the beam puzzle, ahead and to the right)
+                clearAround: track === 'firelight' ? 20 : 13,
+              })
+            : newProjectFiles({
+                name: 'Tutorial sandbox',
+                mapName: 'Practice map',
+                // step 12c: the ice course has only the hero (neighbours got in the way of the ice and the climb)
+                ...(track === 'ice' || track === 'wind' ? { noNeighbours: true } : {}),
+              }),
       );
       await saveAll(backend, s, serializeFile);
       writeIntent({ kind: 'tutorial', project: s.manifest.id, mode, track });
@@ -205,8 +233,20 @@ async function boot() {
     },
   };
   (window as unknown as { __editor: EditorState }).__editor = ed;
+  // e2e: the 3D view last worked in (its camera and what draws it)
+  (window as unknown as { __view: typeof activeView }).__view = activeView;
+  // e2e: draw a game in a canvas of the test's own (WebGL against WebGPU)
+  (window as unknown as { __PlayRenderer: typeof PlayRenderer }).__PlayRenderer = PlayRenderer;
+  // tests: the built-in models and how a model file is made ready to draw
+  (window as unknown as { __models: unknown }).__models = {
+    BUILTIN_MODEL_FILES,
+    prepareModel: (id: string) => prepareModel(id.includes(':') ? id : `builtin:${id}`, null),
+    fromBase64,
+  };
   // the built-in asset library, for e2e tests that place a built-in asset by name
   (window as unknown as { __builtinAssets: typeof BUILTIN_ASSETS }).__builtinAssets = BUILTIN_ASSETS;
+  // and the built-in characters (step 11, 4a: the starter pack's cast)
+  (window as unknown as { __builtinCharacters: typeof BUILTIN_CHARACTERS }).__builtinCharacters = BUILTIN_CHARACTERS;
   // e2e helpers: place a built-in asset the way the dock does
   (window as unknown as { __assets: unknown }).__assets = {
     placeCommands,
@@ -224,6 +264,9 @@ async function boot() {
     id: e.id,
     screen: e.screen,
   }));
+  await physics;
+  await gpu;
+  ed.gpuWorks.value = gpuReady();
   render(<App ed={ed} host={host} />, root);
 }
 

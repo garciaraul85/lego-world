@@ -1,0 +1,61 @@
+{
+  "id": "scr_items00000",
+  "kind": "custom",
+  "name": "Items",
+  "music": null,
+  "pausesGame": true,
+  "root": {
+    "type": "panel",
+    "style": {
+      "bg": "#05070dc8"
+    },
+    "children": [
+      {
+        "type": "panel",
+        "id": "menu",
+        "anchor": [0.5, 0.5],
+        "style": {
+          "layout": "column",
+          "gap": 12,
+          "w": 620,
+          "bg": "#141a2be8",
+          "pad": 24,
+          "radius": 16
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "title",
+            "text": "Items",
+            "style": {
+              "fontSize": 32,
+              "weight": "bold",
+              "color": "#ffffff",
+              "align": "center"
+            }
+          },
+          {
+            "type": "items",
+            "id": "items",
+            "style": {
+              "fontSize": 22,
+              "color": "#ffffff",
+              "gap": 8
+            }
+          },
+          {
+            "type": "button",
+            "id": "back",
+            "label": "Done",
+            "onPress": [
+              {
+                "do": "hideScreen",
+                "screen": "scr_items00000"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

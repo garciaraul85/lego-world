@@ -1,0 +1,225 @@
+{
+  "id": "build",
+  "title": "Build faster course",
+  "steps": [
+    {
+      "id": "build.new",
+      "title": "A gatehouse",
+      "body": "Assets are built from bricks in the Assets screen. Three helpers above the build plate make it faster: a mirror, Fill and Stamp. Then any part can become a door, a drawbridge or a lever in one click.",
+      "task": "Make a new asset called Gatehouse.",
+      "target": "[data-tour=\"menu-assets\"]",
+      "check": {
+        "kind": "state",
+        "test": "studioAssetIs",
+        "args": "Gatehouse"
+      },
+      "doItForMe": [
+        {
+          "fn": "buildNew",
+          "args": {
+            "name": "Gatehouse"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Assets › New asset, then type Gatehouse as its Name (Brix's helper does both).",
+          "check": {
+            "kind": "state",
+            "test": "studioAssetIs",
+            "args": "Gatehouse"
+          },
+          "do": [
+            {
+              "fn": "buildNew",
+              "args": {
+                "name": "Gatehouse"
+              },
+              "say": "Gatehouse, open on its build plate."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "left"
+    },
+    {
+      "id": "build.mirror",
+      "title": "Both sides at once",
+      "body": "⇆ Mirror X copies everything you do to the other side of a blue line across the plate: each brick you place, paint or erase. − and + move the line half a stud.",
+      "task": "Turn on Mirror X and place three bricks: six go down.",
+      "target": "[data-tour=\"mirror-x\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetBricksAtLeast",
+        "args": 7
+      },
+      "doItForMe": [
+        {
+          "fn": "buildMirrored",
+          "args": {
+            "count": 3
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Click “⇆ Mirror X” above the build plate. A blue line crosses the plate.",
+          "check": {
+            "kind": "state",
+            "test": "plateMirror",
+            "args": "x"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"mirror-x\"]",
+              "say": "Mirror X."
+            }
+          ]
+        },
+        {
+          "text": "Pick the Place tool (B) and click the plate beside the line, three times.",
+          "check": {
+            "kind": "state",
+            "test": "assetBricksAtLeast",
+            "args": 7
+          },
+          "do": [
+            {
+              "fn": "buildMirrored",
+              "args": {
+                "count": 3
+              },
+              "say": "Three bricks, and their mirror images."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "left"
+    },
+    {
+      "id": "build.stamp",
+      "title": "Copy and stamp",
+      "body": "⧉ Stamp (or Ctrl C, then Ctrl V) copies the selected bricks; each click of the Place tool puts another copy down, going up until it fits. Escape stops.",
+      "task": "Copy the whole build and stamp a second one beside it.",
+      "target": "[data-tour=\"stamp-copy\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetBricksAtLeast",
+        "args": 14
+      },
+      "doItForMe": [
+        {
+          "fn": "buildStamp"
+        }
+      ],
+      "how": [
+        {
+          "text": "Select every brick (drag a box, or Shift+click), press “⧉ Stamp”, then click the plate beside the build.",
+          "check": {
+            "kind": "state",
+            "test": "assetBricksAtLeast",
+            "args": 14
+          },
+          "do": [
+            {
+              "fn": "buildStamp",
+              "say": "A second copy, stamped beside the first."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "left"
+    },
+    {
+      "id": "build.bridge",
+      "title": "A drawbridge",
+      "body": "Select the bricks that move and pick a kind in “Selected bricks → a door, a drawbridge…”. The asset gets two states, the part its hinge and pose, and E opens and closes it in Play. Pick a state above the plate to see it.",
+      "task": "Make the stamped copy a drawbridge.",
+      "target": "[data-tour=\"mover-from-selection\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetHasMover",
+        "args": "Drawbridge"
+      },
+      "doItForMe": [
+        {
+          "fn": "buildMover",
+          "args": {
+            "kind": "drawbridge"
+          }
+        }
+      ],
+      "how": [
+        {
+          "text": "Select the stamped bricks, then pick “Drawbridge” in “Selected bricks → a door, a drawbridge…”.",
+          "check": {
+            "kind": "state",
+            "test": "assetHasMover",
+            "args": "Drawbridge"
+          },
+          "do": [
+            {
+              "fn": "buildMover",
+              "args": {
+                "kind": "drawbridge"
+              },
+              "say": "A drawbridge: up when closed, down when open."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "left"
+    },
+    {
+      "id": "build.turn",
+      "title": "Turn it into",
+      "body": "Turn it into makes the asset breakable, pushable (loose: it falls, tips over and floats) or a creature that walks wearing its bricks, each in one click.",
+      "task": "Make the gatehouse pushable.",
+      "target": "[data-tour=\"turn-loose\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetLoose",
+        "args": "Gatehouse"
+      },
+      "doItForMe": [
+        {
+          "click": "[data-tour=\"turn-loose\"]"
+        }
+      ],
+      "how": [
+        {
+          "text": "Under Turn it into, click “📦 Pushable”.",
+          "check": {
+            "kind": "state",
+            "test": "assetLoose",
+            "args": "Gatehouse"
+          },
+          "do": [
+            {
+              "click": "[data-tour=\"turn-loose\"]",
+              "say": "Pushable."
+            }
+          ]
+        }
+      ],
+      "workspace": "Assets",
+      "placement": "left"
+    },
+    {
+      "id": "build.done",
+      "title": "You can build faster",
+      "body": "Mirror, Fill and Stamp are above every build plate; moving parts and Turn it into are in the asset's panel. Brix's Help has each of them (search “mirror”, “stamp”, “drawbridge”).",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"workspaces\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "placement": "bottom"
+    }
+  ]
+}

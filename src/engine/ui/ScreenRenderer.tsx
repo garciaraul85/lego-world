@@ -22,7 +22,7 @@ export function ScreenView({
   return (
     <div
       ref={ref}
-      class={`bw-screen bw-kind-${screen.kind}${screen.pausesGame ? ' bw-pausing' : ''}${scale.portrait ? ' bw-portrait' : ''}`}
+      class={`bw-screen bw-kind-${screen.kind}${screen.pausesGame ? ' bw-pausing' : ''}${scale.portrait ? ' bw-portrait' : ''}${host.look === 'adventure' ? ' bw-look-adventure' : ''}`}
       data-screen={screen.id}
       role="region"
       aria-label={screen.name}

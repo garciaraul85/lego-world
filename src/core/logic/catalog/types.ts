@@ -58,7 +58,11 @@ export type ArgKind =
   | 'drift'
   /** P27 part 2: a time of day (day, noon, evening, night); a fog (a preset, the map's own, or none) */
   | 'time'
-  | 'fog';
+  | 'fog'
+  /** Milestone 3, 10d part 2: one of a body's moves (roar, glide, dance…) */
+  | 'move'
+  /** Milestone 3b (B1): one of the behaviour's fields or own variables */
+  | 'field';
 export type ArgDef = {
   name: string;
   kind: ArgKind;
@@ -103,6 +107,8 @@ export interface ExecCtx {
   progress?(op: 'achieve' | 'finish', id: string): void;
   /** P22: start a conversation (by id) */
   talk?(conversation: string): void;
+  /** Milestone 3, 10d part 2: a character does one of its body's moves */
+  move?(who: string, kind: string): void;
   /** P22 part 2: the hero's outfit, experience, or the next hero of the party */
   sheet?(op: 'outfit' | 'xp' | 'switch', value: string | number): void;
   /** P23: play an effect (by id) at a place (empty: the hero), or start / stop an effect placed on the map */
@@ -111,8 +117,54 @@ export interface ExecCtx {
   screen?(op: 'play' | 'mood' | 'clear', a?: string | Record<string, unknown>): void;
   /** P27: switch a placed light (by name) on, off or over, or set this map's darkness while it plays */
   light?(op: 'on' | 'off' | 'toggle' | 'darkness', name: string, value?: number): void;
+  /** step 11b part 1: the Action button's own label here (Set action label), or an item put in an item button */
+  buttons?(op: 'label' | 'equip', value: string, slot?: number): void;
   /** P27 part 2: set the time of day (the sun jumps there and the day goes on) or the fog, while it plays */
   sky?(op: 'time' | 'fog', value: string): void;
+  /** step 11, 4c: a line of text on screen for a while */
+  say?(text: string, seconds: number): void;
+  /** step 11, 4c: how many of an item the hero carries; take some away (never below zero) */
+  count?(item: string): number;
+  take?(item: string, count: number): void;
+  /** step 11, 4c: a character (by name) follows the hero, or stops */
+  follow?(who: string, on: boolean): void;
+  /** step 11, 4c: a character (by name or id) put on the map at a spawn point while playing */
+  spawnCharacter?(character: string, at: string): string | null;
+  /** Milestone 3b (B2): the engine API — where a thing is (x, y, z studs; heading degrees) or its state */
+  entity?(what: 'x' | 'y' | 'z' | 'heading' | 'state', target: string): number | string;
+  distance?(a: string, b: string): number;
+  moveThing?(op: 'by' | 'to', target: string, x: number, y: number, z: number): void;
+  face?(target: string, degrees: number): void;
+  lookAt?(target: string, other: string): void;
+  /** Milestone 3b (B5b): the hero or a character reacts as if hit (flinch, stagger, knockdown, burn…) */
+  react?(target: string, how: string): void;
+  physics?(op: 'push' | 'velocity', target: string, x: number, y: number, z: number): void;
+  /** how far something solid is ahead of it (studs), or −1 */
+  raycast?(from: string, reach: number): number;
+  held?(button: string): boolean;
+  now?(): number;
+  /** the instance id (or "hero") a reference names, or null (messages) */
+  resolve?(ref: string): string | null;
+  /** Milestone 3b (B7a-2): start, move on, set the step of, finish, fail or track a quest (by name; this, empty) */
+  quest?(op: 'start' | 'advance' | 'step' | 'finish' | 'fail' | 'track', quest: string, step?: number): void;
+  questRead?(what: 'step' | 'status' | 'isActive' | 'isDone' | 'goalMap', quest: string): number | string | boolean;
+  /** Milestone 3b (B7a-2): the maps: open or close, their looks, a mark put down or taken up, shown whole or not */
+  mapOp?(
+    op: 'open' | 'close' | 'look' | 'mark' | 'unmark' | 'reveal' | 'hide',
+    a?: string,
+    b?: string,
+    c?: string,
+  ): void;
+  mapRead?(): boolean;
+  /** Milestone 3b (B7a-3): game over now, come back now, or set where the hero comes back (a spawn's name, here) */
+  game?(op: 'lose' | 'respawn' | 'setRespawn', at?: string): void;
+  /** Milestone 3b (B7a-3): the foes still on this map */
+  foesLeft?(): number;
+  /** Milestone 3b (B7b): a button held (seconds; 0: up) */
+  inputRead?(what: 'held' | 'heldFor', button: string): number;
+  /** Milestone 3b (B7b): controls on or off, a rumble, the HUD style */
+  inputOp?(op: 'on' | 'off' | 'rumble' | 'style', strength?: number, seconds?: number, style?: string): void;
+  hudRead?(): string;
 }
 
 export type Args = Record<string, unknown>;

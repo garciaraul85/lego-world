@@ -201,9 +201,10 @@ export const AUDIO: HelpEntry[] = [
     screen: 'audio',
     kind: 'area',
     name: 'Imported media',
-    purpose: 'Every imported file with its size and where it is used; files nothing uses can be removed.',
+    purpose:
+      'Every imported file with its size; ▶ plays a sound, × removes a file nothing uses. Media library… opens the whole library: where each file is used, who made it, shrinking big pictures.',
     commands: ['media.remove'],
-    match: [{ in: SND, name: 'Imported media' }],
+    match: [{ in: SND, name: 'Imported media' }, { in: '[data-tour="audio-media"]' }],
   },
   {
     id: 'audio.uses',

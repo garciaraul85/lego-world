@@ -1,0 +1,316 @@
+{
+  "id": "quests",
+  "title": "Quests course",
+  "steps": [
+    {
+      "id": "qs.read",
+      "title": "Read about Quest",
+      "body": "A quest is a class too. In Logic, under Built-in \u203a Quests, press Quest. Its steps are written in the class, each done by itself (reach a place, talk to someone, get items, beat foes, use an object) or by logic. Its hooks: canStartQuest, stepDone and goalOf (where its goal shows on the maps). MainQuest and SideQuest extend it.",
+      "task": "Open Logic \u203a Built-in \u203a Quest.",
+      "target": "[data-tour=\"builtin-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinOpen",
+        "args": "Quest"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBuiltin",
+          "args": {
+            "name": "Quest"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "right",
+      "workspace": "Logic"
+    },
+    {
+      "id": "qs.make",
+      "title": "A quest of your own",
+      "body": "Make a behaviour named Lost Lamp that extends SideQuest. Its steps: find 3 glowcaps (done by itself once the hero carries 3; its goal on the maps is the Arrival spawn point), then light the lamp (done by logic). start(e) starts it when play does; questDone(e) runs when it is finished. A quest is in the game as written: nothing to attach.",
+      "task": "Write class LostLamp extends SideQuest.",
+      "target": "[data-tour=\"behaviour-fields\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourExtends",
+        "args": "Lost Lamp,SideQuest"
+      },
+      "doItForMe": [
+        {
+          "fn": "newBehaviourNamed",
+          "args": {
+            "name": "Lost Lamp"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "Lost Lamp",
+            "code": [
+              "class $NAME extends SideQuest {",
+              "  steps = [",
+              "    { name: \"Find 3 glowcaps\", do: \"get\", at: \"Glowcap\", count: 3, where: \"Arrival\" },",
+              "    { name: \"Light the lamp\", do: \"script\", where: \"hero\" },",
+              "  ];",
+              "",
+              "  start(e) {",
+              "    quest.start(\"this\");",
+              "  }",
+              "",
+              "  questDone(e) {",
+              "    say(\"The lamp glows again!\", 3);",
+              "    log(\"Lamp found\");",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "qs.steps",
+      "title": "The Steps panel",
+      "body": "Beside the code, the Steps panel edits the same list. Press + Step, make it say Tell everyone and leave Done when on By logic. The steps line of the class changes with it.",
+      "task": "Give Lost Lamp a third step.",
+      "target": "[data-tour=\"quest-steps\"]",
+      "check": {
+        "kind": "state",
+        "test": "questSteps",
+        "args": "Lost Lamp,3"
+      },
+      "doItForMe": [
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "Lost Lamp",
+            "code": [
+              "class $NAME extends SideQuest {",
+              "  steps = [",
+              "    { name: \"Find 3 glowcaps\", do: \"get\", at: \"Glowcap\", count: 3, where: \"Arrival\" },",
+              "    { name: \"Light the lamp\", do: \"script\", where: \"hero\" },",
+              "  ];",
+              "",
+              "  start(e) {",
+              "    quest.start(\"this\");",
+              "  }",
+              "",
+              "  questDone(e) {",
+              "    say(\"The lamp glows again!\", 3);",
+              "    log(\"Lamp found\");",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "addQuestStep",
+          "args": {
+            "behaviour": "Lost Lamp",
+            "step": {
+              "name": "Tell everyone",
+              "do": "script"
+            }
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "qs.map",
+      "title": "The maps in logic",
+      "body": "The maps are a class too. Make a behaviour named Treasure Map that extends GameMap: on start it puts a flag on the maps where the hero is (map.mark), and markerLabel names the goal Go here!. showMarker can hide a kind of marker; canOpenMap can keep the map shut.",
+      "task": "Write class TreasureMap extends GameMap.",
+      "target": "[data-tour=\"behaviour-fields\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourExtends",
+        "args": "Treasure Map,GameMap"
+      },
+      "doItForMe": [
+        {
+          "fn": "newBehaviourNamed",
+          "args": {
+            "name": "Treasure Map"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "Treasure Map",
+            "code": [
+              "class $NAME extends GameMap {",
+              "  start(e) {",
+              "    map.mark(\"hero\", \"flag\", \"Camp\");",
+              "  }",
+              "",
+              "  markerLabel(e) {",
+              "    if (e.kind === \"goal\") {",
+              "      return \"Go here!\";",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "qs.play",
+      "title": "The quest log",
+      "body": "Press Play: New quest: Lost Lamp shows, and the HUD says what to do now. Press J (or Quests on the pause screen) for the quest log: the quest, its step, and how many glowcaps so far.",
+      "task": "Press Play, then J.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "questLogOpen"
+      },
+      "doItForMe": [
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "Lost Lamp",
+            "code": [
+              "class $NAME extends SideQuest {",
+              "  steps = [",
+              "    { name: \"Find 3 glowcaps\", do: \"get\", at: \"Glowcap\", count: 3, where: \"Arrival\" },",
+              "    { name: \"Light the lamp\", do: \"script\", where: \"hero\" },",
+              "  ];",
+              "",
+              "  start(e) {",
+              "    quest.start(\"this\");",
+              "  }",
+              "",
+              "  questDone(e) {",
+              "    say(\"The lamp glows again!\", 3);",
+              "    log(\"Lamp found\");",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "addQuestStep",
+          "args": {
+            "behaviour": "Lost Lamp",
+            "step": {
+              "name": "Tell everyone",
+              "do": "script"
+            }
+          }
+        },
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "Treasure Map",
+            "code": [
+              "class $NAME extends GameMap {",
+              "  start(e) {",
+              "    map.mark(\"hero\", \"flag\", \"Camp\");",
+              "  }",
+              "",
+              "  markerLabel(e) {",
+              "    if (e.kind === \"goal\") {",
+              "      return \"Go here!\";",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "playFresh",
+          "args": {
+            "quest": "Lost Lamp"
+          }
+        },
+        {
+          "fn": "openQuestLog"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "qs.track",
+      "title": "Where to go next",
+      "body": "In the quest log press Show on the map. The tracked quest's goal is the diamond on both maps (off the map in play, an arrow at its edge points to it), and Treasure Map's flag marks the camp.",
+      "task": "Show Lost Lamp on the map.",
+      "target": "[data-tour=\"quest-log\"]",
+      "check": {
+        "kind": "state",
+        "test": "questOnMap",
+        "args": "Lost Lamp"
+      },
+      "doItForMe": [
+        {
+          "fn": "playFresh",
+          "args": {
+            "quest": "Lost Lamp"
+          }
+        },
+        {
+          "fn": "trackAndShow",
+          "args": {
+            "quest": "Lost Lamp",
+            "walk": true
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "qs.finish",
+      "title": "Finish it",
+      "body": "Pick up 3 glowcaps and the first step is done by itself. Light the lamp and Tell everyone are done by logic: a script calls quest.advance(\"Lost Lamp\") (a lever, a talk). Here, Do it for me does each step. Quest complete, and its questDone says so.",
+      "task": "Finish Lost Lamp.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Lamp found"
+      },
+      "doItForMe": [
+        {
+          "fn": "playFresh",
+          "args": {
+            "quest": "Lost Lamp"
+          }
+        },
+        {
+          "fn": "finishQuest",
+          "args": {
+            "quest": "Lost Lamp"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "qs.done",
+      "title": "Done!",
+      "body": "Extend MainQuest for the story: it is listed first and tracked at once. stepDone can finish a step your own way, goalOf moves its goal, canStartQuest keeps it from starting too soon. Other scripts hear questStart, questStep, questDone and questFail (name the quest), and read quest.step and quest.isDone. The maps: map.setLook, map.reveal, map.unmark, map.open.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

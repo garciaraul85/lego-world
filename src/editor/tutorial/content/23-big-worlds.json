@@ -340,7 +340,7 @@
     {
       "id": "big.quality",
       "title": "Graphics quality",
-      "body": "A game runs on strong computers and on phones. Graphics quality says how much it draws: Low (2 lights, no shadows, half the view distance, fewer particles), Medium (4 lights with shadows) or High (8 lights, the full view distance). Auto picks one from the device and steps down while the game runs slowly. Players can change it in the game’s Settings; this is what they start with.",
+      "body": "A game runs on strong computers and on phones. Graphics quality says how much it draws: Low (2 lights, no shadows, half the view distance, fewer particles), Medium (4 lights, 2 casting shadows) or High (8 lights, 4 casting shadows, the full view distance). Auto picks one from the device and steps down while the game runs slowly. Players can change it in the game’s Settings; this is what they start with.",
       "task": "On the Project tab, set Graphics quality to Medium.",
       "target": "[data-tour=\"project-quality\"]",
       "placement": "left",
@@ -447,6 +447,65 @@
           ]
         }
       ]
+    },
+    {
+      "id": "big.drawwith",
+      "title": "Draw with WebGPU",
+      "body": "WebGPU is the newer way to use the graphics card: the same picture, with water that truly mirrors the world, and later faster big maps. The Scene and Play can draw with it, characters included. The choice is kept in this browser.",
+      "task": "In the corner of the 3D view, set Draw with to WebGPU. (If your browser can't show it, WebGL draws and a message says so.)",
+      "target": "[data-tour=\"draw-with\"]",
+      "check": {
+        "kind": "state",
+        "test": "drawWithIs",
+        "args": "webgpu"
+      },
+      "doItForMe": [
+        {
+          "ui": "stop"
+        },
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "choose": "[data-tour=\"draw-with\"]",
+          "value": "webgpu"
+        }
+      ],
+      "how": [
+        {
+          "text": "Stop the game (Esc), then click “Scene” in the workspace tabs at the top.",
+          "check": {
+            "kind": "dom",
+            "selector": "[data-tour=\"draw-with\"]"
+          },
+          "do": [
+            {
+              "ui": "stop"
+            },
+            {
+              "ui": "workspace",
+              "value": "Scene"
+            }
+          ]
+        },
+        {
+          "text": "In the 3D view's corner, open Draw with and pick WebGPU.",
+          "check": {
+            "kind": "state",
+            "test": "drawWithIs",
+            "args": "webgpu"
+          },
+          "do": [
+            {
+              "choose": "[data-tour=\"draw-with\"]",
+              "value": "webgpu",
+              "say": "WebGPU"
+            }
+          ]
+        }
+      ],
+      "workspace": "Scene"
     },
     {
       "id": "big.done",

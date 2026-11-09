@@ -1,0 +1,403 @@
+{
+  "id": "hudStyles",
+  "title": "HUD styles course",
+  "steps": [
+    {
+      "id": "hs.pick",
+      "title": "An era's HUD",
+      "body": "Project \u203a Controls \u203a HUD style has a card for each era of 3D adventures, oldest first: corner buttons (64-bit), a big-button cluster (cube), pointer and motion, a second screen (tablet) and open air. Each sets the button layout, the face each button wears and arranges the HUD screen. Press Corner buttons.",
+      "task": "Pick Corner buttons.",
+      "target": "[data-tour=\"hud-styles\"]",
+      "check": {
+        "kind": "state",
+        "test": "hudStyle",
+        "args": "corner64"
+      },
+      "doItForMe": [
+        {
+          "fn": "applyHudStyle",
+          "args": {
+            "style": "corner64"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Scene"
+    },
+    {
+      "id": "hs.play",
+      "title": "Play it",
+      "body": "Press Play: hearts at the top left, a green B (Attack), a blue A that says what it does, three yellow item buttons in the top right corner and a square map. No jump button: the hero jumps off ledges by itself.",
+      "task": "Press Play.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playHudStyle",
+        "args": "corner64"
+      },
+      "doItForMe": [
+        {
+          "fn": "applyHudStyle",
+          "args": {
+            "style": "corner64"
+          }
+        },
+        {
+          "fn": "playFresh",
+          "args": {
+            "hud": "corner64"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hs.pointer",
+      "title": "Hold for the wheel",
+      "body": "Stop, pick Pointer and motion and Play again. Its HUD is a tall remote on the right. Tap the B item button to use its item; hold it and the item wheel opens to pick another.",
+      "task": "In Play with Pointer and motion, hold the item button (J).",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "screenShown",
+        "args": "Items"
+      },
+      "doItForMe": [
+        {
+          "fn": "applyHudStyle",
+          "args": {
+            "style": "pointer"
+          }
+        },
+        {
+          "fn": "playFresh",
+          "args": {
+            "hud": "pointer"
+          }
+        },
+        {
+          "fn": "pressButton",
+          "args": {
+            "button": "item1",
+            "seconds": 1.0
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hs.read",
+      "title": "Read PlayerInput and GameHud",
+      "body": "The buttons and the HUD are classes too: in Logic, under Built-in \u203a Game, PlayerInput decides which buttons work (canPress) and what Action says (actionLabel), and hears every press (buttonDown, buttonUp). GameHud decides which widgets show (showWidget) and what they say (widgetText). Press PlayerInput.",
+      "task": "Open Logic \u203a Built-in \u203a PlayerInput.",
+      "target": "[data-tour=\"builtin-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinOpen",
+        "args": "PlayerInput"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBuiltin",
+          "args": {
+            "name": "PlayerInput"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "right",
+      "workspace": "Logic"
+    },
+    {
+      "id": "hs.input",
+      "title": "Your buttons",
+      "body": "Make a behaviour named My Buttons that extends PlayerInput: no attacking in a village, Action says Chat to people, a log as Action is pressed, and a button held for over a second changes the HUD to open air (hud.setStyle) with a little rumble. Like the game's rules, nothing to attach.",
+      "task": "Write class MyButtons extends PlayerInput.",
+      "target": "[data-tour=\"behaviour-fields\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourExtends",
+        "args": "My Buttons,PlayerInput"
+      },
+      "doItForMe": [
+        {
+          "fn": "newBehaviourNamed",
+          "args": {
+            "name": "My Buttons"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "My Buttons",
+            "code": [
+              "class $NAME extends PlayerInput {",
+              "  canPress(e) {",
+              "    if (e.button === \"attack\" && vars.inVillage === true) {",
+              "      return false;",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "",
+              "  actionLabel(e) {",
+              "    if (e.kind === \"talk\") {",
+              "      return \"Chat\";",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "",
+              "  buttonDown(e) {",
+              "    if (e.button === \"action\") {",
+              "      log(\"Action pressed\");",
+              "    }",
+              "  }",
+              "",
+              "  buttonUp(e) {",
+              "    if (e.held > 1) {",
+              "      hud.setStyle(\"openair\");",
+              "      input.rumble(0.5, 0.2);",
+              "    }",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "hs.hud",
+      "title": "Your HUD",
+      "body": "Make a behaviour named My Hud that extends GameHud: the quest line hides while a game variable says so, and hudStyle(e) runs as the look changes.",
+      "task": "Write class MyHud extends GameHud.",
+      "target": "[data-tour=\"behaviour-fields\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourExtends",
+        "args": "My Hud,GameHud"
+      },
+      "doItForMe": [
+        {
+          "fn": "newBehaviourNamed",
+          "args": {
+            "name": "My Hud"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "My Hud",
+            "code": [
+              "class $NAME extends GameHud {",
+              "  showWidget(e) {",
+              "    if (e.widget === \"quest\" && vars.hideQuest === true) {",
+              "      return false;",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "",
+              "  hudStyle(e) {",
+              "    say(\"A new look!\", 2);",
+              "    log(\"The HUD changed\");",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "hs.press",
+      "title": "Heard",
+      "body": "Press Play and press Action (E): buttonDown hears it.",
+      "task": "In Play, press Action.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Action pressed"
+      },
+      "doItForMe": [
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "My Buttons",
+            "code": [
+              "class $NAME extends PlayerInput {",
+              "  canPress(e) {",
+              "    if (e.button === \"attack\" && vars.inVillage === true) {",
+              "      return false;",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "",
+              "  actionLabel(e) {",
+              "    if (e.kind === \"talk\") {",
+              "      return \"Chat\";",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "",
+              "  buttonDown(e) {",
+              "    if (e.button === \"action\") {",
+              "      log(\"Action pressed\");",
+              "    }",
+              "  }",
+              "",
+              "  buttonUp(e) {",
+              "    if (e.held > 1) {",
+              "      hud.setStyle(\"openair\");",
+              "      input.rumble(0.5, 0.2);",
+              "    }",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "My Hud",
+            "code": [
+              "class $NAME extends GameHud {",
+              "  showWidget(e) {",
+              "    if (e.widget === \"quest\" && vars.hideQuest === true) {",
+              "      return false;",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "",
+              "  hudStyle(e) {",
+              "    say(\"A new look!\", 2);",
+              "    log(\"The HUD changed\");",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "playFresh",
+          "args": {
+            "behaviour": "My Buttons"
+          }
+        },
+        {
+          "fn": "pressButton",
+          "args": {
+            "button": "action"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hs.switch",
+      "title": "A new look while playing",
+      "body": "Hold a button (Guard, Q) for over a second and let go: My Buttons changes the HUD to open air, and My Hud says A new look!",
+      "task": "Hold Guard for a second.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playHudStyle",
+        "args": "openair"
+      },
+      "doItForMe": [
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "My Buttons",
+            "code": [
+              "class $NAME extends PlayerInput {",
+              "  canPress(e) {",
+              "    if (e.button === \"attack\" && vars.inVillage === true) {",
+              "      return false;",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "",
+              "  actionLabel(e) {",
+              "    if (e.kind === \"talk\") {",
+              "      return \"Chat\";",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "",
+              "  buttonDown(e) {",
+              "    if (e.button === \"action\") {",
+              "      log(\"Action pressed\");",
+              "    }",
+              "  }",
+              "",
+              "  buttonUp(e) {",
+              "    if (e.held > 1) {",
+              "      hud.setStyle(\"openair\");",
+              "      input.rumble(0.5, 0.2);",
+              "    }",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "ensureBehaviour",
+          "args": {
+            "name": "My Hud",
+            "code": [
+              "class $NAME extends GameHud {",
+              "  showWidget(e) {",
+              "    if (e.widget === \"quest\" && vars.hideQuest === true) {",
+              "      return false;",
+              "    }",
+              "    return e.base;",
+              "  }",
+              "",
+              "  hudStyle(e) {",
+              "    say(\"A new look!\", 2);",
+              "    log(\"The HUD changed\");",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "playFresh",
+          "args": {
+            "behaviour": "My Buttons"
+          }
+        },
+        {
+          "fn": "pressButton",
+          "args": {
+            "button": "guard",
+            "seconds": 2.2
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "hs.done",
+      "title": "Done!",
+      "body": "Any script can ask input.isHeld(\"attack\") or input.heldFor(\"attack\") for a charged swing, turn the controls off with input.enable(false), rumble the gamepad and read hud.style(). The faces change with the style: buttonDown's e.face is A, B or \u25c0.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

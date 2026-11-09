@@ -1,4 +1,6 @@
 import { useState } from 'preact/hooks';
+import { BUILTIN_BODY_PLANS, builtinBodyPlan } from '../../../builtin/bodyplans';
+import { CUSTOM_SHAPES, type CustomShape, SHAPE_INFO } from '../../../core/bricks/custom';
 import {
   BODY_FAMILIES,
   BONE_ROLES,
@@ -8,6 +10,9 @@ import {
   type BodyPlan,
   type Bone,
   checkPlan,
+  MAX_EXTRAS,
+  MINIFIG_JOINTS,
+  type MinifigJoint,
   MOVE_INFO,
   MOVE_KINDS,
   PARAM_INFO,
@@ -15,13 +20,15 @@ import {
   ROLE_INFO,
 } from '../../../core/character/body';
 import { FAMILY_INFO, FAMILY_PRESETS, makeFamily } from '../../../core/character/families';
-import { type ResolvedBody, resolveBody } from '../../../core/character/resolve';
+import { movesOf } from '../../../core/character/moves';
+import { EXTRA_SIZE, planOf, type ResolvedBody, resolveBody } from '../../../core/character/resolve';
 import { newId } from '../../../core/ids';
-import type { Asset, Character } from '../../../core/schema';
+import { type Asset, type Character, paths } from '../../../core/schema';
 import { AssetThumb } from '../../components/AssetThumb';
 import { FieldHelp } from '../../components/fields';
 import { matches, NoMatch, SearchBox, SearchSelect } from '../../components/SearchBox';
 import { NumField, type Props, SHEET_HELP } from './Sheet';
+import { DEFAULT_SCULPT, type SculptMode, type SculptTool } from './sculpt';
 import { CharacterThumb } from './thumbs';
 
 /**
@@ -34,7 +41,9 @@ export const BODY_HELP = {
   bricks:
     'Build a creature in the Asset studio, then wear it here: each brick follows the bone it is nearest to. To fix one, pick a bone in “Paint onto” and click its bricks in the preview.',
   skeleton:
-    'The bones inside the body. Each bone hangs from another and has a role that says how it moves (a leg steps, a wing flaps, a tail sways). Edit the skeleton to add, remove, move and rename bones, set how far each one swings, and give it bricks.',
+    'The bones inside the body. Each bone hangs from another and has a role that says how it moves (a leg steps, a wing flaps, a tail sways). Edit the skeleton to add, remove, move and rename bones, set how far each one swings, and give it bricks. A brick can be a box or a shape (round, dome, cone, slope, curve, arch, wedge), turned a quarter at a time, see-through (a ghost) or glowing (eyes, embers).',
+  extras:
+    'Extra parts are bricks on a minifig’s joints: a tail on the hips, a snout, ears or horns on the head, fins on the arms. They move with the minifig, which keeps its clips, faces, outfits and held items (a wolf-man, a fish-folk, a horned knight). Pick a joint, add a part, then set its kind, size, place (in studs and plates from the joint), shape, colour, see-through and glow. Brick size makes all of them smaller than real bricks, to fit a minifig.',
 } as const;
 
 /**
@@ -62,6 +71,30 @@ export function makeOwnPlan(
   ).ok;
 }
 
+/**
+ * Step 11, 4a: saves a body plan. One of the engine's own plans is never changed: the first change makes the
+ * character a copy of it in the project, and the change goes on the copy (one undo step).
+ */
+export function putPlan(ed: Sub['c']['ed'], chr: Character, plan: BodyPlan, label: string): boolean {
+  if (ed.store.has(paths.bodyplan(plan.id)) || !builtinBodyPlan(plan.id))
+    return ed.exec({ type: 'bodyplan.put', payload: { plan } }, { label }).ok;
+  if (!ed.store.has(paths.character(chr.id))) {
+    ed.notify('Change anything about this character first (its name, say): then its body can be changed.', true);
+    return false;
+  }
+  const copy: BodyPlan = { ...plan, id: newId('bodyplan'), name: `${plan.name} (mine)`.slice(0, 40) };
+  const { body: _b, ...rest } = chr;
+  const ok = ed.exec(
+    [
+      { type: 'bodyplan.put', payload: { plan: copy } },
+      { type: 'character.update', payload: { character: { ...rest, body: { ...(chr.body ?? {}), plan: copy.id } } } },
+    ],
+    { label },
+  ).ok;
+  if (ok) ed.notify(`${plan.name} is one of the engine's bodies: ${chr.name} now has its own copy to change.`);
+  return ok;
+}
+
 /** P23: a body family's card shows the creature itself (the minifig: this character) */
 function FamilyPicture({ f, profile }: { f: BodyFamily; profile: Record<string, unknown> }) {
   const body = f === 'minifig' ? null : resolveBody({ family: f }, () => undefined);
@@ -77,7 +110,7 @@ export { bodyOfChr };
 export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolean }) {
   const ed = c.ed;
   const body: Body = chr.body ?? {};
-  const own = body.plan ? (ed.store.get(`bodyplans/${body.plan}.json`) as BodyPlan | undefined) : undefined;
+  const own = body.plan ? planOf(body.plan, (p) => ed.store.get(p)) : undefined;
   const family: BodyFamily = own ? 'minifig' : (body.family ?? 'minifig');
   const isMinifig = !own && family === 'minifig';
   const [custom, setCustom] = useState(false);
@@ -85,10 +118,14 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
   const [customFrom, setCustomFrom] = useState<Exclude<BodyFamily, 'minifig'>>(
     family === 'minifig' ? 'fourLegs' : family,
   );
-  const plans = ed.store
-    .list('bodyplans/')
-    .map((p) => ed.store.get(p) as BodyPlan)
-    .filter(Boolean);
+  const plans = [
+    ...ed.store
+      .list('bodyplans/')
+      .map((p) => ed.store.get(p) as BodyPlan)
+      .filter(Boolean),
+    // step 11, 4a: the engine's own creature bodies
+    ...BUILTIN_BODY_PLANS,
+  ];
   const setBody = (next: Body | undefined, label: string) => {
     const { body: _b, ...rest } = chr;
     save((next ? { ...rest, body: next } : rest) as Character, label);
@@ -154,7 +191,7 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
                 aria-checked={own?.id === p.id}
                 class={`chip body-card ${own?.id === p.id ? 'on' : ''}`}
                 data-tour={`body-plan-${p.id}`}
-                title={`${p.name}: a body plan of this game (${MOVE_INFO[p.move]})`}
+                title={`${p.name}: ${builtinBodyPlan(p.id) ? "one of the engine's bodies" : 'a body plan of this game'} (${MOVE_INFO[p.move]})`}
                 onClick={() => pickPlan(p)}
               >
                 <CharacterThumb
@@ -296,25 +333,35 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
                   ? '■ Stand'
                   : `▶ ${resolved?.move === 'fly' ? 'Fly' : resolved?.move === 'swim' ? 'Swim' : resolved?.move === 'slither' ? 'Slither' : resolved?.move === 'hop' ? 'Hop' : 'Walk'}`}
               </button>
-              {/* P23 part 4: the strike and flinch the state machine shows in Play */}
-              <button
-                type="button"
-                class="btn"
-                data-tour="body-strike"
-                data-tip="Show the attack state: the head lunges, the jaw snaps, arms reach"
-                onClick={() => (ed.bodyAct.value = { kind: 'attack', at: performance.now() })}
-              >
-                Strike
-              </button>
-              <button
-                type="button"
-                class="btn"
-                data-tour="body-flinch"
-                data-tip="Show the hurt state: the body rocks back"
-                onClick={() => (ed.bodyAct.value = { kind: 'hurt', at: performance.now() })}
-              >
-                Flinch
-              </button>
+              {/* P23 part 4: the strike and flinch the state machine shows in Play; Milestone 3, 10d part 2: and every
+                  other move its parts can do */}
+              {resolved && (
+                <span
+                  data-tour="body-moves"
+                  role="group"
+                  aria-label="Moves"
+                  class="row"
+                  style={{ gap: '10px', flexWrap: 'wrap' }}
+                >
+                  {movesOf(resolved.bones).map((mv) => (
+                    <button
+                      type="button"
+                      class="btn"
+                      data-tour={
+                        mv.move === 'attack'
+                          ? 'body-strike'
+                          : mv.move === 'hurt'
+                            ? 'body-flinch'
+                            : `body-move-${mv.move}`
+                      }
+                      data-tip={`${mv.label}: ${mv.about}`}
+                      onClick={() => (ed.bodyAct.value = { kind: mv.move, at: performance.now() })}
+                    >
+                      {mv.label}
+                    </button>
+                  ))}
+                </span>
+              )}
               <label class="lbl">
                 <input
                   type="checkbox"
@@ -328,7 +375,9 @@ export function BodyTab({ c, chr, save, inProject }: Props & { inProject: boolea
           </>
         )}
       </div>
+      {isMinifig && inProject && <ExtraParts body={body} setBody={setBody} />}
       {!isMinifig && <BrickBuild c={c} chr={chr} save={save} body={body} resolved={resolved} setBody={setBody} />}
+      {!isMinifig && !body.asset && <SculptPaint c={c} chr={chr} own={own} family={family} />}
       {!isMinifig && <Skeleton c={c} chr={chr} save={save} body={body} own={own} setBody={setBody} />}
     </>
   );
@@ -438,7 +487,7 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
       ed.notify(bad[0]!, true);
       return false;
     }
-    return ed.exec({ type: 'bodyplan.put', payload: { plan } }, { label }).ok;
+    return putPlan(ed, chr, plan, label);
   };
   if (!own) {
     return (
@@ -759,70 +808,7 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
         <span>Bricks on {sel.name}</span>
       </div>
       {bricks.map(([k, i]) => (
-        <div class="brick-row row" role="group" aria-label={`Brick ${i + 1}`}>
-          <select
-            class="inp"
-            aria-label="Brick kind"
-            value={k.kind}
-            onChange={(e) =>
-              setBrick(i, { ...k, kind: (e.target as HTMLSelectElement).value as BodyBrick['kind'] }, 'Brick kind')
-            }
-          >
-            <option value="brick">Brick</option>
-            <option value="plate">Plate</option>
-            <option value="tile">Tile</option>
-          </select>
-          {(['w', 'd'] as const).map((f) => (
-            <input
-              class="inp mono"
-              type="number"
-              aria-label={f === 'w' ? 'Brick width' : 'Brick depth'}
-              min={1}
-              max={8}
-              value={k[f]}
-              onChange={(e) => {
-                const v = Math.max(1, Math.min(8, Math.round(Number((e.target as HTMLInputElement).value) || 1)));
-                setBrick(i, { ...k, [f]: v }, 'Brick size');
-              }}
-            />
-          ))}
-          {(['x', 'y', 'z'] as const).map((f) => (
-            <input
-              class="inp mono"
-              type="number"
-              step={f === 'y' ? 1 : 0.5}
-              aria-label={`Brick ${f}`}
-              value={k[f]}
-              onChange={(e) => {
-                const n = Number((e.target as HTMLInputElement).value);
-                if (Number.isFinite(n))
-                  setBrick(i, { ...k, [f]: f === 'y' ? Math.max(-75, Math.min(75, n)) : coordOk(n) }, 'Move brick');
-              }}
-            />
-          ))}
-          <select
-            class="inp"
-            aria-label="Brick colour"
-            value={k.color.startsWith('#') ? 'own' : k.color}
-            onChange={(e) => {
-              const v = (e.target as HTMLSelectElement).value;
-              setBrick(i, { ...k, color: v === 'own' ? '#ffffff' : (v as BodyBrick['color']) }, 'Brick colour');
-            }}
-          >
-            {(['main', 'accent', 'belly', 'eye', 'dark'] as const).map((s) => (
-              <option value={s}>{s}</option>
-            ))}
-            <option value="own">its own…</option>
-          </select>
-          <button
-            type="button"
-            class="link danger"
-            aria-label={`Remove brick ${i + 1}`}
-            onClick={() => setBrick(i, null, 'Remove brick')}
-          >
-            ✕
-          </button>
-        </div>
+        <BrickRow k={k} i={i} set={(b, label) => setBrick(i, b, label)} />
       ))}
       <button
         type="button"
@@ -860,6 +846,405 @@ function Skeleton({ c, chr, body, own, setBody }: Sub & { own: BodyPlan | undefi
           Use the {FAMILY_INFO[own.family as BodyFamily]?.label ?? 'Four legs'} sliders again
         </button>
       </div>
+    </div>
+  );
+}
+
+const SCULPT_SIZES: [number, number][] = [
+  [1, 1],
+  [1, 2],
+  [2, 1],
+  [2, 2],
+  [1, 4],
+  [2, 4],
+  [4, 4],
+];
+const SCULPT_SLOTS = ['main', 'accent', 'belly', 'eye', 'dark'] as const;
+
+/**
+ * Milestone 3, 10d part 3: paint and sculpt a creature on the preview — Paint gives the clicked brick a colour (a
+ * colour slot follows the body's colours), Add puts a brick against the clicked face, Remove takes one away. A body
+ * that follows the sliders becomes a body plan of its own first. Each click is one undo step.
+ */
+function SculptPaint({
+  c,
+  chr,
+  own,
+  family,
+}: {
+  c: Props['c'];
+  chr: Character;
+  own: BodyPlan | undefined;
+  family: BodyFamily;
+}) {
+  const ed = c.ed;
+  const tool = ed.bodySculpt.value;
+  const set = (patch: Partial<SculptTool> | null) => {
+    if (patch === null) {
+      ed.bodySculpt.value = null;
+      return;
+    }
+    if (!own && family !== 'minifig') {
+      // a family body follows its sliders: it becomes a body plan of its own to sculpt
+      if (!makeOwnPlan(ed, chr, family as Exclude<BodyFamily, 'minifig'>, 'Sculpt the body')) return;
+      ed.notify('The body is now a body plan of its own: the sliders no longer change it.');
+    }
+    ed.bodySculpt.value = { ...(tool ?? DEFAULT_SCULPT), ...patch };
+  };
+  const modes: [SculptMode | null, string][] = [
+    [null, 'Off'],
+    ['paint', '🎨 Paint'],
+    ['add', '➕ Add'],
+    ['remove', '➖ Remove'],
+  ];
+  return (
+    <div class="sec" data-tour="body-sculpt" data-help="characters.sculpt">
+      <div class="sech">
+        <span>
+          Paint and sculpt
+          <FieldHelp
+            label="Paint and sculpt"
+            text="Click the creature in the preview. Paint colours a brick, Add puts a brick against the face you click, Remove takes one away. Drag to turn the view. Each click is one undo step."
+          />
+        </span>
+      </div>
+      <div role="radiogroup" aria-label="Sculpt" class="row" style={{ flexWrap: 'wrap', gap: '4px' }}>
+        {modes.map(([m, label]) => (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={(tool?.mode ?? null) === m}
+            class={`btn small ${(tool?.mode ?? null) === m ? 'on' : ''}`}
+            data-tour={`sculpt-${m ?? 'off'}`}
+            onClick={() => set(m ? { mode: m } : null)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tool && tool.mode !== 'remove' && (
+        <div class="field">
+          Colour
+          <span class="row" role="group" aria-label="Colour" style={{ gap: '4px', flexWrap: 'wrap' }}>
+            {SCULPT_SLOTS.map((k) => (
+              <button
+                type="button"
+                class={`btn small ${tool.color === k ? 'on' : ''}`}
+                data-tour={`sculpt-slot-${k}`}
+                title={`The body's ${k} colour (changes with it)`}
+                onClick={() => set({ color: k })}
+              >
+                {k}
+              </button>
+            ))}
+            <input
+              type="color"
+              class="inp"
+              aria-label="Brick colour"
+              data-tour="sculpt-color"
+              value={tool.color.startsWith('#') ? tool.color : '#888888'}
+              onChange={(e) => set({ color: (e.target as HTMLInputElement).value })}
+            />
+          </span>
+        </div>
+      )}
+      {tool?.mode === 'add' && (
+        <div class="row" style={{ gap: '6px' }}>
+          <label class="field">
+            Kind
+            <select
+              class="inp"
+              aria-label="New brick kind"
+              data-tour="sculpt-kind"
+              value={tool.kind}
+              onChange={(e) => set({ kind: (e.target as HTMLSelectElement).value as SculptTool['kind'] })}
+            >
+              <option value="brick">Brick</option>
+              <option value="plate">Plate</option>
+              <option value="tile">Tile</option>
+            </select>
+          </label>
+          <label class="field">
+            Size
+            <select
+              class="inp"
+              aria-label="New brick size"
+              data-tour="sculpt-size"
+              value={`${tool.w}x${tool.d}`}
+              onChange={(e) => {
+                const [w, d] = (e.target as HTMLSelectElement).value.split('x').map(Number);
+                set({ w: w!, d: d! });
+              }}
+            >
+              {SCULPT_SIZES.map(([w, d]) => (
+                <option value={`${w}x${d}`}>
+                  {w}×{d}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+      <p class="muted small" role="status">
+        {!tool
+          ? 'Pick Paint, Add or Remove, then click the creature in the preview.'
+          : tool.mode === 'paint'
+            ? 'Click a brick to paint it.'
+            : tool.mode === 'add'
+              ? 'Click the side of a brick to put a new brick there (the green outline shows where).'
+              : 'Click a brick to take it away.'}
+        {own && ` ${own.bricks.length} bricks.`}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * One body brick's fields: kind, shape and turn, size, place, colour, see-through, glow (step 11, 4a: shapes,
+ * see-through and glow). Used for a body plan's bones and for a minifig's extra parts.
+ */
+export function BrickRow({
+  k,
+  i,
+  set,
+  slots = ['main', 'accent', 'belly', 'eye', 'dark'],
+}: {
+  k: BodyBrick;
+  i: number;
+  set: (b: BodyBrick | null, label: string) => void;
+  slots?: readonly string[];
+}) {
+  return (
+    <div class="brick-row-wrap" role="group" aria-label={`Brick ${i + 1}`}>
+      <div class="brick-row row">
+        <select
+          class="inp"
+          aria-label="Brick kind"
+          value={k.kind}
+          onChange={(e) =>
+            set({ ...k, kind: (e.target as HTMLSelectElement).value as BodyBrick['kind'] }, 'Brick kind')
+          }
+        >
+          <option value="brick">Brick</option>
+          <option value="plate">Plate</option>
+          <option value="tile">Tile</option>
+        </select>
+        {(['w', 'd'] as const).map((f) => (
+          <input
+            class="inp mono"
+            type="number"
+            aria-label={f === 'w' ? 'Brick width' : 'Brick depth'}
+            min={1}
+            max={8}
+            value={k[f]}
+            onChange={(e) => {
+              const v = Math.max(1, Math.min(8, Math.round(Number((e.target as HTMLInputElement).value) || 1)));
+              set({ ...k, [f]: v }, 'Brick size');
+            }}
+          />
+        ))}
+        {(['x', 'y', 'z'] as const).map((f) => (
+          <input
+            class="inp mono"
+            type="number"
+            step={f === 'y' ? 1 : 0.5}
+            aria-label={`Brick ${f}`}
+            value={k[f]}
+            onChange={(e) => {
+              const n = Number((e.target as HTMLInputElement).value);
+              if (Number.isFinite(n))
+                set({ ...k, [f]: f === 'y' ? Math.max(-75, Math.min(75, n)) : coordOk(n) }, 'Move brick');
+            }}
+          />
+        ))}
+        <select
+          class="inp"
+          aria-label="Brick colour"
+          value={k.color.startsWith('#') ? 'own' : k.color}
+          onChange={(e) => {
+            const v = (e.target as HTMLSelectElement).value;
+            set({ ...k, color: v === 'own' ? '#ffffff' : (v as BodyBrick['color']) }, 'Brick colour');
+          }}
+        >
+          {slots.map((sl) => (
+            <option value={sl}>{sl}</option>
+          ))}
+          <option value="own">its own…</option>
+        </select>
+        {k.color.startsWith('#') && (
+          <input
+            type="color"
+            aria-label="Brick's own colour"
+            value={k.color}
+            onChange={(e) => set({ ...k, color: (e.target as HTMLInputElement).value }, 'Brick colour')}
+          />
+        )}
+        <button
+          type="button"
+          class="link danger"
+          aria-label={`Remove brick ${i + 1}`}
+          onClick={() => set(null, 'Remove brick')}
+        >
+          ✕
+        </button>
+      </div>
+      <div class="brick-row row small">
+        <select
+          class="inp"
+          aria-label="Brick shape"
+          title="A plain box, or one of the brick shapes"
+          value={k.shape ?? ''}
+          onChange={(e) => {
+            const v = (e.target as HTMLSelectElement).value as CustomShape | '';
+            const { shape: _s, rot: _r, studs: _t, ...rest } = k;
+            set(v ? { ...rest, shape: v } : rest, 'Brick shape');
+          }}
+        >
+          <option value="">Box</option>
+          {CUSTOM_SHAPES.map((sh) => (
+            <option value={sh}>{SHAPE_INFO[sh].label}</option>
+          ))}
+        </select>
+        {k.shape && (
+          <button
+            type="button"
+            class="btn small"
+            aria-label={`Turn the shape (now ${(k.rot ?? 0) * 90}°)`}
+            title="Turn the shape a quarter"
+            onClick={() => set({ ...k, rot: ((k.rot ?? 0) + 1) % 4 }, 'Turn the shape')}
+          >
+            ⟳ {(k.rot ?? 0) * 90}°
+          </button>
+        )}
+        <label class="lbl" title="See-through: 100% is solid, lower is see-through (a ghost)">
+          Solid
+          <input
+            class="inp mono"
+            type="number"
+            aria-label="How solid (percent)"
+            min={15}
+            max={100}
+            step={5}
+            style={{ width: '56px' }}
+            value={Math.round((k.alpha ?? 1) * 100)}
+            onChange={(e) => {
+              const v = Math.max(15, Math.min(100, Math.round(Number((e.target as HTMLInputElement).value) || 100)));
+              const { alpha: _a, ...rest } = k;
+              set(v >= 100 ? rest : { ...rest, alpha: v / 100 }, 'See-through');
+            }}
+          />
+          %
+        </label>
+        <label class="lbl" title="Glows: drawn at full brightness, even in the dark (eyes, embers, a lantern)">
+          <input
+            type="checkbox"
+            aria-label="Glows"
+            checked={!!k.glow}
+            onChange={(e) => {
+              const { glow: _g, ...rest } = k;
+              set((e.target as HTMLInputElement).checked ? { ...rest, glow: true } : rest, 'Glow');
+            }}
+          />
+          Glows
+        </label>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Step 11, 4a: a minifig's extra parts — bricks on its joints (a tail, a snout, ears, fins, horns), so a wolf-man or a
+ * fish-folk keeps the minifig's clips, faces, outfits and held items.
+ */
+function ExtraParts({ body, setBody }: { body: Body; setBody: (b: Body | undefined, label: string) => void }) {
+  const [joint, setJoint] = useState<MinifigJoint>('head');
+  const extras = body.extras ?? [];
+  const put = (next: BodyBrick[], label: string) => {
+    const { extras: _e, ...rest } = body;
+    setBody(next.length ? { ...rest, extras: next } : Object.keys(rest).length ? rest : undefined, label);
+  };
+  const size = body.extraSize ?? EXTRA_SIZE;
+  return (
+    <div class="sec" data-tour="char-extras" data-help="characters.extras">
+      <div class="sech">
+        <span>
+          Extra parts
+          <FieldHelp label="Extra parts" text={BODY_HELP.extras} />
+        </span>
+      </div>
+      <p class="muted small">
+        Bricks on the minifig's joints: a tail on the hips, a snout or ears on the head, fins on the arms. They move
+        with it and it keeps its clips, faces, outfits and what it holds.
+      </p>
+      <div class="row" style={{ gap: '8px', flexWrap: 'wrap' }}>
+        <label class="field">
+          On
+          <select
+            class="inp"
+            aria-label="Joint"
+            data-tour="extras-joint"
+            value={joint}
+            onChange={(e) => setJoint((e.target as HTMLSelectElement).value as MinifigJoint)}
+          >
+            {(Object.keys(MINIFIG_JOINTS) as MinifigJoint[]).map((j) => (
+              <option value={j}>{MINIFIG_JOINTS[j]}</option>
+            ))}
+          </select>
+        </label>
+        <label class="field">
+          Brick size
+          <select
+            class="inp"
+            aria-label="Extra parts' brick size"
+            value={String(size)}
+            onChange={(e) =>
+              setBody({ ...body, extraSize: Number((e.target as HTMLSelectElement).value) }, 'Extra parts size')
+            }
+          >
+            <option value="0.25">Quarter stud</option>
+            <option value="0.5">Half stud</option>
+            <option value="0.75">Three quarters</option>
+            <option value="1">A full stud</option>
+          </select>
+        </label>
+        <button
+          type="button"
+          class="btn"
+          data-tour="extras-add"
+          disabled={extras.length >= MAX_EXTRAS}
+          onClick={() =>
+            put(
+              [...extras, { bone: joint, w: 1, d: 1, kind: 'brick', x: -0.5, y: 0, z: -0.5, color: 'main' }],
+              `Extra part on ${MINIFIG_JOINTS[joint]}`,
+            )
+          }
+        >
+          + Part on {MINIFIG_JOINTS[joint]}
+        </button>
+      </div>
+      {extras
+        .map((k, i) => ({ k, i }))
+        .filter(({ k }) => k.bone === joint)
+        .map(({ k, i }) => (
+          <BrickRow
+            k={k}
+            i={i}
+            set={(b, label) =>
+              put(b ? extras.map((x, j) => (j === i ? b : x)) : extras.filter((_, j) => j !== i), label)
+            }
+          />
+        ))}
+      {extras.length > 0 && (
+        <p class="muted small">
+          {extras.length} part{extras.length === 1 ? '' : 's'}:{' '}
+          {Object.entries(
+            extras.reduce<Record<string, number>>((a, x) => ({ ...a, [x.bone]: (a[x.bone] ?? 0) + 1 }), {}),
+          )
+            .map(([j, n]) => `${MINIFIG_JOINTS[j as MinifigJoint] ?? j} (${n})`)
+            .join(', ')}
+          .
+        </p>
+      )}
     </div>
   );
 }

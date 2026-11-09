@@ -32,6 +32,7 @@ test('Combat course: Do it for me adds the Training yard, makes the knight tough
     timeout: 60_000,
   });
   await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
   await page.getByRole('menuitem', { name: /Combat course/ }).click();
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });

@@ -153,7 +153,7 @@ function MediaList({ c, onImport }: { c: ActionCtx; onImport: () => void }) {
   const items = Object.entries(ed.store.get<MediaIndex>(paths.media)?.items ?? {});
   const total = items.reduce((n, [, m]) => n + m.bytes, 0);
   return (
-    <div class="scroll au-editor">
+    <div class="scroll au-editor" data-tour="audio-media">
       <div class="sec">
         <div class="row">
           <button type="button" class="btn on" onClick={onImport}>
@@ -162,6 +162,15 @@ function MediaList({ c, onImport }: { c: ActionCtx; onImport: () => void }) {
           <span class="muted small">
             {items.length} file{items.length === 1 ? '' : 's'} · {(total / 1048576).toFixed(1)} / 200 MB
           </span>
+          <button
+            type="button"
+            class="btn small"
+            onClick={() => {
+              ed.mediaLibrary.value = true;
+            }}
+          >
+            Media library…
+          </button>
         </div>
       </div>
       {items.length === 0 && (

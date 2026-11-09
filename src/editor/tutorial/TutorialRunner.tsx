@@ -582,7 +582,8 @@ const W = 360;
  * so it never sits on the bricks you are asked to click.
  */
 function workAreas(): Rect[] {
-  return ['.studio-plate', '[data-tour="viewport"]'].flatMap((sel) => {
+  // 4c: the game too, while it plays: a card over the middle of the Play view hid the enemies you were to beat
+  return ['.studio-plate', '[data-tour="viewport"]', '.playview .viewport-wrap'].flatMap((sel) => {
     const b = document.querySelector(sel)?.getBoundingClientRect();
     return b && b.width > 0 ? [{ x: b.left, y: b.top, w: b.width, h: b.height }] : [];
   });

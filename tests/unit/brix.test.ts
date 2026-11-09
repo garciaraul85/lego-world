@@ -59,7 +59,7 @@ describe('Brix answers from Help without a key', () => {
 
 describe('Show me', () => {
   it('walks from anywhere to Project › Saving: Scene workspace, the Project tab, then the control', () => {
-    expect(viewOf('scene.saving')).toBe('scene-project');
+    expect(viewOf('scene.saving')).toBe('scene-saving');
     const steps = showSteps('scene.saving')!;
     expect(steps.map((s) => s.say)).toEqual(['Open the Scene workspace.', 'Open the Project tab.', expect.any(String)]);
     expect(steps[0]!.press && steps[1]!.press).toBe(true);

@@ -10,6 +10,7 @@ import { scanFiles } from '../core/security/secrets';
 import { ACTIONS, type ActionCtx, type EditorUi, keyOf, runAction } from './actions/registry';
 import { AiPanel } from './ai/AiPanel';
 import { Brix } from './brix/Brix';
+import { MediaLibrary } from './dialogs/MediaLibrary';
 import { GenreChoice } from './genres/GenreCards';
 import { WorldGraph } from './graph/WorldGraph';
 import { contextHelpPage } from './help/context';
@@ -18,12 +19,14 @@ import { ContextMenu } from './interact/ContextMenu';
 import { HoverTip } from './interact/HoverTip';
 import { openMenuState } from './interact/menu';
 import { openSelectionMenu } from './interact/scene-menus';
+import { TemplateWindow } from './pack/TemplateWindow';
 import { Dock } from './panels/Dock';
 import { RightPanel } from './panels/Inspector';
 import { Outliner } from './panels/Outliner';
 import { anyKeyboard } from './platform';
 import { PlayLayer } from './play/PlayLayer';
 import { type PlayStart, PlayView } from './play/PlayView';
+import { CoursesWindow } from './shell/Courses';
 import {
   CommandPalette,
   MenuBar,
@@ -47,6 +50,7 @@ import { ViewportPanel } from './viewport/Views';
 import { AssetStudio } from './workspaces/asset-studio/AssetStudio';
 import { AudioWorkspace } from './workspaces/audio/AudioWorkspace';
 import { CharacterStudio } from './workspaces/character-studio/CharacterStudio';
+import { FromPicture } from './workspaces/character-studio/FromPicture';
 import { Director } from './workspaces/director/Director';
 import { EffectsStudio } from './workspaces/effects/EffectsStudio';
 import { LogicWorkspace } from './workspaces/logic/LogicWorkspace';
@@ -67,7 +71,7 @@ export type AppHost = HubHost & {
 
 export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
   const vp = useRef<ViewportApi | null>(null);
-  const [modal, setModal] = useState<null | 'shortcuts' | 'open' | 'about' | 'new'>(null);
+  const [modal, setModal] = useState<null | 'shortcuts' | 'open' | 'about' | 'new' | 'courses'>(null);
   /** P18: the kind of game the New project dialog makes */
   const [newGenre, setNewGenre] = useState('explore');
   const [hub, setHub] = useState(host.showHub);
@@ -198,6 +202,7 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       },
       brix: () => setBrix(true),
       about: () => setModal('about'),
+      courses: () => setModal('courses'),
     }),
     [ed],
   );
@@ -334,7 +339,9 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
       <ContextMenu />
       <HoverTip c={c} />
       {ed.palette.value && <CommandPalette c={c} />}
+      {ed.templates.value && <TemplateWindow c={c} />}
       {modal === 'shortcuts' && <Shortcuts onClose={() => setModal(null)} />}
+      {modal === 'courses' && <CoursesWindow c={c} onClose={() => setModal(null)} />}
       {modal === 'open' && <OpenDialog host={host} current={ed.store.manifest.id} onClose={() => setModal(null)} />}
       {modal === 'new' && (
         <Modal title="New project" onClose={() => setModal(null)}>
@@ -389,6 +396,9 @@ export function App({ ed, host }: { ed: EditorState; host: AppHost }) {
         />
       )}
       {ai && <AiPanel c={c} prompt={aiPrompt} onClose={() => setAi(false)} />}
+      {/* Milestone 3, 10d: From a picture makes characters and assets, from any workspace */}
+      {ed.fromPicture.value && <FromPicture c={c} onClose={() => (ed.fromPicture.value = false)} />}
+      {ed.mediaLibrary.value && <MediaLibrary ed={ed} onClose={() => (ed.mediaLibrary.value = false)} />}
       {!hub && <Brix c={c} open={brix} onOpen={() => setBrix(true)} onClose={() => setBrix(false)} />}
       {help && <HelpView c={c} page={help} onClose={() => setHelp(null)} />}
       {hub && (

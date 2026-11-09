@@ -1,0 +1,195 @@
+{
+  "id": "makeBrain",
+  "title": "Make your own brain course",
+  "steps": [
+    {
+      "id": "mb.place",
+      "title": "A pop-up to change",
+      "body": "Every enemy runs on a brain, and every brain is a class: Pebblespout's is PopUp, which extends EnemyBrain, which extends Brain. Here you make your own: a pop-up that spits three fireballs each time it comes up. First, place a Pebblespout from the Starter pack, ahead of the start.",
+      "task": "Place a Pebblespout.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcCount",
+        "args": "Pebblespout:1"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "pebblespout",
+            "ahead": 9
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "mb.read",
+      "title": "Read about PopUp",
+      "body": "In Logic, under Built-in › Brains, press PopUp. It says what it extends (PopUp extends EnemyBrain extends Brain), its own hooks (spits, shotKind) and the ones it inherits (shouldFlee, takeDamage, hurtReaction from EnemyBrain; nextState from Brain). Its abilities are parts: Senses (canSee), Mover and Attack (canAttack, attackPower).",
+      "task": "Open Logic › Built-in › PopUp.",
+      "target": "[data-tour=\"builtin-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinOpen",
+        "args": "PopUp"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBuiltin",
+          "args": {
+            "name": "PopUp"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "right",
+      "workspace": "Logic"
+    },
+    {
+      "id": "mb.extend",
+      "title": "Three fireballs",
+      "body": "Press Extend and write it: a Shots field, spits returns it, shotKind returns \"fireball\", and On state change (stateChange) says so in the Console as it rises. Every other decision stays PopUp's.",
+      "task": "Extend PopUp and write spits.",
+      "target": "[data-tour=\"builtin-extend\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourHasEvent",
+        "args": "My PopUp,spits"
+      },
+      "doItForMe": [
+        {
+          "fn": "extendBuiltinNamed",
+          "args": {
+            "name": "PopUp"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "My PopUp",
+            "code": [
+              "class $NAME extends PopUp {",
+              "  shots = field.number(3, { label: \"Shots each time up\", min: 1, max: 10 });",
+              "",
+              "  spits(e) {",
+              "    return this.shots;",
+              "  }",
+              "",
+              "  shotKind(e) {",
+              "    return \"fireball\";",
+              "  }",
+              "",
+              "  stateChange(e) {",
+              "    if ((e.to === \"rise\")) {",
+              "      log(\"Up it comes, cheeks full!\");",
+              "    }",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Logic"
+    },
+    {
+      "id": "mb.attach",
+      "title": "Give Pebblespout the new brain",
+      "body": "In Characters, Pebblespout's Behaviour tab: + Script → My PopUp. Its PopUp row (built-in, extends EnemyBrain › Brain) holds EnemyBrain's settings: sight, power, the tell, and its kind of fighter.",
+      "task": "Attach My PopUp to Pebblespout.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterHasBehaviour",
+        "args": "Pebblespout,My PopUp"
+      },
+      "doItForMe": [
+        {
+          "fn": "attachToCharacter",
+          "args": {
+            "behaviour": "My PopUp",
+            "character": "Pebblespout"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "mb.power",
+      "title": "Practice fire",
+      "body": "Three fireballs a time is a lot. In the PopUp row, set Power to 0.5 (half a heart a fireball) while you practise: it is EnemyBrain's field, the same setting as Stats › Fights the hero, and it reaches Pebblespout through its line.",
+      "task": "Set Pebblespout's power to 0.5.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterBuiltinField",
+        "args": "Pebblespout,EnemyBrain,power,0.5"
+      },
+      "doItForMe": [
+        {
+          "fn": "setCharacterBuiltinField",
+          "args": {
+            "character": "Pebblespout",
+            "name": "EnemyBrain",
+            "field": "power",
+            "value": 0.5
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "mb.play",
+      "title": "Watch it spit",
+      "body": "Press Play and stand back. Pebblespout comes up (the Console says so), spits three fireballs and ducks. Step aside, raise your shield or bounce one back, and hit it while it is up.",
+      "task": "Press Play and wait for it to come up.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "cheeks full"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "waitLogged",
+          "args": {
+            "until": "cheeks full",
+            "seconds": 15,
+            "watch": 4
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "mb.done",
+      "title": "Done!",
+      "body": "Every enemy works this way. Knight.shouldCounter, Turret.trackSpeed (a gaze you can outrun), Charger.shouldCharge, Flyer.circleTime, Ambusher.shouldDrop, Ghost.hiddenFor, PackHunter.callsPack, and from EnemyBrain shouldFlee for all of them (its parts answer canSee, canAttack and attackPower). nextState can send any brain to another state.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

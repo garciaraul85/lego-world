@@ -99,6 +99,7 @@ describe('every control is tagged (P18: views can only hide what is tagged)', ()
         'character.harm',
         'character.enemy',
         'object.script',
+        'object.behaviours',
         'game.saving',
         'asset.checkpoint',
         'game.progress',

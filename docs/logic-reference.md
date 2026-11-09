@@ -2,7 +2,7 @@
 
 # Logic reference
 
-Every logic node (80 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
+Every logic node (246 in all), grouped as in the Logic workspace palette. Each entry shows the node's title, its type name, what it does, its pins and inline settings, and how it reads in the Code view.
 
 ## Events
 
@@ -116,9 +116,9 @@ Runs when Send event (or an asset interaction) sends this event name.
 
 Runs when something with health is hurt and still has some left: the hero, a neighbour that can be harmed, or an object with health.
 
-- Settings: Asset (asset, optional)
+- Settings: Asset (asset, optional), Who (string, optional)
 - Outputs: target (entity), amount (number), hp left (number)
-- Code: `on("damaged", { asset: … }, (e) => { … });`
+- Code: `on("damaged", { asset: …, who: … }, (e) => { … });`
 
 ### On defeated
 
@@ -126,9 +126,9 @@ Runs when something with health is hurt and still has some left: the hero, a nei
 
 Runs when something with health reaches zero (after it breaks, drops its item and sends its event).
 
-- Settings: Asset (asset, optional)
+- Settings: Asset (asset, optional), Who (string, optional)
 - Outputs: target (entity)
-- Code: `on("defeated", { asset: … }, (e) => { … });`
+- Code: `on("defeated", { asset: …, who: … }, (e) => { … });`
 
 ### On locked on
 
@@ -175,6 +175,300 @@ Runs when the hero reaches a new level (Give experience).
 
 - Outputs: level (number)
 - Code: `on("levelUp", (e) => { … });`
+
+### On action pressed
+
+`event.onActionPressed` · event
+
+Runs when the player presses the Action button, with what it did (Talk, Open, Read, Jump, or a label set by Set action label). Leave the action empty to react to every press.
+
+- Settings: Action (string, optional)
+- Outputs: action (string)
+- Code: `on("actionPressed", { action: … }, (e) => { … });`
+
+### On item used
+
+`event.onItemUsed` · event
+
+Runs when the player presses an item button with an item in it (and has at least one). Leave the item empty to react to every item.
+
+- Settings: Item (string, optional)
+- Outputs: item (string), slot (number)
+- Code: `on("itemUsed", { item: … }, (e) => { … });`
+
+### On switch
+
+`event.onSwitch` · event
+
+Runs when a switch turns on or off: stepped on (by the hero or a block), hit, pressed, let go (a held switch) or when its time runs out (a timed switch). Leave the asset empty for every switch, and To empty for both ways.
+
+- Settings: Asset (asset, optional), To (string, optional)
+- Outputs: target (entity), on (bool)
+- Code: `on("switch", { asset: …, to: … }, (e) => { … });`
+
+### On pushed
+
+`event.onPushed` · event
+
+Runs when a push block stops after the hero pushed or pulled it one step.
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity)
+- Code: `on("pushed", { asset: … }, (e) => { … });`
+
+### On unlocked
+
+`event.onUnlocked` · event
+
+Runs when the hero opens a lock with its key (a small key is used up; the boss key is kept).
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity), key (string)
+- Code: `on("unlocked", { asset: … }, (e) => { … });`
+
+### On picked up
+
+`event.onPickedUp` · event
+
+Runs when the hero touches a pickup (a key, the map, the compass, a heart…) and takes it.
+
+- Settings: Item (string, optional)
+- Outputs: item (string), count (number)
+- Code: `on("pickedUp", { item: … }, (e) => { … });`
+
+### On burned
+
+`event.onBurned` · event
+
+Runs when a burnable thing (vines, a wooden barricade, a web) has burned away: set alight by a torch, a flame, a bomb or something burning next to it.
+
+- Settings: Asset (asset, optional)
+- Outputs: target (entity)
+- Code: `on("burned", { asset: … }, (e) => { … });`
+
+### On update
+
+`event.onUpdate` · event
+
+Runs every game step (60 times a second) for each thing the behaviour is attached to. dt is the seconds since the last step. Keep it short: a long update slows the game.
+
+- Outputs: dt (number)
+- Code: `on("update", (e) => { … });`
+
+### On message
+
+`event.onMessage` · event
+
+Runs when a behaviour sends this object a message (Send message). Leave Name empty to hear every message. value is what was sent; from is who sent it.
+
+- Settings: Name (string, optional)
+- Outputs: value (any), from (entity)
+- Code: `on("message", { name: … }, (e) => { … });`
+
+### On state change
+
+`event.onStateChange` · event
+
+Runs when an enemy’s brain goes from one state to another (idle, chase, windup, circle, swoop, hidden, rise, spit, flee…): from and to name them. For a behaviour that extends an enemy brain, only its own enemy’s changes.
+
+- Outputs: from (string), to (string)
+- Code: `on("stateChange", (e) => { … });`
+
+### On phase
+
+`event.onPhase` · event
+
+Runs when a boss goes into another phase (its health fell to that phase’s mark, or its phaseFor chose it): phase is the new one (1 is its first), from the one before. For a behaviour that extends a boss brain, only its own boss.
+
+- Outputs: phase (number), from (number)
+- Code: `on("phase", (e) => { … });`
+
+### On magic empty
+
+`event.onMagicEmpty` · event
+
+Runs when the hero’s magic runs out as an item uses it (item: which one; the Lens of Truth goes down).
+
+- Outputs: item (string)
+- Code: `on("magicEmpty", (e) => { … });`
+
+### On quest start
+
+`event.onQuestStart` · event
+
+Runs when a quest starts (its first step is the one it is on).
+
+- Settings: Quest (string, optional)
+- Outputs: quest (string), step (number), stepName (string)
+- Code: `on("questStart", { quest: … }, (e) => { … });`
+
+### On quest step
+
+`event.onQuestStep` · event
+
+Runs when a quest moves on to its next step (step is the new one; its stepName what the quest log says).
+
+- Settings: Quest (string, optional)
+- Outputs: quest (string), step (number), stepName (string)
+- Code: `on("questStep", { quest: … }, (e) => { … });`
+
+### On quest done
+
+`event.onQuestDone` · event
+
+Runs when a quest is finished: its last step done, or quest.finish().
+
+- Settings: Quest (string, optional)
+- Outputs: quest (string), step (number), stepName (string)
+- Code: `on("questDone", { quest: … }, (e) => { … });`
+
+### On quest failed
+
+`event.onQuestFail` · event
+
+Runs when a quest fails (quest.fail()): it stays in the log, crossed out.
+
+- Settings: Quest (string, optional)
+- Outputs: quest (string), step (number), stepName (string)
+- Code: `on("questFail", { quest: … }, (e) => { … });`
+
+### On map open
+
+`event.onMapOpen` · event
+
+Runs when the pause map opens (the game holds while it is open).
+
+- Code: `on("mapOpen", (e) => { … });`
+
+### On map close
+
+`event.onMapClose` · event
+
+Runs when the pause map closes.
+
+- Code: `on("mapClose", (e) => { … });`
+
+### On map pin
+
+`event.onMapPin` · event
+
+Runs when the player puts a pin on the pause map: where (x, z in studs), its stamp and its note.
+
+- Outputs: x (number), z (number), stamp (string), label (string)
+- Code: `on("mapPin", (e) => { … });`
+
+### On region seen
+
+`event.onRegionSeen` · event
+
+Runs the first time in a play the hero comes into a region (a zone marked “Show its name on the maps”).
+
+- Settings: Region (string, optional)
+- Outputs: region (string)
+- Code: `on("regionSeen", { region: … }, (e) => { … });`
+
+### On game over
+
+`event.onGameOver` · event
+
+Runs as the game is over (the Game over screen shows): cause is hearts or logic.
+
+- Outputs: cause (string)
+- Code: `on("gameOver", (e) => { … });`
+
+### On respawn
+
+`event.onRespawn` · event
+
+Runs as the hero comes back after game over (Retry), where it came back (map, at).
+
+- Outputs: map (string), at (string)
+- Code: `on("respawn", (e) => { … });`
+
+### On game won
+
+`event.onGameWon` · event
+
+Runs as the game is finished (won): Finish game, or GameMode’s hasWon.
+
+- Code: `on("gameWon", (e) => { … });`
+
+### On saved
+
+`event.onSaved` · event
+
+Runs after the game is saved (slot 0 is the autosave).
+
+- Outputs: slot (number)
+- Code: `on("saved", (e) => { … });`
+
+### On loaded
+
+`event.onLoaded` · event
+
+Runs after a save is loaded (slot 0 is the autosave).
+
+- Outputs: slot (number)
+- Code: `on("loaded", (e) => { … });`
+
+### On map enter
+
+`event.onMapEnter` · event
+
+Runs as the hero arrives on a map (and on the first map as play starts): from is the map it came from ("" at the start).
+
+- Settings: Map (string, optional)
+- Outputs: map (string), from (string)
+- Code: `on("mapEnter", { map: … }, (e) => { … });`
+
+### On map leave
+
+`event.onMapLeave` · event
+
+Runs as the hero leaves a map, before it goes: to is the map it goes to.
+
+- Settings: Map (string, optional)
+- Outputs: map (string), to (string)
+- Code: `on("mapLeave", { map: … }, (e) => { … });`
+
+### On foes cleared
+
+`event.onFoesCleared` · event
+
+Runs when the last foe on the map is beaten (a room cleared: the doors open, a chest appears).
+
+- Settings: Map (string, optional)
+- Outputs: map (string)
+- Code: `on("foesCleared", { map: … }, (e) => { … });`
+
+### On button down
+
+`event.onButtonDown` · event
+
+Runs as the player presses a button (keys, gamepad or touch, whichever is bound to it): button is its name (action, attack, item1…), face what it wears in the HUD style (A, B, ◀…).
+
+- Settings: Button (string, optional)
+- Outputs: button (string), face (string)
+- Code: `on("buttonDown", { button: … }, (e) => { … });`
+
+### On button up
+
+`event.onButtonUp` · event
+
+Runs as the player lets go of a button: held is how many seconds it was down (a charged attack, a long press).
+
+- Settings: Button (string, optional)
+- Outputs: button (string), held (number)
+- Code: `on("buttonUp", { button: … }, (e) => { … });`
+
+### On HUD style
+
+`event.onHudStyle` · event
+
+Runs when the HUD style changes while playing (hud.setStyle): style is the new one.
+
+- Outputs: style (string)
+- Code: `on("hudStyle", (e) => { … });`
 
 ## Flow
 
@@ -233,6 +527,15 @@ Lets execution through only while open. Open and Close change it; gates with the
 
 - Settings: Name (string), Starts open (bool)
 - Code: `gate("name", startOpen, () => { … }); gate.open("name"); gate.close("name");`
+
+### Answer
+
+`flow.return` · action
+
+Gives a hook’s answer (return in code) and ends the method: true or false, or a number for How much does a hit take.
+
+- Inputs: value (any)
+- Code: `return(value);`
 
 ## Variables
 
@@ -308,6 +611,126 @@ A whole number from Min to Max (both included).
 - Outputs: out (number)
 - Code: `random(min, max)`
 
+### Divide
+
+`math.div` · pure
+
+Divides a by b (0 when b is 0).
+
+- Inputs: a (number), b (number)
+- Outputs: out (number)
+- Code: `(a / b)`
+
+### Remainder
+
+`math.mod` · pure
+
+What is left over when a is divided by b (7 % 3 is 1).
+
+- Inputs: a (number), b (number)
+- Outputs: out (number)
+- Code: `(a % b)`
+
+### Smaller
+
+`math.min` · pure
+
+The smaller of a and b.
+
+- Inputs: a (number), b (number)
+- Outputs: out (number)
+- Code: `math.min(a, b)`
+
+### Larger
+
+`math.max` · pure
+
+The larger of a and b.
+
+- Inputs: a (number), b (number)
+- Outputs: out (number)
+- Code: `math.max(a, b)`
+
+### Without sign
+
+`math.abs` · pure
+
+The number without its minus sign (−3 → 3).
+
+- Inputs: a (number)
+- Outputs: out (number)
+- Code: `math.abs(a)`
+
+### Keep between
+
+`math.clamp` · pure
+
+The value, kept between low and high.
+
+- Inputs: value (number), low (number), high (number)
+- Outputs: out (number)
+- Code: `math.clamp(value, low, high)`
+
+### Blend
+
+`math.lerp` · pure
+
+From a toward b by t (0 is a, 1 is b, 0.5 halfway).
+
+- Inputs: a (number), b (number), t (number)
+- Outputs: out (number)
+- Code: `math.lerp(a, b, t)`
+
+### Sine
+
+`math.sin` · pure
+
+The sine of an angle in degrees: goes smoothly from −1 to 1 and back (for swinging, bobbing).
+
+- Inputs: degrees (number)
+- Outputs: out (number)
+- Code: `math.sin(degrees)`
+
+### Cosine
+
+`math.cos` · pure
+
+The cosine of an angle in degrees.
+
+- Inputs: degrees (number)
+- Outputs: out (number)
+- Code: `math.cos(degrees)`
+
+### Square root
+
+`math.sqrt` · pure
+
+The square root (of 0 or more).
+
+- Inputs: a (number)
+- Outputs: out (number)
+- Code: `math.sqrt(a)`
+
+### Round
+
+`math.round` · pure
+
+The nearest whole number.
+
+- Inputs: a (number)
+- Outputs: out (number)
+- Code: `math.round(a)`
+
+### Round down
+
+`math.floor` · pure
+
+The whole number at or below it.
+
+- Inputs: a (number)
+- Outputs: out (number)
+- Code: `math.floor(a)`
+
 ## Compare
 
 ### At least
@@ -369,6 +792,36 @@ True when the input is false.
 - Inputs: a (bool)
 - Outputs: out (bool)
 - Code: `!a`
+
+### More than
+
+`compare.gt` · pure
+
+True when a > b.
+
+- Inputs: a (any), b (any)
+- Outputs: out (bool)
+- Code: `(a > b)`
+
+### Less than
+
+`compare.lt` · pure
+
+True when a < b.
+
+- Inputs: a (any), b (any)
+- Outputs: out (bool)
+- Code: `(a < b)`
+
+### Not equal
+
+`compare.neq` · pure
+
+True when a and b are different.
+
+- Inputs: a (any), b (any)
+- Outputs: out (bool)
+- Code: `(a !== b)`
 
 ## World
 
@@ -436,6 +889,43 @@ Adds items to the hero’s inventory.
 
 - Inputs: item (string), count (number)
 - Code: `world.give(item, count);`
+
+### Set action label
+
+`controls.setActionLabel` · action
+
+Gives the Action button something to do here: it shows this label (when nothing more important fits) and pressing it runs On action pressed with it. An empty label takes it away.
+
+- Inputs: label (string)
+- Code: `controls.setActionLabel(label);`
+
+### Put item in slot
+
+`items.putInSlot` · action
+
+Puts an item in one of the item buttons (as the player does in the item menu). It leaves any other button it was in.
+
+- Inputs: item (string), slot (number)
+- Code: `items.putInSlot(item, slot);`
+
+### Count items
+
+`items.count` · pure
+
+How many of an item the hero carries (coin, Key, Bomb…), by the name it was given with.
+
+- Inputs: item (string)
+- Outputs: out (number)
+- Code: `items.count(item)`
+
+### Take items
+
+`items.take` · action
+
+Takes items from the hero (paying a shopkeeper, using up a key). Never below zero: check with Count items first.
+
+- Inputs: item (string), count (number)
+- Code: `items.take(item, count);`
 
 ## Audio
 
@@ -534,6 +1024,15 @@ Sends a custom event that “On custom event” nodes react to.
 - Settings: Event name (event)
 - Code: `emit(event);`
 
+### Show message
+
+`misc.say` · action
+
+Shows a line of text in the middle of the screen for a few seconds (“It’s locked.”, “3 left!”). Text can be wired in, so it can show a variable.
+
+- Inputs: text (any), seconds (number)
+- Code: `say(text, seconds);`
+
 ## Notes
 
 ### Comment
@@ -626,6 +1125,31 @@ From now on, Retry (after game over) and falling off the world bring the hero ba
 
 - Code: `game.setCheckpoint();`
 
+### Game over
+
+`game.lose` · action
+
+Ends the game now (the Game over screen shows, Retry brings the hero back), unless GameMode’s isGameOver says no.
+
+- Code: `game.lose();`
+
+### Respawn
+
+`game.respawn` · action
+
+Brings the hero back now, as Retry after game over does (where GameMode’s respawnAt says, with its hearts).
+
+- Code: `game.respawn();`
+
+### Set respawn point
+
+`game.setRespawn` · action
+
+From now on, Retry (after game over) brings the hero back to this spawn point (on any map), or where it stands (here).
+
+- Inputs: at (string)
+- Code: `game.setRespawn(at);`
+
 ## Dialogue
 
 ### Start conversation
@@ -664,6 +1188,44 @@ The hero puts on one of the outfits on its sheet (Characters › Outfits): its l
 Plays as the next hero of the party (Project › Party), as pressing H does.
 
 - Code: `hero.switch();`
+
+### Do a move
+
+`character.doMove` · action
+
+A character with a body (an animal, a dragon, a dinosaur, a figure made from words) does one of the moves its parts can do: roar, charge, swipe its tail, stomp, flap or glide its wings, wave, grab, spin, dance or sleep (and strike or flinch). Moves its body can’t do are skipped. The Body tab shows its moves.
+
+- Settings: Character (string), Move (move)
+- Code: `character.doMove(who, move);`
+
+### Follow the hero
+
+`character.follow` · action
+
+A character walks after the hero and keeps close (an escort, a lost kid, a companion); it catches up if left far behind. Off: it stops and goes back to its own routine.
+
+- Settings: Character (string)
+- Inputs: on (bool)
+- Code: `character.follow(who, on);`
+
+### Spawn character
+
+`character.spawn` · action
+
+Puts a character on the map while the game plays, at a spawn point (a wave of enemies, a visitor). It acts like any character placed there: an enemy fights, a neighbour wanders and talks. It is not kept: playing again begins without it.
+
+- Settings: Character (string), At spawn (spawn)
+- Outputs: entity (entity)
+- Code: `character.spawn(character, at);`
+
+### React to a hit
+
+`character.react` · action
+
+The hero or a character reacts as if hit, without being hurt: a flinch, a stagger, knocked down (and up again), burning, frozen stiff, jolted by a shock or dizzy from a stun. A knock-down, a freeze or a stun stops it for that long (a cutscene's blow, a trap that knocks the hero over).
+
+- Inputs: target (entity), how (string)
+- Code: `react(target, how);`
 
 ## Effects
 
@@ -777,3 +1339,1001 @@ Changes the fog while the game plays: a kind of fog (haze, mist, thick fog, grou
 
 - Settings: Fog (fog)
 - Code: `sky.fog(fog);`
+
+## This object
+
+### Get field
+
+`self.get` · pure
+
+The value of one of this behaviour’s fields or own variables, on the copy that runs it (this.name in code).
+
+- Settings: Field or own variable (field)
+- Outputs: value (any)
+- Code: `this(name)`
+
+### Set field
+
+`self.set` · action
+
+Gives one of this behaviour’s fields or own variables a new value, on this copy only (this.name = … in code).
+
+- Settings: Field or own variable (field)
+- Inputs: value (any)
+- Code: `this(name, value);`
+
+### Add to field
+
+`self.add` · action
+
+Adds an amount to a number field or own variable, on this copy only (this.name += … in code).
+
+- Settings: Field or own variable (field)
+- Inputs: amount (number)
+- Code: `this(name, amount);`
+
+## Text
+
+### Join text
+
+`text.join` · pure
+
+Puts two pieces of text (or numbers) together: “Gems: ” and 3 make “Gems: 3”.
+
+- Inputs: a (any), b (any)
+- Outputs: out (string)
+- Code: `text.join(a, b)`
+
+## Things
+
+### X of
+
+`entity.x` · pure
+
+Where it is across (studs, east is +).
+
+- Inputs: target (entity)
+- Outputs: out (number)
+- Code: `entity.x(target)`
+
+### Height of
+
+`entity.y` · pure
+
+How high it stands (studs).
+
+- Inputs: target (entity)
+- Outputs: out (number)
+- Code: `entity.y(target)`
+
+### Z of
+
+`entity.z` · pure
+
+Where it is along (studs, south is +).
+
+- Inputs: target (entity)
+- Outputs: out (number)
+- Code: `entity.z(target)`
+
+### Facing of
+
+`entity.heading` · pure
+
+Which way it faces, in degrees (0 is +z, 90 is +x).
+
+- Inputs: target (entity)
+- Outputs: out (number)
+- Code: `entity.heading(target)`
+
+### State of
+
+`entity.state` · pure
+
+A placed asset’s state now (“open”, “on”…).
+
+- Inputs: target (entity)
+- Outputs: out (string)
+- Code: `entity.state(target)`
+
+### Distance
+
+`entity.distance` · pure
+
+How far apart two things are, in studs along the ground.
+
+- Inputs: From (entity), To (entity)
+- Outputs: out (number)
+- Code: `entity.distance(a, b)`
+
+### Move by
+
+`entity.moveBy` · action
+
+Moves something this many studs (a placed asset moves in whole studs, carrying whatever stands on it; a character or the hero moves smoothly). The way must be clear for an asset.
+
+- Inputs: target (entity), x (number), y (number), z (number)
+- Code: `entity.moveBy(target, x, y, z);`
+
+### Move to
+
+`entity.moveTo` · action
+
+Puts something at a place (x, y, z in studs). An asset goes to the nearest whole stud.
+
+- Inputs: target (entity), x (number), y (number), z (number)
+- Code: `entity.moveTo(target, x, y, z);`
+
+### Face
+
+`entity.face` · action
+
+Turns something to face a way, in degrees (0 is +z, 90 is +x). A placed asset turns in quarter turns.
+
+- Inputs: target (entity), degrees (number)
+- Code: `entity.face(target, degrees);`
+
+### Turn toward
+
+`entity.lookAt` · action
+
+Turns something to face another thing (a character turns smoothly; an asset in quarter turns).
+
+- Inputs: target (entity), Toward (entity)
+- Code: `entity.lookAt(target, other);`
+
+### Send message
+
+`msg.send` · action
+
+Sends a message to another object: its behaviours’ On message (with this name) run, with the value. Behaviours talk to each other this way (a switch tells a door to open).
+
+- Inputs: To (entity), name (string), value (any)
+- Code: `msg.send(target, name, value);`
+
+## Physics
+
+### Push
+
+`physics.push` · action
+
+Gives a loose object (Turn it into › Loose) or the hero a push: a change of speed in studs a second (x, y up, z). Heavier things are pushed the same way: it is a speed, not a force.
+
+- Inputs: target (entity), x (number), y (number), z (number)
+- Code: `physics.push(target, x, y, z);`
+
+### Set speed
+
+`physics.setVelocity` · action
+
+Sets how fast a loose object moves now (studs a second: x, y up, z).
+
+- Inputs: target (entity), x (number), y (number), z (number)
+- Code: `physics.setVelocity(target, x, y, z);`
+
+### Look ahead
+
+`physics.raycast` · pure
+
+How far something solid is in front of it (studs), looking from a little above its feet the way it faces; −1 when nothing is within Reach.
+
+- Inputs: From (entity), reach (number)
+- Outputs: out (number)
+- Code: `physics.raycast(from, reach)`
+
+## Input
+
+### Button held
+
+`input.held` · pure
+
+True while the player holds a button: attack, action, jump, guard, roll, lockOn, item1, item2, item3, forward, back, left or right.
+
+- Inputs: button (string)
+- Outputs: out (bool)
+- Code: `input.held(button)`
+
+### Game time
+
+`time.now` · pure
+
+Seconds since play started (game time: it stops while paused).
+
+- Outputs: out (number)
+- Code: `time.now()`
+
+### Button is held
+
+`input.isHeld` · pure
+
+True while the player holds this button down.
+
+- Inputs: button (string)
+- Outputs: out (bool)
+- Code: `input.isHeld(button)`
+
+### Button held for
+
+`input.heldFor` · pure
+
+How many seconds the player has held this button down (0 when it is up).
+
+- Inputs: button (string)
+- Outputs: out (number)
+- Code: `input.heldFor(button)`
+
+### Controls on or off
+
+`input.enable` · action
+
+Turns the player’s buttons off (a cutscene of your own, a fall, a stun) or back on. Moving stops too while they are off.
+
+- Inputs: on (bool)
+- Code: `input.enable(on);`
+
+### Rumble
+
+`input.rumble` · action
+
+Shakes the player’s gamepad (where it can): a hit, a chest’s lid, a boss stomping.
+
+- Inputs: strength (number), seconds (number)
+- Code: `input.rumble(strength, seconds);`
+
+### Set HUD style
+
+`hud.setStyle` · action
+
+Changes how the HUD’s buttons look while playing (corner64, cube, pointer, tablet, openair; default: the game’s, from Project › Controls). The buttons themselves stay as Project › Controls has them.
+
+- Inputs: style (string)
+- Code: `hud.setStyle(style);`
+
+### HUD style
+
+`hud.style` · pure
+
+The HUD style now (corner64, cube, pointer, tablet, openair, or "" for the plain look).
+
+- Outputs: out (string)
+- Code: `hud.style()`
+
+## Hooks
+
+### Can it be used? (Interactable)
+
+`event.onCanUse` · event
+
+Asked when the hero presses the Action button at it. Return false and nothing happens (its interaction does not run).
+
+- Outputs: socket (string), base (bool)
+- Code: `on("canUse", (e) => { … });`
+
+### Can it open? (Lock)
+
+`event.onCanOpen` · event
+
+Asked when the hero tries to open a lock. item is the key it takes, have how many the hero carries. Return true to open (a key is used up only if the hero has one), false to stay locked.
+
+- Outputs: item (string), have (number), base (bool)
+- Code: `on("canOpen", (e) => { … });`
+
+### Is it pressed? (Switch)
+
+`event.onIsPressed` · event
+
+Asked every step for a floor switch: weight is how much stands on it, by who (hero, block, npc, loose). Return true for down, false for up.
+
+- Outputs: weight (number), by (string), base (bool)
+- Code: `on("isPressed", (e) => { … });`
+
+### Can it be pushed? (Pushable)
+
+`event.onCanPush` · event
+
+Asked before a push block moves: dx and dz are the way it would go (−1, 0 or 1), pulled is true when the hero pulls. Return false and it stays.
+
+- Outputs: dx (number), dz (number), pulled (bool), base (bool)
+- Code: `on("canPush", (e) => { … });`
+
+### Can it be picked up? (Pickup)
+
+`event.onCanPickUp` · event
+
+Asked when the hero touches a pickup. Return false and it stays where it is.
+
+- Outputs: item (string), count (number), base (bool)
+- Code: `on("canPickUp", (e) => { … });`
+
+### How much does a hit take? (Health)
+
+`event.onTakeDamage` · event
+
+Asked when it is hit: amount is the damage after its armour and weaknesses, type the kind of hit. Return the damage it takes (0: unhurt).
+
+- Outputs: amount (number), type (string), base (number)
+- Code: `on("takeDamage", (e) => { … });`
+
+### Can it be climbed? (Climbable)
+
+`event.onCanClimb` · event
+
+Asked when the hero walks into it to climb. Return false and the hero does not take hold.
+
+- Outputs: base (bool)
+- Code: `on("canClimb", (e) => { … });`
+
+### Can it catch fire? (Burnable)
+
+`event.onCanBurn` · event
+
+Asked when fire reaches it (a lit stick, a fire arrow, a bomb, fire spreading): why says how. Return false and it does not catch.
+
+- Outputs: why (string), base (bool)
+- Code: `on("canBurn", (e) => { … });`
+
+### Can it melt? (Ice)
+
+`event.onCanMelt` · event
+
+Asked when fire (or a beam of light) reaches ice: by is fire, light or thaw. Return true to start melting, false to stay frozen.
+
+- Outputs: by (string), base (bool)
+- Code: `on("canMelt", (e) => { … });`
+
+### Can it be lifted? (Liftable)
+
+`event.onCanLift` · event
+
+Asked when the hero tries to lift it (a rock, a pot). Return false and it is too heavy.
+
+- Outputs: base (bool)
+- Code: `on("canLift", (e) => { … });`
+
+### Can its bomb be picked? (Bomb plant)
+
+`event.onCanPick` · event
+
+Asked when the hero picks the bomb off it. Return false and the bomb stays.
+
+- Outputs: base (bool)
+- Code: `on("canPick", (e) => { … });`
+
+### Can it be turned? (Mirror)
+
+`event.onCanTurn` · event
+
+Asked when the hero turns a mirror. Return false and it stays as it is.
+
+- Outputs: base (bool)
+- Code: `on("canTurn", (e) => { … });`
+
+### Does the hook catch on it? (Hook target)
+
+`event.onCanCatch` · event
+
+Asked when the hook line or the rope reaches it. Return true and it catches (the hero is pulled to it), false and it bounces off.
+
+- Outputs: base (bool)
+- Code: `on("canCatch", (e) => { … });`
+
+### Can the hero jump? (Hero)
+
+`event.onCanJump` · event
+
+Asked when the player presses Jump. onGround is true when the hero stands on something. Return false and the hero does not jump.
+
+- Outputs: onGround (bool), base (bool)
+- Code: `on("canJump", (e) => { … });`
+
+### How fast does the hero move? (Hero)
+
+`event.onMoveSpeed` · event
+
+Asked every step: base is the speed from the sheet and outfit (1: normal). Return a speed (2: twice as fast, 0: stands still).
+
+- Outputs: base (number)
+- Code: `on("moveSpeed", (e) => { … });`
+
+### How hard does this swing hit? (Hero)
+
+`event.onHitPower` · event
+
+Asked when the hero swings: power is the hit after strength and moves, kind is light, heavy, charged, spin or bash. Return the power.
+
+- Outputs: power (number), kind (string), base (number)
+- Code: `on("hitPower", (e) => { … });`
+
+### How much experience? (Hero)
+
+`event.onGainXp` · event
+
+Asked when the hero gains experience: amount is what it would get. Return the experience it gets.
+
+- Outputs: amount (number), base (number)
+- Code: `on("gainXp", (e) => { … });`
+
+### Will it talk? (Neighbour)
+
+`event.onCanTalk` · event
+
+Asked when the hero talks to a neighbour. Return false and it says nothing.
+
+- Outputs: base (bool)
+- Code: `on("canTalk", (e) => { … });`
+
+### Can the hero dive? (Swimmer)
+
+`event.onCanDive` · event
+
+Asked when the player holds the Action button to dive in deep water. Return false and the hero stays at the top.
+
+- Outputs: base (bool)
+- Code: `on("canDive", (e) => { … });`
+
+### How long can the hero hold its breath? (Swimmer)
+
+`event.onBreath` · event
+
+Asked every step: base is the seconds from Project › Swimming. Return seconds of air.
+
+- Outputs: base (number)
+- Code: `on("breath", (e) => { … });`
+
+### Can the hero climb this wall? (Climber)
+
+`event.onCanClimbWall` · event
+
+Asked when the hero takes hold of a wall (with Climbing: anything, while stamina lasts). Return false and it does not.
+
+- Outputs: base (bool)
+- Code: `on("canClimbWall", (e) => { … });`
+
+### How close does it follow? (Follower)
+
+`event.onFollowGap` · event
+
+Asked every step while a neighbour follows the hero: distance is how far it is now; base is 2.5 studs. Return the distance it keeps.
+
+- Outputs: distance (number), base (number)
+- Code: `on("followGap", (e) => { … });`
+
+### How does it react to a hit? (Hero, EnemyBrain, Damageable)
+
+`event.onHurtReaction` · event
+
+Asked as it is hurt: how (and base) is the reaction the hit makes: flinch, stagger, knockdown, burn, freeze, shock or stun. Return one of them to react that way instead (a knockdown, a freeze or a stun also stops it for that long).
+
+- Outputs: how (string), base (string)
+- Code: `on("hurtReaction", (e) => { … });`
+
+### Which state next? (Brain)
+
+`event.onNextState` · event
+
+Asked when the brain changes state: from is the state it leaves, to (and base) the one the engine chose. Return a state name to go there instead (idle, chase, windup, back, circle, swoop, climb, hidden, rise, up, spit, duck, hang, drop, ground, fadeout, faded, fadein, charge, beam, breathe, rush, counter, hop, flee).
+
+- Outputs: from (string), to (string), base (string)
+- Code: `on("nextState", (e) => { … });`
+
+### Does it see the hero? (EnemyBrain)
+
+`event.onCanSee` · event
+
+Asked while it looks out: distance is how far the hero is; base says whether its sight, cone and hearing caught the hero. Return true to notice the hero, false not to.
+
+- Outputs: distance (number), base (bool)
+- Code: `on("canSee", (e) => { … });`
+
+### Can it attack now? (EnemyBrain)
+
+`event.onCanAttack` · event
+
+Asked before each attack starts: attack is swing, counter, bite, pounce, spit, shot, beam, breath, charge, swoop or drop; distance how far the hero is. Return false and it holds back (and tries again soon).
+
+- Outputs: attack (string), distance (number), base (bool)
+- Code: `on("canAttack", (e) => { … });`
+
+### How hard does it hit? (EnemyBrain)
+
+`event.onAttackPower` · event
+
+Asked as an attack lands (a swing, bite, pounce, beam, breath, charge, swoop or drop) or a spit or shot leaves it: attack names it, power is its power. Return the power (0: it does no harm).
+
+- Outputs: attack (string), power (number), base (number)
+- Code: `on("attackPower", (e) => { … });`
+
+### Should it run away? (EnemyBrain)
+
+`event.onShouldFlee` · event
+
+Asked every step while it fights: distance is how far the hero is. Return true and it runs from the hero this step (not a turret, a pop-up or a hanging spider).
+
+- Outputs: distance (number), base (bool)
+- Code: `on("shouldFlee", (e) => { … });`
+
+### Does it call the others? (PackHunter, and any with Pack wits)
+
+`event.onCallsPack` · event
+
+Asked when it first sees the hero. Return false and it fights alone.
+
+- Outputs: base (bool)
+- Code: `on("callsPack", (e) => { … });`
+
+### Does it counter? (Knight)
+
+`event.onShouldCounter` · event
+
+Asked when the hero swings at its shield: distance is how far the hero is. Return false and it only blocks.
+
+- Outputs: distance (number), base (bool)
+- Code: `on("shouldCounter", (e) => { … });`
+
+### How many spits? (PopUp)
+
+`event.onSpits` · event
+
+Asked each time it comes up: how many shots before it ducks (1 to 10; the engine picks 1 or 2).
+
+- Outputs: base (number)
+- Code: `on("spits", (e) => { … });`
+
+### What does it shoot? (PopUp, Shooter)
+
+`event.onShotKind` · event
+
+Asked as it shoots: rock or fireball (base: a fire enemy’s fireball, the others’ rock).
+
+- Outputs: base (string)
+- Code: `on("shotKind", (e) => { … });`
+
+### How far does it keep? (Shooter)
+
+`event.onKeepAway` · event
+
+Asked every step: the distance it keeps from the hero (studs).
+
+- Outputs: base (number)
+- Code: `on("keepAway", (e) => { … });`
+
+### How fast does its gaze follow? (Turret)
+
+`event.onTrackSpeed` · event
+
+Asked as it charges and fires its beam: how fast it turns after the hero (radians a second; you can outrun a slow one).
+
+- Outputs: base (number)
+- Code: `on("trackSpeed", (e) => { … });`
+
+### Does it charge? (Charger)
+
+`event.onShouldCharge` · event
+
+Asked while it closes in: distance is how far the hero is; base is true when it is far enough for a run, near enough, and facing the hero.
+
+- Outputs: distance (number), base (bool)
+- Code: `on("shouldCharge", (e) => { … });`
+
+### How long does it circle? (Flyer, Swarm)
+
+`event.onCircleTime` · event
+
+Asked as it starts circling over the hero: seconds before it swoops.
+
+- Outputs: base (number)
+- Code: `on("circleTime", (e) => { … });`
+
+### Does it drop? (Ambusher)
+
+`event.onShouldDrop` · event
+
+Asked as it hangs on its thread: distance is how far the hero is from under it; base is true when the hero is right under it.
+
+- Outputs: distance (number), base (bool)
+- Code: `on("shouldDrop", (e) => { … });`
+
+### How long does it stay unseen? (Ghost)
+
+`event.onHiddenFor` · event
+
+Asked as it fades out: seconds before it fades in behind the hero.
+
+- Outputs: base (number)
+- Code: `on("hiddenFor", (e) => { … });`
+
+### Which phase is it in? (BossBrain)
+
+`event.onPhaseFor` · event
+
+Asked as a hit takes a boss’s health down: hp and max are its health, phase the one it is in; base is the phase its health makes (1 is its first). Return a phase number to be in that one instead.
+
+- Outputs: hp (number), max (number), phase (number), base (number)
+- Code: `on("phaseFor", (e) => { … });`
+
+### Can it be hurt now? (BossBrain)
+
+`event.onIsVulnerable` · event
+
+Asked as the hero hits a boss: how is when it can be hurt (always, afterAttack, stunned), phase the phase it is in; base says whether it can be hurt now. Return true to take the hit, false to shrug it off.
+
+- Outputs: how (string), phase (number), base (bool)
+- Code: `on("isVulnerable", (e) => { … });`
+
+### Can it be used now? (Item)
+
+`event.onCanUseItem` · event
+
+Asked as the hero presses an item’s button: item is its name, slot its button. Return false and nothing happens.
+
+- Outputs: item (string), slot (number), base (bool)
+- Code: `on("canUseItem", (e) => { … });`
+
+### It is used (Item)
+
+`event.onUseItem` · event
+
+Runs as the hero uses the item (item, slot): what it does goes here. Return false to keep the engine’s own use (the bow coming out, the boots going on) from running.
+
+- Outputs: item (string), slot (number), base (bool)
+- Code: `on("useItem", (e) => { … });`
+
+### How much magic? (Item)
+
+`event.onMagicCost` · event
+
+Asked as an item is used: how much magic it takes (the Lens of Truth: each second it is up). Without enough, it is not used. base is the engine’s (0 for most items).
+
+- Outputs: item (string), base (number)
+- Code: `on("magicCost", (e) => { … });`
+
+### How fast does it fly? (Projectile)
+
+`event.onShotSpeed` · event
+
+Asked as an arrow, a seed, a nut or a boomerang leaves the hand: its speed in studs a second.
+
+- Outputs: item (string), speed (number), base (number)
+- Code: `on("shotSpeed", (e) => { … });`
+
+### How hard does it hit? (Projectile)
+
+`event.onShotPower` · event
+
+Asked as a shot strikes a foe or an object: power is how hard, type its damage type (pierce, blunt, fire, ice, stun).
+
+- Outputs: item (string), power (number), type (string), base (number)
+- Code: `on("shotPower", (e) => { … });`
+
+### Does it harm what it struck? (Projectile)
+
+`event.onHits` · event
+
+Runs as a shot strikes something: target is the character’s name or the object’s. Do something here (a sound, a message); return false and it does no harm.
+
+- Outputs: item (string), target (string), base (bool)
+- Code: `on("hits", (e) => { … });`
+
+### Can it start now? (Quest)
+
+`event.onCanStartQuest` · event
+
+Asked as quest.start() is called for this quest. Return false and it does not start (not yet: the hero is too young, the bridge is down).
+
+- Outputs: quest (string), base (bool)
+- Code: `on("canStartQuest", (e) => { … });`
+
+### Is the step done? (Quest)
+
+`event.onStepDone` · event
+
+Asked a few times a second about the step the quest is on: do and at are the step’s, have how many the hero has of it (get, beat), count how many it needs. base is the engine’s answer. Return true to move on.
+
+- Outputs: quest (string), step (number), stepName (string), do (string), at (string), have (number), count (number), base (bool)
+- Code: `on("stepDone", (e) => { … });`
+
+### Where is the goal? (Quest)
+
+`event.onGoalOf` · event
+
+Asked for the step the quest is on while it is tracked: where its goal shows on both maps — a zone, an object or a character, by name, or hero. Return "" for no goal on the maps.
+
+- Outputs: quest (string), step (number), stepName (string), at (string), base (string)
+- Code: `on("goalOf", (e) => { … });`
+
+### Can the map open? (GameMap)
+
+`event.onCanOpenMap` · event
+
+Asked as the player opens the pause map (M, or Map on the pause screen). Return false and it stays shut (no map in this dungeon yet).
+
+- Outputs: base (bool)
+- Code: `on("canOpenMap", (e) => { … });`
+
+### Does this marker show? (GameMap)
+
+`event.onShowMarker` · event
+
+Asked about each marker on the maps: kind (chest, key, boss-key, boss, door, boss-door, exit, name, person, foe, pin, goal), its label and whether it is done (a chest opened, a boss beaten). Return false to hide it.
+
+- Outputs: kind (string), label (string), done (bool), base (bool)
+- Code: `on("showMarker", (e) => { … });`
+
+### What does the marker say? (GameMap)
+
+`event.onMarkerLabel` · event
+
+Asked about each marker’s name on the maps (a region, a way out, a pin’s note, a boss): return other words, or "" for none.
+
+- Outputs: kind (string), label (string), base (string)
+- Code: `on("markerLabel", (e) => { … });`
+
+### Is it game over? (GameMode)
+
+`event.onIsGameOver` · event
+
+Asked as the hero’s hearts run out (cause: hearts) or a script ends the game (cause: logic). Return false and it is not: the hero hangs on with at least one heart (heal it here: a fairy in a bottle).
+
+- Outputs: cause (string), base (bool)
+- Code: `on("isGameOver", (e) => { … });`
+
+### Has the game been won? (GameMode)
+
+`event.onHasWon` · event
+
+Asked a few times a second. Return true and the game is finished (as Finish game does): every boss beaten, the main quest done, a score reached.
+
+- Outputs: base (bool)
+- Code: `on("hasWon", (e) => { … });`
+
+### Where does the hero come back? (GameMode)
+
+`event.onRespawnAt` · event
+
+Asked as the hero comes back after game over (Retry): a spawn point’s name (on any map), start (where the game begins) or checkpoint (base: where it last was set). A dungeon can send the hero back to its entrance.
+
+- Outputs: map (string), base (string)
+- Code: `on("respawnAt", (e) => { … });`
+
+### How many hearts back? (GameMode)
+
+`event.onRespawnHearts` · event
+
+Asked as the hero comes back after game over: how many hearts it has (base: all of them; 3 is the classic).
+
+- Outputs: max (number), base (number)
+- Code: `on("respawnHearts", (e) => { … });`
+
+### Keep this item? (GameMode)
+
+`event.onKeepOnRespawn` · event
+
+Asked about each item the hero carries as it comes back after game over (item, count). Return false and it is lost (half its money, its bombs).
+
+- Outputs: item (string), count (number), base (bool)
+- Code: `on("keepOnRespawn", (e) => { … });`
+
+### Can it save now? (GameMode)
+
+`event.onCanSave` · event
+
+Asked as the game is saved (a save point, the pause screen, Save game; slot 0 is the autosave). Return false and it is not: “You can’t save here.” (not in a boss fight, not in a dungeon).
+
+- Outputs: slot (number), base (bool)
+- Code: `on("canSave", (e) => { … });`
+
+### Keep this in new game plus? (GameMode)
+
+`event.onKeepOnNewGamePlus` · event
+
+Asked about each item (kind: item) and game variable (kind: var) as new game plus begins. base is what Project › Progress › New game plus says.
+
+- Outputs: kind (string), name (string), base (bool)
+- Code: `on("keepOnNewGamePlus", (e) => { … });`
+
+### What does Action say? (PlayerInput)
+
+`event.onActionLabel` · event
+
+Asked each moment about what the Action button would do (kind: talk, lift, use, read, grab, climb, dive, swimUp, rebuild, jump, custom; label: what it says). Return other words for the HUD and touch button (“Peek”, “Chat”); base is its own label.
+
+- Outputs: kind (string), label (string), base (string)
+- Code: `on("actionLabel", (e) => { … });`
+
+### Does this button work? (PlayerInput)
+
+`event.onCanPress` · event
+
+Asked as a button is pressed. Return false and nothing happens (no item buttons underwater, no attacking in a village, no menu in a cutscene).
+
+- Outputs: button (string), base (bool)
+- Code: `on("canPress", (e) => { … });`
+
+### Does this widget show? (GameHud)
+
+`event.onShowWidget` · event
+
+Asked about each HUD widget a few times a second (widget: its id, such as hearts, minimap, buttons, quest; screen: the HUD’s name). Return false to hide it.
+
+- Outputs: widget (string), screen (string), base (bool)
+- Code: `on("showWidget", (e) => { … });`
+
+### What does this widget say? (GameHud)
+
+`event.onWidgetText` · event
+
+Asked about each text widget of the HUD a few times a second (widget: its id; text: what it would say). Return other words.
+
+- Outputs: widget (string), text (string), base (string)
+- Code: `on("widgetText", (e) => { … });`
+
+## Quests
+
+### Start quest
+
+`quest.start` · action
+
+Starts a quest (once: one already going, finished or failed is left as it is). It goes in the quest log, and is tracked if it is a main quest or nothing else is.
+
+- Inputs: quest (string)
+- Code: `quest.start(quest);`
+
+### Next quest step
+
+`quest.advance` · action
+
+Moves a quest on to its next step (a step done by logic: do "script"); after its last step, the quest is done.
+
+- Inputs: quest (string)
+- Code: `quest.advance(quest);`
+
+### Set quest step
+
+`quest.setStep` · action
+
+Puts a quest on one of its steps (1 is its first): to skip ahead, or go back. A quest not going yet starts.
+
+- Inputs: quest (string), step (number)
+- Code: `quest.setStep(quest, step);`
+
+### Finish quest
+
+`quest.finish` · action
+
+Finishes a quest now, whatever step it is on.
+
+- Inputs: quest (string)
+- Code: `quest.finish(quest);`
+
+### Fail quest
+
+`quest.fail` · action
+
+A quest fails (the escort was lost, time ran out): it stays in the log, crossed out.
+
+- Inputs: quest (string)
+- Code: `quest.fail(quest);`
+
+### Track quest
+
+`quest.track` · action
+
+Tracks a quest: its goal shows on both maps (with an arrow at the edge of the map in play when it is off it).
+
+- Inputs: quest (string)
+- Code: `quest.track(quest);`
+
+### Quest step
+
+`quest.step` · pure
+
+The step a quest is on (1 is its first); 0 if it has not started.
+
+- Inputs: quest (string)
+- Outputs: out (number)
+- Code: `quest.step(quest)`
+
+### Quest status
+
+`quest.status` · pure
+
+How a quest stands: "" (not started), "active", "done" or "failed".
+
+- Inputs: quest (string)
+- Outputs: out (string)
+- Code: `quest.status(quest)`
+
+### Quest is going
+
+`quest.isActive` · pure
+
+True while a quest is going (started, not done or failed).
+
+- Inputs: quest (string)
+- Outputs: out (bool)
+- Code: `quest.isActive(quest)`
+
+### Quest is done
+
+`quest.isDone` · pure
+
+True once a quest is finished.
+
+- Inputs: quest (string)
+- Outputs: out (bool)
+- Code: `quest.isDone(quest)`
+
+### Quest goal’s map
+
+`quest.goalMap` · pure
+
+The name of the map the step a quest is on has its goal on ("" when it has none, or none is known). When it is not the map the hero is on, the maps show the way there.
+
+- Inputs: quest (string)
+- Outputs: out (string)
+- Code: `quest.goalMap(quest)`
+
+## Maps
+
+### Open the map
+
+`map.open` · action
+
+Opens the pause map (the game holds while it is open), or closes it.
+
+- Inputs: on (bool)
+- Code: `map.open(on);`
+
+### Set map look
+
+`map.setLook` · action
+
+Changes the maps’ looks while the game plays (a sea chart once the hero has a boat; no map in play in a dark cave). Empty keeps the look it has; "default" goes back to the game’s (Project › Maps).
+
+- Inputs: pause (string), mini (string)
+- Code: `map.setLook(pause, mini);`
+
+### Mark the map
+
+`map.mark` · action
+
+Puts a mark on the maps where something is (a stamp and a note, like a pin the player puts down): a treasure a neighbour told of, a cave to come back to. One of the same note is moved there.
+
+- Inputs: at (string), stamp (string), label (string)
+- Code: `map.mark(at, stamp, label);`
+
+### Take a mark off
+
+`map.unmark` · action
+
+Takes the marks with this note off the maps (put down by Mark the map, or by the player).
+
+- Inputs: label (string)
+- Code: `map.unmark(label);`
+
+### Reveal the map
+
+`map.reveal` · action
+
+Shows the whole of the map the hero is on, as if it had been everywhere (a lookout tower, a map bought from a shop); off hides again what it has not seen.
+
+- Inputs: on (bool)
+- Code: `map.reveal(on);`
+
+### Map is open
+
+`map.isOpen` · pure
+
+True while the pause map is open.
+
+- Outputs: out (bool)
+- Code: `map.isOpen()`
+
+### Foes left
+
+`map.foesLeft` · pure
+
+How many foes are still on the map the hero is on (beaten ones are gone).
+
+- Outputs: out (number)
+- Code: `map.foesLeft()`

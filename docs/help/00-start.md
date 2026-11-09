@@ -19,6 +19,7 @@ Every screen has a **screen guide** (left, under Screen guides): a picture of th
 - **Creatures course**: turns a neighbour into a brick dog, shapes and colours him, makes his skeleton your own with a horn and a wagging tail, and meets him in Play. [Start the creatures course](action:help.bodies)
 - **Faces and pictures course**: gives Tom an angry and a happy face, writes lines with moods and talks to him in Play, then makes an owl from a few words with ✨ From a picture. [Start the faces and pictures course](action:help.faces)
 - **Dialogue course**: adds a villager, writes his conversation as a script with a choice, a condition and actions, shows it as a list and a graph, previews every branch, picks a dialogue style, then you talk to him in Play. [Start the dialogue course](action:help.dialogue)
+- **All the courses** are in one window, **Help › Courses…**, grouped by topic (Getting started, Building and worlds, Characters, Playing and logic, Look and feel) with a search box. [Open the courses](action:help.courses)
 - **AI builder**: ask for a change in plain words and watch it being made, step by step, before you accept it. [About the AI builder](help:ai-builder)
 - **This guide**: one page per workspace, a [12-step recipe](help:build-a-game), the [logic reference](help:logic-reference), every [shortcut](help:keys) and the [limits](help:limits). Type in the search box to find anything, for example "music zone".
 

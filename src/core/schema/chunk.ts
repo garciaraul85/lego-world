@@ -22,7 +22,12 @@ export const BRICK_SIZES: ReadonlyArray<readonly [number, number]> = [
   [2, 6],
   [2, 8],
 ];
-export const BrickType = z.string().regex(/^(brick|plate|tile)\d+x\d+$/, 'expected <kind><rows>x<cols>');
+export const BrickType = z
+  .string()
+  .regex(
+    /^(brick|plate|tile)(:cbk_[0-9a-z]{10}:)?\d+x\d+$/,
+    'expected <kind><rows>x<cols> (or <kind>:<custom brick id>:<rows>x<cols>)',
+  );
 
 export const FLAG = { smashable: 1, rebuildable: 2, static: 4, generated: 8 } as const;
 

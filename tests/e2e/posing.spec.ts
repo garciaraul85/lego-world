@@ -100,7 +100,7 @@ test('states: the built-in moves, Try it lights the state that picks, and the he
     .toBeTruthy();
   const hero = await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.store.manifest.hero);
   await page.getByRole('tablist', { name: 'Character sheet' }).getByRole('tab', { name: 'Animations' }).click();
-  await expect(page.getByRole('list', { name: 'States' }).getByRole('listitem')).toHaveCount(6);
+  await expect(page.getByRole('list', { name: 'States' }).getByRole('listitem')).toHaveCount(18);
   await page.locator('[data-tour="states-builtin"]').click();
   await expect
     .poll(() =>
@@ -157,6 +157,7 @@ test('Posing and states course: Do it for me makes the clip pose by pose, gives 
   const errors: string[] = [];
   await open(page, errors);
   await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
   await page.getByRole('menuitem', { name: /Posing and states course/ }).click();
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });

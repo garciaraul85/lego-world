@@ -52,6 +52,8 @@ export const hasShield = (profile: Record<string, unknown>) => profile.offHand =
 type HostInstance = { def: { name: string; health?: unknown; lockOn?: boolean }; inst: { id: string } };
 export interface CombatHost {
   readonly heroState: HeroState;
+  /** step 11, 4a: how big a character's body stands (see PlaySession.figureOf) */
+  figureOf(who: Npc): { bottom: number; top: number; radius: number };
   readonly over: boolean;
   readonly input: { keys: Set<string>; touch: Set<string> };
   readonly hero: Record<string, unknown>;
@@ -66,9 +68,13 @@ export interface CombatHost {
   /** the hero locked on to something (logic's On locked on) */
   lockedOn(t: LockTarget): void;
   instanceCenter(i: HostInstance): [number, number, number] | null;
+  /** Milestone 2b: the map's objects, indexed (near the hero, by id) */
+  objs(): { near(x: number, z: number, r: number): HostInstance[]; byId(id: string): HostInstance | undefined };
   instanceTop(i: HostInstance): number | null;
   /** P22 part 2: the hero's sheet — hit power, stamina cap, how much a guard costs */
   heroMoves?(): { power: number; guard: number };
+  /** Milestone 3b (B4): a hook answered by a behaviour (the hero's: hitPower), or base */
+  askHook?<V>(owner: string, hook: string, payload: Record<string, unknown>, base: V): V;
   readonly staminaMax?: number;
 }
 
@@ -114,15 +120,28 @@ export class Combat {
     if (held === null || this.stagger > 0) return;
     if (held >= SPIN_TIME) return this.startMove('spin', 0.5);
     if (held >= CHARGE_TIME) return this.s.strike('charged');
-    const run = this.s.input.keys.has('shift') || this.s.input.touch.has('run');
+    const run = this.s.input.keys.has('shift') || this.s.input.keys.has('run') || this.s.input.touch.has('run');
     this.s.strike(run ? 'heavy' : 'light');
   }
 
   /** the hit an attack of this kind does with what the hero holds */
   hitOf(kind: AttackKind): AttackHit {
-    const base = heldAttack(this.s.hero.held);
+    // step 12b: a stick swings as a sword but hits as a stick (alight: fire)
+    const base = heldAttack(this.s.hero.heldLook ?? this.s.hero.held);
     const m = this.s.heroMoves?.().power ?? 1;
-    return { power: base.power * ATTACKS[kind].mult * m, type: kind === 'bash' ? 'blunt' : base.type };
+    const power = base.power * ATTACKS[kind].mult * m;
+    return {
+      power: Math.max(0, this.s.askHook ? this.s.askHook('hero', 'hitPower', { power, kind }, power) : power),
+      type: kind === 'bash' ? 'blunt' : base.type,
+      // Milestone 3b (B5b): which swing it was (a heavy one staggers, a bash stuns)
+      attack: kind,
+    };
+  }
+
+  /** step 12c: stamina used by something else (climbing): it does not refill for `wait` seconds */
+  spend(n: number, wait = 0.5) {
+    this.stamina = Math.max(0, this.stamina - n);
+    this.staminaWait = Math.max(this.staminaWait, wait);
   }
 
   // ---------- moves ----------
@@ -366,7 +385,8 @@ export class Combat {
       out.push({ t, score: d + off * 4 });
     };
     for (const n of this.s.world.npcs) consider({ kind: 'npc', id: n.id }, n.state.x, n.state.z);
-    for (const i of this.s.world.instances) {
+    // Milestone 2b: only the objects within reach, from the map's object index
+    for (const i of this.s.objs().near(h.x, h.z, LOCK_RANGE + 1)) {
       if (!i.def.health && !i.def.lockOn) continue;
       const c = this.s.instanceCenter(i);
       if (c) consider({ kind: 'inst', id: i.inst.id }, c[0], c[2]);
@@ -379,9 +399,11 @@ export class Combat {
     if (!t) return null;
     if (t.kind === 'npc') {
       const n = this.s.world.npcs.find((x) => x.id === t.id);
-      return n ? [n.state.x, n.state.y + 1.2, n.state.z] : null;
+      if (!n) return null;
+      const f = this.s.figureOf(n);
+      return [n.state.x, n.state.y + f.bottom + 0.27 * (f.top - f.bottom), n.state.z];
     }
-    const i = this.s.world.instances.find((x) => x.inst.id === t.id);
+    const i = this.s.objs().byId(t.id);
     if (!i || (this.s.health.peek(`i:${i.inst.id}`)?.hp ?? 1) <= 0) return null;
     return this.s.instanceCenter(i);
   }
@@ -393,9 +415,9 @@ export class Combat {
     if (!p) return null;
     if (t.kind === 'npc') {
       const n = this.s.world.npcs.find((x) => x.id === t.id);
-      return n ? [n.state.x, n.state.y + 4.6, n.state.z] : null;
+      return n ? [n.state.x, n.state.y + this.s.figureOf(n).top + 0.2, n.state.z] : null;
     }
-    const i = this.s.world.instances.find((x) => x.inst.id === t.id);
+    const i = this.s.objs().byId(t.id);
     const top = i ? this.s.instanceTop(i) : null;
     return [p[0], (top ?? p[1]) + 0.5, p[2]];
   }

@@ -10,6 +10,7 @@ import { openLogicFor } from '../logic/createFromContext';
 import { ArtThumb, allArt } from './art/ArtLibrary';
 import { artUrl } from './art/render';
 import { canvasPortrait, KIND_LABEL, setLayout } from './model';
+import { VideoFields } from './VideoFields';
 
 /** colours offered first for screens: UI basics, then the brick colours */
 const UI_COLORS = [
@@ -333,6 +334,26 @@ export function WidgetProps({
           </p>
         </div>
       )}
+      {w.type === 'video' && <VideoFields ed={ed} w={w} set={set} style={style} />}
+      {w.type === 'credits' && (
+        <div class="sec" data-help="screens.credits" data-tour="credits-fields">
+          <div class="field">
+            Lines at the top
+            <textarea
+              class="inp"
+              rows={3}
+              aria-label="Credits lines"
+              data-tour="credits-lines"
+              value={w.text ?? ''}
+              onChange={(e) => set({ text: (e.target as HTMLTextAreaElement).value })}
+            />
+          </div>
+          <p class="hint">
+            One line each (who made the game, thanks…). Below them come the imported files with a credit: set who made
+            each in File › Media library.
+          </p>
+        </div>
+      )}
       {(w.type === 'button' || w.type === 'bar' || w.type === 'slot') && (
         <div class="sec">
           <div class="field">
@@ -448,7 +469,7 @@ export function WidgetProps({
           {/* P26: shown only while a value is on (Continue only when there is a save) */}
           <label
             class="row small"
-            title="Shown only while this value is on: a variable, or save.any (a save exists), save.canSave (Pause may save). Empty: always shown."
+            title="Shown only while this value is on: a variable, or save.any (a save exists), save.canSave (Pause may save), quests.any (a quest has begun). Empty: always shown."
           >
             Shown when
             <select
@@ -460,7 +481,8 @@ export function WidgetProps({
               <option value="">always</option>
               <option value="save.any">there is a save (save.any)</option>
               <option value="save.canSave">Pause may save (save.canSave)</option>
-              {w.showIf && !['save.any', 'save.canSave'].includes(w.showIf) && (
+              <option value="quests.any">a quest has begun (quests.any)</option>
+              {w.showIf && !['save.any', 'save.canSave', 'quests.any'].includes(w.showIf) && (
                 <option value={w.showIf}>{w.showIf}</option>
               )}
             </select>

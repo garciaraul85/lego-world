@@ -121,6 +121,7 @@ test('Saving course: Do it for me sets Saving, places a flag and a save point, s
   page.on('pageerror', (e) => errors.push(e.message));
   await open(page);
   await page.locator('[data-tour="menu-help"]').click();
+  await page.getByRole('menuitem', { name: 'Courses…' }).click();
   await page.getByRole('menuitem', { name: /Saving course/ }).click();
   const card = page.getByRole('complementary', { name: 'Tutorial' });
   await expect(card).toBeVisible({ timeout: 60_000 });

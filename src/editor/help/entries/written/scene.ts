@@ -102,9 +102,10 @@ export const SCENE: HelpEntry[] = [
     screen: 'scene',
     kind: 'area',
     name: 'View controls',
-    purpose: 'Buttons that move the camera: focus on the selection, zoom, turn, fit everything, full screen.',
+    purpose:
+      'Buttons that move the camera: focus on the selection, zoom, turn, fit everything, full screen; and what draws the views (WebGPU or WebGL).',
     match: [{ sel: area('View') }],
-    related: ['scene.view.focus', 'scene.view.fullscreen'],
+    related: ['scene.view.focus', 'scene.view.fullscreen', 'scene.view.drawWith'],
   },
   {
     id: 'scene.view.focus',
@@ -159,6 +160,18 @@ export const SCENE: HelpEntry[] = [
     purpose: 'Fills the window with the 3D view to concentrate on building; the tools stay at hand. Esc goes back.',
     key: 'Ctrl Shift F',
     match: [{ in: area('View'), name: /^(Full screen|Leave full screen|Exit full screen)/ }],
+  },
+  {
+    id: 'scene.view.drawWith',
+    also: ['webgpu', 'webgl', 'renderer', 'graphics card', 'gpu', 'draw with', 'drawing', 'faster drawing'],
+    screen: 'scene',
+    kind: 'field',
+    name: 'Draw with (WebGPU or WebGL)',
+    purpose:
+      'What draws the 3D views on this computer. **WebGL** is the long-standing way and works everywhere. **WebGPU** is the newer way to use the graphics card: the same picture, except that water truly mirrors the bricks, characters and sky above it (WebGL mirrors only the sky’s colours); later, faster big maps. It draws the Scene and Play, characters included (the Director’s previews and the studios stay on WebGL for now). **Auto** uses WebGL for now, until WebGPU has been tried on more computers. The choice is kept in this browser, not in the project. If WebGPU cannot show the view here, WebGL draws it and a message says so; the option then reads *WebGPU (unavailable)*.',
+    steps: ['In the corner of the 3D view, open **Draw with**.', 'Pick **WebGPU** to try it, or **WebGL** to go back.'],
+    match: [{ in: area('View'), name: 'Draw with' }, { sel: '[data-help="scene.view.drawWith"]' }],
+    related: ['scene.view', 'project.quality'],
   },
   // ---------- outliner ----------
   {
@@ -247,6 +260,8 @@ export const SCENE: HelpEntry[] = [
     purpose: 'Switches what the bottom dock shows.',
     options: [
       ['Assets', 'everything you can put in the world: assets, characters, cinematics, screens, sounds, music'],
+      ['Starter pack', 'the adventure starter pack: a hero, neighbours, enemies, buildings and props, terrain styles'],
+      ['My library', 'your own things for every project in this browser'],
       ['Console', 'messages from the editor and from logic Log nodes'],
       ['Timeline', 'cinematic timelines while one plays'],
       ['Profiler', 'frame time, draw calls and chunks while playing'],
@@ -254,7 +269,13 @@ export const SCENE: HelpEntry[] = [
       ['Debug', 'colliders, spawn points and gates drawn in Play; cheats'],
       ['Mixer', 'live volume of each sound bus'],
     ],
-    match: [{ in: DOCK, role: 'button', name: /^(Assets|Console|Timeline|Profiler|Problems|Debug|Mixer)( ●)?$/ }],
+    match: [
+      {
+        in: DOCK,
+        role: 'button',
+        name: /^(Assets|Starter pack|My library|Console|Timeline|Profiler|Problems|Debug|Mixer)( ●)?$/,
+      },
+    ],
   },
   {
     id: 'scene.dock.cats',
@@ -262,9 +283,13 @@ export const SCENE: HelpEntry[] = [
     kind: 'view',
     name: 'Library categories',
     purpose:
-      'Assets, Characters, Cinematics, UI screens, Effects, Lights, Sounds and Music: pick what the library shows. (Bricks are in the Assets screen, where assets are built.)',
+      'Assets, Characters, Cinematics, UI screens, Effects, Lights, Water, 3D models, Sounds and Music: pick what the library shows. (Bricks are in the Assets screen, where assets are built.)',
     match: [
-      { in: DOCK, role: 'button', name: /^(Assets|Characters|Cinematics|UI screens|Effects|Lights|Sounds|Music) \d+$/ },
+      {
+        in: DOCK,
+        role: 'button',
+        name: /^(Assets|Characters|Cinematics|UI screens|Effects|Lights|Water|3D models|Sounds|Music) \d+$/,
+      },
     ],
   },
   {
@@ -455,7 +480,7 @@ export const SCENE: HelpEntry[] = [
   },
   {
     id: 'scene.spawn',
-    also: ['start', 'begin', 'hero starts', 'respawn'],
+    also: ['start', 'begin', 'hero starts', 'hero start', 'where the hero starts', 'respawn'],
     screen: 'scene',
     kind: 'area',
     name: 'Spawn point properties',
@@ -657,6 +682,84 @@ export const SCENE: HelpEntry[] = [
     commands: ['npc.place'],
     match: [{ sel: '[data-tour="dock-characters"]' }, { in: '[data-tour="dock-characters"]', name: /^Place / }],
     related: ['characters.enemy'],
+  },
+  {
+    id: 'scene.dock.pack',
+    also: [
+      'starter pack',
+      'adventure pack',
+      'pack',
+      'enemies',
+      'monsters',
+      'dungeon pieces',
+      'terrain style',
+      'hero',
+      'villagers',
+      'ready made',
+      'adventure effects',
+      'fairy sparkle',
+      'item get',
+      'scripts and cutscenes',
+    ],
+    screen: 'scene',
+    kind: 'list',
+    name: 'Starter pack',
+    purpose:
+      'The adventure starter pack, ready to use: **Rook** the hero (Play as makes it the player character), ten **neighbours** (an elder, a shopkeeper, a blacksmith, a guard, a fisherwoman, a kid, a travelling merchant, a healer, a bard and Glim, a lantern-bug companion), each with a sample conversation, ten kinds of **enemy** with their own weaknesses (Pebblespout, Rattlebones, the Gloomweaver boss, Finspitter, the Watcher Eye, Cinderjaw, Flitterwing bats, Threadback, Lanternwisp, Howler), twenty **buildings and props** (dungeon walls, a pillar, an archway, a barred gate, a locked door, torches, a brazier, pots, a boss chest, a cracked wall, a push block, a floor switch, spikes, stairs, a guardian statue, a cottage, a well, a barrel, grass, a bridge), **puzzle pieces** (weight, timer and crystal switches, a lever, a boss door, the small key, boss key, dungeon map and compass, a small chest with a key; the push block, floor switch and locked door are here too), **fire and light** (vines, a wooden barricade and a spider web that burn, torch stands, a bomb bag, a hand torch, a sun crest, a mirror and a light sensor), three **terrain styles**, **Scripts and cutscenes** (eleven script templates and three cutscene templates: Use… opens a short form), and a **Look and sound** set: the **Adventure screen look**, five effects (Fairy sparkle, Item get, Torch embers, Dungeon dust, Boss vanish) and the pack’s sounds (item get, key, secret found, sword swish, boss roar) and music (Village, Dungeon, Boss). Drag a card onto the map, or press Place. A character comes into your game the first time it is used, so you can change it in the Character studio. The sounds and music are in every game already: ▶ listens.',
+    steps: [
+      'Open **Starter pack** in the bottom dock.',
+      'Drag a neighbour or an enemy onto the map (or press **Place**: it stands in front of the first spawn).',
+      'Click a building or prop, then click the ground (T turns it), or drag it in.',
+      'Press **Use on this map** on a terrain style to make the open map again in that style (Undo brings the old map back).',
+      'Under **Look and sound**, pick **Adventure** for the screen look, **Place** an effect, or press ▶ to hear a sound or a piece of music.',
+    ],
+    commands: [
+      'character.create',
+      'dialogue.put',
+      'npc.place',
+      'asset.place',
+      'map.generate',
+      'project.update',
+      'item.add',
+    ],
+    match: [{ sel: '[data-tour="dock-pack"]' }, { in: '[data-tour="dock-pack"]' }],
+    related: [
+      'scene.dock.characters',
+      'characters.enemy',
+      'characters.harm',
+      'characters.extras',
+      'project.look',
+      'pack.templates',
+      'scene.dock.library',
+    ],
+  },
+  {
+    id: 'scene.dock.library',
+    also: [
+      'my library',
+      'library',
+      'reuse',
+      'share',
+      'every project',
+      'other projects',
+      'pack file',
+      'bwlib',
+      'export library',
+      'import library',
+    ],
+    screen: 'scene',
+    kind: 'list',
+    name: 'My library',
+    purpose:
+      'Your own things for every project in this browser: assets, characters, clips, effects, scripts, custom bricks, body plans and hairstyles. **+ Add from this game…** saves copies of what you tick, each with what it needs from the game (an asset’s custom bricks; a character’s body plan, clips and conversations; a script’s variables and the assets it names). **Use in this game** brings one into the open project; when the game already has something different under the same id, it comes in as a copy (“… (from library)”). **Export pack** saves the library, or what the search shows, as a .bwlib file to share or to move to another device; **Import pack…** adds one. Pictures, sounds and 3D models you imported stay with their game. Removing an item from the library never changes a game that uses it.',
+    steps: [
+      'Open **My library** in the bottom dock.',
+      'Press **+ Add from this game…**, tick what to keep and press **Save to My library**.',
+      'In another project, open My library and press **Use in this game**.',
+    ],
+    commands: ['file.put', 'logic.setVariable'],
+    match: [{ sel: '[data-tour="dock-library"]' }, { in: '[data-tour="dock-library"]' }],
+    related: ['scene.dock.pack', 'pack.templates'],
   },
   {
     id: 'scene.dock.effects',

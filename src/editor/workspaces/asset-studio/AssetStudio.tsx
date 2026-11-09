@@ -3,9 +3,19 @@ import { builtinAsset } from '../../../builtin/assets';
 import { CLEANUP, CLEANUP_LABEL, type Cleanup, cleanupOf } from '../../../core/assets/cleanup';
 import { expandAsset } from '../../../core/assets/expand';
 import { partPose } from '../../../core/assets/free';
+import { MOVER_INFO, MOVERS, type Mover, makeMover } from '../../../core/assets/movers';
 import { bricksBox, hasScale, hasTilt, type Scale, type Tilt } from '../../../core/assets/tilt';
 import type { Brick } from '../../../core/bricks/codec';
+import {
+  type CustomBrick,
+  customBrick,
+  customBricks,
+  customIdOf,
+  customType,
+  parseBrickType,
+} from '../../../core/bricks/custom';
 import { MapBricks } from '../../../core/bricks/map-bricks';
+import type { Command } from '../../../core/commands';
 import { CommandBus, registerAll } from '../../../core/commands';
 import { mapsUsing } from '../../../core/commands/handlers/assets';
 import { newId } from '../../../core/ids';
@@ -15,6 +25,7 @@ import { Autosave } from '../../../core/project/autosave';
 import { MemoryBackend } from '../../../core/project/backend';
 import { ProjectStore } from '../../../core/project/store';
 import { type Action, type Asset, BIOMES, paths, type Socket } from '../../../core/schema';
+import { legacyRuntime } from '../../../engine/legacy/runtime-modules';
 import type { Marker } from '../../../engine/render/renderer';
 import { brickRgb, type PointLight } from '../../../engine/render/renderer';
 import { ACTIONS, type ActionCtx, keyOf, runAction } from '../../actions/registry';
@@ -32,12 +43,19 @@ import { LightFields } from '../../panels/LightFields';
 import type { StudioPart } from '../../scene';
 import { EditorState, type ToolId } from '../../state';
 import { Viewport, type ViewportApi } from '../../viewport/Viewport';
+import { BrickEditor } from './BrickEditor';
+import { FireLightSection } from './FireLightSection';
+import { IceMoveSection } from './IceMoveSection';
+import { PuzzleSection } from './PuzzleSection';
 import { assetFromScratch, initialIndex, type Scratch, scratchFor, turnPart } from './scratch';
+import { WindSection } from './WindSection';
 
 /** The studio's own editor state: same tools and commands, on the scratch build plate. */
 export class StudioState extends EditorState {
   /** the main editor: the plate's notices and log lines show there (the plate has no toast or console) */
   parent: EditorState | null = null;
+  /** the asset this plate builds */
+  forAsset: string | null = null;
   override get buildsBricks() {
     return true;
   }
@@ -118,6 +136,9 @@ export function reuseBricks(
   return { bricks, parts };
 }
 
+export const LOOSE_HELP =
+  'A loose object is not fixed to the map: in Play it falls if nothing holds it up, tips over when the hero pushes it, floats in water and drifts with a river’s current. Leave it off for buildings, trees and anything that should stay put.';
+
 export function AssetStudio({ c }: { c: ActionCtx }) {
   const { ed } = c;
   ed.revision.value;
@@ -158,6 +179,16 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     const autosave = new Autosave(store, new MemoryBackend(), { setTimer: () => null, clearTimer: () => {} });
     const sed = new StudioState({ store, bus, autosave, backend: new MemoryBackend() });
     sed.parent = ed;
+    // step 11: the mirror, Fill and a held stamp stay on when the plate is rebuilt (another state, an undo)
+    const prev = (globalThis as unknown as { __plate?: StudioState }).__plate;
+    sed.forAsset = def.id;
+    if (prev && prev !== sed && prev.forAsset === def.id) {
+      sed.mirror.value = prev.mirror.peek();
+      sed.paintFill.value = prev.paintFill.peek();
+      sed.stamp.value = prev.stamp.peek();
+    }
+    // tests and Brix reach the plate like the main editor (window.__editor)
+    (globalThis as unknown as { __plate?: StudioState }).__plate = sed;
     sed.tool.value = plateTool;
     sed.brush.value = ed.brush.value;
     synced.current = stableStringify(def);
@@ -288,6 +319,8 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.closest('input,textarea,select,[contenteditable]')) return;
+      // a dialog over the studio (From a picture…) keeps its keys: Escape closes it, not the plate's selection
+      if (document.querySelector('[aria-modal="true"]')) return;
       const a = ACTIONS.find((x) => x.key === keyOf(e));
       if (!a || !STUDIO_ACTION.test(a.id)) return;
       e.preventDefault();
@@ -461,6 +494,7 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
             Redo
           </button>
           <BrushPicker ed={sed} />
+          <BuildHelpers sed={sed} centre={[def.footprint[0] / 2, def.footprint[1] / 2]} />
           {def.states.length > 1 && (
             <label class="lbl small">
               <input type="checkbox" checked={newOnlyIn} onChange={() => setNewOnlyIn(!newOnlyIn)} /> New bricks only in
@@ -542,8 +576,13 @@ export function AssetStudio({ c }: { c: ActionCtx }) {
 function BrushPicker({ ed }: { ed: EditorState }) {
   const b = ed.brush.value;
   const [open, setOpen] = useState(false);
-  const m = /^(brick|plate|tile)(\d+)x(\d+)$/.exec(b.type)!;
-  const name = `${m[1]!.charAt(0).toUpperCase() + m[1]!.slice(1)} ${m[2]}×${m[3]}`;
+  // step 11: the game's custom bricks too (made in the Bricks tab's brick editor)
+  const customs = open ? customBricks().sort((x, y) => x.name.localeCompare(y.name)) : [];
+  const t = parseBrickType(b.type) ?? { kind: 'brick', rows: 2, cols: 4 };
+  const cid = customIdOf(b.type);
+  const name = cid
+    ? (customBrick(cid)?.name ?? 'Custom brick')
+    : `${t.kind.charAt(0).toUpperCase() + t.kind.slice(1)} ${t.rows}×${t.cols}`;
   return (
     <span class="studio-brush">
       <button
@@ -568,6 +607,7 @@ function BrushPicker({ ed }: { ed: EditorState }) {
               ed.brush.value = { ...b, type };
               if (ed.tool.value !== 'place') ed.tool.value = 'place';
             }}
+            customs={customs.length ? customs : undefined}
           />
           <div class="row" style={{ justifyContent: 'flex-end' }}>
             <button type="button" class="btn on" onClick={() => setOpen(false)}>
@@ -630,10 +670,23 @@ function Library({
           Bricks
         </button>
       </div>
-      {tab === 'bricks' && sed ? <PlateBricks ed={sed} /> : null}
+      {tab === 'bricks' && sed ? <PlateBricks ed={sed} main={c.ed} /> : null}
       <div style={{ padding: '8px', display: tab === 'assets' ? 'flex' : 'none', flexDirection: 'column', gap: '6px' }}>
         <button type="button" class="btn on" onClick={newAsset}>
           + New asset
+        </button>
+        {/* Milestone 3, 10d part 4: an asset from a picture or words */}
+        <button
+          type="button"
+          class="btn"
+          data-tour="asset-from-picture"
+          data-help="assets.fromPicture"
+          onClick={() => {
+            ed.makeKind.value = 'asset';
+            ed.fromPicture.value = true;
+          }}
+        >
+          ✨ From a picture…
         </button>
         <input
           class="inp"
@@ -711,15 +764,45 @@ function Library({
 }
 
 /** P32: the bricks to build with: click a piece (then click the plate), or drag it straight onto the plate. */
-function PlateBricks({ ed }: { ed: EditorState }) {
+function PlateBricks({ ed, main }: { ed: EditorState; main: EditorState }) {
   const b = ed.brush.value;
   const set = (patch: Partial<typeof b>) => {
     ed.brush.value = { ...b, ...patch };
     if (patch.type && ed.tool.value !== 'place') ed.tool.value = 'place';
   };
+  // step 11: the game's custom bricks (kept in the game, not on the plate), made and changed in the brick editor
+  const [editing, setEditing] = useState<CustomBrick | 'new' | null>(null);
+  void main.revision.value;
+  const customs = main.store
+    .list(paths.customBrickDir)
+    .map((p) => main.store.get<CustomBrick>(p)!)
+    .filter(Boolean)
+    .sort((x, y) => x.name.localeCompare(y.name));
   return (
     <div class="scroll plate-bricks">
-      <BrickPicker type={b.type} color={b.color} rot={b.rot} onPick={(type) => set({ type })} draggable />
+      <BrickPicker
+        type={b.type}
+        color={b.color}
+        rot={b.rot}
+        onPick={(type) => set({ type })}
+        draggable
+        customs={customs}
+        onNewCustom={() => setEditing('new')}
+        onEditCustom={(cb) => setEditing(cb)}
+      />
+      {editing && (
+        <BrickEditor
+          ed={main}
+          start={editing === 'new' ? null : editing}
+          color={b.color}
+          onClose={() => setEditing(null)}
+          onSaved={(cb) => {
+            setEditing(null);
+            set({ type: customType(cb) });
+            main.notify(`${cb.name} is in Custom: click the plate to put it down.`);
+          }}
+        />
+      )}
       <span class="muted small">Turned {b.rot * 90}° (T)</span>
       <Swatches value={b.color} onPick={(color) => set({ color })} />
       <div class="hint">
@@ -763,6 +846,21 @@ function Properties({
   const original = builtin ?? (inProject ? openedAs : null);
   const changed = !!original && !sameAsset(original, def);
   const setInteractions = (interactions: Asset['interactions']) => patch({ interactions }, 'Edit interactions');
+  // step 11: a mover changes the states, the part, its socket and what E does, as one step
+  const applyMover = (next: Asset, label: string) => {
+    patch(
+      {
+        states: next.states,
+        initialState: next.initialState,
+        onlyIn: next.onlyIn,
+        parts: next.parts,
+        sockets: next.sockets,
+        interactions: next.interactions,
+      },
+      label,
+    );
+    ed.notify(`${label}. Pick a state above the plate to see it; in Play, E switches it.`);
+  };
   return (
     <section class="panel right studio-props" aria-label="Asset properties">
       <div class="ptabs">
@@ -834,6 +932,8 @@ function Properties({
             </button>
           )}
         </div>
+
+        <TurnInto c={c} def={def} patch={patch} reset={reset} inProject={inProject} />
 
         <div class="sec">
           <div class="sech">
@@ -938,6 +1038,14 @@ function Properties({
                   Straighten
                 </button>
               </div>
+              <MoverPicker
+                index={i}
+                onPick={(kind) => {
+                  const next = makeMover(def, i, kind);
+                  if (typeof next === 'string') ed.notify(next, true);
+                  else applyMover(next, `${p.name}: ${MOVER_INFO[kind].label.split(' (')[0]}`);
+                }}
+              />
               {p.pose && (
                 <MovingPart def={def} part={p} index={i} onChange={(next, label) => setPart(i, next, label)} />
               )}
@@ -962,6 +1070,23 @@ function Properties({
           >
             Selected bricks → moving part
           </button>
+          <MoverPicker
+            index={-1}
+            disabled={!selectedIndexes().length}
+            label="Selected bricks → a door, a drawbridge…"
+            onPick={(kind) => {
+              const idx = selectedIndexes();
+              const taken = new Set(idx);
+              const rest = (def.parts ?? [])
+                .map((q) => ({ ...q, bricks: q.bricks.filter((k) => !taken.has(k)) }))
+                .filter((q) => q.bricks.length);
+              const name = MOVER_INFO[kind].label.split(' (')[0]!;
+              const withPart: Asset = { ...def, parts: [...rest, { name, bricks: idx }] };
+              const next = makeMover(withPart, rest.length, kind);
+              if (typeof next === 'string') ed.notify(next, true);
+              else applyMover(next, `Make a ${name.toLowerCase()}`);
+            }}
+          />
           <div class="hint">
             Select some bricks (a roof, a branch, a wheel), then turn them with Rotate (E) on the red, green and blue
             rings, or size them with Resize (Q). They become a part that every copy shows turned. A part that moves (a
@@ -1217,6 +1342,28 @@ function Properties({
             </label>
           </div>
         )}
+
+        {/* Milestone 2b: a loose object — the physics core moves it: it falls, tips over, is pushed, floats */}
+        <div class="sec" data-help="asset.loose">
+          <label class="lbl" data-tour="asset-loose">
+            <input
+              type="checkbox"
+              checked={!!def.loose}
+              onChange={() => {
+                const { loose: _l, ...rest } = def;
+                reset((def.loose ? rest : { ...def, loose: true }) as Asset, def.loose ? 'Not loose' : 'Loose');
+              }}
+            />{' '}
+            Loose (falls, tips over and floats in play)
+            <FieldHelp label="Loose" text={LOOSE_HELP} />
+          </label>
+        </div>
+
+        {/* step 12a: push block, switch, lock, pickup */}
+        <PuzzleSection def={def} reset={reset} />
+        <FireLightSection def={def} reset={reset} />
+        <IceMoveSection def={def} reset={reset} />
+        <WindSection def={def} reset={reset} />
 
         {/* P27: it gives light (a torch, a lamp), where on it, in which states */}
         <div class="sec" data-help="asset.light" data-tour="asset-light-sec">
@@ -1566,4 +1713,220 @@ function assetTop(def: Asset): number {
   let top = 0;
   for (const b of def.bricks) top = Math.max(top, (Number(b[2]) || 0) * 0.4 + 1.2);
   return Math.round(top * 10) / 10;
+}
+
+/**
+ * Step 11 (P24 part 1a): building faster on the plate — a mirror across X and/or Z (each new brick, paint and
+ * erase happens on both sides; the plane shows as blue lines and can be moved half a stud at a time), Fill for the
+ * Paint tool (every joined brick of one colour), and Copy / Stamp (the Place tool puts the copied bricks down).
+ */
+function BuildHelpers({ sed, centre }: { sed: StudioState; centre: [number, number] }) {
+  const m = sed.mirror.value;
+  const half = (v: number) => Math.round(v * 2) / 2;
+  const toggle = (axis: 'x' | 'z') => {
+    sed.mirror.value = { ...m, [axis]: m[axis] === null ? half(centre[axis === 'x' ? 0 : 1]) : null };
+  };
+  const nudge = (axis: 'x' | 'z', by: number) => {
+    const v = m[axis];
+    if (v !== null) sed.mirror.value = { ...m, [axis]: v + by };
+  };
+  const stamp = sed.stamp.value;
+  const selected = sed.selectedBricks.value.length;
+  return (
+    <span
+      class="group build-helpers"
+      role="group"
+      aria-label="Build helpers"
+      data-tour="build-helpers"
+      data-help="assets.buildHelpers"
+    >
+      {(['x', 'z'] as const).map((axis) => (
+        <span class="row" style={{ gap: '2px' }}>
+          <button
+            type="button"
+            class={`btn small ${m[axis] !== null ? 'on' : ''}`}
+            aria-pressed={m[axis] !== null}
+            data-tour={`mirror-${axis}`}
+            title={`Mirror across ${axis.toUpperCase()}: every brick you place, paint or erase is copied on the other side`}
+            onClick={() => toggle(axis)}
+          >
+            {axis === 'x' ? '⇆' : '⇅'} Mirror {axis.toUpperCase()}
+          </button>
+          {m[axis] !== null && (
+            <>
+              <button
+                type="button"
+                class="btn small icon"
+                aria-label={`Move the ${axis.toUpperCase()} mirror back half a stud`}
+                data-tour={`mirror-${axis}-less`}
+                onClick={() => nudge(axis, -0.5)}
+              >
+                −
+              </button>
+              <span class="mono small" aria-label={`${axis.toUpperCase()} mirror at`}>
+                {m[axis]}
+              </span>
+              <button
+                type="button"
+                class="btn small icon"
+                aria-label={`Move the ${axis.toUpperCase()} mirror on half a stud`}
+                data-tour={`mirror-${axis}-more`}
+                onClick={() => nudge(axis, 0.5)}
+              >
+                +
+              </button>
+            </>
+          )}
+        </span>
+      ))}
+      <button
+        type="button"
+        class={`btn small ${sed.paintFill.value ? 'on' : ''}`}
+        aria-pressed={sed.paintFill.value}
+        data-tour="paint-fill"
+        title="Fill: the Paint tool paints every joined brick of the clicked colour (Shift+click does it once)"
+        onClick={() => {
+          sed.paintFill.value = !sed.paintFill.value;
+          if (sed.paintFill.value) sed.tool.value = 'paint';
+        }}
+      >
+        🪣 Fill
+      </button>
+      <button
+        type="button"
+        class="btn small"
+        disabled={!selected}
+        data-tour="stamp-copy"
+        title="Copy the selected bricks (Ctrl C), then click to stamp them down (Ctrl V)"
+        onClick={() => {
+          const ctx = { ed: sed } as unknown as ActionCtx;
+          for (const id of ['edit.copy', 'edit.paste']) runAction(ACTIONS.find((x) => x.id === id)!, ctx);
+        }}
+      >
+        ⧉ Stamp
+      </button>
+      {stamp && (
+        <span class="small muted" role="status" data-tour="stamp-status">
+          Stamping {stamp.length} brick{stamp.length === 1 ? '' : 's'}
+          <button type="button" class="btn small" data-tour="stamp-stop" onClick={() => (sed.stamp.value = null)}>
+            Stop
+          </button>
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** step 11 (P24 part 1b): pick what kind of moving part some bricks become */
+function MoverPicker(p: { index: number; onPick(kind: Mover): void; disabled?: boolean; label?: string }) {
+  return (
+    <label class="field">
+      {p.label ?? 'Move like'}
+      <select
+        class="inp"
+        value=""
+        disabled={p.disabled}
+        aria-label={p.label ?? 'Move like'}
+        data-tour={p.index < 0 ? 'mover-from-selection' : `mover-${p.index}`}
+        onChange={(e) => {
+          const v = (e.target as HTMLSelectElement).value as Mover;
+          (e.target as HTMLSelectElement).value = '';
+          if (v) p.onPick(v);
+        }}
+      >
+        <option value="">choose…</option>
+        {MOVERS.map((m) => (
+          <option value={m}>{MOVER_INFO[m].label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * Step 11 (P24 part 1b): turn the asset into something in one click — breakable (smashed in play, rebuildable),
+ * loose (it falls, is pushed about and floats), or a creature's body (a new character that walks with these
+ * bricks on a four-legged skeleton, opened in the Characters screen to change).
+ */
+function TurnInto({
+  c,
+  def,
+  patch,
+  reset,
+  inProject,
+}: {
+  c: ActionCtx;
+  def: Asset;
+  patch: (p: Partial<Asset>, label?: string) => unknown;
+  reset: (to: Asset, label: string) => void;
+  inProject: boolean;
+}) {
+  const { ed } = c;
+  const creature = () => {
+    const id = newId('character');
+    const name = `${def.name}`.slice(0, 32);
+    const L = legacyRuntime();
+    const profile = L.CharacterCatalog.validate({ ...L.CharacterCatalog.defaults, name });
+    const cmds: Command[] = [
+      ...(inProject ? [] : [{ type: 'asset.create', payload: { asset: { ...def, origin: 'user' } } } as Command]),
+      {
+        type: 'character.create',
+        payload: { character: { id, name, role: 'npc', profile, body: { family: 'fourLegs', asset: def.id } } },
+      },
+    ];
+    if (!ed.exec(cmds, { label: `${def.name} becomes a creature` }).ok) return;
+    ed.studioCharacter.value = id;
+    ed.sheetTab.value = 'body';
+    c.ui.workspace('Characters');
+    ed.notify(
+      `${name} walks on a four-legged skeleton wearing these bricks. In Body, pick another family, or paint bricks onto bones.`,
+    );
+  };
+  return (
+    <div class="sec" data-tour="turn-into" data-help="assets.turnInto">
+      <div class="sech">
+        <span>Turn it into</span>
+      </div>
+      <div class="row" style={{ flexWrap: 'wrap', gap: '4px' }}>
+        <button
+          type="button"
+          class={`btn small ${def.smash.enabled ? 'on' : ''}`}
+          aria-pressed={def.smash.enabled}
+          data-tour="turn-breakable"
+          title="It can be smashed in Play (its settings are under After it breaks)"
+          onClick={() =>
+            patch(
+              { smash: { ...def.smash, enabled: !def.smash.enabled } },
+              def.smash.enabled ? 'Not breakable' : 'Breakable',
+            )
+          }
+        >
+          💥 Breakable
+        </button>
+        <button
+          type="button"
+          class={`btn small ${def.loose ? 'on' : ''}`}
+          aria-pressed={!!def.loose}
+          data-tour="turn-loose"
+          title="Loose: it falls, tips over when pushed and floats in water"
+          onClick={() => {
+            const { loose: _l, ...rest } = def;
+            reset((def.loose ? rest : { ...def, loose: true }) as Asset, def.loose ? 'Not loose' : 'Pushable');
+          }}
+        >
+          📦 Pushable
+        </button>
+        <button
+          type="button"
+          class="btn small"
+          data-tour="turn-creature"
+          title="A new character that walks with these bricks as its body"
+          onClick={creature}
+        >
+          🐾 A creature
+        </button>
+      </div>
+      <p class="hint">Moving parts (a door, a drawbridge, a lid, a lever, a gate) are under Turned parts below.</p>
+    </div>
+  );
 }

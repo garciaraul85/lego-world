@@ -124,6 +124,17 @@
           },
           {
             "type": "button",
+            "id": "controls",
+            "label": "Controls",
+            "onPress": [
+              {
+                "do": "showScreen",
+                "screen": "scr_controls00"
+              }
+            ]
+          },
+          {
+            "type": "button",
             "id": "back",
             "label": "Back",
             "onPress": [

@@ -1,3 +1,5 @@
+import { builtinBodyPlan } from '../../../builtin/bodyplans';
+import { lookError } from '../../character/marks';
 import type { ProjectStore } from '../../project/store';
 import { Character, Clip, type Instances, paths } from '../../schema';
 import type { CommandHandler } from '../types';
@@ -19,7 +21,8 @@ export const createCharacter: CommandHandler<{ character: Character }> = {
   label: (p) => `New character ${p.character.name}`,
   validate: (store, p) =>
     invalid(Character.safeParse(p.character)) ??
-    (store.has(paths.character(p.character.id)) ? 'A character with that id already exists.' : null),
+    (store.has(paths.character(p.character.id)) ? 'A character with that id already exists.' : null) ??
+    lookError(p.character.profile),
   apply: (store, p) => store.put(paths.character(p.character.id), p.character),
 };
 
@@ -28,13 +31,15 @@ export const updateCharacter: CommandHandler<{ character: Character }> = {
   label: (p) => `Edit ${p.character.name}`,
   validate(store, p) {
     if (!store.has(paths.character(p.character.id))) return 'That character does not exist.';
-    const e = invalid(Character.safeParse(p.character));
+    const e = invalid(Character.safeParse(p.character)) ?? lookError(p.character.profile);
     if (e) return e;
     for (const c of p.character.emotes ?? []) if (!store.has(paths.clip(c))) return 'An emote clip is missing.';
     for (const t of p.character.talk ?? [])
       if (!store.has(paths.dialogue(t.conversation))) return 'A conversation in its Talk list does not exist.';
     const body = p.character.body;
-    if (body?.plan && !store.has(paths.bodyplan(body.plan))) return 'Its body plan does not exist.';
+    // step 11, 4a: one of the engine's own body plans will do
+    if (body?.plan && !store.has(paths.bodyplan(body.plan)) && !builtinBodyPlan(body.plan))
+      return 'Its body plan does not exist.';
     if (body?.asset && !store.has(paths.asset(body.asset))) return 'The brick build it wears does not exist.';
     return null;
   },

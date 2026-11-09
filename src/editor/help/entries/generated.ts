@@ -1,6 +1,6 @@
 import { AI_COMMANDS } from '../../../core/ai/commands';
 import { CATALOG, type NodeDef } from '../../../core/logic/catalog';
-import { ACTIONS, MENUS } from '../../actions/registry';
+import { ACTIONS, COURSE_IDS, MENUS } from '../../actions/registry';
 import { keysFor, MAC_KEYS } from '../../platform';
 import { TOOLS } from '../../shell/tools';
 import { WIDGET_NAMES, WIDGET_TIPS, WIDGET_TYPES } from '../../workspaces/screens/model';
@@ -18,12 +18,18 @@ export const ACTION_HELP: Record<string, string> = {
   'file.open': 'Opens a project saved in this browser.',
   'file.save': 'Saves now. The editor also saves by itself a moment after every change.',
   'file.import': 'Loads a project file (.bwproj) or a LEGO World v68 save (.json) from your computer.',
+  'file.mediaLibrary':
+    'Opens the Media library: every imported picture, video, sound, 3D model and font, how much of the 200 MB they take, where each is used, who made it (credits), shrinking big pictures and removing unused files.',
   'file.exportProject': 'Downloads the whole project as one .bwproj file, to keep or move to another computer.',
   'file.exportLegacy': 'Downloads the current map as a LEGO World v68 save (.json).',
   'file.exportGame': 'Makes a playable game file to share (coming in a later phase).',
   'edit.undo': 'Takes back the last change. Every edit, tool drag and AI step is one undo step.',
   'edit.redo': 'Puts back what Undo took back.',
   'edit.delete': 'Deletes the selection: bricks, an object, a spawn point, a zone, a sign or a sound emitter.',
+  'edit.copy':
+    'On an asset’s build plate: copies the selected bricks so Ctrl V can stamp them down again, as many times as you click.',
+  'edit.paste':
+    'On an asset’s build plate: picks the Place tool with the copied bricks; each click stamps another copy (with the mirror, if one is on). Escape stops.',
   'edit.duplicate': 'Copies the selection and stacks the copy on top, so it stays connected.',
   'edit.rotate': 'Turns the selection a quarter turn around its middle.',
   'edit.selectNone': 'Clears the selection.',
@@ -36,6 +42,10 @@ export const ACTION_HELP: Record<string, string> = {
   'edit.down': 'Lowers the selection by one plate.',
   'characters.fromPicture':
     'Opens “A character from a picture” on the Characters screen: a photo, a drawing or a few words become three characters made of editor settings to pick from.',
+  'world.fromPicture':
+    'Opens “A map from a picture” (World menu): a photo, a drawing or a few words become three maps to pick from — the land, the sky, buildings built from bricks and people — made in one step that one Undo takes away.',
+  'assets.fromPicture':
+    'Opens “An asset from a picture” (Assets menu and the Assets screen): a photo, a drawing or a few words become three assets built from bricks — a house, a castle, a ship, a tree… — to pick from and put on the map.',
   'assets.open': 'Opens the Assets screen, where assets are built from bricks and from other assets.',
   'assets.new': 'Starts a new asset with one brick and opens it on the build plate in the Assets screen.',
   'assets.resetBuiltins':
@@ -70,6 +80,8 @@ export const ACTION_HELP: Record<string, string> = {
   'world.addMap': 'Adds a new map to the project. Connect maps with gates in the World graph.',
   'world.trainingYard':
     'Adds the Training yard, a sample map to practise fighting: dummies to lock on to and hit, a cracked wall that blunt hits break faster, a target that opens a gate when you lock on to it (a wire, no code), a chest behind the gate and a sparring knight who fights back. One undo takes it all away.',
+  'world.foundationsPark':
+    'Adds the Foundations park, a sample map of everything the engine’s foundations do: a river that carries a loose crate (ride it), a still pond with another, an old brick wall whose bricks tumble and come to rest when smashed, the built-in 3D models lit beside the bricks (a stone ring, lantern posts, round trees, a boulder to climb, crystals, toadstools, barrels, a vase), and the lanterns’ lights casting shadows at dusk, mirrored in the water. One undo takes it all away.',
   'world.generate': 'Opens map generation: choose districts, mountains and a seed, then generate the terrain.',
   'world.graph': 'Opens the World graph: every map, its spawn points and the gates between them.',
   'world.validate': 'Checks every gate leads somewhere the hero can reach and lists problems.',
@@ -87,6 +99,8 @@ export const ACTION_HELP: Record<string, string> = {
   'help.shortcuts': 'Shows every keyboard shortcut.',
   'help.about': 'Shows the engine version and credits.',
   'help.tutorial': 'Starts the guided tutorial: every feature, step by step, with Show me and Do it for me.',
+  'help.courses':
+    'Opens the Courses window: every course (Starter pack, Combat, Swimming, Effects…) grouped by topic, with a search. The list scrolls; pick one to start it.',
   'help.coding': 'Starts the coding course: the logic language, one line at a time.',
   'help.combat':
     'Starts the combat course on a sandbox: add the Training yard, make an enemy hit harder, wire a dummy to a chest, then fight — Show me and Do it for me for every step.',
@@ -107,19 +121,91 @@ export const ACTION_HELP: Record<string, string> = {
   'help.sheet':
     'Starts the Character sheet course: make the player character, give him an outfit, stats, a fighting style, a victory clip and a voice, then level him up in Play.',
   'help.bodies':
-    'Starts the Creatures course: turn a neighbour into a brick dog, shape him with sliders and colours, watch him walk, make his skeleton your own, add a horn and a wagging tail, then meet him in Play.',
+    'Starts the Creatures course: turn a neighbour into a brick dog, shape him with sliders and colours, watch him walk, make his skeleton your own, add a horn and a wagging tail, paint the horn on the creature itself, then meet him in Play.',
   'help.faces':
     'Starts the Faces and pictures course: give Tom an angry and a happy face, hear him talk, write lines with moods, see him glare and laugh in Play, then make an owl from a few words with From a picture.',
+  'help.shape':
+    'Starts the Shape and draw course: make Nova, shape her (chest, hips, neckline) in Look, then draw a star on her cheek and print a shirt in the Draw tab.',
+  'help.pack':
+    'Starts the Starter pack course: play as Rook, place Elder Maren with her conversation, Rattlebones and a clay pot, then hit the knight from behind in Play.',
+  'help.templatesCourse':
+    'Starts the Scripts and scenes course (14 steps): make “Clear the room” and “Waves of enemies” from templates and play them, write your own rules with Show message, Count and Take items, Spawn character and Follow the hero, make the Boss entrance and Item found scenes, then keep a script in My library, bring it back with Use in this game and Export a pack.',
+  'help.puzzlesCourse':
+    'Starts the Puzzles course (11 steps): push a block onto a weight switch that opens a gate (made with Switch opens a gate), pull it back off, make a crystal switch timed in the Asset studio and hit it, then make the map a dungeon and open a locked door with a small key from a chest.',
+  'help.fireLightCourse':
+    'Starts the Fire and light course (9 steps): pick up a stick, light it at a burning torch and burn a curtain of vines with it, light a torch stand with a second stick, throw a bomb from a Bomb flower at a cracked wall, then push a mirror round to bring a sun crest’s beam onto a light sensor.',
+  'help.iceCourse':
+    'Starts the Ice, platforms and climbing course (11 steps): push an ice block across an icy floor until an ice wall stops it, melt the wall with a burning stick, ride a moving platform, then set Climbing to Anything and climb a rock face with stamina.',
+  'help.windCourse':
+    'Starts the Wind, water and throwing course (12 steps): walk into a fan’s wind, spin a pinwheel and blow a burning torch out with the Gust leaf, throw a rock at a crystal switch, then swim in a river’s current and dive.',
+  'help.shotsCourse':
+    'Starts the Bow and boomerang course (10 steps): shoot an eye target with the bow, light a torch stand with an arrow shot through another torch’s flame, freeze a pool with an ice arrow, then throw a boomerang at a crystal switch and catch it as it comes back.',
+  'help.hooksCourse':
+    'Starts the Hook and magnet course (9 steps): hook yourself up a smooth wall to a hook target, pull a light crate to you with the hook line, hang from a swing beam on the grapple rope, climb, swing and let go, then lift an iron crate with the magnet glove and drop it on a floor switch.',
+  'help.lensCourse':
+    'Starts the Hover boots and Lens course (10 steps): float over a Pit gap in the hover boots, hold up the Lens of Truth, walk through a fake wall to a hidden chest, cross an invisible bridge, then fill the magic meter from a magic jar.',
+  'help.foesCourse':
+    'Starts the Enemies course (10 steps): bounce a Pebblespout’s rock back at it with the shield, block a Watcher Eye’s beam, strike a fading Lanternwisp seen through the Lens of Truth, then meet a pack of Howlers that circle and strike one at a time.',
+  'help.behavioursCourse':
+    'Starts the Behaviours course (9 steps): make a behaviour (a script you attach to things) with a field and its own variables, write its update() so a lamp blinks, attach it to every Lamp post, and give one copy its own speed.',
+  'help.engineApiCourse':
+    'Starts the Engine API course (9 steps): a lamp post that switches on when the hero comes near (Distance) and, used, sends a message to a crate, which slides away (Send message, On message, Move by); one behaviour attached with + Script, the other dragged from the dock’s Behaviours tab.',
+  'help.builtinsCourse':
+    'Starts the Built-in behaviours course (8 steps): read the engine’s Pushable in Logic › Built-in, Extend it into My Pushable whose canPush lets a crate move twice and then sticks (return false; super.canPush otherwise), attach it to the Wooden crate (which becomes a Pushable), tick a built-in field in the Inspector and push it in Play.',
+  'help.builtins2Course':
+    'Starts the World built-ins course (8 steps): read Liftable in Logic › Built-in, Extend it into My Liftable whose canLift makes the hero heave twice before a rock comes up (own variable tries, a Strength field), attach it to a Rock (already a Liftable), set its weight on a floor switch in the Inspector and lift it in Play.',
+  'help.heroBehavioursCourse':
+    'Starts the Hero behaviours course (7 steps): play as Rook, read the Hero built-in in Logic, Extend it into My Hero whose canJump leaves the hero out of breath after three quick jumps, attach it in Characters › Behaviour, set the Hero’s jump there, and jump in Play.',
+  'help.swimmerCourse':
+    'Starts the Swimmer course (6 steps): play as Rook, read the Swimmer built-in, Extend it into My Swimmer whose breath is three times Project › Swimming’s and whose canDive says so, attach it in Characters › Behaviour, and see 60 seconds of air in Play.',
+  'help.makeBrainCourse':
+    'Starts the Make your own brain course (7 steps): place a Pebblespout, read the PopUp brain (PopUp extends EnemyBrain extends Brain), Extend it into My PopUp that spits three fireballs each time up and says so as it rises, attach it in Characters › Behaviour, set EnemyBrain’s power there for practice, and watch it in Play.',
+  'help.hurtReactionsCourse':
+    'Starts the Hurt reactions course (6 steps): place a Howler, read PackHunter’s inherited hurtReaction hook, Extend it so a hit that would stagger it knocks it down instead, attach it in Characters › Behaviour, and give it a heavy hit in Play.',
+  'help.enemyPartsCourse':
+    'Starts the Enemy parts course (7 steps): place Rattlebones, read the Attack interface, swap its attack for a Spit and its mover for Wings in Characters › Behaviour, Extend Spit so it says so each time, and watch it spit from the air in Play.',
+  'help.mapsCourse':
+    'Starts the Maps course (6 steps): in Project › Maps make the pause map a Sea chart with a wooden frame and the map in play round with a compass ring, then in Play walk, press M for the pause map and put down a heart pin.',
+  'help.hudStylesCourse':
+    'Starts the HUD styles course (9 steps): in Project › Controls pick the Corner buttons HUD style and Play it, switch to Pointer and motion and hold the item button for the item wheel, read PlayerInput, write class MyButtons extends PlayerInput (no attacking in a village, Action says Chat, a long press changes the HUD to open air) and class MyHud extends GameHud, then in Play press Action and hold Guard.',
+  'help.gameRulesCourse':
+    'Starts the Game rules course (7 steps): read GameMode (game over, winning, respawning, saving, new game plus), write class HouseRules extends GameMode (a fairy saves the hero once; back with two hearts after game over), write class MapRules extends MapScript and attach it to the map in the Map tab, then in Play arrive, lose your hearts twice and Retry.',
+  'help.questMapsCourse':
+    'Starts the Quests across maps course (7 steps): add a map, Old Well Cave, joined to this one by a gate; write class IntoTheCave extends MainQuest whose first goal is on the cave (map: "Old Well Cave"); then in Play the diamond is on the gate that leads there, the HUD says in Old Well Cave; go through, reach the well, and come back out.',
+  'help.questsCourse':
+    'Starts the Quests course (8 steps): read Quest (steps in the class; hooks canStartQuest, stepDone, goalOf), write class LostLamp extends SideQuest (find 3 glowcaps, light the lamp), add a step in the Steps panel, write class TreasureMap extends GameMap (a flag on the maps, the goal named Go here!), then in Play open the quest log (J), show the quest on the map and finish it.',
+  'help.itemsCourse':
+    'Starts the Items course (8 steps): play as Rook, read Item (its hooks canUseItem, useItem, magicCost; Projectile adds shotSpeed, shotPower, hits), write class Whistle extends Item (an item of your own, 4 magic a use), extend Boomerang so it flies half as fast again, attach both to Rook, and use them in Play.',
+  'help.gloomweaverCourse':
+    'Starts the Gloomweaver course (5 steps): place Gloomweaver from the Starter pack (its behaviour comes with it), open class Gloomweaver extends WeakPointBoss in Logic to see its phases (a biter, then a thread-dropper from 66%, then a web-spitter from 33%), find it attached in Characters, and fight it to phase 2: walk up, shield up as it bites, strike when its eye glows.',
+  'help.bossesCourse':
+    'Starts the Boss course (7 steps): place the Howler, read BossBrain (it extends EnemyBrain; its templates PhasedBoss, WeakPointBoss and PuzzleBoss), Extend PhasedBoss and write its phases in the class (a pack hunter, then from half its health a shooter), change one in the Phases panel, attach it to the Howler, and fight it to phase 2 in Play.',
+  'help.swim':
+    'Starts the Swimming course: a pool beside the start, a Treasure chest on its floor, how long a breath lasts (Project › Swimming), diving with the Action button and opening the chest under water.',
+  'help.media':
+    'Starts the Your own media course: import a poster and a short video, say who made it, shrink it, then an Intro screen that plays the video and shows credits.',
+  'help.customBricks':
+    'Starts the Custom bricks course: a tower roofed with a slope of your own made in the brick editor, placed four ways, then changed into a curve.',
+  'help.buildFaster':
+    'Starts the Build faster course: a gatehouse built with Mirror X and Stamp, a drawbridge made in one click, then made pushable.',
+  'help.hair':
+    'Starts the Custom hair course: give Mira hair of her own (space buns, bigger, with dyed tips), save it to My library and put it on Leo.',
+  'help.make':
+    'Starts the Make anything course: make a red brick house from words and place it, then a whole snowy village at night with its lighthouse, houses and people.',
   'help.effects':
     'Starts the Effects course: copy the built-in Fire, name it Blue fire, make it of studs and blue, put it on the map, then make it the level-up effect of the game.',
   'help.screenfx':
     'Starts the Screen effects course: copy Big hit into a Thunder of your own (a pale blue flash and a slow rumble), make it play when the hero is hurt, give the map a stormy night mood, and see it in Play.',
   'help.lights':
-    'Starts the Lights course: make the map dark, place a torch and make it a green magic torch that reaches further, place a crystal that is off, switch it on with a zone, and walk into the dark in Play.',
+    'Starts the Lights course: make the map dark, place a torch and make it a green magic torch that reaches further, place a crystal, give it shadows too, switch it off, switch it on with a zone, and walk into the dark in Play.',
   'help.atmosphere':
     'Starts the Atmosphere course: pick a mist, bring it closer, add ground fog, tint the shadows blue, make a day 2 minutes long, see the map at night, place a lamp that shines only at night, start the game at night and play it.',
   'help.bigworlds':
-    'Starts the Big worlds course: make a big land of hills, choose how far you see, scatter a forest, make it the start map, play it, walk out into the hills while the world follows the hero, and go to another map through the loading screen.',
+    'Starts the Big worlds course: make a big land of hills, choose how far you see, scatter a forest, make it the start map, play it, walk out into the hills while the world follows the hero, go to another map through the loading screen, set the graphics quality, and draw the Scene with WebGPU.',
+  'help.water':
+    'Starts the Water and physics course: place a Wooden crate, make it loose, put a pool of water around it, make the pool a river, make it flow, switch the hero to physics movement, watch the crate float away in Play and ride it.',
+  'help.models':
+    'Starts the 3D models course: open Dock › 3D models, place the Lantern post, make it twice as big, import a glTF model of your own (or a sample one), place it, switch the hero to physics movement, and stand on it in Play.',
   'help.posing':
     'Starts the Posing and states course: make Pip, build a clip pose by pose (standing, an arm raised, standing), ease it, give Pip the built-in moves and your clip for Idle, try the states, then walk in Play.',
   'help.dialogue':
@@ -133,14 +219,17 @@ for (const [menu, ids] of Object.entries(MENUS)) for (const id of ids) if (id !=
 function actionEntries(): HelpEntry[] {
   return ACTIONS.filter((a) => !a.id.startsWith('window.')).map((a) => {
     const menu = MENU_OF.get(a.id);
+    // courses live in the Courses window (Help › Courses…)
+    const course = COURSE_IDS.has(a.id);
     return {
       id: `action.${a.id}`,
       screen: 'shell',
-      kind: menu ? 'menu' : 'shortcut',
+      kind: menu || course ? 'menu' : 'shortcut',
       name: a.label.replace(/…$/, ''),
       purpose: ACTION_HELP[a.id] ?? '',
       steps: [
         ...(menu ? [`Open the **${menu}** menu and choose **${a.label}**.`] : []),
+        ...(course ? [`Open the **Help** menu, choose **Courses…**, then pick **${a.label}**.`] : []),
         ...(a.key
           ? [
               `Or press \`${a.key}\`${MAC_KEYS[a.key] ? ` (on a Mac: \`${keysFor(MAC_KEYS[a.key]!, true)}\`)` : ''} (when you are not typing in a field).`,
@@ -153,7 +242,7 @@ function actionEntries(): HelpEntry[] {
       related: ['shell.menu', 'shell.palette'],
       // shortcuts without a menu item have no control to point at; the command palette lists every action
       match: [
-        ...(menu ? [{ role: 'menuitem', name: a.label.replace(/…$/, '') }] : []),
+        ...(menu || course ? [{ role: 'menuitem', name: a.label.replace(/…$/, '') }] : []),
         { in: '.palette-list', name: a.label.replace(/…$/, '') },
       ],
     };
@@ -230,10 +319,21 @@ function widgetEntries(): HelpEntry[] {
 const MORE_COMMANDS: Record<string, string> = {
   'file.put': 'Writes one project file (used by import and the editor itself, never by the AI).',
   'file.delete': 'Deletes one project file (used by the editor itself, never by the AI).',
-  'media.register': 'Adds an imported sound, picture or font to the project media list.',
+  'media.register': 'Adds an imported sound, picture, video, font or 3D model to the project media list.',
   'media.remove': 'Removes an imported media file the project no longer uses.',
+  'media.update': 'Renames an imported file, or says who made it (its credit: author, licence, link).',
+  'media.replace': 'Puts one imported file in place of another everywhere it is used (a shrunk picture for a big one).',
   'art.put': 'Adds or changes a background, icon or font (Screens → Art).',
   'art.delete': 'Deletes a background, icon or font no screen uses.',
+  // Milestone 3b (B1): behaviours
+  'script.attach': 'Attaches a behaviour (a logic file with fields) to an asset, a character or one placed copy.',
+  'script.detach':
+    'Removes a behaviour from an asset, a character or a copy, or switches an asset’s behaviour off on one copy.',
+  'script.setField': 'Sets one field of a behaviour where it is attached (on a copy: its own value, over its asset’s).',
+  'builtin.attach':
+    'Makes an asset a built-in behaviour (a Lock, a Switch, a Pushable…): adds that setting at its first values.',
+  'builtin.detach': 'Takes a built-in behaviour off an asset (its setting goes).',
+  'builtin.setField': 'Sets one field of a built-in behaviour on an asset (writes that setting of the asset).',
 };
 
 function commandEntries(types: readonly string[]): HelpEntry[] {

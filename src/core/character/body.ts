@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CUSTOM_SHAPES } from '../bricks/custom';
 import { id } from '../schema/common';
 
 /**
@@ -79,6 +80,16 @@ export const BodyBrick = z.strictObject({
   y: z.number().min(-75).max(75),
   z: coord,
   color: BodyColor,
+  /** step 11, 4a: a shape other than a plain box (the custom brick shapes: round, dome, cone, slope…) */
+  shape: z.enum(CUSTOM_SHAPES).optional(),
+  /** quarter turns of a shape (a slope's fall, a wedge's cut) */
+  rot: z.number().int().min(0).max(3).optional(),
+  /** studs on a shape's flat top, or none (default: none, smooth) */
+  studs: z.enum(['flat', 'none']).optional(),
+  /** see-through: 1 solid (default) down to 0.15 (a ghost) */
+  alpha: z.number().min(0.15).max(1).optional(),
+  /** drawn at full brightness, unlit (eyes, embers, a lantern) */
+  glow: z.boolean().optional(),
 });
 export type BodyBrick = z.infer<typeof BodyBrick>;
 
@@ -94,6 +105,7 @@ export const MOVE_INFO: Record<MoveKind, string> = {
 
 export const MAX_BONES = 48;
 export const MAX_BODY_BRICKS = 400;
+export const MAX_EXTRAS = 120;
 
 /** bodyplans/<id>.json: a skeleton of your own, with its bricks */
 export const BodyPlan = z.strictObject({
@@ -180,8 +192,34 @@ export const Body = z.strictObject({
   colors: BodyColors.optional(),
   asset: id('asset').optional(),
   attach: z.record(z.string().regex(/^\d+$/), BoneName).optional(),
+  /**
+   * step 11, 4a: a minifig's extra parts — bricks on its joints (a tail on the hips, a snout or ears on the head,
+   * fins on the arms), so a wolf-man or a fish-folk keeps the minifig's clips, faces, outfits and held items
+   */
+  extras: z.array(BodyBrick).max(MAX_EXTRAS).optional(),
+  /** how big the extra parts' bricks are against the minifig: 0.5 (default) is half a stud, 1 a full brick */
+  extraSize: z.number().min(0.25).max(1).optional(),
 });
 export type Body = z.infer<typeof Body>;
+
+/** step 11, 4a: the minifig's joints extra parts can sit on (v68's rig), with their names in the studio */
+export const MINIFIG_JOINTS = {
+  root: 'Torso',
+  hips: 'Hips',
+  head: 'Head',
+  leftArm: 'Left arm',
+  rightArm: 'Right arm',
+  leftForearm: 'Left hand',
+  rightForearm: 'Right hand',
+  leftLeg: 'Left leg',
+  rightLeg: 'Right leg',
+  leftShin: 'Left shin',
+  rightShin: 'Right shin',
+  leftFoot: 'Left foot',
+  rightFoot: 'Right foot',
+} as const;
+export type MinifigJoint = keyof typeof MINIFIG_JOINTS;
+export const isMinifigJoint = (s: string): s is MinifigJoint => s in MINIFIG_JOINTS;
 
 /** the bones' resting joints in the body's own frame (parents before children) */
 export function restPositions(bones: readonly Bone[]): Map<string, [number, number, number]> {

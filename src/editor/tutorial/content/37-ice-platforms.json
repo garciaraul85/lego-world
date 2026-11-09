@@ -1,0 +1,284 @@
+{
+  "id": "ice",
+  "title": "Ice, platforms and climbing course",
+  "steps": [
+    {
+      "id": "ic.open",
+      "title": "Ice, platforms and climbing",
+      "body": "Icy floors to slide on, ice blocks that slide on when pushed, ice walls that fire melts, moving platforms and lifts that carry you, and walls to climb while your stamina lasts (as in Ocarina of Time and Breath of the Wild): they are under Starter pack › Ice, platforms and climbing.",
+      "task": "Open Starter pack in the bottom dock.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "dockIs",
+        "args": "pack"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "ui": "dock",
+          "value": "pack"
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "ic.place",
+      "title": "An icy floor, an ice block and an ice wall",
+      "body": "Place an Icy floor (8 studs across, 16 long) 3 studs in front of the start, an Ice block on it near its start end, and an Ice wall across the way just past the far end of the floor (21 studs ahead), in line with the block.",
+      "task": "Place an Icy floor, an Ice block and an Ice wall.",
+      "target": "[aria-label=\"Ice, platforms and climbing\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Icy floor,Ice block,Ice wall"
+      },
+      "doItForMe": [
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Icy floor",
+            "ahead": 3
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Ice block",
+            "ahead": 4
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Ice wall",
+            "ahead": 21
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "ic.slide",
+      "title": "Slide on the ice, push the block",
+      "body": "Press Play and walk onto the icy floor: you move by friction, as on real ice. Your feet slip if they push too hard, so you are slow to get going, to turn and to stop; let go and you glide on, arms out for balance. Walk up behind the ice block, hold E (Grab) and push (W): shoved off, it glides on by itself (on ice friction hardly slows it) until the ice wall stops it.",
+      "task": "Press Play and push the ice block.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Ice block pushed"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "slideIceBlock"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "ic.torch",
+      "title": "A stick and a fire",
+      "body": "Stop the game. Ice melts with fire. Place a Branch on the ground to one side of the start, off the ice, and a Burning torch beside it (Starter pack › Fire and light), as in the Fire and light course.",
+      "task": "Place a Branch and a Burning torch.",
+      "target": "[aria-label=\"Fire and light\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Branch,Burning torch"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Branch",
+            "ahead": 1,
+            "side": -7
+          }
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Burning torch",
+            "ahead": 4,
+            "side": -8
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "ic.melt",
+      "title": "Melt the ice wall",
+      "body": "Press Play. Walk over the Branch: the hero picks it up as a stick. Hold its end up into the Burning torch’s flame: it catches. Walk to the ice wall and touch it with the burning stick: the wall steams and melts away, and the stick burns up with it (10 seconds, so be quick). A sword does nothing to ice. An Ice wall also melts in a beam of light: turn a mirror onto it.",
+      "task": "Press Play, light a stick and melt the ice wall.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Ice wall melted away"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "meltIceWall"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "ic.platform",
+      "title": "A moving platform",
+      "body": "Stop the game. Place a Moving platform off to the other side of the start. In the Scene view a line shows where it goes: 8 studs and back, waiting a second at each end. Change where in the Asset studio (Ice, moving and climbing › Moves).",
+      "task": "Place a Moving platform.",
+      "target": "[aria-label=\"Ice, platforms and climbing\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Moving platform"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Moving platform",
+            "ahead": 2,
+            "side": 12
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "ic.ride",
+      "title": "Ride it",
+      "body": "Press Play and jump onto the platform: it carries you there and back. A Lift goes up and down; a Switch lift only runs while it is on (logic can turn it on, like the Forest Temple’s lift that runs while its torches burn).",
+      "task": "Press Play and ride the moving platform.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Riding the Moving platform"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "ridePlatform"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "ic.climbing",
+      "title": "Climb anything",
+      "body": "Stop the game. In the Inspector’s Project tab set Climbing to Anything, with stamina (like Breath of the Wild; the default, Ladders and vines only, is like Ocarina of Time).",
+      "task": "Set Project › Climbing to Anything.",
+      "target": "[data-help=\"project.climbing\"]",
+      "check": {
+        "kind": "state",
+        "test": "climbingIs",
+        "args": "anything"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "setClimbing",
+          "args": {
+            "to": "anything"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left"
+    },
+    {
+      "id": "ic.rock",
+      "title": "A rock face",
+      "body": "Place a Rock face, a tall wall to climb, 4 studs ahead and off to the side.",
+      "task": "Place a Rock face.",
+      "target": "[aria-label=\"Ice, platforms and climbing\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Rock face"
+      },
+      "doItForMe": [
+        {
+          "fn": "stopIfPlaying"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Rock face",
+            "ahead": 4,
+            "side": -14
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "ic.climb",
+      "title": "Climb the rock face",
+      "body": "Press Play, walk into the rock face and keep walking: you hold on. W climbs up, S down, A and D move left and right along it. The stamina bar drains as you climb; Space is a climb jump (a quick hop up for a quarter of it). Out of stamina you let go and fall. When your hands reach the top you pull yourself up over the edge: hanging from it, a pull up, a knee onto the top, then standing. A Smooth wall cannot be climbed.",
+      "task": "Press Play and climb to the top of the rock face.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Over the top of the wall"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "climbWall"
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "ic.done",
+      "title": "Done!",
+      "body": "You slid on an icy floor, pushed an ice block until an ice wall stopped it, melted the wall with a torch, rode a moving platform, and climbed a rock face with stamina. Make your own in the Asset studio: Ice, moving and climbing › Ice (Slippery floor, Slides when pushed, Melts with), Moves (where to, how long, waits, Only when on), Not climbable.",
+      "task": "Press Finish.",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "target": "[data-tour=\"menu-help\"]",
+      "workspace": "Scene"
+    }
+  ]
+}

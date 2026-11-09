@@ -5,7 +5,7 @@ import { MAX_BRICKS_PER_MAP } from '../../core/bricks/map-bricks';
 import { LIGHT_PRESET, LIGHT_PRESETS, type LightPreset } from '../../core/lighting/light';
 import { QUALITY } from '../../core/render/quality';
 import type { Cinematic, LightInstance } from '../../core/schema';
-import { type Character, type MapDoc, paths } from '../../core/schema';
+import { type Character, type MapDoc, paths, WATER_KINDS } from '../../core/schema';
 import { validateWorld } from '../../core/world/validate';
 import { allScreens } from '../../engine/ui/screens';
 import type { ActionCtx } from '../actions/registry';
@@ -16,7 +16,18 @@ import { EffectThumb, ScreenThumb } from '../components/previews';
 import { matches, NoMatch, SearchBox } from '../components/SearchBox';
 import { shows } from '../genres/view';
 import { endDrag, startDrag } from '../interact/drag';
-import { mapItems, placeEffectAt, placeLightAt, selectOnly } from '../interact/place';
+import { standingSpot } from '../interact/ground';
+import {
+  mapItems,
+  placeEffectAt,
+  placeLightAt,
+  placeWaterAt,
+  selectOnly,
+  WATER_PRESET,
+  waterItems,
+} from '../interact/place';
+import { LibraryPanel } from '../library/LibraryPanel';
+import { PackPanel } from '../pack/PackPanel';
 import { keysFor } from '../platform';
 import { MELEE } from '../play/debug';
 import type { EditorState, LogLevel } from '../state';
@@ -25,7 +36,9 @@ import { bodyOfChr } from '../workspaces/character-studio/Body';
 import { CharacterThumb } from '../workspaces/character-studio/thumbs';
 import { allEffects } from '../workspaces/effects/EffectsStudio';
 import { cinematicOptions, musicOptions, soundOptions } from './AudioFields';
+import { BehavioursDock } from './BehavioursDock';
 import { LightSwatch } from './LightFields';
+import { ModelCards, modelChoices } from './ModelFields';
 
 /**
  * P9c: the game's characters, each with “Place” — it stands on the open map as a neighbour, a few studs in
@@ -43,9 +56,9 @@ function CharacterCards({ c, hint, q }: { c: ActionCtx; hint: string; q: string 
     const sp = ed.store.get<MapDoc>(paths.map(map))?.spawns[0];
     const yaw = sp?.yaw ?? 0;
     const at = sp?.pos ?? [0, 0.4, 0];
-    const pos: [number, number, number] = [at[0] - Math.sin(yaw) * 5, at[1], at[2] - Math.cos(yaw) * 5];
+    const pos = standingSpot(ed, [at[0] + Math.sin(yaw) * 5, at[1], at[2] + Math.cos(yaw) * 5]);
     ed.exec(
-      { type: 'npc.place', payload: { map, character: chr.id, pos, heading: yaw } },
+      { type: 'npc.place', payload: { map, character: chr.id, pos, heading: yaw + Math.PI } },
       { label: `Place ${chr.name}` },
     );
   };
@@ -93,6 +106,16 @@ const CATS: [string, string | null, string][] = [
     null,
     'Torches, lamps and glows that light the bricks and characters around them: Place puts one beside the start (or right-click the ground: Add a light here). Map › Darkness makes the map dark, so only its lights show it.',
   ],
+  [
+    'Water',
+    null,
+    'Pools, rivers, lakes and seas: Place puts one beside the start (or right-click the ground: Add water here). Loose objects and smashed bricks float in it in Play.',
+  ],
+  [
+    '3D models',
+    null,
+    'Smooth shapes made in a modelling tool (glTF: .glb or .gltf), and built-in ones: Place puts one beside the start (or right-click the ground: Add a 3D model here). They are lit like the bricks.',
+  ],
   ['Sounds', null, 'Sound events: ▶ to listen; place one in the map as an emitter (Sound emitter tool, S).'],
   ['Music', null, 'Music states: ▶ to audition; pick one as the map music or a zone’s music.'],
 ];
@@ -103,6 +126,9 @@ export function Dock({ c }: { c: ActionCtx }) {
   const problems = useProblems(ed, (w) => c.ui.workspace(w));
   const tabs: [DockTab, string][] = [
     ['assets', 'Assets'],
+    ['pack', 'Starter pack'],
+    ['library', 'My library'],
+    ['behaviours', 'Behaviours'],
     ['console', 'Console'],
     ['timeline', 'Timeline'],
     ['profiler', 'Profiler'],
@@ -130,6 +156,9 @@ export function Dock({ c }: { c: ActionCtx }) {
           ))}
       </div>
       {tab === 'assets' && <Assets c={c} />}
+      {tab === 'pack' && <PackPanel c={c} />}
+      {tab === 'library' && <LibraryPanel c={c} />}
+      {tab === 'behaviours' && <BehavioursDock c={c} />}
       {tab === 'console' && <Console ed={ed} />}
       {tab === 'timeline' && <MapTimeline c={c} />}
       {tab === 'profiler' && <Profiler ed={ed} />}
@@ -210,6 +239,10 @@ function Assets({ c }: { c: ActionCtx }) {
           <EffectCards c={c} hint={cur[2]} q={q} />
         ) : cur[0] === 'Lights' ? (
           <LightCards c={c} hint={cur[2]} q={q} />
+        ) : cur[0] === 'Water' ? (
+          <WaterCards c={c} hint={cur[2]} q={q} />
+        ) : cur[0] === '3D models' ? (
+          <ModelCards c={c} hint={cur[2]} q={q} />
         ) : cur[0] === 'Sounds' ? (
           <MediaCards
             c={c}
@@ -265,6 +298,10 @@ function catCount(ed: EditorState, cat: string): number {
     }
     case 'Lights':
       return mapItems(ed).filter((i) => i.kind === 'light').length;
+    case 'Water':
+      return waterItems(ed).length;
+    case '3D models':
+      return modelChoices(ed).length;
     case 'Sounds':
       return soundOptions(ed).length;
     default:
@@ -526,14 +563,15 @@ function Debug({ c }: { c: ActionCtx }) {
           {h.building ? ' · building' : ''}
         </dd>
         <dt>held</dt>
-        <dd>{String(s.hero.held)}</dd>
+        <dd>{String(s.hero.heldLook ?? s.hero.held)}</dd>
         <dt>pieces</dt>
         <dd>{w.pieces.length.toLocaleString('en-US')}</dd>
         <dt>quality</dt>
         <dd data-tour="watch-quality">
           {QUALITY[s.quality].label}
           {s.qualityAuto ? ' (auto)' : ed.previewQuality.value ? ' (preview)' : ''} · {QUALITY[s.quality].lights} lights
-          {QUALITY[s.quality].shadows ? ' · shadows' : ''} · {QUALITY[s.quality].particles} particles
+          {QUALITY[s.quality].shadows ? ` · ${QUALITY[s.quality].shadowLights} shadows` : ''} ·{' '}
+          {QUALITY[s.quality].particles} particles
         </dd>
         <dt>broken</dt>
         <dd>
@@ -894,6 +932,58 @@ function LightCards({ c, hint, q }: { c: ActionCtx; hint: string; q: string }) {
   );
 }
 
+/** Milestone 2b: kinds of water to place, and the water on this map (click one to pick it) */
+function WaterCards({ c, hint, q }: { c: ActionCtx; hint: string; q: string }) {
+  const { ed } = c;
+  ed.revision.value;
+  const placed = waterItems(ed);
+  const kinds = WATER_KINDS.filter((k) => matches(q, WATER_PRESET[k].name));
+  const place = (k: (typeof WATER_KINDS)[number]) => {
+    const sp = ed.mapDoc.value?.spawns[0]?.pos ?? [0, 0, 0];
+    const [w, , d] = WATER_PRESET[k].size;
+    placeWaterAt(ed, { x: sp[0]! + 3 + w / 2, y: Math.round(sp[1]! / 0.4), z: sp[2]! + 3 + d / 2 }, k);
+  };
+  return (
+    <>
+      <span class="muted small">{hint}</span>
+      <NoMatch q={kinds.length || placed.some((l) => matches(q, l.name)) ? '' : q} what="water" />
+      <div class="fx-cards" data-tour="dock-water" data-help="scene.dock.water">
+        {kinds.map((k) => (
+          <div class="fx-card" data-name={WATER_PRESET[k].name}>
+            <span class="water-swatch" aria-hidden="true" data-body={k} />
+            <span class="small">{WATER_PRESET[k].name}</span>
+            <button
+              type="button"
+              class="btn small"
+              data-tour={`dock-water-${k}`}
+              aria-label={`Place ${WATER_PRESET[k].name}`}
+              onClick={() => place(k)}
+            >
+              Place
+            </button>
+          </div>
+        ))}
+      </div>
+      {placed.length > 0 && (
+        <div class="col" style={{ gap: '4px' }}>
+          <span class="muted small">On this map</span>
+          {placed
+            .filter((l) => matches(q, l.name))
+            .map((l) => (
+              <button type="button" class="lib-item" onClick={() => selectOnly(ed, 'item', l.id)}>
+                <span class="water-swatch small" aria-hidden="true" data-body={l.body} />
+                <span class="asset-name">{l.name ?? l.id}</span>
+                <span class="mono small muted">
+                  {l.size[0]}×{l.size[2]}
+                </span>
+              </button>
+            ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 /** Dock cards for screens, sound events and music: ▶ to preview, click to open in its workspace. */
 function MediaCards({
   c,
@@ -989,5 +1079,16 @@ function MapTimeline({ c }: { c: ActionCtx }) {
 }
 
 /** P18: every dock tab (for the tag tests) */
-export const DOCK_TABS = ['assets', 'console', 'timeline', 'profiler', 'problems', 'debug', 'audio'] as const;
+export const DOCK_TABS = [
+  'assets',
+  'pack',
+  'library',
+  'behaviours',
+  'console',
+  'timeline',
+  'profiler',
+  'problems',
+  'debug',
+  'audio',
+] as const;
 type DockTab = (typeof DOCK_TABS)[number];

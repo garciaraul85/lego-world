@@ -1,0 +1,187 @@
+{
+  "id": "bosses",
+  "title": "Boss course",
+  "steps": [
+    {
+      "id": "bo.place",
+      "title": "Bosses are made in Logic",
+      "body": "A boss is a behaviour that extends a boss template, with its phases written in the class. Attach it to a character and that character is a boss: it fights as one kind of fighter, and as its health falls to each mark it roars into the next phase (another kind, other parts, faster). Here the Howler becomes a boss that hunts like a pack hunter, then, at half its health, backs off and shoots. First, place the Howler from the Starter pack.",
+      "task": "Place the Howler.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcCount",
+        "args": "Howler:1"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "howler",
+            "ahead": 12
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bo.read",
+      "title": "Read about BossBrain",
+      "body": "In Logic, under Built-in \u203a Brains, press BossBrain. It extends EnemyBrain (which extends Brain), so it does all an enemy does, and adds phases: the hooks phaseFor and isVulnerable, and the event On phase. You pick when it can be hurt by the template you extend: PhasedBoss (always), WeakPointBoss (just after it attacks), PuzzleBoss (only when stunned).",
+      "task": "Open Logic \u203a Built-in \u203a BossBrain.",
+      "target": "[data-tour=\"builtin-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinOpen",
+        "args": "BossBrain"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBuiltin",
+          "args": {
+            "name": "BossBrain"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "right",
+      "workspace": "Logic"
+    },
+    {
+      "id": "bo.write",
+      "title": "Write its phases",
+      "body": "Under Built-in \u203a Brains \u203a PhasedBoss, press Extend. At the top of the class, write its phases: from 100% it fights as a pack hunter, from 50% as a shooter. power: 0.5 makes its blows half as hard, for practice. Add phase(e), the On phase event, to say which phase it is in.",
+      "task": "Extend PhasedBoss and write two phases.",
+      "target": "[data-tour=\"behaviour-fields\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourPhases",
+        "args": "My PhasedBoss,2"
+      },
+      "doItForMe": [
+        {
+          "fn": "extendBuiltinNamed",
+          "args": {
+            "name": "PhasedBoss"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "My PhasedBoss",
+            "code": [
+              "class $NAME extends PhasedBoss {",
+              "  phases = [",
+              "    { from: 100, fights: \"pack\", power: 0.5 },",
+              "    { from: 50, fights: \"shooter\", power: 0.5, name: \"Wounded\" },",
+              "  ];",
+              "",
+              "  phase(e) {",
+              "    log(text.join(\"Phase \", e.phase));",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "bo.panel",
+      "title": "Or in the Phases panel",
+      "body": "Beside the code, the Phases panel shows the same list: change a box and the phases line of the class changes with it. Set Phase 2's Speed to 1.5: wounded, it moves faster.",
+      "task": "Set Phase 2 Speed to 1.5.",
+      "target": "[data-tour=\"boss-phases\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourPhase",
+        "args": "My PhasedBoss,2,speed,1.5"
+      },
+      "doItForMe": [
+        {
+          "fn": "setPhase",
+          "args": {
+            "behaviour": "My PhasedBoss",
+            "phase": 2,
+            "key": "speed",
+            "value": 1.5
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Logic"
+    },
+    {
+      "id": "bo.attach",
+      "title": "Make the Howler a boss",
+      "body": "Attach My PhasedBoss to the Howler (Characters \u203a Howler \u203a Behaviour \u203a + Script). That makes it a boss: its brain row becomes PhasedBoss.",
+      "task": "Attach My PhasedBoss to the Howler.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterHasBehaviour",
+        "args": "Howler,My PhasedBoss"
+      },
+      "doItForMe": [
+        {
+          "fn": "attachToCharacter",
+          "args": {
+            "behaviour": "My PhasedBoss",
+            "character": "Howler"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "bo.play",
+      "title": "Fight it",
+      "body": "Press Play and walk up to the Howler. Shield up (Q) as it lunges; swing hard (F while running) from its side. At half its health it roars, the Console says Phase 2, and it backs off to shoot. Raise your shield to its shots.",
+      "task": "Press Play and get it to phase 2.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Phase 2"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "strikeWhenOpen",
+          "args": {
+            "name": "Howler",
+            "until": "Phase 2"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bo.done",
+      "title": "Done!",
+      "body": "Add a 3rd phase (+ Phase, or one more line in the list): another kind, other parts (attack, mover, senses, hurt reaction), faster or harder. Extend WeakPointBoss instead for a boss you strike just after it attacks, or PuzzleBoss for one you must stun first. phaseFor can choose its phase, isVulnerable when it can be hurt.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

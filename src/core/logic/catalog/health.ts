@@ -35,6 +35,13 @@ const healthEvent = (name: 'Damaged' | 'Defeated', title: string, doc: string): 
       optional: true,
       help: 'Only for copies of this asset (empty: anything with health — objects, neighbours, the hero).',
     },
+    {
+      name: 'who',
+      kind: 'string',
+      label: 'Who',
+      optional: true,
+      help: 'Step 11, 4c: only for a character of this name (Gloomweaver, Rattlebones…), an object by its asset’s name, or hero. Empty: anyone.',
+    },
   ],
   code: { name: name.toLowerCase(), style: 'event' },
 });

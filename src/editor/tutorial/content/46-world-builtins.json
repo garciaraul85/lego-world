@@ -1,0 +1,211 @@
+{
+  "id": "builtins2",
+  "title": "World built-ins course",
+  "steps": [
+    {
+      "id": "bw.open",
+      "title": "More of the engine, as behaviours",
+      "body": "Fire, ice, beams and mirrors, platforms, fans, lifting, physics and the hook are built-in behaviours too. A Rock is already a Liftable. Here: a rock so heavy it takes three tries to lift.",
+      "task": "Open the Logic workspace.",
+      "target": "[data-tour=\"ws-logic\"]",
+      "check": {
+        "kind": "state",
+        "test": "workspace",
+        "args": "Logic"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Logic"
+        }
+      ],
+      "how": [],
+      "placement": "bottom"
+    },
+    {
+      "id": "bw.read",
+      "title": "Read about Liftable",
+      "body": "Under Built-in (left), press Liftable. Its fields are its settings (Breaks where it lands, Weight on a floor switch); its hook canLift(e) decides whether the hero can lift it now.",
+      "task": "Open Built-in › Liftable.",
+      "target": "[data-tour=\"builtin-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinOpen",
+        "args": "Liftable"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBuiltin",
+          "args": {
+            "name": "Liftable"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "right",
+      "workspace": "Logic"
+    },
+    {
+      "id": "bw.extend",
+      "title": "A heavy rock",
+      "body": "Press Extend, then write canLift in Code: each try adds one to tries; until it reaches Strength, log a heave and return false. Then say so and give the engine's answer (super.canLift).",
+      "task": "Extend Liftable and write canLift.",
+      "target": "[data-tour=\"builtin-extend\"]",
+      "check": {
+        "kind": "state",
+        "test": "behaviourHasEvent",
+        "args": "My Liftable,canLift"
+      },
+      "doItForMe": [
+        {
+          "fn": "extendBuiltinNamed",
+          "args": {
+            "name": "Liftable"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "My Liftable",
+            "code": [
+              "class $NAME extends Liftable {",
+              "  strength = field.number(3, { label: \"Tries to lift it\", min: 1, max: 10 });",
+              "  tries = 0;",
+              "",
+              "  canLift(e) {",
+              "    this.tries += 1;",
+              "    if ((this.tries < this.strength)) {",
+              "      log(text.join(\"Heave! \", this.tries));",
+              "      return false;",
+              "    }",
+              "    log(\"Up it comes!\");",
+              "    return super.canLift(e);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Logic"
+    },
+    {
+      "id": "bw.place",
+      "title": "A rock",
+      "body": "In the Scene, place a Rock a few studs ahead of the start.",
+      "task": "Place a Rock.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetsOnMap",
+        "args": "Rock"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "placePuzzle",
+          "args": {
+            "name": "Rock",
+            "ahead": 3
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bw.attach",
+      "title": "Put it on the rock",
+      "body": "Select the rock and attach My Liftable with + Script (Every Rock). The Inspector already listed Liftable (built-in): the rock was one all along.",
+      "task": "Attach My Liftable to the Rock.",
+      "target": "[data-tour=\"object-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "assetHasBehaviour",
+        "args": "Rock,My Liftable"
+      },
+      "doItForMe": [
+        {
+          "fn": "attachBehaviour",
+          "args": {
+            "behaviour": "My Liftable",
+            "asset": "Rock"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "bw.field",
+      "title": "Heavy on a switch too",
+      "body": "In the Liftable row, set Weight on a floor switch to 2: put down on a floor switch, it presses one that needs two.",
+      "task": "Set the rock's weight to 2.",
+      "target": "[data-tour=\"object-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinField",
+        "args": "Rock,Liftable,weight,2"
+      },
+      "doItForMe": [
+        {
+          "fn": "setBuiltinField",
+          "args": {
+            "asset": "Rock",
+            "name": "Liftable",
+            "field": "weight",
+            "value": 2
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top",
+      "workspace": "Scene"
+    },
+    {
+      "id": "bw.lift",
+      "title": "Lift it",
+      "body": "Press Play. Press the Action button (E) at the rock: Heave! 1, Heave! 2, and the third time it comes up over the hero's head.",
+      "task": "Press Play and lift the rock.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Up it comes"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "liftUntilLogged",
+          "args": {
+            "name": "Rock",
+            "until": "Up it comes"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "bw.done",
+      "title": "Done!",
+      "body": "Every built-in works this way. Burnable.canBurn (vines that will not burn), Ice.canMelt (ice that melts on the second flame), Mirror.canTurn, BombPlant.canPick, HookTarget.canCatch (a ring the hook catches only when lit). Flame, Beam, Platform, Fan, PhysicsBody and Magnetic have fields to set from the Inspector.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

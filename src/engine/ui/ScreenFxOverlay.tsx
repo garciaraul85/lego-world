@@ -12,11 +12,14 @@ export function ScreenFxOverlay({
   layers,
   lowHealth = 0,
   clock = 0,
+  lens = 0,
 }: {
   mood: Mood;
   layers: ScreenLayer[];
   lowHealth?: number;
   clock?: number;
+  /** step 13c: looking through the Lens of Truth (0 to 1, as it fades in): a purple tint inside a dark ring */
+  lens?: number;
 }) {
   const grade = GRADE_INFO[mood.grade]?.filter ?? 'none';
   const pulse = lowHealth ? 0.45 + 0.25 * Math.sin(clock * 5) : 0;
@@ -45,6 +48,18 @@ export function ScreenFxOverlay({
         <div
           class="bw-lowhealth"
           style={{ boxShadow: `inset 0 0 ${Math.round(70 + pulse * 60)}px rgba(220,20,20,${pulse.toFixed(2)})` }}
+        />
+      )}
+      {lens > 0.01 && (
+        <div
+          class="bw-lens"
+          data-lens={lens.toFixed(2)}
+          style={{
+            opacity: lens.toFixed(2),
+            background:
+              'radial-gradient(circle at 50% 50%, rgba(170,110,255,0.10) 0%, rgba(150,80,240,0.16) 38%, rgba(110,40,200,0.42) 50%, rgba(40,8,80,0.88) 56%, rgba(20,4,40,0.94) 100%)',
+            boxShadow: 'inset 0 0 0 2px rgba(210,170,255,0.35)',
+          }}
         />
       )}
       {layers.map((l) => (

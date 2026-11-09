@@ -1,9 +1,25 @@
 import { z } from 'zod';
 import { Health } from '../combat/damage';
 import { AssetLight } from '../lighting/light';
+import {
+  BeamDef,
+  BombPlantDef,
+  BurnDef,
+  FlameDef,
+  IceDef,
+  LiftDef,
+  LockDef,
+  MirrorDef,
+  MoveDef,
+  PickupDef,
+  PushDef,
+  SwitchDef,
+  WindDef,
+} from '../puzzles/puzzle';
 import { ActionList } from './action';
 import { BrickType } from './chunk';
 import { Color, id, Vec2, Vec3 } from './common';
+import { ScriptAttachments } from './logic';
 import { BIOMES } from './map';
 
 /** Asset bricks are local: [type, x, y, z, rot, color, flags] relative to the asset origin. */
@@ -106,8 +122,50 @@ export const Asset = z.strictObject({
   /** P26: a checkpoint: touching it sets where the hero comes back (Retry, a fall) and autosaves; it shows its
    * second state once touched (a flag goes up) */
   checkpoint: z.boolean().optional(),
+  /** Milestone 2b: a loose object: in play it falls, tumbles, gets pushed about and floats in water */
+  loose: z.boolean().optional(),
   /** P27: it gives light (a torch, a lamp): where on it, and in which of its states */
   light: AssetLight.optional(),
+  /** step 12a: a block the hero pushes (and pulls) square along the floor */
+  push: PushDef.optional(),
+  /** step 12a: a switch (stepped on, hit or pressed; stays on, held, timed or toggles) */
+  switch: SwitchDef.optional(),
+  /** step 12a: opens with a key (small key, boss key or an item) */
+  lock: LockDef.optional(),
+  /** step 12a: touched, it is gone and the hero has the item */
+  pickup: PickupDef.optional(),
+  /** step 12b: it catches fire, burns and is gone (vines, a barricade, a web) */
+  burn: BurnDef.optional(),
+  /** step 12b: it shines a beam of light straight ahead */
+  /** step 12b: the hero climbs it like a ladder (vines, a ladder): walking into it, then up and down */
+  climbable: z.boolean().optional(),
+  /** step 12b: it grows a bomb to pick (its first state: grown, its second: picked) */
+  bombPlant: BombPlantDef.optional(),
+  /** step 12b: a fire effect on it, in a state or always */
+  flame: FlameDef.optional(),
+  beam: BeamDef.optional(),
+  /** step 12b: it turns a beam a quarter turn (two states, one leaning each way) */
+  mirror: MirrorDef.optional(),
+  /** step 12c: ice: a slippery floor, a block that slides on when pushed, melted by fire (or light) */
+  ice: IceDef.optional(),
+  /** step 12c: a moving platform: back and forth (or up and down), carrying what stands on it */
+  moves: MoveDef.optional(),
+  /** step 12c: with Climbing: anything (Project settings), the hero cannot climb it (smooth stone) */
+  noClimb: z.boolean().optional(),
+  /** step 12c-2: it blows wind straight ahead (a fan), in a state or always */
+  wind: WindDef.optional(),
+  /** step 12c-2: the hero lifts it and carries, puts down or throws it (a rock, a pot) */
+  lift: LiftDef.optional(),
+  /** step 13b: the hook line and the grapple rope catch on it (a hook target, a ring, a beam); wood catches anyway */
+  hook: z.boolean().optional(),
+  /** step 13b: it is metal: the magnet glove lifts it (a loose one), and it is heavy (sinks in water) */
+  metal: z.boolean().optional(),
+  /** step 13c: unseen until looked at through the Lens of Truth (still solid: an invisible platform, a hidden chest) */
+  hidden: z.boolean().optional(),
+  /** Milestone 3b (B1): behaviour scripts every copy of this asset runs, with their field values */
+  scripts: ScriptAttachments.optional(),
+  /** step 13c: looks solid but is not (a fake wall or floor: walked or fallen through); the Lens shows it see-through */
+  fake: z.boolean().optional(),
   generator: z
     .strictObject({ environments: z.array(z.enum(BIOMES)), weight: z.number().min(0).max(1), placeOn: z.string() })
     .nullable(),

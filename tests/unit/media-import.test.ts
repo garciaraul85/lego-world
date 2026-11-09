@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ref } from '../../src/builtin/audio';
 import { CommandBus, registerAll } from '../../src/core/commands';
 import { builtinMediaRef, sha256, sha256Sync } from '../../src/core/media/hash';
-import { importMedia, MAX_FILE_BYTES } from '../../src/core/media/import';
+import { importMedia, MAX_BYTES } from '../../src/core/media/import';
 import { packProject, unpackMedia, unpackProject } from '../../src/core/project/archive';
 import { Autosave } from '../../src/core/project/autosave';
 import { MemoryBackend } from '../../src/core/project/backend';
@@ -33,7 +33,7 @@ describe('Media import (P5.2)', () => {
     expect(r.entry).toMatchObject({ kind: 'audio', mime: 'audio/ogg', duration: 1.25, channels: 2 });
     expect(r.warnings[0]).toMatch(/iPhone/);
     expect((await importMedia('a.exe', enc('x'), { index: undefined })).ok).toBe(false);
-    expect((await importMedia('a.wav', new Uint8Array(MAX_FILE_BYTES + 1), { index: undefined })).ok).toBe(false);
+    expect((await importMedia('a.wav', new Uint8Array(MAX_BYTES.audio + 1), { index: undefined })).ok).toBe(false);
     const bad = await importMedia('a.wav', enc('x'), {
       index: undefined,
       decode: () => Promise.reject(new Error('no')),
@@ -87,7 +87,7 @@ describe('Media import (P5.2)', () => {
       { source: 'user' },
     );
     expect(bus.execute({ type: 'media.remove', payload: { ref: ref0 } }, { source: 'user' }).error).toMatch(
-      /still plays/,
+      /Still used by Sound events/,
     );
   });
 });

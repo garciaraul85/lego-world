@@ -18,12 +18,14 @@ import {
   putScreen,
   registerMedia,
   removeMedia,
+  replaceMedia,
   setMixer,
   setMusicSettings,
   setMusicState,
   setSoundEvent,
+  updateMedia,
 } from './handlers/audio';
-import { deleteBodyPlan, putBodyPlan } from './handlers/bodyplans';
+import { deleteBodyPlan, makeFigure, putBodyPlan } from './handlers/bodyplans';
 import { moveBricks, paintBricks, placeBricks, removeBricks, updateBricks } from './handlers/bricks';
 import {
   createCharacter,
@@ -34,10 +36,13 @@ import {
   updateClip,
 } from './handlers/characters';
 import { deleteCinematic, putCinematic } from './handlers/cinematics';
+import { deleteCustomBrick, putCustomBrick } from './handlers/custombricks';
 import { deleteDialogue, putDialogue } from './handlers/dialogue';
 import { deleteEffect, deleteScreenEffect, putEffect, putScreenEffect } from './handlers/effects';
 import { deleteFile, putFile } from './handlers/file';
 import { connectGate, deleteGate, deleteMap, updateGate } from './handlers/gates';
+import { deleteHairStyle, putHairStyle } from './handlers/hairstyles';
+import { applyHudStyle } from './handlers/hud';
 import { addItem, removeItem, setMapAudio, updateItem } from './handlers/items';
 import {
   addNode,
@@ -59,7 +64,9 @@ import {
   removeSpawn,
   removeZone,
   renameMap,
+  setDungeon,
   setEnvironment,
+  setMapLook,
   updateProject,
   updateSpawn,
   updateZone,
@@ -67,6 +74,14 @@ import {
 import { placeNpc, removeNpc } from './handlers/npcs';
 import { putProgress } from './handlers/progress';
 import { scatterAsset } from './handlers/scatter';
+import {
+  attachBuiltin,
+  attachScript,
+  detachBuiltin,
+  detachScript,
+  setBuiltinField,
+  setScriptField,
+} from './handlers/scripts';
 
 /** Every command type the engine knows. Append-only: add new handlers at the end. */
 export function registerAll(bus: CommandBus): CommandBus {
@@ -75,6 +90,10 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('bricks.move', moveBricks);
   bus.register('bricks.paint', paintBricks);
   bus.register('map.setEnvironment', setEnvironment);
+  bus.register('map.setDungeon', setDungeon);
+  bus.register('map.setLook', setMapLook);
+  // Milestone 3b (B7b)
+  bus.register('hud.applyStyle', applyHudStyle);
   bus.register('file.put', putFile);
   bus.register('file.delete', deleteFile);
   bus.register('map.generate', generateTerrain);
@@ -100,7 +119,12 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('dialogue.put', putDialogue);
   bus.register('dialogue.delete', deleteDialogue);
   bus.register('bodyplan.put', putBodyPlan);
+  bus.register('figure.make', makeFigure);
   bus.register('bodyplan.delete', deleteBodyPlan);
+  bus.register('hairstyle.put', putHairStyle);
+  bus.register('hairstyle.delete', deleteHairStyle);
+  bus.register('brick.put', putCustomBrick);
+  bus.register('brick.delete', deleteCustomBrick);
   bus.register('effect.put', putEffect);
   bus.register('effect.delete', deleteEffect);
   bus.register('screenEffect.put', putScreenEffect);
@@ -128,6 +152,14 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('logic.disconnect', disconnect);
   bus.register('logic.setArgs', setArgs);
   bus.register('logic.setVariable', setVariable);
+  // Milestone 3b (B1): behaviours attached to assets, characters and placed copies
+  bus.register('script.attach', attachScript);
+  bus.register('script.detach', detachScript);
+  bus.register('script.setField', setScriptField);
+  // Milestone 3b (B3): built-in behaviours on assets
+  bus.register('builtin.attach', attachBuiltin);
+  bus.register('builtin.detach', detachBuiltin);
+  bus.register('builtin.setField', setBuiltinField);
   bus.register('map.addZone', addZone);
   bus.register('map.updateZone', updateZone);
   bus.register('map.removeZone', removeZone);
@@ -139,6 +171,8 @@ export function registerAll(bus: CommandBus): CommandBus {
   bus.register('art.put', putArt);
   bus.register('art.delete', deleteArt);
   bus.register('media.remove', removeMedia);
+  bus.register('media.update', updateMedia);
+  bus.register('media.replace', replaceMedia);
   bus.register('screen.put', putScreen);
   bus.register('screen.delete', deleteScreen);
   bus.register('item.add', addItem);

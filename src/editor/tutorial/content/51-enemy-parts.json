@@ -1,0 +1,193 @@
+{
+  "id": "enemyParts",
+  "title": "Enemy parts course",
+  "steps": [
+    {
+      "id": "pt.place",
+      "title": "Abilities are parts",
+      "body": "An enemy's brain decides what to do; its parts do it. Senses notice the hero (Eyes, Ears, AllSeeing), a Mover gets it about (Walker, Wings, Static; a pop-up's Hider, a spider's Thread), an Attack strikes (Swing, Bite, Pounce, Spit, Shot, Ray, Breath, Swoop, Drop). Swap one and the same brain fights another way. Here Rattlebones gets wings and spits from the air. First, place Rattlebones from the Starter pack.",
+      "task": "Place Rattlebones.",
+      "target": "[data-tour=\"dock\"]",
+      "check": {
+        "kind": "state",
+        "test": "npcCount",
+        "args": "Rattlebones:1"
+      },
+      "doItForMe": [
+        {
+          "ui": "workspace",
+          "value": "Scene"
+        },
+        {
+          "fn": "packPlaceAt",
+          "args": {
+            "slug": "rattlebones",
+            "ahead": 9
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "pt.read",
+      "title": "Read about Attack",
+      "body": "In Logic, under Built-in › Parts, press Attack. It is an interface: it lists the parts that fill it and the hooks every attack answers (canAttack, attackPower). Each part (Spit, Swing…) extends it.",
+      "task": "Open Logic › Built-in › Attack.",
+      "target": "[data-tour=\"builtin-list\"]",
+      "check": {
+        "kind": "state",
+        "test": "builtinOpen",
+        "args": "Attack"
+      },
+      "doItForMe": [
+        {
+          "fn": "openBuiltin",
+          "args": {
+            "name": "Attack"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "right",
+      "workspace": "Logic"
+    },
+    {
+      "id": "pt.attack",
+      "title": "Swap its attack",
+      "body": "In Characters, open Rattlebones' Behaviour tab. Its Swing row holds Attack's swap list: choose Spit. A close fighter can strike another way, or spit or shoot from a few studs away.",
+      "task": "Swap Rattlebones' attack for a Spit.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterBuiltinField",
+        "args": "Rattlebones,Attack,attack,Spit"
+      },
+      "doItForMe": [
+        {
+          "fn": "setCharacterBuiltinField",
+          "args": {
+            "character": "Rattlebones",
+            "name": "Attack",
+            "field": "attack",
+            "value": "Spit"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "pt.mover",
+      "title": "Give it wings",
+      "body": "In its Walker row, swap the Mover part for Wings. Its Knight brain still circles and strikes; the wings carry it.",
+      "task": "Swap Rattlebones' mover for Wings.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterBuiltinField",
+        "args": "Rattlebones,Mover,mover,Wings"
+      },
+      "doItForMe": [
+        {
+          "fn": "setCharacterBuiltinField",
+          "args": {
+            "character": "Rattlebones",
+            "name": "Mover",
+            "field": "mover",
+            "value": "Wings"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "pt.extend",
+      "title": "Extend the part",
+      "body": "A part is a built-in like any other. In Logic, Built-in › Parts › Spit, press Extend and write attackPower: say so in the Console each time it spits, and keep the engine's power (super). Then attach My Spit to Rattlebones (Characters › Behaviour › + Script).",
+      "task": "Extend Spit and attach it to Rattlebones.",
+      "target": "[data-tour=\"char-behaviours\"]",
+      "check": {
+        "kind": "state",
+        "test": "characterHasBehaviour",
+        "args": "Rattlebones,My Spit"
+      },
+      "doItForMe": [
+        {
+          "fn": "extendBuiltinNamed",
+          "args": {
+            "name": "Spit"
+          }
+        },
+        {
+          "fn": "writeBehaviour",
+          "args": {
+            "behaviour": "My Spit",
+            "code": [
+              "class $NAME extends Spit {",
+              "  attackPower(e) {",
+              "    log(\"Ptoo! A spit from the sky\");",
+              "    return super.attackPower(e);",
+              "  }",
+              "}"
+            ]
+          }
+        },
+        {
+          "fn": "attachToCharacter",
+          "args": {
+            "behaviour": "My Spit",
+            "character": "Rattlebones"
+          }
+        }
+      ],
+      "how": [],
+      "placement": "left",
+      "workspace": "Characters"
+    },
+    {
+      "id": "pt.play",
+      "title": "From the sky",
+      "body": "Press Play and stand back. Rattlebones flies over, circles at a distance and spits; the Console says Ptoo! each time. Block with your shield.",
+      "task": "Press Play and watch it spit.",
+      "target": "[data-tour=\"play\"]",
+      "check": {
+        "kind": "state",
+        "test": "playLogged",
+        "args": "Ptoo"
+      },
+      "doItForMe": [
+        {
+          "fn": "playIfStopped"
+        },
+        {
+          "fn": "waitLogged",
+          "args": {
+            "until": "Ptoo",
+            "seconds": 15,
+            "watch": 2
+          }
+        }
+      ],
+      "how": [],
+      "placement": "top"
+    },
+    {
+      "id": "pt.done",
+      "title": "Done!",
+      "body": "Ears make a blind guard you can sneak past (walk, don't run), Static keeps a sentry at its post, an attack part's Hurt reaction makes a gentle swing that knocks the hero down. Every part can be extended: class NightEyes extends Eyes { canSee(e) { … } }.",
+      "task": "Press Finish.",
+      "target": "[data-tour=\"menu-help\"]",
+      "check": {
+        "kind": "manual"
+      },
+      "doItForMe": [],
+      "how": [],
+      "placement": "bottom",
+      "workspace": "Scene"
+    }
+  ]
+}

@@ -18,6 +18,7 @@ export type SaveWorld = {
   instances: {
     inst: { id: string; asset: string; pos: [number, number, number]; rot: number; idBase: number };
     def: Asset;
+    bricks?: unknown;
     state: string;
     anim?: unknown;
   }[];
@@ -55,6 +56,14 @@ export interface SaveHost {
   chunkOf(p: LegacyPiece): string;
   /** P27 part 3d: what becomes of a broken thing (by one of its bricks) */
   breakMode?(p: LegacyPiece | undefined): { mode: Cleanup; after: number };
+  /** step 12a: a push block put where the save found it */
+  moveInstance?(o: SaveWorld['instances'][number], pos: [number, number, number]): void;
+  /** step 12a: each dungeon's keys, map and compass */
+  readonly puzzles?: { capture(): NonNullable<SaveGame['dungeons']>; restore(d: SaveGame['dungeons']): void };
+  /** Milestone 3b (B7a-1): what the maps remember (where the hero has been, pins, bosses beaten) */
+  readonly mapTrack?: { capture(): NonNullable<SaveGame['mapNotes']>; restore(d: SaveGame['mapNotes']): void };
+  /** Milestone 3b (B7a-2): the quest log */
+  readonly quests?: { capture(): SaveGame['quests']; restore(d: SaveGame['quests']): void };
 }
 
 const near = (a: number, b: number) => Math.abs(a - b) < 0.01;
@@ -83,6 +92,9 @@ export function captureMap(w: SaveWorld): MapSave {
   for (const n of w.npcs)
     npcs[String(n.id)] = { x: n.state.x, y: n.state.y, z: n.state.z, heading: Number(n.state.heading ?? 0) };
   const alive = new Set(w.npcs.map((n) => n.id));
+  // step 12a: where the push blocks stand
+  const moved: Record<string, [number, number, number]> = {};
+  for (const i of w.instances) if (i.def.push) moved[i.inst.id] = [i.inst.pos[0], i.inst.pos[1], i.inst.pos[2]];
   return {
     states,
     removed,
@@ -93,8 +105,20 @@ export function captureMap(w: SaveWorld): MapSave {
     npcs,
     npcsGone: w.start.npcs.filter((id) => !alive.has(id)),
     ...(w.goneIds?.length ? { gone: [...w.goneIds] } : {}),
+    ...(Object.keys(moved).length ? { moved } : {}),
   };
 }
+
+const dungeonsOf = (h: SaveHost) => {
+  const d = h.puzzles?.capture();
+  const m = h.mapTrack?.capture();
+  const q = h.quests?.capture();
+  return {
+    ...(q ? { quests: q } : {}),
+    ...(d && Object.keys(d).length ? { dungeons: d } : {}),
+    ...(m && Object.keys(m).length ? { mapNotes: m } : {}),
+  };
+};
 
 /** The whole game as it stands now, ready to keep in a slot. */
 export function captureSave(h: SaveHost, slot: number): SaveGame {
@@ -127,6 +151,7 @@ export function captureSave(h: SaveHost, slot: number): SaveGame {
     health,
     seen: [...h.cine.seen],
     maps,
+    ...dungeonsOf(h),
   };
 }
 
@@ -153,6 +178,13 @@ export function restoreMap(h: SaveHost, w: SaveWorld, m: MapSave): number {
       if (!w.instances.some((i) => i.inst.id === id)) continue;
       h.despawn(id);
       if (w.instances.some((i) => i.inst.id === id)) skipped++;
+    }
+    // step 12a: push blocks where they were moved
+    for (const [id, pos] of Object.entries(m.moved ?? {})) {
+      const inst = w.instances.find((i) => i.inst.id === id);
+      if (!inst || !h.moveInstance) continue;
+      const p = inst.inst.pos;
+      if (p[0] !== pos[0] || p[1] !== pos[1] || p[2] !== pos[2]) h.moveInstance(inst, pos as [number, number, number]);
     }
     for (const [id, state] of Object.entries(m.states)) {
       const inst = w.instances.find((i) => i.inst.id === id);
@@ -259,6 +291,9 @@ export function applySave(h: SaveHost, save: SaveGame): LoadResult {
   h.world = h.loadWorld(map);
   h.inventory.clear();
   for (const [k, v] of Object.entries(save.inventory)) h.inventory.set(k, v);
+  h.puzzles?.restore(save.dungeons);
+  h.mapTrack?.restore(save.mapNotes);
+  h.quests?.restore(save.quests);
   h.logic.vars.clear();
   for (const [k, v] of Object.entries(save.vars)) h.logic.vars.set(k, v);
   h.health.clear();

@@ -47,6 +47,40 @@
           },
           {
             "type": "button",
+            "id": "map",
+            "label": "Map",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "map"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "quests",
+            "label": "Quests",
+            "showIf": "quests.any",
+            "onPress": [
+              {
+                "do": "game",
+                "op": "quests"
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "items",
+            "label": "Items",
+            "onPress": [
+              {
+                "do": "showScreen",
+                "screen": "scr_items00000"
+              }
+            ]
+          },
+          {
+            "type": "button",
             "id": "save",
             "label": "Save game",
             "showIf": "save.canSave",

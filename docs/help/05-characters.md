@@ -10,6 +10,27 @@ Start from one of v68's presets (New character from a preset). The copy is yours
 
 Change hair, face, outfit, colors and gear in the properties; the preview updates at once and each change is one undo step. Each choice (Hat, Hair, Shirt…) is a button with a small picture of what the character wears now: click it and a panel of pictures opens, showing your character wearing each option (a close-up of the head for hats and hair, of the legs for pants and shoes). Click a picture to wear it. Colors are color boxes.
 
+## Body shape
+
+The old studio's body shaping is in **Look**, in the section **Body shape**. For a **Female** body, the chest: **Breast mode** (**Sculpted**, shaped in 3D; **Printed**, drawn on the torso; or **Comic**), **Breast shape** (Rounded, Natural, Angular, Teardrop, Wide, Compact, Perky, Pointy) and **Breast size** (0 to 150). For any body: **Nipple style**, size and colour, **Butt shape** (Rounded, Athletic, Wide, Compact, Pear) and **Butt size** (0 to 100). The **Neckline** (Closed, V-neck, Scoop, Sweetheart, Keyhole, Asymmetric), its depth and width are under **Outfit**. Drag a slider and the preview follows at once; letting go keeps it, one undo step. [Shape and draw course](action:help.shape)
+
+## Custom hair
+
+When the **Hair** list has nothing right, make hair of your own. In **Look**, under **Hair color**, press **✂ Make custom hair**: it starts from the hair the character has, and its Hair choice then says **Custom**. Take any hat off to see it (**Take the hat off**).
+
+- **Start from**: 16 hairstyles to begin with (long waves, curtain bangs, a blunt bob, a high ponytail, space buns, a top knot, two braids, a viking, big curls, an afro puff, punk, spiky, a pompadour, a wizard beard, a lumberjack, buzz and chops).
+- **Top** (Smooth, Spiky, Curly, Afro, Mohawk, Quiff, Slicked back, Shaved), **Fringe** (Straight, Swept, Curtain), **Tied** (Ponytail, High ponytail, Pigtails, Bun, Top knot, Two buns, Braid, Two braids) and **Beard** (Short, Full, Long, Braided, Mutton chops): each a picture of this character wearing it.
+- **Parting** (None, Left, Middle, Right), and the sliders **Length** (from the ears to the waist; long hair falls over the shoulders), **Volume**, **Tie length** and **Beard length**. Drag one and the preview follows; letting go keeps it, one undo step.
+- The **tips** (ombré, dyed ends), the **band** and the **beard** can have colours of their own; the hair's main colour is **Hair color**.
+
+**💾 Save to My library** keeps the hairstyle in the game, with its colour and a name. On any character, pick it under **My library** (shown above ✂ Make custom hair too): each character gets its own copy, so changing one never changes another. **Update** changes the library's hairstyle; **Remove from library** takes it out (characters wearing it keep theirs).
+
+Custom hair takes drawings (the **Draw** tab's Hair part) and squashes under a hat like the built-in hair. **Play in v68** shows the nearest v68 hairstyle. From a picture makes custom hair too ("space buns", "a high ponytail with red ribbons", "a braided beard", "long hair with blue tips"). [Custom hair course](action:help.hair)
+
+## Drawing on the figure
+
+The **Draw** tab draws on the figure, as the old studio's paint did: faces, freckles, tattoos, logos, patterns, a printed shirt. Pick a **Part** (head, hair, hat, torso, dress, arms, hands, legs, feet, glasses, back gear, cape, scarf, held item) and a **Side** (Front, Back, Left, Right, Top, Bottom — left and right as you look at its front); the preview turns to that side. On round parts like the head, the Front's drawing covers the whole face, skin and all. The square shows the side with the part's own look under the drawing. Draw with the **Pen**, rub out with the **Eraser** (the part's own look shows again), **Fill** a joined area of one colour, or **Pick** a colour off the figure; choose the **Colour** and **Size**. **Put a picture on this side** stretches a PNG, JPEG or WebP over it. Every stroke shows on the figure as you draw and is one undo step (**Undo stroke** or Ctrl+Z); **Clear this side** wipes the side. Drawing on a part the figure doesn't wear (a hat, a cape, glasses…) puts one on. Parts with a drawing are marked ✎. Wearing an outfit, drawings go into the outfit. The prints that **Bring your look** makes from a photo are drawings too: touch them up here.
+
 ## The player character
 
 One character is the hero the player controls. Make player character (or Project tab › Hero) picks it. Other characters are neighbours the hero can talk to (T).
@@ -19,9 +40,25 @@ One character is the hero the player controls. Make player character (or Project
 
 A character that lives on a map as a neighbour can be harmed only when **Can be harmed** is on (Character properties › Health). Then it has hit points, armour and what each kind of hit does, like an object, and at zero it leaves the play, leaves an item and sends an event. Villagers have it off: hits do nothing to them.
 
+Its **weaknesses**, like a Zelda enemy's:
+
+- **Hits by type** — slash (swords), blunt (hammers), pierce (arrows), fire, explosive (bombs), electric, light (light arrows, a mirror's beam), ice and stun (a boomerang, a flash): each normal, weak ×2, half or immune. A stun does no damage of its own.
+- **Hits by side** — front, back, side and above (a plunge): normal, weak ×2, half or **blocks**. A skeleton knight's shield blocks in front; a spider's soft back takes double. A blocked hit clangs, and the message says where to hit instead.
+- **Stunned by** — kinds of hit that stop it for a moment (and for how many seconds). A stunned foe stands still and can be hit freely.
+- **Loot** — up to six more things it may leave at zero, each with its chance. A **heart** heals the hero at once.
+
 ## Fights the hero
 
 **Make enemy** turns a neighbour into a foe: pick Grunt (3 hits, slow swings), Brute (tough, armoured, hits hard) or Swift (fragile and fast). It switches on Can be harmed with that health and fills in how it fights: **Hits for** (hearts per swing), **Reach**, **Sees the hero within**, **Walking speed**, **Seconds between swings** and **Warning before a swing**. In Play it wanders until it sees the hero, walks over, raises its arm with a red “!” over its head, then swings. Guard (hold Q) to block from the front, raise the guard just before the swing to parry it (it is stunned), or dodge-roll (C). × stops it fighting.
+
+How it senses and decides:
+
+- **Sees this wide** — 360° sees all round; 120° only in front, so the hero can sneak past behind it.
+- **Hears the hero within** — running or fighting this close is heard even out of sight.
+- **Wits** — **Simple** repeats its pattern; **Smart** steps back after each swing and waits for an opening; **Pack** calls the enemies within 12 studs when it sees the hero.
+- **Kind of fighter** — Melee, Knight, Turret, Shooter, Pop-up, Flyer, Swarm, Ambusher, Ghost, Pack hunter or Boss. Each fights its own way in play (see Play › Enemies): a pop-up hides and spits shots you can bounce back, a turret fires a beam, a flyer swoops, an ambusher drops from its thread, a ghost fades out, a pack circles and strikes one at a time, a knight counters. A Boss for now walks over and swings.
+
+The "!", its health bar and lock-on follow its size: a spider boss is hit from further away, a hovering bat at its height.
 
 ## Animation clips
 
@@ -53,14 +90,16 @@ Every character is in one **state** at a time, and the clip set for that state p
 
 1. **Hurt** for a moment after a hit (**Hurt shows for**, 0.45 s at first),
 2. **Attack** while it swings or strikes,
-3. **Jump** while its feet are off the ground,
-4. **Run** when it moves at **Runs from** studs a second or faster (the hero walks at 4 and runs at 7.8),
-5. **Walk** when it moves slower,
-6. **Idle** when it stands (the hero waits a moment first).
+3. **Swim** while it moves in deep water, **Tread water** while it stays still there,
+4. **Climb** while it climbs onto a ledge, **Ladder** while it climbs a ladder or vines, **Lift**, **Throw** and **Put down** while it picks a bomb up over its head, throws it or sets it down, **Pick up** while it bends down for something off the floor (a branch, a key), **Carry** and **Hold up** while it walks or stands holding it up, **Push** while it leans into a push block (or shoves a mirror round), **Pull** while it holds one to pull it (or tugs a mirror back),
+5. **Jump** while its feet are off the ground,
+6. **Run** when it moves at **Runs from** studs a second or faster (the hero walks at 4 and runs at 7.8),
+7. **Walk** when it moves slower,
+8. **Idle** when it stands (the hero waits a moment first).
 
-A state with **Built-in motion** shows the engine's own movement. Clips crossfade into each other; Hurt, Attack and Jump play their clip once each time, the others loop. With **Walk and run clips keep up with the speed** the walk and run clips play faster or slower with the speed, so the feet match the ground. **Use the built-in moves** fills the empty states with Walk, Run, Jump, Swing, Flinch and Breathe. **Try it** pretends a speed, a jump, an attack or a hit and lights the state that wins, playing its clip on the figure.
+A state with **Built-in motion** shows the engine's own movement. Clips crossfade into each other; Hurt, Attack, Jump, Climb, Lift, Throw, Put down and Pick up play their clip once each time, the others loop. With **Walk and run clips keep up with the speed** the walk and run clips play faster or slower with the speed, so the feet match the ground. **Use the built-in moves** fills the empty states with Walk, Run, Jump, Swing, Flinch, Breathe, Swim, Tread water, Climb, Ladder, Lift, Throw, Put down, Pick up, Carry, Hold up, Push and Pull. Swimming, climbing (a ledge, a ladder or vines), pushing and pulling, picking up, carrying, throwing and putting down a bomb, and picking something up off the floor always have a move: with no clip set, the built-in one plays. **Try it** pretends a speed, a jump, an attack or a hit and lights the state that wins, playing its clip on the figure.
 
-The hero, neighbours and enemies all use their own character's states. A creature with a body plan has its own movement for each state: it walks when it moves, **strikes** (lunges with its head and jaw) when it attacks and **flinches** when it is hit; **Strike** and **Flinch** on the Body tab show them.
+The hero, neighbours and enemies all use their own character's states. A creature with a body plan has its own movement for each state: it walks when it moves, **strikes** (lunges with its head and jaw) when it attacks and **flinches** when it is hit; the Body tab's moves show them (with all its other moves).
 
 ## The character sheet
 
@@ -93,6 +132,20 @@ The sliders (Size, Leg length, Neck, Tail length, Wing span, Head size, Build) c
 
 **Custom…** (the last card) makes a body of your own: pick the skeleton to **Start from** (any family) and press **Make my body**. The bones show at once, ready to add, move and remove. **Skeleton**: **✏️ Edit the skeleton** turns the family into a **body plan** of your own, kept in the game, that any character can wear. Click a bone to change its name, the bone it hangs from, its role, its joint (x right, y up, z forward), its **swing** (how far it moves, in degrees) and **phase** (legs with the same phase step together). **+ Bone on …** adds a bone under the picked one, **+ Brick on …** gives it bricks, **Remove** passes its bones and bricks to its parent. **Moves by** (Walk, Fly, Swim, Slither, Hop), **Stride** and **Hover** are for the whole body. [Creatures course](action:help.bodies)
 
+**Moves.** Every body — a family's, one of your own, or a figure made from words or a picture — gets the moves its parts can do, listed under the preview: anything with a head **Roars** (or **Shouts**) and **Charges**; its strike is a **Bite** with a jaw, a **Punch** with arms, a **Headbutt** with only a head; a tail **swipes**, legs **stomp**, wings **flap** and **glide**, arms **wave**, tentacles and arms **grab**, and everything can **spin**, **dance** and **sleep**. Press one to see it. In Play the strike and the **flinch** come by themselves when it fights; logic starts the rest with **Do a move** (Characters: who and which move; a body that can't do that move skips it).
+
+**Shapes, see-through and glow.** A body brick can be a box or a shape — round, dome, cone, slope, inverted slope, curve, arch or wedge — turned a quarter at a time (⟳). **Solid** goes from 100% down to 15% for a ghost, and **Glows** draws it at full brightness, even in the dark (eyes, embers, a lantern).
+
+**The engine's bodies.** The starter pack's creatures — the Gloomweaver spider, Threadback, the Flitterwing bat, Cinderjaw, the Watcher Eye, Pebblespout, Lanternwisp and Glim — are body plans that come with the engine. They are listed with the families. Any character can wear one as it is; the first change you make to one gives that character its own copy.
+
+### Extra parts on a minifig
+
+A minifig can have **Extra parts**: bricks on its joints (torso, hips, head, arms, hands, legs, shins, feet), such as a tail on the hips, a snout, ears or horns on the head, fins on the arms, or claws on the hands. They move with it, and it keeps its clips, faces, outfits and what it holds. That is how the starter pack's wolf-man and fish-folk are made. In the **Body** tab of a minifig in your game, pick a joint in **On**, press **+ Part on …**, then set the part like any body brick. **Brick size** makes all the parts smaller than real bricks so they fit a minifig (half a stud by default).
+
+### Paint and sculpt a creature
+
+In the **Body** tab of a creature, **Paint and sculpt** works on the creature itself, in the preview. **🎨 Paint** gives the piece you click a new look: pick any shade, or one of the body's own (main, accent, belly, eye, dark), which then follows them. **➕ Add** sticks a new piece against the side you click — a brick, plate or tile, from 1×1 to 4×4 — on the same bone, so it moves with it; a green outline shows where it goes. **➖ Remove** takes the piece you click away. The piece under the pointer is outlined; drag to turn the view. Each click is one undo step. A body that follows the sliders becomes a body plan of its own the first time (the sliders no longer change it). A body wearing a build from the Asset studio is changed there. [Creatures course](action:help.bodies)
+
 ## Faces for moods
 
 The **Face** tab shows a minifig's resting face (head shape, eyes and their colour, expression, face marks, facial hair and glasses) and a picture of its face for each mood: **Happy**, **Angry**, **Sad**, **Scared** and **Surprised**. Click a mood to see it on the preview and change its **Expression** and **Eyes**; **Default** puts it back. Dialogue lines have a mood (in a script: Tom (angry): Who left the gate open?): in Play the speaker shows that face on its figure and in the dialogue box's portrait, which is now the speaker's own head.
@@ -101,13 +154,25 @@ The **Face** tab shows a minifig's resting face (head shape, eyes and their colo
 
 When a minifig says a line its mouth moves with the words: closed for m, b and p and between words, wide open for a and o, half open for the other letters, and closed again when the line has appeared. It talks on its figure in Play, in the dialogue box's portrait, in the conversation preview and in cinematics, with the face of the line's mood. **▶ Hear it talk** on the Face tab shows a mood's face talking. Creatures with a body plan have no mouth to move.
 
-## A character from a picture
+## A character from a picture (or words) — anything at all
 
-**✨ From a picture…** (under + New character, or Assets › New character from a picture…) turns a photo, a drawing or a few words into three characters to pick from, closest first, each listing what its parts matched. With the AI builder set up, Claude looks at the picture; it only chooses settings the editor has — a body family with its sliders and colours, or the minifig's parts and colours — so **Use this one** gives an ordinary character you can keep changing, and Undo removes it. Without the AI builder the words pick the kind and the parts ("a queen with a sword and a long red scarf", "a little orange fox") and the picture gives the main colours.
+**✨ From a picture…** (under + New character, or Assets › New character from a picture…) turns a photo, a drawing or a few words into three characters to pick from, closest first, each listing what its parts matched. **Use this one** gives an ordinary character you can keep changing; **Use and place on the map** also stands it on the open map in front of the start. One Undo removes it.
 
-The picture stays on this device: it is sent to Claude only when you press **Create**, and it is never saved in the game. Only use photos of yourself or of people who agreed; a famous character becomes an original character in brick style, not a copy. [Faces and pictures course](action:help.faces)
+- **A person** ("a queen with a sword and a long red scarf") is made with v68's own body and outfit choices: hair, hat, face, glasses, shirt, trousers or dress, shoes, gloves, back gear, cape, scarf, held item and their colours. With a photo, v68's **Bring your look** colours each part (skin, hair, shirt, trousers, shoes) from where it is in the picture, and — if you tick **Print** — prints the face and clothes from the photo on the figure.
+- **An animal** ("a little orange fox", "a green owl") is a body family with its sliders and colours.
+- **Anything else, however wild** ("a walking teapot", "a three-headed robot snake", "an octopus chef", "a giant red T-rex", "a long-neck sauropod") becomes a **figure of its own**: a body plan with its own bones and bricks — heads, eyes, legs, arms, tentacles, wings, a tail, wheels, horns, a long neck, a spout or a crown — that walks, flies, swims, slithers or hops. Count things in the words (three-headed, six legs, four eyes, eight tentacles) and say colours and sizes (giant, tiny). It opens in the Body tab; change it bone by bone in the skeleton editor.
+
+- **Body shape and drawings**: a person's build comes from the words or picture too ("curvy", "athletic", "slim", "a deep V-neck"), and so do drawings on the figure: "a red star on her left cheek", "freckles", "a scar on his chin", "number 7 on his back", "a shirt that says BOSS", "a heart tattoo on both arms". They are drawn into the **Draw** tab, where you can change them. Left and right are the figure's own.
+
+With the AI builder set up, Claude looks at the picture and chooses; it only chooses the editor's own settings and parts. Without it, the words pick the kind and the parts, and the picture gives the colours.
+
+The same box makes **assets** and whole **maps**: choose 🏠 Asset or building or 🗺 Map at its top (see the Assets and World pages).
+
+The picture stays on this device: it goes to Claude only when you press Create, and it is never saved in the game unless you tick **Print**. Only use photos of yourself or of people who agreed; a famous character becomes an original one in brick style. [Faces and pictures course](action:help.faces) — it makes an owl and a walking teapot.
 
 Every body family also has eight **presets** (Dog, Cat, Horse, Wolf… Parrot, Owl… Shark, Clownfish…) under its description in the Body tab.
+
+**🔍 Preview** on a match (or a click on its picture) shows it big before anything is added: drag to turn it, scroll to zoom, Turntable to spin it, and try moves (Wave, Cheer, Spin attack, Jump attack, Roll) — a creature walks. **Use this one** from there adds it; **◀ Back to the matches** or Escape goes back.
 
 ## Dialogue: what characters say
 

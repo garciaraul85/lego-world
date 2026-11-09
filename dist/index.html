@@ -1315,6 +1315,13 @@ function mul(a,b){const o=new Float32Array(16);for(let c=0;c<4;c++)for(let r=0;r
 function matrix(x=0,y=0,z=0,ry=0,rx=0,rz=0,scale=1){const cy=Math.cos(ry),sy=Math.sin(ry),cx=Math.cos(rx),sx=Math.sin(rx),cz=Math.cos(rz),sz=Math.sin(rz);const t=I();t[12]=x;t[13]=y;t[14]=z;const Y=new Float32Array([cy,0,-sy,0,0,1,0,0,sy,0,cy,0,0,0,0,1]),X=new Float32Array([1,0,0,0,0,cx,sx,0,0,-sx,cx,0,0,0,0,1]),Z=new Float32Array([cz,sz,0,0,-sz,cz,0,0,0,0,1,0,0,0,0,1]);const o=mul(mul(mul(t,Y),X),Z);for(let c=0;c<3;c++)for(let r=0;r<3;r++)o[c*4+r]*=scale;return o;}
 const norm=v=>{const l=Math.hypot(...v)||1;return v.map(x=>x/l);},rgb=hex=>[1,3,5].map(i=>Math.pow(parseInt(hex.slice(i,i+2),16)/255,1.5));
 const pivots={root:[0,0,0],hips:[0,1.78,0],head:[0,3.23,0],leftLeg:[-.39,1.78,0],rightLeg:[.39,1.78,0],leftShin:[-.39,1.035,0],rightShin:[.39,1.035,0],leftFoot:[-.39,.50,0],rightFoot:[.39,.50,0],leftArm:[-.95,2.88,0],rightArm:[.95,2.88,0],leftForearm:[-1.08,2.55,.025],rightForearm:[1.08,2.55,.025]};
+// Step 12b: arms of human proportion (upper arm about 0.19 of the height, forearm and hand about 0.25: the fingertips
+// reach mid-thigh hanging, and above the head raised; Drillis & Contini). The toy arms were about two thirds as long:
+// they are built as before, then stretched along their length (ARM_UP above the elbow, ARM_DOWN below it).
+const ARM_UP=2.0,ARM_DOWN=1.55,SHOULDER_Y=2.88,ELBOW_Y0=2.55,ELBOW_Y=SHOULDER_Y-(SHOULDER_Y-ELBOW_Y0)*ARM_UP,HAND_Y0=ELBOW_Y0-.61;
+pivots.leftForearm[1]=pivots.rightForearm[1]=ELBOW_Y;
+const stretchArmY=y=>y>=SHOULDER_Y?y:y>=ELBOW_Y0?SHOULDER_Y-(SHOULDER_Y-y)*ARM_UP:ELBOW_Y-(ELBOW_Y0-y)*ARM_DOWN;
+const ARM_JOINTS=new Set(['leftArm','rightArm','leftForearm','rightForearm']);
 const parents={leftShin:'leftLeg',rightShin:'rightLeg',leftFoot:'leftShin',rightFoot:'rightShin',leftForearm:'leftArm',rightForearm:'rightArm'};
 const clamp01=v=>Math.max(0,Math.min(1,v));
 const smooth=v=>{v=clamp01(v);return v*v*(3-2*v);};
@@ -1457,7 +1464,7 @@ function freeJointPose(state={},neutral=false,profile=null){
    pose[foot]=blendBone(pose[foot],planted,build);pose[foot].set(transform(pose[shin],sub(pivots[foot],pivots[shin])),12);
    // Alternating scoop, reach and press; bend the elbows instead of flapping
    // rigid arms. Work in front of the waist, with the torso following each hand.
-   const arm=side<0?'leftArm':'rightArm',forearm=side<0?'leftForearm':'rightForearm',cycle=workPhase+(side>0?Math.PI:0),grip=[side*.02,-.61,.06],target=transform(world,[side*(.78+.06*Math.cos(cycle)),2.24+.17*Math.sin(cycle),.70+.19*Math.cos(cycle)]),arms=solveLimb(transform(root,pivots[arm]),target,sub(pivots[forearm],pivots[arm]),grip,[0,-1,0],right);
+   const arm=side<0?'leftArm':'rightArm',forearm=side<0?'leftForearm':'rightForearm',cycle=workPhase+(side>0?Math.PI:0),grip=[side*.02,-.61*ARM_DOWN,.06],target=transform(world,[side*(.78+.06*Math.cos(cycle)),2.24+.17*Math.sin(cycle),.70+.19*Math.cos(cycle)]),arms=solveLimb(transform(root,pivots[arm]),target,sub(pivots[forearm],pivots[arm]),grip,[0,-1,0],right);
    pose[arm]=blendBone(pose[arm],arms[0],build);pose[forearm]=blendBone(pose[forearm],arms[1],build);pose[forearm].set(transform(pose[arm],sub(pivots[forearm],pivots[arm])),12);
   }
   pose.head=mul(root,matrix(...pivots.head,-(hipTurn+chestTurn)*.8,.10*build));
@@ -1551,10 +1558,12 @@ function combatMotion(s,w){
  const dip={magazine:.55,cylinder:.35,shells:.20,ramrod:-.90,powder:-.30}[w.reloadStyle]??.55,roll={magazine:-.06,cylinder:-.24,shells:.16,ramrod:-.08,powder:-.18}[w.reloadStyle]??-.06;
  return {t,swing:0,recoil,load,reload,yaw:0,pitch:-recoil*(.11+(1-w.brace)*.09)+dip*load,roll:roll*load};
 }
-const weaponGrip=[.02,-.61,.315];
-const handGrip=side=>[-side*.03,-.61,.06];
+const weaponGrip=[.02,-.61*ARM_DOWN,.315];
+const handGrip=side=>[-side*.03,-.61*ARM_DOWN,.06];
 const weaponBuild=s=>s.attack>0||s.reload>0?0:smooth(s.buildBlend??(s.building?1:0));
-function weaponArmLengths(w,profile=null,side=1){
+// step 12b: the stretch weapons give was for the toy arms; the longer arms need less (never shorter than they are)
+function weaponArmLengths(w,profile=null,side=1){const l=weaponArmLengthsToy(w,profile,side);return [Math.max(1,l[0]/ARM_UP),Math.max(1,l[1]/ARM_DOWN)];}
+function weaponArmLengthsToy(w,profile=null,side=1){
  if(w.armLengths){const wide=profile?.cape==='Poncho'||profile?.outfit==='Dress'&&['Ball gown','Wedding'].includes(profile.dress),chest=profile?.gender==='Female'&&!['Printed','Comic'].includes(profile.breastMode)?(profile.breastSize||0)/100:0;return w.armLengths.map((v,k)=>v+(wide?.20:0)+chest*(k?.25:.35));}
  if(w.style==='fire')return [2.35+(profile?.gender==='Female'&&!['Printed','Comic'].includes(profile.breastMode)?(profile.breastSize||0)/100*.45:0),1.60+(profile?.gender==='Female'&&!['Printed','Comic'].includes(profile.breastMode)?(profile.breastSize||0)/100*.18:0)];
  return w.twoHand?[1.50,1.55]:[1.15,1.12];
@@ -1581,7 +1590,7 @@ function weaponHandMatrix(pose,s,w,profile){
  return mul(frame,mul(matrix(0,0,0,0,wrist),matrix(...handGrip(1).map(v=>-v))));
 }
 function handDrivenTool(pose,s,w,profile){return mul(weaponHandMatrix(pose,s,w,profile),mul(matrix(...handGrip(1),0,Math.PI/2),matrix(...weaponGrip.map(v=>-v))));}
-function toolMatrix(hand,s,w,m){return mul(matrix(...hand,(s.heading||0)+m.yaw,m.pitch,m.roll),matrix(...[1.10,1.94,.34].map((v,k)=>pivots.rightForearm[k]-v)));}
+function toolMatrix(hand,s,w,m){return mul(matrix(...hand,(s.heading||0)+m.yaw,m.pitch,m.roll),matrix(...[1.10,stretchArmY(1.94),.34].map((v,k)=>pivots.rightForearm[k]-v)));}
 function combatPose(pose,s,w,profile=null){
  const m=combatMotion(s,w),world=matrix(s.x,s.y,s.z,s.heading),fire=w.style==='fire',twoHand=w.twoHand||fire&&w.long,turn=twoHand?Math.max(-.25,Math.min(.25,fire?.25:m.hip+m.chest)):fire?-.10:m.hip+m.chest,crouch=fire?m.recoil*.016:m.crouch;
  const oldHips=pose.hips,spine=w.fullBodyRig?relativeTransform(oldHips,pose.root):null;
@@ -1665,7 +1674,7 @@ function heldPose(pose,state,profile,neutral=false){
  const arm=pose.rightForearm;if(neutral||!state.attack||!['Hammer','Sword','Wrench','Shovel','Wand'].includes(profile.held))return arm;
  const t=clamp01(1-state.attack/.52),a=hitPose(t),root=pose.root;
  const armY=[arm[4],arm[5],arm[6]],up=armY.reduce((v,x,k)=>v+x*root[4+k],0),forward=armY.reduce((v,x,k)=>v+x*root[8+k],0);
- const tilt=Math.atan2(forward,up),wrist=(a[9]-tilt)*attackWeight(t),grip=[1.10,1.94,.34].map((v,k)=>v-pivots.rightForearm[k]);
+ const tilt=Math.atan2(forward,up),wrist=(a[9]-tilt)*attackWeight(t),grip=[1.10,stretchArmY(1.94),.34].map((v,k)=>v-pivots.rightForearm[k]);
  return mul(arm,mul(matrix(...grip,0,wrist),matrix(...grip.map(v=>-v))));
 }
 function strikePoints(profile,state){const w=GameWeapons.get(profile.held),pose=jointPose(state,false,profile),held=scaledMatrix(heldPose(pose,state,profile),state,profile);return [w.tip*(w.edge?.24:.65),w.tip].map(y=>transform(held,[.02,-.61+y,.315]));}
@@ -1686,7 +1695,7 @@ function create(gl,fragment,onDirty=()=>{}){
  function jointColor(color){return '#'+[1,3,5].map(i=>Math.round(parseInt(color.slice(i,i+2),16)*.86).toString(16).padStart(2,'0')).join('');}
  // Split every clothing/print triangle at the hinge, keeping its original UV face.
  // Lower arms and legs then follow their parent bone instead of rotating as one stick.
- function rigGeometry(){const result=new Map(),children={leftLeg:'leftShin',rightLeg:'rightShin',leftArm:'leftForearm',rightArm:'rightForearm'};const emit=(g,joint,polygon,uvNormal)=>{const key=g.variant+'|'+joint+'|'+g.color+'|'+g.slot+'|'+g.locked;if(!result.has(key))result.set(key,{...g,joint,v:[],n:[],uvNormals:[]});const out=result.get(key),pivot=pivots[joint];for(let i=1;i<polygon.length-1;i++){for(const point of [polygon[0],polygon[i],polygon[i+1]]){out.v.push(...point.p.map((v,k)=>v-pivot[k]));out.n.push(...point.n);}out.uvNormals.push(uvNormal);}};const clip=(polygon,y,upper)=>{const output=[];for(let i=0;i<polygon.length;i++){const a=polygon[i],b=polygon[(i+1)%polygon.length],inside=v=>upper?v.p[1]>=y:v.p[1]<=y,ai=inside(a),bi=inside(b);if(ai)output.push(a);if(ai!==bi){const t=(y-a.p[1])/(b.p[1]-a.p[1]);output.push({p:a.p.map((v,k)=>v+(b.p[k]-v)*t),n:norm(a.n.map((v,k)=>v+(b.n[k]-v)*t))});}}return output;};for(const g of geometry.values()){const child=children[g.joint],pivot=pivots[g.joint];for(let i=0;i<g.v.length;i+=9){const polygon=[0,1,2].map(j=>({p:g.v.slice(i+j*3,i+j*3+3).map((v,k)=>v+pivot[k]),n:g.n.slice(i+j*3,i+j*3+3)})),uvNormal=g.uvNormals[i/9];if(!child||g.locked){emit(g,g.joint,polygon,uvNormal);continue;}if(g.slot==='held'||g.slot.endsWith('Hand')||g.slot.endsWith('Foot')){emit(g,g.slot.endsWith('Foot')?g.slot:child,polygon,uvNormal);continue;}const y=pivots[child][1],ys=polygon.map(v=>v.p[1]);if(Math.min(...ys)>=y)emit(g,g.joint,polygon,uvNormal);else if(Math.max(...ys)<=y)emit(g,child,polygon,uvNormal);else{emit(g,g.joint,clip(polygon,y,true),uvNormal);emit(g,child,clip(polygon,y,false),uvNormal);}}}geometry=result;}
+ function rigGeometry(){const result=new Map(),children={leftLeg:'leftShin',rightLeg:'rightShin',leftArm:'leftForearm',rightArm:'rightForearm'};const emit=(g,joint,polygon,uvNormal)=>{const key=g.variant+'|'+joint+'|'+g.color+'|'+g.slot+'|'+g.locked;if(!result.has(key))result.set(key,{...g,joint,v:[],n:[],uvNormals:[]});const out=result.get(key),pivot=pivots[joint];for(let i=1;i<polygon.length-1;i++){for(const point of [polygon[0],polygon[i],polygon[i+1]]){out.v.push(...point.p.map((v,k)=>v-pivot[k]));out.n.push(...point.n);}out.uvNormals.push(uvNormal);}};const clip=(polygon,y,upper)=>{const output=[];for(let i=0;i<polygon.length;i++){const a=polygon[i],b=polygon[(i+1)%polygon.length],inside=v=>upper?v.p[1]>=y:v.p[1]<=y,ai=inside(a),bi=inside(b);if(ai)output.push(a);if(ai!==bi){const t=(y-a.p[1])/(b.p[1]-a.p[1]);output.push({p:a.p.map((v,k)=>v+(b.p[k]-v)*t),n:norm(a.n.map((v,k)=>v+(b.n[k]-v)*t))});}}return output;};for(const g of geometry.values()){const child=children[g.joint],pivot=pivots[g.joint];for(let i=0;i<g.v.length;i+=9){const polygon=[0,1,2].map(j=>({p:g.v.slice(i+j*3,i+j*3+3).map((v,k)=>v+pivot[k]),n:g.n.slice(i+j*3,i+j*3+3)})),uvNormal=g.uvNormals[i/9];if(ARM_JOINTS.has(g.joint)){if(g.slot==='held'||g.slot.endsWith('Hand')){const dy=stretchArmY(HAND_Y0)-HAND_Y0;for(const q of polygon)q.p[1]+=dy;}else for(const q of polygon)q.p[1]=stretchArmY(Math.max(q.p[1],HAND_Y0))+Math.min(0,q.p[1]-HAND_Y0);}if(!child||g.locked){emit(g,g.joint,polygon,uvNormal);continue;}if(g.slot==='held'||g.slot.endsWith('Hand')||g.slot.endsWith('Foot')){emit(g,g.slot.endsWith('Foot')?g.slot:child,polygon,uvNormal);continue;}const y=pivots[child][1],ys=polygon.map(v=>v.p[1]);if(Math.min(...ys)>=y)emit(g,g.joint,polygon,uvNormal);else if(Math.max(...ys)<=y)emit(g,child,polygon,uvNormal);else{emit(g,g.joint,clip(polygon,y,true),uvNormal);emit(g,child,clip(polygon,y,false),uvNormal);}}}geometry=result;}
  function bustRelief(p,x,y,printed=false){
   if(p?.gender!=='Female'||p.breastSize<=0)return 0;
   const shape=p.breastShape,cy={Natural:2.70,Teardrop:2.65,Compact:2.79,Perky:2.86,Pointy:2.77}[shape]||2.75,cx={Wide:.39,Compact:.30,Perky:.33,Pointy:.35}[shape]||.34;

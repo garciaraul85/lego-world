@@ -1,6 +1,9 @@
 import type { Signal } from '@preact/signals';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
-import { LEGACY_COLORS } from '../../core/legacy/constants';
+import type { Bindable } from '../../core/controls/controls';
+import { mediaCredits } from '../../core/media/uses';
+import { type MediaIndex, paths } from '../../core/schema';
+import { drawMini } from '../../engine/maps/draw';
 import type { PlayRenderer } from '../../engine/runtime/play-renderer';
 import type { PlaySession } from '../../engine/runtime/session';
 import { artUrl, fontCss } from '../../engine/ui/art';
@@ -11,6 +14,8 @@ import { type ScreenHost, ScreenLayer } from '../../engine/ui/ScreenRenderer';
 import { projectPoint, WorldUI } from '../../engine/ui/WorldUI';
 import { MapThumb } from '../components/previews';
 import type { EditorState } from '../state';
+import { MapScreen } from './MapScreen';
+import { QuestLog } from './QuestLog';
 
 /**
  * The game's screens (HUD, title, pause, dialogue, game over…) and world UI over the Play view
@@ -34,11 +39,29 @@ export function GameScreens({
     const mini = minimapDrawer(s);
     return {
       lookup: s.lookup,
+      look: ed.store.manifest.uiLook,
       run: (actions) => s.uiActions.run(actions, s.uiClock),
       sound: (id) => s.audio.play(id),
       pressed: (screen, widget) => s.screenButton(screen, widget),
       text: (screen, widget) => s.screenText.get(`${screen}:${widget}`),
       media: (ref) => ed.media?.url(ref),
+      credits: () => mediaCredits(ed.store.get<MediaIndex>(paths.media)),
+      // step 11b part 1: the game's buttons, the item menu and the player's keys
+      buttons: () => s.buttonViews(),
+      items: () => s.itemViews(),
+      slots: () => s.slotViews(),
+      equip: (slot, item) => s.equip(slot, item),
+      bindings: () => s.bindingViews(),
+      // Milestone 3b (B7b): the HUD style, GameHud's decisions, the second screen's touched items
+      hudStyle: () => s.hudStyle(),
+      shown: (screen, widget) => s.hudShows(screen, widget),
+      hudText: (screen, widget, text) => s.hudText(screen, widget, text),
+      tap: (b) => {
+        s.buttons.press(b as Bindable);
+        setTimeout(() => s.buttons.release(b as Bindable), 90);
+      },
+      rebind: (id, key) => s.rebind(id, key),
+      resetBindings: () => s.resetBindings(),
       art: (id) => artUrl(ed.store, ed.media, id),
       font: (ref) => fontCss(ed.store, ed.media, ref),
       minimap: mini,
@@ -89,7 +112,13 @@ export function GameScreens({
   return (
     <>
       {/* P23 part 2: the map's mood and screen effects, under the world UI and screens */}
-      <ScreenFxOverlay mood={s.mood} layers={s.screenFx.layers()} lowHealth={s.lowHealth()} clock={s.clock} />
+      <ScreenFxOverlay
+        mood={s.mood}
+        layers={s.screenFx.layers()}
+        lowHealth={s.lowHealth()}
+        clock={s.clock}
+        lens={s.lens.amount}
+      />
       <div ref={worldRef} class="bw-world-layer" aria-hidden="true" hidden={!!cine?.cin.hideHud} />
       {cine && s.cine.frame && (
         <CinematicOverlay post={s.cine.frame.post} skippable={cine.cin.skippable} onSkip={() => s.cine.skip()} />
@@ -114,72 +143,28 @@ export function GameScreens({
         />
       )}
       {s.loading && <LoadingScreen ed={ed} s={s} />}
+      {s.mapOpen && <MapScreen s={s} tick={t} />}
+      {s.questsOpen && <QuestLog s={s} tick={t} />}
     </>
   );
 }
 
-/** Top-down map of the current world: bricks cached per world/damage, hero and neighbours live. */
+/**
+ * Milestone 3b (B7a-1): the map in play (the HUD's Minimap widget): drawn in the game's look for it (Project ›
+ * Maps: square, round with a compass ring, grid of screens, or none)
+ */
 function minimapDrawer(s: PlaySession) {
-  let cache: { key: string; img: HTMLCanvasElement; x0: number; z0: number; k: number } | null = null;
   return (canvas: HTMLCanvasElement) => {
-    const w = s.world;
-    // P27 part 3: a big map's minimap shows the window around the hero
-    const src = w.big ? w.controller.pieces : w.pieces;
-    const key = `${w.mapId}:${w.pieces.length}:${w.brokenSerial}:${w.windowAt ?? ''}`;
-    const W = canvas.width;
-    if (!cache || cache.key !== key) {
-      let x0 = Infinity;
-      let x1 = -Infinity;
-      let z0 = Infinity;
-      let z1 = -Infinity;
-      for (const p of src) {
-        x0 = Math.min(x0, p.x);
-        x1 = Math.max(x1, p.x + 2);
-        z0 = Math.min(z0, p.z);
-        z1 = Math.max(z1, p.z + 2);
-      }
-      if (!Number.isFinite(x0)) [x0, x1, z0, z1] = [-16, 16, -16, 16];
-      const k = W / Math.max(8, x1 - x0, z1 - z0);
-      const img = document.createElement('canvas');
-      img.width = W;
-      img.height = W;
-      const g = img.getContext('2d');
-      if (g) {
-        g.fillStyle = '#0b1020';
-        g.fillRect(0, 0, W, W);
-        const top = new Map<string, { y: number; c: number }>();
-        for (const p of src) {
-          const kk = `${Math.floor(p.x)},${Math.floor(p.z)}`;
-          const cur = top.get(kk);
-          if (!cur || p.y >= cur.y) top.set(kk, { y: p.y, c: p.color });
-        }
-        for (const [kk, v] of top) {
-          const [x, z] = kk.split(',').map(Number) as [number, number];
-          g.fillStyle = LEGACY_COLORS[v.c]?.[1] ?? '#888';
-          g.fillRect((x - x0) * k, (z - z0) * k, Math.max(1, k * 2), Math.max(1, k * 2));
-        }
-      }
-      cache = { key, img, x0, z0, k };
+    const { mini } = s.mapLooks();
+    const size = mini.size;
+    if (canvas.width !== size) {
+      canvas.width = size;
+      canvas.height = size;
     }
+    canvas.style.display = mini.type === 'off' ? 'none' : '';
     const g = canvas.getContext('2d');
-    if (!g) return;
-    g.drawImage(cache.img, 0, 0);
-    g.fillStyle = '#ffffff';
-    for (const n of w.npcs) {
-      g.fillRect((n.state.x - cache.x0) * cache.k - 1.5, (n.state.z - cache.z0) * cache.k - 1.5, 3, 3);
-    }
-    const h = s.heroState;
-    const hx = (h.x - cache.x0) * cache.k;
-    const hz = (h.z - cache.z0) * cache.k;
-    g.fillStyle = '#f7c900';
-    g.beginPath();
-    g.arc(hx, hz, 4, 0, Math.PI * 2);
-    g.fill();
-    g.strokeStyle = '#f7c900';
-    g.beginPath();
-    g.moveTo(hx, hz);
-    g.lineTo(hx + Math.sin(h.heading) * 9, hz + Math.cos(h.heading) * 9);
-    g.stroke();
+    if (!g || mini.type === 'off') return;
+    drawMini(g, size, s.mapModel(), mini, s.camYaw, s.clock);
   };
 }
 
@@ -191,6 +176,8 @@ export const LOADING_TIPS = [
   'Shift runs. Space jumps.',
   'Talk to people with T: they may have something for you.',
   'The minimap shows the area around you.',
+  'M opens the map: put down pins and stamps where you want to go back to.',
+  'J opens the quest log: track a quest to see where to go next on the maps.',
 ];
 
 /** P27 part 3c: the built-in loading screen: where you are going, a tip, its picture and real progress */

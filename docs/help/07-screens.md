@@ -10,6 +10,14 @@ Edit a built-in and the project keeps its own copy; Reset brings the original ba
 
 The Add cards show a small preview of each widget: click one to add it, or drag it onto the screen where you want it. The tree on the left is also the order keyboard and gamepad focus follow.
 
+## Video and Credits
+
+A **Video** widget plays an imported clip (.mp4 or .webm; Import a video… in its properties): an intro, a story scene, or a moving background with **Loop**. **Sound** plays its sound (some browsers wait for the first click and play it silent until then), **Click or Enter skips it** lets players end it early, and **Show it whole** keeps the whole picture with black bars. **When it ends** runs actions: show the title screen, close this screen, set a value.
+
+Files from File › Media library drag straight onto the screen: a picture onto an image widget, a button or a background, a video onto the screen (a Video widget is made), a sound onto a button.
+
+A **Credits** widget shows your own lines (who made the game, thanks), then every imported file with a credit: its name, who made it and its licence. Set those in File › Media library.
+
 ## Move and size on the screen
 
 Like assets in the 3D view: the selected widget gets a box. Drag inside it to move, drag one of the 8 handles to size it. Edges and centres snap to other widgets and to the screen (pink guide lines), otherwise to an 8 px grid; hold Alt for no snapping. Arrow keys nudge by 1 (Shift: 8). Each drag is one undo step.
@@ -31,6 +39,10 @@ A button's actions run when it is pressed: show or hide a screen, play a cinemat
 Screens are laid out at 1280×720 and scaled to fit; tall (portrait) screens use 720×1280. Anchors keep a widget on its edge. Pick a device or type a Custom size, and Rotate to see it held upright; the hatched strips are safe areas (notches, rounded corners).
 
 While upright, moves, sizes, anchors and styles you change only apply to tall screens (the portrait layout); Use the normal layout forgets them. Check all sizes shows the screen on every device both ways and lists anything off screen, under a notch, overlapping or cut off; click a problem to jump to it.
+
+## Screen look
+
+**Screen look** (Project tab, or the Starter pack's Look and sound) dresses every screen at once. **Classic** uses each widget's own colours. **Adventure** turns panels into parchment with a gold and wood frame, gives buttons a gold frame, text a storybook font and the hearts a framed box. Places and texts stay the same, and the Screens workspace shows the look too.
 
 ## Colours
 
